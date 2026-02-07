@@ -144,7 +144,7 @@ export function QuestionInput({
         </button>
       </div>
       {wordCount > 0 && (
-        <div className="flex items-center justify-between text-[0.7rem] text-muted/90">
+        <div className="flex items-center justify-between text-2xs text-muted/90">
           <span>{wordCount} {wordLabel}</span>
           <span>Aim for 8-30 words</span>
         </div>
@@ -161,7 +161,7 @@ export function QuestionInput({
               <span>{qualityLevel.label}</span>
             </span>
           </div>
-          <p className="text-[0.7rem] text-secondary/80 mt-1">{qualityHelperText}</p>
+          <p className="text-2xs text-secondary/80 mt-1">{qualityHelperText}</p>
         </div>
       )}
       {!trimmedQuestion && (
@@ -173,7 +173,7 @@ export function QuestionInput({
                 key={example}
                 type="button"
                 onClick={() => setUserQuestion(example)}
-                className="min-h-touch rounded-full border border-secondary/30 bg-surface/40 px-3 py-1.5 text-[0.7rem] text-secondary transition hover:border-accent/50 hover:text-main"
+                className="min-h-touch rounded-full border border-secondary/30 bg-surface/40 px-3 py-1.5 text-2xs text-secondary transition hover:border-accent/50 hover:text-main"
               >
                 {example.length > 40 ? `${example.slice(0, 40)}...` : example}
               </button>

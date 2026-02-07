@@ -697,7 +697,7 @@ export function SpreadTable({
           <div
             className={`
               absolute -top-2 -left-2 rounded-full border px-2 py-1
-              text-[0.65rem] font-semibold tracking-wide shadow-lg
+              text-2xs font-semibold tracking-wide shadow-lg
               ${isRevealed ? 'bg-secondary/80 border-secondary/60 text-main' : 'bg-primary/80 border-primary/60 text-main'}
             `}
             aria-hidden="true"
@@ -765,7 +765,7 @@ export function SpreadTable({
                   scaleKeyframes={[1, 1, 1]}
                   reducedOpacity={0.5}
                 />
-                <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.6rem] xs:text-[0.65rem] sm:text-xs'} text-muted text-center px-1 leading-tight`}>
+                <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-xs'} text-muted text-center px-1 leading-tight`}>
                   {isNext ? MICROCOPY.revealPosition(shortLabel) : shortLabel}
                 </span>
               </button>
@@ -863,7 +863,7 @@ export function SpreadTable({
                           }}
                         />
                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1">
-                          <span className={`${compact ? 'text-[0.5rem] xs:text-[0.55rem]' : 'text-[0.55rem] xs:text-[0.6rem] sm:text-[0.65rem]'} text-main font-semibold leading-tight block truncate`}>
+                          <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-2xs'} text-main font-semibold leading-tight block truncate`}>
                             {displayCard.name.replace(/^The /, '')}
                           </span>
                         </div>
@@ -902,12 +902,12 @@ export function SpreadTable({
                         <CardBack className="w-full h-full tarot-card-back--muted" />
                         <div className="absolute inset-0 pointer-events-none flex items-end justify-end p-1.5">
                           {showRevealPill ? (
-                            <span className={`${compact ? 'text-[0.55rem] xs:text-[0.6rem]' : 'text-[0.65rem] xs:text-[0.7rem] sm:text-xs-plus'} inline-flex items-center gap-1 rounded-full bg-main/85 text-main font-semibold px-2.5 py-1 shadow-lg border border-primary/30`}>
+                            <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-xs-plus'} inline-flex items-center gap-1 rounded-full bg-main/85 text-main font-semibold px-2.5 py-1 shadow-lg border border-primary/30`}>
                               <HandTap className="w-3.5 h-3.5" weight="fill" />
                               {MICROCOPY.tapToReveal}
                             </span>
                           ) : showGlowHint ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-main/70 text-primary/80 text-[0.6rem] sm:text-[0.65rem] font-semibold px-2 py-1 border border-primary/25 shadow-[0_0_12px_var(--primary-30)]">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-main/70 text-primary/80 text-2xs sm:text-2xs font-semibold px-2 py-1 border border-primary/25 shadow-[0_0_12px_var(--primary-30)]">
                               {MICROCOPY.cardReady}
                             </span>
                           ) : null}
@@ -924,7 +924,7 @@ export function SpreadTable({
 
       {/* Spread name indicator */}
       <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2">
-        <span className={`${compact ? 'text-[0.6rem] px-2.5 py-1' : 'text-xs px-3 py-1'} text-muted/70 bg-surface/60 rounded-full border border-accent/10`}>
+        <span className={`${compact ? 'text-2xs px-2.5 py-1' : 'text-xs px-3 py-1'} text-muted/70 bg-surface/60 rounded-full border border-accent/10`}>
           {spreadInfo?.tag || spreadKey}
         </span>
       </div>
@@ -939,7 +939,7 @@ export function SpreadTable({
               return (
                 <span
                   key={`legend-${i}`}
-                  className="inline-flex items-center gap-1.5 text-[0.65rem] sm:text-[0.7rem] text-muted bg-surface/70 border border-secondary/30 rounded-full px-2.5 py-1"
+                  className="inline-flex items-center gap-1.5 text-2xs sm:text-2xs text-muted bg-surface/70 border border-secondary/30 rounded-full px-2.5 py-1"
                 >
                   <span className="w-5 h-5 rounded-full bg-primary/20 text-primary font-semibold flex items-center justify-center border border-primary/40">
                     {i + 1}
@@ -1042,11 +1042,11 @@ export function SpreadTableCompact({
         const content = (
           <>
             {card && isRevealed ? (
-              <span className="text-[0.5rem] xs:text-[0.55rem] text-secondary font-bold">
+              <span className="text-2xs xs:text-2xs text-secondary font-bold">
                 {card.name.charAt(0)}
               </span>
             ) : card ? (
-              <span className="text-[0.5rem] xs:text-[0.55rem] text-primary">?</span>
+              <span className="text-2xs xs:text-2xs text-primary">?</span>
             ) : null}
           </>
         );

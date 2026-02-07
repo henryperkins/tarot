@@ -330,7 +330,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
                 >
                   <span className="block text-sm font-semibold">{option.label}</span>
                   <span
-                    className={`block text-[0.65rem] ${
+                    className={`block text-2xs ${
                       isSelected ? 'text-surface/80' : 'text-muted'
                     }`}
                   >
@@ -373,7 +373,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
                 >
                   <span className="block text-sm font-semibold">{option.label}</span>
                   <span
-                    className={`block text-[0.65rem] ${
+                    className={`block text-2xs ${
                       isSelected ? 'text-surface/80' : 'text-muted'
                     }`}
                   >

@@ -86,7 +86,7 @@ export const CadenceChart = memo(function CadenceChart({
             dataKey="shortLabel"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: 'rgb(var(--brand-primary-rgb) / 0.6)', fontSize: 10 }}
+            tick={{ fill: 'rgb(var(--brand-primary-rgb) / 0.6)', fontSize: 12 }}
             interval={0}
           />
           <YAxis hide domain={[0, maxCount + 1]} />

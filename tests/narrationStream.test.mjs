@@ -4,7 +4,8 @@ import { describe, it } from 'node:test';
 import {
   findNarrationBreakIndex,
   shouldFlushNarrationBuffer,
-  shouldScheduleAutoNarration
+  shouldScheduleAutoNarration,
+  STREAM_AUTO_NARRATE_DEBOUNCE_MS
 } from '../src/lib/narrationStream.js';
 
 describe('narration stream chunking', () => {
@@ -24,6 +25,16 @@ describe('narration stream chunking', () => {
     const cutIndex = findNarrationBreakIndex(text, 45, { minChars: 20 });
 
     assert.ok(cutIndex > 3, 'cut should not stop after "Dr."');
+  });
+
+  it('can look ahead briefly for punctuation to avoid mid-sentence cuts', () => {
+    const text = 'The opening thread keeps unfolding through symbols and mirrored positions while your focus follows one breath after another and the pattern keeps widening toward a complete thought that resolves just beyond the hard limit before a natural stop appears.';
+    const cutIndex = findNarrationBreakIndex(text, 180, { minChars: 120 });
+    const chunk = text.slice(0, cutIndex);
+
+    assert.ok(cutIndex > 180, 'cut should extend past hard cap when punctuation is nearby');
+    assert.ok(cutIndex <= 260, 'lookahead should stay bounded');
+    assert.ok(chunk.endsWith('.'));
   });
 
   it('allows the first chunk to flush early when a natural stop appears', () => {
@@ -61,6 +72,10 @@ describe('narration stream chunking', () => {
 });
 
 describe('auto-narration debounce scheduling', () => {
+  it('uses the unified 900ms auto-narration debounce', () => {
+    assert.equal(STREAM_AUTO_NARRATE_DEBOUNCE_MS, 900);
+  });
+
   const baseOptions = {
     voiceOn: true,
     autoNarrate: true,

@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { MotionConfig } from 'framer-motion';
 import './styles/tailwind.css';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { SubscriptionProvider } from './contexts/SubscriptionContext.jsx';
@@ -83,22 +82,20 @@ if (typeof window !== 'undefined') {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <MotionConfig reducedMotion="user">
-      <AuthProvider>
-        <SubscriptionProvider>
-          <PreferencesProvider>
-            <ReadingProvider>
-              <ToastProvider>
-                <BrowserRouter>
-                  <SkipLink />
-                  <AnimatedRoutes />
-                </BrowserRouter>
-              </ToastProvider>
-            </ReadingProvider>
-          </PreferencesProvider>
-        </SubscriptionProvider>
-      </AuthProvider>
-    </MotionConfig>
+    <AuthProvider>
+      <SubscriptionProvider>
+        <PreferencesProvider>
+          <ReadingProvider>
+            <ToastProvider>
+              <BrowserRouter>
+                <SkipLink />
+                <AnimatedRoutes />
+              </BrowserRouter>
+            </ToastProvider>
+          </ReadingProvider>
+        </PreferencesProvider>
+      </SubscriptionProvider>
+    </AuthProvider>
   </React.StrictMode>
 );
 

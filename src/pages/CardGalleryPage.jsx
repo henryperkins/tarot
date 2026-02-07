@@ -120,7 +120,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
           className={`h-full w-full object-cover transition-opacity duration-[var(--duration-slow)] ${isFound ? 'opacity-90 group-hover:opacity-100' : 'opacity-30'}`}
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_top,color-mix(in_srgb,var(--bg-main)_82%,transparent),transparent,color-mix(in_srgb,var(--bg-main)_40%,transparent))]" />
       </div>
 
       {/* Content Overlay */}
@@ -487,7 +487,7 @@ export default function CardGalleryPage() {
                 <span>Progress</span>
                 <span>{totalFound} / {deckSize}</span>
               </div>
-              <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+              <div className="h-2 rounded-full overflow-hidden border border-[color:var(--border-warm-subtle)] bg-[color:var(--border-warm-subtle)]">
                 <div
                   className="h-full bg-gradient-to-r from-[color:var(--brand-primary)] to-[color:var(--brand-accent)] transition-[width] duration-[var(--duration-slow)] ease-[var(--ease-out)]"
                   style={{ width: `${progressPercent}%` }}
@@ -514,7 +514,7 @@ export default function CardGalleryPage() {
         )}
 
         {/* Toolbar */}
-        <div className="sticky top-4 z-20 mb-6 p-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/5 flex flex-wrap gap-2 items-center">
+        <div className="sticky top-4 z-20 mb-6 p-1 rounded-xl bg-[color:color-mix(in_srgb,var(--bg-main)_72%,transparent)] backdrop-blur-md border border-[color:var(--border-warm-subtle)] flex flex-wrap gap-2 items-center">
           {/* Suit Filter */}
           <div className="relative group">
             <label htmlFor="suit-filter" className="sr-only">Filter by suit</label>
@@ -523,7 +523,7 @@ export default function CardGalleryPage() {
               aria-label="Filter by suit"
               value={filterSuit}
               onChange={(e) => setFilterSuit(e.target.value)}
-              className="appearance-none min-h-touch bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-white/10 touch-manipulation"
+              className="appearance-none min-h-touch bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-[color:var(--border-warm-light)] touch-manipulation"
             >
               <option value="all">All Suits</option>
               <option value="major">Major Arcana</option>
@@ -537,7 +537,7 @@ export default function CardGalleryPage() {
 
           {/* Status Filter */}
           <div
-            className="flex bg-white/5 rounded-lg p-1 border border-white/10"
+            className="flex bg-[color:var(--border-warm-subtle)] rounded-lg p-1 border border-[color:var(--border-warm-light)]"
             role="group"
             aria-label="Filter by card status"
           >
@@ -574,7 +574,7 @@ export default function CardGalleryPage() {
               aria-label="Sort cards by"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none min-h-touch bg-white/5 border border-white/10 rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-white/10 touch-manipulation"
+              className="appearance-none min-h-touch bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-[color:var(--border-warm-light)] touch-manipulation"
             >
               <option value="deck">Deck Order</option>
               <option value="count_desc">Most Frequent</option>
@@ -632,7 +632,7 @@ export default function CardGalleryPage() {
               return (
                 <motion.div
                   key={i}
-                  className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse"
+                  className="aspect-[2/3] rounded-xl bg-[color:var(--border-warm-subtle)] animate-pulse"
                   variants={skeletonVariants}
                   initial="initial"
                   animate="animate"

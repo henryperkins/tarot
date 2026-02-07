@@ -70,7 +70,7 @@ export default function FollowUpDrawer({ isOpen, onClose, autoFocusInput = true 
         <div className="mobile-drawer__header px-4 pt-3 pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
-              <p className="text-[0.7rem] uppercase tracking-[0.2em] text-muted">Follow-up</p>
+              <p className="text-2xs uppercase tracking-[0.2em] text-muted">Follow-up</p>
               <h2 id={titleId} className="text-lg font-serif text-accent">Follow-up chat</h2>
               <p className="text-xs text-muted max-w-[22rem]">
                 Ask deeper questions and stay anchored to this spread.

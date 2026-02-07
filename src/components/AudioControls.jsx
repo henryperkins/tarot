@@ -84,7 +84,7 @@ export function AudioControls({ className = '' }) {
           <SpeakerHigh className="h-4 w-4" aria-hidden="true" />
           Audio Settings
         </h3>
-        <p className="mt-1 text-[0.7rem] text-muted">
+        <p className="mt-1 text-2xs text-muted">
           Voice narration, auto-play, and ambient soundscape
         </p>
       </div>
@@ -172,7 +172,7 @@ export function AudioControls({ className = '' }) {
               }`}
             >
               <span className="block font-semibold text-xs xs:text-sm">Hume AI</span>
-              <span className="block text-[0.65rem] xs:text-xs opacity-75">Expressive</span>
+              <span className="block text-2xs xs:text-xs opacity-75">Expressive</span>
             </button>
             <button
               type="button"
@@ -186,7 +186,7 @@ export function AudioControls({ className = '' }) {
               }`}
             >
               <span className="block font-semibold text-xs xs:text-sm">Azure</span>
-              <span className="block text-[0.65rem] xs:text-xs opacity-75">Clear</span>
+              <span className="block text-2xs xs:text-xs opacity-75">Clear</span>
             </button>
             <button
               type="button"
@@ -200,7 +200,7 @@ export function AudioControls({ className = '' }) {
               }`}
             >
               <span className="block font-semibold text-xs xs:text-sm">Azure SDK</span>
-              <span className="block text-[0.65rem] xs:text-xs opacity-75">Word sync</span>
+              <span className="block text-2xs xs:text-xs opacity-75">Word sync</span>
             </button>
           </div>
         </div>
@@ -240,7 +240,7 @@ export function AudioControls({ className = '' }) {
                 }`}
               >
                 <span className="block font-semibold text-xs xs:text-sm">{opt.label}</span>
-                <span className="block text-[0.65rem] xs:text-xs opacity-75">{opt.desc}</span>
+                <span className="block text-2xs xs:text-xs opacity-75">{opt.desc}</span>
               </button>
             ))}
           </div>

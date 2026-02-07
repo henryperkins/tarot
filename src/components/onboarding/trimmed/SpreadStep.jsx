@@ -102,7 +102,7 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
                 </div>
                 <h3 className="font-medium text-main text-sm">{displayName}</h3>
                 <p className="text-xs text-muted mt-0.5">{spread.tagline}</p>
-                <p className="text-[0.68rem] text-muted/80 mt-1">{cardLabel}</p>
+                <p className="text-2xs text-muted/80 mt-1">{cardLabel}</p>
                 <p className="text-xs text-accent mt-2">~{spread.time}</p>
               </button>
             );

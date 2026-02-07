@@ -96,7 +96,9 @@ export default {
         surface: 'rgb(var(--text-on-brand-rgb) / <alpha-value>)', // text color chosen for brand surfaces
       },
       fontSize: {
-        '2xs': ['0.6875rem', { lineHeight: '1.4' }], // 11px - Apple HIG minimum text size; use ONLY for non-essential, non-interactive UI labels or metadata, never for body text or interactive elements (accessibility constraint)
+        // Keep the smallest utility at 12px to avoid sub-minimum micro text in UI.
+        // On mobile, prefer `text-xs-plus` (14px) or `text-sm-mobile` (16px) for readability.
+        '2xs': ['0.75rem', { lineHeight: '1.4' }],
         'xs-plus': ['0.875rem', { lineHeight: '1.4' }], // 14px - improved mobile readability
         'sm-mobile': ['var(--text-sm-mobile)', { lineHeight: '1.5' }], // 16px - comfortable mobile body text
       },
@@ -110,7 +112,7 @@ export default {
       },
       fontFamily: {
         serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Inter', 'sans-serif']
       },
       backdropBlur: {
         xs: "2px"

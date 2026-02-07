@@ -4,7 +4,6 @@ import { getSpreadInfo } from '../data/spreads';
 import { getCardImage, getOrientationMeaning } from '../lib/cardLookup';
 import { getDrawerGradient } from '../lib/suitColors';
 import { useModalA11y } from '../hooks/useModalA11y';
-import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { SpreadTable } from './SpreadTable';
 import { getNextUnrevealedIndex, getPositionLabel } from './readingBoardUtils';
@@ -63,7 +62,7 @@ function CardDetailContent({
     ? 'w-36 xs:w-40 sm:w-44 max-w-[70%] flex-shrink-0 mx-auto'
     : 'w-24 sm:w-28 flex-shrink-0 mx-auto sm:mx-0';
   const headingWrapClass = isFocusLayout ? 'flex-1 min-w-0 text-center' : 'flex-1 min-w-0';
-  const positionClass = isFocusLayout ? 'text-[0.7rem] uppercase tracking-[0.2em] text-muted' : 'text-xs text-muted';
+  const positionClass = isFocusLayout ? 'text-2xs uppercase tracking-[0.2em] text-muted' : 'text-xs text-muted';
   const headingClass = isFocusLayout ? 'text-xl font-serif text-accent' : 'text-base font-semibold text-accent';
   const meaningClass = isFocusLayout ? 'text-base text-main/90 leading-relaxed mt-3' : 'text-sm text-main/90 mt-2';
   const meaningClampClass = isMeaningExpanded ? '' : isFocusLayout ? 'line-clamp-6' : 'line-clamp-4';
@@ -428,9 +427,9 @@ export function ReadingBoard({
   canNavigateNext,
   navigationLabel,
   revealStage = 'action',
-  narrativeMentionPulse = null
+  narrativeMentionPulse = null,
+  isHandset = false
 }) {
-  const isHandsetLayout = useHandsetLayout();
   const prefersReducedMotion = useReducedMotion();
   const spreadInfo = useMemo(() => getSpreadInfo(spreadKey), [spreadKey]);
   const nextIndex = getNextUnrevealedIndex(reading, revealedCards);
@@ -444,10 +443,10 @@ export function ReadingBoard({
   // Celtic Cross map overlay state
   const [showCelticMap, setShowCelticMap] = useState(false);
   const isCelticCross = spreadKey === 'celtic';
-  const showMapToggle = isCelticCross && isHandsetLayout;
+  const showMapToggle = isCelticCross && isHandset;
 
   // Handset: keep card sizes a bit smaller to reduce overlap (especially Celtic Cross).
-  const tableSize = isHandsetLayout ? 'default' : 'large';
+  const tableSize = isHandset ? 'default' : 'large';
   const hasSelection = Boolean(
     focusedCardData &&
     revealedCards?.has(focusedCardData.index)
@@ -484,7 +483,7 @@ export function ReadingBoard({
           {allowBoardReveal
             ? `Tap positions to reveal. ${nextLabel ? `Next: ${nextLabel}.` : 'All cards revealed.'}`
             : `Draw from the deck to place your first card.${nextLabel ? ` Next: ${nextLabel}.` : ''}`}
-          {isHandsetLayout && allowBoardReveal ? ' Tap a revealed card to focus.' : ''}
+          {isHandset && allowBoardReveal ? ' Tap a revealed card to focus.' : ''}
         </p>
         {showMapToggle && (
           <button
@@ -518,7 +517,7 @@ export function ReadingBoard({
           <CelticCrossMapOverlay onClose={() => setShowCelticMap(false)} />
         )}
       </div>
-      {!isHandsetLayout && (
+      {!isHandset && (
         <CardDetailPanel
           focusedCardData={focusedCardData}
           hasSelection={hasSelection}
@@ -527,7 +526,7 @@ export function ReadingBoard({
           onOpenModal={onOpenModal}
         />
       )}
-      {isHandsetLayout && (
+      {isHandset && (
         <CardFocusOverlay
           isOpen={hasSelection}
           onClose={onCloseDetail}

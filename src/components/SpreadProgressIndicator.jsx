@@ -112,7 +112,7 @@ export function SpreadProgressIndicator({
       )}
 
       {/* Text label for screen readers and visual context */}
-      <span className="ml-2 text-[0.65rem] text-muted/80 font-medium">
+      <span className="ml-2 text-2xs text-muted/80 font-medium">
         {revealed}/{total}
       </span>
     </div>
@@ -180,7 +180,7 @@ export function SpreadProgressBeads({
             data-bead-index={i}
             className={`
               relative group flex items-center justify-center
-              w-6 h-6 rounded-full text-[0.6rem] font-semibold
+              w-6 h-6 rounded-full text-2xs font-semibold
               transition-all duration-200
               ${filled
                 ? 'bg-secondary/90 text-main border border-secondary/60'

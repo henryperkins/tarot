@@ -12,7 +12,7 @@ const BEAT_CLASS_MAP = {
 
 const DEFAULT_BEAT_DURATION_MS = 900;
 
-export function useCinematicBeat({ reasoning, totalCards = 0, durationMs = DEFAULT_BEAT_DURATION_MS, onBeat } = {}) {
+export function useCinematicBeat({ reasoning, totalCards = 0, durationMs = DEFAULT_BEAT_DURATION_MS, onBeat, resetKey = null } = {}) {
   const [activeBeat, setActiveBeat] = useState('');
   const timeoutRef = useRef(null);
   const generationRef = useRef(0);
@@ -47,7 +47,7 @@ export function useCinematicBeat({ reasoning, totalCards = 0, durationMs = DEFAU
         timeoutRef.current = null;
       }
     };
-  }, [reasoning, totalCards]);
+  }, [resetKey]);
 
   const triggerBeat = useCallback((beatKey) => {
     if (!beatKey) return;

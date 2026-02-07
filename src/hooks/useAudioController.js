@@ -265,11 +265,63 @@ export function useAudioController() {
     finalizeTTSStream();
   }, []);
 
-  const resetNarrationStream = useCallback(() => {
-    resetTTSStream();
+  const resetNarrationStream = useCallback((options = {}) => {
+    resetTTSStream(options);
   }, []);
 
   const isNarrationStreamActive = useCallback(() => isTTSStreamActive(), []);
+
+  const pauseNarrationPlayback = useCallback(() => {
+    if (ttsProvider === 'hume' && humeAudioRef.current) {
+      try {
+        humeAudioRef.current.pause();
+      } catch {
+        // ignore pause errors
+      }
+      setHumeState({ status: 'paused', error: null });
+      setTtsAnnouncement('Narration paused.');
+      return;
+    }
+
+    if (ttsProvider === 'azure-sdk' && sdkAudioRef.current) {
+      try {
+        sdkAudioRef.current.pause();
+      } catch {
+        // ignore pause errors
+      }
+      setSdkState({ status: 'paused', error: null });
+      setTtsAnnouncement('Narration paused.');
+      return;
+    }
+
+    pauseTTS();
+  }, [ttsProvider]);
+
+  const resumeNarrationPlayback = useCallback(async () => {
+    if (ttsProvider === 'hume' && humeAudioRef.current?.audio) {
+      try {
+        await humeAudioRef.current.audio.play();
+        setHumeState({ status: 'playing', error: null });
+        setTtsAnnouncement('Resuming narration...');
+      } catch {
+        // ignore resume errors
+      }
+      return;
+    }
+
+    if (ttsProvider === 'azure-sdk' && sdkAudioRef.current) {
+      try {
+        await sdkAudioRef.current.play();
+        setSdkState({ status: 'playing', error: null });
+        setTtsAnnouncement('Resuming narration...');
+      } catch {
+        // ignore resume errors
+      }
+      return;
+    }
+
+    await resumeTTS();
+  }, [ttsProvider]);
 
   // Azure Speech SDK with word-boundary events
   const speakWithSpeechSDK = useCallback(async (text, context = 'default') => {
@@ -571,6 +623,8 @@ export function useAudioController() {
     finalizeNarrationStream,
     resetNarrationStream,
     isNarrationStreamActive,
+    pauseNarrationPlayback,
+    resumeNarrationPlayback,
     handleNarrationButtonClick,
     handleNarrationStop,
     handleVoicePromptEnable,

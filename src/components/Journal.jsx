@@ -822,14 +822,14 @@ export default function Journal() {
                   className="animate-pulse rounded-2xl border border-secondary/20 bg-surface-muted/40 ring-1 ring-primary/10 p-4 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.7)]"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="h-4 w-28 rounded-full bg-white/10" />
-                    <div className="h-9 w-9 rounded-full bg-white/10" />
+                    <div className="h-4 w-28 rounded-full bg-[color:var(--border-warm-light)]" />
+                    <div className="h-9 w-9 rounded-full bg-[color:var(--border-warm-light)]" />
                   </div>
-                  <div className="mt-3 h-3 w-3/4 rounded-full bg-white/10" />
-                  <div className="mt-2 h-3 w-5/6 rounded-full bg-white/10" />
+                  <div className="mt-3 h-3 w-3/4 rounded-full bg-[color:var(--border-warm-light)]" />
+                  <div className="mt-2 h-3 w-5/6 rounded-full bg-[color:var(--border-warm-light)]" />
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <div className="h-16 rounded-xl bg-white/5" />
-                    <div className="h-16 rounded-xl bg-white/5" />
+                    <div className="h-16 rounded-xl bg-[color:var(--border-warm-subtle)]" />
+                    <div className="h-16 rounded-xl bg-[color:var(--border-warm-subtle)]" />
                   </div>
                 </div>
               ))}

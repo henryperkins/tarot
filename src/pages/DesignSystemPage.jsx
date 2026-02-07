@@ -26,7 +26,7 @@ export default function DesignSystemPage() {
   const isLight = theme === 'light';
 
   const typographySamples = useMemo(() => ([
-    { label: '2xs (11px min)', className: 'text-2xs text-muted' },
+    { label: '2xs (12px min)', className: 'text-2xs text-muted' },
     { label: 'xs (12px)', className: 'text-xs text-muted' },
     { label: 'xs-plus (14px)', className: 'text-xs-plus text-muted-high' },
     { label: 'sm (14px)', className: 'text-sm text-main' },
@@ -195,4 +195,3 @@ export default function DesignSystemPage() {
     </div>
   );
 }
-

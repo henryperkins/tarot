@@ -1,6 +1,5 @@
-import { useCallback, useMemo, useState, useEffect, useRef, useLayoutEffect, lazy, Suspense } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { animate, set } from 'animejs';
 import { Sparkle, ArrowCounterClockwise, Star, BookmarkSimple, ChatCircle } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { NarrationProgress } from './NarrationProgress';
@@ -27,7 +26,6 @@ import { useSaveReading } from '../hooks/useSaveReading';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext.jsx';
-import { useSmallScreen, TABLET_SCREEN_MAX } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -50,6 +48,7 @@ const AtmosphericInterlude = lazy(() =>
 );
 const AnimatedReveal = lazy(() => import('./AnimatedReveal'));
 const StoryIllustration = lazy(() => import('./StoryIllustration'));
+const COLOR_SCRIPT_OWNER = 'reading-display';
 
 /**
  * Ghost card component for deck-to-slot fly animation.
@@ -76,35 +75,45 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
         onComplete?.();
     }, [onComplete]);
 
-    useLayoutEffect(() => {
+    useEffect(() => {
         const node = nodeRef.current;
         if (!node) return undefined;
 
         completedRef.current = false;
-        set(node, {
-            translateX: startX,
-            translateY: startY,
-            scaleX: 1,
-            scaleY: 1,
-            opacity: 1
-        });
+        const startTransform = `translate3d(${startX}px, ${startY}px, 0) scale(1, 1)`;
+        const endTransform = `translate3d(${endX}px, ${endY}px, 0) scale(${endScaleX * 0.95}, ${endScaleY * 0.95})`;
+        node.style.transform = startTransform;
+        node.style.opacity = '1';
 
-        const anim = animate(node, {
-            translateX: [startX, endX],
-            translateY: [startY, endY],
-            scaleX: [1, endScaleX * 0.95],
-            scaleY: [1, endScaleY * 0.95],
-            opacity: [1, 1, 0],
-            duration: durationMs,
-            ease: 'outQuad'
-        });
+        const failSafeId = window.setTimeout(complete, durationMs + 200);
+        let fallbackId = null;
+        let animation = null;
 
-        const failSafeId = window.setTimeout(complete, durationMs + 140);
-        anim.then(() => complete()).catch(() => complete());
+        if (typeof node.animate === 'function') {
+            animation = node.animate(
+                [
+                    { transform: startTransform, opacity: 1, offset: 0 },
+                    { transform: startTransform, opacity: 1, offset: 0.68 },
+                    { transform: endTransform, opacity: 0, offset: 1 }
+                ],
+                {
+                    duration: durationMs,
+                    easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)',
+                    fill: 'forwards'
+                }
+            );
+            animation.onfinish = () => complete();
+            animation.oncancel = () => complete();
+        } else {
+            fallbackId = window.setTimeout(complete, durationMs);
+        }
 
         return () => {
             window.clearTimeout(failSafeId);
-            anim?.pause?.();
+            if (fallbackId) {
+                window.clearTimeout(fallbackId);
+            }
+            animation?.cancel();
         };
     }, [startX, startY, endX, endY, endScaleX, endScaleY, complete]);
 
@@ -326,7 +335,8 @@ export function ReadingDisplay({
     const { beatClassName, notifyCardMention, notifyCompletion, notifySectionEnter, clearBeat } = useCinematicBeat({
         reasoning,
         totalCards: reading?.length ?? 0,
-        onBeat: triggerCinematicSwell
+        onBeat: triggerCinematicSwell,
+        resetKey: readingIdentity
     });
 
     // Scene orchestrator for cinematic state management
@@ -344,14 +354,15 @@ export function ReadingDisplay({
     const { shouldShowInterlude } = sceneOrchestrator;
 
     useEffect(() => {
+        const isNarrativeDeliveryActive = Boolean(isReadingStreamActive || personalReading?.isStreaming);
         const shouldClearBeat = sceneOrchestrator.currentScene === 'idle'
             || sceneOrchestrator.currentScene === 'shuffling'
             || sceneOrchestrator.currentScene === 'drawing'
-            || sceneOrchestrator.currentScene === 'interlude';
+            || (sceneOrchestrator.currentScene === 'interlude' && !isNarrativeDeliveryActive);
         if (shouldClearBeat) {
             clearBeat();
         }
-    }, [sceneOrchestrator.currentScene, clearBeat]);
+    }, [sceneOrchestrator.currentScene, isReadingStreamActive, personalReading?.isStreaming, clearBeat]);
 
     // Apply color script based on narrative arc
     const hasNarrativeSurface = Boolean(personalReading)
@@ -370,14 +381,14 @@ export function ReadingDisplay({
 
     useEffect(() => {
         if (!activeColorScript) {
-            resetColorScript();
+            resetColorScript({ owner: COLOR_SCRIPT_OWNER });
             return;
         }
 
-        applyColorScript(activeColorScript);
+        applyColorScript(activeColorScript, { owner: COLOR_SCRIPT_OWNER });
 
         return () => {
-            resetColorScript();
+            resetColorScript({ owner: COLOR_SCRIPT_OWNER });
         };
     }, [activeColorScript]);
 
@@ -429,10 +440,9 @@ export function ReadingDisplay({
         newDeckInterface,
         autoGenerateVisuals: autoGenerateVisualsEnabled
     } = useFeatureFlags();
-    const isCompactScreen = useSmallScreen(TABLET_SCREEN_MAX);
     const isLandscape = useLandscape();
     const isHandsetLayout = useHandsetLayout();
-    const isHandset = isCompactScreen || isLandscape || isHandsetLayout;
+    const isHandset = isHandsetLayout;
     const prefersReducedMotion = useReducedMotion();
     const safeSpreadKey = normalizeSpreadKey(selectedSpread);
     const spreadInfo = getSpreadInfo(safeSpreadKey);
@@ -1019,6 +1029,7 @@ export function ReadingDisplay({
                         navigationLabel={navigationData.label}
                         revealStage={revealStage}
                         narrativeMentionPulse={narrativeMentionPulse}
+                        isHandset={isHandset}
                     />
 
                     {!personalReading && !isGenerating && revealedCards.size === visibleCount && (

@@ -19,8 +19,9 @@ export const STREAM_NARRATION_MIN_WORDS = 18;
 export const STREAM_NARRATION_MIN_CHARS = 120;
 export const STREAM_NARRATION_TARGET_CHARS = 220;
 export const STREAM_NARRATION_MAX_CHARS = 300;
+export const STREAM_NARRATION_BREAK_LOOKAHEAD_CHARS = 80;
 
-export const STREAM_AUTO_NARRATE_DEBOUNCE_MS = 700;
+export const STREAM_AUTO_NARRATE_DEBOUNCE_MS = 900;
 export const STREAM_AUTO_NARRATE_MIN_WORDS = 32;
 
 export function countWords(text) {
@@ -80,6 +81,25 @@ export function findNarrationBreakIndex(text, maxIndex, { minChars = STREAM_NARR
   }
   if (strongBreak > 0) {
     return strongBreak;
+  }
+
+  // Prefer a natural sentence boundary just beyond the hard cap when possible.
+  if (safeMaxIndex < text.length) {
+    const lookaheadEnd = Math.min(text.length, safeMaxIndex + STREAM_NARRATION_BREAK_LOOKAHEAD_CHARS);
+    const lookaheadSlice = text.slice(0, lookaheadEnd);
+    const lookaheadRegex = /([.!?]["')\]]?)(?=\s|$)/g;
+    for (const match of lookaheadSlice.matchAll(lookaheadRegex)) {
+      const punctuationIndex = match.index ?? -1;
+      if (punctuationIndex < safeMaxIndex) continue;
+      if (punctuationIndex < 0) continue;
+      if (lookaheadSlice[punctuationIndex] === '.' && isLikelyAbbreviationAt(lookaheadSlice, punctuationIndex)) {
+        continue;
+      }
+      const endIndex = punctuationIndex + match[1].length;
+      if (endIndex >= safeMinChars) {
+        return endIndex;
+      }
+    }
   }
 
   let softBreak = -1;

@@ -1925,7 +1925,7 @@ export default function AccountPage() {
                   `}
                 >
                   <span className="block text-xs font-semibold">{engine.label}</span>
-                  <span className="block text-[0.65rem] opacity-75">{engine.desc}</span>
+                  <span className="block text-2xs opacity-75">{engine.desc}</span>
                 </button>
               ))}
             </div>

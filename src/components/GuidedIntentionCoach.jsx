@@ -1118,7 +1118,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                 <p className="font-medium text-main">{option.label}</p>
                 <p className="text-sm text-muted">{option.description}</p>
                 {focusAreaSuggestedTopic && option.value === focusAreaSuggestedTopic && (
-                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-accent/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-accent">
+                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-accent/15 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.2em] text-accent">
                     Based on your interests
                   </span>
                 )}
@@ -1226,7 +1226,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                           customFocusRef.current?.focus();
                         }
                       }}
-                      className="rounded-full border border-secondary/40 bg-surface/50 px-3 py-1 text-[0.65rem] uppercase tracking-[0.2em] text-secondary/80 hover:bg-secondary/10 hover:border-secondary transition"
+                      className="rounded-full border border-secondary/40 bg-surface/50 px-3 py-1 text-2xs uppercase tracking-[0.2em] text-secondary/80 hover:bg-secondary/10 hover:border-secondary transition"
                     >
                       <span className="font-bold opacity-50 mr-1">{chip.type}:</span>
                       {chip.label}
@@ -1237,7 +1237,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
 
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 {canUseAIQuestions ? (
-                  <label className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-surface/50 px-3 py-1.5 text-[0.7rem] text-secondary cursor-pointer select-none hover:bg-secondary/5 transition">
+                  <label className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-surface/50 px-3 py-1.5 text-2xs text-secondary cursor-pointer select-none hover:bg-secondary/5 transition">
                     <input
                       type="checkbox"
                       className="h-4 w-4 rounded border-secondary/60 bg-transparent text-secondary focus:ring-secondary"
@@ -1254,10 +1254,10 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                     </span>
                   </label>
                 ) : (
-                  <span className="inline-flex items-center gap-2 rounded-full border border-secondary/20 bg-surface/30 px-3 py-1.5 text-[0.7rem] text-secondary/60 select-none" title="Upgrade to Plus or Pro for AI-powered personalization">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-secondary/20 bg-surface/30 px-3 py-1.5 text-2xs text-secondary/60 select-none" title="Upgrade to Plus or Pro for AI-powered personalization">
                     <MagicWand className="h-3.5 w-3.5 opacity-50" aria-hidden="true" />
                     <span className="font-medium">AI Personalization</span>
-                    <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-accent">Plus</span>
+                    <span className="rounded bg-accent/20 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wider text-accent">Plus</span>
                   </span>
                 )}
                 <button
@@ -1268,13 +1268,13 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                     setQuestionError('');
                     setRemixCount(c => c + 1);
                   }}
-                  className="inline-flex items-center gap-1 rounded-full border border-secondary/60 bg-transparent px-3 py-1.5 text-[0.7rem] font-semibold text-secondary hover:bg-secondary/10 transition"
+                  className="inline-flex items-center gap-1 rounded-full border border-secondary/60 bg-transparent px-3 py-1.5 text-2xs font-semibold text-secondary hover:bg-secondary/10 transition"
                 >
                   <ArrowsClockwise className="h-3.5 w-3.5" aria-hidden="true" />
                   Remix
                 </button>
               </div>
-              <p className="text-[0.65rem] text-secondary/70">
+              <p className="text-2xs text-secondary/70">
                 Creative mode uses journal themes and recent questions when available.
               </p>
             </div>
@@ -1292,7 +1292,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
             )}
 
             <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-5 space-y-3 text-center">
-              <div className="flex items-center justify-center gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-secondary/80">
+              <div className="flex items-center justify-center gap-2 text-2xs uppercase tracking-[0.3em] text-secondary/80">
                 <Sparkle className="h-4 w-4 text-secondary" aria-hidden="true" />
                 Your Question
               </div>
@@ -1314,7 +1314,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                 <button
                   type="button"
                   onClick={() => setTemplatePanelOpen(true)}
-                  className="text-[0.7rem] text-secondary/80 underline decoration-secondary/40 underline-offset-4 transition hover:text-secondary"
+                  className="text-2xs text-secondary/80 underline decoration-secondary/40 underline-offset-4 transition hover:text-secondary"
                 >
                   Save as template
                 </button>
@@ -1328,7 +1328,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                     <MagicWand className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                     Astro window{astroWindowDays ? ` · ${astroWindowDays} days` : ''}
                   </span>
-                  {astroSource && <span className="text-[0.65rem] text-secondary/60">{astroSource}</span>}
+                  {astroSource && <span className="text-2xs text-secondary/60">{astroSource}</span>}
                 </div>
                 <ul className="grid gap-1 text-sm text-main text-left">
                   {astroHighlights.map((item, idx) => (
@@ -1382,9 +1382,9 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                   style={{ width: `${normalizedQualityScore}%` }}
                 />
               </div>
-              <p className="text-[0.7rem] text-secondary/80">{qualityHelperText}</p>
+              <p className="text-2xs text-secondary/80">{qualityHelperText}</p>
               {qualityHighlights.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-2 text-[0.6rem] uppercase tracking-[0.3em] text-secondary/60">
+                <div className="flex flex-wrap justify-center gap-2 text-2xs uppercase tracking-[0.3em] text-secondary/60">
                   {qualityHighlights.map(label => (
                     <span
                       key={label}
@@ -1519,7 +1519,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                           : `${personalizedSuggestions.length} suggestions ready. Tap to peek.`}
                       </p>
                       {coachSnapshotLabel && (
-                        <div className="mt-1 flex items-center gap-2 text-[0.65rem] text-secondary/70">
+                        <div className="mt-1 flex items-center gap-2 text-2xs text-secondary/70">
                           <span>{coachSnapshotLabel}</span>
                           {coachSnapshotDetail && (
                             <Tooltip
@@ -1545,7 +1545,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                           >
                             <ArrowLeft className="h-3 w-3" aria-hidden="true" />
                           </button>
-                          <span className="text-[0.65rem] uppercase tracking-[0.3em] text-secondary/70">
+                          <span className="text-2xs uppercase tracking-[0.3em] text-secondary/70">
                             {suggestionsPage + 1}/{suggestionPageCount}
                           </span>
                           <button
@@ -1592,13 +1592,13 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                                   <p className="text-xs text-secondary/80 mt-1">{suggestion.helper}</p>
                                 )}
                               </div>
-                              <span className="text-[0.6rem] uppercase tracking-[0.3em] text-secondary/70">Use</span>
+                              <span className="text-2xs uppercase tracking-[0.3em] text-secondary/70">Use</span>
                             </div>
                             {preview && (
                               <p className="mt-2 text-sm text-main/90">{preview}</p>
                             )}
                             {chips.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-2 text-[0.6rem] uppercase tracking-[0.3em] text-secondary/60">
+                              <div className="mt-2 flex flex-wrap gap-2 text-2xs uppercase tracking-[0.3em] text-secondary/60">
                                 {chips.map(chip => (
                                   <span key={`${suggestion.id || suggestion.label}-${chip}`} className="rounded-full border border-secondary/30 px-2 py-1">
                                     {chip}
@@ -1657,7 +1657,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                     <button
                       type="button"
                       onClick={() => setTemplatePanelOpen(true)}
-                      className="inline-flex items-center justify-center gap-1 rounded-full border border-secondary/40 px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.2em] text-secondary hover:bg-secondary/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                      className="inline-flex items-center justify-center gap-1 rounded-full border border-secondary/40 px-3 py-1.5 text-2xs uppercase tracking-[0.2em] text-secondary hover:bg-secondary/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
                     >
                       <BookmarkSimple className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                       Templates
@@ -1800,7 +1800,7 @@ export function GuidedIntentionCoach({ isOpen, selectedSpread, onClose, onApply,
                           Save
                         </button>
                       </div>
-                      <p className="text-[0.65rem] text-secondary/70">
+                      <p className="text-2xs text-secondary/70">
                         {templates.length}/{MAX_TEMPLATES} templates saved · oldest entry is replaced when you add more than {MAX_TEMPLATES}.
                       </p>
                     </div>

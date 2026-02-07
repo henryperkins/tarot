@@ -130,7 +130,7 @@ export const SpreadBreakdown = memo(function SpreadBreakdown({
             dataKey="label"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }}
+            tick={{ fill: 'rgb(var(--text-muted-rgb) / 0.85)', fontSize: 12 }}
             interval={0}
             angle={-45}
             textAnchor="end"
@@ -140,13 +140,13 @@ export const SpreadBreakdown = memo(function SpreadBreakdown({
             domain={[0, 5]}
             axisLine={false}
             tickLine={false}
-            tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }}
+            tick={{ fill: 'rgb(var(--text-muted-rgb) / 0.85)', fontSize: 12 }}
             width={24}
             tickCount={6}
           />
           <Tooltip
             content={<SpreadTooltip />}
-            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+            cursor={{ fill: 'rgb(var(--text-main-rgb) / 0.06)' }}
           />
           <Bar
             dataKey="avgOverall"
@@ -160,15 +160,15 @@ export const SpreadBreakdown = memo(function SpreadBreakdown({
                 fill={
                   activeIndex === index
                     ? entry.avgOverall >= 4
-                      ? 'rgba(52, 211, 153, 0.85)'
+                      ? 'rgb(var(--status-success-rgb) / 0.85)'
                       : entry.avgOverall >= 3
-                        ? 'rgba(251, 191, 36, 0.85)'
-                        : 'rgba(239, 68, 68, 0.85)'
+                        ? 'rgb(var(--status-warning-rgb) / 0.85)'
+                        : 'rgb(var(--status-error-rgb) / 0.85)'
                     : entry.avgOverall >= 4
-                      ? 'rgba(52, 211, 153, 0.5)'
+                      ? 'rgb(var(--status-success-rgb) / 0.5)'
                       : entry.avgOverall >= 3
-                        ? 'rgba(251, 191, 36, 0.5)'
-                        : 'rgba(239, 68, 68, 0.5)'
+                        ? 'rgb(var(--status-warning-rgb) / 0.5)'
+                        : 'rgb(var(--status-error-rgb) / 0.5)'
                 }
                 className="transition-colors duration-150"
               />

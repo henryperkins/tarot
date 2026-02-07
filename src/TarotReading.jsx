@@ -73,12 +73,9 @@ export default function TarotReading() {
   const isLandscape = useLandscape();
   const isHandsetLayout = useHandsetLayout();
   const { newDeckInterface } = useFeatureFlags();
-  // Handset mode should include:
-  // - narrow portrait phones (width-constrained)
-  // - height-constrained landscape phones ("small landscape")
-  // - touch-first layouts that report tablet widths
-  // This keeps mobile patterns (bottom action bar + settings drawer + quick intention) available.
-  const isHandset = isSmallScreen || isLandscape || isHandsetLayout;
+  // Use one canonical handset decision for all mobile shell patterns
+  // (bottom action bar + settings drawer + quick intention).
+  const isHandset = isHandsetLayout;
 
   // --- 2. Reading Context ---
   const {
@@ -1035,7 +1032,7 @@ export default function TarotReading() {
           />
           {connectionBanner && !isMobileOverlayActive && (
             <div
-              className="fixed left-0 right-0 z-[60] flex justify-center px-3 bottom-safe-action"
+              className="fixed left-0 right-0 z-[60] flex justify-center pl-safe pr-safe bottom-safe-action"
               aria-live="polite"
             >
               <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-full border ${connectionBg} ${connectionTone} px-3 py-2 text-xs shadow-lg backdrop-blur`}>

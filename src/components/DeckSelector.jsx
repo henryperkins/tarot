@@ -225,12 +225,12 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
       <div className="relative z-10 space-y-5">
         <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-[0.68rem] uppercase tracking-[0.22em] text-gold-soft">Choose Your Deck</p>
+            <p className="text-2xs uppercase tracking-[0.22em] text-gold-soft">Choose Your Deck</p>
             <p className="text-xs text-muted max-w-2xl">
               Select the deck art for today&apos;s reading. Match it to your physical deck if you&apos;re contributing photos to the vision study.
             </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-[0.7rem] text-accent backdrop-blur">
+          <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-2xs text-accent backdrop-blur">
             <span className="w-1.5 h-1.5 rounded-full bg-gold-soft animate-pulse" aria-hidden="true" />
             <span>Curated editions</span>
           </div>
@@ -340,7 +340,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                   <div className="font-serif text-accent text-base leading-tight">
                     {deck.label}
                   </div>
-                  <div className="text-[0.7rem] uppercase tracking-[0.18em] text-gold-soft/90 mb-2">
+                  <div className="text-2xs uppercase tracking-[0.18em] text-gold-soft/90 mb-2">
                     {deck.subtitle}
                   </div>
                   <p className={`text-xs text-muted leading-snug ${isSmallScreen ? 'mb-2 line-clamp-2' : 'mb-3'}`}>
@@ -364,7 +364,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                           ))}
                         </div>
                         {deck.note && (
-                          <p className="text-[0.68rem] text-accent/85 italic mt-2">
+                          <p className="text-2xs text-accent/85 italic mt-2">
                             {deck.note}
                           </p>
                         )}
@@ -373,7 +373,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                   )}
 
                   {deck.note && !isSmallScreen && (
-                    <p className="text-[0.68rem] text-accent/85 italic mt-2">
+                    <p className="text-2xs text-accent/85 italic mt-2">
                       {deck.note}
                     </p>
                   )}

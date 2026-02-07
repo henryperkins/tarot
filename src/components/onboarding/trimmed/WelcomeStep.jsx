@@ -139,7 +139,7 @@ export function WelcomeStep({ onNext }) {
               >
                 <span className="block text-sm font-semibold">{opt.label}</span>
                 <span
-                  className={`block text-[0.65rem] ${
+                  className={`block text-2xs ${
                     tone === opt.value ? 'text-surface/80' : 'text-muted'
                   }`}
                 >

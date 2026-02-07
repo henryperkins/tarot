@@ -99,7 +99,7 @@ export function ExperienceSettings({ className = '' }) {
           <Stack className="w-4 h-4" aria-hidden="true" />
           Experience Preferences
         </h3>
-        <p className="text-[0.7rem] text-muted mt-1">Theme, deck scope, and interpretation lens</p>
+        <p className="text-2xs text-muted mt-1">Theme, deck scope, and interpretation lens</p>
       </div>
 
       <div className="space-y-2 sm:space-y-3">
@@ -257,7 +257,7 @@ export function ExperienceSettings({ className = '' }) {
                 <Info className="h-3.5 w-3.5" />
               </Tooltip>
             </div>
-            <span className="text-[0.68rem] text-muted">
+            <span className="text-2xs text-muted">
               {locationStatus === 'requesting' ? 'Requesting location...' :
                locationEnabled ? 'Astro timing adjusted for your timezone' :
                'Use your location for local moon phases'}
@@ -294,7 +294,7 @@ export function ExperienceSettings({ className = '' }) {
                   <Info className="h-3.5 w-3.5" />
                 </Tooltip>
               </div>
-              <span className="text-[0.68rem] text-muted">
+              <span className="text-2xs text-muted">
                 {persistLocationToJournal ? 'Location saved with journal entries' : 'Location used but not stored'}
               </span>
             </div>

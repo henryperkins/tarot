@@ -199,11 +199,11 @@ export function ReadingPreparation({
                     })}
                 </div>
 
-                <div className="rounded-xl border border-secondary/20 bg-surface/40 px-3 py-2 text-[0.7rem] text-muted flex items-center justify-between gap-2">
+                <div className="rounded-xl border border-secondary/20 bg-surface/40 px-3 py-2 text-2xs text-muted flex items-center justify-between gap-2">
                     <span>Audio and appearance live in Settings.</span>
                     <Link
                         to="/account#audio"
-                        className="text-accent underline underline-offset-2 text-[0.7rem] font-semibold"
+                        className="text-accent underline underline-offset-2 text-2xs font-semibold"
                     >
                         Open Settings
                     </Link>
@@ -244,12 +244,12 @@ export function ReadingPreparation({
             <div className="relative z-10 space-y-5">
                 <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <p className="text-[0.68rem] uppercase tracking-[0.22em] text-gold-soft">Prepare Your Reading</p>
+                        <p className="text-2xs uppercase tracking-[0.22em] text-gold-soft">Prepare Your Reading</p>
                         <p className="text-xs text-muted max-w-2xl">
                             Set your intention, choose your deck, and complete the ritual before drawing.
                         </p>
                     </div>
-                    <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-[0.7rem] text-accent backdrop-blur">
+                    <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-2xs text-accent backdrop-blur">
                         <span className="w-1.5 h-1.5 rounded-full bg-gold-soft animate-pulse" aria-hidden="true" />
                         <span>All-in-one prep</span>
                     </div>
@@ -309,10 +309,10 @@ export function ReadingPreparation({
                 </div>
 
                 <div className="deck-panel-footnote prepare-panel-footnote">
-                    <p className="text-[0.72rem] leading-relaxed text-muted">
+                    <p className="text-2xs leading-relaxed text-muted">
                         <strong className="text-accent">Tip:</strong> Complete preparation before drawing to help the AI craft a personalized reading.
                     </p>
-                    <p className="text-[0.72rem] leading-relaxed text-muted">
+                    <p className="text-2xs leading-relaxed text-muted">
                         Audio and appearance live in{' '}
                         <Link to="/account#audio" className="text-accent underline underline-offset-2 font-semibold">
                             Settings

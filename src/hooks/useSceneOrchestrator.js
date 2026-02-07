@@ -58,12 +58,12 @@ export function useSceneOrchestrator({
 
       // All cards revealed, check if we're generating narrative
       if (revealedCount >= total) {
-        if (isGenerating) {
-          return SCENES.INTERLUDE;
-        }
-
         if (isReadingStreamActive || personalReading?.isStreaming) {
           return SCENES.DELIVERY;
+        }
+
+        if (isGenerating) {
+          return SCENES.INTERLUDE;
         }
 
         if (personalReading) {

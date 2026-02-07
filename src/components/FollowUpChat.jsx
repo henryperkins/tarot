@@ -500,7 +500,7 @@ export default function FollowUpChat({
   const chipText = isDock ? 'text-xs' : 'text-sm';
   const headerTitle = isDock ? 'text-sm' : 'text-base';
   const headerSubtitle = isDock ? 'text-xs' : 'text-sm';
-  const badgeText = isDock ? 'text-[0.65rem]' : 'text-xs';
+  const badgeText = isDock ? 'text-2xs' : 'text-xs';
 
   const handleConversationScroll = (event) => {
     const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;

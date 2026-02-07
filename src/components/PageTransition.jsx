@@ -13,11 +13,14 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 export function PageTransition({ children, className = '' }) {
   const prefersReducedMotion = useReducedMotion();
   const containerRef = useRef(null);
+  const animRef = useRef(null);
 
   useLayoutEffect(() => {
     const node = containerRef.current;
     if (!node) return undefined;
 
+    animRef.current?.pause?.();
+    animRef.current = null;
     if (prefersReducedMotion) {
       set(node, { opacity: 1 });
       return undefined;
@@ -29,8 +32,14 @@ export function PageTransition({ children, className = '' }) {
       duration: 280,
       ease: 'inOutQuad'
     });
+    animRef.current = anim;
 
-    return () => anim?.pause?.();
+    return () => {
+      if (animRef.current === anim) {
+        animRef.current = null;
+      }
+      anim?.pause?.();
+    };
   }, [prefersReducedMotion]);
 
   return (

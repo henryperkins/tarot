@@ -33,6 +33,8 @@ export function ReadingProvider({ children }) {
         finalizeNarrationStream,
         resetNarrationStream,
         isNarrationStreamActive,
+        pauseNarrationPlayback,
+        resumeNarrationPlayback,
         ttsProvider,
         ttsState
     } = audioController;
@@ -144,6 +146,7 @@ export function ReadingProvider({ children }) {
     const narrationQueuedCharsRef = useRef(0);
     const narrationFallbackPendingRef = useRef(false);
     const narrationFallbackTextRef = useRef('');
+    const narrationInterruptedByUserRef = useRef(false);
     const narrationSettingsRef = useRef({
         autoNarrate,
         voiceOn,
@@ -256,6 +259,7 @@ export function ReadingProvider({ children }) {
         narrationQueuedCharsRef.current = 0;
         narrationFallbackPendingRef.current = false;
         narrationFallbackTextRef.current = '';
+        narrationInterruptedByUserRef.current = false;
         resetNarrationStream();
     }, [resetNarrationStream]);
 
@@ -286,11 +290,15 @@ export function ReadingProvider({ children }) {
         });
     }, [shuffle, visionAnalysis, cancelInFlightReading, resetStreamingNarration]);
 
-    const pauseReadingStream = useCallback((message = 'Finishing your narrative in the background.') => {
+    const pauseReadingStream = useCallback((message = 'Finishing your narrative in the background.', { preserveNarration = true } = {}) => {
         setIsReadingStreamActive(false);
         setSrAnnouncement(message);
+        if (preserveNarration) {
+            pauseNarrationPlayback();
+            return;
+        }
         resetNarrationStream();
-    }, [resetNarrationStream]);
+    }, [pauseNarrationPlayback, resetNarrationStream]);
 
     const flushNarrationBuffer = useCallback((force = false) => {
         const {
@@ -374,6 +382,47 @@ export function ReadingProvider({ children }) {
         flushNarrationBuffer(false);
     }, [flushNarrationBuffer]);
 
+    const settleNarrationAfterStreamFailure = useCallback((fallbackText = '') => {
+        const {
+            autoNarrate: autoNarrateEnabled,
+            voiceOn: voiceEnabled,
+            ttsProvider: narrationProvider
+        } = narrationSettingsRef.current;
+        const narrationEligible = autoNarrateEnabled && voiceEnabled && narrationProvider === 'azure';
+
+        if (!narrationEligible || narrationInterruptedByUserRef.current) {
+            narrationFallbackPendingRef.current = false;
+            narrationFallbackTextRef.current = '';
+            resetNarrationStream();
+            return;
+        }
+
+        if (!narrationSuppressedRef.current) {
+            flushNarrationBuffer(true);
+            const hasQueuedNarration = narrationStartedRef.current || isNarrationStreamActive();
+            if (hasQueuedNarration) {
+                finalizeNarrationStream();
+                return;
+            }
+        }
+
+        const trimmedFallback = typeof fallbackText === 'string' ? fallbackText.trim() : '';
+        if (trimmedFallback) {
+            narrationFallbackPendingRef.current = true;
+            narrationFallbackTextRef.current = trimmedFallback;
+            return;
+        }
+
+        narrationFallbackPendingRef.current = false;
+        narrationFallbackTextRef.current = '';
+        resetNarrationStream();
+    }, [
+        finalizeNarrationStream,
+        flushNarrationBuffer,
+        isNarrationStreamActive,
+        resetNarrationStream
+    ]);
+
     const buildReadingKey = useCallback(() => {
         const count = reading?.length ?? 0;
         const fingerprint = Array.isArray(reading)
@@ -424,10 +473,27 @@ export function ReadingProvider({ children }) {
 
         setIsReadingStreamActive(true);
         setIsGenerating(true);
-        resetStreamingNarration();
+        if (!resume) {
+            resetStreamingNarration();
+        }
         const streamNarrationEnabled = autoNarrate && voiceOn && ttsProvider === 'azure';
         const isTtsBusy = isNarrationPlaybackBusy(ttsState?.status);
-        narrationSuppressedRef.current = !streamNarrationEnabled || (isTtsBusy && !isNarrationStreamActive());
+        if (!streamNarrationEnabled) {
+            narrationSuppressedRef.current = true;
+        } else if (!resume) {
+            narrationSuppressedRef.current = isTtsBusy && !isNarrationStreamActive();
+        } else if (narrationSuppressedRef.current && !narrationInterruptedByUserRef.current) {
+            narrationSuppressedRef.current = isTtsBusy && !isNarrationStreamActive();
+        }
+        if (!narrationSuppressedRef.current) {
+            flushNarrationBuffer(false);
+        }
+
+        let streamedText = resume
+            ? (personalReading?.raw || personalReading?.normalized || '')
+            : '';
+        let doneReceived = false;
+        let streamMeta = null;
 
         try {
             const response = await fetch(`/api/tarot-reading/jobs/${jobId}/stream?cursor=${cursor}`, {
@@ -480,11 +546,6 @@ export function ReadingProvider({ children }) {
 
             const decoder = new TextDecoder();
             let buffer = '';
-            let streamedText = resume
-                ? (personalReading?.raw || personalReading?.normalized || '')
-                : '';
-            let doneReceived = false;
-            let streamMeta = null;
             let lastFlush = 0;
 
             const updateCursor = (eventId) => {
@@ -615,7 +676,7 @@ export function ReadingProvider({ children }) {
                             const narrationEligible = narrationSettings.autoNarrate &&
                                 narrationSettings.voiceOn &&
                                 narrationSettings.ttsProvider === 'azure';
-                            if (narrationEligible) {
+                            if (narrationEligible && !narrationInterruptedByUserRef.current) {
                                 const queuedChars = narrationQueuedCharsRef.current;
                                 const finalChars = finalText.length;
                                 const coverage = finalChars > 0 ? queuedChars / finalChars : 1;
@@ -635,6 +696,9 @@ export function ReadingProvider({ children }) {
                                     narrationFallbackPendingRef.current = false;
                                     narrationFallbackTextRef.current = '';
                                 }
+                            } else {
+                                narrationFallbackPendingRef.current = false;
+                                narrationFallbackTextRef.current = '';
                             }
 
                             setNarrativePhase('polishing');
@@ -695,7 +759,7 @@ export function ReadingProvider({ children }) {
                 return;
             }
 
-            resetNarrationStream();
+            settleNarrationAfterStreamFailure(streamedText);
             const errorMsg =
                 typeof error?.message === 'string' && error.message.trim()
                     ? error.message.trim()
@@ -736,7 +800,7 @@ export function ReadingProvider({ children }) {
         flushNarrationBuffer,
         finalizeNarrationStream,
         isNarrationStreamActive,
-        resetNarrationStream
+        settleNarrationAfterStreamFailure
     ]);
 
     const resumeReadingStreamIfEligible = useCallback(() => {
@@ -745,12 +809,30 @@ export function ReadingProvider({ children }) {
         if (!isTarotRouteRef.current) return;
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
         if (isReadingStreamActive || narrativePhase === 'complete' || personalReading?.isError) return;
+        if (ttsProvider === 'azure' && ttsState?.status === 'paused') {
+            void resumeNarrationPlayback();
+        }
         streamReadingJob({ jobId, jobToken, cursor, resume: true });
-    }, [isReadingStreamActive, narrativePhase, personalReading, streamReadingJob]);
+    }, [
+        isReadingStreamActive,
+        narrativePhase,
+        personalReading,
+        streamReadingJob,
+        ttsProvider,
+        ttsState?.status,
+        resumeNarrationPlayback
+    ]);
 
     useEffect(() => {
-        if (!voiceOn || !autoNarrate || ttsProvider !== 'azure') {
+        const narrationDisabled = !voiceOn || !autoNarrate || ttsProvider !== 'azure';
+        if (narrationDisabled) {
+            const disabledByUserChoice = !voiceOn || !autoNarrate;
+            if (isReadingStreamActive && disabledByUserChoice) {
+                narrationInterruptedByUserRef.current = true;
+            }
             narrationSuppressedRef.current = true;
+            narrationFallbackPendingRef.current = false;
+            narrationFallbackTextRef.current = '';
             resetNarrationStream();
             return;
         }
@@ -763,6 +845,11 @@ export function ReadingProvider({ children }) {
 
     useEffect(() => {
         if (!narrationFallbackPendingRef.current) return;
+        if (narrationInterruptedByUserRef.current) {
+            narrationFallbackPendingRef.current = false;
+            narrationFallbackTextRef.current = '';
+            return;
+        }
         if (!autoNarrate || !voiceOn || ttsProvider !== 'azure') {
             narrationFallbackPendingRef.current = false;
             narrationFallbackTextRef.current = '';

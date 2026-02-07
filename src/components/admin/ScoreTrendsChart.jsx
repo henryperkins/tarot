@@ -162,14 +162,14 @@ export const ScoreTrendsChart = memo(function ScoreTrendsChart({
             dataKey="dateLabel"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }}
+            tick={{ fill: 'rgb(var(--text-muted-rgb) / 0.85)', fontSize: 12 }}
             interval="preserveStartEnd"
           />
           <YAxis
             domain={[0, 5]}
             axisLine={false}
             tickLine={false}
-            tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }}
+            tick={{ fill: 'rgb(var(--text-muted-rgb) / 0.85)', fontSize: 12 }}
             width={24}
             tickCount={6}
           />

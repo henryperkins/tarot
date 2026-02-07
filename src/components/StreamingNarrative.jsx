@@ -8,6 +8,7 @@ import {
   computeHighlightRanges
 } from '../lib/highlightUtils';
 import { getSectionKeyFromHeading } from '../lib/narrativeSections';
+import { STREAM_AUTO_NARRATE_DEBOUNCE_MS } from '../lib/narrationStream.js';
 
 const LONG_MOBILE_WORD_THRESHOLD = 280;
 const LONG_DESKTOP_WORD_THRESHOLD = 600; // Guardrail for very long narratives on any device
@@ -276,12 +277,12 @@ export function StreamingNarrative({
       narrationTriggeredRef.current = true;
       narrationTimerRef.current = window.setTimeout(() => {
         onNarrationStart(textToNarrate);
-      }, 200);
+      }, STREAM_AUTO_NARRATE_DEBOUNCE_MS);
     } else if (!streamingActive) {
       narrationTriggeredRef.current = true;
       narrationTimerRef.current = window.setTimeout(() => {
         onNarrationStart(textToNarrate);
-      }, 80);
+      }, STREAM_AUTO_NARRATE_DEBOUNCE_MS);
     }
 
     return () => {

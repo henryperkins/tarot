@@ -99,6 +99,81 @@ export const COLOR_SCRIPTS = {
 const ALL_COLOR_SCRIPT_VARS = new Set(
   Object.values(COLOR_SCRIPTS).flatMap((script) => Object.keys(script?.cssVars || {}))
 );
+const ATMOSPHERE_CLASS_PREFIX = 'color-atmosphere--';
+const DEFAULT_COLOR_SCRIPT_OWNER = 'default';
+
+const activeColorScriptsByOwner = new Map();
+const activeOwnerOrder = [];
+let rootBaselineSnapshot = null;
+
+function getAtmosphereClasses(root) {
+  return Array.from(root.classList).filter((className) => className.startsWith(ATMOSPHERE_CLASS_PREFIX));
+}
+
+function normalizeOwner(ownerOrOptions) {
+  if (typeof ownerOrOptions === 'string' && ownerOrOptions.trim()) {
+    return ownerOrOptions.trim();
+  }
+  if (ownerOrOptions && typeof ownerOrOptions === 'object') {
+    const owner = ownerOrOptions.owner;
+    if (typeof owner === 'string' && owner.trim()) {
+      return owner.trim();
+    }
+  }
+  return DEFAULT_COLOR_SCRIPT_OWNER;
+}
+
+function captureRootBaseline(root) {
+  const vars = {};
+  ALL_COLOR_SCRIPT_VARS.forEach((property) => {
+    vars[property] = root.style.getPropertyValue(property) || '';
+  });
+  return {
+    vars,
+    atmosphereClasses: getAtmosphereClasses(root)
+  };
+}
+
+function applyScriptToRoot(root, colorScript) {
+  const scriptVars = colorScript?.cssVars || {};
+
+  Object.entries(scriptVars).forEach(([property, value]) => {
+    root.style.setProperty(property, value);
+  });
+
+  ALL_COLOR_SCRIPT_VARS.forEach((property) => {
+    if (!Object.prototype.hasOwnProperty.call(scriptVars, property)) {
+      root.style.removeProperty(property);
+    }
+  });
+
+  getAtmosphereClasses(root).forEach((className) => {
+    root.classList.remove(className);
+  });
+  if (colorScript?.atmosphere) {
+    root.classList.add(`${ATMOSPHERE_CLASS_PREFIX}${colorScript.atmosphere}`);
+  }
+}
+
+function restoreRootBaseline(root) {
+  if (!rootBaselineSnapshot) return;
+
+  ALL_COLOR_SCRIPT_VARS.forEach((property) => {
+    const baselineValue = rootBaselineSnapshot?.vars?.[property] || '';
+    if (baselineValue) {
+      root.style.setProperty(property, baselineValue);
+    } else {
+      root.style.removeProperty(property);
+    }
+  });
+
+  getAtmosphereClasses(root).forEach((className) => {
+    root.classList.remove(className);
+  });
+  (rootBaselineSnapshot.atmosphereClasses || []).forEach((className) => {
+    root.classList.add(className);
+  });
+}
 
 /**
  * Determine color script from narrative analysis
@@ -163,55 +238,52 @@ export function determineColorScript(narrativePhase, emotionalTone, reasoning) {
 /**
  * Apply color script to document
  */
-export function applyColorScript(colorScript) {
+export function applyColorScript(colorScript, ownerOrOptions) {
   if (!colorScript || typeof document === 'undefined') return;
 
   const root = document.documentElement;
-  const scriptVars = colorScript?.cssVars || {};
-  
-  // Apply CSS custom properties
-  Object.entries(scriptVars).forEach(([property, value]) => {
-    root.style.setProperty(property, value);
-  });
+  const owner = normalizeOwner(ownerOrOptions);
+  if (activeColorScriptsByOwner.size === 0) {
+    rootBaselineSnapshot = captureRootBaseline(root);
+  }
 
-  // Remove stale variables from prior scripts
-  ALL_COLOR_SCRIPT_VARS.forEach((property) => {
-    if (!Object.prototype.hasOwnProperty.call(scriptVars, property)) {
-      root.style.removeProperty(property);
-    }
-  });
+  activeColorScriptsByOwner.set(owner, colorScript);
 
-  // Add atmosphere class
-  const atmosphereClass = `color-atmosphere--${colorScript.atmosphere}`;
-  
-  // Remove old atmosphere classes
-  Array.from(root.classList).forEach(className => {
-    if (className.startsWith('color-atmosphere--')) {
-      root.classList.remove(className);
-    }
-  });
-  
-  // Add new atmosphere class
-  root.classList.add(atmosphereClass);
+  const existingIndex = activeOwnerOrder.indexOf(owner);
+  if (existingIndex >= 0) {
+    activeOwnerOrder.splice(existingIndex, 1);
+  }
+  activeOwnerOrder.push(owner);
+
+  applyScriptToRoot(root, colorScript);
 }
 
 /**
  * Remove color script (reset to default)
  */
-export function resetColorScript() {
+export function resetColorScript(ownerOrOptions) {
   if (typeof document === 'undefined') return;
 
   const root = document.documentElement;
-  
-  // Reset CSS variables
-  ALL_COLOR_SCRIPT_VARS.forEach((property) => {
-    root.style.removeProperty(property);
-  });
+  const owner = normalizeOwner(ownerOrOptions);
 
-  // Remove atmosphere classes
-  Array.from(root.classList).forEach(className => {
-    if (className.startsWith('color-atmosphere--')) {
-      root.classList.remove(className);
+  if (activeColorScriptsByOwner.has(owner)) {
+    activeColorScriptsByOwner.delete(owner);
+    const index = activeOwnerOrder.indexOf(owner);
+    if (index >= 0) {
+      activeOwnerOrder.splice(index, 1);
     }
-  });
+  }
+
+  if (activeOwnerOrder.length > 0) {
+    const activeOwner = activeOwnerOrder[activeOwnerOrder.length - 1];
+    const activeScript = activeColorScriptsByOwner.get(activeOwner);
+    if (activeScript) {
+      applyScriptToRoot(root, activeScript);
+      return;
+    }
+  }
+
+  restoreRootBaseline(root);
+  rootBaselineSnapshot = null;
 }

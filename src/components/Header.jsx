@@ -148,6 +148,7 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
           full-bleed sticky top-0 z-30 mb-5
           bg-surface/95 backdrop-blur
           border-y border-accent/20
+          pt-[var(--safe-pad-top)]
           px-4 sm:px-5 md:px-6
           pr-[max(1rem,var(--safe-pad-right))]
           pl-[max(1rem,var(--safe-pad-left))]

@@ -349,7 +349,7 @@ export function RitualControls({
           )}
         </div>
         {isNewbie && (
-          <p className="text-[0.72rem] text-muted">
+          <p className="text-2xs text-muted">
             You can adjust or hide these steps anytime in Settings → Personalization.
           </p>
         )}

@@ -92,7 +92,7 @@ body {
 }
 
 .journal-quote {
-  font-family: 'Ibarra Real Nova', 'Georgia', serif;
+  font-family: 'Cormorant Garamond', 'Georgia', serif;
   font-size: clamp(1.1rem, 1.02rem + 0.3vw, 1.35rem);
   line-height: 1.9;
   color: var(--text-main);
@@ -101,7 +101,7 @@ body {
 }
 
 .journal-eyebrow {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;

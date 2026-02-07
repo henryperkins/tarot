@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { GridFour, Question, Sparkle, Eye } from '@phosphor-icons/react';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useSmallScreen, TABLET_SCREEN_MAX } from '../hooks/useSmallScreen';
 
 const STEP_ICONS = {
   'spread': GridFour,
@@ -27,7 +27,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
   const buttonRefs = useRef({});
   const isTouchActiveRef = useRef(false);
   const prefersReducedMotion = useReducedMotion();
-  const isSmallScreen = useSmallScreen();
+  const isSmallScreen = useSmallScreen(TABLET_SCREEN_MAX);
   const showTooltips = !isSmallScreen;
 
   // Micro-celebration when advancing steps.
@@ -248,8 +248,8 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                   }
                 `}
               >
-                <div className="text-[0.7rem] xs:text-xs font-serif text-accent">{step.label}</div>
-                <div className="text-[0.7rem] xs:text-xs text-muted mt-0.5">Step {index + 1} of {steps.length}</div>
+                <div className="text-2xs xs:text-xs font-serif text-accent">{step.label}</div>
+                <div className="text-2xs xs:text-xs text-muted mt-0.5">Step {index + 1} of {steps.length}</div>
                 {/* Arrow - positioned based on tooltip alignment */}
                 <div
                   className={`absolute top-full -mt-1 border-4 border-transparent border-t-main ${

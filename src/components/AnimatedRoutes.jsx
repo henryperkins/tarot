@@ -51,6 +51,8 @@ export function AnimatedRoutes() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const containerRef = useRef(null);
   const nextLocationRef = useRef(location);
+  const exitAnimRef = useRef(null);
+  const enterAnimRef = useRef(null);
 
   const startExit = useCallback(() => {
     if (prefersReducedMotion) {
@@ -64,16 +66,29 @@ export function AnimatedRoutes() {
       return;
     }
 
+    enterAnimRef.current?.pause?.();
+    exitAnimRef.current?.pause?.();
     setIsTransitioning(true);
     const exitAnim = animate(node, {
       opacity: [1, 0],
       duration: 220,
       ease: 'inOutQuad'
     });
+    exitAnimRef.current = exitAnim;
 
     exitAnim
-      .then(() => setDisplayLocation(nextLocationRef.current))
-      .catch(() => setDisplayLocation(nextLocationRef.current));
+      .then(() => {
+        if (exitAnimRef.current === exitAnim) {
+          exitAnimRef.current = null;
+        }
+        setDisplayLocation(nextLocationRef.current);
+      })
+      .catch(() => {
+        if (exitAnimRef.current === exitAnim) {
+          exitAnimRef.current = null;
+        }
+        setDisplayLocation(nextLocationRef.current);
+      });
   }, [prefersReducedMotion]);
 
   // Synchronize location changes - useLayoutEffect for synchronous DOM updates
@@ -127,22 +142,40 @@ export function AnimatedRoutes() {
       return;
     }
 
+    exitAnimRef.current?.pause?.();
+    enterAnimRef.current?.pause?.();
     set(node, { opacity: 0 });
     const enterAnim = animate(node, {
       opacity: [0, 1],
       duration: 220,
       ease: 'inOutQuad'
     });
+    enterAnimRef.current = enterAnim;
 
     enterAnim
       .then(() => {
+        if (enterAnimRef.current === enterAnim) {
+          enterAnimRef.current = null;
+        }
         setIsTransitioning(false);
         if (nextLocationRef.current.pathname !== displayLocation.pathname) {
           startExit();
         }
       })
-      .catch(() => setIsTransitioning(false));
+      .catch(() => {
+        if (enterAnimRef.current === enterAnim) {
+          enterAnimRef.current = null;
+        }
+        setIsTransitioning(false);
+      });
   }, [displayLocation.pathname, isTransitioning, prefersReducedMotion, startExit]);
+
+  useEffect(() => () => {
+    exitAnimRef.current?.pause?.();
+    enterAnimRef.current?.pause?.();
+    exitAnimRef.current = null;
+    enterAnimRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

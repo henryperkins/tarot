@@ -69,7 +69,7 @@ export function OnboardingProgress({
               {isCompleted ? (
                 <Check className="w-3.5 h-3.5 xs:w-4 xs:h-4" weight="bold" />
               ) : (
-                <span className="text-[0.6rem] xxs:text-[0.65rem] xs:text-[0.7rem] font-semibold">{step}</span>
+                <span className="text-2xs xxs:text-2xs xs:text-2xs font-semibold">{step}</span>
               )}
             </button>
           );
@@ -121,7 +121,7 @@ export function OnboardingProgress({
                     step
                   )}
                 </span>
-                <span className="text-[0.65rem] sm:text-xs lg:text-sm font-medium">{stepLabels[i]}</span>
+                <span className="text-2xs sm:text-xs lg:text-sm font-medium">{stepLabels[i]}</span>
               </button>
 
               {/* Connector line */}
