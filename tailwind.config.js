@@ -103,6 +103,7 @@ export default {
       minHeight: {
         touch: 'var(--touch-target, 44px)',
         cta: 'var(--touch-target-cta, 52px)',
+        nav: 'var(--touch-target-nav, 56px)',
       },
       minWidth: {
         touch: 'var(--touch-target, 44px)',
@@ -161,6 +162,12 @@ export default {
         },
         '.pb-safe': {
           'padding-bottom': SAFE_INSET_BOTTOM,
+        },
+        '.pl-safe': {
+          'padding-left': SAFE_INSET_LEFT,
+        },
+        '.pr-safe': {
+          'padding-right': SAFE_INSET_RIGHT,
         },
       });
     }

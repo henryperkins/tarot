@@ -53,6 +53,65 @@ export const SUIT_ELEMENTS = {
   'Pentacles': 'Earth'
 };
 
+function normalizeCardNumber(value) {
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = Number(trimmed);
+    if (Number.isInteger(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function getCardNumber(cardInfo) {
+  if (!cardInfo || typeof cardInfo !== 'object') {
+    return null;
+  }
+  const fromNumber = normalizeCardNumber(cardInfo.number);
+  if (fromNumber !== null) {
+    return fromNumber;
+  }
+  const fromCamel = normalizeCardNumber(cardInfo.cardNumber);
+  if (fromCamel !== null) {
+    return fromCamel;
+  }
+  return normalizeCardNumber(cardInfo.card_number);
+}
+
+function resolveMinorSuit(cardName, cardSuit) {
+  if (typeof cardSuit === 'string' && SUIT_ELEMENTS[cardSuit]) {
+    return cardSuit;
+  }
+
+  if (typeof cardName === 'string') {
+    const lowerName = cardName.toLowerCase();
+    for (const suit of Object.keys(SUIT_ELEMENTS)) {
+      if (lowerName.includes(suit.toLowerCase())) {
+        return suit;
+      }
+    }
+  }
+
+  return null;
+}
+
+function isMajorArcanaCard(cardName, cardNumber, cardSuit) {
+  const minorSuit = resolveMinorSuit(cardName, cardSuit);
+  if (minorSuit) {
+    return false;
+  }
+
+  const normalizedCardNumber = normalizeCardNumber(cardNumber);
+  return normalizedCardNumber !== null && normalizedCardNumber >= 0 && normalizedCardNumber <= 21;
+}
+
 /**
  * Elemental relationship definitions
  * Used for consistent dignity analysis across the module
@@ -80,21 +139,20 @@ const ELEMENTAL_RELATIONSHIPS = {
  *
  * @param {string} cardName - Full card name (e.g., "Three of Wands", "The Fool")
  * @param {number} [cardNumber] - Card number (0-21 for Majors)
+ * @param {string} [cardSuit] - Card suit for Minor Arcana
  * @returns {string|null} Element name or null if not determinable
  */
-export function getCardElement(cardName, cardNumber) {
-  // Major Arcana (0-21)
-  if (cardNumber !== undefined && cardNumber >= 0 && cardNumber <= 21) {
-    return MAJOR_ELEMENTS[cardNumber] || null;
+export function getCardElement(cardName, cardNumber, cardSuit) {
+  // Minor Arcana should take precedence when suit information is present.
+  const minorSuit = resolveMinorSuit(cardName, cardSuit);
+  if (minorSuit) {
+    return SUIT_ELEMENTS[minorSuit] || null;
   }
 
-  // Minor Arcana - extract suit from card name
-  if (typeof cardName === 'string') {
-    for (const [suit, element] of Object.entries(SUIT_ELEMENTS)) {
-      if (cardName.includes(suit)) {
-        return element;
-      }
-    }
+  // Major Arcana (0-21) only when card cannot be identified as Minor Arcana.
+  const normalizedCardNumber = normalizeCardNumber(cardNumber);
+  if (isMajorArcanaCard(cardName, normalizedCardNumber, cardSuit)) {
+    return MAJOR_ELEMENTS[normalizedCardNumber] || null;
   }
 
   return null;
@@ -133,8 +191,8 @@ export function analyzeElementalDignity(card1, card2) {
     };
   }
 
-  const e1 = getCardElement(card1.card || '', card1.number);
-  const e2 = getCardElement(card2.card || '', card2.number);
+  const e1 = getCardElement(card1.card || '', getCardNumber(card1), card1.suit);
+  const e2 = getCardElement(card2.card || '', getCardNumber(card2), card2.suit);
 
   if (!e1 || !e2) {
     return {
@@ -229,17 +287,27 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
   }
 
   const deckStyle = options.deckStyle || 'rws-1909';
+  const normalizedCards = cardsInfo.map((card) => {
+    if (!card || typeof card !== 'object') {
+      return card;
+    }
+    const number = getCardNumber(card);
+    if (number === null) {
+      return card;
+    }
+    return { ...card, number };
+  });
   const suitCounts = { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0 };
   const elementCounts = { Fire: 0, Water: 0, Air: 0, Earth: 0 };
   let majorCount = 0;
   let reversalCount = 0;
   const numbers = [];
 
-  cardsInfo.forEach(card => {
+  normalizedCards.forEach(card => {
     if (!card) return;
 
-    // Count Majors (numbers 0-21)
-    if (typeof card.number === 'number' && card.number >= 0 && card.number <= 21) {
+    // Count Major Arcana cards
+    if (isMajorArcanaCard(card.card, card.number, card.suit)) {
       majorCount++;
     }
 
@@ -254,7 +322,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
     }
 
     // Count elements
-    const element = getCardElement(card.card, card.number);
+    const element = getCardElement(card.card, card.number, card.suit);
     if (element && elementCounts[element] !== undefined) {
       elementCounts[element]++;
     }
@@ -271,7 +339,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
     }
   });
 
-  const totalCards = cardsInfo.length;
+  const totalCards = normalizedCards.length;
   const reversalRatio = totalCards > 0 ? reversalCount / totalCards : 0;
   const majorRatio = totalCards > 0 ? majorCount / totalCards : 0;
 
@@ -291,7 +359,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
     : null;
 
   // Select reversal framework (allow explicit override)
-  let reversalFramework = selectReversalFramework(reversalRatio, cardsInfo, {
+  let reversalFramework = selectReversalFramework(reversalRatio, normalizedCards, {
     userQuestion: options.userQuestion
   });
   if (options.reversalFrameworkOverride && REVERSAL_FRAMEWORKS[options.reversalFrameworkOverride]) {
@@ -343,7 +411,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
   // Soft timing profile (non-deterministic pacing hint)
   try {
     const { getSpreadTimingProfile } = await import('./timingMeta.js');
-    themes.timingProfile = getSpreadTimingProfile({ cardsInfo, themes });
+    themes.timingProfile = getSpreadTimingProfile({ cardsInfo: normalizedCards, themes });
   } catch {
     // Graceful degradation: timing profile unavailable
     themes.timingProfile = null;
@@ -359,7 +427,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
 
       if (KG_ENABLED) {
         const { buildGraphContext } = await import('./graphContext.js');
-        const graphContext = buildGraphContext(cardsInfo, { deckStyle });
+        const graphContext = buildGraphContext(normalizedCards, { deckStyle });
 
         if (graphContext) {
           themes.knowledgeGraph = graphContext;
@@ -450,9 +518,7 @@ export function selectReversalFramework(ratio, cardsInfo, options = {}) {
       c =>
         c &&
         (c.orientation || '').toLowerCase() === 'reversed' &&
-        typeof c.number === 'number' &&
-        c.number >= 0 &&
-        c.number <= 21
+        isMajorArcanaCard(c.card, getCardNumber(c), c.suit)
     );
     if (reversedMajors.length >= 2) {
       return 'potentialBlocked';
@@ -577,7 +643,11 @@ export const REVERSAL_FRAMEWORKS = {
  * @returns {Object} Framework definition
  */
 function getReversalFrameworkDescription(framework) {
-  return REVERSAL_FRAMEWORKS[framework] || REVERSAL_FRAMEWORKS.contextual;
+  const definition = REVERSAL_FRAMEWORKS[framework] || REVERSAL_FRAMEWORKS.contextual;
+  return {
+    ...definition,
+    examples: definition.examples ? { ...definition.examples } : {}
+  };
 }
 
 /**
@@ -1355,7 +1425,7 @@ export function analyzeFiveCard(cardsInfo) {
 /**
  * Analyze a relationship spread
  *
- * @param {Array} cardsInfo - Array of 3+ card objects (You, Them, Connection)
+ * @param {Array} cardsInfo - Array of 3+ card objects (first 3 are You, Them, Connection)
  * @returns {Object|null} Relationship analysis or null if invalid input
  */
 export function analyzeRelationship(cardsInfo) {

@@ -90,6 +90,20 @@ describe('buildPositionCardText with Celtic Cross positions', () => {
     // Should contain the position name (fallback behavior)
     assert.ok(result.includes('Unknown Custom Position'));
   });
+
+  it('produces deterministic text for identical inputs', () => {
+    const cardInfo = {
+      card: 'The Magician',
+      number: 1,
+      orientation: 'Upright',
+      meaning: 'Willpower and manifestation.'
+    };
+
+    const first = buildPositionCardText(cardInfo, 'Present — core situation', { context: 'career' });
+    const second = buildPositionCardText(cardInfo, 'Present — core situation', { context: 'career' });
+
+    assert.strictEqual(first, second);
+  });
 });
 
 describe('getConnector with Celtic Cross positions', () => {
@@ -108,5 +122,11 @@ describe('getConnector with Celtic Cross positions', () => {
   it('returns empty string for unknown position', () => {
     const connector = getConnector('Unknown Position', 'toPrev');
     assert.strictEqual(connector, '');
+  });
+
+  it('returns deterministic connectors for identical inputs', () => {
+    const first = getConnector('Past — what lies behind', 'toNext');
+    const second = getConnector('Past — what lies behind', 'toNext');
+    assert.strictEqual(first, second);
   });
 });

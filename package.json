@@ -106,6 +106,7 @@
     "expo-sqlite": "~55.0.4",
     "expo-status-bar": "~55.0.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
     "express-session": "^1.19.0",
     "focus-trap-react": "^11.0.4",
     "framer-motion": "^12.30.1",
@@ -128,8 +129,7 @@
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "tsx": "^4.21.0",
-    "zod": "^4.1.12",
-    "express-rate-limit": "^8.2.1"
+    "zod": "^4.1.12"
   },
   "expo": {
     "install": {
@@ -161,6 +161,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^17.3.0",
     "postcss": "^8.4.47",
+    "rollup-plugin-visualizer": "^6.0.5",
     "tailwindcss": "^3.4.10",
     "vite": "^7.2.4",
     "vitest": "^4.0.18",

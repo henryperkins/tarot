@@ -178,7 +178,7 @@ test.describe('Accessibility - Interactive Components', () => {
     for (let i = 0; i < count; i++) {
       const button = buttons.nth(i);
       if (await button.isVisible()) {
-        const accessibleName = await button.evaluate(el => {
+        const _accessibleName = await button.evaluate(el => {
           // Check various sources of accessible name
           return el.getAttribute('aria-label') ||
                  el.getAttribute('aria-labelledby') ||
@@ -291,7 +291,7 @@ test.describe('Accessibility - Keyboard Navigation', () => {
 
     // Get initial selected spread
     const initialSelected = await spreadSelector.locator('[role="radio"][aria-checked="true"]').first();
-    const initialName = await initialSelected.getAttribute('aria-label') || await initialSelected.textContent();
+    const _initialName = await initialSelected.getAttribute('aria-label') || await initialSelected.textContent();
 
     // Arrow right to select next spread
     await page.keyboard.press('ArrowRight');
@@ -299,7 +299,7 @@ test.describe('Accessibility - Keyboard Navigation', () => {
 
     // Verify selection changed
     const newSelected = await spreadSelector.locator('[role="radio"][aria-checked="true"]').first();
-    const newName = await newSelected.getAttribute('aria-label') || await newSelected.textContent();
+    const _newName = await newSelected.getAttribute('aria-label') || await newSelected.textContent();
 
     // Should have moved to a different spread (or wrapped around)
     // Note: This may be the same if there's only one spread or it wrapped
@@ -424,12 +424,12 @@ test.describe('Accessibility - Live Regions', () => {
     expect(h1Count).toBeLessThanOrEqual(1);
 
     // Check for skipped heading levels (h1 -> h3 without h2)
-    let skippedLevels = false;
+    let _skippedLevels = false;
     let prevLevel = 0;
     for (const heading of headings) {
       if (heading.level > prevLevel + 1 && prevLevel > 0) {
         console.warn(`Heading level skipped: h${prevLevel} -> h${heading.level} ("${heading.text}")`);
-        skippedLevels = true;
+        _skippedLevels = true;
       }
       prevLevel = heading.level;
     }

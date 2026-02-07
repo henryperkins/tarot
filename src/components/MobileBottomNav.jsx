@@ -23,7 +23,7 @@ export function MobileBottomNav() {
 
   const baseButtonClasses = `
     flex-1 flex flex-col items-center justify-center gap-1
-    py-2 px-2 min-h-[56px]
+    py-2 px-2 min-h-nav
     touch-manipulation
     transition-colors
     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset
@@ -41,7 +41,7 @@ export function MobileBottomNav() {
         bg-surface/95 backdrop-blur-sm
         border-t border-secondary/20
         shadow-[0_-2px_10px_rgba(0,0,0,0.1)]
-        pb-safe-action pl-safe-left pr-safe-right
+        pb-safe-action pl-safe pr-safe
         ${prefersReducedMotion ? '' : 'animate-fade-in'}
       `}
     >

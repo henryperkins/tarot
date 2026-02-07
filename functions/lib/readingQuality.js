@@ -35,6 +35,10 @@ import { validateReadingNarrative } from './narrativeSpine.js';
 import { normalizeVisionLabel } from './visionLabels.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
+import {
+  RELATIONSHIP_SPREAD_MIN_CARDS,
+  RELATIONSHIP_SPREAD_MAX_CARDS
+} from './spreadContracts.js';
 
 // ============================================================================
 // Ambiguous Thoth Epithets
@@ -483,14 +487,79 @@ function hasFuzzyAliasMatch(candidates, aliasEntries) {
  * Map of spread display names to their canonical keys and card counts.
  * Frozen to prevent accidental mutation.
  */
-export const SPREAD_NAME_MAP = Object.freeze({
-  'Celtic Cross (Classic 10-Card)': Object.freeze({ key: 'celtic', count: 10 }),
-  'Three-Card Story (Past · Present · Future)': Object.freeze({ key: 'threeCard', count: 3 }),
-  'Five-Card Clarity': Object.freeze({ key: 'fiveCard', count: 5 }),
-  'One-Card Insight': Object.freeze({ key: 'single', count: 1 }),
-  'Relationship Snapshot': Object.freeze({ key: 'relationship', count: 3 }),
-  'Decision / Two-Path': Object.freeze({ key: 'decision', count: 5 })
+const SPREAD_DEFINITION_CELTIC = Object.freeze({ key: 'celtic', count: 10 });
+const SPREAD_DEFINITION_THREE_CARD = Object.freeze({ key: 'threeCard', count: 3 });
+const SPREAD_DEFINITION_FIVE_CARD = Object.freeze({ key: 'fiveCard', count: 5 });
+const SPREAD_DEFINITION_SINGLE = Object.freeze({ key: 'single', count: 1 });
+const SPREAD_DEFINITION_RELATIONSHIP = Object.freeze({
+  key: 'relationship',
+  count: RELATIONSHIP_SPREAD_MIN_CARDS,
+  maxCount: RELATIONSHIP_SPREAD_MAX_CARDS
 });
+const SPREAD_DEFINITION_DECISION = Object.freeze({ key: 'decision', count: 5 });
+
+export const SPREAD_NAME_MAP = Object.freeze({
+  'Celtic Cross (Classic 10-Card)': SPREAD_DEFINITION_CELTIC,
+  'Three-Card Story (Past · Present · Future)': SPREAD_DEFINITION_THREE_CARD,
+  'Five-Card Clarity': SPREAD_DEFINITION_FIVE_CARD,
+  'One-Card Insight': SPREAD_DEFINITION_SINGLE,
+  'Relationship Snapshot': SPREAD_DEFINITION_RELATIONSHIP,
+  'Decision / Two-Path': SPREAD_DEFINITION_DECISION
+});
+
+function normalizeSpreadIdentifier(value) {
+  if (typeof value !== 'string') return '';
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+const SPREAD_ALIAS_MAP = Object.freeze({
+  // Celtic Cross
+  celtic: SPREAD_DEFINITION_CELTIC,
+  celticcross: SPREAD_DEFINITION_CELTIC,
+  celticcrossclassic10card: SPREAD_DEFINITION_CELTIC,
+
+  // Three-card aliases (web + native)
+  threecard: SPREAD_DEFINITION_THREE_CARD,
+  threecardstory: SPREAD_DEFINITION_THREE_CARD,
+  threecardstorypastpresentfuture: SPREAD_DEFINITION_THREE_CARD,
+
+  // Five-card
+  fivecard: SPREAD_DEFINITION_FIVE_CARD,
+  fivecardclarity: SPREAD_DEFINITION_FIVE_CARD,
+
+  // Single-card aliases (web + native "Daily Draw")
+  single: SPREAD_DEFINITION_SINGLE,
+  onecard: SPREAD_DEFINITION_SINGLE,
+  onecardinsight: SPREAD_DEFINITION_SINGLE,
+  dailydraw: SPREAD_DEFINITION_SINGLE,
+
+  // Relationship
+  relationship: SPREAD_DEFINITION_RELATIONSHIP,
+  relationshipsnapshot: SPREAD_DEFINITION_RELATIONSHIP,
+
+  // Decision
+  decision: SPREAD_DEFINITION_DECISION,
+  decisiontwopath: SPREAD_DEFINITION_DECISION,
+  twopath: SPREAD_DEFINITION_DECISION
+});
+
+function getSpreadDefinitionByIdentifier(identifier) {
+  if (typeof identifier !== 'string' || !identifier.trim()) {
+    return null;
+  }
+  const byName = SPREAD_NAME_MAP[identifier];
+  if (byName) {
+    return byName;
+  }
+  const normalized = normalizeSpreadIdentifier(identifier);
+  if (!normalized) {
+    return null;
+  }
+  return SPREAD_ALIAS_MAP[normalized] || null;
+}
 
 /**
  * Get spread definition by display name.
@@ -499,7 +568,7 @@ export const SPREAD_NAME_MAP = Object.freeze({
  * @returns {Object|null} Spread definition with key and count
  */
 export function getSpreadDefinition(spreadName) {
-  return SPREAD_NAME_MAP[spreadName] || null;
+  return getSpreadDefinitionByIdentifier(spreadName);
 }
 
 /**
@@ -510,8 +579,10 @@ export function getSpreadDefinition(spreadName) {
  * @returns {string} Canonical spread key
  */
 export function getSpreadKey(spreadName, fallbackKey = null) {
-  const def = getSpreadDefinition(spreadName);
+  const def = getSpreadDefinitionByIdentifier(spreadName);
   if (def?.key) return def.key;
+  const fallbackDef = getSpreadDefinitionByIdentifier(fallbackKey);
+  if (fallbackDef?.key) return fallbackDef.key;
   if (typeof fallbackKey === 'string' && fallbackKey.trim()) {
     return fallbackKey.trim();
   }

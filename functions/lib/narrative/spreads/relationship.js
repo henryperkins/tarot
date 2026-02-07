@@ -24,6 +24,10 @@ import {
   buildReasoningSynthesis
 } from '../reasoningIntegration.js';
 import { buildSpreadFallback } from './base.js';
+import {
+  RELATIONSHIP_SPREAD_MIN_CARDS,
+  RELATIONSHIP_SPREAD_MAX_CARDS
+} from '../../spreadContracts.js';
 
 export async function buildRelationshipReading({
   cardsInfo,
@@ -33,7 +37,7 @@ export async function buildRelationshipReading({
   context,
   spreadInfo
 }, options = {}) {
-  const expectedCount = 3;
+  const expectedCount = RELATIONSHIP_SPREAD_MIN_CARDS;
   const receivedCount = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
   const fallback = buildSpreadFallback({
     spreadName: 'Relationship Snapshot',
@@ -43,11 +47,19 @@ export async function buildRelationshipReading({
   if (!Array.isArray(cardsInfo) || receivedCount === 0) {
     return fallback;
   }
-  if (receivedCount !== expectedCount) {
+  if (receivedCount < expectedCount) {
     return buildSpreadFallback({
       spreadName: 'Relationship Snapshot',
       expectedCount,
       receivedCount
+    });
+  }
+  if (receivedCount > RELATIONSHIP_SPREAD_MAX_CARDS) {
+    return buildSpreadFallback({
+      spreadName: 'Relationship Snapshot',
+      expectedCount,
+      receivedCount,
+      reason: `Supports up to ${RELATIONSHIP_SPREAD_MAX_CARDS} cards (3 core + 2 clarifiers).`
     });
   }
   for (let i = 0; i < cardsInfo.length; i++) {
@@ -376,7 +388,7 @@ function buildRelationshipElementalTakeaway(elemental, youCard, themCard) {
 
 async function buildRelationshipAdditionalGuidance(cardsInfo, themes, context, rotationIndex = 0) {
   // Only add elemental remedies section if there's an imbalance
-  if (!themes.elementCounts || !themes.elementalBalance) {
+  if (!themes?.elementCounts || !themes?.elementalBalance) {
     return null;
   }
 

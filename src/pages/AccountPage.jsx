@@ -37,8 +37,10 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useToast } from '../contexts/ToastContext';
 import { useJournal } from '../hooks/useJournal';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { exportJournalInsightsToPdf } from '../lib/pdfExport';
 import { computeJournalStats, exportJournalEntriesToCsv } from '../lib/journalInsights';
+
+// Lazy load PDF export (pulls in jspdf + html2canvas which are large)
+const loadPdfExport = () => import('../lib/pdfExport').then(m => m.exportJournalInsightsToPdf);
 
 /**
  * Settings toggle component - matches UserMenu style
@@ -596,22 +598,38 @@ export default function AccountPage() {
   }, [journalLoading, loadJournalEntries, loadMoreJournalEntries]);
 
   const handleExportPdf = useCallback(async () => {
-    const entries = await loadAllJournalEntries();
-    if (!entries?.length) {
-      setExportError('No journal entries available to export.');
-      return;
+    try {
+      const entries = await loadAllJournalEntries();
+      if (!entries?.length) {
+        setExportError('No journal entries available to export.');
+        return;
+      }
+      const stats = computeJournalStats(entries);
+      if (!stats) {
+        setExportError('No journal entries available to export.');
+        return;
+      }
+      // Lazy load PDF export to avoid bundling jspdf+html2canvas upfront
+      const exportJournalInsightsToPdf = await loadPdfExport();
+      exportJournalInsightsToPdf(stats, entries, { scopeLabel: 'Account export' });
+      publish({
+        title: 'PDF export started',
+        description: 'Your journal export is downloading.',
+        type: 'success'
+      });
+    } catch (error) {
+      const importLikeFailure = typeof error?.message === 'string' &&
+        (/chunk|import|loading/i.test(error.message));
+      const message = importLikeFailure
+        ? 'PDF export failed to load. Refresh and try again.'
+        : 'PDF export failed.';
+      setExportError(message);
+      publish({
+        title: 'PDF export failed',
+        description: message,
+        type: 'error'
+      });
     }
-    const stats = computeJournalStats(entries);
-    if (!stats) {
-      setExportError('No journal entries available to export.');
-      return;
-    }
-    exportJournalInsightsToPdf(stats, entries, { scopeLabel: 'Account export' });
-    publish({
-      title: 'PDF export started',
-      description: 'Your journal export is downloading.',
-      type: 'success'
-    });
   }, [loadAllJournalEntries, publish]);
 
   const handleExportCsv = useCallback(async () => {

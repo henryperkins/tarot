@@ -12,6 +12,7 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import { generateFollowUpSuggestions } from '../lib/followUpSuggestions';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { SPREADS } from '../data/spreads';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import clsx from 'clsx';
 
 const MAX_MESSAGE_LENGTH = 500;
@@ -56,6 +57,7 @@ export default function FollowUpChat({
   const [suggestionRotation, setSuggestionRotation] = useState(0);
   const [serverTurn, setServerTurn] = useState(null); // Synced from meta.turn
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const prefersReducedMotion = useReducedMotion();
 
   const messagesEndRef = useRef(null);
   const conversationRef = useRef(null);
@@ -202,11 +204,11 @@ export default function FollowUpChat({
     }
   }, [followUps, messages.length]);
 
-  const scrollToBottom = useCallback((behavior = 'smooth') => {
+  const scrollToBottom = useCallback((behavior = prefersReducedMotion ? 'auto' : 'smooth') => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
     }
-  }, []);
+  }, [prefersReducedMotion]);
 
   const hasStreamingMessage = useMemo(
     () => messages.some(msg => msg.isStreaming),
@@ -216,8 +218,8 @@ export default function FollowUpChat({
   // Auto-scroll to latest message (only if user is at the bottom)
   useEffect(() => {
     if (!isAtBottom || messages.length === 0) return;
-    scrollToBottom(hasStreamingMessage ? 'auto' : 'smooth');
-  }, [messages, isAtBottom, hasStreamingMessage, scrollToBottom]);
+    scrollToBottom(hasStreamingMessage || prefersReducedMotion ? 'auto' : 'smooth');
+  }, [messages, isAtBottom, hasStreamingMessage, prefersReducedMotion, scrollToBottom]);
 
   // Focus input when panel becomes active
   useEffect(() => {

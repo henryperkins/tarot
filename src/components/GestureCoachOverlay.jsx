@@ -186,7 +186,7 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-main/95 backdrop-blur-sm px-safe pt-safe pb-safe-bottom ${
+      className={`fixed inset-0 z-[100] flex items-center justify-center bg-main/95 backdrop-blur-sm px-safe pt-safe pb-safe ${
         prefersReducedMotion ? '' : 'animate-fade-in'
       }`}
       onClick={createBackdropHandler(onDismiss)}

@@ -46,6 +46,7 @@ export default function JournalScreen() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Standard data-fetching on mount
     loadEntries();
   }, [loadEntries]);
 

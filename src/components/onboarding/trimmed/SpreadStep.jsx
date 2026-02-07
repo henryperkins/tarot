@@ -67,7 +67,14 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
           style={{ animationDelay: '0.1s' }}
         >
           {BEGINNER_SPREADS.map((spread) => {
-            const cardCount = spread.spread?.count || 0;
+            const spreadCount = spread.spread?.count || 0;
+            const baseCount = typeof spread.spread?.drawCount === 'number'
+              ? spread.spread.drawCount
+              : spreadCount;
+            const maxCards = typeof spread.spread?.maxCards === 'number' ? spread.spread.maxCards : null;
+            const cardLabel = maxCards && maxCards > baseCount
+              ? `${baseCount} cards + clarifiers`
+              : `${baseCount} cards`;
             const displayName = spread.shortName || spread.spread?.name || spread.key;
 
             return (
@@ -84,7 +91,7 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
               >
                 {/* Card count visualization */}
                 <div className="flex gap-1 mb-3" aria-hidden="true">
-                  {Array.from({ length: cardCount }).map((_, i) => (
+                  {Array.from({ length: baseCount }).map((_, i) => (
                     <div
                       key={i}
                       className={`w-4 h-6 rounded-sm transition ${
@@ -95,6 +102,7 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
                 </div>
                 <h3 className="font-medium text-main text-sm">{displayName}</h3>
                 <p className="text-xs text-muted mt-0.5">{spread.tagline}</p>
+                <p className="text-[0.68rem] text-muted/80 mt-1">{cardLabel}</p>
                 <p className="text-xs text-accent mt-2">~{spread.time}</p>
               </button>
             );
@@ -132,7 +140,7 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
       </div>
 
       {/* Navigation */}
-      <div className={`flex gap-3 ${isLandscape ? 'pt-3' : 'pt-4'} pb-safe-bottom`}>
+      <div className={`flex gap-3 ${isLandscape ? 'pt-3' : 'pt-4'} pb-safe`}>
         <button
           type="button"
           onClick={onBack}

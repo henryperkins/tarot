@@ -388,7 +388,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
       </div>
 
       {/* Navigation */}
-      <div className={`pt-4 pb-safe-bottom ${isLandscape ? 'pt-2' : 'pt-6'}`}>
+      <div className={`pt-4 pb-safe ${isLandscape ? 'pt-2' : 'pt-6'}`}>
         <p className="text-xs text-muted text-center mb-2">
           Prefer less motion? Use your device&apos;s Reduce Motion setting.
         </p>

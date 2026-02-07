@@ -11,7 +11,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { UpgradeNudge } from './UpgradeNudge';
 import { getSpreadFromDepth } from '../utils/personalization';
-import { getSpreadArt } from '../utils/spreadArt';
+import { getSpreadArt, preloadAllSpreadArt } from '../utils/spreadArt';
 
 const STAR_TOTAL = 3;
 
@@ -115,25 +115,14 @@ const SPREAD_THEMES = {
   })
 };
 
-const SPREAD_ART_OVERRIDES = {
-  single: getSpreadArt('single', {
-    alt: 'One-card insight spread artwork'
-  }),
-  threeCard: getSpreadArt('threeCard', {
-    alt: 'Three-card story spread artwork'
-  }),
-  fiveCard: getSpreadArt('fiveCard', {
-    alt: 'Five-card clarity spread artwork'
-  }),
-  decision: getSpreadArt('decision', {
-    alt: 'Decision two-path spread artwork'
-  }),
-  relationship: getSpreadArt('relationship', {
-    alt: 'Relationship snapshot spread artwork'
-  }),
-  celtic: getSpreadArt('celtic', {
-    alt: 'Celtic cross spread artwork'
-  })
+// Alt text for spread art images
+const SPREAD_ART_ALTS = {
+  single: 'One-card insight spread artwork',
+  threeCard: 'Three-card story spread artwork',
+  fiveCard: 'Five-card clarity spread artwork',
+  decision: 'Decision two-path spread artwork',
+  relationship: 'Relationship snapshot spread artwork',
+  celtic: 'Celtic cross spread artwork'
 };
 
 export function SpreadSelector({
@@ -143,6 +132,9 @@ export function SpreadSelector({
 }) {
   const spreadRefs = useRef({});
   const carouselRef = useRef(null);
+  
+  // Track loaded spread art (lazy loaded after mount)
+  const [spreadArt, setSpreadArt] = useState({});
   const spreadKeys = Object.keys(SPREADS);
   const [activeIndex, setActiveIndex] = useState(0);
   const [showLeftFade, setShowLeftFade] = useState(false);
@@ -156,6 +148,21 @@ export function SpreadSelector({
   const canUseSpread = subscription?.canUseSpread ?? (() => true);
   const recommendedSpread = getSpreadFromDepth(personalization?.preferredSpreadDepth);
   const isExperienced = personalization?.tarotExperience === 'experienced';
+
+  // Lazy load spread art after component mounts (non-blocking)
+  useEffect(() => {
+    let cancelled = false;
+    preloadAllSpreadArt().then(() => {
+      if (cancelled) return;
+      // Rebuild art objects now that cache is populated
+      const art = {};
+      for (const key of spreadKeys) {
+        art[key] = getSpreadArt(key, { alt: SPREAD_ART_ALTS[key] });
+      }
+      setSpreadArt(art);
+    });
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // In landscape: smaller cards to fit more on screen
   const cardBasisClass = isLandscape
@@ -386,6 +393,11 @@ export function SpreadSelector({
           {Object.entries(SPREADS).map(([key, spread], index) => {
             const isActive = selectedSpread === key;
             const baseDescription = spread.description || 'Guided snapshot for your focus.';
+            const maxCards = typeof spread.maxCards === 'number' ? spread.maxCards : null;
+            const baseCount = typeof spread.drawCount === 'number' ? spread.drawCount : spread.count;
+            const cardLabel = maxCards && maxCards > baseCount
+              ? `${baseCount} cards + clarifiers`
+              : `${baseCount} cards`;
             const isFirstSpread = index === 0;
             const isTabbable = isActive || (!selectedSpread && isFirstSpread);
             const stars = spread.complexity?.stars ?? 0;
@@ -394,7 +406,7 @@ export function SpreadSelector({
             const resolvedBorder = isActive
               ? (theme.borderActive || FALLBACK_SPREAD_THEME.borderActive)
               : (theme.border || FALLBACK_SPREAD_THEME.border);
-            const previewArt = SPREAD_ART_OVERRIDES[key] || spread.preview;
+            const previewArt = spreadArt[key] || spread.preview;
 
             return (
               <button
@@ -481,7 +493,7 @@ export function SpreadSelector({
                   </div>
                   <div className="text-xs uppercase tracking-[0.18em] text-gold-soft/90 mb-2">
                     {spread.tag || 'Guided spread'}
-                    <span className="text-gold-soft/60 ml-2">· {spread.count} cards</span>
+                    <span className="text-gold-soft/60 ml-2">· {cardLabel}</span>
                   </div>
 
                   {!isLandscape && !isExperienced && (

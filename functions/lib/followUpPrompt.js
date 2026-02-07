@@ -321,7 +321,7 @@ export function buildFollowUpPrompt({
       threeCard: 'Three-Card (Past → Present → Future)',
       fiveCard: 'Five-Card Clarity (Core, Challenge, Hidden, Support, Direction)',
       single: 'One-Card Insight',
-      relationship: 'Relationship Snapshot (You, Them, Connection)',
+      relationship: 'Relationship Snapshot (You, Them, Connection, Dynamics, Outcome)',
       decision: 'Decision / Two-Path (Heart, Path A, Path B, Clarity, Free Will)'
     };
     const spreadLabel = spreadLabels[originalReading.spreadKey];

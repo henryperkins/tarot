@@ -295,7 +295,8 @@ export function buildEnhancedClaudePrompt({
       resolvedDeckStyle,
       {
         ...controls,
-        personalization
+        personalization,
+        contextDiagnostics: diagnostics
       }
     );
 
@@ -555,8 +556,6 @@ export function buildEnhancedClaudePrompt({
     };
   }
 
-  let appliedIncludeGraphRAG = Boolean(controls.includeGraphRAG);
-
   const promptMeta = {
     // Reading prompt version for quality tracking and A/B testing correlation
     readingPromptVersion: getReadingPromptVersion(),
@@ -578,7 +577,6 @@ export function buildEnhancedClaudePrompt({
       omitLowWeightImagery: Boolean(controls.omitLowWeightImagery),
       includeForecast: Boolean(controls.includeForecast),
       includeEphemeris: Boolean(controls.includeEphemeris),
-      includeGraphRAG: appliedIncludeGraphRAG,
       includeDeckContext: Boolean(controls.includeDeckContext),
       includeDiagnostics: Boolean(controls.includeDiagnostics)
     },
@@ -658,7 +656,6 @@ export function buildEnhancedClaudePrompt({
     retrievalSummary.includedInPrompt = graphRAGIncluded;
 
     promptMeta.graphRAG = retrievalSummary;
-    appliedIncludeGraphRAG = graphRAGIncluded;
   } else if (
     themes?.knowledgeGraph?.graphKeys &&
     typeof themes.knowledgeGraph.graphKeys === 'object' &&
@@ -674,11 +671,7 @@ export function buildEnhancedClaudePrompt({
       passagesUsedInPrompt: 0,
       skippedReason: graphragEnabled ? 'retrieval_failed_or_empty' : 'disabled_by_env'
     };
-    appliedIncludeGraphRAG = false;
   }
-
-  // Note: appliedOptions.includeGraphRAG removed - use graphRAG.includedInPrompt instead
-  // (single source of truth for whether GraphRAG was included in the prompt)
 
   if (controls.ephemerisContext?.available) {
     const locationContext = controls.ephemerisContext.locationContext || {};

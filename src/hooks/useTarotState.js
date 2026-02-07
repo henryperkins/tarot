@@ -263,7 +263,9 @@ export function useTarotState(speak) {
 
   const dealNext = useCallback(() => {
     if (!reading) return;
-    const next = reading.findIndex((_, index) => !revealedCards.has(index));
+    const spreadInfo = getSpreadInfo(selectedSpread);
+    const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : reading.length;
+    const next = reading.findIndex((_, index) => index < maxCards && !revealedCards.has(index));
     if (next < 0) return;
 
     void unlockAudio();
@@ -275,7 +277,6 @@ export function useTarotState(speak) {
     }
     playFlip();
 
-    const spreadInfo = getSpreadInfo(selectedSpread);
     const position = spreadInfo?.positions?.[next] || `Position ${next + 1}`;
 
     if (speak) {
@@ -286,6 +287,9 @@ export function useTarotState(speak) {
   const revealCard = useCallback((index) => {
     if (!reading || !reading[index]) return;
     if (revealedCards.has(index)) return;
+    const spreadInfo = getSpreadInfo(selectedSpread);
+    const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : reading.length;
+    if (index >= maxCards) return;
 
     void unlockAudio();
     setRevealedCards(prev => new Set([...prev, index]));
@@ -296,7 +300,6 @@ export function useTarotState(speak) {
     }
     playFlip();
 
-    const spreadInfo = getSpreadInfo(selectedSpread);
     const position = spreadInfo?.positions?.[index] || `Position ${index + 1}`;
 
     if (speak) {
@@ -306,10 +309,13 @@ export function useTarotState(speak) {
 
   const revealAll = useCallback(() => {
     if (!reading || reading.length === 0) return;
-    const allIndices = new Set(Array.from({ length: reading.length }, (_, index) => index));
+    const spreadInfo = getSpreadInfo(selectedSpread);
+    const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : reading.length;
+    const visibleCount = Math.min(reading.length, maxCards);
+    const allIndices = new Set(Array.from({ length: visibleCount }, (_, index) => index));
     setRevealedCards(allIndices);
-    setDealIndex(reading.length);
-  }, [reading]);
+    setDealIndex(visibleCount);
+  }, [reading, selectedSpread]);
 
   return {
     selectedSpread,

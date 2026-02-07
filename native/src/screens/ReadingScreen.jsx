@@ -52,6 +52,7 @@ export default function ReadingScreen() {
   }, [reading.length, resetReveals, selectedSpread, setReading]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset transient save status when reading context changes
     setSaveStatus('idle');
     setSaveError('');
   }, [readingSignature, selectedSpread, userQuestion]);

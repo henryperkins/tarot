@@ -46,4 +46,44 @@ describe('GraphRAG fallback behavior', () => {
     assert.equal(promptMeta.graphRAG.semanticScoringUsed, false);
     assert.equal(promptMeta.graphRAG.semanticScoringFallback, true);
   });
+
+  it('injects payload-driven GraphRAG even when themes.graphKeys are absent', () => {
+    const graphRAGPayload = {
+      passages: [
+        {
+          title: 'Temperance',
+          source: 'Tableu Tarot Canon',
+          text: 'Integration comes through steady blending of opposites.'
+        }
+      ],
+      formattedBlock: [
+        '**Retrieved Wisdom from Tarot Tradition:**',
+        '',
+        '1. **Temperance**',
+        '   "Integration comes through steady blending of opposites."',
+        '   — Tableu Tarot Canon'
+      ].join('\n'),
+      retrievalSummary: {
+        passagesRetrieved: 1
+      },
+      initialPassageCount: 1,
+      maxPassages: 1
+    };
+
+    const { userPrompt, promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo: [{ card: 'Temperance', number: 14, position: 'Theme', orientation: 'Upright', meaning: 'Balance.' }],
+      userQuestion: 'What should I integrate right now?',
+      reflectionsText: '',
+      themes: { knowledgeGraph: {} },
+      spreadAnalysis: null,
+      context: 'general',
+      graphRAGPayload
+    });
+
+    assert.ok(userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'));
+    assert.equal(promptMeta.graphRAG?.includedInPrompt, true);
+    assert.equal(promptMeta.graphRAG?.passagesProvided, 1);
+    assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
+  });
 });

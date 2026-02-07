@@ -15,6 +15,7 @@ const DEFAULT_BEAT_DURATION_MS = 900;
 export function useCinematicBeat({ reasoning, totalCards = 0, durationMs = DEFAULT_BEAT_DURATION_MS, onBeat } = {}) {
   const [activeBeat, setActiveBeat] = useState('');
   const timeoutRef = useRef(null);
+  const generationRef = useRef(0);
 
   const clearBeat = useCallback(() => {
     if (timeoutRef.current) {
@@ -24,15 +25,29 @@ export function useCinematicBeat({ reasoning, totalCards = 0, durationMs = DEFAU
     setActiveBeat('');
   }, []);
 
-  useEffect(() => () => {
+  useEffect(() => {
+    // Bump generation so any in-flight timeout becomes stale
+    generationRef.current += 1;
+    // Cancel pending timeout
     if (timeoutRef.current) {
       window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
-  }, []);
-
-  useEffect(() => {
-    clearBeat();
-  }, [clearBeat, reasoning, totalCards]);
+    // Schedule reset on a microtask to avoid synchronous setState in effect body
+    const gen = generationRef.current;
+    const id = window.setTimeout(() => {
+      if (generationRef.current === gen) {
+        setActiveBeat('');
+      }
+    }, 0);
+    return () => {
+      window.clearTimeout(id);
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [reasoning, totalCards]);
 
   const triggerBeat = useCallback((beatKey) => {
     if (!beatKey) return;

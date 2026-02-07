@@ -862,7 +862,9 @@ export function ReadingProvider({ children }) {
             }
             const allCards = [...MAJOR_ARCANA, ...MINOR_ARCANA];
 
-            const cardsInfo = reading.map((card, idx) => {
+            const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
+            const visibleReading = maxCards ? reading.slice(0, maxCards) : reading;
+            const cardsInfo = visibleReading.map((card, idx) => {
                 const originalCard = allCards.find(item => item.name === card.name) || card;
                 const meaningText = card.isReversed ? originalCard.reversed : originalCard.upright;
                 const position = spreadInfo.positions[idx] || `Position ${idx + 1}`;
@@ -895,6 +897,7 @@ export function ReadingProvider({ children }) {
                 .map(([index, text]) => {
                     if (typeof text !== 'string' || !text.trim()) return '';
                     const idx = Number(index);
+                    if (maxCards && idx >= maxCards) return '';
                     const position = cardsInfo[idx]?.position || `Position ${idx + 1}`;
                     return `${position}: ${text.trim()}`;
                 })
@@ -1092,16 +1095,24 @@ export function ReadingProvider({ children }) {
 
     // Local fallback relationships
     const relationships = useMemo(() => {
-        if (!reading || !reading.length) return [];
+        if (!reading) return [];
+        const spreadInfo = getSpreadInfo(selectedSpread);
+        const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
+        const visibleReading = maxCards ? reading.slice(0, maxCards) : reading;
+        if (visibleReading.length === 0) return [];
         if (spreadAnalysis && Array.isArray(spreadAnalysis.relationships)) {
             return []; // Server analysis takes precedence
         }
-        return computeRelationships(reading || []);
-    }, [reading, spreadAnalysis]);
+        return computeRelationships(visibleReading);
+    }, [reading, spreadAnalysis, selectedSpread]);
 
     // Highlights Memoization
     const derivedHighlights = useMemo(() => {
-        if (!reading || revealedCards.size !== (reading?.length || 0)) return null;
+        if (!reading) return null;
+        const spreadInfo = getSpreadInfo(selectedSpread);
+        const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
+        const visibleCount = maxCards ? Math.min(reading.length, maxCards) : reading.length;
+        if (visibleCount === 0 || revealedCards.size !== visibleCount) return null;
         if (spreadAnalysis && Array.isArray(spreadAnalysis.relationships)) {
             const notes = [];
             if (themes) {
@@ -1161,13 +1172,17 @@ export function ReadingProvider({ children }) {
             return notes;
         }
         return null;
-    }, [reading, revealedCards, spreadAnalysis, themes, includeMinors]);
+    }, [reading, revealedCards, spreadAnalysis, themes, includeMinors, selectedSpread]);
 
     const fallbackHighlights = useMemo(() => {
-        const totalCards = reading?.length ?? 0;
-        if (!reading || totalCards === 0 || revealedCards.size !== totalCards) {
+        if (!reading) return [];
+        const spreadInfo = getSpreadInfo(selectedSpread);
+        const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
+        const totalCards = maxCards ? Math.min(reading.length, maxCards) : reading.length;
+        if (totalCards === 0 || revealedCards.size !== totalCards) {
             return [];
         }
+        const visibleReading = maxCards ? reading.slice(0, maxCards) : reading;
         const items = [];
         items.push({
             key: 'deck-scope',
@@ -1175,7 +1190,7 @@ export function ReadingProvider({ children }) {
             title: 'Deck scope:',
             text: includeMinors ? 'Full deck (Major + Minor Arcana).' : 'Major Arcana focus (archetypal themes).'
         });
-        const reversedIdx = reading.map((card, index) => (card.isReversed ? index : -1)).filter(index => index >= 0);
+        const reversedIdx = visibleReading.map((card, index) => (card.isReversed ? index : -1)).filter(index => index >= 0);
         if (reversedIdx.length > 0) {
             const hasCluster = reversedIdx.some((idx, j) => j > 0 && idx === reversedIdx[j - 1] + 1);
             let text = `These often point to inner processing, timing delays, or tension in the theme.`;
@@ -1202,7 +1217,7 @@ export function ReadingProvider({ children }) {
             items.push({ key: `relationship-${relationship.type || 'pattern'}-${index}`, icon: meta.icon, title: meta.title, text: relationship.text });
         });
         return items;
-    }, [reading, revealedCards, includeMinors, relationships]);
+    }, [reading, revealedCards, includeMinors, relationships, selectedSpread]);
 
     const highlightItems = useMemo(() => {
         if (Array.isArray(derivedHighlights) && derivedHighlights.length > 0) return derivedHighlights;
@@ -1255,7 +1270,11 @@ export function ReadingProvider({ children }) {
 
     const revealAll = useCallback(() => {
         if (!reading || reading.length === 0) return;
-        const descriptions = reading
+        const spreadInfo = getSpreadInfo(selectedSpread);
+        const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
+        const visibleReading = maxCards ? reading.slice(0, maxCards) : reading;
+        if (visibleReading.length === 0) return;
+        const descriptions = visibleReading
             .map((_, index) => (!revealedCards.has(index) ? describeCardAtIndex(index) : null))
             .filter(Boolean);
 
@@ -1265,12 +1284,12 @@ export function ReadingProvider({ children }) {
             const preview = descriptions.slice(0, 2).join('; ');
             const suffix = descriptions.length > 2 ? '…' : '.';
             setSrAnnouncement(`Revealed ${descriptions.length} cards — ${preview}${suffix}`);
-        } else if (revealedCards.size === reading.length) {
+        } else if (revealedCards.size === visibleReading.length) {
             setSrAnnouncement('All cards already revealed.');
         }
 
         baseRevealAll();
-    }, [baseRevealAll, describeCardAtIndex, reading, revealedCards]);
+    }, [baseRevealAll, describeCardAtIndex, reading, revealedCards, selectedSpread]);
 
     const value = useMemo(() => ({
         ...audioController,

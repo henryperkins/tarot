@@ -10,8 +10,14 @@ import { buildRelationshipReading as buildRelationshipReadingImpl } from './narr
 import { buildDecisionReading as buildDecisionReadingImpl } from './narrative/spreads/decision.js';
 import { buildSingleCardReading as buildSingleCardReadingImpl } from './narrative/spreads/singleCard.js';
 import { buildThreeCardReading as buildThreeCardReadingImpl } from './narrative/spreads/threeCard.js';
+import {
+  RELATIONSHIP_SPREAD_MIN_CARDS,
+  RELATIONSHIP_SPREAD_MAX_CARDS
+} from './spreadContracts.js';
 
-function assertValidCardsInfo(cardsInfo, expectedCount) {
+function assertValidCardsInfo(cardsInfo, expectedCount, options = {}) {
+  const minimumOnly = options.minimumOnly === true;
+  const maxCount = Number.isFinite(options.maxCount) ? options.maxCount : null;
   if (!Array.isArray(cardsInfo) || cardsInfo.length === 0) {
     const err = new Error('NARRATIVE_NO_CARDS');
     err.details = {
@@ -21,9 +27,19 @@ function assertValidCardsInfo(cardsInfo, expectedCount) {
     throw err;
   }
 
-  if (Number.isFinite(expectedCount) && cardsInfo.length !== expectedCount) {
+  const hasCardCountMismatch = Number.isFinite(expectedCount) && (
+    minimumOnly
+      ? cardsInfo.length < expectedCount
+      : cardsInfo.length !== expectedCount
+  );
+  if (hasCardCountMismatch) {
     const err = new Error('NARRATIVE_CARD_COUNT_MISMATCH');
     err.details = { expectedCount, receivedCount: cardsInfo.length };
+    throw err;
+  }
+  if (maxCount !== null && cardsInfo.length > maxCount) {
+    const err = new Error('NARRATIVE_CARD_COUNT_MISMATCH');
+    err.details = { expectedCount, maxCount, receivedCount: cardsInfo.length };
     throw err;
   }
 
@@ -60,7 +76,10 @@ export async function buildFiveCardReading(payload, options = {}) {
 }
 
 export async function buildRelationshipReading(payload, options = {}) {
-  assertValidCardsInfo(payload?.cardsInfo, 3);
+  assertValidCardsInfo(payload?.cardsInfo, RELATIONSHIP_SPREAD_MIN_CARDS, {
+    minimumOnly: true,
+    maxCount: RELATIONSHIP_SPREAD_MAX_CARDS
+  });
   return await buildRelationshipReadingImpl(payload, options);
 }
 

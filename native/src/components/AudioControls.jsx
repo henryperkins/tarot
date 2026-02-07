@@ -7,21 +7,20 @@ export default function AudioControls({ disabled = false, text = '' }) {
   const narrative = useMemo(() => (text || '').trim(), [text]);
   const isDisabled = disabled || !narrative;
 
+  // Stop speech when narrative text changes (cleanup runs on dep change + unmount)
   useEffect(() => {
-    if (!isPlaying) return;
-    Speech.stop();
-    setIsPlaying(false);
+    return () => {
+      Speech.stop();
+    };
   }, [narrative]);
 
+  // Stop speech when controls become disabled
   useEffect(() => {
-    if (!isDisabled || !isPlaying) return;
-    Speech.stop();
-    setIsPlaying(false);
+    if (isDisabled && isPlaying) {
+      Speech.stop();
+      // onStopped callback from Speech.speak() handles setIsPlaying(false)
+    }
   }, [isDisabled, isPlaying]);
-
-  useEffect(() => () => {
-    Speech.stop();
-  }, []);
 
   const buttonClassName = isDisabled
     ? 'bg-surface-muted/70 border border-gold/30'

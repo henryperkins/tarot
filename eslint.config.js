@@ -10,6 +10,7 @@ export default [
     ignores: [
       'dist/**',
       'node_modules/**',
+      'native/node_modules/**',
       '.vscode-server/**',
       '.vscode-server-insiders/**',
       '.wrangler/**',
@@ -111,13 +112,54 @@ export default [
     },
   },
 
-  // Node.js scripts
+  // Node.js scripts (including CJS files that use require/module)
   {
     files: ['scripts/**/*.{js,mjs}', '*.config.{js,mjs}', 'test-telemetry.js'],
     languageOptions: {
       globals: {
         ...globals.node,
+        ...globals.commonjs,
       },
+    },
+  },
+
+  // Native app CJS config files
+  {
+    files: ['native/*.config.js', 'native/babel.config.js', 'native/metro.config.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        ...globals.node,
+        ...globals.commonjs,
+      },
+    },
+  },
+
+  // Native app React components
+  {
+    files: ['native/src/**/*.{js,jsx}', 'native/App.jsx'],
+    plugins: {
+      react,
+      'react-hooks': reactHooks,
+    },
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        process: 'readonly',
+      },
+    },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
+    rules: {
+      ...react.configs.recommended.rules,
+      ...react.configs['jsx-runtime'].rules,
+      ...reactHooks.configs.recommended.rules,
+      'react/prop-types': 'off',
+      'react/jsx-uses-react': 'off',
+      'react/react-in-jsx-scope': 'off',
     },
   },
 
@@ -137,6 +179,7 @@ export default [
     languageOptions: {
       globals: {
         ...globals.node,
+        ...globals.jest,
       },
     },
     rules: {

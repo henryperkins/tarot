@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Check, Info } from '@phosphor-icons/react';
 import { BEGINNER_SPREADS } from '../../data/spreadBrowse';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -6,7 +6,7 @@ import { useLandscape } from '../../hooks/useLandscape';
 import { useSmallScreen } from '../../hooks/useSmallScreen';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { ResponsiveSpreadArt } from '../ResponsiveSpreadArt';
-import { getSpreadArt } from '../../utils/spreadArt';
+import { getSpreadArt, preloadAllSpreadArt } from '../../utils/spreadArt';
 
 const SPREAD_DEPTH_OPTIONS = [
   { value: 'short', label: 'Quick check-ins (1–2 cards)' },
@@ -45,10 +45,16 @@ const buildResponsiveSources = (sources = {}) => (
  */
 export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack }) {
   const [expandedSpread, setExpandedSpread] = useState(null);
+  const [, setArtLoaded] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const isSmallScreen = useSmallScreen();
   const { personalization, setPreferredSpreadDepth, toggleFocusArea } = usePreferences();
+
+  // Preload spread art after mount
+  useEffect(() => {
+    preloadAllSpreadArt().then(() => setArtLoaded(true));
+  }, []);
 
   const handleSpreadClick = (spreadKey) => {
     onSelectSpread(spreadKey);
@@ -98,6 +104,11 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
             const positionsId = `spread-${spreadKey}-positions`;
             const spreadName = spread?.name || spreadEntry.shortName || spreadKey;
             const spreadCount = spread?.count || 0;
+            const baseCount = typeof spread?.drawCount === 'number' ? spread.drawCount : spreadCount;
+            const maxCards = typeof spread?.maxCards === 'number' ? spread.maxCards : null;
+            const cardLabel = maxCards && maxCards > baseCount
+              ? `${baseCount} cards + clarifiers`
+              : `${baseCount} ${baseCount === 1 ? 'card' : 'cards'}`;
             const tagline = description.tagline || spread?.tag || '';
             const explanation = description.explanation || spread?.description || '';
 
@@ -172,7 +183,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
                         <p className="text-xs text-accent mt-0.5">{tagline}</p>
                       </div>
                       <span className="shrink-0 px-2 py-0.5 rounded-full bg-secondary/20 text-xs text-muted">
-                        {spreadCount} {spreadCount === 1 ? 'card' : 'cards'}
+                        {cardLabel}
                       </span>
                     </div>
 
@@ -307,7 +318,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
       </div>
 
       {/* Navigation */}
-      <div className={`flex gap-3 pt-4 pb-safe-bottom ${isLandscape ? 'pt-2' : 'pt-6'}`}>
+      <div className={`flex gap-3 pt-4 pb-safe ${isLandscape ? 'pt-2' : 'pt-6'}`}>
         <button
           type="button"
           onClick={onBack}

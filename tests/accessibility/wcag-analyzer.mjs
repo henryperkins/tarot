@@ -110,8 +110,8 @@ function isWrappedInLabel(content, matchIndex) {
   const openPattern = /<label[\s>]/gi;
   const closePattern = /<\/label>/gi;
   
-  let opens = [];
-  let closes = [];
+  const opens = [];
+  const closes = [];
   
   let match;
   while ((match = openPattern.exec(beforeMatch)) !== null) {
@@ -122,7 +122,7 @@ function isWrappedInLabel(content, matchIndex) {
   }
   
   // Match opens with closes (greedy - each close matches nearest preceding open)
-  let unclosedOpens = [...opens];
+  const unclosedOpens = [...opens];
   for (const closePos of closes) {
     // Find the most recent open before this close
     for (let i = unclosedOpens.length - 1; i >= 0; i--) {

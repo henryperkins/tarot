@@ -153,7 +153,7 @@ export function WelcomeStep({ onNext }) {
       </div>
 
       {/* Single CTA - full width, prominent */}
-      <div className={`${isLandscape ? 'pt-3' : 'pt-4'} pb-safe-bottom`}>
+      <div className={`${isLandscape ? 'pt-3' : 'pt-4'} pb-safe`}>
         <button
           type="button"
           onClick={handleContinue}

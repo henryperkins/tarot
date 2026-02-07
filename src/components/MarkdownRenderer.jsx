@@ -1,4 +1,4 @@
-import { Children, cloneElement, isValidElement, useRef } from 'react';
+import { Children, cloneElement, isValidElement } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -217,13 +217,12 @@ export function MarkdownRenderer({
 
   const styles = getVariantStyles(variant);
   const normalizedPhrases = normalizeHighlightPhrases(highlightPhrases);
-  const cursorRef = useRef(0);
-  const blockCountRef = useRef(0);
-  const keyCounterRef = useRef(0);
 
-  cursorRef.current = 0;
-  blockCountRef.current = 0;
-  keyCounterRef.current = 0;
+  // Mutable counters for tracking position during a single render pass.
+  // Plain objects (not useRef) since they reset each render.
+  const cursorRef = { current: 0 };
+  const blockCountRef = { current: 0 };
+  const keyCounterRef = { current: 0 };
 
   const nextKey = () => {
     const key = keyCounterRef.current;

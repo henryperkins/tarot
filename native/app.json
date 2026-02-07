@@ -14,8 +14,12 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.hperkins.tableau.native",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Tableu uses your camera to recognize physical tarot cards from multiple deck styles including Rider-Waite-Smith, Thoth, and Marseille."
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "privacyInfo": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyCollectedDataTypes": [],
+        "NSPrivacyAccessedAPITypes": []
       }
     },
     "android": {

@@ -8,6 +8,8 @@ import {
   buildDeckAwarePatterns,
   lookupCardByName,
   AMBIGUOUS_THOTH_EPITHETS,
+  getSpreadDefinition,
+  getSpreadKey,
   persistReadingMetrics
 } from '../functions/lib/readingQuality.js';
 
@@ -33,6 +35,28 @@ class MockDB {
     return this.queries[this.queries.length - 1];
   }
 }
+
+describe('spread alias canonicalization', () => {
+  it('maps native names and keys to canonical definitions', () => {
+    assert.deepStrictEqual(
+      getSpreadDefinition('Three Card'),
+      { key: 'threeCard', count: 3 }
+    );
+    assert.deepStrictEqual(
+      getSpreadDefinition('celtic-cross'),
+      { key: 'celtic', count: 10 }
+    );
+    assert.deepStrictEqual(
+      getSpreadDefinition('Daily Draw'),
+      { key: 'single', count: 1 }
+    );
+  });
+
+  it('normalizes fallback keys to canonical spread keys', () => {
+    assert.strictEqual(getSpreadKey('Unknown Spread', 'three-card'), 'threeCard');
+    assert.strictEqual(getSpreadKey('Unknown Spread', 'daily-draw'), 'single');
+  });
+});
 
 // =============================================================================
 // buildCardAliases tests

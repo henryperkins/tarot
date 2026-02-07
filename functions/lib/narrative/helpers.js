@@ -248,10 +248,27 @@ function deckAwareCardName(cardInfo, deckStyle = 'rws-1909') {
 
 const MINOR_SUITS = ['Wands', 'Cups', 'Swords', 'Pentacles'];
 
-function pickOne(value) {
+const REVERSAL_LENS_CACHE = new WeakMap();
+
+function hashString(input = '') {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function pickOne(value, seedKey = '') {
   if (!value) return '';
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '';
+  }
   if (Array.isArray(value) && value.length > 0) {
-    return value[Math.floor(Math.random() * value.length)];
+    if (value.length === 1) return value[0];
+    const normalizedSeed = `${seedKey}|${value.map((entry) => String(entry)).join('||')}`;
+    const index = hashString(normalizedSeed) % value.length;
+    return value[index];
   }
   return value;
 }
@@ -898,7 +915,10 @@ function buildPositionCardText(cardInfo, position, options = {}) {
     typeof cardInfo.orientation === 'string' && cardInfo.orientation.trim()
       ? sanitizePromptValue(cardInfo.orientation, 80)
       : '';
-  const introTemplate = pickOne(template.intro);
+  const introTemplate = pickOne(
+    template.intro,
+    `intro|${normalizedPosition}|${safeCard}|${safeOrientation}|${normalizedContext}`
+  );
   const intro =
     typeof introTemplate === 'function'
       ? introTemplate(safeCard, safeOrientation)
@@ -1014,7 +1034,10 @@ function buildPositionCardText(cardInfo, position, options = {}) {
     }
   }
 
-  const frameText = pickOne(template.frame) || '';
+  const frameText = pickOne(
+    template.frame,
+    `frame|${normalizedPosition}|${safeCard}|${safeOrientation}|${normalizedContext}`
+  ) || '';
   const safeElemental = elementalImagery || '';
   const positionLabel = position ? `${position}: ` : '';
   return `${positionLabel}${intro} ${enrichedMeaning}${imagery}${minorContextText}${symbolText} ${frameText}${safeElemental}`;
@@ -1036,11 +1059,21 @@ export function formatReversalLens(themes, options = {}) {
 
   const description = themes.reversalDescription || themes;
   if (!description) return { lines: [], text: '' };
+  const hasNoReversals = themes?.reversalCount === 0;
+  const cacheKey = [
+    includeExamples ? 'examples' : 'no-examples',
+    includeReminder ? 'reminder' : 'no-reminder',
+    hasNoReversals ? 'all-upright' : 'mixed-or-reversed'
+  ].join('|');
+  const cacheBucket = description && typeof description === 'object'
+    ? (REVERSAL_LENS_CACHE.get(description) || null)
+    : null;
 
-  if (cache !== false && description.formattedLens && !refresh) {
+  if (cache !== false && !refresh && cacheBucket && cacheBucket.has(cacheKey)) {
+    const cached = cacheBucket.get(cacheKey);
     return {
-      lines: description.formattedLens.split('\n'),
-      text: description.formattedLens
+      lines: cached.split('\n'),
+      text: cached
     };
   }
 
@@ -1063,13 +1096,17 @@ export function formatReversalLens(themes, options = {}) {
     lines.push('- Keep this lens consistent for all reversed cards in this spread.');
   }
 
-  if (themes?.reversalCount === 0) {
+  if (hasNoReversals) {
     lines.push('- All cards appear upright in this reading.');
   }
 
   const text = lines.join('\n');
-  if (cache !== false) {
-    description.formattedLens = text;
+  if (cache !== false && description && typeof description === 'object') {
+    const bucket = cacheBucket || new Map();
+    bucket.set(cacheKey, text);
+    if (!cacheBucket) {
+      REVERSAL_LENS_CACHE.set(description, bucket);
+    }
   }
 
   return { lines, text };
@@ -1181,11 +1218,11 @@ function getConnector(position, direction = 'toPrev') {
   if (!template) return '';
 
   if (direction === 'toPrev' && template.connectorToPrev) {
-    return pickOne(template.connectorToPrev);
+    return pickOne(template.connectorToPrev, `connector|${normalizedPosition}|toPrev`);
   }
 
   if (direction === 'toNext' && template.connectorToNext) {
-    return pickOne(template.connectorToNext);
+    return pickOne(template.connectorToNext, `connector|${normalizedPosition}|toNext`);
   }
 
   return '';

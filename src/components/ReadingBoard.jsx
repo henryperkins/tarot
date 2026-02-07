@@ -392,7 +392,7 @@ function CelticCrossMapOverlay({ onClose }) {
             >
               {i + 1}
             </span>
-            <span className="text-[0.6rem] text-main font-medium bg-surface/80 px-1.5 py-0.5 rounded whitespace-nowrap">
+            <span className="text-2xs text-main font-medium bg-surface/80 px-1.5 py-0.5 rounded whitespace-nowrap">
               {CELTIC_POSITION_LABELS[i]}
             </span>
           </div>

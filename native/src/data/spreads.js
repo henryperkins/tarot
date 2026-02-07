@@ -53,6 +53,8 @@ export const SPREADS = [
   }
 ];
 
+export const RELATIONSHIP_SPREAD_MAX_CARDS = 5;
+
 export function getSpreadByKey(key) {
   return SPREADS.find((spread) => spread.key === key) || null;
 }

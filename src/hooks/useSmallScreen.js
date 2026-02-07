@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
 
+export const SMALL_SCREEN_MAX = 640;
+export const COMPACT_SCREEN_MAX = 375;
+export const VERY_COMPACT_SCREEN_MAX = 374;
+export const TABLET_SCREEN_MAX = 768;
+
 /**
  * useSmallScreen detects when the viewport width is below a breakpoint.
  * Defaults defer until mounted to avoid hydration mismatch.
  */
-export function useSmallScreen(maxWidth = 640) {
+export function useSmallScreen(maxWidth = SMALL_SCREEN_MAX) {
   const getInitial = () => {
     if (typeof window === 'undefined') {
       return false;

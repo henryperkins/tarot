@@ -30,7 +30,7 @@ import { useSaveReading } from '../hooks/useSaveReading';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext.jsx';
-import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useSmallScreen, TABLET_SCREEN_MAX } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -371,21 +371,24 @@ export function ReadingDisplay({
         newDeckInterface,
         autoGenerateVisuals: autoGenerateVisualsEnabled
     } = useFeatureFlags();
-    const isCompactScreen = useSmallScreen(768);
+    const isCompactScreen = useSmallScreen(TABLET_SCREEN_MAX);
     const isLandscape = useLandscape();
     const isHandsetLayout = useHandsetLayout();
     const isHandset = isCompactScreen || isLandscape || isHandsetLayout;
     const prefersReducedMotion = useReducedMotion();
     const safeSpreadKey = normalizeSpreadKey(selectedSpread);
     const spreadInfo = getSpreadInfo(safeSpreadKey);
+    const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
+    const visibleCount = reading ? (maxCards ? Math.min(reading.length, maxCards) : reading.length) : 0;
     const canShowVisionPanel = visionResearchEnabled && isAuthenticated;
     const resolvedQuestion = userQuestion && userQuestion.trim().length > 0
         ? userQuestion.trim()
         : 'General guidance';
 
     const storyArtCards = useMemo(() => {
-        if (!Array.isArray(reading) || reading.length === 0) return [];
+        if (!Array.isArray(reading) || visibleCount === 0) return [];
         return reading
+            .slice(0, visibleCount)
             .map((card, index) => ({
                 name: card?.name,
                 number: card?.number ?? null,
@@ -397,11 +400,11 @@ export function ReadingDisplay({
                 meaning: getOrientationMeaning(card)
             }))
             .filter(card => Boolean(card.name));
-    }, [reading, spreadInfo]);
+    }, [reading, spreadInfo, visibleCount]);
 
     const cinematicCardIndex = useMemo(() => {
-        if (!Array.isArray(reading) || reading.length === 0) return -1;
-        const positions = spreadInfo?.positions || [];
+        if (!Array.isArray(reading) || visibleCount === 0) return -1;
+        const positions = spreadInfo?.positions?.slice(0, visibleCount) || [];
         const preferredLabels = ['present', 'core', 'heart', 'outcome'];
         const matchIndex = positions.findIndex((label) => {
             if (!label) return false;
@@ -409,8 +412,8 @@ export function ReadingDisplay({
             return preferredLabels.some((token) => normalized.includes(token));
         });
         if (matchIndex >= 0) return matchIndex;
-        return Math.floor(reading.length / 2);
-    }, [reading, spreadInfo]);
+        return Math.floor(visibleCount / 2);
+    }, [reading, spreadInfo, visibleCount]);
 
     const cinematicCard = cinematicCardIndex >= 0 ? reading?.[cinematicCardIndex] : null;
     const cinematicPosition = cinematicCardIndex >= 0
@@ -434,25 +437,26 @@ export function ReadingDisplay({
     }, [personalReading]);
 
     const narrativeHighlightPhrases = useMemo(() => {
-        if (!Array.isArray(reading) || reading.length === 0) return [];
+        if (!Array.isArray(reading) || visibleCount === 0) return [];
         const names = reading
+            .slice(0, visibleCount)
             .map(card => (typeof card?.name === 'string' ? card.name.trim() : ''))
             .filter(Boolean);
         return Array.from(new Set(names));
-    }, [reading]);
+    }, [reading, visibleCount]);
     const revealStage = useMemo(() => {
-        if (!isHandset || !newDeckInterface || !reading || reading.length === 0) return 'action';
+        if (!isHandset || !newDeckInterface || !reading || visibleCount === 0) return 'action';
         if (revealedCards.size === 0) return 'deck';
-        if (revealedCards.size < reading.length) return 'spread';
+        if (revealedCards.size < visibleCount) return 'spread';
         return 'action';
-    }, [isHandset, newDeckInterface, reading, revealedCards]);
+    }, [isHandset, newDeckInterface, reading, revealedCards, visibleCount]);
     const shouldStreamNarrative = Boolean(personalReading && !personalReading.isError && !isReadingStreaming && !isServerStreamed);
     const hasPatternHighlights = Boolean(!isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
     const traditionalPassages = themes?.knowledgeGraph?.graphRAGPayload?.passages
         || themes?.knowledgeGraph?.retrievedPassages
         || [];
     const hasTraditionalInsights = Boolean(traditionalPassages.length);
-    const hasHighlightPanel = Boolean(highlightItems?.length && revealedCards.size === reading?.length);
+    const hasHighlightPanel = Boolean(highlightItems?.length && visibleCount > 0 && revealedCards.size === visibleCount);
     const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasHighlightPanel || canShowVisionPanel;
     // Only show focus toggle on desktop; on mobile, panels are below the narrative so users can scroll past them
     const focusToggleAvailable = hasInsightPanels && !isHandset;
@@ -507,12 +511,12 @@ export function ReadingDisplay({
     }, [handleNarrationButtonClick, fullReadingText, narrativeText, isPersonalReadingError, emotionalTone]);
 
     const handleNarrativeHighlight = useCallback((phrase) => {
-        if (!phrase || !Array.isArray(reading) || reading.length === 0) return;
+        if (!phrase || !Array.isArray(reading) || visibleCount === 0) return;
         const normalized = phrase.toLowerCase();
         const matchIndex = reading.findIndex((card) => (
             typeof card?.name === 'string' && card.name.toLowerCase() === normalized
         ));
-        if (matchIndex < 0) return;
+        if (matchIndex < 0 || matchIndex >= visibleCount) return;
 
         mentionPulseRef.current += 1;
         setNarrativeMentionPulse({ id: mentionPulseRef.current, index: matchIndex });
@@ -525,7 +529,7 @@ export function ReadingDisplay({
             setNarrativeMentionPulse(null);
             mentionPulseTimeoutRef.current = null;
         }, 1100);
-    }, [reading, setNarrativeMentionPulse, notifyCardMention]);
+    }, [reading, visibleCount, setNarrativeMentionPulse, notifyCardMention]);
 
     const handleVoicePromptWrapper = useCallback(() => {
         const emotion = emotionalTone?.emotion || null;
@@ -748,13 +752,13 @@ export function ReadingDisplay({
     const nextLabel = useMemo(() => {
         if (!reading) return null;
         const nextIndex = reading.findIndex((_, i) => !revealedCards.has(i));
-        if (nextIndex === -1) return null;
+        if (nextIndex === -1 || (maxCards && nextIndex >= maxCards)) return null;
         const pos = spreadInfo?.positions?.[nextIndex];
         return pos ? pos.split('—')[0].trim() : `Card ${nextIndex + 1}`;
-    }, [reading, revealedCards, spreadInfo]);
-    const nextRevealCount = reading ? Math.min(revealedCards.size + 1, reading.length) : 0;
+    }, [reading, revealedCards, spreadInfo, maxCards]);
+    const nextRevealCount = reading ? Math.min(revealedCards.size + 1, visibleCount) : 0;
     const guidedRevealLabel = reading
-        ? `${revealStage === 'deck' ? 'Draw next' : 'Reveal next'} (${nextRevealCount}/${reading.length})`
+        ? `${revealStage === 'deck' ? 'Draw next' : 'Reveal next'} (${nextRevealCount}/${visibleCount})`
         : '';
 
     useEffect(() => {
@@ -859,9 +863,9 @@ export function ReadingDisplay({
             {reading && (
                 <div className={isLandscape ? 'space-y-4' : 'space-y-8'}>
                     <div className={`text-center text-accent font-serif mb-2 ${isLandscape ? 'text-lg' : 'text-2xl'}`}>{spreadInfo?.name || 'Tarot Spread'}</div>
-                    {reading.length > 1 && !isLandscape && (<p className="text-center text-muted text-xs-plus sm:text-sm mb-4">Reveal in order for a narrative flow, or follow your intuition and reveal randomly.</p>)}
+                    {visibleCount > 1 && !isLandscape && (<p className="text-center text-muted text-xs-plus sm:text-sm mb-4">Reveal in order for a narrative flow, or follow your intuition and reveal randomly.</p>)}
 
-                    {revealedCards.size < reading.length && (
+                    {revealedCards.size < visibleCount && (
                         <div className={`${isHandset ? 'hidden' : 'hidden sm:block'} text-center space-y-2`}>
                             <div className="flex items-center justify-center gap-3 flex-wrap">
                                 <button
@@ -880,7 +884,7 @@ export function ReadingDisplay({
                                     Reveal instantly
                                 </button>
                             </div>
-                            <p className="text-accent/80 text-xs sm:text-sm">{revealedCards.size} of {reading.length} cards revealed</p>
+                            <p className="text-accent/80 text-xs sm:text-sm">{revealedCards.size} of {visibleCount} cards revealed</p>
                         </div>
                     )}
                     {revealedCards.size > 0 && (
@@ -891,7 +895,7 @@ export function ReadingDisplay({
                         </div>
                     )}
                     {/* RitualNudge - contextual education for first-time users */}
-                    {reading && revealedCards.size < reading.length && shouldShowRitualNudge && knockCount === 0 && !hasCut && (
+                    {reading && revealedCards.size < visibleCount && shouldShowRitualNudge && knockCount === 0 && !hasCut && (
                         <div className="mb-4 max-w-md mx-auto">
                             <RitualNudge
                                 onEnableRitual={markRitualNudgeSeen}
@@ -900,7 +904,7 @@ export function ReadingDisplay({
                         </div>
                     )}
 
-                    {reading && revealedCards.size < reading.length && (
+                    {reading && revealedCards.size < visibleCount && (
                         newDeckInterface ? (
                             <DeckRitual
                                 // Ritual state
@@ -915,11 +919,11 @@ export function ReadingDisplay({
                                 // Deal state
                                 isShuffling={isShuffling}
                                 onShuffle={shuffle}
-                                cardsRemaining={reading.length - revealedCards.size}
+                                cardsRemaining={visibleCount - revealedCards.size}
                                 nextPosition={nextLabel}
                                 spreadPositions={spreadInfo?.positions || []}
                                 revealedCount={revealedCards.size}
-                                totalCards={reading.length}
+                                totalCards={visibleCount}
                                 // Deal action with ghost card animation
                                 onDeal={handleAnimatedDeal}
                                 // Minimap suit coloring (revealed cards)
@@ -931,7 +935,7 @@ export function ReadingDisplay({
                             />
                         ) : (
                             <DeckPile
-                                cardsRemaining={reading.length - revealedCards.size}
+                                cardsRemaining={visibleCount - revealedCards.size}
                                 onDraw={dealNext}
                                 isShuffling={isShuffling}
                                 nextLabel={nextLabel}
@@ -959,7 +963,7 @@ export function ReadingDisplay({
                         narrativeMentionPulse={narrativeMentionPulse}
                     />
 
-                    {!personalReading && !isGenerating && revealedCards.size === reading.length && (
+                    {!personalReading && !isGenerating && revealedCards.size === visibleCount && (
                         <div className="text-center space-y-3">
                             {isHandset ? (
                                 <p className="text-xs text-muted">Use the action bar below to create your narrative.</p>
@@ -985,9 +989,10 @@ export function ReadingDisplay({
                                 className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}
                             >
                                 {/* Show atmospheric interlude during initial generation phase */}
-                                {/* Only show when: scene suggests interlude, not yet streaming, and no reasoning summary yet */}
+                                {/* Only show when: scene suggests interlude, no content yet (reasoning or narrative) */}
                                 {(() => {
-                                    const shouldShowAtmosphericInterlude = shouldShowInterlude && !isReadingStreamActive && !reasoningSummary;
+                                    const hasAnyContent = reasoningSummary || (personalReading?.raw || personalReading?.normalized);
+                                    const shouldShowAtmosphericInterlude = shouldShowInterlude && !hasAnyContent;
                                     return shouldShowAtmosphericInterlude ? (
                                         <AtmosphericInterlude 
                                             message={`Channeling ${spreadInfo?.name || 'your reading'}...`}

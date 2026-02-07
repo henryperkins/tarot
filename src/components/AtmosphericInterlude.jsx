@@ -111,7 +111,7 @@ function ShimmerSymbol({ delay = 0, symbol = '✦' }) {
 
 export function AtmosphericInterlude({
   message = 'Channeling the cards...',
-  theme = 'default',
+  _theme = 'default',
   onComplete
 }) {
   const prefersReducedMotion = useReducedMotion();

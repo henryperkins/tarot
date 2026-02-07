@@ -7,7 +7,10 @@ import { Tooltip } from './Tooltip';
 import { CarouselDots } from './CarouselDots';
 import { SpreadTableCompact } from './SpreadTable';
 import { LandscapeSplitView } from './LandscapeSplitView';
-import { useSmallScreen } from '../hooks/useSmallScreen';
+import {
+  useSmallScreen,
+  VERY_COMPACT_SCREEN_MAX
+} from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
 
@@ -164,11 +167,14 @@ export function ReadingGrid({
   const [prevReflectionDeps, setPrevReflectionDeps] = useState({ reading, reflections, isCompactScreen: false });
   const [openReflectionIndex, setOpenReflectionIndex] = useState(null);
   const isCompactScreen = useSmallScreen();
-  const isVerySmallScreen = useSmallScreen(374);
+  const isVerySmallScreen = useSmallScreen(VERY_COMPACT_SCREEN_MAX);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
+  const spreadInfo = getSpreadInfo(selectedSpread);
+  const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
   const readingLength = reading?.length || 0;
-  const manyCards = readingLength > 4;
+  const visibleCount = maxCards ? Math.min(readingLength, maxCards) : readingLength;
+  const manyCards = visibleCount > 4;
   const mobileLayoutMode = useMemo(() => {
     if (!isCompactScreen) return 'carousel';
     if ((isVerySmallScreen || manyCards) && layoutPreference === 'carousel') {
@@ -181,8 +187,8 @@ export function ReadingGrid({
     isCompactScreen &&
     !isListView &&
     selectedSpread !== 'celtic' &&
-    readingLength &&
-    readingLength <= 3
+    visibleCount &&
+    visibleCount <= 3
   );
 
   // In landscape mobile: use smaller card widths to fit more cards visible
@@ -232,7 +238,7 @@ export function ReadingGrid({
   // Hide swipe hint only after user scrolls OR after extended timeout (8s)
   // This ensures users have time to discover the swipe gesture
   useEffect(() => {
-    if (!reading || reading.length <= 1 || isListView || hasUserScrolled) {
+    if (!reading || visibleCount <= 1 || isListView || hasUserScrolled) {
       return undefined;
     }
 
@@ -241,7 +247,7 @@ export function ReadingGrid({
     }, 8000); // Extended from 4s to 8s for better discoverability
 
     return () => clearTimeout(timer);
-  }, [reading, isListView, hasUserScrolled]);
+  }, [reading, visibleCount, isListView, hasUserScrolled]);
 
   // Celtic Cross uses a fixed CSS grid layout that doesn't scroll horizontally,
   // so carousel navigation (swipe, dots, prev/next) should be disabled for it
@@ -334,7 +340,7 @@ export function ReadingGrid({
     const el = carouselRef.current;
     if (!el) return;
 
-    const clamped = Math.min(reading.length - 1, Math.max(0, index));
+    const clamped = Math.min(visibleCount - 1, Math.max(0, index));
     setActiveIndex(clamped);
 
     // Scroll to center the target card in the viewport
@@ -348,7 +354,7 @@ export function ReadingGrid({
         behavior: prefersReducedMotion ? 'auto' : 'smooth'
       });
     }
-  }, [enableCarousel, reading, prefersReducedMotion]);
+  }, [enableCarousel, reading, prefersReducedMotion, visibleCount]);
 
   const handleLayoutToggle = useCallback((mode) => {
     setLayoutPreference(mode);
@@ -386,10 +392,8 @@ export function ReadingGrid({
   // Early return after all hooks to satisfy Rules of Hooks
   if (!reading) return null;
 
-  const spreadInfo = getSpreadInfo(selectedSpread);
-
   // Use landscape split-dashboard for multi-card spreads in compact landscape
-  const shouldUseSplitView = isLandscape && isCompactScreen && reading.length > 1;
+  const shouldUseSplitView = isLandscape && isCompactScreen && visibleCount > 1;
 
   if (shouldUseSplitView) {
     return (
@@ -407,10 +411,10 @@ export function ReadingGrid({
     );
   }
 
-  const isBatchReveal = reading.length > 1 && revealedCards.size === reading.length;
-  const batchStagger = Math.min(0.12, Math.max(0.08, 0.8 / Math.max(1, reading.length - 1)));
+  const isBatchReveal = visibleCount > 1 && revealedCards.size === visibleCount;
+  const batchStagger = Math.min(0.12, Math.max(0.08, 0.8 / Math.max(1, visibleCount - 1)));
 
-  const responsiveGridFallback = reading.length <= 4
+  const responsiveGridFallback = visibleCount <= 4
     ? 'sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4'
     : 'sm:grid sm:gap-8 sm:overflow-visible sm:snap-none sm:pb-0 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3';
 
@@ -419,7 +423,7 @@ export function ReadingGrid({
     : `flex overflow-x-auto snap-x snap-mandatory scrollbar-none ${isLandscape ? 'gap-2 pb-5' : 'gap-3 pb-8'} ${mobileCarouselPadding}`;
 
   const shouldApplyCarouselPadding = enableCarousel && !isListView && selectedSpread !== 'celtic';
-  const shouldShowCompactMap = Boolean(isCompactScreen && reading && reading.length > 2);
+  const shouldShowCompactMap = Boolean(isCompactScreen && reading && visibleCount > 2);
   const carouselInlineStyles = shouldApplyCarouselPadding
     ? {
         scrollPaddingLeft: 'max(1.25rem, var(--safe-pad-left))',
@@ -430,7 +434,7 @@ export function ReadingGrid({
 
   return (
     <>
-      {enableCarousel && showSwipeHint && !hasUserScrolled && reading.length > 1 && (
+      {enableCarousel && showSwipeHint && !hasUserScrolled && visibleCount > 1 && (
         <div
           className="sm:hidden flex items-center justify-center gap-2 px-4 py-2 mb-2 mx-auto w-fit rounded-full bg-main/80 backdrop-blur-sm border border-secondary/30 shadow-lg animate-pulse"
           role="status"
@@ -446,7 +450,7 @@ export function ReadingGrid({
             ? 'cc-grid animate-fade-in'
             : shouldUseGridOnMobile
               ? 'animate-fade-in grid grid-cols-1 xxs:grid-cols-2 gap-3 xs:gap-4'
-              : `animate-fade-in ${reading.length === 1
+              : `animate-fade-in ${visibleCount === 1
                 ? 'grid grid-cols-1 max-w-md mx-auto'
                 : `${multiCardLayoutClass} ${responsiveGridFallback}`
               }`
@@ -455,6 +459,7 @@ export function ReadingGrid({
         ref={enableCarousel ? carouselRef : null}
       >
         {reading.map((card, index) => {
+          if (maxCards && index >= maxCards) return null;
           const position = spreadInfo?.positions?.[index] || `Position ${index + 1}`;
           const roleKey = spreadInfo?.roleKeys?.[index] || null;
           const isRevealed = revealedCards.has(index);
@@ -483,7 +488,7 @@ export function ReadingGrid({
               key={`${card.name}-${index}`}
               className={`${selectedSpread === 'celtic'
                 ? getAreaClass(index, selectedSpread)
-                : reading.length > 1 ? (isListView ? 'w-full sm:min-w-0' : `${carouselCardWidthClass} snap-center sm:min-w-0`) : ''
+                : visibleCount > 1 ? (isListView ? 'w-full sm:min-w-0' : `${carouselCardWidthClass} snap-center sm:min-w-0`) : ''
                 }`}
             >
               <Tooltip
@@ -505,7 +510,7 @@ export function ReadingGrid({
           );
         })}
       </div>
-      {reading.length > 1 && (
+      {visibleCount > 1 && (
         <div className={`sm:hidden ${isLandscape ? 'mt-2 space-y-2' : 'mt-3 space-y-3'}`}>
           {/* Layout toggle - hide in landscape to save space */}
           {!isLandscape && (
@@ -541,12 +546,12 @@ export function ReadingGrid({
             <>
               {/* Celtic Cross mini-map - more compact in landscape */}
               {selectedSpread === 'celtic' && !isLandscape && (
-                <CelticCrossMiniMap activeIndex={activeIndex} totalCards={reading.length} />
+                <CelticCrossMiniMap activeIndex={activeIndex} totalCards={visibleCount} />
               )}
 
               <PositionDotsWrapper
                 activeIndex={activeIndex}
-                totalCards={reading.length}
+                totalCards={visibleCount}
                 spreadKey={selectedSpread}
                 onSelectPosition={scrollToIndex}
               />
@@ -564,12 +569,12 @@ export function ReadingGrid({
                 <p className="text-xs text-muted" aria-live="polite">
                   {selectedSpread === 'celtic'
                     ? CELTIC_POSITION_LABELS[activeIndex]
-                    : `${activeIndex + 1}/${reading.length}`}
+                    : `${activeIndex + 1}/${visibleCount}`}
                 </p>
                 <button
                   type="button"
                   onClick={() => scrollToIndex(activeIndex + 1)}
-                  disabled={activeIndex >= reading.length - 1}
+                  disabled={activeIndex >= visibleCount - 1}
                   className={`inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface ${isLandscape ? 'px-2 py-1 min-w-touch min-h-touch' : 'px-3 py-2 min-w-touch min-h-touch'} text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
                   aria-label="Show next card"
                 >

@@ -1019,7 +1019,7 @@ export default function PricingPage() {
 
       {/* Sticky mobile CTA */}
       {showMobileSticky && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-secondary/40 bg-main/95 px-4 py-3 shadow-[0_-8px_30px_rgba(0,0,0,0.6)] lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-secondary/40 bg-main/95 px-safe pt-3 pb-[max(0.75rem,var(--safe-pad-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.6)] lg:hidden">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
             <div className="text-xs text-muted">
               <p className="font-semibold text-main">Upgrade to Plus</p>

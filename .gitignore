@@ -91,6 +91,9 @@ coverage/
 /blob-report/
 /playwright/.cache/
 
+# Build analysis
+stats.html
+
 # Misc
 .cache/
 .codex/index/

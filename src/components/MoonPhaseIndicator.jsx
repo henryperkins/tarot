@@ -143,7 +143,7 @@ export function MoonPhaseIndicator({ ephemeris, variant = 'compact' }) {
   if (variant === 'icon') {
     return (
       <Tooltip content={tooltip} position="bottom" ariaLabel="Moon phase details">
-        <span className="inline-flex items-center justify-center min-h-[36px] min-w-[36px] rounded-full border border-secondary/30 bg-surface/60">
+        <span className="inline-flex items-center justify-center min-h-touch min-w-touch rounded-full border border-secondary/30 bg-surface/60">
           <MoonPhaseDisk illumination={moon.illumination} isWaxing={isWaxing} className="h-5 w-5" />
         </span>
       </Tooltip>

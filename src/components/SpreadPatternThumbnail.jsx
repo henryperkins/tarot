@@ -123,14 +123,17 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
     relationship: (
       <svg viewBox="0 0 100 80" className={baseClass} role="img" aria-hidden="true">
         {/* You */}
-        <rect x="8" y="45" width="24" height="35" rx="3" className={cardClass} />
+        <rect x="8" y="40" width="20" height="32" rx="3" className={cardClass} />
         {/* Them */}
-        <rect x="68" y="45" width="24" height="35" rx="3" className={cardClass} />
+        <rect x="72" y="40" width="20" height="32" rx="3" className={cardClass} />
         {/* Connection */}
-        <rect x="38" y="10" width="24" height="35" rx="3" className={highlightClass} />
+        <rect x="40" y="6" width="20" height="32" rx="3" className={highlightClass} />
+        {/* Clarifiers */}
+        <rect x="18" y="62" width="20" height="12" rx="2" className="fill-accent/20 stroke-accent stroke-1" />
+        <rect x="62" y="62" width="20" height="12" rx="2" className="fill-accent/20 stroke-accent stroke-1" />
         {/* Triangle lines */}
-        <path d="M 20 45 L 50 45" stroke="var(--brand-accent)" strokeWidth="1" opacity="0.2" fill="none" />
-        <path d="M 80 45 L 50 45" stroke="var(--brand-accent)" strokeWidth="1" opacity="0.2" fill="none" />
+        <path d="M 18 40 L 50 40" stroke="var(--brand-accent)" strokeWidth="1" opacity="0.2" fill="none" />
+        <path d="M 82 40 L 50 40" stroke="var(--brand-accent)" strokeWidth="1" opacity="0.2" fill="none" />
       </svg>
     ),
 

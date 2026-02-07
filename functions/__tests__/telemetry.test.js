@@ -60,14 +60,17 @@ describe('semantic scoring prefetch expectations', () => {
     assert.equal(promptMeta.graphRAG.semanticScoringUsed, false);
     assert.equal(promptMeta.graphRAG.semanticScoringFallback, true);
     assert.equal(promptMeta.graphRAG.reason, 'semantic-scoring-not-prefetched');
-    assert.equal(promptMeta.graphRAG.includedInPrompt, false);
-    assert.equal(promptMeta.graphRAG.passagesProvided, 0, 'GraphRAG should be skipped when semantic payload is missing');
+    assert.equal(promptMeta.graphRAG.includedInPrompt, true);
+    assert.ok(
+      promptMeta.graphRAG.passagesProvided >= 1,
+      'GraphRAG should fall back to keyword passages when semantic payload is missing'
+    );
     assert.ok(
       Array.isArray(contextDiagnostics) &&
       contextDiagnostics.some((d) =>
-        d.includes('Semantic scoring requested') && d.toLowerCase().includes('skipping graphrag')
+        d.includes('Semantic scoring requested') && d.toLowerCase().includes('falling back to keyword retrieval')
       ),
-      'Diagnostics should flag semantic scoring fallback and skip injection when payload is missing'
+      'Diagnostics should flag semantic scoring fallback to keyword retrieval'
     );
   });
 });
@@ -157,8 +160,10 @@ describe('prompt slimming respects budget order', () => {
       'drop-deck-geometry',
       'drop-diagnostics'
     ]);
-    // Note: appliedOptions.includeGraphRAG removed - use graphRAG.includedInPrompt instead
-    assert.equal(promptMeta.graphRAG.includedInPrompt, false);
+    // GraphRAG telemetry may be absent when no graph keys/payload were available.
+    if (promptMeta.graphRAG) {
+      assert.equal(promptMeta.graphRAG.includedInPrompt, false);
+    }
   });
 });
 
@@ -206,7 +211,7 @@ describe('hard-cap truncation', () => {
 });
 
 describe('reversal formatter', () => {
-  it('produces cached, multi-line reversal description', () => {
+  it('produces option-aware cached reversal descriptions without mutating source objects', () => {
     const themes = {
       reversalCount: 2,
       reversalDescription: {
@@ -218,13 +223,19 @@ describe('reversal formatter', () => {
     };
 
     const formatted = formatReversalLens(themes, { includeExamples: true, includeReminder: true });
+    const noExamples = formatReversalLens(themes, { includeExamples: false, includeReminder: false });
+    const noExamplesRepeat = formatReversalLens(themes, { includeExamples: false, includeReminder: false });
 
     assert.ok(formatted.lines.some((line) => line.includes('Reversal lens')));
     assert.ok(formatted.lines.some((line) => line.includes('Guidance')));
     assert.ok(formatted.lines.some((line) => line.includes('Example applications')));
-
-    // Should cache on the description object
-    assert.ok(themes.reversalDescription.formattedLens);
+    assert.ok(!noExamples.text.includes('Example applications'));
+    assert.strictEqual(noExamples.text, noExamplesRepeat.text, 'cached variant should be stable');
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(themes.reversalDescription, 'formattedLens'),
+      false,
+      'formatter cache must not mutate framework/theme objects'
+    );
   });
 });
 
@@ -266,6 +277,48 @@ describe('context diagnostics propagation', () => {
       onUnknown: (msg) => diagnostics.push(msg)
     });
     assert.equal(normalized, 'general');
+  });
+
+  it('reports relationship clarifier truncation diagnostics when prompt input exceeds contract', () => {
+    const themes = {
+      reversalCount: 0,
+      reversalDescription: {
+        name: 'All Upright',
+        description: 'No reversals present.',
+        guidance: 'Read cards in their upright flow.'
+      },
+      knowledgeGraph: {},
+      suitCounts: {},
+      elementCounts: {}
+    };
+    const cardsInfo = [
+      { card: 'Two of Cups', position: 'You / your energy', orientation: 'Upright', meaning: 'Mutual attraction.' },
+      { card: 'The Lovers', position: 'Them / their energy', orientation: 'Upright', meaning: 'Values alignment.' },
+      { card: 'Temperance', position: 'The connection / shared lesson', orientation: 'Upright', meaning: 'Integration.' },
+      { card: 'Three of Pentacles', position: 'Dynamics / guidance', orientation: 'Upright', meaning: 'Co-creation.' },
+      { card: 'The Star', position: 'Outcome / what this can become', orientation: 'Upright', meaning: 'Renewed trust.' },
+      { card: 'King of Swords', position: 'Additional clarifier 3', orientation: 'Upright', meaning: 'Boundaries.' }
+    ];
+
+    const { userPrompt, contextDiagnostics } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Relationship Snapshot', key: 'relationship' },
+      cardsInfo,
+      userQuestion: 'How do we repair this connection?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'love',
+      visionInsights: [],
+      deckStyle: 'rws-1909'
+    });
+
+    assert.ok(
+      contextDiagnostics.some((entry) => entry.includes('[relationship]') && entry.includes('truncating to 2')),
+      'context diagnostics should include relationship clarifier truncation'
+    );
+    assert.ok(userPrompt.includes('Dynamics / guidance'));
+    assert.ok(userPrompt.includes('Outcome / what this can become'));
+    assert.ok(!userPrompt.includes('Additional clarifier 3'));
   });
 });
 

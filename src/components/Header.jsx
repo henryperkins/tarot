@@ -4,7 +4,7 @@ import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
 import { StepProgress } from './StepProgress';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useSmallScreen, TABLET_SCREEN_MAX } from '../hooks/useSmallScreen';
 import { usePreferences } from '../contexts/PreferencesContext';
 
 // Scroll thresholds - using viewport-relative values for mobile
@@ -14,7 +14,7 @@ const HIDE_THRESHOLD_RATIO = 0.2; // 20% of viewport height
 
 export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
   const prefersReducedMotion = useReducedMotion();
-  const isMobile = useSmallScreen(768);
+  const isMobile = useSmallScreen(TABLET_SCREEN_MAX);
   const { personalization } = usePreferences();
   const displayName = personalization?.displayName?.trim();
   const [headerState, setHeaderState] = useState(() => ({

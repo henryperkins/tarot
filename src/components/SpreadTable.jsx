@@ -44,7 +44,9 @@ const SPREAD_LAYOUTS = {
   relationship: [
     { x: 30, y: 50, label: 'You' },
     { x: 70, y: 50, label: 'Them' },
-    { x: 50, y: 75, label: 'Connection' }
+    { x: 50, y: 75, label: 'Connection' },
+    { x: 25, y: 22, label: 'Dynamics' },
+    { x: 75, y: 22, label: 'Outcome' }
   ],
   celtic: [
     { x: 35, y: 50, label: 'Present' },
@@ -432,6 +434,17 @@ export function SpreadTable({
   const [scopeRootRef, scopeRef] = useAnimeScope();
   const baseLayout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
   const spreadInfo = SPREADS[spreadKey];
+  const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
+  const drawCount = typeof spreadInfo?.drawCount === 'number'
+    ? spreadInfo.drawCount
+    : (typeof spreadInfo?.count === 'number' ? spreadInfo.count : null);
+  const layoutLimit = Number.isFinite(drawCount)
+    ? Math.max(drawCount, cards?.length ?? 0)
+    : (cards?.length ?? baseLayout.length);
+  const cappedLimit = maxCards ? Math.min(layoutLimit, maxCards) : layoutLimit;
+  const limitedLayout = useMemo(() => {
+    return baseLayout.slice(0, Math.min(cappedLimit, baseLayout.length));
+  }, [baseLayout, cappedLimit]);
   const tableRef = useRef(null);
   const layoutRef = useRef(null);
   const [tableBounds, setTableBounds] = useState({ width: 0, height: 0 });
@@ -467,14 +480,14 @@ export function SpreadTable({
 
 
   const baseMaxCardWidth = useMemo(
-    () => getMaxCardWidth(baseLayout, tableBounds),
-    [baseLayout, tableBounds]
+    () => getMaxCardWidth(limitedLayout, tableBounds),
+    [limitedLayout, tableBounds]
   );
 
   const resolvedLayout = useMemo(() => {
-    if (spreadKey !== 'celtic') return baseLayout;
+    if (spreadKey !== 'celtic') return limitedLayout;
     const width = tableBounds.width;
-    if (!width || !baseMaxCardWidth) return baseLayout;
+    if (!width || !baseMaxCardWidth) return limitedLayout;
 
     const targetOffsetPx = Math.min(
       CELTIC_CHALLENGE_OFFSET.maxPx,
@@ -482,12 +495,14 @@ export function SpreadTable({
     );
     const offsetPercent = (targetOffsetPx / width) * 100;
 
-    return baseLayout.map((pos) => {
+    return limitedLayout.map((pos) => {
       if (pos.label !== 'Challenge') return pos;
       const baseOffset = pos.offsetX || 0;
       return { ...pos, offsetX: Math.max(baseOffset, offsetPercent) };
     });
-  }, [baseLayout, baseMaxCardWidth, spreadKey, tableBounds]);
+  }, [baseMaxCardWidth, limitedLayout, spreadKey, tableBounds]);
+
+  const visibleLayout = resolvedLayout;
 
   useEffect(() => {
     const element = tableRef.current;
@@ -567,11 +582,11 @@ export function SpreadTable({
       timeline?.pause?.();
       layout.record();
     };
-  }, [cards, resolvedLayout, tableBounds.width, tableBounds.height, prefersReducedMotion, layoutStagger]);
+  }, [cards, visibleLayout, tableBounds.width, tableBounds.height, prefersReducedMotion, layoutStagger]);
 
   const maxCardWidth = useMemo(
-    () => getMaxCardWidth(resolvedLayout, tableBounds),
-    [resolvedLayout, tableBounds]
+    () => getMaxCardWidth(visibleLayout, tableBounds),
+    [visibleLayout, tableBounds]
   );
 
   const cardSizeStyle = useMemo(() => {
@@ -665,7 +680,7 @@ export function SpreadTable({
       {/* Noise texture provided by .panel-mystic::after */}
 
       {/* Position placeholders */}
-      {resolvedLayout.map((pos, i) => {
+      {visibleLayout.map((pos, i) => {
         const card = cards?.[i];
         const isRevealed = revealedIndices?.has?.(i) || false;
         const isNext = i === nextDealIndex && !isRevealed;
@@ -732,7 +747,7 @@ export function SpreadTable({
                     ? MICROCOPY.revealPosition(shortLabel)
                     : i < nextDealIndex
                       ? `${positionLabel}: waiting for card`
-                      : MICROCOPY.awaitingPrevious(getPositionLabel(spreadInfo, nextDealIndex, resolvedLayout[nextDealIndex]))
+                      : MICROCOPY.awaitingPrevious(getPositionLabel(spreadInfo, nextDealIndex, visibleLayout[nextDealIndex]))
                 }
               >
                 {numberBadge}
@@ -918,7 +933,7 @@ export function SpreadTable({
       {!compact && !hideLegend && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-3 w-[92%] sm:w-[86%]">
           <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 rounded-full bg-main/65 border border-secondary/30 px-3 py-2 backdrop-blur">
-            {resolvedLayout.map((pos, i) => {
+            {visibleLayout.map((pos, i) => {
               const label = getPositionLabel(spreadInfo, i, pos);
               const short = extractShortLabel(label, 22) || label;
               return (
@@ -941,7 +956,7 @@ export function SpreadTable({
       {!compact && showProgress && cards.length > 1 && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20">
           <SpreadProgressIndicator
-            total={baseLayout.length}
+            total={visibleLayout.length}
             revealed={revealedIndices?.size || 0}
             variant="dots"
           />
@@ -967,7 +982,7 @@ export function SpreadTable({
       <TactileLensOverlay
         isActive={tactileLens.isActive}
         positions={fullPositions}
-        spreadLayout={resolvedLayout}
+        spreadLayout={visibleLayout}
         prefersReducedMotion={prefersReducedMotion}
       />
     </div>
@@ -987,6 +1002,15 @@ export function SpreadTableCompact({
 }) {
   const layout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
   const spreadInfo = SPREADS[spreadKey];
+  const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
+  const drawCount = typeof spreadInfo?.drawCount === 'number'
+    ? spreadInfo.drawCount
+    : (typeof spreadInfo?.count === 'number' ? spreadInfo.count : null);
+  const layoutLimit = Number.isFinite(drawCount)
+    ? Math.max(drawCount, cards?.length ?? 0)
+    : (cards?.length ?? layout.length);
+  const cappedLimit = maxCards ? Math.min(layoutLimit, maxCards) : layoutLimit;
+  const visibleLayout = layout.slice(0, Math.min(cappedLimit, layout.length));
   const isInteractive = typeof onSlotClick === 'function';
 
   return (
@@ -995,7 +1019,7 @@ export function SpreadTableCompact({
       role={isInteractive ? 'listbox' : 'region'}
       aria-label={`${spreadInfo?.name || 'Spread'} ${isInteractive ? 'card selector' : 'progress'}`}
     >
-      {layout.map((pos, i) => {
+      {visibleLayout.map((pos, i) => {
         const card = cards?.[i];
         const isRevealed = revealedIndices?.has?.(i) || false;
         const isActive = activeSlot === i;

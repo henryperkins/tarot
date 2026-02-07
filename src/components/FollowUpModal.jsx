@@ -17,7 +17,7 @@ export default function FollowUpModal({ isOpen, onClose, isVisible = true, autoF
   if (typeof document === 'undefined') return null;
 
   const overlayClasses = clsx(
-    'fixed inset-0 z-[70] flex items-center justify-center bg-main/80 backdrop-blur-sm px-safe pt-safe pb-safe-bottom',
+    'fixed inset-0 z-[70] flex items-center justify-center bg-main/80 backdrop-blur-sm px-safe pt-safe pb-safe',
     'transition-opacity duration-200',
     isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
   );

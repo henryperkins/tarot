@@ -19,7 +19,18 @@ applyTo: "src/components/**/*.jsx"
 - Maintain proper ARIA labels and roles
 - Preserve existing focus-visible ring styles for interactive elements
 - Respect `prefers-reduced-motion` for animations
-- Ensure touch targets are at least 44×44px for mobile
+- Ensure touch targets are at least 44×44px for mobile (use `min-h-touch min-w-touch`)
+
+## Motion & Animation
+- A global CSS kill-switch in `tarot.css` disables all animations/transitions for `prefers-reduced-motion: reduce` — this is the safety net.
+- For simple class toggling, use Tailwind `motion-safe:animate-*` / `motion-reduce:transition-none` variants. Do **not** import `useReducedMotion()` just to conditionally apply a CSS class.
+- Reserve the `useReducedMotion()` hook for JS-level logic: changing `setTimeout` durations, skipping multi-step choreography, adjusting physics parameters, or conditionally rendering animated vs static components.
+
+## Responsive
+- Use existing touch-target tokens: `min-h-touch` (44px), `min-h-cta` (52px), `min-h-nav` (56px).
+- Content padding pattern: `px-3 xxs:px-4 sm:px-6` for standard horizontal padding.
+- Apply safe-area utilities (`pb-safe`, `pt-safe`, `px-safe`) on fixed/sticky elements.
+- Prefer `useHandsetLayout()` over `useSmallScreen()` when Safari "Request Desktop Site" must be handled.
 
 ## Card Components
 - `Card.jsx` expects `.tarot-card-*` CSS hooks

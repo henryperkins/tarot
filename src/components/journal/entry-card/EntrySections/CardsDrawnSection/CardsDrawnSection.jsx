@@ -5,7 +5,10 @@
 import { memo, useMemo } from 'react';
 import { CaretUp, CaretDown } from '@phosphor-icons/react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useSmallScreen } from '../../../../../hooks/useSmallScreen';
+import {
+  useSmallScreen,
+  COMPACT_SCREEN_MAX
+} from '../../../../../hooks/useSmallScreen';
 import { useReducedMotion } from '../../../../../hooks/useReducedMotion';
 import { styles, cn } from '../../EntryCard.primitives';
 import { CardStack } from './CardStack';
@@ -21,7 +24,7 @@ export const CardsDrawnSection = memo(function CardsDrawnSection({
   defaultExpanded = false
 }) {
   const reduceMotion = useReducedMotion();
-  const isNarrow = useSmallScreen(375);
+  const isNarrow = useSmallScreen(COMPACT_SCREEN_MAX);
   const isCollapsible = collapsible && isSmallScreen;
   const cardItems = useMemo(() => cards, [cards]);
   const cardFan = useCardFan({

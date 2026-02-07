@@ -283,7 +283,7 @@ export function drawSpread({ spreadKey, useSeed, seed, includeMinors = false }) 
 
   const poolSource = getDeckPool(includeMinors);
   const pool = useSeed ? seededShuffle(poolSource, seed) : cryptoShuffle(poolSource);
-  const count = spread.count;
+  const count = typeof spread.drawCount === 'number' ? spread.drawCount : spread.count;
   
   // Validate deck has enough cards for the spread
   if (pool.length < count) {

@@ -132,7 +132,7 @@ export function useEnhancedTextStreaming({
         break; // Only trigger one element at a time
       }
     }
-  }, [onElementDetected]);
+  }, [onElementDetected, elementCooldownMs]);
 
   /**
    * Calculate delay for a text segment
@@ -160,6 +160,6 @@ export function useEnhancedTextStreaming({
     detectElementTriggers,
     calculateSegmentDelay,
     resetElementDetection,
-    hasSegmenter: !!segmenterRef.current
+    hasSegmenter: typeof Intl?.Segmenter === 'function'
   };
 }

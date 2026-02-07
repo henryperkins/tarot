@@ -1,3 +1,9 @@
+import {
+  RELATIONSHIP_SPREAD_POSITIONS,
+  RELATIONSHIP_SPREAD_MIN_CARDS,
+  RELATIONSHIP_SPREAD_MAX_CARDS
+} from '../../shared/contracts/spreadContracts.js';
+
 export const SPREADS = {
   // One-card: simple, focused, great as daily draw or core theme
   single: {
@@ -91,21 +97,19 @@ export const SPREADS = {
   relationship: {
     name: 'Relationship Snapshot',
     tag: 'Relationship',
-    positions: [
-      'You / your energy',
-      'Them / their energy',
-      'The connection / shared lesson'
-    ],
-    roleKeys: ['you', 'them', 'connection'],
-    count: 3,
-    description: 'Your energy, their energy, your shared connection.',
-    mobileDescription: 'You · them · connection in one glance.',
+    positions: RELATIONSHIP_SPREAD_POSITIONS,
+    roleKeys: ['you', 'them', 'connection', 'dynamics', 'rel_outcome'],
+    count: RELATIONSHIP_SPREAD_MIN_CARDS,
+    drawCount: RELATIONSHIP_SPREAD_MIN_CARDS,
+    maxCards: RELATIONSHIP_SPREAD_MAX_CARDS,
+    description: 'You, them, and the bond — with space for clarifying insights.',
+    mobileDescription: 'You · them · connection, plus clarifiers as needed.',
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/relationship.png',
       width: 220,
       height: 109,
-      alt: 'Three-card relationship triangle layout'
+      alt: 'Relationship snapshot layout'
     }
   },
 

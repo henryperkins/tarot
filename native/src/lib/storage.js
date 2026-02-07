@@ -8,7 +8,10 @@ export const storageKeys = {
   theme: 'tarot-theme',
   voiceEnabled: 'tarot-voice-enabled',
   ambienceEnabled: 'tarot-ambience-enabled',
-  deckStyleId: 'tarot-deck-style-id'
+  deckStyleId: 'tarot-deck-style-id',
+  subscriptionTier: 'tarot-subscription-tier',
+  subscriptionProductId: 'tarot-subscription-product-id',
+  subscriptionUpdatedAt: 'tarot-subscription-updated-at'
 };
 
 export const getString = (key) => storage.getString(key) ?? null;

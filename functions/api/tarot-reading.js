@@ -486,6 +486,14 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     } = normalizedPayload;
     const deckStyle = requestDeckStyle || spreadInfo?.deckStyle || 'rws-1909';
     const cardsInfo = rawCardsInfo.map((card) => {
+      const rawCardNumber = card?.number ?? card?.cardNumber ?? card?.card_number;
+      const trimmedRaw = typeof rawCardNumber === 'string' ? rawCardNumber.trim() : null;
+      const parsedCardNumber = trimmedRaw !== null
+        ? (trimmedRaw ? Number(trimmedRaw) : NaN)
+        : rawCardNumber;
+      const normalizedCardNumber = Number.isInteger(parsedCardNumber) && parsedCardNumber >= 0
+        ? parsedCardNumber
+        : null;
       const canonicalName = card?.canonicalName ||
         canonicalizeCardName(card?.card, deckStyle) ||
         card?.card ||
@@ -495,6 +503,8 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         null;
       return {
         ...card,
+        number: normalizedCardNumber,
+        cardNumber: normalizedCardNumber,
         canonicalName,
         canonicalKey
       };
@@ -597,8 +607,17 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       });
     }
 
-    const spreadDefinition = getSpreadDefinition(spreadInfo.name);
-    const requestedSpreadKey = getSpreadKey(spreadInfo.name, spreadInfo?.key || 'custom');
+    // When the client explicitly signals a custom spread via key, skip name-based
+    // alias resolution so user-created names like "Daily Draw" aren't coerced into
+    // a built-in spread definition.
+    const explicitKey = spreadInfo?.key;
+    const isExplicitlyCustom = explicitKey === 'custom';
+    const spreadDefinition = isExplicitlyCustom
+      ? null
+      : (getSpreadDefinition(spreadInfo.name) || getSpreadDefinition(explicitKey || ''));
+    const requestedSpreadKey = isExplicitlyCustom
+      ? 'custom'
+      : getSpreadKey(spreadInfo.name, explicitKey || 'custom');
     const isCustomSpread = !spreadDefinition;
     const spreadsConfig = subscription.config?.spreads;
     const spreadAllowed = spreadsConfig === 'all' ||
@@ -631,7 +650,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
     if (spreadDefinition) {
       const providedKey = typeof spreadInfo.key === 'string' ? spreadInfo.key.trim() : '';
-      if (providedKey && providedKey !== spreadDefinition.key) {
+      const canonicalProvidedKey = providedKey ? getSpreadKey(null, providedKey) : '';
+      if (providedKey && canonicalProvidedKey !== spreadDefinition.key) {
         return jsonResponse(
           { error: `Spread "${spreadInfo.name}" did not match its expected key. Please refresh and try again.` },
           { status: 400 }
@@ -1296,10 +1316,23 @@ export function validatePayload({ spreadInfo, cardsInfo }) {
     return 'One or more cards are missing required details.';
   }
 
-  // Validate spread card count for known spreads
-  const spreadDefinition = getSpreadDefinition(spreadInfo.name);
+  // Validate spread card count for known spreads (skip alias resolution for
+  // explicitly custom spreads to avoid coercing user-created spread names).
+  const explicitKey = spreadInfo?.key;
+  const isExplicitlyCustom = explicitKey === 'custom';
+  const spreadDefinition = isExplicitlyCustom
+    ? null
+    : (getSpreadDefinition(spreadInfo.name) || getSpreadDefinition(explicitKey || ''));
   if (spreadDefinition && typeof spreadDefinition.count === 'number') {
-    if (cardsInfo.length !== spreadDefinition.count) {
+    const hasMaxCount = typeof spreadDefinition.maxCount === 'number';
+    if (hasMaxCount) {
+      if (cardsInfo.length < spreadDefinition.count) {
+        return `Spread "${spreadInfo.name}" requires at least ${spreadDefinition.count} cards, but received ${cardsInfo.length}.`;
+      }
+      if (cardsInfo.length > spreadDefinition.maxCount) {
+        return `Spread "${spreadInfo.name}" allows at most ${spreadDefinition.maxCount} cards, but received ${cardsInfo.length}.`;
+      }
+    } else if (cardsInfo.length !== spreadDefinition.count) {
       return `Spread "${spreadInfo.name}" expects ${spreadDefinition.count} cards, but received ${cardsInfo.length}.`;
     }
   }

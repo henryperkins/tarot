@@ -28,6 +28,7 @@ import { useLandscape } from './hooks/useLandscape';
 import { useHandsetLayout } from './hooks/useHandsetLayout';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
+import { getSpreadInfo, normalizeSpreadKey } from './data/spreads';
 
 const STEP_PROGRESS_STEPS = [
   { id: 'spread', label: 'Spread' },
@@ -692,8 +693,12 @@ export default function TarotReading() {
   // Determine Active Step for StepProgress
   // These are milestone-based flags that represent permanent progress through the flow
   const hasQuestion = Boolean(userQuestion && userQuestion.trim().length > 0);
-  const hasReading = Boolean(reading && reading.length > 0);
-  const allCardsRevealed = hasReading && revealedCards.size === reading.length;
+  const safeSpreadKey = normalizeSpreadKey(selectedSpread);
+  const spreadInfo = getSpreadInfo(safeSpreadKey);
+  const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
+  const visibleCount = reading ? (maxCards ? Math.min(reading.length, maxCards) : reading.length) : 0;
+  const hasReading = visibleCount > 0;
+  const allCardsRevealed = hasReading && revealedCards.size === visibleCount;
   const hasNarrative = Boolean(personalReading && !personalReading.isError && !personalReading.isStreaming);
   const narrativeInProgress = isGenerating && (!personalReading || personalReading.isStreaming);
   const needsNarrativeGeneration = allCardsRevealed && (!personalReading || personalReading.isError || personalReading.isStreaming);
@@ -702,7 +707,7 @@ export default function TarotReading() {
   const isFollowUpVisible = showFollowUpButton && isFollowUpOpen;
   // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
   const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen || isFollowUpVisible;
-  const revealFocus = isHandset && newDeckInterface && reading && revealedCards.size < reading.length
+  const revealFocus = isHandset && newDeckInterface && reading && revealedCards.size < visibleCount
     ? (revealedCards.size === 0 ? 'deck' : 'spread')
     : 'action';
   const connectionTone = connectionBanner?.status === 'offline'
@@ -763,7 +768,7 @@ export default function TarotReading() {
         };
       }
       // Cards drawn but not all revealed
-      const remainingCards = reading.length - revealedCards.size;
+      const remainingCards = visibleCount - revealedCards.size;
       return {
         stepIndicatorLabel: `Reveal your cards`,
         stepIndicatorHint: `${remainingCards} card${remainingCards === 1 ? '' : 's'} remaining to reveal.`,
@@ -808,7 +813,7 @@ export default function TarotReading() {
       stepIndicatorHint: 'When you feel ready, deal the cards to begin your reading.',
       activeStep: 'reading'
     };
-  }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, hasQuestion, hasConfirmedSpread, knockCount, hasCut, reading, revealedCards]);
+  }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, hasQuestion, hasConfirmedSpread, knockCount, hasCut, revealedCards, visibleCount]);
 
 
   // --- Render Helper Wrappers ---
@@ -1039,7 +1044,7 @@ export default function TarotReading() {
                 <button
                   type="button"
                   onClick={checkApiHealth}
-                  className={`ml-auto inline-flex min-h-[32px] items-center rounded-full border px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.14em] ${connectionTone} ${connectionText} hover:text-main hover:border-secondary/60 transition`}
+                  className={`ml-auto inline-flex min-h-touch items-center rounded-full border px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.14em] ${connectionTone} ${connectionText} hover:text-main hover:border-secondary/60 transition`}
                 >
                   {connectionBanner.actionLabel || 'Retry'}
                 </button>

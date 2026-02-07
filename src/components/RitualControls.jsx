@@ -163,7 +163,7 @@ export function RitualControls({
           >
             <span>{knockComplete ? 'Deck cleared · 3 of 3' : `Knock ${nextKnockNumber} of 3`}</span>
             {!knockComplete && (
-              <span className="text-[0.65rem] uppercase tracking-[0.2em] text-accent/80">Tap</span>
+              <span className="text-2xs uppercase tracking-[0.2em] text-accent/80">Tap</span>
             )}
           </button>
           {!isExperienced && (
@@ -214,7 +214,7 @@ export function RitualControls({
               aria-valuetext={`Cut position ${cutIndex} of ${deckSize}`}
               style={{ accentColor: 'var(--brand-accent)' }}
             />
-            <div className="mt-1 flex items-center justify-between text-[0.7rem] text-muted">
+            <div className="mt-1 flex items-center justify-between text-xs text-muted">
               <span>0</span>
               <span className="font-semibold text-secondary">Cut #{cutIndex}</span>
               <span>{sliderMax}</span>
@@ -227,7 +227,7 @@ export function RitualControls({
             aria-pressed={hasCut}
           >
             <span>{hasCut ? 'Cut confirmed' : 'Confirm cut'}</span>
-            <span className="text-[0.65rem] uppercase tracking-[0.2em] text-accent/80">
+            <span className="text-2xs uppercase tracking-[0.2em] text-accent/80">
               {hasCut ? 'Locked' : 'Lock'}
             </span>
           </button>
@@ -298,12 +298,12 @@ export function RitualControls({
             aria-valuetext={`Cut position ${cutIndex} of ${deckSize}`}
             style={{ accentColor: 'var(--brand-accent)' }}
           />
-          <div className="mt-1 flex items-center justify-between text-[0.65rem] text-muted">
+          <div className="mt-1 flex items-center justify-between text-2xs text-muted">
             <span>Top (0)</span>
             <span>Bottom ({sliderMax})</span>
           </div>
           {hasCut && (
-            <p className="mt-2 text-[0.65rem] text-secondary/80">
+            <p className="mt-2 text-xs text-secondary/80">
               Adjust the slider and tap &ldquo;Relock cut&rdquo; whenever you need to fine-tune.
             </p>
           )}
@@ -315,7 +315,7 @@ export function RitualControls({
           <button
             type="button"
             onClick={() => setShowSkipConfirm(show => !show)}
-            className="text-[0.68rem] uppercase tracking-[0.35em] text-accent/80 underline decoration-accent/60 underline-offset-4 transition hover:text-main"
+            className="text-2xs uppercase tracking-[0.35em] text-accent/80 underline decoration-accent/60 underline-offset-4 transition hover:text-main"
             aria-haspopup="dialog"
             aria-expanded={showSkipConfirm}
           >

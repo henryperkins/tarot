@@ -6,13 +6,24 @@ import {
 
 export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
   const includeGraphRAG = options.includeGraphRAG !== false;
-  if (!includeGraphRAG || !themes?.knowledgeGraph?.graphKeys) {
+  if (!includeGraphRAG) {
+    return '';
+  }
+
+  const graphKeys = themes?.knowledgeGraph?.graphKeys;
+  const hasGraphKeys =
+    graphKeys &&
+    typeof graphKeys === 'object' &&
+    Object.keys(graphKeys).length > 0;
+  const payload = options.graphRAGPayload || themes?.knowledgeGraph?.graphRAGPayload || null;
+
+  // Allow payload-driven GraphRAG injection even when graphKeys are absent.
+  if (!payload && !hasGraphKeys) {
     return '';
   }
 
   const envForGraphBlock = options.env ?? (typeof process !== 'undefined' ? process.env : {});
-  const payload = options.graphRAGPayload || themes?.knowledgeGraph?.graphRAGPayload || null;
-  const graphragAllowed = isGraphRAGEnabled(envForGraphBlock) || (!options.env && Boolean(payload));
+  const graphragAllowed = isGraphRAGEnabled(envForGraphBlock) || (!options.env && (Boolean(payload) || Boolean(hasGraphKeys)));
   if (!graphragAllowed) {
     return '';
   }
@@ -66,4 +77,3 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
     return '';
   }
 }
-

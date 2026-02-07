@@ -13,7 +13,7 @@ export function AudioControls({ className = '' }) {
   const controlShellClass =
     'rounded-3xl border border-secondary/25 bg-surface/80 p-3 xs:p-4 sm:p-5 shadow-md shadow-secondary/15 backdrop-blur-lg';
   const tileBaseClass =
-    'group flex items-center gap-2 xs:gap-3 rounded-2xl border border-secondary/20 bg-surface/75 px-3 py-2 xs:py-2.5 transition-colors duration-200 touch-manipulation min-h-[56px]';
+    'group flex items-center gap-2 xs:gap-3 rounded-2xl border border-secondary/20 bg-surface/75 px-3 py-2 xs:py-2.5 transition-colors duration-200 touch-manipulation min-h-nav';
   const activeTileClass =
     'border-secondary/50 bg-secondary/10 shadow-lg shadow-secondary/25';
   const inactiveTileClass = 'hover:border-accent/35 hover:bg-surface/80';

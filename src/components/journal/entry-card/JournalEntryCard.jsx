@@ -8,7 +8,7 @@
  * now decomposed into ~150 lines using extracted hooks and sub-components.
  */
 import { memo, useEffect, useId, useRef, useState } from 'react';
-import { useSmallScreen } from '../../../hooks/useSmallScreen';
+import { useSmallScreen, SMALL_SCREEN_MAX } from '../../../hooks/useSmallScreen';
 import { InlineStatus } from '../../InlineStatus.jsx';
 import { useInlineStatus } from '../../../hooks/useInlineStatus';
 import { useSubscription } from '../../../contexts/SubscriptionContext';
@@ -50,7 +50,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const [isExpanded, setIsExpanded] = useState(() => defaultExpanded && !compact);
   
   // Hooks
-  const isSmallScreen = useSmallScreen(640);
+  const isSmallScreen = useSmallScreen(SMALL_SCREEN_MAX);
   const { effectiveTier } = useSubscription();
   const { status: inlineStatus, showStatus, clearStatus } = useInlineStatus();
   const actionMenu = useActionMenu();

@@ -22,6 +22,7 @@ export default function Card({
   const flip = useSharedValue(isRevealed ? 1 : 0);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are designed to be mutated
     flip.value = withTiming(isRevealed ? 1 : 0, {
       duration: FLIP_DURATION_MS,
       easing: Easing.inOut(Easing.ease)

@@ -37,6 +37,8 @@ export const POSITION_SYNTHESIS = {
   you: (cardName) => `${cardName} reflects your energy in this connection`,
   them: (cardName) => `${cardName} reflects their energy and perspective`,
   connection: (cardName) => `${cardName} reveals the nature of your shared dynamic`,
+  dynamics: (cardName) => `${cardName} highlights how the relationship is moving right now`,
+  rel_outcome: (cardName) => `${cardName} hints at what this bond could grow into`,
 
   // Celtic Cross
   near_future: (cardName) => `${cardName} in the near future shows what approaches`,

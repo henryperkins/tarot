@@ -6,7 +6,7 @@ import { CardBack } from './CardBack';
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useSmallScreen, SMALL_SCREEN_MAX } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useHaptic } from '../hooks/useHaptic';
 import { MICROCOPY } from '../lib/microcopy';
@@ -111,7 +111,7 @@ export function Card({
   const animationStartedRef = useRef(false);
   const { vibrate } = useHaptic();
   const prefersReducedMotion = useReducedMotion();
-  const isSmallScreen = useSmallScreen(640); // < sm breakpoint
+  const isSmallScreen = useSmallScreen(SMALL_SCREEN_MAX); // < sm breakpoint
   const isLandscape = useLandscape();
 
   // Suit/element accents (Minors only) - uses CSS variables defined in `src/styles/tarot.css`.

@@ -205,7 +205,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
 
   const errorId = error || authError ? 'auth-error' : undefined;
   const overlayClasses = [
-    'fixed inset-0 z-[1300] flex justify-center bg-main/90 backdrop-blur-sm animate-fade-in overflow-y-auto px-safe pt-safe pb-safe-bottom',
+    'fixed inset-0 z-[1300] flex justify-center bg-main/90 backdrop-blur-sm animate-fade-in overflow-y-auto px-safe pt-safe pb-safe',
     isSmallScreen ? 'items-start px-4 py-8' : 'items-center p-4',
   ].join(' ');
   const modalClasses = [

@@ -122,7 +122,7 @@ export function UpgradeNudge({
   // Modal variant - centered card overlay
   if (variant === 'modal') {
     return (
-      <div className={`fixed inset-0 z-[200] flex items-center justify-center bg-main/80 backdrop-blur-sm ${prefersReducedMotion ? '' : 'animate-fade-in'} ${className}`}>
+      <div className={`fixed inset-0 z-[200] flex items-center justify-center bg-main/80 backdrop-blur-sm px-safe pt-safe pb-safe ${prefersReducedMotion ? '' : 'animate-fade-in'} ${className}`}>
         <div className={`relative w-full max-w-md mx-4 rounded-3xl border border-accent/30 bg-surface p-6 shadow-2xl ${prefersReducedMotion ? '' : 'animate-pop-in'}`}>
           {dismissible && (
             <button

@@ -125,6 +125,25 @@ describe('spread builder input guards', () => {
     );
   });
 
+  it('relationship spread accepts clarifier cards beyond the core three', async () => {
+    await assert.doesNotReject(
+      buildRelationshipReading({ cardsInfo: makeCards(4) })
+    );
+  });
+
+  it('relationship spread accepts up to two clarifier cards', async () => {
+    await assert.doesNotReject(
+      buildRelationshipReading({ cardsInfo: makeCards(5) })
+    );
+  });
+
+  it('relationship spread rejects more than two clarifier cards', async () => {
+    await assert.rejects(
+      buildRelationshipReading({ cardsInfo: makeCards(6) }),
+      /NARRATIVE_CARD_COUNT_MISMATCH/
+    );
+  });
+
   it('relationship spread throws on invalid card data', async () => {
     const cards = makeCards(3);
     cards[0] = { position: 'You' };

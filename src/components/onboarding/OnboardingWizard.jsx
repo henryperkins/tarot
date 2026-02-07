@@ -412,7 +412,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   return (
     <>
       <div
-        className={`fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm px-safe pt-safe pb-safe-bottom ${
+        className={`fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm px-safe pt-safe pb-safe ${
           prefersReducedMotion ? '' : 'animate-fade-in'
         }`}
         // eslint-disable-next-line react-hooks/refs -- handleSkipRequest only reads ref when invoked (event handler), not during render
@@ -457,7 +457,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
                 isLandscape ? 'pb-1.5' : 'pb-3 xs:pb-4'
               }`}
             >
-              <div className="flex flex-wrap items-center gap-2 xs:gap-3 px-2 xxs:px-3 sm:px-6 pl-safe-left pr-safe-right">
+              <div className="flex flex-wrap items-center gap-2 xs:gap-3 px-2 xxs:px-3 sm:px-6 pl-safe pr-safe">
                 <h1 id={titleId} className="sr-only">
                   Welcome to Tableu
                 </h1>
@@ -481,7 +481,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
                 </div>
               </div>
               {isSmallScreen && (
-                <div className="mt-2 flex flex-wrap items-center gap-2 px-2 xxs:px-3 sm:px-6 pb-2 pl-safe-left pr-safe-right">
+                <div className="mt-2 flex flex-wrap items-center gap-2 px-2 xxs:px-3 sm:px-6 pb-2 pl-safe pr-safe">
                   <div className="flex items-center gap-2">
                     <span className="rounded-full border border-secondary/40 bg-main/60 px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.16em] text-main">
                       Step {currentStep} of {totalSteps}
@@ -510,7 +510,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
             {/* Main content area - scrollable with swipe navigation */}
             <main
-              className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right onboarding-modal__scroll"
+              className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe pb-safe pl-safe pr-safe onboarding-modal__scroll"
               style={{
                 scrollPaddingTop: 'calc(4.5rem + var(--safe-pad-top))',
                 scrollPaddingBottom: 'calc(2rem + var(--safe-pad-bottom))',

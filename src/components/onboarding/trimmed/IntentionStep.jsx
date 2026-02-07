@@ -139,7 +139,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
       </div>
 
       {/* Navigation */}
-      <div className={`flex gap-3 ${isLandscape ? 'pt-3' : 'pt-4'} pb-safe-bottom`}>
+      <div className={`flex gap-3 ${isLandscape ? 'pt-3' : 'pt-4'} pb-safe`}>
         <button
           type="button"
           onClick={onBack}

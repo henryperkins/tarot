@@ -11,6 +11,7 @@ import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../../src/
 import { getPositionWeight } from '../../positionWeights.js';
 import { sanitizeText } from '../../utils.js';
 import { detectPromptInjection } from '../../promptInjectionDetector.js';
+import { RELATIONSHIP_SPREAD_MAX_CLARIFIERS } from '../../spreadContracts.js';
 
 export function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context, userQuestion, visionInsights, promptOptions = {}) {
   const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
@@ -361,7 +362,16 @@ export function buildRelationshipPromptCards(cardsInfo, themes, context, visionI
     ...extra
   });
 
-  const [youCard, themCard, connectionCard, ...extraCards] = cardsInfo;
+  const [youCard, themCard, connectionCard, ...rawExtraCards] = cardsInfo;
+  const extraCards = rawExtraCards.slice(0, RELATIONSHIP_SPREAD_MAX_CLARIFIERS);
+  const omittedClarifierCount = Math.max(0, rawExtraCards.length - extraCards.length);
+  if (omittedClarifierCount > 0 && Array.isArray(promptOptions.contextDiagnostics)) {
+    const message =
+      `[relationship] Received ${rawExtraCards.length} clarifier cards; truncating to ${RELATIONSHIP_SPREAD_MAX_CLARIFIERS}.`;
+    if (!promptOptions.contextDiagnostics.includes(message)) {
+      promptOptions.contextDiagnostics.push(message);
+    }
+  }
 
   let out = `**RELATIONSHIP SNAPSHOT STRUCTURE**\n`;
   out += `- You / your energy\n- Them / their energy\n- The connection / shared lesson\n\n`;
@@ -381,11 +391,15 @@ export function buildRelationshipPromptCards(cardsInfo, themes, context, visionI
   }
 
   if (extraCards.length > 0) {
-    out += `\n**ADDITIONAL INSIGHT CARDS**\n`;
-    extraCards.forEach((card, idx) => {
+    out += `\n**ADDITIONAL RELATIONSHIP CLARIFIERS**\n`;
+    extraCards.forEach((card, index) => {
       if (!card) return;
-      const label = card.position || `Additional insight ${idx + 1}`;
-      out += buildCardWithImagery(card, label, optionsFor(idx + 3));
+      const fallbackPosition = index === 0
+        ? 'Dynamics / guidance'
+        : index === 1
+          ? 'Outcome / what this can become'
+          : `Additional clarifier ${index + 1}`;
+      out += buildCardWithImagery(card, card.position || fallbackPosition, optionsFor(index + 3));
     });
   }
 

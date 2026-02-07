@@ -12,7 +12,7 @@ function card(position) {
 }
 
 describe('validatePayload spread count enforcement', () => {
-  it('rejects incorrect card counts for known spreads', () => {
+  it('rejects relationship spreads with fewer than three cards', () => {
     const payload = {
       spreadInfo: { name: 'Relationship Snapshot' },
       cardsInfo: [
@@ -22,7 +22,7 @@ describe('validatePayload spread count enforcement', () => {
     };
 
     const err = validatePayload(payload);
-    assert.match(err, /expects 3 cards/);
+    assert.match(err, /requires at least 3 cards/);
   });
 
   it('rejects insufficient cards for larger spreads', () => {
@@ -50,6 +50,70 @@ describe('validatePayload spread count enforcement', () => {
     };
 
     const err = validatePayload(payload);
+    assert.equal(err, null);
+  });
+
+  it('accepts relationship spread clarifier cards beyond the core three', () => {
+    const payload = {
+      spreadInfo: { name: 'Relationship Snapshot' },
+      cardsInfo: [
+        card('You / your energy'),
+        card('Them / their energy'),
+        card('The connection / shared lesson'),
+        card('Dynamics / guidance'),
+        card('Outcome / what this can become')
+      ]
+    };
+
+    const err = validatePayload(payload);
+    assert.equal(err, null);
+  });
+
+  it('rejects relationship spread payloads above the clarifier limit', () => {
+    const payload = {
+      spreadInfo: { name: 'Relationship Snapshot' },
+      cardsInfo: [
+        card('You / your energy'),
+        card('Them / their energy'),
+        card('The connection / shared lesson'),
+        card('Dynamics / guidance'),
+        card('Outcome / what this can become'),
+        card('Additional clarifier 3')
+      ]
+    };
+
+    const err = validatePayload(payload);
+    assert.match(err, /allows at most 5 cards/);
+  });
+
+  it('accepts native spread aliases for name/key pairs', () => {
+    const payload = {
+      spreadInfo: { name: 'Three Card', key: 'three-card' },
+      cardsInfo: [
+        card('Past'),
+        card('Present'),
+        card('Future')
+      ]
+    };
+
+    const err = validatePayload(payload);
+    assert.equal(err, null);
+  });
+
+  it('skips alias resolution for explicitly custom spreads', () => {
+    // "Daily Draw" would normally alias to the single-card built-in,
+    // but key="custom" tells the validator to treat it as user-created.
+    const payload = {
+      spreadInfo: { name: 'Daily Draw', key: 'custom' },
+      cardsInfo: [
+        card('Situation'),
+        card('Advice'),
+        card('Outcome')
+      ]
+    };
+
+    const err = validatePayload(payload);
+    // Should NOT reject with "expects 1 cards" because alias was skipped
     assert.equal(err, null);
   });
 });

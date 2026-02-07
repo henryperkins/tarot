@@ -9,7 +9,6 @@
 
 import { memo, useEffect, useMemo, useState } from 'react';
 import { FilePdf, FileText, FileCsv, Link as LinkIcon, Warning } from '@phosphor-icons/react';
-import { exportJournalInsightsToPdf } from '../../../lib/pdfExport';
 import {
   exportJournalEntriesToCsv,
   exportJournalEntriesToMarkdown,
@@ -17,6 +16,9 @@ import {
   copyJournalShareSummary,
 } from '../../../lib/journalInsights';
 import { JournalShareIcon } from '../../JournalIcons';
+
+// Lazy load PDF export (pulls in jspdf + html2canvas)
+const loadPdfExport = () => import('../../../lib/pdfExport').then(m => m.exportJournalInsightsToPdf);
 
 const OUTLINE_BUTTON_CLASS = `
   flex items-center gap-1.5 px-4 py-2.5 min-h-touch rounded-lg text-sm font-medium
@@ -184,8 +186,9 @@ function ExportSection({
   const canCreateShareLink = shareEntryCount > 0 || shareUsesServerFallback;
   const shareDisplayEntryCount = shareUsesServerFallback ? effectiveShareLimit : shareEntryCount;
 
-  const executeExportPdf = (entriesToExport) => {
+  const executeExportPdf = async (entriesToExport) => {
     try {
+      const exportJournalInsightsToPdf = await loadPdfExport();
       exportJournalInsightsToPdf(exportStatsForEntries, entriesToExport, { scopeLabel: exportScopeLabel });
       setExportStatus({ type: 'success', message: 'PDF download started' });
     } catch (err) {

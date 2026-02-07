@@ -101,7 +101,7 @@ export function BeginStep({ selectedSpread, question, onBegin, onBack }) {
           type="button"
           onClick={onBegin}
           className={`w-full rounded-xl bg-accent text-surface font-bold transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
-            isLandscape ? 'min-h-cta text-base' : 'min-h-[56px] text-lg'
+            isLandscape ? 'min-h-cta text-base' : 'min-h-nav text-lg'
           }`}
         >
           Begin Reading

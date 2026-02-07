@@ -40,11 +40,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Check if user is authenticated on mount
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
   const checkAuth = useCallback(async () => {
     setLoading(true);
     try {
@@ -75,6 +70,11 @@ export function AuthProvider({ children }) {
       setLoading(false);
     }
   }, []);
+
+  // Check if user is authenticated on mount
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   const register = async (email, username, password) => {
     setError(null);

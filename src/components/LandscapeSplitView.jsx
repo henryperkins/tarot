@@ -32,7 +32,9 @@ const SPREAD_MINIMAP_LAYOUTS = {
   relationship: [
     { x: 0, y: 0 },    // You
     { x: 2, y: 0 },    // Them
-    { x: 1, y: 1 }     // Connection
+    { x: 1, y: 1 },    // Connection
+    { x: 0, y: 2 },    // Dynamics
+    { x: 2, y: 2 }     // Outcome
   ],
   celtic: [
     { x: 1, y: 1 },    // Present
@@ -207,6 +209,8 @@ export function LandscapeSplitView({
   const [inspectedIndex, setInspectedIndex] = useState(0);
 
   const spreadInfo = getSpreadInfo(selectedSpread);
+  const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
+  const visibleReading = maxCards ? reading?.slice(0, maxCards) : reading;
 
   // Handle slot selection from mini-map
   const handleSlotClick = useCallback((index) => {
@@ -214,7 +218,7 @@ export function LandscapeSplitView({
   }, []);
 
   // Get the currently inspected card
-  const inspectedCard = reading?.[inspectedIndex];
+  const inspectedCard = visibleReading?.[inspectedIndex];
   const inspectedPosition = spreadInfo?.positions?.[inspectedIndex] || `Position ${inspectedIndex + 1}`;
   const inspectedRoleKey = spreadInfo?.roleKeys?.[inspectedIndex] || null;
   const isInspectedRevealed = revealedCards?.has?.(inspectedIndex) || false;
@@ -228,7 +232,7 @@ export function LandscapeSplitView({
     return text.length <= 50 ? text : `${text.slice(0, 47).trimEnd()}...`;
   }, []);
 
-  if (!reading || reading.length === 0) return null;
+  if (!visibleReading || visibleReading.length === 0) return null;
 
   return (
     <div
@@ -239,7 +243,7 @@ export function LandscapeSplitView({
       <div className="landscape-split-minimap w-[40%] flex-shrink-0 bg-surface/40 rounded-xl border border-accent/15 overflow-hidden">
         <InteractiveMiniMap
           spreadKey={selectedSpread}
-          cards={reading}
+          cards={visibleReading}
           revealedIndices={revealedCards}
           inspectedIndex={inspectedIndex}
           onSlotClick={handleSlotClick}

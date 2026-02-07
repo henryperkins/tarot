@@ -85,7 +85,7 @@ export function AccountSetup({ onNext, onBack }) {
         </div>
 
         {/* Navigation */}
-        <div className={`flex gap-3 pt-4 pb-safe-bottom ${isLandscape ? 'pt-2' : 'pt-6'}`}>
+        <div className={`flex gap-3 pt-4 pb-safe ${isLandscape ? 'pt-2' : 'pt-6'}`}>
           <button
             type="button"
             onClick={onBack}
@@ -279,7 +279,7 @@ export function AccountSetup({ onNext, onBack }) {
       </div>
 
       {/* Navigation */}
-      <div className={`flex flex-col gap-3 pt-4 pb-safe-bottom ${isLandscape ? 'pt-2' : 'pt-6'}`}>
+      <div className={`flex flex-col gap-3 pt-4 pb-safe ${isLandscape ? 'pt-2' : 'pt-6'}`}>
         <div className="flex gap-3">
           <button
             type="button"

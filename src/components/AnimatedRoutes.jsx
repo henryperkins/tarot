@@ -1,19 +1,30 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { animate, set } from 'animejs';
 import TarotReading from '../TarotReading.jsx';
-import Journal from './Journal.jsx';
-import CardGalleryPage from '../pages/CardGalleryPage.jsx';
-import ShareReading from '../pages/ShareReading.jsx';
-import PricingPage from '../pages/PricingPage.jsx';
-import AccountPage from '../pages/AccountPage.jsx';
-import AdminDashboard from '../pages/AdminDashboard.jsx';
-import DesignSystemPage from '../pages/DesignSystemPage.jsx';
-import ResetPasswordPage from '../pages/ResetPasswordPage.jsx';
-import VerifyEmailPage from '../pages/VerifyEmailPage.jsx';
-import OAuthCallbackPage from '../pages/OAuthCallbackPage.jsx';
 import { PageTransition } from './PageTransition.jsx';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+
+// Lazy load non-critical routes to reduce initial bundle size
+const Journal = lazy(() => import('./Journal.jsx'));
+const CardGalleryPage = lazy(() => import('../pages/CardGalleryPage.jsx'));
+const ShareReading = lazy(() => import('../pages/ShareReading.jsx'));
+const PricingPage = lazy(() => import('../pages/PricingPage.jsx'));
+const AccountPage = lazy(() => import('../pages/AccountPage.jsx'));
+const AdminDashboard = lazy(() => import('../pages/AdminDashboard.jsx'));
+const DesignSystemPage = lazy(() => import('../pages/DesignSystemPage.jsx'));
+const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage.jsx'));
+const VerifyEmailPage = lazy(() => import('../pages/VerifyEmailPage.jsx'));
+const OAuthCallbackPage = lazy(() => import('../pages/OAuthCallbackPage.jsx'));
+
+// Minimal loading fallback for route transitions
+function RouteLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="animate-pulse text-muted">Loading...</div>
+    </div>
+  );
+}
 
 export function AnimatedRoutes() {
   const location = useLocation();
@@ -117,20 +128,22 @@ export function AnimatedRoutes() {
 
   return (
     <div ref={containerRef}>
-      <Routes location={displayLocation} key={displayLocation.pathname}>
-        <Route path="/" element={<PageTransition><TarotReading /></PageTransition>} />
-        <Route path="/journal/gallery" element={<PageTransition><CardGalleryPage /></PageTransition>} />
-        <Route path="/journal" element={<PageTransition><Journal /></PageTransition>} />
-        <Route path="/pricing" element={<PageTransition><PricingPage /></PageTransition>} />
-        <Route path="/account" element={<PageTransition><AccountPage /></PageTransition>} />
-        <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
-        <Route path="/design" element={<PageTransition><DesignSystemPage /></PageTransition>} />
-        <Route path="/share/:token" element={<PageTransition><ShareReading /></PageTransition>} />
-        <Route path="/reset-password" element={<PageTransition><ResetPasswordPage /></PageTransition>} />
-        <Route path="/verify-email" element={<PageTransition><VerifyEmailPage /></PageTransition>} />
-        <Route path="/auth/callback" element={<PageTransition><OAuthCallbackPage /></PageTransition>} />
-        <Route path="*" element={<PageTransition><TarotReading /></PageTransition>} />
-      </Routes>
+      <Suspense fallback={<RouteLoader />}>
+        <Routes location={displayLocation} key={displayLocation.pathname}>
+          <Route path="/" element={<PageTransition><TarotReading /></PageTransition>} />
+          <Route path="/journal/gallery" element={<PageTransition><CardGalleryPage /></PageTransition>} />
+          <Route path="/journal" element={<PageTransition><Journal /></PageTransition>} />
+          <Route path="/pricing" element={<PageTransition><PricingPage /></PageTransition>} />
+          <Route path="/account" element={<PageTransition><AccountPage /></PageTransition>} />
+          <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
+          <Route path="/design" element={<PageTransition><DesignSystemPage /></PageTransition>} />
+          <Route path="/share/:token" element={<PageTransition><ShareReading /></PageTransition>} />
+          <Route path="/reset-password" element={<PageTransition><ResetPasswordPage /></PageTransition>} />
+          <Route path="/verify-email" element={<PageTransition><VerifyEmailPage /></PageTransition>} />
+          <Route path="/auth/callback" element={<PageTransition><OAuthCallbackPage /></PageTransition>} />
+          <Route path="*" element={<PageTransition><TarotReading /></PageTransition>} />
+        </Routes>
+      </Suspense>
     </div>
   );
 }
