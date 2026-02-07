@@ -1601,7 +1601,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
 
       evalSource = 'heuristic_fallback';
 
-      if (effectiveEvalResult && effectiveEvalResult.scores) {
+      if (effectiveEvalResult.scores) {
         const overrideResult = applyDeterministicSafetyOverrides(effectiveEvalResult, evalParams?.reading, env);
         effectiveEvalResult = overrideResult.evalResult;
         if (overrideResult.deterministic_overrides?.length) {
