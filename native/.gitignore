@@ -1,0 +1,14 @@
+node_modules/
+.expo/
+dist/
+*.apk
+*.ipa
+*.mov
+*.aab
+ios/build/
+android/build/
+android/app/build/
+.DS_Store
+*.log
+.env
+*.local

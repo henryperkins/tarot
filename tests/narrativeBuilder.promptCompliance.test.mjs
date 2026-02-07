@@ -78,6 +78,9 @@ import {
   analyzeCelticCross,
   analyzeThreeCard,
   analyzeFiveCard,
+  analyzeRelationship,
+  analyzeDecision,
+  analyzeSingleCard,
   analyzeSpreadThemes
 } from '../functions/lib/spreadAnalysis.js';
 import { validateReadingNarrative } from '../functions/lib/narrativeSpine.js';
@@ -835,10 +838,76 @@ describe('Other spread builders prompt-engineering compliance', () => {
       'Minor pip cards should include rank-and-suit specific imagery text in prompts'
     );
   });
+
+  it('threads relationship spread analysis into prompt-specific guidance', async () => {
+    const cardsInfo = [
+      minor('Knight of Cups', 'Cups', 'Knight', 12, 'You / your energy', 'Upright'),
+      minor('Queen of Swords', 'Swords', 'Queen', 13, 'Them / their energy', 'Upright'),
+      major('The Lovers', 6, 'The connection / shared lesson', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'internalized');
+    const relationshipAnalysis = analyzeRelationship(cardsInfo);
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Relationship Snapshot' },
+      cardsInfo,
+      userQuestion: 'What is the energy of this connection?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: relationshipAnalysis
+    });
+
+    assert.ok(userPrompt.includes('**RELATIONSHIP DYNAMICS TO WEAVE**'));
+    assert.ok(userPrompt.includes('shared lesson'));
+  });
+
+  it('threads decision spread analysis into prompt cross-check guidance', async () => {
+    const cardsInfo = [
+      major('The High Priestess', 2, 'Heart of the decision', 'Upright'),
+      major('The Sun', 19, 'Path A — energy & likely outcome', 'Upright'),
+      major('The Moon', 18, 'Path B — energy & likely outcome', 'Reversed'),
+      minor('Page of Pentacles', 'Pentacles', 'Page', 11, 'What clarifies the best path', 'Upright'),
+      major('Justice', 11, 'What to remember about your free will', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+    const decisionAnalysis = analyzeDecision(cardsInfo);
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Decision / Two-Path' },
+      cardsInfo,
+      userQuestion: 'Which path aligns with me?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: decisionAnalysis
+    });
+
+    assert.ok(userPrompt.includes('**DECISION CROSS-CHECKS**'));
+    assert.ok(userPrompt.includes('**POSITION NOTES**'));
+  });
+
+  it('supports single-card analysis in prompt builder parity checks', async () => {
+    const cardsInfo = [
+      major('The Star', 17, 'Theme / Guidance of the Moment', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'internalized');
+    const singleAnalysis = analyzeSingleCard(cardsInfo);
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'What do I most need to hear?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: singleAnalysis
+    });
+
+    assert.ok(userPrompt.includes('**SINGLE-CARD SYNTHESIS**'));
+    assert.ok(userPrompt.includes('Theme / Guidance of the Moment'));
+  });
 });
 
 describe('Prompt budget telemetry', () => {
-  it('returns estimated tokens only when slimming is enabled (no truncation)', async () => {
+  it('keeps slimming disabled by default and supports explicit opt-in', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'Past — influences that led here', 'Upright'),
       major('The Magician', 1, 'Present — where you stand now', 'Upright'),
@@ -847,9 +916,7 @@ describe('Prompt budget telemetry', () => {
 
     const themes = await buildThemes(cardsInfo, 'blocked');
 
-    // Without ENABLE_PROMPT_SLIMMING, estimatedTokens should be null
-    // (actual tokens come from API response via llmUsage)
-    const { promptMeta: metaWithoutSlimming } = buildEnhancedClaudePrompt({
+    const { promptMeta: metaDefault } = buildEnhancedClaudePrompt({
       spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
       cardsInfo,
       userQuestion: 'How do I keep momentum?',
@@ -859,12 +926,27 @@ describe('Prompt budget telemetry', () => {
       context: 'general'
     });
 
-    assert.equal(metaWithoutSlimming.estimatedTokens, null, 'estimatedTokens should be null when slimming disabled');
-    assert.equal(metaWithoutSlimming.slimmingEnabled, false);
+    assert.equal(metaDefault.slimmingEnabled, false, 'slimming should be disabled by default');
+    assert.equal(metaDefault.estimatedTokens, null, 'estimatedTokens should be null when slimming is disabled');
+    assert.ok(Array.isArray(metaDefault.slimmingSteps));
+    assert.equal(metaDefault.slimmingSteps.length, 0, 'no slimming steps when disabled');
+
+    const { promptMeta: metaWithoutSlimming } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
+      cardsInfo,
+      userQuestion: 'How do I keep momentum?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      promptBudgetEnv: { ENABLE_PROMPT_SLIMMING: 'false' }
+    });
+
+    assert.equal(metaWithoutSlimming.slimmingEnabled, false, 'explicit false should keep slimming disabled');
+    assert.equal(metaWithoutSlimming.estimatedTokens, null, 'estimatedTokens should be null when slimming is explicitly disabled');
     assert.ok(Array.isArray(metaWithoutSlimming.slimmingSteps));
     assert.equal(metaWithoutSlimming.slimmingSteps.length, 0, 'no slimming steps when disabled');
 
-    // With ENABLE_PROMPT_SLIMMING=true, estimatedTokens should be populated
     const { promptMeta: metaWithSlimming } = buildEnhancedClaudePrompt({
       spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
       cardsInfo,
@@ -912,7 +994,7 @@ describe('Prompt budget telemetry', () => {
       spreadAnalysis: threeCardAnalysis,
       context: 'general',
       graphRAGPayload,
-      promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' }
+      promptBudgetEnv: { GRAPHRAG_ENABLED: 'true', ENABLE_PROMPT_SLIMMING: 'false' }
     });
 
     assert.equal(promptMeta.slimmingEnabled, false);
@@ -928,7 +1010,7 @@ describe('Prompt budget telemetry', () => {
     assert.ok(userPrompt.includes('The Fool'), 'Card list should remain intact');
   });
 
-  it('keeps GraphRAG passages when promptBudgetEnv omits GraphRAG flags', async () => {
+  it('keeps GraphRAG passages when promptBudgetEnv omits GraphRAG flags and slimming is disabled', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'Past — influences that led here', 'Upright'),
       major('The Magician', 1, 'Present — where you stand now', 'Upright'),
@@ -955,7 +1037,7 @@ describe('Prompt budget telemetry', () => {
       spreadAnalysis: null,
       context: 'general',
       graphRAGPayload,
-      promptBudgetEnv: { PROMPT_BUDGET_CLAUDE: '90' }
+      promptBudgetEnv: { PROMPT_BUDGET_CLAUDE: '90', ENABLE_PROMPT_SLIMMING: 'false' }
     });
 
     assert.ok(userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG block should be included when payload is provided');

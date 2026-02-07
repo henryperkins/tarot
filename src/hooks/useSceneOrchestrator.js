@@ -26,6 +26,7 @@ export function useSceneOrchestrator({
   revealedCards,
   totalCards,
   isGenerating,
+  isReadingStreamActive,
   personalReading,
   reading
 }) {
@@ -41,7 +42,14 @@ export function useSceneOrchestrator({
 
     // If spread confirmed but not all cards revealed yet
     if (hasConfirmedSpread && reading?.length > 0) {
-      const revealedCount = Array.isArray(revealedCards) ? revealedCards.length : 0;
+      let revealedCount = 0;
+      if (revealedCards instanceof Set) {
+        revealedCount = revealedCards.size;
+      } else if (Array.isArray(revealedCards)) {
+        revealedCount = revealedCards.length;
+      } else if (typeof revealedCards?.size === 'number') {
+        revealedCount = revealedCards.size;
+      }
       const total = totalCards || reading.length;
 
       if (revealedCount < total) {
@@ -49,13 +57,17 @@ export function useSceneOrchestrator({
       }
 
       // All cards revealed, check if we're generating narrative
-      if (revealedCount === total) {
+      if (revealedCount >= total) {
         if (isGenerating) {
           return SCENES.INTERLUDE;
         }
 
-        if (personalReading) {
+        if (isReadingStreamActive || personalReading?.isStreaming) {
           return SCENES.DELIVERY;
+        }
+
+        if (personalReading) {
+          return SCENES.COMPLETE;
         }
 
         // Cards revealed, awaiting narrative request
@@ -70,7 +82,7 @@ export function useSceneOrchestrator({
 
     // Default idle state
     return SCENES.IDLE;
-  }, [isShuffling, hasConfirmedSpread, revealedCards, totalCards, isGenerating, personalReading, reading]);
+  }, [isShuffling, hasConfirmedSpread, revealedCards, totalCards, isGenerating, isReadingStreamActive, personalReading, reading]);
 
   // Track scene transitions and trigger callbacks
   useEffect(() => {

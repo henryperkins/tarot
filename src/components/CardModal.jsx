@@ -1,14 +1,15 @@
-import { useCallback, useMemo, useRef, useState, useLayoutEffect } from 'react';
+import { useCallback, useMemo, useRef, useState, useLayoutEffect, lazy, Suspense } from 'react';
 import { animate, set } from 'animejs';
 import { X, CaretLeft, CaretRight, CaretDown, Clock, Sparkle } from '@phosphor-icons/react';
 import { FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';
-import AnimatedReveal from './AnimatedReveal';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+
+const AnimatedReveal = lazy(() => import('./AnimatedReveal'));
 
 function toMillis(ts) {
     if (!ts) return null;
@@ -470,13 +471,15 @@ export function CardModal({
 
                     {enableCinematic && (
                         <CollapsibleSection title="Cinematic reveal" icon={Sparkle} defaultOpen={false}>
-                            <AnimatedReveal
-                                card={card}
-                                position={position}
-                                question={resolvedQuestion}
-                                userTier={userTier}
-                                className="mt-1"
-                            />
+                            <Suspense fallback={<div className="rounded-lg border border-primary/20 bg-surface-muted/40 p-3 text-xs text-muted">Loading cinematic module...</div>}>
+                                <AnimatedReveal
+                                    card={card}
+                                    position={position}
+                                    question={resolvedQuestion}
+                                    userTier={userTier}
+                                    className="mt-1"
+                                />
+                            </Suspense>
                         </CollapsibleSection>
                     )}
                 </div>

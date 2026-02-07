@@ -29,7 +29,8 @@ export async function buildDecisionReading({
   reflectionsText,
   themes,
   context,
-  spreadInfo
+  spreadInfo,
+  spreadAnalysis
 }, options = {}) {
   const expectedCount = 5;
   const receivedCount = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
@@ -215,6 +216,16 @@ export async function buildDecisionReading({
     }
   }
 
+  if (Array.isArray(spreadAnalysis?.relationships) && spreadAnalysis.relationships.length > 0) {
+    const pathInsights = spreadAnalysis.relationships
+      .slice(0, 3)
+      .map(r => typeof r?.summary === 'string' ? r.summary.trim() : '')
+      .filter(Boolean);
+    if (pathInsights.length > 0) {
+      clarity += pathInsights.join(' ') + ' ';
+    }
+  }
+
   if (freeWill) {
     const freeWillPosition = freeWill.position || 'What to remember about your free will';
     const freeWillConnector = (reasoning && selectReasoningConnector(reasoning, 3, 4)) || getConnector(freeWillPosition, 'toPrev');
@@ -259,6 +270,9 @@ export async function buildDecisionReading({
     : buildPatternSynthesis(themes);
   if (synthesisSection) {
     sections.push(synthesisSection);
+  }
+  if (spreadAnalysis?.synthesis) {
+    sections.push(spreadAnalysis.synthesis);
   }
 
   // Guidance synthesis with elemental remedies

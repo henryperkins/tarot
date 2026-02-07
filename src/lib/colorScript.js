@@ -96,6 +96,10 @@ export const COLOR_SCRIPTS = {
   }
 };
 
+const ALL_COLOR_SCRIPT_VARS = new Set(
+  Object.values(COLOR_SCRIPTS).flatMap((script) => Object.keys(script?.cssVars || {}))
+);
+
 /**
  * Determine color script from narrative analysis
  */
@@ -163,10 +167,18 @@ export function applyColorScript(colorScript) {
   if (!colorScript || typeof document === 'undefined') return;
 
   const root = document.documentElement;
+  const scriptVars = colorScript?.cssVars || {};
   
   // Apply CSS custom properties
-  Object.entries(colorScript.cssVars).forEach(([property, value]) => {
+  Object.entries(scriptVars).forEach(([property, value]) => {
     root.style.setProperty(property, value);
+  });
+
+  // Remove stale variables from prior scripts
+  ALL_COLOR_SCRIPT_VARS.forEach((property) => {
+    if (!Object.prototype.hasOwnProperty.call(scriptVars, property)) {
+      root.style.removeProperty(property);
+    }
   });
 
   // Add atmosphere class
@@ -192,7 +204,7 @@ export function resetColorScript() {
   const root = document.documentElement;
   
   // Reset CSS variables
-  Object.keys(COLOR_SCRIPTS.neutral.cssVars).forEach(property => {
+  ALL_COLOR_SCRIPT_VARS.forEach((property) => {
     root.style.removeProperty(property);
   });
 

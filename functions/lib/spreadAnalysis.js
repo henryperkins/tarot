@@ -14,12 +14,14 @@
  * - Frontend Spread Highlights (via /api/tarot-reading spreadAnalysis)
  */
 
+import { parseMinorName } from './minorMeta.js';
+
 /**
  * Traditional elemental correspondences for Major Arcana
  * Based on Golden Dawn / Rider-Waite-Smith astrological associations
  */
 export const MAJOR_ELEMENTS = {
-  0: 'Air',      // The Fool (Uranus/Air)
+  0: 'Air',      // The Fool (Aleph / elemental Air current)
   1: 'Air',      // The Magician (Mercury)
   2: 'Water',    // The High Priestess (Moon)
   3: 'Earth',    // The Empress (Venus)
@@ -31,7 +33,7 @@ export const MAJOR_ELEMENTS = {
   9: 'Earth',    // The Hermit (Virgo)
   10: 'Fire',    // Wheel of Fortune (Jupiter)
   11: 'Air',     // Justice (Libra)
-  12: 'Water',   // The Hanged Man (Neptune)
+  12: 'Water',   // The Hanged Man (Mem / elemental Water current)
   13: 'Water',   // Death (Scorpio)
   14: 'Fire',    // Temperance (Sagittarius)
   15: 'Earth',   // The Devil (Capricorn)
@@ -39,7 +41,7 @@ export const MAJOR_ELEMENTS = {
   17: 'Air',     // The Star (Aquarius)
   18: 'Water',   // The Moon (Pisces)
   19: 'Fire',    // The Sun (Sun)
-  20: 'Fire',    // Judgement (Pluto)
+  20: 'Fire',    // Judgement (Shin / elemental Fire current)
   21: 'Earth'    // The World (Saturn)
 };
 
@@ -52,6 +54,50 @@ export const SUIT_ELEMENTS = {
   'Swords': 'Air',
   'Pentacles': 'Earth'
 };
+
+const SUIT_ALIASES = {
+  wands: 'Wands',
+  wand: 'Wands',
+  batons: 'Wands',
+  baton: 'Wands',
+  staves: 'Wands',
+  staffs: 'Wands',
+  clubs: 'Wands',
+  cups: 'Cups',
+  cup: 'Cups',
+  coupes: 'Cups',
+  chalices: 'Cups',
+  swords: 'Swords',
+  sword: 'Swords',
+  epees: 'Swords',
+  epee: 'Swords',
+  blades: 'Swords',
+  pentacles: 'Pentacles',
+  pentacle: 'Pentacles',
+  coins: 'Pentacles',
+  coin: 'Pentacles',
+  deniers: 'Pentacles',
+  denier: 'Pentacles',
+  disks: 'Pentacles',
+  discs: 'Pentacles',
+  disques: 'Pentacles'
+};
+
+function normalizeSuitToken(value) {
+  if (typeof value !== 'string') return '';
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z]/gi, '')
+    .toLowerCase();
+}
+
+function normalizeSuitName(value) {
+  if (typeof value !== 'string') return null;
+  if (SUIT_ELEMENTS[value]) return value;
+  const key = normalizeSuitToken(value);
+  return SUIT_ALIASES[key] || null;
+}
 
 function normalizeCardNumber(value) {
   if (typeof value === 'number' && Number.isInteger(value)) {
@@ -86,14 +132,28 @@ function getCardNumber(cardInfo) {
 }
 
 function resolveMinorSuit(cardName, cardSuit) {
-  if (typeof cardSuit === 'string' && SUIT_ELEMENTS[cardSuit]) {
-    return cardSuit;
+  const normalizedCardSuit = normalizeSuitName(cardSuit);
+  if (normalizedCardSuit) {
+    return normalizedCardSuit;
   }
 
   if (typeof cardName === 'string') {
+    const parsed = parseMinorName(cardName);
+    if (parsed?.suit) {
+      return parsed.suit;
+    }
+
     const lowerName = cardName.toLowerCase();
+    const normalizedName = normalizeSuitToken(lowerName);
     for (const suit of Object.keys(SUIT_ELEMENTS)) {
       if (lowerName.includes(suit.toLowerCase())) {
+        return suit;
+      }
+    }
+
+    // Handle deck aliases that don't include canonical suit names.
+    for (const [token, suit] of Object.entries(SUIT_ALIASES)) {
+      if (normalizedName.includes(token)) {
         return suit;
       }
     }
@@ -311,14 +371,10 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
       majorCount++;
     }
 
-    // Count suits
-    if (typeof card.card === 'string') {
-      for (const suit of Object.keys(suitCounts)) {
-        if (card.card.includes(suit)) {
-          suitCounts[suit]++;
-          break;
-        }
-      }
+    // Count suits (alias-aware for deck variants).
+    const resolvedSuit = resolveMinorSuit(card.card, card.suit);
+    if (resolvedSuit && suitCounts[resolvedSuit] !== undefined) {
+      suitCounts[resolvedSuit]++;
     }
 
     // Count elements
@@ -487,14 +543,15 @@ export function selectReversalFramework(ratio, cardsInfo, options = {}) {
       'repeat',
       'always'
     ];
-    const potentialKeywords = [
-      'potential',
-      'talent',
-      'gift',
-      'dormant',
-      'untapped',
-      'could be',
-      'capable'
+    const potentialPatterns = [
+      /\bpotential\b/,
+      /\btalent\b/,
+      /\bgift(?:s)?\b/,
+      /\bdormant\b/,
+      /\buntapped\b/,
+      /\bhidden potential\b/,
+      /\bcapable of more\b/,
+      /\bunderused\b/
     ];
 
     if (shadowKeywords.some(kw => q.includes(kw))) {
@@ -503,7 +560,7 @@ export function selectReversalFramework(ratio, cardsInfo, options = {}) {
     if (mirrorKeywords.some(kw => q.includes(kw))) {
       return 'mirror';
     }
-    if (potentialKeywords.some(kw => q.includes(kw))) {
+    if (potentialPatterns.some((pattern) => pattern.test(q))) {
       return 'potentialBlocked';
     }
   }
@@ -1433,7 +1490,7 @@ export function analyzeRelationship(cardsInfo) {
     return null;
   }
 
-  const [you, them, connection] = cardsInfo;
+  const [you, them, connection, dynamics, outcome] = cardsInfo;
   if (!you || !them || !connection) {
     return null;
   }
@@ -1441,6 +1498,8 @@ export function analyzeRelationship(cardsInfo) {
   const youLabel = you.position || 'You / your energy';
   const themLabel = them.position || 'Them / their energy';
   const _connectionLabel = connection.position || 'The connection / shared lesson';
+  const dynamicsLabel = dynamics?.position || 'Dynamics / guidance';
+  const outcomeLabel = outcome?.position || 'Outcome / what this can become';
 
   const youVsThem = comparePositions(you, them, youLabel, themLabel);
   const youBridge = analyzeElementalDignity(connection, you);
@@ -1501,6 +1560,49 @@ export function analyzeRelationship(cardsInfo) {
     }
   });
 
+  if (dynamics) {
+    const dynamicsBridge = analyzeElementalDignity(connection, dynamics);
+    const summaryParts = [
+      `${dynamics.card} ${dynamics.orientation} offers guidance on how to work with the dynamic in real time.`,
+      dynamics.meaning || null,
+      dynamicsBridge?.description ? `In relation to the shared lesson, ${dynamicsBridge.description}.` : null
+    ].filter(Boolean);
+
+    relationships.push({
+      type: 'guidance',
+      summary: summaryParts.join(' '),
+      positions: [3],
+      cards: [{ card: dynamics.card, orientation: dynamics.orientation }],
+      bridges: {
+        toConnection: dynamicsBridge
+      }
+    });
+  }
+
+  if (outcome) {
+    const connectionToOutcome = analyzeElementalDignity(connection, outcome);
+    const dynamicsToOutcome = dynamics
+      ? analyzeElementalDignity(dynamics, outcome)
+      : null;
+    const summaryParts = [
+      `${outcome.card} ${outcome.orientation} sketches a likely trajectory for what this connection can become if current patterns continue.`,
+      outcome.meaning || null,
+      connectionToOutcome?.description ? `Relative to the shared lesson, ${connectionToOutcome.description}.` : null,
+      dynamicsToOutcome?.description ? `Relative to current guidance, ${dynamicsToOutcome.description}.` : null
+    ].filter(Boolean);
+
+    relationships.push({
+      type: 'outcome',
+      summary: summaryParts.join(' '),
+      positions: [4],
+      cards: [{ card: outcome.card, orientation: outcome.orientation }],
+      bridges: {
+        toConnection: connectionToOutcome,
+        toDynamics: dynamicsToOutcome
+      }
+    });
+  }
+
   return {
     version: '1.0.0',
     spreadKey: 'relationship',
@@ -1508,7 +1610,9 @@ export function analyzeRelationship(cardsInfo) {
     positionNotes: [
       { index: 0, label: 'You / your energy', notes: ['How you are currently showing up.'] },
       { index: 1, label: 'Them / their energy', notes: ['How they are approaching the connection.'] },
-      { index: 2, label: 'The connection / shared lesson', notes: ['The third energy between you—what the bond is asking from both sides.'] }
+      { index: 2, label: 'The connection / shared lesson', notes: ['The third energy between you—what the bond is asking from both sides.'] },
+      ...(dynamics ? [{ index: 3, label: dynamicsLabel, notes: ['Clarifying guidance on how to engage the dynamic.'] }] : []),
+      ...(outcome ? [{ index: 4, label: outcomeLabel, notes: ['Likely trajectory if current relational dynamics continue.'] }] : [])
     ],
     dyad: {
       you: { card: you.card, orientation: you.orientation },
@@ -1523,7 +1627,75 @@ export function analyzeRelationship(cardsInfo) {
         toYou: youBridge,
         toThem: themBridge
       }
-    }
+    },
+    guidance: dynamics
+      ? {
+        card: dynamics.card,
+        orientation: dynamics.orientation,
+        meaning: dynamics.meaning || null
+      }
+      : null,
+    outcome: outcome
+      ? {
+        card: outcome.card,
+        orientation: outcome.orientation,
+        meaning: outcome.meaning || null
+      }
+      : null
+  };
+}
+
+/* ==========================================================================
+ * SINGLE-CARD ANALYSIS
+ *
+ * Provides minimal synthesis structure so prompt builders can consume
+ * spreadAnalysis consistently across all supported spread keys.
+ * ========================================================================== */
+
+/**
+ * Analyze a single-card spread
+ *
+ * @param {Array} cardsInfo - Array containing one card object
+ * @returns {Object|null} Single-card analysis or null if invalid input
+ */
+export function analyzeSingleCard(cardsInfo) {
+  if (!Array.isArray(cardsInfo) || cardsInfo.length !== 1) {
+    return null;
+  }
+
+  const [card] = cardsInfo;
+  if (!card) {
+    return null;
+  }
+
+  const positionLabel = card.position || 'Theme / Guidance of the Moment';
+  const orientationLabel = card.orientation || 'Upright';
+  const orientationLower = orientationLabel.toLowerCase();
+  const orientationGuidance = orientationLower === 'reversed'
+    ? 'Treat this as inward-facing energy that benefits from reflection before action.'
+    : 'Treat this as active energy you can translate into one grounded next step.';
+  const meaningText = card.meaning
+    ? `${card.meaning.trim()}`
+    : 'This card is the central lens for interpreting the current moment.';
+  const synthesis = `${card.card} ${orientationLabel} frames the reading through "${positionLabel}". ${meaningText} ${orientationGuidance}`;
+
+  return {
+    version: '1.0.0',
+    spreadKey: 'single',
+    focusCard: {
+      card: card.card,
+      orientation: orientationLabel,
+      position: positionLabel,
+      meaning: card.meaning || null
+    },
+    positionNotes: [
+      {
+        index: 0,
+        label: positionLabel,
+        notes: ['This single position sets the full interpretive throughline.']
+      }
+    ],
+    synthesis
   };
 }
 

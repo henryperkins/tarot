@@ -35,7 +35,8 @@ export async function buildRelationshipReading({
   reflectionsText,
   themes,
   context,
-  spreadInfo
+  spreadInfo,
+  spreadAnalysis
 }, options = {}) {
   const expectedCount = RELATIONSHIP_SPREAD_MIN_CARDS;
   const receivedCount = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
@@ -189,6 +190,15 @@ export async function buildRelationshipReading({
   } else {
     summaryLines.push('Together, this pairing suggests the current dynamic between you and points toward how energy is moving in this connection.');
   }
+  if (Array.isArray(spreadAnalysis?.relationships) && spreadAnalysis.relationships.length > 0) {
+    const dynamicsSummaries = spreadAnalysis.relationships
+      .slice(0, 3)
+      .map(r => typeof r?.summary === 'string' ? r.summary.trim() : '')
+      .filter(Boolean);
+    if (dynamicsSummaries.length > 0) {
+      summaryLines.push(...dynamicsSummaries);
+    }
+  }
   youThem += `\n\n${summaryLines.join(' ')}`;
 
   const relationshipsMeta = elemental && elemental.description
@@ -337,6 +347,9 @@ export async function buildRelationshipReading({
     : buildPatternSynthesis(themes);
   if (synthesisSection) {
     sections.push(synthesisSection);
+  }
+  if (spreadAnalysis?.synthesis) {
+    sections.push(spreadAnalysis.synthesis);
   }
 
   // Additional guidance with elemental remedies

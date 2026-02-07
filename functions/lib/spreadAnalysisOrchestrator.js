@@ -16,7 +16,8 @@ import {
   analyzeThreeCard,
   analyzeFiveCard,
   analyzeRelationship,
-  analyzeDecision
+  analyzeDecision,
+  analyzeSingleCard
 } from './spreadAnalysis.js';
 import {
   fetchEphemerisContext,
@@ -342,6 +343,10 @@ async function performSpreadAnalysisInner(
       console.log(`[${requestId}] Performing Decision analysis...`);
       spreadAnalysis = analyzeDecision(cardsInfo);
       console.log(`[${requestId}] Decision analysis complete`);
+    } else if (spreadKey === 'single' && cardsInfo.length === 1) {
+      console.log(`[${requestId}] Performing Single-Card analysis...`);
+      spreadAnalysis = analyzeSingleCard(cardsInfo);
+      console.log(`[${requestId}] Single-Card analysis complete`);
     } else {
       console.log(`[${requestId}] No specific analysis for spreadKey: ${spreadKey} with ${cardsInfo.length} cards`);
     }

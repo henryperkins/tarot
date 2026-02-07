@@ -113,6 +113,46 @@ describe('enhancement telemetry summary', () => {
 });
 
 describe('prompt slimming respects budget order', () => {
+  it('keeps slimming disabled by default even when soft budget is exceeded', () => {
+    const spreadInfo = { name: 'Three-Card Story (Past · Present · Future)' };
+    const cardsInfo = [
+      { card: 'The Fool', position: 'Past', number: 0, orientation: 'Upright', meaning: 'A long wandering path.' },
+      { card: 'The Magician', position: 'Present', number: 1, orientation: 'Upright', meaning: 'Manifesting resources and skill.' },
+      { card: 'The High Priestess', position: 'Future', number: 2, orientation: 'Reversed', meaning: 'Trust inner knowing and mystery.' }
+    ];
+
+    const themes = {
+      reversalCount: 1,
+      reversalDescription: {
+        name: 'Blocked Energy',
+        description: 'Reversals show resistance.',
+        guidance: 'Name the block, then describe how to clear or integrate it.'
+      },
+      knowledgeGraph: {},
+      suitCounts: {},
+      elementCounts: {}
+    };
+
+    const { promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo,
+      cardsInfo,
+      userQuestion: 'How do I navigate this massive life transition? '.repeat(8),
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'career',
+      visionInsights: [],
+      deckStyle: 'rws-1909',
+      promptBudgetEnv: {
+        PROMPT_BUDGET_CLAUDE: '40'
+      }
+    });
+
+    assert.equal(promptMeta.slimmingEnabled, false);
+    assert.deepEqual(promptMeta.slimmingSteps, []);
+    assert.equal(promptMeta.estimatedTokens, null);
+  });
+
   it('applies slimming steps when token budget is exceeded and slimming is enabled', () => {
     const spreadInfo = { name: 'Three-Card Story (Past · Present · Future)' };
     const cardsInfo = [

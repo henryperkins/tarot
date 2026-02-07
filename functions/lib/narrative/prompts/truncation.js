@@ -1,4 +1,5 @@
 import { estimateTokenCount } from './budgeting.js';
+import { USER_PROMPT_INSTRUCTION_HEADER } from './constants.js';
 
 function truncatePrefixToTokenBudget(text, maxTokens) {
   if (maxTokens <= 0) return '';
@@ -146,6 +147,304 @@ export function truncateToTokenBudget(text, maxTokens, options = {}) {
     text: combined,
     truncated: true,
     originalTokens
+  };
+}
+
+const USER_PROMPT_INSTRUCTION_MARKER = USER_PROMPT_INSTRUCTION_HEADER;
+const USER_PROMPT_GRAPHRAG_MARKER = '## TRADITIONAL WISDOM (GraphRAG)';
+const USER_PROMPT_CARD_BOUNDARY_MARKERS = [
+  '**Thoth Titles & Decans**',
+  '**Marseille Pip Geometry**',
+  '**Querent\'s Reflections**',
+  '**VISION VALIDATION**',
+  '**Vision Validation**',
+  USER_PROMPT_GRAPHRAG_MARKER
+];
+
+const USER_PROMPT_CARD_MARKERS = Object.freeze({
+  celtic: ['**NUCLEUS** (Heart of the Matter):'],
+  threecard: ['**THREE-CARD STORY STRUCTURE**'],
+  fivecard: ['**FIVE-CARD CLARITY STRUCTURE**'],
+  relationship: ['**RELATIONSHIP SNAPSHOT STRUCTURE**'],
+  decision: ['**DECISION / TWO-PATH STRUCTURE**'],
+  single: ['**ONE-CARD INSIGHT STRUCTURE**']
+});
+
+const USER_PROMPT_CARD_MARKER_FALLBACK = Object.freeze([
+  ...USER_PROMPT_CARD_MARKERS.celtic,
+  ...USER_PROMPT_CARD_MARKERS.threecard,
+  ...USER_PROMPT_CARD_MARKERS.fivecard,
+  ...USER_PROMPT_CARD_MARKERS.relationship,
+  ...USER_PROMPT_CARD_MARKERS.decision,
+  ...USER_PROMPT_CARD_MARKERS.single
+]);
+
+function normalizeSpreadKey(spreadKey) {
+  if (!spreadKey) return '';
+  return String(spreadKey).replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+function findFirstMarkerIndex(text, markers = [], fromIndex = 0) {
+  let best = -1;
+  for (const marker of markers) {
+    const idx = text.indexOf(marker, fromIndex);
+    if (idx === -1) continue;
+    if (best === -1 || idx < best) {
+      best = idx;
+    }
+  }
+  return best;
+}
+
+function splitQuestionBlock(introText) {
+  const intro = typeof introText === 'string' ? introText.trim() : '';
+  if (!intro) {
+    return { questionBlock: '', introRemainder: '' };
+  }
+
+  const questionIdx = intro.indexOf('**Question**:');
+  if (questionIdx === -1) {
+    return { questionBlock: '', introRemainder: intro };
+  }
+
+  const firstBreak = intro.indexOf('\n\n', questionIdx);
+  if (firstBreak === -1) {
+    return { questionBlock: intro, introRemainder: '' };
+  }
+
+  return {
+    questionBlock: intro.slice(0, firstBreak).trim(),
+    introRemainder: intro.slice(firstBreak).trim()
+  };
+}
+
+const USER_PROMPT_CARD_LINE_PATTERN = /^[^\n:]{1,180}:\s+[^\n]*\b(?:Upright|Reversed)\b\.?/im;
+
+function extractFallbackCardBlock(introRemainder) {
+  const safeIntro = typeof introRemainder === 'string' ? introRemainder : '';
+  if (!safeIntro) {
+    return { cardsText: '', introRemainder: '' };
+  }
+
+  const match = USER_PROMPT_CARD_LINE_PATTERN.exec(safeIntro);
+  if (!match) {
+    return { cardsText: '', introRemainder: safeIntro.trim() };
+  }
+
+  const cardStartIdx = match.index;
+  const afterCardStart = safeIntro.slice(cardStartIdx);
+  const boundaryWithinCards = findFirstMarkerIndex(afterCardStart, USER_PROMPT_CARD_BOUNDARY_MARKERS);
+  const cardEndIdx = boundaryWithinCards === -1 ? afterCardStart.length : boundaryWithinCards;
+
+  const cardsText = afterCardStart.slice(0, cardEndIdx).trim();
+  const beforeCards = safeIntro.slice(0, cardStartIdx).trim();
+  const afterCards = afterCardStart.slice(cardEndIdx).trim();
+  const remainingIntro = [beforeCards, afterCards].filter(Boolean).join('\n\n').trim();
+
+  return {
+    cardsText,
+    introRemainder: remainingIntro
+  };
+}
+
+function appendWithinBudget(parts, segmentText, maxTokens, options = {}) {
+  const raw = typeof segmentText === 'string' ? segmentText.trim() : '';
+  if (!raw) return { added: false, truncated: false };
+
+  const currentText = parts.filter(Boolean).join('\n\n').trim();
+  const candidate = [currentText, raw].filter(Boolean).join('\n\n').trim();
+  if (estimateTokenCount(candidate) <= maxTokens) {
+    parts.push(raw);
+    return { added: true, truncated: false };
+  }
+
+  const remainingTokens = Math.max(0, maxTokens - estimateTokenCount(currentText));
+  if (remainingTokens <= 0) {
+    return { added: false, truncated: true };
+  }
+
+  const truncateFn = options.keepTail ? truncateSuffixToTokenBudget : truncatePrefixToTokenBudget;
+  const fitted = truncateFn(raw, remainingTokens);
+  if (!fitted) {
+    return { added: false, truncated: true };
+  }
+
+  parts.push(fitted);
+  return { added: true, truncated: true };
+}
+
+function splitUserPromptSections(text, spreadKey) {
+  const safeText = typeof text === 'string' ? text : '';
+  const instructionIdx = safeText.indexOf(USER_PROMPT_INSTRUCTION_MARKER);
+  const instructionsStart = instructionIdx >= 0 ? instructionIdx : safeText.length;
+
+  const normalizedSpreadKey = normalizeSpreadKey(spreadKey);
+  const spreadMarkers = USER_PROMPT_CARD_MARKERS[normalizedSpreadKey] || USER_PROMPT_CARD_MARKER_FALLBACK;
+  let cardStartIdx = findFirstMarkerIndex(safeText, spreadMarkers);
+  if (cardStartIdx === -1 && spreadMarkers !== USER_PROMPT_CARD_MARKER_FALLBACK) {
+    cardStartIdx = findFirstMarkerIndex(safeText, USER_PROMPT_CARD_MARKER_FALLBACK);
+  }
+  if (cardStartIdx >= instructionsStart) {
+    cardStartIdx = -1;
+  }
+
+  const introEnd = cardStartIdx >= 0 ? cardStartIdx : instructionsStart;
+  const introText = safeText.slice(0, introEnd).trim();
+  let cardsText = '';
+  let optionalStart = introEnd;
+
+  if (cardStartIdx >= 0) {
+    let cardEndIdx = instructionsStart;
+    for (const marker of USER_PROMPT_CARD_BOUNDARY_MARKERS) {
+      const idx = safeText.indexOf(marker, cardStartIdx + 1);
+      if (idx === -1 || idx >= instructionsStart) continue;
+      if (idx < cardEndIdx) {
+        cardEndIdx = idx;
+      }
+    }
+    cardsText = safeText.slice(cardStartIdx, cardEndIdx).trim();
+    optionalStart = cardEndIdx;
+  }
+
+  const betweenCardsAndInstructions = safeText.slice(optionalStart, instructionsStart).trim();
+  const graphRAGIdx = betweenCardsAndInstructions.indexOf(USER_PROMPT_GRAPHRAG_MARKER);
+  const optionalContext = graphRAGIdx === -1
+    ? betweenCardsAndInstructions
+    : betweenCardsAndInstructions.slice(0, graphRAGIdx).trim();
+  const graphRAGText = graphRAGIdx === -1
+    ? ''
+    : betweenCardsAndInstructions.slice(graphRAGIdx).trim();
+  const instructions = instructionIdx >= 0 ? safeText.slice(instructionIdx).trim() : '';
+
+  const { questionBlock, introRemainder } = splitQuestionBlock(introText);
+  let resolvedCardsText = cardsText;
+  let resolvedIntroRemainder = introRemainder;
+  let resolvedGraphRAGText = graphRAGText;
+
+  if (!resolvedCardsText && resolvedIntroRemainder) {
+    const fallbackSplit = extractFallbackCardBlock(resolvedIntroRemainder);
+    if (fallbackSplit.cardsText) {
+      resolvedCardsText = fallbackSplit.cardsText;
+      resolvedIntroRemainder = fallbackSplit.introRemainder;
+    }
+  }
+
+  if (!resolvedGraphRAGText && resolvedIntroRemainder.includes(USER_PROMPT_GRAPHRAG_MARKER)) {
+    const fallbackGraphRAGIdx = resolvedIntroRemainder.indexOf(USER_PROMPT_GRAPHRAG_MARKER);
+    resolvedGraphRAGText = resolvedIntroRemainder.slice(fallbackGraphRAGIdx).trim();
+    resolvedIntroRemainder = resolvedIntroRemainder.slice(0, fallbackGraphRAGIdx).trim();
+  }
+
+  return {
+    questionBlock,
+    introRemainder: resolvedIntroRemainder,
+    cardsText: resolvedCardsText,
+    optionalContext,
+    graphRAGText: resolvedGraphRAGText,
+    instructions
+  };
+}
+
+/**
+ * Section-aware truncation for user prompts.
+ * Prioritizes card synthesis + explicit instructions and only then keeps lower-value
+ * optional blocks (diagnostics, GraphRAG references, etc).
+ *
+ * @param {string} text - User prompt text
+ * @param {number} maxTokens - Maximum tokens allowed
+ * @param {Object} [options]
+ * @param {string} [options.spreadKey] - Spread key for card-section marker detection
+ * @returns {{ text: string, truncated: boolean, originalTokens: number, preservedSections: string[] }}
+ */
+export function truncateUserPromptSafely(text, maxTokens, options = {}) {
+  if (!text || typeof text !== 'string') {
+    return { text: '', truncated: false, originalTokens: 0, preservedSections: [] };
+  }
+
+  const originalTokens = estimateTokenCount(text);
+  if (originalTokens <= maxTokens) {
+    return { text, truncated: false, originalTokens, preservedSections: [] };
+  }
+
+  const {
+    questionBlock,
+    introRemainder,
+    cardsText,
+    optionalContext,
+    graphRAGText,
+    instructions
+  } = splitUserPromptSections(text, options.spreadKey);
+
+  const separatorTokens = estimateTokenCount('\n\n');
+  const instructionReserve = instructions
+    ? Math.min(
+      estimateTokenCount(instructions),
+      Math.max(80, Math.floor(maxTokens * 0.18))
+    )
+    : 0;
+  const bodyBudget = Math.max(0, maxTokens - instructionReserve - (instructions ? separatorTokens : 0));
+
+  const bodyParts = [];
+  const preservedSections = [];
+  const bodySegments = [
+    { key: 'question', value: questionBlock },
+    { key: 'cards', value: cardsText },
+    { key: 'graphrag', value: graphRAGText },
+    { key: 'intro', value: introRemainder },
+    { key: 'optional-context', value: optionalContext }
+  ];
+
+  for (const segment of bodySegments) {
+    if (!segment.value) continue;
+    if (segment.key === 'graphrag') {
+      const raw = typeof segment.value === 'string' ? segment.value.trim() : '';
+      if (!raw) continue;
+      const currentText = bodyParts.filter(Boolean).join('\n\n').trim();
+      const candidate = [currentText, raw].filter(Boolean).join('\n\n').trim();
+      if (estimateTokenCount(candidate) <= bodyBudget) {
+        bodyParts.push(raw);
+        preservedSections.push(segment.key);
+      }
+      continue;
+    }
+    const result = appendWithinBudget(bodyParts, segment.value, bodyBudget);
+    if (result.added) {
+      preservedSections.push(segment.key);
+    }
+  }
+
+  const finalParts = [];
+  const bodyText = bodyParts.join('\n\n').trim();
+  if (bodyText) {
+    finalParts.push(bodyText);
+  }
+
+  if (instructions) {
+    const currentTokens = estimateTokenCount(finalParts.join('\n\n').trim());
+    const availableForInstructions = Math.max(
+      0,
+      maxTokens - currentTokens - (finalParts.length > 0 ? separatorTokens : 0)
+    );
+    const fittedInstructions = truncatePrefixToTokenBudget(instructions, availableForInstructions);
+    if (fittedInstructions) {
+      finalParts.push(fittedInstructions);
+      preservedSections.push('instructions');
+    }
+  }
+
+  let resultText = finalParts.join('\n\n').trim();
+  if (!resultText) {
+    resultText = truncatePrefixToTokenBudget(text, maxTokens);
+  }
+  if (estimateTokenCount(resultText) > maxTokens) {
+    resultText = truncatePrefixToTokenBudget(resultText, maxTokens);
+  }
+
+  return {
+    text: resultText,
+    truncated: true,
+    originalTokens,
+    preservedSections
   };
 }
 

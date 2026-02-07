@@ -2597,14 +2597,13 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 .ghost-card-trail {
   position: absolute;
-  inset: -35% -40% -45% -40%;
+  inset: -22% -24% -26% -24%;
   background:
-    radial-gradient(circle at 60% 40%, color-mix(in srgb, var(--ghost-trail-color) 35%, transparent), transparent 55%),
-    radial-gradient(circle at 20% 70%, color-mix(in srgb, var(--ghost-trail-color) 25%, transparent), transparent 60%),
-    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--ghost-trail-color) 18%, transparent), transparent 62%);
-  opacity: 0.7;
-  filter: blur(6px);
-  mix-blend-mode: screen;
+    radial-gradient(circle at 60% 40%, color-mix(in srgb, var(--ghost-trail-color) 24%, transparent), transparent 60%),
+    radial-gradient(circle at 20% 70%, color-mix(in srgb, var(--ghost-trail-color) 16%, transparent), transparent 64%);
+  opacity: 0.5;
+  transform: translate3d(0, 0, 0);
+  will-change: transform, opacity;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -2620,7 +2619,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
   100% {
     opacity: 0;
-    transform: translate3d(10%, -8%, 0) scale(1.05);
+    transform: translate3d(6%, -5%, 0) scale(1.03);
   }
 }
 
@@ -4170,16 +4169,22 @@ input[type="range"]:focus::-webkit-slider-thumb {
 /* Atmosphere modifiers applied to :root via JS */
 :root.color-atmosphere--isolation-depth {
   /* The Struggle: cool, high contrast, reduced saturation */
+  --phase-contrast: 1.2;
+  --phase-saturation: 0.7;
   filter: contrast(var(--phase-contrast, 1.2)) saturate(var(--phase-saturation, 0.7));
 }
 
 :root.color-atmosphere--golden-hour-clarity {
   /* The Revelation: warm, soft contrast, enhanced saturation */
+  --phase-contrast: 0.9;
+  --phase-saturation: 1.1;
   filter: contrast(var(--phase-contrast, 0.9)) saturate(var(--phase-saturation, 1.1));
 }
 
 :root.color-atmosphere--grounded-harmonious {
   /* The Resolution: balanced warmth and contrast */
+  --phase-contrast: 1.0;
+  --phase-saturation: 0.85;
   filter: contrast(var(--phase-contrast, 1.0)) saturate(var(--phase-saturation, 0.85));
 }
 

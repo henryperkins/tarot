@@ -96,6 +96,16 @@ describe('detectFoolsJourneyStage', () => {
 
     assert.strictEqual(result.significance, 'moderate');
   });
+
+  it('returns null when major cards are tied across stages', () => {
+    const cards = [
+      { number: 0, name: 'The Fool' },      // initiation
+      { number: 9, name: 'The Hermit' },    // integration
+      { number: 20, name: 'Judgement' }     // culmination
+    ];
+    const result = detectFoolsJourneyStage(cards);
+    assert.strictEqual(result, null);
+  });
 });
 
 describe('detectArchetypalTriads', () => {
@@ -290,6 +300,20 @@ describe('detectSuitProgressions', () => {
     const result = detectSuitProgressions(cards);
     assert.strictEqual(result.length, 0);
   });
+
+  it('normalizes alias suit labels so deck variants still detect progressions', () => {
+    const cards = [
+      { card: 'Two of Disks', suit: 'Disks', rank: 'Two', rankValue: 2 },
+      { card: 'Three of Disks', suit: 'Disks', rank: 'Three', rankValue: 3 }
+    ];
+
+    const result = detectSuitProgressions(cards, { deckStyle: 'thoth-a1' });
+
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].suit, 'Pentacles');
+    assert.strictEqual(result[0].displaySuit, 'Disks');
+    assert.strictEqual(result[0].stage, 'beginning');
+  });
 });
 
 describe('detectAllPatterns', () => {
@@ -329,6 +353,35 @@ describe('detectAllPatterns', () => {
     assert.ok(result.courtLineages);
     assert.strictEqual(result.courtLineages[0].displaySuit, 'Batons');
     assert.strictEqual(result.courtLineages[0].significance, 'council');
+  });
+
+  it('maps alias suit metadata to canonical lineage themes', () => {
+    const cards = [
+      { card: 'Valet of Batons', suit: 'Batons', rank: 'Valet', rankValue: 11 },
+      { card: 'Chevalier of Batons', suit: 'Batons', rank: 'Chevalier', rankValue: 12 },
+      { card: 'Reine of Batons', suit: 'Batons', rank: 'Reine', rankValue: 13 }
+    ];
+    const result = detectAllPatterns(cards, { deckStyle: 'marseille-classic' });
+
+    assert.ok(result);
+    assert.ok(result.courtLineages);
+    assert.strictEqual(result.courtLineages[0].displaySuit, 'Batons');
+    assert.strictEqual(result.courtLineages[0].element, 'Fire');
+    assert.notStrictEqual(result.courtLineages[0].theme, 'Batons court lineage');
+  });
+
+  it('detects Thoth epithets when cards are provided as alias labels', () => {
+    const cards = [
+      { card: 'Dominion (Two of Wands)', suit: 'Wands', rank: 'Two', rankValue: 2 },
+      { card: 'Virtue (Three of Wands)', suit: 'Wands', rank: 'Three', rankValue: 3 },
+      { card: 'Completion (Four of Wands)', suit: 'Wands', rank: 'Four', rankValue: 4 }
+    ];
+    const result = detectAllPatterns(cards, { deckStyle: 'thoth-a1' });
+
+    assert.ok(result);
+    assert.ok(result.thothEpithets);
+    assert.ok(Array.isArray(result.thothEpithets.entries));
+    assert.ok(result.thothEpithets.entries.length >= 3);
   });
 
   it('returns null when no patterns detected', () => {

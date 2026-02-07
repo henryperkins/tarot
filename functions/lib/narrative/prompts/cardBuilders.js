@@ -360,7 +360,7 @@ export function buildFiveCardPromptCards(cardsInfo, fiveCardAnalysis, themes, co
   return out;
 }
 
-export function buildRelationshipPromptCards(cardsInfo, themes, context, visionInsights, promptOptions = {}) {
+export function buildRelationshipPromptCards(cardsInfo, relationshipAnalysis, themes, context, visionInsights, promptOptions = {}) {
   const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
   const optionsFor = (index, extra = {}) => ({
     ...makeCardOptions('relationship', index, baseOptions, promptOptions),
@@ -408,10 +408,36 @@ export function buildRelationshipPromptCards(cardsInfo, themes, context, visionI
     });
   }
 
+  if (Array.isArray(relationshipAnalysis?.relationships) && relationshipAnalysis.relationships.length > 0) {
+    out += `\n**RELATIONSHIP DYNAMICS TO WEAVE**\n`;
+    relationshipAnalysis.relationships
+      .slice(0, 5)
+      .map((entry) => (typeof entry?.summary === 'string' ? entry.summary.trim() : ''))
+      .filter(Boolean)
+      .forEach((summary) => {
+        out += `- ${summary}\n`;
+      });
+  }
+
+  if (Array.isArray(relationshipAnalysis?.positionNotes) && relationshipAnalysis.positionNotes.length > 0) {
+    const positionNotes = relationshipAnalysis.positionNotes
+      .slice(0, 5)
+      .map((entry) => {
+        const label = typeof entry?.label === 'string' ? entry.label.trim() : '';
+        const note = Array.isArray(entry?.notes) ? entry.notes[0] : '';
+        if (!label || !note) return '';
+        return `- ${label}: ${note}`;
+      })
+      .filter(Boolean);
+    if (positionNotes.length > 0) {
+      out += `\n**POSITION NOTES**\n${positionNotes.join('\n')}\n`;
+    }
+  }
+
   return out;
 }
 
-export function buildDecisionPromptCards(cardsInfo, themes, context, visionInsights, promptOptions = {}) {
+export function buildDecisionPromptCards(cardsInfo, decisionAnalysis, themes, context, visionInsights, promptOptions = {}) {
   const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
   const optionsFor = (index, extra = {}) => ({
     ...makeCardOptions('decision', index, baseOptions, promptOptions),
@@ -459,10 +485,36 @@ export function buildDecisionPromptCards(cardsInfo, themes, context, visionInsig
     );
   }
 
+  if (Array.isArray(decisionAnalysis?.relationships) && decisionAnalysis.relationships.length > 0) {
+    out += `\n**DECISION CROSS-CHECKS**\n`;
+    decisionAnalysis.relationships
+      .slice(0, 5)
+      .map((entry) => (typeof entry?.summary === 'string' ? entry.summary.trim() : ''))
+      .filter(Boolean)
+      .forEach((summary) => {
+        out += `- ${summary}\n`;
+      });
+  }
+
+  if (Array.isArray(decisionAnalysis?.positionNotes) && decisionAnalysis.positionNotes.length > 0) {
+    const positionNotes = decisionAnalysis.positionNotes
+      .slice(0, 5)
+      .map((entry) => {
+        const label = typeof entry?.label === 'string' ? entry.label.trim() : '';
+        const note = Array.isArray(entry?.notes) ? entry.notes[0] : '';
+        if (!label || !note) return '';
+        return `- ${label}: ${note}`;
+      })
+      .filter(Boolean);
+    if (positionNotes.length > 0) {
+      out += `\n**POSITION NOTES**\n${positionNotes.join('\n')}\n`;
+    }
+  }
+
   return out;
 }
 
-export function buildSingleCardPrompt(cardsInfo, themes, context, visionInsights, promptOptions = {}) {
+export function buildSingleCardPrompt(cardsInfo, singleCardAnalysis, themes, context, visionInsights, promptOptions = {}) {
   const baseOptions = { ...getPositionOptions(themes, context), visionInsights };
   const optionsFor = makeCardOptions('single', 0, baseOptions, promptOptions);
   const card = cardsInfo[0];
@@ -475,6 +527,11 @@ export function buildSingleCardPrompt(cardsInfo, themes, context, visionInsights
     card.position || 'Theme / Guidance of the Moment',
     optionsFor
   );
+  if (singleCardAnalysis?.synthesis && typeof singleCardAnalysis.synthesis === 'string') {
+    out += `\n**SINGLE-CARD SYNTHESIS**\n- ${singleCardAnalysis.synthesis.trim()}\n`;
+  } else if (singleCardAnalysis?.focusCard?.meaning && typeof singleCardAnalysis.focusCard.meaning === 'string') {
+    out += `\n**SINGLE-CARD SYNTHESIS**\n- Emphasize this core thread: ${singleCardAnalysis.focusCard.meaning.trim()}\n`;
+  }
   return out;
 }
 

@@ -13,6 +13,7 @@ import {
 
 import { sanitizeDisplayName } from './styleHelpers.js';
 import { pickOne, isProseMode } from './helpers.js';
+import { getSpreadKey } from '../readingQuality.js';
 
 // ============================================================================
 // REASONING-INFORMED TEMPLATE SELECTION
@@ -409,10 +410,11 @@ export async function buildReadingWithReasoning(payload, baseBuilder, options = 
     userQuestion,
     context,
     themes,
-    spreadInfo
+    spreadInfo,
+    spreadKey: explicitSpreadKey
   } = payload;
 
-  const spreadKey = spreadInfo?.key || 'general';
+  const spreadKey = explicitSpreadKey || getSpreadKey(spreadInfo?.name, spreadInfo?.key) || 'general';
 
   // Step 1: Build reasoning chain
   const reasoning = buildReadingReasoning(

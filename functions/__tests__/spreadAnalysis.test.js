@@ -72,6 +72,22 @@ describe('selectReversalFramework', () => {
     const result = selectReversalFramework(2 / 3, cardsInfo, {});
     assert.notStrictEqual(result, 'potentialBlocked');
   });
+
+  it('does not trigger potentialBlocked for generic "could be" phrasing', () => {
+    const cardsInfo = [
+      { card: 'Two of Cups', suit: 'Cups', number: 2, orientation: 'Reversed' },
+      { card: 'The Sun', number: 19, orientation: 'Upright' },
+      { card: 'Three of Pentacles', suit: 'Pentacles', number: 3, orientation: 'Upright' },
+      { card: 'Knight of Wands', suit: 'Wands', number: 12, orientation: 'Upright' },
+      { card: 'Justice', number: 11, orientation: 'Upright' }
+    ];
+
+    const result = selectReversalFramework(1 / 5, cardsInfo, {
+      userQuestion: 'What could be the outcome if I take this role?'
+    });
+
+    assert.strictEqual(result, 'contextual');
+  });
 });
 
 describe('major/minor classification', () => {
@@ -79,6 +95,11 @@ describe('major/minor classification', () => {
     assert.strictEqual(getCardElement('Three of Cups', 3), 'Water');
     assert.strictEqual(getCardElement('Three of Cups', 3, 'Cups'), 'Water');
     assert.strictEqual(getCardElement('The Empress', 3), 'Earth');
+  });
+
+  it('resolves deck-alias suit names before falling back to Major number mapping', () => {
+    assert.strictEqual(getCardElement('Two of Disks', 2), 'Earth');
+    assert.strictEqual(getCardElement('Valet of Batons', 11), 'Fire');
   });
 
   it('counts only true majors in spread analysis when minors include numeric values', async () => {
@@ -127,6 +148,25 @@ describe('relationship spread contract', () => {
     const analysis = analyzeRelationship(fourCardInput);
     assert.ok(analysis);
     assert.strictEqual(analysis.spreadKey, 'relationship');
+  });
+
+  it('includes clarifier semantics when dynamics/outcome cards are provided', () => {
+    const fiveCardInput = [
+      { card: 'Two of Cups', orientation: 'Upright', position: 'You / your energy', meaning: 'Partnership' },
+      { card: 'The Lovers', orientation: 'Upright', position: 'Them / their energy', meaning: 'Values alignment' },
+      { card: 'Temperance', orientation: 'Upright', position: 'The connection / shared lesson', meaning: 'Integration' },
+      { card: 'The Star', orientation: 'Upright', position: 'Dynamics / guidance', meaning: 'Guidance' },
+      { card: 'Ten of Cups', orientation: 'Upright', position: 'Outcome / what this can become', meaning: 'Outcome potential' }
+    ];
+
+    const analysis = analyzeRelationship(fiveCardInput);
+    assert.ok(analysis);
+    assert.ok(Array.isArray(analysis.positionNotes));
+    assert.ok(analysis.positionNotes.some((note) => note.label === 'Dynamics / guidance'));
+    assert.ok(analysis.positionNotes.some((note) => note.label === 'Outcome / what this can become'));
+    assert.ok(Array.isArray(analysis.relationships));
+    assert.ok(analysis.relationships.some((rel) => rel.type === 'guidance'));
+    assert.ok(analysis.relationships.some((rel) => rel.type === 'outcome'));
   });
 });
 

@@ -3,7 +3,12 @@ import { buildCardTransitNotes, generateTimingGuidance } from '../../ephemerisIn
 import { sanitizeDisplayName, getDepthProfile } from '../styleHelpers.js';
 import { sanitizeText } from '../../utils.js';
 import { detectPromptInjection } from '../../promptInjectionDetector.js';
-import { DEFAULT_REVERSAL_DESCRIPTION, MAX_QUESTION_TEXT_LENGTH, MAX_REFLECTION_TEXT_LENGTH } from './constants.js';
+import {
+  DEFAULT_REVERSAL_DESCRIPTION,
+  MAX_QUESTION_TEXT_LENGTH,
+  MAX_REFLECTION_TEXT_LENGTH,
+  USER_PROMPT_INSTRUCTION_HEADER
+} from './constants.js';
 import { getDeckStyleNotes } from './deckStyle.js';
 import { buildGraphRAGReferenceBlock } from './graphRAGReferenceBlock.js';
 import { buildVisionValidationSection } from './visionValidation.js';
@@ -143,11 +148,11 @@ export function buildUserPrompt(
   } else if (spreadKey === 'fiveCard' && spreadAnalysis) {
     prompt += buildFiveCardPromptCards(cardsInfo, spreadAnalysis, activeThemes, context, visionInsights, promptOptions);
   } else if (spreadKey === 'relationship') {
-    prompt += buildRelationshipPromptCards(cardsInfo, activeThemes, context, visionInsights, promptOptions);
+    prompt += buildRelationshipPromptCards(cardsInfo, spreadAnalysis, activeThemes, context, visionInsights, promptOptions);
   } else if (spreadKey === 'decision') {
-    prompt += buildDecisionPromptCards(cardsInfo, activeThemes, context, visionInsights, promptOptions);
+    prompt += buildDecisionPromptCards(cardsInfo, spreadAnalysis, activeThemes, context, visionInsights, promptOptions);
   } else if (spreadKey === 'single') {
-    prompt += buildSingleCardPrompt(cardsInfo, activeThemes, context, visionInsights, promptOptions);
+    prompt += buildSingleCardPrompt(cardsInfo, spreadAnalysis, activeThemes, context, visionInsights, promptOptions);
   } else {
     prompt += buildStandardPromptCards(spreadKey, cardsInfo, activeThemes, context, visionInsights, promptOptions);
   }
@@ -188,7 +193,7 @@ export function buildUserPrompt(
   }
 
   // Instructions (minimal - detailed rules are in system prompt)
-  prompt += `\nPlease now write the reading following the system prompt guidelines. Ensure you:
+  prompt += `\n${USER_PROMPT_INSTRUCTION_HEADER}
 - Do not introduce any card names beyond the provided spread; treat Fool’s Journey references as stage context only.
 - Reference each card by name at least once
 - Tie each card's insight to its position and at least one concrete anchor (imagery, element, visual profile, or reflection)

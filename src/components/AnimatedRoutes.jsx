@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { animate, set } from 'animejs';
 import TarotReading from '../TarotReading.jsx';
@@ -24,6 +24,24 @@ function RouteLoader() {
       <div className="animate-pulse text-muted">Loading...</div>
     </div>
   );
+}
+
+const STATIC_NON_TAROT_PATHS = new Set([
+  '/journal',
+  '/journal/gallery',
+  '/pricing',
+  '/account',
+  '/admin',
+  '/design',
+  '/reset-password',
+  '/verify-email',
+  '/auth/callback'
+]);
+
+function isTarotRoutePath(pathname) {
+  if (!pathname || pathname === '/') return true;
+  if (pathname.startsWith('/share/')) return false;
+  return !STATIC_NON_TAROT_PATHS.has(pathname);
 }
 
 export function AnimatedRoutes() {
@@ -125,6 +143,18 @@ export function AnimatedRoutes() {
       })
       .catch(() => setIsTransitioning(false));
   }, [displayLocation.pathname, isTransitioning, prefersReducedMotion, startExit]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('tableau:route-change', {
+      detail: {
+        pathname: location.pathname,
+        search: location.search,
+        hash: location.hash,
+        isTarotRoute: isTarotRoutePath(location.pathname)
+      }
+    }));
+  }, [location.pathname, location.search, location.hash]);
 
   return (
     <div ref={containerRef}>

@@ -12,7 +12,9 @@ import {
   buildPromptEngineeringPayload
 } from '../functions/lib/promptEngineering.js';
 import { estimateTokenCount } from '../functions/lib/narrative/prompts/budgeting.js';
-import { truncateToTokenBudget } from '../functions/lib/narrative/prompts/truncation.js';
+import { truncateToTokenBudget, truncateUserPromptSafely } from '../functions/lib/narrative/prompts/truncation.js';
+import { buildUserPrompt } from '../functions/lib/narrative/prompts/userPrompt.js';
+import { USER_PROMPT_INSTRUCTION_HEADER } from '../functions/lib/narrative/prompts/constants.js';
 import {
   countGraphRAGPassagesInPrompt,
   parseGraphRAGReferenceBlock
@@ -413,6 +415,132 @@ describe('truncateToTokenBudget - head + tail', () => {
     assert.ok(result.text.includes('HEAD SECTION'), 'Head should be preserved');
     assert.ok(result.text.includes('FOOTER INSTRUCTIONS'), 'Footer should be preserved');
     assert.ok(!result.text.includes('MIDDLE MARKER'), 'Middle content should be removed');
+  });
+});
+
+describe('truncateUserPromptSafely', () => {
+  test('preserves instruction block from actual buildUserPrompt output', () => {
+    const cardsInfo = [
+      { card: 'The Star', position: 'Theme / Guidance of the Moment', number: 17, orientation: 'Upright', meaning: 'Hope and restoration.' }
+    ];
+
+    const prompt = buildUserPrompt(
+      'single',
+      cardsInfo,
+      'What should I prioritize right now?',
+      '',
+      { reversalDescription: { name: 'Upright Focus', description: 'No reversals.', guidance: 'Keep momentum steady.' } },
+      null,
+      'general',
+      [],
+      'rws-1909',
+      {
+        graphRAGPayload: {
+          passages: [
+            {
+              title: 'Long Passage',
+              text: 'A'.repeat(9000),
+              source: 'Synthetic Test Source'
+            }
+          ]
+        }
+      }
+    );
+
+    const maxTokens = Math.floor(estimateTokenCount(prompt) * 0.4);
+    assert.ok(estimateTokenCount(prompt) > maxTokens, 'Prompt should exceed truncation budget');
+
+    const result = truncateUserPromptSafely(prompt, maxTokens, { spreadKey: 'single' });
+    assert.ok(result.truncated, 'Truncation should occur');
+    assert.ok(result.text.includes(USER_PROMPT_INSTRUCTION_HEADER), 'Instruction header from buildUserPrompt must be preserved');
+    assert.ok(result.text.includes('- Reference each card by name at least once'), 'Instruction bullets should be preserved');
+  });
+
+  test('prioritizes cards and final instructions before GraphRAG references', () => {
+    const text = [
+      '**Question**: What should I focus on this week?',
+      '**Thematic Context**:\n- Focus on grounded action',
+      '**THREE-CARD STORY STRUCTURE**',
+      'Past — influences that led here: The Fool Upright',
+      'Present — where you stand now: The Magician Upright',
+      'Future — trajectory if nothing shifts: The High Priestess Upright',
+      '## TRADITIONAL WISDOM (GraphRAG)',
+      '<reference>',
+      '1. **Passage One**',
+      '   "' + 'A'.repeat(9000) + '"',
+      '</reference>',
+      'INTEGRATION: Ground your interpretation in this traditional wisdom.',
+      'Please now write the reading following the system prompt guidelines. Ensure you:',
+      '- Reference each card by name at least once',
+      '- Apply the reversal lens consistently throughout'
+    ].join('\n\n');
+
+    const maxTokens = 220;
+    assert.ok(estimateTokenCount(text) > maxTokens, 'Prompt should exceed truncation budget');
+
+    const result = truncateUserPromptSafely(text, maxTokens, { spreadKey: 'threeCard' });
+    assert.ok(result.truncated, 'Truncation should occur');
+    assert.ok(result.text.includes('**THREE-CARD STORY STRUCTURE**'), 'Card synthesis section should be preserved');
+    assert.ok(result.text.includes('Please now write the reading following the system prompt guidelines.'), 'Final instructions should be preserved');
+    assert.ok(!result.text.includes('## TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG block should be dropped before card synthesis');
+  });
+
+  test('retains GraphRAG block when budget allows after preserving cards and instructions', () => {
+    const text = [
+      '**Question**: What should I focus on this week?',
+      '**Thematic Context**:\n- Focus on grounded action',
+      '**THREE-CARD STORY STRUCTURE**',
+      'Past — influences that led here: The Fool Upright',
+      'Present — where you stand now: The Magician Upright',
+      'Future — trajectory if nothing shifts: The High Priestess Upright',
+      '## TRADITIONAL WISDOM (GraphRAG)',
+      '<reference>',
+      '1. **Passage One**',
+      '   "Focus and integrate your lessons."',
+      '</reference>',
+      'INTEGRATION: Ground your interpretation in this traditional wisdom.',
+      'Please now write the reading following the system prompt guidelines. Ensure you:',
+      '- Reference each card by name at least once'
+    ].join('\n\n');
+
+    const originalTokens = estimateTokenCount(text);
+    const maxTokens = originalTokens - 1;
+    assert.ok(originalTokens > maxTokens, 'Prompt should exceed truncation budget');
+
+    const result = truncateUserPromptSafely(text, maxTokens, { spreadKey: 'threeCard' });
+    assert.ok(result.truncated, 'Truncation should occur');
+    assert.ok(result.text.includes('**THREE-CARD STORY STRUCTURE**'), 'Card synthesis section should be preserved');
+    assert.ok(result.text.includes('Please now write the reading following the system prompt guidelines.'), 'Final instructions should be preserved');
+    assert.ok(result.text.includes('## TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG block should be retained when budget permits');
+    assert.ok(result.preservedSections.includes('graphrag'), 'GraphRAG section should be reported as preserved');
+  });
+
+  test('preserves unknown-spread card lines before GraphRAG when truncating', () => {
+    const text = [
+      '**Question**: How can I move through this stuck phase?',
+      '**Thematic Context**:\n- Focus on practical momentum',
+      'Card 1 — Present focus: The Magician Upright. Your resources are available if you act intentionally.',
+      'Card 2 — Hidden influence: Seven of Cups Reversed. Narrow scattered options and stop splitting your attention.',
+      'Card 3 — Direction: The Chariot Upright. Commit to one aligned route and hold the line.',
+      '## TRADITIONAL WISDOM (GraphRAG)',
+      '<reference>',
+      '1. **Long Passage**',
+      '   "' + 'B'.repeat(9000) + '"',
+      '</reference>',
+      'INTEGRATION: Ground your interpretation in this traditional wisdom.',
+      'Please now write the reading following the system prompt guidelines. Ensure you:',
+      '- Reference each card by name at least once'
+    ].join('\n\n');
+
+    const maxTokens = 220;
+    assert.ok(estimateTokenCount(text) > maxTokens, 'Prompt should exceed truncation budget');
+
+    const result = truncateUserPromptSafely(text, maxTokens, { spreadKey: 'custom-spread' });
+    assert.ok(result.truncated, 'Truncation should occur');
+    assert.ok(result.text.includes('Card 1 — Present focus: The Magician Upright.'), 'Card content should be preserved for unknown spreads');
+    assert.ok(result.text.includes('Please now write the reading following the system prompt guidelines.'), 'Final instructions should be preserved');
+    assert.ok(!result.text.includes('## TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG should drop when budget is tight');
+    assert.ok(result.preservedSections.includes('cards'), 'Card section should be reported as preserved');
   });
 });
 

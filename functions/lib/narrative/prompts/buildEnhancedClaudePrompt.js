@@ -12,7 +12,7 @@ import { getSpreadKey } from '../../readingQuality.js';
 import { shouldIncludeAstroInsights } from './astro.js';
 import { DEFAULT_REVERSAL_DESCRIPTION } from './constants.js';
 import { estimateTokenCount, getHardCapBudget, getPromptBudgetForTarget } from './budgeting.js';
-import { truncateSystemPromptSafely, truncateToTokenBudget } from './truncation.js';
+import { truncateSystemPromptSafely, truncateToTokenBudget, truncateUserPromptSafely } from './truncation.js';
 import { buildSystemPrompt } from './systemPrompt.js';
 import { buildUserPrompt } from './userPrompt.js';
 
@@ -50,6 +50,15 @@ function resolveGraphEnv(promptBudgetEnv) {
     Object.prototype.hasOwnProperty.call(promptBudgetEnv, 'GRAPHRAG_ENABLED') ||
     Object.prototype.hasOwnProperty.call(promptBudgetEnv, 'KNOWLEDGE_GRAPH_ENABLED');
   return hasGraphRAGFlag ? promptBudgetEnv : null;
+}
+
+function readBooleanFlag(value) {
+  if (value === true || value === false) return value;
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  return null;
 }
 
 export function countGraphRAGPassagesInPrompt(promptText) {
@@ -357,20 +366,12 @@ export function buildEnhancedClaudePrompt({
   let built = buildWithControls(controls);
   const slimmingSteps = [];
 
-  // Prompt slimming is DISABLED by default.
-  // Rationale: Modern LLMs (GPT-5 ~128k, Claude ~200k context) can easily handle
-  // full prompts with GraphRAG, ephemeris, imagery, and diagnostics. Slimming
-  // removes valuable interpretive context. Cost is not a concern at current scale.
-  //
-  // Only re-enable slimming when there is empirical evidence that:
-  // 1. Prompt size is degrading reading quality (not just increasing cost)
-  // 2. The model is struggling with signal-to-noise ratio
-  //
-  // To re-enable: set ENABLE_PROMPT_SLIMMING=true in environment
-  const disableSlimming = !(
-    promptBudgetEnv?.ENABLE_PROMPT_SLIMMING === 'true' ||
-    promptBudgetEnv?.ENABLE_PROMPT_SLIMMING === true
-  );
+  // Prompt slimming is DISABLED by default to preserve full-context prompts.
+  // Opt in via ENABLE_PROMPT_SLIMMING=true.
+  // DISABLE_PROMPT_SLIMMING=true always wins and forces slimming off.
+  const enableSlimmingFlag = readBooleanFlag(promptBudgetEnv?.ENABLE_PROMPT_SLIMMING);
+  const disableSlimmingFlag = readBooleanFlag(promptBudgetEnv?.DISABLE_PROMPT_SLIMMING);
+  const disableSlimming = disableSlimmingFlag === true || enableSlimmingFlag !== true;
 
   const maybeSlim = (label, updater) => {
     if (disableSlimming) return; // Skip all slimming when disabled
@@ -535,18 +536,16 @@ export function buildEnhancedClaudePrompt({
       Math.floor(hardCap * 0.3) // Keep at least 30% of budget for user prompt
     );
 
-    // Keep some headroom so small budgets don't drop the start of the user prompt.
-    const separatorTokens = estimateTokenCount('\n\n');
-    const maxTailTokens = Math.max(0, userTargetTokens - separatorTokens - 1);
-    const desiredTailTokens = Math.min(200, Math.floor(userTargetTokens * 0.4));
-    const tailTokens = Math.min(desiredTailTokens, maxTailTokens);
-    const userResult = truncateToTokenBudget(
+    const userResult = truncateUserPromptSafely(
       built.userPrompt,
       userTargetTokens,
-      tailTokens > 0 ? { tailTokens } : undefined
+      { spreadKey }
     );
     finalUser = userResult.text;
     userTruncated = userResult.truncated;
+    if (userResult.preservedSections?.length > 0) {
+      slimmingSteps.push(`user-preserved-sections:${userResult.preservedSections.join(',')}`);
+    }
 
     // If user truncation wasn't enough, truncate system prompt too
     // Use section-aware truncation to preserve ETHICS/CORE PRINCIPLES/MODEL DIRECTIVES

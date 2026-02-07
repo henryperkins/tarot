@@ -13,6 +13,7 @@ import {
   DECK_STYLE_OVERRIDES
 } from '../../src/data/knowledgeGraphData.js';
 import { getDeckAlias } from '../../shared/vision/deckAssets.js';
+import { canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 import { parseMinorName } from './minorMeta.js';
 
 const COURT_RANK_LABELS = new Set([
@@ -27,6 +28,51 @@ const COURT_RANK_LABELS = new Set([
   'Reine',
   'Roi'
 ]);
+
+const SUIT_ALIASES = {
+  wands: 'Wands',
+  wand: 'Wands',
+  batons: 'Wands',
+  baton: 'Wands',
+  staves: 'Wands',
+  staffs: 'Wands',
+  clubs: 'Wands',
+  cups: 'Cups',
+  cup: 'Cups',
+  coupes: 'Cups',
+  chalices: 'Cups',
+  swords: 'Swords',
+  sword: 'Swords',
+  epees: 'Swords',
+  epee: 'Swords',
+  blades: 'Swords',
+  pentacles: 'Pentacles',
+  pentacle: 'Pentacles',
+  coins: 'Pentacles',
+  coin: 'Pentacles',
+  deniers: 'Pentacles',
+  denier: 'Pentacles',
+  disks: 'Pentacles',
+  discs: 'Pentacles',
+  disques: 'Pentacles'
+};
+
+function normalizeSuitToken(value) {
+  if (typeof value !== 'string') return '';
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z]/gi, '')
+    .toLowerCase();
+}
+
+function normalizeSuitName(value) {
+  if (typeof value !== 'string') return null;
+  if (['Wands', 'Cups', 'Swords', 'Pentacles'].includes(value)) {
+    return value;
+  }
+  return SUIT_ALIASES[normalizeSuitToken(value)] || null;
+}
 
 function getDeckMeta(deckStyle = 'rws-1909') {
   return DECK_STYLE_OVERRIDES[deckStyle] || null;
@@ -107,9 +153,20 @@ function deckAwareCourtRank(card, deckStyle = 'rws-1909') {
 }
 
 function resolveSuit(card) {
-  if (card?.suit) return card.suit;
+  const normalizedSuit = normalizeSuitName(card?.suit);
+  if (normalizedSuit) return normalizedSuit;
   const parsed = parseMinorName(card?.card || card?.name || '');
-  return parsed?.suit || null;
+  if (parsed?.suit) return parsed.suit;
+
+  const rawName = String(card?.card || card?.name || '');
+  const normalizedName = normalizeSuitToken(rawName);
+  for (const [token, suit] of Object.entries(SUIT_ALIASES)) {
+    if (normalizedName.includes(token)) {
+      return suit;
+    }
+  }
+
+  return null;
 }
 
 function isCourtCard(card) {
@@ -165,16 +222,19 @@ export function detectFoolsJourneyStage(cards, options = {}) {
     }
   });
 
-  // Find the dominant stage (most cards)
-  const dominant = Object.entries(stages).sort(
-    (a, b) => b[1].length - a[1].length
-  )[0];
-
+  // Find the dominant stage (most cards) and reject ties to avoid false certainty.
+  const stageEntries = Object.entries(stages).sort((a, b) => b[1].length - a[1].length);
+  const dominant = stageEntries[0];
   const stageKey = dominant[0];
   const stageCards = dominant[1];
+  const dominantCount = stageCards.length;
 
-  // If no clear dominance (all stages tied), return null
-  if (stageCards.length === 0) return null;
+  if (dominantCount === 0) return null;
+
+  const tiedDominantStages = stageEntries.filter(([, list]) => list.length === dominantCount);
+  if (tiedDominantStages.length > 1) {
+    return null;
+  }
 
   // Determine significance level:
   // - 'strong': 3+ cards in one stage (clear thematic cluster)
@@ -347,14 +407,21 @@ export function detectSuitProgressions(cards, options = {}) {
   const deckStyle = options.deckStyle || 'rws-1909';
   if (!Array.isArray(cards) || cards.length < 2) return [];
 
-  const minorCards = cards.filter(
-    (card) =>
-      card &&
-      card.suit &&
-      typeof card.rankValue === 'number' &&
-      card.rankValue >= 1 &&
-      card.rankValue <= 10
-  );
+  const minorCards = cards
+    .map((card) => {
+      if (!card) return null;
+      const suit = resolveSuit(card);
+      const rankValue = normalizeRankValue(card);
+      if (!suit || typeof rankValue !== 'number' || rankValue < 1 || rankValue > 10) {
+        return null;
+      }
+      return {
+        ...card,
+        suit,
+        rankValue
+      };
+    })
+    .filter(Boolean);
 
   if (minorCards.length < 2) return [];
 
@@ -484,13 +551,14 @@ function detectThothEpithets(cards, options = {}) {
   const suitMap = new Map();
 
   cards.forEach((card) => {
-    const key = (card?.card || card?.name || '').trim();
-    if (!key) return;
-    const info = THOTH_MINOR_TITLES[key];
+    const rawLabel = (card?.card || card?.name || '').trim();
+    if (!rawLabel) return;
+    const canonicalLabel = canonicalizeCardName(rawLabel, deckStyle) || rawLabel;
+    const info = THOTH_MINOR_TITLES[canonicalLabel] || THOTH_MINOR_TITLES[rawLabel];
     if (!info) return;
 
     const entry = {
-      card: key,
+      card: deckAwareName(card, canonicalLabel, deckStyle),
       title: info.title,
       suit: info.suit || card.suit || 'Minor',
       rank: info.rank || card.rankValue || null,

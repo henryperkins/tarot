@@ -8,7 +8,12 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:development": "eas build --profile development --platform all",
+    "build:preview": "eas build --profile preview --platform all",
+    "build:production": "eas build --profile production --platform all",
+    "submit:development": "eas submit --profile development --platform all",
+    "submit:production": "eas submit --profile production --platform all"
   },
   "dependencies": {
     "@data-client/react": "^0.15.4",
@@ -21,6 +26,7 @@
     "burnt": "^0.13.0",
     "class-variance-authority": "^0.7.1",
     "expo": "55.0.0-preview.8",
+    "expo-build-properties": "~1.0.10",
     "expo-av": "^16.0.8",
     "expo-camera": "~55.0.4",
     "expo-file-system": "~55.0.4",
@@ -30,7 +36,7 @@
     "expo-status-bar": "~55.0.2",
     "nativewind": "^4.2.1",
     "react": "19.2.0",
-    "react-dom": "^19.2.0",
+    "react-dom": "19.2.0",
     "react-hook-form": "^7.71.1",
     "react-native": "0.83.1",
     "react-native-auto-skeleton": "^0.1.30",
@@ -44,13 +50,18 @@
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.20.0",
     "react-native-svg": "15.15.1",
-    "react-native-web": "^0.21.2",
+    "react-native-web": "0.21.2",
     "rn-emoji-keyboard": "^1.7.0",
     "tailwind-merge": "^3.4.0",
-    "tailwindcss": "^3.4.19",
-    "victory-native": "^41.20.2"
+    "tailwindcss": "3.4.19",
+    "victory-native": "^41.20.2",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "patch-package": "^8.0.0"
+  },
+  "overrides": {
+    "react": "19.2.0",
+    "react-native": "0.83.1"
   }
 }

@@ -23,7 +23,11 @@
       }
     },
     "android": {
-      "package": "com.hperkins.tableau.native"
+      "package": "com.hperkins.tableau.native",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a1a2e"
+      }
     },
     "web": {
       "bundler": "metro"

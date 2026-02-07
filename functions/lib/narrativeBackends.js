@@ -26,10 +26,10 @@ import {
 } from './narrativeBuilder.js';
 import { enhanceSection } from './narrativeSpine.js';
 import { callAzureResponses, getReasoningEffort, getTextVerbosity } from './azureResponses.js';
-import { buildReadingReasoning } from './narrative/reasoning.js';
 import {
   buildReasoningAwareOpening,
-  buildReasoningSynthesis
+  buildReasoningSynthesis,
+  buildReadingWithReasoning
 } from './narrative/reasoningIntegration.js';
 import { getToneStyle, buildPersonalizedClosing, getDepthProfile } from './narrative/styleHelpers.js';
 import { buildOpening } from './narrative/helpers.js';
@@ -104,7 +104,7 @@ export function getAvailableNarrativeBackends(env) {
  * Map of spread keys to their builder functions.
  */
 const SPREAD_READING_BUILDERS = {
-  celtic: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }, options = {}) =>
+  celtic: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options = {}) =>
     spreadAnalysis
       ? buildCelticCrossReading({
         cardsInfo,
@@ -112,10 +112,11 @@ const SPREAD_READING_BUILDERS = {
         reflectionsText,
         celticAnalysis: spreadAnalysis,
         themes,
-        context
+        context,
+        spreadInfo
       }, options)
       : null,
-  threeCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }, options = {}) =>
+  threeCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options = {}) =>
     spreadAnalysis
       ? buildThreeCardReading({
         cardsInfo,
@@ -123,10 +124,11 @@ const SPREAD_READING_BUILDERS = {
         reflectionsText,
         threeCardAnalysis: spreadAnalysis,
         themes,
-        context
+        context,
+        spreadInfo
       }, options)
       : null,
-  fiveCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context }, options = {}) =>
+  fiveCard: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options = {}) =>
     spreadAnalysis
       ? buildFiveCardReading({
         cardsInfo,
@@ -134,15 +136,16 @@ const SPREAD_READING_BUILDERS = {
         reflectionsText,
         fiveCardAnalysis: spreadAnalysis,
         themes,
-        context
+        context,
+        spreadInfo
       }, options)
       : null,
-  relationship: ({ cardsInfo, userQuestion, reflectionsText, themes, context }, options = {}) =>
-    buildRelationshipReading({ cardsInfo, userQuestion, reflectionsText, themes, context }, options),
-  decision: ({ cardsInfo, userQuestion, reflectionsText, themes, context }, options = {}) =>
-    buildDecisionReading({ cardsInfo, userQuestion, reflectionsText, themes, context }, options),
-  single: ({ cardsInfo, userQuestion, reflectionsText, themes, context }, options = {}) =>
-    buildSingleCardReading({ cardsInfo, userQuestion, reflectionsText, themes, context }, options)
+  relationship: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options = {}) =>
+    buildRelationshipReading({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options),
+  decision: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options = {}) =>
+    buildDecisionReading({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options),
+  single: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options = {}) =>
+    buildSingleCardReading({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options)
 };
 
 // ============================================================================
@@ -788,18 +791,8 @@ export async function composeReadingEnhanced(payload) {
   const { themes, spreadAnalysis, spreadKey } = analysis;
   const collectedSections = [];
 
-  // Build reasoning chain for cross-card coherence
-  const reasoning = buildReadingReasoning(
-    cardsInfo,
-    userQuestion,
-    context,
-    themes,
-    spreadKey
-  );
-
   const composerOptions = {
     personalization,
-    reasoning,
     proseMode: true,
     collectValidation: (section) => {
       if (!section) return;
@@ -811,19 +804,45 @@ export async function composeReadingEnhanced(payload) {
     }
   };
 
-  const readingText = await generateReadingFromAnalysis(
+  const readingResult = await buildReadingWithReasoning(
     {
+      spreadInfo,
       spreadKey,
-      spreadAnalysis,
       cardsInfo,
       userQuestion,
       reflectionsText,
       themes,
-      spreadInfo,
       context
+    },
+    async (enhancedPayload, reasoningOptions = {}) => {
+      const mergedOptions = {
+        ...composerOptions,
+        ...reasoningOptions,
+        reasoning: enhancedPayload.reasoning || reasoningOptions.reasoning || null
+      };
+      return generateReadingFromAnalysis(
+        {
+          spreadKey,
+          spreadAnalysis,
+          cardsInfo: enhancedPayload.cardsInfo,
+          userQuestion: enhancedPayload.userQuestion,
+          reflectionsText: enhancedPayload.reflectionsText,
+          themes: enhancedPayload.themes,
+          spreadInfo: enhancedPayload.spreadInfo,
+          context: enhancedPayload.context
+        },
+        mergedOptions
+      );
     },
     composerOptions
   );
+  const readingText = typeof readingResult === 'string'
+    ? readingResult
+    : (readingResult?.reading || '');
+
+  if (readingResult?.reasoning && typeof readingResult.reasoning === 'object') {
+    payload.reasoningMeta = readingResult.reasoning;
+  }
 
   payload.narrativeEnhancements = collectedSections;
 

@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef, useLayoutEffect, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { animate, set } from 'animejs';
 import { Sparkle, ArrowCounterClockwise, Star, BookmarkSimple, ChatCircle } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { NarrationProgress } from './NarrationProgress';
@@ -15,11 +15,8 @@ import { VisionValidationPanel } from './VisionValidationPanel';
 import { FeedbackPanel } from './FeedbackPanel';
 import { CardModal } from './CardModal';
 import { NarrativeSkeleton } from './NarrativeSkeleton';
-import { AtmosphericInterlude } from './AtmosphericInterlude';
 import { DeckPile } from './DeckPile';
 import { DeckRitual } from './DeckRitual';
-import AnimatedReveal from './AnimatedReveal';
-import StoryIllustration from './StoryIllustration';
 import { RitualNudge, JournalNudge } from './nudges';
 import { MoonPhaseIndicator } from './MoonPhaseIndicator';
 import FollowUpModal from './FollowUpModal';
@@ -43,84 +40,113 @@ import {
     getNarrativePhaseClass
 } from '../lib/narrativeAtmosphere';
 import { applyColorScript, determineColorScript, resetColorScript } from '../lib/colorScript';
+import {
+    STREAM_AUTO_NARRATE_DEBOUNCE_MS,
+    shouldScheduleAutoNarration
+} from '../lib/narrationStream.js';
 
-const STREAM_AUTO_NARRATE_DEBOUNCE_MS = 900;
-const STREAM_AUTO_NARRATE_MIN_WORDS = 40;
+const AtmosphericInterlude = lazy(() =>
+    import('./AtmosphericInterlude').then((module) => ({ default: module.AtmosphericInterlude }))
+);
+const AnimatedReveal = lazy(() => import('./AnimatedReveal'));
+const StoryIllustration = lazy(() => import('./StoryIllustration'));
 
 /**
  * Ghost card component for deck-to-slot fly animation.
  * Renders via portal to animate in screen space above all other content.
  */
 function GhostCard({ startRect, endRect, suit = null, onComplete }) {
-  const duration = 0.35; // 350ms
+    const nodeRef = useRef(null);
+    const completedRef = useRef(false);
+    const durationMs = 350;
+    const startX = Number.isFinite(startRect?.left) ? startRect.left : 0;
+    const startY = Number.isFinite(startRect?.top) ? startRect.top : 0;
+    const endX = Number.isFinite(endRect?.left) ? endRect.left : startX;
+    const endY = Number.isFinite(endRect?.top) ? endRect.top : startY;
     const safeStartWidth = Math.max(1, startRect?.width || 0);
     const safeStartHeight = Math.max(1, startRect?.height || 0);
     const endScaleX = Math.max(0.01, (endRect?.width || 0) / safeStartWidth);
     const endScaleY = Math.max(0.01, (endRect?.height || 0) / safeStartHeight);
+    const suitKey = typeof suit === 'string' ? suit.toLowerCase() : '';
+    const suitClass = suitKey ? `ghost-card--${suitKey}` : '';
 
-  const suitKey = typeof suit === 'string' ? suit.toLowerCase() : '';
-  const suitClass = suitKey ? `ghost-card--${suitKey}` : '';
+    const complete = useCallback(() => {
+        if (completedRef.current) return;
+        completedRef.current = true;
+        onComplete?.();
+    }, [onComplete]);
 
-  return createPortal(
-    <motion.div
+    useLayoutEffect(() => {
+        const node = nodeRef.current;
+        if (!node) return undefined;
+
+        completedRef.current = false;
+        set(node, {
+            translateX: startX,
+            translateY: startY,
+            scaleX: 1,
+            scaleY: 1,
+            opacity: 1
+        });
+
+        const anim = animate(node, {
+            translateX: [startX, endX],
+            translateY: [startY, endY],
+            scaleX: [1, endScaleX * 0.95],
+            scaleY: [1, endScaleY * 0.95],
+            opacity: [1, 1, 0],
+            duration: durationMs,
+            ease: 'outQuad'
+        });
+
+        const failSafeId = window.setTimeout(complete, durationMs + 140);
+        anim.then(() => complete()).catch(() => complete());
+
+        return () => {
+            window.clearTimeout(failSafeId);
+            anim?.pause?.();
+        };
+    }, [startX, startY, endX, endY, endScaleX, endScaleY, complete]);
+
+    return createPortal(
+        <div
+            ref={nodeRef}
             className={`ghost-card fixed left-0 top-0 pointer-events-none z-[200] ${suitClass}`}
             style={{
                 width: safeStartWidth,
                 height: safeStartHeight,
                 transformOrigin: '0 0',
-                willChange: 'transform, opacity'
+                transform: 'translate3d(0, 0, 0)',
+                willChange: 'transform, opacity',
+                contain: 'layout paint style',
+                backfaceVisibility: 'hidden'
             }}
-            initial={{
-                x: startRect.left,
-                y: startRect.top,
-                opacity: 1,
-                scaleX: 1,
-                scaleY: 1
-            }}
-            animate={{
-                x: endRect.left,
-                y: endRect.top,
-                opacity: 0,
-                scaleX: endScaleX * 0.95,
-                scaleY: endScaleY * 0.95
-            }}
-      transition={{
-        duration,
-        ease: [0.32, 0.72, 0, 1], // Custom ease-out curve
-        opacity: { duration: duration * 0.4, delay: duration * 0.6 },
-                scaleX: { duration: duration * 0.3, delay: duration * 0.7 },
-                scaleY: { duration: duration * 0.3, delay: duration * 0.7 }
-      }}
-      onAnimationComplete={onComplete}
-    >
-      <div className="ghost-card-trail" aria-hidden="true" />
-      {/* Card back visual */}
-      <div
-        className="w-full h-full rounded-xl border-2 border-primary/40 overflow-hidden"
-        style={{
-          background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.4), 0 0 30px color-mix(in srgb, var(--brand-primary) 15%, transparent)',
-        }}
-      >
-        {/* Pattern overlay */}
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: 'radial-gradient(circle at 50% 50%, var(--brand-secondary) 1px, transparent 1px)',
-            backgroundSize: '12px 12px',
-          }}
-        />
-        {/* Center glow */}
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{
-                        background: 'radial-gradient(circle at 50% 50%, rgba(var(--brand-primary-rgb) / 0.15), transparent 70%)',
-          }}
-        />
-      </div>
-    </motion.div>,
-    document.body
-  );
+        >
+            <div className="ghost-card-trail" aria-hidden="true" />
+            <div
+                className="w-full h-full rounded-xl border-2 border-primary/40 overflow-hidden"
+                style={{
+                    background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))',
+                    boxShadow: '0 12px 22px rgba(0, 0, 0, 0.35)'
+                }}
+            >
+                <div
+                    className="absolute inset-0 opacity-10"
+                    style={{
+                        backgroundImage: 'radial-gradient(circle at 50% 50%, var(--brand-secondary) 1px, transparent 1px)',
+                        backgroundSize: '12px 12px'
+                    }}
+                />
+                <div
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{
+                        background: 'radial-gradient(circle at 50% 50%, rgba(var(--brand-primary-rgb) / 0.12), transparent 70%)'
+                    }}
+                />
+            </div>
+        </div>,
+        document.body
+    );
 }
 
 function NarrativeGuidancePanel({ toneLabel, frameLabel, isHandset, isNewbie, compact = false, className = '' }) {
@@ -265,6 +291,7 @@ export function ReadingDisplay({
     const [autoNarrationTriggered, setAutoNarrationTriggered] = useState(false);
     const autoNarrationTriggeredRef = useRef(false);
     const autoNarrationTimeoutRef = useRef(null);
+    const autoNarrationStartRef = useRef(null);
     const [mentionPulseState, setMentionPulseState] = useState({ key: readingIdentity, value: null });
     const mentionPulseRef = useRef(0);
     const mentionPulseTimeoutRef = useRef(null);
@@ -296,7 +323,7 @@ export function ReadingDisplay({
         return classes.filter(Boolean).join(' ');
     }, [isGenerating, narrativePhase, reasoning?.narrativeArc?.templateBias, themes?.dominantSuit]);
 
-    const { beatClassName, notifyCardMention, notifyCompletion, notifySectionEnter } = useCinematicBeat({
+    const { beatClassName, notifyCardMention, notifyCompletion, notifySectionEnter, clearBeat } = useCinematicBeat({
         reasoning,
         totalCards: reading?.length ?? 0,
         onBeat: triggerCinematicSwell
@@ -309,26 +336,50 @@ export function ReadingDisplay({
         revealedCards,
         totalCards: reading?.length ?? 0,
         isGenerating,
+        isReadingStreamActive,
         personalReading,
         reading
     });
 
     const { shouldShowInterlude } = sceneOrchestrator;
 
-    // Apply color script based on narrative arc
     useEffect(() => {
-        if (!personalReading || !emotionalTone) {
+        const shouldClearBeat = sceneOrchestrator.currentScene === 'idle'
+            || sceneOrchestrator.currentScene === 'shuffling'
+            || sceneOrchestrator.currentScene === 'drawing'
+            || sceneOrchestrator.currentScene === 'interlude';
+        if (shouldClearBeat) {
+            clearBeat();
+        }
+    }, [sceneOrchestrator.currentScene, clearBeat]);
+
+    // Apply color script based on narrative arc
+    const hasNarrativeSurface = Boolean(personalReading)
+        || isGenerating
+        || Boolean(isReadingStreamActive || personalReading?.isStreaming);
+    const emotionalToneKey = emotionalTone?.emotion || '';
+    const narrativeArcKey = reasoning?.narrativeArc?.key || '';
+    const activeColorScript = useMemo(() => {
+        if (!hasNarrativeSurface || !emotionalToneKey) return null;
+        const stableTone = { emotion: emotionalToneKey };
+        const stableReasoning = narrativeArcKey
+            ? { narrativeArc: { key: narrativeArcKey } }
+            : null;
+        return determineColorScript(narrativePhase, stableTone, stableReasoning);
+    }, [hasNarrativeSurface, emotionalToneKey, narrativeArcKey, narrativePhase]);
+
+    useEffect(() => {
+        if (!activeColorScript) {
             resetColorScript();
             return;
         }
 
-        const colorScript = determineColorScript(narrativePhase, emotionalTone, reasoning);
-        applyColorScript(colorScript);
+        applyColorScript(activeColorScript);
 
         return () => {
             resetColorScript();
         };
-    }, [narrativePhase, emotionalTone, reasoning, personalReading]);
+    }, [activeColorScript]);
 
     const narrativeAtmosphereClassName = useMemo(() => (
         [narrativeAtmosphereClasses, beatClassName].filter(Boolean).join(' ')
@@ -337,7 +388,14 @@ export function ReadingDisplay({
 
     // Ghost card animation state for deck-to-slot fly animation
     const deckRef = useRef(null);
+    const ghostInFlightRef = useRef(false);
     const [ghostAnimation, setGhostAnimation] = useState(null);
+
+    useEffect(() => {
+        if (!ghostAnimation) {
+            ghostInFlightRef.current = false;
+        }
+    }, [ghostAnimation]);
 
     const {
         voiceOn,
@@ -510,6 +568,10 @@ export function ReadingDisplay({
         handleNarrationButtonClick(narrationText, isPersonalReadingError, emotion);
     }, [handleNarrationButtonClick, fullReadingText, narrativeText, isPersonalReadingError, emotionalTone]);
 
+    useEffect(() => {
+        autoNarrationStartRef.current = handleNarrationWrapper;
+    }, [handleNarrationWrapper]);
+
     const handleNarrativeHighlight = useCallback((phrase) => {
         if (!phrase || !Array.isArray(reading) || visibleCount === 0) return;
         const normalized = phrase.toLowerCase();
@@ -558,52 +620,43 @@ export function ReadingDisplay({
         if (mentionPulseTimeoutRef.current) {
             window.clearTimeout(mentionPulseTimeoutRef.current);
         }
-    }, []);
-
-    useEffect(() => {
         if (autoNarrationTimeoutRef.current) {
             window.clearTimeout(autoNarrationTimeoutRef.current);
             autoNarrationTimeoutRef.current = null;
         }
+    }, []);
 
-        const hasNarrationText = narrativeText && narrativeText.trim().length > 0;
-        const shouldDebounceAutoNarrate = Boolean(
-            voiceOn &&
-            autoNarrate &&
-            isReadingStreaming &&
-            !isPersonalReadingError &&
-            !autoNarrationTriggeredRef.current &&
-            hasNarrationText &&
-            ttsProvider !== 'azure'
-        );
+    useEffect(() => {
+        const shouldDebounceAutoNarrate = shouldScheduleAutoNarration({
+            voiceOn,
+            autoNarrate,
+            isReadingStreaming,
+            isPersonalReadingError,
+            autoNarrationTriggered: autoNarrationTriggeredRef.current,
+            narrativeText,
+            ttsProvider,
+            ttsStatus: ttsState?.status
+        });
 
         if (!shouldDebounceAutoNarrate) {
-            return undefined;
-        }
-
-        const wordCount = narrativeText.trim().split(/\s+/).filter(Boolean).length;
-        if (wordCount < STREAM_AUTO_NARRATE_MIN_WORDS) {
-            return undefined;
-        }
-
-        const status = ttsState?.status;
-        if (status === 'playing' || status === 'paused' || status === 'loading' || status === 'synthesizing') {
-            return undefined;
-        }
-
-        autoNarrationTimeoutRef.current = window.setTimeout(() => {
-            if (autoNarrationTriggeredRef.current) return;
-            autoNarrationTriggeredRef.current = true;
-            setAutoNarrationTriggered(true);
-            handleNarrationWrapper();
-        }, STREAM_AUTO_NARRATE_DEBOUNCE_MS);
-
-        return () => {
             if (autoNarrationTimeoutRef.current) {
                 window.clearTimeout(autoNarrationTimeoutRef.current);
                 autoNarrationTimeoutRef.current = null;
             }
-        };
+            return;
+        }
+
+        if (autoNarrationTimeoutRef.current) {
+            return;
+        }
+
+        autoNarrationTimeoutRef.current = window.setTimeout(() => {
+            autoNarrationTimeoutRef.current = null;
+            if (autoNarrationTriggeredRef.current) return;
+            autoNarrationTriggeredRef.current = true;
+            setAutoNarrationTriggered(true);
+            autoNarrationStartRef.current?.();
+        }, STREAM_AUTO_NARRATE_DEBOUNCE_MS);
     }, [
         autoNarrate,
         isPersonalReadingError,
@@ -611,8 +664,7 @@ export function ReadingDisplay({
         narrativeText,
         ttsState?.status,
         ttsProvider,
-        voiceOn,
-        handleNarrationWrapper
+        voiceOn
     ]);
 
     const handleRevealAllWithScroll = useCallback(() => {
@@ -630,6 +682,10 @@ export function ReadingDisplay({
         // Skip animation if reduced motion is preferred
         if (prefersReducedMotion) {
             dealNext();
+            return;
+        }
+
+        if (ghostInFlightRef.current) {
             return;
         }
 
@@ -656,6 +712,7 @@ export function ReadingDisplay({
 
         // Start ghost animation
         const suit = reading?.[nextIndex]?.suit || null;
+        ghostInFlightRef.current = true;
         setGhostAnimation({
             startRect: deckRect,
             endRect: slotRect,
@@ -665,6 +722,7 @@ export function ReadingDisplay({
     }, [dealNext, reading, revealedCards, prefersReducedMotion]);
 
     const handleGhostComplete = useCallback(() => {
+        ghostInFlightRef.current = false;
         setGhostAnimation(null);
         dealNext();
     }, [dealNext]);
@@ -978,42 +1036,39 @@ export function ReadingDisplay({
                     )}
 
                     {/* Skeleton loading state during narrative generation */}
-                    <AnimatePresence mode="wait">
-                        {isGenerating && !personalReading && (
-                            <motion.div
-                                key="narrative-skeleton"
-                                initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
-                                transition={{ duration: prefersReducedMotion ? 0 : 0.25, ease: 'easeOut' }}
-                                className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}
-                            >
-                                {/* Show atmospheric interlude during initial generation phase */}
-                                {/* Only show when: scene suggests interlude, no content yet (reasoning or narrative) */}
-                                {(() => {
-                                    const hasAnyContent = reasoningSummary || (personalReading?.raw || personalReading?.normalized);
-                                    const shouldShowAtmosphericInterlude = shouldShowInterlude && !hasAnyContent;
-                                    return shouldShowAtmosphericInterlude ? (
-                                        <AtmosphericInterlude 
+                    {isGenerating && !personalReading && (
+                        <div
+                            className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${
+                                isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'
+                            } ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
+                        >
+                            {/* Show atmospheric interlude during initial generation phase */}
+                            {/* Only show when: scene suggests interlude, no content yet (reasoning or narrative) */}
+                            {(() => {
+                                const hasAnyContent = reasoningSummary || (personalReading?.raw || personalReading?.normalized);
+                                const shouldShowAtmosphericInterlude = shouldShowInterlude && !hasAnyContent;
+                                return shouldShowAtmosphericInterlude ? (
+                                    <Suspense fallback={<p className="text-center text-sm text-muted py-6">Channeling your reading...</p>}>
+                                        <AtmosphericInterlude
                                             message={`Channeling ${spreadInfo?.name || 'your reading'}...`}
                                             theme={narrativeAtmosphereClasses}
                                         />
-                                    ) : (
-                                        <NarrativeSkeleton
-                                            hasQuestion={Boolean(userQuestion)}
-                                            displayName={displayName}
-                                            spreadName={spreadInfo?.name}
-                                            cardCount={reading?.length || 3}
-                                            reasoningSummary={reasoningSummary}
-                                            reasoning={reasoning}
-                                            narrativePhase={narrativePhase}
-                                            atmosphereClassName={narrativeAtmosphereClasses}
-                                        />
-                                    );
-                                })()}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                    </Suspense>
+                                ) : (
+                                    <NarrativeSkeleton
+                                        hasQuestion={Boolean(userQuestion)}
+                                        displayName={displayName}
+                                        spreadName={spreadInfo?.name}
+                                        cardCount={reading?.length || 3}
+                                        reasoningSummary={reasoningSummary}
+                                        reasoning={reasoning}
+                                        narrativePhase={narrativePhase}
+                                        atmosphereClassName={narrativeAtmosphereClasses}
+                                    />
+                                );
+                            })()}
+                        </div>
+                    )}
 
                     {personalReading && (
                         <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}>
@@ -1191,27 +1246,31 @@ export function ReadingDisplay({
                             <p className="text-xs sm:text-sm text-muted mt-2">
                                 {cinematicRevealMessage}
                             </p>
-                            <AnimatedReveal
-                                key={`cinematic-${readingIdentity}`}
-                                card={cinematicCard}
-                                position={cinematicPosition}
-                                question={resolvedQuestion}
-                                userTier={effectiveTier}
-                                autoGenerate={autoGenerateVisuals}
-                                className="mt-4"
-                            />
+                            <Suspense fallback={<div className="mt-4 rounded-xl border border-secondary/30 bg-surface/70 p-4 text-xs text-muted">Loading cinematic module...</div>}>
+                                <AnimatedReveal
+                                    key={`cinematic-${readingIdentity}`}
+                                    card={cinematicCard}
+                                    position={cinematicPosition}
+                                    question={resolvedQuestion}
+                                    userTier={effectiveTier}
+                                    autoGenerate={autoGenerateVisuals}
+                                    className="mt-4"
+                                />
+                            </Suspense>
                         </div>
                     )}
 
                     {shouldShowStoryIllustration && (
-                        <StoryIllustration
-                            cards={storyArtCards}
-                            question={resolvedQuestion}
-                            narrative={fullReadingText || narrativeText}
-                            userTier={effectiveTier}
-                            autoGenerate={autoGenerateVisuals}
-                            generationKey={readingIdentity}
-                        />
+                        <Suspense fallback={<div className="panel-mystic rounded-2xl border border-secondary/30 p-4 text-sm text-muted">Loading illustration tools...</div>}>
+                            <StoryIllustration
+                                cards={storyArtCards}
+                                question={resolvedQuestion}
+                                narrative={fullReadingText || narrativeText}
+                                userTier={effectiveTier}
+                                autoGenerate={autoGenerateVisuals}
+                                generationKey={readingIdentity}
+                            />
+                        </Suspense>
                     )}
 
                     {!personalReading && !isGenerating && (
@@ -1293,24 +1352,22 @@ export function ReadingDisplay({
                 </div>
             )}
 
-            <AnimatePresence>
-                {selectedCardData && (
-                    <CardModal
-                        card={selectedCardData.card}
-                        position={selectedCardData.position}
-                        question={resolvedQuestion}
-                        userTier={effectiveTier}
-                        enableCinematic
-                        isOpen={!!selectedCardData}
-                        onClose={handleCloseDetail}
-                        layoutId={`card-${selectedCardData.index}`}
-                        onNavigate={handleNavigateCard}
-                        canNavigatePrev={navigationData.canPrev}
-                        canNavigateNext={navigationData.canNext}
-                        navigationLabel={navigationData.label}
-                    />
-                )}
-            </AnimatePresence>
+            {selectedCardData && (
+                <CardModal
+                    card={selectedCardData.card}
+                    position={selectedCardData.position}
+                    question={resolvedQuestion}
+                    userTier={effectiveTier}
+                    enableCinematic
+                    isOpen={!!selectedCardData}
+                    onClose={handleCloseDetail}
+                    layoutId={`card-${selectedCardData.index}`}
+                    onNavigate={handleNavigateCard}
+                    canNavigatePrev={navigationData.canPrev}
+                    canNavigateNext={navigationData.canNext}
+                    navigationLabel={navigationData.label}
+                />
+            )}
 
             {/* Ghost card animation - deck to slot fly effect */}
             {ghostAnimation && (

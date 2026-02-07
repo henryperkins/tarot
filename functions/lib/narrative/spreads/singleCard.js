@@ -22,7 +22,8 @@ class SingleCardBuilder extends BaseSpreadBuilder {
     userQuestion,
     reflectionsText,
     themes,
-    context
+    context,
+    spreadAnalysis
   }) {
     const expectedCount = 1;
     const receivedCount = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
@@ -99,6 +100,10 @@ class SingleCardBuilder extends BaseSpreadBuilder {
       "In simple terms: notice what this theme is asking you to acknowledge (WHAT), reflect on why it might be surfacing now (WHY), and choose one small, aligned next step that honors your agency (WHAT'S NEXT). Therefore, treat this insight as a living moment, not a fixed verdict—a trajectory you actively shape.";
     if (nameInline) {
       narrative += ` For you${nameInline || ''} this is a ${tone.challengeFraming || 'gentle prompt'} to move with your own ${frameVocab[0] || 'wisdom'} rather than against it.`;
+    }
+
+    if (spreadAnalysis?.synthesis) {
+      narrative += `\n\n${spreadAnalysis.synthesis}`;
     }
 
     if (reflectionsText && reflectionsText.trim()) {
