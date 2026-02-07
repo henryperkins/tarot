@@ -12,7 +12,7 @@ import { jsonResponse, readJsonBody, safeJsonParse } from '../lib/utils.js';
 import { buildTierLimitedPayload, isEntitled, getSubscriptionContext } from '../lib/entitlements.js';
 import { buildFollowUpPrompt } from '../lib/followUpPrompt.js';
 import { findSimilarJournalEntries, getRecurringCardPatterns } from '../lib/journalSearch.js';
-import { insertFollowUps } from '../lib/journalFollowups.js';
+import { insertFollowUps, loadFollowUpsByEntry } from '../lib/journalFollowups.js';
 import { callAzureResponses } from '../lib/azureResponses.js';
 import {
   callAzureResponsesStream,
@@ -37,6 +37,7 @@ const FOLLOW_UP_LIMITS = {
 const DEFAULT_RESERVATION_TTL_SECONDS = 10 * 60;
 const MIN_RESERVATION_TTL_SECONDS = 60;
 const MAX_RESERVATION_TTL_SECONDS = 60 * 60;
+const MAX_STORED_HISTORY_TURNS = 10;
 
 function getReservationTtlSeconds(env) {
   const raw = env?.FOLLOW_UP_RESERVATION_TTL_SECONDS;
@@ -57,6 +58,36 @@ function getReservationHeartbeatSeconds(env, ttlSeconds) {
     ? ttlSeconds
     : DEFAULT_RESERVATION_TTL_SECONDS;
   return Math.max(30, Math.floor(safeTtlSeconds / 2));
+}
+
+function normalizeConversationHistory(history) {
+  if (!Array.isArray(history)) return [];
+  return history
+    .filter(msg => msg && typeof msg.content === 'string' && (msg.role === 'user' || msg.role === 'assistant'))
+    .map(msg => ({ role: msg.role, content: msg.content }));
+}
+
+function buildConversationHistoryFromFollowUps(followUps) {
+  if (!Array.isArray(followUps)) return [];
+  const history = [];
+  followUps.forEach(item => {
+    if (typeof item?.question === 'string' && item.question) {
+      history.push({ role: 'user', content: item.question });
+    }
+    if (typeof item?.answer === 'string' && item.answer) {
+      history.push({ role: 'assistant', content: item.answer });
+    }
+  });
+  return history;
+}
+
+async function loadStoredConversationHistory(env, userId, entryId) {
+  if (!env?.DB || !userId || !entryId) return [];
+  const followupMap = await loadFollowUpsByEntry(env.DB, userId, [entryId], {
+    limitPerEntry: MAX_STORED_HISTORY_TURNS
+  });
+  const storedFollowUps = followupMap.get(entryId) || [];
+  return buildConversationHistoryFromFollowUps(storedFollowUps);
 }
 
 /**
@@ -119,13 +150,14 @@ export const onRequestPost = async ({ request, env, ctx }) => {
       requestId: readingRequestId,
       sessionSeed,
       followUpQuestion,
-      conversationHistory = [],
+      conversationHistory: clientConversationHistory = [],
       readingContext,
       options = {}
     } = body;
 
     const journalContextEnabled = env?.FEATURE_FOLLOW_UP_JOURNAL_CONTEXT === 'true';
     const memoryEnabled = env?.FEATURE_FOLLOW_UP_MEMORY !== 'false'; // Enabled by default
+    const normalizedClientHistory = normalizeConversationHistory(clientConversationHistory);
 
     // Validate required fields
     if (!followUpQuestion || typeof followUpQuestion !== 'string' || followUpQuestion.trim().length < 3) {
@@ -145,12 +177,10 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 
     // P1: Also scan accumulated conversation history for crisis signals
     // This catches gradual escalation across turns that individual questions might miss
-    const historyTexts = Array.isArray(conversationHistory)
-      ? conversationHistory
-          .filter(msg => msg?.role === 'user' && msg?.content)
-          .map(msg => msg.content)
-          .slice(-3) // Check last 3 user messages
-      : [];
+    const historyTexts = normalizedClientHistory
+      .filter(msg => msg?.role === 'user' && msg?.content)
+      .map(msg => msg.content)
+      .slice(-3); // Check last 3 user messages
     const accumulatedText = [followUpQuestion, ...historyTexts].join(' ');
     const historyCheck = historyTexts.length > 0 ? detectCrisisSignals(accumulatedText) : { matched: false };
 
@@ -256,7 +286,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     }
     
     // Fetch original reading context using requestId or sessionSeed
-    // Merge stored context with client-provided context (stored wins, client fills gaps)
+    // Use stored context when available; fall back to client context if missing
     let effectiveContext = readingContext;
     const storedContext = await fetchReadingContext(env, {
       requestId: readingRequestId,
@@ -266,15 +296,19 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     if (storedContext) {
       const storedThemes = storedContext?.themes;
       const hasStoredThemes = storedThemes && typeof storedThemes === 'object' && Object.keys(storedThemes).length > 0;
+      const clientThemes = readingContext?.themes;
+      const hasClientThemes = clientThemes && typeof clientThemes === 'object' && Object.keys(clientThemes).length > 0;
       effectiveContext = {
-        cardsInfo: storedContext.cardsInfo?.length ? storedContext.cardsInfo : readingContext?.cardsInfo,
-        userQuestion: storedContext.userQuestion || readingContext?.userQuestion,
-        narrative: storedContext.narrative || readingContext?.narrative,
-        themes: hasStoredThemes ? storedThemes : (readingContext?.themes || {}),
-        spreadKey: storedContext.spreadKey || readingContext?.spreadKey,
-        deckStyle: storedContext.deckStyle || readingContext?.deckStyle
+        cardsInfo: storedContext.cardsInfo?.length ? storedContext.cardsInfo : (readingContext?.cardsInfo || []),
+        userQuestion: storedContext.userQuestion || readingContext?.userQuestion || null,
+        narrative: storedContext.narrative || readingContext?.narrative || null,
+        themes: hasStoredThemes ? storedThemes : (hasClientThemes ? clientThemes : {}),
+        spreadKey: storedContext.spreadKey || readingContext?.spreadKey || null,
+        deckStyle: storedContext.deckStyle || readingContext?.deckStyle || null
       };
-      console.log(`[${requestId}] Merged stored context for ${readingIdentifier}`);
+      console.log(`[${requestId}] Using stored context for ${readingIdentifier}`);
+    } else {
+      console.log(`[${requestId}] No stored context for ${readingIdentifier}; using client context`);
     }
     
     // Require card context to keep follow-ups grounded
@@ -322,11 +356,28 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       }
     }
 
+    let effectiveConversationHistory = normalizedClientHistory;
+    if (storedContext?.entryId) {
+      try {
+        const storedHistory = await loadStoredConversationHistory(env, user.id, storedContext.entryId);
+        if (storedHistory.length > 0) {
+          effectiveConversationHistory = storedHistory;
+          console.log(`[${requestId}] Using stored follow-up history (${storedHistory.length} messages)`);
+        } else if (normalizedClientHistory.length > 0) {
+          console.log(`[${requestId}] Using client-provided history (unverified)`);
+        }
+      } catch (error) {
+        console.warn(`[${requestId}] Failed to load stored follow-up history:`, error?.message || error);
+      }
+    } else if (normalizedClientHistory.length > 0) {
+      console.log(`[${requestId}] Using client-provided history (unverified)`);
+    }
+
     // Build prompt with all context
     const { systemPrompt, userPrompt } = buildFollowUpPrompt({
       originalReading: effectiveContext,
       followUpQuestion: followUpQuestion.trim(),
-      conversationHistory,
+      conversationHistory: effectiveConversationHistory,
       journalContext,
       personalization,
       memories,
@@ -1062,7 +1113,7 @@ async function fetchReadingContext(env, { requestId, sessionSeed, userId }) {
     // Try request_id first (most specific, but may be null for old entries)
     if (requestId) {
       journalEntry = await env.DB.prepare(`
-        SELECT cards_json, question, narrative, themes_json, spread_key, deck_id
+        SELECT id, cards_json, question, narrative, themes_json, spread_key, deck_id
         FROM journal_entries
         WHERE request_id = ? AND user_id = ?
       `).bind(requestId, userId).first();
@@ -1071,7 +1122,7 @@ async function fetchReadingContext(env, { requestId, sessionSeed, userId }) {
     // Fall back to session_seed (available for all entries, has unique index)
     if (!journalEntry && sessionSeed) {
       journalEntry = await env.DB.prepare(`
-        SELECT cards_json, question, narrative, themes_json, spread_key, deck_id
+        SELECT id, cards_json, question, narrative, themes_json, spread_key, deck_id
         FROM journal_entries
         WHERE session_seed = ? AND user_id = ?
       `).bind(sessionSeed, userId).first();
@@ -1079,6 +1130,7 @@ async function fetchReadingContext(env, { requestId, sessionSeed, userId }) {
 
     if (journalEntry) {
       return {
+        entryId: journalEntry.id,
         cardsInfo: safeJsonParse(journalEntry.cards_json, []),
         userQuestion: journalEntry.question,
         narrative: journalEntry.narrative,

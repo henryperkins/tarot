@@ -65,7 +65,7 @@ export function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQu
   lines.push(
     '',
     'ESOTERIC LAYERS (OPTIONAL)',
-    '- You may briefly reference astrology or Qabalah only when it clarifies the card’s core meaning for this querent.',
+    '- You may briefly reference astrology or Qabalah only when it clarifies the card’s core meaning for this querent. If you do, add a short clause that it’s symbolic context, not fate.',
     '- For very practical questions (for example, career logistics or daily check-ins), prioritize concrete, grounded language over esoteric detail.',
     '- If CURRENT ASTROLOGICAL CONTEXT is provided, treat it as ambient “weather.” Mention the moon phase or a key transit at most once (Opening or Synthesis) in one short sentence—do not repeat the same lunar formula for every card.',
     '- When you do mention these correspondences, keep them to one short sentence and avoid repeating the same formula for every card.',

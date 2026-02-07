@@ -509,7 +509,7 @@ async function performSpreadAnalysisInner(
     ephemerisContext = { available: false, error: err.message };
   }
 
-  if (spreadKey) {
+  if (span && spreadKey) {
     span.setAttribute('tarot.spread_key', spreadKey);
   }
 

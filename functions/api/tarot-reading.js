@@ -394,7 +394,13 @@ async function finalizeReading({
     metricsPayload.evalProviderOriginal = originalProvider;
   }
 
-  await persistReadingMetrics(env, metricsPayload);
+  // Use waitUntil() to avoid blocking the response on D1 write latency (~5–20ms)
+  const metricsPromise = persistReadingMetrics(env, metricsPayload);
+  if (typeof waitUntil === 'function') {
+    waitUntil(metricsPromise);
+  } else {
+    await metricsPromise;
+  }
 
   const gateEval = evalGateResult?.evalResult || null;
   const allowAsyncRetry = gateEval

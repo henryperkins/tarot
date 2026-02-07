@@ -396,7 +396,7 @@ const sentryHandler = Sentry.withSentry(
     dsn: 'https://dc6b77e884387701e50a12632de8e0dc@o4508070823395328.ingest.us.sentry.io/4510814880661504',
     tracesSampleRate: 1.0,
     enableLogs: true,
-    sendDefaultPii: true,
+    sendDefaultPii: false,
     // Use Cloudflare version metadata for release tracking
     release: env.CF_VERSION_METADATA?.id,
   }),

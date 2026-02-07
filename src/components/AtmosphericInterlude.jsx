@@ -25,7 +25,7 @@ function BreathingOrb({ prefersReducedMotion }) {
 
   // Breathing animation config
   const breathAnimation = prefersReducedMotion
-    ? {}
+    ? undefined
     : {
         scale: [
           baseScale,
@@ -37,11 +37,13 @@ function BreathingOrb({ prefersReducedMotion }) {
         opacity: [0.6, 0.8, 0.6, 0.5, 0.6]
       };
 
-  const breathTransition = {
-    duration: BREATH_PERIOD_MS / 1000,
-    repeat: Infinity,
-    ease: 'easeInOut'
-  };
+  const breathTransition = prefersReducedMotion
+    ? { duration: 0 }
+    : {
+        duration: BREATH_PERIOD_MS / 1000,
+        repeat: Infinity,
+        ease: 'easeInOut'
+      };
 
   return (
     <motion.div
@@ -127,40 +129,56 @@ export function AtmosphericInterlude({
       'Nearly ready...'
     ];
 
+    const resetMessageId = window.setTimeout(() => {
+      setPhaseMessage(messages[0]);
+    }, 0);
+
     const phaseIndexRef = { current: 0 };
 
-    if (!prefersReducedMotion) {
-      phaseTimerRef.current = setInterval(() => {
-        phaseIndexRef.current = (phaseIndexRef.current + 1) % messages.length;
-        setPhaseMessage(messages[phaseIndexRef.current]);
-      }, 4000); // 4 seconds per phase, aligned with BREATH_PERIOD_MS
-    }
+    phaseTimerRef.current = setInterval(() => {
+      phaseIndexRef.current = (phaseIndexRef.current + 1) % messages.length;
+      setPhaseMessage(messages[phaseIndexRef.current]);
+    }, BREATH_PERIOD_MS); // Keep semantic progress updates without relying on motion
 
     return () => {
       if (phaseTimerRef.current) {
         clearInterval(phaseTimerRef.current);
+        phaseTimerRef.current = null;
       }
+      clearTimeout(resetMessageId);
     };
-  }, [message, prefersReducedMotion]);
+  }, [message]);
 
   // Container animation
-  const containerVariants = {
-    initial: { opacity: 0 },
-    enter: {
-      opacity: 1,
-      transition: {
-        duration: 0.6,
-        ease: 'easeOut'
+  const containerVariants = prefersReducedMotion
+    ? {
+        initial: { opacity: 1 },
+        enter: {
+          opacity: 1,
+          transition: { duration: 0 }
+        },
+        exit: {
+          opacity: 1,
+          transition: { duration: 0 }
+        }
       }
-    },
-    exit: {
-      opacity: 0,
-      transition: {
-        duration: 0.4,
-        ease: 'easeIn'
-      }
-    }
-  };
+    : {
+        initial: { opacity: 0 },
+        enter: {
+          opacity: 1,
+          transition: {
+            duration: 0.6,
+            ease: 'easeOut'
+          }
+        },
+        exit: {
+          opacity: 0,
+          transition: {
+            duration: 0.4,
+            ease: 'easeIn'
+          }
+        }
+      };
 
   return (
     <AnimatePresence onExitComplete={onComplete}>
@@ -180,9 +198,9 @@ export function AtmosphericInterlude({
         {/* Message with shimmer symbols */}
         <motion.div
           className="mt-8 text-center"
-          initial={{ opacity: 0, y: 10 }}
+          initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { delay: 0.3, duration: 0.5 }}
         >
           <div className="flex items-center justify-center gap-3 mb-2">
             {!prefersReducedMotion && <ShimmerSymbol delay={0} symbol="✦" />}

@@ -6,6 +6,7 @@ import {
 } from '@microlabs/otel-cf-workers';
 
 export { withSpan, withSpanSync } from './tracingSpans.js';
+import { setExporterActive } from './tracingSpans.js';
 
 const DEFAULT_DEV_OTLP_ENDPOINT = 'http://localhost:4318/v1/traces';
 
@@ -106,12 +107,14 @@ export function createTracingConfig(overrides = {}) {
     };
 
     if (!endpoint) {
+      setExporterActive(false);
       return {
         ...baseConfig,
         spanProcessors: []
       };
     }
 
+    setExporterActive(true);
     return {
       ...baseConfig,
       exporter: new OTLPExporter({

@@ -1,5 +1,26 @@
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 
+/**
+ * Whether a real OTLP exporter is configured.
+ * When false, withSpan / withSpanSync skip span creation entirely
+ * to avoid allocating spans that are immediately discarded.
+ */
+let _exporterActive = false;
+
+const NOOP_SPAN = {
+  setAttribute() {},
+  setStatus() {},
+  recordException() {},
+  end() {}
+};
+
+/**
+ * Called once from tracing.js after resolving the OTLP endpoint.
+ */
+export function setExporterActive(active) {
+  _exporterActive = Boolean(active);
+}
+
 function toAttributes(attributes) {
   if (!attributes || typeof attributes !== 'object') {
     return {};
@@ -8,6 +29,11 @@ function toAttributes(attributes) {
 }
 
 export async function withSpan(spanName, attributes, fn) {
+  // Fast-path: skip span machinery when no exporter will consume spans
+  if (!_exporterActive) {
+    return fn(NOOP_SPAN);
+  }
+
   const tracer = trace.getTracer('tableau-worker');
   return tracer.startActiveSpan(spanName, { attributes: toAttributes(attributes) }, async (span) => {
     try {
@@ -25,6 +51,11 @@ export async function withSpan(spanName, attributes, fn) {
 }
 
 export function withSpanSync(spanName, attributes, fn) {
+  // Fast-path: skip span machinery when no exporter will consume spans
+  if (!_exporterActive) {
+    return fn(NOOP_SPAN);
+  }
+
   const tracer = trace.getTracer('tableau-worker');
   return tracer.startActiveSpan(spanName, { attributes: toAttributes(attributes) }, (span) => {
     try {

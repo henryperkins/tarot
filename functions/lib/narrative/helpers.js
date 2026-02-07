@@ -933,24 +933,8 @@ function buildPositionCardText(cardInfo, position, options = {}) {
     normalizedContext === 'self' ||
     normalizedContext === 'general';
 
-  let esotericClause = '';
-
-  if (allowEsoteric && shouldSurfaceAstroLens(cardInfo)) {
-    const astro = getAstroForCard(cardInfo);
-    if (astro?.label && astro?.focus) {
-      esotericClause = `On a symbolic level, some readers link this card to ${astro.label}, ${astro.focus}; treat that as color, not a command.`;
-    }
-  }
-
-  if (allowEsoteric && !esotericClause && shouldSurfaceQabalahLens(cardInfo)) {
-    const qabalah = getQabalahForCard(cardInfo);
-    if (qabalah?.label && qabalah?.focus) {
-      esotericClause = `On a symbolic level, some readers relate this card to ${qabalah.label}, ${qabalah.focus}; treat that as color, not a command.`;
-    }
-  }
-
-  const occultFlavor = allowEsoteric ? buildOccultFlavor(cardInfo) : '';
-  const enrichedMeaning = [meaning, contextClause, esotericClause, occultFlavor].filter(Boolean).join(' ');
+  const esotericClause = allowEsoteric ? buildOccultFlavor(cardInfo) : '';
+  const enrichedMeaning = [meaning, contextClause, esotericClause].filter(Boolean).join(' ');
 
   // Add imagery hook for Major Arcana if enabled
   let imagery = '';
@@ -1352,26 +1336,29 @@ function buildReflectionsSection(reflectionsText) {
 }
 
 function buildOccultFlavor(cardInfo) {
-  if (!cardInfo || !isMajorArcana(cardInfo)) return '';
-
-  const astro = getAstroForCard(cardInfo);
-  const qabalah = getQabalahForCard(cardInfo);
+  if (!cardInfo) return '';
 
   const bits = [];
 
-  if (astro?.label) {
-    const detail = astro.focus ? `, ${astro.focus}` : '';
-    bits.push(`${astro.label}${detail}`);
+  if (shouldSurfaceAstroLens(cardInfo)) {
+    const astro = getAstroForCard(cardInfo);
+    if (astro?.label) {
+      const detail = astro.focus ? `, ${astro.focus}` : '';
+      bits.push(`${astro.label}${detail}`);
+    }
   }
 
-  if (qabalah?.label) {
-    const detail = qabalah.focus ? `, ${qabalah.focus}` : '';
-    bits.push(`${qabalah.label}${detail}`);
+  if (shouldSurfaceQabalahLens(cardInfo)) {
+    const qabalah = getQabalahForCard(cardInfo);
+    if (qabalah?.label) {
+      const detail = qabalah.focus ? `, ${qabalah.focus}` : '';
+      bits.push(`${qabalah.label}${detail}`);
+    }
   }
 
   if (!bits.length) return '';
 
-  return ` On a symbolic level, some readers link this card to ${bits.join(' and ')}; treat that as color, not a command.`;
+  return `On a symbolic level, some readers link this card to ${bits.join(' and ')}; treat that as color, not a command.`;
 }
 
 function _buildReflectionPrompt(cardInfo, position) {

@@ -173,6 +173,7 @@ export function Card({
 
   // Local state to manage the visual reveal sequence
   const [isVisuallyRevealed, setIsVisuallyRevealed] = useState(isRevealed);
+  const [isFlipAnimating, setIsFlipAnimating] = useState(false);
   const cardRef = useRef(null);
   const activeAnimRef = useRef(null);
   const flipTimelineRef = useRef(null);
@@ -247,8 +248,8 @@ export function Card({
 
   useEffect(() => {
     if (isRevealed && userInitiatedRevealRef.current) {
-      // Focus textarea after animation completes (animation is ~300ms)
-      const delay = prefersReducedMotion ? 50 : 350;
+      // Focus textarea after the visual reveal has fully settled.
+      const delay = prefersReducedMotion ? 50 : 450;
 
       const focusTimer = setTimeout(() => {
         if (textareaRef.current) {
@@ -363,6 +364,8 @@ export function Card({
     // When card becomes unrevealed, reset animation tracking
     if (!isRevealed) {
       animationStartedRef.current = false;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- flip lock must reset when reveal state is cleared
+      setIsFlipAnimating(false);
     }
 
     if (isRevealed || !isVisuallyRevealed) {
@@ -413,6 +416,8 @@ export function Card({
 
     // Mark animation as started immediately to prevent re-triggers
     animationStartedRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lock state must start in sync with flip lifecycle
+    setIsFlipAnimating(!prefersReducedMotion);
 
     let isActive = true;
     const node = cardRef.current;
@@ -436,6 +441,7 @@ export function Card({
 
       if (prefersReducedMotion) {
         setIsVisuallyRevealed(true);
+        setIsFlipAnimating(false);
         set(node, { rotateY: 0, opacity: 1, filter: 'blur(0px)', scale: 1 });
         return;
       }
@@ -484,10 +490,14 @@ export function Card({
       try {
         await timeline.then();
       } catch (_error) {
+        if (isActive) {
+          setIsFlipAnimating(false);
+        }
         return;
       }
 
       if (!isActive) return;
+      setIsFlipAnimating(false);
 
       if (import.meta.env.DEV) {
         console.log(`Card ${index} reveal complete`);
@@ -600,13 +610,18 @@ export function Card({
               </div>
             </button>
           ) : (
-            <div className={`transition-all relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1svh]:max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center`}>
+            <div className={`transition-all relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1svh]:max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center ${isFlipAnimating ? 'pointer-events-none' : ''}`}>
               {/* Card content area - restructured to avoid nested interactives */}
               <div className="relative w-full">
                 {/* Zoom Icon - primary keyboard target for modal */}
                 <button
                   type="button"
-                  onClick={() => onCardClick?.(card, position, index)}
+                  onClick={() => {
+                    if (isFlipAnimating) return;
+                    onCardClick?.(card, position, index);
+                  }}
+                  disabled={isFlipAnimating}
+                  aria-disabled={isFlipAnimating}
                   className="absolute top-2 right-2 z-20 min-h-touch min-w-touch flex items-center justify-center bg-surface-muted/80 rounded-full text-accent border border-primary/30 shadow-lg backdrop-blur-sm hover:bg-surface-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary touch-manipulation"
                   aria-label={`View details for ${card.name}`}
                 >
@@ -616,7 +631,12 @@ export function Card({
                 {/* Card image area - clickable for modal (keyboard users use the zoom button above) */}
                 <button
                   type="button"
-                  onClick={() => onCardClick?.(card, position, index)}
+                  onClick={() => {
+                    if (isFlipAnimating) return;
+                    onCardClick?.(card, position, index);
+                  }}
+                  disabled={isFlipAnimating}
+                  aria-disabled={isFlipAnimating}
                   className="relative bg-transparent border-0 p-0 cursor-pointer w-full hover:bg-surface-muted/40 transition-colors rounded-lg"
                   aria-label={`View details for ${card.name}`}
                 >

@@ -82,17 +82,18 @@
     // - "redact" (default): Redact PII patterns from stored data
     // - "minimal": Store only aggregate metrics, no user content
     // - "full": Store complete data (DEVELOPMENT ONLY - contains PII)
-    "METRICS_STORAGE_MODE": "full",
+    "METRICS_STORAGE_MODE": "redact",
     // -------------------------------------------------------------------------
     // Diagnostics & Logging
     // WARNING: LOG_LLM_PROMPTS and PERSIST_PROMPTS capture user questions and
     // personalization data. Enable only for debugging, disable in production.
+    // Set to "true" only in .dev.vars for local development.
     // -------------------------------------------------------------------------
-    "LOG_LLM_PROMPTS": "true",
+    "LOG_LLM_PROMPTS": "false",
     "LOG_NARRATIVE_ENHANCEMENTS": "true",
     "LOG_ENHANCEMENT_TELEMETRY": "true",
-    "PERSIST_PROMPTS": "true",
-    "SKIP_PII_REDACTION": "true",
+    "PERSIST_PROMPTS": "false",
+    "SKIP_PII_REDACTION": "false",
     "ENABLE_TTS_DEBUG_LOGGING": "false",
     "ENABLE_SPEECH_TOKEN_DEBUG": "false",
     // -------------------------------------------------------------------------

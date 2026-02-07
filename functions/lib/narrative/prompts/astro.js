@@ -18,7 +18,7 @@ export function shouldIncludeAstroInsights(cardsInfo = [], themes = {}, userQues
   const hasGraphCombos = Boolean((graphKeys.completeTriadIds?.length || 0) > 0 || graphKeys.foolsJourneyStageKey);
 
   // Timing profile hints at longer arcs (chapter/seasonal) where astro adds value.
-  // `themes.timingProfile` is typically a string from `functions/lib/timingMeta.js`
+  // `themes.timingProfile` is typically a string from `functions/lib/pacingHeuristics.js`
   // (e.g. 'near-term-tilt' | 'developing-arc' | 'longer-arc-tilt'), but we also
   // support legacy object forms like `{ type: 'seasonal' }`.
   const timingProfile = themes?.timingProfile;

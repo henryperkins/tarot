@@ -466,7 +466,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
 
   // Soft timing profile (non-deterministic pacing hint)
   try {
-    const { getSpreadTimingProfile } = await import('./timingMeta.js');
+    const { getSpreadTimingProfile } = await import('./pacingHeuristics.js');
     themes.timingProfile = getSpreadTimingProfile({ cardsInfo: normalizedCards, themes });
   } catch {
     // Graceful degradation: timing profile unavailable

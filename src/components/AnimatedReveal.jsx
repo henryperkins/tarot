@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCanonicalCard, getOrientationMeaning } from '../lib/cardLookup';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { VIDEO_STYLE_PRESETS, DEFAULT_VIDEO_STYLE } from '../../shared/vision/videoStyles.js';
 
 // Video style options (shared with backend)
@@ -18,19 +19,19 @@ const MAX_POLL_MS = 120000;
 const MAX_POLL_ERRORS = 2;
 
 // Loading state with animated shimmer
-function VideoLoadingSkeleton() {
+function VideoLoadingSkeleton({ prefersReducedMotion = false }) {
   return (
     <div className="relative w-full aspect-square bg-surface rounded-lg overflow-hidden">
       <motion.div
         className="absolute inset-0 bg-gradient-to-r from-transparent via-accent/20 to-transparent"
-        animate={{ x: ['-100%', '100%'] }}
-        transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+        animate={prefersReducedMotion ? undefined : { x: ['-100%', '100%'] }}
+        transition={prefersReducedMotion ? { duration: 0 } : { duration: 1.5, repeat: Infinity, ease: 'linear' }}
       />
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <motion.div 
           className="w-16 h-16 border-2 border-accent/40 border-t-primary rounded-full"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+          animate={prefersReducedMotion ? undefined : { rotate: 360 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { duration: 1.5, repeat: Infinity, ease: 'linear' }}
         />
         <p className="text-accent/80 text-sm mt-4">Generating reveal...</p>
         <p className="text-muted text-xs mt-1">This may take 30-60 seconds</p>
@@ -40,7 +41,7 @@ function VideoLoadingSkeleton() {
 }
 
 // Progress indicator for job polling
-function ProgressIndicator({ status, progress }) {
+function ProgressIndicator({ status, progress, prefersReducedMotion = false }) {
   const statusMessages = {
     pending: 'Queued for generation...',
     processing: 'Creating your cinematic reveal...',
@@ -64,9 +65,9 @@ function ProgressIndicator({ status, progress }) {
         <div className="w-48 mx-auto mt-2 h-1 bg-surface-muted rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-gradient-to-r from-primary to-accent"
-            initial={{ width: 0 }}
+            initial={prefersReducedMotion ? false : { width: 0 }}
             animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.3 }}
+            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.3 }}
           />
         </div>
       )}
@@ -75,7 +76,7 @@ function ProgressIndicator({ status, progress }) {
 }
 
 // Video player with controls
-function VideoPlayer({ videoData, onReplay }) {
+function VideoPlayer({ videoData, onReplay, prefersReducedMotion = false }) {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(true);
   
@@ -119,12 +120,13 @@ function VideoPlayer({ videoData, onReplay }) {
       {/* Play/Pause overlay */}
       <div 
         className="absolute inset-0 flex items-center justify-center 
-                   bg-main/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                   bg-main/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 cursor-pointer"
+        style={{ transition: prefersReducedMotion ? 'none' : undefined }}
         onClick={handlePlayPause}
       >
         <motion.div
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+          whileHover={prefersReducedMotion ? undefined : { scale: 1.1 }}
+          whileTap={prefersReducedMotion ? undefined : { scale: 0.9 }}
           className="w-16 h-16 bg-primary/90 rounded-full flex items-center justify-center"
         >
           {isPlaying ? (
@@ -163,6 +165,7 @@ export default function AnimatedReveal({
   onVideoReady,
   className = ''
 }) {
+  const prefersReducedMotion = useReducedMotion();
   const [style, setStyle] = useState(DEFAULT_VIDEO_STYLE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -441,11 +444,12 @@ export default function AnimatedReveal({
         {videoData && (
           <motion.div
             key="video"
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
+            exit={prefersReducedMotion ? { opacity: 1, scale: 1 } : { opacity: 0 }}
+            transition={prefersReducedMotion ? { duration: 0 } : undefined}
           >
-            <VideoPlayer videoData={videoData} onReplay={handleReplay} />
+            <VideoPlayer videoData={videoData} onReplay={handleReplay} prefersReducedMotion={prefersReducedMotion} />
           </motion.div>
         )}
         
@@ -453,13 +457,14 @@ export default function AnimatedReveal({
         {loading && !videoData && (
           <motion.div
             key="loading"
-            initial={{ opacity: 0 }}
+            initial={prefersReducedMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
+            transition={prefersReducedMotion ? { duration: 0 } : undefined}
           >
-            <VideoLoadingSkeleton />
+            <VideoLoadingSkeleton prefersReducedMotion={prefersReducedMotion} />
             {jobStatus && (
-              <ProgressIndicator status={jobStatus} progress={0} />
+              <ProgressIndicator status={jobStatus} progress={0} prefersReducedMotion={prefersReducedMotion} />
             )}
           </motion.div>
         )}
@@ -468,9 +473,10 @@ export default function AnimatedReveal({
         {!loading && !videoData && (
           <motion.div
             key="button"
-            initial={{ opacity: 0 }}
+            initial={prefersReducedMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
+            transition={prefersReducedMotion ? { duration: 0 } : undefined}
             className="text-center py-6"
           >
             {/* Style picker toggle */}
@@ -528,8 +534,9 @@ export default function AnimatedReveal({
       {/* Error display */}
       {error && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={prefersReducedMotion ? { duration: 0 } : undefined}
           className="absolute inset-x-0 bottom-0 p-3 bg-error/15 border-t border-error/30 rounded-b-lg"
         >
           <p className="text-error text-sm text-center">{error}</p>
@@ -555,6 +562,7 @@ export function AnimatedRevealTrigger({
   userTier,
   onGenerate 
 }) {
+  const prefersReducedMotion = useReducedMotion();
   const tierConfig = {
     free: { enabled: false },
     plus: { enabled: true },
@@ -567,10 +575,11 @@ export function AnimatedRevealTrigger({
   
   return (
     <motion.button
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
+      whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+      transition={prefersReducedMotion ? { duration: 0 } : undefined}
       onClick={onGenerate}
       className="absolute -bottom-2 left-1/2 -translate-x-1/2 
                  px-3 py-1 bg-gradient-to-r from-primary/90 to-accent/90 

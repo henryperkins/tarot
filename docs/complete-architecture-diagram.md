@@ -328,7 +328,7 @@ graph TB
         minorMeta["minorMeta.js<br>Minor Arcana"]
         ephemeris["ephemerisIntegration.js<br>Astrological"]
         ephemerisW["ephemerisWorkers.js<br>Worker Integration"]
-        timingMeta["timingMeta.js<br>Lunar/Timing"]
+        timingMeta["pacingHeuristics.js<br>Lunar/Timing"]
     end
 
     subgraph Auth["Auth & Security"]

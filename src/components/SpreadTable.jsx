@@ -71,6 +71,8 @@ const CELTIC_CHALLENGE_OFFSET = {
 
 const FLIP_EASE = cubicBezier(0.32, 0.72, 0, 1);
 const FLIP_TILT = 6;
+const FLIP_DURATION = 420;
+const FLIP_LOCK_BUFFER = 80;
 const CARD_LAYOUT_DURATION = 380;
 const CARD_LAYOUT_EXIT_DURATION = 240;
 const CARD_LAYOUT_STAGGER = 40;
@@ -225,7 +227,14 @@ function FlashRing({ active, prefersReducedMotion, className }) {
   return <div ref={ref} className={className} />;
 }
 
-function FlipCard({ isRevealed, prefersReducedMotion, forceRevealOnMount = false, className, style, children }) {
+function FlipCard({
+  isRevealed,
+  prefersReducedMotion,
+  forceRevealOnMount = false,
+  className,
+  style,
+  children
+}) {
   const ref = useRef(null);
   const shouldForceRevealRef = useRef(forceRevealOnMount);
   const prevRevealedRef = useRef(isRevealed);
@@ -278,7 +287,7 @@ function FlipCard({ isRevealed, prefersReducedMotion, forceRevealOnMount = false
     animRef.current = animate(node, {
       rotateY: isRevealed ? 0 : 180,
       rotateX: isRevealed ? 0 : FLIP_TILT,
-      duration: 420,
+      duration: FLIP_DURATION,
       ease: FLIP_EASE
     });
 
@@ -323,13 +332,35 @@ function AnimatedCardButton({
 }) {
   const [displayCard, setDisplayCard] = useState(card);
   const [isHidden, setIsHidden] = useState(!card);
+  const [isFlipAnimating, setIsFlipAnimating] = useState(false);
   const buttonRef = useRef(null);
   const removeTimerRef = useRef(null);
+  const flipLockTimerRef = useRef(null);
   const lastCardRef = useRef(card);
   const displayCardRef = useRef(card);
 
   const resolvedCard = card || displayCard;
   const [shouldForceReveal, setShouldForceReveal] = useState(false);
+
+  const releaseFlipLock = useCallback(() => {
+    if (flipLockTimerRef.current) {
+      clearTimeout(flipLockTimerRef.current);
+      flipLockTimerRef.current = null;
+    }
+    setIsFlipAnimating(false);
+  }, []);
+
+  const armFlipLock = useCallback(() => {
+    if (prefersReducedMotion) return;
+    setIsFlipAnimating(true);
+    if (flipLockTimerRef.current) {
+      clearTimeout(flipLockTimerRef.current);
+    }
+    flipLockTimerRef.current = setTimeout(() => {
+      flipLockTimerRef.current = null;
+      setIsFlipAnimating(false);
+    }, FLIP_DURATION + FLIP_LOCK_BUFFER);
+  }, [prefersReducedMotion]);
 
   useEffect(() => {
     // Detect when a card appears for the first time and is already revealed
@@ -348,6 +379,7 @@ function AnimatedCardButton({
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sync state for animation coordination
       setDisplayCard(card);
       setIsHidden(false);
+      releaseFlipLock();
       if (removeTimerRef.current) {
         clearTimeout(removeTimerRef.current);
         removeTimerRef.current = null;
@@ -370,14 +402,36 @@ function AnimatedCardButton({
       setDisplayCard(null);
       setIsHidden(true);
     }
-  }, [card, prefersReducedMotion]);
+  }, [card, prefersReducedMotion, releaseFlipLock]);
 
   useEffect(() => () => {
     if (removeTimerRef.current) {
       clearTimeout(removeTimerRef.current);
       removeTimerRef.current = null;
     }
+    if (flipLockTimerRef.current) {
+      clearTimeout(flipLockTimerRef.current);
+      flipLockTimerRef.current = null;
+    }
   }, []);
+
+  useEffect(() => {
+    if (!isRevealed || prefersReducedMotion) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- lock state must sync with reveal/reset transitions
+      releaseFlipLock();
+    }
+  }, [isRevealed, prefersReducedMotion, releaseFlipLock]);
+
+  const handleButtonClick = useCallback((event) => {
+    if (isFlipAnimating) {
+      event.preventDefault();
+      return;
+    }
+    if (!isRevealed && !prefersReducedMotion) {
+      armFlipLock();
+    }
+    onClick?.(event);
+  }, [armFlipLock, isFlipAnimating, isRevealed, onClick, prefersReducedMotion]);
 
   if (!resolvedCard) return null;
 
@@ -389,9 +443,9 @@ function AnimatedCardButton({
     <button
       ref={buttonRef}
       data-layout-card
-      onClick={onClick}
-      disabled={disabled}
-      aria-disabled={ariaDisabled}
+      onClick={handleButtonClick}
+      disabled={disabled || isFlipAnimating}
+      aria-disabled={ariaDisabled || isFlipAnimating}
       aria-label={ariaLabel}
       className={className}
       style={{

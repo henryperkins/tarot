@@ -158,11 +158,9 @@ function containsSensitiveContent(text) {
 
   for (const pattern of PII_PATTERNS) {
     if (pattern.test(normalized)) return true;
-    pattern.lastIndex = 0; // Reset global regex state
   }
   for (const pattern of INSTRUCTION_PATTERNS) {
     if (pattern.test(normalized)) return true;
-    pattern.lastIndex = 0; // Reset global regex state
   }
   return false;
 }
@@ -360,9 +358,23 @@ export async function getMemories(db, userId, options = {}) {
     bindings.push(limit);
 
     const result = await db.prepare(query).bind(...bindings).all();
+    const rawResults = result?.results || [];
+    let skipped = 0;
+    const safeResults = rawResults.filter(row => {
+      const text = typeof row?.text === 'string' ? row.text : '';
+      if (!text || containsSensitiveContent(text)) {
+        skipped++;
+        return false;
+      }
+      return true;
+    });
+
+    if (skipped > 0) {
+      console.warn(`[getMemories] Skipped ${skipped} unsafe memories for user ${userId}`);
+    }
 
     // Update last_accessed_at for retrieved memories
-    const memoryIds = (result?.results || []).map(r => r.id);
+    const memoryIds = safeResults.map(r => r.id);
     if (memoryIds.length > 0) {
       const updatePlaceholders = memoryIds.map(() => '?').join(', ');
       await db.prepare(`
@@ -370,7 +382,7 @@ export async function getMemories(db, userId, options = {}) {
       `).bind(nowSeconds, ...memoryIds).run();
     }
 
-    return (result?.results || []).map(row => ({
+    return safeResults.map(row => ({
       id: row.id,
       text: row.text,
       keywords: row.keywords ? row.keywords.split(',') : [],

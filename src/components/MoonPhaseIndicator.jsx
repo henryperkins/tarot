@@ -130,8 +130,9 @@ export function MoonPhaseIndicator({ ephemeris, variant = 'compact' }) {
     const illum = typeof moon.illumination === 'number' ? `${moon.illumination}%` : '—';
     const sign = moon.sign ? ` in ${moon.sign}` : '';
     const interp = moon.interpretation ? `\n\n${moon.interpretation}` : '';
+    const disclaimer = '\n\nAstrology here is symbolic context, not a prediction.';
     // Newlines are rendered by Tooltip (whitespace-pre-line).
-    return `Moon: ${phaseName}${sign}\nIllumination: ${illum}${interp}\n\nCaptured at the moment your reading was generated.`;
+    return `Moon: ${phaseName}${sign}\nIllumination: ${illum}${interp}${disclaimer}\n\nCaptured at the moment your reading was generated.`;
   }, [moon]);
 
   if (!moon || !moon.phaseName) {

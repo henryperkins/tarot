@@ -921,7 +921,9 @@ export async function runNarrativeBackend(backendId, env, payload, requestId) {
         break;
     }
     const reading = typeof result === 'object' && result.reading ? result.reading : result;
-    span.setAttribute('tarot.narrative.length', typeof reading === 'string' ? reading.length : 0);
+    if (span) {
+      span.setAttribute('tarot.narrative.length', typeof reading === 'string' ? reading.length : 0);
+    }
     return result;
   });
 }
