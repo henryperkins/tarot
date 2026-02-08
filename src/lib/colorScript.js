@@ -180,8 +180,6 @@ function captureRootBaseline(root) {
 
 function applyScriptToRoot(root, colorScript, options = {}) {
   const scriptVars = colorScript?.cssVars || {};
-  const _animateTransition = Boolean(options?.animate);
-  const _duration = Number.isFinite(options?.duration) ? options.duration : 420;
 
   // Set variables immediately for deterministic behavior in runtime and tests.
   Object.entries(scriptVars).forEach(([property, value]) => {
@@ -226,7 +224,7 @@ function restoreRootBaseline(root) {
  * Determine color script from narrative analysis
  */
 export function determineColorScript(narrativePhase, emotionalTone, reasoning) {
-  // Default to neutral
+  // Default to anticipation for idle state (pre-reading tension)
   if (!narrativePhase || narrativePhase === 'idle') {
     return COLOR_SCRIPTS.anticipation;
   }
