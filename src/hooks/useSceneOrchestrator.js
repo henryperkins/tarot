@@ -170,13 +170,15 @@ export function useSceneOrchestrator({
     transitionMeta: defaultTransitionMeta(LEGACY_SCENES.IDLE, candidateScene, 'init')
   }));
 
-  // Sync external scene changes without effects to satisfy strict hook linting.
-  if (sceneState.currentScene !== candidateScene) {
-    setSceneState({
-      currentScene: candidateScene,
-      transitionMeta: defaultTransitionMeta(sceneState.currentScene, candidateScene, 'derived')
-    });
-  }
+  // Sync external scene changes - moved to effect to prevent render-time state updates
+  useEffect(() => {
+    if (sceneState.currentScene !== candidateScene) {
+      setSceneState({
+        currentScene: candidateScene,
+        transitionMeta: defaultTransitionMeta(sceneState.currentScene, candidateScene, 'derived')
+      });
+    }
+  }, [candidateScene, sceneState.currentScene]);
 
   const currentScene = sceneState.currentScene;
   const transitionMeta = sceneState.transitionMeta;
