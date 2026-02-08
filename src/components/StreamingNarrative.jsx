@@ -492,7 +492,8 @@ export function StreamingNarrative({
           const isTtsWord = idx === ttsWordIndex && idx < visibleCount;
           
           // Use CSS animation for word reveal to avoid JS bottleneck on long narratives
-          const isNewWord = idx >= visibleCount - 1 && streamingActive && !prefersReducedMotion;
+          // Animate only the most recently revealed word(s) to match incremental reveal behavior
+          const isNewWord = idx === visibleCount - 1 && streamingActive && !prefersReducedMotion;
 
           return (
             <span
