@@ -1,5 +1,4 @@
 import { memo, useState, useCallback, useRef, useLayoutEffect } from 'react';
-import { motion } from 'framer-motion';
 import { getSuitAccentVar, cn } from '../../EntryCard.primitives';
 import { CardThumbnail } from './CardThumbnail';
 import {
@@ -24,7 +23,6 @@ export const CardFan = memo(function CardFan({
   const containerRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  // Measure container width for responsive arc
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -33,64 +31,22 @@ export const CardFan = memo(function CardFan({
       setContainerWidth(container.offsetWidth);
     };
 
-    // Measure immediately
     updateWidth();
 
     if (typeof ResizeObserver === 'undefined') {
-      return;
+      return undefined;
     }
 
     const observer = new ResizeObserver(updateWidth);
     observer.observe(container);
-
     return () => observer.disconnect();
   }, []);
 
-  // Get stack position for animation origin
   const getStackMotion = useCallback((index) => {
     const stackCount = Math.min(cards.length, 5);
     const stackIndex = Math.min(index, stackCount - 1);
     return getCardStackOffset(stackIndex, stackCount);
   }, [cards.length]);
-
-  // Animation variants
-  const containerVariants = {
-    show: {
-      transition: {
-        staggerChildren: reduceMotion ? 0 : 0.04,
-        delayChildren: reduceMotion ? 0 : 0.05
-      }
-    },
-    hidden: {
-      transition: {
-        staggerChildren: reduceMotion ? 0 : 0.03,
-        staggerDirection: -1
-      }
-    }
-  };
-
-  const cardVariants = {
-    show: ({ arcPos }) => ({
-      opacity: 1,
-      x: arcPos.x,
-      y: -arcPos.y, // Negative because cards rise at edges
-      rotate: arcPos.rotation,
-      scale: arcPos.scale,
-      transition: reduceMotion
-        ? { duration: 0 }
-        : { duration: 0.35, ease: [0.16, 1, 0.3, 1] }
-    }),
-    hidden: ({ stackMotion }) => ({
-      opacity: 0,
-      x: stackMotion.x,
-      y: stackMotion.y,
-      rotate: stackMotion.rotation,
-      scale: 0.96,
-      transition: reduceMotion
-        ? { duration: 0 }
-        : { duration: 0.28, ease: 'easeOut' }
-    })
-  };
 
   const renderCard = (card, index) => {
     const { isReversed, label } = getOrientationState(card);
@@ -99,26 +55,24 @@ export const CardFan = memo(function CardFan({
     const tabIndex = cards.length === 1 ? 0 : (index === activeIndex ? 0 : -1);
     const isActive = index === activeIndex;
     const arcPos = getArcPosition(index, cards.length, containerWidth);
+    const stackMotion = getStackMotion(index);
+    const transformX = Number.isFinite(arcPos?.x) ? arcPos.x : stackMotion.x;
+    const transformY = Number.isFinite(arcPos?.y) ? -arcPos.y : stackMotion.y;
+    const rotation = Number.isFinite(arcPos?.rotation) ? arcPos.rotation : stackMotion.rotation;
+    const scale = Number.isFinite(arcPos?.scale) ? arcPos.scale : 0.96;
 
     return (
-      <motion.div
+      <div
         key={`${card?.name || 'card'}-${index}`}
-        variants={cardVariants}
-        custom={{ arcPos, stackMotion: getStackMotion(index) }}
         className="absolute left-1/2 bottom-0 hover:!z-50 focus-within:!z-50"
         style={{
-          zIndex: isActive ? arcPos.zIndex + 20 : arcPos.zIndex,
-          transformOrigin: 'center bottom'
-        }}
-        whileHover={reduceMotion ? undefined : {
-          y: -arcPos.y - 8,
-          scale: arcPos.scale * 1.08,
-          transition: { duration: 0.2, ease: 'easeOut' }
-        }}
-        whileFocus={reduceMotion ? undefined : {
-          y: -arcPos.y - 8,
-          scale: arcPos.scale * 1.08,
-          transition: { duration: 0.2, ease: 'easeOut' }
+          zIndex: isActive ? (arcPos.zIndex || 1) + 20 : (arcPos.zIndex || 1),
+          transformOrigin: 'center bottom',
+          transform: `translateX(${transformX}px) translateY(${transformY}px) rotate(${rotation}deg) scale(${scale})`,
+          opacity: 1,
+          transition: reduceMotion
+            ? 'none'
+            : 'transform 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease-out'
         }}
       >
         <button
@@ -148,11 +102,10 @@ export const CardFan = memo(function CardFan({
             nameMaxWidth={64}
           />
         </button>
-      </motion.div>
+      </div>
     );
   };
 
-  // Single card: centered, no arc
   if (cards.length === 1) {
     const singleCard = cards[0];
     const { isReversed, label } = getOrientationState(singleCard);
@@ -160,18 +113,19 @@ export const CardFan = memo(function CardFan({
     const cardLabel = getCardAriaLabel(singleCard, label);
 
     return (
-      <motion.div
-        layout
-        transition={{ duration: reduceMotion ? 0 : 0.3, ease: 'easeOut' }}
+      <div
         className="pt-2 pb-4"
+        style={{ transition: reduceMotion ? 'none' : 'opacity 220ms ease-out' }}
       >
-        <motion.div
+        <div
           id={cardsId}
           ref={fanRef}
           className="flex justify-center"
-          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-          animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-          transition={reduceMotion ? undefined : { duration: 0.25, ease: 'easeOut' }}
+          style={{
+            opacity: 1,
+            transform: 'translateY(0px)',
+            transition: reduceMotion ? 'none' : 'opacity 220ms ease-out, transform 220ms ease-out'
+          }}
         >
           <button
             ref={setCardRef(0)}
@@ -198,38 +152,29 @@ export const CardFan = memo(function CardFan({
               nameMaxWidth={64}
             />
           </button>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     );
   }
 
-  // Calculate container height based on card size + arc rise (more height for larger spreads)
   const arcRise = cards.length > 7 ? 32 : 24;
   const containerHeight = EXPANDED_THUMB_SIZE.height + arcRise + 10;
 
   return (
-    <motion.div
-      layout
-      transition={{ duration: reduceMotion ? 0 : 0.3, ease: 'easeOut' }}
+    <div
       className="pt-2 pb-4"
+      style={{ transition: reduceMotion ? 'none' : 'opacity 220ms ease-out' }}
     >
       <div
         ref={containerRef}
         className="relative w-full"
         style={{ height: containerHeight }}
       >
-        <motion.div
-          id={cardsId}
-          ref={fanRef}
-          className="absolute inset-0"
-          variants={containerVariants}
-          initial={reduceMotion ? false : 'hidden'}
-          animate="show"
-          exit={reduceMotion ? undefined : 'hidden'}
-        >
+        <div id={cardsId} ref={fanRef} className="absolute inset-0">
           {cards.map((card, index) => renderCard(card, index))}
-        </motion.div>
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
 });
+

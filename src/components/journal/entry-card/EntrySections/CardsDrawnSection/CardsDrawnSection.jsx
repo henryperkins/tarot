@@ -4,7 +4,6 @@
  */
 import { memo, useMemo } from 'react';
 import { CaretUp, CaretDown } from '@phosphor-icons/react';
-import { AnimatePresence, motion } from 'framer-motion';
 import {
   useSmallScreen,
   COMPACT_SCREEN_MAX
@@ -77,44 +76,40 @@ export const CardsDrawnSection = memo(function CardsDrawnSection({
         </header>
       )}
 
-      <AnimatePresence initial={false} mode="wait">
-        {cardFan.showExpanded ? (
-          <motion.div
-            key="cards-expanded"
-            layout
-            transition={{ duration: reduceMotion ? 0 : 0.3, ease: 'easeOut' }}
-            className={styles.sectionBody}
-          >
-            <CardFan
-              cards={cardItems}
-              cardsId={cardsId}
-              activeIndex={cardFan.activeIndex}
-              onCardKeyDown={cardFan.handleCardKeyDown}
-              onCardSelect={cardFan.handleCardSelect}
-              setCardRef={cardFan.setCardRef}
-              fanRef={cardFan.stripRef}
-              reduceMotion={reduceMotion}
-            />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="cards-collapsed"
-            layout
-            transition={{ duration: reduceMotion ? 0 : 0.25, ease: 'easeOut' }}
-          >
-            <CardStack
-              cards={cardItems}
-              cardsId={cardsId}
-              onExpand={cardFan.handleExpand}
-              showHint={cardFan.showHint}
-              onDismissHint={cardFan.dismissHint}
-              stackButtonRef={cardFan.stackButtonRef}
-              isExpanded={cardFan.showExpanded}
-              isNarrow={isNarrow}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {cardFan.showExpanded ? (
+        <div
+          key="cards-expanded"
+          className={styles.sectionBody}
+          style={{ transition: reduceMotion ? 'none' : 'opacity 200ms ease-out' }}
+        >
+          <CardFan
+            cards={cardItems}
+            cardsId={cardsId}
+            activeIndex={cardFan.activeIndex}
+            onCardKeyDown={cardFan.handleCardKeyDown}
+            onCardSelect={cardFan.handleCardSelect}
+            setCardRef={cardFan.setCardRef}
+            fanRef={cardFan.stripRef}
+            reduceMotion={reduceMotion}
+          />
+        </div>
+      ) : (
+        <div
+          key="cards-collapsed"
+          style={{ transition: reduceMotion ? 'none' : 'opacity 180ms ease-out' }}
+        >
+          <CardStack
+            cards={cardItems}
+            cardsId={cardsId}
+            onExpand={cardFan.handleExpand}
+            showHint={cardFan.showHint}
+            onDismissHint={cardFan.dismissHint}
+            stackButtonRef={cardFan.stackButtonRef}
+            isExpanded={cardFan.showExpanded}
+            isNarrow={isNarrow}
+          />
+        </div>
+      )}
     </section>
   );
 });

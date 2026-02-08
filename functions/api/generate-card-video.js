@@ -30,6 +30,7 @@ import {
   buildCardRevealPrompt,
   VIDEO_STYLES
 } from '../lib/videoPrompts.js';
+import { getCardVideoLimits } from '../../shared/monetization/media.js';
 
 // Azure OpenAI Video Generation configuration (Sora 2 API)
 // Note: AZURE_OPENAI_VIDEO_MODEL should be your Azure deployment name
@@ -43,23 +44,6 @@ const DEFAULT_IMAGE_TIMEOUT_MS = 45000;
 const DEFAULT_VIDEO_TIMEOUT_MS = 45000;
 const DEFAULT_VIDEO_STATUS_TIMEOUT_MS = 20000;
 const DEFAULT_VIDEO_CONTENT_TIMEOUT_MS = 30000;
-
-// Feature gating by tier
-const TIER_LIMITS = {
-  free: { enabled: false },
-  plus: { 
-    enabled: true, 
-    maxPerDay: 20, // Temporarily increased for testing Sora 2 API
-    styles: ['mystical'],
-    maxSeconds: 4
-  },
-  pro: { 
-    enabled: true, 
-    maxPerDay: 50, // Temporarily increased for testing
-    styles: Object.keys(VIDEO_STYLES),
-    maxSeconds: 8
-  }
-};
 
 // OpenAI docs: the Sora input_reference image must match the requested video size.
 // We only attempt keyframe -> input_reference when the image model can output the
@@ -468,7 +452,9 @@ export async function onRequestPost(ctx) {
   // Check subscription tier
   const subscription = getSubscriptionContext(user);
   const tier = subscription?.effectiveTier || 'free';
-  const limits = TIER_LIMITS[tier] || TIER_LIMITS.free;
+  const limits = getCardVideoLimits(tier, {
+    availableStyles: Object.keys(VIDEO_STYLES)
+  });
 
   if (!env.METRICS_DB) {
     return jsonResponse({ error: 'Video job tracking is unavailable' }, 503);
@@ -583,6 +569,7 @@ export async function onRequestPost(ctx) {
       cached: true,
       style,
       seconds,
+      cacheKey,
       requestId
     });
   }
@@ -739,6 +726,7 @@ export async function onRequestPost(ctx) {
       success: true,
       status: 'pending',
       jobId: job.id,
+      cacheKey,
       message: 'Video generation started. Poll /api/generate-card-video?jobId=... for completion.',
       estimatedSeconds: seconds * 10, // rough estimate
       requestId
@@ -918,6 +906,10 @@ export async function onRequestGet(ctx) {
         video: base64,
         format: 'mp4',
         cached: false,
+        cacheKey: resolvedJobMeta.cacheKey || null,
+        style: resolvedJobMeta.style || null,
+        seconds: resolvedJobMeta.seconds || null,
+        cardName: resolvedJobMeta.card || null,
         requestId
       });
     }

@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { animate, createLayout, cubicBezier, set, stagger } from 'animejs';
+import { animate, createLayout, cubicBezier, set } from 'animejs';
 import { SPREADS } from '../data/spreads';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useAnimeScope } from '../hooks/useAnimeScope';
+import { useSounds } from '../hooks/useSounds';
 import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
 import { getSuitBorderColor, getRevealedCardGlow, getSuitGlowColor } from '../lib/suitColors';
 import { extractShortLabel, getPositionLabel } from './readingBoardUtils';
@@ -13,6 +14,8 @@ import { MICROCOPY } from '../lib/microcopy';
 import { TactileLensButton, TactileLensOverlay } from './TactileLensOverlay';
 import { SpreadProgressIndicator } from './SpreadProgressIndicator';
 import { CardBack } from './CardBack';
+import { CardInfoPopover } from './CardInfoPopover';
+import { ParticleLayer } from './ParticleLayer';
 
 /**
  * Spread layout definitions (x, y as percentage of container)
@@ -76,6 +79,28 @@ const FLIP_LOCK_BUFFER = 80;
 const CARD_LAYOUT_DURATION = 380;
 const CARD_LAYOUT_EXIT_DURATION = 240;
 const CARD_LAYOUT_STAGGER = 40;
+
+export function getCenterOutOrder(spreadKey, totalCards) {
+  const layout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
+  const count = Math.max(0, Math.min(totalCards || 0, layout.length));
+  if (count <= 1) {
+    return count === 1 ? [0] : [];
+  }
+
+  const centerX = 50;
+  const centerY = 50;
+  return Array.from({ length: count }, (_, index) => index)
+    .sort((a, b) => {
+      const pa = layout[a] || { x: 50, y: 50 };
+      const pb = layout[b] || { x: 50, y: 50 };
+      const pax = pa.x + (pa.offsetX || 0);
+      const pbx = pb.x + (pb.offsetX || 0);
+      const da = Math.hypot(pax - centerX, pa.y - centerY);
+      const db = Math.hypot(pbx - centerX, pb.y - centerY);
+      if (da === db) return a - b;
+      return da - db;
+    });
+}
 
 const getMaxCardWidth = (layout, bounds) => {
   const width = bounds.width;
@@ -325,6 +350,11 @@ function AnimatedCardButton({
   className,
   style,
   onClick,
+  onMouseEnter,
+  onMouseLeave,
+  onTouchStart,
+  onTouchEnd,
+  onTouchCancel,
   disabled,
   ariaDisabled,
   ariaLabel,
@@ -444,6 +474,11 @@ function AnimatedCardButton({
       ref={buttonRef}
       data-layout-card
       onClick={handleButtonClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchCancel}
       disabled={disabled || isFlipAnimating}
       aria-disabled={ariaDisabled || isFlipAnimating}
       aria-label={ariaLabel}
@@ -484,6 +519,7 @@ export function SpreadTable({
 }) {
   const prefersReducedMotion = useReducedMotion();
   const { vibrate, vibrateType } = useHaptic();
+  const sounds = useSounds();
   const tactileLens = useTactileLens({ disabled: !showTactileLens || compact });
   const [scopeRootRef, scopeRef] = useAnimeScope();
   const baseLayout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
@@ -504,7 +540,68 @@ export function SpreadTable({
   const [tableBounds, setTableBounds] = useState({ width: 0, height: 0 });
   const revealHintDismissedRef = useRef(false);
   const prevRevealedRef = useRef(new Set());
-  const layoutStagger = useMemo(() => stagger(CARD_LAYOUT_STAGGER, { from: 'center' }), []);
+  const hoverCloseTimerRef = useRef(null);
+  const holdTimerRef = useRef(null);
+  const [cardInfoPopover, setCardInfoPopover] = useState({
+    open: false,
+    card: null,
+    positionLabel: '',
+    anchorRect: null
+  });
+  const [revealBursts, setRevealBursts] = useState([]);
+  const revealBurstIdRef = useRef(0);
+  const revealBurstTimersRef = useRef([]);
+  const centerOutOrder = useMemo(
+    () => getCenterOutOrder(spreadKey, limitedLayout.length),
+    [spreadKey, limitedLayout.length]
+  );
+  const centerOutDelayByIndex = useMemo(() => {
+    const delayMap = new Map();
+    centerOutOrder.forEach((slotIndex, sequenceIndex) => {
+      delayMap.set(slotIndex, sequenceIndex * CARD_LAYOUT_STAGGER);
+    });
+    return delayMap;
+  }, [centerOutOrder]);
+  const layoutStagger = useCallback(
+    (_el, index) => centerOutDelayByIndex.get(index) || 0,
+    [centerOutDelayByIndex]
+  );
+
+  const closeCardInfoPopover = useCallback(() => {
+    if (hoverCloseTimerRef.current) {
+      window.clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+    setCardInfoPopover((prev) => ({
+      ...prev,
+      open: false
+    }));
+  }, []);
+
+  const openCardInfoPopover = useCallback((card, positionLabel, anchorNode) => {
+    if (!card || !anchorNode?.getBoundingClientRect) return;
+    if (hoverCloseTimerRef.current) {
+      window.clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+    const rect = anchorNode.getBoundingClientRect();
+    setCardInfoPopover({
+      open: true,
+      card,
+      positionLabel,
+      anchorRect: rect
+    });
+  }, []);
+
+  const scheduleCloseCardInfoPopover = useCallback(() => {
+    if (hoverCloseTimerRef.current) {
+      window.clearTimeout(hoverCloseTimerRef.current);
+    }
+    hoverCloseTimerRef.current = window.setTimeout(() => {
+      hoverCloseTimerRef.current = null;
+      setCardInfoPopover((prev) => ({ ...prev, open: false }));
+    }, 80);
+  }, []);
 
   // Dual-trigger: handle slot tap to deal (when no card in slot yet)
   const handleSlotDeal = useCallback((slotIndex) => {
@@ -661,6 +758,37 @@ export function SpreadTable({
       : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28';
 
   useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const preloadImages = cards
+      ?.slice?.(0, visibleLayout.length)
+      ?.map?.((card) => getCardImage(card))
+      ?.filter?.((src) => typeof src === 'string' && src.length > 0) || [];
+    if (!preloadImages.length) return undefined;
+
+    const head = document.head;
+    const created = [];
+    preloadImages.forEach((src) => {
+      const existing = head.querySelector(`link[rel="preload"][as="image"][href="${src}"]`);
+      if (existing) return;
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = src;
+      link.setAttribute('data-spread-preload', 'true');
+      head.appendChild(link);
+      created.push(link);
+    });
+
+    return () => {
+      created.forEach((node) => {
+        if (node?.parentNode) {
+          node.parentNode.removeChild(node);
+        }
+      });
+    };
+  }, [cards, visibleLayout.length]);
+
+  useEffect(() => {
     if (!revealedIndices || !(revealedIndices instanceof Set)) return;
     if (revealedIndices.size === 0) {
       revealHintDismissedRef.current = false;
@@ -679,16 +807,55 @@ export function SpreadTable({
 
     if (!newlyRevealed.length) return;
     const timerId = window.setTimeout(() => vibrate(12), prefersReducedMotion ? 0 : 180);
-    return () => window.clearTimeout(timerId);
-  }, [revealedIndices, vibrate, prefersReducedMotion]);
+    const soundTimers = newlyRevealed.map((_, sequenceIndex) => {
+      const soundDelay = prefersReducedMotion ? 0 : sequenceIndex * 90;
+      return window.setTimeout(() => {
+        void sounds.play('deal', { essential: true });
+      }, soundDelay);
+    });
+    const burstTimers = newlyRevealed.map((slotIndex, sequenceIndex) => {
+      const burstDelay = prefersReducedMotion ? 0 : sequenceIndex * 90;
+      return window.setTimeout(() => {
+        revealBurstIdRef.current += 1;
+        const burstId = `burst-${slotIndex}-${revealBurstIdRef.current}`;
+        const burstSuit = cards?.[slotIndex]?.suit || null;
+        setRevealBursts((prev) => [...prev, { id: burstId, slotIndex, suit: burstSuit }]);
+        const removeTimer = window.setTimeout(() => {
+          setRevealBursts((prev) => prev.filter((burst) => burst.id !== burstId));
+          revealBurstTimersRef.current = revealBurstTimersRef.current.filter((timer) => timer !== removeTimer);
+        }, prefersReducedMotion ? 320 : 760);
+        revealBurstTimersRef.current.push(removeTimer);
+      }, burstDelay);
+    });
+    revealBurstTimersRef.current.push(...burstTimers);
+    return () => {
+      window.clearTimeout(timerId);
+      soundTimers.forEach((id) => window.clearTimeout(id));
+      burstTimers.forEach((id) => window.clearTimeout(id));
+      revealBurstTimersRef.current = revealBurstTimersRef.current.filter(
+        (timer) => !burstTimers.includes(timer)
+      );
+    };
+  }, [cards, revealedIndices, vibrate, prefersReducedMotion, sounds]);
 
   // Clean up all scoped animations when spread changes
   useEffect(() => {
+    setRevealBursts([]);
     const scope = scopeRef.current;
     return () => {
       if (scope?.revert) {
         scope.revert();
       }
+      if (hoverCloseTimerRef.current) {
+        window.clearTimeout(hoverCloseTimerRef.current);
+        hoverCloseTimerRef.current = null;
+      }
+      if (holdTimerRef.current) {
+        window.clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+      revealBurstTimersRef.current.forEach((id) => window.clearTimeout(id));
+      revealBurstTimersRef.current = [];
     };
   }, [spreadKey, scopeRef]);
 
@@ -747,6 +914,7 @@ export function SpreadTable({
         const showRevealPill = !disableReveal && !isRevealed && (isNext || (!revealHintDismissedRef.current && i === 0));
         const showGlowHint = !disableReveal && !isRevealed && !showRevealPill;
         const canDeal = Boolean(onSlotDeal) && isNext;
+        const enableInfoPopover = Boolean(card && isRevealed);
         const numberBadge = (
           <div
             className={`
@@ -863,6 +1031,37 @@ export function SpreadTable({
                 if (disableReveal) return;
                 onCardReveal?.(i);
               }}
+              onMouseEnter={(event) => {
+                if (!enableInfoPopover) return;
+                openCardInfoPopover(card, positionLabel, event.currentTarget);
+              }}
+              onMouseLeave={() => {
+                if (!enableInfoPopover) return;
+                scheduleCloseCardInfoPopover();
+              }}
+              onTouchStart={(event) => {
+                if (!enableInfoPopover) return;
+                if (holdTimerRef.current) {
+                  window.clearTimeout(holdTimerRef.current);
+                }
+                const target = event.currentTarget;
+                holdTimerRef.current = window.setTimeout(() => {
+                  holdTimerRef.current = null;
+                  openCardInfoPopover(card, positionLabel, target);
+                }, 420);
+              }}
+              onTouchEnd={() => {
+                if (holdTimerRef.current) {
+                  window.clearTimeout(holdTimerRef.current);
+                  holdTimerRef.current = null;
+                }
+              }}
+              onTouchCancel={() => {
+                if (holdTimerRef.current) {
+                  window.clearTimeout(holdTimerRef.current);
+                  holdTimerRef.current = null;
+                }
+              }}
               disabled={isRevealDisabled}
               ariaDisabled={isRevealDisabled}
               ariaLabel={card
@@ -910,7 +1109,8 @@ export function SpreadTable({
                           src={displayImage}
                           alt={displayCard.name}
                           className="w-full h-full object-cover"
-                          loading="lazy"
+                          loading={isNext || isRevealed ? 'eager' : 'lazy'}
+                          decoding="async"
                           onError={(e) => {
                             e.target.onerror = null;
                             e.target.src = FALLBACK_IMAGE;
@@ -972,6 +1172,19 @@ export function SpreadTable({
                 );
               }}
             </AnimatedCardButton>
+            {revealBursts
+              .filter((burst) => burst.slotIndex === i)
+              .map((burst) => (
+                <div key={burst.id} className="pointer-events-none absolute inset-[-22%] z-[15]">
+                  <ParticleLayer
+                    id={`slot-reveal-burst-${spreadKey}-${i}-${burst.id}`}
+                    preset="reveal-burst"
+                    suit={burst.suit || card?.suit || null}
+                    intensity={prefersReducedMotion ? 0.25 : 0.62}
+                    zIndex={1}
+                  />
+                </div>
+              ))}
           </SlotPulseWrapper>
         );
       })}
@@ -1038,6 +1251,14 @@ export function SpreadTable({
         positions={fullPositions}
         spreadLayout={visibleLayout}
         prefersReducedMotion={prefersReducedMotion}
+      />
+
+      <CardInfoPopover
+        open={cardInfoPopover.open}
+        card={cardInfoPopover.card}
+        positionLabel={cardInfoPopover.positionLabel}
+        anchorRect={cardInfoPopover.anchorRect}
+        onClose={closeCardInfoPopover}
       />
     </div>
   );

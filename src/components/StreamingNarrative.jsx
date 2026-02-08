@@ -410,17 +410,6 @@ export function StreamingNarrative({
     : 'pb-6 sm:pb-6 short:pb-4';
   const stickyActionClass = 'bottom-safe-action';
 
-  // Memoize willChange styles to avoid creating new objects per word per render
-  // Animation timing now controlled solely by Tailwind's animate-ink-spread class
-  // Must be defined before any conditional returns to satisfy Rules of Hooks
-  const recentWordStyle = useMemo(() => ({
-    willChange: 'opacity, filter, transform'
-  }), []);
-
-  const settledWordStyle = useMemo(() => ({
-    willChange: 'auto'
-  }), []);
-
   const tokenMeta = useMemo(() => {
     if (useMarkdown) return [];
     return buildTokenMeta(visibleWords, highlightRanges);
@@ -482,9 +471,7 @@ export function StreamingNarrative({
     );
   }
 
-  // For plain text: render words with ink-spreading effect
-  // Only apply willChange to recently revealed words to avoid GPU memory exhaustion
-  const RECENT_WORDS_THRESHOLD = 10;
+  // For plain text: render words with streaming animation
   const EMPHASIS_POP_THRESHOLD = 8;
 
   return (
@@ -501,17 +488,17 @@ export function StreamingNarrative({
             return <span key={idx}>{word}</span>;
           }
 
-          // Only recent words get willChange hint to avoid exhausting GPU memory
-          const isRecentWord = idx >= visibleCount - RECENT_WORDS_THRESHOLD;
           const shouldPop = meta.isHighlighted && idx >= visibleCount - EMPHASIS_POP_THRESHOLD;
           const isTtsWord = idx === ttsWordIndex && idx < visibleCount;
+          
+          // Use CSS animation for word reveal to avoid JS bottleneck on long narratives
+          // Animate only the most recently revealed word(s) to match incremental reveal behavior
+          const isNewWord = idx === visibleCount - 1 && streamingActive && !prefersReducedMotion;
 
-          // Render word with ink-spreading animation
           return (
             <span
               key={idx}
-              className={`inline-block ${prefersReducedMotion ? '' : 'animate-ink-spread'} ${meta.isHighlighted ? 'narrative-emphasis' : ''} ${shouldPop ? 'narrative-emphasis--pop' : ''} ${isTtsWord ? 'narrative-tts-word narrative-tts-word--active' : ''}`}
-              style={prefersReducedMotion ? undefined : (isRecentWord ? recentWordStyle : settledWordStyle)}
+              className={`inline-block ${isNewWord ? 'narrative-word-reveal' : ''} ${meta.isHighlighted ? 'narrative-emphasis' : ''} ${shouldPop ? 'narrative-emphasis--pop' : ''} ${isTtsWord ? 'narrative-tts-word narrative-tts-word--active' : ''}`}
             >
               {word}
             </span>

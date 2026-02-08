@@ -6,6 +6,7 @@ import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
 import { useHaptic } from '../hooks/useHaptic';
+import { useSounds } from '../hooks/useSounds';
 import { getSuitGlowColor, getSuitBorderColor } from '../lib/suitColors';
 import { useToast } from '../contexts/ToastContext.jsx';
 import { useAnimatePresence } from '../hooks/useAnimatePresence';
@@ -191,6 +192,7 @@ export function DeckRitual({
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const { vibrate } = useHaptic();
+  const sounds = useSounds();
   const { publish: publishToast } = useToast();
   const [showCutSlider, setShowCutSlider] = useState(false);
   const [localCutIndex, setLocalCutIndex] = useState(cutIndex);
@@ -362,6 +364,7 @@ export function DeckRitual({
   }, []);
 
   const triggerKnock = useCallback(() => {
+    void sounds.play('knock', { essential: true });
     onKnock?.();
     vibrate([15, 30, 15]);
 
@@ -371,7 +374,7 @@ export function DeckRitual({
       { duration: 250, ease: 'outQuad' }
     );
     addRipple();
-  }, [addRipple, onKnock, runDeckAnimation, vibrate]);
+  }, [addRipple, onKnock, runDeckAnimation, sounds, vibrate]);
 
   // Tap / double-tap handler (handles knock + shuffle within same flow to avoid browser dblclick delay)
   const lastTapRef = useRef(0);
@@ -454,8 +457,26 @@ export function DeckRitual({
   const handleTouchEnd = useCallback(() => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
     }
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      clearSingleTapTimeout();
+      if (deckTimelineRef.current?.pause) {
+        deckTimelineRef.current.pause();
+      }
+      if (topCardTimelineRef.current?.pause) {
+        topCardTimelineRef.current.pause();
+      }
+      stopIdleBreath();
+    };
+  }, [clearSingleTapTimeout, stopIdleBreath]);
 
   const handleTopCardPointerEnter = useCallback((event) => {
     if (event.pointerType !== 'mouse' || !isDeckPrimary) return;
@@ -497,9 +518,12 @@ export function DeckRitual({
 
   // Shuffle animation
   useEffect(() => {
-    if (!isShuffling || prefersReducedMotion) return;
     const node = deckRef?.current;
-    if (!node) return;
+    if (!node || !isShuffling) return;
+    if (prefersReducedMotion) {
+      set(node, { rotateY: 0, rotateZ: 0 });
+      return;
+    }
     if (deckTimelineRef.current?.pause) {
       deckTimelineRef.current.pause();
     }
@@ -513,6 +537,14 @@ export function DeckRitual({
     deckTimelineRef.current = timeline;
     return () => timeline.pause();
   }, [deckRef, isShuffling, prefersReducedMotion, springEase]);
+
+  useEffect(() => {
+    if (!isShuffling) return undefined;
+    void sounds.play('shuffle', { essential: true });
+    return () => {
+      sounds.stop('shuffle');
+    };
+  }, [isShuffling, sounds]);
 
   // Handle local cut slider change
   const handleCutSliderChange = useCallback((e) => {
@@ -710,7 +742,7 @@ export function DeckRitual({
             {/* Shuffle spinner overlay */}
             {isShuffling && (
               <div className="absolute inset-0 flex items-center justify-center bg-surface/50 backdrop-blur-sm rounded-xl">
-                <ArrowsClockwise className="w-8 h-8 text-secondary animate-spin" />
+                <ArrowsClockwise className={`w-8 h-8 text-secondary ${prefersReducedMotion ? '' : 'animate-spin'}`} />
               </div>
             )}
           </div>

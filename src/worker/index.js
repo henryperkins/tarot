@@ -32,6 +32,7 @@ import * as feedback from '../../functions/api/feedback.js';
 import * as generateQuestion from '../../functions/api/generate-question.js';
 import * as generateCardVideo from '../../functions/api/generate-card-video.js';
 import * as generateStoryArt from '../../functions/api/generate-story-art.js';
+import * as media from '../../functions/api/media.js';
 import * as memories from '../../functions/api/memories.js';
 import * as share from '../../functions/api/share.js';
 import * as shareToken from '../../functions/api/share/[token].js';
@@ -231,6 +232,7 @@ const routes = [
   { pattern: /^\/api\/generate-question$/, handlers: generateQuestion },
   { pattern: /^\/api\/generate-card-video$/, handlers: generateCardVideo },
   { pattern: /^\/api\/generate-story-art$/, handlers: generateStoryArt },
+  { pattern: /^\/api\/media$/, handlers: media },
   { pattern: /^\/api\/memories$/, handlers: memories },
   { pattern: /^\/api\/create-checkout-session$/, handlers: createCheckoutSession },
   { pattern: /^\/api\/create-portal-session$/, handlers: createPortalSession },

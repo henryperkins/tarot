@@ -5,12 +5,35 @@
  * Creates a "kaleidoscopic adventure" that evolves as the reading progresses.
  * 
  * Narrative Phases:
+ * - anticipation: Gathering tension before insight
  * - struggle: Challenge, inner turmoil (cool blues, deep greys)
+ * - climax: Peak revelation surge (bright gold/white)
  * - revelation: Blossoming optimism (sunny yellows, warm saturated hues)
  * - resolution: Balance, stability (earthy browns, soft greens)
  */
 
 export const COLOR_SCRIPTS = {
+  anticipation: {
+    name: 'The Anticipation',
+    emotionalTone: 'build-up',
+    palette: {
+      primary: '#46528e',
+      secondary: '#5c4f86',
+      accent: '#7267b5',
+      glow: '#6b61a8',
+      warmth: 0.25,
+      contrast: 1.25,
+      saturation: 0.76
+    },
+    cssVars: {
+      '--phase-color': '#46528e',
+      '--phase-warmth': '0.25',
+      '--phase-contrast': '1.25',
+      '--phase-saturation': '0.76'
+    },
+    atmosphere: 'anticipation-depth'
+  },
+
   struggle: {
     name: 'The Struggle',
     emotionalTone: 'challenge',
@@ -30,6 +53,27 @@ export const COLOR_SCRIPTS = {
       '--phase-saturation': '0.7'
     },
     atmosphere: 'isolation-depth'
+  },
+
+  climax: {
+    name: 'The Climax',
+    emotionalTone: 'breakthrough',
+    palette: {
+      primary: '#ffd369',
+      secondary: '#fff2bf',
+      accent: '#ffe9a8',
+      glow: '#fff8df',
+      warmth: 0.98,
+      contrast: 1.35,
+      saturation: 1.25
+    },
+    cssVars: {
+      '--phase-color': '#ffd369',
+      '--phase-warmth': '0.98',
+      '--phase-contrast': '1.35',
+      '--phase-saturation': '1.25'
+    },
+    atmosphere: 'climax-flash'
   },
 
   revelation: {
@@ -134,9 +178,10 @@ function captureRootBaseline(root) {
   };
 }
 
-function applyScriptToRoot(root, colorScript) {
+function applyScriptToRoot(root, colorScript, options = {}) {
   const scriptVars = colorScript?.cssVars || {};
 
+  // Set variables immediately for deterministic behavior in runtime and tests.
   Object.entries(scriptVars).forEach(([property, value]) => {
     root.style.setProperty(property, value);
   });
@@ -179,17 +224,25 @@ function restoreRootBaseline(root) {
  * Determine color script from narrative analysis
  */
 export function determineColorScript(narrativePhase, emotionalTone, reasoning) {
-  // Default to neutral
+  // Default to anticipation for idle state (pre-reading tension)
   if (!narrativePhase || narrativePhase === 'idle') {
-    return COLOR_SCRIPTS.neutral;
+    return COLOR_SCRIPTS.anticipation;
   }
 
   // Check for explicit arc information in reasoning
   if (reasoning?.narrativeArc?.key) {
     const arcKey = reasoning.narrativeArc.key.toLowerCase();
     
+    if (arcKey.includes('anticipation') || arcKey.includes('threshold') || arcKey.includes('awakening')) {
+      return COLOR_SCRIPTS.anticipation;
+    }
+
     if (arcKey.includes('struggle') || arcKey.includes('conflict') || arcKey.includes('shadow')) {
       return COLOR_SCRIPTS.struggle;
+    }
+
+    if (arcKey.includes('climax') || arcKey.includes('peak') || arcKey.includes('apex')) {
+      return COLOR_SCRIPTS.climax;
     }
     
     if (arcKey.includes('revelation') || arcKey.includes('breakthrough') || arcKey.includes('illumination')) {
@@ -206,12 +259,22 @@ export function determineColorScript(narrativePhase, emotionalTone, reasoning) {
     const emotion = emotionalTone.emotion.toLowerCase();
     
     // Map emotional keywords to phases
+    const anticipationEmotions = ['uncertain', 'anxious', 'anticipatory', 'curious', 'restless'];
     const struggleEmotions = ['conflicted', 'cautionary', 'grieving', 'weary', 'challenging'];
+    const climaxEmotions = ['breakthrough', 'awestruck', 'ecstatic', 'transformed', 'illuminated'];
     const revelationEmotions = ['triumphant', 'hopeful', 'loving', 'inspiring', 'expansive'];
     const resolutionEmotions = ['grounded', 'peaceful', 'accepting', 'wise', 'serene'];
 
+    if (anticipationEmotions.some(e => emotion.includes(e))) {
+      return COLOR_SCRIPTS.anticipation;
+    }
+
     if (struggleEmotions.some(e => emotion.includes(e))) {
       return COLOR_SCRIPTS.struggle;
+    }
+
+    if (climaxEmotions.some(e => emotion.includes(e))) {
+      return COLOR_SCRIPTS.climax;
     }
     
     if (revelationEmotions.some(e => emotion.includes(e))) {
@@ -224,11 +287,23 @@ export function determineColorScript(narrativePhase, emotionalTone, reasoning) {
   }
 
   // Default based on narrative phase progression
-  if (narrativePhase === 'cards' || narrativePhase === 'tension') {
+  if (narrativePhase === 'anticipation' || narrativePhase === 'prelude') {
+    return COLOR_SCRIPTS.anticipation;
+  }
+
+  if (narrativePhase === 'cards' || narrativePhase === 'tension' || narrativePhase === 'analysis') {
     return COLOR_SCRIPTS.struggle;
   }
+
+  if (narrativePhase === 'climax' || narrativePhase === 'peak') {
+    return COLOR_SCRIPTS.climax;
+  }
   
-  if (narrativePhase === 'synthesis' || narrativePhase === 'guidance') {
+  if (narrativePhase === 'synthesis' || narrativePhase === 'guidance' || narrativePhase === 'insight') {
+    return COLOR_SCRIPTS.revelation;
+  }
+
+  if (narrativePhase === 'complete' || narrativePhase === 'resolution') {
     return COLOR_SCRIPTS.resolution;
   }
 
@@ -255,7 +330,13 @@ export function applyColorScript(colorScript, ownerOrOptions) {
   }
   activeOwnerOrder.push(owner);
 
-  applyScriptToRoot(root, colorScript);
+  const animateTransition = ownerOrOptions && typeof ownerOrOptions === 'object'
+    ? ownerOrOptions.animate !== false
+    : true;
+  const duration = ownerOrOptions && typeof ownerOrOptions === 'object'
+    ? ownerOrOptions.duration
+    : undefined;
+  applyScriptToRoot(root, colorScript, { animate: animateTransition, duration });
 }
 
 /**
