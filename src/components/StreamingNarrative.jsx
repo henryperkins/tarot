@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { animate } from 'animejs';
 import { ArrowRight } from '@phosphor-icons/react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -182,7 +181,6 @@ export function StreamingNarrative({
   const narrationTriggeredRef = useRef(false);
   const triggeredHighlightRef = useRef(new Set());
   const triggeredSectionRef = useRef(new Set());
-  const animatedWordRef = useRef(new Set());
 
   const isLongMobileNarrative = isSmallScreen && totalWords > LONG_MOBILE_WORD_THRESHOLD;
   const isVeryLongNarrative = totalWords > LONG_DESKTOP_WORD_THRESHOLD;
@@ -257,7 +255,6 @@ export function StreamingNarrative({
     narrationTriggeredRef.current = false;
     triggeredHighlightRef.current = new Set();
     triggeredSectionRef.current = new Set();
-    animatedWordRef.current = new Set();
   }, [narrativeText, clearTimer, clearNarrationTimer]);
 
   // Notify completion when all content is visible
@@ -493,24 +490,14 @@ export function StreamingNarrative({
 
           const shouldPop = meta.isHighlighted && idx >= visibleCount - EMPHASIS_POP_THRESHOLD;
           const isTtsWord = idx === ttsWordIndex && idx < visibleCount;
+          
+          // Use CSS animation for word reveal to avoid JS bottleneck on long narratives
+          const isNewWord = idx >= visibleCount - 1 && streamingActive && !prefersReducedMotion;
 
-          // Render word with ink-spreading animation
           return (
             <span
               key={idx}
-              ref={(node) => {
-                if (!node || prefersReducedMotion || !streamingActive) return;
-                const animated = animatedWordRef.current;
-                if (animated.has(idx)) return;
-                animated.add(idx);
-                animate(node, {
-                  opacity: [0, 1],
-                  translateY: [8, 0],
-                  duration: 280,
-                  ease: 'outQuad'
-                });
-              }}
-              className={`inline-block ${meta.isHighlighted ? 'narrative-emphasis' : ''} ${shouldPop ? 'narrative-emphasis--pop' : ''} ${isTtsWord ? 'narrative-tts-word narrative-tts-word--active' : ''}`}
+              className={`inline-block ${isNewWord ? 'narrative-word-reveal' : ''} ${meta.isHighlighted ? 'narrative-emphasis' : ''} ${shouldPop ? 'narrative-emphasis--pop' : ''} ${isTtsWord ? 'narrative-tts-word narrative-tts-word--active' : ''}`}
             >
               {word}
             </span>
