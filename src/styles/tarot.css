@@ -213,6 +213,46 @@
   --deck-accent: var(--brand-primary);
   --deck-glow: rgb(var(--brand-primary-rgb) / 0.35);
   --prepare-accent: var(--drawer-gold);
+
+  /* Cinematic scene tokens */
+  --bloom-color: color-mix(in srgb, var(--brand-primary) 62%, white);
+  --particle-accent: color-mix(in srgb, var(--brand-accent) 58%, transparent);
+  --scene-bg-start: rgba(13, 10, 22, 0.94);
+  --scene-bg-end: rgba(7, 5, 13, 0.98);
+  --glass-bg: rgba(12, 10, 18, 0.62);
+  --glass-border: rgba(232, 218, 195, 0.22);
+}
+
+.glass-panel {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 1.5rem;
+  padding: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .glass-panel {
+    padding: 2rem;
+  }
+}
+
+.glass-card {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.glass-dark {
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
 }
 
 :root.light {
@@ -4186,11 +4226,25 @@ input[type="range"]:focus::-webkit-slider-thumb {
   filter: contrast(var(--phase-contrast, 1.2)) saturate(var(--phase-saturation, 0.7));
 }
 
+:root.color-atmosphere--anticipation-depth {
+  /* The Anticipation: deep indigo, heightened contrast */
+  --phase-contrast: 1.25;
+  --phase-saturation: 0.8;
+  filter: contrast(var(--phase-contrast, 1.25)) saturate(var(--phase-saturation, 0.8)) brightness(0.94);
+}
+
 :root.color-atmosphere--golden-hour-clarity {
   /* The Revelation: warm, soft contrast, enhanced saturation */
   --phase-contrast: 0.9;
   --phase-saturation: 1.1;
   filter: contrast(var(--phase-contrast, 0.9)) saturate(var(--phase-saturation, 1.1));
+}
+
+:root.color-atmosphere--climax-flash {
+  /* The Climax: bright gold flash */
+  --phase-contrast: 1.35;
+  --phase-saturation: 1.25;
+  filter: contrast(var(--phase-contrast, 1.35)) saturate(var(--phase-saturation, 1.25)) brightness(1.08);
 }
 
 :root.color-atmosphere--grounded-harmonious {
@@ -4224,7 +4278,9 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
   
   :root.color-atmosphere--isolation-depth,
+  :root.color-atmosphere--anticipation-depth,
   :root.color-atmosphere--golden-hour-clarity,
+  :root.color-atmosphere--climax-flash,
   :root.color-atmosphere--grounded-harmonious {
     filter: none;
   }

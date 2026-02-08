@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { CaretLeft, Funnel, SortAscending, LockKey } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import { GlobalNav } from '../components/GlobalNav';
 import { CardModal } from '../components/CardModal';
 import { MAJOR_ARCANA } from '../data/majorArcana';
@@ -11,7 +10,6 @@ import { useJournal } from '../hooks/useJournal';
 import { getCanonicalCard } from '../lib/cardLookup';
 import { getTimestampSeconds, safeJsonParse } from '../../shared/journal/utils.js';
 import { pickStats, computeGalleryLoading } from './cardGallerySelectors';
-import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const ALL_CARDS = [...MAJOR_ARCANA, ...MINOR_ARCANA];
 
@@ -101,7 +99,6 @@ function buildLocalCardStats(entries) {
 }
 
 function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
-  const prefersReducedMotion = useReducedMotion();
   const isFound = !!stats;
   const count = stats?.total_count || 0;
 
@@ -151,26 +148,13 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
     </>
   );
 
-  const animationVariants = prefersReducedMotion ? {
-    initial: { opacity: 0 },
-    animate: { opacity: 1 }
-  } : {
-    initial: { opacity: 0, y: 20, scale: 0.9 },
-    animate: { opacity: 1, y: 0, scale: 1 }
-  };
-
   if (isFound) {
     return (
-      <motion.div
+      <div
         className="group relative aspect-[2/3] rounded-xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] shadow-[0_18px_36px_-24px_rgba(0,0,0,0.85)] transition-[transform,box-shadow,border-color] duration-[var(--duration-medium)] ease-[var(--ease-out)] overflow-hidden text-left hover:-translate-y-1 hover:border-[color:var(--border-warm)] hover:shadow-[0_24px_44px_-26px_rgba(0,0,0,0.9),0_0_18px_var(--primary-20)]"
         aria-label={`Card ${card.name}`}
-        variants={animationVariants}
-        initial="initial"
-        animate="animate"
-        transition={{
-          duration: prefersReducedMotion ? 0.16 : 0.4,
-          delay: prefersReducedMotion ? 0 : index * 0.03,
-          ease: [0.4, 0, 0.2, 1]
+        style={{
+          animation: `fadeInUp 320ms ease-out ${index * 30}ms both`
         }}
       >
         <button
@@ -193,25 +177,20 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
             View in Journal
           </button>
         )}
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.div
+    <div
       className="group relative aspect-[2/3] rounded-xl border border-[color:var(--border-warm-subtle)] bg-[color:var(--bg-surface)] transition-[opacity,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] overflow-hidden opacity-60 grayscale hover:opacity-80"
       aria-label={`${card.name} (not yet discovered)`}
-      variants={animationVariants}
-      initial="initial"
-      animate="animate"
-        transition={{
-          duration: prefersReducedMotion ? 0.16 : 0.4,
-          delay: prefersReducedMotion ? 0 : index * 0.03,
-          ease: [0.4, 0, 0.2, 1]
-        }}
+      style={{
+        animation: `fadeInUp 280ms ease-out ${index * 24}ms both`
+      }}
     >
       {content}
-    </motion.div>
+    </div>
   );
 }
 
@@ -227,8 +206,6 @@ export default function CardGalleryPage() {
     totalEntries,
     hasTotalEntries
   } = useJournal();
-  const prefersReducedMotion = useReducedMotion();
-
   const [selected, setSelected] = useState(null);
 
   const [remoteStats, setRemoteStats] = useState(null);
@@ -620,30 +597,15 @@ export default function CardGalleryPage() {
           </div>
         ) : loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {[...Array(12)].map((_, i) => {
-              const skeletonVariants = prefersReducedMotion ? {
-                initial: { opacity: 0 },
-                animate: { opacity: 1 }
-              } : {
-                initial: { opacity: 0, scale: 0.9 },
-                animate: { opacity: 1, scale: 1 }
-              };
-
-              return (
-                <motion.div
-                  key={i}
-                  className="aspect-[2/3] rounded-xl bg-[color:var(--border-warm-subtle)] animate-pulse"
-                  variants={skeletonVariants}
-                  initial="initial"
-                  animate="animate"
-                  transition={{
-                    duration: prefersReducedMotion ? 0.16 : 0.26,
-                    delay: prefersReducedMotion ? 0 : i * 0.05,
-                    ease: [0.4, 0, 0.2, 1]
-                  }}
-                />
-              );
-            })}
+            {[...Array(12)].map((_, i) => (
+              <div
+                key={i}
+                className="aspect-[2/3] rounded-xl bg-[color:var(--border-warm-subtle)] animate-pulse"
+                style={{
+                  animationDelay: `${i * 80}ms`
+                }}
+              />
+            ))}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
@@ -673,21 +635,19 @@ export default function CardGalleryPage() {
         )}
       </main>
 
-      <AnimatePresence>
-        {selected?.card && (
-          <CardModal
-            card={selected.card}
-            position="In your collection"
-            stats={selected.stats}
-            relatedEntries={selected.relatedEntries}
-            isOpen={!!selected}
-            onClose={() => setSelected(null)}
-            layoutId={`gallery-${(selected.card?.name || 'card').toLowerCase().replace(/\s+/g, '-')}`}
-            onViewAllInJournal={() => handleViewAllInJournal(selected.card?.name)}
-            onOpenEntry={(entry) => handleOpenEntry(entry, selected.card?.name)}
-          />
-        )}
-      </AnimatePresence>
+      {selected?.card && (
+        <CardModal
+          card={selected.card}
+          position="In your collection"
+          stats={selected.stats}
+          relatedEntries={selected.relatedEntries}
+          isOpen={!!selected}
+          onClose={() => setSelected(null)}
+          layoutId={`gallery-${(selected.card?.name || 'card').toLowerCase().replace(/\s+/g, '-')}`}
+          onViewAllInJournal={() => handleViewAllInJournal(selected.card?.name)}
+          onOpenEntry={(entry) => handleOpenEntry(entry, selected.card?.name)}
+        />
+      )}
     </div>
   );
 }

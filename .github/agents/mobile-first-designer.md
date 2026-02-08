@@ -1,7 +1,7 @@
 ---
 name: mobile-first-designer
 description: "Specializes in mobile-first responsive design for React components using Tailwind CSS, optimized for the Mystic Tarot application."
-model: gpt-4o
+model: Claude Opus 4.6
 tools:
   - "*"
 ---

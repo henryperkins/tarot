@@ -6,7 +6,10 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
+import { animate } from 'animejs';
+import { getMediaTierConfig } from '../../shared/monetization/media.js';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 // Style options with labels and descriptions
 const STYLE_OPTIONS = [
@@ -32,36 +35,24 @@ function LoadingSkeleton({ format }) {
   return (
     <div className="flex gap-2 justify-center">
       {Array.from({ length: panelCount }).map((_, i) => (
-        <motion.div
+        <div
           key={i}
-          className="bg-gradient-to-br from-primary/20 to-accent/15 rounded-lg overflow-hidden"
+          className="bg-gradient-to-br from-primary/20 to-accent/15 rounded-lg overflow-hidden animate-pulse"
           style={{
             width: format === 'triptych' ? '200px' : '400px',
             height: format === 'vignette' ? '300px' : '200px',
             aspectRatio: format === 'vignette' ? '2/3' : '3/2'
           }}
-          animate={{
-            opacity: [0.5, 0.8, 0.5]
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            delay: i * 0.2
-          }}
         >
           <div className="h-full flex flex-col items-center justify-center p-4">
-            <motion.div 
-              className="w-12 h-12 border-2 border-accent/40 border-t-primary rounded-full"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-            />
+            <div className="w-12 h-12 border-2 border-accent/40 border-t-primary rounded-full motion-safe:animate-spin" />
             <p className="text-accent/80 text-sm mt-3 text-center">
               {format === 'triptych' 
                 ? ['Past', 'Present', 'Future'][i]
                 : 'Illustrating...'}
             </p>
           </div>
-        </motion.div>
+        </div>
       ))}
     </div>
   );
@@ -124,32 +115,29 @@ function FormatSelector({ value, onChange, allowedFormats }) {
 }
 
 // Generated image display
-function GeneratedArt({ image, format, style, onDownload, onSave, canSave }) {
+function GeneratedArt({ image, format, style, onDownload, onSave, canSave, showImage = true }) {
   const downloadClasses = canSave
     ? 'bg-surface-muted text-main hover:bg-surface border border-secondary/30'
     : 'bg-primary text-surface hover:bg-primary/90 border border-primary/60';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5 }}
-      className="relative"
-    >
-      <div className={`
-        rounded-xl overflow-hidden shadow-2xl
-        ${format === 'triptych' ? 'max-w-3xl' : 'max-w-lg'}
-        mx-auto
-      `}>
-        <img
-          src={`data:image/jpeg;base64,${image}`}
-          alt={`${style} tarot illustration`}
-          className="w-full h-auto"
-        />
-      </div>
+    <div className="relative transition-[opacity,transform] duration-300 ease-out">
+      {showImage && (
+        <div className={`
+          rounded-xl overflow-hidden shadow-2xl
+          ${format === 'triptych' ? 'max-w-3xl' : 'max-w-lg'}
+          mx-auto
+        `}>
+          <img
+            src={`data:image/jpeg;base64,${image}`}
+            alt={`${style} tarot illustration`}
+            className="w-full h-auto"
+          />
+        </div>
+      )}
       
       {/* Action buttons */}
-      <div className="flex gap-3 justify-center mt-4">
+      <div className={`flex gap-3 justify-center ${showImage ? 'mt-4' : 'mt-1'}`}>
         {canSave && (
           <button
             onClick={onSave}
@@ -193,7 +181,97 @@ function GeneratedArt({ image, format, style, onDownload, onSave, canSave }) {
           Share
         </button>
       </div>
-    </motion.div>
+    </div>
+  );
+}
+
+function HeroBackground({ image, format, activePanel = 1 }) {
+  const prefersReducedMotion = useReducedMotion();
+  const containerRef = useRef(null);
+  const panelRefs = useRef([]);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return undefined;
+    if (prefersReducedMotion) {
+      node.style.opacity = '0.5';
+      return undefined;
+    }
+    node.style.opacity = '0';
+    const anim = animate(node, {
+      opacity: [0, 0.5],
+      duration: 800,
+      ease: 'outQuad'
+    });
+    return () => anim?.pause?.();
+  }, [prefersReducedMotion, image]);
+
+  useEffect(() => {
+    if (format !== 'triptych') return undefined;
+    panelRefs.current.forEach((panel, index) => {
+      if (!panel) return;
+      const targetOpacity = index === activePanel ? 1 : 0;
+      if (prefersReducedMotion) {
+        panel.style.opacity = String(targetOpacity);
+        return;
+      }
+      animate(panel, {
+        opacity: targetOpacity,
+        duration: 420,
+        ease: 'outQuad'
+      });
+    });
+  }, [activePanel, format, prefersReducedMotion]);
+
+  const imageUrl = `data:image/jpeg;base64,${image}`;
+  const panels = format === 'triptych' ? [0, 1, 2] : [0];
+  const panelStyles = (panelIndex) => {
+    if (format !== 'triptych') {
+      return {
+        backgroundImage: `url(${imageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center'
+      };
+    }
+    const positions = ['0% 50%', '50% 50%', '100% 50%'];
+    return {
+      backgroundImage: `url(${imageUrl})`,
+      backgroundSize: '300% 100%',
+      backgroundPosition: positions[panelIndex] || '50% 50%'
+    };
+  };
+
+  const target = typeof document !== 'undefined'
+    ? document.getElementById('hero-bg') || document.body
+    : null;
+  if (!target) return null;
+
+  return createPortal(
+    <div
+      ref={containerRef}
+      className="fixed inset-0 z-[0] pointer-events-none"
+      style={{
+        opacity: 0,
+        filter: 'blur(20px)'
+      }}
+      aria-hidden="true"
+    >
+      {panels.map((panelIndex) => (
+        <div
+          key={panelIndex}
+          ref={(node) => {
+            panelRefs.current[panelIndex] = node;
+          }}
+          className="absolute inset-0"
+          style={{
+            ...panelStyles(panelIndex),
+            opacity: panelIndex === activePanel ? 1 : 0,
+            transition: prefersReducedMotion ? 'none' : undefined
+          }}
+        />
+      ))}
+    </div>,
+    target
   );
 }
 
@@ -204,6 +282,9 @@ export default function StoryIllustration({
   narrative,
   userTier = 'free',
   onSaveToJournal,
+  onMediaReady,
+  heroMode = false,
+  activePanel = 1,
   autoGenerate = false,
   generationKey
 }) {
@@ -219,22 +300,10 @@ export default function StoryIllustration({
   const requestTokenRef = useRef(0);
   const requestControllerRef = useRef(null);
   
-  // Determine allowed options based on tier
-  const tierConfig = {
-    free: { enabled: false },
-    plus: { 
-      enabled: true, 
-      formats: ['single'],
-      styles: ['watercolor']
-    },
-    pro: { 
-      enabled: true, 
-      formats: ['triptych', 'single', 'panoramic', 'vignette'],
-      styles: STYLE_OPTIONS.map(s => s.id)
-    }
-  };
-  
-  const config = tierConfig[userTier] || tierConfig.free;
+  const config = getMediaTierConfig(userTier, {
+    storyArtStyles: STYLE_OPTIONS.map((option) => option.id),
+    storyArtFormats: FORMAT_OPTIONS.map((option) => option.id)
+  }).storyArt;
 
   useEffect(() => {
     if (generationKey && generationKeyRef.current !== generationKey) {
@@ -304,6 +373,17 @@ export default function StoryIllustration({
         throw new Error('No image returned. Please try again.');
       }
       setGeneratedImage(data.image);
+      if (onMediaReady) {
+        onMediaReady(data.image, {
+          source: 'story-art',
+          cacheKey: data.cacheKey || null,
+          style: data.style || style,
+          format: data.artFormat || format,
+          mimeType: 'image/jpeg',
+          question,
+          cardCount: Array.isArray(cards) ? cards.length : 0
+        });
+      }
       
     } catch (err) {
       if (requestToken !== requestTokenRef.current) return;
@@ -319,7 +399,7 @@ export default function StoryIllustration({
         setLoading(false);
       }
     }
-  }, [cards, question, narrative, style, format, config.enabled]);
+  }, [cards, question, narrative, style, format, config.enabled, onMediaReady]);
 
   useEffect(() => {
     if (!autoGenerate || autoGeneratedRef.current) return;
@@ -355,11 +435,7 @@ export default function StoryIllustration({
   // Feature not available for tier
   if (!config.enabled && !generatedImage) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="mt-8 p-6 bg-surface/95 backdrop-blur-xl rounded-xl border border-secondary/40"
-      >
+      <div className="mt-8 p-6 bg-surface/95 backdrop-blur-xl rounded-xl border border-secondary/40">
         <div className="text-center">
           <h3 className="text-lg font-serif text-accent mb-2">
             ✨ Illustrate Your Reading
@@ -376,16 +452,17 @@ export default function StoryIllustration({
             Upgrade to Plus
           </button>
         </div>
-      </motion.div>
+      </div>
     );
   }
   
+  const heroBackground = heroMode && generatedImage ? (
+    <HeroBackground image={generatedImage} format={format} activePanel={activePanel} />
+  ) : null;
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="mt-8 p-6 bg-surface/95 backdrop-blur-xl rounded-xl border border-secondary/40"
-    >
+    <div className="mt-8 p-6 bg-surface/95 backdrop-blur-xl rounded-xl border border-secondary/40 transition-opacity duration-200 ease-out">
+      {heroBackground}
       <div className="text-center mb-6">
         <h3 className="text-lg font-serif text-accent mb-1">
           ✨ Illustrate Your Reading
@@ -395,107 +472,85 @@ export default function StoryIllustration({
         </p>
       </div>
       
-      <AnimatePresence mode="wait">
-        {!generatedImage && !loading && (
-          <motion.div
-            key="controls"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="space-y-4"
-          >
-            {/* Style selector */}
-            <div>
-              <label className="block text-muted text-xs mb-2 text-center">
-                Art Style
-              </label>
-              <StyleSelector 
-                value={style} 
-                onChange={setStyle}
-                allowedStyles={config.styles}
-              />
-            </div>
-            
-            {/* Format selector */}
-            <div>
-              <label className="block text-muted text-xs mb-2 text-center">
-                Format
-              </label>
-              <FormatSelector 
-                value={format} 
-                onChange={setFormat}
-                allowedFormats={config.formats}
-              />
-            </div>
-            
-            {/* Generate button */}
-            <div className="pt-2 text-center">
-              <button
-                onClick={handleGenerate}
-                className="px-8 py-3 bg-gradient-to-r from-primary to-accent 
-                           text-surface rounded-lg hover:from-primary/90 hover:to-accent/90
-                           transition-all shadow-lg text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-              >
-                Generate Illustration
-              </button>
-              <p className="text-muted text-xs mt-2">
-                Takes 30-60 seconds to create
-              </p>
-            </div>
-          </motion.div>
-        )}
-        
-        {loading && (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="py-4"
-          >
-            <LoadingSkeleton format={format} />
-            <p className="text-center text-accent/80 text-sm mt-4">
-              Creating your {style} illustration...
-            </p>
-          </motion.div>
-        )}
-        
-        {generatedImage && (
-          <motion.div
-            key="result"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <GeneratedArt
-              image={generatedImage}
-              format={format}
-              style={style}
-              onDownload={handleDownload}
-              onSave={handleSave}
-              canSave={Boolean(onSaveToJournal)}
+      {!generatedImage && !loading && (
+        <div className="space-y-4 transition-opacity duration-200 ease-out">
+          {/* Style selector */}
+          <div>
+            <label className="block text-muted text-xs mb-2 text-center">
+              Art Style
+            </label>
+            <StyleSelector 
+              value={style} 
+              onChange={setStyle}
+              allowedStyles={config.styles}
             />
-            
-            {/* Regenerate option */}
-            <div className="text-center mt-4">
-              <button
-                onClick={() => setGeneratedImage(null)}
-                className="text-muted hover:text-main text-sm underline"
-              >
-                Try a different style
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+          
+          {/* Format selector */}
+          <div>
+            <label className="block text-muted text-xs mb-2 text-center">
+              Format
+            </label>
+            <FormatSelector 
+              value={format} 
+              onChange={setFormat}
+              allowedFormats={config.formats}
+            />
+          </div>
+          
+          {/* Generate button */}
+          <div className="pt-2 text-center">
+            <button
+              onClick={handleGenerate}
+              className="px-8 py-3 bg-gradient-to-r from-primary to-accent 
+                         text-surface rounded-lg hover:from-primary/90 hover:to-accent/90
+                         transition-all shadow-lg text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            >
+              Generate Illustration
+            </button>
+            <p className="text-muted text-xs mt-2">
+              Takes 30-60 seconds to create
+            </p>
+          </div>
+        </div>
+      )}
+      
+      {loading && (
+        <div className="py-4 transition-opacity duration-200 ease-out">
+          <LoadingSkeleton format={format} />
+          <p className="text-center text-accent/80 text-sm mt-4">
+            Creating your {style} illustration...
+          </p>
+        </div>
+      )}
+      
+      {generatedImage && (
+        <div className="transition-opacity duration-200 ease-out">
+          <GeneratedArt
+            image={generatedImage}
+            format={format}
+            style={style}
+            onDownload={handleDownload}
+            onSave={handleSave}
+            canSave={Boolean(onSaveToJournal)}
+            showImage={!heroMode}
+          />
+          
+          {/* Regenerate option */}
+          <div className="text-center mt-4">
+            <button
+              onClick={() => setGeneratedImage(null)}
+              className="text-muted hover:text-main text-sm underline"
+            >
+              Try a different style
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Error display */}
       {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-4 p-3 bg-error/10 border border-error/30 rounded-lg text-center"
-        >
+        <div className="mt-4 p-3 bg-error/10 border border-error/30 rounded-lg text-center transition-opacity duration-200 ease-out">
           <p className="text-error text-sm">{error}</p>
           <button
             onClick={() => setError(null)}
@@ -503,17 +558,13 @@ export default function StoryIllustration({
           >
             Dismiss
           </button>
-        </motion.div>
+        </div>
       )}
       
       {/* Upgrade modal */}
       {showUpgrade && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-safe pt-safe pb-safe">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-surface rounded-xl p-6 max-w-md border border-secondary/40"
-          >
+          <div className="bg-surface rounded-xl p-6 max-w-md border border-secondary/40 transition-[opacity,transform] duration-200 ease-out">
             <h3 className="text-xl font-serif text-accent mb-3">
               Unlock Story Illustrations
             </h3>
@@ -539,9 +590,9 @@ export default function StoryIllustration({
                 View Plans
               </button>
             </div>
-          </motion.div>
+          </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

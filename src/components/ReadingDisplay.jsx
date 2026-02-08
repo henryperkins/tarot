@@ -1,24 +1,13 @@
 import { useCallback, useMemo, useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkle, ArrowCounterClockwise, Star, BookmarkSimple, ChatCircle } from '@phosphor-icons/react';
-import { useNavigate } from 'react-router-dom';
-import { NarrationProgress } from './NarrationProgress';
-import { NarrationStatus, NarrationError } from './NarrationStatus';
+import { Sparkle, ArrowCounterClockwise } from '@phosphor-icons/react';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
-import { ReadingBoard } from './ReadingBoard';
-import { StreamingNarrative } from './StreamingNarrative';
-import { HelperToggle } from './HelperToggle';
-import { MobileInfoSection } from './MobileInfoSection';
+import { ParticleLayer } from './ParticleLayer';
 import { SpreadPatterns } from './SpreadPatterns';
 import { VisionValidationPanel } from './VisionValidationPanel';
-import { FeedbackPanel } from './FeedbackPanel';
 import { CardModal } from './CardModal';
-import { NarrativeSkeleton } from './NarrativeSkeleton';
-import { DeckPile } from './DeckPile';
-import { DeckRitual } from './DeckRitual';
-import { RitualNudge, JournalNudge } from './nudges';
+import { NarrativeGuidancePanel } from './NarrativeGuidancePanel';
 import { MoonPhaseIndicator } from './MoonPhaseIndicator';
-import FollowUpModal from './FollowUpModal';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -31,32 +20,53 @@ import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useCinematicBeat } from '../hooks/useCinematicBeat';
 import { useSceneOrchestrator } from '../hooks/useSceneOrchestrator';
-import { getOrientationMeaning } from '../lib/cardLookup';
+import { getCardImage, getOrientationMeaning } from '../lib/cardLookup';
 import {
     getNarrativeBiasClass,
     getNarrativeSuitClass,
     getNarrativePhaseClass
 } from '../lib/narrativeAtmosphere';
-import { applyColorScript, determineColorScript, resetColorScript } from '../lib/colorScript';
+import { determineColorScript } from '../lib/colorScript';
 import {
     STREAM_AUTO_NARRATE_DEBOUNCE_MS,
     shouldScheduleAutoNarration
 } from '../lib/narrationStream.js';
+import {
+    SceneShell,
+    IdleScene,
+    RitualScene,
+    RevealScene,
+    InterludeScene,
+    NarrativeScene,
+    CompleteScene
+} from './scenes';
 
-const AtmosphericInterlude = lazy(() =>
-    import('./AtmosphericInterlude').then((module) => ({ default: module.AtmosphericInterlude }))
-);
 const AnimatedReveal = lazy(() => import('./AnimatedReveal'));
 const StoryIllustration = lazy(() => import('./StoryIllustration'));
 const COLOR_SCRIPT_OWNER = 'reading-display';
+
+function inferElementFromSuit(suit) {
+    const normalizedSuit = typeof suit === 'string' ? suit.trim().toLowerCase() : '';
+    if (normalizedSuit === 'wands') return 'fire';
+    if (normalizedSuit === 'cups') return 'water';
+    if (normalizedSuit === 'swords') return 'air';
+    if (normalizedSuit === 'pentacles') return 'earth';
+    return 'spirit';
+}
 
 /**
  * Ghost card component for deck-to-slot fly animation.
  * Renders via portal to animate in screen space above all other content.
  */
 function GhostCard({ startRect, endRect, suit = null, onComplete }) {
+    const prefersReducedMotion = useReducedMotion();
     const nodeRef = useRef(null);
     const completedRef = useRef(false);
+    const mountedRef = useRef(true);
+    const trailFrameRef = useRef(null);
+    const trailBurstIdRef = useRef(0);
+    const trailTimersRef = useRef([]);
+    const [trailBursts, setTrailBursts] = useState([]);
     const durationMs = 350;
     const startX = Number.isFinite(startRect?.left) ? startRect.left : 0;
     const startY = Number.isFinite(startRect?.top) ? startRect.top : 0;
@@ -69,11 +79,41 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
     const suitKey = typeof suit === 'string' ? suit.toLowerCase() : '';
     const suitClass = suitKey ? `ghost-card--${suitKey}` : '';
 
+    const clearTrailTimers = useCallback(() => {
+        trailTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+        trailTimersRef.current = [];
+    }, []);
+
+    const emitTrailBurst = useCallback((x, y) => {
+        if (!mountedRef.current) return;
+        trailBurstIdRef.current += 1;
+        const burstId = `ghost-${trailBurstIdRef.current}`;
+        setTrailBursts((prev) => [...prev, { id: burstId, x, y }]);
+        const removeTimer = window.setTimeout(() => {
+            setTrailBursts((prev) => prev.filter((burst) => burst.id !== burstId));
+            trailTimersRef.current = trailTimersRef.current.filter((timer) => timer !== removeTimer);
+        }, prefersReducedMotion ? 220 : 420);
+        trailTimersRef.current.push(removeTimer);
+    }, [prefersReducedMotion]);
+
     const complete = useCallback(() => {
         if (completedRef.current) return;
         completedRef.current = true;
+        if (!mountedRef.current) return;
         onComplete?.();
     }, [onComplete]);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+            if (trailFrameRef.current) {
+                window.cancelAnimationFrame(trailFrameRef.current);
+                trailFrameRef.current = null;
+            }
+            clearTrailTimers();
+        };
+    }, [clearTrailTimers]);
 
     useEffect(() => {
         const node = nodeRef.current;
@@ -88,6 +128,27 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
         const failSafeId = window.setTimeout(complete, durationMs + 200);
         let fallbackId = null;
         let animation = null;
+
+        if (!prefersReducedMotion) {
+            const startedAt = performance.now();
+            let lastEmitMs = -Infinity;
+            emitTrailBurst(startX, startY);
+            const step = (now) => {
+                if (completedRef.current || !mountedRef.current) return;
+                const elapsed = now - startedAt;
+                const progress = Math.min(1, Math.max(0, elapsed / durationMs));
+                if (elapsed - lastEmitMs >= 56 || progress >= 1) {
+                    lastEmitMs = elapsed;
+                    const nextX = startX + ((endX - startX) * progress);
+                    const nextY = startY + ((endY - startY) * progress);
+                    emitTrailBurst(nextX, nextY);
+                }
+                if (progress < 1) {
+                    trailFrameRef.current = window.requestAnimationFrame(step);
+                }
+            };
+            trailFrameRef.current = window.requestAnimationFrame(step);
+        }
 
         if (typeof node.animate === 'function') {
             animation = node.animate(
@@ -113,101 +174,77 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
             if (fallbackId) {
                 window.clearTimeout(fallbackId);
             }
+            if (trailFrameRef.current) {
+                window.cancelAnimationFrame(trailFrameRef.current);
+                trailFrameRef.current = null;
+            }
+            clearTrailTimers();
             animation?.cancel();
         };
-    }, [startX, startY, endX, endY, endScaleX, endScaleY, complete]);
+    }, [startX, startY, endX, endY, endScaleX, endScaleY, complete, prefersReducedMotion, durationMs, emitTrailBurst, clearTrailTimers]);
 
     return createPortal(
-        <div
-            ref={nodeRef}
-            className={`ghost-card fixed left-0 top-0 pointer-events-none z-[200] ${suitClass}`}
-            style={{
-                width: safeStartWidth,
-                height: safeStartHeight,
-                transformOrigin: '0 0',
-                transform: 'translate3d(0, 0, 0)',
-                willChange: 'transform, opacity',
-                contain: 'layout paint style',
-                backfaceVisibility: 'hidden'
-            }}
-        >
-            <div className="ghost-card-trail" aria-hidden="true" />
+        <>
             <div
-                className="w-full h-full rounded-xl border-2 border-primary/40 overflow-hidden"
+                ref={nodeRef}
+                className={`ghost-card fixed left-0 top-0 pointer-events-none z-[200] ${suitClass}`}
                 style={{
-                    background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))',
-                    boxShadow: '0 12px 22px rgba(0, 0, 0, 0.35)'
+                    width: safeStartWidth,
+                    height: safeStartHeight,
+                    transformOrigin: '0 0',
+                    transform: 'translate3d(0, 0, 0)',
+                    willChange: 'transform, opacity',
+                    contain: 'layout paint style',
+                    backfaceVisibility: 'hidden'
                 }}
             >
                 <div
-                    className="absolute inset-0 opacity-10"
+                    className="w-full h-full rounded-xl border-2 border-primary/40 overflow-hidden"
                     style={{
-                        backgroundImage: 'radial-gradient(circle at 50% 50%, var(--brand-secondary) 1px, transparent 1px)',
-                        backgroundSize: '12px 12px'
+                        background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))',
+                        boxShadow: '0 12px 22px rgba(0, 0, 0, 0.35)'
                     }}
-                />
-                <div
-                    className="absolute inset-0 flex items-center justify-center"
-                    style={{
-                        background: 'radial-gradient(circle at 50% 50%, rgba(var(--brand-primary-rgb) / 0.12), transparent 70%)'
-                    }}
-                />
+                >
+                    <div
+                        className="absolute inset-0 opacity-10"
+                        style={{
+                            backgroundImage: 'radial-gradient(circle at 50% 50%, var(--brand-secondary) 1px, transparent 1px)',
+                            backgroundSize: '12px 12px'
+                        }}
+                    />
+                    <div
+                        className="absolute inset-0 flex items-center justify-center"
+                        style={{
+                            background: 'radial-gradient(circle at 50% 50%, rgba(var(--brand-primary-rgb) / 0.12), transparent 70%)'
+                        }}
+                    />
+                </div>
             </div>
-        </div>,
+            {!prefersReducedMotion && trailBursts.map((burst) => (
+                <div
+                    key={burst.id}
+                    className="pointer-events-none fixed left-0 top-0 z-[195]"
+                    style={{
+                        width: 42,
+                        height: 42,
+                        transform: `translate3d(${burst.x - 21}px, ${burst.y - 21}px, 0)`
+                    }}
+                    aria-hidden="true"
+                >
+                    <ParticleLayer
+                        id={`ghost-deal-trail-${burst.id}`}
+                        preset="deal-trail"
+                        suit={suit}
+                        intensity={0.45}
+                        zIndex={1}
+                    />
+                </div>
+            ))}
+        </>,
         document.body
     );
 }
 
-function NarrativeGuidancePanel({ toneLabel, frameLabel, isHandset, isNewbie, compact = false, className = '' }) {
-  const guidanceContent = (
-    <div className="space-y-2">
-      <p className="text-sm text-muted leading-relaxed">
-        This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice echoes and contrasts between cards, and trust what resonates more than any script.
-      </p>
-      <p className="text-sm text-muted leading-relaxed">
-        {`Style: a ${toneLabel.toLowerCase()} tone with a ${frameLabel.toLowerCase()} lens. Let your own sense of meaning carry as much weight as any description.`}
-      </p>
-      <p className="text-xs sm:text-sm text-muted/90 leading-relaxed">
-        Reflective guidance only—not medical, mental health, legal, financial, or safety advice.
-      </p>
-    </div>
-  );
-
-  const headingClass = compact
-    ? 'text-sm sm:text-base font-serif text-accent/90 flex items-center gap-2'
-    : 'text-base sm:text-lg font-serif text-accent flex items-center gap-2';
-
-  return (
-    <div className={`${compact ? 'space-y-1.5 sm:space-y-2' : 'space-y-2 sm:space-y-3'} ${className}`}>
-      {!isHandset && (
-        <h3 className={headingClass}>
-          <Star className={compact ? 'w-4 h-4' : 'w-4 h-4 sm:w-5 sm:h-5'} />
-          Narrative style & guidance
-        </h3>
-      )}
-      {isHandset ? (
-        <MobileInfoSection
-          title="Narrative style & guidance"
-          variant="block"
-          defaultOpen={isNewbie}
-          buttonClassName={compact ? 'border-secondary/25 bg-surface/40 text-sm' : ''}
-          contentClassName={compact ? 'bg-transparent border-transparent px-0 py-0 text-sm' : ''}
-        >
-          {guidanceContent}
-        </MobileInfoSection>
-      ) : (
-        <HelperToggle
-          className={compact ? 'mt-1' : 'mt-2'}
-          defaultOpen={isNewbie}
-          buttonClassName={compact ? 'px-0 text-xs sm:text-sm' : ''}
-          contentClassName={compact ? 'bg-transparent border-transparent p-0' : ''}
-        >
-          {guidanceContent}
-        </HelperToggle>
-      )}
-    </div>
-  );
-}
 
 export function ReadingDisplay({
     sectionRef,
@@ -216,7 +253,6 @@ export function ReadingDisplay({
     onFollowUpOpenChange,
     followUpAutoFocus = true
 }) {
-    const navigate = useNavigate();
     const { saveReading, isSaving } = useSaveReading();
     const { publish: publishToast } = useToast();
     const { effectiveTier } = useSubscription();
@@ -316,6 +352,11 @@ export function ReadingDisplay({
     }, [readingIdentity]);
     const [focusedCardData, setFocusedCardData] = useState(null);
     const [recentlyClosedIndex, setRecentlyClosedIndex] = useState(-1);
+    const [hasHeroStoryArt, setHasHeroStoryArt] = useState(false);
+    const [mediaItems, setMediaItems] = useState([]);
+    const [mediaLoading, setMediaLoading] = useState(false);
+    const [mediaError, setMediaError] = useState(null);
+    const mediaRequestTokenRef = useRef(0);
     const activeFocusedCardData = useMemo(() => {
         if (!focusedCardData) return null;
         if (focusedCardData.readingKey && focusedCardData.readingKey !== readingIdentity) return null;
@@ -331,6 +372,10 @@ export function ReadingDisplay({
         ];
         return classes.filter(Boolean).join(' ');
     }, [isGenerating, narrativePhase, reasoning?.narrativeArc?.templateBias, themes?.dominantSuit]);
+
+    useEffect(() => {
+        setHasHeroStoryArt(false);
+    }, [readingIdentity]);
 
     const { beatClassName, notifyCardMention, notifyCompletion, notifySectionEnter, clearBeat } = useCinematicBeat({
         reasoning,
@@ -378,19 +423,6 @@ export function ReadingDisplay({
             : null;
         return determineColorScript(narrativePhase, stableTone, stableReasoning);
     }, [hasNarrativeSurface, emotionalToneKey, narrativeArcKey, narrativePhase]);
-
-    useEffect(() => {
-        if (!activeColorScript) {
-            resetColorScript({ owner: COLOR_SCRIPT_OWNER });
-            return;
-        }
-
-        applyColorScript(activeColorScript, { owner: COLOR_SCRIPT_OWNER });
-
-        return () => {
-            resetColorScript({ owner: COLOR_SCRIPT_OWNER });
-        };
-    }, [activeColorScript]);
 
     const narrativeAtmosphereClassName = useMemo(() => (
         [narrativeAtmosphereClasses, beatClassName].filter(Boolean).join(' ')
@@ -452,6 +484,38 @@ export function ReadingDisplay({
     const resolvedQuestion = userQuestion && userQuestion.trim().length > 0
         ? userQuestion.trim()
         : 'General guidance';
+
+    useEffect(() => {
+        if (!Array.isArray(reading) || visibleCount === 0 || typeof document === 'undefined') return undefined;
+        const head = document.head;
+        const created = [];
+        const sources = new Set(
+            reading
+                .slice(0, visibleCount)
+                .map((card) => getCardImage(card))
+                .filter((src) => typeof src === 'string' && src.length > 0)
+        );
+
+        sources.forEach((src) => {
+            const existing = head.querySelector(`link[rel="preload"][as="image"][href="${src}"]`);
+            if (existing) return;
+            const link = document.createElement('link');
+            link.rel = 'preload';
+            link.as = 'image';
+            link.href = src;
+            link.setAttribute('data-reading-preload', 'true');
+            head.appendChild(link);
+            created.push(link);
+        });
+
+        return () => {
+            created.forEach((node) => {
+                if (node?.parentNode) {
+                    node.parentNode.removeChild(node);
+                }
+            });
+        };
+    }, [reading, visibleCount]);
 
     const storyArtCards = useMemo(() => {
         if (!Array.isArray(reading) || visibleCount === 0) return [];
@@ -530,6 +594,7 @@ export function ReadingDisplay({
     const focusToggleAvailable = hasInsightPanels && !isHandset;
     const shouldShowSpreadInsights = !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
     const canAutoGenerateVisuals = effectiveTier === 'plus' || effectiveTier === 'pro';
+    const canUseMediaGallery = isAuthenticated && canAutoGenerateVisuals;
     const autoGenerateVisuals = autoGenerateVisualsEnabled && (isReadingStreaming || isGenerating) && canAutoGenerateVisuals;
     const shouldShowStoryIllustration = Boolean(
         personalReading &&
@@ -743,6 +808,183 @@ export function ReadingDisplay({
         setFocusedCardData(payload);
     }, [readingIdentity, revealedCards]);
 
+    const loadMediaGallery = useCallback(async () => {
+        if (!canUseMediaGallery) {
+            setMediaItems([]);
+            setMediaError(null);
+            return;
+        }
+
+        const requestToken = mediaRequestTokenRef.current + 1;
+        mediaRequestTokenRef.current = requestToken;
+        setMediaLoading(true);
+        setMediaError(null);
+
+        try {
+            const response = await fetch('/api/media?limit=36', {
+                credentials: 'include'
+            });
+            let data = null;
+            try {
+                data = await response.json();
+            } catch {
+                data = null;
+            }
+
+            if (requestToken !== mediaRequestTokenRef.current) return;
+
+            if (!response.ok) {
+                setMediaError(data?.error || 'Unable to load media gallery.');
+                setMediaLoading(false);
+                return;
+            }
+
+            const nextItems = Array.isArray(data?.media) ? data.media : [];
+            setMediaItems(nextItems);
+            setMediaError(null);
+            setMediaLoading(false);
+        } catch (_err) {
+            if (requestToken !== mediaRequestTokenRef.current) return;
+            setMediaLoading(false);
+            setMediaError('Unable to load media gallery.');
+        }
+    }, [canUseMediaGallery]);
+
+    const persistMediaRecord = useCallback(async ({
+        mediaType,
+        source,
+        storageKey,
+        mimeType,
+        title,
+        question,
+        cardName,
+        positionLabel,
+        styleId,
+        formatId,
+        bytes,
+        metadata
+    }) => {
+        if (!canUseMediaGallery || !storageKey || !mediaType || !source || !mimeType) return;
+
+        try {
+            const response = await fetch('/api/media', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mediaType,
+                    source,
+                    storageKey,
+                    mimeType,
+                    title,
+                    question,
+                    cardName,
+                    positionLabel,
+                    styleId,
+                    formatId,
+                    bytes,
+                    metadata
+                })
+            });
+            let data = null;
+            try {
+                data = await response.json();
+            } catch {
+                data = null;
+            }
+
+            if (!response.ok) {
+                setMediaError(data?.error || 'Unable to save generated media.');
+                return;
+            }
+
+            const next = data?.media;
+            if (next?.id) {
+                setMediaItems((prev) => {
+                    const withoutCurrent = prev.filter((item) => item.id !== next.id);
+                    return [next, ...withoutCurrent];
+                });
+            }
+            setMediaError(null);
+        } catch (_err) {
+            setMediaError('Unable to save generated media.');
+        }
+    }, [canUseMediaGallery]);
+
+    const handleDeleteMedia = useCallback(async (id) => {
+        if (!canUseMediaGallery || !id) return;
+        const response = await fetch(`/api/media?id=${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        let data = null;
+        try {
+            data = await response.json();
+        } catch {
+            data = null;
+        }
+        if (!response.ok) {
+            throw new Error(data?.error || 'Unable to remove media.');
+        }
+        setMediaItems((prev) => prev.filter((item) => item.id !== id));
+    }, [canUseMediaGallery]);
+
+    const handleCinematicMediaReady = useCallback((_videoBase64, meta = {}) => {
+        if (!meta?.cacheKey) return;
+        const cardName = meta?.card?.name || cinematicCard?.name || null;
+        const positionLabel = meta?.position || cinematicPosition || null;
+        const title = cardName
+            ? `${cardName}${positionLabel ? ` • ${positionLabel}` : ''}`
+            : 'Cinematic reveal';
+
+        void persistMediaRecord({
+            mediaType: 'video',
+            source: 'card-reveal',
+            storageKey: meta.cacheKey,
+            mimeType: meta.mimeType || 'video/mp4',
+            title,
+            question: resolvedQuestion,
+            cardName,
+            positionLabel,
+            styleId: meta.style || null,
+            formatId: 'single',
+            metadata: {
+                seconds: meta.seconds || 4,
+                reversed: Boolean(meta?.card?.reversed)
+            }
+        });
+    }, [cinematicCard?.name, cinematicPosition, persistMediaRecord, resolvedQuestion]);
+
+    const handleStoryArtMediaReady = useCallback((_imageBase64, meta = {}) => {
+        setHasHeroStoryArt(true);
+        if (!meta?.cacheKey) return;
+        const title = meta?.format === 'triptych'
+            ? 'Story illustration triptych'
+            : 'Story illustration';
+        void persistMediaRecord({
+            mediaType: 'image',
+            source: 'story-art',
+            storageKey: meta.cacheKey,
+            mimeType: meta.mimeType || 'image/jpeg',
+            title,
+            question: resolvedQuestion,
+            styleId: meta.style || null,
+            formatId: meta.format || null,
+            metadata: {
+                cardCount: Array.isArray(storyArtCards) ? storyArtCards.length : 0,
+                format: meta.format || null
+            }
+        });
+    }, [persistMediaRecord, resolvedQuestion, storyArtCards]);
+
+    useEffect(() => {
+        if (!canUseMediaGallery) return;
+        const timerId = window.setTimeout(() => {
+            void loadMediaGallery();
+        }, 0);
+        return () => window.clearTimeout(timerId);
+    }, [canUseMediaGallery, loadMediaGallery]);
+
     const handleOpenModalFromPanel = useCallback((cardData) => {
         if (!cardData) return;
         setSelectedCardData(cardData);
@@ -891,6 +1133,275 @@ export function ReadingDisplay({
         return () => clearTimeout(timerId);
     }, [isShuffling, publishToast]);
 
+    const sceneData = useMemo(() => {
+        const dominantSuit = themes?.dominantSuit
+            || reading?.find?.((card) => Boolean(card?.suit))?.suit
+            || null;
+        const dominantElement = themes?.dominantElement
+            || inferElementFromSuit(dominantSuit);
+        const sceneIntensity = {
+            idle: 0.35,
+            ritual: 1.15,
+            reveal: 0.95,
+            interlude: 0.78,
+            narrative: 1,
+            complete: 0.62
+        };
+
+        return {
+            dominantSuit,
+            dominantElement,
+            particleIntensity: sceneIntensity[sceneOrchestrator.activeScene] || 0.8,
+            isGenerating,
+            personalReading,
+            isPersonalReadingError,
+            reasoningSummary,
+            narrativePhase,
+            narrativeAtmosphereClasses,
+            shouldShowInterlude,
+            spreadName: spreadInfo?.name,
+            displayName,
+            userQuestion,
+            readingCount: reading?.length || 0,
+            reasoning,
+            reading,
+            revealedCards,
+            visibleCount,
+            newDeckInterface,
+            shouldShowRitualNudge,
+            knockCount,
+            hasCut,
+            markRitualNudgeSeen,
+            handleKnock,
+            cutIndex,
+            setCutIndex,
+            applyCut,
+            knockCadenceResetAt,
+            nextLabel,
+            spreadPositions: spreadInfo?.positions || [],
+            handleAnimatedDeal,
+            deckRef,
+            revealStage,
+            dealNext,
+            isLandscape,
+            guidedRevealLabel,
+            handleRevealAllWithScroll,
+            handleResetReveals,
+            safeSpreadKey,
+            revealCard,
+            handleCardClick,
+            activeFocusedCardData,
+            handleCloseDetail,
+            recentlyClosedIndex,
+            reflections,
+            setReflections,
+            handleOpenModalFromPanel,
+            handleNavigateCard,
+            navigationData,
+            narrativeMentionPulse,
+            generatePersonalReading,
+            hasVisionData,
+            isVisionReady,
+            isHandset,
+            isShuffling,
+            shuffle,
+            readingMeta,
+            selectedSpread,
+            deckStyleId,
+            lastCardsForFeedback,
+            feedbackVisionSummary,
+            canUseMediaGallery,
+            mediaItems,
+            mediaLoading,
+            mediaError,
+            onRefreshMedia: loadMediaGallery,
+            onDeleteMedia: handleDeleteMedia,
+            followUpOpen: isFollowUpOpen,
+            setFollowUpOpen: setIsFollowUpOpen,
+            followUpAutoFocus,
+            // Narrative scene props
+            narrativeText,
+            fullReadingText,
+            emotionalTone,
+            focusToggleAvailable,
+            isNarrativeFocus,
+            setIsNarrativeFocus,
+            toneLabel,
+            frameLabel,
+            isNewbie,
+            canAutoNarrate,
+            shouldStreamNarrative,
+            handleNarrationWrapper,
+            handleNarrationStop,
+            notifyCompletion,
+            narrativeHighlightPhrases,
+            narrativeAtmosphereClassName,
+            handleNarrativeHighlight,
+            notifySectionEnter,
+            activeWordBoundary,
+            voiceOn,
+            ttsState,
+            ttsProvider,
+            showVoicePrompt,
+            setShowVoicePrompt,
+            handleVoicePromptWrapper,
+            saveReading,
+            isSaving,
+            journalStatus,
+            shouldShowJournalNudge,
+            markJournalNudgeSeen,
+            hasHeroStoryArt,
+            onOpenFollowUp
+        };
+    }, [
+        applyCut,
+        activeFocusedCardData,
+        activeWordBoundary,
+        canAutoNarrate,
+        canUseMediaGallery,
+        cutIndex,
+        deckStyleId,
+        deckRef,
+        dealNext,
+        displayName,
+        emotionalTone,
+        feedbackVisionSummary,
+        focusToggleAvailable,
+        followUpAutoFocus,
+        fullReadingText,
+        handleDeleteMedia,
+        handleAnimatedDeal,
+        handleCardClick,
+        handleCloseDetail,
+        handleKnock,
+        handleNarrationStop,
+        handleNarrationWrapper,
+        handleNarrativeHighlight,
+        handleNavigateCard,
+        handleOpenModalFromPanel,
+        handleResetReveals,
+        handleRevealAllWithScroll,
+        handleVoicePromptWrapper,
+        hasCut,
+        hasHeroStoryArt,
+        hasVisionData,
+        isHandset,
+        isGenerating,
+        isNarrativeFocus,
+        isPersonalReadingError,
+        isSaving,
+        isShuffling,
+        isFollowUpOpen,
+        isLandscape,
+        isNewbie,
+        isVisionReady,
+        journalStatus,
+        lastCardsForFeedback,
+        loadMediaGallery,
+        markJournalNudgeSeen,
+        markRitualNudgeSeen,
+        mediaError,
+        mediaItems,
+        mediaLoading,
+        narrativeAtmosphereClasses,
+        narrativeAtmosphereClassName,
+        narrativeHighlightPhrases,
+        narrativePhase,
+        narrativeMentionPulse,
+        narrativeText,
+        newDeckInterface,
+        knockCadenceResetAt,
+        knockCount,
+        nextLabel,
+        notifyCompletion,
+        notifySectionEnter,
+        onOpenFollowUp,
+        personalReading,
+        reading,
+        readingMeta,
+        revealedCards,
+        reflections,
+        reasoning,
+        reasoningSummary,
+        revealCard,
+        revealStage,
+        safeSpreadKey,
+        saveReading,
+        sceneOrchestrator.activeScene,
+        selectedSpread,
+        setIsNarrativeFocus,
+        setReflections,
+        setIsFollowUpOpen,
+        setCutIndex,
+        setShowVoicePrompt,
+        shouldShowInterlude,
+        shouldShowJournalNudge,
+        shouldShowRitualNudge,
+        shouldStreamNarrative,
+        showVoicePrompt,
+        shuffle,
+        spreadInfo?.name,
+        spreadInfo?.positions,
+        themes?.dominantElement,
+        themes?.dominantSuit,
+        toneLabel,
+        frameLabel,
+        ttsProvider,
+        ttsState,
+        userQuestion,
+        voiceOn,
+        navigationData,
+        recentlyClosedIndex,
+        generatePersonalReading,
+        visibleCount
+    ]);
+
+    const sceneComponents = useMemo(() => ({
+        idle: ({ children }) => (
+            <IdleScene
+                showTitle={false}
+                className="py-3 sm:py-4"
+            >
+                {children}
+            </IdleScene>
+        ),
+        ritual: (props) => (
+            <RitualScene
+                {...props}
+                showTitle={false}
+                className="py-3 sm:py-4"
+            />
+        ),
+        reveal: (props) => (
+            <RevealScene
+                {...props}
+                showTitle={false}
+                className="py-3 sm:py-4"
+            />
+        ),
+        interlude: (props) => (
+            <InterludeScene
+                {...props}
+                showTitle={false}
+                className="py-3 sm:py-4"
+            />
+        ),
+        narrative: (props) => (
+            <NarrativeScene
+                {...props}
+                showTitle={false}
+                className="py-3 sm:py-4"
+            />
+        ),
+        complete: (props) => (
+            <CompleteScene
+                {...props}
+                showTitle={false}
+                className="py-3 sm:py-4"
+            />
+        )
+    }), []);
+
     return (
         <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
             <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
@@ -929,320 +1440,15 @@ export function ReadingDisplay({
 
             {/* Reading Display */}
             {reading && (
-                <div className={isLandscape ? 'space-y-4' : 'space-y-8'}>
-                    <div className={`text-center text-accent font-serif mb-2 ${isLandscape ? 'text-lg' : 'text-2xl'}`}>{spreadInfo?.name || 'Tarot Spread'}</div>
-                    {visibleCount > 1 && !isLandscape && (<p className="text-center text-muted text-xs-plus sm:text-sm mb-4">Reveal in order for a narrative flow, or follow your intuition and reveal randomly.</p>)}
-
-                    {revealedCards.size < visibleCount && (
-                        <div className={`${isHandset ? 'hidden' : 'hidden sm:block'} text-center space-y-2`}>
-                            <div className="flex items-center justify-center gap-3 flex-wrap">
-                                <button
-                                    type="button"
-                                    onClick={handleAnimatedDeal}
-                                    className="min-h-touch px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition"
-                                >
-                                    {guidedRevealLabel}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleRevealAllWithScroll}
-                                    aria-label="Reveal all cards"
-                                    className="min-h-touch px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition"
-                                >
-                                    Reveal instantly
-                                </button>
-                            </div>
-                            <p className="text-accent/80 text-xs sm:text-sm">{revealedCards.size} of {visibleCount} cards revealed</p>
-                        </div>
-                    )}
-                    {revealedCards.size > 0 && (
-                        <div className="text-center mt-3 sm:mt-4">
-                            <button type="button" onClick={handleResetReveals} className="inline-flex items-center justify-center min-h-touch px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition touch-manipulation">
-                                <span className="hidden xs:inline">Reset reveals (keep this spread)</span><span className="xs:hidden">Reset reveals</span>
-                            </button>
-                        </div>
-                    )}
-                    {/* RitualNudge - contextual education for first-time users */}
-                    {reading && revealedCards.size < visibleCount && shouldShowRitualNudge && knockCount === 0 && !hasCut && (
-                        <div className="mb-4 max-w-md mx-auto">
-                            <RitualNudge
-                                onEnableRitual={markRitualNudgeSeen}
-                                onSkip={markRitualNudgeSeen}
-                            />
-                        </div>
-                    )}
-
-                    {reading && revealedCards.size < visibleCount && (
-                        newDeckInterface ? (
-                            <DeckRitual
-                                // Ritual state
-                                knockCount={knockCount}
-                                onKnock={handleKnock}
-                                hasCut={hasCut}
-                                cutIndex={cutIndex}
-                                onCutChange={setCutIndex}
-                                onCutConfirm={applyCut}
-                                deckSize={78}
-                                knockCadenceResetAt={knockCadenceResetAt}
-                                // Deal state
-                                isShuffling={isShuffling}
-                                onShuffle={shuffle}
-                                cardsRemaining={visibleCount - revealedCards.size}
-                                nextPosition={nextLabel}
-                                spreadPositions={spreadInfo?.positions || []}
-                                revealedCount={revealedCards.size}
-                                totalCards={visibleCount}
-                                // Deal action with ghost card animation
-                                onDeal={handleAnimatedDeal}
-                                // Minimap suit coloring (revealed cards)
-                                cards={reading}
-                                revealedIndices={revealedCards}
-                                // Ref for ghost card animation coordination
-                                externalDeckRef={deckRef}
-                                revealStage={revealStage}
-                            />
-                        ) : (
-                            <DeckPile
-                                cardsRemaining={visibleCount - revealedCards.size}
-                                onDraw={dealNext}
-                                isShuffling={isShuffling}
-                                nextLabel={nextLabel}
-                            />
-                        )
-                    )}
-
-                    <ReadingBoard
-                        spreadKey={safeSpreadKey}
-                        reading={reading}
-                        revealedCards={revealedCards}
-                        revealCard={revealCard}
-                        onCardClick={handleCardClick}
-                        focusedCardData={activeFocusedCardData}
-                        onCloseDetail={handleCloseDetail}
-                        recentlyClosedIndex={recentlyClosedIndex}
-                        reflections={reflections}
-                        setReflections={setReflections}
-                        onOpenModal={handleOpenModalFromPanel}
-                        onNavigateCard={handleNavigateCard}
-                        canNavigatePrev={navigationData.canPrev}
-                        canNavigateNext={navigationData.canNext}
-                        navigationLabel={navigationData.label}
-                        revealStage={revealStage}
-                        narrativeMentionPulse={narrativeMentionPulse}
-                        isHandset={isHandset}
-                    />
-
-                    {!personalReading && !isGenerating && revealedCards.size === visibleCount && (
-                        <div className="text-center space-y-3">
-                            {isHandset ? (
-                                <p className="text-xs text-muted">Use the action bar below to create your narrative.</p>
-                            ) : (
-                                <button onClick={generatePersonalReading} className="bg-accent hover:bg-accent/90 text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg">
-                                    <Sparkle className="w-4 h-4 sm:w-5 sm:h-5" />
-                                    <span>Create Personal Narrative</span>
-                                </button>
-                            )}
-                            {hasVisionData && !isVisionReady && <p className="mt-3 text-sm text-muted">⚠️ Vision data has conflicts - research telemetry may be incomplete.</p>}
-                        </div>
-                    )}
-
-                    {/* Skeleton loading state during narrative generation */}
-                    {isGenerating && !personalReading && (
-                        <div
-                            className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${
-                                isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'
-                            } ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
-                        >
-                            {/* Show atmospheric interlude during initial generation phase */}
-                            {/* Only show when: scene suggests interlude, no content yet (reasoning or narrative) */}
-                            {(() => {
-                                const hasAnyContent = reasoningSummary || (personalReading?.raw || personalReading?.normalized);
-                                const shouldShowAtmosphericInterlude = shouldShowInterlude && !hasAnyContent;
-                                return shouldShowAtmosphericInterlude ? (
-                                    <Suspense fallback={<p className="text-center text-sm text-muted py-6">Channeling your reading...</p>}>
-                                        <AtmosphericInterlude
-                                            message={`Channeling ${spreadInfo?.name || 'your reading'}...`}
-                                            theme={narrativeAtmosphereClasses}
-                                        />
-                                    </Suspense>
-                                ) : (
-                                    <NarrativeSkeleton
-                                        hasQuestion={Boolean(userQuestion)}
-                                        displayName={displayName}
-                                        spreadName={spreadInfo?.name}
-                                        cardCount={reading?.length || 3}
-                                        reasoningSummary={reasoningSummary}
-                                        reasoning={reasoning}
-                                        narrativePhase={narrativePhase}
-                                        atmosphereClassName={narrativeAtmosphereClasses}
-                                    />
-                                );
-                            })()}
-                        </div>
-                    )}
-
-                    {personalReading && (
-                        <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}>
-                            <div className="space-y-3 sm:space-y-4">
-                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                                    <h3 className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight">
-                                        <Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
-                                        Your Personalized Narrative
-                                    </h3>
-                                    {focusToggleAvailable && (
-                                        <button
-                                            type="button"
-                                            aria-pressed={isNarrativeFocus}
-                                            onClick={() => setIsNarrativeFocus(prev => !prev)}
-                                            className="inline-flex items-center gap-2 rounded-full border border-secondary/50 px-3 xxs:px-4 py-1.5 text-xs-plus sm:text-sm font-semibold text-muted hover:text-main hover:border-secondary/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 sm:ml-auto"
-                                        >
-                                            {isNarrativeFocus ? 'Show insight panels' : 'Focus on narrative'}
-                                        </button>
-                                    )}
-                                </div>
-                                {userQuestion && (
-                                    <div className="bg-surface/85 rounded-lg px-3 xxs:px-4 py-3 border border-secondary/40">
-                                        <p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p>
-                                    </div>
-                                )}
-                                <NarrativeGuidancePanel
-                                    toneLabel={toneLabel}
-                                    frameLabel={frameLabel}
-                                    isHandset={isHandset}
-                                    isNewbie={isNewbie}
-                                    compact
-                                    className="max-w-3xl mx-auto"
-                                />
-                            </div>
-                            <StreamingNarrative
-                                className="max-w-3xl mx-auto mt-4 sm:mt-5"
-                                text={narrativeText}
-                                useMarkdown={Boolean(personalReading?.hasMarkdown)}
-                                isStreamingEnabled={shouldStreamNarrative}
-                                autoNarrate={canAutoNarrate}
-                                onNarrationStart={handleNarrationWrapper}
-                                onDone={notifyCompletion}
-                                displayName={displayName}
-                                highlightPhrases={narrativeHighlightPhrases}
-                                emotionalTone={emotionalTone}
-                                onHighlightPhrase={handleNarrativeHighlight}
-                                onSectionEnter={notifySectionEnter}
-                                wordBoundary={activeWordBoundary}
-                                withAtmosphere
-                                atmosphereClassName={narrativeAtmosphereClassName}
-                            />
-                            {isHandset && onOpenFollowUp && personalReading && !isPersonalReadingError && narrativePhase === 'complete' && (
-                                <div className="max-w-3xl mx-auto mt-4">
-                                    <div className="rounded-2xl border border-secondary/35 bg-surface/85 px-4 py-3 text-center shadow-lg shadow-secondary/25">
-                                        <p className="text-sm font-semibold text-main">Continue with a follow-up chat</p>
-                                        <p className="text-xs text-muted mt-1">Ask deeper questions and explore what resonates.</p>
-                                        <button
-                                            type="button"
-                                            onClick={onOpenFollowUp}
-                                            className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent/20 border border-accent/40 px-4 py-2 text-xs font-semibold text-accent hover:bg-accent/30 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-                                        >
-                                            <ChatCircle className="w-4 h-4" weight="fill" aria-hidden="true" />
-                                            <span>Open follow-up chat</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                            <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 mt-3 sm:mt-4">
-                                {/* Narration status indicator */}
-                                {reading && personalReading && !isPersonalReadingError && ttsState.status !== 'idle' && ttsState.status !== 'completed' && (
-                                    <NarrationStatus ttsState={ttsState} showLabel showMessage={ttsState.status === 'error'} />
-                                )}
-
-                                {reading && personalReading && !isPersonalReadingError && (
-                                    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-                                        <button type="button" onClick={handleNarrationWrapper} className="px-3 sm:px-4 py-2 rounded-lg border border-secondary/40 bg-surface/85 hover:bg-surface/80 disabled:opacity-40 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main text-xs sm:text-sm" disabled={!fullReadingText || ttsState.status === 'loading'}>
-                                            <span className="hidden xs:inline">{ttsState.status === 'loading' ? 'Preparing narration...' : ttsState.status === 'playing' ? 'Pause narration' : ttsState.status === 'paused' ? 'Resume narration' : 'Read this aloud'}</span>
-                                            <span className="xs:hidden">{ttsState.status === 'loading' ? 'Loading...' : ttsState.status === 'playing' ? 'Pause' : ttsState.status === 'paused' ? 'Resume' : 'Play'}</span>
-                                        </button>
-                                        {(voiceOn && fullReadingText && (ttsState.status === 'playing' || ttsState.status === 'paused' || ttsState.status === 'loading')) && (
-                                            <button type="button" onClick={handleNarrationStop} className="px-2 sm:px-3 py-2 rounded-lg border border-secondary/40 bg-surface/70 hover:bg-surface/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main transition disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm">Stop</button>
-                                        )}
-                                        {!isHandset && narrativePhase === 'complete' && (
-                                            <button
-                                                type="button"
-                                                onClick={saveReading}
-                                                disabled={isSaving}
-                                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent/20 border border-accent/40 text-accent text-xs sm:text-sm font-semibold hover:bg-accent/30 transition touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                <BookmarkSimple className="w-3.5 h-3.5" weight="fill" />
-                                                <span>{isSaving ? 'Saving...' : 'Save to Journal'}</span>
-                                            </button>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={() => navigate('/journal', { state: { fromReading: true } })}
-                                            className="px-3 sm:px-4 py-2 rounded-lg bg-primary/15 border border-primary/40 text-primary text-xs sm:text-sm hover:bg-primary/25 hover:text-primary transition"
-                                        >
-                                            View Journal
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* Progress bar for Azure TTS */}
-                                {reading && personalReading && !isPersonalReadingError && ttsProvider === 'azure' && (ttsState.status === 'playing' || ttsState.status === 'paused') && (
-                                    <NarrationProgress ttsState={ttsState} className="w-full max-w-md" />
-                                )}
-
-                                {/* Error details with upgrade action for tier limits */}
-                                {ttsState.status === 'error' && ttsState.errorCode === 'TIER_LIMIT' && (
-                                    <NarrationError
-                                        ttsState={ttsState}
-                                        onUpgrade={() => navigate('/settings', { state: { section: 'subscription' } })}
-                                        className="max-w-sm"
-                                    />
-                                )}
-                                {showVoicePrompt && (
-                                    <div className="text-xs text-muted bg-surface/70 border border-accent/30 rounded-lg px-3 py-2 text-center space-y-2" aria-live="polite">
-                                        <p>Voice narration is disabled. Turn it on?</p>
-                                        <div className="flex flex-wrap items-center justify-center gap-2">
-                                            <button type="button" onClick={handleVoicePromptWrapper} className="px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary hover:bg-primary/30 text-xs">Enable voice & play</button>
-                                            <button type="button" onClick={() => setShowVoicePrompt(false)} className="px-3 py-1.5 rounded-full border border-accent/50 text-muted hover:text-main text-xs">Maybe later</button>
-                                        </div>
-                                    </div>
-                                )}
-                                {journalStatus && (
-                                    <div role="status" aria-live="polite" className="flex flex-wrap items-center justify-center gap-2 text-xs text-center max-w-sm">
-                                        <span className={`${journalStatus.type === 'success' ? 'text-success' : 'text-error'}`}>
-                                            {journalStatus.message}
-                                        </span>
-                                        {journalStatus.action?.entryId && (
-                                            <button
-                                                type="button"
-                                                onClick={() => navigate('/journal', {
-                                                    state: {
-                                                        highlightEntryId: journalStatus.action.entryId,
-                                                        fromReading: true
-                                                    }
-                                                })}
-                                                className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-2xs font-semibold text-accent hover:bg-accent/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-                                            >
-                                                {journalStatus.action.label || 'View entry'}
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* JournalNudge - contextual prompt for first-time users after narrative */}
-                                {shouldShowJournalNudge && personalReading && !personalReading.isError && !journalStatus && (
-                                    <div className="mt-4 max-w-md mx-auto">
-                                        <JournalNudge
-                                            onSave={() => {
-                                                saveReading();
-                                                markJournalNudgeSeen();
-                                            }}
-                                            onDismiss={markJournalNudgeSeen}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
+                <SceneShell
+                    orchestrator={sceneOrchestrator}
+                    scenes={sceneComponents}
+                    sceneData={sceneData}
+                    colorScript={activeColorScript}
+                    colorScriptOwner={COLOR_SCRIPT_OWNER}
+                    className="rounded-3xl border border-secondary/20"
+                >
+                    <div className={isLandscape ? 'space-y-4' : 'space-y-8'}>
                     {shouldShowCinematicReveal && (
                         <div className="bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/30 max-w-full sm:max-w-5xl mx-auto px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8">
                             <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1265,6 +1471,7 @@ export function ReadingDisplay({
                                     question={resolvedQuestion}
                                     userTier={effectiveTier}
                                     autoGenerate={autoGenerateVisuals}
+                                    onVideoReady={handleCinematicMediaReady}
                                     className="mt-4"
                                 />
                             </Suspense>
@@ -1280,6 +1487,8 @@ export function ReadingDisplay({
                                 userTier={effectiveTier}
                                 autoGenerate={autoGenerateVisuals}
                                 generationKey={readingIdentity}
+                                onMediaReady={handleStoryArtMediaReady}
+                                heroMode
                             />
                         </Suspense>
                     )}
@@ -1306,61 +1515,8 @@ export function ReadingDisplay({
                         </div>
                     )}
 
-                    {/* Follow-Up Chat - modal trigger (desktop only) */}
-                    {personalReading && !isPersonalReadingError && narrativePhase === 'complete' && !isHandset && (
-                        <div className="w-full max-w-2xl mx-auto">
-                            <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-4 sm:p-5">
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-semibold text-main">Continue the conversation</p>
-                                        <p className="text-xs text-muted">Open a private chat window to explore this reading.</p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsFollowUpOpen(true)}
-                                        className="inline-flex items-center gap-2 rounded-full bg-accent/15 border border-accent/40 px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-                                    >
-                                        <ChatCircle className="w-4 h-4" weight="fill" aria-hidden="true" />
-                                        <span>Open chat</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <FollowUpModal
-                                isOpen={isFollowUpOpen}
-                                onClose={() => setIsFollowUpOpen(false)}
-                                autoFocusInput={followUpAutoFocus}
-                            />
-                        </div>
-                    )}
-
-                    <div className="hidden sm:block text-center mt-6 sm:mt-8">
-                        <button
-                            onClick={shuffle}
-                            disabled={isShuffling}
-                            aria-label={isShuffling ? 'Shuffling a new reading' : 'Start a new reading and reset this spread'}
-                            className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg"
-                        >
-                            <ArrowCounterClockwise className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
-                            <span className="hidden xs:inline">{isShuffling ? 'Shuffling the cards...' : 'Draw new reading'}</span>
-                            <span className="xs:hidden">{isShuffling ? 'Shuffling...' : 'Reset spread'}</span>
-                        </button>
                     </div>
-
-                    {personalReading && (
-                        <div className="w-full max-w-2xl mx-auto mt-6 sm:mt-8">
-                            <FeedbackPanel
-                                requestId={readingMeta.requestId}
-                                spreadKey={readingMeta.spreadKey || selectedSpread}
-                                spreadName={readingMeta.spreadName || spreadInfo?.name}
-                                deckStyle={readingMeta.deckStyle || deckStyleId}
-                                provider={readingMeta.provider}
-                                userQuestion={readingMeta.userQuestion || userQuestion}
-                                cards={lastCardsForFeedback}
-                                visionSummary={feedbackVisionSummary}
-                            />
-                        </div>
-                    )}
-                </div>
+                </SceneShell>
             )}
 
             {selectedCardData && (

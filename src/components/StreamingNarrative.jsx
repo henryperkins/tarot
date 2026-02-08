@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { animate } from 'animejs';
 import { ArrowRight } from '@phosphor-icons/react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -181,6 +182,7 @@ export function StreamingNarrative({
   const narrationTriggeredRef = useRef(false);
   const triggeredHighlightRef = useRef(new Set());
   const triggeredSectionRef = useRef(new Set());
+  const animatedWordRef = useRef(new Set());
 
   const isLongMobileNarrative = isSmallScreen && totalWords > LONG_MOBILE_WORD_THRESHOLD;
   const isVeryLongNarrative = totalWords > LONG_DESKTOP_WORD_THRESHOLD;
@@ -255,6 +257,7 @@ export function StreamingNarrative({
     narrationTriggeredRef.current = false;
     triggeredHighlightRef.current = new Set();
     triggeredSectionRef.current = new Set();
+    animatedWordRef.current = new Set();
   }, [narrativeText, clearTimer, clearNarrationTimer]);
 
   // Notify completion when all content is visible
@@ -410,17 +413,6 @@ export function StreamingNarrative({
     : 'pb-6 sm:pb-6 short:pb-4';
   const stickyActionClass = 'bottom-safe-action';
 
-  // Memoize willChange styles to avoid creating new objects per word per render
-  // Animation timing now controlled solely by Tailwind's animate-ink-spread class
-  // Must be defined before any conditional returns to satisfy Rules of Hooks
-  const recentWordStyle = useMemo(() => ({
-    willChange: 'opacity, filter, transform'
-  }), []);
-
-  const settledWordStyle = useMemo(() => ({
-    willChange: 'auto'
-  }), []);
-
   const tokenMeta = useMemo(() => {
     if (useMarkdown) return [];
     return buildTokenMeta(visibleWords, highlightRanges);
@@ -482,9 +474,7 @@ export function StreamingNarrative({
     );
   }
 
-  // For plain text: render words with ink-spreading effect
-  // Only apply willChange to recently revealed words to avoid GPU memory exhaustion
-  const RECENT_WORDS_THRESHOLD = 10;
+  // For plain text: render words with streaming animation
   const EMPHASIS_POP_THRESHOLD = 8;
 
   return (
@@ -501,8 +491,6 @@ export function StreamingNarrative({
             return <span key={idx}>{word}</span>;
           }
 
-          // Only recent words get willChange hint to avoid exhausting GPU memory
-          const isRecentWord = idx >= visibleCount - RECENT_WORDS_THRESHOLD;
           const shouldPop = meta.isHighlighted && idx >= visibleCount - EMPHASIS_POP_THRESHOLD;
           const isTtsWord = idx === ttsWordIndex && idx < visibleCount;
 
@@ -510,8 +498,19 @@ export function StreamingNarrative({
           return (
             <span
               key={idx}
-              className={`inline-block ${prefersReducedMotion ? '' : 'animate-ink-spread'} ${meta.isHighlighted ? 'narrative-emphasis' : ''} ${shouldPop ? 'narrative-emphasis--pop' : ''} ${isTtsWord ? 'narrative-tts-word narrative-tts-word--active' : ''}`}
-              style={prefersReducedMotion ? undefined : (isRecentWord ? recentWordStyle : settledWordStyle)}
+              ref={(node) => {
+                if (!node || prefersReducedMotion || !streamingActive) return;
+                const animated = animatedWordRef.current;
+                if (animated.has(idx)) return;
+                animated.add(idx);
+                animate(node, {
+                  opacity: [0, 1],
+                  translateY: [8, 0],
+                  duration: 280,
+                  ease: 'outQuad'
+                });
+              }}
+              className={`inline-block ${meta.isHighlighted ? 'narrative-emphasis' : ''} ${shouldPop ? 'narrative-emphasis--pop' : ''} ${isTtsWord ? 'narrative-tts-word narrative-tts-word--active' : ''}`}
             >
               {word}
             </span>

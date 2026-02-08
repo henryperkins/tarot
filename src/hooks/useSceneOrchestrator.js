@@ -1,16 +1,6 @@
-import { useMemo, useCallback, useEffect, useRef } from 'react';
+import { useMemo, useCallback, useEffect, useRef, useState } from 'react';
 
-/**
- * Scene Orchestrator Hook
- * 
- * Provides a unified state machine interface for the tarot reading flow.
- * Maps existing boolean flags to explicit scene states for better orchestration.
- * 
- * Scene Flow:
- * IDLE → SHUFFLING → DRAWING → REVEALING → INTERLUDE → DELIVERY → COMPLETE
- */
-
-const SCENES = {
+const LEGACY_SCENES = {
   IDLE: 'idle',
   SHUFFLING: 'shuffling',
   DRAWING: 'drawing',
@@ -20,6 +10,93 @@ const SCENES = {
   COMPLETE: 'complete'
 };
 
+const CANONICAL_SCENES = {
+  IDLE: 'idle',
+  RITUAL: 'ritual',
+  REVEAL: 'reveal',
+  INTERLUDE: 'interlude',
+  NARRATIVE: 'narrative',
+  COMPLETE: 'complete'
+};
+
+const CANONICAL_ORDER = [
+  CANONICAL_SCENES.IDLE,
+  CANONICAL_SCENES.RITUAL,
+  CANONICAL_SCENES.REVEAL,
+  CANONICAL_SCENES.INTERLUDE,
+  CANONICAL_SCENES.NARRATIVE,
+  CANONICAL_SCENES.COMPLETE
+];
+
+const LEGACY_BY_CANONICAL = {
+  [CANONICAL_SCENES.IDLE]: LEGACY_SCENES.IDLE,
+  [CANONICAL_SCENES.RITUAL]: LEGACY_SCENES.SHUFFLING,
+  [CANONICAL_SCENES.REVEAL]: LEGACY_SCENES.REVEALING,
+  [CANONICAL_SCENES.INTERLUDE]: LEGACY_SCENES.INTERLUDE,
+  [CANONICAL_SCENES.NARRATIVE]: LEGACY_SCENES.DELIVERY,
+  [CANONICAL_SCENES.COMPLETE]: LEGACY_SCENES.COMPLETE
+};
+
+const CANONICAL_BY_LEGACY = {
+  [LEGACY_SCENES.IDLE]: CANONICAL_SCENES.IDLE,
+  [LEGACY_SCENES.SHUFFLING]: CANONICAL_SCENES.RITUAL,
+  [LEGACY_SCENES.DRAWING]: CANONICAL_SCENES.REVEAL,
+  [LEGACY_SCENES.REVEALING]: CANONICAL_SCENES.REVEAL,
+  [LEGACY_SCENES.INTERLUDE]: CANONICAL_SCENES.INTERLUDE,
+  [LEGACY_SCENES.DELIVERY]: CANONICAL_SCENES.NARRATIVE,
+  [LEGACY_SCENES.COMPLETE]: CANONICAL_SCENES.COMPLETE
+};
+
+function normalizeLegacyScene(scene) {
+  if (!scene) return LEGACY_SCENES.IDLE;
+  const normalized = String(scene).toLowerCase();
+  if (LEGACY_SCENES[normalized?.toUpperCase?.()]) {
+    return LEGACY_SCENES[normalized.toUpperCase()];
+  }
+  if (Object.values(LEGACY_SCENES).includes(normalized)) {
+    return normalized;
+  }
+  if (Object.values(CANONICAL_SCENES).includes(normalized)) {
+    return LEGACY_BY_CANONICAL[normalized] || LEGACY_SCENES.IDLE;
+  }
+  return LEGACY_SCENES.IDLE;
+}
+
+function toCanonical(scene) {
+  const legacy = normalizeLegacyScene(scene);
+  return CANONICAL_BY_LEGACY[legacy] || CANONICAL_SCENES.IDLE;
+}
+
+function defaultTransitionMeta(fromLegacy, toLegacy, reason = 'derived') {
+  const from = toCanonical(fromLegacy);
+  const to = toCanonical(toLegacy);
+  const fromIndex = CANONICAL_ORDER.indexOf(from);
+  const toIndex = CANONICAL_ORDER.indexOf(to);
+  const direction = toIndex >= fromIndex ? 'forward' : 'backward';
+
+  let particlePreset = 'idle';
+  if (to === CANONICAL_SCENES.RITUAL) particlePreset = 'shuffle';
+  if (to === CANONICAL_SCENES.REVEAL) particlePreset = 'deal-trail';
+  if (to === CANONICAL_SCENES.INTERLUDE) particlePreset = 'element-ambient';
+  if (to === CANONICAL_SCENES.NARRATIVE) particlePreset = 'narrative-glow';
+  if (to === CANONICAL_SCENES.COMPLETE) particlePreset = 'idle';
+
+  return {
+    from,
+    to,
+    direction,
+    duration: 400,
+    particlePreset,
+    reason,
+    at: Date.now()
+  };
+}
+
+/**
+ * Scene orchestrator with both:
+ * - legacy derived scene values (`currentScene`) for backward compatibility
+ * - canonical scene key (`activeScene`) for new scene-shell composition
+ */
 export function useSceneOrchestrator({
   isShuffling,
   hasConfirmedSpread,
@@ -30,17 +107,15 @@ export function useSceneOrchestrator({
   personalReading,
   reading
 }) {
-  const prevSceneRef = useRef(SCENES.IDLE);
-  const sceneTransitionCallbacksRef = useRef([]);
+  const transitionCallbacksRef = useRef([]);
+  const prevSceneRef = useRef(LEGACY_SCENES.IDLE);
+  const [manualScene, setManualScene] = useState(null);
 
-  // Derive current scene from existing state
-  const currentScene = useMemo(() => {
-    // If shuffling/dealing animation is active
+  const derivedScene = useMemo(() => {
     if (isShuffling) {
-      return SCENES.SHUFFLING;
+      return LEGACY_SCENES.SHUFFLING;
     }
 
-    // If spread confirmed but not all cards revealed yet
     if (hasConfirmedSpread && reading?.length > 0) {
       let revealedCount = 0;
       if (revealedCards instanceof Set) {
@@ -50,95 +125,177 @@ export function useSceneOrchestrator({
       } else if (typeof revealedCards?.size === 'number') {
         revealedCount = revealedCards.size;
       }
-      const total = totalCards || reading.length;
 
+      const total = totalCards || reading.length;
       if (revealedCount < total) {
-        return SCENES.DRAWING;
+        return LEGACY_SCENES.DRAWING;
       }
 
-      // All cards revealed, check if we're generating narrative
       if (revealedCount >= total) {
         if (isReadingStreamActive || personalReading?.isStreaming) {
-          return SCENES.DELIVERY;
+          return LEGACY_SCENES.DELIVERY;
         }
 
         if (isGenerating) {
-          return SCENES.INTERLUDE;
+          return LEGACY_SCENES.INTERLUDE;
         }
 
         if (personalReading) {
-          return SCENES.COMPLETE;
+          return LEGACY_SCENES.COMPLETE;
         }
 
-        // Cards revealed, awaiting narrative request
-        return SCENES.REVEALING;
+        return LEGACY_SCENES.REVEALING;
       }
     }
 
-    // Reading complete
     if (personalReading && !isGenerating && reading?.length > 0) {
-      return SCENES.COMPLETE;
+      return LEGACY_SCENES.COMPLETE;
     }
 
-    // Default idle state
-    return SCENES.IDLE;
-  }, [isShuffling, hasConfirmedSpread, revealedCards, totalCards, isGenerating, isReadingStreamActive, personalReading, reading]);
+    return LEGACY_SCENES.IDLE;
+  }, [
+    isShuffling,
+    hasConfirmedSpread,
+    revealedCards,
+    totalCards,
+    isGenerating,
+    isReadingStreamActive,
+    personalReading,
+    reading
+  ]);
 
-  // Track scene transitions and trigger callbacks
+  const candidateScene = manualScene && manualScene !== derivedScene ? manualScene : derivedScene;
+  const [sceneState, setSceneState] = useState(() => ({
+    currentScene: candidateScene,
+    transitionMeta: defaultTransitionMeta(LEGACY_SCENES.IDLE, candidateScene, 'init')
+  }));
+
+  // Sync external scene changes without effects to satisfy strict hook linting.
+  if (sceneState.currentScene !== candidateScene) {
+    setSceneState({
+      currentScene: candidateScene,
+      transitionMeta: defaultTransitionMeta(sceneState.currentScene, candidateScene, 'derived')
+    });
+  }
+
+  const currentScene = sceneState.currentScene;
+  const transitionMeta = sceneState.transitionMeta;
+  const activeScene = toCanonical(currentScene);
+
   useEffect(() => {
     const prevScene = prevSceneRef.current;
-    if (prevScene !== currentScene) {
-      prevSceneRef.current = currentScene;
+    if (prevScene === currentScene) return;
 
-      // Execute transition callbacks
-      sceneTransitionCallbacksRef.current.forEach(callback => {
-        try {
-          callback(prevScene, currentScene);
-        } catch (err) {
-          console.error('Scene transition callback error:', err);
-        }
-      });
-    }
+    prevSceneRef.current = currentScene;
+
+    transitionCallbacksRef.current.forEach((callback) => {
+      try {
+        callback(prevScene, currentScene, transitionMeta);
+      } catch (err) {
+        console.error('Scene transition callback error:', err);
+      }
+    });
+  }, [currentScene, transitionMeta]);
+
+  const transitionTo = useCallback((scene, options = {}) => {
+    const resolvedLegacy = normalizeLegacyScene(scene);
+    const baseMeta = defaultTransitionMeta(currentScene, resolvedLegacy, options.reason || 'manual');
+    const meta = {
+      ...baseMeta,
+      direction: options.direction || baseMeta.direction,
+      duration: Number.isFinite(options.duration) ? options.duration : 400,
+      particlePreset: options.particlePreset || baseMeta.particlePreset,
+      from: toCanonical(currentScene),
+      to: toCanonical(resolvedLegacy),
+      at: Date.now()
+    };
+
+    setManualScene(resolvedLegacy);
+    setSceneState({
+      currentScene: resolvedLegacy,
+      transitionMeta: meta
+    });
   }, [currentScene]);
 
-  // Register callback for scene transitions
+  const dispatch = useCallback((action = {}) => {
+    const type = action?.type;
+    if (type === 'RESET') {
+      setManualScene(null);
+      if (currentScene !== derivedScene) {
+        setSceneState({
+          currentScene: derivedScene,
+          transitionMeta: defaultTransitionMeta(currentScene, derivedScene, 'reset')
+        });
+      }
+      return;
+    }
+
+    if (type === 'TRANSITION' && action?.scene) {
+      transitionTo(action.scene, {
+        reason: action.reason || 'dispatch',
+        duration: action.duration,
+        direction: action.direction,
+        particlePreset: action.particlePreset
+      });
+      return;
+    }
+
+    if (type === 'ADVANCE') {
+      const currentCanonical = toCanonical(currentScene);
+      const targetCanonical = action?.scene && Object.values(CANONICAL_SCENES).includes(action.scene)
+        ? action.scene
+        : null;
+      const currentIndex = CANONICAL_ORDER.indexOf(currentCanonical);
+      const fallbackIndex = currentIndex >= 0 ? Math.min(CANONICAL_ORDER.length - 1, currentIndex + 1) : 1;
+      const nextCanonical = targetCanonical || CANONICAL_ORDER[fallbackIndex];
+      transitionTo(LEGACY_BY_CANONICAL[nextCanonical] || LEGACY_SCENES.IDLE, {
+        reason: action.reason || 'advance',
+        duration: action.duration,
+        direction: action.direction,
+        particlePreset: action.particlePreset
+      });
+    }
+  }, [currentScene, derivedScene, transitionTo]);
+
   const onSceneTransition = useCallback((callback) => {
-    if (typeof callback !== 'function') return;
-
-    sceneTransitionCallbacksRef.current.push(callback);
-
-    // Return cleanup function
+    if (typeof callback !== 'function') return undefined;
+    transitionCallbacksRef.current.push(callback);
     return () => {
-      sceneTransitionCallbacksRef.current = sceneTransitionCallbacksRef.current.filter(
-        cb => cb !== callback
-      );
+      transitionCallbacksRef.current = transitionCallbacksRef.current.filter((cb) => cb !== callback);
     };
   }, []);
 
-  // Helper to check if we're in a specific scene
-  const isScene = useCallback((scene) => currentScene === scene, [currentScene]);
+  const isScene = useCallback((scene) => {
+    const normalized = normalizeLegacyScene(scene);
+    return currentScene === normalized || activeScene === String(scene).toLowerCase();
+  }, [activeScene, currentScene]);
 
-  // Helper to check if we're past a specific scene
   const isPastScene = useCallback((scene) => {
-    const sceneOrder = Object.values(SCENES);
-    const currentIndex = sceneOrder.indexOf(currentScene);
-    const targetIndex = sceneOrder.indexOf(scene);
+    const targetCanonical = toCanonical(scene);
+    const currentIndex = CANONICAL_ORDER.indexOf(activeScene);
+    const targetIndex = CANONICAL_ORDER.indexOf(targetCanonical);
     return currentIndex > targetIndex;
-  }, [currentScene]);
+  }, [activeScene]);
 
-  // Prefetch trigger point - when entering REVEALING scene
   const shouldPrefetchAssets = useMemo(() => {
-    return currentScene === SCENES.REVEALING;
-  }, [currentScene]);
+    return activeScene === CANONICAL_SCENES.REVEAL || activeScene === CANONICAL_SCENES.NARRATIVE;
+  }, [activeScene]);
 
-  // Interlude active - show atmospheric content instead of loading spinner
   const shouldShowInterlude = useMemo(() => {
-    return currentScene === SCENES.INTERLUDE;
-  }, [currentScene]);
+    return activeScene === CANONICAL_SCENES.INTERLUDE;
+  }, [activeScene]);
 
   return {
     currentScene,
-    scenes: SCENES,
+    derivedScene,
+    activeScene,
+    scenes: {
+      ...LEGACY_SCENES,
+      ...CANONICAL_SCENES
+    },
+    transitionMeta,
+    transitionTo,
+    dispatch,
     isScene,
     isPastScene,
     onSceneTransition,
@@ -146,3 +303,4 @@ export function useSceneOrchestrator({
     shouldShowInterlude
   };
 }
+

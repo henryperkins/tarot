@@ -1,0 +1,15 @@
+{
+  "file": "cinematic-sprite.mp3",
+  "version": 1,
+  "cues": {
+    "knock": { "start": 0.0, "duration": 0.28 },
+    "shuffle": { "start": 0.32, "duration": 0.62 },
+    "deal": { "start": 1.0, "duration": 0.42 },
+    "flip": { "start": 1.46, "duration": 0.38 },
+    "reveal-bloom": { "start": 1.9, "duration": 0.78 },
+    "narrative-ambient": { "start": 2.74, "duration": 6.2, "loop": true },
+    "phase-transition": { "start": 9.04, "duration": 0.9 },
+    "complete-chime": { "start": 10.0, "duration": 1.12 }
+  },
+  "notes": "Placeholder sprite map. Replace cinematic-sprite.mp3 with production audio in a follow-up."
+}

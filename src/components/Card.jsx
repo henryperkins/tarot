@@ -9,8 +9,10 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSmallScreen, SMALL_SCREEN_MAX } from '../hooks/useSmallScreen';
 import { useLandscape } from '../hooks/useLandscape';
 import { useHaptic } from '../hooks/useHaptic';
+import { useSounds } from '../hooks/useSounds';
 import { MICROCOPY } from '../lib/microcopy';
-import { getSynthesisText, getPositionAnchor } from '../lib/positionSynthesis';
+import { getPositionAnchor } from '../lib/positionSynthesis';
+import { CardInfoPopover } from './CardInfoPopover';
 
 const SUIT_ACCENTS = {
   wands: {
@@ -57,37 +59,60 @@ function normalizeSuitKey(suit) {
 
 function ElementFlash({ accentColor, accentSoft, flashKey, prefersReducedMotion }) {
   const flashRef = useRef(null);
+  const bloomRef = useRef(null);
 
   useLayoutEffect(() => {
     const node = flashRef.current;
-    if (!node) return undefined;
+    const bloomNode = bloomRef.current;
+    if (!node || !bloomNode) return undefined;
 
     if (prefersReducedMotion) {
       set(node, { opacity: 0 });
+      set(bloomNode, { opacity: 0 });
       return undefined;
     }
 
     set(node, { opacity: 0.6, scale: 0.92 });
+    set(bloomNode, { opacity: 0, scale: 0.85 });
     const anim = animate(node, {
       opacity: [0.6, 0],
       scale: [0.92, 1.12],
       duration: ELEMENT_FLASH_TIMEOUT_MS,
       ease: 'outQuad'
     });
+    const bloomAnim = animate(bloomNode, {
+      opacity: [0, 0.7, 0],
+      scale: [0.85, 1.15],
+      duration: 600,
+      ease: 'outQuad'
+    });
 
-    return () => anim?.pause?.();
+    return () => {
+      anim?.pause?.();
+      bloomAnim?.pause?.();
+    };
   }, [flashKey, prefersReducedMotion]);
 
   return (
-    <div
-      ref={flashRef}
-      className="absolute inset-0 rounded-lg pointer-events-none"
-      style={{
-        border: `2px solid ${accentColor}`,
-        background: `radial-gradient(circle at 50% 35%, ${accentSoft} 0%, transparent 60%)`
-      }}
-      aria-hidden="true"
-    />
+    <>
+      <div
+        ref={flashRef}
+        className="absolute inset-0 rounded-lg pointer-events-none"
+        style={{
+          border: `2px solid ${accentColor}`,
+          background: `radial-gradient(circle at 50% 35%, ${accentSoft} 0%, transparent 60%)`
+        }}
+        aria-hidden="true"
+      />
+      <div
+        ref={bloomRef}
+        className="absolute inset-0 rounded-lg pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle at 50% 35%, var(--bloom-color) 0%, transparent 65%)'
+        }}
+        aria-hidden="true"
+      />
+    </>
   );
 }
 
@@ -97,7 +122,6 @@ export function Card({
   isRevealed,
   onReveal,
   position,
-  roleKey,
   reflections,
   setReflections,
   onCardClick,
@@ -110,6 +134,7 @@ export function Card({
   const userInitiatedRevealRef = useRef(false);
   const animationStartedRef = useRef(false);
   const { vibrate } = useHaptic();
+  const sounds = useSounds();
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen(SMALL_SCREEN_MAX); // < sm breakpoint
   const isLandscape = useLandscape();
@@ -145,9 +170,8 @@ export function Card({
   const elementFlashTimeoutRef = useRef(null);
   const prevVisuallyRevealedRef = useRef(isRevealed);
 
-  // Mobile: collapsible reflection section (starts collapsed unless has content)
-  // This is local state that is authoritative on desktop, or when mobile has no coordination
-  const [localShowReflection, setLocalShowReflection] = useState(() => Boolean(reflectionValue));
+  // Reflection section starts collapsed on all screen sizes.
+  const [localShowReflection, setLocalShowReflection] = useState(false);
 
   // Compute effective visibility: on mobile with active coordination, derive from parent
   const showReflection = useMemo(() => {
@@ -264,11 +288,45 @@ export function Card({
     }
   }, [isRevealed, prefersReducedMotion]);
 
-  const handleReveal = useCallback(() => {
+  const revealLockRef = useRef(false);
+  const revealLockTimerRef = useRef(null);
+  const releaseRevealLock = useCallback(() => {
+    if (revealLockTimerRef.current) {
+      clearTimeout(revealLockTimerRef.current);
+      revealLockTimerRef.current = null;
+    }
+    revealLockRef.current = false;
+  }, []);
+
+  const triggerReveal = useCallback(() => {
+    if (isRevealed || isVisuallyRevealed || revealLockRef.current) return false;
+    revealLockRef.current = true;
+    if (revealLockTimerRef.current) {
+      clearTimeout(revealLockTimerRef.current);
+    }
+    revealLockTimerRef.current = setTimeout(() => {
+      revealLockRef.current = false;
+      revealLockTimerRef.current = null;
+    }, 320);
     userInitiatedRevealRef.current = true;
     vibrate(10);
     onReveal(index);
-  }, [onReveal, index, vibrate]);
+    return true;
+  }, [index, isRevealed, isVisuallyRevealed, onReveal, vibrate]);
+
+  const handleReveal = useCallback(() => {
+    triggerReveal();
+  }, [triggerReveal]);
+
+  useEffect(() => {
+    if (isRevealed || isVisuallyRevealed) {
+      releaseRevealLock();
+    }
+  }, [isRevealed, isVisuallyRevealed, releaseRevealLock]);
+
+  useEffect(() => {
+    return () => releaseRevealLock();
+  }, [releaseRevealLock]);
 
   // Swipe gesture state
   const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
@@ -284,7 +342,7 @@ export function Card({
     // Visual swipe animation before reveal
     const node = cardRef.current;
     if (prefersReducedMotion || !node) {
-      handleReveal();
+      triggerReveal();
       return;
     }
 
@@ -301,7 +359,7 @@ export function Card({
 
     activeAnimRef.current
       .then(() => {
-        handleReveal();
+        triggerReveal();
         activeAnimRef.current = animate(node, {
           translateX: 0,
           opacity: 1,
@@ -310,9 +368,9 @@ export function Card({
         });
       })
       .catch(() => {
-        handleReveal();
+        triggerReveal();
       });
-  }, [handleReveal, isRevealed, isVisuallyRevealed, prefersReducedMotion, vibrate]);
+  }, [isRevealed, isVisuallyRevealed, prefersReducedMotion, triggerReveal, vibrate]);
 
   // Touch gesture tracking for swipe
   const handleTouchStart = useCallback((e) => {
@@ -338,7 +396,7 @@ export function Card({
   }, [isRevealed]);
 
   const handleTouchEnd = useCallback((e) => {
-    if (isRevealed) return;
+    if (isRevealed || isFlipAnimating) return;
 
     const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
     const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
@@ -357,7 +415,7 @@ export function Card({
     if (Math.abs(dx) > distanceThreshold && horizontalDominant && dt < timeThreshold) {
       handleSwipeReveal(dx > 0 ? 'right' : 'left');
     }
-  }, [isRevealed, handleSwipeReveal, isSmallScreen]);
+  }, [isRevealed, isFlipAnimating, handleSwipeReveal, isSmallScreen]);
 
   // Reset visual state when a revealed card is returned to an unrevealed state
   useEffect(() => {
@@ -461,7 +519,11 @@ export function Card({
         filter: 'blur(8px)',
         scale: 0.95,
         duration: inkDuration,
-        ease: 'inQuad'
+        ease: 'inQuad',
+        onBegin: () => {
+          if (!isActive) return;
+          void sounds.play('flip', { essential: true });
+        }
       }, startDelay);
 
       if (import.meta.env.DEV) {
@@ -477,6 +539,7 @@ export function Card({
         ease: revealEase,
         onBegin: () => {
           if (!isActive) return;
+          void sounds.play('reveal-bloom', { essential: true });
           if (import.meta.env.DEV) {
             console.log(`Card ${index} Phase 2 (swap content)`);
           }
@@ -521,15 +584,49 @@ export function Card({
       }
       // Let in-flight animations resolve naturally to avoid abrupt snaps.
     };
-  }, [index, isRevealed, prefersReducedMotion, revealEase, staggerDelay, card, vibrate]);
+  }, [index, isRevealed, prefersReducedMotion, revealEase, staggerDelay, card, sounds, vibrate]);
 
   // Get card meaning
   const originalCard = canonicalCard;
   const meaning = card.isReversed ? originalCard.reversed : originalCard.upright;
+  const [meaningExpanded, setMeaningExpanded] = useState(false);
+  const meaningPreview = useMemo(() => {
+    const phrase = String(meaning || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)[0];
+    return phrase || '';
+  }, [meaning]);
 
   // Character count warning thresholds
   const charCount = reflectionValue.length;
   const charCountClass = charCount > 480 ? 'text-error' : charCount > 450 ? 'text-warning' : 'text-accent/70';
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [popoverAnchorRect, setPopoverAnchorRect] = useState(null);
+  const popoverCloseTimerRef = useRef(null);
+  const popoverLongPressTimerRef = useRef(null);
+  const popoverLongPressTriggeredRef = useRef(false);
+
+  const clearPopoverCloseTimer = useCallback(() => {
+    if (popoverCloseTimerRef.current) {
+      window.clearTimeout(popoverCloseTimerRef.current);
+      popoverCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const clearPopoverLongPress = useCallback(() => {
+    if (popoverLongPressTimerRef.current) {
+      window.clearTimeout(popoverLongPressTimerRef.current);
+      popoverLongPressTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearPopoverCloseTimer();
+      clearPopoverLongPress();
+    };
+  }, [clearPopoverCloseTimer, clearPopoverLongPress]);
 
   return (
     <div
@@ -633,12 +730,46 @@ export function Card({
                   type="button"
                   onClick={() => {
                     if (isFlipAnimating) return;
+                    if (popoverLongPressTriggeredRef.current) {
+                      popoverLongPressTriggeredRef.current = false;
+                      return;
+                    }
                     onCardClick?.(card, position, index);
                   }}
                   disabled={isFlipAnimating}
                   aria-disabled={isFlipAnimating}
                   className="relative bg-transparent border-0 p-0 cursor-pointer w-full hover:bg-surface-muted/40 transition-colors rounded-lg"
                   aria-label={`View details for ${card.name}`}
+                  onMouseEnter={(event) => {
+                    clearPopoverCloseTimer();
+                    setPopoverAnchorRect(event.currentTarget.getBoundingClientRect());
+                    setPopoverOpen(true);
+                  }}
+                  onMouseLeave={() => {
+                    clearPopoverCloseTimer();
+                    popoverCloseTimerRef.current = window.setTimeout(() => {
+                      setPopoverOpen(false);
+                      popoverCloseTimerRef.current = null;
+                    }, 150);
+                  }}
+                  onPointerDown={(event) => {
+                    if (event.pointerType === 'mouse') return;
+                    clearPopoverLongPress();
+                    popoverLongPressTriggeredRef.current = false;
+                    const anchor = event.currentTarget;
+                    popoverLongPressTimerRef.current = window.setTimeout(() => {
+                      popoverLongPressTimerRef.current = null;
+                      popoverLongPressTriggeredRef.current = true;
+                      setPopoverAnchorRect(anchor.getBoundingClientRect());
+                      setPopoverOpen(true);
+                    }, 500);
+                  }}
+                  onPointerUp={() => {
+                    clearPopoverLongPress();
+                  }}
+                  onPointerCancel={() => {
+                    clearPopoverLongPress();
+                  }}
                 >
                   {/* Rider-Waite Card Image with Interactive Overlay */}
                   <div
@@ -651,7 +782,6 @@ export function Card({
                         alt={`${card.name}${card.isReversed ? ' (Reversed)' : ''}`}
                         className="w-full h-full object-cover rounded-lg shadow-lg border-2 border-primary/30"
                         style={suitImageStyle}
-                        loading="lazy"
                         decoding="async"
                         onError={event => {
                           const target = event.currentTarget;
@@ -689,37 +819,50 @@ export function Card({
                   </span>
                 </div>
 
-                {/* Position synthesis text - helps user understand card-in-position meaning */}
-                {roleKey && (
-                  <p className="text-sm text-muted italic text-center mb-3 px-2">
-                    {getSynthesisText(card.name, roleKey, position)}...
-                  </p>
-                )}
-
                 <div className="mb-4 flex justify-center">
                   <CardSymbolInsights card={card} position={position} />
                 </div>
 
                 <div className="bg-surface/85 rounded p-4 border border-secondary/40 touch-pan-y">
-                  <p className="text-main text-sm sm:text-base leading-relaxed">
-                    {meaning}
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs-plus text-muted">Meaning</span>
+                    <button
+                      type="button"
+                      onClick={() => setMeaningExpanded(prev => !prev)}
+                      className="text-xs text-accent hover:text-main underline underline-offset-2"
+                    >
+                      {meaningExpanded ? 'Hide meaning' : 'Show meaning'}
+                    </button>
+                  </div>
+                  {meaningExpanded ? (
+                    <p className="mt-2 text-main text-sm sm:text-base leading-relaxed">
+                      {meaning}
+                    </p>
+                  ) : (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {meaningPreview ? (
+                        <span className="inline-flex items-center rounded-full bg-surface-muted/80 border border-secondary/40 px-3 py-1 text-xs-plus text-main">
+                          {meaningPreview}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted">Meaning hidden</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Reflection textarea - collapsible on mobile to reduce density */}
+              {/* Reflection textarea - collapsible on all screen sizes */}
               <div className="mt-3 w-full">
-                {/* Mobile: toggle button when collapsed */}
-                {isSmallScreen && !showReflection ? (
+                {!showReflection ? (
                   <button
                     type="button"
                     onClick={() => {
                       setLocalShowReflection(true);
                       onRequestOpenReflection?.(index);
-                      // Focus textarea after state update
                       setTimeout(() => textareaRef.current?.focus(), 50);
                     }}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-secondary/30 bg-surface/60 text-muted hover:text-main hover:border-secondary/50 transition-colors touch-manipulation min-h-touch"
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-full border border-secondary/30 bg-surface/60 text-muted hover:text-main hover:border-secondary/50 transition-colors touch-manipulation min-h-touch"
                     aria-expanded="false"
                     aria-controls={`reflection-${index}`}
                   >
@@ -733,8 +876,8 @@ export function Card({
                   </button>
                 ) : (
                   <>
-                    {/* Mobile: collapsible header with toggle */}
-                    {isSmallScreen && (
+                    <div className="w-full flex items-center justify-between mb-1.5 min-h-touch touch-manipulation text-muted">
+                      <span className="text-xs-plus">What resonates for you?</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -743,20 +886,17 @@ export function Card({
                             onRequestOpenReflection(null);
                           }
                         }}
-                        className="w-full flex items-center justify-between mb-1.5 min-h-touch touch-manipulation text-muted hover:text-main transition-colors"
+                        className="flex items-center gap-1 text-xs-plus text-muted hover:text-main transition-colors"
                         aria-expanded="true"
                         aria-controls={`reflection-${index}`}
                       >
-                        <span className="text-xs-plus">What resonates for you?</span>
+                        <span>Collapse</span>
                         <CaretUp className="w-4 h-4" aria-hidden="true" />
                       </button>
-                    )}
-                    {/* Desktop: static label */}
-                    {!isSmallScreen && (
-                      <label htmlFor={`reflection-${index}`} className="text-muted text-xs-plus sm:text-sm block mb-1">
-                        What resonates for you?
-                      </label>
-                    )}
+                    </div>
+                    <label htmlFor={`reflection-${index}`} className="sr-only">
+                      What resonates for you?
+                    </label>
                     <textarea
                       ref={textareaRef}
                       id={`reflection-${index}`}
@@ -784,6 +924,16 @@ export function Card({
           )}
         </div>
       </div>
+      <CardInfoPopover
+        open={popoverOpen}
+        card={card}
+        positionLabel={position}
+        anchorRect={popoverAnchorRect}
+        onClose={() => {
+          clearPopoverCloseTimer();
+          setPopoverOpen(false);
+        }}
+      />
     </div>
   );
 }

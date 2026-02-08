@@ -28,6 +28,7 @@ import {
   buildCardVignettePrompt,
   STYLE_PROMPTS
 } from '../lib/storyArtPrompts.js';
+import { getStoryArtLimits } from '../../shared/monetization/media.js';
 
 // Azure OpenAI Image Generation configuration
 const AZURE_IMAGE_API_VERSION = 'preview';
@@ -44,25 +45,6 @@ const FORMAT_SIZES = {
   panoramic: '1536x1024',   // landscape
   vignette: '1024x1536',    // portrait
   square: '1024x1024'       // square
-};
-
-// Feature gating by tier
-const TIER_LIMITS = {
-  free: { enabled: false },
-  plus: { 
-    enabled: true, 
-    maxPerDay: 3,
-    formats: ['single'],
-    styles: ['watercolor'],
-    quality: 'low'
-  },
-  pro: { 
-    enabled: true, 
-    maxPerDay: 20,
-    formats: ['triptych', 'single', 'panoramic', 'vignette'],
-    styles: Object.keys(STYLE_PROMPTS),
-    quality: 'medium'
-  }
 };
 
 /**
@@ -265,7 +247,10 @@ export async function onRequestPost(ctx) {
   // Check subscription tier
   const subscription = getSubscriptionContext(user);
   const tier = subscription?.effectiveTier || 'free';
-  const limits = TIER_LIMITS[tier] || TIER_LIMITS.free;
+  const limits = getStoryArtLimits(tier, {
+    availableStyles: Object.keys(STYLE_PROMPTS),
+    availableFormats: ['triptych', 'single', 'panoramic', 'vignette']
+  });
   
   if (!limits.enabled) {
     return jsonResponse({ 
@@ -360,6 +345,7 @@ export async function onRequestPost(ctx) {
       cached: true,
       style,
       artFormat: format,
+      cacheKey,
       requestId
     });
   }
@@ -467,6 +453,7 @@ export async function onRequestPost(ctx) {
       cached: false,
       style,
       artFormat: format,
+      cacheKey,
       revisedPrompt: result.revised_prompt,
       requestId
     });
