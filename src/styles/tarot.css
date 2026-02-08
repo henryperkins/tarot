@@ -3532,6 +3532,10 @@ input[type="range"]:focus::-webkit-slider-thumb {
   .narrative-emphasis--pop {
     animation: narrativeEmphasisPop 520ms ease-out both;
   }
+  
+  .narrative-word-reveal {
+    animation: narrativeWordReveal 280ms ease-out both;
+  }
 }
 
 @keyframes narrativeEmphasisPop {
@@ -3546,6 +3550,17 @@ input[type="range"]:focus::-webkit-slider-thumb {
   100% {
     filter: brightness(1);
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes narrativeWordReveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

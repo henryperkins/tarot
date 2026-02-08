@@ -1109,7 +1109,7 @@ export function SpreadTable({
                           src={displayImage}
                           alt={displayCard.name}
                           className="w-full h-full object-cover"
-                          loading="eager"
+                          loading={isNext || isRevealed ? 'eager' : 'lazy'}
                           decoding="async"
                           onError={(e) => {
                             e.target.onerror = null;
