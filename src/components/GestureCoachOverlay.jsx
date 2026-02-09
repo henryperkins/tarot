@@ -1,6 +1,6 @@
 import { useState, useRef, useId, useCallback, useLayoutEffect, useEffect } from 'react';
 import FocusTrap from 'focus-trap-react';
-import { animate, set } from 'animejs';
+import { animate, createScope, set } from 'animejs';
 import { X, HandTap, Scissors, ArrowsClockwise, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -53,7 +53,6 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
   const stepContentRef = useRef(null);
   const gestureRingRef = useRef(null);
   const stepTransitionRef = useRef(false);
-  const gestureAnimRef = useRef(null);
   const titleId = useId();
 
   useModalA11y(isOpen, {
@@ -161,25 +160,24 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
     const node = gestureRingRef.current;
     if (!node) return undefined;
 
-    if (gestureAnimRef.current?.pause) {
-      gestureAnimRef.current.pause();
-    }
-
     const config = step.gesture === 'tap'
       ? { scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5], duration: 1200 }
       : step.gesture === 'hold'
         ? { scale: [1, 1.1, 1.1, 1], opacity: [0.5, 0.8, 0.8, 0.5], duration: 1200 }
         : { scale: [1, 1.15, 1, 1.15, 1], opacity: [0.5, 0, 0.5, 0, 0.5], duration: 1500 };
 
-    gestureAnimRef.current = animate(node, {
-      scale: config.scale,
-      opacity: config.opacity,
-      duration: config.duration,
-      ease: 'inOutQuad',
-      loop: true
+    // Scope-managed looping animation — revert handles cleanup
+    const scope = createScope({ root: node }).add(() => {
+      animate(node, {
+        scale: config.scale,
+        opacity: config.opacity,
+        duration: config.duration,
+        ease: 'inOutQuad',
+        loop: true
+      });
     });
 
-    return () => gestureAnimRef.current?.pause?.();
+    return () => scope.revert();
   }, [step.gesture, isOpen, prefersReducedMotion]);
 
   if (!isOpen) return null;

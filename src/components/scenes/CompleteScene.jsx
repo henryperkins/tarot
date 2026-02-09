@@ -36,10 +36,10 @@ export function CompleteScene({
 
   return (
     <section
-      className={`relative px-3 xs:px-4 sm:px-6 py-6 sm:py-8 ${className}`}
+      className={`scene-stage scene-stage--complete relative px-3 xs:px-4 sm:px-6 py-6 sm:py-8 ${className}`}
       data-scene="complete"
     >
-      <div className="relative z-[2] max-w-5xl mx-auto rounded-2xl border border-secondary/25 bg-surface/70 backdrop-blur-md p-4 sm:p-6">
+      <div className="scene-stage__panel scene-stage__panel--complete relative z-[2] max-w-5xl mx-auto p-4 sm:p-6">
         {showTitle ? <h2 className="text-xl sm:text-2xl font-serif text-accent text-center mb-4">{title}</h2> : null}
 
         {personalReading && !isPersonalReadingError && narrativePhase === 'complete' && !isHandset && (

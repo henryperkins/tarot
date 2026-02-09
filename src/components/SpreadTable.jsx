@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } fr
 import { animate, createLayout, cubicBezier, set } from 'animejs';
 import { SPREADS } from '../data/spreads';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { useAnimeScope } from '../hooks/useAnimeScope';
 import { useSounds } from '../hooks/useSounds';
 import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
 import { getSuitBorderColor, getRevealedCardGlow, getSuitGlowColor } from '../lib/suitColors';
@@ -472,6 +471,7 @@ function AnimatedCardButton({
   return (
     <button
       ref={buttonRef}
+      type="button"
       data-layout-card
       onClick={handleButtonClick}
       onMouseEnter={onMouseEnter}
@@ -521,7 +521,7 @@ export function SpreadTable({
   const { vibrate, vibrateType } = useHaptic();
   const sounds = useSounds();
   const tactileLens = useTactileLens({ disabled: !showTactileLens || compact });
-  const [scopeRootRef, scopeRef] = useAnimeScope();
+  const scopeRootRef = useRef(null);
   const baseLayout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
   const spreadInfo = SPREADS[spreadKey];
   const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
@@ -838,14 +838,10 @@ export function SpreadTable({
     };
   }, [cards, revealedIndices, vibrate, prefersReducedMotion, sounds]);
 
-  // Clean up all scoped animations when spread changes
+  // Clean up timers when spread changes
   useEffect(() => {
     setRevealBursts([]);
-    const scope = scopeRef.current;
     return () => {
-      if (scope?.revert) {
-        scope.revert();
-      }
       if (hoverCloseTimerRef.current) {
         window.clearTimeout(hoverCloseTimerRef.current);
         hoverCloseTimerRef.current = null;
@@ -857,7 +853,7 @@ export function SpreadTable({
       revealBurstTimersRef.current.forEach((id) => window.clearTimeout(id));
       revealBurstTimersRef.current = [];
     };
-  }, [spreadKey, scopeRef]);
+  }, [spreadKey]);
 
   // Keep next slot in view on mobile after deal/reveal
   useEffect(() => {
@@ -1176,6 +1172,7 @@ export function SpreadTable({
               .filter((burst) => burst.slotIndex === i)
               .map((burst) => (
                 <div key={burst.id} className="pointer-events-none absolute inset-[-22%] z-[15]">
+                  <div className="slot-reveal-bloom" aria-hidden="true" />
                   <ParticleLayer
                     id={`slot-reveal-burst-${spreadKey}-${i}-${burst.id}`}
                     preset="reveal-burst"

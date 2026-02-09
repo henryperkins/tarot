@@ -138,9 +138,20 @@ async function loadSDK() {
  * @returns {Promise<{token: string, region: string, expiresIn: number}>}
  */
 async function fetchAuthToken() {
-  const response = await fetch('/api/speech-token');
+  const response = await fetch('/api/speech-token', {
+    credentials: 'same-origin'
+  });
   if (!response.ok) {
-    throw new Error(`Token fetch failed: ${response.status}`);
+    let message = `Token fetch failed: ${response.status}`;
+    try {
+      const payload = await response.json();
+      if (typeof payload?.error === 'string' && payload.error.trim()) {
+        message = payload.error;
+      }
+    } catch {
+      // Ignore JSON parsing failures and keep status-based error.
+    }
+    throw new Error(message);
   }
   return response.json();
 }

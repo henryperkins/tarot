@@ -1,0 +1,73 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "lakefront/case-study-compare",
+	"version": "0.1.0",
+	"title": "Lakefront Case Study Compare",
+	"category": "design",
+	"icon": "chart-line",
+	"description": "Before/after KPI comparison with a deliverables summary and CTA.",
+	"textdomain": "lakefront-content-kit",
+	"attributes": {
+		"heading": {
+			"type": "string",
+			"default": "Real Results: Chicago Retailer Scaling on WooCommerce"
+		},
+		"intro": {
+			"type": "string",
+			"default": "See what happens when you combine managed Google Cloud hosting, Cloudflare edge caching, and conversion-focused optimization."
+		},
+		"locationLabel": {
+			"type": "string",
+			"default": "B2C Commerce Brand · Chicago"
+		},
+		"beforeLabel": {
+			"type": "string",
+			"default": "Before"
+		},
+		"afterLabel": {
+			"type": "string",
+			"default": "After"
+		},
+		"metrics": {
+			"type": "array",
+			"default": [
+				{ "label": "Page Load Time", "before": "4.8s", "after": "1.3s ⚡" },
+				{ "label": "Bounce Rate", "before": "62%", "after": "41% 📉" },
+				{ "label": "Monthly Revenue", "before": "$48K", "after": "$65K 📈" }
+			]
+		},
+		"deliverablesIntro": {
+			"type": "string",
+			"default": "We migrated this growing Chicago retailer from legacy shared hosting to our fully managed <a href=\"/blog/google-cloud-wordpress-hosting\">Google Cloud cluster</a>. The project included:"
+		},
+		"deliverables": {
+			"type": "array",
+			"default": [
+				"✅ <strong>Zero-downtime migration</strong> with DNS orchestration",
+				"✅ <strong>Cloudflare Workers</strong> edge caching implementation",
+				"✅ <strong>Technical SEO</strong> audit &amp; schema markup",
+				"✅ <strong>Checkout flow optimization</strong> (+22% completion rate)",
+				"✅ <strong>Core Web Vitals</strong> tuning for all green scores"
+			]
+		},
+		"note": {
+			"type": "string",
+			"default": "Full case study, architecture diagram, and KPI breakdown available upon request."
+		},
+		"ctaLabel": {
+			"type": "string",
+			"default": "Read the Full Case Study →"
+		},
+		"ctaUrl": {
+			"type": "string",
+			"default": "/case-studies"
+		}
+	},
+	"supports": {
+		"align": ["wide", "full"],
+		"anchor": true,
+		"html": false
+	},
+	"render": "file:./render.php"
+}

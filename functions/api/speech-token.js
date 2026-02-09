@@ -1,5 +1,9 @@
 import { jsonResponse } from '../lib/utils.js';
 import { resolveEnv } from '../lib/environment.js';
+import { getUserFromRequest } from '../lib/auth.js';
+import { getSubscriptionContext } from '../lib/entitlements.js';
+import { enforceApiCallLimit } from '../lib/apiUsage.js';
+import { enforceTtsRateLimit, getTtsLimits } from '../lib/ttsLimits.js';
 
 /**
  * Speech Token Endpoint for Azure Cognitive Services Speech SDK
@@ -9,7 +13,49 @@ import { resolveEnv } from '../lib/environment.js';
  * the browser to synthesize speech directly with Azure.
  */
 export async function onRequestGet(context) {
-  const { env } = context;
+  const { request, env } = context;
+  const requestId = crypto.randomUUID();
+
+  const user = await getUserFromRequest(request, env);
+  if (!user) {
+    return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
+  }
+
+  // API key requests are subject to API call limits.
+  if (user?.auth_provider === 'api_key') {
+    const apiLimit = await enforceApiCallLimit(env, user);
+    if (!apiLimit.allowed) {
+      return jsonResponse(apiLimit.payload, { status: apiLimit.status });
+    }
+  }
+
+  const subscription = getSubscriptionContext(user);
+  const ttsLimits = getTtsLimits(subscription.effectiveTier);
+  const rateLimitResult = await enforceTtsRateLimit(env, request, user, ttsLimits, requestId);
+  if (rateLimitResult?.limited) {
+    const errorCode = rateLimitResult.tierLimited ? 'TIER_LIMIT' : 'RATE_LIMIT';
+    const errorMessage = rateLimitResult.tierLimited
+      ? `You've reached your monthly TTS limit (${ttsLimits.monthly}).`
+      : 'Too many speech token requests. Please wait a few moments and try again.';
+
+    return jsonResponse(
+      {
+        error: errorMessage,
+        errorCode,
+        tierLimited: rateLimitResult.tierLimited || false,
+        currentTier: subscription.tier,
+        limit: rateLimitResult.limit ?? null,
+        used: rateLimitResult.used ?? null,
+        resetAt: rateLimitResult.resetAt ?? null
+      },
+      {
+        status: 429,
+        headers: {
+          'retry-after': rateLimitResult.retryAfter.toString()
+        }
+      }
+    );
+  }
 
   const speechKey = resolveEnv(env, 'AZURE_SPEECH_KEY');
   const speechRegion = resolveEnv(env, 'AZURE_SPEECH_REGION') || 'eastus2';

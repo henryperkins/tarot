@@ -19,6 +19,7 @@ export function SpreadProgressIndicator({
   const containerRef = useRef(null);
   const prevRevealedRef = useRef(revealed);
   const animatedDotsRef = useRef(new Set());
+  const activeAnimsRef = useRef([]);
 
   const isComplete = revealed >= total;
 
@@ -28,6 +29,8 @@ export function SpreadProgressIndicator({
     const revealedDropped = revealed < prevRevealed || revealed === 0;
     if (revealedDropped) {
       animatedDotsRef.current = new Set();
+      activeAnimsRef.current.forEach(a => a?.pause?.());
+      activeAnimsRef.current = [];
     }
     prevRevealedRef.current = revealed;
 
@@ -41,11 +44,12 @@ export function SpreadProgressIndicator({
       const dot = container.querySelector(`[data-dot-index="${i}"]`);
       if (dot && !animatedDotsRef.current.has(i)) {
         animatedDotsRef.current.add(i);
-        animate(dot, {
+        const anim = animate(dot, {
           scale: [1, 1.4, 1],
           duration: 300,
           ease: 'outBack'
         });
+        activeAnimsRef.current.push(anim);
       }
     }
 
@@ -53,6 +57,11 @@ export function SpreadProgressIndicator({
     if (revealed === total) {
       vibrateType('completion');
     }
+
+    return () => {
+      activeAnimsRef.current.forEach(a => a?.pause?.());
+      activeAnimsRef.current = [];
+    };
   }, [revealed, total, prefersReducedMotion, vibrateType]);
 
   // Reset animation tracking when total changes

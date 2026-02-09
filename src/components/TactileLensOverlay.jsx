@@ -1,6 +1,6 @@
 import { useRef, useLayoutEffect } from 'react';
 import { Eye } from '@phosphor-icons/react';
-import { animate, set } from 'animejs';
+import { animate, createScope, set } from 'animejs';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { MICROCOPY } from '../lib/microcopy';
 
@@ -23,32 +23,22 @@ export function TactileLensButton({
 }) {
   const buttonRef = useRef(null);
   const prefersReducedMotion = useReducedMotion();
-  const pulseAnimRef = useRef(null);
 
-  // Tutorial pulse animation
+  // Tutorial pulse animation — scope-managed for automatic cleanup
   useLayoutEffect(() => {
     const node = buttonRef.current;
-    if (!node || !showTutorial || prefersReducedMotion) {
-      if (pulseAnimRef.current?.pause) {
-        pulseAnimRef.current.pause();
-        pulseAnimRef.current = null;
-      }
-      return undefined;
-    }
+    if (!node || !showTutorial || prefersReducedMotion) return undefined;
 
-    pulseAnimRef.current = animate(node, {
-      scale: [1, 1.15, 1],
-      duration: 800,
-      loop: true,
-      ease: 'inOutQuad'
+    const scope = createScope({ root: node }).add(() => {
+      animate(node, {
+        scale: [1, 1.15, 1],
+        duration: 800,
+        loop: true,
+        ease: 'inOutQuad'
+      });
     });
 
-    return () => {
-      if (pulseAnimRef.current?.pause) {
-        pulseAnimRef.current.pause();
-        pulseAnimRef.current = null;
-      }
-    };
+    return () => scope.revert();
   }, [showTutorial, prefersReducedMotion]);
 
   // Reset scale when tutorial dismissed
@@ -118,31 +108,24 @@ export function TactileLensOverlay({
 }) {
   const overlayRef = useRef(null);
 
+  // Enter animation only — the overlay unmounts when !isActive (line below),
+  // so exit animations would target a detached node and never play.
   useLayoutEffect(() => {
     const node = overlayRef.current;
     if (!node) return undefined;
 
     if (prefersReducedMotion) {
-      set(node, { opacity: isActive ? 1 : 0 });
+      set(node, { opacity: 1 });
       return undefined;
     }
 
-    if (isActive) {
-      set(node, { opacity: 0 });
-      const anim = animate(node, {
-        opacity: [0, 1],
-        duration: 150,
-        ease: 'outQuad'
-      });
-      return () => anim?.pause?.();
-    } else {
-      const anim = animate(node, {
-        opacity: [1, 0],
-        duration: 100,
-        ease: 'inQuad'
-      });
-      return () => anim?.pause?.();
-    }
+    set(node, { opacity: 0 });
+    const anim = animate(node, {
+      opacity: [0, 1],
+      duration: 150,
+      ease: 'outQuad'
+    });
+    return () => anim?.pause?.();
   }, [isActive, prefersReducedMotion]);
 
   // Don't render when inactive - removes from a11y tree entirely

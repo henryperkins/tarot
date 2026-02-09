@@ -1,36 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { animate, set } from 'animejs';
+import { useEffect, useRef, useState } from 'react';
+import { animate, createScope, set } from 'animejs';
 import { Sparkle } from '@phosphor-icons/react';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { ParticleLayer } from './ParticleLayer';
 
 const BREATH_PERIOD_MS = 4000;
 
-function BreathingOrb({ prefersReducedMotion }) {
-  const orbRef = useRef(null);
-
-  useLayoutEffect(() => {
-    const node = orbRef.current;
-    if (!node) return undefined;
-
-    if (prefersReducedMotion) {
-      set(node, { scale: 1, opacity: 1 });
-      return undefined;
-    }
-
-    const anim = animate(node, {
-      scale: [1, 1.12, 1, 0.94, 1],
-      opacity: [0.62, 0.82, 0.62, 0.56, 0.62],
-      duration: BREATH_PERIOD_MS,
-      loop: true,
-      ease: 'inOutQuad'
-    });
-
-    return () => anim?.pause?.();
-  }, [prefersReducedMotion]);
-
+function BreathingOrb() {
   return (
-    <div ref={orbRef} className="relative w-32 h-32 mx-auto">
+    <div className="breathing-orb relative w-32 h-32 mx-auto">
       <div
         className="absolute inset-0 rounded-full"
         style={{
@@ -58,33 +36,10 @@ function BreathingOrb({ prefersReducedMotion }) {
   );
 }
 
-function ShimmerSymbol({ symbol = '✦', delay = 0, prefersReducedMotion }) {
-  const symbolRef = useRef(null);
-
-  useLayoutEffect(() => {
-    const node = symbolRef.current;
-    if (!node) return undefined;
-
-    if (prefersReducedMotion) {
-      set(node, { opacity: 0.7, scale: 1 });
-      return undefined;
-    }
-
-    const anim = animate(node, {
-      opacity: [0.28, 0.88, 0.28],
-      scale: [0.95, 1.05, 0.95],
-      duration: 2000,
-      delay,
-      loop: true,
-      ease: 'inOutQuad'
-    });
-    return () => anim?.pause?.();
-  }, [delay, prefersReducedMotion]);
-
+function ShimmerSymbol({ symbol = '✦' }) {
   return (
     <span
-      ref={symbolRef}
-      className="inline-block text-2xl"
+      className="shimmer-symbol inline-block text-2xl"
       style={{ color: 'var(--brand-primary)' }}
     >
       {symbol}
@@ -92,27 +47,7 @@ function ShimmerSymbol({ symbol = '✦', delay = 0, prefersReducedMotion }) {
   );
 }
 
-function OrbitSymbol({ index, prefersReducedMotion }) {
-  const nodeRef = useRef(null);
-
-  useLayoutEffect(() => {
-    const node = nodeRef.current;
-    if (!node) return undefined;
-    if (prefersReducedMotion) {
-      set(node, { opacity: 0.25, scale: 1 });
-      return undefined;
-    }
-    const anim = animate(node, {
-      opacity: [0, 0.42, 0],
-      scale: [0.5, 1, 0.5],
-      duration: 3000,
-      delay: index * 200,
-      loop: true,
-      ease: 'inOutQuad'
-    });
-    return () => anim?.pause?.();
-  }, [index, prefersReducedMotion]);
-
+function OrbitSymbol({ index }) {
   const angle = (index * Math.PI * 2) / 12;
   const radius = 200;
   const x = Math.cos(angle) * radius;
@@ -120,15 +55,15 @@ function OrbitSymbol({ index, prefersReducedMotion }) {
 
   return (
     <div
-      ref={nodeRef}
-      className="absolute"
+      className="orbit-symbol absolute"
+      data-orbit-index={index}
       style={{
         left: '50%',
         top: '50%',
         transform: `translate(${x}px, ${y}px)`
       }}
     >
-      <span style={{ color: 'var(--brand-primary)', fontSize: '12px' }}>✧</span>
+      <span className="orbit-symbol-inner" style={{ color: 'var(--brand-primary)', fontSize: '12px', display: 'inline-block' }}>✧</span>
     </div>
   );
 }
@@ -141,6 +76,7 @@ export function AtmosphericInterlude({
   const prefersReducedMotion = useReducedMotion();
   const [phaseIndex, setPhaseIndex] = useState(0);
   const rootRef = useRef(null);
+  const scopeRef = useRef(null);
   const phaseTimerRef = useRef(null);
 
   const messages = [
@@ -164,21 +100,62 @@ export function AtmosphericInterlude({
     };
   }, [messages.length]);
 
-  useLayoutEffect(() => {
-    const node = rootRef.current;
-    if (!node) return undefined;
-    if (prefersReducedMotion) {
-      set(node, { opacity: 1 });
-      return undefined;
-    }
-    set(node, { opacity: 0, translateY: 12 });
-    const anim = animate(node, {
-      opacity: [0, 1],
-      translateY: [12, 0],
-      duration: 420,
-      ease: 'outQuad'
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return undefined;
+
+    scopeRef.current = createScope({ root }).add(() => {
+      if (prefersReducedMotion) {
+        set(root, { opacity: 1 });
+        set('.breathing-orb', { scale: 1, opacity: 1 });
+        return;
+      }
+
+      // Root fade-in
+      set(root, { opacity: 0, translateY: 12 });
+      animate(root, {
+        opacity: [0, 1],
+        translateY: [12, 0],
+        duration: 420,
+        ease: 'outQuad'
+      });
+
+      // Breathing orb
+      animate('.breathing-orb', {
+        scale: [1, 1.12, 1, 0.94, 1],
+        opacity: [0.62, 0.82, 0.62, 0.56, 0.62],
+        duration: BREATH_PERIOD_MS,
+        loop: true,
+        ease: 'inOutQuad'
+      });
+
+      // Shimmer symbols
+      root.querySelectorAll('.shimmer-symbol').forEach((el, i) => {
+        animate(el, {
+          opacity: [0.28, 0.88, 0.28],
+          scale: [0.95, 1.05, 0.95],
+          duration: 2000,
+          delay: i * 500,
+          loop: true,
+          ease: 'inOutQuad'
+        });
+      });
+
+      // Orbit symbol inner elements (animate inner span to avoid overwriting translate on parent)
+      root.querySelectorAll('.orbit-symbol-inner').forEach((el) => {
+        const idx = Number(el.closest('.orbit-symbol')?.dataset.orbitIndex) || 0;
+        animate(el, {
+          opacity: [0, 0.42, 0],
+          scale: [0.5, 1, 0.5],
+          duration: 3000,
+          delay: idx * 200,
+          loop: true,
+          ease: 'inOutQuad'
+        });
+      });
     });
-    return () => anim?.pause?.();
+
+    return () => scopeRef.current?.revert();
   }, [prefersReducedMotion]);
 
   useEffect(() => () => {
@@ -196,15 +173,15 @@ export function AtmosphericInterlude({
       <ParticleLayer preset="element-ambient" intensity={0.7} zIndex={1} id="interlude-particles" />
 
       <div className="relative z-10">
-        <BreathingOrb prefersReducedMotion={prefersReducedMotion} />
+        <BreathingOrb />
 
         <div className="mt-8 text-center">
           <div className="flex items-center justify-center gap-3 mb-2">
-            {!prefersReducedMotion && <ShimmerSymbol delay={0} symbol="✦" prefersReducedMotion={prefersReducedMotion} />}
+            {!prefersReducedMotion && <ShimmerSymbol symbol="✦" />}
             <p className="text-lg font-medium" style={{ color: 'var(--text-main)' }}>
               {phaseMessage}
             </p>
-            {!prefersReducedMotion && <ShimmerSymbol delay={500} symbol="✦" prefersReducedMotion={prefersReducedMotion} />}
+            {!prefersReducedMotion && <ShimmerSymbol symbol="✦" />}
           </div>
 
           <p
@@ -219,7 +196,7 @@ export function AtmosphericInterlude({
       {!prefersReducedMotion && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-[2]">
           {Array.from({ length: 12 }).map((_, i) => (
-            <OrbitSymbol key={i} index={i} prefersReducedMotion={prefersReducedMotion} />
+            <OrbitSymbol key={i} index={i} />
           ))}
         </div>
       )}

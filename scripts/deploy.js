@@ -69,6 +69,12 @@ function logError(message) {
   console.error(`${colors.red}✗${colors.reset} ${message}`);
 }
 
+function sleep(ms) {
+  if (!Number.isFinite(ms) || ms <= 0) return;
+  const signal = new Int32Array(new SharedArrayBuffer(4));
+  Atomics.wait(signal, 0, 0, ms);
+}
+
 /**
  * Execute a wrangler command and return the result.
  *
@@ -142,6 +148,47 @@ function spawnCommand(commandKey, args, options = {}) {
   return process.platform === 'win32'
     ? spawnSync(process.env.COMSPEC || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', command, ...args], spawnOptions)
     : spawnSync(command, args, spawnOptions);
+}
+
+function spawnCommandCapture(commandKey, args, options = {}) {
+  const command = ALLOWED_COMMANDS[commandKey];
+  if (!command) {
+    throw new Error(`Command not allowed: ${commandKey}`);
+  }
+
+  const spawnOptions = {
+    cwd: ROOT_DIR,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf-8',
+    ...options
+  };
+
+  const result = process.platform === 'win32'
+    ? spawnSync(process.env.COMSPEC || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', command, ...args], spawnOptions)
+    : spawnSync(command, args, spawnOptions);
+
+  return {
+    status: result.status ?? 1,
+    stdout: result.stdout || '',
+    stderr: result.stderr || ''
+  };
+}
+
+function isRetriableDeployError(output) {
+  const normalized = String(output || '').toLowerCase();
+  return [
+    '502 bad gateway',
+    '503 service unavailable',
+    '504 gateway timeout',
+    'received a malformed response from the api',
+    'assets-upload-session',
+    'temporarily unavailable',
+    'fetch failed',
+    'econnreset',
+    'etimedout',
+    'eai_again',
+    'socket hang up'
+  ].some((needle) => normalized.includes(needle));
 }
 
 /**
@@ -372,14 +419,37 @@ function deployWorker() {
   }
 
   // Deploy
-  log('  Deploying to Cloudflare Workers...', 'dim');
-  const deployResult = spawnCommand('npx', ['wrangler', 'deploy', '--config', WRANGLER_CONFIG], {
-    env: process.env
-  });
+  const maxAttempts = Math.max(1, Number.parseInt(process.env.DEPLOY_RETRY_ATTEMPTS || '3', 10) || 3);
+  const maxDelayMs = Math.max(1000, Number.parseInt(process.env.DEPLOY_RETRY_MAX_DELAY_MS || '30000', 10) || 30000);
 
-  if (deployResult.status !== 0) {
-    logError('Deployment failed');
-    return false;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    log(`  Deploying to Cloudflare Workers... (attempt ${attempt}/${maxAttempts})`, 'dim');
+    const deployResult = spawnCommandCapture('npx', ['wrangler', 'deploy', '--config', WRANGLER_CONFIG], {
+      env: process.env
+    });
+
+    if (deployResult.stdout) {
+      process.stdout.write(deployResult.stdout);
+    }
+    if (deployResult.stderr) {
+      process.stderr.write(deployResult.stderr);
+    }
+
+    if (deployResult.status === 0) {
+      return true;
+    }
+
+    const combinedOutput = `${deployResult.stdout}\n${deployResult.stderr}`;
+    const shouldRetry = isRetriableDeployError(combinedOutput) && attempt < maxAttempts;
+
+    if (!shouldRetry) {
+      logError('Deployment failed');
+      return false;
+    }
+
+    const delayMs = Math.min(maxDelayMs, 2000 * (2 ** (attempt - 1)));
+    logWarning(`Transient deploy failure detected, retrying in ${Math.round(delayMs / 1000)}s...`);
+    sleep(delayMs);
   }
 
   return true;

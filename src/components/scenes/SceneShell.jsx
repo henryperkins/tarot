@@ -167,6 +167,8 @@ export function SceneShell({
     }
     const fadeInDuration = Math.round(duration * 0.45);
     const fadeOutDuration = Math.max(120, duration - fadeInDuration);
+    let chainedOverlay = null;
+    let chainedContent = null;
     const enter = animate(overlay, {
       opacity: [0, 1],
       duration: fadeInDuration,
@@ -176,21 +178,25 @@ export function SceneShell({
 
     enter.then(() => {
       if (content) {
-        animate(content, {
+        chainedContent = animate(content, {
           opacity: [0.88, 1],
           scale: [0.988, 1],
           duration: fadeOutDuration,
           ease: 'outQuad'
         });
       }
-      animate(overlay, {
+      chainedOverlay = animate(overlay, {
         opacity: [1, 0],
         duration: fadeOutDuration,
         ease: 'inOutQuad'
       });
     });
 
-    return () => enter?.pause?.();
+    return () => {
+      enter?.pause?.();
+      chainedOverlay?.pause?.();
+      chainedContent?.pause?.();
+    };
   }, [activeScene, prefersReducedMotion, transitionMeta?.duration]);
 
   useEffect(() => {

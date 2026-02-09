@@ -320,6 +320,14 @@ export default function StoryIllustration({
       setShowUpgrade(false);
     }
   }, [generationKey]);
+
+  useEffect(() => () => {
+    requestTokenRef.current += 1;
+    if (requestControllerRef.current) {
+      requestControllerRef.current.abort();
+      requestControllerRef.current = null;
+    }
+  }, []);
   
   // Generate illustration
   const handleGenerate = useCallback(async () => {

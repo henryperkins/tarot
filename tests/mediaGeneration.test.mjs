@@ -220,6 +220,79 @@ describe('Media generation APIs', () => {
     assert.equal(updatedJob?.usageRefunded, true);
   });
 
+  it('refunds card video usage in background when client does not poll', async () => {
+    mockFetch.mock.mockImplementation(async (url) => {
+      const requestUrl = typeof url === 'string' ? url : String(url);
+      if (requestUrl.includes('/openai/v1/videos?')) {
+        return new Response(JSON.stringify({ id: 'job-bg-123', status: 'queued' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      if (requestUrl.includes('/openai/v1/videos/job-bg-123?')) {
+        return new Response(JSON.stringify({ status: 'failed' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      throw new Error(`Unexpected fetch URL in background settlement test: ${requestUrl}`);
+    });
+
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const metrics = new MockKVStore();
+    const env = createBaseEnv({
+      DB: createMockDb(user),
+      METRICS_DB: metrics,
+      CARD_VIDEO_BACKGROUND_SETTLE_DELAY_MS: '0',
+      CARD_VIDEO_BACKGROUND_SETTLE_RETRY_DELAY_MS: '0',
+      CARD_VIDEO_BACKGROUND_SETTLE_MAX_ATTEMPTS: '1'
+    });
+
+    const backgroundTasks = [];
+    const request = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        card: { name: 'The Fool', reversed: false },
+        question: 'What should I focus on?',
+        position: 'Present',
+        style: 'mystical',
+        seconds: 4
+      }
+    });
+
+    const response = await onCardVideoPost({
+      request,
+      env,
+      waitUntil: (promise) => {
+        backgroundTasks.push(promise);
+      }
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.success, true);
+    assert.equal(payload.status, 'pending');
+    assert.equal(payload.jobId, 'job-bg-123');
+    assert.equal(backgroundTasks.length, 1);
+
+    await Promise.allSettled(backgroundTasks);
+
+    const dateKey = getUtcDateKey(new Date());
+    const usageKey = `media_usage:card-video:${user.id}:${dateKey}`;
+    const usageValue = await metrics.get(usageKey);
+    assert.equal(usageValue, null);
+
+    const updatedJobRaw = await metrics.get('video_job:job-bg-123');
+    const updatedJob = updatedJobRaw ? JSON.parse(updatedJobRaw) : null;
+    assert.equal(updatedJob?.usageRefunded, true);
+    assert.equal(updatedJob?.usageFinalized, true);
+  });
+
   it('generates card video without input_reference when keyframe cannot match video size', async () => {
     let captured = null;
 

@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, Info, WarningCircle, X, XCircle } from '@phosphor-icons/react';
-import { animate, createSpring, set } from 'animejs';
+import { animate, set, spring } from 'animejs';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const ToastContext = createContext(null);
@@ -184,7 +184,7 @@ function ToastItem({ toast, onDismiss, onRemove, toastRefs }) {
   const containerRef = useRef(null);
   const iconRef = useRef(null);
   const hasRemovedRef = useRef(false);
-  const springEase = useMemo(() => createSpring({ stiffness: 350, damping: 25, mass: 1 }), []);
+  const springEase = useMemo(() => spring({ stiffness: 350, damping: 25, mass: 1 }), []);
 
   const toastId = toast.id;
   // eslint-disable-next-line react-hooks/preserve-manual-memoization -- ref access pattern is intentional

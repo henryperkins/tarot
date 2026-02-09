@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react';
-import { animate, createSpring, createTimeline, cubicBezier, set } from 'animejs';
+import { animate, createTimeline, cubicBezier, set, spring } from 'animejs';
 import { ArrowsOut, HandPointing, ArrowLeft, ArrowRight, NotePencil, CaretUp } from '@phosphor-icons/react';
 import { CARD_LOOKUP, FALLBACK_IMAGE, getCardImage } from '../lib/cardLookup';
 import { CardBack } from './CardBack';
@@ -203,7 +203,7 @@ export function Card({
   const flipTimelineRef = useRef(null);
   const hasMounted = useRef(false);
   const staggerDelayRef = useRef(staggerDelay);
-  const entryEase = useMemo(() => createSpring({ stiffness: 260, damping: 20, mass: 1 }), []);
+  const entryEase = useMemo(() => spring({ stiffness: 260, damping: 20, mass: 1 }), []);
   const revealEase = useMemo(() => cubicBezier(0.4, 0, 0.2, 1), []);
 
   const cardImage = useMemo(() => getCardImage(card), [card]);

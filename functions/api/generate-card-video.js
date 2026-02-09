@@ -44,6 +44,9 @@ const DEFAULT_IMAGE_TIMEOUT_MS = 45000;
 const DEFAULT_VIDEO_TIMEOUT_MS = 45000;
 const DEFAULT_VIDEO_STATUS_TIMEOUT_MS = 20000;
 const DEFAULT_VIDEO_CONTENT_TIMEOUT_MS = 30000;
+const BACKGROUND_SETTLE_DELAY_MS = 90000;
+const BACKGROUND_SETTLE_RETRY_MS = 30000;
+const BACKGROUND_SETTLE_MAX_ATTEMPTS = 4;
 
 // OpenAI docs: the Sora input_reference image must match the requested video size.
 // We only attempt keyframe -> input_reference when the image model can output the
@@ -146,7 +149,7 @@ function generateCacheKey(card, style, seconds, question, position, size) {
   const normalizedPosition = normalizeCacheValue(position);
   const normalizedSize = normalizeCacheValue(size);
   const hash = simpleHash(`${cardKey}:${style}:${seconds}:${normalizedSize}:${normalizedPosition}:${normalizedQuestion}`);
-  return `generated-video/${hash}`;
+  return `generated-video/${hash}.mp4`;
 }
 
 /**
@@ -379,7 +382,11 @@ async function checkCache(env, cacheKey) {
   if (!env.R2_LOGS) return null;
 
   try {
-    const object = await env.R2_LOGS.get(`${cacheKey}.mp4`);
+    let object = await env.R2_LOGS.get(cacheKey);
+    // Fallback to legacy keys stored without .mp4 extension
+    if (!object && cacheKey.endsWith('.mp4')) {
+      object = await env.R2_LOGS.get(cacheKey.slice(0, -4));
+    }
     if (object) {
       const arrayBuffer = await object.arrayBuffer();
       return arrayBufferToBase64(arrayBuffer);
@@ -398,7 +405,7 @@ async function storeInCache(env, cacheKey, videoData, metadata = {}) {
   if (!env.R2_LOGS) return;
   
   try {
-    await env.R2_LOGS.put(`${cacheKey}.mp4`, videoData, {
+    await env.R2_LOGS.put(cacheKey, videoData, {
       httpMetadata: { contentType: 'video/mp4' },
       customMetadata: { 
         created: new Date().toISOString(),
@@ -424,6 +431,130 @@ async function storePendingJob(env, userId, jobId, metadata) {
     }), { expirationTtl: 3600 }); // 1 hour TTL
   } catch (err) {
     console.error('Failed to store pending job:', err.message);
+  }
+}
+
+function parseNonNegativeInt(value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function normalizeVideoJobStatus(status) {
+  return status === 'succeeded' ? 'completed' : status;
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function loadPendingJobMeta(env, jobId) {
+  if (!env?.METRICS_DB || !jobId) return null;
+  try {
+    const raw = await env.METRICS_DB.get(`video_job:${jobId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    console.warn('Failed to load pending video job metadata:', err.message);
+    return null;
+  }
+}
+
+async function persistPendingJobMeta(env, jobId, jobMeta) {
+  if (!env?.METRICS_DB || !jobId || !jobMeta) return false;
+  try {
+    await env.METRICS_DB.put(`video_job:${jobId}`, JSON.stringify(jobMeta), {
+      expirationTtl: 3600
+    });
+    return true;
+  } catch (err) {
+    console.warn('Failed to persist pending video job metadata:', err.message);
+    return false;
+  }
+}
+
+async function markVideoUsageFinalized(env, jobId, jobMeta, reason = 'completed') {
+  if (!jobMeta || jobMeta.usageFinalized || jobMeta.usageRefunded) return jobMeta;
+  const nextMeta = {
+    ...jobMeta,
+    usageFinalized: true,
+    usageSettlementReason: reason,
+    usageSettledAt: Date.now()
+  };
+  await persistPendingJobMeta(env, jobId, nextMeta);
+  return nextMeta;
+}
+
+async function refundVideoUsageIfNeeded(env, jobId, jobMeta, reason = 'failed') {
+  if (!jobMeta?.usageKey || jobMeta.usageRefunded || jobMeta.usageFinalized) return jobMeta;
+  await decrementDailyUsage(env, {
+    key: jobMeta.usageKey,
+    dateKey: jobMeta.usageDateKey
+  });
+  const nextMeta = {
+    ...jobMeta,
+    usageRefunded: true,
+    usageFinalized: true,
+    usageSettlementReason: reason,
+    usageSettledAt: Date.now()
+  };
+  await persistPendingJobMeta(env, jobId, nextMeta);
+  return nextMeta;
+}
+
+async function settleUsageForUnpolledVideoJob(env, jobId) {
+  const initialDelayMs = parseNonNegativeInt(
+    env?.CARD_VIDEO_BACKGROUND_SETTLE_DELAY_MS,
+    BACKGROUND_SETTLE_DELAY_MS
+  );
+  const retryDelayMs = parseNonNegativeInt(
+    env?.CARD_VIDEO_BACKGROUND_SETTLE_RETRY_DELAY_MS,
+    BACKGROUND_SETTLE_RETRY_MS
+  );
+  const maxAttempts = Math.max(1, parseNonNegativeInt(
+    env?.CARD_VIDEO_BACKGROUND_SETTLE_MAX_ATTEMPTS,
+    BACKGROUND_SETTLE_MAX_ATTEMPTS
+  ));
+
+  if (initialDelayMs > 0) {
+    await delay(initialDelayMs);
+  }
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const jobMeta = await loadPendingJobMeta(env, jobId);
+    if (!jobMeta?.usageKey || jobMeta.usageRefunded || jobMeta.usageFinalized) {
+      return;
+    }
+
+    let normalizedStatus = '';
+    try {
+      const jobStatus = await getVideoJobStatus(env, jobId);
+      normalizedStatus = normalizeVideoJobStatus(jobStatus?.status);
+    } catch (_err) {
+      if (attempt < maxAttempts - 1 && retryDelayMs > 0) {
+        await delay(retryDelayMs);
+      }
+      continue;
+    }
+
+    if (normalizedStatus === 'completed') {
+      await markVideoUsageFinalized(env, jobId, jobMeta, 'background-complete');
+      return;
+    }
+
+    if (normalizedStatus === 'failed' || normalizedStatus === 'cancelled') {
+      await refundVideoUsageIfNeeded(env, jobId, jobMeta, 'background-failed');
+      return;
+    }
+
+    if (attempt < maxAttempts - 1 && retryDelayMs > 0) {
+      await delay(retryDelayMs);
+    }
+  }
+
+  // Safety net: if retries exhausted while job is still processing, refund
+  // reserved usage rather than stranding it permanently.
+  const finalMeta = await loadPendingJobMeta(env, jobId);
+  if (finalMeta?.usageKey && !finalMeta.usageRefunded && !finalMeta.usageFinalized) {
+    await refundVideoUsageIfNeeded(env, jobId, finalMeta, 'background-timeout');
   }
 }
 
@@ -675,8 +806,18 @@ export async function onRequestPost(ctx) {
       videoModel,
       usageKey: usageReservation?.key || null,
       usageDateKey: usageReservation?.dateKey || null,
-      usageRefunded: false
+      usageRefunded: false,
+      usageFinalized: false
     });
+
+    if (usageReservation?.key && typeof ctx.waitUntil === 'function') {
+      ctx.waitUntil(
+        settleUsageForUnpolledVideoJob(env, job.id).catch((err) => {
+          console.warn(`[${requestId}] [card-video] Background usage settlement failed for job ${job.id}:`, err?.message || err);
+        })
+      );
+    }
+
     const totalMs = Date.now() - startTime;
     await persistMediaTelemetry(env, buildMediaTelemetryPayload({
       requestId,
@@ -836,7 +977,7 @@ export async function onRequestGet(ctx) {
 
   try {
     const jobStatus = await getVideoJobStatus(env, jobId);
-    const resolvedJobMeta = jobMeta || {};
+    let resolvedJobMeta = jobMeta || {};
     
     // Check if job is complete
     // Sora 2: status is 'completed' and video ID is the jobId itself
@@ -845,6 +986,27 @@ export async function onRequestGet(ctx) {
       (jobStatus.status === 'succeeded' && jobStatus.generations?.length > 0);
     
     if (isCompleted) {
+      const requestId = resolvedJobMeta.requestId || `video_${jobId}`;
+      resolvedJobMeta = await markVideoUsageFinalized(env, jobId, resolvedJobMeta, 'client-complete');
+
+      if (resolvedJobMeta.cacheKey) {
+        const cachedVideo = await checkCache(env, resolvedJobMeta.cacheKey);
+        if (cachedVideo) {
+          return jsonResponse({
+            success: true,
+            status: 'completed',
+            video: cachedVideo,
+            format: 'mp4',
+            cached: true,
+            cacheKey: resolvedJobMeta.cacheKey || null,
+            style: resolvedJobMeta.style || null,
+            seconds: resolvedJobMeta.seconds || null,
+            cardName: resolvedJobMeta.card || null,
+            requestId
+          });
+        }
+      }
+
       // Sora 2 uses the video ID directly, Sora 1 uses generation.id
       const videoId = jobStatus.generations?.[0]?.id || jobId;
       
@@ -859,7 +1021,6 @@ export async function onRequestGet(ctx) {
           style: resolvedJobMeta.style
         });
       }
-      const requestId = resolvedJobMeta.requestId || `video_${jobId}`;
       const totalMs = resolvedJobMeta.created ? Date.now() - resolvedJobMeta.created : (Date.now() - statusStart);
       await persistMediaTelemetry(env, buildMediaTelemetryPayload({
         requestId,
@@ -915,25 +1076,10 @@ export async function onRequestGet(ctx) {
     }
     
     // Job still in progress or failed
-    const normalizedStatus = jobStatus.status === 'succeeded'
-      ? 'completed'
-      : jobStatus.status;
+    const normalizedStatus = normalizeVideoJobStatus(jobStatus.status);
 
     if (normalizedStatus === 'failed' || normalizedStatus === 'cancelled') {
-      if (resolvedJobMeta?.usageKey && !resolvedJobMeta?.usageRefunded) {
-        await decrementDailyUsage(env, {
-          key: resolvedJobMeta.usageKey,
-          dateKey: resolvedJobMeta.usageDateKey
-        });
-        resolvedJobMeta.usageRefunded = true;
-        try {
-          await env.METRICS_DB.put(`video_job:${jobId}`, JSON.stringify(resolvedJobMeta), {
-            expirationTtl: 3600
-          });
-        } catch (err) {
-          console.warn('Failed to persist usage refund metadata:', err.message);
-        }
-      }
+      resolvedJobMeta = await refundVideoUsageIfNeeded(env, jobId, resolvedJobMeta, 'client-failed');
       const requestId = resolvedJobMeta.requestId || `video_${jobId}`;
       await persistMediaTelemetry(env, buildMediaTelemetryPayload({
         requestId,

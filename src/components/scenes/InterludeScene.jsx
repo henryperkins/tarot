@@ -37,10 +37,10 @@ export function InterludeScene({
 
   return (
     <section
-      className={`relative px-3 xs:px-4 sm:px-6 py-6 sm:py-8 ${className}`}
+      className={`scene-stage scene-stage--interlude relative px-3 xs:px-4 sm:px-6 py-6 sm:py-8 ${className}`}
       data-scene="interlude"
     >
-      <div className="relative z-[2] max-w-5xl mx-auto rounded-2xl border border-secondary/25 bg-surface/45 backdrop-blur-md p-4 sm:p-6 text-center">
+      <div className="scene-stage__panel scene-stage__panel--interlude relative z-[2] max-w-5xl mx-auto p-4 sm:p-6 text-center">
         {showTitle ? (
           <>
             <h2 className="text-xl sm:text-2xl font-serif text-accent mb-2">{title}</h2>
@@ -53,7 +53,16 @@ export function InterludeScene({
           } ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
         >
           {shouldShowAtmosphericInterlude ? (
-            <Suspense fallback={<p className="text-center text-sm text-muted py-6">Channeling your reading...</p>}>
+            <Suspense fallback={
+              <NarrativeSkeleton
+                hasQuestion={Boolean(userQuestion)}
+                displayName={displayName}
+                spreadName={spreadName}
+                cardCount={readingCount || 3}
+                narrativePhase={narrativePhase}
+                atmosphereClassName={narrativeAtmosphereClasses}
+              />
+            }>
               <AtmosphericInterlude
                 message={`Channeling ${spreadName || 'your reading'}...`}
                 theme={narrativeAtmosphereClasses}

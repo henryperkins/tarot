@@ -10,6 +10,7 @@
 import { validateSession, getSessionFromCookie } from '../../lib/auth.js';
 import { jsonResponse, safeJsonParse } from '../../lib/utils.js';
 import { loadFollowUpsByEntry } from '../../lib/journalFollowups.js';
+import { buildTierLimitedPayload, isEntitled } from '../../lib/entitlements.js';
 
 // PDF generation constants
 const PDF_PAGE_HEIGHT = 842; // A4 height in points
@@ -306,6 +307,17 @@ export async function onRequestGet(context) {
 
     if (!user) {
       return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    if (!isEntitled(user, 'plus')) {
+      return jsonResponse(
+        buildTierLimitedPayload({
+          message: 'Cloud journal export requires an active Plus or Pro subscription',
+          user,
+          requiredTier: 'plus'
+        }),
+        { status: 403 }
+      );
     }
 
     const url = new URL(request.url);

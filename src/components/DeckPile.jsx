@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { animate, createSpring } from 'animejs';
+import { animate, spring } from 'animejs';
 import { TableuLogo } from './TableuLogo';
 import { BookOpen } from '@phosphor-icons/react';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { useAnimeScope } from '../hooks/useAnimeScope';
 import { MICROCOPY } from '../lib/microcopy';
 
 /**
@@ -47,11 +46,11 @@ function useDynamicLogoSize(baseSize = 120, factor = 0.15, debounceMs = 100) {
 export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel, isComplete = false, onViewReading }) {
     const rasterLogoSize = useDynamicLogoSize(120, 0.15);
     const shouldReduceMotion = useReducedMotion();
-    const [scopeRootRef] = useAnimeScope();
+    const scopeRootRef = useRef(null);
     const buttonRef = useRef(null);
     const isHoveringRef = useRef(false);
     const activeAnimRef = useRef(null);
-    const springEase = useMemo(() => createSpring({ stiffness: 400, damping: 25, mass: 1 }), []);
+    const springEase = useMemo(() => spring({ stiffness: 400, damping: 25, mass: 1 }), []);
 
     // Merge refs for button to get both direct access and animation scope
     const setButtonRefs = useCallback((node) => {

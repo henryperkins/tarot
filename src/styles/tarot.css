@@ -255,6 +255,88 @@
   border-radius: 0.75rem;
 }
 
+.scene-shell {
+  border-radius: clamp(1rem, 2.2vw, 1.85rem);
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 18%, transparent);
+  box-shadow: 0 32px 72px -48px rgba(0, 0, 0, 0.95);
+  overflow: hidden;
+}
+
+.scene-stage {
+  --scene-bloom-a: color-mix(in srgb, var(--brand-primary) 24%, transparent);
+  --scene-bloom-b: color-mix(in srgb, var(--brand-secondary) 20%, transparent);
+  position: relative;
+  min-height: clamp(30rem, 78vh, 54rem);
+}
+
+.scene-stage::before,
+.scene-stage::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  border-radius: 999px;
+  filter: blur(52px);
+  opacity: 0.8;
+  z-index: 0;
+}
+
+.scene-stage::before {
+  width: min(42vw, 24rem);
+  height: min(42vw, 24rem);
+  left: max(-14vw, -8rem);
+  top: min(8vh, 4rem);
+  background: radial-gradient(circle, var(--scene-bloom-a) 0%, transparent 70%);
+}
+
+.scene-stage::after {
+  width: min(36vw, 20rem);
+  height: min(36vw, 20rem);
+  right: max(-9vw, -6rem);
+  bottom: min(6vh, 3rem);
+  background: radial-gradient(circle, var(--scene-bloom-b) 0%, transparent 72%);
+}
+
+.scene-stage__panel {
+  position: relative;
+  z-index: 1;
+  border-radius: clamp(1rem, 2.1vw, 1.35rem);
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 24%, transparent);
+  background:
+    linear-gradient(135deg, rgba(12, 10, 22, 0.8), rgba(8, 6, 16, 0.86)),
+    radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--brand-primary) 13%, transparent), transparent 50%),
+    radial-gradient(circle at 84% 0%, color-mix(in srgb, var(--brand-secondary) 16%, transparent), transparent 48%);
+  backdrop-filter: blur(18px) saturate(1.12);
+  -webkit-backdrop-filter: blur(18px) saturate(1.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 24px 52px -42px rgba(0, 0, 0, 0.92);
+}
+
+.scene-stage--ritual {
+  --scene-bloom-a: rgba(212, 175, 55, 0.32);
+  --scene-bloom-b: rgba(99, 102, 241, 0.22);
+}
+
+.scene-stage--reveal {
+  --scene-bloom-a: rgba(212, 175, 55, 0.28);
+  --scene-bloom-b: rgba(6, 182, 212, 0.2);
+}
+
+.scene-stage--interlude {
+  --scene-bloom-a: rgba(147, 197, 253, 0.22);
+  --scene-bloom-b: rgba(196, 171, 255, 0.22);
+}
+
+.scene-stage--narrative {
+  --scene-bloom-a: rgba(212, 175, 55, 0.26);
+  --scene-bloom-b: rgba(139, 92, 246, 0.2);
+}
+
+.scene-stage--complete {
+  --scene-bloom-a: rgba(212, 175, 55, 0.24);
+  --scene-bloom-b: rgba(16, 185, 129, 0.14);
+}
+
 :root.light {
   /* Align fallback tokens with the light-mode palette when color-mix() isn't available. */
   --accent-25: rgba(138, 107, 59, 0.25);
@@ -501,6 +583,16 @@ body {
 
 .header-sticky--compact .header-sticky__row {
   gap: 0.75rem;
+}
+
+.header-sticky--scene {
+  box-shadow: 0 10px 20px var(--main-35, rgba(15, 14, 19, 0.35));
+}
+
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  .header-sticky--scene {
+    box-shadow: 0 10px 20px color-mix(in srgb, var(--bg-main) 35%, transparent);
+  }
 }
 
 .header-sticky--hidden {
@@ -2589,12 +2681,52 @@ input[type="range"]:focus::-webkit-slider-thumb {
 /* Deck stack 3D effect */
 .deck-stack {
   transform-style: preserve-3d;
-  transition: transform 0.3s ease;
+  transition: transform 0.35s ease;
+}
+
+.deck-stack-card {
+  border-color: color-mix(in srgb, var(--brand-primary) 30%, transparent);
+  background:
+    linear-gradient(145deg, rgba(38, 28, 68, 0.9), rgba(22, 14, 43, 0.96)),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--brand-accent) 18%, transparent), transparent 68%);
+}
+
+.deck-stack-top {
+  border-color: color-mix(in srgb, var(--brand-primary) 50%, transparent);
+  background:
+    linear-gradient(145deg, rgba(44, 31, 74, 0.95), rgba(24, 16, 48, 0.98)),
+    radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--brand-primary) 24%, transparent), transparent 66%);
+}
+
+.deck-ritual-header h3 {
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 16px color-mix(in srgb, var(--brand-primary) 18%, transparent);
+}
+
+.deck-ritual-knock-badges {
+  min-height: 1.25rem;
+}
+
+.deck-ritual-knock-badge {
+  width: 0.68rem;
+  height: 0.68rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 42%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 68%, transparent);
+  transition: transform 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
+}
+
+.deck-ritual-knock-badge.is-active {
+  background: color-mix(in srgb, var(--brand-primary) 88%, white 12%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--brand-primary) 28%, transparent),
+    0 0 14px color-mix(in srgb, var(--brand-primary) 42%, transparent);
+  transform: scale(1.08);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .deck-stack:hover {
-    transform: rotateX(5deg) rotateY(-3deg);
+    transform: rotateX(5deg) rotateY(-4deg) translateY(-2px);
   }
 }
 
@@ -2678,19 +2810,18 @@ input[type="range"]:focus::-webkit-slider-thumb {
 /* Knock ripple */
 @keyframes knockRipple {
   0% {
-    transform: scale(0.9);
-    opacity: 0.8;
-    border-width: 3px;
+    transform: scale(0.5);
+    opacity: 0.75;
   }
   100% {
-    transform: scale(1.5);
+    transform: scale(2.8);
     opacity: 0;
-    border-width: 1px;
   }
 }
 
 .knock-ripple {
-  animation: knockRipple var(--duration-slow, 400ms) ease-out forwards;
+  border-color: color-mix(in srgb, var(--brand-primary) 55%, transparent);
+  animation: knockRipple 1200ms ease-out forwards;
 }
 
 /* Spread table layout */
@@ -2714,6 +2845,29 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 .card-placeholder-next {
   animation: placeholderPulseFallback 1.5s ease-in-out infinite;
+}
+
+@keyframes slotRevealBloom {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  38% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.95);
+  }
+}
+
+.slot-reveal-bloom {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--bloom-color) 0%, transparent 66%);
+  animation: slotRevealBloom 0.8s ease-out forwards;
 }
 
 @supports (color: color-mix(in srgb, red 50%, blue)) {
@@ -2780,6 +2934,53 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 .card-swipe-hint--right {
   right: 0.5rem;
+}
+
+@keyframes cardPopoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.card-info-popover {
+  position: relative;
+  border-radius: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 30%, transparent);
+  background:
+    linear-gradient(135deg, rgba(10, 8, 24, 0.9), rgba(8, 6, 18, 0.94)),
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--brand-primary) 14%, transparent), transparent 58%);
+  backdrop-filter: blur(24px) saturate(1.25);
+  -webkit-backdrop-filter: blur(24px) saturate(1.25);
+  box-shadow: 0 24px 48px -30px rgba(0, 0, 0, 0.92);
+  animation: cardPopoverIn 200ms ease both;
+}
+
+.card-info-popover::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: rgba(10, 8, 24, 0.94);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 30%, transparent);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.card-info-popover--above::after {
+  bottom: -7px;
+  border-left: none;
+  border-top: none;
+}
+
+.card-info-popover--below::after {
+  top: -7px;
+  border-right: none;
+  border-bottom: none;
 }
 
 /* ==========================================================================
@@ -3510,20 +3711,14 @@ input[type="range"]:focus::-webkit-slider-thumb {
   color: var(--text-accent, var(--brand-accent));
   text-shadow: 0 0 14px var(--accent-25, rgba(232, 218, 195, 0.25)),
     0 0 22px var(--glow-blue, rgba(120, 161, 255, 0.08));
-  background: linear-gradient(
-    180deg,
-    transparent,
-    var(--primary-20, rgba(212, 184, 150, 0.2))
-  );
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--brand-accent) 10%, transparent));
 
   color: color-mix(in srgb, var(--brand-accent) 75%, var(--text-main));
   text-shadow: 0 0 14px color-mix(in srgb, var(--brand-accent) 22%, transparent),
     0 0 26px color-mix(in srgb, var(--brand-secondary) 14%, transparent);
-  background: linear-gradient(
-    180deg,
-    transparent,
-    color-mix(in srgb, var(--brand-accent) 16%, transparent)
-  );
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--brand-accent) 42%, transparent);
+  text-underline-offset: 0.2em;
   border-radius: 0.35rem;
   padding: 0 0.12em;
 }
@@ -3556,10 +3751,12 @@ input[type="range"]:focus::-webkit-slider-thumb {
 @keyframes narrativeWordReveal {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    filter: blur(4px);
+    transform: translateY(5px);
   }
   to {
     opacity: 1;
+    filter: blur(0);
     transform: translateY(0);
   }
 }

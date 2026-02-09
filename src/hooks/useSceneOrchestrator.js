@@ -127,6 +127,12 @@ export function useSceneOrchestrator({
       }
 
       const total = totalCards || reading.length;
+      // Keep the deck in ritual mode until the first card is actually dealt.
+      // This preserves the intended Idle -> Ritual -> Reveal sequence.
+      if (revealedCount === 0) {
+        return LEGACY_SCENES.SHUFFLING;
+      }
+
       if (revealedCount < total) {
         return LEGACY_SCENES.DRAWING;
       }
@@ -305,4 +311,3 @@ export function useSceneOrchestrator({
     shouldShowInterlude
   };
 }
-

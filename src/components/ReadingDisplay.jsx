@@ -251,7 +251,8 @@ export function ReadingDisplay({
     onOpenFollowUp,
     followUpOpen,
     onFollowUpOpenChange,
-    followUpAutoFocus = true
+    followUpAutoFocus = true,
+    suppressInterruptions = false
 }) {
     const { saveReading, isSaving } = useSaveReading();
     const { publish: publishToast } = useToast();
@@ -352,6 +353,7 @@ export function ReadingDisplay({
     }, [readingIdentity]);
     const [focusedCardData, setFocusedCardData] = useState(null);
     const [recentlyClosedIndex, setRecentlyClosedIndex] = useState(-1);
+    const recentlyClosedTimeoutRef = useRef(null);
     const [hasHeroStoryArt, setHasHeroStoryArt] = useState(false);
     const [mediaItems, setMediaItems] = useState([]);
     const [mediaLoading, setMediaLoading] = useState(false);
@@ -497,7 +499,8 @@ export function ReadingDisplay({
         );
 
         sources.forEach((src) => {
-            const existing = head.querySelector(`link[rel="preload"][as="image"][href="${src}"]`);
+            const escapedSrc = CSS.escape(src);
+            const existing = head.querySelector(`link[rel="preload"][as="image"][href="${escapedSrc}"]`);
             if (existing) return;
             const link = document.createElement('link');
             link.rel = 'preload';
@@ -699,6 +702,10 @@ export function ReadingDisplay({
             window.clearTimeout(autoNarrationTimeoutRef.current);
             autoNarrationTimeoutRef.current = null;
         }
+        if (recentlyClosedTimeoutRef.current) {
+            window.clearTimeout(recentlyClosedTimeoutRef.current);
+            recentlyClosedTimeoutRef.current = null;
+        }
     }, []);
 
     useEffect(() => {
@@ -744,8 +751,11 @@ export function ReadingDisplay({
 
     const handleRevealAllWithScroll = useCallback(() => {
         revealAll();
-        sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, [revealAll, sectionRef]);
+        sectionRef.current?.scrollIntoView({
+            behavior: prefersReducedMotion ? 'auto' : 'smooth',
+            block: 'start'
+        });
+    }, [revealAll, prefersReducedMotion, sectionRef]);
 
     const handleResetReveals = useCallback(() => {
         setRevealedCards(new Set());
@@ -991,6 +1001,10 @@ export function ReadingDisplay({
     }, [setSelectedCardData]);
     const handleCloseDetail = useCallback(() => {
         if (!focusedCardData) {
+            if (recentlyClosedTimeoutRef.current) {
+                window.clearTimeout(recentlyClosedTimeoutRef.current);
+                recentlyClosedTimeoutRef.current = null;
+            }
             setSelectedCardData(null);
             return;
         }
@@ -998,11 +1012,17 @@ export function ReadingDisplay({
         setFocusedCardData(null);
         setSelectedCardData(null);
         setRecentlyClosedIndex(idx);
+        if (recentlyClosedTimeoutRef.current) {
+            window.clearTimeout(recentlyClosedTimeoutRef.current);
+        }
         const target = document.getElementById(`spread-slot-${idx}`);
         if (target?.scrollIntoView) {
             target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center', inline: 'center' });
         }
-        window.setTimeout(() => setRecentlyClosedIndex(-1), 900);
+        recentlyClosedTimeoutRef.current = window.setTimeout(() => {
+            setRecentlyClosedIndex(-1);
+            recentlyClosedTimeoutRef.current = null;
+        }, 900);
     }, [focusedCardData, prefersReducedMotion, setSelectedCardData]);
 
     // --- Card Navigation Logic ---
@@ -1072,6 +1092,7 @@ export function ReadingDisplay({
         : '';
 
     useEffect(() => {
+        if (suppressInterruptions) return;
         if (!personalReading || personalReading.isError) return;
         if (narrativePhase !== 'complete') return;
 
@@ -1118,10 +1139,11 @@ export function ReadingDisplay({
                 duration: nextCount === 1 ? 5200 : 4200
             });
         }
-    }, [personalReading, personalReading?.requestId, readingMeta?.requestId, narrativePhase, nudgeState?.readingCount, nudgeState?.lastCountedReadingRequestId, incrementReadingCount, publishToast]);
+    }, [personalReading, personalReading?.requestId, readingMeta?.requestId, narrativePhase, nudgeState?.readingCount, nudgeState?.lastCountedReadingRequestId, incrementReadingCount, publishToast, suppressInterruptions]);
 
     useEffect(() => {
-        if (!isShuffling) return;
+        if (suppressInterruptions) return;
+        if (!isShuffling || newDeckInterface) return;
         const timerId = setTimeout(() => {
             publishToast({
                 type: 'info',
@@ -1131,7 +1153,7 @@ export function ReadingDisplay({
             });
         }, 800);
         return () => clearTimeout(timerId);
-    }, [isShuffling, publishToast]);
+    }, [isShuffling, newDeckInterface, publishToast, suppressInterruptions]);
 
     const sceneData = useMemo(() => {
         const dominantSuit = themes?.dominantSuit
@@ -1360,7 +1382,6 @@ export function ReadingDisplay({
         idle: ({ children }) => (
             <IdleScene
                 showTitle={false}
-                className="py-3 sm:py-4"
             >
                 {children}
             </IdleScene>
@@ -1369,35 +1390,30 @@ export function ReadingDisplay({
             <RitualScene
                 {...props}
                 showTitle={false}
-                className="py-3 sm:py-4"
             />
         ),
         reveal: (props) => (
             <RevealScene
                 {...props}
                 showTitle={false}
-                className="py-3 sm:py-4"
             />
         ),
         interlude: (props) => (
             <InterludeScene
                 {...props}
                 showTitle={false}
-                className="py-3 sm:py-4"
             />
         ),
         narrative: (props) => (
             <NarrativeScene
                 {...props}
                 showTitle={false}
-                className="py-3 sm:py-4"
             />
         ),
         complete: (props) => (
             <CompleteScene
                 {...props}
                 showTitle={false}
-                className="py-3 sm:py-4"
             />
         )
     }), []);
@@ -1446,7 +1462,7 @@ export function ReadingDisplay({
                     sceneData={sceneData}
                     colorScript={activeColorScript}
                     colorScriptOwner={COLOR_SCRIPT_OWNER}
-                    className="rounded-3xl border border-secondary/20"
+                    className="scene-shell"
                 >
                     <div className={isLandscape ? 'space-y-4' : 'space-y-8'}>
                     {shouldShowCinematicReveal && (

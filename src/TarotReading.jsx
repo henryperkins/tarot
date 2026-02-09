@@ -73,6 +73,7 @@ export default function TarotReading() {
   const isLandscape = useLandscape();
   const isHandsetLayout = useHandsetLayout();
   const { newDeckInterface } = useFeatureFlags();
+  const showDegradedServiceBanner = import.meta.env?.VITE_SHOW_DEGRADED_SERVICE_BANNER === 'true';
   // Use one canonical handset decision for all mobile shell patterns
   // (bottom action bar + settings drawer + quick intention).
   const isHandset = isHandsetLayout;
@@ -153,6 +154,15 @@ export default function TarotReading() {
   const [onboardingDeferred, setOnboardingDeferred] = useState(false);
   const isOnboardingOpen = !onboardingComplete && !showPersonalizationBanner && !onboardingDeferred;
   const shouldShowGestureCoachOverlay = shouldShowGestureCoach && hasConfirmedSpread && !reading && !isOnboardingOpen;
+  const shouldFocusCinematicFlow = newDeckInterface && (
+    hasConfirmedSpread ||
+    Boolean(reading?.length) ||
+    isGenerating ||
+    Boolean(personalReading)
+  );
+  const [showSetupInFocusMode, setShowSetupInFocusMode] = useState(false);
+  const showSetupSection = !shouldFocusCinematicFlow || showSetupInFocusMode;
+  const suppressFocusInterruptions = shouldFocusCinematicFlow;
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -192,6 +202,7 @@ export default function TarotReading() {
   // (Handled in ReadingContext now, but we might need to clear local UI state if any)
   const handleShuffle = useCallback(() => {
     setIsFollowUpOpen(false);
+    setShowSetupInFocusMode(false);
     shuffle(); // Context handles the resets
   }, [shuffle]);
 
@@ -215,19 +226,24 @@ export default function TarotReading() {
       const anthropicAvailable = tarotHealth?.ok ?? false;
       const azureAvailable = ttsHealth?.ok ?? false;
       if (!anthropicAvailable || !azureAvailable) {
-        setApiHealthBanner({
-          status: 'degraded',
-          anthropic: anthropicAvailable,
-          azure: azureAvailable,
-          message: 'Using local services' +
-            (!anthropicAvailable ? ' (Claude unavailable)' : '') +
-            (!azureAvailable ? ' (Azure TTS unavailable)' : '')
-        });
-        setConnectionBanner({
-          status: 'degraded',
-          message: 'Service check failed. Using local fallback.',
-          actionLabel: 'Retry'
-        });
+        if (showDegradedServiceBanner) {
+          setApiHealthBanner({
+            status: 'degraded',
+            anthropic: anthropicAvailable,
+            azure: azureAvailable,
+            message: 'Using local services' +
+              (!anthropicAvailable ? ' (Claude unavailable)' : '') +
+              (!azureAvailable ? ' (Azure TTS unavailable)' : '')
+          });
+          setConnectionBanner({
+            status: 'degraded',
+            message: 'Service check failed. Using local fallback.',
+            actionLabel: 'Retry'
+          });
+        } else {
+          setApiHealthBanner(null);
+          setConnectionBanner(null);
+        }
       } else {
         setApiHealthBanner(null);
         setConnectionBanner(null);
@@ -241,7 +257,7 @@ export default function TarotReading() {
         actionLabel: 'Retry'
       });
     }
-  }, []);
+  }, [showDegradedServiceBanner]);
 
   // Check API health - runs on mount and when tab becomes visible
   useEffect(() => {
@@ -535,6 +551,22 @@ export default function TarotReading() {
   };
 
   const handleStepNav = useCallback((stepId) => {
+    const refs = {
+      spread: spreadSectionRef,
+      intention: prepareSectionRef,
+      ritual: prepareSectionRef,
+      reading: readingSectionRef
+    };
+    const scrollToStep = () => {
+      const target = refs[stepId]?.current;
+      if (!target || typeof target.scrollIntoView !== 'function') return;
+      const behavior = prefersReducedMotion ? 'auto' : 'smooth';
+      target.scrollIntoView({
+        behavior,
+        block: 'start'
+      });
+    };
+
     // On mobile (< 640px), open the settings drawer for intention/ritual steps
     // since the prep section is hidden on mobile
     if (isHandset && (stepId === 'intention' || stepId === 'ritual')) {
@@ -543,21 +575,20 @@ export default function TarotReading() {
       return;
     }
 
-    const refs = {
-      spread: spreadSectionRef,
-      intention: prepareSectionRef,
-      ritual: prepareSectionRef,
-      reading: readingSectionRef
-    };
-    const target = refs[stepId]?.current;
-    if (target && typeof target.scrollIntoView === 'function') {
-      const behavior = prefersReducedMotion ? 'auto' : 'smooth';
-      target.scrollIntoView({
-        behavior,
-        block: 'start'
-      });
+    if (shouldFocusCinematicFlow && stepId !== 'reading' && !showSetupInFocusMode) {
+      setShowSetupInFocusMode(true);
+      window.setTimeout(scrollToStep, prefersReducedMotion ? 0 : 30);
+      return;
     }
-  }, [isHandset, prefersReducedMotion]);
+
+    if (stepId === 'reading' && showSetupInFocusMode) {
+      setShowSetupInFocusMode(false);
+      window.setTimeout(scrollToStep, prefersReducedMotion ? 0 : 20);
+      return;
+    }
+
+    scrollToStep();
+  }, [isHandset, prefersReducedMotion, shouldFocusCinematicFlow, showSetupInFocusMode]);
 
   // Handle navigation requests passed via router state (e.g., from Journal empty state)
   useEffect(() => {
@@ -704,6 +735,7 @@ export default function TarotReading() {
   const isFollowUpVisible = showFollowUpButton && isFollowUpOpen;
   // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
   const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen || isFollowUpVisible;
+  const isCinematicFocusMode = shouldFocusCinematicFlow && !showSetupInFocusMode;
   const revealFocus = isHandset && newDeckInterface && reading && revealedCards.size < visibleCount
     ? (revealedCards.size === 0 ? 'deck' : 'spread')
     : 'action';
@@ -716,11 +748,16 @@ export default function TarotReading() {
   const connectionBg = connectionBanner?.status === 'offline'
     ? 'bg-error/10'
     : 'bg-primary/10';
-  const handsetPaddingBottom = isHandset
+  const handsetPaddingBottom = isHandset && showSetupSection && !suppressFocusInterruptions
     ? (isLandscape
       ? 'max(6rem, calc(var(--mobile-action-bar-height, 0px) + 1rem))'
       : 'max(8rem, calc(var(--mobile-action-bar-height, 0px) + 1.5rem))')
     : null;
+  const mainContentSpacing = isLandscape
+    ? 'pt-3 pb-24 lg:pb-8'
+    : isHandset && isCinematicFocusMode
+      ? 'pt-4 pb-14 sm:py-8 lg:py-10'
+      : 'pt-6 pb-32 sm:py-8 lg:py-10';
 
   const handleOpenFollowUp = useCallback(() => {
     if (!showFollowUpButton) return;
@@ -824,7 +861,7 @@ export default function TarotReading() {
       <main
         id="main-content"
         tabIndex={-1}
-        className={`max-w-7xl mx-auto px-4 sm:px-5 md:px-6 ${isLandscape ? 'pt-3 pb-24 lg:pb-8' : 'pt-6 pb-32 sm:py-8 lg:py-10'}`}
+        className={`max-w-7xl mx-auto px-4 sm:px-5 md:px-6 ${mainContentSpacing}`}
         style={handsetPaddingBottom ? { paddingBottom: handsetPaddingBottom } : undefined}
       >
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
@@ -837,9 +874,10 @@ export default function TarotReading() {
           activeStep={activeStep}
           onStepSelect={handleStepNav}
           isShuffling={isShuffling}
+          minimalNav={isCinematicFocusMode}
         />
 
-        {apiHealthBanner && (
+        {apiHealthBanner && showSetupSection && !suppressFocusInterruptions && (
           <div className={`mb-6 p-4 rounded-lg backdrop-blur ${
             apiHealthBanner.status === 'offline'
               ? 'bg-error/10 border border-error/40'
@@ -877,7 +915,7 @@ export default function TarotReading() {
           </div>
         )}
 
-        {minorsDataIncomplete && (
+        {minorsDataIncomplete && showSetupSection && !suppressFocusInterruptions && (
           <div className="mb-6 p-4 bg-error/10 border border-error/40 rounded-lg backdrop-blur">
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full bg-error animate-pulse motion-reduce:animate-none"></div>
@@ -892,7 +930,7 @@ export default function TarotReading() {
           </div>
         )}
 
-        {showPersonalizationBanner && (
+        {showPersonalizationBanner && showSetupSection && !suppressFocusInterruptions && (
           <PersonalizationBanner
             onDismiss={handlePersonalizationBannerDismiss}
             onPersonalize={handlePersonalizationBannerPersonalize}
@@ -900,94 +938,96 @@ export default function TarotReading() {
         )}
 
         {/* Step 1–3: Spread + Prepare */}
-        <section aria-label="Reading setup" className={isLandscape ? 'mb-3' : 'mb-6 xl:mb-4'}>
-          <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
-            <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">{stepIndicatorLabel}</p>
-            {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>}
-          </div>
+        {showSetupSection && (
+          <section aria-label="Reading setup" className={isLandscape ? 'mb-3' : 'mb-6 xl:mb-4'}>
+            <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
+              <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">{stepIndicatorLabel}</p>
+              {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>}
+            </div>
 
-          <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
-            <div aria-label="Choose your physical deck">
+            <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
+              <div aria-label="Choose your physical deck">
+                {!isHandset && (
+                  <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
+                )}
+              </div>
+
+              <div aria-label="Spread selection" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
+                <SpreadSelector
+                  selectedSpread={selectedSpread}
+                  onSelectSpread={handleSpreadSelection}
+                  onSpreadConfirm={onSpreadConfirm}
+                />
+              </div>
+
+              {/* Mobile quick intention entry keeps the question visible without opening the drawer */}
+              {isHandset && (
+                <QuickIntentionCard
+                  ref={quickIntentionCardRef}
+                  variant={isLandscape ? 'compact' : 'full'}
+                  highlight={highlightQuickIntention}
+                  userQuestion={userQuestion}
+                  onQuestionChange={setUserQuestion}
+                  placeholderQuestion={EXAMPLE_QUESTIONS[placeholderIndex]}
+                  onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
+                  inputRef={quickIntentionInputRef}
+                  onInputFocus={handleQuickIntentionFocus}
+                  onInputBlur={handleQuestionBlur}
+                  onCoachOpen={openIntentionCoach}
+                  onMoreOpen={() => {
+                    setMobileSettingsTab('intention');
+                    setIsMobileSettingsOpen(true);
+                  }}
+                  deckStyleId={deckStyleId}
+                  selectedSpread={selectedSpread}
+                  onDeckChange={() => {
+                    setMobileSettingsTab('deck');
+                    setIsMobileSettingsOpen(true);
+                  }}
+                />
+              )}
+
               {!isHandset && (
-                <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
+                <ReadingPreparation
+                  sectionRef={prepareSectionRef}
+                  userQuestion={userQuestion}
+                  setUserQuestion={setUserQuestion}
+                  placeholderIndex={placeholderIndex}
+                  onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
+                  onQuestionFocus={handleQuestionFocus}
+                  onQuestionBlur={handleQuestionBlur}
+                  onLaunchCoach={openIntentionCoach}
+                  prepareSectionsOpen={prepareSectionsOpen}
+                  togglePrepareSection={togglePrepareSection}
+                  prepareSummaries={prepareSummaries}
+                  prepareSectionLabels={prepareSectionLabels}
+                  hasKnocked={hasKnocked}
+                  handleKnock={handleKnock}
+                  cutIndex={cutIndex}
+                  setCutIndex={setCutIndex}
+                  hasCut={hasCut}
+                  applyCut={applyCut}
+                  knockCount={knockCount}
+                  onSkipRitual={handleShuffle}
+                  deckAnnouncement={deckAnnouncement}
+                  shouldSkipRitual={shouldSkipRitual}
+                />
+              )}
+
+              {!isLandscape && !isSmallScreen && (
+                <div className="flex justify-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleStepNav('reading')}
+                    className="text-sm text-secondary hover:text-main underline underline-offset-4"
+                  >
+                    Skip ahead to the reading
+                  </button>
+                </div>
               )}
             </div>
-
-            <div aria-label="Spread selection" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
-              <SpreadSelector
-                selectedSpread={selectedSpread}
-                onSelectSpread={handleSpreadSelection}
-                onSpreadConfirm={onSpreadConfirm}
-              />
-            </div>
-
-            {/* Mobile quick intention entry keeps the question visible without opening the drawer */}
-            {isHandset && (
-              <QuickIntentionCard
-                ref={quickIntentionCardRef}
-                variant={isLandscape ? 'compact' : 'full'}
-                highlight={highlightQuickIntention}
-                userQuestion={userQuestion}
-                onQuestionChange={setUserQuestion}
-                placeholderQuestion={EXAMPLE_QUESTIONS[placeholderIndex]}
-                onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
-                inputRef={quickIntentionInputRef}
-                onInputFocus={handleQuickIntentionFocus}
-                onInputBlur={handleQuestionBlur}
-                onCoachOpen={openIntentionCoach}
-                onMoreOpen={() => {
-                  setMobileSettingsTab('intention');
-                  setIsMobileSettingsOpen(true);
-                }}
-                deckStyleId={deckStyleId}
-                selectedSpread={selectedSpread}
-                onDeckChange={() => {
-                  setMobileSettingsTab('deck');
-                  setIsMobileSettingsOpen(true);
-                }}
-              />
-            )}
-
-            {!isHandset && (
-              <ReadingPreparation
-                sectionRef={prepareSectionRef}
-                userQuestion={userQuestion}
-                setUserQuestion={setUserQuestion}
-                placeholderIndex={placeholderIndex}
-                onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
-                onQuestionFocus={handleQuestionFocus}
-                onQuestionBlur={handleQuestionBlur}
-                onLaunchCoach={openIntentionCoach}
-                prepareSectionsOpen={prepareSectionsOpen}
-                togglePrepareSection={togglePrepareSection}
-                prepareSummaries={prepareSummaries}
-                prepareSectionLabels={prepareSectionLabels}
-                hasKnocked={hasKnocked}
-                handleKnock={handleKnock}
-                cutIndex={cutIndex}
-                setCutIndex={setCutIndex}
-                hasCut={hasCut}
-                applyCut={applyCut}
-                knockCount={knockCount}
-                onSkipRitual={handleShuffle}
-                deckAnnouncement={deckAnnouncement}
-                shouldSkipRitual={shouldSkipRitual}
-              />
-            )}
-
-            {!isLandscape && !isSmallScreen && (
-              <div className="flex justify-center pt-1">
-                <button
-                  type="button"
-                  onClick={() => handleStepNav('reading')}
-                  className="text-sm text-secondary hover:text-main underline underline-offset-4"
-                >
-                  Skip ahead to the reading
-                </button>
-              </div>
-            )}
-          </div>
-        </section>
+          </section>
+        )}
 
         <ReadingDisplay
           sectionRef={readingSectionRef}
@@ -995,6 +1035,7 @@ export default function TarotReading() {
           followUpOpen={isFollowUpOpen}
           onFollowUpOpenChange={setIsFollowUpOpen}
           followUpAutoFocus={followUpIntent === 'ask'}
+          suppressInterruptions={suppressFocusInterruptions}
         />
       </main>
 
@@ -1002,35 +1043,35 @@ export default function TarotReading() {
         <>
           {/* Mobile Nav - visually obscured when full-screen surfaces are open */}
           <MobileActionBar
-            isOverlayActive={isMobileOverlayActive}
-            isSettingsOpen={isMobileSettingsOpen}
-            isCoachOpen={isIntentionCoachOpen}
-            showFollowUp={showFollowUpButton}
-            isFollowUpOpen={isFollowUpVisible}
-            isShuffling={isShuffling}
-            reading={reading}
-            revealedCards={revealedCards}
-            dealIndex={dealIndex}
-            isGenerating={isGenerating}
-            personalReading={personalReading}
-            needsNarrativeGeneration={needsNarrativeGeneration}
-            stepIndicatorLabel={stepIndicatorLabel}
-            activeStep={activeStep}
-            revealFocus={revealFocus}
-            onOpenSettings={() => {
-              setMobileSettingsTab(activeStep === 'ritual' ? 'ritual' : 'intention');
-              setIsMobileSettingsOpen(true);
-            }}
-            onOpenCoach={openIntentionCoach}
-            onOpenFollowUp={handleOpenFollowUp}
-            onShuffle={handleShuffle}
-            onDealNext={dealNext}
-            onRevealAll={handleRevealAll}
-            onGenerateNarrative={handleGeneratePersonalReading}
-            onSaveReading={saveReading}
-            onNewReading={handleShuffle}
-          />
-          {connectionBanner && !isMobileOverlayActive && (
+              isOverlayActive={isMobileOverlayActive}
+              isSettingsOpen={isMobileSettingsOpen}
+              isCoachOpen={isIntentionCoachOpen}
+              showFollowUp={showFollowUpButton}
+              isFollowUpOpen={isFollowUpVisible}
+              isShuffling={isShuffling}
+              reading={reading}
+              revealedCards={revealedCards}
+              dealIndex={dealIndex}
+              isGenerating={isGenerating}
+              personalReading={personalReading}
+              needsNarrativeGeneration={needsNarrativeGeneration}
+              stepIndicatorLabel={stepIndicatorLabel}
+              activeStep={activeStep}
+              revealFocus={revealFocus}
+              onOpenSettings={() => {
+                setMobileSettingsTab(activeStep === 'ritual' ? 'ritual' : 'intention');
+                setIsMobileSettingsOpen(true);
+              }}
+              onOpenCoach={openIntentionCoach}
+              onOpenFollowUp={handleOpenFollowUp}
+              onShuffle={handleShuffle}
+              onDealNext={dealNext}
+              onRevealAll={handleRevealAll}
+              onGenerateNarrative={handleGeneratePersonalReading}
+              onSaveReading={saveReading}
+              onNewReading={handleShuffle}
+            />
+          {connectionBanner && showSetupSection && !suppressFocusInterruptions && !isMobileOverlayActive && (
             <div
               className="fixed left-0 right-0 z-[60] flex justify-center pl-safe pr-safe bottom-safe-action"
               aria-live="polite"

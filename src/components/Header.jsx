@@ -12,7 +12,13 @@ const COMPACT_THRESHOLD = 32;
 const HIDE_THRESHOLD_MIN = 180; // Minimum for small screens
 const HIDE_THRESHOLD_RATIO = 0.2; // 20% of viewport height
 
-export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
+export function Header({
+  steps,
+  activeStep,
+  onStepSelect,
+  isShuffling,
+  minimalNav = false
+}) {
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useSmallScreen(TABLET_SCREEN_MAX);
   const { personalization } = usePreferences();
@@ -26,7 +32,7 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
   const isCleanedUpRef = useRef(false);
   const { isCompact, isHidden } = headerState;
   // Disable auto-hide for reduced motion users and on small screens to prevent unexpected movement
-  const shouldHideHeader = isHidden && !isShuffling && !prefersReducedMotion && !isMobile;
+  const shouldHideHeader = isHidden && !isShuffling && !prefersReducedMotion && !isMobile && !minimalNav;
 
   // Calculate viewport-aware hide threshold
   const getHideThreshold = useCallback(() => {
@@ -105,55 +111,58 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
   return (
     <>
       {/* Main Header */}
-      <header aria-labelledby="tableau-heading" className={isCompact ? 'header-condensed' : ''}>
-        <div className="text-center mb-2 sm:mb-6 md:mb-8 mystic-heading-wrap flex flex-col items-center">
-          <div
-            className="transition-all duration-200 ease-out"
-            style={{
-              // Use margin adjustment for smooth visual transition instead of scale
-              marginTop: isCompact ? '-8px' : '0',
-              marginBottom: isCompact ? '-8px' : '0',
-            }}
-          >
-            <img
-              src="/images/tableu-logo-new.png"
-              alt="Tableu - Tarot Reading Application"
-              className="mb-2 opacity-90 hover:opacity-100 transition-opacity"
-              style={{ height: logoHeight, width: 'auto' }}
-            />
+      {!minimalNav && (
+        <header aria-labelledby="tableau-heading" className={isCompact ? 'header-condensed' : ''}>
+          <div className="text-center mb-2 sm:mb-6 md:mb-8 mystic-heading-wrap flex flex-col items-center">
+            <div
+              className="transition-all duration-200 ease-out"
+              style={{
+                // Use margin adjustment for smooth visual transition instead of scale
+                marginTop: isCompact ? '-8px' : '0',
+                marginBottom: isCompact ? '-8px' : '0',
+              }}
+            >
+              <img
+                src="/images/tableu-logo-new.png"
+                alt="Tableu - Tarot Reading Application"
+                className="mb-2 opacity-90 hover:opacity-100 transition-opacity"
+                style={{ height: logoHeight, width: 'auto' }}
+              />
+            </div>
+            <h1 id="tableau-heading" className="sr-only">
+              Tableu
+            </h1>
+            <p
+              className={`
+                mt-1 text-muted leading-relaxed max-w-2xl
+                transition-all duration-200
+                hidden sm:block
+                ${isCompact
+                  ? 'text-xs opacity-0 h-0 overflow-hidden'
+                  : 'text-xs-plus sm:text-sm md:text-base opacity-100'
+                }
+              `}
+              aria-hidden={isCompact}
+            >
+              Authentic tarot, thoughtfully interpreted.
+            </p>
           </div>
-          <h1 id="tableau-heading" className="sr-only">
-            Tableu
-          </h1>
-          <p
-            className={`
-              mt-1 text-muted leading-relaxed max-w-2xl
-              transition-all duration-200
-              hidden sm:block
-              ${isCompact
-                ? 'text-xs opacity-0 h-0 overflow-hidden'
-                : 'text-xs-plus sm:text-sm md:text-base opacity-100'
-              }
-            `}
-            aria-hidden={isCompact}
-          >
-            Authentic tarot, thoughtfully interpreted.
-          </p>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* Sticky Navigation Bar */}
       <div
         className={`
-          full-bleed sticky top-0 z-30 mb-5
+          full-bleed sticky top-0 z-30 ${minimalNav ? 'mb-3' : 'mb-5'}
           bg-surface/95 backdrop-blur
           border-y border-accent/20
-          pt-[var(--safe-pad-top)]
+          ${minimalNav ? 'pt-[max(0.35rem,var(--safe-pad-top))]' : 'pt-[var(--safe-pad-top)]'}
           px-4 sm:px-5 md:px-6
           pr-[max(1rem,var(--safe-pad-right))]
           pl-[max(1rem,var(--safe-pad-left))]
           shadow-lg shadow-primary/20
           header-sticky
+          ${minimalNav ? 'header-sticky--scene' : ''}
           ${isCompact ? 'header-sticky--compact' : ''}
         `}
         style={{
@@ -161,19 +170,21 @@ export function Header({ steps, activeStep, onStepSelect, isShuffling }) {
           transition: 'transform 200ms ease',
         }}
       >
-        <div className="header-sticky__row flex flex-wrap items-center gap-2 sm:gap-3 justify-between">
-          <div className="header-sticky__nav flex-1 w-full sm:w-auto">
-            <GlobalNav condensed={isCompact} withUserChip />
-          </div>
-          {/* Fallback placement if user chip overflows (desktop still shows) */}
-          <div className="hidden sm:block">
-            <div className="header-sticky__user header-sticky__user--fab">
-              <UserMenu condensed={isCompact} />
+        {!minimalNav && (
+          <div className="header-sticky__row flex flex-wrap items-center gap-2 sm:gap-3 justify-between">
+            <div className="header-sticky__nav flex-1 w-full sm:w-auto">
+              <GlobalNav condensed={isCompact} withUserChip />
+            </div>
+            {/* Fallback placement if user chip overflows (desktop still shows) */}
+            <div className="hidden sm:block">
+              <div className="header-sticky__user header-sticky__user--fab">
+                <UserMenu condensed={isCompact} />
+              </div>
             </div>
           </div>
-        </div>
-        <div className="mt-2 sm:mt-1">
-          {displayName && (
+        )}
+        <div className={minimalNav ? '' : 'mt-2 sm:mt-1'}>
+          {displayName && !minimalNav && (
             <p className="text-[0.75rem] sm:text-xs text-muted mb-1">
               Welcome back, {displayName}.
             </p>

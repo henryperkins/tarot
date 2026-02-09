@@ -38,7 +38,7 @@ test.describe('Anime.js V4 API Verification', () => {
     console.log('Test 2:', result);
   });
 
-  test('Test 3: createSpring() spring physics', async ({ page }) => {
+  test('Test 3: spring() spring physics', async ({ page }) => {
     await page.click('button:has-text("Run Test"):near(#test3-result)');
 
     await expect(page.locator('#test3-result')).toHaveClass(/success/, { timeout: 5000 });
@@ -165,5 +165,5 @@ test('Log Anime.js V4 exports', async ({ page }) => {
   expect(exports).toContain('createTimeline');
   expect(exports).toContain('stagger');
   expect(exports).toContain('set');
-  expect(exports).toContain('createSpring');
+  expect(exports).toContain('spring');
 });

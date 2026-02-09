@@ -122,7 +122,7 @@ function VideoPlayer({ videoData, onReplay, prefersReducedMotion = false }) {
   const [isPlaying, setIsPlaying] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
   const [originRect, setOriginRect] = useState(null);
-  
+
   useEffect(() => {
     if (videoRef.current && videoData) {
       videoRef.current.play().catch(() => {
@@ -321,15 +321,6 @@ function VideoPlayer({ videoData, onReplay, prefersReducedMotion = false }) {
         ref={containerRef}
         className="relative w-full aspect-square bg-main rounded-lg overflow-hidden group"
         onClick={openExpanded}
-        role="button"
-        tabIndex={0}
-        aria-label="Expand cinematic reveal"
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            openExpanded();
-          }
-        }}
       >
       <video
         ref={videoRef}
@@ -341,16 +332,31 @@ function VideoPlayer({ videoData, onReplay, prefersReducedMotion = false }) {
         playsInline
         muted
       />
+
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          openExpanded();
+        }}
+        className="absolute top-3 left-3 z-20 rounded-full bg-black/65 border border-white/20 px-2.5 py-1 text-[11px] font-semibold text-white"
+        aria-label="Expand cinematic reveal"
+      >
+        Expand
+      </button>
       
       {/* Play/Pause overlay */}
       <div 
-        className="absolute inset-0 flex items-center justify-center 
+        className="absolute inset-0 z-10 flex items-center justify-center 
                    bg-main/60 backdrop-blur-sm opacity-0 group-hover:opacity-100"
         style={{ transition: prefersReducedMotion ? 'none' : undefined }}
       >
-        <div
+        <button
           ref={playButtonRef}
-          className="w-16 h-16 bg-primary/90 rounded-full flex items-center justify-center"
+          type="button"
+          aria-pressed={isPlaying}
+          aria-label={isPlaying ? 'Pause cinematic reveal' : 'Play cinematic reveal'}
+          className="w-16 h-16 bg-primary/90 rounded-full flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
           onClick={(event) => {
             event.stopPropagation();
             handlePlayPause();
@@ -369,17 +375,18 @@ function VideoPlayer({ videoData, onReplay, prefersReducedMotion = false }) {
               <path d="M8 5v14l11-7z" />
             </svg>
           )}
-        </div>
+        </button>
       </div>
       
       {/* Replay button (shown when video ends) */}
       {!isPlaying && (
         <button
+          type="button"
           onClick={(event) => {
             event.stopPropagation();
             onReplay();
           }}
-          className="absolute bottom-4 right-4 px-3 py-1.5 bg-surface/85 
+          className="absolute bottom-4 right-4 z-20 px-3 py-1.5 bg-surface/85 
                      text-main rounded-lg text-sm hover:bg-surface transition-colors"
         >
           Replay ↻
@@ -402,7 +409,7 @@ export default function AnimatedReveal({
   className = ''
 }) {
   const prefersReducedMotion = useReducedMotion();
-  const [style, setStyle] = useState(DEFAULT_VIDEO_STYLE);
+  const [style, setStyleRaw] = useState(DEFAULT_VIDEO_STYLE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [, setJobId] = useState(null);
@@ -411,9 +418,11 @@ export default function AnimatedReveal({
   const [showStylePicker, setShowStylePicker] = useState(false);
   
   const pollIntervalRef = useRef(null);
+  const pollInFlightRef = useRef(false);
   const pollMetaRef = useRef({ startedAt: 0, errorCount: 0 });
   const autoGenerateKeyRef = useRef(null);
   const requestTokenRef = useRef(0);
+  const replayTimerRef = useRef(null);
   const normalizedQuestion = (question || '').trim();
   const normalizedPosition = (position || '').trim();
   const isReversed = Boolean(card?.reversed ?? card?.isReversed);
@@ -423,6 +432,33 @@ export default function AnimatedReveal({
     cardVideoStyles: VIDEO_STYLES.map((stylePreset) => stylePreset.id)
   }).cardVideo;
   const availableStyles = VIDEO_STYLES.filter(s => config.styles?.includes(s.id));
+
+  const setStyle = useCallback((id) => {
+    const allowed = config.styles || [];
+    setStyleRaw(allowed.includes(id) ? id : (allowed[0] || DEFAULT_VIDEO_STYLE));
+  }, [config.styles]);
+
+  const clearPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    pollInFlightRef.current = false;
+  }, []);
+
+  const clearReplayTimer = useCallback(() => {
+    if (!replayTimerRef.current) return;
+    window.clearTimeout(replayTimerRef.current);
+    replayTimerRef.current = null;
+  }, []);
+
+  // Clamp style when tier changes make current selection unavailable
+  useEffect(() => {
+    const allowed = config.styles || [];
+    if (allowed.length > 0 && !allowed.includes(style)) {
+      setStyleRaw(allowed[0]);
+    }
+  }, [config.styles, style]);
 
   const cardMediaMeta = useCallback((overrides = {}) => {
     const canonicalCard = getCanonicalCard(card);
@@ -455,33 +491,27 @@ export default function AnimatedReveal({
     setJobId(null);
     setShowStylePicker(false);
     pollMetaRef.current = { startedAt: 0, errorCount: 0 };
-
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
+    clearPolling();
+    clearReplayTimer();
 
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
+      clearPolling();
+      clearReplayTimer();
     };
-  }, [cardIdentity]);
+  }, [cardIdentity, clearPolling, clearReplayTimer]);
   
   // Poll for job completion
   const pollJobStatus = useCallback(async (id, requestToken) => {
     if (requestToken !== requestTokenRef.current) return;
+    if (pollInFlightRef.current) return;
+    pollInFlightRef.current = true;
     try {
       const meta = pollMetaRef.current;
       if (meta.startedAt && Date.now() - meta.startedAt > MAX_POLL_MS) {
         setError('Video generation is taking longer than expected. Please try again.');
         setJobStatus('failed');
         setLoading(false);
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
+        clearPolling();
         return;
       }
 
@@ -503,10 +533,7 @@ export default function AnimatedReveal({
         setError(message);
         setJobStatus('failed');
         setLoading(false);
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
+        clearPolling();
         return;
       }
       
@@ -514,10 +541,7 @@ export default function AnimatedReveal({
         setError(data.error);
         setJobStatus('failed');
         setLoading(false);
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
+        clearPolling();
         return;
       }
       
@@ -526,11 +550,7 @@ export default function AnimatedReveal({
         setVideoData(data.video);
         setJobStatus('completed');
         setLoading(false);
-        
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
+        clearPolling();
         
         if (onVideoReady) {
           onVideoReady(data.video, cardMediaMeta({
@@ -543,12 +563,9 @@ export default function AnimatedReveal({
         setError('Video generation failed. Please try again.');
         setJobStatus('failed');
         setLoading(false);
-        
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
+        clearPolling();
       } else {
+        pollMetaRef.current.errorCount = 0;
         setJobStatus(data.status);
       }
     } catch (err) {
@@ -560,15 +577,14 @@ export default function AnimatedReveal({
         setError('Unable to reach the video service. Please try again.');
         setJobStatus('failed');
         setLoading(false);
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
+        clearPolling();
         return;
       }
       console.error('Poll error:', err);
+    } finally {
+      pollInFlightRef.current = false;
     }
-  }, [cardMediaMeta, onVideoReady, style]);
+  }, [cardMediaMeta, clearPolling, onVideoReady, style]);
   
   // Start video generation
   const handleGenerate = useCallback(async () => {
@@ -578,10 +594,8 @@ export default function AnimatedReveal({
       return;
     }
 
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
+    clearPolling();
+    clearReplayTimer();
     setJobId(null);
     
     const requestToken = requestTokenRef.current + 1;
@@ -657,7 +671,7 @@ export default function AnimatedReveal({
       setLoading(false);
       setJobStatus(null);
     }
-  }, [card, question, position, style, config.enabled, onVideoReady, pollJobStatus, cardMediaMeta]);
+  }, [card, question, position, style, config.enabled, onVideoReady, pollJobStatus, cardMediaMeta, clearPolling, clearReplayTimer]);
   
   // Auto-generate when context changes
   useEffect(() => {
@@ -675,8 +689,10 @@ export default function AnimatedReveal({
   
   // Replay video
   const handleReplay = () => {
+    clearReplayTimer();
     setVideoData(null);
-    setTimeout(() => {
+    replayTimerRef.current = window.setTimeout(() => {
+      replayTimerRef.current = null;
       handleGenerate();
     }, 100);
   };

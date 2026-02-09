@@ -1,6 +1,6 @@
-# Anime.js V4.3.4 Migration Guide
+# Anime.js V4 Migration Guide
 
-**IMPORTANT**: This guide is based on the **actual** installed `animejs@4.3.4` API, which differs significantly from V3 documentation.
+**IMPORTANT**: This guide is based on the installed Anime.js v4 API and official v4 docs, which differ significantly from V3 documentation.
 
 ## Verified Exports (from `npm list animejs`)
 
@@ -13,9 +13,8 @@ import {
   set,               // Instant property setter
 
   // Easing
-  createSpring,      // Spring physics factory
+  spring,            // Spring easing factory
   eases,             // Easing presets: { outQuad, inOutCubic, ... }
-  spring,            // Spring function
   linear,            // Linear easing
   steps,             // Steps easing
   cubicBezier,       // Custom bezier
@@ -57,8 +56,8 @@ import {
 |----------------|------------------|
 | `timeline()` | `createTimeline()` |
 | `easing: 'easeOutQuad'` | `ease: 'outQuad'` (no 'ease' prefix) |
-| `spring(1, 100, 10, 0)` string | `createSpring({ stiffness, damping, mass })` |
-| `animation.promise` | `animation.finished` (Promise) |
+| `spring(1, 100, 10, 0)` string | `spring({ stiffness, damping, mass })` |
+| `animation.promise` | `animation.then()` / `await animation` |
 | `utils.splitText()` | `splitText()` (top-level) |
 | `anime()` default | `animate()` named export |
 | `anime.set()` | `set()` named export |
@@ -102,11 +101,11 @@ V4 easing names in `eases` object (no 'ease' prefix):
 ### After: Anime.js V4
 
 ```jsx
-import { animate, createSpring, set } from 'animejs';
+import { animate, set, spring } from 'animejs';
 
 const buttonRef = useRef(null);
 
-const springEase = createSpring({ stiffness: 400, damping: 25, mass: 1 });
+const springEase = spring({ stiffness: 400, damping: 25, mass: 1 });
 
 const handleMouseEnter = () => {
   animate(buttonRef.current, {
@@ -257,12 +256,12 @@ animate(target, {
   onComplete: (anim) => console.log('Done!')
 });
 
-// Promise style
+// Promise style (v4)
 const anim = animate(target, { translateX: 100 });
-await anim.finished;
+await anim;
 
-// Or with .then()
-anim.finished.then(() => console.log('Done!'));
+// Or explicitly
+anim.then(() => console.log('Done!'));
 ```
 
 ### Playback Controls

@@ -138,7 +138,7 @@
 import {
   animate,           // Main animation function
   createTimeline,    // NOT 'timeline'
-  createSpring,      // Spring easing factory
+  spring,            // Spring easing factory
   stagger,           // Stagger utility
   splitText,         // Text splitting (top-level!)
   set,               // Instant property setter
@@ -189,12 +189,12 @@ import {
     <div class="result pending" id="test2-result">Pending...</div>
   </div>
 
-  <!-- Test 3: createSpring -->
+  <!-- Test 3: spring -->
   <div class="test-section">
-    <h3>Test 3: createSpring() - Spring physics</h3>
-    <div class="api-note">import { createSpring } from 'animejs';
+    <h3>Test 3: spring() - Spring physics</h3>
+    <div class="api-note">import { spring } from 'animejs';
 
-const springEase = createSpring({ stiffness: 100, damping: 10, mass: 1 });
+const springEase = spring({ stiffness: 100, damping: 10, mass: 1 });
 
 animate(target, {
   translateX: 200,
@@ -269,9 +269,10 @@ animate(target, {
   onComplete: (anim) => console.log('Done!')
 });
 
-// Promise style (if available)
+// Promise style (v4)
 const anim = animate(target, { translateX: 100 });
-await anim.finished;  // or anim.then()</div>
+await anim;           // thenable
+anim.then(() => console.log('Done!'));</div>
     <div class="controls">
       <button onclick="runTest6()">Run Test</button>
       <button onclick="resetTest6()">Reset</button>
@@ -484,17 +485,17 @@ anim.seek('50%'); // Seek to percentage</div>
       setResult('test2-result', 'pending', 'Reset');
     };
 
-    // ========== TEST 3: createSpring ==========
+    // ========== TEST 3: spring ==========
     window.runTest3 = () => {
       try {
-        const springEase = anime.createSpring({ stiffness: 100, damping: 10, mass: 1 });
+        const springEase = anime.spring({ stiffness: 100, damping: 10, mass: 1 });
         console.log('Spring ease:', springEase);
 
         anime.animate('#test3-box', {
           translateX: 200,
           ease: springEase,
           onComplete: () => {
-            setResult('test3-result', 'success', 'SUCCESS: createSpring() works!\ncreateSpring({ stiffness: 100, damping: 10, mass: 1 })');
+            setResult('test3-result', 'success', 'SUCCESS: spring() works!\nspring({ stiffness: 100, damping: 10, mass: 1 })');
           }
         });
         setResult('test3-result', 'pending', 'Running spring animation...');
@@ -577,19 +578,12 @@ anim.seek('50%'); // Seek to percentage</div>
           onComplete: () => logs.push('onComplete callback fired')
         });
 
-        // Check what completion API exists
-        logs.push(`anim.finished exists: ${!!anim1.finished}`);
         logs.push(`anim.then exists: ${typeof anim1.then === 'function'}`);
-        logs.push(`anim.promise exists: ${!!anim1.promise}`);
+        logs.push(`anim.promise exists: ${!!anim1.promise} (legacy/v3 field)`);
 
-        // Try to await
-        if (anim1.finished) {
-          await anim1.finished;
-          logs.push('await anim.finished succeeded');
-        } else if (typeof anim1.then === 'function') {
-          await anim1;
-          logs.push('await anim (thenable) succeeded');
-        }
+        // v4 thenable completion
+        await anim1;
+        logs.push('await anim (thenable) succeeded');
 
         // Second animation
         const anim2 = anime.animate('#test6-box', {
@@ -598,9 +592,7 @@ anim.seek('50%'); // Seek to percentage</div>
           ease: 'outQuad'
         });
 
-        if (anim2.finished) {
-          await anim2.finished;
-        }
+        await anim2;
 
         setResult('test6-result', 'success', 'SUCCESS: Completion handling works!\n\n' + logs.join('\n'));
       } catch (e) {

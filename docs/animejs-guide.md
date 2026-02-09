@@ -2,6 +2,8 @@
 
 A complete guide to anime.js, the lightweight JavaScript animation library.
 
+For a concise quick reference, see `docs/Utilities.md`.
+
 ---
 
 ## Table of Contents

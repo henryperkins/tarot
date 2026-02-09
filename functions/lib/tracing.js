@@ -10,6 +10,14 @@ import { setExporterActive } from './tracingSpans.js';
 
 const DEFAULT_DEV_OTLP_ENDPOINT = 'http://localhost:4318/v1/traces';
 
+/** Satisfies the SpanProcessor interface without allocating or exporting. */
+const noopSpanProcessor = {
+  onStart() {},
+  onEnd() {},
+  shutdown() { return Promise.resolve(); },
+  forceFlush() { return Promise.resolve(); },
+};
+
 const TRACE_PROPAGATION_HOSTS = [
   '.openai.azure.com',
   '.cognitiveservices.azure.com',
@@ -110,7 +118,7 @@ export function createTracingConfig(overrides = {}) {
       setExporterActive(false);
       return {
         ...baseConfig,
-        spanProcessors: []
+        spanProcessors: [noopSpanProcessor],
       };
     }
 

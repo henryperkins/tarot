@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
-import { animate, createLayout, createSpring, createTimeline, set } from 'animejs';
+import { animate, createLayout, createTimeline, set, spring } from 'animejs';
 import { TableuLogo } from './TableuLogo';
-import { Sparkle, Scissors, ArrowsClockwise, HandTap } from '@phosphor-icons/react';
+import { Scissors, ArrowsClockwise, HandTap } from '@phosphor-icons/react';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
@@ -45,7 +45,7 @@ function DeckStackCard({ card, sizeClass, prefersReducedMotion, isShuffling }) {
   return (
     <div
       ref={cardRef}
-      className={`absolute rounded-xl border-2 border-primary/30 overflow-hidden ${sizeClass}`}
+      className={`deck-stack-card absolute rounded-xl border-2 border-primary/30 overflow-hidden ${sizeClass}`}
       style={{
         zIndex: card.zIndex,
         opacity: card.opacity,
@@ -186,7 +186,10 @@ export function DeckRitual({
   revealStage = 'action',
 
   // External ref for ghost card animation coordination
-  externalDeckRef
+  externalDeckRef,
+
+  // Cinematic mode trims helper chrome to match scene-first presentation
+  minimalUI = false
 }) {
   const isSmallScreen = useSmallScreen();
   const prefersReducedMotion = useReducedMotion();
@@ -194,6 +197,7 @@ export function DeckRitual({
   const { vibrate } = useHaptic();
   const sounds = useSounds();
   const { publish: publishToast } = useToast();
+  const shouldShowToasts = !minimalUI;
   const [showCutSlider, setShowCutSlider] = useState(false);
   const [localCutIndex, setLocalCutIndex] = useState(cutIndex);
   const [showCadenceReset, setShowCadenceReset] = useState(false);
@@ -211,7 +215,7 @@ export function DeckRitual({
   const rippleTimersRef = useRef(new Map());
   const rippleIdRef = useRef(0);
   const [ripples, setRipples] = useState([]);
-  const springEase = useMemo(() => createSpring({ stiffness: 320, damping: 26, mass: 1 }), []);
+  const springEase = useMemo(() => spring({ stiffness: 320, damping: 26, mass: 1 }), []);
   const cadenceResetTimerRef = useRef(null);
   const knockComplete = knockCount >= 3;
   const isIdleBreathing = !prefersReducedMotion &&
@@ -399,12 +403,14 @@ export function DeckRitual({
     if (!isDeckPrimary && cardsRemaining > 0) {
       const now = Date.now();
       if (now - boardHintRef.current > 1200) {
-        publishToast({
-          type: 'info',
-          title: 'Reveal on the board',
-          description: nextPosition ? `Tap ${nextPosition} to reveal.` : 'Tap a position to reveal the next card.',
-          duration: 900
-        });
+        if (shouldShowToasts) {
+          publishToast({
+            type: 'info',
+            title: 'Reveal on the board',
+            description: nextPosition ? `Tap ${nextPosition} to reveal.` : 'Tap a position to reveal the next card.',
+            duration: 900
+          });
+        }
         boardHintRef.current = now;
       }
       return;
@@ -442,7 +448,7 @@ export function DeckRitual({
     }
 
     handleDealWithAnimation();
-  }, [showCutSlider, isDeckPrimary, cardsRemaining, publishToast, nextPosition, knockComplete, triggerKnock, canShuffleGesture, onShuffle, vibrate, handleDealWithAnimation, clearSingleTapTimeout]);
+  }, [showCutSlider, isDeckPrimary, cardsRemaining, publishToast, nextPosition, knockComplete, triggerKnock, canShuffleGesture, onShuffle, vibrate, handleDealWithAnimation, clearSingleTapTimeout, shouldShowToasts]);
 
   // Long-press to reveal cut slider
   const longPressTimerRef = useRef(null);
@@ -558,13 +564,15 @@ export function DeckRitual({
     onCutConfirm?.();
     setShowCutSlider(false);
     vibrate([20, 30, 20]);
-    publishToast({
-      type: 'info',
-      title: hasCut ? 'Cut updated' : 'Cut locked',
-      description: `#${localCutIndex}`,
-      duration: 700
-    });
-  }, [onCutConfirm, vibrate, publishToast, hasCut, localCutIndex]);
+    if (shouldShowToasts) {
+      publishToast({
+        type: 'info',
+        title: hasCut ? 'Cut updated' : 'Cut locked',
+        description: `#${localCutIndex}`,
+        duration: 700
+      });
+    }
+  }, [onCutConfirm, vibrate, publishToast, hasCut, localCutIndex, shouldShowToasts]);
 
   useEffect(() => {
     if (isIdleBreathing) {
@@ -607,41 +615,53 @@ export function DeckRitual({
       setShowCadenceReset(false);
       cadenceResetTimerRef.current = null;
     }, 1600);
-    publishToast({
-      type: 'info',
-      title: 'Cadence reset',
-      description: knockHint,
-      duration: 700
-    });
+    if (shouldShowToasts) {
+      publishToast({
+        type: 'info',
+        title: 'Cadence reset',
+        description: knockHint,
+        duration: 700
+      });
+    }
     return () => {
       if (cadenceResetTimerRef.current) {
         clearTimeout(cadenceResetTimerRef.current);
         cadenceResetTimerRef.current = null;
       }
     };
-  }, [knockCadenceResetAt, publishToast]);
+  }, [knockCadenceResetAt, publishToast, shouldShowToasts]);
 
   return (
     <div className={`deck-ritual-container relative ${isLandscape ? 'py-3' : 'py-4 xs:py-5 sm:py-8'}`}>
-      {/* Ritual Status Indicator - more compact on very small screens */}
-      <div className={`flex items-center justify-center ${isLandscape ? 'gap-2 mb-3' : 'gap-2 xs:gap-3 sm:gap-4 mb-3 xs:mb-4 sm:mb-6'}`}>
-        <div className={`flex items-center gap-1.5 xs:gap-2 rounded-full border transition-all ${isLandscape ? 'px-2 py-1' : 'px-2.5 xs:px-3 py-1 xs:py-1.5'} ${
-          knockComplete
-            ? 'border-secondary/60 bg-secondary/15 text-secondary'
-            : 'border-accent/30 bg-surface/60 text-muted'
-        }`}>
-          <Sparkle className={isLandscape ? 'w-3 h-3' : 'w-3.5 h-3.5 xs:w-4 xs:h-4'} weight={knockComplete ? 'fill' : 'regular'} />
-          <span className="font-semibold text-xs-plus">{knockComplete ? (isLandscape ? '✓' : 'Cleared') : `${knockCount}/3`}</span>
-        </div>
+      <div className={`deck-ritual-header text-center ${isLandscape ? 'mb-2' : 'mb-3 xs:mb-4 sm:mb-5'}`}>
+        <h3 className="font-serif text-accent text-lg sm:text-xl">
+          {knockComplete ? 'Ritual complete' : 'Knock three times'}
+        </h3>
+        <p className="text-xs sm:text-sm text-muted mt-1">
+          {!isDeckPrimary && cardsRemaining > 0
+            ? (nextPosition ? `Tap ${nextPosition} on the spread to reveal.` : 'Tap a spread position to reveal.')
+            : knockComplete
+              ? 'Tap the deck when you are ready to draw.'
+              : `Tap the deck ${Math.max(0, 3 - knockCount)} more ${Math.max(0, 3 - knockCount) === 1 ? 'time' : 'times'}.`}
+        </p>
+      </div>
 
-        <div className={`flex items-center gap-1.5 xs:gap-2 rounded-full border transition-all ${isLandscape ? 'px-2 py-1' : 'px-2.5 xs:px-3 py-1 xs:py-1.5'} ${
-          hasCut
-            ? 'border-secondary/60 bg-secondary/15 text-secondary'
-            : 'border-accent/30 bg-surface/60 text-muted'
-        }`}>
-          <Scissors className={isLandscape ? 'w-3 h-3' : 'w-3.5 h-3.5 xs:w-4 xs:h-4'} weight={hasCut ? 'fill' : 'regular'} />
-          <span className="font-semibold text-xs-plus">{hasCut ? `#${cutIndex}` : (isLandscape ? '—' : 'Uncut')}</span>
-        </div>
+      <div
+        className={`deck-ritual-knock-badges flex items-center justify-center gap-2 ${isLandscape ? 'mb-3' : 'mb-3 xs:mb-4 sm:mb-5'}`}
+        role="status"
+        aria-live="polite"
+        aria-label={`${Math.min(knockCount, 3)} of 3 ritual knocks complete`}
+      >
+        {Array.from({ length: 3 }).map((_, index) => {
+          const active = knockCount > index;
+          return (
+            <span
+              key={index}
+              className={`deck-ritual-knock-badge ${active ? 'is-active' : ''}`}
+              aria-hidden="true"
+            />
+          );
+        })}
       </div>
 
       {/* The Deck - responsive sizing for different screen sizes */}
@@ -705,7 +725,7 @@ export function DeckRitual({
           {/* Top card with logo - responsive sizing */}
           <div
             ref={topCardRef}
-            className={`relative rounded-xl border-2 border-primary/40 shadow-2xl overflow-hidden ${isSmallScreen ? 'w-[clamp(5.5rem,32vw,7.5rem)] h-[clamp(8.25rem,48vw,11.25rem)]' : 'w-[clamp(7rem,35vw,8.5rem)] h-[clamp(10.5rem,52vw,12.75rem)]'}`}
+            className={`deck-stack-top relative rounded-xl border-2 border-primary/40 shadow-2xl overflow-hidden ${isSmallScreen ? 'w-[clamp(5.5rem,32vw,7.5rem)] h-[clamp(8.25rem,48vw,11.25rem)]' : 'w-[clamp(7rem,35vw,8.5rem)] h-[clamp(10.5rem,52vw,12.75rem)]'}`}
             style={{
               background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))',
               boxShadow: '0 20px 40px rgba(0,0,0,0.3), 0 0 30px color-mix(in srgb, var(--brand-primary) 10%, transparent)'
@@ -794,120 +814,124 @@ export function DeckRitual({
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm min-h-cta motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95"
             style={{ boxShadow: '0 10px 30px color-mix(in srgb, var(--brand-primary) 30%, transparent)' }}
           >
-            <span>Draw: {nextPosition || 'Next Card'}</span>
+            <span>{minimalUI ? 'Deal the cards' : `Draw: ${nextPosition || 'Next Card'}`}</span>
             <span className="opacity-70 text-xs-plus">({cardsRemaining})</span>
           </button>
         </div>
       )}
 
-      {/* Ritual action buttons - explicit alternatives to gestures for accessibility */}
-      <div className={`flex flex-wrap items-center justify-center px-3 xs:px-4 ${isLandscape ? 'mt-3 gap-1.5' : 'mt-3 xs:mt-4 sm:mt-5 gap-1.5 xs:gap-2 sm:gap-3'}`}>
-        {/* Knock button */}
-        <button
-          onClick={handleDeckTap}
-          disabled={knockComplete || showCutSlider}
-          className={`
-            flex items-center rounded-full font-medium
-            transition-all touch-manipulation min-h-touch
-            ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-xs-plus' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-xs-plus xs:text-sm'}
-            ${knockComplete
-              ? 'bg-secondary/15 border border-secondary/40 text-secondary cursor-default'
-              : 'bg-surface/60 border border-accent/30 text-muted hover:bg-surface hover:border-accent/50 hover:text-main active:scale-95'
-            }
-          `}
-          aria-label={knockComplete ? 'Knocking complete' : `Knock on deck (${knockCount}/3)`}
-        >
-          <HandTap className={isLandscape ? 'w-3.5 h-3.5' : 'w-3.5 h-3.5 xs:w-4 xs:h-4'} aria-hidden="true" />
-          <span>{knockComplete ? '✓' : (isLandscape ? knockCount : `Knock (${knockCount}/3)`)}</span>
-        </button>
-
-        {/* Cut button */}
-        <button
-          onClick={() => setShowCutSlider(prev => !prev)}
-          className={`
-            flex items-center rounded-full font-medium
-            transition-all touch-manipulation min-h-touch
-            ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-xs-plus' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-xs-plus xs:text-sm'}
-            ${hasCut
-              ? 'bg-secondary/15 border border-secondary/40 text-secondary'
-              : showCutSlider
-              ? 'bg-accent/20 border border-accent/50 text-main'
-              : 'bg-surface/60 border border-accent/30 text-muted hover:bg-surface hover:border-accent/50 hover:text-main active:scale-95'
-            }
-          `}
-          aria-label={hasCut ? `Adjust cut at position ${cutIndex}` : showCutSlider ? 'Close cut slider' : 'Cut the deck'}
-          aria-expanded={showCutSlider}
-        >
-          <Scissors className={isLandscape ? 'w-3.5 h-3.5' : 'w-3.5 h-3.5 xs:w-4 xs:h-4'} aria-hidden="true" />
-          <span>{hasCut ? (isLandscape ? `#${cutIndex}` : 'Adjust cut') : (isLandscape ? 'Cut' : (showCutSlider ? 'Cutting...' : 'Cut Deck'))}</span>
-        </button>
-
-        {/* Shuffle button */}
-        <button
-          onClick={() => {
-            onShuffle?.();
-            vibrate([20, 50, 20, 50, 20]);
-          }}
-          disabled={isShuffling}
-          className={`
-            flex items-center rounded-full font-medium
-            bg-surface/60 border border-accent/30 text-muted
-            hover:bg-surface hover:border-accent/50 hover:text-main
-            disabled:opacity-50 disabled:cursor-not-allowed
-            transition-all touch-manipulation min-h-touch active:scale-95
-            ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-xs-plus' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-xs-plus xs:text-sm'}
-          `}
-          aria-label={isShuffling ? 'Shuffling deck...' : 'Shuffle the deck'}
-        >
-          <ArrowsClockwise className={`${isLandscape ? 'w-3.5 h-3.5' : 'w-3.5 h-3.5 xs:w-4 xs:h-4'} ${isShuffling ? 'animate-spin' : ''}`} aria-hidden="true" />
-          {!isLandscape && <span>{isShuffling ? 'Shuffling...' : 'Shuffle'}</span>}
-        </button>
-      </div>
-
-      {/* Gesture hints with icons for better discoverability */}
-      {isDeckPrimary && (
-        <div className={`flex flex-wrap justify-center px-3 xs:px-4 ${isLandscape ? 'mt-2 gap-1.5' : 'mt-2 xs:mt-3 gap-1.5 xs:gap-2'}`}>
-          {showCadenceReset && !knockComplete && (
-            <span
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border border-warning/40 bg-warning/10 text-warning motion-safe:animate-pulse text-xs-plus`}
-              role="status"
-              aria-live="polite"
+      {!minimalUI && (
+        <>
+          {/* Ritual action buttons - explicit alternatives to gestures for accessibility */}
+          <div className={`flex flex-wrap items-center justify-center px-3 xs:px-4 ${isLandscape ? 'mt-3 gap-1.5' : 'mt-3 xs:mt-4 sm:mt-5 gap-1.5 xs:gap-2 sm:gap-3'}`}>
+            {/* Knock button */}
+            <button
+              onClick={handleDeckTap}
+              disabled={knockComplete || showCutSlider}
+              className={`
+                flex items-center rounded-full font-medium
+                transition-all touch-manipulation min-h-touch
+                ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-xs-plus' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-xs-plus xs:text-sm'}
+                ${knockComplete
+                  ? 'bg-secondary/15 border border-secondary/40 text-secondary cursor-default'
+                  : 'bg-surface/60 border border-accent/30 text-muted hover:bg-surface hover:border-accent/50 hover:text-main active:scale-95'
+                }
+              `}
+              aria-label={knockComplete ? 'Knocking complete' : `Knock on deck (${knockCount}/3)`}
             >
-              <ArrowsClockwise className="w-3 h-3" weight="duotone" aria-hidden="true" />
-              <span>Cadence reset</span>
-            </span>
+              <HandTap className={isLandscape ? 'w-3.5 h-3.5' : 'w-3.5 h-3.5 xs:w-4 xs:h-4'} aria-hidden="true" />
+              <span>{knockComplete ? '✓' : (isLandscape ? knockCount : `Knock (${knockCount}/3)`)}</span>
+            </button>
+
+            {/* Cut button */}
+            <button
+              onClick={() => setShowCutSlider(prev => !prev)}
+              className={`
+                flex items-center rounded-full font-medium
+                transition-all touch-manipulation min-h-touch
+                ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-xs-plus' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-xs-plus xs:text-sm'}
+                ${hasCut
+                  ? 'bg-secondary/15 border border-secondary/40 text-secondary'
+                  : showCutSlider
+                    ? 'bg-accent/20 border border-accent/50 text-main'
+                    : 'bg-surface/60 border border-accent/30 text-muted hover:bg-surface hover:border-accent/50 hover:text-main active:scale-95'
+                }
+              `}
+              aria-label={hasCut ? `Adjust cut at position ${cutIndex}` : showCutSlider ? 'Close cut slider' : 'Cut the deck'}
+              aria-expanded={showCutSlider}
+            >
+              <Scissors className={isLandscape ? 'w-3.5 h-3.5' : 'w-3.5 h-3.5 xs:w-4 xs:h-4'} aria-hidden="true" />
+              <span>{hasCut ? (isLandscape ? `#${cutIndex}` : 'Adjust cut') : (isLandscape ? 'Cut' : (showCutSlider ? 'Cutting...' : 'Cut Deck'))}</span>
+            </button>
+
+            {/* Shuffle button */}
+            <button
+              onClick={() => {
+                onShuffle?.();
+                vibrate([20, 50, 20, 50, 20]);
+              }}
+              disabled={isShuffling}
+              className={`
+                flex items-center rounded-full font-medium
+                bg-surface/60 border border-accent/30 text-muted
+                hover:bg-surface hover:border-accent/50 hover:text-main
+                disabled:opacity-50 disabled:cursor-not-allowed
+                transition-all touch-manipulation min-h-touch active:scale-95
+                ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-xs-plus' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-xs-plus xs:text-sm'}
+              `}
+              aria-label={isShuffling ? 'Shuffling deck...' : 'Shuffle the deck'}
+            >
+              <ArrowsClockwise className={`${isLandscape ? 'w-3.5 h-3.5' : 'w-3.5 h-3.5 xs:w-4 xs:h-4'} ${isShuffling ? 'animate-spin' : ''}`} aria-hidden="true" />
+              {!isLandscape && <span>{isShuffling ? 'Shuffling...' : 'Shuffle'}</span>}
+            </button>
+          </div>
+
+          {/* Gesture hints with icons for better discoverability */}
+          {isDeckPrimary && (
+            <div className={`flex flex-wrap justify-center px-3 xs:px-4 ${isLandscape ? 'mt-2 gap-1.5' : 'mt-2 xs:mt-3 gap-1.5 xs:gap-2'}`}>
+              {showCadenceReset && !knockComplete && (
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border border-warning/40 bg-warning/10 text-warning motion-safe:animate-pulse text-xs-plus`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  <ArrowsClockwise className="w-3 h-3" weight="duotone" aria-hidden="true" />
+                  <span>Cadence reset</span>
+                </span>
+              )}
+              {!knockComplete && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted text-xs-plus">
+                  <HandTap className="w-3 h-3" weight="duotone" aria-hidden="true" />
+                  <span>{knockHint}</span>
+                </span>
+              )}
+              {!hasCut && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted text-xs-plus">
+                  <Scissors className="w-3 h-3" weight="duotone" aria-hidden="true" />
+                  <span>Hold to cut</span>
+                </span>
+              )}
+              {hasCut && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted text-xs-plus">
+                  <Scissors className="w-3 h-3" weight="duotone" aria-hidden="true" />
+                  <span>Hold to adjust</span>
+                </span>
+              )}
+              {canShuffleGesture && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted text-xs-plus">
+                  <ArrowsClockwise className="w-3 h-3" weight="duotone" aria-hidden="true" />
+                  <span>2x tap shuffle</span>
+                </span>
+              )}
+              {knockComplete && cardsRemaining > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/20 border border-primary/30 text-main text-xs-plus">
+                  <HandTap className="w-3 h-3" weight="fill" aria-hidden="true" />
+                  <span>Tap to draw</span>
+                </span>
+              )}
+            </div>
           )}
-          {!knockComplete && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted text-xs-plus">
-              <HandTap className="w-3 h-3" weight="duotone" aria-hidden="true" />
-              <span>{knockHint}</span>
-            </span>
-          )}
-          {!hasCut && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted text-xs-plus">
-              <Scissors className="w-3 h-3" weight="duotone" aria-hidden="true" />
-              <span>Hold to cut</span>
-            </span>
-          )}
-          {hasCut && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted text-xs-plus">
-              <Scissors className="w-3 h-3" weight="duotone" aria-hidden="true" />
-              <span>Hold to adjust</span>
-            </span>
-          )}
-          {canShuffleGesture && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface/60 border border-accent/20 text-muted text-xs-plus">
-              <ArrowsClockwise className="w-3 h-3" weight="duotone" aria-hidden="true" />
-              <span>2x tap shuffle</span>
-            </span>
-          )}
-          {knockComplete && cardsRemaining > 0 && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/20 border border-primary/30 text-main text-xs-plus">
-              <HandTap className="w-3 h-3" weight="fill" aria-hidden="true" />
-              <span>Tap to draw</span>
-            </span>
-          )}
-        </div>
+        </>
       )}
 
       {/* Draw CTA - optimized for small screens */}
@@ -920,14 +944,14 @@ export function DeckRitual({
             className={`inline-flex items-center rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-primary/90 min-h-cta motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 ${isLandscape ? 'gap-2 px-4 py-2 text-sm' : 'gap-2 xs:gap-3 px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 text-sm xs:text-base'}`}
             style={{ boxShadow: '0 10px 30px color-mix(in srgb, var(--brand-primary) 30%, transparent)' }}
           >
-            <span>{isLandscape ? nextPosition || 'Next' : `Draw: ${nextPosition || 'Next Card'}`}</span>
+            <span>{minimalUI ? 'Deal the cards' : (isLandscape ? nextPosition || 'Next' : `Draw: ${nextPosition || 'Next Card'}`)}</span>
             <span className="opacity-70 text-xs-plus">({cardsRemaining})</span>
           </button>
         </div>
       )}
 
       {/* Position preview minimap */}
-      {spreadPositions && spreadPositions.length > 1 && (
+      {!minimalUI && spreadPositions && spreadPositions.length > 1 && (
         <div className={`flex justify-center px-3 xs:px-4 ${isLandscape ? 'mt-3' : 'mt-4 xs:mt-5 sm:mt-6'}`}>
           <SpreadMinimap
             positions={spreadPositions}

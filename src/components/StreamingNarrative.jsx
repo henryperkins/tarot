@@ -356,6 +356,24 @@ export function StreamingNarrative({
   }, [streamingActive, onHighlightPhrase, normalizedHighlightPhrases, visibleTextForHighlights]);
 
   useEffect(() => {
+    if (streamingActive) return;
+    if (!onHighlightPhrase) return;
+    if (!normalizedHighlightPhrases.length) return;
+    if (!visibleTextForHighlights) return;
+
+    const lowerText = visibleTextForHighlights.toLowerCase();
+    const triggered = triggeredHighlightRef.current;
+
+    normalizedHighlightPhrases.forEach((phrase) => {
+      const key = phrase.toLowerCase();
+      if (triggered.has(key)) return;
+      if (!lowerText.includes(key)) return;
+      triggered.add(key);
+      onHighlightPhrase(phrase);
+    });
+  }, [streamingActive, onHighlightPhrase, normalizedHighlightPhrases, visibleTextForHighlights]);
+
+  useEffect(() => {
     if (!useMarkdown || !onSectionEnter) return;
     if (!visibleTextForHighlights) return;
 

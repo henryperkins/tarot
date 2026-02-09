@@ -1,0 +1,97 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "lakefront/pricing-table",
+	"version": "0.1.0",
+	"title": "Lakefront Pricing Table",
+	"category": "design",
+	"icon": "table-col-after",
+	"description": "Managed hosting pricing section with structured feature availability and CTA buttons.",
+	"textdomain": "lakefront-content-kit",
+	"attributes": {
+		"heading": {
+			"type": "string",
+			"default": "Choose Your Managed Hosting Plan"
+		},
+		"intro": {
+			"type": "string",
+			"default": "All plans include Google Cloud infrastructure, Cloudflare CDN, and 24/7 monitoring. Scale as you grow."
+		},
+		"footnote": {
+			"type": "string",
+			"default": "💡 <strong>Agency partners:</strong> Volume discounts available for 3+ sites. <a href=\"/partners\">Learn about the partner program →</a>"
+		},
+		"plans": {
+			"type": "array",
+			"default": [
+				{
+					"name": "Starter",
+					"price": "$149",
+					"period": "/mo",
+					"tagline": "Perfect for single-site businesses",
+					"featured": false,
+					"buttonLabel": "Get Started",
+					"buttonUrl": "/contact?plan=starter",
+					"buttonStyle": "outline",
+					"features": [
+						{ "text": "Google Cloud SSD hosting", "included": true },
+						{ "text": "Cloudflare CDN", "included": true },
+						{ "text": "Daily backups (30-day retention)", "included": true },
+						{ "text": "SSL certificate included", "included": true },
+						{ "text": "Malware scanning", "included": true },
+						{ "text": "Email support", "included": true },
+						{ "text": "Staging environment", "included": false },
+						{ "text": "Dedicated Slack channel", "included": false }
+					]
+				},
+				{
+					"name": "Growth",
+					"price": "$349",
+					"period": "/mo",
+					"tagline": "For growing WooCommerce stores",
+					"featured": true,
+					"badge": "Most Popular",
+					"buttonLabel": "Start Growing →",
+					"buttonUrl": "/contact?plan=growth",
+					"buttonStyle": "solid",
+					"features": [
+						{ "text": "Everything in Starter, plus:", "included": true },
+						{ "text": "<strong>24/7 uptime monitoring</strong>", "included": true },
+						{ "text": "<strong>Staging environment</strong>", "included": true },
+						{ "text": "<strong>Priority support</strong> (4hr response)", "included": true },
+						{ "text": "WooCommerce optimization", "included": true },
+						{ "text": "Monthly performance reports", "included": true },
+						{ "text": "2 hours dev support/month", "included": true },
+						{ "text": "White-label reports", "included": false }
+					]
+				},
+				{
+					"name": "Enterprise",
+					"price": "$799",
+					"period": "/mo",
+					"tagline": "For agencies & high-traffic sites",
+					"featured": false,
+					"buttonLabel": "Contact Sales",
+					"buttonUrl": "/contact?plan=enterprise",
+					"buttonStyle": "outline",
+					"features": [
+						{ "text": "Everything in Growth, plus:", "included": true },
+						{ "text": "<strong>Dedicated Slack channel</strong>", "included": true },
+						{ "text": "<strong>White-label reports</strong>", "included": true },
+						{ "text": "<strong>Multi-site management</strong>", "included": true },
+						{ "text": "PCI/HIPAA compliance support", "included": true },
+						{ "text": "Custom SLA (99.95% uptime)", "included": true },
+						{ "text": "8 hours dev support/month", "included": true },
+						{ "text": "Quarterly strategy reviews", "included": true }
+					]
+				}
+			]
+		}
+	},
+	"supports": {
+		"align": ["wide", "full"],
+		"anchor": true,
+		"html": false
+	},
+	"render": "file:./render.php"
+}

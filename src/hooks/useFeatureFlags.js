@@ -66,9 +66,9 @@ export function useFeatureFlags() {
     // Vision Research Mode (ops-only: experimental camera/vision features)
     visionResearch: getFlag('vision_research', 'VITE_ENABLE_VISION_RESEARCH', false, false),
 
-    // New Deck Ritual Interface (ops-only: reimagined deck interface)
-    // Set VITE_NEW_DECK_INTERFACE=true to enable
-    newDeckInterface: getFlag('new_deck_interface', 'VITE_NEW_DECK_INTERFACE', false, false),
+    // New Deck Ritual Interface (default-on rollout).
+    // Can be disabled via ?ff_new_deck_interface=false or localStorage ff_new_deck_interface=false.
+    newDeckInterface: getFlag('new_deck_interface', 'VITE_NEW_DECK_INTERFACE', true, true),
 
     // Auto-generate visuals (ops-only: cost-impacting media automation)
     autoGenerateVisuals: getFlag('auto_generate_visuals', 'VITE_AUTO_GENERATE_VISUALS', false, false),

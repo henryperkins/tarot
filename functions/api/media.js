@@ -19,6 +19,7 @@ import { getMediaTierConfig } from '../../shared/monetization/media.js';
 
 const VALID_MEDIA_TYPES = new Set(['image', 'video']);
 const VALID_SOURCES = new Set(['story-art', 'card-reveal']);
+const VALID_STORAGE_KEY_PREFIXES = ['generated-video/', 'generated-art/', 'media/'];
 
 function isMissingMediaTableError(err) {
   const message = String(err?.message || err || '').toLowerCase();
@@ -171,7 +172,14 @@ async function handleContentRequest(context, user) {
     return jsonResponse({ error: 'Media storage backend is unavailable' }, 503);
   }
 
-  const object = await env.R2_LOGS.get(record.storage_key);
+  let object = await env.R2_LOGS.get(record.storage_key);
+  // Fallback to legacy keys stored without file extension
+  if (!object && !record.storage_key.includes('.')) {
+    const ext = extensionFromMimeType(record.mime_type);
+    if (ext) {
+      object = await env.R2_LOGS.get(`${record.storage_key}.${ext}`);
+    }
+  }
   if (!object) {
     return jsonResponse({ error: 'Media file is unavailable' }, 404);
   }
@@ -319,6 +327,10 @@ export async function onRequestPost(context) {
   if (!storageKey) {
     return jsonResponse({ error: 'storageKey is required' }, 400);
   }
+  // Validate storage key uses a known server-generated prefix
+  if (!VALID_STORAGE_KEY_PREFIXES.some((p) => storageKey.startsWith(p))) {
+    return jsonResponse({ error: 'Invalid storageKey format' }, 400);
+  }
   if (!mimeType) {
     return jsonResponse({ error: 'mimeType is required' }, 400);
   }
@@ -464,10 +476,27 @@ export async function onRequestDelete(context) {
       return jsonResponse({ error: 'Media not found' }, 404);
     }
 
+    // Delete DB record first — an orphaned R2 blob is harmless, but a DB
+    // record pointing to a missing blob creates a visible broken entry.
     await env.DB
       .prepare('DELETE FROM user_media WHERE id = ? AND user_id = ?')
       .bind(id, user.id)
       .run();
+
+    // Clean up R2 blob(s), including legacy keys stored without extension
+    if (env.R2_LOGS && existing.storage_key) {
+      try {
+        await env.R2_LOGS.delete(existing.storage_key);
+        if (!existing.storage_key.includes('.')) {
+          const ext = extensionFromMimeType(existing.mime_type);
+          if (ext) {
+            await env.R2_LOGS.delete(`${existing.storage_key}.${ext}`);
+          }
+        }
+      } catch (r2Err) {
+        console.error('[media] R2 delete failed (DB record already removed):', r2Err.message);
+      }
+    }
 
     return jsonResponse({ success: true, id });
   } catch (err) {

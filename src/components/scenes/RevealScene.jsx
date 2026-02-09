@@ -42,10 +42,10 @@ export function RevealScene({
 
   return (
     <section
-      className={`relative px-3 xs:px-4 sm:px-6 py-5 sm:py-7 ${className}`}
+      className={`scene-stage scene-stage--reveal relative px-3 xs:px-4 sm:px-6 py-5 sm:py-7 ${className}`}
       data-scene="reveal"
     >
-      <div className="relative z-[2] max-w-5xl mx-auto rounded-2xl border border-secondary/25 bg-surface/55 backdrop-blur-sm p-4 sm:p-6">
+      <div className="scene-stage__panel scene-stage__panel--reveal relative z-[2] max-w-5xl mx-auto p-4 sm:p-6">
         {showTitle ? <h2 className="text-xl sm:text-2xl font-serif text-accent text-center mb-3">{title}</h2> : null}
 
         <div className={`text-center text-accent font-serif mb-2 ${isLandscape ? 'text-lg' : 'text-2xl'}`}>
@@ -53,7 +53,7 @@ export function RevealScene({
         </div>
         {visibleCount > 1 && !isLandscape && (
           <p className="text-center text-muted text-xs-plus sm:text-sm mb-4">
-            Reveal in order for a narrative flow, or follow your intuition and reveal randomly.
+            Reveal in order for narrative flow, then hover or long-press a card for quick meaning.
           </p>
         )}
 

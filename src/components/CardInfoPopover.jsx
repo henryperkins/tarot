@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Drop, Flame, Sparkle, Wind, Leaf } from '@phosphor-icons/react';
 import { getOrientationMeaning } from '../lib/cardLookup';
@@ -37,7 +37,7 @@ function getKeywordPills(card, meaningText) {
 
 function resolvePosition(anchorRect) {
   if (!anchorRect || typeof window === 'undefined') {
-    return { top: 16, left: 16, transform: 'none' };
+    return { top: 16, left: 16, transform: 'none', placement: 'below' };
   }
 
   const vw = window.innerWidth || 0;
@@ -54,7 +54,8 @@ function resolvePosition(anchorRect) {
     width,
     left,
     top,
-    transform: placeAbove ? 'translateY(-100%)' : 'translateY(0)'
+    transform: placeAbove ? 'translateY(-100%)' : 'translateY(0)',
+    placement: placeAbove ? 'above' : 'below'
   };
 }
 
@@ -66,7 +67,6 @@ export function CardInfoPopover({
   onClose
 }) {
   const panelRef = useRef(null);
-  const [expanded, setExpanded] = useState(false);
 
   const meaning = useMemo(() => getOrientationMeaning(card), [card]);
   const element = useMemo(() => inferElement(card), [card]);
@@ -96,7 +96,7 @@ export function CardInfoPopover({
     >
       <div
         ref={panelRef}
-        className="pointer-events-auto rounded-xl border border-white/10 bg-black/70 backdrop-blur-xl shadow-[0_20px_45px_-30px_rgba(0,0,0,0.9)] p-3 sm:p-4 text-main"
+        className={`card-info-popover pointer-events-auto p-3 sm:p-4 text-main ${popoverPos.placement === 'above' ? 'card-info-popover--above' : 'card-info-popover--below'}`}
         style={{
           position: 'fixed',
           width: popoverPos.width,
@@ -117,10 +117,10 @@ export function CardInfoPopover({
               {card.name}
             </h4>
             {positionLabel ? (
-              <p className="text-xs text-muted mt-0.5">{positionLabel}</p>
+              <p className="text-2xs uppercase tracking-[0.14em] text-muted mt-1">{positionLabel}</p>
             ) : null}
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-2xs uppercase tracking-[0.14em]">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/15 px-2 py-1 text-2xs uppercase tracking-[0.14em]">
             <ElementIcon className="w-3.5 h-3.5" />
             {element}
           </span>
@@ -140,17 +140,18 @@ export function CardInfoPopover({
         ) : null}
 
         {meaning ? (
-          <div className="mt-3 space-y-2">
-            <button
-              type="button"
-              onClick={() => setExpanded((value) => !value)}
-              className="text-xs text-accent hover:text-main underline underline-offset-2"
+          <div className="mt-3">
+            <p
+              className="text-sm text-main/90 leading-relaxed"
+              style={{
+                display: '-webkit-box',
+                WebkitLineClamp: 4,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden'
+              }}
             >
-              {expanded ? 'Hide meaning' : 'Show meaning'}
-            </button>
-            {expanded ? (
-              <p className="text-sm text-main/90 leading-relaxed">{meaning}</p>
-            ) : null}
+              {meaning}
+            </p>
           </div>
         ) : null}
 
