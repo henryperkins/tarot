@@ -166,7 +166,7 @@
     "lamejs": "^1.2.1",
     "postcss": "^8.4.47",
     "rollup-plugin-visualizer": "^6.0.5",
-    "tailwindcss": "^3.4.10",
+    "tailwindcss": "^4.1.18",
     "vite": "^7.2.4",
     "vitest": "^4.0.18",
     "weave": "^0.11.0",
