@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
-import { animate, set } from 'animejs';
+import { animate, set } from '../../lib/motionAdapter';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useSounds } from '../../hooks/useSounds';
 import { applyColorScript, resetColorScript } from '../../lib/colorScript';
@@ -167,8 +167,7 @@ export function SceneShell({
     }
     const fadeInDuration = Math.round(duration * 0.45);
     const fadeOutDuration = Math.max(120, duration - fadeInDuration);
-    let chainedOverlay = null;
-    let chainedContent = null;
+    let cancelled = false;
     const enter = animate(overlay, {
       opacity: [0, 1],
       duration: fadeInDuration,
@@ -177,25 +176,30 @@ export function SceneShell({
     transitionAnimRef.current = enter;
 
     enter.then(() => {
-      if (content) {
-        chainedContent = animate(content, {
-          opacity: [0.88, 1],
-          scale: [0.988, 1],
-          duration: fadeOutDuration,
-          ease: 'outQuad'
-        });
-      }
-      chainedOverlay = animate(overlay, {
+      if (cancelled) return;
+      const chainedContent = content ? animate(content, {
+        opacity: [0.88, 1],
+        scale: [0.988, 1],
+        duration: fadeOutDuration,
+        ease: 'outQuad'
+      }) : null;
+      const chainedOverlay = animate(overlay, {
         opacity: [1, 0],
         duration: fadeOutDuration,
         ease: 'inOutQuad'
       });
+      transitionAnimRef.current = {
+        pause() {
+          chainedContent?.pause?.();
+          chainedOverlay?.pause?.();
+        }
+      };
     });
 
     return () => {
+      cancelled = true;
       enter?.pause?.();
-      chainedOverlay?.pause?.();
-      chainedContent?.pause?.();
+      transitionAnimRef.current?.pause?.();
     };
   }, [activeScene, prefersReducedMotion, transitionMeta?.duration]);
 

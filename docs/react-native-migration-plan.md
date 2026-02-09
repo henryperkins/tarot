@@ -4,7 +4,7 @@
 
 Converting Tableu from a WebView wrapper to a **full native React Native app** using Expo.
 
-**Current state**: 130+ React web components, Tailwind CSS, anime.js + Framer Motion, react-router-dom  
+**Current state**: 130+ React web components, Tailwind CSS, motion (framer-motion), react-router-dom  
 **Target state**: Native RN components, NativeWind, Reanimated, React Navigation  
 **Target RN version**: **0.83** (React 19.2, Expo SDK 55 — Jan 2026)  
 **Estimated effort**: 2-3 months (1 developer full-time)

@@ -28,6 +28,7 @@ import { useLandscape } from './hooks/useLandscape';
 import { useHandsetLayout } from './hooks/useHandsetLayout';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
+import { shouldUseMobileStableMode } from './lib/mobileStableMode';
 import { getSpreadInfo, normalizeSpreadKey } from './data/spreads';
 
 const STEP_PROGRESS_STEPS = [
@@ -155,7 +156,6 @@ export default function TarotReading() {
   const isOnboardingOpen = !onboardingComplete && !showPersonalizationBanner && !onboardingDeferred;
   const shouldShowGestureCoachOverlay = shouldShowGestureCoach && hasConfirmedSpread && !reading && !isOnboardingOpen;
   const shouldFocusCinematicFlow = newDeckInterface && (
-    hasConfirmedSpread ||
     Boolean(reading?.length) ||
     isGenerating ||
     Boolean(personalReading)
@@ -163,6 +163,10 @@ export default function TarotReading() {
   const [showSetupInFocusMode, setShowSetupInFocusMode] = useState(false);
   const showSetupSection = !shouldFocusCinematicFlow || showSetupInFocusMode;
   const suppressFocusInterruptions = shouldFocusCinematicFlow;
+  const shouldEnableMobileStableMode = useMemo(() => shouldUseMobileStableMode({
+    isHandset,
+    prefersReducedMotion
+  }), [isHandset, prefersReducedMotion]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -484,7 +488,10 @@ export default function TarotReading() {
 
     window.requestAnimationFrame(() => {
       try {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.scrollIntoView({
+          behavior: 'auto',
+          block: 'center'
+        });
       } catch {
         // Silently ignore scroll failures (e.g., Safari quirks)
       }
@@ -560,7 +567,7 @@ export default function TarotReading() {
     const scrollToStep = () => {
       const target = refs[stepId]?.current;
       if (!target || typeof target.scrollIntoView !== 'function') return;
-      const behavior = prefersReducedMotion ? 'auto' : 'smooth';
+      const behavior = prefersReducedMotion || isHandset ? 'auto' : 'smooth';
       target.scrollIntoView({
         behavior,
         block: 'start'
@@ -631,9 +638,9 @@ export default function TarotReading() {
 
   const handleRevealAll = useCallback(() => {
     revealAll();
-    const behavior = prefersReducedMotion ? 'auto' : 'smooth';
+    const behavior = prefersReducedMotion || isHandset ? 'auto' : 'smooth';
     readingSectionRef.current?.scrollIntoView({ behavior, block: 'start' });
-  }, [prefersReducedMotion, revealAll]);
+  }, [isHandset, prefersReducedMotion, revealAll]);
 
   const handlePersonalizationBannerDismiss = useCallback(() => {
     setShowPersonalizationBanner(false);
@@ -853,7 +860,7 @@ export default function TarotReading() {
   // --- Render Helper Wrappers ---
 
   return (
-    <div className="app-shell min-h-screen bg-main text-main">
+    <div className={`app-shell min-h-screen bg-main text-main ${shouldEnableMobileStableMode ? 'mobile-stable-mode' : ''}`}>
       <div className="skip-links">
         <a href="#step-spread" className="skip-link">Skip to spreads</a>
         <a href="#step-reading" className="skip-link">Skip to reading</a>

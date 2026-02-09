@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { animate } from 'animejs';
+import { animate } from '../lib/motionAdapter';
 import { getMediaTierConfig } from '../../shared/monetization/media.js';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 

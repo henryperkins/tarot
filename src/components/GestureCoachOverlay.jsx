@@ -1,6 +1,6 @@
 import { useState, useRef, useId, useCallback, useLayoutEffect, useEffect } from 'react';
 import FocusTrap from 'focus-trap-react';
-import { animate, createScope, set } from 'animejs';
+import { animate, createScope, set } from '../lib/motionAdapter';
 import { X, HandTap, Scissors, ArrowsClockwise, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useReducedMotion } from '../hooks/useReducedMotion';

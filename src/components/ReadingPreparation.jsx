@@ -184,7 +184,7 @@ export function ReadingPreparation({
                                 onKeyDown={(e) => handleTabKeyDown(e, index)}
                                 className={`
                                     flex-1 flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-lg
-                                    text-xs font-semibold transition-all touch-manipulation
+                                    text-xs font-semibold transition-colors touch-manipulation
                                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70
                                     ${isActive
                                         ? 'bg-surface shadow-sm border border-secondary/30 text-accent'
@@ -217,7 +217,6 @@ export function ReadingPreparation({
                             role="tabpanel"
                             aria-labelledby={`mobile-tab-${tab.id}`}
                             hidden={activeTab !== tab.id}
-                            className={activeTab === tab.id ? 'animate-fade-in' : ''}
                         >
                             {activeTab === tab.id && (
                             tab.id === 'deck'

@@ -1,7 +1,6 @@
-import { useLayoutEffect } from 'react';
-import { animate, set } from 'animejs';
+import { useLayoutEffect, useRef } from 'react';
+import { animate, set } from '../lib/motionAdapter';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { useAnimeScope } from '../hooks/useAnimeScope';
 
 /**
  * PageTransition - Wraps page content with smooth enter/exit animations
@@ -13,12 +12,11 @@ import { useAnimeScope } from '../hooks/useAnimeScope';
  */
 export function PageTransition({ children, className = '' }) {
   const prefersReducedMotion = useReducedMotion();
-  const [rootRef, scopeRef] = useAnimeScope();
+  const rootRef = useRef(null);
 
   useLayoutEffect(() => {
     const node = rootRef.current;
-    const scope = scopeRef.current;
-    if (!node || !scope) return undefined;
+    if (!node) return undefined;
 
     if (prefersReducedMotion) {
       set(node, { opacity: 1 });
@@ -26,16 +24,14 @@ export function PageTransition({ children, className = '' }) {
     }
 
     set(node, { opacity: 0 });
-    scope.add(() => {
-      animate(node, {
-        opacity: [0, 1],
-        duration: 280,
-        ease: 'inOutQuad'
-      });
+    const anim = animate(node, {
+      opacity: [0, 1],
+      duration: 280,
+      ease: 'inOutQuad'
     });
 
-    return undefined;
-  }, [prefersReducedMotion, rootRef, scopeRef]);
+    return () => anim?.pause?.();
+  }, [prefersReducedMotion]);
 
   return (
     <div ref={rootRef} className={className}>

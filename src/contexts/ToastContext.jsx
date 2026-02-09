@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, Info, WarningCircle, X, XCircle } from '@phosphor-icons/react';
-import { animate, set, spring } from 'animejs';
+import { animate, set, spring } from '../lib/motionAdapter';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const ToastContext = createContext(null);

@@ -1,5 +1,5 @@
 import { useRef, useLayoutEffect, useMemo } from 'react';
-import { animate, stagger } from 'animejs';
+import { animate, stagger } from '../lib/motionAdapter';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useHaptic } from '../hooks/useHaptic';
 import { MICROCOPY } from '../lib/microcopy';

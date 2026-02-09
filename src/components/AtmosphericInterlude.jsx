@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { animate, createScope, set } from 'animejs';
+import { animate, createScope, set } from '../lib/motionAdapter';
 import { Sparkle } from '@phosphor-icons/react';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { ParticleLayer } from './ParticleLayer';
@@ -8,7 +8,7 @@ const BREATH_PERIOD_MS = 4000;
 
 function BreathingOrb() {
   return (
-    <div className="breathing-orb relative w-32 h-32 mx-auto">
+    <div className="breathing-orb relative w-32 h-32 mx-auto" style={{ willChange: 'transform, opacity' }}>
       <div
         className="absolute inset-0 rounded-full"
         style={{
@@ -165,7 +165,7 @@ export function AtmosphericInterlude({
   return (
     <div
       ref={rootRef}
-      className="relative flex flex-col items-center justify-center min-h-[400px] px-4 overflow-hidden"
+      className="relative flex flex-col items-center justify-center min-h-[280px] sm:min-h-[400px] px-4 overflow-hidden"
       role="status"
       aria-live="polite"
       aria-label="Generating your personalized reading"

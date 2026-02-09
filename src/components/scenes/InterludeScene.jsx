@@ -1,11 +1,6 @@
-import { Suspense, lazy } from 'react';
 import { NarrativeSkeleton } from '../NarrativeSkeleton';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
-
-const AtmosphericInterlude = lazy(() =>
-  import('../AtmosphericInterlude').then((module) => ({ default: module.AtmosphericInterlude }))
-);
 
 export function InterludeScene({
   title = 'Interlude',
@@ -22,7 +17,6 @@ export function InterludeScene({
     reasoningSummary,
     narrativePhase,
     narrativeAtmosphereClasses,
-    shouldShowInterlude,
     spreadName,
     displayName,
     userQuestion,
@@ -30,10 +24,18 @@ export function InterludeScene({
     reasoning
   } = sceneData;
 
-  if (!isGenerating || personalReading) return null;
+  const isExiting = !isGenerating && Boolean(personalReading);
 
-  const hasAnyContent = reasoningSummary || (personalReading?.raw || personalReading?.normalized);
-  const shouldShowAtmosphericInterlude = shouldShowInterlude && !hasAnyContent;
+  // Keep DOM mounted during SceneShell overlay transition to prevent content flash
+  if (isExiting) {
+    return (
+      <section
+        className="scene-stage scene-stage--interlude opacity-0 pointer-events-none"
+        data-scene="interlude"
+        aria-hidden="true"
+      />
+    );
+  }
 
   return (
     <section
@@ -52,34 +54,16 @@ export function InterludeScene({
             isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'
           } ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
         >
-          {shouldShowAtmosphericInterlude ? (
-            <Suspense fallback={
-              <NarrativeSkeleton
-                hasQuestion={Boolean(userQuestion)}
-                displayName={displayName}
-                spreadName={spreadName}
-                cardCount={readingCount || 3}
-                narrativePhase={narrativePhase}
-                atmosphereClassName={narrativeAtmosphereClasses}
-              />
-            }>
-              <AtmosphericInterlude
-                message={`Channeling ${spreadName || 'your reading'}...`}
-                theme={narrativeAtmosphereClasses}
-              />
-            </Suspense>
-          ) : (
-            <NarrativeSkeleton
-              hasQuestion={Boolean(userQuestion)}
-              displayName={displayName}
-              spreadName={spreadName}
-              cardCount={readingCount || 3}
-              reasoningSummary={reasoningSummary}
-              reasoning={reasoning}
-              narrativePhase={narrativePhase}
-              atmosphereClassName={narrativeAtmosphereClasses}
-            />
-          )}
+          <NarrativeSkeleton
+            hasQuestion={Boolean(userQuestion)}
+            displayName={displayName}
+            spreadName={spreadName}
+            cardCount={readingCount || 3}
+            reasoningSummary={reasoningSummary}
+            reasoning={reasoning}
+            narrativePhase={narrativePhase}
+            atmosphereClassName={narrativeAtmosphereClasses}
+          />
         </div>
       </div>
     </section>

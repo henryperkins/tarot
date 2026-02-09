@@ -53,9 +53,17 @@ export function CameraCapture({ onCapture, onCancel }) {
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
     const context = canvas.getContext('2d');
+    if (!context) {
+      setError('Camera capture failed. Please try again.');
+      return;
+    }
     context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
 
     canvas.toBlob(blob => {
+      if (!blob) {
+        setError('Camera capture failed. Please try again.');
+        return;
+      }
       const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
       const captureId = createCaptureId();
       file.__visionUploadId = captureId;

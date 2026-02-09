@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState, useLayoutEffect, lazy, Suspense } from 'react';
-import { animate, set } from 'animejs';
+import { animate, set } from '../lib/motionAdapter';
 import { X, CaretLeft, CaretRight, CaretDown, Clock, Sparkle } from '@phosphor-icons/react';
 import { FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
 import { CardSymbolInsights } from './CardSymbolInsights';

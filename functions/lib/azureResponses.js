@@ -39,6 +39,29 @@ export function ensureAzureConfig(env) {
 const VALID_REASONING_EFFORTS = new Set(['none', 'minimal', 'low', 'medium', 'high', 'xhigh']);
 const VALID_VERBOSITY_LEVELS = new Set(['low', 'medium', 'high']);
 
+function normalizeResponsesUser(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Resolve the end-user identifier for Azure Responses API requests.
+ *
+ * Priority order:
+ * 1) Explicit per-request value
+ * 2) Environment fallback: AZURE_OPENAI_RESPONSES_USER
+ *
+ * @param {Object|null} env - Environment bindings
+ * @param {string|null} explicitUser - Optional per-request user identifier
+ * @returns {string|null} Normalized user identifier or null when unavailable
+ */
+export function resolveResponsesUser(env = null, explicitUser = null) {
+  return normalizeResponsesUser(explicitUser) || normalizeResponsesUser(env?.AZURE_OPENAI_RESPONSES_USER);
+}
+
 /**
  * Determine reasoning effort based on env overrides and model defaults.
  *
@@ -96,6 +119,7 @@ export function getTextVerbosity(env = null, modelName = '') {
  * @param {string|null} options.reasoningEffort - Reasoning effort level (null = omit, 'none'|'minimal'|'low'|'medium'|'high'|'xhigh')
  * @param {string|null} options.reasoningSummary - Reasoning summary mode (null = omit, 'auto'|'concise'|'detailed')
  * @param {string} options.verbosity - Text verbosity level ('low', 'medium', 'high')
+ * @param {string|null} options.user - Optional end-user identifier for abuse monitoring
  * @param {boolean} options.returnFullResponse - When true, return { text, usage } instead of just text
  * @returns {Promise<string|Object>} Response text or { text, usage } if returnFullResponse=true
  */
@@ -106,10 +130,12 @@ export async function callAzureResponses(env, {
   reasoningEffort = null,
   reasoningSummary = null,
   verbosity = 'medium',
+  user = null,
   returnFullResponse = false,
   requestId = 'unknown'
 }) {
   const { endpoint, apiKey, model, apiVersion } = ensureAzureConfig(env);
+  const resolvedUser = resolveResponsesUser(env, user);
   const url = `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
 
   // Build request body
@@ -142,6 +168,10 @@ export async function callAzureResponses(env, {
     }
   }
 
+  if (resolvedUser) {
+    body.user = resolvedUser;
+  }
+
   // Debug logging for request metadata (no secrets)
   console.log('[azureResponses] Requesting Responses API', {
     url,
@@ -151,6 +181,7 @@ export async function callAzureResponses(env, {
     reasoningEffort: reasoningEffort ?? 'omitted',
     reasoningSummary: reasoningSummary ?? 'omitted',
     verbosity,
+    userProvided: Boolean(resolvedUser),
     returnFullResponse
   });
 

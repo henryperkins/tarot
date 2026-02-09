@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { animate, set, stagger } from 'animejs';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from 'react';
+import { animate, set, stagger } from '../lib/motionAdapter';
 import {
   ArrowsClockwise,
   ArrowsOut,
@@ -9,6 +9,7 @@ import {
   Trash
 } from '@phosphor-icons/react';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useModalA11y } from '../hooks/useModalA11y';
 
 const FAVORITES_STORAGE_KEY = 'tarot_media_gallery_favorites';
 
@@ -66,10 +67,19 @@ export function MediaGallery({
 }) {
   const prefersReducedMotion = useReducedMotion();
   const galleryRef = useRef(null);
+  const lightboxRef = useRef(null);
+  const lightboxCloseRef = useRef(null);
+  const lightboxTitleId = useId();
   const [lightboxItem, setLightboxItem] = useState(null);
   const [favoriteIds, setFavoriteIds] = useState(() => readFavoriteIds());
   const [shareNotice, setShareNotice] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+
+  useModalA11y(!!lightboxItem, {
+    onClose: () => setLightboxItem(null),
+    containerRef: lightboxRef,
+    initialFocusRef: lightboxCloseRef
+  });
 
   const sortedItems = useMemo(() => {
     return [...(Array.isArray(items) ? items : [])].sort((a, b) => {
@@ -109,16 +119,6 @@ export function MediaGallery({
     return () => window.clearTimeout(timer);
   }, [shareNotice]);
 
-  useEffect(() => {
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setLightboxItem(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
-
   const toggleFavorite = useCallback((id) => {
     if (!id) return;
     setFavoriteIds((prev) => {
@@ -146,7 +146,13 @@ export function MediaGallery({
 
   const handleShare = useCallback(async (item) => {
     if (!item) return;
-    const shareUrl = new URL(item.contentUrl, window.location.origin).toString();
+    let shareUrl = '';
+    try {
+      shareUrl = new URL(item.contentUrl, window.location.origin).toString();
+    } catch {
+      setShareNotice('Invalid media URL.');
+      return;
+    }
     const title = buildMediaTitle(item);
 
     try {
@@ -318,16 +324,22 @@ export function MediaGallery({
         <div
           className="fixed inset-0 z-[140] bg-black/90 backdrop-blur-sm px-4 py-6 sm:p-8"
           onClick={() => setLightboxItem(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Media lightbox"
         >
           <div
             className="w-full h-full max-w-6xl mx-auto flex items-center justify-center"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="relative w-full max-h-full rounded-2xl border border-secondary/35 bg-main/70 p-3 sm:p-4 overflow-hidden">
+            <div
+              ref={lightboxRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={lightboxTitleId}
+              tabIndex={-1}
+              className="relative w-full max-h-full rounded-2xl border border-secondary/35 bg-main/70 p-3 sm:p-4 overflow-hidden"
+            >
+              <h2 id={lightboxTitleId} className="sr-only">Media lightbox</h2>
               <button
+                ref={lightboxCloseRef}
                 type="button"
                 onClick={() => setLightboxItem(null)}
                 className="absolute top-3 right-3 z-10 px-3 py-1.5 rounded-full border border-secondary/35 bg-surface/80 text-xs text-main hover:bg-surface transition"

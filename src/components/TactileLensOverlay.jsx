@@ -1,6 +1,6 @@
 import { useRef, useLayoutEffect } from 'react';
 import { Eye } from '@phosphor-icons/react';
-import { animate, createScope, set } from 'animejs';
+import { animate, createScope, set } from '../lib/motionAdapter';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { MICROCOPY } from '../lib/microcopy';
 

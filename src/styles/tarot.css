@@ -875,6 +875,87 @@ body {
   }
 }
 
+/* Handset stability mode: prioritize responsiveness over decorative effects */
+.mobile-stable-mode .full-bleed,
+.mobile-stable-mode .mobile-action-bar,
+.mobile-stable-mode .mobile-action-group,
+.mobile-stable-mode .mobile-drawer-overlay,
+.mobile-stable-mode .mobile-drawer,
+.mobile-stable-mode .mobile-drawer__footer,
+.mobile-stable-mode .prepare-summary-chip,
+.mobile-stable-mode .backdrop-blur,
+.mobile-stable-mode .backdrop-blur-sm,
+.mobile-stable-mode .backdrop-blur-md,
+.mobile-stable-mode .backdrop-blur-lg,
+.mobile-stable-mode .backdrop-blur-xl,
+.mobile-stable-mode .backdrop-blur-2xl,
+.mobile-stable-mode .backdrop-blur-3xl,
+.mobile-stable-mode .backdrop-blur-xs {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.mobile-stable-mode .full-bleed {
+  background: var(--surface-92, rgba(18, 16, 25, 0.96));
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+}
+
+.mobile-stable-mode .mobile-action-bar {
+  background: var(--surface-92, rgba(18, 16, 25, 0.96));
+  box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.32);
+  transition: none;
+}
+
+.mobile-stable-mode .mobile-drawer-overlay {
+  background: rgba(7, 6, 12, 0.86);
+}
+
+.mobile-stable-mode .mobile-drawer {
+  background: var(--surface-92, rgba(20, 17, 26, 0.97));
+  border-color: var(--border-warm-light);
+  box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.5);
+}
+
+.mobile-stable-mode .mobile-drawer::before,
+.mobile-stable-mode .mobile-drawer::after,
+.mobile-stable-mode .prepare-card::before,
+.mobile-stable-mode .prepare-card::after,
+.mobile-stable-mode .deck-card::before,
+.mobile-stable-mode .deck-card::after {
+  display: none;
+}
+
+.mobile-stable-mode .prepare-card,
+.mobile-stable-mode .deck-card {
+  background: var(--surface-92, rgba(20, 17, 26, 0.95));
+  box-shadow: 0 10px 22px -16px rgba(0, 0, 0, 0.75);
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.mobile-stable-mode .prepare-card--open {
+  box-shadow: 0 14px 26px -18px rgba(229, 196, 142, 0.24);
+}
+
+.mobile-stable-mode .transition-all {
+  transition-property: opacity, transform !important;
+  transition-duration: 140ms !important;
+}
+
+.mobile-stable-mode .swipe-hint,
+.mobile-stable-mode .animate-pulse {
+  animation: none !important;
+}
+
+.mobile-stable-mode .mobile-drawer,
+.mobile-stable-mode .mobile-drawer-overlay {
+  animation: none !important;
+  transition: none !important;
+}
+
+.mobile-stable-mode .card-swipe-hint {
+  display: none;
+}
+
 /* Light mode: Additional styles can be added here when implementing light mode support */
 
 .spread-patterns-panel {

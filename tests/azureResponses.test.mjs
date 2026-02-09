@@ -6,7 +6,8 @@ import { test, describe, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ensureAzureConfig,
-  getReasoningEffort
+  getReasoningEffort,
+  resolveResponsesUser
 } from '../functions/lib/azureResponses.js';
 
 describe('ensureAzureConfig', () => {
@@ -163,6 +164,23 @@ describe('getReasoningEffort', () => {
   });
 });
 
+describe('resolveResponsesUser', () => {
+  test('uses explicit user when provided', () => {
+    const env = { AZURE_OPENAI_RESPONSES_USER: 'env-user' };
+    assert.strictEqual(resolveResponsesUser(env, 'request-user'), 'request-user');
+  });
+
+  test('falls back to env user when explicit user is missing', () => {
+    const env = { AZURE_OPENAI_RESPONSES_USER: 'env-user' };
+    assert.strictEqual(resolveResponsesUser(env, null), 'env-user');
+  });
+
+  test('returns null when both explicit and env values are blank', () => {
+    const env = { AZURE_OPENAI_RESPONSES_USER: '   ' };
+    assert.strictEqual(resolveResponsesUser(env, '  '), null);
+  });
+});
+
 // Note: callAzureResponses tests require mocking fetch
 // These tests verify the request body construction logic
 describe('callAzureResponses request body construction', () => {
@@ -267,6 +285,44 @@ describe('callAzureResponses request body construction', () => {
 
     assert.ok(capturedRequest, 'Fetch should have been called');
     assert.strictEqual(capturedRequest.body.max_output_tokens, 500);
+  });
+
+  test('includes user when explicitly provided', async () => {
+    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+
+    const env = {
+      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'test-key',
+      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
+    };
+
+    await callAzureResponses(env, {
+      instructions: 'System prompt',
+      input: 'User input',
+      user: 'reader-123'
+    });
+
+    assert.ok(capturedRequest, 'Fetch should have been called');
+    assert.strictEqual(capturedRequest.body.user, 'reader-123');
+  });
+
+  test('includes env fallback user when explicit user is not provided', async () => {
+    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+
+    const env = {
+      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'test-key',
+      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
+      AZURE_OPENAI_RESPONSES_USER: 'env-reader'
+    };
+
+    await callAzureResponses(env, {
+      instructions: 'System prompt',
+      input: 'User input'
+    });
+
+    assert.ok(capturedRequest, 'Fetch should have been called');
+    assert.strictEqual(capturedRequest.body.user, 'env-reader');
   });
 
   test('returns string by default', async () => {

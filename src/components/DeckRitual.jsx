@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
-import { animate, createLayout, createTimeline, set, spring } from 'animejs';
+import { animate, createLayout, createTimeline, set, spring } from '../lib/motionAdapter';
 import { TableuLogo } from './TableuLogo';
 import { Scissors, ArrowsClockwise, HandTap } from '@phosphor-icons/react';
 import { useSmallScreen } from '../hooks/useSmallScreen';

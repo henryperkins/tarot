@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { animate, set } from 'animejs';
+import { animate, set } from '../lib/motionAdapter';
 import { getCanonicalCard, getOrientationMeaning } from '../lib/cardLookup';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSounds } from '../hooks/useSounds';

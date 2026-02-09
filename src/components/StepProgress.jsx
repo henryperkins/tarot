@@ -29,6 +29,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen(TABLET_SCREEN_MAX);
   const showTooltips = !isSmallScreen;
+  const shouldAnimateProgress = !isSmallScreen && !prefersReducedMotion;
 
   // Micro-celebration when advancing steps.
   const [celebrateStepId, setCelebrateStepId] = useState(null);
@@ -150,7 +151,10 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
   }, [showTooltips]);
 
   return (
-    <nav aria-label="Tarot reading progress" className="w-full animate-fade-in">
+    <nav
+      aria-label="Tarot reading progress"
+      className={`w-full ${shouldAnimateProgress ? 'animate-fade-in' : ''}`}
+    >
       <ol
         className={`flex ${condensed ? 'gap-1 xs:gap-1.5 py-1' : 'gap-1.5 xs:gap-2 sm:gap-3 pb-1'} overflow-x-auto snap-x snap-mandatory`}
         role="list"

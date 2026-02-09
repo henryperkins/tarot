@@ -1393,6 +1393,33 @@ function createToolRoundTripStream(env, {
               }
               toolCalls.push({ callId, name: tc.name, arguments: parsedArgs });
             }
+          } else if (dataType === 'response.code_interpreter_call_code.delta') {
+            const codeDelta = typeof parsed.delta === 'string' ? parsed.delta : '';
+            if (codeDelta && emitDeltas && !cancelled) {
+              controller.enqueue(encoder.encode(formatSSEEvent('code_interpreter_delta', {
+                code: codeDelta,
+                itemId: parsed.item_id || null,
+                outputIndex: typeof parsed.output_index === 'number' ? parsed.output_index : null
+              })));
+            }
+          } else if (dataType === 'response.code_interpreter_call_code.done') {
+            if (emitDeltas && !cancelled) {
+              controller.enqueue(encoder.encode(formatSSEEvent('code_interpreter_done', {
+                code: typeof parsed.code === 'string' ? parsed.code : '',
+                itemId: parsed.item_id || null,
+                outputIndex: typeof parsed.output_index === 'number' ? parsed.output_index : null
+              })));
+            }
+          } else if (dataType === 'response.code_interpreter_call.in_progress' ||
+            dataType === 'response.code_interpreter_call.interpreting' ||
+            dataType === 'response.code_interpreter_call.completed') {
+            if (emitDeltas && !cancelled) {
+              controller.enqueue(encoder.encode(formatSSEEvent('code_interpreter_status', {
+                status: dataType.replace('response.code_interpreter_call.', ''),
+                itemId: parsed.item_id || null,
+                outputIndex: typeof parsed.output_index === 'number' ? parsed.output_index : null
+              })));
+            }
           } else if (dataType === 'response.error' || dataType === 'error') {
             const errorMsg = parsed?.error?.message || parsed?.message || 'Unknown error';
             if (!cancelled) {

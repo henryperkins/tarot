@@ -42,20 +42,15 @@ export function RevealScene({
 
   return (
     <section
-      className={`scene-stage scene-stage--reveal relative px-3 xs:px-4 sm:px-6 py-5 sm:py-7 ${className}`}
+      className={`relative px-3 xs:px-4 sm:px-6 py-5 sm:py-7 ${className}`}
       data-scene="reveal"
     >
-      <div className="scene-stage__panel scene-stage__panel--reveal relative z-[2] max-w-5xl mx-auto p-4 sm:p-6">
+      <div className="relative z-[2] max-w-5xl mx-auto p-4 sm:p-6">
         {showTitle ? <h2 className="text-xl sm:text-2xl font-serif text-accent text-center mb-3">{title}</h2> : null}
 
         <div className={`text-center text-accent font-serif mb-2 ${isLandscape ? 'text-lg' : 'text-2xl'}`}>
           {spreadName || 'Tarot Spread'}
         </div>
-        {visibleCount > 1 && !isLandscape && (
-          <p className="text-center text-muted text-xs-plus sm:text-sm mb-4">
-            Reveal in order for narrative flow, then hover or long-press a card for quick meaning.
-          </p>
-        )}
 
         {revealedCards.size < visibleCount && (
           <div className={`${isHandset ? 'hidden' : 'hidden sm:block'} text-center space-y-2`}>
@@ -79,13 +74,6 @@ export function RevealScene({
             <p className="text-accent/80 text-xs sm:text-sm">{revealedCards.size} of {visibleCount} cards revealed</p>
           </div>
         )}
-        {revealedCards.size > 0 && (
-          <div className="text-center mt-3 sm:mt-4">
-            <button type="button" onClick={handleResetReveals} className="inline-flex items-center justify-center min-h-touch px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition touch-manipulation">
-              <span className="hidden xs:inline">Reset reveals (keep this spread)</span><span className="xs:hidden">Reset reveals</span>
-            </button>
-          </div>
-        )}
 
         <ReadingBoard
           spreadKey={safeSpreadKey}
@@ -106,7 +94,21 @@ export function RevealScene({
           revealStage={revealStage}
           narrativeMentionPulse={narrativeMentionPulse}
           isHandset={isHandset}
+          cardsOnly={true}
         />
+
+        {revealedCards.size > 0 && (
+          <div className="text-center mt-3 sm:mt-4">
+            <button
+              type="button"
+              onClick={handleResetReveals}
+              className="inline-flex items-center justify-center min-h-touch px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition touch-manipulation"
+            >
+              <span className="hidden xs:inline">Reset reveals (keep this spread)</span>
+              <span className="xs:hidden">Reset reveals</span>
+            </button>
+          </div>
+        )}
 
         {!personalReading && !isGenerating && revealedCards.size === visibleCount && (
           <div className="text-center space-y-3">

@@ -8,11 +8,14 @@
  * - response.output_text.done
  * - response.function_call_arguments.delta (tool call arguments)
  * - response.function_call_arguments.done
+ * - response.code_interpreter_call_code.delta
+ * - response.code_interpreter_call_code.done
+ * - response.code_interpreter_call.completed
  * - response.completed
  * - response.error
  */
 
-import { ensureAzureConfig } from './azureResponses.js';
+import { ensureAzureConfig, resolveResponsesUser } from './azureResponses.js';
 
 /**
  * Call Azure Responses API with streaming enabled
@@ -26,6 +29,7 @@ import { ensureAzureConfig } from './azureResponses.js';
  * @param {string|null} options.reasoningEffort - Reasoning effort level ('none'|'minimal'|'low'|'medium'|'high'|'xhigh', null = omit)
  * @param {string|null} options.reasoningSummary - Reasoning summary mode ('auto'|'concise'|'detailed', null = omit)
  * @param {string} options.verbosity - Text verbosity level (default: 'medium')
+ * @param {string|null} options.user - Optional end-user identifier for abuse monitoring
  * @param {Array} options.tools - Optional array of tool definitions
  * @returns {ReadableStream} SSE event stream
  */
@@ -36,9 +40,11 @@ export async function callAzureResponsesStream(env, {
   reasoningEffort = null,
   reasoningSummary = null,
   verbosity = 'medium',
+  user = null,
   tools = null
 }) {
   const { endpoint, apiKey, model, apiVersion } = ensureAzureConfig(env);
+  const resolvedUser = resolveResponsesUser(env, user);
   const url = `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
 
   const body = {
@@ -63,6 +69,10 @@ export async function callAzureResponsesStream(env, {
     }
   }
 
+  if (resolvedUser) {
+    body.user = resolvedUser;
+  }
+
   // Add tools if provided
   if (tools && Array.isArray(tools) && tools.length > 0) {
     body.tools = tools;
@@ -75,7 +85,8 @@ export async function callAzureResponsesStream(env, {
     maxTokens: maxTokens ?? 'unlimited',
     reasoningEffort: reasoningEffort ?? 'omitted',
     reasoningSummary: reasoningSummary ?? 'omitted',
-    verbosity
+    verbosity,
+    userProvided: Boolean(resolvedUser)
   });
 
   const response = await fetch(url, {
@@ -179,6 +190,32 @@ export function transformAzureStream(azureStream) {
         }
         const reasoningEvent = formatSSE('reasoning', { text: reasoningSummary, partial: false });
         controller.enqueue(encoder.encode(reasoningEvent));
+      } else if (dataType === 'response.code_interpreter_call_code.delta') {
+        const codeDelta = typeof parsed.delta === 'string' ? parsed.delta : '';
+        if (codeDelta) {
+          const codeEvent = formatSSE('code_interpreter_delta', {
+            code: codeDelta,
+            itemId: parsed.item_id || null,
+            outputIndex: typeof parsed.output_index === 'number' ? parsed.output_index : null
+          });
+          controller.enqueue(encoder.encode(codeEvent));
+        }
+      } else if (dataType === 'response.code_interpreter_call_code.done') {
+        const codeEvent = formatSSE('code_interpreter_done', {
+          code: typeof parsed.code === 'string' ? parsed.code : '',
+          itemId: parsed.item_id || null,
+          outputIndex: typeof parsed.output_index === 'number' ? parsed.output_index : null
+        });
+        controller.enqueue(encoder.encode(codeEvent));
+      } else if (dataType === 'response.code_interpreter_call.in_progress' ||
+        dataType === 'response.code_interpreter_call.interpreting' ||
+        dataType === 'response.code_interpreter_call.completed') {
+        const codeStatusEvent = formatSSE('code_interpreter_status', {
+          status: dataType.replace('response.code_interpreter_call.', ''),
+          itemId: parsed.item_id || null,
+          outputIndex: typeof parsed.output_index === 'number' ? parsed.output_index : null
+        });
+        controller.enqueue(encoder.encode(codeStatusEvent));
       } else if (dataType === 'response.completed') {
         console.log('[azureResponsesStream] Response completed event received');
       } else if (dataType === 'response.error' || dataType === 'error') {
@@ -427,6 +464,32 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
                     });
                     controller.enqueue(encoder.encode(toolCallEvent));
                   }
+                } else if (dataType === 'response.code_interpreter_call_code.delta') {
+                  const codeDelta = typeof parsed.delta === 'string' ? parsed.delta : '';
+                  if (codeDelta) {
+                    const codeEvent = formatSSE('code_interpreter_delta', {
+                      code: codeDelta,
+                      itemId: parsed.item_id || null,
+                      outputIndex: typeof parsed.output_index === 'number' ? parsed.output_index : null
+                    });
+                    controller.enqueue(encoder.encode(codeEvent));
+                  }
+                } else if (dataType === 'response.code_interpreter_call_code.done') {
+                  const codeEvent = formatSSE('code_interpreter_done', {
+                    code: typeof parsed.code === 'string' ? parsed.code : '',
+                    itemId: parsed.item_id || null,
+                    outputIndex: typeof parsed.output_index === 'number' ? parsed.output_index : null
+                  });
+                  controller.enqueue(encoder.encode(codeEvent));
+                } else if (dataType === 'response.code_interpreter_call.in_progress' ||
+                  dataType === 'response.code_interpreter_call.interpreting' ||
+                  dataType === 'response.code_interpreter_call.completed') {
+                  const codeStatusEvent = formatSSE('code_interpreter_status', {
+                    status: dataType.replace('response.code_interpreter_call.', ''),
+                    itemId: parsed.item_id || null,
+                    outputIndex: typeof parsed.output_index === 'number' ? parsed.output_index : null
+                  });
+                  controller.enqueue(encoder.encode(codeStatusEvent));
                 } else if (dataType === 'response.completed') {
                   console.log('[azureResponsesStream] Response completed');
                 } else if (dataType === 'response.error' || dataType === 'error') {
@@ -558,6 +621,38 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
                   controller.enqueue(encoder.encode(toolCallEvent));
                 }
               }
+              // Handle code interpreter code delta
+              else if (dataType === 'response.code_interpreter_call_code.delta') {
+                const codeDelta = typeof parsed.delta === 'string' ? parsed.delta : '';
+                if (codeDelta) {
+                  const codeEvent = formatSSE('code_interpreter_delta', {
+                    code: codeDelta,
+                    itemId: parsed.item_id || null,
+                    outputIndex: typeof parsed.output_index === 'number' ? parsed.output_index : null
+                  });
+                  controller.enqueue(encoder.encode(codeEvent));
+                }
+              }
+              // Handle code interpreter code completion
+              else if (dataType === 'response.code_interpreter_call_code.done') {
+                const codeEvent = formatSSE('code_interpreter_done', {
+                  code: typeof parsed.code === 'string' ? parsed.code : '',
+                  itemId: parsed.item_id || null,
+                  outputIndex: typeof parsed.output_index === 'number' ? parsed.output_index : null
+                });
+                controller.enqueue(encoder.encode(codeEvent));
+              }
+              // Handle code interpreter call lifecycle states
+              else if (dataType === 'response.code_interpreter_call.in_progress' ||
+                dataType === 'response.code_interpreter_call.interpreting' ||
+                dataType === 'response.code_interpreter_call.completed') {
+                const codeStatusEvent = formatSSE('code_interpreter_status', {
+                  status: dataType.replace('response.code_interpreter_call.', ''),
+                  itemId: parsed.item_id || null,
+                  outputIndex: typeof parsed.output_index === 'number' ? parsed.output_index : null
+                });
+                controller.enqueue(encoder.encode(codeStatusEvent));
+              }
               // Handle completion
               else if (dataType === 'response.completed') {
                 console.log('[azureResponsesStream] Response completed');
@@ -616,15 +711,18 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
  * @param {Array} options.conversation - Conversation history array
  * @param {number|null} options.maxTokens - Max output tokens
  * @param {string} options.verbosity - Text verbosity level
+ * @param {string|null} options.user - Optional end-user identifier for abuse monitoring
  * @returns {ReadableStream} SSE event stream
  */
 export async function callAzureResponsesStreamWithConversation(env, {
   instructions,
   conversation,
   maxTokens = 400,
-  verbosity = 'medium'
+  verbosity = 'medium',
+  user = null
 }) {
   const { endpoint, apiKey, model, apiVersion } = ensureAzureConfig(env);
+  const resolvedUser = resolveResponsesUser(env, user);
   const url = `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
 
   const body = {
@@ -639,12 +737,17 @@ export async function callAzureResponsesStreamWithConversation(env, {
     body.max_output_tokens = maxTokens;
   }
 
+  if (resolvedUser) {
+    body.user = resolvedUser;
+  }
+
   console.log('[azureResponsesStream] Starting continuation request', {
     url,
     model,
     conversationLength: conversation.length,
     maxTokens: maxTokens ?? 'unlimited',
-    verbosity
+    verbosity,
+    userProvided: Boolean(resolvedUser)
   });
 
   const response = await fetch(url, {

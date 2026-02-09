@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react';
-import { animate, createTimeline, cubicBezier, set, spring } from 'animejs';
+import { animate, createTimeline, cubicBezier, set, spring } from '../lib/motionAdapter';
 import { ArrowsOut, HandPointing, ArrowLeft, ArrowRight, NotePencil, CaretUp } from '@phosphor-icons/react';
 import { CARD_LOOKUP, FALLBACK_IMAGE, getCardImage } from '../lib/cardLookup';
 import { CardBack } from './CardBack';
@@ -440,7 +440,6 @@ export function Card({
         set(node, {
           rotateY: 0,
           opacity: 1,
-          filter: 'blur(0px)',
           scale: 1,
           translateX: 0,
           translateY: 0
@@ -500,7 +499,7 @@ export function Card({
       if (prefersReducedMotion) {
         setIsVisuallyRevealed(true);
         setIsFlipAnimating(false);
-        set(node, { rotateY: 0, opacity: 1, filter: 'blur(0px)', scale: 1 });
+        set(node, { rotateY: 0, opacity: 1, scale: 1 });
         return;
       }
 
@@ -515,8 +514,7 @@ export function Card({
       const timeline = createTimeline({ autoplay: false });
       timeline.add(node, {
         rotateY: 90,
-        opacity: 0.6,
-        filter: 'blur(8px)',
+        opacity: 0.3,
         scale: 0.95,
         duration: inkDuration,
         ease: 'inQuad',
@@ -533,7 +531,6 @@ export function Card({
       timeline.add(node, {
         rotateY: 0,
         opacity: 1,
-        filter: 'blur(0px)',
         scale: 1,
         duration: revealDuration,
         ease: revealEase,
@@ -650,7 +647,7 @@ export function Card({
 
         <div
           ref={cardRef}
-          className={`transition-all duration-500 transform rounded-lg ${!isVisuallyRevealed ? '' : 'group'}`}
+          className={`${prefersReducedMotion ? '' : 'transition-all duration-500'} transform rounded-lg ${!isVisuallyRevealed ? '' : 'group'}`}
           style={{
             transformStyle: 'preserve-3d',
             WebkitTransformStyle: 'preserve-3d',
@@ -658,7 +655,7 @@ export function Card({
             zIndex: isVisuallyRevealed ? 1 : 'auto',
             backfaceVisibility: 'visible',
             WebkitBackfaceVisibility: 'visible',
-            willChange: prefersReducedMotion ? undefined : 'transform, opacity, filter'
+            willChange: prefersReducedMotion ? undefined : 'transform, opacity'
           }}
         >
           {!isVisuallyRevealed ? (

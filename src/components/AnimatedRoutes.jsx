@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
-import { animate, set } from 'animejs';
+import { animate, set } from '../lib/motionAdapter';
 import TarotReading from '../TarotReading.jsx';
 import { PageTransition } from './PageTransition.jsx';
 import { useReducedMotion } from '../hooks/useReducedMotion';

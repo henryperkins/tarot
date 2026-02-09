@@ -31,8 +31,13 @@ jobs:
   ci:
     uses: ./.github/workflows/ci.yml
 
+  playwright:
+    uses: ./.github/workflows/playwright.yml
+
   deploy:
-    needs: ci
+    needs:
+      - ci
+      - playwright
     runs-on: ubuntu-latest
     # Only deploy on pushes to main/master, not on PRs
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

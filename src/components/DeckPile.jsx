@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { animate, spring } from 'animejs';
+import { animate, spring } from '../lib/motionAdapter';
 import { TableuLogo } from './TableuLogo';
 import { BookOpen } from '@phosphor-icons/react';
 import { useReducedMotion } from '../hooks/useReducedMotion';

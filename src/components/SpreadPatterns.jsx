@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Fire, Drop, Wind, Leaf, Star, Triangle, Path, Infinity as InfinityIcon, CaretDown, CaretUp, BookOpen } from '@phosphor-icons/react';
+import { useHandsetLayout } from '../hooks/useHandsetLayout';
 
 // Suit icons using Phosphor icons for consistent rendering
 const SUIT_ICONS = {
@@ -103,13 +104,15 @@ function generatePassageKey(passage, index) {
  * @param {Array} props.spreadHighlights - Spread-specific highlight items from useReading
  * @param {Array} props.passages - Traditional wisdom passages from GraphRAG
  */
-export function SpreadPatterns({ themes, spreadHighlights = [], passages = [] }) {
+export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighlights = [], passages = [] }) {
   const archetypeHighlights = themes?.knowledgeGraph?.narrativeHighlights || [];
   const [isExpanded, setIsExpanded] = useState(false);
+  const isHandset = useHandsetLayout();
 
   const hasArchetypes = Array.isArray(archetypeHighlights) && archetypeHighlights.length > 0;
   const hasSpreadHighlights = Array.isArray(spreadHighlights) && spreadHighlights.length > 0;
   const hasPassages = Array.isArray(passages) && passages.length > 0;
+  const shouldRenderContent = !isHandset || isExpanded;
 
   if (!hasArchetypes && !hasSpreadHighlights && !hasPassages) {
     return null;
@@ -118,7 +121,7 @@ export function SpreadPatterns({ themes, spreadHighlights = [], passages = [] })
   const totalCount = archetypeHighlights.length + spreadHighlights.length + passages.length;
 
   return (
-    <div className="modern-surface spread-patterns-panel border border-secondary/40 p-4 sm:p-6 animate-fade-in">
+    <div className="modern-surface spread-patterns-panel border border-secondary/40 p-4 sm:p-6 motion-safe:animate-fade-in">
       {/* Mobile: Collapsible header */}
       <button
         type="button"
@@ -146,10 +149,9 @@ export function SpreadPatterns({ themes, spreadHighlights = [], passages = [] })
       </div>
 
       {/* Unified content: collapsed on mobile (unless expanded), always visible on desktop */}
-      <div
-        id="spread-patterns-content"
-        className={`${isExpanded ? '' : 'hidden'} sm:block mt-3 sm:mt-0 space-y-4`}
-      >
+      <div id="spread-patterns-content" className={`${isExpanded ? '' : 'hidden'} sm:block mt-3 sm:mt-0 space-y-4`}>
+        {shouldRenderContent && (
+          <>
         {/* Spread Highlights Section */}
         {hasSpreadHighlights && (
           <div className="space-y-3">
@@ -222,7 +224,17 @@ export function SpreadPatterns({ themes, spreadHighlights = [], passages = [] })
             </div>
           </div>
         )}
+          </>
+        )}
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  const prevArchetypes = prevProps.themes?.knowledgeGraph?.narrativeHighlights;
+  const nextArchetypes = nextProps.themes?.knowledgeGraph?.narrativeHighlights;
+  return (
+    prevArchetypes === nextArchetypes &&
+    prevProps.spreadHighlights === nextProps.spreadHighlights &&
+    prevProps.passages === nextProps.passages
+  );
+});

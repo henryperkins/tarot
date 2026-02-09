@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { animate, createLayout, cubicBezier, set } from 'animejs';
+import { animate, createLayout, cubicBezier, set } from '../lib/motionAdapter';
 import { SPREADS } from '../data/spreads';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSounds } from '../hooks/useSounds';
 import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
 import { getSuitBorderColor, getRevealedCardGlow, getSuitGlowColor } from '../lib/suitColors';
+import { getSpreadTableContainerPresentation } from '../lib/spreadTablePresentation';
 import { extractShortLabel, getPositionLabel } from './readingBoardUtils';
 import { HandTap } from '@phosphor-icons/react';
 import { useHaptic } from '../hooks/useHaptic';
@@ -150,7 +151,15 @@ function SlotPulseWrapper({ active, prefersReducedMotion, className, style, chil
   }, [active, prefersReducedMotion]);
 
   return (
-    <div ref={ref} className={className} style={style} {...props}>
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        ...style,
+        willChange: active && !prefersReducedMotion ? 'transform' : 'auto'
+      }}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -181,7 +190,13 @@ function PulseRing({ active, prefersReducedMotion, className }) {
 
   if (!active) return null;
 
-  return <div ref={ref} className={className} />;
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{ willChange: !prefersReducedMotion ? 'transform, opacity' : 'auto' }}
+    />
+  );
 }
 
 function OneShotRing({
@@ -515,7 +530,8 @@ export function SpreadTable({
   flashNextSlot = false,
   mentionPulse = null,
   showProgress = true,
-  showTactileLens = true
+  showTactileLens = true,
+  cardsOnly = false
 }) {
   const prefersReducedMotion = useReducedMotion();
   const { vibrate, vibrateType } = useHaptic();
@@ -715,13 +731,11 @@ export function SpreadTable({
       ease: 'outQuad',
       enterFrom: {
         opacity: 0,
-        filter: 'blur(8px)',
         scale: 0.9,
         delay: (el, index, total) => layoutStagger(el, index, total)
       },
       leaveTo: {
         opacity: 0,
-        filter: 'blur(8px)',
         scale: 0.9,
         duration: CARD_LAYOUT_EXIT_DURATION,
         ease: 'inQuad',
@@ -750,6 +764,11 @@ export function SpreadTable({
 
   // Aspect ratio based on spread type
   const aspectRatio = spreadKey === 'celtic' ? '4/3' : '3/2';
+  const containerPresentation = useMemo(() => getSpreadTableContainerPresentation({
+    cardsOnly,
+    compact,
+    aspectRatio
+  }), [cardsOnly, compact, aspectRatio]);
 
   const sizeClass = compact
     ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]'
@@ -877,20 +896,8 @@ export function SpreadTable({
   return (
     <div
       ref={setTableRefs}
-      className={`spread-table panel-mystic relative w-full rounded-2xl sm:rounded-3xl border overflow-hidden ${
-        compact ? 'p-3' : 'p-4 sm:p-6'
-      }`}
-      style={{
-        aspectRatio,
-        background: `
-          radial-gradient(circle at 0% 18%, var(--glow-gold), transparent 40%),
-          radial-gradient(circle at 100% 0%, var(--glow-blue), transparent 38%),
-          radial-gradient(circle at 52% 115%, var(--glow-pink), transparent 46%),
-          linear-gradient(135deg, var(--panel-dark-1), var(--panel-dark-2) 55%, var(--panel-dark-3))
-        `,
-        borderColor: 'var(--border-warm)',
-        boxShadow: '0 24px 64px -40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.03)'
-      }}
+      className={containerPresentation.className}
+      style={containerPresentation.style}
       role="region"
       aria-label={`${spreadInfo?.name || 'Spread'} layout`}
     >
@@ -927,7 +934,9 @@ export function SpreadTable({
         return (
           <SlotPulseWrapper
             key={i}
-            active={isNext}
+            // Keep pulse for empty placeholders, but avoid scaling a populated
+            // hidden card slot (it can desync deck-to-slot landing alignment).
+            active={isNext && !card}
             prefersReducedMotion={prefersReducedMotion}
             className="absolute transform -translate-x-1/2 -translate-y-1/2"
             style={{

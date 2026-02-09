@@ -428,7 +428,8 @@ export function ReadingBoard({
   navigationLabel,
   revealStage = 'action',
   narrativeMentionPulse = null,
-  isHandset = false
+  isHandset = false,
+  cardsOnly = false
 }) {
   const prefersReducedMotion = useReducedMotion();
   const spreadInfo = useMemo(() => getSpreadInfo(spreadKey), [spreadKey]);
@@ -444,6 +445,12 @@ export function ReadingBoard({
   const [showCelticMap, setShowCelticMap] = useState(false);
   const isCelticCross = spreadKey === 'celtic';
   const showMapToggle = isCelticCross && isHandset;
+  const revealStatusText = allowBoardReveal
+    ? `Tap positions to reveal. ${nextLabel ? `Next: ${nextLabel}.` : 'All cards revealed.'}`
+    : `Draw from the deck to place your first card.${nextLabel ? ` Next: ${nextLabel}.` : ''}`;
+  const revealStatusTextWithFocusHint = isHandset && allowBoardReveal
+    ? `${revealStatusText} Tap a revealed card to focus.`
+    : revealStatusText;
 
   // Handset: keep card sizes a bit smaller to reduce overlap (especially Celtic Cross).
   const tableSize = isHandset ? 'default' : 'large';
@@ -478,14 +485,27 @@ export function ReadingBoard({
 
   return (
     <div className="space-y-3">
-      <div className="px-4 flex items-center justify-center gap-3">
-        <p className="text-xs-plus text-muted" aria-live="polite">
-          {allowBoardReveal
-            ? `Tap positions to reveal. ${nextLabel ? `Next: ${nextLabel}.` : 'All cards revealed.'}`
-            : `Draw from the deck to place your first card.${nextLabel ? ` Next: ${nextLabel}.` : ''}`}
-          {isHandset && allowBoardReveal ? ' Tap a revealed card to focus.' : ''}
-        </p>
-        {showMapToggle && (
+      <p className="sr-only" aria-live="polite">{revealStatusTextWithFocusHint}</p>
+      {!cardsOnly && (
+        <div className="px-4 flex items-center justify-center gap-3">
+          <p className="text-xs-plus text-muted">
+            {revealStatusTextWithFocusHint}
+          </p>
+          {showMapToggle && (
+            <button
+              type="button"
+              onClick={() => setShowCelticMap(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-surface/60 border border-secondary/30 text-xs text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation"
+              aria-label="Show Celtic Cross position map"
+            >
+              <MapTrifold className="w-4 h-4" />
+              <span>Map</span>
+            </button>
+          )}
+        </div>
+      )}
+      {cardsOnly && showMapToggle && (
+        <div className="px-4 flex items-center justify-center">
           <button
             type="button"
             onClick={() => setShowCelticMap(true)}
@@ -495,8 +515,8 @@ export function ReadingBoard({
             <MapTrifold className="w-4 h-4" />
             <span>Map</span>
           </button>
-        )}
-      </div>
+        </div>
+      )}
       <div className="max-w-5xl mx-auto px-3 xs:px-4 sm:px-0 relative">
         <SpreadTable
           spreadKey={spreadKey}
@@ -511,6 +531,7 @@ export function ReadingBoard({
           size={tableSize}
           flashNextSlot={flashNextSlot}
           mentionPulse={narrativeMentionPulse}
+          cardsOnly={cardsOnly}
         />
         {/* Celtic Cross map overlay */}
         {showCelticMap && isCelticCross && (

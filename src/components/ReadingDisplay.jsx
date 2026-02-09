@@ -121,7 +121,7 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
 
         completedRef.current = false;
         const startTransform = `translate3d(${startX}px, ${startY}px, 0) scale(1, 1)`;
-        const endTransform = `translate3d(${endX}px, ${endY}px, 0) scale(${endScaleX * 0.95}, ${endScaleY * 0.95})`;
+        const endTransform = `translate3d(${endX}px, ${endY}px, 0) scale(${endScaleX}, ${endScaleY})`;
         node.style.transform = startTransform;
         node.style.opacity = '1';
 
@@ -137,7 +137,7 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
                 if (completedRef.current || !mountedRef.current) return;
                 const elapsed = now - startedAt;
                 const progress = Math.min(1, Math.max(0, elapsed / durationMs));
-                if (elapsed - lastEmitMs >= 56 || progress >= 1) {
+                if (elapsed - lastEmitMs >= 100 || progress >= 1) {
                     lastEmitMs = elapsed;
                     const nextX = startX + ((endX - startX) * progress);
                     const nextY = startY + ((endY - startY) * progress);
@@ -592,10 +592,11 @@ export function ReadingDisplay({
         || [];
     const hasTraditionalInsights = Boolean(traditionalPassages.length);
     const hasHighlightPanel = Boolean(highlightItems?.length && visibleCount > 0 && revealedCards.size === visibleCount);
+    const cardsFullyRevealed = Boolean(reading && visibleCount > 0 && revealedCards.size >= visibleCount);
     const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasHighlightPanel || canShowVisionPanel;
     // Only show focus toggle on desktop; on mobile, panels are below the narrative so users can scroll past them
     const focusToggleAvailable = hasInsightPanels && !isHandset;
-    const shouldShowSpreadInsights = !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
+    const shouldShowSpreadInsights = cardsFullyRevealed && !isShuffling && !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
     const canAutoGenerateVisuals = effectiveTier === 'plus' || effectiveTier === 'pro';
     const canUseMediaGallery = isAuthenticated && canAutoGenerateVisuals;
     const autoGenerateVisuals = autoGenerateVisualsEnabled && (isReadingStreaming || isGenerating) && canAutoGenerateVisuals;
@@ -785,9 +786,11 @@ export function ReadingDisplay({
         const deckEl = deckRef.current;
         const deckRect = deckEl?.getBoundingClientRect();
 
-        // Get target slot position
+        // Get target slot position. Prefer the actual slot card element to avoid
+        // wrapper offsets from decorative layers.
         const slotEl = document.getElementById(`spread-slot-${nextIndex}`);
-        const slotRect = slotEl?.getBoundingClientRect();
+        const targetEl = slotEl?.querySelector?.('[data-layout-card]') || slotEl;
+        const slotRect = targetEl?.getBoundingClientRect();
 
         // Fallback to immediate deal if we can't get positions
         if (!deckRect || !slotRect) {
@@ -1404,11 +1407,13 @@ export function ReadingDisplay({
                 showTitle={false}
             />
         ),
-        narrative: (props) => (
+        narrative: ({ sceneData = {}, children }) => (
             <NarrativeScene
-                {...props}
+                {...sceneData}
                 showTitle={false}
-            />
+            >
+                {children}
+            </NarrativeScene>
         ),
         complete: (props) => (
             <CompleteScene

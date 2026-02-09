@@ -129,3 +129,7 @@ gha-creds-*.json
 .env.save
 .expo/
 .expo/
+
+# Playwright
+/playwright/.auth/
+/output/playwright/
