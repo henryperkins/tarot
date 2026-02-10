@@ -67,6 +67,44 @@ function toCanonical(scene) {
   return CANONICAL_BY_LEGACY[legacy] || CANONICAL_SCENES.IDLE;
 }
 
+function extractReadingText(personalReading) {
+  if (!personalReading) return '';
+  if (typeof personalReading === 'string') return personalReading;
+<<<<<<< Updated upstream
+  if (typeof personalReading?.raw === 'string' && personalReading.raw.trim()) return personalReading.raw;
+  if (typeof personalReading?.normalized === 'string' && personalReading.normalized.trim()) return personalReading.normalized;
+=======
+
+  const directTextFields = [
+    personalReading?.raw,
+    personalReading?.normalized,
+    personalReading?.tts,
+    personalReading?.text,
+    personalReading?.content
+  ];
+
+  for (const field of directTextFields) {
+    if (typeof field === 'string' && field.trim()) {
+      return field;
+    }
+  }
+
+  if (Array.isArray(personalReading?.paragraphs)) {
+    const paragraphText = personalReading.paragraphs
+      .filter((entry) => typeof entry === 'string')
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .join('\n\n');
+
+    if (paragraphText) {
+      return paragraphText;
+    }
+  }
+
+>>>>>>> Stashed changes
+  return '';
+}
+
 function defaultTransitionMeta(fromLegacy, toLegacy, reason = 'derived') {
   const from = toCanonical(fromLegacy);
   const to = toCanonical(toLegacy);
@@ -92,6 +130,72 @@ function defaultTransitionMeta(fromLegacy, toLegacy, reason = 'derived') {
   };
 }
 
+export function deriveLegacyScene({
+  isShuffling,
+  hasConfirmedSpread,
+  revealedCards,
+  totalCards,
+  isGenerating,
+  isReadingStreamActive,
+  personalReading,
+  reading
+}) {
+  const readingText = extractReadingText(personalReading).trim();
+  const hasReadingText = readingText.length > 0;
+  const hasStreamingReading = Boolean(isReadingStreamActive || personalReading?.isStreaming);
+
+  if (isShuffling) {
+    return LEGACY_SCENES.SHUFFLING;
+  }
+
+  if (hasConfirmedSpread && reading?.length > 0) {
+    let revealedCount = 0;
+    if (revealedCards instanceof Set) {
+      revealedCount = revealedCards.size;
+    } else if (Array.isArray(revealedCards)) {
+      revealedCount = revealedCards.length;
+    } else if (typeof revealedCards?.size === 'number') {
+      revealedCount = revealedCards.size;
+    }
+
+    const total = totalCards || reading.length;
+    if (revealedCount === 0) {
+      return LEGACY_SCENES.SHUFFLING;
+    }
+
+    if (revealedCount < total) {
+      return LEGACY_SCENES.DRAWING;
+    }
+
+    if (revealedCount >= total) {
+      // Keep interlude skeleton visible until at least one chunk has rendered.
+      if (hasStreamingReading && !hasReadingText) {
+        return LEGACY_SCENES.INTERLUDE;
+      }
+
+      if (hasStreamingReading) {
+        return LEGACY_SCENES.DELIVERY;
+      }
+
+      if (isGenerating) {
+        return LEGACY_SCENES.INTERLUDE;
+      }
+
+      if (personalReading) {
+        return LEGACY_SCENES.COMPLETE;
+      }
+
+      return LEGACY_SCENES.REVEALING;
+    }
+  }
+
+  if (personalReading && !isGenerating && reading?.length > 0) {
+    return LEGACY_SCENES.COMPLETE;
+  }
+
+  return LEGACY_SCENES.IDLE;
+}
+
 /**
  * Scene orchestrator with both:
  * - legacy derived scene values (`currentScene`) for backward compatibility
@@ -111,55 +215,16 @@ export function useSceneOrchestrator({
   const prevSceneRef = useRef(LEGACY_SCENES.IDLE);
   const [manualScene, setManualScene] = useState(null);
 
-  const derivedScene = useMemo(() => {
-    if (isShuffling) {
-      return LEGACY_SCENES.SHUFFLING;
-    }
-
-    if (hasConfirmedSpread && reading?.length > 0) {
-      let revealedCount = 0;
-      if (revealedCards instanceof Set) {
-        revealedCount = revealedCards.size;
-      } else if (Array.isArray(revealedCards)) {
-        revealedCount = revealedCards.length;
-      } else if (typeof revealedCards?.size === 'number') {
-        revealedCount = revealedCards.size;
-      }
-
-      const total = totalCards || reading.length;
-      // Keep the deck in ritual mode until the first card is actually dealt.
-      // This preserves the intended Idle -> Ritual -> Reveal sequence.
-      if (revealedCount === 0) {
-        return LEGACY_SCENES.SHUFFLING;
-      }
-
-      if (revealedCount < total) {
-        return LEGACY_SCENES.DRAWING;
-      }
-
-      if (revealedCount >= total) {
-        if (isReadingStreamActive || personalReading?.isStreaming) {
-          return LEGACY_SCENES.DELIVERY;
-        }
-
-        if (isGenerating) {
-          return LEGACY_SCENES.INTERLUDE;
-        }
-
-        if (personalReading) {
-          return LEGACY_SCENES.COMPLETE;
-        }
-
-        return LEGACY_SCENES.REVEALING;
-      }
-    }
-
-    if (personalReading && !isGenerating && reading?.length > 0) {
-      return LEGACY_SCENES.COMPLETE;
-    }
-
-    return LEGACY_SCENES.IDLE;
-  }, [
+  const derivedScene = useMemo(() => deriveLegacyScene({
+    isShuffling,
+    hasConfirmedSpread,
+    revealedCards,
+    totalCards,
+    isGenerating,
+    isReadingStreamActive,
+    personalReading,
+    reading
+  }), [
     isShuffling,
     hasConfirmedSpread,
     revealedCards,

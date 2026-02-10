@@ -86,16 +86,56 @@ function mergeDelay(baseDelay, extraDelaySeconds) {
   return baseDelay;
 }
 
-function scheduleOnBegin(onBegin, delaySeconds, pendingTimers = null) {
+function getTargetCount(target) {
+  if (!target) return 1;
+  if (typeof target === 'string') {
+    const root = _activeScope?.root;
+    const base = root && typeof root.querySelectorAll === 'function'
+      ? root
+      : (typeof document !== 'undefined' ? document : null);
+    const matches = base?.querySelectorAll?.(target);
+    return matches?.length || 1;
+  }
+  if (Array.isArray(target)) return target.length || 1;
+  if (typeof target === 'object' && typeof target.length === 'number') {
+    return target.length || 1;
+  }
+  return 1;
+}
+
+function scheduleOnBegin(onBegin, delaySeconds, pendingTimers = null, target = null) {
   if (typeof onBegin !== 'function') return null;
 
-  if (typeof delaySeconds === 'number' && delaySeconds > 0) {
+  let resolvedDelay = null;
+  if (typeof delaySeconds === 'number') {
+    resolvedDelay = delaySeconds;
+  } else if (typeof delaySeconds === 'function') {
+    const total = getTargetCount(target);
+    const computed = delaySeconds(0, total);
+    if (typeof computed === 'number') {
+      resolvedDelay = computed;
+    }
+  }
+
+  if (typeof resolvedDelay === 'number' && resolvedDelay > 0) {
     const timerId = setTimeout(() => {
       pendingTimers?.delete(timerId);
       onBegin();
-    }, delaySeconds * 1000);
+    }, resolvedDelay * 1000);
     pendingTimers?.add(timerId);
     return timerId;
+  }
+
+  // Zero-delay: use microtask to fire before the animation's first frame.
+  // Wrap in a cancellable handle so scope.revert() can still prevent it.
+  if (pendingTimers) {
+    const handle = { cancelled: false };
+    pendingTimers.add(handle);
+    queueMicrotask(() => {
+      pendingTimers.delete(handle);
+      if (!handle.cancelled) onBegin();
+    });
+    return handle;
   }
 
   queueMicrotask(onBegin);
@@ -245,9 +285,10 @@ export function animate(target, mixed, extraOptions) {
   const { mapped, onBegin } = mapOptions(options);
   const mappedKf = mapKeyframes(keyframes);
 
-  scheduleOnBegin(onBegin, mapped.delay);
+  const resolvedTarget = resolveScopedTarget(target);
+  scheduleOnBegin(onBegin, mapped.delay, _activeScope?._pendingTimers, resolvedTarget);
 
-  const controls = motionAnimate(resolveScopedTarget(target), mappedKf, mapped);
+  const controls = motionAnimate(resolvedTarget, mappedKf, mapped);
 
   // Track in active scope if present
   if (_activeScope) {
@@ -340,7 +381,13 @@ export function createTimeline(options = {}) {
       let currentTime = 0;
 
       const clearBeginTimers = () => {
-        beginTimers.forEach((timerId) => clearTimeout(timerId));
+        beginTimers.forEach((entry) => {
+          if (typeof entry === 'number') {
+            clearTimeout(entry);
+          } else if (entry && typeof entry === 'object') {
+            entry.cancelled = true;
+          }
+        });
         beginTimers.clear();
       };
 
@@ -360,7 +407,7 @@ export function createTimeline(options = {}) {
         }
 
         chain = chain.then(() => {
-          scheduleOnBegin(segOnBegin, restOpts.delay, beginTimers);
+          scheduleOnBegin(segOnBegin, restOpts.delay, beginTimers, target);
           const anim = motionAnimate(target, kf, restOpts);
           anims.push(anim);
           const numericDelay = typeof restOpts.delay === 'number' ? restOpts.delay : 0;
@@ -496,6 +543,8 @@ export function createLayout(container, options = {}) {
             animations.push(motionAnimate(el, { x: 0, y: 0 }, enterOpts));
           }
           if (Math.abs(dw - 1) > 0.01 || Math.abs(dh - 1) > 0.01) {
+            // Set transform-origin to center for predictable scaling
+            el.style.transformOrigin = 'center center';
             motionAnimate(el, { scaleX: dw, scaleY: dh }, { duration: 0 });
             animations.push(motionAnimate(el, { scaleX: 1, scaleY: 1 }, enterOpts));
           }
@@ -542,6 +591,7 @@ export function createScope(options = {}) {
   const scope = {
     root: options.root,
     _animations: [],
+    _pendingTimers: new Set(),
     add(callbackOrAnim) {
       if (typeof callbackOrAnim === 'function') {
         const prevScope = _activeScope;
@@ -557,6 +607,14 @@ export function createScope(options = {}) {
       return scope;
     },
     revert() {
+      scope._pendingTimers.forEach(entry => {
+        if (typeof entry === 'number') {
+          clearTimeout(entry);
+        } else if (entry && typeof entry === 'object') {
+          entry.cancelled = true;
+        }
+      });
+      scope._pendingTimers.clear();
       scope._animations.forEach(a => {
         try { a?.stop?.(); } catch (_e) { /* noop */ }
         try { a?.cancel?.(); } catch (_e) { /* noop */ }

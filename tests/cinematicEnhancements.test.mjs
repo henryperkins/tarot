@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import { deriveLegacyScene } from '../src/hooks/useSceneOrchestrator.js';
 
 /**
  * Tests for cinematic enhancements
@@ -11,50 +12,33 @@ describe('useSceneOrchestrator', () => {
     // Test scene derivation logic
     const testCases = [
       {
-        state: { isShuffling: true, hasConfirmedSpread: false, revealedCards: [], totalCards: 0, isGenerating: false, personalReading: null, reading: null },
+        state: { isShuffling: true, hasConfirmedSpread: false, revealedCards: [], totalCards: 0, isGenerating: false, isReadingStreamActive: false, personalReading: null, reading: null },
         expected: 'shuffling'
       },
       {
-        state: { isShuffling: false, hasConfirmedSpread: true, revealedCards: [0, 1], totalCards: 3, isGenerating: false, personalReading: null, reading: [{}, {}, {}] },
+        state: { isShuffling: false, hasConfirmedSpread: true, revealedCards: [0, 1], totalCards: 3, isGenerating: false, isReadingStreamActive: false, personalReading: null, reading: [{}, {}, {}] },
         expected: 'drawing'
       },
       {
-        state: { isShuffling: false, hasConfirmedSpread: true, revealedCards: [0, 1, 2], totalCards: 3, isGenerating: true, personalReading: null, reading: [{}, {}, {}] },
+        state: { isShuffling: false, hasConfirmedSpread: true, revealedCards: [0, 1, 2], totalCards: 3, isGenerating: true, isReadingStreamActive: false, personalReading: null, reading: [{}, {}, {}] },
         expected: 'interlude'
       },
       {
-        state: { isShuffling: false, hasConfirmedSpread: true, revealedCards: [0, 1, 2], totalCards: 3, isGenerating: false, personalReading: 'narrative text', reading: [{}, {}, {}] },
+        state: { isShuffling: false, hasConfirmedSpread: true, revealedCards: [0, 1, 2], totalCards: 3, isGenerating: true, isReadingStreamActive: true, personalReading: null, reading: [{}, {}, {}] },
+        expected: 'interlude'
+      },
+      {
+        state: { isShuffling: false, hasConfirmedSpread: true, revealedCards: [0, 1, 2], totalCards: 3, isGenerating: true, isReadingStreamActive: true, personalReading: { raw: 'Streaming…', normalized: 'Streaming…', isStreaming: true }, reading: [{}, {}, {}] },
         expected: 'delivery'
+      },
+      {
+        state: { isShuffling: false, hasConfirmedSpread: true, revealedCards: [0, 1, 2], totalCards: 3, isGenerating: false, isReadingStreamActive: false, personalReading: 'narrative text', reading: [{}, {}, {}] },
+        expected: 'complete'
       }
     ];
 
-    // Simple state machine logic validation (matches useSceneOrchestrator.js)
     testCases.forEach(({ state, expected }) => {
-      let scene = 'idle';
-      
-      if (state.isShuffling) {
-        scene = 'shuffling';
-      } else if (state.hasConfirmedSpread && state.reading?.length > 0) {
-        const revealedCount = Array.isArray(state.revealedCards) ? state.revealedCards.length : 0;
-        const total = state.totalCards || state.reading.length;
-
-        if (revealedCount < total) {
-          scene = 'drawing';
-        } else if (revealedCount === total) {
-          if (state.isGenerating) {
-            scene = 'interlude';
-          } else if (state.personalReading) {
-            // When all cards revealed and personalReading exists, it's DELIVERY
-            scene = 'delivery';
-          } else {
-            scene = 'revealing';
-          }
-        }
-      } else if (state.personalReading && !state.isGenerating && state.reading?.length > 0) {
-        // Only reach COMPLETE if we bypass the hasConfirmedSpread check
-        scene = 'complete';
-      }
-
+      const scene = deriveLegacyScene(state);
       assert.strictEqual(scene, expected, `Expected scene "${expected}" for state but got "${scene}"`);
     });
   });

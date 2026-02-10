@@ -1,15 +1,24 @@
 import { Text } from 'react-native';
 
-export default function StreamingNarrative({ text, isLocked, isGenerating }) {
-  let narrative = text || 'Your narrative will appear here once revealed.';
+const NARRATIVE_STATE_COPY = {
+  empty: 'Your narrative will appear here once revealed.',
+  generating: 'Weaving your narrative...',
+  locked: 'Reveal all cards to unlock your narrative.'
+};
 
-  if (isGenerating) {
-    narrative = 'Weaving your narrative...';
-  }
+function resolveNarrativeState({ state, isLocked, isGenerating, text }) {
+  if (state && state !== 'ready') return state;
+  if (isLocked) return 'locked';
+  if (isGenerating) return 'generating';
+  if (!(text || '').trim()) return 'empty';
+  return 'ready';
+}
 
-  if (isLocked) {
-    narrative = 'Reveal all cards to unlock your narrative.';
-  }
+export default function StreamingNarrative({ text = '', state = 'ready', isLocked = false, isGenerating = false }) {
+  const narrativeState = resolveNarrativeState({ state, isLocked, isGenerating, text });
+  const narrative = narrativeState === 'ready'
+    ? text
+    : (NARRATIVE_STATE_COPY[narrativeState] || NARRATIVE_STATE_COPY.empty);
 
   return (
     <Text className="text-ink-muted text-sm leading-relaxed mt-2">

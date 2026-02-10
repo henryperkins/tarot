@@ -10,13 +10,20 @@ export function NarrativeGuidancePanel({
   compact = false,
   className = ''
 }) {
+  const toneDescription = typeof toneLabel === 'string' && toneLabel.trim()
+    ? toneLabel.toLowerCase()
+    : 'balanced';
+  const frameDescription = typeof frameLabel === 'string' && frameLabel.trim()
+    ? frameLabel.toLowerCase()
+    : 'balanced';
+
   const guidanceContent = (
     <div className="space-y-2">
       <p className="text-sm text-muted leading-relaxed">
         This narrative braids together your spread positions, card meanings, and reflections into a single through-line. Read slowly, notice echoes and contrasts between cards, and trust what resonates more than any script.
       </p>
       <p className="text-sm text-muted leading-relaxed">
-        {`Style: a ${toneLabel.toLowerCase()} tone with a ${frameLabel.toLowerCase()} lens. Let your own sense of meaning carry as much weight as any description.`}
+        {`Style: a ${toneDescription} tone with a ${frameDescription} lens. Let your own sense of meaning carry as much weight as any description.`}
       </p>
       <p className="text-xs sm:text-sm text-muted/90 leading-relaxed">
         Reflective guidance only—not medical, mental health, legal, financial, or safety advice.

@@ -3979,7 +3979,6 @@ input[type="range"]:focus::-webkit-slider-thumb {
   margin-bottom: 1rem;
   padding: 0.9rem 1.1rem;
   border-radius: 1rem;
-  border: 1px solid color-mix(in srgb, var(--brand-secondary) 30%, transparent);
   background:
     radial-gradient(
       circle at 18% 18%,

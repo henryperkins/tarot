@@ -1423,6 +1423,10 @@ export function ReadingDisplay({
         )
     }), []);
 
+    const sceneShellClassName = sceneOrchestrator.activeScene === 'interlude'
+        ? ''
+        : 'scene-shell';
+
     return (
         <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
             <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
@@ -1467,7 +1471,7 @@ export function ReadingDisplay({
                     sceneData={sceneData}
                     colorScript={activeColorScript}
                     colorScriptOwner={COLOR_SCRIPT_OWNER}
-                    className="scene-shell"
+                    className={sceneShellClassName}
                 >
                     <div className={isLandscape ? 'space-y-4' : 'space-y-8'}>
                     {shouldShowCinematicReveal && (

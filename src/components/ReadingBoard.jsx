@@ -199,6 +199,7 @@ function CardDetailPanel({
       />
       <div className="relative z-10 p-4 sm:p-5">
         <CardDetailContent
+          key={`${focusedCardData?.index ?? 'detail-empty'}-${focusedCardData?.card?.name ?? 'unknown'}-${focusedCardData?.card?.isReversed ? 'rev' : 'upr'}`}
           focusedCardData={focusedCardData}
           reflections={reflections}
           setReflections={setReflections}
@@ -342,6 +343,7 @@ function CardFocusOverlay({
         </div>
         <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-5">
           <CardDetailContent
+            key={`${focusedCardData?.index ?? 'focus-empty'}-${focusedCardData?.card?.name ?? 'unknown'}-${focusedCardData?.card?.isReversed ? 'rev' : 'upr'}`}
             focusedCardData={focusedCardData}
             reflections={reflections}
             setReflections={setReflections}

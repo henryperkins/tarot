@@ -168,11 +168,19 @@ export function StreamingNarrative({
     return findTokenIndexForOffset(units, offset);
   }, [units, useMarkdown, wordBoundary]);
 
-  const [visibleCount, setVisibleCount] = useState(0);
+  const isLongMobileNarrative = isSmallScreen && totalWords > LONG_MOBILE_WORD_THRESHOLD;
+  const isVeryLongNarrative = totalWords > LONG_DESKTOP_WORD_THRESHOLD;
+  const shouldStreamOnNarrativeReset = Boolean(
+    isStreamingEnabled &&
+    !prefersReducedMotion &&
+    units.length > 0 &&
+    !isVeryLongNarrative &&
+    !isLongMobileNarrative
+  );
   const [mobileStreamingOptIn, setMobileStreamingOptIn] = useState(false);
-  // Initialize to null so render-time adjustment runs on first mount
-  // (narrativeText is always a string, so null will never match)
-  const [prevNarrativeText, setPrevNarrativeText] = useState(null);
+  const [visibleCount, setVisibleCount] = useState(() => (
+    shouldStreamOnNarrativeReset ? 0 : units.length
+  ));
 
   // Refs for cleanup and tracking
   const timerRef = useRef(null);
@@ -181,9 +189,8 @@ export function StreamingNarrative({
   const narrationTriggeredRef = useRef(false);
   const triggeredHighlightRef = useRef(new Set());
   const triggeredSectionRef = useRef(new Set());
+  const prevNarrativeTextRef = useRef(null);
 
-  const isLongMobileNarrative = isSmallScreen && totalWords > LONG_MOBILE_WORD_THRESHOLD;
-  const isVeryLongNarrative = totalWords > LONG_DESKTOP_WORD_THRESHOLD;
   const streamingActive = Boolean(
     isStreamingEnabled &&
     !prefersReducedMotion &&
@@ -202,28 +209,18 @@ export function StreamingNarrative({
   // Derive isComplete from visibleCount (no need for separate state)
   const isComplete = units.length > 0 && visibleCount >= units.length;
 
-  // Adjust state during render when narrative text changes (React-recommended pattern)
-  // This avoids the cascading render issue from calling setState in useEffect
-  // See: https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
-  if (narrativeText !== prevNarrativeText) {
-    setPrevNarrativeText(narrativeText);
-    setMobileStreamingOptIn(false);
-
-    // Compute what streamingActive will be after mobileStreamingOptIn resets to false
-    const newStreamingActive = Boolean(
-      isStreamingEnabled &&
-      !prefersReducedMotion &&
-      units.length > 0 &&
-      !isVeryLongNarrative &&
-      !isLongMobileNarrative // mobileStreamingOptIn will be false
-    );
-
-    if (!newStreamingActive) {
-      setVisibleCount(units.length);
-    } else {
-      setVisibleCount(0);
+  useEffect(() => {
+    if (prevNarrativeTextRef.current === narrativeText) {
+      return;
     }
-  }
+    prevNarrativeTextRef.current = narrativeText;
+    // Reset completion flag immediately on text change to prevent race condition
+    // where isComplete is true before state reset completes
+    completionNotifiedRef.current = false;
+
+    setMobileStreamingOptIn(false);
+    setVisibleCount(shouldStreamOnNarrativeReset ? 0 : units.length);
+  }, [narrativeText, shouldStreamOnNarrativeReset, units.length]);
 
   const notifyCompletion = useCallback(() => {
     if (completionNotifiedRef.current) {
@@ -260,10 +257,11 @@ export function StreamingNarrative({
   // Notify completion when all content is visible
   // This effect only calls external callback, no setState
   useEffect(() => {
-    if (isComplete && !completionNotifiedRef.current) {
+    // Guard against firing completion for stale text during async reset
+    if (isComplete && !completionNotifiedRef.current && prevNarrativeTextRef.current === narrativeText) {
       notifyCompletion();
     }
-  }, [isComplete, notifyCompletion]);
+  }, [isComplete, notifyCompletion, narrativeText]);
 
   // Auto-narration effect - separate from streaming to avoid coupling
   useEffect(() => {

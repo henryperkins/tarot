@@ -2,17 +2,54 @@ import { ArrowCounterClockwise, ChatCircle } from '@phosphor-icons/react';
 import { MediaGallery } from '../MediaGallery';
 import { FeedbackPanel } from '../FeedbackPanel';
 import FollowUpModal from '../FollowUpModal';
+import { NarrativePanel } from '../NarrativePanel';
 
 export function CompleteScene({
   title = 'Reading Complete',
   showTitle = true,
   className = '',
-  sceneData = {}
+  sceneData = {},
+  children
 }) {
   const {
     personalReading,
     isPersonalReadingError,
     narrativePhase,
+    narrativeText,
+    fullReadingText,
+    shouldStreamNarrative,
+    emotionalTone,
+    displayName,
+    reading,
+    isLandscape,
+    focusToggleAvailable,
+    isNarrativeFocus,
+    setIsNarrativeFocus,
+    toneLabel,
+    frameLabel,
+    isNewbie,
+    canAutoNarrate,
+    handleNarrationWrapper,
+    handleNarrationStop,
+    notifyCompletion,
+    narrativeHighlightPhrases,
+    narrativeAtmosphereClassName,
+    handleNarrativeHighlight,
+    notifySectionEnter,
+    activeWordBoundary,
+    voiceOn,
+    ttsState,
+    ttsProvider,
+    showVoicePrompt,
+    setShowVoicePrompt,
+    handleVoicePromptWrapper,
+    saveReading,
+    isSaving,
+    journalStatus,
+    shouldShowJournalNudge,
+    markJournalNudgeSeen,
+    hasHeroStoryArt,
+    onOpenFollowUp,
     isHandset,
     isShuffling,
     shuffle,
@@ -42,8 +79,61 @@ export function CompleteScene({
       <div className="scene-stage__panel scene-stage__panel--complete relative z-[2] max-w-5xl mx-auto p-4 sm:p-6">
         {showTitle ? <h2 className="text-xl sm:text-2xl font-serif text-accent text-center mb-4">{title}</h2> : null}
 
+        {personalReading ? (
+          <>
+            <NarrativePanel
+              personalReading={personalReading}
+              isPersonalReadingError={isPersonalReadingError}
+              narrativePhase={narrativePhase}
+              narrativeText={narrativeText}
+              fullReadingText={fullReadingText}
+              shouldStreamNarrative={shouldStreamNarrative}
+              emotionalTone={emotionalTone}
+              displayName={displayName}
+              userQuestion={userQuestion}
+              reading={reading}
+              isHandset={isHandset}
+              isLandscape={isLandscape}
+              focusToggleAvailable={focusToggleAvailable}
+              isNarrativeFocus={isNarrativeFocus}
+              setIsNarrativeFocus={setIsNarrativeFocus}
+              toneLabel={toneLabel}
+              frameLabel={frameLabel}
+              isNewbie={isNewbie}
+              canAutoNarrate={canAutoNarrate}
+              handleNarrationWrapper={handleNarrationWrapper}
+              handleNarrationStop={handleNarrationStop}
+              notifyCompletion={notifyCompletion}
+              narrativeHighlightPhrases={narrativeHighlightPhrases}
+              narrativeAtmosphereClassName={narrativeAtmosphereClassName}
+              handleNarrativeHighlight={handleNarrativeHighlight}
+              notifySectionEnter={notifySectionEnter}
+              activeWordBoundary={activeWordBoundary}
+              voiceOn={voiceOn}
+              ttsState={ttsState}
+              ttsProvider={ttsProvider}
+              showVoicePrompt={showVoicePrompt}
+              setShowVoicePrompt={setShowVoicePrompt}
+              handleVoicePromptWrapper={handleVoicePromptWrapper}
+              saveReading={saveReading}
+              isSaving={isSaving}
+              journalStatus={journalStatus}
+              shouldShowJournalNudge={shouldShowJournalNudge}
+              markJournalNudgeSeen={markJournalNudgeSeen}
+              hasHeroStoryArt={hasHeroStoryArt}
+              onOpenFollowUp={onOpenFollowUp}
+            />
+
+            {children ? (
+              <div className="mt-6 sm:mt-8">
+                {children}
+              </div>
+            ) : null}
+          </>
+        ) : null}
+
         {personalReading && !isPersonalReadingError && narrativePhase === 'complete' && !isHandset && (
-          <div className="w-full max-w-2xl mx-auto">
+          <div className="w-full max-w-2xl mx-auto mt-6">
             <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-4 sm:p-5">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="space-y-1">

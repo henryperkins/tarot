@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowsLeftRight } from '@phosphor-icons/react';
 import { getSpreadInfo } from '../data/spreads';
 import { getOrientationMeaning } from '../lib/cardLookup';
@@ -159,12 +159,11 @@ export function ReadingGrid({
   const carouselRef = useRef(null);
   const cardsRef = useRef([]);
   const rafIdRef = useRef(null);
+  const previousReadingRef = useRef(reading);
   const [activeIndex, setActiveIndex] = useState(0);
   const [showSwipeHint, setShowSwipeHint] = useState(true);
   const [hasUserScrolled, setHasUserScrolled] = useState(false);
   const [layoutPreference, setLayoutPreference] = useState('carousel');
-  const [prevReading, setPrevReading] = useState(reading);
-  const [prevReflectionDeps, setPrevReflectionDeps] = useState({ reading, reflections, isCompactScreen: false });
   const [openReflectionIndex, setOpenReflectionIndex] = useState(null);
   const isCompactScreen = useSmallScreen();
   const isVerySmallScreen = useSmallScreen(VERY_COMPACT_SCREEN_MAX);
@@ -199,41 +198,74 @@ export function ReadingGrid({
       : 'min-w-[72vw] xxs:min-w-[66vw] xs:min-w-[60vw] max-w-[18.5rem]';
   const mobileCarouselPadding = isLandscape ? 'px-2' : 'px-3 xxs:px-4';
 
-  // Reset scroll tracking when reading changes - handled during render, not in effect
-  // This avoids cascading renders from calling setState in useEffect
-  // See: https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
-  if (reading !== prevReading) {
-    setPrevReading(reading);
+  useEffect(() => {
     setHasUserScrolled(false);
     setShowSwipeHint(true);
-  }
+<<<<<<< Updated upstream
+    // Reset openReflectionIndex when reading changes to prevent wrong card notes being shown
+    setOpenReflectionIndex(null);
+  }, [reading]);
 
-  // Keep only one mobile reflection open at a time; default to the first card with notes
-  // Handled during render to avoid cascading renders from setState in effect
-  if (
-    reading !== prevReflectionDeps.reading ||
-    reflections !== prevReflectionDeps.reflections ||
-    isCompactScreen !== prevReflectionDeps.isCompactScreen
-  ) {
-    setPrevReflectionDeps({ reading, reflections, isCompactScreen });
-
-    if (Array.isArray(reading) && isCompactScreen) {
-      // Compute new value based on current openReflectionIndex
-      let newIndex = openReflectionIndex;
-      if (!(newIndex !== null && reading[newIndex])) {
-        // Current selection is invalid, find first card with reflection
-        const firstWithReflection = reading.findIndex((_, idx) => {
-          const val = reflections?.[idx];
-          return typeof val === 'string' && val.trim().length > 0;
-        });
-        newIndex = firstWithReflection >= 0 ? firstWithReflection : null;
-      }
-      // Only update if changed
-      if (newIndex !== openReflectionIndex) {
-        setOpenReflectionIndex(newIndex);
-      }
+  // Keep only one mobile reflection open at a time; default to the first card with notes.
+  useEffect(() => {
+    if (!Array.isArray(reading) || !isCompactScreen) {
+      return;
     }
-  }
+
+    setOpenReflectionIndex((currentIndex) => {
+      // Always reset if currentIndex is null (new reading or explicitly closed)
+      if (currentIndex === null) {
+        const firstWithReflection = reading.findIndex((_, idx) => {
+          const value = reflections?.[idx];
+          return typeof value === 'string' && value.trim().length > 0;
+        });
+        return firstWithReflection >= 0 ? firstWithReflection : null;
+      }
+      // Only preserve if card still exists in current reading
+      if (reading[currentIndex]) {
+        return currentIndex;
+      }
+
+      const firstWithReflection = reading.findIndex((_, idx) => {
+        const value = reflections?.[idx];
+        return typeof value === 'string' && value.trim().length > 0;
+      });
+      return firstWithReflection >= 0 ? firstWithReflection : null;
+    });
+  }, [reflections, isCompactScreen]);
+=======
+  }, [reading]);
+
+  // Keep only one mobile reflection open at a time; default to the first card with notes.
+  useLayoutEffect(() => {
+    const readingChanged = previousReadingRef.current !== reading;
+    previousReadingRef.current = reading;
+
+    const canManageReflections = Array.isArray(reading) && isCompactScreen;
+
+    const firstWithReflection = canManageReflections ? reading.findIndex((_, idx) => {
+      const value = reflections?.[idx];
+      return typeof value === 'string' && value.trim().length > 0;
+    }) : -1;
+
+    setOpenReflectionIndex((currentIndex) => {
+      if (!canManageReflections) {
+        return null;
+      }
+
+      // Reset on reading identity changes and when explicitly closed.
+      if (readingChanged || currentIndex === null) {
+        return firstWithReflection >= 0 ? firstWithReflection : null;
+      }
+      // Only preserve if card still exists in current reading
+      if (currentIndex >= 0 && currentIndex < reading.length) {
+        return currentIndex;
+      }
+
+      return firstWithReflection >= 0 ? firstWithReflection : null;
+    });
+  }, [reading, reflections, isCompactScreen]);
+>>>>>>> Stashed changes
 
   // Hide swipe hint only after user scrolls OR after extended timeout (8s)
   // This ensures users have time to discover the swipe gesture

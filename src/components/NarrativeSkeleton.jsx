@@ -254,7 +254,7 @@ export function NarrativeSkeleton({
           })}
         </div>
         {arcPreview && (arcPreview.name || arcPreview.description) && (
-          <div className="narrative-skeleton__arc mt-4 px-4 py-3 rounded-xl border border-secondary/30 bg-surface/70">
+          <div className="narrative-skeleton__arc mt-4 px-4 py-3 rounded-xl bg-surface/70">
             {arcPreview.name && (
               <span className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1">
                 Narrative arc
@@ -279,7 +279,7 @@ export function NarrativeSkeleton({
         {/* AI Reasoning Summary - shown while generating */}
         {reasoningSummary && (
           <div 
-            className="narrative-skeleton__reasoning mt-5 px-4 py-3 rounded-xl bg-surface/80 border border-secondary/40 shadow-lg backdrop-blur-sm"
+            className="narrative-skeleton__reasoning mt-5 px-4 py-3 rounded-xl bg-surface/80 shadow-lg backdrop-blur-sm"
           >
             <div className="flex items-start gap-2">
               <span className="shrink-0 mt-0.5 text-accent" aria-hidden="true">✦</span>
@@ -299,7 +299,7 @@ export function NarrativeSkeleton({
       {/* Question anchor skeleton - only if question was provided */}
       {hasQuestion && (
         <div
-          className={`h-12 sm:h-14 rounded-lg bg-surface/60 border border-secondary/30 mb-4 ${
+          className={`h-12 sm:h-14 rounded-lg bg-surface/60 mb-4 ${
             prefersReducedMotion ? '' : 'animate-pulse'
           }`}
           style={{ animationDelay: '150ms' }}
@@ -308,7 +308,7 @@ export function NarrativeSkeleton({
       )}
 
       {/* Narrative text skeleton */}
-      <div className={`narrative-skeleton__panel narrative-atmosphere ${atmosphereClassName} rounded-2xl bg-surface/70 border border-secondary/30 shadow-md px-3 xxs:px-4 sm:px-6 py-5 sm:py-6 min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem]`}>
+      <div className={`narrative-skeleton__panel narrative-atmosphere ${atmosphereClassName} rounded-2xl bg-surface/70 shadow-md px-3 xxs:px-4 sm:px-6 py-5 sm:py-6 min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem]`}>
         <div className="max-w-[68ch] mx-auto space-y-3">
           {displayLines.map((line, index) => {
             if (line.isBreak) {
@@ -333,7 +333,7 @@ export function NarrativeSkeleton({
         </div>
 
         {/* Weaving indicator */}
-        <div className="mt-6 pt-4 border-t border-secondary/20 flex flex-col items-center gap-3">
+        <div className="mt-6 pt-4 flex flex-col items-center gap-3">
           <div className="flex items-center gap-3">
             <div className="flex gap-1.5">
               {[0, 1, 2].map((i) => (
