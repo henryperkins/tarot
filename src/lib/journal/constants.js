@@ -3,7 +3,7 @@
  */
 
 import { SPREADS } from '../../data/spreads';
-import { DECK_OPTIONS } from '../../components/DeckSelector';
+import { DECK_OPTIONS } from '../../components/deckOptions';
 
 // Filter option definitions
 export const CONTEXT_FILTERS = [

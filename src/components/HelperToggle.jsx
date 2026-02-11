@@ -32,12 +32,13 @@ export function HelperToggle({
   // Schedule via RAF to avoid synchronous setState in effect
   useEffect(() => {
     if (contentRef.current) {
-      requestAnimationFrame(() => {
+      const rafId = requestAnimationFrame(() => {
         if (contentRef.current) {
           const height = contentRef.current.scrollHeight;
           setContentHeight(height);
         }
       });
+      return () => cancelAnimationFrame(rafId);
     }
   }, [children, isOpen]);
 

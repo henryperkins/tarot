@@ -7,7 +7,8 @@
  *
  * Usage:
  * import { Sparkle, Check, Info } from './components/icons';
- * import { Icon, ICON_SIZES } from './components/Icon';
+ * import { Icon } from './components/Icon';
+ * import { ICON_SIZES } from './components/iconConstants';
  *
  * <Icon icon={Sparkle} size={ICON_SIZES.md} label="Generate" />
  */

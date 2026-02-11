@@ -85,11 +85,12 @@ function CollapsibleSection({ title, icon: Icon, badge, children, defaultOpen = 
             duration: 180,
             ease: 'inQuad'
         });
+        let sectionActive = true;
         exitAnim
-            .then(() => setIsRendered(false))
-            .catch(() => setIsRendered(false));
+            .then(() => { if (sectionActive) setIsRendered(false); })
+            .catch(() => { if (sectionActive) setIsRendered(false); });
 
-        return () => exitAnim?.pause?.();
+        return () => { sectionActive = false; exitAnim?.pause?.(); };
     }, [isOpen, isRendered, prefersReducedMotion]);
 
     return (
@@ -153,6 +154,7 @@ export function CardModal({
     const titleId = `card-modal-title-${layoutId || 'default'}`;
     const descId = `card-modal-desc-${layoutId || 'default'}`;
     const prefersReducedMotion = useReducedMotion();
+    const isModalActiveRef = useRef(true);
     const handleClose = useCallback(() => {
         if (closingRef.current) return;
         if (prefersReducedMotion) {
@@ -179,7 +181,7 @@ export function CardModal({
             ease: 'inQuad'
         });
         Promise.allSettled([overlayAnim, modalAnim]).then(() => {
-            onClose?.();
+            if (isModalActiveRef.current) onClose?.();
         });
     }, [onClose, prefersReducedMotion]);
 
@@ -251,6 +253,8 @@ export function CardModal({
     const hasHistory = history.totalCount || history.firstSeen || history.lastSeen || history.entryCount > 0 || onViewAllInJournal;
 
     useLayoutEffect(() => {
+        isModalActiveRef.current = true;
+        closingRef.current = false;
         if (!isOpen || !card) return undefined;
         const modalNode = modalRef.current;
         const overlayNode = overlayRef.current;
@@ -259,7 +263,7 @@ export function CardModal({
         if (prefersReducedMotion) {
             set(overlayNode, { opacity: 1 });
             set(modalNode, { opacity: 1, translateY: 0, scale: 1 });
-            return undefined;
+            return () => { isModalActiveRef.current = false; };
         }
 
         set(overlayNode, { opacity: 0 });
@@ -278,6 +282,7 @@ export function CardModal({
         });
 
         return () => {
+            isModalActiveRef.current = false;
             overlayAnim?.pause?.();
             modalAnim?.pause?.();
         };

@@ -6,9 +6,9 @@ import { ParticleLayer } from './ParticleLayer';
 
 const BREATH_PERIOD_MS = 4000;
 
-function BreathingOrb() {
+function BreathingOrb({ prefersReducedMotion }) {
   return (
-    <div className="breathing-orb relative w-32 h-32 mx-auto" style={{ willChange: 'transform, opacity' }}>
+    <div className="breathing-orb relative w-32 h-32 mx-auto" style={{ willChange: prefersReducedMotion ? 'auto' : 'transform, opacity' }}>
       <div
         className="absolute inset-0 rounded-full"
         style={{
@@ -104,58 +104,78 @@ export function AtmosphericInterlude({
     const root = rootRef.current;
     if (!root) return undefined;
 
-    scopeRef.current = createScope({ root }).add(() => {
-      if (prefersReducedMotion) {
-        set(root, { opacity: 1 });
-        set('.breathing-orb', { scale: 1, opacity: 1 });
+    const initAnimations = () => {
+      scopeRef.current?.revert();
+      scopeRef.current = createScope({ root }).add(() => {
+        if (prefersReducedMotion) {
+          set(root, { opacity: 1 });
+          set('.breathing-orb', { scale: 1, opacity: 1 });
+          return;
+        }
+
+        // Root fade-in
+        set(root, { opacity: 0, translateY: 12 });
+        animate(root, {
+          opacity: [0, 1],
+          translateY: [12, 0],
+          duration: 420,
+          ease: 'outQuad'
+        });
+
+        // Breathing orb
+        animate('.breathing-orb', {
+          scale: [1, 1.12, 1, 0.94, 1],
+          opacity: [0.62, 0.82, 0.62, 0.56, 0.62],
+          duration: BREATH_PERIOD_MS,
+          loop: true,
+          ease: 'inOutQuad'
+        });
+
+        // Shimmer symbols
+        root.querySelectorAll('.shimmer-symbol').forEach((el, i) => {
+          animate(el, {
+            opacity: [0.28, 0.88, 0.28],
+            scale: [0.95, 1.05, 0.95],
+            duration: 2000,
+            delay: i * 500,
+            loop: true,
+            ease: 'inOutQuad'
+          });
+        });
+
+        // Orbit symbol inner elements (animate inner span to avoid overwriting translate on parent)
+        root.querySelectorAll('.orbit-symbol-inner').forEach((el) => {
+          const idx = Number(el.closest('.orbit-symbol')?.dataset.orbitIndex) || 0;
+          animate(el, {
+            opacity: [0, 0.42, 0],
+            scale: [0.5, 1, 0.5],
+            duration: 3000,
+            delay: idx * 200,
+            loop: true,
+            ease: 'inOutQuad'
+          });
+        });
+      });
+    };
+
+    initAnimations();
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        scopeRef.current?.revert();
+        scopeRef.current = null;
         return;
       }
+      if (!scopeRef.current) {
+        initAnimations();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-      // Root fade-in
-      set(root, { opacity: 0, translateY: 12 });
-      animate(root, {
-        opacity: [0, 1],
-        translateY: [12, 0],
-        duration: 420,
-        ease: 'outQuad'
-      });
-
-      // Breathing orb
-      animate('.breathing-orb', {
-        scale: [1, 1.12, 1, 0.94, 1],
-        opacity: [0.62, 0.82, 0.62, 0.56, 0.62],
-        duration: BREATH_PERIOD_MS,
-        loop: true,
-        ease: 'inOutQuad'
-      });
-
-      // Shimmer symbols
-      root.querySelectorAll('.shimmer-symbol').forEach((el, i) => {
-        animate(el, {
-          opacity: [0.28, 0.88, 0.28],
-          scale: [0.95, 1.05, 0.95],
-          duration: 2000,
-          delay: i * 500,
-          loop: true,
-          ease: 'inOutQuad'
-        });
-      });
-
-      // Orbit symbol inner elements (animate inner span to avoid overwriting translate on parent)
-      root.querySelectorAll('.orbit-symbol-inner').forEach((el) => {
-        const idx = Number(el.closest('.orbit-symbol')?.dataset.orbitIndex) || 0;
-        animate(el, {
-          opacity: [0, 0.42, 0],
-          scale: [0.5, 1, 0.5],
-          duration: 3000,
-          delay: idx * 200,
-          loop: true,
-          ease: 'inOutQuad'
-        });
-      });
-    });
-
-    return () => scopeRef.current?.revert();
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      scopeRef.current?.revert();
+    };
   }, [prefersReducedMotion]);
 
   useEffect(() => () => {
@@ -173,7 +193,7 @@ export function AtmosphericInterlude({
       <ParticleLayer preset="element-ambient" intensity={0.7} zIndex={1} id="interlude-particles" />
 
       <div className="relative z-10">
-        <BreathingOrb />
+        <BreathingOrb prefersReducedMotion={prefersReducedMotion} />
 
         <div className="mt-8 text-center">
           <div className="flex items-center justify-center gap-3 mb-2">

@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Sparkle } from './icons';
-import { Icon, ICON_SIZES } from './Icon';
+import { Icon } from './Icon';
+import { ICON_SIZES } from './iconConstants';
 import { UserMenu } from './UserMenu';
 import { JournalBookIcon } from './JournalIcons';
 

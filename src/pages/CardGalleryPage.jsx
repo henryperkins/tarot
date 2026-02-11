@@ -154,7 +154,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
         className="group relative aspect-[2/3] rounded-xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] shadow-[0_18px_36px_-24px_rgba(0,0,0,0.85)] transition-[transform,box-shadow,border-color] duration-[var(--duration-medium)] ease-[var(--ease-out)] overflow-hidden text-left hover:-translate-y-1 hover:border-[color:var(--border-warm)] hover:shadow-[0_24px_44px_-26px_rgba(0,0,0,0.9),0_0_18px_var(--primary-20)]"
         aria-label={`Card ${card.name}`}
         style={{
-          animation: `fadeInUp 320ms ease-out ${index * 30}ms both`
+          animation: `fadeInUp 320ms ease-out ${Math.min(index * 30, 500)}ms both`
         }}
       >
         <button

@@ -200,7 +200,7 @@ function HeroBackground({ image, format, activePanel = 1 }) {
     node.style.opacity = '0';
     const anim = animate(node, {
       opacity: [0, 0.5],
-      duration: 800,
+      duration: 350,
       ease: 'outQuad'
     });
     return () => anim?.pause?.();

@@ -1018,8 +1018,8 @@ export function SpreadTable({
               `}
               style={{
                 ...(cardSizeStyle || {}),
-                perspective: '900px',
-                WebkitPerspective: '900px',
+                perspective: '1000px',
+                WebkitPerspective: '1000px',
                 ...(isRevealed && card
                   ? {
                     borderColor: getSuitBorderColor(card),

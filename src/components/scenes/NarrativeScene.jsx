@@ -55,11 +55,7 @@ export function NarrativeScene({
   onOpenFollowUp
 }) {
   const hasNarrativeContent = Boolean(personalReading);
-<<<<<<< Updated upstream
-  const contentClassName = 'relative z-[2] max-w-5xl mx-auto';
-=======
   const contentClassName = 'scene-stage__panel scene-stage__panel--narrative relative z-[2] max-w-5xl mx-auto p-4 sm:p-6';
->>>>>>> Stashed changes
 
   return (
     <section

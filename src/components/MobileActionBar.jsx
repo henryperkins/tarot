@@ -1,12 +1,12 @@
-/* eslint-disable react-refresh/only-export-components */
 import { useMemo, useEffect, useRef } from 'react';
 import { Gear, Sparkle, ArrowsClockwise, ChatCircle } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
-
-export const MOBILE_SETTINGS_DIALOG_ID = 'mobile-settings-drawer';
-export const MOBILE_COACH_DIALOG_ID = 'guided-intention-coach';
-export const MOBILE_FOLLOWUP_DIALOG_ID = 'mobile-followup-drawer';
+import {
+  MOBILE_SETTINGS_DIALOG_ID,
+  MOBILE_COACH_DIALOG_ID,
+  MOBILE_FOLLOWUP_DIALOG_ID
+} from './mobileActionBarConstants';
 
 // Shared button styles - reduced height in landscape while maintaining touch target
 const BTN_BASE = 'inline-flex items-center justify-center rounded-xl font-semibold transition touch-manipulation';
@@ -25,7 +25,7 @@ const STEP_BADGES = {
 /**
  * Determines which action mode the mobile bar should display
  */
-export function getActionMode({ isShuffling, reading, revealedCount: _revealedCount, allRevealed, needsNarrative, hasNarrative, isGenerating, isError }) {
+function getActionMode({ isShuffling, reading, revealedCount: _revealedCount, allRevealed, needsNarrative, hasNarrative, isGenerating, isError }) {
   if (isShuffling) return 'shuffling';
   if (!reading) return 'preparation';
   if (!allRevealed) return 'revealing';
@@ -473,9 +473,10 @@ export function MobileActionBar({ isOverlayActive = false, ...props }) {
 
   // Smooth animation for keyboard avoidance with cubic-bezier easing
   const barStyle = useMemo(() => ({
-    bottom: effectiveOffset > 0 ? effectiveOffset : 0,
-    transition: 'bottom 280ms var(--ease-out), opacity var(--duration-fast) var(--ease-out)',
-    willChange: effectiveOffset > 0 ? 'bottom' : 'auto'
+    bottom: 0,
+    transform: effectiveOffset > 0 ? `translateY(-${effectiveOffset}px)` : 'none',
+    transition: 'transform 280ms var(--ease-out), opacity var(--duration-fast) var(--ease-out)',
+    willChange: effectiveOffset > 0 ? 'transform' : 'auto'
   }), [effectiveOffset]);
 
   useEffect(() => {

@@ -27,7 +27,7 @@ import {
   buildGuidedQuestion
 } from '../../lib/intentionCoach';
 import { MAX_TEMPLATES } from '../../lib/coachStorage';
-import { MOBILE_COACH_DIALOG_ID } from '../MobileActionBar';
+import { MOBILE_COACH_DIALOG_ID } from '../mobileActionBarConstants';
 import { STEPS, SPREAD_NAMES, SPREAD_TO_TOPIC_MAP } from '../../lib/coachConstants';
 import { useGuidedIntentionCoach } from '../../contexts/GuidedIntentionCoachContext';
 import { CoachSuggestionsPanel } from './CoachSuggestionsPanel';

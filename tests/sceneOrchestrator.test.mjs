@@ -37,8 +37,6 @@ describe('deriveLegacyScene', () => {
     assert.equal(scene, 'delivery');
   });
 
-<<<<<<< Updated upstream
-=======
   it('switches to delivery when stream chunks arrive via paragraphs', () => {
     const scene = deriveLegacyScene(baseState({
       isReadingStreamActive: true,
@@ -52,7 +50,6 @@ describe('deriveLegacyScene', () => {
     assert.equal(scene, 'delivery');
   });
 
->>>>>>> Stashed changes
   it('switches to complete when streaming ends and reading is finalized', () => {
     const scene = deriveLegacyScene(baseState({
       isGenerating: false,

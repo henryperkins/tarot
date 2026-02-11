@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useRef } from 'react';
 import { Sparkle, GearSix, ArrowsClockwise } from '@phosphor-icons/react';
-import { DECK_OPTIONS } from './DeckSelector';
+import { DECK_OPTIONS } from './deckOptions';
 import { useAutoGrow } from '../hooks/useAutoGrow';
 
 /**

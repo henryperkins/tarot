@@ -5,7 +5,7 @@ import { useModalA11y } from '../hooks/useModalA11y';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import FollowUpChat from './FollowUpChat';
-import { MOBILE_FOLLOWUP_DIALOG_ID } from './MobileActionBar';
+import { MOBILE_FOLLOWUP_DIALOG_ID } from './mobileActionBarConstants';
 
 export default function FollowUpDrawer({ isOpen, onClose, autoFocusInput = true }) {
   const drawerRef = useRef(null);

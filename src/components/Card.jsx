@@ -168,6 +168,7 @@ export function Card({
   const [elementFlashKey, setElementFlashKey] = useState(0);
   const [elementFlashActive, setElementFlashActive] = useState(false);
   const elementFlashTimeoutRef = useRef(null);
+  const elementFlashRafRef = useRef(null);
   const prevVisuallyRevealedRef = useRef(isRevealed);
 
   // Reflection section starts collapsed on all screen sizes.
@@ -191,7 +192,8 @@ export function Card({
 
     // Focus only when this card's reflection was just opened via parent coordination
     if (openReflectionIndex === index && prevIndex !== index) {
-      setTimeout(() => textareaRef.current?.focus(), 50);
+      const timer = setTimeout(() => textareaRef.current?.focus(), 50);
+      return () => clearTimeout(timer);
     }
   }, [openReflectionIndex, index, isSmallScreen]);
 
@@ -238,6 +240,10 @@ export function Card({
         window.clearTimeout(elementFlashTimeoutRef.current);
         elementFlashTimeoutRef.current = null;
       }
+      if (elementFlashRafRef.current) {
+        cancelAnimationFrame(elementFlashRafRef.current);
+        elementFlashRafRef.current = null;
+      }
     };
   }, []);
 
@@ -248,7 +254,8 @@ export function Card({
     if (!isVisuallyRevealed || prev) {
       if (!isVisuallyRevealed) {
         // Defer to next frame to avoid synchronous setState cascade
-        requestAnimationFrame(() => setElementFlashActive(false));
+        const rafId = requestAnimationFrame(() => setElementFlashActive(false));
+        elementFlashRafRef.current = rafId;
       }
       return;
     }
@@ -257,10 +264,11 @@ export function Card({
     if (!suitAccentColor || !suitAccentSoft) return;
 
     // These are deferred via the animation callback timing
-    requestAnimationFrame(() => {
+    const rafId = requestAnimationFrame(() => {
       setElementFlashKey(k => k + 1);
       setElementFlashActive(true);
     });
+    elementFlashRafRef.current = rafId;
     if (elementFlashTimeoutRef.current) {
       window.clearTimeout(elementFlashTimeoutRef.current);
     }
@@ -359,6 +367,7 @@ export function Card({
 
     activeAnimRef.current
       .then(() => {
+        if (!cardRef.current) return; // unmounted
         triggerReveal();
         activeAnimRef.current = animate(node, {
           translateX: 0,
@@ -368,6 +377,7 @@ export function Card({
         });
       })
       .catch(() => {
+        if (!cardRef.current) return; // unmounted — don't fire reveal on stale parent
         triggerReveal();
       });
   }, [isRevealed, isVisuallyRevealed, prefersReducedMotion, triggerReveal, vibrate]);
@@ -647,7 +657,7 @@ export function Card({
 
         <div
           ref={cardRef}
-          className={`${prefersReducedMotion ? '' : 'transition-all duration-500'} transform rounded-lg ${!isVisuallyRevealed ? '' : 'group'}`}
+          className={`${prefersReducedMotion ? '' : 'transition-[transform,opacity] duration-500'} transform rounded-lg ${!isVisuallyRevealed ? '' : 'group'}`}
           style={{
             transformStyle: 'preserve-3d',
             WebkitTransformStyle: 'preserve-3d',
@@ -780,6 +790,7 @@ export function Card({
                         className="w-full h-full object-cover rounded-lg shadow-lg border-2 border-primary/30"
                         style={suitImageStyle}
                         decoding="async"
+                        loading={isRevealed || isVisuallyRevealed ? 'eager' : 'lazy'}
                         onError={event => {
                           const target = event.currentTarget;
                           if (!target) return;

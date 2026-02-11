@@ -5,7 +5,7 @@
 import { useMemo } from 'react';
 import { normalizeTimestamp, getTimestamp } from '../../../../../shared/journal/utils.js';
 import { formatContextName } from '../../../../lib/journalInsights';
-import { DECK_OPTIONS } from '../../../DeckSelector';
+import { DECK_OPTIONS } from '../../../deckOptions';
 import {
   CONTEXT_SUMMARIES,
   TIMING_SUMMARIES,

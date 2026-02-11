@@ -29,11 +29,7 @@ jobs:
           persist-credentials: false
 
       - name: Run opencode
-<<<<<<< Updated upstream
-        uses: anomalyco/opencode/github@latest
-=======
         uses: anomalyco/opencode/github@fbc41475b403a23f004f63289b264c224b9d6b2f # v1.1.55
->>>>>>> Stashed changes
         env:
           AZURE_RESOURCE_NAME: ${{ secrets.AZURE_RESOURCE_NAME }}
           AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}

@@ -198,48 +198,16 @@ export function ReadingGrid({
       : 'min-w-[72vw] xxs:min-w-[66vw] xs:min-w-[60vw] max-w-[18.5rem]';
   const mobileCarouselPadding = isLandscape ? 'px-2' : 'px-3 xxs:px-4';
 
-  useEffect(() => {
-    setHasUserScrolled(false);
-    setShowSwipeHint(true);
-<<<<<<< Updated upstream
-    // Reset openReflectionIndex when reading changes to prevent wrong card notes being shown
-    setOpenReflectionIndex(null);
-  }, [reading]);
-
-  // Keep only one mobile reflection open at a time; default to the first card with notes.
-  useEffect(() => {
-    if (!Array.isArray(reading) || !isCompactScreen) {
-      return;
-    }
-
-    setOpenReflectionIndex((currentIndex) => {
-      // Always reset if currentIndex is null (new reading or explicitly closed)
-      if (currentIndex === null) {
-        const firstWithReflection = reading.findIndex((_, idx) => {
-          const value = reflections?.[idx];
-          return typeof value === 'string' && value.trim().length > 0;
-        });
-        return firstWithReflection >= 0 ? firstWithReflection : null;
-      }
-      // Only preserve if card still exists in current reading
-      if (reading[currentIndex]) {
-        return currentIndex;
-      }
-
-      const firstWithReflection = reading.findIndex((_, idx) => {
-        const value = reflections?.[idx];
-        return typeof value === 'string' && value.trim().length > 0;
-      });
-      return firstWithReflection >= 0 ? firstWithReflection : null;
-    });
-  }, [reflections, isCompactScreen]);
-=======
-  }, [reading]);
-
   // Keep only one mobile reflection open at a time; default to the first card with notes.
   useLayoutEffect(() => {
     const readingChanged = previousReadingRef.current !== reading;
     previousReadingRef.current = reading;
+
+    // Reset scroll/hint state when reading changes
+    if (readingChanged) {
+      setHasUserScrolled(false);
+      setShowSwipeHint(true);
+    }
 
     const canManageReflections = Array.isArray(reading) && isCompactScreen;
 
@@ -265,7 +233,6 @@ export function ReadingGrid({
       return firstWithReflection >= 0 ? firstWithReflection : null;
     });
   }, [reading, reflections, isCompactScreen]);
->>>>>>> Stashed changes
 
   // Hide swipe hint only after user scrolls OR after extended timeout (8s)
   // This ensures users have time to discover the swipe gesture

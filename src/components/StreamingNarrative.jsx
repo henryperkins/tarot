@@ -456,7 +456,7 @@ export function StreamingNarrative({
   if (useMarkdown) {
     const visibleText = visibleWords.join('');
     return (
-      <div className={wrapperClassName} aria-live="polite">
+      <div className={wrapperClassName} aria-live="polite" aria-atomic={streamingActive ? undefined : true}>
         {streamingOptInNotice}
         {personalizedIntro}
         {/* Container with min-height to prevent layout shift during streaming */}
@@ -491,7 +491,7 @@ export function StreamingNarrative({
   const EMPHASIS_POP_THRESHOLD = 8;
 
   return (
-    <div className={wrapperClassName} aria-live="polite">
+    <div className={wrapperClassName} aria-live="polite" aria-atomic={streamingActive ? undefined : true}>
       {streamingOptInNotice}
       {personalizedIntro}
       {/* Mobile-optimized text with good line height and spacing - min-height prevents layout shift */}

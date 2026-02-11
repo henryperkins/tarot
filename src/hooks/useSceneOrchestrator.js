@@ -70,10 +70,6 @@ function toCanonical(scene) {
 function extractReadingText(personalReading) {
   if (!personalReading) return '';
   if (typeof personalReading === 'string') return personalReading;
-<<<<<<< Updated upstream
-  if (typeof personalReading?.raw === 'string' && personalReading.raw.trim()) return personalReading.raw;
-  if (typeof personalReading?.normalized === 'string' && personalReading.normalized.trim()) return personalReading.normalized;
-=======
 
   const directTextFields = [
     personalReading?.raw,
@@ -101,7 +97,6 @@ function extractReadingText(personalReading) {
     }
   }
 
->>>>>>> Stashed changes
   return '';
 }
 

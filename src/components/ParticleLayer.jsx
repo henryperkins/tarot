@@ -39,7 +39,7 @@ function resolveColor({ suit, element, fallback = SUIT_COLORS.major }) {
 function getPresetConfig({ preset, color, reducedMotion, intensity = 1 }) {
   const safeIntensity = Number.isFinite(intensity) ? Math.max(0.2, Math.min(2.2, intensity)) : 1;
   const baseCount = PRESET_COUNTS[preset] || PRESET_COUNTS.idle;
-  const reducedFactor = reducedMotion ? 0.2 : 1;
+  const reducedFactor = reducedMotion ? 0 : 1;
   const count = Math.max(0, Math.round(baseCount * safeIntensity * reducedFactor));
 
   if (count === 0) return null;

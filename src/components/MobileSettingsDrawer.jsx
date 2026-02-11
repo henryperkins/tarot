@@ -4,7 +4,7 @@ import { useModalA11y } from '../hooks/useModalA11y';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
-import { MOBILE_SETTINGS_DIALOG_ID } from './MobileActionBar';
+import { MOBILE_SETTINGS_DIALOG_ID } from './mobileActionBarConstants';
 
 export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null }) {
   const drawerRef = useRef(null);
