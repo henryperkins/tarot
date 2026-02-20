@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it, beforeEach, afterEach, mock } from 'node:test';
 import { onRequestPost as onStoryArtPost } from '../functions/api/generate-story-art.js';
-import { onRequestPost as onCardVideoPost } from '../functions/api/generate-card-video.js';
-import { onRequestGet as onCardVideoStatus } from '../functions/api/generate-card-video.js';
+import {
+  onRequestPost as onCardVideoPost,
+  onRequestGet as onCardVideoStatus,
+  reconcilePendingVideoUsage
+} from '../functions/api/generate-card-video.js';
 import { getUtcDateKey } from '../functions/lib/utils.js';
 
 const mockFetch = mock.fn();
@@ -57,6 +60,20 @@ class MockKVStore {
 
   async delete(key) {
     this.store.delete(key);
+  }
+
+  async list({ prefix = '', limit = 100, cursor = null } = {}) {
+    const allKeys = Array.from(this.store.keys())
+      .filter((key) => key.startsWith(prefix));
+    const startIndex = Number.parseInt(cursor || '0', 10);
+    const safeStartIndex = Number.isFinite(startIndex) && startIndex >= 0 ? startIndex : 0;
+    const nextKeys = allKeys.slice(safeStartIndex, safeStartIndex + limit);
+    const nextIndex = safeStartIndex + nextKeys.length;
+    return {
+      keys: nextKeys.map((name) => ({ name })),
+      list_complete: nextIndex >= allKeys.length,
+      cursor: nextIndex >= allKeys.length ? '' : String(nextIndex)
+    };
   }
 }
 
@@ -220,7 +237,7 @@ describe('Media generation APIs', () => {
     assert.equal(updatedJob?.usageRefunded, true);
   });
 
-  it('refunds card video usage in background when client does not poll', async () => {
+  it('refunds card video usage during scheduled reconciliation when client does not poll', async () => {
     mockFetch.mock.mockImplementation(async (url) => {
       const requestUrl = typeof url === 'string' ? url : String(url);
       if (requestUrl.includes('/openai/v1/videos?')) {
@@ -247,12 +264,10 @@ describe('Media generation APIs', () => {
     const env = createBaseEnv({
       DB: createMockDb(user),
       METRICS_DB: metrics,
-      CARD_VIDEO_BACKGROUND_SETTLE_DELAY_MS: '0',
-      CARD_VIDEO_BACKGROUND_SETTLE_RETRY_DELAY_MS: '0',
-      CARD_VIDEO_BACKGROUND_SETTLE_MAX_ATTEMPTS: '1'
+      CARD_VIDEO_USAGE_RECONCILE_MIN_AGE_MS: '0',
+      CARD_VIDEO_USAGE_RECONCILE_BATCH_SIZE: '10'
     });
 
-    const backgroundTasks = [];
     const request = createMockRequest('/api/generate-card-video', {
       method: 'POST',
       headers: { authorization: 'Bearer test' },
@@ -265,22 +280,16 @@ describe('Media generation APIs', () => {
       }
     });
 
-    const response = await onCardVideoPost({
-      request,
-      env,
-      waitUntil: (promise) => {
-        backgroundTasks.push(promise);
-      }
-    });
+    const response = await onCardVideoPost({ request, env });
     const payload = await response.json();
 
     assert.equal(response.status, 200);
     assert.equal(payload.success, true);
     assert.equal(payload.status, 'pending');
     assert.equal(payload.jobId, 'job-bg-123');
-    assert.equal(backgroundTasks.length, 1);
 
-    await Promise.allSettled(backgroundTasks);
+    const reconcileStats = await reconcilePendingVideoUsage(env, { minAgeMs: 0, batchSize: 10 });
+    assert.equal(reconcileStats.refunded, 1);
 
     const dateKey = getUtcDateKey(new Date());
     const usageKey = `media_usage:card-video:${user.id}:${dateKey}`;
@@ -293,15 +302,219 @@ describe('Media generation APIs', () => {
     assert.equal(updatedJob?.usageFinalized, true);
   });
 
-  it('generates card video without input_reference when keyframe cannot match video size', async () => {
-    let captured = null;
+  it('reconciles unsettled jobs beyond the first KV page', async () => {
+    const staleSettledCount = 120;
+    const targetJobId = 'job-unsettled-final-page';
+
+    mockFetch.mock.mockImplementation(async (url) => {
+      const requestUrl = typeof url === 'string' ? url : String(url);
+      if (requestUrl.includes(`/openai/v1/videos/${targetJobId}?`)) {
+        return new Response(JSON.stringify({ status: 'failed' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      throw new Error(`Unexpected fetch URL in paginated reconcile test: ${requestUrl}`);
+    });
+
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const metrics = new MockKVStore();
+    const dateKey = getUtcDateKey(new Date());
+    const usageKey = `media_usage:card-video:${user.id}:${dateKey}`;
+    await metrics.put(usageKey, '1');
+
+    for (let i = 0; i < staleSettledCount; i += 1) {
+      const settledJobId = `job-settled-${String(i).padStart(3, '0')}`;
+      await metrics.put(`video_job:${settledJobId}`, JSON.stringify({
+        userId: user.id,
+        usageKey: `usage:${settledJobId}`,
+        usageDateKey: dateKey,
+        usageRefunded: false,
+        usageFinalized: true,
+        created: Date.now() - 600000
+      }));
+    }
+
+    await metrics.put(`video_job:${targetJobId}`, JSON.stringify({
+      userId: user.id,
+      usageKey,
+      usageDateKey: dateKey,
+      usageRefunded: false,
+      usageFinalized: false,
+      created: Date.now() - 600000
+    }));
+
+    const env = createBaseEnv({
+      DB: createMockDb(user),
+      METRICS_DB: metrics,
+      CARD_VIDEO_USAGE_RECONCILE_MIN_AGE_MS: '0',
+      CARD_VIDEO_USAGE_RECONCILE_BATCH_SIZE: '1'
+    });
+
+    const stats = await reconcilePendingVideoUsage(env, {
+      minAgeMs: 0,
+      batchSize: 1,
+      maxPages: 5
+    });
+
+    assert.equal(stats.refunded, 1);
+    assert.equal(await metrics.get(usageKey), null);
+    const updatedJobRaw = await metrics.get(`video_job:${targetJobId}`);
+    const updatedJob = updatedJobRaw ? JSON.parse(updatedJobRaw) : null;
+    assert.equal(updatedJob?.usageRefunded, true);
+    assert.equal(updatedJob?.usageFinalized, true);
+  });
+
+  it('refunds stale processing jobs during scheduled reconciliation timeout', async () => {
+    const jobId = 'job-processing-stale';
+    mockFetch.mock.mockImplementation(async (url) => {
+      const requestUrl = typeof url === 'string' ? url : String(url);
+      if (requestUrl.includes(`/openai/v1/videos/${jobId}?`)) {
+        return new Response(JSON.stringify({ status: 'processing' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      throw new Error(`Unexpected fetch URL in stale processing reconcile test: ${requestUrl}`);
+    });
+
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const metrics = new MockKVStore();
+    const dateKey = getUtcDateKey(new Date());
+    const usageKey = `media_usage:card-video:${user.id}:${dateKey}`;
+    await metrics.put(usageKey, '1');
+    await metrics.put(`video_job:${jobId}`, JSON.stringify({
+      userId: user.id,
+      usageKey,
+      usageDateKey: dateKey,
+      usageRefunded: false,
+      usageFinalized: false,
+      created: Date.now() - 10_000
+    }));
+
+    const env = createBaseEnv({
+      DB: createMockDb(user),
+      METRICS_DB: metrics,
+      CARD_VIDEO_USAGE_RECONCILE_MIN_AGE_MS: '0',
+      CARD_VIDEO_USAGE_RECONCILE_BATCH_SIZE: '10',
+      CARD_VIDEO_USAGE_RECONCILE_MAX_PENDING_AGE_MS: '1000'
+    });
+
+    const stats = await reconcilePendingVideoUsage(env, {
+      minAgeMs: 0,
+      batchSize: 10,
+      maxPendingAgeMs: 1000
+    });
+
+    assert.equal(stats.refunded, 1);
+    assert.equal(await metrics.get(usageKey), null);
+    const updatedJobRaw = await metrics.get(`video_job:${jobId}`);
+    const updatedJob = updatedJobRaw ? JSON.parse(updatedJobRaw) : null;
+    assert.equal(updatedJob?.usageRefunded, true);
+    assert.equal(updatedJob?.usageSettlementReason, 'scheduled-timeout');
+  });
+
+  it('applies batchSize to unsettled jobs processed during reconciliation', async () => {
+    const failedJobs = ['job-failed-a', 'job-failed-b', 'job-failed-c'];
+    mockFetch.mock.mockImplementation(async (url) => {
+      const requestUrl = typeof url === 'string' ? url : String(url);
+      if (failedJobs.some((jobId) => requestUrl.includes(`/openai/v1/videos/${jobId}?`))) {
+        return new Response(JSON.stringify({ status: 'failed' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      throw new Error(`Unexpected fetch URL in batch size reconcile test: ${requestUrl}`);
+    });
+
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const metrics = new MockKVStore();
+    const dateKey = getUtcDateKey(new Date());
+
+    for (let i = 0; i < 140; i += 1) {
+      const settledJobId = `job-settled-${String(i).padStart(3, '0')}`;
+      await metrics.put(`video_job:${settledJobId}`, JSON.stringify({
+        userId: user.id,
+        usageKey: `usage:${settledJobId}`,
+        usageDateKey: dateKey,
+        usageRefunded: false,
+        usageFinalized: true,
+        created: Date.now() - 600000
+      }));
+    }
+
+    for (const jobId of failedJobs) {
+      const usageKey = `media_usage:card-video:${user.id}:${dateKey}:${jobId}`;
+      await metrics.put(usageKey, '1');
+      await metrics.put(`video_job:${jobId}`, JSON.stringify({
+        userId: user.id,
+        usageKey,
+        usageDateKey: dateKey,
+        usageRefunded: false,
+        usageFinalized: false,
+        created: Date.now() - 600000
+      }));
+    }
+
+    const env = createBaseEnv({
+      DB: createMockDb(user),
+      METRICS_DB: metrics,
+      CARD_VIDEO_USAGE_RECONCILE_MIN_AGE_MS: '0',
+      CARD_VIDEO_USAGE_RECONCILE_BATCH_SIZE: '2'
+    });
+
+    const stats = await reconcilePendingVideoUsage(env, {
+      minAgeMs: 0,
+      batchSize: 2,
+      maxPages: 10
+    });
+
+    assert.equal(stats.refunded, 2);
+    const firstTwo = failedJobs.slice(0, 2);
+    for (const jobId of firstTwo) {
+      const usageKey = `media_usage:card-video:${user.id}:${dateKey}:${jobId}`;
+      assert.equal(await metrics.get(usageKey), null);
+    }
+    const untouchedUsageKey = `media_usage:card-video:${user.id}:${dateKey}:${failedJobs[2]}`;
+    assert.equal(await metrics.get(untouchedUsageKey), '1');
+  });
+
+  it('uses a supported fallback keyframe size when video size is unsupported', async () => {
+    let capturedVideo = null;
+    let capturedImageSize = null;
 
     mockFetch.mock.mockImplementation(async (url, options) => {
-      captured = { url, options };
-      return new Response(JSON.stringify({ id: 'job-123', status: 'queued' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' }
-      });
+      const requestUrl = typeof url === 'string' ? url : String(url);
+      if (requestUrl.includes('/openai/v1/images/generations?')) {
+        const body = JSON.parse(options.body);
+        capturedImageSize = body.size;
+        return new Response(JSON.stringify({
+          data: [{ b64_json: 'aGVsbG8=' }]
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      if (requestUrl.includes('/openai/v1/videos?')) {
+        capturedVideo = { url: requestUrl, options };
+        return new Response(JSON.stringify({ id: 'job-123', status: 'queued' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      throw new Error(`Unexpected fetch URL in keyframe fallback test: ${requestUrl}`);
     });
 
     const user = {
@@ -331,8 +544,67 @@ describe('Media generation APIs', () => {
     assert.equal(payload.status, 'pending');
     assert.equal(payload.jobId, 'job-123');
 
-    assert.ok(captured?.url?.includes('/openai/v1/videos'), 'Should call video endpoint');
-    assert.ok(captured?.options?.body instanceof FormData, 'Should send multipart form data');
-    assert.equal(captured.options.body.get('input_reference'), null);
+    assert.equal(capturedImageSize, '1536x1024');
+    assert.ok(capturedVideo?.url?.includes('/openai/v1/videos'), 'Should call video endpoint');
+    assert.ok(capturedVideo?.options?.body instanceof FormData, 'Should send multipart form data');
+    assert.notEqual(capturedVideo.options.body.get('input_reference'), null);
+  });
+
+  it('retries video job creation without input_reference when provider rejects the reference', async () => {
+    const videoBodies = [];
+
+    mockFetch.mock.mockImplementation(async (url, options) => {
+      const requestUrl = typeof url === 'string' ? url : String(url);
+      if (requestUrl.includes('/openai/v1/images/generations?')) {
+        return new Response(JSON.stringify({
+          data: [{ b64_json: 'aGVsbG8=' }]
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      if (requestUrl.includes('/openai/v1/videos?')) {
+        videoBodies.push(options.body);
+        const hasInputReference = options.body.get('input_reference') !== null;
+        if (hasInputReference) {
+          return new Response('input_reference size mismatch', { status: 400 });
+        }
+        return new Response(JSON.stringify({ id: 'job-456', status: 'queued' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      throw new Error(`Unexpected fetch URL in input_reference retry test: ${requestUrl}`);
+    });
+
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({ DB: createMockDb(user) });
+
+    const request = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        card: { name: 'Seven of Cups', suit: 'cups', reversed: false },
+        question: 'How can I connect better with the people I love?',
+        position: 'Present',
+        style: 'mystical',
+        seconds: 4
+      }
+    });
+
+    const response = await onCardVideoPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.success, true);
+    assert.equal(payload.status, 'pending');
+    assert.equal(payload.jobId, 'job-456');
+    assert.equal(videoBodies.length, 2);
+    assert.notEqual(videoBodies[0].get('input_reference'), null);
+    assert.equal(videoBodies[1].get('input_reference'), null);
   });
 });

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { wrapStreamWithMetadata } from '../functions/api/reading-followup.js';
+import {
+  wrapStreamWithMetadata,
+  resolveStreamingPersistenceText
+} from '../functions/api/reading-followup.js';
 
 /**
  * Test helpers to simulate the streaming wrapper behavior from reading-followup.js
@@ -10,6 +13,18 @@ import { wrapStreamWithMetadata } from '../functions/api/reading-followup.js';
 function formatSSEEvent(event, data) {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
+
+describe('resolveStreamingPersistenceText', () => {
+  test('persists the exact streamed response when a repaired variant exists', () => {
+    const streamed = 'This is what the client received.';
+    const repaired = 'This is a revised diagnostic variant.';
+    assert.equal(resolveStreamingPersistenceText(streamed, repaired), streamed);
+  });
+
+  test('returns empty string when streamed response is not a string', () => {
+    assert.equal(resolveStreamingPersistenceText(null, 'repaired'), '');
+  });
+});
 
 /**
  * Create a mock readable stream from SSE events

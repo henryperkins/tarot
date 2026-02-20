@@ -69,6 +69,26 @@ function sanitizeFileName(value, fallback) {
     .toLowerCase() || fallback;
 }
 
+function createRequestId(prefix = 'media') {
+  if (crypto?.randomUUID) {
+    return `${prefix}_${crypto.randomUUID()}`;
+  }
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function logMediaError(label, details = {}) {
+  const payload = { ...details };
+  const error = payload.error;
+  if (error && typeof error === 'object') {
+    payload.error = {
+      name: error.name || 'Error',
+      message: error.message || String(error),
+      stack: typeof error.stack === 'string' ? error.stack : null
+    };
+  }
+  console.error(`[media] ${label}`, payload);
+}
+
 function toClientRecord(record) {
   return {
     id: record.id,
@@ -146,6 +166,7 @@ async function fetchMediaRecordById(env, userId, id) {
 
 async function handleContentRequest(context, user) {
   const { request, env } = context;
+  const requestId = createRequestId('media_content');
   const url = new URL(request.url);
   const contentId = normalizeText(url.searchParams.get('contentId'), 120);
   const wantsDownload = url.searchParams.get('download') === '1';
@@ -159,9 +180,23 @@ async function handleContentRequest(context, user) {
     record = await fetchMediaRecordById(env, user.id, contentId);
   } catch (err) {
     if (isMissingMediaTableError(err)) {
+      logMediaError('content lookup failed: missing user_media table', {
+        requestId,
+        userId: user?.id || null,
+        contentId
+      });
       return jsonResponse({ error: 'Media storage is not available yet. Run migrations first.' }, 503);
     }
-    throw err;
+    logMediaError('content lookup failed', {
+      requestId,
+      userId: user?.id || null,
+      contentId,
+      error: err
+    });
+    return jsonResponse({
+      error: 'Media storage backend is unavailable',
+      requestId
+    }, 503);
   }
 
   if (!record) {
@@ -169,17 +204,42 @@ async function handleContentRequest(context, user) {
   }
 
   if (!env.R2_LOGS) {
-    return jsonResponse({ error: 'Media storage backend is unavailable' }, 503);
+    logMediaError('content fetch failed: missing R2_LOGS binding', {
+      requestId,
+      userId: user?.id || null,
+      contentId,
+      storageKey: record.storage_key
+    });
+    return jsonResponse({
+      error: 'Media storage backend is unavailable',
+      requestId
+    }, 503);
   }
 
-  let object = await env.R2_LOGS.get(record.storage_key);
-  // Fallback to legacy keys stored without file extension
-  if (!object && !record.storage_key.includes('.')) {
-    const ext = extensionFromMimeType(record.mime_type);
-    if (ext) {
-      object = await env.R2_LOGS.get(`${record.storage_key}.${ext}`);
+  let object = null;
+  try {
+    object = await env.R2_LOGS.get(record.storage_key);
+    // Fallback to legacy keys stored without file extension
+    if (!object && !record.storage_key.includes('.')) {
+      const ext = extensionFromMimeType(record.mime_type);
+      if (ext) {
+        object = await env.R2_LOGS.get(`${record.storage_key}.${ext}`);
+      }
     }
+  } catch (err) {
+    logMediaError('R2 get failed while serving media content', {
+      requestId,
+      userId: user?.id || null,
+      contentId,
+      storageKey: record.storage_key,
+      error: err
+    });
+    return jsonResponse({
+      error: 'Media storage backend is unavailable',
+      requestId
+    }, 503);
   }
+
   if (!object) {
     return jsonResponse({ error: 'Media file is unavailable' }, 404);
   }

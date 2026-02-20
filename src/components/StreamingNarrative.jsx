@@ -218,8 +218,10 @@ export function StreamingNarrative({
     // where isComplete is true before state reset completes
     completionNotifiedRef.current = false;
 
-    setMobileStreamingOptIn(false);
-    setVisibleCount(shouldStreamOnNarrativeReset ? 0 : units.length);
+    queueMicrotask(() => {
+      setMobileStreamingOptIn(false);
+      setVisibleCount(shouldStreamOnNarrativeReset ? 0 : units.length);
+    });
   }, [narrativeText, shouldStreamOnNarrativeReset, units.length]);
 
   const notifyCompletion = useCallback(() => {
@@ -336,7 +338,6 @@ export function StreamingNarrative({
   }, [useMarkdown, visibleWords, visiblePlainText]);
 
   useEffect(() => {
-    if (!streamingActive) return;
     if (!onHighlightPhrase) return;
     if (!normalizedHighlightPhrases.length) return;
     if (!visibleTextForHighlights) return;
@@ -351,25 +352,7 @@ export function StreamingNarrative({
       triggered.add(key);
       onHighlightPhrase(phrase);
     });
-  }, [streamingActive, onHighlightPhrase, normalizedHighlightPhrases, visibleTextForHighlights]);
-
-  useEffect(() => {
-    if (streamingActive) return;
-    if (!onHighlightPhrase) return;
-    if (!normalizedHighlightPhrases.length) return;
-    if (!visibleTextForHighlights) return;
-
-    const lowerText = visibleTextForHighlights.toLowerCase();
-    const triggered = triggeredHighlightRef.current;
-
-    normalizedHighlightPhrases.forEach((phrase) => {
-      const key = phrase.toLowerCase();
-      if (triggered.has(key)) return;
-      if (!lowerText.includes(key)) return;
-      triggered.add(key);
-      onHighlightPhrase(phrase);
-    });
-  }, [streamingActive, onHighlightPhrase, normalizedHighlightPhrases, visibleTextForHighlights]);
+  }, [onHighlightPhrase, normalizedHighlightPhrases, visibleTextForHighlights]);
 
   useEffect(() => {
     if (!useMarkdown || !onSectionEnter) return;
@@ -451,6 +434,21 @@ export function StreamingNarrative({
       </p>
     )
     : null;
+  const skipButton = showSkipButton ? (
+    <div className={`mt-4 xs:mt-5 sticky sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions ${stickyActionClass}`}>
+      <button
+        type="button"
+        onClick={handleSkip}
+        className="min-h-touch w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
+        aria-label="Show full narrative immediately"
+      >
+        <span className="inline-flex items-center justify-center gap-2">
+          <span>Show all now</span>
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </span>
+      </button>
+    </div>
+  ) : null;
 
   // For markdown: render completed text progressively
   if (useMarkdown) {
@@ -468,21 +466,7 @@ export function StreamingNarrative({
           />
         </div>
 
-        {showSkipButton && (
-          <div className={`mt-4 xs:mt-5 sticky sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions ${stickyActionClass}`}>
-            <button
-              type="button"
-              onClick={handleSkip}
-              className="min-h-touch w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
-              aria-label="Show full narrative immediately"
-            >
-              <span className="inline-flex items-center justify-center gap-2">
-                <span>Show all now</span>
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </span>
-            </button>
-          </div>
-        )}
+        {skipButton}
       </div>
     );
   }
@@ -522,21 +506,7 @@ export function StreamingNarrative({
         })}
       </div>
 
-      {showSkipButton && (
-        <div className={`mt-4 xs:mt-5 sticky sm:static flex justify-center px-3 xxs:px-4 sm:px-0 narrative-stream__actions ${stickyActionClass}`}>
-          <button
-            type="button"
-            onClick={handleSkip}
-            className="min-h-touch w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
-            aria-label="Show full narrative immediately"
-          >
-            <span className="inline-flex items-center justify-center gap-2">
-              <span>Show all now</span>
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </span>
-          </button>
-        </div>
-      )}
+      {skipButton}
     </div>
   );
 }

@@ -239,6 +239,8 @@ export function useSceneOrchestrator({
   // Sync external scene changes - moved to effect to prevent render-time state updates
   useEffect(() => {
     if (sceneState.currentScene !== candidateScene) {
+      // Intentional scene sync when derived/manual candidate changes.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSceneState({
         currentScene: candidateScene,
         transitionMeta: defaultTransitionMeta(sceneState.currentScene, candidateScene, 'derived')

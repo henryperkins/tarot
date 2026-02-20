@@ -211,9 +211,11 @@
   // ============================================================================
   // Cron Triggers (Scheduled Tasks)
   // ============================================================================
-  // Archive metrics/feedback from KV to D1 and cleanup expired sessions
+  // - Every 10 minutes: reconcile pending card-video usage settlements
+  // - Daily at 03:00 UTC: archive metrics/feedback from KV to D1 + cleanup tasks
   "triggers": {
     "crons": [
+      "*/10 * * * *",
       "0 3 * * *"
     ]
   }

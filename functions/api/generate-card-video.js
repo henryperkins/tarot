@@ -44,13 +44,16 @@ const DEFAULT_IMAGE_TIMEOUT_MS = 45000;
 const DEFAULT_VIDEO_TIMEOUT_MS = 45000;
 const DEFAULT_VIDEO_STATUS_TIMEOUT_MS = 20000;
 const DEFAULT_VIDEO_CONTENT_TIMEOUT_MS = 30000;
-const BACKGROUND_SETTLE_DELAY_MS = 90000;
-const BACKGROUND_SETTLE_RETRY_MS = 30000;
-const BACKGROUND_SETTLE_MAX_ATTEMPTS = 4;
+const CARD_VIDEO_JOB_PREFIX = 'video_job:';
+const DEFAULT_USAGE_RECONCILE_MIN_AGE_MS = 180000;
+const DEFAULT_USAGE_RECONCILE_BATCH_SIZE = 25;
+const DEFAULT_USAGE_RECONCILE_MAX_PENDING_AGE_MS = 2 * 60 * 60 * 1000;
+const DEFAULT_USAGE_RECONCILE_MAX_PAGES = 25;
+const DEFAULT_USAGE_RECONCILE_MAX_RUN_MS = 15000;
 
-// OpenAI docs: the Sora input_reference image must match the requested video size.
-// We only attempt keyframe -> input_reference when the image model can output the
-// exact video resolution.
+// OpenAI docs: Sora input_reference works best when the reference image matches
+// the requested video aspect. We prefer exact matches and otherwise fall back to
+// the closest model-supported keyframe size.
 function normalizeImageModelFamily(value) {
   const v = (value || '').toLowerCase().trim();
   if (!v) return '';
@@ -86,6 +89,18 @@ function isImageSizeSupportedForFamily(family, size) {
   }
 }
 
+function getSupportedImageSizesForFamily(family) {
+  switch (family) {
+    case 'dall-e-3':
+      return ['1024x1024', '1792x1024', '1024x1792'];
+    case 'dall-e-2':
+      return ['256x256', '512x512', '1024x1024'];
+    case 'gpt-image':
+    default:
+      return ['1024x1024', '1536x1024', '1024x1536'];
+  }
+}
+
 function parseWxH(size) {
   const match = typeof size === 'string' ? size.trim().match(/^(\d{2,5})x(\d{2,5})$/) : null;
   if (!match) return null;
@@ -93,6 +108,50 @@ function parseWxH(size) {
   const height = Number.parseInt(match[2], 10);
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
   return { width, height };
+}
+
+function chooseBestSupportedKeyframeSize(family, requestedVideoSize) {
+  if (!requestedVideoSize || !family) return null;
+  if (isImageSizeSupportedForFamily(family, requestedVideoSize)) {
+    return {
+      size: requestedVideoSize,
+      exactMatch: true
+    };
+  }
+
+  const requested = parseWxH(requestedVideoSize);
+  if (!requested) return null;
+  const requestedRatio = requested.width / requested.height;
+
+  let best = null;
+  for (const candidate of getSupportedImageSizesForFamily(family)) {
+    const dims = parseWxH(candidate);
+    if (!dims) continue;
+    const ratio = dims.width / dims.height;
+    const ratioDelta = Math.abs(ratio - requestedRatio);
+    const areaDelta = Math.abs((dims.width * dims.height) - (requested.width * requested.height));
+
+    if (!best || ratioDelta < best.ratioDelta || (ratioDelta === best.ratioDelta && areaDelta < best.areaDelta)) {
+      best = {
+        size: candidate,
+        exactMatch: false,
+        ratioDelta,
+        areaDelta
+      };
+    }
+  }
+
+  return best ? { size: best.size, exactMatch: false } : null;
+}
+
+function isInputReferenceValidationError(err) {
+  const message = String(err?.message || err || '').toLowerCase();
+  return (
+    message.includes('input_reference') ||
+    (message.includes('reference') && message.includes('image')) ||
+    (message.includes('input') && message.includes('size')) ||
+    message.includes('aspect ratio')
+  );
 }
 
 function getInputReferenceMode(env) {
@@ -424,7 +483,7 @@ async function storePendingJob(env, userId, jobId, metadata) {
   if (!env.METRICS_DB) return;
   
   try {
-    await env.METRICS_DB.put(`video_job:${jobId}`, JSON.stringify({
+    await env.METRICS_DB.put(`${CARD_VIDEO_JOB_PREFIX}${jobId}`, JSON.stringify({
       userId,
       ...metadata,
       created: Date.now()
@@ -439,18 +498,21 @@ function parseNonNegativeInt(value, fallback) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
-function normalizeVideoJobStatus(status) {
-  return status === 'succeeded' ? 'completed' : status;
+function extractVideoJobId(keyName) {
+  if (typeof keyName !== 'string') return null;
+  if (!keyName.startsWith(CARD_VIDEO_JOB_PREFIX)) return null;
+  const jobId = keyName.slice(CARD_VIDEO_JOB_PREFIX.length).trim();
+  return jobId || null;
 }
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function normalizeVideoJobStatus(status) {
+  return status === 'succeeded' ? 'completed' : status;
 }
 
 async function loadPendingJobMeta(env, jobId) {
   if (!env?.METRICS_DB || !jobId) return null;
   try {
-    const raw = await env.METRICS_DB.get(`video_job:${jobId}`);
+    const raw = await env.METRICS_DB.get(`${CARD_VIDEO_JOB_PREFIX}${jobId}`);
     return raw ? JSON.parse(raw) : null;
   } catch (err) {
     console.warn('Failed to load pending video job metadata:', err.message);
@@ -461,7 +523,7 @@ async function loadPendingJobMeta(env, jobId) {
 async function persistPendingJobMeta(env, jobId, jobMeta) {
   if (!env?.METRICS_DB || !jobId || !jobMeta) return false;
   try {
-    await env.METRICS_DB.put(`video_job:${jobId}`, JSON.stringify(jobMeta), {
+    await env.METRICS_DB.put(`${CARD_VIDEO_JOB_PREFIX}${jobId}`, JSON.stringify(jobMeta), {
       expirationTtl: 3600
     });
     return true;
@@ -500,69 +562,159 @@ async function refundVideoUsageIfNeeded(env, jobId, jobMeta, reason = 'failed') 
   return nextMeta;
 }
 
-async function settleUsageForUnpolledVideoJob(env, jobId) {
-  const initialDelayMs = parseNonNegativeInt(
-    env?.CARD_VIDEO_BACKGROUND_SETTLE_DELAY_MS,
-    BACKGROUND_SETTLE_DELAY_MS
-  );
-  const retryDelayMs = parseNonNegativeInt(
-    env?.CARD_VIDEO_BACKGROUND_SETTLE_RETRY_DELAY_MS,
-    BACKGROUND_SETTLE_RETRY_MS
-  );
-  const maxAttempts = Math.max(1, parseNonNegativeInt(
-    env?.CARD_VIDEO_BACKGROUND_SETTLE_MAX_ATTEMPTS,
-    BACKGROUND_SETTLE_MAX_ATTEMPTS
-  ));
+/**
+ * Reconcile unsettled video usage reservations from KV.
+ *
+ * This is designed for scheduled/background execution. It avoids request-bound
+ * waitUntil tasks that can be cancelled when request lifetimes are exceeded.
+ */
+export async function reconcilePendingVideoUsage(env, options = {}) {
+  const stats = {
+    scanned: 0,
+    finalized: 0,
+    refunded: 0,
+    processing: 0,
+    skipped: 0,
+    errors: 0
+  };
 
-  if (initialDelayMs > 0) {
-    await delay(initialDelayMs);
+  if (!env?.METRICS_DB?.list) {
+    return stats;
   }
 
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const jobMeta = await loadPendingJobMeta(env, jobId);
-    if (!jobMeta?.usageKey || jobMeta.usageRefunded || jobMeta.usageFinalized) {
-      return;
-    }
+  const batchSize = Math.max(
+    1,
+    parseNonNegativeInt(
+      options.batchSize ?? env?.CARD_VIDEO_USAGE_RECONCILE_BATCH_SIZE,
+      DEFAULT_USAGE_RECONCILE_BATCH_SIZE
+    )
+  );
+  const minAgeMs = parseNonNegativeInt(
+    options.minAgeMs ?? env?.CARD_VIDEO_USAGE_RECONCILE_MIN_AGE_MS,
+    DEFAULT_USAGE_RECONCILE_MIN_AGE_MS
+  );
+  const maxPendingAgeMs = parseNonNegativeInt(
+    options.maxPendingAgeMs ?? env?.CARD_VIDEO_USAGE_RECONCILE_MAX_PENDING_AGE_MS,
+    DEFAULT_USAGE_RECONCILE_MAX_PENDING_AGE_MS
+  );
+  const maxPages = Math.max(
+    1,
+    parseNonNegativeInt(
+      options.maxPages ?? env?.CARD_VIDEO_USAGE_RECONCILE_MAX_PAGES,
+      DEFAULT_USAGE_RECONCILE_MAX_PAGES
+    )
+  );
+  const maxRunMs = Math.max(
+    1000,
+    parseNonNegativeInt(
+      options.maxRunMs ?? env?.CARD_VIDEO_USAGE_RECONCILE_MAX_RUN_MS,
+      DEFAULT_USAGE_RECONCILE_MAX_RUN_MS
+    )
+  );
+  const startedAt = Date.now();
 
-    let normalizedStatus = '';
+  let cursor = null;
+  let pagesVisited = 0;
+  let unsettledProcessed = 0;
+
+  while (unsettledProcessed < batchSize && pagesVisited < maxPages && (Date.now() - startedAt) < maxRunMs) {
+    let listed = null;
     try {
-      const jobStatus = await getVideoJobStatus(env, jobId);
-      normalizedStatus = normalizeVideoJobStatus(jobStatus?.status);
-    } catch (_err) {
-      if (attempt < maxAttempts - 1 && retryDelayMs > 0) {
-        await delay(retryDelayMs);
+      const listOptions = {
+        prefix: CARD_VIDEO_JOB_PREFIX,
+        limit: 100
+      };
+      if (cursor) {
+        listOptions.cursor = cursor;
       }
-      continue;
+      listed = await env.METRICS_DB.list(listOptions);
+    } catch (err) {
+      stats.errors += 1;
+      console.warn('[card-video] Failed to list pending video jobs for reconciliation:', err?.message || err);
+      return stats;
+    }
+    pagesVisited += 1;
+
+    const keys = Array.isArray(listed?.keys) ? listed.keys : [];
+    if (keys.length === 0) {
+      break;
     }
 
-    if (normalizedStatus === 'completed') {
-      await markVideoUsageFinalized(env, jobId, jobMeta, 'background-complete');
-      return;
+    for (const keyEntry of keys) {
+      if (unsettledProcessed >= batchSize || (Date.now() - startedAt) >= maxRunMs) break;
+      stats.scanned += 1;
+
+      const jobId = extractVideoJobId(keyEntry?.name || '');
+      if (!jobId) {
+        stats.skipped += 1;
+        continue;
+      }
+
+      const jobMeta = await loadPendingJobMeta(env, jobId);
+      if (!jobMeta?.usageKey || jobMeta.usageRefunded || jobMeta.usageFinalized) {
+        stats.skipped += 1;
+        continue;
+      }
+      unsettledProcessed += 1;
+
+      const now = Date.now();
+      const createdAtMs = Number(jobMeta.created || 0);
+      const createdAtIsValid = Number.isFinite(createdAtMs) && createdAtMs > 0;
+      const ageMs = createdAtIsValid ? (now - createdAtMs) : 0;
+
+      if (minAgeMs > 0 && createdAtIsValid && ageMs < minAgeMs) {
+        stats.skipped += 1;
+        continue;
+      }
+
+      let normalizedStatus = '';
+      try {
+        const jobStatus = await getVideoJobStatus(env, jobId);
+        normalizedStatus = normalizeVideoJobStatus(jobStatus?.status);
+      } catch (err) {
+        stats.errors += 1;
+        console.warn(`[card-video] Reconcile status check failed for ${jobId}:`, err?.message || err);
+        continue;
+      }
+
+      if (normalizedStatus === 'completed') {
+        await markVideoUsageFinalized(env, jobId, jobMeta, 'scheduled-complete');
+        stats.finalized += 1;
+        continue;
+      }
+
+      if (normalizedStatus === 'failed' || normalizedStatus === 'cancelled') {
+        await refundVideoUsageIfNeeded(env, jobId, jobMeta, 'scheduled-failed');
+        stats.refunded += 1;
+        continue;
+      }
+
+      const shouldTimeoutRefund = maxPendingAgeMs > 0 && createdAtIsValid && ageMs >= maxPendingAgeMs;
+      if (shouldTimeoutRefund) {
+        await refundVideoUsageIfNeeded(env, jobId, jobMeta, 'scheduled-timeout');
+        stats.refunded += 1;
+        continue;
+      }
+
+      stats.processing += 1;
     }
 
-    if (normalizedStatus === 'failed' || normalizedStatus === 'cancelled') {
-      await refundVideoUsageIfNeeded(env, jobId, jobMeta, 'background-failed');
-      return;
+    const nextCursor = typeof listed?.cursor === 'string' && listed.cursor.length > 0
+      ? listed.cursor
+      : null;
+    if (!nextCursor || listed?.list_complete || nextCursor === cursor) {
+      break;
     }
-
-    if (attempt < maxAttempts - 1 && retryDelayMs > 0) {
-      await delay(retryDelayMs);
-    }
+    cursor = nextCursor;
   }
 
-  // Safety net: if retries exhausted while job is still processing, refund
-  // reserved usage rather than stranding it permanently.
-  const finalMeta = await loadPendingJobMeta(env, jobId);
-  if (finalMeta?.usageKey && !finalMeta.usageRefunded && !finalMeta.usageFinalized) {
-    await refundVideoUsageIfNeeded(env, jobId, finalMeta, 'background-timeout');
-  }
+  return stats;
 }
 
 /**
  * Main handler - Create video generation job
  */
-export async function onRequestPost(ctx) {
-  const { request, env } = ctx;
+export async function onRequestPost({ request, env }) {
   const requestId = crypto.randomUUID
     ? crypto.randomUUID()
     : `card_video_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -732,13 +884,17 @@ export async function onRequestPost(ctx) {
 
     const inputRefMode = getInputReferenceMode(env);
     const imageFamily = inferImageModelFamily(imageModel, env);
-    const canMatchVideoSize = isImageSizeSupportedForFamily(imageFamily, videoSize);
-    const shouldTryKeyframe = inputRefMode === 'on' || (inputRefMode === 'auto' && canMatchVideoSize);
+    const keyframePlan = chooseBestSupportedKeyframeSize(imageFamily, videoSize);
+    const shouldTryKeyframe = inputRefMode === 'on' || (inputRefMode === 'auto' && Boolean(keyframePlan?.size));
+    const keyframeSize = keyframePlan?.size || null;
+    const keyframeExactMatch = Boolean(keyframePlan?.exactMatch);
 
     let keyframeBase64 = null;
     let keyframeMs = 0;
+    let inputReferenceRetriedWithoutImage = false;
+    let inputReferenceUsedInJob = false;
 
-    if (shouldTryKeyframe) {
+    if (shouldTryKeyframe && keyframeSize) {
       maybeLogPromptPayload(env, requestId, 'card-video-keyframe', '', keyframeResult, null, {
         personalization: { displayName: user?.display_name }
       });
@@ -747,22 +903,28 @@ export async function onRequestPost(ctx) {
         model: imageModel,
         style,
         seconds,
-        size: videoSize,
+        requestedVideoSize: videoSize,
+        keyframeSize,
+        keyframeExactMatch,
         imageEndpointSource,
         imageApiKeySource
       });
       try {
         keyframeBase64 = await generateKeyframe(env, card, question, position, style, keyframePromptStr, {
-          size: videoSize
+          size: keyframeSize
         });
         keyframeMs = Date.now() - keyframeStart;
       } catch (err) {
         // Fall back to prompt-only video generation instead of failing the whole request.
         console.warn(`[${requestId}] [card-video] Keyframe generation failed; continuing without input_reference:`, err?.message || err);
       }
+    } else if (shouldTryKeyframe && !keyframeSize) {
+      console.warn(
+        `[${requestId}] [card-video] Skipping input_reference: no supported keyframe size available for image family '${imageFamily}' and video size '${videoSize}'.`
+      );
     } else if (inputRefMode !== 'off') {
       console.warn(
-        `[${requestId}] [card-video] Skipping input_reference: image model '${imageModel}' (family: ${imageFamily}) cannot generate ${videoSize} keyframes.`
+        `[${requestId}] [card-video] Skipping input_reference: image model '${imageModel}' (family: ${imageFamily}) has no compatible keyframe strategy for ${videoSize}.`
       );
     }
     
@@ -780,15 +942,37 @@ export async function onRequestPost(ctx) {
       height: videoHeight,
       seconds,
       inputReference: Boolean(keyframeBase64),
+      keyframeSize,
+      keyframeExactMatch,
       videoEndpointSource,
       videoApiKeySource
     });
-    const job = await createVideoJob(env, videoPrompt, keyframeBase64, {
-      width: videoWidth,
-      height: videoHeight,
-      seconds,
-      size: videoSize
-    });
+    let job;
+    try {
+      job = await createVideoJob(env, videoPrompt, keyframeBase64, {
+        width: videoWidth,
+        height: videoHeight,
+        seconds,
+        size: videoSize
+      });
+      inputReferenceUsedInJob = Boolean(keyframeBase64);
+    } catch (err) {
+      const shouldRetryWithoutInputReference = Boolean(keyframeBase64) && isInputReferenceValidationError(err);
+      if (!shouldRetryWithoutInputReference) {
+        throw err;
+      }
+      console.warn(
+        `[${requestId}] [card-video] Video job rejected input_reference (keyframeSize=${keyframeSize || 'n/a'}, videoSize=${videoSize}). Retrying without keyframe.`
+      );
+      job = await createVideoJob(env, videoPrompt, null, {
+        width: videoWidth,
+        height: videoHeight,
+        seconds,
+        size: videoSize
+      });
+      inputReferenceRetriedWithoutImage = true;
+      inputReferenceUsedInJob = false;
+    }
     const jobMs = Date.now() - jobStart;
     
     // Store job info for polling
@@ -798,23 +982,24 @@ export async function onRequestPost(ctx) {
       seconds,
       width: videoWidth,
       height: videoHeight,
-      inputReferenceUsed: Boolean(keyframeBase64),
+      inputReferenceUsed: inputReferenceUsedInJob,
       cacheKey,
       requestId,
       tier,
       imageModel,
       videoModel,
+      keyframeSize,
+      keyframeExactMatch,
+      inputReferenceRetriedWithoutImage,
       usageKey: usageReservation?.key || null,
       usageDateKey: usageReservation?.dateKey || null,
       usageRefunded: false,
       usageFinalized: false
     });
 
-    if (usageReservation?.key && typeof ctx.waitUntil === 'function') {
-      ctx.waitUntil(
-        settleUsageForUnpolledVideoJob(env, job.id).catch((err) => {
-          console.warn(`[${requestId}] [card-video] Background usage settlement failed for job ${job.id}:`, err?.message || err);
-        })
+    if (usageReservation?.key) {
+      console.log(
+        `[${requestId}] [card-video] Usage settlement deferred to polling + scheduled reconciliation (jobId=${job.id})`
       );
     }
 
@@ -843,7 +1028,10 @@ export async function onRequestPost(ctx) {
         keyframePromptLength: typeof keyframePromptStr === 'string' ? keyframePromptStr.length : 0,
         videoPromptLength: typeof videoPrompt === 'string' ? videoPrompt.length : 0,
         inputReferenceMode: inputRefMode,
-        inputReferenceUsed: Boolean(keyframeBase64),
+        inputReferenceUsed: inputReferenceUsedInJob,
+        keyframeSize,
+        keyframeExactMatch,
+        inputReferenceRetriedWithoutImage,
         imageEndpointSource,
         imageApiKeySource,
         videoEndpointSource,
@@ -960,7 +1148,7 @@ export async function onRequestGet(ctx) {
   
   let jobMeta = null;
   try {
-    const jobMetaRaw = await env.METRICS_DB.get(`video_job:${jobId}`);
+    const jobMetaRaw = await env.METRICS_DB.get(`${CARD_VIDEO_JOB_PREFIX}${jobId}`);
     jobMeta = jobMetaRaw ? JSON.parse(jobMetaRaw) : null;
   } catch (err) {
     console.error('Failed to load job metadata:', err.message);
@@ -1040,8 +1228,8 @@ export async function onRequestGet(ctx) {
         input: {
           style: resolvedJobMeta.style || null,
           seconds: resolvedJobMeta.seconds || null,
-          width: DEFAULT_VIDEO_WIDTH,
-          height: DEFAULT_VIDEO_HEIGHT
+          width: resolvedJobMeta.width || DEFAULT_VIDEO_WIDTH,
+          height: resolvedJobMeta.height || DEFAULT_VIDEO_HEIGHT
         },
         output: {
           cached: false,
@@ -1099,8 +1287,8 @@ export async function onRequestGet(ctx) {
         input: {
           style: resolvedJobMeta.style || null,
           seconds: resolvedJobMeta.seconds || null,
-          width: DEFAULT_VIDEO_WIDTH,
-          height: DEFAULT_VIDEO_HEIGHT
+          width: resolvedJobMeta.width || DEFAULT_VIDEO_WIDTH,
+          height: resolvedJobMeta.height || DEFAULT_VIDEO_HEIGHT
         },
         output: {
           cached: false,

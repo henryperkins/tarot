@@ -38,6 +38,121 @@ const DEFAULT_RESERVATION_TTL_SECONDS = 10 * 60;
 const MIN_RESERVATION_TTL_SECONDS = 60;
 const MAX_RESERVATION_TTL_SECONDS = 60 * 60;
 const MAX_STORED_HISTORY_TURNS = 10;
+const MAX_ALLOWED_CARDS_IN_REPAIR_PROMPT = 20;
+
+function normalizeRepairText(value, maxLength = 240) {
+  if (typeof value !== 'string') return '';
+  return value
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
+function buildAllowedCardReferenceLines(cardsInfo) {
+  if (!Array.isArray(cardsInfo)) return [];
+  return cardsInfo
+    .slice(0, MAX_ALLOWED_CARDS_IN_REPAIR_PROMPT)
+    .map((card) => {
+      const name = normalizeRepairText(card?.card || card?.name || '', 80);
+      if (!name) return null;
+      const position = normalizeRepairText(card?.position || '', 80);
+      return position ? `- ${name} (${position})` : `- ${name}`;
+    })
+    .filter(Boolean);
+}
+
+async function repairHallucinatedFollowUp(env, {
+  requestId,
+  followUpQuestion,
+  responseText,
+  hallucinations,
+  cardsInfo,
+  deckStyle
+}) {
+  const allowedCards = buildAllowedCardReferenceLines(cardsInfo);
+  if (!allowedCards.length) {
+    return {
+      repaired: false,
+      response: responseText,
+      remainingHallucinations: hallucinations
+    };
+  }
+
+  const safeQuestion = normalizeRepairText(followUpQuestion, 500);
+  const safeResponse = typeof responseText === 'string' ? responseText.trim().slice(0, 4000) : '';
+  const hallucinatedList = Array.isArray(hallucinations) ? hallucinations.join(', ') : '';
+
+  const repairInstructions = [
+    'Rewrite this tarot follow-up response so it stays grounded in the allowed cards only.',
+    '',
+    `Querent follow-up question: ${safeQuestion || '[not provided]'}`,
+    '',
+    'Allowed cards and positions:',
+    allowedCards.join('\n'),
+    '',
+    `Detected out-of-set cards that must be removed: ${hallucinatedList || 'unknown'}`,
+    '',
+    'Original response draft:',
+    safeResponse || '[empty]',
+    '',
+    'Requirements:',
+    '- Keep the same intent and tone.',
+    '- Only reference cards from the allowed list.',
+    '- Do not mention any card outside the allowed list.',
+    '- Keep it concise (about 120-220 words).',
+    '- Return only the revised response text.'
+  ].join('\n');
+
+  try {
+    const revised = await callAzureResponses(env, {
+      instructions: 'You revise tarot responses for card-set grounding compliance.',
+      input: repairInstructions,
+      maxTokens: 450,
+      reasoningEffort: null,
+      verbosity: 'low',
+      requestId: `${requestId}:repair`
+    });
+
+    const revisedText = typeof revised === 'string' ? revised.trim() : '';
+    if (!revisedText) {
+      return {
+        repaired: false,
+        response: responseText,
+        remainingHallucinations: hallucinations
+      };
+    }
+
+    const remaining = detectHallucinatedCards(revisedText, cardsInfo || [], deckStyle || 'rws-1909');
+    if (remaining.length > 0) {
+      return {
+        repaired: false,
+        response: responseText,
+        remainingHallucinations: remaining
+      };
+    }
+
+    return {
+      repaired: true,
+      response: revisedText,
+      remainingHallucinations: []
+    };
+  } catch (error) {
+    console.warn(`[${requestId}] Follow-up hallucination repair failed:`, error?.message || error);
+    return {
+      repaired: false,
+      response: responseText,
+      remainingHallucinations: hallucinations
+    };
+  }
+}
+
+/**
+ * For streaming responses, persist exactly what was delivered to the client.
+ * Any repaired variants are diagnostics-only unless explicitly surfaced in-stream.
+ */
+function resolveStreamingPersistenceText(streamedText, _repairedText = null) {
+  return typeof streamedText === 'string' ? streamedText : '';
+}
 
 function getReservationTtlSeconds(env) {
   const raw = env?.FOLLOW_UP_RESERVATION_TTL_SECONDS;
@@ -577,9 +692,11 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               return;
             }
 
+            const persistedResponseText = resolveStreamingPersistenceText(fullText);
+
             // Safety check for streaming responses (post-hoc logging for monitoring)
             // Note: For streaming, we can't block after sending, but we log for alerting/analysis
-            const safetyCheck = checkFollowUpSafety(fullText);
+            const safetyCheck = checkFollowUpSafety(persistedResponseText);
             if (!safetyCheck.safe) {
               console.error(`[${requestId}] CRITICAL: Streamed unsafe follow-up response: ${safetyCheck.issues.join(', ')}`);
             } else if (safetyCheck.issues.length > 0) {
@@ -588,17 +705,32 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
             // Hallucination check for streaming (post-hoc logging - can't block after sending)
             const hallucinations = detectHallucinatedCards(
-              fullText,
+              persistedResponseText,
               effectiveContext?.cardsInfo || [],
               effectiveContext?.deckStyle || 'rws-1909'
             );
             if (hallucinations.length > 0) {
               console.warn(`[${requestId}] Follow-up hallucinated cards (streamed): ${hallucinations.join(', ')}`);
+              const repair = await repairHallucinatedFollowUp(env, {
+                requestId,
+                followUpQuestion,
+                responseText: persistedResponseText,
+                hallucinations,
+                cardsInfo: effectiveContext?.cardsInfo || [],
+                deckStyle: effectiveContext?.deckStyle || 'rws-1909'
+              });
+              if (repair.repaired) {
+                const repairedSafety = checkFollowUpSafety(repair.response);
+                if (!repairedSafety.safe) {
+                  console.warn(`[${requestId}] Repaired streamed follow-up failed safety gate: ${repairedSafety.issues.join(', ')}`);
+                }
+                console.log(`[${requestId}] Follow-up streamed response repaired for diagnostics; preserving original streamed text for persistence.`);
+              }
             }
 
             const trackingPromise = finalizeFollowUpUsage(env.DB, {
               reservationId,
-              responseLength: fullText.length,
+              responseLength: persistedResponseText.length,
               journalContextUsed: Boolean(journalContext),
               patternsFound: journalContext?.patterns?.length || 0,
               latencyMs,
@@ -619,7 +751,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 }, {
                   turnNumber,
                   question: followUpQuestion,
-                  answer: fullText,
+                  answer: persistedResponseText,
                   journalContext,
                   requestId
                 })
@@ -724,15 +856,32 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         }
 
         // Hallucination check: detect cards mentioned that weren't in the spread
-        const hallucinations = detectHallucinatedCards(
+        let hallucinations = detectHallucinatedCards(
           responseText,
           effectiveContext?.cardsInfo || [],
           effectiveContext?.deckStyle || 'rws-1909'
         );
         if (hallucinations.length > 0) {
           console.warn(`[${requestId}] Follow-up hallucinated cards: ${hallucinations.join(', ')}`);
-          // For non-streaming, append a grounding reminder if multiple hallucinations
-          if (hallucinations.length > 1) {
+          const repair = await repairHallucinatedFollowUp(env, {
+            requestId,
+            followUpQuestion,
+            responseText,
+            hallucinations,
+            cardsInfo: effectiveContext?.cardsInfo || [],
+            deckStyle: effectiveContext?.deckStyle || 'rws-1909'
+          });
+          if (repair.repaired) {
+            responseText = repair.response;
+            hallucinations = [];
+            console.log(`[${requestId}] Follow-up response repaired after hallucination detection.`);
+            const repairedSafetyCheck = checkFollowUpSafety(responseText);
+            if (!repairedSafetyCheck.safe) {
+              console.warn(`[${requestId}] Repaired follow-up failed safety gate: ${repairedSafetyCheck.issues.join(', ')}`);
+              responseText = generateSafeFollowUpFallback(repairedSafetyCheck.issues[0]);
+            }
+          } else if (hallucinations.length > 1) {
+            // Fallback reminder when repair fails and multiple out-of-set cards remain.
             responseText += '\n\n*Please note: Focus on the cards actually drawn in your spread for the most grounded guidance.*';
           }
         }
@@ -1940,6 +2089,7 @@ function formatSSEEvent(event, data) {
 export {
   createToolRoundTripStream,
   wrapStreamWithMetadata,
+  resolveStreamingPersistenceText,
   getPerReadingFollowUpCount,
   getDailyFollowUpCount,
   reserveFollowUpSlot,

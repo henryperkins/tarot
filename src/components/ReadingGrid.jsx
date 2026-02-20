@@ -205,8 +205,10 @@ export function ReadingGrid({
 
     // Reset scroll/hint state when reading changes
     if (readingChanged) {
-      setHasUserScrolled(false);
-      setShowSwipeHint(true);
+      queueMicrotask(() => {
+        setHasUserScrolled(false);
+        setShowSwipeHint(true);
+      });
     }
 
     const canManageReflections = Array.isArray(reading) && isCompactScreen;

@@ -44,6 +44,37 @@ import {
 const AnimatedReveal = lazy(() => import('./AnimatedReveal'));
 const StoryIllustration = lazy(() => import('./StoryIllustration'));
 const COLOR_SCRIPT_OWNER = 'reading-display';
+const SCENE_COMPONENTS = {
+    idle: ({ children }) => (
+        <IdleScene showTitle={false}>
+            {children}
+        </IdleScene>
+    ),
+    ritual: (props) => (
+        <RitualScene
+            {...props}
+            showTitle={false}
+        />
+    ),
+    reveal: (props) => (
+        <RevealScene
+            {...props}
+            showTitle={false}
+        />
+    ),
+    interlude: (props) => (
+        <InterludeScene
+            {...props}
+            showTitle={false}
+        />
+    ),
+    narrative: (props) => (
+        <NarrativeScene {...props} />
+    ),
+    complete: (props) => (
+        <CompleteScene {...props} />
+    )
+};
 
 function inferElementFromSuit(suit) {
     const normalizedSuit = typeof suit === 'string' ? suit.trim().toLowerCase() : '';
@@ -333,7 +364,6 @@ export function ReadingDisplay({
 
     const [selectionState, setSelectionState] = useState({ key: readingIdentity, value: null });
     const [isNarrativeFocus, setIsNarrativeFocus] = useState(false);
-    const [isFollowUpOpenLocal, setIsFollowUpOpenLocal] = useState(false);
     const [autoNarrationTriggered, setAutoNarrationTriggered] = useState(false);
     const autoNarrationTriggeredRef = useRef(false);
     const autoNarrationTimeoutRef = useRef(null);
@@ -341,6 +371,7 @@ export function ReadingDisplay({
     const [mentionPulseState, setMentionPulseState] = useState({ key: readingIdentity, value: null });
     const mentionPulseRef = useRef(0);
     const mentionPulseTimeoutRef = useRef(null);
+    const [isFollowUpOpenLocal, setIsFollowUpOpenLocal] = useState(false);
     const isFollowUpOpen = typeof followUpOpen === 'boolean' ? followUpOpen : isFollowUpOpenLocal;
     const setIsFollowUpOpen = onFollowUpOpenChange || setIsFollowUpOpenLocal;
     const selectedCardData = selectionState.key === readingIdentity ? selectionState.value : null;
@@ -354,7 +385,7 @@ export function ReadingDisplay({
     const [focusedCardData, setFocusedCardData] = useState(null);
     const [recentlyClosedIndex, setRecentlyClosedIndex] = useState(-1);
     const recentlyClosedTimeoutRef = useRef(null);
-    const [hasHeroStoryArt, setHasHeroStoryArt] = useState(false);
+    const [heroStoryState, setHeroStoryState] = useState({ key: readingIdentity, value: false });
     const [mediaItems, setMediaItems] = useState([]);
     const [mediaLoading, setMediaLoading] = useState(false);
     const [mediaError, setMediaError] = useState(null);
@@ -366,6 +397,11 @@ export function ReadingDisplay({
         return focusedCardData;
     }, [focusedCardData, readingIdentity, revealedCards]);
 
+    const hasHeroStoryArt = heroStoryState.key === readingIdentity ? heroStoryState.value : false;
+    const setHasHeroStoryArt = useCallback((value) => {
+        setHeroStoryState({ key: readingIdentity, value });
+    }, [readingIdentity]);
+
     const narrativeAtmosphereClasses = useMemo(() => {
         const classes = [
             getNarrativePhaseClass(isGenerating ? narrativePhase : null),
@@ -374,10 +410,6 @@ export function ReadingDisplay({
         ];
         return classes.filter(Boolean).join(' ');
     }, [isGenerating, narrativePhase, reasoning?.narrativeArc?.templateBias, themes?.dominantSuit]);
-
-    useEffect(() => {
-        setHasHeroStoryArt(false);
-    }, [readingIdentity]);
 
     const { beatClassName, notifyCardMention, notifyCompletion, notifySectionEnter, clearBeat } = useCinematicBeat({
         reasoning,
@@ -680,6 +712,48 @@ export function ReadingDisplay({
 
     const shouldHighlightTtsWord = ttsProvider === 'azure-sdk' && ttsState?.status === 'playing';
     const activeWordBoundary = shouldHighlightTtsWord ? wordBoundary : null;
+    const narrativePanelProps = {
+        personalReading,
+        isPersonalReadingError,
+        narrativePhase,
+        narrativeText,
+        fullReadingText,
+        shouldStreamNarrative,
+        emotionalTone,
+        displayName,
+        userQuestion,
+        reading,
+        isHandset,
+        isLandscape,
+        focusToggleAvailable,
+        isNarrativeFocus,
+        setIsNarrativeFocus,
+        toneLabel,
+        frameLabel,
+        isNewbie,
+        canAutoNarrate,
+        handleNarrationWrapper,
+        handleNarrationStop,
+        notifyCompletion,
+        narrativeHighlightPhrases,
+        narrativeAtmosphereClassName,
+        handleNarrativeHighlight,
+        notifySectionEnter,
+        activeWordBoundary,
+        voiceOn,
+        ttsState,
+        ttsProvider,
+        showVoicePrompt,
+        setShowVoicePrompt,
+        handleVoicePromptWrapper,
+        saveReading,
+        isSaving,
+        journalStatus,
+        shouldShowJournalNudge,
+        markJournalNudgeSeen,
+        hasHeroStoryArt,
+        onOpenFollowUp
+    };
 
     useEffect(() => {
         if (!personalReading) {
@@ -988,7 +1062,7 @@ export function ReadingDisplay({
                 format: meta.format || null
             }
         });
-    }, [persistMediaRecord, resolvedQuestion, storyArtCards]);
+    }, [persistMediaRecord, resolvedQuestion, setHasHeroStoryArt, storyArtCards]);
 
     useEffect(() => {
         if (!canUseMediaGallery) return;
@@ -1158,270 +1232,92 @@ export function ReadingDisplay({
         return () => clearTimeout(timerId);
     }, [isShuffling, newDeckInterface, publishToast, suppressInterruptions]);
 
-    const sceneData = useMemo(() => {
-        const dominantSuit = themes?.dominantSuit
-            || reading?.find?.((card) => Boolean(card?.suit))?.suit
-            || null;
-        const dominantElement = themes?.dominantElement
-            || inferElementFromSuit(dominantSuit);
-        const sceneIntensity = {
-            idle: 0.35,
-            ritual: 1.15,
-            reveal: 0.95,
-            interlude: 0.78,
-            narrative: 1,
-            complete: 0.62
-        };
+    const dominantSuit = themes?.dominantSuit
+        || reading?.find?.((card) => Boolean(card?.suit))?.suit
+        || null;
+    const dominantElement = themes?.dominantElement || inferElementFromSuit(dominantSuit);
+    const sceneIntensity = {
+        idle: 0.35,
+        ritual: 1.15,
+        reveal: 0.95,
+        interlude: 0.78,
+        narrative: 1,
+        complete: 0.62
+    };
 
-        return {
-            dominantSuit,
-            dominantElement,
-            particleIntensity: sceneIntensity[sceneOrchestrator.activeScene] || 0.8,
-            isGenerating,
-            personalReading,
-            isPersonalReadingError,
-            reasoningSummary,
-            narrativePhase,
-            narrativeAtmosphereClasses,
-            shouldShowInterlude,
-            spreadName: spreadInfo?.name,
-            displayName,
-            userQuestion,
-            readingCount: reading?.length || 0,
-            reasoning,
-            reading,
-            revealedCards,
-            visibleCount,
-            newDeckInterface,
-            shouldShowRitualNudge,
-            knockCount,
-            hasCut,
-            markRitualNudgeSeen,
-            handleKnock,
-            cutIndex,
-            setCutIndex,
-            applyCut,
-            knockCadenceResetAt,
-            nextLabel,
-            spreadPositions: spreadInfo?.positions || [],
-            handleAnimatedDeal,
-            deckRef,
-            revealStage,
-            dealNext,
-            isLandscape,
-            guidedRevealLabel,
-            handleRevealAllWithScroll,
-            handleResetReveals,
-            safeSpreadKey,
-            revealCard,
-            handleCardClick,
-            activeFocusedCardData,
-            handleCloseDetail,
-            recentlyClosedIndex,
-            reflections,
-            setReflections,
-            handleOpenModalFromPanel,
-            handleNavigateCard,
-            navigationData,
-            narrativeMentionPulse,
-            generatePersonalReading,
-            hasVisionData,
-            isVisionReady,
-            isHandset,
-            isShuffling,
-            shuffle,
-            readingMeta,
-            selectedSpread,
-            deckStyleId,
-            lastCardsForFeedback,
-            feedbackVisionSummary,
-            canUseMediaGallery,
-            mediaItems,
-            mediaLoading,
-            mediaError,
-            onRefreshMedia: loadMediaGallery,
-            onDeleteMedia: handleDeleteMedia,
-            followUpOpen: isFollowUpOpen,
-            setFollowUpOpen: setIsFollowUpOpen,
-            followUpAutoFocus,
-            // Narrative scene props
-            narrativeText,
-            fullReadingText,
-            emotionalTone,
-            focusToggleAvailable,
-            isNarrativeFocus,
-            setIsNarrativeFocus,
-            toneLabel,
-            frameLabel,
-            isNewbie,
-            canAutoNarrate,
-            shouldStreamNarrative,
-            handleNarrationWrapper,
-            handleNarrationStop,
-            notifyCompletion,
-            narrativeHighlightPhrases,
-            narrativeAtmosphereClassName,
-            handleNarrativeHighlight,
-            notifySectionEnter,
-            activeWordBoundary,
-            voiceOn,
-            ttsState,
-            ttsProvider,
-            showVoicePrompt,
-            setShowVoicePrompt,
-            handleVoicePromptWrapper,
-            saveReading,
-            isSaving,
-            journalStatus,
-            shouldShowJournalNudge,
-            markJournalNudgeSeen,
-            hasHeroStoryArt,
-            onOpenFollowUp
-        };
-    }, [
-        applyCut,
-        activeFocusedCardData,
-        activeWordBoundary,
-        canAutoNarrate,
-        canUseMediaGallery,
-        cutIndex,
-        deckStyleId,
-        deckRef,
-        dealNext,
-        displayName,
-        emotionalTone,
-        feedbackVisionSummary,
-        focusToggleAvailable,
-        followUpAutoFocus,
-        fullReadingText,
-        handleDeleteMedia,
-        handleAnimatedDeal,
-        handleCardClick,
-        handleCloseDetail,
-        handleKnock,
-        handleNarrationStop,
-        handleNarrationWrapper,
-        handleNarrativeHighlight,
-        handleNavigateCard,
-        handleOpenModalFromPanel,
-        handleResetReveals,
-        handleRevealAllWithScroll,
-        handleVoicePromptWrapper,
-        hasCut,
-        hasHeroStoryArt,
-        hasVisionData,
-        isHandset,
+    const sceneData = {
+        dominantSuit,
+        dominantElement,
+        particleIntensity: sceneIntensity[sceneOrchestrator.activeScene] || 0.8,
         isGenerating,
-        isNarrativeFocus,
+        personalReading,
         isPersonalReadingError,
-        isSaving,
-        isShuffling,
-        isFollowUpOpen,
-        isLandscape,
-        isNewbie,
-        isVisionReady,
-        journalStatus,
-        lastCardsForFeedback,
-        loadMediaGallery,
-        markJournalNudgeSeen,
+        reasoningSummary,
+        narrativePhase,
+        narrativeAtmosphereClasses,
+        shouldShowInterlude,
+        spreadName: spreadInfo?.name,
+        displayName,
+        userQuestion,
+        readingCount: reading?.length || 0,
+        reasoning,
+        reading,
+        revealedCards,
+        visibleCount,
+        newDeckInterface,
+        shouldShowRitualNudge,
+        knockCount,
+        hasCut,
         markRitualNudgeSeen,
-        mediaError,
+        handleKnock,
+        cutIndex,
+        setCutIndex,
+        applyCut,
+        knockCadenceResetAt,
+        nextLabel,
+        spreadPositions: spreadInfo?.positions || [],
+        handleAnimatedDeal,
+        deckRef,
+        revealStage,
+        dealNext,
+        isLandscape,
+        guidedRevealLabel,
+        handleRevealAllWithScroll,
+        handleResetReveals,
+        safeSpreadKey,
+        revealCard,
+        handleCardClick,
+        activeFocusedCardData,
+        handleCloseDetail,
+        recentlyClosedIndex,
+        reflections,
+        setReflections,
+        handleOpenModalFromPanel,
+        handleNavigateCard,
+        navigationData,
+        narrativeMentionPulse,
+        generatePersonalReading,
+        hasVisionData,
+        isVisionReady,
+        isHandset,
+        isShuffling,
+        shuffle,
+        readingMeta,
+        selectedSpread,
+        deckStyleId,
+        lastCardsForFeedback,
+        feedbackVisionSummary,
+        canUseMediaGallery,
         mediaItems,
         mediaLoading,
-        narrativeAtmosphereClasses,
-        narrativeAtmosphereClassName,
-        narrativeHighlightPhrases,
-        narrativePhase,
-        narrativeMentionPulse,
-        narrativeText,
-        newDeckInterface,
-        knockCadenceResetAt,
-        knockCount,
-        nextLabel,
-        notifyCompletion,
-        notifySectionEnter,
-        onOpenFollowUp,
-        personalReading,
-        reading,
-        readingMeta,
-        revealedCards,
-        reflections,
-        reasoning,
-        reasoningSummary,
-        revealCard,
-        revealStage,
-        safeSpreadKey,
-        saveReading,
-        sceneOrchestrator.activeScene,
-        selectedSpread,
-        setIsNarrativeFocus,
-        setReflections,
-        setIsFollowUpOpen,
-        setCutIndex,
-        setShowVoicePrompt,
-        shouldShowInterlude,
-        shouldShowJournalNudge,
-        shouldShowRitualNudge,
-        shouldStreamNarrative,
-        showVoicePrompt,
-        shuffle,
-        spreadInfo?.name,
-        spreadInfo?.positions,
-        themes?.dominantElement,
-        themes?.dominantSuit,
-        toneLabel,
-        frameLabel,
-        ttsProvider,
-        ttsState,
-        userQuestion,
-        voiceOn,
-        navigationData,
-        recentlyClosedIndex,
-        generatePersonalReading,
-        visibleCount
-    ]);
-
-    const sceneComponents = useMemo(() => ({
-        idle: ({ children }) => (
-            <IdleScene
-                showTitle={false}
-            >
-                {children}
-            </IdleScene>
-        ),
-        ritual: (props) => (
-            <RitualScene
-                {...props}
-                showTitle={false}
-            />
-        ),
-        reveal: (props) => (
-            <RevealScene
-                {...props}
-                showTitle={false}
-            />
-        ),
-        interlude: (props) => (
-            <InterludeScene
-                {...props}
-                showTitle={false}
-            />
-        ),
-        narrative: ({ sceneData = {}, children }) => (
-            <NarrativeScene
-                {...sceneData}
-                showTitle={false}
-            >
-                {children}
-            </NarrativeScene>
-        ),
-        complete: (props) => (
-            <CompleteScene
-                {...props}
-                showTitle={false}
-            />
-        )
-    }), []);
+        mediaError,
+        onRefreshMedia: loadMediaGallery,
+        onDeleteMedia: handleDeleteMedia,
+        followUpOpen: isFollowUpOpen,
+        setFollowUpOpen: setIsFollowUpOpen,
+        followUpAutoFocus,
+        narrativePanelProps
+    };
 
     const sceneShellClassName = sceneOrchestrator.activeScene === 'interlude'
         ? ''
@@ -1467,7 +1363,7 @@ export function ReadingDisplay({
             {reading && (
                 <SceneShell
                     orchestrator={sceneOrchestrator}
-                    scenes={sceneComponents}
+                    scenes={SCENE_COMPONENTS}
                     sceneData={sceneData}
                     colorScript={activeColorScript}
                     colorScriptOwner={COLOR_SCRIPT_OWNER}
