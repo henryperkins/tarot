@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
-    port: 5000,
+    port: 3000,
     allowedHosts: true,
     proxy: {
       '/api': {
@@ -31,8 +31,6 @@ export default defineConfig({
       ],
       output: {
         manualChunks: {
-          // Split vendor chunks to reduce bundle size
-          vision: ['@xenova/transformers'],
           react: ['react', 'react-dom', 'react-router-dom'],
           markdown: ['react-markdown', 'remark-gfm']
         }
