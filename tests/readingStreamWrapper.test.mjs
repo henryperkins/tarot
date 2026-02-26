@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { wrapReadingStreamWithMetadata } from '../functions/lib/readingStream.js';
+import { createReadingStream, wrapReadingStreamWithMetadata } from '../functions/lib/readingStream.js';
 
 /**
  * Tests for wrapReadingStreamWithMetadata in functions/lib/readingStream.js
@@ -53,6 +53,26 @@ async function consumeStream(stream) {
   }
 
   return result;
+}
+
+function parseSSEEvents(output) {
+  return output
+    .split(/\r?\n\r?\n/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => {
+      const lines = block.split(/\r?\n/);
+      let event = null;
+      let data = null;
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          event = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          data = JSON.parse(line.slice(5).trim());
+        }
+      }
+      return { event, data };
+    });
 }
 
 describe('wrapReadingStreamWithMetadata - done fallback', () => {
@@ -361,5 +381,29 @@ describe('wrapReadingStreamWithMetadata - cancellation race prevention', () => {
 
     assert.ok(cancelCalled, 'onCancel should be called');
     assert.ok(!completeCalled, 'onComplete must be blocked after cancel');
+  });
+});
+
+describe('createReadingStream - buffered meta payload', () => {
+  test('includes sourceUsage in meta event for client diagnostics', async () => {
+    const stream = createReadingStream({
+      reading: 'Test reading text',
+      provider: 'local-composer',
+      requestId: 'req-buffered-1',
+      sourceUsage: {
+        graphRAG: { used: true, mode: 'summary' },
+        spreadCards: { used: true }
+      }
+    }, { chunkSize: 100 });
+
+    const output = await consumeStream(stream);
+    const events = parseSSEEvents(output);
+    const metaEvent = events.find((entry) => entry.event === 'meta');
+
+    assert.ok(metaEvent, 'meta event should be present');
+    assert.deepEqual(metaEvent.data.sourceUsage, {
+      graphRAG: { used: true, mode: 'summary' },
+      spreadCards: { used: true }
+    });
   });
 });

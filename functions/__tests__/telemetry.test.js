@@ -4,7 +4,7 @@
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { summarizeNarrativeEnhancements } from '../lib/readingTelemetry.js';
+import { maybeLogPromptPayload, summarizeNarrativeEnhancements } from '../lib/readingTelemetry.js';
 import { buildEnhancedClaudePrompt } from '../lib/narrative/prompts.js';
 import { formatReversalLens, normalizeContext } from '../lib/narrative/helpers.js';
 
@@ -109,6 +109,66 @@ describe('enhancement telemetry summary', () => {
     assert.deepEqual(summary.sectionNames, ['Opening', 'guidance']);
     assert.equal(summary.enhancementCounts['Added card identification'], 1);
     assert.equal(summary.missingCounts.why, 1);
+  });
+});
+
+describe('maybeLogPromptPayload redaction', () => {
+  it('redacts derived third-party names from prompt logs', () => {
+    const captured = [];
+    const originalConsoleLog = console.log;
+    console.log = (...args) => {
+      captured.push(args.map((value) => String(value)).join(' '));
+    };
+
+    try {
+      maybeLogPromptPayload(
+        { LOG_LLM_PROMPTS: 'true', NODE_ENV: 'development' },
+        'req-1',
+        'azure-gpt5',
+        '',
+        '**Question**: My partner Alex and I are struggling.',
+        null,
+        {
+          personalization: { displayName: 'Sam' },
+          userQuestion: 'My partner Alex and I are struggling.'
+        }
+      );
+    } finally {
+      console.log = originalConsoleLog;
+    }
+
+    const joined = captured.join('\n');
+    assert.ok(joined.includes('[NAME]'), 'Expected redacted name token in logs');
+    assert.ok(!joined.includes('Alex'), 'Expected third-party name to be redacted');
+  });
+
+  it('supports explicit redactionOptions additionalNames for non-reading prompts', () => {
+    const captured = [];
+    const originalConsoleLog = console.log;
+    console.log = (...args) => {
+      captured.push(args.map((value) => String(value)).join(' '));
+    };
+
+    try {
+      maybeLogPromptPayload(
+        { LOG_LLM_PROMPTS: 'true', NODE_ENV: 'development' },
+        'req-2',
+        'story-art',
+        '',
+        'Prompt with Alex and Jamie in context.',
+        null,
+        {
+          redactionOptions: { displayName: 'Sam', additionalNames: ['Alex', 'Jamie'] }
+        }
+      );
+    } finally {
+      console.log = originalConsoleLog;
+    }
+
+    const joined = captured.join('\n');
+    assert.ok(!joined.includes('Alex'));
+    assert.ok(!joined.includes('Jamie'));
+    assert.match(joined, /\[NAME\]/);
   });
 });
 

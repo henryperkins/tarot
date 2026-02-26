@@ -2,6 +2,7 @@ import { Sparkle, Moon, Star, ArrowRight, Eye, Path, Lightbulb, User } from '@ph
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import { PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH } from '../../utils/personalizationStorage';
 
 const EXPERIENCE_OPTIONS = [
   { value: 'newbie', label: 'Brand new' },
@@ -154,6 +155,7 @@ export function WelcomeHero({ onNext, onSkip }) {
               type="text"
               value={personalization.displayName}
               onChange={(e) => setDisplayName(e.target.value)}
+              maxLength={PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH}
               placeholder="Used to personalize your readings"
               className="w-full bg-surface border border-primary/40 rounded-xl min-h-touch px-3 xxs:px-4 py-3 text-sm xxs:text-base text-main placeholder:text-muted/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
               autoComplete="given-name"

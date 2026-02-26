@@ -75,6 +75,7 @@ export function createReadingStream(responsePayload, options = {}) {
     provider: responsePayload?.provider || null,
     themes: responsePayload?.themes || null,
     reasoning: responsePayload?.reasoning || null,
+    sourceUsage: responsePayload?.sourceUsage || null,
     emotionalTone: responsePayload?.emotionalTone || null,
     ephemeris: responsePayload?.ephemeris || null,
     context: responsePayload?.context || null,

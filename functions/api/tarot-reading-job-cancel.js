@@ -10,10 +10,7 @@ export const onRequestPost = async ({ request, env, params }) => {
     return jsonResponse({ error: 'Missing job id.' }, { status: 400 });
   }
 
-  const token =
-    request.headers.get('X-Job-Token') ||
-    new URL(request.url).searchParams.get('token') ||
-    '';
+  const token = request.headers.get('X-Job-Token') || '';
 
   const headers = new Headers();
   if (token) {

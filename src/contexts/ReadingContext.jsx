@@ -7,6 +7,7 @@ import { usePreferences } from './PreferencesContext';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
+import { sanitizePersonalization } from '../utils/personalizationStorage';
 import { formatReading } from '../lib/formatting';
 import { canonicalCardKey, canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 import { computeRelationships } from '../lib/deck';
@@ -72,23 +73,18 @@ export function ReadingProvider({ children }) {
         if (!personalization || typeof personalization !== 'object') {
             return null;
         }
-        const sanitizedName =
-            typeof personalization.displayName === 'string'
-                ? personalization.displayName.trim()
-                : '';
 
-        const focusAreas = Array.isArray(personalization.focusAreas)
-            ? personalization.focusAreas
-                .map((area) => (typeof area === 'string' ? area.trim() : ''))
-                .filter((area) => area.length > 0)
+        const normalized = sanitizePersonalization(personalization);
+        const focusAreas = Array.isArray(normalized.focusAreas)
+            ? normalized.focusAreas
             : [];
 
         const payload = {
-            displayName: sanitizedName || undefined,
-            readingTone: personalization.readingTone || undefined,
-            spiritualFrame: personalization.spiritualFrame || undefined,
-            tarotExperience: personalization.tarotExperience || undefined,
-            preferredSpreadDepth: personalization.preferredSpreadDepth || undefined,
+            displayName: normalized.displayName || undefined,
+            readingTone: normalized.readingTone || undefined,
+            spiritualFrame: normalized.spiritualFrame || undefined,
+            tarotExperience: normalized.tarotExperience || undefined,
+            preferredSpreadDepth: normalized.preferredSpreadDepth || undefined,
             focusAreas: focusAreas.length ? focusAreas : undefined
         };
 
@@ -1113,13 +1109,14 @@ export function ReadingProvider({ children }) {
             }
             const normalizedPayload = safeParseReadingRequest(payload);
             if (!normalizedPayload.success) {
+                const validationMessage = normalizedPayload.error || 'Reading request is missing required details.';
                 setIsGenerating(false);
                 setNarrativePhase('error');
                 setJournalStatus({
                     type: 'error',
-                    message: normalizedPayload.error || 'Reading request is missing required details.'
+                    message: validationMessage
                 });
-                setSrAnnouncement('Reading request is missing required details for narrative generation.');
+                setSrAnnouncement(`Reading request is invalid: ${validationMessage}`);
                 return;
             }
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { composeReadingEnhanced } from '../functions/lib/narrativeBackends.js';
+import { buildAzureGPT5Prompts, composeReadingEnhanced } from '../functions/lib/narrativeBackends.js';
 import {
   analyzeRelationship,
   analyzeSpreadThemes,
@@ -190,5 +190,60 @@ describe('composeReadingEnhanced', () => {
     assert.ok(result.reading.includes('## Traditional Wisdom'));
     assert.equal(payload.promptMeta.graphRAG.debugVisibleInOutput, true);
     assert.equal(payload.promptMeta.graphRAG.passagesUsedInPrompt, 1);
+  });
+});
+
+describe('buildAzureGPT5Prompts', () => {
+  it('passes derived redaction hints into prompt logging', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'Past — influences that led here', 'Upright'),
+      major('The Magician', 1, 'Present — where you stand now', 'Upright'),
+      major('The High Priestess', 2, 'Future — trajectory if nothing shifts', 'Upright')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    const spreadAnalysis = analyzeThreeCard(cardsInfo);
+
+    const payload = {
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)', key: 'threeCard', deckStyle: 'rws-1909' },
+      cardsInfo,
+      userQuestion: 'How do I reconnect with Alex?',
+      reflectionsText: 'Alex and I have been disconnected for months.',
+      analysis: {
+        themes,
+        spreadAnalysis,
+        spreadKey: 'threeCard'
+      },
+      context: 'general',
+      contextInputText: '',
+      visionInsights: [],
+      personalization: {
+        displayName: 'Sam',
+        readingTone: 'balanced',
+        spiritualFrame: 'mixed',
+        tarotExperience: 'newbie',
+        preferredSpreadDepth: 'standard',
+        focusAreas: []
+      }
+    };
+
+    const logs = [];
+    const originalConsoleLog = console.log;
+    console.log = (...args) => {
+      logs.push(args.map((value) => String(value)).join(' '));
+    };
+
+    try {
+      buildAzureGPT5Prompts(
+        { LOG_LLM_PROMPTS: 'true', NODE_ENV: 'development' },
+        payload,
+        'req-redaction'
+      );
+    } finally {
+      console.log = originalConsoleLog;
+    }
+
+    const joined = logs.join('\n');
+    assert.ok(joined.includes('[NAME]'), 'Expected prompt log redaction token');
+    assert.ok(!joined.includes('Alex'), 'Expected third-party name to be redacted in prompt logs');
   });
 });

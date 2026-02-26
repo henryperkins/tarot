@@ -5,8 +5,10 @@ import { initAudio, cleanupAudio, stopTTS, toggleAmbience } from '../lib/audio';
 import { useAuth } from './AuthContext';
 import {
   DEFAULT_PERSONALIZATION,
+  PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH,
   LEGACY_PERSONALIZATION_STORAGE_KEY,
   getPersonalizationStorageKey,
+  sanitizePersonalization,
   sanitizeGuestPersonalization,
   loadPersonalizationFromStorage
 } from '../utils/personalizationStorage';
@@ -302,38 +304,50 @@ export function PreferencesProvider({ children }) {
     }
   }, []);
 
+  const updatePersonalization = useCallback((nextValueOrUpdater) => {
+    setPersonalizationState((prev) => {
+      const nextValue = typeof nextValueOrUpdater === 'function'
+        ? nextValueOrUpdater(prev)
+        : { ...prev, ...nextValueOrUpdater };
+      return sanitizePersonalization(nextValue);
+    });
+  }, []);
+
   // Individual setters for personalization fields
   const setDisplayName = (value) => {
-    setPersonalizationState(prev => ({ ...prev, displayName: value }));
+    const normalizedValue = typeof value === 'string'
+      ? value.slice(0, PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH)
+      : '';
+    updatePersonalization({ displayName: normalizedValue });
   };
 
   const setTarotExperience = (value) => {
-    setPersonalizationState(prev => ({ ...prev, tarotExperience: value }));
+    updatePersonalization({ tarotExperience: value });
   };
 
   const setReadingTone = (value) => {
-    setPersonalizationState(prev => ({ ...prev, readingTone: value }));
+    updatePersonalization({ readingTone: value });
   };
 
   const setFocusAreas = (value) => {
-    setPersonalizationState(prev => ({ ...prev, focusAreas: value }));
+    updatePersonalization({ focusAreas: value });
   };
 
   const setPreferredSpreadDepth = (value) => {
-    setPersonalizationState(prev => ({ ...prev, preferredSpreadDepth: value }));
+    updatePersonalization({ preferredSpreadDepth: value });
   };
 
   const setSpiritualFrame = (value) => {
-    setPersonalizationState(prev => ({ ...prev, spiritualFrame: value }));
+    updatePersonalization({ spiritualFrame: value });
   };
 
   const setShowRitualSteps = (value) => {
-    setPersonalizationState(prev => ({ ...prev, showRitualSteps: value }));
+    updatePersonalization({ showRitualSteps: value });
   };
 
   // Toggle a focus area (for multi-select)
   const toggleFocusArea = (area) => {
-    setPersonalizationState(prev => {
+    updatePersonalization((prev) => {
       const current = prev.focusAreas || [];
       if (current.includes(area)) {
         return { ...prev, focusAreas: current.filter(a => a !== area) };

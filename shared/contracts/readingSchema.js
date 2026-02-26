@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH } from './personalizationConstants.js';
 
 const trimmedString = (label) =>
   z
@@ -69,7 +70,7 @@ const optionalVisionProofSchema = z
 
 const personalizationSchema = z
   .object({
-    displayName: z.string().trim().max(50).optional(),
+    displayName: z.string().trim().max(PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH).optional(),
     readingTone: z.enum(['gentle', 'balanced', 'blunt']).optional(),
     spiritualFrame: z.enum(['psychological', 'spiritual', 'mixed', 'playful']).optional(),
     tarotExperience: z.enum(['newbie', 'intermediate', 'experienced']).optional(),

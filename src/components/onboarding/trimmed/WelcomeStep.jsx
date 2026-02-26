@@ -3,6 +3,7 @@ import { Moon, User } from '@phosphor-icons/react';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { useLandscape } from '../../../hooks/useLandscape';
+import { PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH } from '../../../utils/personalizationStorage';
 
 const EXPERIENCE_OPTIONS = [
   { value: 'newbie', label: 'New to tarot' },
@@ -39,7 +40,7 @@ export function WelcomeStep({ onNext }) {
   const tonePreview = TONE_PREVIEWS[tone] || TONE_PREVIEWS.balanced;
 
   const handleContinue = () => {
-    setDisplayName(name.trim() || null);
+    setDisplayName(name.trim() || '');
     setTarotExperience(experience);
     setReadingTone(tone);
     onNext();
@@ -83,7 +84,8 @@ export function WelcomeStep({ onNext }) {
             id="welcome-name"
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value.slice(0, PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH))}
+            maxLength={PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH}
             placeholder="Your name or nickname"
             className="w-full rounded-xl border border-secondary/30 bg-surface min-h-touch px-4 py-3 text-base text-main placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/50 transition"
             autoComplete="given-name"

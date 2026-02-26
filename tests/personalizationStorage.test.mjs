@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 
 import {
   DEFAULT_PERSONALIZATION,
+  PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH,
   PERSONALIZATION_GUEST_KEY,
   PERSONALIZATION_STORAGE_KEY_BASE,
   getPersonalizationStorageKey,
   loadPersonalizationFromStorage,
+  sanitizePersonalization,
   sanitizeGuestPersonalization
 } from '../src/utils/personalizationStorage.js';
 
@@ -39,4 +41,41 @@ test('loadPersonalizationFromStorage returns defaults for missing storage', () =
   const loaded = loadPersonalizationFromStorage('tarot-personalization:any', storage);
   assert.equal(loaded.readingTone, DEFAULT_PERSONALIZATION.readingTone);
   assert.equal(loaded.preferredSpreadDepth, DEFAULT_PERSONALIZATION.preferredSpreadDepth);
+});
+
+test('sanitizePersonalization normalizes enums, focus areas, and displayName length', () => {
+  const loaded = sanitizePersonalization({
+    displayName: `   ${'A'.repeat(80)}   `,
+    tarotExperience: 'guru',
+    readingTone: 'soft',
+    preferredSpreadDepth: 'ultra-deep',
+    spiritualFrame: 'woo',
+    focusAreas: [' love ', '', 'love', 'career', 123, 'x'.repeat(60)],
+    showRitualSteps: 'yes'
+  });
+
+  assert.equal(loaded.displayName.length, PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH);
+  assert.equal(loaded.tarotExperience, DEFAULT_PERSONALIZATION.tarotExperience);
+  assert.equal(loaded.readingTone, DEFAULT_PERSONALIZATION.readingTone);
+  assert.equal(loaded.preferredSpreadDepth, DEFAULT_PERSONALIZATION.preferredSpreadDepth);
+  assert.equal(loaded.spiritualFrame, DEFAULT_PERSONALIZATION.spiritualFrame);
+  assert.deepEqual(loaded.focusAreas, ['love', 'career', 'x'.repeat(40)]);
+  assert.equal(loaded.showRitualSteps, DEFAULT_PERSONALIZATION.showRitualSteps);
+});
+
+test('loadPersonalizationFromStorage sanitizes stale invalid values', () => {
+  const storage = {
+    getItem() {
+      return JSON.stringify({
+        displayName: `${'B'.repeat(60)}`,
+        readingTone: 'soft',
+        tarotExperience: 'master'
+      });
+    }
+  };
+
+  const loaded = loadPersonalizationFromStorage('tarot-personalization:any', storage);
+  assert.equal(loaded.displayName.length, PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH);
+  assert.equal(loaded.readingTone, DEFAULT_PERSONALIZATION.readingTone);
+  assert.equal(loaded.tarotExperience, DEFAULT_PERSONALIZATION.tarotExperience);
 });

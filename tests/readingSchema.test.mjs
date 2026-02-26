@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { safeParseReadingRequest } from '../shared/contracts/readingSchema.js';
+import { PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH } from '../shared/contracts/personalizationConstants.js';
+import { sanitizeDisplayName } from '../functions/lib/narrative/styleHelpers.js';
 
 const basePayload = {
   spreadInfo: {
@@ -171,4 +173,21 @@ test('safeParseReadingRequest strips journal and memory context fields from init
   assert.equal(Object.prototype.hasOwnProperty.call(result.data, 'journalContext'), false);
   assert.equal(Object.prototype.hasOwnProperty.call(result.data, 'memoryContext'), false);
   assert.equal(Object.prototype.hasOwnProperty.call(result.data, 'followUpHistory'), false);
+});
+
+test('safeParseReadingRequest enforces shared personalization displayName max length', () => {
+  const payload = {
+    ...basePayload,
+    personalization: {
+      displayName: 'A'.repeat(PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH + 1)
+    }
+  };
+
+  const result = safeParseReadingRequest(payload);
+  assert.equal(result.success, false, 'displayName exceeding shared limit should fail');
+});
+
+test('narrative displayName sanitizer aligns with shared max length constant', () => {
+  const sanitized = sanitizeDisplayName('B'.repeat(PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH + 12));
+  assert.equal(sanitized.length, PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH);
 });

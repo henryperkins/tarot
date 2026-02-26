@@ -7,7 +7,7 @@
  * Extracted from tarot-reading.js to maintain <900 line limit.
  */
 
-import { redactPII } from './promptEngineering.js';
+import { buildPromptRedactionOptions, redactPII } from './promptEngineering.js';
 import { isProductionEnvironment } from './environment.js';
 
 // ============================================================================
@@ -302,6 +302,10 @@ export function maybeLogNarrativeEnhancements(env, requestId, provider, summary)
  * @param {Object} promptMeta - Prompt metadata (tokens, slimming steps)
  * @param {Object} options - Additional options
  * @param {Object} options.personalization - User personalization data
+ * @param {string} options.userQuestion - User question for name hint extraction
+ * @param {string} options.reflectionsText - User reflections for name hint extraction
+ * @param {string[]} options.nameHints - Explicit name hints to redact
+ * @param {Object} options.redactionOptions - Explicit redaction options override
  */
 export function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt, userPrompt, promptMeta, options = {}) {
   if (!shouldLogLLMPrompts(env)) return;
@@ -310,9 +314,20 @@ export function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt
   // This includes email, phone, SSN, credit card, dates, URLs, IP addresses,
   // and any user-provided display name
   const personalization = options.personalization || null;
-  const redactionOptions = {
-    displayName: personalization?.displayName
-  };
+  const redactionOptions = buildPromptRedactionOptions({
+    redactionOptions: {
+      ...(options.redactionOptions && typeof options.redactionOptions === 'object' ? options.redactionOptions : {}),
+      displayName:
+        options?.redactionOptions?.displayName ??
+        personalization?.displayName,
+      additionalNames:
+        options?.redactionOptions?.additionalNames ??
+        personalization?.additionalNames
+    },
+    userQuestion: options.userQuestion,
+    reflectionsText: options.reflectionsText,
+    nameHints: options.nameHints
+  });
 
   const redactedSystem = redactPII(systemPrompt, redactionOptions);
   const redactedUser = redactPII(userPrompt, redactionOptions);

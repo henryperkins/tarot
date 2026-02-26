@@ -34,7 +34,7 @@ import {
 import { getToneStyle, buildPersonalizedClosing, getDepthProfile } from './narrative/styleHelpers.js';
 import { buildOpening } from './narrative/helpers.js';
 import { formatPassagesForPrompt } from './graphRAG.js';
-import { redactPII } from './promptEngineering.js';
+import { buildPromptRedactionOptions, redactPII } from './promptEngineering.js';
 import {
   resolveSemanticScoring,
   shouldLogLLMPrompts,
@@ -240,6 +240,15 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
     payload.contextDiagnostics = Array.from(new Set([...(payload.contextDiagnostics || []), ...promptDiagnostics]));
   }
 
+  const promptRedactionOptions = buildPromptRedactionOptions({
+    redactionOptions: {
+      displayName: payload?.personalization?.displayName,
+      additionalNames: payload?.personalization?.additionalNames
+    },
+    userQuestion,
+    reflectionsText
+  });
+
   console.log(`[${requestId}] System prompt length: ${systemPrompt.length}, User prompt length: ${userPrompt.length}`);
   maybeLogPromptPayload(
     env,
@@ -248,7 +257,12 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
     systemPrompt,
     userPrompt,
     promptMeta,
-    { personalization: payload.personalization }
+    {
+      personalization: payload.personalization,
+      userQuestion,
+      reflectionsText,
+      redactionOptions: promptRedactionOptions
+    }
   );
 
   return {
@@ -403,6 +417,15 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
     payload.contextDiagnostics = Array.from(new Set([...(payload.contextDiagnostics || []), ...promptDiagnostics]));
   }
 
+  const promptRedactionOptions = buildPromptRedactionOptions({
+    redactionOptions: {
+      displayName: payload?.personalization?.displayName,
+      additionalNames: payload?.personalization?.additionalNames
+    },
+    userQuestion,
+    reflectionsText
+  });
+
   maybeLogPromptPayload(
     env,
     requestId,
@@ -410,7 +433,12 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
     systemPrompt,
     userPrompt,
     promptMeta,
-    { personalization: payload.personalization }
+    {
+      personalization: payload.personalization,
+      userQuestion,
+      reflectionsText,
+      redactionOptions: promptRedactionOptions
+    }
   );
 
   const response = await fetchWithRetry(
@@ -451,8 +479,7 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
     : (data.content?.toString?.() || '').trim();
 
   if (shouldLogLLMPrompts(env)) {
-    const redactionOptions = { displayName: payload?.personalization?.displayName };
-    const redactedContent = redactPII(content, redactionOptions);
+    const redactedContent = redactPII(content, promptRedactionOptions);
     console.log(
       `[${requestId}] Azure Foundry Claude response (redacted):`,
       JSON.stringify({

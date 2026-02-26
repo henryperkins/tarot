@@ -139,6 +139,8 @@ const NAME_HINT_BLOCKLIST = new Set([
   'an'
 ]);
 const HONORIFIC_BLOCKLIST = new Set(['mr', 'mrs', 'ms', 'mx', 'dr', 'prof', 'sir', 'dame', 'rev', 'fr']);
+const MIN_REDACTION_NAME_LENGTH = 2;
+const MAX_REDACTION_NAME_HINTS = 24;
 
 function normalizeNameHint(value) {
   return value.trim().replace(/\s+/g, ' ');
@@ -259,6 +261,84 @@ function extractNameHints(text) {
   }
 
   return Array.from(hints);
+}
+
+function normalizeRedactionName(value) {
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  return normalized.length >= MIN_REDACTION_NAME_LENGTH ? normalized : '';
+}
+
+function dedupeRedactionNames(candidates = [], limit = MAX_REDACTION_NAME_HINTS) {
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    return [];
+  }
+
+  const seen = new Set();
+  const output = [];
+  for (const raw of candidates) {
+    const normalized = normalizeRedactionName(raw);
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    output.push(normalized);
+    if (output.length >= limit) break;
+  }
+  return output;
+}
+
+/**
+ * Build redaction options for prompt logging/storage.
+ *
+ * @param {Object} params - Redaction option inputs
+ * @param {Object} params.redactionOptions - Existing redaction options
+ * @param {string} params.displayName - Optional display name override
+ * @param {string} params.userQuestion - Optional user question for name hint extraction
+ * @param {string} params.reflectionsText - Optional reflections for name hint extraction
+ * @param {string[]} params.nameHints - Optional explicit name hints (skips extraction when provided)
+ * @returns {Object} Sanitized redaction options
+ */
+export function buildPromptRedactionOptions(params = {}) {
+  const {
+    redactionOptions = {},
+    displayName,
+    userQuestion,
+    reflectionsText,
+    nameHints
+  } = params;
+
+  const baseOptions = redactionOptions && typeof redactionOptions === 'object' ? redactionOptions : {};
+  const resolvedDisplayName = normalizeRedactionName(
+    typeof displayName === 'string' ? displayName : baseOptions.displayName
+  );
+
+  const providedNameHints = Array.isArray(nameHints)
+    ? nameHints
+    : extractNameHints([userQuestion, reflectionsText].filter(Boolean).join('\n'));
+  const baseAdditionalNames = Array.isArray(baseOptions.additionalNames) ? baseOptions.additionalNames : [];
+
+  const additionalNames = dedupeRedactionNames(
+    [...baseAdditionalNames, ...providedNameHints].filter((entry) => {
+      if (!resolvedDisplayName || typeof entry !== 'string') return true;
+      return entry.trim().toLowerCase() !== resolvedDisplayName.toLowerCase();
+    })
+  );
+
+  const nextOptions = { ...baseOptions };
+  if (resolvedDisplayName) {
+    nextOptions.displayName = resolvedDisplayName;
+  } else {
+    delete nextOptions.displayName;
+  }
+
+  if (additionalNames.length > 0) {
+    nextOptions.additionalNames = additionalNames;
+  } else {
+    delete nextOptions.additionalNames;
+  }
+
+  return nextOptions;
 }
 
 function buildFlexibleNamePattern(rawName) {
@@ -444,17 +524,12 @@ export async function buildPromptEngineeringPayload(params) {
     processedResponse = stripResponseEchoContent(processedResponse);
   }
 
-  const derivedNameHints = Array.isArray(nameHints)
-    ? nameHints
-    : extractNameHints([userQuestion, reflectionsText].filter(Boolean).join('\n'));
-  const mergedNameHints = new Set([
-    ...((Array.isArray(redactionOptions.additionalNames) && redactionOptions.additionalNames) || []),
-    ...(derivedNameHints || [])
-  ]);
-
-  const effectiveRedactionOptions = mergedNameHints.size > 0
-    ? { ...redactionOptions, additionalNames: Array.from(mergedNameHints) }
-    : redactionOptions;
+  const effectiveRedactionOptions = buildPromptRedactionOptions({
+    redactionOptions,
+    userQuestion,
+    reflectionsText,
+    nameHints
+  });
 
   // Layer 2: Redact PII patterns from prompts and response (unless skipped)
   let redactedSystem, redactedUser, redactedResponse;

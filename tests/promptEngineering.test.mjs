@@ -9,7 +9,8 @@ import {
   stripResponseEchoContent,
   stripUserPromptContent,
   shouldAllowUnredactedPromptStorage,
-  buildPromptEngineeringPayload
+  buildPromptEngineeringPayload,
+  buildPromptRedactionOptions
 } from '../functions/lib/promptEngineering.js';
 import { estimateTokenCount } from '../functions/lib/narrative/prompts/budgeting.js';
 import { truncateToTokenBudget, truncateUserPromptSafely } from '../functions/lib/narrative/prompts/truncation.js';
@@ -434,6 +435,47 @@ describe('buildPromptEngineeringPayload', () => {
       payload.redacted.response.includes('Future — likely trajectory for renewed confidence if nothing shifts.'),
       'Response narrative phrasing should remain when it is not a prompt echo'
     );
+  });
+});
+
+describe('buildPromptRedactionOptions', () => {
+  test('derives and dedupes additionalNames from user context', () => {
+    const options = buildPromptRedactionOptions({
+      redactionOptions: {
+        displayName: 'Sam',
+        additionalNames: ['Alex', 'alex', ' Jamie  ']
+      },
+      userQuestion: 'How can I reconnect with Alex and Jamie?',
+      reflectionsText: 'Alex said we should slow down.',
+      nameHints: ['Alex', 'Taylor']
+    });
+
+    assert.equal(options.displayName, 'Sam');
+    assert.deepEqual(options.additionalNames, ['Alex', 'Jamie', 'Taylor']);
+  });
+
+  test('extracts lowercase names when no explicit hints are passed', () => {
+    const options = buildPromptRedactionOptions({
+      redactionOptions: { displayName: 'Casey' },
+      userQuestion: 'What should I do between alex and jamie?'
+    });
+
+    assert.deepEqual(options.additionalNames, ['Alex', 'Jamie']);
+  });
+
+  test('caps and sanitizes overly large name hint sets', () => {
+    const rawNames = Array.from({ length: 40 }, (_, idx) => `Name${idx}`);
+    const options = buildPromptRedactionOptions({
+      redactionOptions: {
+        displayName: 'Name0',
+        additionalNames: rawNames
+      },
+      nameHints: ['A', '  ', 'Name1', 'Name2']
+    });
+
+    assert.equal(options.additionalNames.length, 24);
+    assert.ok(!options.additionalNames.includes('Name0'));
+    assert.ok(!options.additionalNames.includes('A'));
   });
 });
 

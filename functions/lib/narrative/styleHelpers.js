@@ -1,10 +1,11 @@
 import { filterInstructionPatterns } from '../utils.js';
 import { detectPromptInjection } from '../promptInjectionDetector.js';
+import { PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH } from '../../../shared/contracts/personalizationConstants.js';
 
 const DEFAULT_TONE = 'balanced';
 const DEFAULT_FRAME = 'mixed';
 const DEFAULT_DEPTH = 'standard';
-const MAX_DISPLAY_NAME_LENGTH = 80;
+const MAX_DISPLAY_NAME_LENGTH = PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH;
 
 export function sanitizeDisplayName(displayName, { maxLength = MAX_DISPLAY_NAME_LENGTH } = {}) {
   if (typeof displayName !== 'string') return '';
