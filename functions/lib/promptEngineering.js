@@ -80,10 +80,14 @@ const NAME_TOKEN = String.raw`\p{Lu}[\p{L}\p{M}]+(?:[''\-][\p{L}\p{M}]+)*`;
 // Lowercase name token: starts with lowercase letter, at least 2 letters total
 const LOWERCASE_NAME_TOKEN = String.raw`\p{Ll}[\p{L}\p{M}]+(?:[''\-][\p{L}\p{M}]+)*`;
 const NAME_SEQUENCE = `${NAME_TOKEN}(?:\\s+${NAME_TOKEN}){0,2}`;
+const HONORIFIC_TOKEN = String.raw`(?:Mr|Mrs|Ms|Mx|Dr|Prof|Sir|Dame|Rev|Fr)`;
+const HONORIFIC_NAME_SEQUENCE = String.raw`${HONORIFIC_TOKEN}\.?\s+${NAME_TOKEN}(?:\s+${NAME_TOKEN})?`;
+const INITIAL_NAME_SEQUENCE = String.raw`\p{Lu}\.\s+${NAME_TOKEN}(?:\s+${NAME_TOKEN})?`;
 // Lowercase name sequence: allows all-lowercase names like "alex" or "jamie smith"
 const LOWERCASE_NAME_SEQUENCE = `(?:${LOWERCASE_NAME_TOKEN})(?:\\s+(?:${LOWERCASE_NAME_TOKEN})){0,2}`;
 const CAPITALIZED_TOKEN_PATTERN = new RegExp(String.raw`^${NAME_TOKEN}$`, 'u');
 const LOWERCASE_TOKEN_PATTERN = new RegExp(String.raw`^${LOWERCASE_NAME_TOKEN}$`, 'u');
+const INITIAL_TOKEN_PATTERN = new RegExp(String.raw`^\p{Lu}\.?$`, 'u');
 const NAME_HINT_PATTERNS = [
   new RegExp(
     String.raw`\bbetween\s+(${NAME_SEQUENCE})\s+and\s+(${NAME_SEQUENCE})`,
@@ -95,6 +99,10 @@ const NAME_HINT_PATTERNS = [
   ),
   new RegExp(String.raw`(${NAME_SEQUENCE})\s+and\s+(?:me|I)\b`, 'giu'),
   new RegExp(String.raw`(${NAME_SEQUENCE})['']s\\b`, 'giu')
+];
+const HONORIFIC_AND_INITIAL_HINT_PATTERNS = [
+  new RegExp(String.raw`\b(${HONORIFIC_NAME_SEQUENCE})\b`, 'gu'),
+  new RegExp(String.raw`\b(${INITIAL_NAME_SEQUENCE})\b`, 'gu')
 ];
 // Lowercase name patterns for fallback extraction (restrictive to avoid false positives)
 const LOWERCASE_NAME_HINT_PATTERNS = [
@@ -130,6 +138,7 @@ const NAME_HINT_BLOCKLIST = new Set([
   'a',
   'an'
 ]);
+const HONORIFIC_BLOCKLIST = new Set(['mr', 'mrs', 'ms', 'mx', 'dr', 'prof', 'sir', 'dame', 'rev', 'fr']);
 
 function normalizeNameHint(value) {
   return value.trim().replace(/\s+/g, ' ');
@@ -201,8 +210,11 @@ function shouldKeepNameHint(value) {
   const normalized = normalizeNameHint(value);
   if (!normalized) return false;
   const lower = normalized.toLowerCase();
+  const compact = lower.replace(/\./g, '');
   if (NAME_HINT_BLOCKLIST.has(lower)) return false;
   if (lower.startsWith('the ') || lower.startsWith('a ') || lower.startsWith('an ')) return false;
+  if (HONORIFIC_BLOCKLIST.has(compact)) return false;
+  if (INITIAL_TOKEN_PATTERN.test(normalized)) return false;
   return true;
 }
 
@@ -236,7 +248,41 @@ function extractNameHints(text) {
     }
   }
 
+  // Extract honorific/initial forms (e.g., "Dr. Smith", "J. Smith")
+  for (const pattern of HONORIFIC_AND_INITIAL_HINT_PATTERNS) {
+    for (const match of text.matchAll(pattern)) {
+      const normalized = normalizeNameHint(match[1] || '');
+      if (shouldKeepNameHint(normalized)) {
+        hints.add(normalized);
+      }
+    }
+  }
+
   return Array.from(hints);
+}
+
+function buildFlexibleNamePattern(rawName) {
+  const escapedName = rawName
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\\\./g, '\\.?')
+    .replace(/\s+/g, '\\s+');
+
+  return new RegExp(
+    `(^|[^\\p{L}\\p{N}_])(${escapedName}(?:['’]s)?)(?![\\p{L}\\p{N}_])`,
+    'giu'
+  );
+}
+
+function redactNameWithBoundary(text, rawName) {
+  if (typeof rawName !== 'string') return text;
+  const name = rawName.trim();
+  if (!name) return text;
+  try {
+    const namePattern = buildFlexibleNamePattern(name);
+    return text.replace(namePattern, (_, prefix) => `${prefix}[NAME]`);
+  } catch {
+    return text;
+  }
 }
 
 /**
@@ -260,40 +306,21 @@ export function redactPII(text, options = {}) {
     redacted = redacted.replace(pattern, replacement);
   }
 
-  // Redact display name if provided
-  // Use Unicode-aware boundaries so we avoid over-redacting substrings (e.g., "Ana" in "analysis")
-  // while still matching names with diacritics or non-Latin scripts that \b would miss.
-  if (options.displayName && typeof options.displayName === 'string') {
-    const name = options.displayName.trim();
-    if (name.length > 0) {
-      try {
-        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const namePattern = new RegExp(
-          `(^|[^\\p{L}\\p{N}_])(${escapedName}(?:['’]s)?)(?![\\p{L}\\p{N}_])`,
-          'giu'
-        );
-        redacted = redacted.replace(namePattern, (_, prefix) => `${prefix}[NAME]`);
-      } catch {
-        // Invalid regex, skip name redaction
+  const namesToRedact = new Set();
+  if (typeof options.displayName === 'string' && options.displayName.trim()) {
+    namesToRedact.add(options.displayName.trim());
+  }
+  if (Array.isArray(options.additionalNames)) {
+    options.additionalNames.forEach((rawName) => {
+      if (typeof rawName === 'string' && rawName.trim()) {
+        namesToRedact.add(rawName.trim());
       }
-    }
+    });
   }
 
-  if (Array.isArray(options.additionalNames)) {
-    for (const rawName of options.additionalNames) {
-      if (typeof rawName !== 'string') continue;
-      const name = rawName.trim();
-      if (!name) continue;
-      try {
-        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const namePattern = new RegExp(
-          `(^|[^\\p{L}\\p{N}_])(${escapedName}(?:['’]s)?)(?![\\p{L}\\p{N}_])`,
-          'giu'
-        );
-        redacted = redacted.replace(namePattern, (_, prefix) => `${prefix}[NAME]`);
-      } catch {
-        // Invalid regex, skip
-      }
+  if (namesToRedact.size > 0) {
+    for (const name of namesToRedact) {
+      redacted = redactNameWithBoundary(redacted, name);
     }
   }
 

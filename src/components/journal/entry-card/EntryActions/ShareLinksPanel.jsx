@@ -123,7 +123,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
                     type="button"
                     onClick={() => onCopyShareLink(link.token)}
                     disabled={isShareLinkPending}
-                    className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-2xs font-semibold text-[color:var(--text-main)] hover:bg-[color:var(--primary-20)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-2xs font-semibold text-[color:var(--text-main)] hover:bg-[color:var(--primary-20)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {pendingAction === 'share-link-copy' ? (
                       <CircleNotch

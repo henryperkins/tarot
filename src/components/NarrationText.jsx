@@ -39,7 +39,7 @@ export function NarrationText({ text, className = '' }) {
 /**
  * Suggested CSS:
  * .highlighted-word {
- *   background: linear-gradient(120deg, #a855f7 0%, #ec4899 100%);
+ *   background: linear-gradient(120deg, var(--brand-secondary) 0%, var(--brand-primary) 100%);
  *   -webkit-background-clip: text;
  *   background-clip: text;
  *   color: transparent;

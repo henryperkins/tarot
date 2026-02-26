@@ -121,4 +121,74 @@ describe('composeReadingEnhanced', () => {
     assert.ok(payload.reasoningMeta.questionIntent, 'Reasoning metadata should include question intent');
     assert.ok(payload.reasoningMeta.narrativeArc, 'Reasoning metadata should include narrative arc');
   });
+
+  it('does not append GraphRAG passages to local composer output by default', async () => {
+    const cardsInfo = [
+      major('The Star', 17, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    const payload = {
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      cardsInfo,
+      userQuestion: 'What should I trust right now?',
+      reflectionsText: '',
+      analysis: {
+        themes,
+        spreadAnalysis: null,
+        spreadKey: 'single',
+        graphRAGPayload: {
+          passages: [
+            { title: 'Healing Arc', text: 'Renewal often follows surrender.', source: 'Test Source' }
+          ],
+          initialPassageCount: 1,
+          retrievalSummary: {
+            semanticScoringRequested: false,
+            semanticScoringUsed: false
+          }
+        }
+      },
+      context: 'general'
+    };
+
+    const result = await composeReadingEnhanced(payload);
+    assert.ok(!result.reading.includes('## Traditional Wisdom'));
+    assert.equal(payload.promptMeta.graphRAG.includedInPrompt, false);
+    assert.equal(payload.promptMeta.graphRAG.passagesUsedInPrompt, 0);
+  });
+
+  it('appends GraphRAG passages only when debug output is explicitly enabled', async () => {
+    const cardsInfo = [
+      major('The Star', 17, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    const payload = {
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      cardsInfo,
+      userQuestion: 'What should I trust right now?',
+      reflectionsText: '',
+      analysis: {
+        themes,
+        spreadAnalysis: null,
+        spreadKey: 'single',
+        graphRAGPayload: {
+          passages: [
+            { title: 'Healing Arc', text: 'Renewal often follows surrender.', source: 'Test Source' }
+          ],
+          initialPassageCount: 1,
+          retrievalSummary: {
+            semanticScoringRequested: false,
+            semanticScoringUsed: false
+          }
+        }
+      },
+      context: 'general'
+    };
+
+    const result = await composeReadingEnhanced(payload, {
+      LOCAL_COMPOSER_APPEND_GRAPHRAG_DEBUG: 'true'
+    });
+    assert.ok(result.reading.includes('## Traditional Wisdom'));
+    assert.equal(payload.promptMeta.graphRAG.debugVisibleInOutput, true);
+    assert.equal(payload.promptMeta.graphRAG.passagesUsedInPrompt, 1);
+  });
 });

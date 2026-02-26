@@ -18,7 +18,7 @@ Completed the responsive + a11y audit and applied the remediation updates below.
 ## Remediations Applied
 | ID | Component | Resolution |
 |----|-----------|------------|
-| R-1 | Responsive system | Removed `mobile-*` screens from Tailwind; `xxs/xs` are the only sub-sm utility breakpoints. |
+| R-1 | Responsive system | Kept `mobile-sm/mobile-md/mobile-lg` max-width utility breakpoints in Tailwind for narrow viewport tuning, alongside `xxs/xs` min-width breakpoints. |
 | R-2 | Responsive system | Aligned landscape threshold to 500 in `useLandscape` to match Tailwind/CSS. |
 | R-3 | ReadingGrid | Replaced 480px with `xs` (375px) for very-small screen logic. |
 | R-4 | ReadingGrid | Added `min-h-touch` to layout toggles. |

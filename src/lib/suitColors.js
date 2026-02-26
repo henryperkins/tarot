@@ -8,16 +8,16 @@
  * Used to construct rgba() colors with variable opacity
  */
 const SUIT_RGB = {
-  Wands: [201, 168, 118],      // #C9A876 - Fire element
-  Cups: [139, 149, 165],        // #8B95A5 - Water element  
-  Swords: [107, 114, 128],      // #6B7280 - Air element
-  Pentacles: [138, 153, 133],   // #8A9985 - Earth element
+  Wands: [201, 168, 118],
+  Cups: [139, 149, 165],
+  Swords: [107, 114, 128],
+  Pentacles: [138, 153, 133],
 };
 
 /**
  * Default gold color for Major Arcana and fallback
  */
-const DEFAULT_RGB = [212, 184, 150]; // #D4B896 - Gold champagne
+const DEFAULT_RGB = [212, 184, 150];
 
 /**
  * Get glow color for a card based on its suit
@@ -33,16 +33,16 @@ export function getSuitGlowColor(card, opacity = 0.3) {
 /**
  * Get border color for a card based on its suit
  * @param {object|null} card - Card object with suit property
- * @returns {string} Hex color string
+ * @returns {string} CSS color string
  */
 export function getSuitBorderColor(card) {
   const borderColors = {
-    Wands: '#C9A876',
-    Cups: '#8B95A5',
-    Swords: '#6B7280',
-    Pentacles: '#8A9985',
+    Wands: 'var(--color-wands)',
+    Cups: 'var(--color-cups)',
+    Swords: 'var(--color-swords)',
+    Pentacles: 'var(--color-pentacles)',
   };
-  return borderColors[card?.suit] || '#D4B896';
+  return borderColors[card?.suit] || 'var(--brand-primary)';
 }
 
 /**

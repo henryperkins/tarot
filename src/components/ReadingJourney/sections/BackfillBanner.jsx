@@ -9,6 +9,7 @@
 import { ArrowsClockwise, Info, X, CheckCircle, XCircle } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
+import { COMPACT_SYNC_ACTION_BUTTON_CLASS } from '../../../styles/buttonClasses';
 
 const DISMISS_KEY = 'journal_backfill_dismissed_v1';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -92,8 +93,6 @@ export default function BackfillBanner({
 
   // Compact variant for tight spaces
   if (variant === 'compact') {
-    const COMPACT_SYNC_BUTTON_CLASS = "flex items-center gap-1.5 min-h-touch px-3 py-2 text-xs sm:text-2xs font-medium text-muted-high hover:text-main disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation";
-    
     return (
       <div className="flex items-center gap-2 rounded-lg bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] px-3 py-2">
         <Info className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--brand-primary)]" aria-hidden="true" />
@@ -103,7 +102,7 @@ export default function BackfillBanner({
         <button
           onClick={onBackfill}
           disabled={isBackfilling}
-          className={COMPACT_SYNC_BUTTON_CLASS}
+          className={COMPACT_SYNC_ACTION_BUTTON_CLASS}
           aria-label="Analyze past readings"
         >
           <ArrowsClockwise

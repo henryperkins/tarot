@@ -10,7 +10,7 @@
  */
 
 // Core imports
-import { inferContext } from '../lib/contextDetection.js';
+import { buildContextInferenceInput, inferContext } from '../lib/contextDetection.js';
 import { parseMinorName } from '../lib/minorMeta.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
@@ -90,6 +90,39 @@ import {
   buildSpreadAnalysisPayload
 } from '../lib/spreadAnalysisOrchestrator.js';
 import { buildReadingReasoning } from '../lib/narrative/reasoning.js';
+
+function parseBooleanLike(value, defaultValue = false) {
+  if (value === undefined || value === null) return defaultValue;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value > 0;
+  if (typeof value !== 'string') return defaultValue;
+  const normalized = value.trim().toLowerCase();
+  if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+  return defaultValue;
+}
+
+function parseMismatchRate(value, fallback = 0.5) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(1, Math.max(0, parsed));
+}
+
+function resolveVisionMismatchPolicy(env) {
+  const effectiveEnv = env || {};
+  return {
+    strictDeckMismatch: parseBooleanLike(
+      effectiveEnv.VISION_STRICT_DECK_MATCH ?? effectiveEnv.VISION_BLOCK_DECK_MISMATCH,
+      false
+    ),
+    strictMismatchRate: parseBooleanLike(
+      effectiveEnv.VISION_STRICT_MISMATCH_RATE ?? effectiveEnv.VISION_BLOCK_HIGH_MISMATCH_RATE,
+      false
+    ),
+    maxMismatchRate: parseMismatchRate(effectiveEnv.VISION_MAX_MISMATCH_RATE, 0.5)
+  };
+}
 
 function evaluateQualityGate({ readingText, cardsInfo, deckStyle, analysis, requestId }) {
   const text = typeof readingText === 'string' ? readingText : '';
@@ -446,6 +479,7 @@ async function finalizeReading({
     contextDiagnostics: finalContextDiagnostics,
     narrativeMetrics,
     graphRAG: graphRAGStats,
+    sourceUsage: promptMeta?.sourceUsage || null,
     spreadAnalysis: buildSpreadAnalysisPayload(analysis),
     ...responseGateStatus
   };
@@ -550,6 +584,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       cardCount: cardsInfo?.length,
       hasQuestion: !!userQuestion,
       hasReflections: !!reflectionsText,
+      hasFocusAreas: Array.isArray(personalization?.focusAreas) && personalization.focusAreas.length > 0,
       reversalOverride: reversalFrameworkOverride,
       deckStyle,
       hasVisionProof: !!visionProof,
@@ -569,6 +604,15 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     console.log(`[${requestId}] Payload validation passed`);
 
     const contextDiagnostics = [];
+    const contextInputText = buildContextInferenceInput({
+      userQuestion,
+      reflectionsText,
+      focusAreas: personalization?.focusAreas
+    });
+    console.log(`[${requestId}] Context inference input prepared`, {
+      hasContextInput: Boolean(contextInputText),
+      contextInputLength: contextInputText.length
+    });
 
     const user = await getUserFromRequest(request, env);
     const subscription = getSubscriptionContext(user);
@@ -688,9 +732,13 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       }
     }
 
+    // Source precedence contract for spread understanding:
+    // spread/cards > validated matched vision > question/reflections/focus areas > GraphRAG > ephemeris.
+    // Enrichment layers can add nuance but must never override drawn-card identity/position.
     // Vision validation is OPTIONAL - used for research/development purposes only
     let sanitizedVisionInsights = [];
     let visionMetrics = null;
+    const visionMismatchPolicy = resolveVisionMismatchPolicy(env);
 
     if (!visionProof) {
       console.log(`[${requestId}] No vision proof provided (research mode disabled). Proceeding with standard reading.`);
@@ -712,6 +760,14 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
       if (verifiedProof.deckStyle && verifiedProof.deckStyle !== deckStyle) {
         console.warn(`[${requestId}] Vision proof deck mismatch. proof=${verifiedProof.deckStyle}, request=${deckStyle}`);
+        if (visionMismatchPolicy.strictDeckMismatch) {
+          return jsonResponse({
+            error: 'Vision upload deck does not match the selected spread deck. Please re-upload photos from the selected deck.',
+            code: 'vision_deck_mismatch',
+            proofDeck: verifiedProof.deckStyle,
+            requestedDeck: deckStyle
+          }, { status: 409 });
+        }
       }
 
       sanitizedVisionInsights = annotateVisionInsights(verifiedProof.insights, cardsInfo, deckStyle);
@@ -725,7 +781,21 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         console.log(`[${requestId}] Vision proof verified: ${sanitizedVisionInsights.length} uploads, avg confidence ${(avgConfidence * 100).toFixed(1)}%.`);
 
         if (mismatchedDetections.length > 0) {
+          const mismatchRate = sanitizedVisionInsights.length > 0
+            ? mismatchedDetections.length / sanitizedVisionInsights.length
+            : 0;
           console.warn(`[${requestId}] Vision uploads that do not match selected cards:`, mismatchedDetections.map((item) => ({ label: item.label, predictedCard: item.predictedCard, confidence: item.confidence })));
+          if (visionMismatchPolicy.strictMismatchRate && mismatchRate > visionMismatchPolicy.maxMismatchRate) {
+            console.warn(
+              `[${requestId}] Strict vision mismatch policy blocked request: mismatchRate=${mismatchRate.toFixed(2)}, max=${visionMismatchPolicy.maxMismatchRate.toFixed(2)}`
+            );
+            return jsonResponse({
+              error: 'Vision uploads did not match enough selected cards. Please retry with clearer photos of the drawn spread.',
+              code: 'vision_mismatch_rate_exceeded',
+              mismatchRate,
+              maxMismatchRate: visionMismatchPolicy.maxMismatchRate
+            }, { status: 409 });
+          }
           // In research mode, log mismatches but don't block the reading
           console.log(`[${requestId}] Research mode: Continuing despite vision mismatches for data collection.`);
         }
@@ -758,6 +828,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       reversalFrameworkOverride,
       deckStyle,
       userQuestion,
+      contextInputText,
       subscriptionTier,
       location: sanitizedLocation
     }, requestId, env);
@@ -769,7 +840,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       reversalFramework: analysis.themes?.reversalFramework
     });
 
-    const context = inferContext(userQuestion, analysis.spreadKey, {
+    const context = inferContext(contextInputText || userQuestion, analysis.spreadKey, {
       onUnknown: (message) => contextDiagnostics.push(message)
     });
     console.log(`[${requestId}] Context inferred: ${context}`);
@@ -801,6 +872,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       reflectionsText,
       analysis,
       context,
+      contextInputText,
       contextDiagnostics: [...baseContextDiagnostics],
       visionInsights: sanitizedVisionInsights,
       deckStyle,
@@ -1044,6 +1116,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             context,
             contextDiagnostics: finalContextDiagnostics,
             graphRAG: graphRAGStats,
+            sourceUsage: narrativePayload.promptMeta?.sourceUsage || null,
             spreadAnalysis: buildSpreadAnalysisPayload(analysis),
             gateBlocked: false,
             gateReason: null,

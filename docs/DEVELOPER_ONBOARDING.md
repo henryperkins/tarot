@@ -118,7 +118,7 @@ The application root in main.jsx is wrapped by:
 
 Once you're comfortable with the codebase structure:
 
-1. **Run the dev server**: `npm run dev` starts both Vite and Wrangler.
+1. **Run the dev server**: `npm run dev:vite` starts both Vite and Wrangler.
 2. **Explore the main flow**: Start at `TarotReading.jsx` and trace through spread selection → card draw → API call → narrative display.
 3. **Check tests**: `npm test` runs unit tests; `npm run test:e2e` runs Playwright E2E tests.
 4. **Review CLAUDE.md**: Contains detailed API endpoints, database schema, and architectural decisions.

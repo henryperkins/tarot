@@ -61,6 +61,9 @@ wrangler.toml.local
 # MCP configuration with credentials
 .mcp.json
 
+# Claude Code local overrides (personal, not shared)
+.claude.local.md
+
 # Logs
 logs
 *.log

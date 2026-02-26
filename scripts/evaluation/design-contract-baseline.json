@@ -1,11 +1,140 @@
 {
-  "createdAt": "2026-02-03T16:51:50.202Z",
+  "createdAt": "2026-02-23T16:31:35.759Z",
   "roots": [
     "src"
   ],
   "arbitraryTextPx": {
     "count": 0,
     "matches": []
+  },
+  "arbitraryTextAny": {
+    "count": 219
+  },
+  "arbitraryMinHeight": {
+    "count": 36,
+    "matches": [
+      {
+        "file": "src/components/AnimatedRoutes.jsx",
+        "line": 23,
+        "excerpt": "<div className=\"flex items-center justify-center min-h-[50vh]\">"
+      },
+      {
+        "file": "src/components/AtmosphericInterlude.jsx",
+        "line": 188,
+        "excerpt": "className=\"relative flex flex-col items-center justify-center min-h-[280px] sm:min-h-[400px] px-4 overflow-hidden\""
+      },
+      {
+        "file": "src/components/Card.jsx",
+        "line": 686,
+        "excerpt": "className={`card-swipe-container relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1s"
+      },
+      {
+        "file": "src/components/Card.jsx",
+        "line": 717,
+        "excerpt": "<div className={`transition-all relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1sv"
+      },
+      {
+        "file": "src/components/Card.jsx",
+        "line": 917,
+        "excerpt": "className=\"w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[3.5rem] sm:min-h-[4.5rem] resize-y text-main text-base leading-relaxed focus:outline-none focus:ring-1"
+      },
+      {
+        "file": "src/components/NarrativePanel.jsx",
+        "line": 222,
+        "excerpt": "<div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto min-h-[6rem] xxs:min-h-[7.5rem"
+      },
+      {
+        "file": "src/components/NarrativeSkeleton.jsx",
+        "line": 311,
+        "excerpt": "<div className={`narrative-skeleton__panel narrative-atmosphere ${atmosphereClassName} rounded-2xl bg-surface/70 shadow-md px-3 xxs:px-4 sm:px-6 py-5 sm:py-6 min-h-[6rem] xxs:min-h"
+      },
+      {
+        "file": "src/components/QuestionInput.jsx",
+        "line": 193,
+        "excerpt": "<span role=\"status\" aria-live=\"polite\" className=\"text-xs min-h-[1.25rem]\">"
+      },
+      {
+        "file": "src/components/ReadingBoard.jsx",
+        "line": 141,
+        "excerpt": "className=\"w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[3.5rem] resize-y text-main text-base leading-relaxed focus:outline-none focus:ring-1 focus:ring-second"
+      },
+      {
+        "file": "src/components/StreamingNarrative.jsx",
+        "line": 461,
+        "excerpt": "<div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[70ch] w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-["
+      },
+      {
+        "file": "src/components/StreamingNarrative.jsx",
+        "line": 482,
+        "excerpt": "<div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[68ch] mx-auto"
+      },
+      {
+        "file": "src/components/journal/JournalSummaryBand.jsx",
+        "line": 579,
+        "excerpt": "<div className=\"relative mb-2 w-full flex-1 min-h-[80px] max-h-[100px]\">"
+      },
+      {
+        "file": "src/components/journal/entry-card/EntrySections/CardsDrawnSection/CardStack.jsx",
+        "line": 38,
+        "excerpt": "className=\"relative flex w-full min-h-[100px] items-center justify-center rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-1)] py-4 focus-visib"
+      },
+      {
+        "file": "src/components/onboarding/QuestionCrafting.jsx",
+        "line": 124,
+        "excerpt": "className={`w-full bg-surface border border-primary/40 rounded-xl px-3 xxs:px-4 py-3 text-base text-main placeholder:text-muted resize-none focus:outline-none focus:border-primary "
+      },
+      {
+        "file": "src/components/scenes/RitualScene.jsx",
+        "line": 39,
+        "excerpt": "className={`scene-stage scene-stage--ritual relative min-h-[320px] px-3 xs:px-4 sm:px-6 py-6 sm:py-8 ${className}`}"
+      },
+      {
+        "file": "src/pages/CardGalleryPage.jsx",
+        "line": 573,
+        "excerpt": "className={`inline-flex min-h-[36px] items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-2xs font-sem"
+      },
+      {
+        "file": "src/pages/ShareReading.jsx",
+        "line": 22,
+        "excerpt": "<span className=\"inline-flex items-center rounded-full border border-primary/30 px-3 py-2 min-h-[36px] text-xs-plus text-primary\">"
+      }
+    ]
+  },
+  "focusVisibleRings": {
+    "total": 688,
+    "uniqueCount": 30,
+    "byToken": {
+      "focus-visible:ring-2": 260,
+      "focus-visible:ring-accent/60": 38,
+      "focus-visible:ring-primary/60": 8,
+      "focus-visible:ring-offset-2": 90,
+      "focus-visible:ring-offset-surface": 13,
+      "focus-visible:ring-4": 1,
+      "focus-visible:ring-primary/70": 9,
+      "focus-visible:ring-offset-main": 55,
+      "focus-visible:ring-primary": 12,
+      "focus-visible:ring-secondary/70": 8,
+      "focus-visible:ring-primary/50": 7,
+      "focus-visible:ring-accent/50": 14,
+      "focus-visible:ring-secondary/50": 14,
+      "focus-visible:ring-[color:var(--focus-ring-color)]": 63,
+      "focus-visible:ring-accent": 46,
+      "focus-visible:ring-primary/80": 2,
+      "focus-visible:ring-accent/70": 2,
+      "focus-visible:ring-secondary/60": 3,
+      "focus-visible:ring-primary/40": 16,
+      "focus-visible:ring-inset": 1,
+      "focus-visible:ring-error/50": 2,
+      "focus-visible:ring-secondary": 15,
+      "focus-visible:ring-offset-[color:var(--bg-main)]": 1,
+      "focus-visible:ring-1": 1,
+      "focus-visible:ring-offset-1": 1,
+      "focus-visible:ring-warning/40": 1,
+      "focus-visible:ring-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)]": 2,
+      "focus-visible:ring-success/60": 1,
+      "focus-visible:ring-white/50": 1,
+      "focus-visible:ring-error/40": 1
+    }
   },
   "nonTokenTailwindColors": {
     "total": 0,
@@ -16,6 +145,15 @@
     "byColor": {}
   },
   "rawRgbaColorLiterals": {
-    "count": 41
+    "count": 26
+  },
+  "productHexColorLiterals": {
+    "count": 0,
+    "byFile": {}
+  },
+  "componentButtonClassConstants": {
+    "count": 0,
+    "byName": {},
+    "matches": []
   }
 }

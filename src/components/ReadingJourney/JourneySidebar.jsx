@@ -52,7 +52,7 @@ function CollapsibleSection({
     <div className="border-t border-[color:var(--border-warm-subtle)]">
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between min-h-touch py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-main)] touch-manipulation"
+        className="flex w-full items-center justify-between min-h-touch py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-main)] touch-manipulation"
         aria-expanded={isOpen}
       >
         <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-high">
@@ -137,7 +137,7 @@ export default function JourneySidebar({
   const { resetOnboarding, setShowPersonalizationBanner } = usePreferences();
   const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
-    'text-muted hover:text-main focus-visible:ring-[color:var(--accent-45)] -ml-2 -mr-2';
+    'text-muted hover:text-main focus-visible:ring-[color:var(--focus-ring-color)] -ml-2 -mr-2';
   // Section open/close state
   const [openSections, setOpenSections] = useState({
     cards: true,
@@ -307,7 +307,7 @@ export default function JourneySidebar({
           <button
             type="button"
             onClick={() => navigate('/account#analytics')}
-            className="mt-4 inline-flex min-h-touch items-center justify-center rounded-full border border-[color:var(--border-warm-light)] px-4 py-2 text-sm font-semibold text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+            className="mt-4 inline-flex min-h-touch items-center justify-center rounded-full border border-[color:var(--border-warm-light)] px-4 py-2 text-sm font-semibold text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
           >
             Go to Settings
           </button>
@@ -385,7 +385,7 @@ export default function JourneySidebar({
             <button
               type="button"
               onClick={() => onScopeSelect('filters')}
-              className="font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+              className="font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
             >
               Apply filters
             </button>
@@ -549,7 +549,7 @@ export default function JourneySidebar({
                   type="button"
                   onClick={handlePatternsToggle}
                   aria-expanded={showAllPatterns}
-                  className="text-xs font-semibold text-[color:var(--text-accent)] hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                  className="text-xs font-semibold text-[color:var(--text-accent)] hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                 >
                   {showAllPatterns ? 'Hide patterns' : 'View full patterns'}
                 </button>

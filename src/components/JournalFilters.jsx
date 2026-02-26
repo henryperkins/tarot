@@ -25,7 +25,7 @@ const TIMEFRAME_OPTIONS = [
 const DEFAULT_FILTERS = { query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false };
 const SAVED_FILTERS_KEY = 'journal_saved_filters_v1';
 const ADVANCED_FILTERS_KEY = 'journal_filters_advanced_v1';
-const OUTLINE_FILTER_BASE = 'flex min-h-touch items-center gap-2 rounded-xl border px-2.5 py-2 text-xs-plus font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]';
+const OUTLINE_FILTER_BASE = 'flex min-h-touch items-center gap-2 rounded-xl border px-2.5 py-2 text-xs-plus font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]';
 const OUTLINE_FILTER_IDLE = 'border-[color:var(--border-warm-light)] text-muted hover:border-[color:var(--border-warm)] hover:text-main';
 const OUTLINE_FILTER_ACTIVE = 'border-[color:var(--brand-primary)] bg-[color:rgba(212,184,150,0.15)] text-main shadow-[0_12px_30px_-18px_rgba(212,184,150,0.75)]';
 
@@ -174,7 +174,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
                 data-dropdown-option="true"
                 role="option"
                 aria-selected={isSelected(option.value)}
-                className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs-plus text-muted hover:bg-[color:rgba(212,184,150,0.10)] hover:text-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
+                className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs-plus text-muted hover:bg-[color:rgba(212,184,150,0.10)] hover:text-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
               >
                 <span>{option.label}</span>
                 {isSelected(option.value) && <Check className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" />}
@@ -470,7 +470,7 @@ export function JournalFilters({
             type="button"
             onClick={clearFilters}
             disabled={!activeFilters}
-            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:rgba(212,184,150,0.10)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-main)] shadow-[0_12px_30px_-18px_rgba(212,184,150,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.50)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:rgba(212,184,150,0.10)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-main)] shadow-[0_12px_30px_-18px_rgba(212,184,150,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
             <JournalRefreshIcon className="h-4 w-4" aria-hidden="true" />
             Reset view
@@ -482,7 +482,7 @@ export function JournalFilters({
             type="button"
             onClick={() => setAdvancedOpen(prev => !prev)}
             aria-expanded={advancedOpen}
-            className="flex min-h-touch w-full items-center justify-between rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(212,184,150,0.05)] px-3 py-2.5 text-xs-plus font-semibold text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
+            className="flex min-h-touch w-full items-center justify-between rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(212,184,150,0.05)] px-3 py-2.5 text-xs-plus font-semibold text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
           >
             <span className="flex items-center gap-2">
               <span>More filters</span>
@@ -659,7 +659,7 @@ export function JournalFilters({
                       onClick={() => handleMapAction(node.id)}
                       disabled={node.disabled}
                       aria-label={`Edit ${node.label} filter`}
-                      className={`group absolute text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.50)] ${
+                      className={`group absolute text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
                         node.disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
                       }`}
                       style={{
@@ -716,7 +716,7 @@ export function JournalFilters({
                     onClick={() => handleMapAction(node.id)}
                     disabled={node.disabled}
                     aria-label={`Edit ${node.label} filter`}
-                    className={`min-w-[150px] flex-1 rounded-xl border px-4 py-3 text-left backdrop-blur-md snap-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
+                    className={`min-w-[150px] flex-1 rounded-xl border px-4 py-3 text-left backdrop-blur-md snap-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
                       node.isHero
                         ? 'border-[color:var(--border-warm)] bg-[color:rgba(212,184,150,0.10)] shadow-[0_14px_36px_-20px_rgba(212,184,150,0.6)]'
                         : 'border-[color:var(--border-warm-light)] bg-[color:rgba(255,255,255,0.05)] shadow-[0_10px_30px_-24px_rgba(212,184,150,0.5)]'
@@ -808,14 +808,14 @@ export function JournalFilters({
                         <button
                           type="button"
                           onClick={() => handleApplySaved(saved)}
-                          className="flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
+                          className="flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                         >
                           <span className="font-semibold text-[color:var(--text-main)]">{saved.name}</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteSaved(saved.id)}
-                          className="rounded-full px-1 text-[color:var(--color-gray-light)] hover:text-[color:var(--color-error)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)]"
+                          className="rounded-full px-1 text-[color:var(--color-gray-light)] hover:text-[color:var(--color-error)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                           aria-label={`Delete saved filter ${saved.name}`}
                         >
                           <span aria-hidden="true">×</span>
@@ -833,7 +833,7 @@ export function JournalFilters({
                       <button
                         type="button"
                         onClick={() => setSavePanelOpen(true)}
-                        className="inline-flex min-h-touch items-center gap-2 rounded-xl border border-[color:var(--border-warm)] bg-[color:rgba(212,184,150,0.10)] px-3 py-2 text-xs-plus font-semibold text-main shadow-[0_12px_30px_-18px_rgba(212,184,150,0.55)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.50)]"
+                        className="inline-flex min-h-touch items-center gap-2 rounded-xl border border-[color:var(--border-warm)] bg-[color:rgba(212,184,150,0.10)] px-3 py-2 text-xs-plus font-semibold text-main shadow-[0_12px_30px_-18px_rgba(212,184,150,0.55)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                       >
                         <JournalBookmarkIcon className="h-4 w-4 text-[color:var(--brand-accent)]" aria-hidden="true" />
                         Save this view
@@ -950,7 +950,7 @@ export function JournalFilters({
                       onClick={() => onViewModeChange('comfortable')}
                       aria-pressed={viewMode === 'comfortable'}
                       title="Comfortable view - shows more details"
-                    className={`flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs-plus font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
+                    className={`flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs-plus font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
                       viewMode === 'comfortable'
                         ? 'bg-[color:rgba(212,184,150,0.15)] text-[color:var(--text-main)] shadow-[0_4px_12px_-6px_rgba(212,184,150,0.5)]'
                         : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-main)]'
@@ -965,7 +965,7 @@ export function JournalFilters({
                       onClick={() => onViewModeChange('compact')}
                       aria-pressed={viewMode === 'compact'}
                       title="Compact view - shows more entries"
-                    className={`flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs-plus font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.45)] ${
+                    className={`flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs-plus font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
                       viewMode === 'compact'
                         ? 'bg-[color:rgba(212,184,150,0.15)] text-[color:var(--text-main)] shadow-[0_4px_12px_-6px_rgba(212,184,150,0.5)]'
                         : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-main)]'

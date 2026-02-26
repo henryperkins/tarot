@@ -408,6 +408,15 @@ export function StreamingNarrative({
     ? 'pb-16 sm:pb-10 short:pb-12'
     : 'pb-6 sm:pb-6 short:pb-4';
   const stickyActionClass = 'bottom-safe-action';
+  const narrationStatusMessage = useMemo(() => {
+    if (!narrativeText) return '';
+    if (streamingActive && !isComplete) {
+      return showSkipButton
+        ? 'Narrative is revealing. Use Show all now to reveal it immediately.'
+        : 'Narrative is revealing.';
+    }
+    return 'Narrative ready.';
+  }, [narrativeText, streamingActive, isComplete, showSkipButton]);
 
   const tokenMeta = useMemo(() => {
     if (useMarkdown) return [];
@@ -454,7 +463,10 @@ export function StreamingNarrative({
   if (useMarkdown) {
     const visibleText = visibleWords.join('');
     return (
-      <div className={wrapperClassName} aria-live="polite" aria-atomic={streamingActive ? undefined : true}>
+      <div className={wrapperClassName} aria-live="off">
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {narrationStatusMessage}
+        </p>
         {streamingOptInNotice}
         {personalizedIntro}
         {/* Container with min-height to prevent layout shift during streaming */}
@@ -475,7 +487,10 @@ export function StreamingNarrative({
   const EMPHASIS_POP_THRESHOLD = 8;
 
   return (
-    <div className={wrapperClassName} aria-live="polite" aria-atomic={streamingActive ? undefined : true}>
+    <div className={wrapperClassName} aria-live="off">
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {narrationStatusMessage}
+      </p>
       {streamingOptInNotice}
       {personalizedIntro}
       {/* Mobile-optimized text with good line height and spacing - min-height prevents layout shift */}

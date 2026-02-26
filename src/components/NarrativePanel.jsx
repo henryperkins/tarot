@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import { Sparkle, BookmarkSimple, ChatCircle } from '@phosphor-icons/react';
+import { Sparkle, BookmarkSimple } from '@phosphor-icons/react';
 import { StreamingNarrative } from './StreamingNarrative';
 import { NarrationProgress } from './NarrationProgress';
 import { NarrationStatus, NarrationError } from './NarrationStatus';
@@ -18,30 +18,6 @@ function getNarrationLabels(narrationState) {
     return { full: 'Resume narration', compact: 'Resume' };
   }
   return { full: 'Read this aloud', compact: 'Play' };
-}
-
-function FollowUpPrompt({
-  show,
-  onOpenFollowUp
-}) {
-  if (!show) return null;
-
-  return (
-    <div className="max-w-3xl mx-auto mt-4">
-      <div className="rounded-2xl border border-secondary/35 bg-surface/85 px-4 py-3 text-center shadow-lg shadow-secondary/25">
-        <p className="text-sm font-semibold text-main">Continue with a follow-up chat</p>
-        <p className="text-xs text-muted mt-1">Ask deeper questions and explore what resonates.</p>
-        <button
-          type="button"
-          onClick={onOpenFollowUp}
-          className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent/20 border border-accent/40 px-4 py-2 text-xs font-semibold text-accent hover:bg-accent/30 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-        >
-          <ChatCircle className="w-4 h-4" weight="fill" aria-hidden="true" />
-          <span>Open follow-up chat</span>
-        </button>
-      </div>
-    </div>
-  );
 }
 
 function NarrationActions({
@@ -185,8 +161,7 @@ export function NarrativePanel({
   journalStatus,
   shouldShowJournalNudge,
   markJournalNudgeSeen,
-  hasHeroStoryArt,
-  onOpenFollowUp
+  hasHeroStoryArt
 }) {
   const navigate = useNavigate();
 
@@ -201,7 +176,6 @@ export function NarrativePanel({
   const showNarrationStatus = hasNarrativeContext && narrationState !== 'idle' && narrationState !== 'completed';
   const showNarrationStop = Boolean(voiceOn && fullReadingText && isNarrationActive);
   const showSaveButton = hasNarrativeContext && !isHandset && narrativePhase === 'complete';
-  const showFollowUpPrompt = Boolean(isHandset && onOpenFollowUp && hasNarrativeContext && narrativePhase === 'complete');
   const showNarrationProgress = hasNarrativeContext && ttsProvider === 'azure' && (isNarrationPlaying || isNarrationPaused);
   const showNarrationTierLimit = ttsState?.status === 'error' && ttsState?.errorCode === 'TIER_LIMIT';
   const showJournalNudge = Boolean(shouldShowJournalNudge && personalReading && !personalReading.isError && !journalStatus);
@@ -217,6 +191,28 @@ export function NarrativePanel({
       }
     });
   };
+  const guidancePanel = (
+    <NarrativeGuidancePanel
+      toneLabel={toneLabel}
+      frameLabel={frameLabel}
+      isHandset={isHandset}
+      isNewbie={isNewbie}
+      defaultOpen={isHandset ? false : undefined}
+      compact
+      className="max-w-3xl mx-auto"
+    />
+  );
+  const desktopAnchor = !isHandset && userQuestion ? (
+    <div className="bg-surface/85 rounded-lg px-3 xxs:px-4 py-3 border border-secondary/40">
+      <p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p>
+    </div>
+  ) : null;
+  const mobileAnchor = isHandset && userQuestion ? (
+    <div className="max-w-3xl mx-auto mt-3 rounded-lg border border-secondary/35 bg-surface/65 px-3 py-2">
+      <p className="text-2xs uppercase tracking-[0.12em] text-muted/80">Anchor</p>
+      <p className="text-xs text-accent/85 mt-1 leading-relaxed">{userQuestion}</p>
+    </div>
+  ) : null;
 
   return (
     <div className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}>
@@ -238,20 +234,9 @@ export function NarrativePanel({
           ) : null}
         </div>
 
-        {userQuestion ? (
-          <div className="bg-surface/85 rounded-lg px-3 xxs:px-4 py-3 border border-secondary/40">
-            <p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p>
-          </div>
-        ) : null}
+        {desktopAnchor}
 
-        <NarrativeGuidancePanel
-          toneLabel={toneLabel}
-          frameLabel={frameLabel}
-          isHandset={isHandset}
-          isNewbie={isNewbie}
-          compact
-          className="max-w-3xl mx-auto"
-        />
+        {!isHandset ? guidancePanel : null}
       </div>
 
       <StreamingNarrative
@@ -271,8 +256,8 @@ export function NarrativePanel({
         withAtmosphere
         atmosphereClassName={narrativeAtmosphereClassName}
       />
-
-      <FollowUpPrompt show={showFollowUpPrompt} onOpenFollowUp={onOpenFollowUp} />
+      {mobileAnchor}
+      {isHandset ? <div className="mt-3">{guidancePanel}</div> : null}
 
       <div className="mt-4 max-w-3xl mx-auto space-y-4">
         {showNarrationStatus ? (
@@ -368,6 +353,5 @@ NarrativePanel.propTypes = {
   journalStatus: PropTypes.object,
   shouldShowJournalNudge: PropTypes.bool,
   markJournalNudgeSeen: PropTypes.func,
-  hasHeroStoryArt: PropTypes.bool,
-  onOpenFollowUp: PropTypes.func
+  hasHeroStoryArt: PropTypes.bool
 };

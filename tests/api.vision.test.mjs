@@ -67,6 +67,58 @@ describe('vision research mode', () => {
     assert.ok(typeof payload.reading === 'string' && payload.reading.length > 0);
   });
 
+  it('blocks when strict deck mismatch policy is enabled', async () => {
+    const proof = await createVisionProof({
+      deckStyle: 'thoth-a1',
+      insights: [
+        { label: 'IMG_003', predictedCard: 'The Magician', confidence: 0.87 }
+      ]
+    });
+    const request = makeRequest({
+      ...BASE_PAYLOAD,
+      visionProof: proof
+    });
+
+    const response = await onRequestPost({
+      request,
+      env: {
+        VISION_PROOF_SECRET: TEST_SECRET,
+        VISION_STRICT_DECK_MATCH: 'true'
+      }
+    });
+
+    assert.equal(response.status, 409);
+    const payload = await response.json();
+    assert.equal(payload.code, 'vision_deck_mismatch');
+  });
+
+  it('blocks when strict mismatch-rate policy threshold is exceeded', async () => {
+    const proof = await createVisionProof({
+      insights: [
+        { label: 'IMG_MATCH', predictedCard: 'The Fool', confidence: 0.93 },
+        { label: 'IMG_MISMATCH', predictedCard: 'The Magician', confidence: 0.81 }
+      ]
+    });
+    const request = makeRequest({
+      ...BASE_PAYLOAD,
+      visionProof: proof
+    });
+
+    const response = await onRequestPost({
+      request,
+      env: {
+        VISION_PROOF_SECRET: TEST_SECRET,
+        VISION_STRICT_MISMATCH_RATE: 'true',
+        VISION_MAX_MISMATCH_RATE: '0.25'
+      }
+    });
+
+    assert.equal(response.status, 409);
+    const payload = await response.json();
+    assert.equal(payload.code, 'vision_mismatch_rate_exceeded');
+    assert.ok(payload.mismatchRate > payload.maxMismatchRate);
+  });
+
   it('rejects tampered proofs that fail verification', async () => {
     const proof = await createVisionProof({
       insights: [

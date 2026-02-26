@@ -111,7 +111,7 @@ If wrangler dev is running, you can trace prompt building:
 
 ```bash
 # Start dev server with verbose logging
-VERBOSE_PROMPT=true npm run dev
+VERBOSE_PROMPT=true npm run dev:workers
 
 # Make a test request
 curl -X POST http://localhost:8787/api/tarot-reading \

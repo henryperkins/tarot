@@ -69,6 +69,7 @@ export function buildPromptTelemetry(promptMeta) {
     truncation,
     hardCap: promptMeta.hardCap || null,
     context: promptMeta.context || null,
+    sourceUsage: promptMeta.sourceUsage || null,
     ephemeris: promptMeta.ephemeris || null,
     forecast: promptMeta.forecast || null
   };

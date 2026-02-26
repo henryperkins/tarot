@@ -69,7 +69,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
           aria-controls={entryContentId}
           title={isExpanded ? 'Collapse entry' : 'Expand entry'}
           className={cn(
-            'group flex min-w-0 flex-1 rounded-2xl px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]',
+            'group flex min-w-0 flex-1 rounded-2xl px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
             isCompactView ? 'flex-row items-start gap-3' : 'flex-col gap-3'
           )}
         >

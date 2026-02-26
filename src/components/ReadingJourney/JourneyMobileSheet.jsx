@@ -142,7 +142,7 @@ export default function JourneyMobileSheet({
 
   const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
-    'text-muted hover:text-main focus-visible:ring-[color:var(--accent-45)] -ml-2 -mr-2';
+    'text-muted hover:text-main focus-visible:ring-[color:var(--focus-ring-color)] -ml-2 -mr-2';
   const themeHint = activeCoachSuggestion?.source === 'theme' && typeof totalReadings === 'number' && totalReadings > 0
     ? `Theme from ${totalReadings} reading${totalReadings === 1 ? '' : 's'}`
     : '';
@@ -405,7 +405,7 @@ export default function JourneyMobileSheet({
           <button
             type="button"
             onClick={() => navigate('/account#analytics')}
-            className="mt-4 inline-flex min-h-touch items-center justify-center rounded-full border border-[color:var(--border-warm-light)] px-4 py-2 text-sm font-semibold text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+            className="mt-4 inline-flex min-h-touch items-center justify-center rounded-full border border-[color:var(--border-warm-light)] px-4 py-2 text-sm font-semibold text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
           >
             Go to Settings
           </button>
@@ -472,7 +472,7 @@ export default function JourneyMobileSheet({
               <button
                 type="button"
                 onClick={() => onScopeSelect('filters')}
-                className="font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                className="font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
               >
                 Apply filters
               </button>
@@ -586,7 +586,7 @@ export default function JourneyMobileSheet({
               w-full py-3 min-h-touch rounded-full text-sm font-medium
               border border-[color:var(--border-warm-light)] text-[color:var(--text-main)] bg-[color:var(--border-warm-subtle)]
               hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)]
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]
               transition-colors
             "
           >
@@ -651,7 +651,7 @@ export default function JourneyMobileSheet({
               <div className="flex items-center gap-1">
                 <Link
                   to="/account#analytics"
-                  className="flex items-center justify-center min-h-touch min-w-touch rounded-lg text-muted hover:text-main hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] transition-colors"
+                  className="flex items-center justify-center min-h-touch min-w-touch rounded-lg text-muted hover:text-main hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] transition-colors"
                   aria-label="Journey settings"
                 >
                   <Gear className="h-5 w-5" />
@@ -664,7 +664,7 @@ export default function JourneyMobileSheet({
                     min-h-touch min-w-touch -mr-2
                     rounded-lg text-muted
                     hover:text-main hover:bg-[color:var(--border-warm-subtle)]
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]
                     transition-colors
                   "
                   aria-label="Close journey panel"
@@ -753,7 +753,7 @@ export default function JourneyMobileSheet({
                       type="button"
                       onClick={handlePatternsToggle}
                       aria-expanded={showAllPatterns}
-                      className="text-xs font-semibold text-[color:var(--text-accent)] hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                      className="text-xs font-semibold text-[color:var(--text-accent)] hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                     >
                       {showAllPatterns ? 'Hide patterns' : 'View full patterns'}
                     </button>

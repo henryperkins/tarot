@@ -81,7 +81,7 @@ export const CardFan = memo(function CardFan({
           aria-label={cardLabel}
           className={cn(
             'group rounded-lg transition-shadow duration-300 ease-out',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
             'hover:shadow-[0_20px_40px_-20px_rgba(0,0,0,0.6)]',
             isActive && 'shadow-[0_20px_40px_-20px_rgba(0,0,0,0.6)]'
           )}
@@ -133,7 +133,7 @@ export const CardFan = memo(function CardFan({
             aria-label={cardLabel}
             className={cn(
               'group rounded-lg transition-shadow duration-300 ease-out',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
               'hover:shadow-[0_20px_40px_-20px_rgba(0,0,0,0.6)]'
             )}
             tabIndex={0}

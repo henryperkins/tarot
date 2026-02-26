@@ -7,6 +7,7 @@ export function NarrativeGuidancePanel({
   frameLabel,
   isHandset,
   isNewbie,
+  defaultOpen,
   compact = false,
   className = ''
 }) {
@@ -34,6 +35,7 @@ export function NarrativeGuidancePanel({
   const headingClass = compact
     ? 'text-sm sm:text-base font-serif text-accent/90 flex items-center gap-2'
     : 'text-base sm:text-lg font-serif text-accent flex items-center gap-2';
+  const isExpandedByDefault = typeof defaultOpen === 'boolean' ? defaultOpen : isNewbie;
 
   return (
     <div className={`${compact ? 'space-y-1.5 sm:space-y-2' : 'space-y-2 sm:space-y-3'} ${className}`}>
@@ -47,7 +49,7 @@ export function NarrativeGuidancePanel({
         <MobileInfoSection
           title="Narrative style & guidance"
           variant="block"
-          defaultOpen={isNewbie}
+          defaultOpen={isExpandedByDefault}
           buttonClassName={compact ? 'border-secondary/25 bg-surface/40 text-sm' : ''}
           contentClassName={compact ? 'bg-transparent border-transparent px-0 py-0 text-sm' : ''}
         >
@@ -56,7 +58,7 @@ export function NarrativeGuidancePanel({
       ) : (
         <HelperToggle
           className={compact ? 'mt-1' : 'mt-2'}
-          defaultOpen={isNewbie}
+          defaultOpen={isExpandedByDefault}
           buttonClassName={compact ? 'px-0 text-xs sm:text-sm' : ''}
           contentClassName={compact ? 'bg-transparent border-transparent p-0' : ''}
         >

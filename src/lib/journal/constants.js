@@ -101,8 +101,7 @@ export const CARD_CONNECTORS = [
 ];
 
 // CSS class constants for amber-themed cards
-// Uses theme panel colors: --panel-dark-1: #0d0a14, --panel-dark-2: #151020, --panel-dark-3: #0f0b17
-// Glow colors: --glow-gold: rgba(244,207,150,0.1), --glow-blue: rgba(120,161,255,0.08)
+// Uses semantic theme panel and glow tokens from src/styles/theme.css.
 export const AMBER_SHELL_CLASS = 'panel-mystic rounded-3xl';
 export const AMBER_CARD_CLASS = 'relative overflow-hidden rounded-[28px] border border-[color:var(--border-warm-light)] bg-[radial-gradient(circle_at_top,var(--glow-gold),transparent_55%),radial-gradient(circle_at_80%_0%,var(--glow-blue),transparent_45%),linear-gradient(160deg,var(--panel-dark-1),var(--panel-dark-3))] ring-1 ring-[color:var(--border-warm-subtle)] shadow-[0_28px_74px_-36px_rgba(0,0,0,0.9)]';
 export const AMBER_SHELL_MOBILE_CLASS = 'panel-mystic rounded-3xl';

@@ -23,6 +23,52 @@ import {
   buildDeckSpecificContext
 } from './cardBuilders.js';
 
+function sanitizeReflectionForPrompt(reflectionText, maxLength = MAX_REFLECTION_TEXT_LENGTH) {
+  if (typeof reflectionText !== 'string' || !reflectionText.trim()) {
+    return '';
+  }
+
+  let sanitized = sanitizeText(reflectionText, {
+    maxLength,
+    addEllipsis: true,
+    stripMarkdown: true,
+    filterInstructions: true
+  });
+
+  if (!sanitized) {
+    return '';
+  }
+
+  const reflectionCheck = detectPromptInjection(sanitized, { confidenceThreshold: 0.6, sanitize: true });
+  if (reflectionCheck.isInjection) {
+    console.warn('[PromptInjection] Potential injection detected in reflections:', {
+      confidence: reflectionCheck.confidence,
+      severity: reflectionCheck.severity,
+      reasons: reflectionCheck.reasons.slice(0, 3)
+    });
+    sanitized = reflectionCheck.sanitizedText;
+  }
+
+  return sanitized || '';
+}
+
+function reflectionDedupKey(text) {
+  if (typeof text !== 'string' || !text.trim()) return '';
+  return text.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function sanitizeReflectionForDedupe(reflectionText) {
+  if (typeof reflectionText !== 'string' || !reflectionText.trim()) {
+    return '';
+  }
+  return sanitizeText(reflectionText, {
+    maxLength: 120,
+    addEllipsis: true,
+    stripMarkdown: true,
+    filterInstructions: true
+  });
+}
+
 export function buildUserPrompt(
   spreadKey,
   cardsInfo,
@@ -162,24 +208,19 @@ export function buildUserPrompt(
     prompt += deckSpecificContext;
   }
 
-  // Reflections (Fallback for legacy/aggregate usage) - filter instruction patterns
-  const hasPerCardReflections = cardsInfo.some(c => c.userReflection);
-  if (!hasPerCardReflections && reflectionsText && reflectionsText.trim()) {
-    let sanitizedReflections = sanitizeText(reflectionsText, { maxLength: MAX_REFLECTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true, filterInstructions: true });
-    if (sanitizedReflections) {
-      const reflectionCheck = detectPromptInjection(sanitizedReflections, { confidenceThreshold: 0.6, sanitize: true });
-      if (reflectionCheck.isInjection) {
-        console.warn('[PromptInjection] Potential injection detected in reflections:', {
-          confidence: reflectionCheck.confidence,
-          severity: reflectionCheck.severity,
-          reasons: reflectionCheck.reasons.slice(0, 3)
-        });
-        sanitizedReflections = reflectionCheck.sanitizedText;
-      }
-    }
-    if (sanitizedReflections) {
-      prompt += `\n**Querent's Reflections**:\n${sanitizedReflections}\n\n`;
-    }
+  // Global reflections are additive to per-card reflections unless duplicated.
+  const perCardReflectionKeys = new Set(
+    (Array.isArray(cardsInfo) ? cardsInfo : [])
+      .map((card) => sanitizeReflectionForDedupe(card?.userReflection))
+      .map(reflectionDedupKey)
+      .filter(Boolean)
+  );
+  const sanitizedReflections = sanitizeReflectionForPrompt(reflectionsText);
+  const globalReflectionKey = reflectionDedupKey(sanitizedReflections);
+  const isDuplicateGlobalReflection = globalReflectionKey && perCardReflectionKeys.has(globalReflectionKey);
+
+  if (sanitizedReflections && !isDuplicateGlobalReflection) {
+    prompt += `\n**Querent's Reflections**:\n${sanitizedReflections}\n\n`;
   }
 
   const visionSection = buildVisionValidationSection(visionInsights, { includeDiagnostics, cardsInfo });

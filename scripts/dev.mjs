@@ -7,7 +7,7 @@
   - This script starts the same stack: Vite (frontend) + build (dist) + Wrangler dev (worker).
 
   Usage:
-  - npm run dev
+  - npm run dev:vite
   - node scripts/dev.mjs --smoke   (validate setup only)
 */
 
@@ -205,7 +205,7 @@ function printHelp() {
     console.log('Tableau dev runner');
     console.log('');
     console.log('Usage:');
-    console.log('  npm run dev');
+    console.log('  npm run dev:vite');
     console.log('  node scripts/dev.mjs --smoke');
     console.log('');
     console.log('Options:');

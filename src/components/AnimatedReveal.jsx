@@ -20,6 +20,31 @@ const VIDEO_STYLES = VIDEO_STYLE_PRESETS;
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLL_MS = 120000;
 const MAX_POLL_ERRORS = 2;
+const MAX_POLL_HTTP_ERRORS = 3;
+const MAX_POLL_NOT_FOUND_RETRIES = 4;
+const INITIAL_POLL_DELAY_MS = 2500;
+
+function normalizeClientStatus(rawStatus) {
+  const status = typeof rawStatus === 'string' ? rawStatus.trim().toLowerCase() : '';
+  if (!status) return 'processing';
+  if (status === 'pending' || status === 'queued' || status === 'submitted') return 'pending';
+  if (status === 'processing' || status === 'running' || status === 'in_progress') return 'processing';
+  if (status === 'completed' || status === 'succeeded') return 'completed';
+  if (status === 'failed' || status === 'cancelled' || status === 'expired') return 'failed';
+  return status;
+}
+
+function estimateProgress(status, startedAt) {
+  const normalized = normalizeClientStatus(status);
+  if (normalized === 'completed') return 100;
+  if (normalized === 'failed') return 0;
+
+  const elapsedMs = startedAt > 0 ? Math.max(0, Date.now() - startedAt) : 0;
+  const elapsedRatio = Math.min(elapsedMs / MAX_POLL_MS, 1);
+  const base = normalized === 'pending' ? 12 : 36;
+  const range = normalized === 'pending' ? 30 : 54;
+  return Math.min(95, Math.round(base + (range * elapsedRatio)));
+}
 
 // Loading state with animated shimmer
 function VideoLoadingSkeleton({ prefersReducedMotion = false }) {
@@ -73,9 +98,12 @@ function VideoLoadingSkeleton({ prefersReducedMotion = false }) {
 
 // Progress indicator for job polling
 function ProgressIndicator({ status, progress, prefersReducedMotion = false }) {
+  const normalizedStatus = normalizeClientStatus(status);
   const statusMessages = {
     pending: 'Queued for generation...',
     processing: 'Creating your cinematic reveal...',
+    cancelled: 'Generation cancelled',
+    expired: 'Generation expired',
     completed: 'Ready!',
     failed: 'Generation failed'
   };
@@ -84,12 +112,12 @@ function ProgressIndicator({ status, progress, prefersReducedMotion = false }) {
     <div className="text-center py-2">
       <div className="flex items-center justify-center gap-2 text-sm">
         <span className={`w-2 h-2 rounded-full ${
-          status === 'completed' ? 'bg-success' :
-          status === 'failed' ? 'bg-error' :
+          normalizedStatus === 'completed' ? 'bg-success' :
+          normalizedStatus === 'failed' ? 'bg-error' :
           'bg-warning animate-pulse'
         }`} />
         <span className="text-muted">
-          {statusMessages[status] || status}
+          {statusMessages[normalizedStatus] || normalizedStatus}
         </span>
       </div>
       {progress > 0 && progress < 100 && (
@@ -108,7 +136,7 @@ function ProgressIndicator({ status, progress, prefersReducedMotion = false }) {
 }
 
 // Video player with controls
-function VideoPlayer({ videoData, onReplay, prefersReducedMotion = false }) {
+function VideoPlayer({ videoData, prefersReducedMotion = false }) {
   const videoRef = useRef(null);
   const playButtonRef = useRef(null);
   const containerRef = useRef(null);
@@ -151,6 +179,13 @@ function VideoPlayer({ videoData, onReplay, prefersReducedMotion = false }) {
   
   const handleEnded = () => {
     setIsPlaying(false);
+  };
+
+  const handleReplay = () => {
+    const activeVideo = isExpanded ? expandedVideoRef.current : videoRef.current;
+    if (!activeVideo) return;
+    activeVideo.currentTime = 0;
+    activeVideo.play().catch(() => setIsPlaying(false));
   };
   
   const animatePlayButton = (scaleValue) => {
@@ -339,7 +374,7 @@ function VideoPlayer({ videoData, onReplay, prefersReducedMotion = false }) {
           event.stopPropagation();
           openExpanded();
         }}
-        className="absolute top-3 left-3 z-20 rounded-full bg-black/65 border border-white/20 px-2.5 py-1 text-[11px] font-semibold text-white"
+        className="absolute top-3 left-3 z-20 rounded-full bg-black/65 border border-white/20 px-2.5 py-1 text-2xs font-semibold text-white"
         aria-label="Expand cinematic reveal"
       >
         Expand
@@ -348,7 +383,7 @@ function VideoPlayer({ videoData, onReplay, prefersReducedMotion = false }) {
       {/* Play/Pause overlay */}
       <div 
         className="absolute inset-0 z-10 flex items-center justify-center 
-                   bg-main/60 backdrop-blur-sm opacity-0 group-hover:opacity-100"
+                   bg-main/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
         style={{ transition: prefersReducedMotion ? 'none' : undefined }}
       >
         <button
@@ -384,7 +419,7 @@ function VideoPlayer({ videoData, onReplay, prefersReducedMotion = false }) {
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            onReplay();
+            handleReplay();
           }}
           className="absolute bottom-4 right-4 z-20 px-3 py-1.5 bg-surface/85 
                      text-main rounded-lg text-sm hover:bg-surface transition-colors"
@@ -414,15 +449,21 @@ export default function AnimatedReveal({
   const [error, setError] = useState(null);
   const [, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
+  const [progress, setProgress] = useState(0);
   const [videoData, setVideoData] = useState(null);
   const [showStylePicker, setShowStylePicker] = useState(false);
   
+  const pollStartTimeoutRef = useRef(null);
   const pollIntervalRef = useRef(null);
   const pollInFlightRef = useRef(false);
-  const pollMetaRef = useRef({ startedAt: 0, errorCount: 0 });
+  const pollMetaRef = useRef({
+    startedAt: 0,
+    errorCount: 0,
+    notFoundCount: 0,
+    httpErrorCount: 0
+  });
   const autoGenerateKeyRef = useRef(null);
   const requestTokenRef = useRef(0);
-  const replayTimerRef = useRef(null);
   const normalizedQuestion = (question || '').trim();
   const normalizedPosition = (position || '').trim();
   const isReversed = Boolean(card?.reversed ?? card?.isReversed);
@@ -439,17 +480,15 @@ export default function AnimatedReveal({
   }, [config.styles]);
 
   const clearPolling = useCallback(() => {
+    if (pollStartTimeoutRef.current) {
+      window.clearTimeout(pollStartTimeoutRef.current);
+      pollStartTimeoutRef.current = null;
+    }
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
     pollInFlightRef.current = false;
-  }, []);
-
-  const clearReplayTimer = useCallback(() => {
-    if (!replayTimerRef.current) return;
-    window.clearTimeout(replayTimerRef.current);
-    replayTimerRef.current = null;
   }, []);
 
   // Clamp style when tier changes make current selection unavailable
@@ -489,16 +528,20 @@ export default function AnimatedReveal({
     setError(null);
     setJobStatus(null);
     setJobId(null);
+    setProgress(0);
     setShowStylePicker(false);
-    pollMetaRef.current = { startedAt: 0, errorCount: 0 };
+    pollMetaRef.current = {
+      startedAt: 0,
+      errorCount: 0,
+      notFoundCount: 0,
+      httpErrorCount: 0
+    };
     clearPolling();
-    clearReplayTimer();
 
     return () => {
       clearPolling();
-      clearReplayTimer();
     };
-  }, [cardIdentity, clearPolling, clearReplayTimer]);
+  }, [cardIdentity, clearPolling]);
   
   // Poll for job completion
   const pollJobStatus = useCallback(async (id, requestToken) => {
@@ -511,6 +554,7 @@ export default function AnimatedReveal({
         setError('Video generation is taking longer than expected. Please try again.');
         setJobStatus('failed');
         setLoading(false);
+        setProgress(0);
         clearPolling();
         return;
       }
@@ -529,18 +573,39 @@ export default function AnimatedReveal({
       if (requestToken !== requestTokenRef.current) return;
 
       if (!response.ok) {
-        const message = data?.error || data?.details || 'Failed to check video status.';
+        const nextMeta = { ...meta };
+        const isRetryableNotFound = response.status === 404 && nextMeta.notFoundCount < MAX_POLL_NOT_FOUND_RETRIES;
+        const isRetryableHttp = (response.status === 429 || response.status >= 500) && nextMeta.httpErrorCount < MAX_POLL_HTTP_ERRORS;
+
+        if (isRetryableNotFound || isRetryableHttp) {
+          if (isRetryableNotFound) {
+            nextMeta.notFoundCount += 1;
+          }
+          if (isRetryableHttp) {
+            nextMeta.httpErrorCount += 1;
+          }
+          pollMetaRef.current = nextMeta;
+          setJobStatus('processing');
+          setProgress((prev) => Math.max(prev, estimateProgress('processing', meta.startedAt)));
+          return;
+        }
+
+        const messageParts = [data?.error, data?.details, data?.hint].filter(Boolean);
+        const message = messageParts.join(' ').trim() || 'Failed to check video status.';
         setError(message);
         setJobStatus('failed');
         setLoading(false);
+        setProgress(0);
         clearPolling();
         return;
       }
       
       if (data?.error) {
-        setError(data.error);
+        const messageParts = [data?.error, data?.details, data?.hint].filter(Boolean);
+        setError(messageParts.join(' ').trim() || 'Video generation failed.');
         setJobStatus('failed');
         setLoading(false);
+        setProgress(0);
         clearPolling();
         return;
       }
@@ -549,6 +614,7 @@ export default function AnimatedReveal({
         // Video is ready
         setVideoData(data.video);
         setJobStatus('completed');
+        setProgress(100);
         setLoading(false);
         clearPolling();
         
@@ -559,14 +625,21 @@ export default function AnimatedReveal({
             seconds: data.seconds || 4
           }));
         }
-      } else if (data.status === 'failed') {
-        setError('Video generation failed. Please try again.');
+      } else if (normalizeClientStatus(data.status) === 'failed') {
+        setError(data?.message || 'Video generation failed. Please try again.');
         setJobStatus('failed');
         setLoading(false);
+        setProgress(0);
         clearPolling();
       } else {
-        pollMetaRef.current.errorCount = 0;
-        setJobStatus(data.status);
+        pollMetaRef.current = {
+          ...meta,
+          errorCount: 0,
+          httpErrorCount: 0
+        };
+        const nextStatus = normalizeClientStatus(data.status);
+        setJobStatus(nextStatus);
+        setProgress((prev) => Math.max(prev, estimateProgress(nextStatus, meta.startedAt)));
       }
     } catch (err) {
       if (requestToken !== requestTokenRef.current) return;
@@ -577,9 +650,12 @@ export default function AnimatedReveal({
         setError('Unable to reach the video service. Please try again.');
         setJobStatus('failed');
         setLoading(false);
+        setProgress(0);
         clearPolling();
         return;
       }
+      setJobStatus('processing');
+      setProgress((prev) => Math.max(prev, estimateProgress('processing', meta.startedAt)));
       console.error('Poll error:', err);
     } finally {
       pollInFlightRef.current = false;
@@ -595,7 +671,6 @@ export default function AnimatedReveal({
     }
 
     clearPolling();
-    clearReplayTimer();
     setJobId(null);
     
     const requestToken = requestTokenRef.current + 1;
@@ -605,6 +680,7 @@ export default function AnimatedReveal({
     setError(null);
     setVideoData(null);
     setJobStatus('pending');
+    setProgress(10);
 
     const canonicalCard = getCanonicalCard(card);
     const reversed = Boolean(card?.reversed ?? card?.isReversed);
@@ -632,18 +708,25 @@ export default function AnimatedReveal({
         })
       });
       
-      const data = await response.json();
+      let data = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
       
       if (requestToken !== requestTokenRef.current) return;
 
       if (!response.ok) {
-        throw new Error(data.error || 'Generation failed');
+        const messageParts = [data?.details, data?.error, data?.hint].filter(Boolean);
+        throw new Error(messageParts.join(' ').trim() || 'Generation failed');
       }
       
       if (data.status === 'completed' && data.video) {
         // Cached result
         setVideoData(data.video);
         setJobStatus('completed');
+        setProgress(100);
         setLoading(false);
         
         if (onVideoReady) {
@@ -656,12 +739,21 @@ export default function AnimatedReveal({
       } else if (data.jobId) {
         // Start polling
         setJobId(data.jobId);
-        setJobStatus('processing');
-        pollMetaRef.current = { startedAt: Date.now(), errorCount: 0 };
-        pollJobStatus(data.jobId, requestToken);
-        pollIntervalRef.current = setInterval(() => {
+        setJobStatus('pending');
+        setProgress((prev) => Math.max(prev, 12));
+        pollMetaRef.current = {
+          startedAt: Date.now(),
+          errorCount: 0,
+          notFoundCount: 0,
+          httpErrorCount: 0
+        };
+        pollStartTimeoutRef.current = window.setTimeout(() => {
+          if (requestToken !== requestTokenRef.current) return;
           pollJobStatus(data.jobId, requestToken);
-        }, POLL_INTERVAL_MS);
+          pollIntervalRef.current = setInterval(() => {
+            pollJobStatus(data.jobId, requestToken);
+          }, POLL_INTERVAL_MS);
+        }, INITIAL_POLL_DELAY_MS);
       } else {
         throw new Error('Video generation did not return a job id.');
       }
@@ -669,9 +761,10 @@ export default function AnimatedReveal({
       if (requestToken !== requestTokenRef.current) return;
       setError(err.message);
       setLoading(false);
-      setJobStatus(null);
+      setJobStatus('failed');
+      setProgress(0);
     }
-  }, [card, question, position, style, config.enabled, onVideoReady, pollJobStatus, cardMediaMeta, clearPolling, clearReplayTimer]);
+  }, [card, question, position, style, config.enabled, onVideoReady, pollJobStatus, cardMediaMeta, clearPolling]);
   
   // Auto-generate when context changes
   useEffect(() => {
@@ -686,16 +779,6 @@ export default function AnimatedReveal({
     autoGenerateKeyRef.current = cardIdentity;
     handleGenerate();
   }, [autoGenerate, config.enabled, card?.name, cardIdentity, handleGenerate]);
-  
-  // Replay video
-  const handleReplay = () => {
-    clearReplayTimer();
-    setVideoData(null);
-    replayTimerRef.current = window.setTimeout(() => {
-      replayTimerRef.current = null;
-      handleGenerate();
-    }, 100);
-  };
   
   // Feature not available
   if (!config.enabled) {
@@ -722,7 +805,7 @@ export default function AnimatedReveal({
           key="video"
           style={{ transition: prefersReducedMotion ? 'none' : 'opacity 220ms ease-out, transform 220ms ease-out' }}
         >
-          <VideoPlayer videoData={videoData} onReplay={handleReplay} prefersReducedMotion={prefersReducedMotion} />
+          <VideoPlayer videoData={videoData} prefersReducedMotion={prefersReducedMotion} />
         </div>
       )}
 
@@ -734,7 +817,7 @@ export default function AnimatedReveal({
         >
           <VideoLoadingSkeleton prefersReducedMotion={prefersReducedMotion} />
           {jobStatus && (
-            <ProgressIndicator status={jobStatus} progress={0} prefersReducedMotion={prefersReducedMotion} />
+            <ProgressIndicator status={jobStatus} progress={progress} prefersReducedMotion={prefersReducedMotion} />
           )}
         </div>
       )}
@@ -788,11 +871,11 @@ export default function AnimatedReveal({
                        text-surface rounded-lg hover:from-primary/90 hover:to-accent/90
                        transition-all shadow-lg text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
           >
-            🎬 Generate Cinematic Reveal
+            Generate Cinematic Reveal
           </button>
 
           <p className="text-muted text-xs mt-2">
-            Creates a 4-second animated video of this card
+            Creates a 4-second animated scene for this card
           </p>
         </div>
       )}
@@ -800,16 +883,24 @@ export default function AnimatedReveal({
       {/* Error display */}
       {error && (
         <div
-          className="absolute inset-x-0 bottom-0 p-3 bg-error/15 border-t border-error/30 rounded-b-lg"
+          className="mt-3 p-3 bg-error/15 border border-error/30 rounded-lg"
           style={{ transition: prefersReducedMotion ? 'none' : 'opacity 180ms ease-out, transform 180ms ease-out' }}
         >
           <p className="text-error text-sm text-center">{error}</p>
-          <button
-            onClick={() => setError(null)}
-            className="text-error hover:text-error/80 text-xs block mx-auto mt-1 underline"
-          >
-            Dismiss
-          </button>
+          <div className="mt-1 flex items-center justify-center gap-3">
+            <button
+              onClick={() => setError(null)}
+              className="text-error hover:text-error/80 text-xs underline"
+            >
+              Dismiss
+            </button>
+            <button
+              onClick={handleGenerate}
+              className="text-error hover:text-error/80 text-xs underline"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
     </div>

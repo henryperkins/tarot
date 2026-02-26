@@ -88,6 +88,7 @@ import * as adminQualityStats from '../../functions/api/admin/quality-stats.js';
 
 // Utility functions
 import { jsonResponse } from '../../functions/lib/utils.js';
+import { handleDebugSentryRoute } from './debugSentryRoute.js';
 
 // Share page OG meta tag injection
 import { loadShareRecord, loadShareEntries } from '../../functions/lib/shareData.js';
@@ -275,15 +276,15 @@ const routes = [
   { pattern: /^\/api\/admin\/archive$/, handlers: adminArchive },
   { pattern: /^\/api\/admin\/quality-stats$/, handlers: adminQualityStats },
   { pattern: /^\/api\/coach-extraction-backfill$/, handlers: coachExtractionBackfill },
-  // Sentry debug route (remove in production if desired)
+  // Sentry debug route (disabled by default; requires admin key when enabled)
   {
     pattern: /^\/api\/debug-sentry$/,
     handlers: {
-      onRequestGet: async () => {
-        Sentry.startSpan({ name: 'debug-sentry-test', op: 'test' }, () => {
-          throw new Error('Sentry test error from Tableu worker');
-        });
-      },
+      onRequestGet: async ({ request, env }) => handleDebugSentryRoute({
+        request,
+        env,
+        captureMessage: Sentry.captureMessage.bind(Sentry)
+      }),
     },
   },
 ];
@@ -386,6 +387,7 @@ function addCorsHeaders(response, request) {
  * @property {string} VISION_TIMEOUT_MS - Vision backend timeout in milliseconds
  * @property {string} HUME_API_KEY - Hume AI API key
  * @property {string} ADMIN_API_KEY - Admin API key for manual archival
+ * @property {string} ENABLE_DEBUG_ROUTES - Enables debug endpoints when set to "true"
  * @property {string} EVAL_ENABLED - Enable evaluation (string flag)
  * @property {string} EVAL_MODEL - Workers AI model id for evaluation
  * @property {string} EVAL_TIMEOUT_MS - Evaluation timeout in milliseconds

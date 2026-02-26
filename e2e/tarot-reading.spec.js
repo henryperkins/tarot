@@ -9,6 +9,16 @@ import { test, expect } from '@playwright/test';
  * These are the highest-value E2E tests as they cover the primary product experience.
  */
 
+const MOCK_NARRATIVE_RESPONSE = {
+  reading: 'Mock narrative response for deterministic UI checks.',
+  provider: 'mock',
+  requestId: 'mock-narrative-request',
+  themes: {
+    elementCounts: { fire: 1, water: 1, air: 1, earth: 1 },
+    reversalCount: 0
+  }
+};
+
 // ============================================================================
 // TEST UTILITIES
 // ============================================================================
@@ -38,6 +48,57 @@ function getTestSetupScript() {
       audio: false
     }));
   };
+}
+
+async function mockTarotReading(page, overrides = {}) {
+  const responseBody = { ...MOCK_NARRATIVE_RESPONSE, ...overrides };
+  const jobId = responseBody.jobId || 'mock-reading-job';
+  const jobToken = responseBody.jobToken || 'mock-reading-token';
+  const requestId = responseBody.requestId || 'mock-narrative-request';
+  const provider = responseBody.provider || 'mock';
+  const readingText = responseBody.reading || MOCK_NARRATIVE_RESPONSE.reading;
+  const themes = responseBody.themes || MOCK_NARRATIVE_RESPONSE.themes;
+
+  await page.route(/\/api\/tarot-reading\/jobs$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ jobId, jobToken })
+    });
+  });
+
+  await page.route(/\/api\/tarot-reading\/jobs\/[^/?]+\/stream(?:\?.*)?$/, async (route) => {
+    const token = route.request().headers()['x-job-token'];
+    if (token && token !== jobToken) {
+      await route.fulfill({
+        status: 403,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Invalid job token.' })
+      });
+      return;
+    }
+
+    const metaEvent = `event: meta\ndata: ${JSON.stringify({ provider, requestId, themes, eventId: 1 })}\n\n`;
+    const doneEvent = `event: done\ndata: ${JSON.stringify({ fullText: readingText, provider, requestId, eventId: 2 })}\n\n`;
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      },
+      body: `${metaEvent}${doneEvent}`
+    });
+  });
+
+  await page.route(/\/api\/tarot-reading\/jobs\/[^/?]+\/cancel(?:\?.*)?$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'cancelled' })
+    });
+  });
 }
 
 /**
@@ -200,20 +261,18 @@ async function areAllCardsRevealed(page, _expectedCount) {
 
 /**
  * Generate the narrative reading
- * @unused Reserved for full narrative tests (requires API)
  */
-async function _generateNarrative(page) {
+async function generateNarrative(page) {
   // Desktop button or mobile action bar button
   const generateButton = page.getByRole('button', { name: /generate|create.*narrative|get.*reading|receive.*reading/i }).first();
   await expect(generateButton).toBeVisible({ timeout: 5000 });
-  await generateButton.click();
+  await generateButton.click({ force: true });
 }
 
 /**
  * Wait for narrative to complete loading
- * @unused Reserved for full narrative tests (requires API)
  */
-async function _waitForNarrativeComplete(page) {
+async function waitForNarrativeComplete(page) {
   // Wait for loading skeleton to disappear and text to appear
   await expect(async () => {
     const skeleton = page.locator('[aria-label="Generating your personalized narrative"]');
@@ -221,9 +280,20 @@ async function _waitForNarrativeComplete(page) {
     expect(isSkeletonVisible).toBe(false);
   }).toPass({ timeout: 30000 }); // Narrative generation can take a while
 
-  // Verify narrative text appeared
-  const narrativeText = page.locator('.narrative-text, [class*="narrative"], [class*="reading-text"]').first();
-  await expect(narrativeText).toBeVisible({ timeout: 5000 });
+  const skipButton = page.getByRole('button', { name: /show all now/i });
+  if (await skipButton.isVisible({ timeout: 500 }).catch(() => false)) {
+    await skipButton.click({ force: true });
+  }
+
+  // Verify narrative surface appeared
+  const narrativeStream = page.locator('.narrative-stream').first();
+  await expect(narrativeStream).toBeVisible({ timeout: 5000 });
+}
+
+async function generateAndCompleteNarrative(page, readingOverrides = {}) {
+  await mockTarotReading(page, readingOverrides);
+  await generateNarrative(page);
+  await waitForNarrativeComplete(page);
 }
 
 /**
@@ -412,6 +482,25 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
     // Question should still be there
     await expect(questionInput).toHaveValue(testQuestion);
   });
+
+  test('narrative completion renders stable live status semantics', async ({ page }) => {
+    await selectSpread(page, 'One-Card');
+    const questionInput = page.locator('textarea').first();
+    await questionInput.fill('What should I notice this week?');
+    await skipRitual(page);
+    await waitForCardsDealt(page, 1);
+    await revealCard(page, 0);
+
+    await generateAndCompleteNarrative(page, {
+      reading: 'Mock narrative response for desktop completion checks.'
+    });
+
+    const stream = page.locator('.narrative-stream').first();
+    await expect(stream).toHaveAttribute('aria-live', 'off');
+    await expect(stream.locator('p.sr-only[role="status"]')).toHaveText(/narrative ready/i);
+    await expect(page.getByText(/mock narrative response for desktop completion checks/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /view journal/i })).toBeVisible();
+  });
 });
 
 // ============================================================================
@@ -468,6 +557,28 @@ test.describe('Tarot Reading Flow - Mobile @mobile', () => {
     // After reveal - should show generate action
     const generateButton = page.getByRole('button', { name: /generate|reading/i }).first();
     await expect(generateButton).toBeVisible({ timeout: 5000 });
+  });
+
+  test('mobile narrative uses a single follow-up trigger and collapsed guidance', async ({ page }) => {
+    await selectSpread(page, 'One-Card');
+
+    const questionInput = page.locator('textarea').first();
+    await questionInput.fill('What should I focus on right now?');
+
+    await skipRitual(page);
+    await waitForCardsDealt(page, 1);
+    await revealCard(page, 0);
+    await generateAndCompleteNarrative(page, {
+      reading: 'Mock narrative response for mobile completion checks.'
+    });
+
+    const followUpTrigger = page.getByRole('button', { name: /open follow-up chat/i });
+    await expect(followUpTrigger).toHaveCount(1);
+    await expect(page.getByText(/continue with a follow-up chat/i)).toHaveCount(0);
+
+    const guidanceToggle = page.getByRole('button', { name: /narrative style & guidance/i });
+    await expect(guidanceToggle).toBeVisible();
+    await expect(page.getByText(/this narrative braids together your spread positions/i)).not.toBeVisible();
   });
 });
 
@@ -559,7 +670,7 @@ test.describe('Error Handling @desktop', () => {
     await revealCard(page, 0);
 
     // Block API calls to simulate network error
-    await page.route('**/api/tarot-reading', route => {
+    await page.route('**/api/tarot-reading/jobs**', route => {
       route.abort('failed');
     });
 
@@ -585,7 +696,7 @@ test.describe('Error Handling @desktop', () => {
 
     // First request fails
     let requestCount = 0;
-    await page.route('**/api/tarot-reading', route => {
+    await page.route('**/api/tarot-reading/jobs**', route => {
       requestCount++;
       if (requestCount === 1) {
         route.abort('failed');

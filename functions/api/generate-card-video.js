@@ -18,6 +18,7 @@ import {
   jsonResponse,
   readJsonBody
 } from '../lib/utils.js';
+import { getClientIdentifier } from '../lib/clientId.js';
 import { getUserFromRequest } from '../lib/auth.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
 import { maybeLogPromptPayload } from '../lib/readingTelemetry.js';
@@ -50,6 +51,16 @@ const DEFAULT_USAGE_RECONCILE_BATCH_SIZE = 25;
 const DEFAULT_USAGE_RECONCILE_MAX_PENDING_AGE_MS = 2 * 60 * 60 * 1000;
 const DEFAULT_USAGE_RECONCILE_MAX_PAGES = 25;
 const DEFAULT_USAGE_RECONCILE_MAX_RUN_MS = 15000;
+const SUPPORTED_VIDEO_SECONDS = Object.freeze([4, 8, 12]);
+const DEFAULT_POST_RATE_LIMIT_MAX = 3;
+const DEFAULT_POST_RATE_LIMIT_WINDOW_SECONDS = 60;
+const DEFAULT_STATUS_RATE_LIMIT_MAX = 45;
+const DEFAULT_STATUS_RATE_LIMIT_WINDOW_SECONDS = 60;
+const POST_RATE_LIMIT_KEY_PREFIX = 'card-video-post';
+const STATUS_RATE_LIMIT_KEY_PREFIX = 'card-video-status';
+const RATE_LIMIT_BACKEND_D1 = 'd1';
+const RATE_LIMIT_BACKEND_KV = 'kv';
+const RATE_LIMIT_COUNTERS_TABLE = '_request_rate_limits';
 
 // OpenAI docs: Sora input_reference works best when the reference image matches
 // the requested video aspect. We prefer exact matches and otherwise fall back to
@@ -149,6 +160,9 @@ function isInputReferenceValidationError(err) {
   return (
     message.includes('input_reference') ||
     (message.includes('reference') && message.includes('image')) ||
+    (message.includes('inpaint') && message.includes('image')) ||
+    (message.includes('requested width') && message.includes('height')) ||
+    (message.includes('width') && message.includes('height') && message.includes('must match')) ||
     (message.includes('input') && message.includes('size')) ||
     message.includes('aspect ratio')
   );
@@ -159,6 +173,226 @@ function getInputReferenceMode(env) {
   if (raw === '0' || raw === 'false' || raw === 'off' || raw === 'disabled' || raw === 'no') return 'off';
   if (raw === '1' || raw === 'true' || raw === 'on' || raw === 'enabled' || raw === 'yes') return 'on';
   return 'auto';
+}
+
+function resolveVideoProviderConfig(env) {
+  const endpoint = env?.AZURE_OPENAI_VIDEO_ENDPOINT || env?.AZURE_OPENAI_ENDPOINT;
+  const apiKey = env?.AZURE_OPENAI_VIDEO_API_KEY || env?.AZURE_OPENAI_API_KEY;
+  const model = env?.AZURE_OPENAI_VIDEO_MODEL || DEFAULT_VIDEO_MODEL;
+  return {
+    endpoint,
+    apiKey,
+    model
+  };
+}
+
+function classifyVideoGenerationError(err) {
+  const message = String(err?.message || 'Unknown error');
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes('configuration is missing')) {
+    return {
+      status: 503,
+      error: 'Card video service is unavailable',
+      code: 'video_service_unavailable',
+      hint: 'Configure AZURE_OPENAI_ENDPOINT/AZURE_OPENAI_API_KEY (or video-specific equivalents).'
+    };
+  }
+
+  if (normalized.includes('timed out')) {
+    return {
+      status: 504,
+      error: 'Card video provider timed out',
+      code: 'video_provider_timeout'
+    };
+  }
+
+  const statusMatch = message.match(/\((\d{3})\):/);
+  if (statusMatch) {
+    const upstreamStatus = Number.parseInt(statusMatch[1], 10);
+    if (upstreamStatus === 429) {
+      return {
+        status: 503,
+        error: 'Card video provider is rate-limited',
+        code: 'video_provider_rate_limited'
+      };
+    }
+    if (upstreamStatus === 400 && (normalized.includes('deployment') || normalized.includes('model'))) {
+      return {
+        status: 503,
+        error: 'Card video service is misconfigured',
+        code: 'video_model_not_configured',
+        hint: 'Set AZURE_OPENAI_VIDEO_MODEL to your Azure deployment name.'
+      };
+    }
+    if (upstreamStatus === 401 || upstreamStatus === 403) {
+      return {
+        status: 503,
+        error: 'Card video provider authentication failed',
+        code: 'video_provider_auth_failed'
+      };
+    }
+    if (upstreamStatus === 404) {
+      return {
+        status: 503,
+        error: 'Card video provider endpoint is unavailable',
+        code: 'video_provider_endpoint_not_found'
+      };
+    }
+    if (upstreamStatus >= 500) {
+      return {
+        status: 502,
+        error: 'Card video provider is unavailable',
+        code: 'video_provider_unavailable'
+      };
+    }
+    if (upstreamStatus >= 400) {
+      return {
+        status: 502,
+        error: 'Card video provider rejected the request',
+        code: 'video_provider_request_rejected'
+      };
+    }
+  }
+
+  return {
+    status: 500,
+    error: 'Video generation failed',
+    code: 'card_video_failed'
+  };
+}
+
+function parseStrictPositiveInt(value) {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    const parsed = Number.parseInt(value.trim(), 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  }
+  return null;
+}
+
+function parseRateLimitInt(value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function getRateLimitBackend(env) {
+  const configured = String(env?.CARD_VIDEO_RATE_LIMIT_BACKEND || '').trim().toLowerCase();
+  if (configured === RATE_LIMIT_BACKEND_D1 || configured === RATE_LIMIT_BACKEND_KV) {
+    return configured;
+  }
+  return RATE_LIMIT_BACKEND_KV;
+}
+
+function getPostRateLimitConfig(env) {
+  return {
+    max: parseRateLimitInt(env?.CARD_VIDEO_POST_RATE_LIMIT_MAX, DEFAULT_POST_RATE_LIMIT_MAX),
+    windowSeconds: parseRateLimitInt(
+      env?.CARD_VIDEO_POST_RATE_LIMIT_WINDOW_SECONDS,
+      DEFAULT_POST_RATE_LIMIT_WINDOW_SECONDS
+    ),
+    keyPrefix: POST_RATE_LIMIT_KEY_PREFIX
+  };
+}
+
+function getStatusRateLimitConfig(env) {
+  return {
+    max: parseRateLimitInt(env?.CARD_VIDEO_STATUS_RATE_LIMIT_MAX, DEFAULT_STATUS_RATE_LIMIT_MAX),
+    windowSeconds: parseRateLimitInt(
+      env?.CARD_VIDEO_STATUS_RATE_LIMIT_WINDOW_SECONDS,
+      DEFAULT_STATUS_RATE_LIMIT_WINDOW_SECONDS
+    ),
+    keyPrefix: STATUS_RATE_LIMIT_KEY_PREFIX
+  };
+}
+
+async function enforceRateLimit(env, request, userId, config) {
+  if (getRateLimitBackend(env) === RATE_LIMIT_BACKEND_D1) {
+    const d1Result = await enforceRateLimitWithD1(env, request, userId, config);
+    if (d1Result) {
+      return d1Result;
+    }
+  }
+
+  const store = env?.RATELIMIT;
+  if (!store || typeof store.get !== 'function' || typeof store.put !== 'function') {
+    return { allowed: true, retryAfter: null };
+  }
+
+  try {
+    const now = Date.now();
+    const bucket = Math.floor(now / (config.windowSeconds * 1000));
+    const identifier = getClientIdentifier(request);
+    const key = `${config.keyPrefix}:${userId}:${identifier}:${bucket}`;
+    const existing = await store.get(key);
+    const currentCount = existing ? Number.parseInt(existing, 10) || 0 : 0;
+
+    if (currentCount >= config.max) {
+      const resetAtMs = (bucket + 1) * config.windowSeconds * 1000;
+      const retryAfter = Math.max(1, Math.ceil((resetAtMs - now) / 1000));
+      return { allowed: false, retryAfter };
+    }
+
+    await store.put(key, String(currentCount + 1), { expirationTtl: config.windowSeconds });
+    return { allowed: true, retryAfter: null };
+  } catch (err) {
+    console.warn('[card-video] Rate-limit store unavailable, allowing request:', err?.message || err);
+    return { allowed: true, retryAfter: null };
+  }
+}
+
+async function enforceRateLimitWithD1(env, request, userId, config) {
+  const db = env?.DB;
+  if (!db || typeof db.prepare !== 'function') {
+    return null;
+  }
+
+  try {
+    const now = Date.now();
+    const windowMs = config.windowSeconds * 1000;
+    const bucket = Math.floor(now / windowMs);
+    const identifier = getClientIdentifier(request);
+    const key = `${config.keyPrefix}:${userId}:${identifier}:${bucket}`;
+    const resetAtMs = (bucket + 1) * windowMs;
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS ${RATE_LIMIT_COUNTERS_TABLE} (
+        bucket_key TEXT PRIMARY KEY,
+        request_count INTEGER NOT NULL,
+        expires_at_ms INTEGER NOT NULL
+      )
+    `).run();
+
+    const row = await db.prepare(`
+      INSERT INTO ${RATE_LIMIT_COUNTERS_TABLE} (bucket_key, request_count, expires_at_ms)
+      VALUES (?, 1, ?)
+      ON CONFLICT(bucket_key) DO UPDATE SET
+        request_count = request_count + 1,
+        expires_at_ms = excluded.expires_at_ms
+      RETURNING request_count
+    `).bind(key, resetAtMs).first();
+
+    const requestCount = Number.parseInt(String(row?.request_count ?? ''), 10) || 1;
+    if (requestCount > config.max) {
+      const retryAfter = Math.max(1, Math.ceil((resetAtMs - now) / 1000));
+      return { allowed: false, retryAfter };
+    }
+
+    // Opportunistic cleanup of expired buckets.
+    if (requestCount === 1) {
+      await db.prepare(`
+        DELETE FROM ${RATE_LIMIT_COUNTERS_TABLE}
+        WHERE expires_at_ms <= ?
+      `).bind(now).run();
+    }
+
+    return { allowed: true, retryAfter: null };
+  } catch (err) {
+    console.warn('[card-video] D1 rate-limit unavailable, falling back to KV/allow:', err?.message || err);
+    return null;
+  }
 }
 
 /**
@@ -183,9 +417,16 @@ function validatePayload(payload) {
   if (payload.style && !VIDEO_STYLES[payload.style]) {
     errors.push(`style must be one of: ${Object.keys(VIDEO_STYLES).join(', ')}`);
   }
-  
-  if (payload.seconds && (payload.seconds < 1 || payload.seconds > 20)) {
-    errors.push('seconds must be between 1 and 20');
+
+  if (payload.seconds !== undefined && payload.seconds !== null && payload.seconds !== '') {
+    const normalizedSeconds = parseStrictPositiveInt(payload.seconds);
+    if (!Number.isInteger(normalizedSeconds)) {
+      errors.push('seconds must be a positive integer');
+    } else if (!SUPPORTED_VIDEO_SECONDS.includes(normalizedSeconds)) {
+      errors.push(`seconds must be one of: ${SUPPORTED_VIDEO_SECONDS.join(', ')}`);
+    } else {
+      payload.seconds = normalizedSeconds;
+    }
   }
   
   return errors;
@@ -731,6 +972,20 @@ export async function onRequestPost({ request, env }) {
   if (!user) {
     return jsonResponse({ error: 'Authentication required' }, 401);
   }
+
+  const postRateLimit = await enforceRateLimit(env, request, user.id, getPostRateLimitConfig(env));
+  if (!postRateLimit.allowed) {
+    return jsonResponse({
+      error: 'Too many video generation requests. Please try again shortly.',
+      code: 'card_video_rate_limited',
+      retryAfter: postRateLimit.retryAfter
+    }, {
+      status: 429,
+      headers: {
+        'Retry-After': String(postRateLimit.retryAfter || 1)
+      }
+    });
+  }
   
   // Check subscription tier
   const subscription = getSubscriptionContext(user);
@@ -770,6 +1025,7 @@ export async function onRequestPost({ request, env }) {
     style = 'mystical',
     seconds = DEFAULT_VIDEO_SECONDS
   } = payload;
+  const normalizedSeconds = Number.isInteger(seconds) ? seconds : DEFAULT_VIDEO_SECONDS;
   const imageModel = env.AZURE_OPENAI_IMAGE_MODEL || 'gpt-image-1.5';
   const videoModel = env.AZURE_OPENAI_VIDEO_MODEL || DEFAULT_VIDEO_MODEL;
   const imageEndpointSource = env.AZURE_OPENAI_IMAGE_ENDPOINT ? 'image' : 'shared';
@@ -793,7 +1049,7 @@ export async function onRequestPost({ request, env }) {
     }, 403);
   }
   
-  if (seconds > limits.maxSeconds) {
+  if (normalizedSeconds > limits.maxSeconds) {
     return jsonResponse({ 
       error: `Videos longer than ${limits.maxSeconds}s require Pro subscription`,
       maxSeconds: limits.maxSeconds 
@@ -801,7 +1057,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   // Check cache first
-  const cacheKey = generateCacheKey(card, style, seconds, question, position, videoSize);
+  const cacheKey = generateCacheKey(card, style, normalizedSeconds, question, position, videoSize);
   const cacheStart = Date.now();
   const cachedVideo = await checkCache(env, cacheKey);
   
@@ -824,7 +1080,7 @@ export async function onRequestPost({ request, env }) {
       tier,
       input: {
         style,
-        seconds,
+        seconds: normalizedSeconds,
         width: videoWidth,
         height: videoHeight,
         questionLength: typeof question === 'string' ? question.length : 0,
@@ -851,10 +1107,19 @@ export async function onRequestPost({ request, env }) {
       format: 'mp4',
       cached: true,
       style,
-      seconds,
+      seconds: normalizedSeconds,
       cacheKey,
       requestId
     });
+  }
+
+  const providerConfig = resolveVideoProviderConfig(env);
+  if (!providerConfig.endpoint || !providerConfig.apiKey) {
+    return jsonResponse({
+      error: 'Card video service is unavailable',
+      code: 'video_service_unavailable',
+      hint: 'Configure AZURE_OPENAI_ENDPOINT/AZURE_OPENAI_API_KEY (or video-specific equivalents).'
+    }, 503);
   }
   
   let usageReservation = null;
@@ -902,7 +1167,7 @@ export async function onRequestPost({ request, env }) {
       console.log(`[${requestId}] [card-video] Generating keyframe`, {
         model: imageModel,
         style,
-        seconds,
+        seconds: normalizedSeconds,
         requestedVideoSize: videoSize,
         keyframeSize,
         keyframeExactMatch,
@@ -940,7 +1205,7 @@ export async function onRequestPost({ request, env }) {
       model: videoModel,
       width: videoWidth,
       height: videoHeight,
-      seconds,
+      seconds: normalizedSeconds,
       inputReference: Boolean(keyframeBase64),
       keyframeSize,
       keyframeExactMatch,
@@ -952,7 +1217,7 @@ export async function onRequestPost({ request, env }) {
       job = await createVideoJob(env, videoPrompt, keyframeBase64, {
         width: videoWidth,
         height: videoHeight,
-        seconds,
+        seconds: normalizedSeconds,
         size: videoSize
       });
       inputReferenceUsedInJob = Boolean(keyframeBase64);
@@ -967,7 +1232,7 @@ export async function onRequestPost({ request, env }) {
       job = await createVideoJob(env, videoPrompt, null, {
         width: videoWidth,
         height: videoHeight,
-        seconds,
+        seconds: normalizedSeconds,
         size: videoSize
       });
       inputReferenceRetriedWithoutImage = true;
@@ -979,7 +1244,7 @@ export async function onRequestPost({ request, env }) {
     await storePendingJob(env, user.id, job.id, {
       card: card.name,
       style,
-      seconds,
+      seconds: normalizedSeconds,
       width: videoWidth,
       height: videoHeight,
       inputReferenceUsed: inputReferenceUsedInJob,
@@ -1021,7 +1286,7 @@ export async function onRequestPost({ request, env }) {
       tier,
       input: {
         style,
-        seconds,
+        seconds: normalizedSeconds,
         width: videoWidth,
         height: videoHeight,
         questionLength: typeof question === 'string' ? question.length : 0,
@@ -1057,7 +1322,7 @@ export async function onRequestPost({ request, env }) {
       jobId: job.id,
       cacheKey,
       message: 'Video generation started. Poll /api/generate-card-video?jobId=... for completion.',
-      estimatedSeconds: seconds * 10, // rough estimate
+      estimatedSeconds: normalizedSeconds * 10, // rough estimate
       requestId
     });
     
@@ -1068,6 +1333,7 @@ export async function onRequestPost({ request, env }) {
         dateKey: usageReservation.dateKey
       });
     }
+    const classified = classifyVideoGenerationError(err);
     const totalMs = Date.now() - startTime;
     await persistMediaTelemetry(env, buildMediaTelemetryPayload({
       requestId,
@@ -1086,7 +1352,7 @@ export async function onRequestPost({ request, env }) {
       tier,
       input: {
         style,
-        seconds,
+        seconds: normalizedSeconds,
         width: videoWidth,
         height: videoHeight,
         questionLength: typeof question === 'string' ? question.length : 0,
@@ -1109,11 +1375,13 @@ export async function onRequestPost({ request, env }) {
     }), { key: `media:card-video:${requestId}` });
     console.error('Video generation failed:', err.message);
     console.log(`[${requestId}] [card-video] === CARD VIDEO REQUEST END (ERROR) ===`);
-    return jsonResponse({ 
-      error: 'Video generation failed',
+    return jsonResponse({
+      error: classified.error,
+      code: classified.code,
+      hint: classified.hint || undefined,
       details: err.message,
       requestId
-    }, 500);
+    }, classified.status);
   }
 }
 
@@ -1145,6 +1413,20 @@ export async function onRequestGet(ctx) {
   if (!user) {
     return jsonResponse({ error: 'Authentication required' }, 401);
   }
+
+  const statusRateLimit = await enforceRateLimit(env, request, user.id, getStatusRateLimitConfig(env));
+  if (!statusRateLimit.allowed) {
+    return jsonResponse({
+      error: 'Too many video status requests. Please slow down polling.',
+      code: 'card_video_status_rate_limited',
+      retryAfter: statusRateLimit.retryAfter
+    }, {
+      status: 429,
+      headers: {
+        'Retry-After': String(statusRateLimit.retryAfter || 1)
+      }
+    });
+  }
   
   let jobMeta = null;
   try {
@@ -1161,6 +1443,15 @@ export async function onRequestGet(ctx) {
 
   if (jobMeta.userId !== user.id) {
     return jsonResponse({ error: 'Not authorized for this job' }, 403);
+  }
+
+  const providerConfig = resolveVideoProviderConfig(env);
+  if (!providerConfig.endpoint || !providerConfig.apiKey) {
+    return jsonResponse({
+      error: 'Card video service is unavailable',
+      code: 'video_service_unavailable',
+      hint: 'Configure AZURE_OPENAI_ENDPOINT/AZURE_OPENAI_API_KEY (or video-specific equivalents).'
+    }, 503);
   }
 
   try {

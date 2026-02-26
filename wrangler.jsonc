@@ -134,6 +134,14 @@
     // -------------------------------------------------------------------------
     "FEATURE_CARD_VIDEO": "true",
     "FEATURE_STORY_ART": "true",
+    // Card video burst controls (short-window, per user+client bucket)
+    "CARD_VIDEO_POST_RATE_LIMIT_MAX": "3",
+    "CARD_VIDEO_POST_RATE_LIMIT_WINDOW_SECONDS": "60",
+    "CARD_VIDEO_STATUS_RATE_LIMIT_MAX": "45",
+    "CARD_VIDEO_STATUS_RATE_LIMIT_WINDOW_SECONDS": "60",
+    "CARD_VIDEO_RATE_LIMIT_BACKEND": "d1",
+    // Keep debug routes disabled unless explicitly needed for admin-only diagnostics.
+    "ENABLE_DEBUG_ROUTES": "false",
     // -------------------------------------------------------------------------
     // Prompt Budget & GraphRAG Settings (not set = use defaults)
     // -------------------------------------------------------------------------
@@ -200,14 +208,14 @@
     }
   ],
   // ============================================================================
-  // R2 Buckets (temporarily disabled)
+  // R2 Buckets
   // ============================================================================
-  // "r2_buckets": [
-  //   {
-  //     "binding": "R2_LOGS",
-  //     "bucket_name": "tarot-logs"
-  //   }
-  // ],
+  "r2_buckets": [
+    {
+      "binding": "R2_LOGS",
+      "bucket_name": "tarot-logs"
+    }
+  ],
   // ============================================================================
   // Cron Triggers (Scheduled Tasks)
   // ============================================================================

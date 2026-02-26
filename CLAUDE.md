@@ -19,12 +19,19 @@ Guidance for Claude Code when working with this repository.
 ## Commands
 
 ```bash
-npm run dev      # Full-stack dev (Vite 5173/5174 + Worker 8787)
-npm run build    # Production build to dist/
-npm run deploy   # Deploy to Cloudflare Workers (auto-applies migrations)
-npm test         # Unit tests
-npm run test:e2e # Playwright E2E
-npm run test:a11y # Accessibility checks
+npm run dev:vite      # Full-stack dev (Vite 5173/5174 + Worker 8787)
+npm run dev           # Serve built dist via Express (PORT=5000)
+npm run dev:frontend  # Vite-only for UI work
+npm run dev:workers   # Worker dev server with live reload
+npm run build         # Production build to dist/
+npm run deploy        # Deploy to Cloudflare Workers (auto-applies migrations)
+npm test              # Unit tests (tests/*.test.mjs)
+npm run test:deploy   # Deploy script tests
+npm run test:e2e      # Playwright E2E
+npm run test:a11y     # Accessibility checks (contrast + WCAG)
+npm run lint          # ESLint
+npm run lint:fix      # Auto-fix lint issues
+npm run gate:design   # Verify design contract compliance
 ```
 
 ## Architecture
@@ -56,9 +63,10 @@ npm run test:a11y # Accessibility checks
 - `api/journal.js` — Reading history (dedup by `session_seed`)
 - `api/journal-export/index.js` — PDF/text export (stores in R2)
 - `api/feedback.js` — User feedback (stored in KV)
-- `lib/narrative/` — Spread-specific narrative builders
-- `lib/narrative/prompts.js` — `buildEnhancedClaudePrompt()` for AI prompts
+- `lib/narrative/prompts/` — Modular prompt assembly (`buildEnhancedClaudePrompt.js`, `systemPrompt.js`, `userPrompt.js`, `budgeting.js`, `graphRAGReferenceBlock.js`, etc.). Top-level `prompts.js` is a re-export shim.
+- `lib/narrative/spreads/` — Per-spread narrative builders (`singleCard.js`, `threeCard.js`, `fiveCard.js`, `decision.js`, `relationship.js`, `celticCross.js`, `base.js`)
 - `lib/spreadAnalysis.js` — Elemental dignities, theme analysis, reversal framework selection
+- `lib/spreadAnalysisOrchestrator.js` — Pipeline orchestration (extracted from tarot-reading.js)
 - `lib/knowledgeGraph.js` — Pattern detection: triads, dyads, Fool's Journey, suit progressions
 - `lib/graphContext.js` — Builds graph context for prompt injection
 - `lib/graphRAG.js` — Retrieval-augmented generation from knowledge base
@@ -73,10 +81,12 @@ npm run test:a11y # Accessibility checks
 - `evaluation/calibrateEval.js` — Analyze score distributions
 
 **Shared (`shared/`)**
+- `contracts/` — Shared type contracts (spreads, readings) used by both frontend and Workers
 - `vision/` — Physical deck recognition pipeline
 - `vision/deckAssets.js` — Deck-specific asset mappings
 - `symbols/symbolAnnotations.js` — Symbol meanings database
 - `journal/summary.js` — Shared journal summary logic
+- `monetization/` — Subscription tier logic shared across layers
 
 **Components (`src/components/`)**
 - Core: `Card.jsx`, `ReadingGrid.jsx`, `SpreadSelector.jsx`, `RitualControls.jsx`, `QuestionInput.jsx`
@@ -105,7 +115,7 @@ npm run test:a11y # Accessibility checks
 2. **Ritual** — Knocks + cut position + question → `computeSeed()`
 3. **Draw** — `drawSpread()` uses seeded shuffle, assigns upright/reversed
 4. **Reveal** — Card flip animation, user reflections per card
-5. **Narrative** — Claude Sonnet 4.5 via API, or local `composeReading()` fallback
+5. **Narrative** — Azure GPT-5.1 via API (fallback: Claude/local composer)
 
 **Pipeline**: `spreadAnalysis.js` (dignities, reversals) + `knowledgeGraph.js` (patterns) → `graphContext.js` → `graphRAG.js` (passages) → `prompts.js` → AI → `evaluation.js` (async scoring)
 
@@ -270,11 +280,11 @@ Every AI reading is scored async via Workers AI (Llama 3 8B) using `waitUntil()`
 **Config** (`wrangler.jsonc` vars):
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `EVAL_ENABLED` | `"false"` | Master switch |
+| `EVAL_ENABLED` | `"true"` | Master switch |
 | `EVAL_GATE_ENABLED` | `"false"` | Block on low scores |
 | `ENABLE_PROMPT_SLIMMING` | `"false"` | Token budget slimming |
-| `FEATURE_FOLLOW_UP_MEMORY` | `"true"` | AI memory in follow-ups |
-| `AZURE_OPENAI_STREAMING_ENABLED` | `"false"` | Token streaming |
+| `FEATURE_FOLLOW_UP_ENABLED` | `"true"` | Follow-up questions |
+| `AZURE_OPENAI_STREAMING_ENABLED` | `"true"` | Token streaming |
 
 **Export**:
 ```bash

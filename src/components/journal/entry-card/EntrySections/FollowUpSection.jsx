@@ -111,7 +111,7 @@ export const FollowUpSection = memo(function FollowUpSection({
             {!canAskFollowUp && effectiveTier === 'free' && (
               <a
                 href="/pricing"
-                className="text-[color:var(--brand-primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] rounded"
+                className="text-[color:var(--brand-primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
               >
                 Upgrade to Plus for 3 follow-ups
               </a>

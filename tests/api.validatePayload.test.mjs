@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { readFileSync } from 'node:fs';
 import { validatePayload } from '../functions/api/tarot-reading.js';
 
 function card(position) {
@@ -139,5 +140,17 @@ describe('tarot-reading invalid JSON handling', () => {
     assert.strictEqual(response.status, 400);
     const body = await response.json();
     assert.strictEqual(body.error, 'Invalid JSON payload.');
+  });
+});
+
+describe('initial tarot-reading boundary', () => {
+  it('does not import follow-up journal or memory tooling', () => {
+    const source = readFileSync(new URL('../functions/api/tarot-reading.js', import.meta.url), 'utf8');
+
+    assert.equal(source.includes('reading-followup'), false);
+    assert.equal(source.includes('findSimilarJournalEntries'), false);
+    assert.equal(source.includes('getRecurringCardPatterns'), false);
+    assert.equal(source.includes('handleMemoryToolCall'), false);
+    assert.equal(source.includes('MEMORY_TOOL_AZURE_RESPONSES_FORMAT'), false);
   });
 });

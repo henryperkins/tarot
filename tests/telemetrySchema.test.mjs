@@ -94,6 +94,18 @@ describe('telemetrySchema', () => {
         includeDiagnostics: false
       });
     });
+
+    it('should include source usage telemetry when provided', () => {
+      const promptMeta = {
+        sourceUsage: {
+          spreadCards: { requested: true, used: true, skippedReason: null },
+          graphRAG: { requested: true, used: true, mode: 'summary', skippedReason: null }
+        }
+      };
+
+      const result = buildPromptTelemetry(promptMeta);
+      assert.deepStrictEqual(result.sourceUsage, promptMeta.sourceUsage);
+    });
   });
 
   describe('buildGraphRAGTelemetry', () => {

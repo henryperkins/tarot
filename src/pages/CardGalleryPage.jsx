@@ -160,7 +160,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
         <button
           type="button"
           onClick={() => onSelect?.(card)}
-          className="absolute inset-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="absolute inset-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main"
           aria-label={`Open details for ${card.name}`}
         />
         {content}
@@ -171,7 +171,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
               event.stopPropagation();
               onViewInJournal(card);
             }}
-            className="absolute top-2 right-2 z-20 rounded-full border border-[color:var(--border-warm-light)] bg-[color:color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted-high opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+            className="absolute top-2 right-2 z-20 rounded-full border border-[color:var(--border-warm-light)] bg-[color:color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted-high opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
             aria-label={`View ${card.name} in Journal`}
           >
             View in Journal
@@ -439,7 +439,7 @@ export default function CardGalleryPage() {
         <div className="mb-8">
           <button
             onClick={() => navigate('/journal')}
-            className="inline-flex min-h-touch items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] mb-4"
+            className="inline-flex min-h-touch items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] mb-4"
           >
             <CaretLeft className="w-5 h-5" />
             <span>Back to Journal</span>
@@ -482,7 +482,7 @@ export default function CardGalleryPage() {
               <button
                 type="button"
                 onClick={() => navigate('/', { state: { focusSpread: true } })}
-                className="inline-flex min-h-touch items-center rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--accent-25)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-main)] transition hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                className="inline-flex min-h-touch items-center rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--accent-25)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-main)] transition hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
               >
                 Start a reading
               </button>
@@ -570,7 +570,7 @@ export default function CardGalleryPage() {
                 type="button"
                 onClick={handleLoadFullHistory}
                 disabled={loadingFullHistory || loadingMore}
-                className={`inline-flex min-h-[36px] items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-2xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] ${
+                className={`inline-flex min-h-[36px] items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-2xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
                   loadingFullHistory || loadingMore ? 'cursor-not-allowed opacity-60' : ''
                 }`}
               >

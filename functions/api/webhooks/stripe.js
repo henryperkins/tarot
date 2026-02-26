@@ -40,7 +40,8 @@ import { sendEmail } from '../../lib/emailService.js';
  *
  * 1. Go to Stripe Dashboard > Developers > Webhooks
  * 2. Click "Add endpoint"
- * 3. Enter your production URL: https://your-app.pages.dev/api/webhooks/stripe
+ * 3. Enter your production URL: https://your-app.example.com/api/webhooks/stripe
+ *    (or Workers URL: https://<worker>.<subdomain>.workers.dev/api/webhooks/stripe)
  * 4. Select events to listen to:
  *    - customer.subscription.created
  *    - customer.subscription.updated

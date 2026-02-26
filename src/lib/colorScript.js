@@ -17,16 +17,16 @@ export const COLOR_SCRIPTS = {
     name: 'The Anticipation',
     emotionalTone: 'build-up',
     palette: {
-      primary: '#46528e',
-      secondary: '#5c4f86',
-      accent: '#7267b5',
-      glow: '#6b61a8',
+      primary: 'color-mix(in srgb, var(--brand-secondary) 68%, var(--color-cups) 32%)',
+      secondary: 'var(--brand-secondary)',
+      accent: 'color-mix(in srgb, var(--brand-primary) 55%, var(--color-cups) 45%)',
+      glow: 'color-mix(in srgb, var(--brand-primary) 42%, transparent)',
       warmth: 0.25,
       contrast: 1.25,
       saturation: 0.76
     },
     cssVars: {
-      '--phase-color': '#46528e',
+      '--phase-color': 'color-mix(in srgb, var(--brand-secondary) 68%, var(--color-cups) 32%)',
       '--phase-warmth': '0.25',
       '--phase-contrast': '1.25',
       '--phase-saturation': '0.76'
@@ -38,16 +38,16 @@ export const COLOR_SCRIPTS = {
     name: 'The Struggle',
     emotionalTone: 'challenge',
     palette: {
-      primary: '#4a6fa5',       // Cool blue
-      secondary: '#5f6c7b',     // Steel grey
-      accent: '#7b9cc7',        // Muted blue-grey
-      glow: '#3d5a80',          // Deep blue
+      primary: 'var(--color-cups)',
+      secondary: 'color-mix(in srgb, var(--color-swords) 70%, var(--brand-secondary) 30%)',
+      accent: 'color-mix(in srgb, var(--color-cups) 62%, var(--brand-accent) 38%)',
+      glow: 'color-mix(in srgb, var(--color-cups) 36%, transparent)',
       warmth: 0.3,              // Cool temperature
       contrast: 1.2,            // High contrast
       saturation: 0.7           // Reduced saturation
     },
     cssVars: {
-      '--phase-color': '#4a6fa5',
+      '--phase-color': 'var(--color-cups)',
       '--phase-warmth': '0.3',
       '--phase-contrast': '1.2',
       '--phase-saturation': '0.7'
@@ -59,16 +59,16 @@ export const COLOR_SCRIPTS = {
     name: 'The Climax',
     emotionalTone: 'breakthrough',
     palette: {
-      primary: '#ffd369',
-      secondary: '#fff2bf',
-      accent: '#ffe9a8',
-      glow: '#fff8df',
+      primary: 'color-mix(in srgb, var(--status-warning) 72%, var(--brand-accent) 28%)',
+      secondary: 'color-mix(in srgb, var(--brand-accent) 78%, white 22%)',
+      accent: 'color-mix(in srgb, var(--status-warning) 58%, var(--brand-accent) 42%)',
+      glow: 'color-mix(in srgb, var(--status-warning) 40%, transparent)',
       warmth: 0.98,
       contrast: 1.35,
       saturation: 1.25
     },
     cssVars: {
-      '--phase-color': '#ffd369',
+      '--phase-color': 'color-mix(in srgb, var(--status-warning) 72%, var(--brand-accent) 28%)',
       '--phase-warmth': '0.98',
       '--phase-contrast': '1.35',
       '--phase-saturation': '1.25'
@@ -80,16 +80,16 @@ export const COLOR_SCRIPTS = {
     name: 'The Revelation',
     emotionalTone: 'blossoming',
     palette: {
-      primary: '#f6b756',       // Sunny yellow
-      secondary: '#e89b3c',     // Warm gold
-      accent: '#ffca7a',        // Light amber
-      glow: '#ffd89b',          // Soft golden glow
+      primary: 'color-mix(in srgb, var(--status-warning) 64%, var(--brand-primary) 36%)',
+      secondary: 'color-mix(in srgb, var(--brand-primary) 70%, var(--brand-accent) 30%)',
+      accent: 'var(--brand-accent)',
+      glow: 'color-mix(in srgb, var(--brand-primary) 36%, transparent)',
       warmth: 0.9,              // Very warm
       contrast: 0.9,            // Softer contrast
       saturation: 1.1           // Enhanced saturation
     },
     cssVars: {
-      '--phase-color': '#f6b756',
+      '--phase-color': 'color-mix(in srgb, var(--status-warning) 64%, var(--brand-primary) 36%)',
       '--phase-warmth': '0.9',
       '--phase-contrast': '0.9',
       '--phase-saturation': '1.1'
@@ -101,16 +101,16 @@ export const COLOR_SCRIPTS = {
     name: 'The Resolution',
     emotionalTone: 'balance',
     palette: {
-      primary: '#7a9b76',       // Soft sage
-      secondary: '#8b7355',     // Earthy brown
-      accent: '#a8c69f',        // Light green
-      glow: '#c4d7b2',          // Pale green glow
+      primary: 'var(--color-pentacles)',
+      secondary: 'color-mix(in srgb, var(--color-wands) 54%, var(--color-pentacles) 46%)',
+      accent: 'color-mix(in srgb, var(--color-pentacles) 64%, var(--brand-accent) 36%)',
+      glow: 'color-mix(in srgb, var(--color-pentacles) 36%, transparent)',
       warmth: 0.6,              // Balanced warmth
       contrast: 1.0,            // Neutral contrast
       saturation: 0.85          // Natural saturation
     },
     cssVars: {
-      '--phase-color': '#7a9b76',
+      '--phase-color': 'var(--color-pentacles)',
       '--phase-warmth': '0.6',
       '--phase-contrast': '1.0',
       '--phase-saturation': '0.85'
@@ -122,16 +122,16 @@ export const COLOR_SCRIPTS = {
     name: 'Neutral',
     emotionalTone: 'default',
     palette: {
-      primary: '#e5c48e',       // Default gold
-      secondary: '#d4a574',     // Warm amber
-      accent: '#f0d5a8',        // Light cream
-      glow: '#f4d18c',          // Soft gold glow
+      primary: 'var(--brand-primary)',
+      secondary: 'var(--brand-secondary)',
+      accent: 'var(--brand-accent)',
+      glow: 'color-mix(in srgb, var(--brand-primary) 34%, transparent)',
       warmth: 0.7,              // Slightly warm
       contrast: 1.0,            // Default contrast
       saturation: 1.0           // Default saturation
     },
     cssVars: {
-      '--phase-color': '#e5c48e',
+      '--phase-color': 'var(--brand-primary)',
       '--phase-warmth': '0.7',
       '--phase-contrast': '1.0',
       '--phase-saturation': '1.0'
@@ -178,7 +178,7 @@ function captureRootBaseline(root) {
   };
 }
 
-function applyScriptToRoot(root, colorScript, options = {}) {
+function applyScriptToRoot(root, colorScript) {
   const scriptVars = colorScript?.cssVars || {};
 
   // Set variables immediately for deterministic behavior in runtime and tests.

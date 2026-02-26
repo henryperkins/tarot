@@ -103,7 +103,7 @@ This runs contrast checker, WCAG analyzer, and Playwright axe-core tests.
 
 **Setup:**
 1. Install [axe DevTools](https://www.deque.com/axe/devtools/) for Chrome/Firefox/Edge
-2. Run the app: `npm run dev`
+2. Run the app: `npm run dev:vite`
 3. Open DevTools → axe DevTools tab
 4. Click "Scan ALL of my page"
 

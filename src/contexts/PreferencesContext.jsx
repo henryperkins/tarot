@@ -40,8 +40,8 @@ const DEFAULT_NUDGE_STATE = {
 
 const THEME_COLOR_META_NAME = 'theme-color';
 const FALLBACK_THEME_COLORS = {
-  dark: '#0F0E13',
-  light: '#FAFAFA'
+  dark: 'rgb(15 14 19)',
+  light: 'rgb(250 250 250)'
 };
 
 function updateThemeColorMeta(theme) {

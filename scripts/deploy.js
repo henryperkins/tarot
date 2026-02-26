@@ -6,37 +6,31 @@
  * It tracks applied migrations in a _migrations table to prevent re-application.
  *
  * Usage:
- *   node scripts/deploy.js                    # Apply migrations + deploy
- *   node scripts/deploy.js --migrations-only  # Only apply migrations
- *   node scripts/deploy.js --dry-run          # Show what would be done
+ *   node scripts/deploy.js                       # Apply migrations + deploy
+ *   node scripts/deploy.js --migrations-only     # Only apply migrations
+ *   node scripts/deploy.js --dry-run             # Show what would be done
+ *   node scripts/deploy.js --db-name <name>      # Override D1 DB name
+ *   node scripts/deploy.js --allow-changed-migrations
  *
  * Environment:
  *   CLOUDFLARE_API_TOKEN - Required for remote operations
  *   CLOUDFLARE_ACCOUNT_ID - Optional (uses wrangler.jsonc if not set)
- *
- * CI Usage:
- *   This script exits with code 0 on success, non-zero on failure.
- *   Migration failures are fatal and will abort deployment.
+ *   CLOUDFLARE_D1_DATABASE_NAME - Optional D1 database name override
+ *   STRICT_MIGRATION_CHECKS - Optional strict checksum mismatch policy (true/false)
+ *   ALLOW_CHANGED_MIGRATIONS - Optional override for checksum mismatch policy (true/false)
  */
 
 import { spawnSync } from 'child_process';
 import { readdirSync, readFileSync } from 'fs';
 import { createHash } from 'crypto';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
+import { dirname, join, resolve } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ROOT_DIR = join(__dirname, '..');
 const MIGRATIONS_DIR = join(ROOT_DIR, 'migrations');
 const WRANGLER_CONFIG = join(ROOT_DIR, 'wrangler.jsonc');
-
-// Parse command line arguments
-const args = process.argv.slice(2);
-const DRY_RUN = args.includes('--dry-run');
-const MIGRATIONS_ONLY = args.includes('--migrations-only');
-const LOCAL = args.includes('--local');
-const VERBOSE = args.includes('--verbose') || args.includes('-v');
 
 // Colors for output
 const colors = {
@@ -75,6 +69,259 @@ function sleep(ms) {
   Atomics.wait(signal, 0, 0, ms);
 }
 
+function parseBoolean(value, fallback = false) {
+  if (typeof value !== 'string') return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
+function getArgValue(argv, flag) {
+  const directPrefix = `${flag}=`;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === flag) {
+      const next = argv[i + 1];
+      if (next && !next.startsWith('-')) {
+        return next;
+      }
+      return null;
+    }
+    if (arg.startsWith(directPrefix)) {
+      return arg.slice(directPrefix.length) || null;
+    }
+  }
+  return null;
+}
+
+export function parseCliArgs(argv = []) {
+  const dryRun = argv.includes('--dry-run');
+  const migrationsOnly = argv.includes('--migrations-only');
+  const local = argv.includes('--local');
+  const verbose = argv.includes('--verbose') || argv.includes('-v');
+  const allowChangedMigrations = argv.includes('--allow-changed-migrations');
+  const strictMigrationChecks = argv.includes('--strict-migration-checks');
+  const dbName = getArgValue(argv, '--db-name');
+
+  return {
+    dryRun,
+    migrationsOnly,
+    local,
+    verbose,
+    allowChangedMigrations,
+    strictMigrationChecks,
+    dbName
+  };
+}
+
+export function stripJsonComments(content) {
+  if (typeof content !== 'string') return '';
+
+  let stripped = '';
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    const next = content[i + 1];
+
+    if (escapeNext) {
+      stripped += char;
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      stripped += char;
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+      stripped += char;
+      continue;
+    }
+
+    if (!inString && char === '/' && next === '/') {
+      while (i < content.length && content[i] !== '\n') i++;
+      if (content[i] === '\n') stripped += '\n';
+      continue;
+    }
+
+    if (!inString && char === '/' && next === '*') {
+      i += 2;
+      while (i < content.length && !(content[i] === '*' && content[i + 1] === '/')) i++;
+      i += 1;
+      continue;
+    }
+
+    stripped += char;
+  }
+
+  return stripped;
+}
+
+export function parseJsoncConfig(content) {
+  const stripped = stripJsonComments(content);
+  const normalized = stripTrailingCommas(stripped);
+  const parsed = JSON.parse(normalized);
+  return parsed;
+}
+
+export function stripTrailingCommas(content) {
+  if (typeof content !== 'string') return '';
+
+  let stripped = '';
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+
+    if (escapeNext) {
+      stripped += char;
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      stripped += char;
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+      stripped += char;
+      continue;
+    }
+
+    if (!inString && char === ',') {
+      let j = i + 1;
+      while (j < content.length && /\s/.test(content[j])) j++;
+      if (content[j] === '}' || content[j] === ']') {
+        continue;
+      }
+    }
+
+    stripped += char;
+  }
+
+  return stripped;
+}
+
+function loadWranglerConfig(configPath = WRANGLER_CONFIG) {
+  const content = readFileSync(configPath, 'utf-8');
+  return parseJsoncConfig(content);
+}
+
+export function resolveD1DatabaseName({
+  explicitDbName = null,
+  envDbName = null,
+  wranglerConfig = null
+} = {}) {
+  if (explicitDbName && String(explicitDbName).trim()) {
+    return String(explicitDbName).trim();
+  }
+
+  if (envDbName && String(envDbName).trim()) {
+    return String(envDbName).trim();
+  }
+
+  const d1Databases = Array.isArray(wranglerConfig?.d1_databases)
+    ? wranglerConfig.d1_databases
+    : [];
+
+  if (d1Databases.length === 0) {
+    throw new Error('No D1 databases found in wrangler.jsonc. Add d1_databases or pass --db-name.');
+  }
+
+  const preferred = d1Databases.find((db) => db?.binding === 'DB' && db?.database_name)
+    || d1Databases.find((db) => db?.database_name);
+
+  if (!preferred?.database_name) {
+    throw new Error('Unable to resolve D1 database_name from wrangler.jsonc. Pass --db-name.');
+  }
+
+  return preferred.database_name;
+}
+
+export function evaluateChangedMigrations(changedMigrations, {
+  strictMigrationChecks = false,
+  allowChangedMigrations = false
+} = {}) {
+  const changedCount = Array.isArray(changedMigrations) ? changedMigrations.length : 0;
+  if (changedCount === 0) {
+    return { ok: true, level: 'none' };
+  }
+
+  if (allowChangedMigrations) {
+    return {
+      ok: true,
+      level: 'warn',
+      reason: 'changed_migrations_allowed'
+    };
+  }
+
+  if (strictMigrationChecks) {
+    return {
+      ok: false,
+      level: 'error',
+      reason: 'changed_migrations_detected'
+    };
+  }
+
+  return {
+    ok: true,
+    level: 'warn',
+    reason: 'changed_migrations_detected'
+  };
+}
+
+export function shouldTreatMigrationExecutionAsFailure(result) {
+  return !result?.success;
+}
+
+export function isMissingMigrationsTableError(errorMessage) {
+  const normalized = String(errorMessage || '').toLowerCase();
+  return (
+    normalized.includes('no such table') && normalized.includes('_migrations')
+  ) || normalized.includes('table "_migrations" does not exist')
+    || normalized.includes('table _migrations does not exist');
+}
+
+function createRuntimeContext(argv = process.argv.slice(2), env = process.env) {
+  const cli = parseCliArgs(argv);
+  const wranglerConfig = loadWranglerConfig(WRANGLER_CONFIG);
+
+  const strictMigrationChecks = cli.allowChangedMigrations
+    ? false
+    : (cli.strictMigrationChecks || parseBoolean(env.STRICT_MIGRATION_CHECKS, parseBoolean(env.CI, false)));
+
+  const runtime = {
+    rootDir: ROOT_DIR,
+    migrationsDir: MIGRATIONS_DIR,
+    wranglerConfigPath: WRANGLER_CONFIG,
+    dryRun: cli.dryRun,
+    migrationsOnly: cli.migrationsOnly,
+    local: cli.local,
+    verbose: cli.verbose,
+    allowChangedMigrations: cli.allowChangedMigrations || parseBoolean(env.ALLOW_CHANGED_MIGRATIONS, false),
+    strictMigrationChecks,
+    d1DatabaseName: resolveD1DatabaseName({
+      explicitDbName: cli.dbName,
+      envDbName: env.CLOUDFLARE_D1_DATABASE_NAME,
+      wranglerConfig
+    })
+  };
+
+  return runtime;
+}
+
+let runtime = null;
+
 /**
  * Execute a wrangler command and return the result.
  *
@@ -83,23 +330,23 @@ function sleep(ms) {
  * - Invoke `npx` via cmd.exe to avoid Node spawn() EINVAL on .cmd shims.
  */
 function wrangler(args, options = {}) {
-  const remoteFlag = LOCAL ? '--local' : '--remote';
-  const fullArgs = ['wrangler', ...args, '--config', WRANGLER_CONFIG, remoteFlag];
+  const remoteFlag = runtime.local ? '--local' : '--remote';
+  const fullArgs = ['wrangler', ...args, '--config', runtime.wranglerConfigPath, remoteFlag];
 
-  if (VERBOSE) {
+  if (runtime.verbose) {
     const printable = ['npx', ...fullArgs]
       .map((part) => (String(part).includes(' ') ? `"${part}"` : String(part)))
       .join(' ');
     log(`  $ ${printable}`, 'dim');
   }
 
-  if (DRY_RUN && !options.allowInDryRun) {
+  if (runtime.dryRun && !options.allowInDryRun) {
     log('  [DRY RUN] Would execute wrangler command', 'yellow');
     return { success: true, output: '', dryRun: true };
   }
 
   const spawnOptions = {
-    cwd: ROOT_DIR,
+    cwd: runtime.rootDir,
     env: { ...process.env, FORCE_COLOR: '0' },
     encoding: 'utf-8'
   };
@@ -109,7 +356,7 @@ function wrangler(args, options = {}) {
 
   // Use absolute path for npx via Node's directory to avoid PATH injection
   const npxPath = join(dirname(process.execPath), process.platform === 'win32' ? 'npx.cmd' : 'npx');
-  
+
   // On Windows, .cmd shims need shell execution
   const result = process.platform === 'win32'
     ? spawnSync(process.env.COMSPEC || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', npxPath, ...fullArgs], { ...spawnOptions, stdio })
@@ -139,12 +386,11 @@ function spawnCommand(commandKey, args, options = {}) {
   }
 
   const spawnOptions = {
-    cwd: ROOT_DIR,
+    cwd: runtime.rootDir,
     stdio: 'inherit',
     ...options
   };
 
-  // Use COMSPEC with fallback to absolute path for Windows
   return process.platform === 'win32'
     ? spawnSync(process.env.COMSPEC || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', command, ...args], spawnOptions)
     : spawnSync(command, args, spawnOptions);
@@ -157,7 +403,7 @@ function spawnCommandCapture(commandKey, args, options = {}) {
   }
 
   const spawnOptions = {
-    cwd: ROOT_DIR,
+    cwd: runtime.rootDir,
     stdio: ['ignore', 'pipe', 'pipe'],
     encoding: 'utf-8',
     ...options
@@ -174,7 +420,7 @@ function spawnCommandCapture(commandKey, args, options = {}) {
   };
 }
 
-function isRetriableDeployError(output) {
+export function isRetriableDeployError(output) {
   const normalized = String(output || '').toLowerCase();
   return [
     '502 bad gateway',
@@ -192,18 +438,23 @@ function isRetriableDeployError(output) {
 }
 
 /**
- * Execute a D1 SQL query and return results
+ * Execute a D1 SQL query and return results.
  */
 function d1Query(sql, options = {}) {
-  // Pass SQL as an argv value to avoid platform-specific shell quoting.
   const normalizedSql = String(sql).replace(/\s+/g, ' ').trim();
-  // `--json` makes output parseable across platforms.
-  const result = wrangler(['d1', 'execute', 'mystic-tarot-db', '--command', normalizedSql, '--json'], {
+  const result = wrangler([
+    'd1',
+    'execute',
+    runtime.d1DatabaseName,
+    '--command',
+    normalizedSql,
+    '--json'
+  ], {
     capture: true,
     ...options
   });
 
-  if (!result.success && VERBOSE) {
+  if (!result.success && runtime.verbose) {
     log(`  SQL Error: ${result.error}`, 'dim');
   }
 
@@ -211,57 +462,52 @@ function d1Query(sql, options = {}) {
 }
 
 /**
- * Execute a migration file
+ * Execute a migration file.
  */
 function d1ExecuteFile(filePath) {
-  const result = wrangler(['d1', 'execute', 'mystic-tarot-db', '--file', filePath], {
+  return wrangler(['d1', 'execute', runtime.d1DatabaseName, '--file', filePath], {
     capture: true
   });
-  return result;
 }
 
 /**
- * Get list of migration files sorted by name
+ * Get list of migration files sorted by name.
  */
 function getMigrationFiles() {
-  const files = readdirSync(MIGRATIONS_DIR)
-    .filter(f => f.endsWith('.sql'))
+  return readdirSync(runtime.migrationsDir)
+    .filter((f) => f.endsWith('.sql'))
     .sort();
-  return files;
 }
 
 /**
- * Calculate checksum of a migration file
+ * Calculate checksum of a migration file.
  */
 function getFileChecksum(filename) {
-  const filepath = join(MIGRATIONS_DIR, filename);
+  const filepath = join(runtime.migrationsDir, filename);
   const content = readFileSync(filepath, 'utf-8');
   return createHash('sha256').update(content).digest('hex').substring(0, 16);
 }
 
 /**
- * Get list of already applied migrations from the database
+ * Get list of already applied migrations from the database.
  */
 async function getAppliedMigrations() {
-  // First ensure the _migrations table exists
-  const createTableSql = `
-    CREATE TABLE IF NOT EXISTS _migrations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      applied_at INTEGER NOT NULL,
-      checksum TEXT
-    )
-  `;
+  if (!runtime.dryRun) {
+    const createTableSql = `
+      CREATE TABLE IF NOT EXISTS _migrations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        applied_at INTEGER NOT NULL,
+        checksum TEXT
+      )
+    `;
 
-  const createResult = d1Query(createTableSql, { allowInDryRun: true });
-  if (!createResult.success && !createResult.dryRun) {
-    // Table might already exist with different structure, try to continue
-    if (VERBOSE) {
-      logWarning('Could not create _migrations table (may already exist)');
+    const createResult = d1Query(createTableSql);
+    if (!createResult.success) {
+      throw new Error(`Unable to prepare _migrations table: ${createResult.error || 'unknown error'}`);
     }
   }
 
-  // Query existing migrations
   const queryResult = d1Query('SELECT name, checksum FROM _migrations', { allowInDryRun: true });
 
   if (queryResult.dryRun) {
@@ -269,11 +515,17 @@ async function getAppliedMigrations() {
   }
 
   if (!queryResult.success) {
-    // Table might not exist yet, return empty
-    return new Map();
+    if (runtime.dryRun) {
+      if (isMissingMigrationsTableError(queryResult.error)) {
+        logWarning('Dry-run did not find _migrations table; assuming no applied migrations.');
+        return new Map();
+      }
+      logWarning('Dry-run could not query _migrations; assuming no applied migrations.');
+      return new Map();
+    }
+    throw new Error(`Unable to read _migrations table: ${queryResult.error || 'unknown error'}`);
   }
 
-  // Parse the output - we request `--json` for a stable shape.
   const applied = new Map();
   try {
     const output = String(queryResult.output || '').trim();
@@ -281,9 +533,6 @@ async function getAppliedMigrations() {
 
     const parsed = JSON.parse(output);
 
-    // Wrangler --json shape for D1 execute is usually:
-    //   [ { results: [ {col: val, ...}, ... ], success: true, meta: {...} } ]
-    // But we also support other shapes defensively.
     let rows = [];
     if (Array.isArray(parsed)) {
       if (Array.isArray(parsed[0]?.results)) rows = parsed[0].results;
@@ -300,18 +549,15 @@ async function getAppliedMigrations() {
       if (!row?.name) continue;
       applied.set(row.name, row.checksum);
     }
-  } catch (e) {
-    // If parsing fails, assume no migrations applied
-    if (VERBOSE) {
-      log(`  Could not parse migration list: ${e.message}`, 'dim');
-    }
+  } catch (error) {
+    throw new Error(`Could not parse migration list output: ${error.message}`);
   }
 
   return applied;
 }
 
 /**
- * Record a migration as applied
+ * Record a migration as applied.
  */
 function recordMigration(name, checksum) {
   const now = Date.now();
@@ -320,21 +566,22 @@ function recordMigration(name, checksum) {
 }
 
 /**
- * Apply pending migrations
+ * Apply pending migrations.
  */
 async function applyMigrations() {
-  logStep('1/3', 'Checking migration status...');
+  logStep('1/3', `Checking migration status (DB: ${runtime.d1DatabaseName})...`);
 
   const migrationFiles = getMigrationFiles();
   const appliedMigrations = await getAppliedMigrations();
 
-  if (VERBOSE) {
+  if (runtime.verbose) {
     log(`  Found ${migrationFiles.length} migration files`, 'dim');
     log(`  ${appliedMigrations.size} migrations already applied`, 'dim');
   }
 
-  // Determine which migrations need to be applied
   const pending = [];
+  const changedMigrations = [];
+
   for (const file of migrationFiles) {
     const checksum = getFileChecksum(file);
     const existingChecksum = appliedMigrations.get(file);
@@ -342,10 +589,32 @@ async function applyMigrations() {
     if (!existingChecksum) {
       pending.push({ file, checksum, status: 'new' });
     } else if (existingChecksum !== checksum) {
-      logWarning(`Migration ${file} has changed since it was applied!`);
-      logWarning(`  Expected checksum: ${existingChecksum}`);
-      logWarning(`  Current checksum:  ${checksum}`);
-      // Don't re-apply changed migrations, just warn
+      changedMigrations.push({ file, expected: existingChecksum, current: checksum });
+    }
+  }
+
+  const changedPolicy = evaluateChangedMigrations(changedMigrations, {
+    strictMigrationChecks: runtime.strictMigrationChecks,
+    allowChangedMigrations: runtime.allowChangedMigrations
+  });
+
+  if (changedMigrations.length > 0) {
+    for (const changed of changedMigrations) {
+      if (changedPolicy.level === 'error') {
+        logError(`Migration ${changed.file} has changed since it was applied.`);
+        logError(`  Expected checksum: ${changed.expected}`);
+        logError(`  Current checksum:  ${changed.current}`);
+      } else {
+        logWarning(`Migration ${changed.file} has changed since it was applied.`);
+        logWarning(`  Expected checksum: ${changed.expected}`);
+        logWarning(`  Current checksum:  ${changed.current}`);
+      }
+    }
+
+    if (!changedPolicy.ok) {
+      logError('Changed migration files detected. Refusing to continue in strict mode.');
+      logError('Create a new migration instead of editing applied files, or rerun with --allow-changed-migrations after review.');
+      return false;
     }
   }
 
@@ -360,34 +629,27 @@ async function applyMigrations() {
     const { file, checksum } = migration;
     log(`  Applying: ${file}`, 'blue');
 
-    if (DRY_RUN) {
-      log(`    [DRY RUN] Would apply migration`, 'yellow');
+    if (runtime.dryRun) {
+      log('    [DRY RUN] Would apply migration', 'yellow');
       continue;
     }
 
-    const filepath = join(MIGRATIONS_DIR, file);
-    const result = d1ExecuteFile(filepath);
+    const filepath = join(runtime.migrationsDir, file);
+    const executeResult = d1ExecuteFile(filepath);
 
-    if (!result.success) {
-      // Check if it's a "column already exists" type error (migration was partially applied)
-      const errorLower = (result.error || '').toLowerCase();
-      const isAlreadyExists =
-        errorLower.includes('already exists') ||
-        errorLower.includes('duplicate column');
-
-      if (isAlreadyExists) {
-        logWarning(`  Migration ${file} appears to be partially applied, recording as complete`);
-      } else {
-        logError(`Failed to apply migration: ${file}`);
-        logError(`Error: ${result.error}`);
-        return false;
-      }
+    if (shouldTreatMigrationExecutionAsFailure(executeResult)) {
+      logError(`Failed to apply migration: ${file}`);
+      logError(`Error: ${executeResult.error || 'unknown execution error'}`);
+      logError('No migration record was written. Fix the migration and rerun deploy.');
+      return false;
     }
 
-    // Record the migration
     const recordResult = recordMigration(file, checksum);
     if (!recordResult.success && !recordResult.dryRun) {
-      logWarning(`  Could not record migration ${file} in tracking table`);
+      logError(`Migration ${file} executed, but tracking record failed.`);
+      logError(`Error: ${recordResult.error || 'unknown record error'}`);
+      logError('Resolve _migrations table state before continuing to avoid drift.');
+      return false;
     }
 
     logSuccess(`  Applied: ${file}`);
@@ -397,17 +659,16 @@ async function applyMigrations() {
 }
 
 /**
- * Deploy the worker
+ * Deploy the worker.
  */
 function deployWorker() {
   logStep('3/3', 'Deploying worker...');
 
-  if (DRY_RUN) {
+  if (runtime.dryRun) {
     log('  [DRY RUN] Would run: npm run build && wrangler deploy', 'yellow');
     return true;
   }
 
-  // Build first
   log('  Building frontend...', 'dim');
   const buildResult = spawnCommand('npm', ['run', 'build'], {
     env: process.env
@@ -418,13 +679,12 @@ function deployWorker() {
     return false;
   }
 
-  // Deploy
   const maxAttempts = Math.max(1, Number.parseInt(process.env.DEPLOY_RETRY_ATTEMPTS || '3', 10) || 3);
   const maxDelayMs = Math.max(1000, Number.parseInt(process.env.DEPLOY_RETRY_MAX_DELAY_MS || '30000', 10) || 30000);
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     log(`  Deploying to Cloudflare Workers... (attempt ${attempt}/${maxAttempts})`, 'dim');
-    const deployResult = spawnCommandCapture('npx', ['wrangler', 'deploy', '--config', WRANGLER_CONFIG], {
+    const deployResult = spawnCommandCapture('npx', ['wrangler', 'deploy', '--config', runtime.wranglerConfigPath], {
       env: process.env
     });
 
@@ -456,32 +716,38 @@ function deployWorker() {
 }
 
 /**
- * Main entry point
+ * Main entry point.
  */
-async function main() {
+export async function main(argv = process.argv.slice(2), env = process.env) {
+  runtime = createRuntimeContext(argv, env);
+
   console.log('');
   log('╔════════════════════════════════════════════════════════════╗', 'cyan');
   log('║           Tableu Deployment Script                         ║', 'cyan');
   log('╚════════════════════════════════════════════════════════════╝', 'cyan');
   console.log('');
 
-  if (DRY_RUN) {
+  if (runtime.dryRun) {
     logWarning('DRY RUN MODE - No changes will be made\n');
   }
 
-  if (LOCAL) {
+  if (runtime.local) {
     logWarning('LOCAL MODE - Operating on local D1 database\n');
   }
 
-  // Step 1 & 2: Apply migrations
+  if (runtime.allowChangedMigrations) {
+    logWarning('Changed migration checks are overridden via --allow-changed-migrations / env flag.');
+  } else if (runtime.strictMigrationChecks) {
+    log('Strict migration checksum checks are enabled.', 'dim');
+  }
+
   const migrationsOk = await applyMigrations();
   if (!migrationsOk) {
     logError('\nMigration failed! Aborting deployment.');
     process.exit(1);
   }
 
-  // Step 3: Deploy (unless --migrations-only)
-  if (MIGRATIONS_ONLY) {
+  if (runtime.migrationsOnly) {
     log('\n--migrations-only flag set, skipping deployment', 'dim');
   } else {
     console.log('');
@@ -497,10 +763,16 @@ async function main() {
   console.log('');
 }
 
-main().catch(error => {
-  logError(`Unexpected error: ${error.message}`);
-  if (VERBOSE) {
-    console.error(error);
-  }
-  process.exit(1);
-});
+const isDirectExecution = process.argv[1]
+  ? import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+  : false;
+
+if (isDirectExecution) {
+  main().catch((error) => {
+    logError(`Unexpected error: ${error.message}`);
+    if (runtime?.verbose) {
+      console.error(error);
+    }
+    process.exit(1);
+  });
+}

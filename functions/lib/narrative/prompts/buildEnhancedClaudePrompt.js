@@ -54,11 +54,49 @@ function resolveGraphEnv(promptBudgetEnv) {
 
 function readBooleanFlag(value) {
   if (value === true || value === false) return value;
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return null;
+  }
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
-  if (normalized === 'true') return true;
-  if (normalized === 'false') return false;
+  if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') return true;
+  if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') return false;
   return null;
+}
+
+function describeReceivedValue(value) {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (Array.isArray(value)) return `array(length=${value.length})`;
+  return typeof value;
+}
+
+function validateCardsInfoForPrompt(cardsInfo) {
+  if (!Array.isArray(cardsInfo) || cardsInfo.length === 0) {
+    const received = cardsInfo === null ? 'null' : cardsInfo === undefined ? 'undefined' : `${typeof cardsInfo} (length: ${cardsInfo?.length ?? 'N/A'})`;
+    throw new TypeError(
+      `buildEnhancedClaudePrompt: cardsInfo must be a non-empty array of card objects. Received: ${received}. ` +
+      'Ensure payload validation (e.g., validatePayload()) runs before calling this function.'
+    );
+  }
+
+  const invalidCardIndex = cardsInfo.findIndex((card) => !card || typeof card !== 'object' || Array.isArray(card));
+  if (invalidCardIndex !== -1) {
+    throw new TypeError(
+      `buildEnhancedClaudePrompt: cardsInfo[${invalidCardIndex}] must be a card object. ` +
+      `Received: ${describeReceivedValue(cardsInfo[invalidCardIndex])}.`
+    );
+  }
+
+  const missingCardNameIndex = cardsInfo.findIndex((card) => typeof card.card !== 'string' || !card.card.trim());
+  if (missingCardNameIndex !== -1) {
+    throw new TypeError(
+      `buildEnhancedClaudePrompt: cardsInfo[${missingCardNameIndex}] is missing a non-empty "card" string. ` +
+      'Ensure each entry includes at least { card, position, orientation, meaning }.'
+    );
+  }
 }
 
 export function countGraphRAGPassagesInPrompt(promptText) {
@@ -134,10 +172,22 @@ export function parseGraphRAGReferenceBlock(promptText) {
   };
 }
 
+export function parseGraphRAGSummaryBlock(promptText) {
+  if (!promptText || typeof promptText !== 'string') {
+    return { present: false };
+  }
+
+  const marker = '## TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)';
+  return {
+    present: promptText.includes(marker)
+  };
+}
+
 export function buildEnhancedClaudePrompt({
   spreadInfo,
   cardsInfo,
   userQuestion,
+  contextInputText,
   reflectionsText,
   themes,
   spreadAnalysis,
@@ -157,15 +207,8 @@ export function buildEnhancedClaudePrompt({
   variantOverrides = null
 }) {
   // Fast guard: validate cardsInfo before branching into spread-specific builders.
-  // Without this, callers receive unhelpful TypeErrors deep in spread builders
-  // (e.g., "Cannot read properties of undefined (reading '0')").
-  if (!Array.isArray(cardsInfo) || cardsInfo.length === 0) {
-    const received = cardsInfo === null ? 'null' : cardsInfo === undefined ? 'undefined' : `${typeof cardsInfo} (length: ${cardsInfo?.length ?? 'N/A'})`;
-    throw new TypeError(
-      `buildEnhancedClaudePrompt: cardsInfo must be a non-empty array of card objects. Received: ${received}. ` +
-      `Ensure payload validation (e.g., validatePayload()) runs before calling this function.`
-    );
-  }
+  // Without this, callers receive unhelpful TypeErrors deep in spread builders.
+  validateCardsInfoForPrompt(cardsInfo);
 
   const baseThemes = typeof themes === 'object' && themes !== null ? themes : {};
   const activeThemes = baseThemes.reversalDescription
@@ -217,7 +260,11 @@ export function buildEnhancedClaudePrompt({
   if (!effectiveGraphRAGPayload && isGraphRAGEnabled(graphEnv) && activeThemes?.knowledgeGraph?.graphKeys) {
     const effectiveSpreadKey = spreadKey || 'general';
     const maxPassages = getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);
-    const questionContext = inferGraphRAGContext(userQuestion, spreadKey);
+    const graphRAGContextInput =
+      typeof contextInputText === 'string' && contextInputText.trim()
+        ? contextInputText
+        : (userQuestion || '');
+    const questionContext = inferGraphRAGContext(graphRAGContextInput, spreadKey);
 
     // Check if semantic scoring was requested
     // If enableSemanticScoring is explicitly true but we're doing sync retrieval,
@@ -231,7 +278,7 @@ export function buildEnhancedClaudePrompt({
         // be called in performSpreadAnalysis() and passed via graphRAGPayload
         const retrievedPassages = retrievePassages(activeThemes.knowledgeGraph.graphKeys, {
           maxPassages,
-          userQuery: userQuestion,
+          userQuery: graphRAGContextInput || userQuestion || '',
           questionContext
         });
 
@@ -303,11 +350,15 @@ export function buildEnhancedClaudePrompt({
   }
 
   const baseControls = {
+    // Source precedence contract:
+    // spread/cards > validated matched vision > user context > GraphRAG > ephemeris.
+    // These controls can slim or suppress enrichment, but must not alter drawn-card identity/positions.
     graphRAGPayload: effectiveGraphRAGPayload,
     ephemerisContext: astroContext,
     ephemerisForecast: astroForecast,
     transitResonances: astroTransits,
     includeGraphRAG: !graphRAGInjectionDisabled,
+    graphRAGSummaryOnly: false,
     includeEphemeris: astroRelevant,
     includeForecast: astroRelevant,
     includeDeckContext: true,
@@ -374,16 +425,23 @@ export function buildEnhancedClaudePrompt({
   const disableSlimming = disableSlimmingFlag === true || enableSlimmingFlag !== true;
 
   const maybeSlim = (label, updater) => {
-    if (disableSlimming) return; // Skip all slimming when disabled
-    if (!promptBudget) return;
-    if (built.totalTokens <= promptBudget) return;
-    updater();
+    if (disableSlimming) return false; // Skip all slimming when disabled
+    if (!promptBudget) return false;
+    if (built.totalTokens <= promptBudget) return false;
+    const didUpdate = updater();
+    if (!didUpdate) return false;
     built = buildWithControls(controls);
     slimmingSteps.push(label);
+    return true;
+  };
+
+  const hasGraphRAGPassages = () => {
+    const payload = controls.graphRAGPayload;
+    return Array.isArray(payload?.passages) && payload.passages.length > 0;
   };
 
   const trimGraphRAGPassages = () => {
-    if (controls.includeGraphRAG === false) return false;
+    if (controls.includeGraphRAG === false || controls.graphRAGSummaryOnly === true) return false;
     const payload = controls.graphRAGPayload;
     if (!payload?.passages || payload.passages.length <= 1) return false;
 
@@ -430,42 +488,78 @@ export function buildEnhancedClaudePrompt({
     return true;
   };
 
+  const reduceGraphRAGToSummary = () => {
+    if (!hasGraphRAGPassages()) return false;
+    if (controls.graphRAGSummaryOnly === true && controls.includeGraphRAG === false) return false;
+
+    controls = {
+      ...controls,
+      includeGraphRAG: false,
+      graphRAGSummaryOnly: true
+    };
+    return true;
+  };
+
+  const dropGraphRAGSummary = () => {
+    if (controls.graphRAGSummaryOnly !== true) return false;
+    controls = {
+      ...controls,
+      graphRAGSummaryOnly: false
+    };
+    return true;
+  };
+
   // Step 1: Drop imagery/vision sub-points for lower-weight cards
   maybeSlim('drop-low-weight-imagery', () => {
+    if (controls.omitLowWeightImagery) return false;
     controls = { ...controls, omitLowWeightImagery: true };
+    return true;
   });
 
   // Step 2: Remove forecast (future events) if over budget
   maybeSlim('drop-forecast', () => {
+    if (controls.includeForecast === false) return false;
     controls = { ...controls, includeForecast: false };
+    return true;
   });
 
   // Step 3: Remove ephemeris/astrological context if over budget
   maybeSlim('drop-ephemeris', () => {
+    if (controls.includeEphemeris === false) return false;
     controls = { ...controls, includeEphemeris: false };
+    return true;
   });
 
-  // Step 3.5: Trim GraphRAG passages before dropping the block entirely
+  // Step 3.5: Trim GraphRAG passages before reducing to summary mode
   maybeSlim('trim-graphrag-passages', () => {
-    trimGraphRAGPassages();
+    return trimGraphRAGPassages();
   });
 
-  // Step 4: Remove GraphRAG block if still over budget
-  maybeSlim('drop-graphrag-block', () => {
-    controls = { ...controls, includeGraphRAG: false };
+  // Step 4: Keep a compact GraphRAG summary before dropping GraphRAG completely.
+  maybeSlim('reduce-graphrag-to-summary', () => {
+    return reduceGraphRAGToSummary();
   });
 
   // Step 5: Remove deck geometry/context tables (Thoth/Marseille)
   maybeSlim('drop-deck-geometry', () => {
+    if (controls.includeDeckContext === false) return false;
     controls = { ...controls, includeDeckContext: false };
+    return true;
   });
 
   // Step 6: Remove diagnostics (vision validation, verbose notes)
   maybeSlim('drop-diagnostics', () => {
+    if (controls.includeDiagnostics === false) return false;
     controls = { ...controls, includeDiagnostics: false };
+    return true;
   });
 
-  // Step 7: HARD CAP - Always enforce context window limits even when slimming is disabled
+  // Step 7: As a last soft-budget resort, drop GraphRAG summary as well.
+  maybeSlim('drop-graphrag-summary', () => {
+    return dropGraphRAGSummary();
+  });
+
+  // Step 8: HARD CAP - Always enforce context window limits even when slimming is disabled
   const hardCap = getHardCapBudget(budgetTarget);
   let finalSystem = built.systemPrompt;
   let finalUser = built.userPrompt;
@@ -504,11 +598,7 @@ export function buildEnhancedClaudePrompt({
 
     applyHardCapTrim('hard-cap-trim-graphrag-passages', () => trimGraphRAGPassages());
 
-    applyHardCapTrim('hard-cap-drop-graphrag-block', () => {
-      if (controls.includeGraphRAG === false) return false;
-      controls = { ...controls, includeGraphRAG: false };
-      return true;
-    });
+    applyHardCapTrim('hard-cap-reduce-graphrag-to-summary', () => reduceGraphRAGToSummary());
 
     applyHardCapTrim('hard-cap-drop-deck-geometry', () => {
       if (controls.includeDeckContext === false) return false;
@@ -521,6 +611,8 @@ export function buildEnhancedClaudePrompt({
       controls = { ...controls, includeDiagnostics: false };
       return true;
     });
+
+    applyHardCapTrim('hard-cap-drop-graphrag-summary', () => dropGraphRAGSummary());
   }
 
   finalSystem = built.systemPrompt;
@@ -641,19 +733,26 @@ export function buildEnhancedClaudePrompt({
       ? payload.initialPassageCount
       : passagesAfterSlimming;
     const graphRAGParse = parseGraphRAGReferenceBlock(finalUser);
+    const graphRAGSummaryParse = parseGraphRAGSummaryBlock(finalUser);
     const graphRAGBlockPresent = graphRAGParse.status !== 'absent';
     const passagesInPrompt = graphRAGParse.status === 'complete'
       ? graphRAGParse.passageCount
       : null;
-    const graphRAGIncluded = graphragEnabled &&
+    const graphRAGIncludedFull = graphragEnabled &&
       controls.includeGraphRAG !== false &&
       graphRAGParse.status === 'complete' &&
       typeof passagesInPrompt === 'number' &&
       passagesInPrompt > 0 &&
       graphRAGBlockPresent;
+    const graphRAGIncludedSummary = graphragEnabled &&
+      controls.graphRAGSummaryOnly === true &&
+      graphRAGSummaryParse.present === true;
+    const graphRAGInjectionMode = graphRAGIncludedFull
+      ? 'full'
+      : (graphRAGIncludedSummary ? 'summary' : 'none');
     const passagesUsed = graphRAGParse.status === 'complete'
-      ? (graphRAGIncluded ? passagesInPrompt : 0)
-      : null;
+      ? (graphRAGIncludedFull ? passagesInPrompt : 0)
+      : (graphRAGIncludedSummary ? 0 : null);
     const trimmedCount = typeof passagesUsed === 'number'
       ? Math.max(0, initialPassageCount - passagesUsed)
       : null;
@@ -689,6 +788,8 @@ export function buildEnhancedClaudePrompt({
     retrievalSummary.passagesUsedInPrompt = passagesUsed;
     retrievalSummary.parseStatus = graphRAGParse.status;
     retrievalSummary.referenceBlockClosed = graphRAGParse.referenceBlockClosed;
+    retrievalSummary.summaryBlockPresent = graphRAGSummaryParse.present;
+    retrievalSummary.injectionMode = graphRAGInjectionMode;
     if (typeof trimmedCount === 'number' && trimmedCount > 0) {
       retrievalSummary.truncatedPassages = trimmedCount;
     }
@@ -701,7 +802,7 @@ export function buildEnhancedClaudePrompt({
       }
     }
     retrievalSummary.disabledByEnv = !graphragEnabled;
-    retrievalSummary.includedInPrompt = graphRAGIncluded;
+    retrievalSummary.includedInPrompt = graphRAGInjectionMode !== 'none';
 
     promptMeta.graphRAG = retrievalSummary;
   } else if (
@@ -714,6 +815,7 @@ export function buildEnhancedClaudePrompt({
     const graphragEnabled = isGraphRAGEnabled(envForGraph) || (!controls.env && Boolean(controls.graphRAGPayload));
     promptMeta.graphRAG = {
       includedInPrompt: false,
+      injectionMode: 'none',
       disabledByEnv: !graphragEnabled,
       passagesProvided: 0,
       passagesUsedInPrompt: 0,
@@ -740,6 +842,87 @@ export function buildEnhancedClaudePrompt({
       eventCount: controls.ephemerisForecast.events?.length || 0
     };
   }
+
+  const hasUserQuestion = typeof userQuestion === 'string' && userQuestion.trim().length > 0;
+  const hasReflections = typeof reflectionsText === 'string' && reflectionsText.trim().length > 0;
+  const focusAreas = Array.isArray(personalization?.focusAreas)
+    ? personalization.focusAreas.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
+    : [];
+  const hasFocusAreas = focusAreas.length > 0;
+  const hasVisionSource = Array.isArray(visionInsights) && visionInsights.length > 0;
+  const visionDiagnosticsIncluded = hasVisionSource && controls.includeDiagnostics !== false;
+  const visionRemovedForBudget = slimmingSteps.some((step) =>
+    step === 'drop-diagnostics' || step === 'hard-cap-drop-diagnostics'
+  );
+  const hasGraphRAGSource = Boolean(
+    controls.graphRAGPayload ||
+    activeThemes?.knowledgeGraph?.graphKeys
+  );
+  const graphRAGBudgetTrimmed = slimmingSteps.some((step) =>
+    step === 'trim-graphrag-passages' ||
+    step === 'reduce-graphrag-to-summary' ||
+    step === 'drop-graphrag-summary' ||
+    step === 'hard-cap-trim-graphrag-passages' ||
+    step === 'hard-cap-reduce-graphrag-to-summary' ||
+    step === 'hard-cap-drop-graphrag-summary'
+  );
+  const ephemerisRemovedForBudget = slimmingSteps.some((step) =>
+    step === 'drop-ephemeris' || step === 'hard-cap-drop-ephemeris'
+  );
+  const forecastRemovedForBudget = slimmingSteps.some((step) =>
+    step === 'drop-forecast' || step === 'hard-cap-drop-forecast'
+  );
+  const graphRAGMode = promptMeta.graphRAG?.injectionMode || 'none';
+
+  promptMeta.sourceUsage = {
+    spreadCards: {
+      requested: true,
+      used: true,
+      skippedReason: null
+    },
+    vision: {
+      requested: hasVisionSource,
+      used: visionDiagnosticsIncluded,
+      skippedReason: hasVisionSource
+        ? (visionDiagnosticsIncluded ? null : (visionRemovedForBudget ? 'removed_for_budget' : 'diagnostics_disabled'))
+        : 'not_provided'
+    },
+    userContext: {
+      requested: true,
+      used: hasUserQuestion || hasReflections || hasFocusAreas,
+      skippedReason: hasUserQuestion || hasReflections || hasFocusAreas ? null : 'not_provided',
+      questionProvided: hasUserQuestion,
+      reflectionsProvided: hasReflections,
+      focusAreasProvided: hasFocusAreas
+    },
+    graphRAG: {
+      requested: hasGraphRAGSource,
+      used: graphRAGMode !== 'none',
+      mode: graphRAGMode,
+      passagesProvided: promptMeta.graphRAG?.passagesProvided ?? 0,
+      passagesUsedInPrompt: promptMeta.graphRAG?.passagesUsedInPrompt ?? 0,
+      skippedReason: hasGraphRAGSource
+        ? (
+          promptMeta.graphRAG?.skippedReason ||
+          (graphRAGBudgetTrimmed && graphRAGMode === 'none' ? 'removed_for_budget' : null)
+        )
+        : 'not_requested'
+    },
+    ephemeris: {
+      requested: Boolean(ephemerisContext),
+      used: Boolean(promptMeta.ephemeris?.available && controls.includeEphemeris),
+      skippedReason: promptMeta.ephemeris?.available
+        ? (controls.includeEphemeris ? null : (ephemerisRemovedForBudget ? 'removed_for_budget' : 'not_relevant'))
+        : (ephemerisContext ? 'unavailable' : 'not_requested')
+    },
+    forecast: {
+      requested: Boolean(ephemerisForecast),
+      used: Boolean(promptMeta.forecast?.available && controls.includeForecast),
+      skippedReason: promptMeta.forecast?.available
+        ? (controls.includeForecast ? null : (forecastRemovedForBudget ? 'removed_for_budget' : 'not_relevant'))
+        : (ephemerisForecast ? 'unavailable' : 'not_requested')
+    }
+  };
 
   // Return final prompts (potentially truncated to fit hard cap)
   return { systemPrompt: finalSystem, userPrompt: finalUser, promptMeta, contextDiagnostics: diagnostics };

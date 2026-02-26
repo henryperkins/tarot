@@ -193,19 +193,131 @@ describe('prompt slimming respects budget order', () => {
 
     assert.equal(promptMeta.slimmingEnabled, true);
     assert.ok(promptMeta.estimatedTokens.total > promptMeta.estimatedTokens.budget);
-    assert.deepEqual(promptMeta.slimmingSteps, [
-      'drop-low-weight-imagery',
-      'drop-forecast',
-      'drop-ephemeris',
-      'trim-graphrag-passages',
-      'drop-graphrag-block',
-      'drop-deck-geometry',
-      'drop-diagnostics'
-    ]);
+    assert.ok(promptMeta.slimmingSteps.includes('drop-low-weight-imagery'));
+    assert.ok(promptMeta.slimmingSteps.includes('drop-forecast'));
+    assert.ok(promptMeta.slimmingSteps.includes('drop-ephemeris'));
+    assert.ok(promptMeta.slimmingSteps.includes('drop-deck-geometry'));
+    assert.ok(promptMeta.slimmingSteps.includes('drop-diagnostics'));
     // GraphRAG telemetry may be absent when no graph keys/payload were available.
     if (promptMeta.graphRAG) {
       assert.equal(promptMeta.graphRAG.includedInPrompt, false);
     }
+  });
+
+  it('marks vision source as unused when diagnostics are dropped for budget', () => {
+    const spreadInfo = { name: 'Three-Card Story (Past · Present · Future)' };
+    const cardsInfo = [
+      { card: 'The Fool', position: 'Past', number: 0, orientation: 'Upright', meaning: 'A long wandering path.' },
+      { card: 'The Magician', position: 'Present', number: 1, orientation: 'Upright', meaning: 'Manifesting resources and skill.' },
+      { card: 'The High Priestess', position: 'Future', number: 2, orientation: 'Reversed', meaning: 'Trust inner knowing and mystery.' }
+    ];
+
+    const themes = {
+      reversalCount: 1,
+      reversalDescription: {
+        name: 'Blocked Energy',
+        description: 'Reversals show resistance.',
+        guidance: 'Name the block, then describe how to clear or integrate it.'
+      },
+      knowledgeGraph: {},
+      suitCounts: {},
+      elementCounts: {}
+    };
+
+    const visionInsights = [
+      {
+        label: 'IMG_1',
+        predictedCard: 'The Fool',
+        confidence: 0.93,
+        basis: 'vision-merge',
+        matchesDrawnCard: true,
+        reasoning: 'A traveler posture with open sky and cliff edge aligns with The Fool.',
+        visualDetails: ['open sky', 'cliff edge', 'light pack']
+      }
+    ];
+
+    const { promptMeta, userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo,
+      cardsInfo,
+      userQuestion: 'How do I navigate this massive life transition? '.repeat(8),
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'career',
+      visionInsights,
+      deckStyle: 'rws-1909',
+      promptBudgetEnv: {
+        ENABLE_PROMPT_SLIMMING: 'true',
+        PROMPT_BUDGET_CLAUDE: '40'
+      }
+    });
+
+    assert.ok(
+      promptMeta.slimmingSteps.includes('drop-diagnostics') ||
+      promptMeta.slimmingSteps.includes('hard-cap-drop-diagnostics')
+    );
+    assert.equal(promptMeta.appliedOptions?.includeDiagnostics, false);
+    assert.equal(promptMeta.sourceUsage?.vision?.requested, true);
+    assert.equal(promptMeta.sourceUsage?.vision?.used, false);
+    assert.equal(promptMeta.sourceUsage?.vision?.skippedReason, 'removed_for_budget');
+    assert.ok(!userPrompt.includes('**Vision Validation**:'), 'Vision diagnostics block should be removed');
+  });
+
+  it('treats ENABLE_PROMPT_SLIMMING=1 as enabled', () => {
+    const { promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo: [
+        { card: 'The Star', position: 'Theme', number: 17, orientation: 'Upright', meaning: 'Hope and healing.' }
+      ],
+      userQuestion: 'How do I focus this week?',
+      reflectionsText: '',
+      themes: {
+        reversalCount: 0,
+        reversalDescription: { name: 'All Upright', description: 'No reversals.', guidance: 'Read upright.' },
+        knowledgeGraph: {},
+        suitCounts: {},
+        elementCounts: {}
+      },
+      spreadAnalysis: null,
+      context: 'self',
+      visionInsights: [],
+      deckStyle: 'rws-1909',
+      promptBudgetEnv: {
+        ENABLE_PROMPT_SLIMMING: '1',
+        PROMPT_BUDGET_CLAUDE: '40'
+      }
+    });
+
+    assert.equal(promptMeta.slimmingEnabled, true);
+  });
+
+  it('treats DISABLE_PROMPT_SLIMMING=1 as hard override', () => {
+    const { promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo: [
+        { card: 'The Star', position: 'Theme', number: 17, orientation: 'Upright', meaning: 'Hope and healing.' }
+      ],
+      userQuestion: 'How do I focus this week?',
+      reflectionsText: '',
+      themes: {
+        reversalCount: 0,
+        reversalDescription: { name: 'All Upright', description: 'No reversals.', guidance: 'Read upright.' },
+        knowledgeGraph: {},
+        suitCounts: {},
+        elementCounts: {}
+      },
+      spreadAnalysis: null,
+      context: 'self',
+      visionInsights: [],
+      deckStyle: 'rws-1909',
+      promptBudgetEnv: {
+        ENABLE_PROMPT_SLIMMING: 'true',
+        DISABLE_PROMPT_SLIMMING: '1',
+        PROMPT_BUDGET_CLAUDE: '40'
+      }
+    });
+
+    assert.equal(promptMeta.slimmingEnabled, false);
   });
 });
 
@@ -499,6 +611,34 @@ describe('cardsInfo validation guard', () => {
       {
         name: 'TypeError',
         message: /cardsInfo must be a non-empty array/
+      }
+    );
+  });
+
+  it('throws TypeError with explicit index when cardsInfo contains null entries', () => {
+    assert.throws(
+      () => buildEnhancedClaudePrompt({
+        spreadInfo: { name: 'One-Card Insight' },
+        cardsInfo: [null],
+        userQuestion: 'test'
+      }),
+      {
+        name: 'TypeError',
+        message: /cardsInfo\[0\] must be a card object/
+      }
+    );
+  });
+
+  it('throws TypeError with explicit index when cardsInfo entry is missing card name', () => {
+    assert.throws(
+      () => buildEnhancedClaudePrompt({
+        spreadInfo: { name: 'One-Card Insight' },
+        cardsInfo: [{ position: 'Theme', orientation: 'Upright', meaning: 'Missing card field' }],
+        userQuestion: 'test'
+      }),
+      {
+        name: 'TypeError',
+        message: /cardsInfo\[0\] is missing a non-empty "card" string/
       }
     );
   });

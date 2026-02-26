@@ -98,19 +98,19 @@ export const styles = {
     'text-[color:var(--text-muted)] shadow-[0_12px_24px_-16px_rgba(0,0,0,0.75)] ' +
     'hover:border-[color:var(--border-warm)] hover:text-[color:var(--brand-accent)] hover:translate-y-[-1px] ' +
     'transition-all duration-200 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 ' +
-    'focus-visible:ring-[color:var(--accent-45)]',
+    'focus-visible:ring-[color:var(--focus-ring-color)]',
 
   iconButtonCompact:
     'inline-flex min-h-touch min-w-touch h-11 w-11 items-center justify-center rounded-2xl ' +
     'border border-[color:var(--border-warm-subtle)] bg-[color:var(--panel-dark-2)] ' +
     'text-[color:var(--text-muted)] hover:bg-[color:var(--border-warm-subtle)] ' +
     'hover:text-[color:var(--brand-accent)] transition focus-visible:outline-none ' +
-    'focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] flex-shrink-0',
+    'focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] flex-shrink-0',
 
   actionButton:
     'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ' +
     'transition focus-visible:outline-none focus-visible:ring-2 ' +
-    'focus-visible:ring-[color:var(--accent-45)]',
+    'focus-visible:ring-[color:var(--focus-ring-color)]',
 
   actionButtonEnabled:
     'border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] ' +
@@ -152,7 +152,7 @@ export const styles = {
 
   menuItemDefault:
     'text-[color:var(--text-main)] hover:bg-[color:var(--border-warm-subtle)] ' +
-    'focus-visible:ring-[color:var(--accent-45)]',
+    'focus-visible:ring-[color:var(--focus-ring-color)]',
 
   menuItemDanger:
     'text-[color:var(--status-error)] hover:bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] ' +

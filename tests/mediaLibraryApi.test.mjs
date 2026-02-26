@@ -60,6 +60,12 @@ class FakeMediaDb {
   }
 }
 
+const fakeR2 = {
+  get: async () => null,
+  put: async () => {},
+  delete: async () => {}
+};
+
 describe('/api/media', () => {
   it('returns 401 when unauthenticated', async () => {
     const request = new Request('https://example.com/api/media');
@@ -129,7 +135,8 @@ describe('/api/media', () => {
             bytes: 1024,
             metadata_json: JSON.stringify({ foo: 'bar' })
           }]
-        })
+        }),
+        R2_LOGS: fakeR2
       }
     });
 
@@ -140,6 +147,29 @@ describe('/api/media', () => {
     assert.equal(payload.media[0].id, 'media-1');
     assert.equal(payload.media[0].contentUrl, '/api/media?contentId=media-1');
     assert.equal(payload.media[0].downloadUrl, '/api/media?contentId=media-1&download=1');
+  });
+
+  it('returns 503 when media storage binding is unavailable', async () => {
+    const request = new Request('https://example.com/api/media?limit=12', {
+      headers: { Authorization: 'Bearer session-token' }
+    });
+    const response = await onRequestGet({
+      request,
+      env: {
+        DB: new FakeMediaDb({
+          user: {
+            id: 'user-plus',
+            subscription_tier: 'plus',
+            subscription_status: 'active'
+          },
+          mediaRows: []
+        })
+      }
+    });
+
+    assert.equal(response.status, 503);
+    const payload = await response.json();
+    assert.equal(payload.code, 'media_storage_unavailable');
   });
 
   it('validates POST payload before write', async () => {

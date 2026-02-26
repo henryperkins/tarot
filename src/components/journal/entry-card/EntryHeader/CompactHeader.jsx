@@ -47,7 +47,7 @@ export const CompactHeader = memo(function CompactHeader({
           onClick={onToggle}
           aria-expanded={false}
           aria-controls={entryContentId}
-          className="group flex flex-1 items-start gap-3 min-w-0 rounded-2xl px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+          className="group flex flex-1 items-start gap-3 min-w-0 rounded-2xl px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
         >
           <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-2)] text-[color:var(--text-muted)] shadow-[0_10px_18px_-12px_rgba(0,0,0,0.6)] flex-shrink-0">
             <CaretDown className="h-4 w-4" aria-hidden="true" />

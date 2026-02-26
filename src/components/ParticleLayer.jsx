@@ -3,20 +3,20 @@ import Particles, { initParticlesEngine } from '@tsparticles/react';
 import { loadSlim } from '@tsparticles/slim';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
-const SUIT_COLORS = {
-  wands: '#d79a2b',
-  cups: '#22b7d8',
-  swords: '#c0c7d3',
-  pentacles: '#2eb875',
-  major: '#f2c14e'
+const SUIT_COLOR_META = {
+  wands: { cssVar: '--color-wands', fallback: 'rgb(201 168 118)' },
+  cups: { cssVar: '--color-cups', fallback: 'rgb(139 149 165)' },
+  swords: { cssVar: '--color-swords', fallback: 'rgb(107 114 128)' },
+  pentacles: { cssVar: '--color-pentacles', fallback: 'rgb(138 153 133)' },
+  major: { cssVar: '--brand-primary', fallback: 'rgb(212 184 150)' }
 };
 
-const ELEMENT_COLORS = {
-  fire: SUIT_COLORS.wands,
-  water: SUIT_COLORS.cups,
-  air: SUIT_COLORS.swords,
-  earth: SUIT_COLORS.pentacles,
-  spirit: SUIT_COLORS.major
+const ELEMENT_TO_SUIT = {
+  fire: 'wands',
+  water: 'cups',
+  air: 'swords',
+  earth: 'pentacles',
+  spirit: 'major'
 };
 
 const PRESET_COUNTS = {
@@ -30,10 +30,22 @@ const PRESET_COUNTS = {
 
 let particlesInitialized = false;
 
-function resolveColor({ suit, element, fallback = SUIT_COLORS.major }) {
+function resolveSuitColor(suitKey) {
+  const meta = SUIT_COLOR_META[suitKey] || SUIT_COLOR_META.major;
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return meta.fallback;
+  }
+  const tokenValue = getComputedStyle(document.documentElement).getPropertyValue(meta.cssVar).trim();
+  return tokenValue || meta.fallback;
+}
+
+function resolveColor({ suit, element, fallback = 'major' }) {
   const normalizedSuit = typeof suit === 'string' ? suit.toLowerCase() : '';
   const normalizedElement = typeof element === 'string' ? element.toLowerCase() : '';
-  return SUIT_COLORS[normalizedSuit] || ELEMENT_COLORS[normalizedElement] || fallback;
+  const resolvedSuitKey = SUIT_COLOR_META[normalizedSuit]
+    ? normalizedSuit
+    : ELEMENT_TO_SUIT[normalizedElement] || fallback;
+  return resolveSuitColor(resolvedSuitKey);
 }
 
 function getPresetConfig({ preset, color, reducedMotion, intensity = 1 }) {
@@ -158,4 +170,3 @@ export function ParticleLayer({
 }
 
 export default ParticleLayer;
-

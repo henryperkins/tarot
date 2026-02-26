@@ -4,6 +4,58 @@ import { FeedbackPanel } from '../FeedbackPanel';
 import FollowUpModal from '../FollowUpModal';
 import { NarrativeStagePanel } from './NarrativeStagePanel';
 
+function formatUsageSummary(sourceUsage) {
+  if (!sourceUsage || typeof sourceUsage !== 'object') {
+    return [];
+  }
+
+  const rows = [];
+
+  const pushRow = (label, value) => {
+    if (!value) return;
+    rows.push({ label, value });
+  };
+
+  const formatRequested = (entry) => {
+    if (!entry || typeof entry !== 'object') return 'Not requested';
+    if (entry.used) return 'Used';
+    if (entry.requested && entry.skippedReason) return `Skipped (${entry.skippedReason.replaceAll('_', ' ')})`;
+    if (entry.requested) return 'Requested but not used';
+    return 'Not requested';
+  };
+
+  pushRow('Spread & cards', formatRequested(sourceUsage.spreadCards));
+  pushRow('Vision uploads', formatRequested(sourceUsage.vision));
+
+  if (sourceUsage.userContext && typeof sourceUsage.userContext === 'object') {
+    const contextParts = [];
+    if (sourceUsage.userContext.questionProvided) contextParts.push('question');
+    if (sourceUsage.userContext.reflectionsProvided) contextParts.push('reflections');
+    if (sourceUsage.userContext.focusAreasProvided) contextParts.push('focus areas');
+    const contextDetail = contextParts.length > 0 ? ` (${contextParts.join(', ')})` : '';
+    pushRow('User context', `${formatRequested(sourceUsage.userContext)}${contextDetail}`);
+  }
+
+  if (sourceUsage.graphRAG && typeof sourceUsage.graphRAG === 'object') {
+    const mode = sourceUsage.graphRAG.mode ? String(sourceUsage.graphRAG.mode) : 'none';
+    const passagesUsed = Number.isFinite(sourceUsage.graphRAG.passagesUsedInPrompt)
+      ? sourceUsage.graphRAG.passagesUsedInPrompt
+      : 0;
+    const passagesProvided = Number.isFinite(sourceUsage.graphRAG.passagesProvided)
+      ? sourceUsage.graphRAG.passagesProvided
+      : 0;
+    const graphLabel = sourceUsage.graphRAG.used
+      ? `Used (${mode}, ${passagesUsed}/${passagesProvided} passages)`
+      : formatRequested(sourceUsage.graphRAG);
+    pushRow('Traditional wisdom', graphLabel);
+  }
+
+  pushRow('Ephemeris', formatRequested(sourceUsage.ephemeris));
+  pushRow('Forecast', formatRequested(sourceUsage.forecast));
+
+  return rows;
+}
+
 export function CompleteScene({
   sceneData = {},
   children
@@ -33,6 +85,7 @@ export function CompleteScene({
   const narrativePhase = narrativePanelProps?.narrativePhase;
   const isHandset = Boolean(narrativePanelProps?.isHandset);
   const userQuestion = narrativePanelProps?.userQuestion;
+  const sourceUsageRows = formatUsageSummary(readingMeta?.sourceUsage);
 
   return (
     <section
@@ -67,6 +120,23 @@ export function CompleteScene({
               onClose={() => setFollowUpOpen?.(false)}
               autoFocusInput={followUpAutoFocus}
             />
+          </div>
+        )}
+
+        {personalReading && sourceUsageRows.length > 0 && (
+          <div className="w-full max-w-2xl mx-auto mt-6">
+            <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-4 sm:p-5">
+              <p className="text-sm font-semibold text-main">Reading Inputs Used</p>
+              <p className="text-xs text-muted mt-1">Which sources shaped this interpretation.</p>
+              <dl className="mt-3 space-y-2">
+                {sourceUsageRows.map((row) => (
+                  <div key={row.label} className="flex items-start justify-between gap-4">
+                    <dt className="text-xs sm:text-sm text-muted">{row.label}</dt>
+                    <dd className="text-xs sm:text-sm text-main text-right">{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           </div>
         )}
 

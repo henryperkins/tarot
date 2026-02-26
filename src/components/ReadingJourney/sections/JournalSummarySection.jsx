@@ -12,20 +12,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useJournalSummary } from '../../../hooks/useJournalSummary';
 import { useSubscription } from '../../../contexts/SubscriptionContext';
-
-const BUTTON_CLASS = `
-  flex items-center gap-2 px-4 py-2.5 min-h-touch rounded-xl text-sm font-medium
-  transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50
-  disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation
-`;
-
-const PRIMARY_BUTTON_CLASS = `
-  ${BUTTON_CLASS}
-  bg-gradient-to-r from-primary/20 to-primary/10
-  border border-primary/30 text-main
-  hover:from-primary/30 hover:to-primary/20 hover:border-primary/40
-  shadow-[0_8px_20px_-10px_rgb(var(--brand-primary-rgb)/0.4)]
-`;
+import { JOURNEY_PRIMARY_BUTTON_CLASS } from '../../../styles/buttonClasses';
 
 /**
  * Provider badge component showing AI vs Heuristic.
@@ -357,7 +344,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
         type="button"
         onClick={handleGenerate}
         disabled={!canGenerate || isLoading || !scopeHasEntries}
-        className={PRIMARY_BUTTON_CLASS}
+        className={JOURNEY_PRIMARY_BUTTON_CLASS}
       >
         <Sparkle className="h-4 w-4" aria-hidden="true" />
         {scopeHasEntries

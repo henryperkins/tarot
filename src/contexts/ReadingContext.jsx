@@ -115,7 +115,8 @@ export function ReadingProvider({ children }) {
         deckStyle: null,
         userQuestion: null,
         graphContext: null,
-        ephemeris: null
+        ephemeris: null,
+        sourceUsage: null
     });
 
     // 5. UI State
@@ -634,7 +635,8 @@ export function ReadingProvider({ children }) {
                                     deckStyle: deckStyleId,
                                     userQuestion,
                                     graphContext: data.themes?.knowledgeGraph || null,
-                                    ephemeris: data.ephemeris || null
+                                    ephemeris: data.ephemeris || null,
+                                    sourceUsage: data.sourceUsage || null
                                 });
                             }
                         } else if (eventType === 'snapshot') {
@@ -998,7 +1000,7 @@ export function ReadingProvider({ children }) {
         setJournalStatus(null);
         setNarrativePhase('analyzing');
         setSrAnnouncement('Step 1 of 3: Analyzing your spread, positions, and reflections.');
-        setReadingMeta((prev) => ({ ...prev, requestId: null, ephemeris: null }));
+        setReadingMeta((prev) => ({ ...prev, requestId: null, ephemeris: null, sourceUsage: null }));
         setLastCardsForFeedback([]);
 
         try {

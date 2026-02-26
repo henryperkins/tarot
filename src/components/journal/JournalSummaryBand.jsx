@@ -139,7 +139,7 @@ export function JournalSummaryBand({
                       key={option.value}
                       type="button"
                       onClick={() => onScopeSelect(option.value)}
-                      className={`inline-flex items-center gap-1 rounded-full border ${scopeButtonSizeClass} font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] ${
+                      className={`inline-flex items-center gap-1 rounded-full border ${scopeButtonSizeClass} font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
                         isActive
                           ? 'border-[color:var(--brand-primary)] bg-[color:var(--accent-25)] text-[color:var(--text-main)] shadow-[0_8px_26px_-16px_var(--accent-45)]'
                           : 'border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] text-[color:var(--text-muted)] hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)]'
@@ -162,7 +162,7 @@ export function JournalSummaryBand({
                   <button
                     type="button"
                     onClick={() => onScopeSelect('filters')}
-                    className="font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                    className="font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                   >
                     Apply filters
                   </button>
@@ -179,7 +179,7 @@ export function JournalSummaryBand({
                   type="date"
                   value={customScope.start}
                   onChange={(event) => onCustomScopeChange('start', event.target.value)}
-                  className="rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-1 text-sm-mobile text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                  className="rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-1 text-sm-mobile text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                 />
               </label>
               <label className="flex items-center gap-1">
@@ -188,7 +188,7 @@ export function JournalSummaryBand({
                   type="date"
                   value={customScope.end}
                   onChange={(event) => onCustomScopeChange('end', event.target.value)}
-                  className="rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-1 text-sm-mobile text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                  className="rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-1 text-sm-mobile text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                 />
               </label>
               {scopeError && (
@@ -237,7 +237,7 @@ export function JournalSummaryBand({
                     onClick={() => onExpandedCardChange(isCardExpanded ? null : 0)}
                     aria-expanded={isCardExpanded}
                     aria-label={`${card.name}, ${card.orientation}. Tap for insight.`}
-                    className="w-full rounded-xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-3 text-left transition-[border-color,box-shadow,transform] duration-[var(--duration-medium)] ease-[var(--ease-out)] hover:border-[color:var(--border-warm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                    className="w-full rounded-xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-3 text-left transition-[border-color,box-shadow,transform] duration-[var(--duration-medium)] ease-[var(--ease-out)] hover:border-[color:var(--border-warm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                   >
                     <div className="flex items-center gap-3">
                       {/* Card thumbnail */}
@@ -328,7 +328,7 @@ export function JournalSummaryBand({
                       aria-expanded={isExpanded}
                       aria-label={`${card.name}, ${card.orientation}. Tap for insight.`}
                       onClick={() => onExpandedCardChange(isExpanded ? null : index)}
-                      className={`relative w-24 sm:w-28 flex-shrink-0 overflow-hidden rounded-xl border transition-[transform,border-color,box-shadow] duration-[var(--duration-medium)] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] ${
+                      className={`relative w-24 sm:w-28 flex-shrink-0 overflow-hidden rounded-xl border transition-[transform,border-color,box-shadow] duration-[var(--duration-medium)] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
                         isExpanded
                           ? 'border-[color:var(--brand-primary)] ring-1 ring-[color:var(--primary-30)] rounded-r-none'
                           : 'border-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)]'

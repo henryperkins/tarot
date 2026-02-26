@@ -47,6 +47,11 @@ const SHADES = [
 ];
 
 const ARBITRARY_TEXT_PX_RE = /\btext-\[\d+px\]/g;
+const ARBITRARY_TEXT_ANY_RE = /\btext-\[[^\]\n]+\]/g;
+const ARBITRARY_MIN_HEIGHT_RE = /\bmin-h-\[[^\]\n]+\]/g;
+const FOCUS_VISIBLE_RING_RE = /\bfocus-visible:ring-[^\s"'`]+/g;
+const HEX_COLOR_LITERAL_RE = /#[0-9A-Fa-f]{3,8}\b/g;
+const BUTTON_CLASS_CONSTANT_RE = /\bconst\s+([A-Z][A-Z0-9_]*BUTTON_CLASS)\s*=/g;
 const NON_TOKEN_TAILWIND_COLOR_RE = new RegExp(
   `\\b(?:bg|text|border|ring|from|to|via|fill|stroke|decoration|outline|caret|accent)-(${COLOR_NAMES.join('|')})-(${SHADES.join('|')})(?:\\/\\d+)?\\b`,
   'g'
@@ -57,6 +62,14 @@ const NON_TOKEN_TYPOGRAPHY_PROSE_COLOR_RE = new RegExp(
 );
 const RAW_RGBA_COLOR_LITERAL_RE =
   /\[color:rgba\(\s*(?:25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(?:0|1|0?\.\d+)\s*\)\]/g;
+
+function isUiProductFile(relPath) {
+  return relPath.startsWith('src/components/')
+    || relPath.startsWith('src/contexts/')
+    || relPath.startsWith('src/lib/')
+    || relPath.startsWith('src/pages/')
+    || relPath === 'src/TarotReading.jsx';
+}
 
 function parseArgs(argv) {
   const roots = [];
@@ -112,6 +125,18 @@ async function buildReport(roots) {
       count: 0,
       matches: []
     },
+    arbitraryTextAny: {
+      count: 0
+    },
+    arbitraryMinHeight: {
+      count: 0,
+      matches: []
+    },
+    focusVisibleRings: {
+      total: 0,
+      uniqueCount: 0,
+      byToken: {}
+    },
     nonTokenTailwindColors: {
       total: 0,
       byColor: {}
@@ -122,6 +147,15 @@ async function buildReport(roots) {
     },
     rawRgbaColorLiterals: {
       count: 0
+    },
+    productHexColorLiterals: {
+      count: 0,
+      byFile: {}
+    },
+    componentButtonClassConstants: {
+      count: 0,
+      byName: {},
+      matches: []
     }
   };
 
@@ -138,20 +172,47 @@ async function buildReport(roots) {
     for (const filePath of files) {
       const content = await fs.readFile(filePath, 'utf8');
       const relPath = path.relative(process.cwd(), filePath);
+      const lines = content.split('\n');
 
       // Arbitrary text sizes (px) - hard fail.
       if (content.includes('text-[')) {
-        const lines = content.split('\n');
         lines.forEach((line, idx) => {
-          const matches = line.match(ARBITRARY_TEXT_PX_RE);
+          const pxMatches = line.match(ARBITRARY_TEXT_PX_RE);
+          if (pxMatches) {
+            report.arbitraryTextPx.count += pxMatches.length;
+            report.arbitraryTextPx.matches.push({
+              file: relPath,
+              line: idx + 1,
+              excerpt: line.trim().slice(0, 180)
+            });
+          }
+
+          const arbitraryTextMatches = line.match(ARBITRARY_TEXT_ANY_RE);
+          if (arbitraryTextMatches) {
+            report.arbitraryTextAny.count += arbitraryTextMatches.length;
+          }
+        });
+      }
+
+      // Arbitrary min-height usage that bypasses touch target tokens.
+      if (content.includes('min-h-[')) {
+        lines.forEach((line, idx) => {
+          const matches = line.match(ARBITRARY_MIN_HEIGHT_RE);
           if (!matches) return;
-          report.arbitraryTextPx.count += matches.length;
-          report.arbitraryTextPx.matches.push({
+          report.arbitraryMinHeight.count += matches.length;
+          report.arbitraryMinHeight.matches.push({
             file: relPath,
             line: idx + 1,
             excerpt: line.trim().slice(0, 180)
           });
         });
+      }
+
+      // Focus ring token entropy.
+      for (const match of content.matchAll(FOCUS_VISIBLE_RING_RE)) {
+        const token = match[0].replace(/[},;)+]+$/g, '');
+        report.focusVisibleRings.total += 1;
+        incrementCount(report.focusVisibleRings.byToken, token);
       }
 
       // Tailwind numeric palette colors (non-token).
@@ -173,8 +234,35 @@ async function buildReport(roots) {
       if (rgbaMatches) {
         report.rawRgbaColorLiterals.count += rgbaMatches.length;
       }
+
+      // Hard-coded hex in product UI files (outside dedicated token files).
+      if (isUiProductFile(relPath) && content.includes('#')) {
+        const hexMatches = content.match(HEX_COLOR_LITERAL_RE);
+        if (hexMatches) {
+          report.productHexColorLiterals.count += hexMatches.length;
+          incrementCount(report.productHexColorLiterals.byFile, relPath, hexMatches.length);
+        }
+      }
+
+      // Local button class constants are allowed in shared style files, not feature components.
+      if (relPath.startsWith('src/components/')) {
+        lines.forEach((line, idx) => {
+          for (const match of line.matchAll(BUTTON_CLASS_CONSTANT_RE)) {
+            const constantName = match[1];
+            report.componentButtonClassConstants.count += 1;
+            incrementCount(report.componentButtonClassConstants.byName, constantName);
+            report.componentButtonClassConstants.matches.push({
+              file: relPath,
+              line: idx + 1,
+              constant: constantName
+            });
+          }
+        });
+      }
     }
   }
+
+  report.focusVisibleRings.uniqueCount = Object.keys(report.focusVisibleRings.byToken).length;
 
   return report;
 }
@@ -214,9 +302,14 @@ async function main() {
   if (shouldWriteBaseline) {
     await writeBaseline(report);
     console.log(`Wrote design contract baseline to ${path.relative(process.cwd(), BASELINE_PATH)}`, {
+      arbitraryTextAny: report.arbitraryTextAny,
+      arbitraryMinHeight: report.arbitraryMinHeight,
+      focusVisibleRings: report.focusVisibleRings,
       nonTokenTailwindColors: report.nonTokenTailwindColors,
       nonTokenProseColors: report.nonTokenProseColors,
-      rawRgbaColorLiterals: report.rawRgbaColorLiterals
+      rawRgbaColorLiterals: report.rawRgbaColorLiterals,
+      productHexColorLiterals: report.productHexColorLiterals,
+      componentButtonClassConstants: report.componentButtonClassConstants
     });
     return;
   }
@@ -246,15 +339,50 @@ async function main() {
     failures.push(`Raw rgba() literals increased: ${priorRgba} → ${report.rawRgbaColorLiterals.count}`);
   }
 
+  const priorArbitraryTextAny = baseline?.arbitraryTextAny?.count || 0;
+  if (report.arbitraryTextAny.count > priorArbitraryTextAny) {
+    failures.push(`Arbitrary text utilities increased: ${priorArbitraryTextAny} → ${report.arbitraryTextAny.count}`);
+  }
+
+  const priorArbitraryMinHeight = baseline?.arbitraryMinHeight?.count || 0;
+  if (report.arbitraryMinHeight.count > priorArbitraryMinHeight) {
+    failures.push(`Arbitrary min-height utilities increased: ${priorArbitraryMinHeight} → ${report.arbitraryMinHeight.count}`);
+  }
+
+  const priorHex = baseline?.productHexColorLiterals?.count || 0;
+  if (report.productHexColorLiterals.count > priorHex) {
+    failures.push(`Product hex color literals increased: ${priorHex} → ${report.productHexColorLiterals.count}`);
+  }
+
+  const priorRingUnique = baseline?.focusVisibleRings?.uniqueCount || 0;
+  if (report.focusVisibleRings.uniqueCount > priorRingUnique) {
+    failures.push(`Focus-visible ring token variants increased: ${priorRingUnique} → ${report.focusVisibleRings.uniqueCount}`);
+  }
+
+  const priorRingTotal = baseline?.focusVisibleRings?.total || 0;
+  if (report.focusVisibleRings.total > priorRingTotal) {
+    failures.push(`Focus-visible ring token total usage increased: ${priorRingTotal} → ${report.focusVisibleRings.total}`);
+  }
+
+  const priorButtonConstants = baseline?.componentButtonClassConstants?.count || 0;
+  if (report.componentButtonClassConstants.count > priorButtonConstants) {
+    failures.push(`Feature-local BUTTON_CLASS constants increased: ${priorButtonConstants} → ${report.componentButtonClassConstants.count}`);
+  }
+
   if (failures.length) {
-    fail(`Design contract failed: non-token color usage increased.\n- ${failures.join('\n- ')}`);
+    fail(`Design contract failed: design-system drift increased.\n- ${failures.join('\n- ')}`);
     return;
   }
 
   console.log('Design contract gate passed.', {
+    arbitraryTextAny: report.arbitraryTextAny,
+    arbitraryMinHeight: report.arbitraryMinHeight,
+    focusVisibleRings: report.focusVisibleRings,
     nonTokenTailwindColors: report.nonTokenTailwindColors,
     nonTokenProseColors: report.nonTokenProseColors,
-    rawRgbaColorLiterals: report.rawRgbaColorLiterals
+    rawRgbaColorLiterals: report.rawRgbaColorLiterals,
+    productHexColorLiterals: report.productHexColorLiterals,
+    componentButtonClassConstants: report.componentButtonClassConstants
   });
 }
 
@@ -262,4 +390,3 @@ main().catch((err) => {
   console.error('Design contract gate failed:', err.message);
   process.exit(1);
 });
-

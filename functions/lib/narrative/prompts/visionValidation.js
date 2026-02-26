@@ -77,18 +77,8 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
       lines.push(`- ${safeLabel}: vision detected a card not in the drawn spread (${confidenceText}) [mismatch]`);
       // Skip symbol verification and secondary matches for mismatched cards -
       // this data relates to the wrong card and could prime hallucinations.
-      // Visual profile (tone/emotion) may still be useful for the actual image's mood.
-      // Do NOT include reasoning/visualDetails for mismatches to avoid off-spread priming.
-      if (entry.visualProfile) {
-        const tone = Array.isArray(entry.visualProfile.tone) ? entry.visualProfile.tone.slice(0, 2).join(', ') : '';
-        const emotion = Array.isArray(entry.visualProfile.emotion) ? entry.visualProfile.emotion.slice(0, 2).join(', ') : '';
-        const profileParts = [];
-        if (tone) profileParts.push(`Tone: [${tone}]`);
-        if (emotion) profileParts.push(`Emotion: [${emotion}]`);
-        if (profileParts.length > 0) {
-          lines.push(`  · Visual Profile: ${profileParts.join(' | ')}`);
-        }
-      }
+      // Do NOT include reasoning/visualDetails/visual profile for mismatches
+      // to avoid off-spread card identity or tone priming.
       return; // Skip remaining details for mismatched entries
     }
 

@@ -151,3 +151,24 @@ test('safeParseReadingRequest accepts location with minimal fields', () => {
   assert.equal(result.data.location.latitude, 51.5074);
   assert.equal(result.data.location.timezone, undefined);
 });
+
+test('safeParseReadingRequest strips journal and memory context fields from initial reading payloads', () => {
+  const payload = {
+    ...basePayload,
+    journalContext: {
+      entries: [{ id: 'entry-1', summary: 'old reading' }]
+    },
+    memoryContext: {
+      notes: ['remember this']
+    },
+    followUpHistory: [
+      { question: 'What does this mean?', answer: 'context from another endpoint' }
+    ]
+  };
+
+  const result = safeParseReadingRequest(payload);
+  assert.equal(result.success, true, result.error || 'payload should still validate');
+  assert.equal(Object.prototype.hasOwnProperty.call(result.data, 'journalContext'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(result.data, 'memoryContext'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(result.data, 'followUpHistory'), false);
+});

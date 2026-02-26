@@ -380,6 +380,47 @@ describe('buildPromptEngineeringPayload', () => {
     assert.ok(!payload.redacted.response.includes('marcus'), 'Response should not include lowercase possessive name');
   });
 
+  test('redacts honorific forms from derived name hints without partial leaks', async () => {
+    const payload = await buildPromptEngineeringPayload({
+      systemPrompt: 'System prompt',
+      userPrompt: '**Question**: How do I talk to Dr. Smith about boundaries?',
+      response: 'Dr. Smith may respond better to calm, direct language.',
+      userQuestion: 'How do I talk to Dr. Smith about boundaries?',
+      redactionOptions: { displayName: 'Taylor' }
+    });
+
+    assert.ok(!payload.redacted.response.includes('Dr. Smith'), 'Honorific full phrase should be redacted');
+    assert.ok(!payload.redacted.response.includes('[NAME]. Smith'), 'Partial honorific leak should not occur');
+    assert.ok(payload.redacted.response.includes('[NAME]'), 'Redaction token should be present');
+  });
+
+  test('redacts initial forms from derived name hints', async () => {
+    const payload = await buildPromptEngineeringPayload({
+      systemPrompt: 'System prompt',
+      userPrompt: '**Question**: Should I trust J. Smith in this situation?',
+      response: 'J. Smith seems inconsistent right now.',
+      userQuestion: 'Should I trust J. Smith in this situation?',
+      redactionOptions: { displayName: 'Taylor' }
+    });
+
+    assert.ok(!payload.redacted.response.includes('J. Smith'), 'Initial + surname form should be redacted');
+    assert.ok(payload.redacted.response.includes('[NAME]'), 'Redaction token should be present');
+  });
+
+  test('redacts mixed-case honorific and possessive variants', async () => {
+    const payload = await buildPromptEngineeringPayload({
+      systemPrompt: 'System prompt',
+      userPrompt: '**Question**: What does this mean for dr. Smith\'s role?',
+      response: 'dr. Smith\'s influence is still strong.',
+      userQuestion: 'What does this mean for dr. Smith\'s role?',
+      nameHints: ['Dr. Smith'],
+      redactionOptions: { displayName: 'Taylor' }
+    });
+
+    assert.ok(!payload.redacted.response.toLowerCase().includes('dr. smith'), 'Mixed-case honorific should be redacted');
+    assert.ok(!payload.redacted.response.toLowerCase().includes('smith'), 'Possessive variant should be redacted');
+  });
+
   test('uses response-safe stripping and preserves non-echo trajectory prose', async () => {
     const payload = await buildPromptEngineeringPayload({
       systemPrompt: 'System prompt',

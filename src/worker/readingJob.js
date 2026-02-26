@@ -327,6 +327,7 @@ export class ReadingJob {
           context: payload.context || null,
           contextDiagnostics: payload.contextDiagnostics || [],
           graphRAG: payload.graphRAG || null,
+          sourceUsage: payload.sourceUsage || null,
           spreadAnalysis: payload.spreadAnalysis || null,
           gateBlocked: payload.gateBlocked || false,
           gateReason: payload.gateReason || null,

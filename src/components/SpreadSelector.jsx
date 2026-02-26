@@ -56,7 +56,7 @@ function createSpreadTheme({
 }
 
 const FALLBACK_SPREAD_THEME = createSpreadTheme({
-  accent: '#e5c48e',
+  accent: 'var(--brand-primary)',
   borderAlpha: 0.28,
   borderActiveAlpha: 0.8,
   glowAlpha: 0.35,
@@ -66,7 +66,7 @@ const FALLBACK_SPREAD_THEME = createSpreadTheme({
 
 const SPREAD_THEMES = {
   single: createSpreadTheme({
-    accent: '#f3d08d',
+    accent: 'var(--brand-accent)',
     borderAlpha: 0.25,
     borderActiveAlpha: 0.8,
     glowAlpha: 0.38,
@@ -74,7 +74,7 @@ const SPREAD_THEMES = {
       'linear-gradient(165deg, rgba(255, 216, 158, 0.14), var(--panel-dark-1)), radial-gradient(circle at 15% 14%, rgba(243, 208, 141, 0.22), transparent 44%), radial-gradient(circle at 90% -10%, rgba(255, 170, 205, 0.18), transparent 50)'
   }),
   threeCard: createSpreadTheme({
-    accent: '#f08fb1',
+    accent: 'var(--color-cups)',
     borderAlpha: 0.2,
     borderActiveAlpha: 0.78,
     glowAlpha: 0.32,
@@ -82,7 +82,7 @@ const SPREAD_THEMES = {
       'linear-gradient(170deg, var(--panel-dark-2), var(--panel-dark-1)), radial-gradient(circle at 18% 10%, rgba(240, 143, 177, 0.32), transparent 46%), radial-gradient(circle at 88% -8%, rgba(99, 166, 255, 0.18), transparent 52)'
   }),
   fiveCard: createSpreadTheme({
-    accent: '#6fe0ff',
+    accent: 'color-mix(in srgb, var(--color-cups) 72%, var(--brand-accent) 28%)',
     borderAlpha: 0.2,
     borderActiveAlpha: 0.75,
     glowAlpha: 0.35,
@@ -90,7 +90,7 @@ const SPREAD_THEMES = {
       'linear-gradient(165deg, var(--panel-dark-2), var(--panel-dark-1)), radial-gradient(circle at 8% 18%, rgba(111, 224, 255, 0.28), transparent 48%), radial-gradient(circle at 88% -12%, rgba(122, 84, 255, 0.18), transparent 50)'
   }),
   decision: createSpreadTheme({
-    accent: '#f6b756',
+    accent: 'var(--status-warning)',
     borderAlpha: 0.22,
     borderActiveAlpha: 0.82,
     glowAlpha: 0.38,
@@ -98,7 +98,7 @@ const SPREAD_THEMES = {
       'linear-gradient(160deg, rgba(255, 197, 110, 0.2), var(--panel-dark-1)), radial-gradient(circle at 14% 12%, rgba(246, 183, 86, 0.24), transparent 46%), radial-gradient(circle at 84% -6%, rgba(120, 195, 255, 0.18), transparent 50)'
   }),
   relationship: createSpreadTheme({
-    accent: '#f29fb4',
+    accent: 'color-mix(in srgb, var(--brand-primary) 62%, var(--color-cups) 38%)',
     borderAlpha: 0.24,
     borderActiveAlpha: 0.82,
     glowAlpha: 0.34,
@@ -106,7 +106,7 @@ const SPREAD_THEMES = {
       'linear-gradient(165deg, rgba(242, 159, 180, 0.18), var(--panel-dark-1)), radial-gradient(circle at 20% 8%, rgba(242, 159, 180, 0.34), transparent 48%), radial-gradient(circle at 92% -8%, rgba(158, 190, 255, 0.18), transparent 52)'
   }),
   celtic: createSpreadTheme({
-    accent: '#a992ff',
+    accent: 'color-mix(in srgb, var(--brand-secondary) 58%, var(--color-cups) 42%)',
     borderAlpha: 0.24,
     borderActiveAlpha: 0.82,
     glowAlpha: 0.4,
@@ -418,13 +418,12 @@ export function SpreadSelector({
                 aria-checked={isActive}
                 onClick={() => handleSpreadSelection(key)}
                 onKeyDown={event => handleCardKeyDown(event, key)}
-                className={`spread-card relative flex h-full flex-col ${isLandscape ? 'gap-2' : 'gap-3'} cursor-pointer select-none shrink-0 ${cardBasisClass} snap-center snap-always sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spread-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-main ${isActive ? 'spread-card--active' : ''}`}
+                className={`spread-card relative flex h-full flex-col ${isLandscape ? 'gap-2' : 'gap-3'} cursor-pointer select-none shrink-0 ${cardBasisClass} snap-center snap-always sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main ${isActive ? 'spread-card--active' : ''}`}
                 style={{
                   '--spread-accent': theme.accent || FALLBACK_SPREAD_THEME.accent,
                   '--spread-border': resolvedBorder,
                   '--spread-background': theme.background || FALLBACK_SPREAD_THEME.background,
-                  '--spread-glow': theme.glow || FALLBACK_SPREAD_THEME.glow,
-                  '--spread-ring': theme.accent || FALLBACK_SPREAD_THEME.accent
+                  '--spread-glow': theme.glow || FALLBACK_SPREAD_THEME.glow
                 }}
               >
                 {isActive && (

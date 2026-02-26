@@ -99,6 +99,50 @@ function createMockDb(user) {
   };
 }
 
+function createMockDbWithD1RateLimit(user) {
+  const authResult = {
+    session_id: 'session-1',
+    user_id: user.id,
+    email: user.email || 'test@example.com',
+    username: user.username || 'tester',
+    is_active: 1,
+    subscription_tier: user.subscription_tier,
+    subscription_status: user.subscription_status,
+    subscription_provider: user.subscription_provider || null,
+    email_verified: true
+  };
+  const counters = new Map();
+
+  return {
+    prepare: (sql) => {
+      const normalized = String(sql).replace(/\s+/g, ' ').trim().toLowerCase();
+      return {
+        bind: (...args) => ({
+          first: async () => {
+            if (normalized.includes('insert into _request_rate_limits')) {
+              const key = String(args[0]);
+              const nextCount = (counters.get(key) || 0) + 1;
+              counters.set(key, nextCount);
+              return { request_count: nextCount };
+            }
+            if (normalized.includes('from sessions') && normalized.includes('join users')) {
+              return authResult;
+            }
+            return authResult;
+          },
+          run: async () => {
+            if (normalized.startsWith('delete from _request_rate_limits')) {
+              return { success: true };
+            }
+            return { success: true };
+          }
+        }),
+        run: async () => ({ success: true })
+      };
+    }
+  };
+}
+
 function createBaseEnv(overrides = {}) {
   return {
     FEATURE_STORY_ART: 'true',
@@ -606,5 +650,369 @@ describe('Media generation APIs', () => {
     assert.equal(videoBodies.length, 2);
     assert.notEqual(videoBodies[0].get('input_reference'), null);
     assert.equal(videoBodies[1].get('input_reference'), null);
+  });
+
+  it('retries video job creation without input_reference when provider reports inpaint dimension mismatch', async () => {
+    const videoBodies = [];
+
+    mockFetch.mock.mockImplementation(async (url, options) => {
+      const requestUrl = typeof url === 'string' ? url : String(url);
+      if (requestUrl.includes('/openai/v1/images/generations?')) {
+        return new Response(JSON.stringify({
+          data: [{ b64_json: 'aGVsbG8=' }]
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      if (requestUrl.includes('/openai/v1/videos?')) {
+        videoBodies.push(options.body);
+        const hasInputReference = options.body.get('input_reference') !== null;
+        if (hasInputReference) {
+          return new Response(JSON.stringify({
+            error: {
+              message: 'Inpaint image must match the requested width and height',
+              type: 'invalid_request_error',
+              param: null,
+              code: null
+            }
+          }), { status: 400, headers: { 'content-type': 'application/json' } });
+        }
+        return new Response(JSON.stringify({ id: 'job-789', status: 'queued' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      throw new Error(`Unexpected fetch URL in inpaint mismatch retry test: ${requestUrl}`);
+    });
+
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({ DB: createMockDb(user) });
+
+    const request = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        card: { name: 'Seven of Cups', suit: 'cups', reversed: false },
+        question: 'How can I connect better with the people I love?',
+        position: 'Present',
+        style: 'mystical',
+        seconds: 4
+      }
+    });
+
+    const response = await onCardVideoPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.success, true);
+    assert.equal(payload.status, 'pending');
+    assert.equal(payload.jobId, 'job-789');
+    assert.equal(videoBodies.length, 2);
+    assert.notEqual(videoBodies[0].get('input_reference'), null);
+    assert.equal(videoBodies[1].get('input_reference'), null);
+  });
+
+  it('returns 503 when card video provider configuration is missing', async () => {
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({
+      DB: createMockDb(user),
+      AZURE_OPENAI_VIDEO_ENDPOINT: '',
+      AZURE_OPENAI_VIDEO_API_KEY: '',
+      AZURE_OPENAI_ENDPOINT: '',
+      AZURE_OPENAI_API_KEY: ''
+    });
+
+    const request = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        card: { name: 'The Fool', reversed: false },
+        question: 'What should I focus on?',
+        position: 'Present',
+        style: 'mystical',
+        seconds: 4
+      }
+    });
+
+    const response = await onCardVideoPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 503);
+    assert.equal(payload.error, 'Card video service is unavailable');
+    assert.equal(payload.code, 'video_service_unavailable');
+  });
+
+  it('rejects unsupported card video duration values before provider calls', async () => {
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({ DB: createMockDb(user) });
+
+    const request = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        card: { name: 'The Fool', reversed: false },
+        question: 'What should I focus on?',
+        position: 'Present',
+        style: 'mystical',
+        seconds: 5
+      }
+    });
+
+    const response = await onCardVideoPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(payload.error, /seconds must be one of: 4, 8, 12/);
+    assert.equal(mockFetch.mock.calls.length, 0);
+  });
+
+  it('rejects non-integer card video duration values', async () => {
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({ DB: createMockDb(user) });
+
+    const request = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        card: { name: 'The Fool', reversed: false },
+        question: 'What should I focus on?',
+        position: 'Present',
+        style: 'mystical',
+        seconds: 'fast'
+      }
+    });
+
+    const response = await onCardVideoPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(payload.error, /seconds must be a positive integer/);
+    assert.equal(mockFetch.mock.calls.length, 0);
+  });
+
+  it('enforces tier-specific max duration after provider duration validation', async () => {
+    const user = {
+      id: 'user-plus',
+      subscription_tier: 'plus',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({ DB: createMockDb(user) });
+
+    const request = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        card: { name: 'The Fool', reversed: false },
+        question: 'What should I focus on?',
+        position: 'Present',
+        style: 'mystical',
+        seconds: 8
+      }
+    });
+
+    const response = await onCardVideoPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 403);
+    assert.match(payload.error, /Videos longer than 4s require Pro subscription/);
+    assert.equal(mockFetch.mock.calls.length, 0);
+  });
+
+  it('throttles repeated card video POST requests in a short window', async () => {
+    mockFetch.mock.mockImplementation(async (url) => {
+      const requestUrl = typeof url === 'string' ? url : String(url);
+      if (requestUrl.includes('/openai/v1/videos?')) {
+        return new Response(JSON.stringify({ id: 'job-rate-1', status: 'queued' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      throw new Error(`Unexpected fetch URL in POST rate-limit test: ${requestUrl}`);
+    });
+
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({
+      DB: createMockDb(user),
+      RATELIMIT: new MockKVStore(),
+      CARD_VIDEO_POST_RATE_LIMIT_MAX: '1',
+      CARD_VIDEO_POST_RATE_LIMIT_WINDOW_SECONDS: '60'
+    });
+
+    const requestBody = {
+      card: { name: 'The Fool', reversed: false },
+      question: 'What should I focus on?',
+      position: 'Present',
+      style: 'mystical',
+      seconds: 4
+    };
+
+    const firstRequest = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test',
+        'cf-connecting-ip': '203.0.113.10'
+      },
+      body: requestBody
+    });
+    const firstResponse = await onCardVideoPost({ request: firstRequest, env });
+    assert.equal(firstResponse.status, 200);
+
+    const secondRequest = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test',
+        'cf-connecting-ip': '203.0.113.10'
+      },
+      body: requestBody
+    });
+    const secondResponse = await onCardVideoPost({ request: secondRequest, env });
+    const secondPayload = await secondResponse.json();
+
+    assert.equal(secondResponse.status, 429);
+    assert.equal(secondPayload.code, 'card_video_rate_limited');
+    const retryAfterPost = Number.parseInt(secondResponse.headers.get('retry-after') || '0', 10);
+    assert.equal(Number.isInteger(retryAfterPost), true);
+    assert.equal(retryAfterPost > 0 && retryAfterPost <= 60, true);
+  });
+
+  it('throttles repeated card video status polling requests', async () => {
+    mockFetch.mock.mockImplementation(async (url) => {
+      const requestUrl = typeof url === 'string' ? url : String(url);
+      if (requestUrl.includes('/openai/v1/videos/job-status-limit?')) {
+        return new Response(JSON.stringify({ status: 'processing' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      throw new Error(`Unexpected fetch URL in GET rate-limit test: ${requestUrl}`);
+    });
+
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const metrics = new MockKVStore();
+    await metrics.put('video_job:job-status-limit', JSON.stringify({
+      userId: user.id,
+      usageFinalized: false,
+      usageRefunded: false
+    }));
+
+    const env = createBaseEnv({
+      DB: createMockDb(user),
+      METRICS_DB: metrics,
+      RATELIMIT: new MockKVStore(),
+      CARD_VIDEO_STATUS_RATE_LIMIT_MAX: '1',
+      CARD_VIDEO_STATUS_RATE_LIMIT_WINDOW_SECONDS: '60'
+    });
+
+    const firstRequest = createMockRequest('/api/generate-card-video?jobId=job-status-limit', {
+      method: 'GET',
+      headers: {
+        authorization: 'Bearer test',
+        'cf-connecting-ip': '203.0.113.20'
+      }
+    });
+    const firstResponse = await onCardVideoStatus({ request: firstRequest, env });
+    assert.equal(firstResponse.status, 200);
+
+    const secondRequest = createMockRequest('/api/generate-card-video?jobId=job-status-limit', {
+      method: 'GET',
+      headers: {
+        authorization: 'Bearer test',
+        'cf-connecting-ip': '203.0.113.20'
+      }
+    });
+    const secondResponse = await onCardVideoStatus({ request: secondRequest, env });
+    const secondPayload = await secondResponse.json();
+
+    assert.equal(secondResponse.status, 429);
+    assert.equal(secondPayload.code, 'card_video_status_rate_limited');
+    const retryAfterStatus = Number.parseInt(secondResponse.headers.get('retry-after') || '0', 10);
+    assert.equal(Number.isInteger(retryAfterStatus), true);
+    assert.equal(retryAfterStatus > 0 && retryAfterStatus <= 60, true);
+  });
+
+  it('uses D1 backend for POST rate limiting when configured', async () => {
+    mockFetch.mock.mockImplementation(async (url) => {
+      const requestUrl = typeof url === 'string' ? url : String(url);
+      if (requestUrl.includes('/openai/v1/videos?')) {
+        return new Response(JSON.stringify({ id: 'job-d1-rate-1', status: 'queued' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      throw new Error(`Unexpected fetch URL in D1 POST rate-limit test: ${requestUrl}`);
+    });
+
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({
+      DB: createMockDbWithD1RateLimit(user),
+      CARD_VIDEO_RATE_LIMIT_BACKEND: 'd1',
+      CARD_VIDEO_POST_RATE_LIMIT_MAX: '1',
+      CARD_VIDEO_POST_RATE_LIMIT_WINDOW_SECONDS: '60'
+    });
+
+    const requestBody = {
+      card: { name: 'The Fool', reversed: false },
+      question: 'What should I focus on?',
+      position: 'Present',
+      style: 'mystical',
+      seconds: 4
+    };
+
+    const firstRequest = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test',
+        'cf-connecting-ip': '203.0.113.30'
+      },
+      body: requestBody
+    });
+    const firstResponse = await onCardVideoPost({ request: firstRequest, env });
+    assert.equal(firstResponse.status, 200);
+
+    const secondRequest = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer test',
+        'cf-connecting-ip': '203.0.113.30'
+      },
+      body: requestBody
+    });
+    const secondResponse = await onCardVideoPost({ request: secondRequest, env });
+    const secondPayload = await secondResponse.json();
+
+    assert.equal(secondResponse.status, 429);
+    assert.equal(secondPayload.code, 'card_video_rate_limited');
+    const retryAfterPost = Number.parseInt(secondResponse.headers.get('retry-after') || '0', 10);
+    assert.equal(Number.isInteger(retryAfterPost), true);
+    assert.equal(retryAfterPost > 0 && retryAfterPost <= 60, true);
   });
 });

@@ -1,4 +1,5 @@
 import { normalizeContext } from './narrative/helpers.js';
+import { sanitizeText } from './utils.js';
 
 const SPREAD_CONTEXT_DEFAULTS = {
   relationship: 'love',
@@ -380,8 +381,79 @@ const GRAPH_RAG_CONTEXT_PRIORITY = [
   'life-cycle'
 ];
 
+const MAX_CONTEXT_TEXT_LENGTH = 900;
+const MAX_CONTEXT_SEGMENT_LENGTH = 320;
+
 function sanitizeQuestion(question) {
   return typeof question === 'string' ? question.trim().toLowerCase() : '';
+}
+
+function sanitizeContextSegment(value, maxLength = MAX_CONTEXT_SEGMENT_LENGTH) {
+  if (typeof value !== 'string') return '';
+  return sanitizeText(value, {
+    maxLength,
+    addEllipsis: true,
+    stripMarkdown: true,
+    stripControlChars: true,
+    collapseWhitespace: true,
+    filterInstructions: true
+  });
+}
+
+function normalizeFocusAreas(focusAreas) {
+  if (!Array.isArray(focusAreas)) return [];
+
+  return focusAreas
+    .map((entry) => {
+      if (typeof entry === 'string') return entry;
+      if (entry && typeof entry === 'object') {
+        if (typeof entry.label === 'string') return entry.label;
+        if (typeof entry.name === 'string') return entry.name;
+      }
+      return '';
+    })
+    .map((value) => sanitizeContextSegment(value, 60))
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+export function buildContextInferenceInput({
+  userQuestion,
+  reflectionsText,
+  focusAreas,
+  maxLength = MAX_CONTEXT_TEXT_LENGTH
+} = {}) {
+  const segments = [];
+  const safeQuestion = sanitizeContextSegment(userQuestion);
+  const safeReflections = sanitizeContextSegment(reflectionsText);
+  const normalizedFocusAreas = normalizeFocusAreas(focusAreas);
+
+  if (safeQuestion) {
+    segments.push(`question: ${safeQuestion}`);
+  }
+  if (safeReflections) {
+    segments.push(`reflections: ${safeReflections}`);
+  }
+  if (normalizedFocusAreas.length > 0) {
+    segments.push(`focus areas: ${normalizedFocusAreas.join(', ')}`);
+  }
+
+  if (segments.length === 0) {
+    return '';
+  }
+
+  const safeMaxLength = Number.isFinite(maxLength) && maxLength > 0
+    ? Math.min(Math.floor(maxLength), 2000)
+    : MAX_CONTEXT_TEXT_LENGTH;
+
+  return sanitizeText(segments.join(' | '), {
+    maxLength: safeMaxLength,
+    addEllipsis: true,
+    stripMarkdown: true,
+    stripControlChars: true,
+    collapseWhitespace: true,
+    filterInstructions: true
+  });
 }
 
 function countMatches(text, keywords) {

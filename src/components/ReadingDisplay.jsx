@@ -631,7 +631,11 @@ export function ReadingDisplay({
     const shouldShowSpreadInsights = cardsFullyRevealed && !isShuffling && !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
     const canAutoGenerateVisuals = effectiveTier === 'plus' || effectiveTier === 'pro';
     const canUseMediaGallery = isAuthenticated && canAutoGenerateVisuals;
-    const autoGenerateVisuals = autoGenerateVisualsEnabled && (isReadingStreaming || isGenerating) && canAutoGenerateVisuals;
+    const autoGenerateVisuals = autoGenerateVisualsEnabled && canAutoGenerateVisuals && (
+        isReadingStreaming
+        || isGenerating
+        || narrativePhase === 'complete'
+    );
     const shouldShowStoryIllustration = Boolean(
         personalReading &&
         !isPersonalReadingError &&
@@ -648,6 +652,13 @@ export function ReadingDisplay({
         !isPersonalReadingError &&
         canAutoGenerateVisuals
     );
+    const shouldShowVisualCompanion = shouldShowStoryIllustration || shouldShowCinematicReveal;
+    const visualCompanionMessage = autoGenerateVisuals
+        ? (isReadingStreaming
+            ? 'Visual generation is running while your narrative finishes.'
+            : 'Visual generation is running from your completed narrative.')
+        : 'Generate artwork and cinematic motion that stay anchored to this reading.';
+    const visualCompanionModeLabel = autoGenerateVisuals ? 'Auto generation on' : 'Generate on demand';
     const canAutoNarrate = voiceOn &&
         autoNarrate &&
         narrativePhase === 'complete' &&
@@ -1370,48 +1381,82 @@ export function ReadingDisplay({
                     className={sceneShellClassName}
                 >
                     <div className={isLandscape ? 'space-y-4' : 'space-y-8'}>
-                    {shouldShowCinematicReveal && (
-                        <div className="bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/30 max-w-full sm:max-w-5xl mx-auto px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8">
-                            <div className="flex items-center justify-between gap-3 flex-wrap">
-                                <h3 className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight">
-                                    <Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
-                                    Cinematic reveal
-                                </h3>
-                                <span className="text-xs text-muted">
-                                    {cinematicPosition}
-                                </span>
+                    {shouldShowVisualCompanion && (
+                        <div className="bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/30 max-w-full sm:max-w-5xl mx-auto overflow-hidden">
+                            <div className="px-4 sm:px-6 py-4 border-b border-secondary/25 bg-gradient-to-r from-primary/10 via-surface/40 to-accent/10">
+                                <div className="flex items-center justify-between gap-3 flex-wrap">
+                                    <h3 className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight">
+                                        <Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
+                                        Visual Companion Studio
+                                    </h3>
+                                    <span className="rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-2xs sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+                                        {visualCompanionModeLabel}
+                                    </span>
+                                </div>
+                                <p className="text-xs sm:text-sm text-muted mt-2">
+                                    {visualCompanionMessage}
+                                </p>
                             </div>
-                            <p className="text-xs sm:text-sm text-muted mt-2">
-                                {cinematicRevealMessage}
-                            </p>
-                            <Suspense fallback={<div className="mt-4 rounded-xl border border-secondary/30 bg-surface/70 p-4 text-xs text-muted">Loading cinematic module...</div>}>
-                                <AnimatedReveal
-                                    key={`cinematic-${readingIdentity}`}
-                                    card={cinematicCard}
-                                    position={cinematicPosition}
-                                    question={resolvedQuestion}
-                                    userTier={effectiveTier}
-                                    autoGenerate={autoGenerateVisuals}
-                                    onVideoReady={handleCinematicMediaReady}
-                                    className="mt-4"
-                                />
-                            </Suspense>
-                        </div>
-                    )}
+                            <div className={`p-4 sm:p-6 grid gap-4 ${shouldShowCinematicReveal && shouldShowStoryIllustration ? 'lg:grid-cols-2' : ''}`}>
+                                {shouldShowCinematicReveal ? (
+                                    <div className="rounded-xl border border-secondary/30 bg-surface/70 p-4 sm:p-5">
+                                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                                            <h4 className="text-sm sm:text-base font-semibold text-main">
+                                                Cinematic Reveal
+                                            </h4>
+                                            <span className="text-2xs sm:text-xs text-muted">
+                                                {cinematicPosition}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs sm:text-sm text-muted mt-2">
+                                            {cinematicRevealMessage}
+                                        </p>
+                                        <Suspense fallback={<div className="mt-4 rounded-xl border border-secondary/30 bg-surface/70 p-4 text-xs text-muted">Loading cinematic module...</div>}>
+                                            <AnimatedReveal
+                                                key={`cinematic-${readingIdentity}`}
+                                                card={cinematicCard}
+                                                position={cinematicPosition}
+                                                question={resolvedQuestion}
+                                                userTier={effectiveTier}
+                                                autoGenerate={autoGenerateVisuals}
+                                                onVideoReady={handleCinematicMediaReady}
+                                                className="mt-4"
+                                            />
+                                        </Suspense>
+                                    </div>
+                                ) : null}
 
-                    {shouldShowStoryIllustration && (
-                        <Suspense fallback={<div className="panel-mystic rounded-2xl border border-secondary/30 p-4 text-sm text-muted">Loading illustration tools...</div>}>
-                            <StoryIllustration
-                                cards={storyArtCards}
-                                question={resolvedQuestion}
-                                narrative={fullReadingText || narrativeText}
-                                userTier={effectiveTier}
-                                autoGenerate={autoGenerateVisuals}
-                                generationKey={readingIdentity}
-                                onMediaReady={handleStoryArtMediaReady}
-                                heroMode
-                            />
-                        </Suspense>
+                                {shouldShowStoryIllustration ? (
+                                    <div className="rounded-xl border border-secondary/30 bg-surface/70 p-4 sm:p-5">
+                                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                                            <h4 className="text-sm sm:text-base font-semibold text-main">
+                                                Narrative Illustration
+                                            </h4>
+                                            <span className="text-2xs sm:text-xs text-muted">
+                                                {storyArtCards.length} cards
+                                            </span>
+                                        </div>
+                                        <p className="text-xs sm:text-sm text-muted mt-2">
+                                            Uses your full reading text and spread context.
+                                        </p>
+                                        <Suspense fallback={<div className="mt-4 rounded-xl border border-secondary/30 bg-surface/70 p-4 text-xs text-muted">Loading illustration tools...</div>}>
+                                            <StoryIllustration
+                                                cards={storyArtCards}
+                                                question={resolvedQuestion}
+                                                narrative={fullReadingText || narrativeText}
+                                                userTier={effectiveTier}
+                                                autoGenerate={autoGenerateVisuals}
+                                                generationKey={readingIdentity}
+                                                onMediaReady={handleStoryArtMediaReady}
+                                                heroMode
+                                                embedded
+                                                className="mt-4"
+                                            />
+                                        </Suspense>
+                                    </div>
+                                ) : null}
+                            </div>
+                        </div>
                     )}
 
                     {!personalReading && !isGenerating && (

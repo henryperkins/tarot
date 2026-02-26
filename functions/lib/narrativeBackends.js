@@ -148,6 +148,24 @@ const SPREAD_READING_BUILDERS = {
     buildSingleCardReading({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options)
 };
 
+function parseBooleanFlag(value, fallback = false) {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value > 0;
+  if (typeof value !== 'string') return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
+function shouldAppendGraphRAGDebugOutput(env) {
+  return parseBooleanFlag(
+    env?.LOCAL_COMPOSER_APPEND_GRAPHRAG_DEBUG ?? env?.DEBUG_LOCAL_COMPOSER_GRAPHRAG,
+    false
+  );
+}
+
 // ============================================================================
 // Azure GPT-5 Backend
 // ============================================================================
@@ -168,6 +186,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
     reflectionsText,
     analysis,
     context,
+    contextInputText,
     visionInsights,
     contextDiagnostics = []
   } = payload;
@@ -193,6 +212,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
     spreadInfo,
     cardsInfo,
     userQuestion,
+    contextInputText,
     reflectionsText,
     themes: analysis.themes,
     spreadAnalysis: analysis.spreadAnalysis,
@@ -314,7 +334,7 @@ export async function generateWithAzureGPT5Responses(env, payload, requestId = '
  * @returns {Promise<Object>} { reading, prompts, usage }
  */
 export async function generateWithClaudeOpus45(env, payload, requestId = 'unknown') {
-  const { spreadInfo, cardsInfo, userQuestion, reflectionsText, analysis, context, visionInsights, contextDiagnostics = [] } = payload;
+  const { spreadInfo, cardsInfo, userQuestion, contextInputText, reflectionsText, analysis, context, visionInsights, contextDiagnostics = [] } = payload;
 
   // Track prompts for engineering analysis
   let capturedSystemPrompt = '';
@@ -351,6 +371,7 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
     spreadInfo,
     cardsInfo,
     userQuestion,
+    contextInputText,
     reflectionsText,
     themes: analysis.themes,
     spreadAnalysis: analysis.spreadAnalysis,
@@ -778,7 +799,7 @@ function buildGenericReading(
  * @param {Object} payload - Reading payload
  * @returns {Promise<Object>} { reading, prompts, usage }
  */
-export async function composeReadingEnhanced(payload) {
+export async function composeReadingEnhanced(payload, env = null) {
   const {
     spreadInfo,
     cardsInfo,
@@ -855,28 +876,61 @@ export async function composeReadingEnhanced(payload) {
     };
   }
 
-  // Incorporate GraphRAG passages if available
+  // GraphRAG is generation context, not a user-visible postscript.
+  // For local-composer parity, we track GraphRAG telemetry but do not append
+  // raw passages to output unless debug mode is explicitly enabled.
   let finalReadingText = readingText;
   const graphRAGPayload = analysis.graphRAGPayload || payload.graphRAGPayload;
-  if (graphRAGPayload?.passages?.length > 0) {
+  const passagesProvided = graphRAGPayload?.initialPassageCount || graphRAGPayload?.passages?.length || 0;
+  if (graphRAGPayload) {
+    const retrievalSummary = graphRAGPayload.retrievalSummary || {};
+    payload.promptMeta.graphRAG = {
+      ...retrievalSummary,
+      includedInPrompt: false,
+      injectedIntoPrompt: false,
+      passagesProvided,
+      passagesUsedInPrompt: 0,
+      disabledByEnv: retrievalSummary.disabledByEnv === true,
+      parseStatus: retrievalSummary.parseStatus || 'absent',
+      referenceBlockClosed: retrievalSummary.referenceBlockClosed || false,
+      debugVisibleInOutput: false
+    };
+  }
+
+  const debugAppendGraphRAG = shouldAppendGraphRAGDebugOutput(env);
+  if (debugAppendGraphRAG && graphRAGPayload?.passages?.length > 0) {
     const formattedPassages = formatPassagesForPrompt(graphRAGPayload.passages, {
       includeSource: true,
       markdown: true
     });
     if (formattedPassages) {
       finalReadingText = readingText + '\n\n## Traditional Wisdom\n\n' + formattedPassages;
-      
-      // Update promptMeta with GraphRAG injection telemetry
-      const retrievalSummary = graphRAGPayload.retrievalSummary || {};
-      payload.promptMeta.graphRAG = {
-        ...retrievalSummary,
-        includedInPrompt: true,
-        injectedIntoPrompt: true,
-        passagesProvided: graphRAGPayload.initialPassageCount || graphRAGPayload.passages.length,
-        passagesUsedInPrompt: graphRAGPayload.passages.length,
-        disabledByEnv: false,
-        skippedReason: null
-      };
+
+      if (payload.promptMeta?.graphRAG) {
+        payload.promptMeta.graphRAG = {
+          ...payload.promptMeta.graphRAG,
+          injectedIntoPrompt: true,
+          debugVisibleInOutput: true,
+          passagesUsedInPrompt: graphRAGPayload.passages.length,
+          parseStatus: 'complete',
+          referenceBlockClosed: true,
+          disabledByEnv: false,
+          skippedReason: null
+        };
+      } else {
+        payload.promptMeta.graphRAG = {
+          ...(graphRAGPayload.retrievalSummary || {}),
+          includedInPrompt: false,
+          injectedIntoPrompt: true,
+          passagesProvided,
+          passagesUsedInPrompt: graphRAGPayload.passages.length,
+          disabledByEnv: false,
+          skippedReason: null,
+          parseStatus: 'complete',
+          referenceBlockClosed: true,
+          debugVisibleInOutput: true
+        };
+      }
     }
   }
 
@@ -917,7 +971,7 @@ export async function runNarrativeBackend(backendId, env, payload, requestId) {
         break;
       case 'local-composer':
       default:
-        result = await composeReadingEnhanced(payload);
+        result = await composeReadingEnhanced(payload, env);
         break;
     }
     const reading = typeof result === 'object' && result.reading ? result.reading : result;

@@ -9,7 +9,7 @@ const DECK_VISUALS = {
       src: rwsPreview,
       alt: 'Rider-Waite-Smith deck featuring The Magician card'
     },
-    accent: '#e5c48e',
+    accent: 'var(--brand-primary)',
     border: 'rgba(220, 188, 141, 0.35)',
     borderActive: 'rgba(229, 196, 142, 0.9)',
     glow: 'rgba(229, 196, 142, 0.45)',
@@ -20,7 +20,7 @@ const DECK_VISUALS = {
       src: thothPreview,
       alt: 'Thoth deck featuring The Magus card with Art Deco styling'
     },
-    accent: '#44e0d2',
+    accent: 'var(--color-cups)',
     border: 'rgba(83, 216, 206, 0.25)',
     borderActive: 'rgba(83, 216, 206, 0.75)',
     glow: 'rgba(83, 216, 206, 0.35)',
@@ -32,7 +32,7 @@ const DECK_VISUALS = {
       src: marseillePreview,
       alt: 'Tarot de Marseille deck featuring Le Bateleur card'
     },
-    accent: '#d8a300',
+    accent: 'var(--status-warning)',
     border: 'rgba(192, 146, 64, 0.28)',
     borderActive: 'rgba(216, 163, 0, 0.82)',
     glow: 'rgba(216, 163, 0, 0.35)',

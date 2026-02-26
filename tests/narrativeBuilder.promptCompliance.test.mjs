@@ -446,7 +446,7 @@ describe('Vision validation prompt context', () => {
     );
   });
 
-  it('still includes visual profile for mismatched entries', async () => {
+  it('omits visual profile for mismatched entries', async () => {
     const cardsInfo = [
       major('The Star', 17, 'One-Card Insight', 'Upright')
     ];
@@ -475,11 +475,9 @@ describe('Vision validation prompt context', () => {
       ]
     });
 
-    // Card name should be masked
     assert.ok(!userPrompt.includes('The Tower'), 'Wrong card name should not appear');
-    // But visual profile is still useful for the image's actual mood
-    assert.match(userPrompt, /Visual Profile:/);
-    assert.match(userPrompt, /Tone: \[vibrant, warm\]/);
+    assert.ok(!userPrompt.includes('Visual Profile:'), 'Mismatched entries should not include visual profile cues');
+    assert.ok(!userPrompt.includes('vibrant, warm'), 'Mismatched tone cues should be withheld');
   });
 
   it('does not mask secondary matches for verified entries', async () => {
@@ -550,6 +548,52 @@ describe('Vision validation prompt context', () => {
     assert.ok(!userPrompt.includes('The Tower'), 'Secondary match should not appear for mismatched entry');
     assert.ok(!userPrompt.includes('Ten of Swords'), 'Secondary match should not appear for mismatched entry');
     assert.ok(!userPrompt.includes('Secondary matches'), 'Secondary matches section should be omitted');
+  });
+});
+
+describe('reflection source merging', () => {
+  it('includes both per-card and global reflections when both are provided', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    cardsInfo[0].userReflection = 'I keep returning to beginner energy.';
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'How do I move forward?',
+      reflectionsText: 'I also feel restless and ready to try a new path.',
+      themes,
+      spreadAnalysis: null,
+      context: 'general'
+    });
+
+    assert.match(userPrompt, /\*Querent's Reflection:/);
+    assert.match(userPrompt, /\*\*Querent's Reflections\*\*:/);
+    assert.ok(userPrompt.includes('I also feel restless and ready to try a new path.'));
+  });
+
+  it('dedupes identical global reflection text already present in per-card reflections', async () => {
+    const cardsInfo = [
+      major('The Star', 17, 'One-Card Insight', 'Upright')
+    ];
+    cardsInfo[0].userReflection = 'I need to trust my healing process.';
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'What should I remember?',
+      reflectionsText: 'I need to trust my healing process.',
+      themes,
+      spreadAnalysis: null,
+      context: 'general'
+    });
+
+    const globalReflectionCount = (userPrompt.match(/\*\*Querent's Reflections\*\*:/g) || []).length;
+    assert.equal(globalReflectionCount, 0, 'duplicate global reflections should be omitted');
+    assert.match(userPrompt, /\*Querent's Reflection:/);
   });
 });
 
@@ -999,11 +1043,20 @@ describe('Prompt budget telemetry', () => {
 
     assert.equal(promptMeta.slimmingEnabled, false);
     assert.ok(promptMeta.hardCap, 'hard-cap steps should be recorded');
-    assert.ok(promptMeta.hardCap.steps.includes('hard-cap-drop-graphrag-block'), 'GraphRAG should drop before truncation');
+    assert.ok(
+      promptMeta.hardCap.steps.includes('hard-cap-reduce-graphrag-to-summary'),
+      'GraphRAG should downgrade to summary before truncation'
+    );
     assert.ok(!promptMeta.truncation, 'hard-cap trimming should avoid truncation when optional blocks can drop');
     assert.ok(promptMeta.estimatedTokens, 'estimatedTokens should exist when hard-cap adjustments occur');
     assert.equal(promptMeta.estimatedTokens.truncated, false);
-    assert.ok(!userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG block should be removed under hard cap');
+    assert.ok(!userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'), 'Full GraphRAG passage block should be removed under hard cap');
+    assert.ok(userPrompt.includes('TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)'), 'GraphRAG summary should remain under hard cap');
+    assert.equal(promptMeta.graphRAG?.injectionMode, 'summary');
+    assert.equal(promptMeta.graphRAG?.includedInPrompt, true);
+    assert.equal(promptMeta.sourceUsage?.graphRAG?.mode, 'summary');
+    assert.equal(promptMeta.sourceUsage?.graphRAG?.used, true);
+    assert.equal(promptMeta.sourceUsage?.spreadCards?.used, true);
     assert.ok(systemPrompt.includes('REVERSAL FRAMEWORK'), 'Core system prompt sections should remain intact');
     assert.ok(systemPrompt.includes('ETHICS'), 'Ethics section should remain intact');
     assert.ok(systemPrompt.includes('Do NOT provide diagnosis'), 'Ethics guardrail should remain intact');
@@ -1254,5 +1307,18 @@ describe('prose mode for local composer', () => {
 
     // Reset
     setProseMode(false);
+  });
+});
+
+describe('prompt builder input guardrails', () => {
+  it('throws actionable errors for malformed cardsInfo entries', () => {
+    assert.throws(
+      () => buildEnhancedClaudePrompt({
+        spreadInfo: { name: 'One-Card Insight' },
+        cardsInfo: [null],
+        userQuestion: 'What should I focus on?'
+      }),
+      /cardsInfo\[0\] must be a card object/
+    );
   });
 });

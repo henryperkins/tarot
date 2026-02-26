@@ -682,7 +682,7 @@ when passages were retrieved but never injected into the prompt."
 ## Task 4: Final Integration Test
 
 **Files:**
-- Test: Manual verification via `npm run dev`
+- Test: Manual verification via `npm run dev:vite`
 
 ### Step 1: Run all tests
 

@@ -24,9 +24,11 @@
 ## Build, Test, and Development Commands
 
 ### Development
-- `npm run dev` — starts Vite HMR (5173/5174), builds `dist/`, and runs Wrangler Workers dev on 8787 (cross-platform).
+- `npm run dev:vite` — starts Vite HMR (5173/5174), builds `dist/`, and runs Wrangler Workers dev on 8787 (cross-platform).
+- `npm run dev` — builds `dist/` and serves it via the Express server (no HMR) on `PORT` (default 5000).
 - `npm run dev:frontend` — Vite-only for UI work.
-- `npm run dev:wrangler` / `npm run dev:workers` — Worker dev server with live reload.
+- `npm run dev:workers` — Worker dev server with live reload.
+- `npm run dev:wrangler` — Worker dev server.
 
 ### Build & Deploy
 - `npm run build` → `dist/`

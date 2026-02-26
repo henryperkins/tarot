@@ -1,5 +1,13 @@
 # Narrative Builder Architecture Diagram
 
+## Source Precedence Contract
+
+Spread understanding follows a strict precedence order so enrichment never overrides drawn-card truth:
+
+`spread/cards > validated matched vision > question/reflections/focus areas > GraphRAG > ephemeris`
+
+Guardrail: Enrichment layers may add nuance, but they must not replace drawn card identity, card count, or position semantics.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        TAROT READING REQUEST                                 │

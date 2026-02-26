@@ -229,6 +229,7 @@ function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSem
  * @param {string} options.reversalFrameworkOverride - Force specific reversal framework
  * @param {string} options.deckStyle - Deck style for card interpretation
  * @param {string} options.userQuestion - User's question text
+ * @param {string} options.contextInputText - Sanitized combined context text (question + reflections + focus areas)
  * @param {string} options.subscriptionTier - User's subscription tier
  * @param {Object} options.location - User's location for ephemeris
  * @param {boolean} options.enableSemanticScoring - Enable semantic GraphRAG scoring
@@ -362,7 +363,12 @@ async function performSpreadAnalysisInner(
   try {
     const graphKeys = themes?.knowledgeGraph?.graphKeys;
     if (graphKeys) {
-      const questionContext = inferGraphRAGContext(options.userQuestion, spreadKey);
+      const contextInputText =
+        typeof options.contextInputText === 'string' && options.contextInputText.trim()
+          ? options.contextInputText
+          : (options.userQuestion || '');
+      const questionContext = inferGraphRAGContext(contextInputText, spreadKey);
+      const graphQuery = contextInputText || options.userQuestion || '';
       const semanticAvailable = graphRAG.isSemanticScoringAvailable(options.env);
       const semanticScoringSetting = options.enableSemanticScoring;
       const isAutoSemanticScoring = semanticScoringSetting === undefined || semanticScoringSetting === null;
@@ -395,7 +401,7 @@ async function performSpreadAnalysisInner(
           console.log(`[${requestId}] Using quality-aware GraphRAG retrieval with semantic scoring`);
           passages = await graphRAG.retrievePassagesWithQuality(graphKeys, {
             maxPassages,
-            userQuery: options.userQuestion,
+            userQuery: graphQuery,
             questionContext,
             minRelevanceScore: 0.3,
             enableDeduplication: true,
@@ -414,7 +420,7 @@ async function performSpreadAnalysisInner(
           // Fall back to standard retrieval (keyword-only)
           passages = graphRAG.retrievePassages(graphKeys, {
             maxPassages,
-            userQuery: options.userQuestion,
+            userQuery: graphQuery,
             questionContext
           });
           retrievalSummary = graphRAG.buildRetrievalSummary(graphKeys, passages);

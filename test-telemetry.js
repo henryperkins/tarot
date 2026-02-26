@@ -11,8 +11,16 @@
 
 import crypto from 'crypto';
 
-const BASE_URL = process.env.TEST_URL || 'https://dcc090f5.mystic-tarot.pages.dev';
-const VISION_SECRET = 'Tf+FtRtWcEK8dlNgst7Eq2P6YP+G9J6sV9fD56azA70=';
+const BASE_URL = process.env.TEST_URL;
+const VISION_SECRET = process.env.VISION_PROOF_SECRET;
+
+if (!BASE_URL) {
+  throw new Error('TEST_URL is required (example: https://tableau.<subdomain>.workers.dev)');
+}
+
+if (!VISION_SECRET) {
+  throw new Error('VISION_PROOF_SECRET is required. Do not hardcode secrets in this script.');
+}
 
 /**
  * Sign a vision proof payload with HMAC-SHA256

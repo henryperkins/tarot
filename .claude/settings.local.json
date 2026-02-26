@@ -8,7 +8,8 @@
       "Bash(npx wrangler secret put:*)",
       "mcp__plugin_serena_serena__read_file",
       "Bash(docker compose down:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(az account:*)"
     ]
   },
   "prefersReducedMotion": false

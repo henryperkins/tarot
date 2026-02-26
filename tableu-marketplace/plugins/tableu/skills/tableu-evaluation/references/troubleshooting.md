@@ -211,7 +211,7 @@ If false positives in hallucination detection:
 
 ```bash
 # Start local dev
-npm run dev
+npm run dev:workers
 
 # Make a reading request
 curl -X POST http://localhost:8787/api/tarot-reading \

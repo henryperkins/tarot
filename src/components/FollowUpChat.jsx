@@ -535,7 +535,7 @@ export default function FollowUpChat({
               <button
                 type="button"
                 onClick={onMinimize}
-                className="rounded-full border border-[color:var(--border-warm-light)] p-2 text-muted hover:text-main hover:border-[color:var(--border-warm)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.50)]"
+                className="rounded-full border border-[color:var(--border-warm-light)] p-2 text-muted hover:text-main hover:border-[color:var(--border-warm)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                 aria-label="Minimize follow-up chat"
               >
                 <CaretDown className="w-4 h-4" aria-hidden="true" />
@@ -545,7 +545,7 @@ export default function FollowUpChat({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full border border-[color:var(--border-warm-light)] p-2 text-muted hover:text-main hover:border-[color:var(--border-warm)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.50)]"
+                className="rounded-full border border-[color:var(--border-warm-light)] p-2 text-muted hover:text-main hover:border-[color:var(--border-warm)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                 aria-label="Close follow-up chat"
               >
                 <X className="w-4 h-4" aria-hidden="true" />
@@ -568,7 +568,7 @@ export default function FollowUpChat({
                 'border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.06)]',
                 'hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(212,184,150,0.12)]',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.50)]',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
                 chipText
               )}
               role="listitem"
@@ -669,7 +669,7 @@ export default function FollowUpChat({
             className={clsx(
               'text-xs px-3 py-1.5 rounded-full border border-[color:var(--border-warm-light)] text-muted',
               'bg-[color:rgba(232,218,195,0.05)] hover:border-[color:var(--border-warm)] hover:text-main',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgba(232,218,195,0.40)]'
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]'
             )}
           >
             Need ideas? Show suggestions

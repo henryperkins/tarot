@@ -35,7 +35,7 @@ export const CardStack = memo(function CardStack({
         ref={stackButtonRef}
         aria-expanded={isExpanded}
         aria-controls={cardsId}
-        className="relative flex w-full min-h-[100px] items-center justify-center rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-1)] py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+        className="relative flex w-full min-h-[100px] items-center justify-center rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-1)] py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
       >
         <div
           className="relative"

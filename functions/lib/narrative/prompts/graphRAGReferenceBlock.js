@@ -4,9 +4,65 @@ import {
   isGraphRAGEnabled
 } from '../../graphRAG.js';
 
+function summarizeDetectedPatterns(retrievalSummary = {}) {
+  const patterns = retrievalSummary?.patternsDetected || {};
+  const segments = [];
+
+  if (Number.isFinite(patterns.completeTriads) && patterns.completeTriads > 0) {
+    segments.push(`${patterns.completeTriads} complete triad(s)`);
+  }
+  if (Number.isFinite(patterns.highDyads) && patterns.highDyads > 0) {
+    segments.push(`${patterns.highDyads} high-significance dyad(s)`);
+  }
+  if (Number.isFinite(patterns.strongSuitProgressions) && patterns.strongSuitProgressions > 0) {
+    segments.push(`${patterns.strongSuitProgressions} strong suit progression(s)`);
+  }
+  if (typeof patterns.foolsJourneyStage === 'string' && patterns.foolsJourneyStage.trim()) {
+    segments.push(`Fool's Journey stage: ${patterns.foolsJourneyStage.trim()}`);
+  }
+  if (Number.isFinite(patterns.totalMajors) && patterns.totalMajors > 0) {
+    segments.push(`${patterns.totalMajors} major arcana card(s) active`);
+  }
+
+  return segments;
+}
+
+function buildGraphRAGSummaryBlock(payload) {
+  const retrievalSummary = payload?.retrievalSummary || {};
+  const patternSegments = summarizeDetectedPatterns(retrievalSummary);
+  const qualityMetrics = retrievalSummary?.qualityMetrics || {};
+  const avgRelevance = Number.isFinite(qualityMetrics.averageRelevance)
+    ? `${(qualityMetrics.averageRelevance * 100).toFixed(1)}%`
+    : null;
+
+  const summaryLine = patternSegments.length > 0
+    ? patternSegments.join('; ')
+    : 'Pattern signals detected, but full passages were trimmed for budget.';
+  const relevanceLine = avgRelevance
+    ? `Signal confidence (avg relevance): ${avgRelevance}.`
+    : null;
+
+  const lines = [
+    '## TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)',
+    'Reference passages were trimmed to preserve prompt budget. Use these signals as lightweight archetypal context only.',
+    `Signals: ${summaryLine}`
+  ];
+
+  if (relevanceLine) {
+    lines.push(relevanceLine);
+  }
+
+  lines.push(
+    'CARD GUARDRAIL: Do not add cards that are not in the spread. Treat journey stage references as contextual only.'
+  );
+
+  return lines.join('\n');
+}
+
 export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
   const includeGraphRAG = options.includeGraphRAG !== false;
-  if (!includeGraphRAG) {
+  const includeGraphRAGSummaryOnly = options.graphRAGSummaryOnly === true;
+  if (!includeGraphRAG && !includeGraphRAGSummaryOnly) {
     return '';
   }
 
@@ -29,6 +85,13 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
   }
 
   try {
+    if (includeGraphRAGSummaryOnly) {
+      if (!payload) {
+        return '';
+      }
+      return buildGraphRAGSummaryBlock(payload);
+    }
+
     let retrievedPassages = Array.isArray(payload?.passages) && payload.passages.length
       ? payload.passages
       : null;

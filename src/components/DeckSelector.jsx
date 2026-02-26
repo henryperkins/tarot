@@ -238,13 +238,12 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                 tabIndex={isTabbable ? 0 : -1}
                 onClick={() => onDeckChange(deck.id)}
                 onKeyDown={(e) => handleKeyDown(e, deck.id)}
-                className={`deck-card relative flex h-full flex-col gap-3 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 text-left transition-all cursor-pointer select-none shrink-0 basis-[82%] xs:basis-[70%] snap-center sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--deck-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-main ${isSelected ? 'deck-card--active' : ''}`}
+                className={`deck-card relative flex h-full flex-col gap-3 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 text-left transition-all cursor-pointer select-none shrink-0 basis-[82%] xs:basis-[70%] snap-center sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main ${isSelected ? 'deck-card--active' : ''}`}
                 style={{
                   '--deck-accent': deck.accent,
                   '--deck-border': isSelected ? deck.borderActive : deck.border,
                   '--deck-background': deck.background,
-                  '--deck-glow': deck.glow,
-                  '--deck-ring': deck.accent
+                  '--deck-glow': deck.glow
                 }}
               >
                 {isSelected && (

@@ -31,6 +31,12 @@ jobs:
       - name: Run unit tests
         run: npm test
 
+      - name: Run deploy script tests
+        run: npm run test:deploy
+
+      - name: Validate Cloudflare script/docs commands
+        run: npm run lint:cloudflare
+
       - name: Vision QA gate
         run: npm run ci:vision-check
 

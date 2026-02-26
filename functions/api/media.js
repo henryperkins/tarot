@@ -26,6 +26,10 @@ function isMissingMediaTableError(err) {
   return message.includes('no such table') && message.includes('user_media');
 }
 
+function hasMediaStorageBinding(env) {
+  return Boolean(env?.R2_LOGS);
+}
+
 function normalizeText(value, maxLength = 240) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -278,6 +282,14 @@ export async function onRequestGet(context) {
     return handleContentRequest(context, user);
   }
 
+  if (!hasMediaStorageBinding(env)) {
+    return jsonResponse({
+      error: 'Media storage backend is unavailable',
+      code: 'media_storage_unavailable',
+      hint: 'Bind R2_LOGS in wrangler.jsonc and redeploy.'
+    }, 503);
+  }
+
   const typeFilter = normalizeText(url.searchParams.get('type'), 20)?.toLowerCase() || null;
   const sourceFilter = normalizeText(url.searchParams.get('source'), 20)?.toLowerCase() || null;
   const rawLimit = Number.parseInt(url.searchParams.get('limit') || '24', 10);
@@ -393,6 +405,14 @@ export async function onRequestPost(context) {
   }
   if (!mimeType) {
     return jsonResponse({ error: 'mimeType is required' }, 400);
+  }
+
+  if (!hasMediaStorageBinding(env)) {
+    return jsonResponse({
+      error: 'Media storage backend is unavailable',
+      code: 'media_storage_unavailable',
+      hint: 'Bind R2_LOGS in wrangler.jsonc and redeploy.'
+    }, 503);
   }
 
   const now = Math.floor(Date.now() / 1000);

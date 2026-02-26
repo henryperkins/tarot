@@ -16,17 +16,10 @@ import {
   copyJournalShareSummary,
 } from '../../../lib/journalInsights';
 import { JournalShareIcon } from '../../JournalIcons';
+import { PANEL_OUTLINE_BUTTON_CLASS } from '../../../styles/buttonClasses';
 
 // Lazy load PDF export (pulls in jspdf + html2canvas)
 const loadPdfExport = () => import('../../../lib/pdfExport').then(m => m.exportJournalInsightsToPdf);
-
-const OUTLINE_BUTTON_CLASS = `
-  flex items-center gap-1.5 px-4 py-2.5 min-h-touch rounded-lg text-sm font-medium
-  border border-[color:var(--border-warm-light)] text-[color:var(--text-muted-high)] bg-[color:var(--border-warm-subtle)]
-  hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)]
-  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]
-  transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation
-`;
 
 const SHARE_EXPIRY_OPTIONS = [
   { value: '', label: 'No expiry' },
@@ -464,7 +457,7 @@ function ExportSection({
           <button
             onClick={handleExportPdf}
             disabled={!hasEntries}
-            className={OUTLINE_BUTTON_CLASS}
+            className={PANEL_OUTLINE_BUTTON_CLASS}
             title={hasEntries ? 'Export as PDF' : 'No entries to export'}
           >
             <FilePdf className="h-4 w-4" />
@@ -473,7 +466,7 @@ function ExportSection({
           <button
             onClick={handleExportMarkdown}
             disabled={!hasEntries}
-            className={OUTLINE_BUTTON_CLASS}
+            className={PANEL_OUTLINE_BUTTON_CLASS}
             title={hasEntries ? 'Export as Markdown' : 'No entries to export'}
           >
             <FileText className="h-4 w-4" />
@@ -482,7 +475,7 @@ function ExportSection({
           <button
             onClick={handleExportCsv}
             disabled={!hasEntries}
-            className={OUTLINE_BUTTON_CLASS}
+            className={PANEL_OUTLINE_BUTTON_CLASS}
             title={hasEntries ? 'Export as CSV' : 'No entries to export'}
           >
             <FileCsv className="h-4 w-4" />
@@ -632,7 +625,7 @@ function ExportSection({
                 max="10"
                 value={effectiveShareLimit}
                 onChange={(event) => setShareLimit(event.target.value)}
-                className="w-20 min-h-touch rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-sm text-[color:var(--text-main)] text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)] touch-manipulation"
+                className="w-20 min-h-touch rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-sm text-[color:var(--text-main)] text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] touch-manipulation"
               />
             </div>
 
@@ -643,7 +636,7 @@ function ExportSection({
                 id="share-expiry"
                 value={expiresInHours}
                 onChange={(event) => setExpiresInHours(event.target.value)}
-                className="min-h-touch rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-sm text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-45)]"
+                className="min-h-touch rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-sm text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
               >
                 {SHARE_EXPIRY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -698,7 +691,7 @@ function ExportSection({
             <button
               onClick={handleCreateShareLink}
               disabled={isCreatingLink || !canCreateShareLink}
-              className={`${OUTLINE_BUTTON_CLASS} ${(isCreatingLink || !canCreateShareLink) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`${PANEL_OUTLINE_BUTTON_CLASS} ${(isCreatingLink || !canCreateShareLink) ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <JournalShareIcon className="h-4 w-4" aria-hidden="true" />
               {isCreatingLink ? 'Creating...' : 'Create Share Link'}
@@ -717,7 +710,7 @@ function ExportSection({
         <button
           onClick={handleCopySnapshot}
           disabled={!stats}
-          className={OUTLINE_BUTTON_CLASS}
+          className={PANEL_OUTLINE_BUTTON_CLASS}
           title={stats ? 'Copy a summary to clipboard' : 'No data to share'}
         >
           <JournalShareIcon className="h-4 w-4" aria-hidden="true" />

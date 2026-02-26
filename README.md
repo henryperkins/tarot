@@ -40,7 +40,7 @@
 │   ├── styles/             # CSS files (Tailwind + custom)
 │   ├── worker/             # Cloudflare Worker entry point
 │   └── TarotReading.jsx    # Main orchestration component
-├── functions/              # Cloudflare Pages Functions (API)
+├── functions/              # Worker route handlers + shared backend logic
 │   ├── api/                # API endpoints
 │   └── lib/                # Backend logic and narrative generation
 ├── public/                 # Static assets (images, sounds, icons)
@@ -115,10 +115,18 @@ npm install
 ### Quick Start
 
 ```bash
+npm run dev:vite
+```
+
+This starts both the Vite dev server (HMR) and Wrangler Workers dev server. Access the app at **http://localhost:5173** (or 5174 if 5173 is in use). Vite proxies `/api` requests to Workers on 8787.
+
+### Static Preview (Express)
+
+```bash
 npm run dev
 ```
 
-This starts both the Vite dev server and Wrangler Workers dev server. Access the app at **http://localhost:5173** (or 5174 if 5173 is in use). Vite proxies `/api` requests to Workers on 8787.
+This builds `dist/` and serves it via the Express server (no HMR) on **http://localhost:5000** by default (override with `PORT`).
 
 ### Native (Expo) App
 
@@ -137,12 +145,15 @@ npm run dev:native:android
 
 | Command                | Description                         |
 | ---------------------- | ----------------------------------- |
-| `npm run dev`          | Start full-stack development server |
+| `npm run dev:vite`     | Start full-stack dev (Vite + Workers) |
+| `npm run dev`          | Serve built `dist/` via Express (no HMR) |
 | `npm run dev:frontend` | Start Vite dev server only (no API) |
-| `npm run dev:wrangler` | Start Wrangler Workers dev server   |
+| `npm run dev:workers`  | Start Wrangler Workers dev server (live reload) |
+| `npm run dev:wrangler` | Start Wrangler Workers dev server |
 | `npm run build`        | Build for production                |
 | `npm run preview`      | Preview production build            |
 | `npm test`             | Run tests                           |
+| `npm run gate:design`  | Run design-system drift gate        |
 | `npm run lint`         | Run ESLint                          |
 | `npm run lint:fix`     | Fix linting issues                  |
 
@@ -150,8 +161,9 @@ npm run dev:native:android
 
 | URL                   | Purpose                                |
 | --------------------- | -------------------------------------- |
-| http://localhost:5173 | Full app with API (HMR + `/api` proxy) |
-| http://localhost:8787 | Workers preview (serves `dist/`)       |
+| http://localhost:5173 | Vite dev server (HMR + `/api` proxy; or 5174) |
+| http://localhost:8787 | Workers dev server (API + serves `dist/`)     |
+| http://localhost:5000 | Express server (serves `dist/`, no HMR)       |
 
 ### Debugging in VS Code (CDP / Chrome attach)
 
@@ -190,6 +202,9 @@ npm test
 # Accessibility tests
 npm run test:a11y
 
+# Design-system drift gate
+npm run gate:design
+
 # Vision quality gates
 npm run gate:vision
 
@@ -214,16 +229,16 @@ npm run deploy
 ### Set Production Secrets
 
 ```bash
-wrangler secret put AZURE_OPENAI_ENDPOINT --config wrangler.jsonc
-wrangler secret put AZURE_OPENAI_API_KEY --config wrangler.jsonc
-wrangler secret put AZURE_OPENAI_GPT5_MODEL --config wrangler.jsonc
+wrangler secret put AZURE_OPENAI_ENDPOINT --name tableau
+wrangler secret put AZURE_OPENAI_API_KEY --name tableau
+wrangler secret put AZURE_OPENAI_GPT5_MODEL --name tableau
 # ... add other secrets as needed
 ```
 
 ### Deployment URLs
 
-- **Production**: https://tableau-8xz.pages.dev
-- **Branch Previews**: https://\<branch-name\>.tableau-8xz.pages.dev
+- **Custom domain**: https://tarot.lakefrontdev.com
+- **Workers domain**: https://tableau.<your-subdomain>.workers.dev
 
 ## 📖 Documentation
 
