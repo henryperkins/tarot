@@ -860,7 +860,9 @@ export default function TarotReading() {
   // --- Render Helper Wrappers ---
 
   return (
-    <div className={`app-shell min-h-screen bg-main text-main ${shouldEnableMobileStableMode ? 'mobile-stable-mode' : ''}`}>
+    <div className={`app-shell relative isolate min-h-screen bg-main text-main ${shouldEnableMobileStableMode ? 'mobile-stable-mode' : ''}`}>
+      <div id="app-bg" className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true" />
+      <div className="relative z-[1]">
       <div className="skip-links">
         <a href="#step-spread" className="skip-link">Skip to spreads</a>
         <a href="#step-reading" className="skip-link">Skip to reading</a>
@@ -1043,6 +1045,7 @@ export default function TarotReading() {
           onFollowUpOpenChange={setIsFollowUpOpen}
           followUpAutoFocus={followUpIntent === 'ask'}
           suppressInterruptions={suppressFocusInterruptions}
+          isMobileStableMode={shouldEnableMobileStableMode}
         />
       </main>
 
@@ -1192,6 +1195,7 @@ export default function TarotReading() {
         isOpen={shouldShowGestureCoachOverlay}
         onDismiss={handleGestureCoachDismiss}
       />
+      </div>
     </div>
   );
 }

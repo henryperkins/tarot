@@ -283,7 +283,8 @@ export function ReadingDisplay({
     followUpOpen,
     onFollowUpOpenChange,
     followUpAutoFocus = true,
-    suppressInterruptions = false
+    suppressInterruptions = false,
+    isMobileStableMode = false
 }) {
     const { saveReading, isSaving } = useSaveReading();
     const { publish: publishToast } = useToast();
@@ -503,8 +504,7 @@ export function ReadingDisplay({
 
     const {
         visionResearch: visionResearchEnabled,
-        newDeckInterface,
-        autoGenerateVisuals: autoGenerateVisualsEnabled
+        newDeckInterface
     } = useFeatureFlags();
     const isLandscape = useLandscape();
     const isHandsetLayout = useHandsetLayout();
@@ -631,10 +631,13 @@ export function ReadingDisplay({
     const shouldShowSpreadInsights = cardsFullyRevealed && !isShuffling && !isNarrativeFocus && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
     const canAutoGenerateVisuals = effectiveTier === 'plus' || effectiveTier === 'pro';
     const canUseMediaGallery = isAuthenticated && canAutoGenerateVisuals;
-    const autoGenerateVisuals = autoGenerateVisualsEnabled && canAutoGenerateVisuals && (
-        isReadingStreaming
-        || isGenerating
-        || narrativePhase === 'complete'
+    const autoGenerateVisuals = Boolean(
+        canAutoGenerateVisuals &&
+        personalReading &&
+        !isPersonalReadingError &&
+        narrativePhase === 'complete' &&
+        !isReadingStreaming &&
+        !isGenerating
     );
     const shouldShowStoryIllustration = Boolean(
         personalReading &&
@@ -642,9 +645,7 @@ export function ReadingDisplay({
         storyArtCards.length > 0
     );
     const cinematicRevealMessage = autoGenerateVisuals
-        ? (isReadingStreaming
-            ? 'Auto-generating a short cinematic reveal while your narrative streams.'
-            : 'Auto-generating a short cinematic reveal now.')
+        ? 'Auto-generating a short cinematic reveal from your completed reading.'
         : 'Generate a short cinematic reveal of this card.';
     const shouldShowCinematicReveal = Boolean(
         cinematicCard &&
@@ -654,9 +655,7 @@ export function ReadingDisplay({
     );
     const shouldShowVisualCompanion = shouldShowStoryIllustration || shouldShowCinematicReveal;
     const visualCompanionMessage = autoGenerateVisuals
-        ? (isReadingStreaming
-            ? 'Visual generation is running while your narrative finishes.'
-            : 'Visual generation is running from your completed narrative.')
+        ? 'Visual generation is running from your completed narrative.'
         : 'Generate artwork and cinematic motion that stay anchored to this reading.';
     const visualCompanionModeLabel = autoGenerateVisuals ? 'Auto generation on' : 'Generate on demand';
     const canAutoNarrate = voiceOn &&
@@ -763,7 +762,8 @@ export function ReadingDisplay({
         shouldShowJournalNudge,
         markJournalNudgeSeen,
         hasHeroStoryArt,
-        onOpenFollowUp
+        onOpenFollowUp,
+        isMobileStableMode
     };
 
     useEffect(() => {
@@ -1327,7 +1327,8 @@ export function ReadingDisplay({
         followUpOpen: isFollowUpOpen,
         setFollowUpOpen: setIsFollowUpOpen,
         followUpAutoFocus,
-        narrativePanelProps
+        narrativePanelProps,
+        isMobileStableMode
     };
 
     const sceneShellClassName = sceneOrchestrator.activeScene === 'interlude'
@@ -1378,6 +1379,7 @@ export function ReadingDisplay({
                     sceneData={sceneData}
                     colorScript={activeColorScript}
                     colorScriptOwner={COLOR_SCRIPT_OWNER}
+                    isMobileStableMode={isMobileStableMode}
                     className={sceneShellClassName}
                 >
                     <div className={isLandscape ? 'space-y-4' : 'space-y-8'}>

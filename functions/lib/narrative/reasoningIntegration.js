@@ -202,7 +202,7 @@ export function buildReasoningAwareOpening(spreadName, userQuestion, context, re
 
   // Question-intent-aware opening
   const intentType = reasoning.questionIntent?.type || 'open';
-  const intentOpening = pickOne(INTENT_OPENINGS[intentType] || INTENT_OPENINGS.open);
+  const intentOpening = pickOne(INTENT_OPENINGS[intentType] || INTENT_OPENINGS.open, `intentOpening|${spreadName}|${userQuestion || ''}`);
   parts.push(intentOpening);
 
   // Add arc preview if notable
@@ -339,7 +339,6 @@ function mergeReasoningIntoBase(baseText, reasoningText) {
 export function buildReasoningSynthesis(cardsInfo, reasoning, _themes, _userQuestion, _context, options = {}) {
   void cardsInfo;
   void _themes;
-  void _userQuestion;
   void _context;
 
   const baseSynthesis = typeof options.baseSynthesis === 'string' ? options.baseSynthesis : '';
@@ -378,7 +377,13 @@ export function buildReasoningSynthesis(cardsInfo, reasoning, _themes, _userQues
 
   // Add agency reminder when not already covered by the base synthesis
   if (includeAgencyReminder) {
-    sections.push('\n*Remember: these cards illuminate, they don\'t determine. Your choices shape what unfolds.*');
+    const agencyReminders = [
+      '*Remember: these cards illuminate, they don\'t determine. Your choices shape what unfolds.*',
+      '*These patterns suggest, they don\'t prescribe. You hold the agency to act on what resonates.*',
+      '*Nothing here is fixed. The cards show a current trajectory — your decisions steer it.*',
+      '*Take what speaks to you, set aside the rest. Your lived wisdom is the final compass.*'
+    ];
+    sections.push('\n' + pickOne(agencyReminders, `agencyReminder|${_userQuestion || ''}`));
   }
 
   const reasoningText = sections.join('\n');

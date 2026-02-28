@@ -1,1 +1,3 @@
 sample_id,spread,question,issues,automated_notes,human_verdict,human_notes
+five-card-creative-project,Five-Card Clarity,What should I know about launching my creative project this quarter?,harsh-tone,Harsh/imperative tone detected,,
+non-english-spanish,Three-Card Story (Past · Present · Future),Como puedo sostener mi energia mientras apoyo a mi familia y mi trabajo?,missing-agency-language,Agency/choice language missing,,

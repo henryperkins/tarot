@@ -1047,7 +1047,10 @@ describe('Reasoning Integration', () => {
         'love'
       );
 
-      expect(synthesis).toContain('choices');
+      // Agency reminders now vary; check that at least one variant is present
+      const agencyKeywords = ['choices', 'agency', 'decisions', 'wisdom', 'illuminate', 'trajectory', 'resonates'];
+      const hasAgency = agencyKeywords.some(kw => synthesis.includes(kw));
+      assert.ok(hasAgency, `Expected synthesis to contain an agency reminder keyword, got: ${synthesis.slice(-200)}`);
     });
   });
 

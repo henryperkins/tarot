@@ -1,19 +1,19 @@
 {
-  "generatedAt": "2026-01-22T08:56:45.609Z",
+  "generatedAt": "2026-02-27T07:09:34.699Z",
   "sourceFile": "data/evaluations/narrative-samples.json",
   "totalSamples": 9,
   "spinePassRate": 1,
   "avgCardCoverage": 1,
   "deterministicLanguageCount": 0,
-  "missingAgencyCount": 0,
+  "missingAgencyCount": 1,
   "hallucinationCount": 0,
-  "harshToneCount": 0,
+  "harshToneCount": 1,
   "missingSupportiveToneCount": 0,
-  "flaggedSampleCount": 0,
+  "flaggedSampleCount": 2,
   "avgRubricScores": {
     "accuracy": 1,
-    "coherence": 0.8656926406926406,
-    "agency": 1,
+    "coherence": 1,
+    "agency": 0.8888888888888888,
     "compassion": 1
   },
   "perSample": [
@@ -24,9 +24,9 @@
       "question": "What guiding energy should I bring into this new leadership role?",
       "spine": {
         "isValid": true,
-        "totalSections": 3,
+        "totalSections": 4,
         "completeSections": 3,
-        "incompleteSections": 0
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -66,7 +66,7 @@
       "issuesPresent": false,
       "rubric": {
         "accuracy": 1,
-        "coherence": 0.8,
+        "coherence": 1,
         "agency": 1,
         "compassion": 1
       }
@@ -78,8 +78,8 @@
       "question": "What should I know about launching my creative project this quarter?",
       "spine": {
         "isValid": true,
-        "totalSections": 8,
-        "completeSections": 7,
+        "totalSections": 5,
+        "completeSections": 4,
         "incompleteSections": 1
       },
       "cardCoverage": 1,
@@ -88,12 +88,14 @@
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
       "hasSupportiveTone": true,
-      "hasHarshTone": false,
-      "issueFlags": [],
-      "issuesPresent": false,
+      "hasHarshTone": true,
+      "issueFlags": [
+        "harsh-tone"
+      ],
+      "issuesPresent": true,
       "rubric": {
         "accuracy": 1,
-        "coherence": 0.875,
+        "coherence": 1,
         "agency": 1,
         "compassion": 1
       }
@@ -120,7 +122,7 @@
       "issuesPresent": false,
       "rubric": {
         "accuracy": 1,
-        "coherence": 0.8571428571428571,
+        "coherence": 1,
         "agency": 1,
         "compassion": 1
       }
@@ -132,9 +134,9 @@
       "question": "How can I stay centered while everything at home and work restructures at once?",
       "spine": {
         "isValid": true,
-        "totalSections": 11,
-        "completeSections": 10,
-        "incompleteSections": 1
+        "totalSections": 6,
+        "completeSections": 6,
+        "incompleteSections": 0
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -147,7 +149,7 @@
       "issuesPresent": false,
       "rubric": {
         "accuracy": 1,
-        "coherence": 0.9090909090909091,
+        "coherence": 1,
         "agency": 1,
         "compassion": 1
       }
@@ -174,7 +176,7 @@
       "issuesPresent": false,
       "rubric": {
         "accuracy": 1,
-        "coherence": 0.875,
+        "coherence": 1,
         "agency": 1,
         "compassion": 1
       }
@@ -184,33 +186,6 @@
       "spreadKey": "threeCard",
       "spreadName": "Three-Card Story (Past · Present · Future)",
       "question": "What spiritual practice should I commit to this season to deepen my intuition?",
-      "spine": {
-        "isValid": true,
-        "totalSections": 5,
-        "completeSections": 4,
-        "incompleteSections": 1
-      },
-      "cardCoverage": 1,
-      "missingCards": [],
-      "deterministicLanguage": false,
-      "hasAgencyLanguage": true,
-      "hallucinatedCards": [],
-      "hasSupportiveTone": true,
-      "hasHarshTone": false,
-      "issueFlags": [],
-      "issuesPresent": false,
-      "rubric": {
-        "accuracy": 1,
-        "coherence": 0.8,
-        "agency": 1,
-        "compassion": 1
-      }
-    },
-    {
-      "id": "wellbeing-marseille-reset",
-      "spreadKey": "fiveCard",
-      "spreadName": "Five-Card Clarity",
-      "question": "I am feeling burnout and restless sleep. What helps me restore my wellbeing?",
       "spine": {
         "isValid": true,
         "totalSections": 8,
@@ -228,7 +203,34 @@
       "issuesPresent": false,
       "rubric": {
         "accuracy": 1,
-        "coherence": 0.875,
+        "coherence": 1,
+        "agency": 1,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "wellbeing-marseille-reset",
+      "spreadKey": "fiveCard",
+      "spreadName": "Five-Card Clarity",
+      "question": "I am feeling burnout and restless sleep. What helps me restore my wellbeing?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 5,
+        "completeSections": 5,
+        "incompleteSections": 0
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": false,
+      "issueFlags": [],
+      "issuesPresent": false,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 1,
         "agency": 1,
         "compassion": 1
       }
@@ -247,16 +249,18 @@
       "cardCoverage": 1,
       "missingCards": [],
       "deterministicLanguage": false,
-      "hasAgencyLanguage": true,
+      "hasAgencyLanguage": false,
       "hallucinatedCards": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
-      "issueFlags": [],
-      "issuesPresent": false,
+      "issueFlags": [
+        "missing-agency-language"
+      ],
+      "issuesPresent": true,
       "rubric": {
         "accuracy": 1,
-        "coherence": 0.8,
-        "agency": 1,
+        "coherence": 1,
+        "agency": 0,
         "compassion": 1
       }
     }

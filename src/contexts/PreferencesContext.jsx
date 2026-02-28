@@ -286,7 +286,8 @@ export function PreferencesProvider({ children }) {
   useEffect(() => {
     if (typeof localStorage !== 'undefined') {
       try {
-        localStorage.setItem(personalizationKeyRef.current, JSON.stringify(personalization));
+        const persistedPersonalization = sanitizePersonalization(personalization);
+        localStorage.setItem(personalizationKeyRef.current, JSON.stringify(persistedPersonalization));
       } catch (error) {
         console.debug('Unable to persist personalization:', error);
       }

@@ -63,6 +63,17 @@ test('sanitizePersonalization normalizes enums, focus areas, and displayName len
   assert.equal(loaded.showRitualSteps, DEFAULT_PERSONALIZATION.showRitualSteps);
 });
 
+test('sanitizePersonalization can preserve displayName spacing for live input state', () => {
+  const loaded = sanitizePersonalization(
+    {
+      displayName: '  Mary Jane  '
+    },
+    { trimDisplayName: false }
+  );
+
+  assert.equal(loaded.displayName, '  Mary Jane  ');
+});
+
 test('loadPersonalizationFromStorage sanitizes stale invalid values', () => {
   const storage = {
     getItem() {

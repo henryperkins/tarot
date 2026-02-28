@@ -292,6 +292,57 @@ export function isMissingMigrationsTableError(errorMessage) {
     || normalized.includes('table _migrations does not exist');
 }
 
+// eslint-disable-next-line no-control-regex -- stripping ANSI escape sequences from CLI output
+const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*m/g;
+
+function normalizeCommandOutput(value) {
+  return String(value || '')
+    .replace(ANSI_ESCAPE_RE, '')
+    .trim();
+}
+
+export function extractWranglerErrorMessage(stderr = '', stdout = '') {
+  const normalizedStderr = normalizeCommandOutput(stderr);
+  if (normalizedStderr) {
+    return normalizedStderr;
+  }
+
+  const normalizedStdout = normalizeCommandOutput(stdout);
+  if (!normalizedStdout) {
+    return '';
+  }
+
+  try {
+    const parsed = JSON.parse(normalizedStdout);
+    const primaryText = typeof parsed?.error?.text === 'string'
+      ? parsed.error.text.trim()
+      : '';
+    if (primaryText) {
+      const notes = Array.isArray(parsed?.error?.notes)
+        ? parsed.error.notes
+          .map((note) => (typeof note?.text === 'string' ? note.text.trim() : ''))
+          .filter(Boolean)
+        : [];
+      return notes.length > 0
+        ? `${primaryText} ${notes.join(' ')}`
+        : primaryText;
+    }
+
+    if (Array.isArray(parsed?.errors)) {
+      const firstError = parsed.errors
+        .map((entry) => (typeof entry?.message === 'string' ? entry.message.trim() : (typeof entry?.text === 'string' ? entry.text.trim() : '')))
+        .find(Boolean);
+      if (firstError) {
+        return firstError;
+      }
+    }
+  } catch {
+    // ignore parse errors and use plain output fallback below
+  }
+
+  return normalizedStdout;
+}
+
 function createRuntimeContext(argv = process.argv.slice(2), env = process.env) {
   const cli = parseCliArgs(argv);
   const wranglerConfig = loadWranglerConfig(WRANGLER_CONFIG);
@@ -369,7 +420,9 @@ function wrangler(args, options = {}) {
   return {
     success: false,
     output: capture ? (result.stdout || '') : '',
-    error: capture ? (result.stderr || `wrangler exited with code ${result.status}`) : `wrangler exited with code ${result.status}`
+    error: capture
+      ? (extractWranglerErrorMessage(result.stderr, result.stdout) || `wrangler exited with code ${result.status}`)
+      : `wrangler exited with code ${result.status}`
   };
 }
 

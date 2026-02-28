@@ -4,36 +4,64 @@ import { FeedbackPanel } from '../FeedbackPanel';
 import FollowUpModal from '../FollowUpModal';
 import { NarrativeStagePanel } from './NarrativeStagePanel';
 
+const USAGE_BADGE_CLASSES = {
+  used: 'border-[color:rgb(var(--status-success-rgb)/0.45)] bg-[color:rgb(var(--status-success-rgb)/0.12)] text-[color:rgb(var(--status-success-rgb)/0.95)]',
+  requestedNotUsed: 'border-[color:rgb(var(--status-warning-rgb)/0.45)] bg-[color:rgb(var(--status-warning-rgb)/0.12)] text-[color:rgb(var(--status-warning-rgb)/0.95)]',
+  skipped: 'border-[color:rgb(var(--status-warning-rgb)/0.45)] bg-[color:rgb(var(--status-warning-rgb)/0.12)] text-[color:rgb(var(--status-warning-rgb)/0.95)]',
+  notRequested: 'border-secondary/35 bg-surface-muted/40 text-muted-high'
+};
+
+function toReadableLabel(value) {
+  return String(value).replaceAll('_', ' ');
+}
+
+function getUsageState(entry) {
+  if (!entry || typeof entry !== 'object') return 'notRequested';
+  if (entry.used) return 'used';
+  if (entry.requested && entry.skippedReason) return 'skipped';
+  if (entry.requested) return 'requestedNotUsed';
+  return 'notRequested';
+}
+
 function formatUsageSummary(sourceUsage) {
   if (!sourceUsage || typeof sourceUsage !== 'object') {
-    return [];
+    return { rows: [], summary: { used: 0, requestedNotUsed: 0 } };
   }
 
   const rows = [];
 
-  const pushRow = (label, value) => {
-    if (!value) return;
-    rows.push({ label, value });
+  const pushRow = (label, entry, detail = '') => {
+    const state = getUsageState(entry);
+    const badgeText = state === 'used'
+      ? 'Used'
+      : state === 'requestedNotUsed'
+        ? 'Requested not used'
+        : state === 'skipped'
+          ? 'Skipped'
+          : 'Not requested';
+    const fallbackDetail = state === 'skipped' && entry?.skippedReason
+      ? `Reason: ${toReadableLabel(entry.skippedReason)}`
+      : '';
+    rows.push({
+      label,
+      state,
+      badgeText,
+      detail: detail || fallbackDetail
+    });
   };
 
-  const formatRequested = (entry) => {
-    if (!entry || typeof entry !== 'object') return 'Not requested';
-    if (entry.used) return 'Used';
-    if (entry.requested && entry.skippedReason) return `Skipped (${entry.skippedReason.replaceAll('_', ' ')})`;
-    if (entry.requested) return 'Requested but not used';
-    return 'Not requested';
-  };
-
-  pushRow('Spread & cards', formatRequested(sourceUsage.spreadCards));
-  pushRow('Vision uploads', formatRequested(sourceUsage.vision));
+  pushRow('Spread & cards', sourceUsage.spreadCards);
+  pushRow('Vision uploads', sourceUsage.vision);
 
   if (sourceUsage.userContext && typeof sourceUsage.userContext === 'object') {
     const contextParts = [];
     if (sourceUsage.userContext.questionProvided) contextParts.push('question');
     if (sourceUsage.userContext.reflectionsProvided) contextParts.push('reflections');
     if (sourceUsage.userContext.focusAreasProvided) contextParts.push('focus areas');
-    const contextDetail = contextParts.length > 0 ? ` (${contextParts.join(', ')})` : '';
-    pushRow('User context', `${formatRequested(sourceUsage.userContext)}${contextDetail}`);
+    const contextDetail = contextParts.length > 0
+      ? contextParts.join(', ')
+      : '';
+    pushRow('User context', sourceUsage.userContext, contextDetail);
   }
 
   if (sourceUsage.graphRAG && typeof sourceUsage.graphRAG === 'object') {
@@ -44,16 +72,25 @@ function formatUsageSummary(sourceUsage) {
     const passagesProvided = Number.isFinite(sourceUsage.graphRAG.passagesProvided)
       ? sourceUsage.graphRAG.passagesProvided
       : 0;
-    const graphLabel = sourceUsage.graphRAG.used
-      ? `Used (${mode}, ${passagesUsed}/${passagesProvided} passages)`
-      : formatRequested(sourceUsage.graphRAG);
-    pushRow('Traditional wisdom', graphLabel);
+    const graphDetail = sourceUsage.graphRAG.used
+      ? `${mode} mode, ${passagesUsed}/${passagesProvided} passages`
+      : '';
+    pushRow('Traditional wisdom', sourceUsage.graphRAG, graphDetail);
   }
 
-  pushRow('Ephemeris', formatRequested(sourceUsage.ephemeris));
-  pushRow('Forecast', formatRequested(sourceUsage.forecast));
+  pushRow('Ephemeris', sourceUsage.ephemeris);
+  pushRow('Forecast', sourceUsage.forecast);
 
-  return rows;
+  const used = rows.filter((row) => row.state === 'used').length;
+  const requestedNotUsed = rows.filter((row) => row.state === 'requestedNotUsed' || row.state === 'skipped').length;
+
+  return {
+    rows,
+    summary: {
+      used,
+      requestedNotUsed
+    }
+  };
 }
 
 export function CompleteScene({
@@ -85,7 +122,8 @@ export function CompleteScene({
   const narrativePhase = narrativePanelProps?.narrativePhase;
   const isHandset = Boolean(narrativePanelProps?.isHandset);
   const userQuestion = narrativePanelProps?.userQuestion;
-  const sourceUsageRows = formatUsageSummary(readingMeta?.sourceUsage);
+  const sourceUsage = formatUsageSummary(readingMeta?.sourceUsage);
+  const sourceUsageRows = sourceUsage.rows;
 
   return (
     <section
@@ -128,14 +166,34 @@ export function CompleteScene({
             <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-4 sm:p-5">
               <p className="text-sm font-semibold text-main">Reading Inputs Used</p>
               <p className="text-xs text-muted mt-1">Which sources shaped this interpretation.</p>
-              <dl className="mt-3 space-y-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-full border border-[color:rgb(var(--status-success-rgb)/0.4)] bg-[color:rgb(var(--status-success-rgb)/0.12)] px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.08em] text-[color:rgb(var(--status-success-rgb)/0.95)]">
+                  {sourceUsage.summary.used} used
+                </span>
+                <span className="inline-flex items-center rounded-full border border-[color:rgb(var(--status-warning-rgb)/0.4)] bg-[color:rgb(var(--status-warning-rgb)/0.12)] px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.08em] text-[color:rgb(var(--status-warning-rgb)/0.95)]">
+                  {sourceUsage.summary.requestedNotUsed} requested not used
+                </span>
+              </div>
+              <ul className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 {sourceUsageRows.map((row) => (
-                  <div key={row.label} className="flex items-start justify-between gap-4">
-                    <dt className="text-xs sm:text-sm text-muted">{row.label}</dt>
-                    <dd className="text-xs sm:text-sm text-main text-right">{row.value}</dd>
-                  </div>
+                  <li
+                    key={row.label}
+                    className="rounded-xl border border-[color:var(--border-warm-light)] bg-surface/45 px-3 py-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-xs-plus font-semibold text-main leading-snug">{row.label}</p>
+                      <span className={`shrink-0 inline-flex items-center rounded-full border px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.06em] ${USAGE_BADGE_CLASSES[row.state]}`}>
+                        {row.badgeText}
+                      </span>
+                    </div>
+                    {row.detail && (
+                      <p className="mt-1.5 text-2xs sm:text-xs text-muted leading-relaxed">
+                        {row.detail}
+                      </p>
+                    )}
+                  </li>
                 ))}
-              </dl>
+              </ul>
             </div>
           </div>
         )}

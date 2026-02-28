@@ -191,6 +191,88 @@ describe('composeReadingEnhanced', () => {
     assert.equal(payload.promptMeta.graphRAG.debugVisibleInOutput, true);
     assert.equal(payload.promptMeta.graphRAG.passagesUsedInPrompt, 1);
   });
+
+  it('preserves sourceUsage metadata for local-composer fallback', async () => {
+    const cardsInfo = [
+      major('The Star', 17, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    const payload = {
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      cardsInfo,
+      userQuestion: 'How do I rebuild trust in my direction?',
+      reflectionsText: 'I feel split between caution and hope.',
+      visionInsights: [
+        {
+          label: 'upload-1',
+          predictedCard: 'The Star',
+          confidence: 0.91
+        }
+      ],
+      personalization: {
+        focusAreas: ['career']
+      },
+      analysis: {
+        themes,
+        spreadAnalysis: null,
+        spreadKey: 'single',
+        graphRAGPayload: {
+          passages: [{ title: 'Hope', text: 'Hope emerges in disciplined steps.' }],
+          initialPassageCount: 1,
+          retrievalSummary: {}
+        },
+        ephemerisContext: {
+          available: true
+        },
+        ephemerisForecast: {
+          available: false
+        }
+      },
+      context: 'career'
+    };
+
+    const result = await composeReadingEnhanced(payload);
+    const sourceUsage = payload.promptMeta?.sourceUsage;
+
+    assert.ok(sourceUsage, 'local-composer should emit sourceUsage metadata');
+    assert.equal(result.promptMeta?.sourceUsage?.spreadCards?.used, true);
+    assert.equal(sourceUsage.vision.requested, true);
+    assert.equal(sourceUsage.vision.used, false);
+    assert.equal(sourceUsage.userContext.used, true);
+    assert.equal(sourceUsage.userContext.questionProvided, true);
+    assert.equal(sourceUsage.userContext.reflectionsProvided, true);
+    assert.equal(sourceUsage.userContext.focusAreasProvided, true);
+    assert.equal(sourceUsage.graphRAG.requested, true);
+    assert.equal(sourceUsage.graphRAG.used, false);
+    assert.equal(sourceUsage.ephemeris.used, true);
+    assert.equal(sourceUsage.forecast.used, false);
+    assert.equal(sourceUsage.forecast.skippedReason, 'unavailable');
+  });
+
+  it('sanitizes custom-spread reflections in local-composer output', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'Card 1', 'Upright')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    const payload = {
+      spreadInfo: { name: 'Custom Reflection Spread', key: 'customSpread' },
+      cardsInfo,
+      userQuestion: 'What should I notice first?',
+      reflectionsText: 'I keep revisiting [this support thread](https://example.com/help) and [this support thread](https://example.com/help).',
+      analysis: {
+        themes,
+        spreadAnalysis: null,
+        spreadKey: 'customSpread'
+      },
+      context: 'general'
+    };
+
+    const result = await composeReadingEnhanced(payload);
+
+    assert.ok(result.reading.includes('### Your Reflections'));
+    assert.ok(!result.reading.includes('[this support thread]('), 'reflection markdown links should be stripped');
+    assert.ok(!result.reading.includes('**Your Reflections**\n\nI keep revisiting [this support thread]'), 'raw reflections should not be echoed verbatim');
+  });
 });
 
 describe('buildAzureGPT5Prompts', () => {

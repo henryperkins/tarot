@@ -8,6 +8,7 @@ import {
   DEFAULT_WEIGHT_DETAIL_THRESHOLD
 } from '../helpers.js';
 import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../../src/data/knowledgeGraphData.js';
+import { canonicalCardKey } from '../../../../shared/vision/cardNameMapping.js';
 import { getPositionWeight } from '../../positionWeights.js';
 import { sanitizeText } from '../../utils.js';
 import { detectPromptInjection } from '../../promptInjectionDetector.js';
@@ -145,15 +146,36 @@ export function buildThreeCardPromptCards(cardsInfo, analysis, themes, context, 
 }
 
 /**
- * Find vision insight for a specific card by matching card name
+ * Find vision insight for a specific card by canonical key.
  */
-function findVisionInsightForCard(cardName, visionInsights) {
-  if (!Array.isArray(visionInsights) || !cardName) return null;
+function findVisionInsightForCard(cardInfo, visionInsights, deckStyle = 'rws-1909') {
+  if (!Array.isArray(visionInsights) || !cardInfo) return null;
 
-  const normalized = cardName.toLowerCase().trim();
-  return visionInsights.find(
-    insight => insight?.predictedCard?.toLowerCase().trim() === normalized
-  );
+  const cardCanonicalKey = (
+    typeof cardInfo === 'object' &&
+    cardInfo !== null &&
+    typeof cardInfo.canonicalKey === 'string' &&
+    cardInfo.canonicalKey.trim()
+  )
+    ? cardInfo.canonicalKey.trim().toLowerCase()
+    : canonicalCardKey(
+      typeof cardInfo === 'string'
+        ? cardInfo
+        : (cardInfo.canonicalName || cardInfo.card || cardInfo.name),
+      deckStyle
+    );
+
+  if (!cardCanonicalKey) return null;
+
+  return visionInsights.find((insight) => {
+    const insightCanonicalKey = canonicalCardKey(insight?.predictedCard || insight?.card, deckStyle);
+    if (insightCanonicalKey) {
+      return insightCanonicalKey === cardCanonicalKey;
+    }
+
+    const rawInsightName = typeof insight?.predictedCard === 'string' ? insight.predictedCard.trim().toLowerCase() : null;
+    return Boolean(rawInsightName && rawInsightName === cardCanonicalKey);
+  }) || null;
 }
 
 function shouldIncludeImageryForPosition(spreadKey, positionIndex, promptOptions = {}) {
@@ -165,7 +187,8 @@ function makeCardOptions(spreadKey, positionIndex, baseOptions, promptOptions = 
   const includeImagery = shouldIncludeImageryForPosition(spreadKey, positionIndex, promptOptions);
   return {
     ...baseOptions,
-    omitImagery: !includeImagery
+    omitImagery: !includeImagery,
+    deckStyle: promptOptions.deckStyle || baseOptions?.deckStyle || 'rws-1909'
   };
 }
 
@@ -180,7 +203,11 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
   let text = `${lead}\n`;
 
   // Check if vision profile exists for this card
-  const visionInsight = findVisionInsightForCard(cardInfo.card, safeOptions.visionInsights);
+  const visionInsight = findVisionInsightForCard(
+    cardInfo,
+    safeOptions.visionInsights,
+    safeOptions.deckStyle || 'rws-1909'
+  );
   const visualProfile = visionInsight?.visualProfile;
   const allowImagery = !safeOptions.omitImagery;
 

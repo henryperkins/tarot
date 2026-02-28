@@ -1,4 +1,5 @@
-export { SceneShell, useScene } from './SceneShell';
+export { SceneShell } from './SceneShell';
+export { useScene } from './SceneContext';
 export { IdleScene } from './IdleScene';
 export { RitualScene } from './RitualScene';
 export { RevealScene } from './RevealScene';

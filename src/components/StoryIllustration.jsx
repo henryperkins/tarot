@@ -255,7 +255,9 @@ function HeroBackground({ image, format, activePanel = 1 }) {
   };
 
   const target = typeof document !== 'undefined'
-    ? document.getElementById('hero-bg') || document.body
+    ? document.getElementById('app-bg')
+      || document.getElementById('hero-bg')
+      || document.body
     : null;
   if (!target) return null;
 
@@ -405,7 +407,7 @@ export default function StoryIllustration({
         throw new Error('No image returned. Please try again.');
       }
       setGeneratedImage(data.image);
-      setStatusNotice(heroMode ? 'Illustration generated and applied to the scene background.' : null);
+      setStatusNotice(heroMode ? 'Illustration generated and applied to the app background.' : null);
       if (onMediaReady) {
         onMediaReady(data.image, {
           source: 'story-art',

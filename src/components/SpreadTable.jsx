@@ -80,7 +80,7 @@ const CARD_LAYOUT_DURATION = 380;
 const CARD_LAYOUT_EXIT_DURATION = 240;
 const CARD_LAYOUT_STAGGER = 40;
 
-export function getCenterOutOrder(spreadKey, totalCards) {
+function getCenterOutOrder(spreadKey, totalCards) {
   const layout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
   const count = Math.max(0, Math.min(totalCards || 0, layout.length));
   if (count <= 1) {

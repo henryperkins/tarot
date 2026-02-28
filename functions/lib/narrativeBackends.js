@@ -32,7 +32,7 @@ import {
   buildReadingWithReasoning
 } from './narrative/reasoningIntegration.js';
 import { getToneStyle, buildPersonalizedClosing, getDepthProfile } from './narrative/styleHelpers.js';
-import { buildOpening } from './narrative/helpers.js';
+import { buildOpening, buildReflectionsSection } from './narrative/helpers.js';
 import { formatPassagesForPrompt } from './graphRAG.js';
 import { buildPromptRedactionOptions, redactPII } from './promptEngineering.js';
 import {
@@ -164,6 +164,102 @@ function shouldAppendGraphRAGDebugOutput(env) {
     env?.LOCAL_COMPOSER_APPEND_GRAPHRAG_DEBUG ?? env?.DEBUG_LOCAL_COMPOSER_GRAPHRAG,
     false
   );
+}
+
+function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
+  const analysis = payload?.analysis || {};
+  const personalization = payload?.personalization || {};
+
+  const hasUserQuestion = typeof payload?.userQuestion === 'string' && payload.userQuestion.trim().length > 0;
+  const hasReflections = typeof payload?.reflectionsText === 'string' && payload.reflectionsText.trim().length > 0;
+  const focusAreas = Array.isArray(personalization?.focusAreas)
+    ? personalization.focusAreas.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
+    : [];
+  const hasFocusAreas = focusAreas.length > 0;
+
+  const hasVisionSource = Array.isArray(payload?.visionInsights) && payload.visionInsights.length > 0;
+
+  const hasGraphRAGSource = Boolean(
+    graphRAGPayload ||
+    analysis?.themes?.knowledgeGraph?.graphKeys
+  );
+  const graphRAGHighlightsUsed = Array.isArray(analysis?.themes?.knowledgeGraph?.narrativeHighlights)
+    && analysis.themes.knowledgeGraph.narrativeHighlights.length > 0;
+  const graphRAGVisibleInOutput = Boolean(promptMeta?.graphRAG?.debugVisibleInOutput);
+  const graphRAGUsed = graphRAGVisibleInOutput || graphRAGHighlightsUsed;
+  const graphRAGMode = graphRAGVisibleInOutput
+    ? 'full'
+    : (graphRAGHighlightsUsed ? 'summary' : 'none');
+  const passagesProvided = Number.isFinite(promptMeta?.graphRAG?.passagesProvided)
+    ? promptMeta.graphRAG.passagesProvided
+    : (
+      graphRAGPayload?.initialPassageCount ||
+      graphRAGPayload?.passages?.length ||
+      0
+    );
+  const passagesUsedInPrompt = Number.isFinite(promptMeta?.graphRAG?.passagesUsedInPrompt)
+    ? promptMeta.graphRAG.passagesUsedInPrompt
+    : (graphRAGVisibleInOutput ? passagesProvided : 0);
+  const graphRAGSkippedReason = hasGraphRAGSource
+    ? (
+      graphRAGUsed
+        ? null
+        : (
+          promptMeta?.graphRAG?.skippedReason ||
+          (passagesProvided > 0 ? 'not_used_by_backend' : 'retrieval_failed_or_empty')
+        )
+    )
+    : 'not_requested';
+
+  const ephemerisContext = analysis?.ephemerisContext || null;
+  const ephemerisForecast = analysis?.ephemerisForecast || null;
+  const ephemerisRequested = Boolean(ephemerisContext);
+  const ephemerisUsed = Boolean(ephemerisContext?.available);
+  const forecastRequested = Boolean(ephemerisForecast);
+  const forecastUsed = Boolean(ephemerisForecast?.available);
+
+  return {
+    spreadCards: {
+      requested: true,
+      used: true,
+      skippedReason: null
+    },
+    vision: {
+      requested: hasVisionSource,
+      used: false,
+      skippedReason: hasVisionSource ? 'not_used_by_backend' : 'not_provided'
+    },
+    userContext: {
+      requested: true,
+      used: hasUserQuestion || hasReflections || hasFocusAreas,
+      skippedReason: hasUserQuestion || hasReflections || hasFocusAreas ? null : 'not_provided',
+      questionProvided: hasUserQuestion,
+      reflectionsProvided: hasReflections,
+      focusAreasProvided: hasFocusAreas
+    },
+    graphRAG: {
+      requested: hasGraphRAGSource,
+      used: graphRAGUsed,
+      mode: graphRAGMode,
+      passagesProvided,
+      passagesUsedInPrompt,
+      skippedReason: graphRAGSkippedReason
+    },
+    ephemeris: {
+      requested: ephemerisRequested,
+      used: ephemerisUsed,
+      skippedReason: ephemerisRequested
+        ? (ephemerisUsed ? null : 'unavailable')
+        : 'not_requested'
+    },
+    forecast: {
+      requested: forecastRequested,
+      used: forecastUsed,
+      skippedReason: forecastRequested
+        ? (forecastUsed ? null : 'unavailable')
+        : 'not_requested'
+    }
+  };
 }
 
 // ============================================================================
@@ -774,10 +870,13 @@ function buildGenericReading(
 
   // Reflections
   if (reflectionsText && reflectionsText.trim()) {
-    entries.push({
-      text: `**Your Reflections**\n\n${reflectionsText.trim()}\n\nYour intuitive impressions add personal meaning to this reading.`,
-      metadata: { type: 'reflections' }
-    });
+    const reflectionsSection = buildReflectionsSection(reflectionsText);
+    if (reflectionsSection) {
+      entries.push({
+        text: reflectionsSection,
+        metadata: { type: 'reflections' }
+      });
+    }
   }
 
   // Use reasoning synthesis if available, otherwise fall back to enhanced synthesis
@@ -834,7 +933,8 @@ export async function composeReadingEnhanced(payload, env = null) {
     reflectionsText,
     analysis,
     context,
-    personalization = null
+    personalization = null,
+    visionInsights = []
   } = payload;
   const { themes, spreadAnalysis, spreadKey } = analysis;
   const collectedSections = [];
@@ -961,11 +1061,18 @@ export async function composeReadingEnhanced(payload, env = null) {
     }
   }
 
+  payload.promptMeta.sourceUsage = buildLocalComposerSourceUsage(
+    { ...payload, visionInsights, personalization },
+    payload.promptMeta,
+    graphRAGPayload
+  );
+
   // Return reading with null prompts (local composer doesn't use LLM prompts)
   return {
     reading: finalReadingText,
     prompts: null,
-    usage: null
+    usage: null,
+    promptMeta: payload.promptMeta
   };
 }
 

@@ -33,9 +33,10 @@ function sanitizeEnum(value, allowed, fallback) {
   return typeof value === 'string' && allowed.has(value) ? value : fallback;
 }
 
-function sanitizeDisplayName(value) {
+function sanitizeDisplayName(value, { trim = true } = {}) {
   if (typeof value !== 'string') return '';
-  return value.trim().slice(0, PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH);
+  const normalizedValue = trim ? value.trim() : value;
+  return normalizedValue.slice(0, PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH);
 }
 
 function sanitizeFocusAreas(value) {
@@ -55,12 +56,12 @@ function sanitizeFocusAreas(value) {
   return normalized;
 }
 
-export function sanitizePersonalization(value) {
+export function sanitizePersonalization(value, { trimDisplayName = true } = {}) {
   const input = value && typeof value === 'object' ? value : {};
 
   return {
     ...DEFAULT_PERSONALIZATION,
-    displayName: sanitizeDisplayName(input.displayName),
+    displayName: sanitizeDisplayName(input.displayName, { trim: trimDisplayName }),
     tarotExperience: sanitizeEnum(
       input.tarotExperience,
       ALLOWED_TAROT_EXPERIENCE,

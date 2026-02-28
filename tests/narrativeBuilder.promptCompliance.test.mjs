@@ -402,6 +402,45 @@ describe('Vision validation prompt context', () => {
     assert.match(userPrompt, /Emotion: \[mysterious, melancholic\]/);
   });
 
+  it('weaves visual profile for deck aliases using canonical card keys', async () => {
+    const cardsInfo = [
+      {
+        ...major('Adjustment', 8, 'One-Card Insight', 'Upright'),
+        canonicalName: 'Justice',
+        canonicalKey: 'justice'
+      }
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+    themes.deckStyle = 'thoth-a1';
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight', deckStyle: 'thoth-a1' },
+      cardsInfo,
+      userQuestion: 'How should I rebalance this situation?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      deckStyle: 'thoth-a1',
+      visionInsights: [
+        {
+          label: 'THOTH_ADJUSTMENT',
+          predictedCard: 'Justice',
+          confidence: 0.93,
+          basis: 'image',
+          matchesDrawnCard: true,
+          visualProfile: {
+            tone: ['balanced', 'severe'],
+            emotion: ['composed', 'alert']
+          }
+        }
+      ]
+    });
+
+    assert.match(userPrompt, /Vision-detected tone: balanced, severe/i);
+    assert.match(userPrompt, /Emotional quality: composed, alert/i);
+  });
+
   it('masks mismatched card names to prevent hallucination priming', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'One-Card Insight', 'Upright')

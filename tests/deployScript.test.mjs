@@ -10,6 +10,7 @@ import {
   evaluateChangedMigrations,
   shouldTreatMigrationExecutionAsFailure,
   isMissingMigrationsTableError,
+  extractWranglerErrorMessage,
   isRetriableDeployError
 } from '../scripts/deploy.js';
 
@@ -135,6 +136,30 @@ test('isMissingMigrationsTableError detects expected sqlite/d1 variants', () => 
   assert.equal(isMissingMigrationsTableError('Error: no such table: _migrations'), true);
   assert.equal(isMissingMigrationsTableError('D1_ERROR: table _migrations does not exist'), true);
   assert.equal(isMissingMigrationsTableError('permission denied'), false);
+});
+
+test('extractWranglerErrorMessage prefers stderr and parses JSON stdout payloads', () => {
+  assert.equal(
+    extractWranglerErrorMessage('permission denied', ''),
+    'permission denied'
+  );
+
+  const wranglerJsonError = JSON.stringify({
+    error: {
+      text: "Couldn't find DB with name 'does-not-exist'",
+      notes: [{ text: 'Authentication error [code: 10000]' }]
+    }
+  });
+
+  assert.equal(
+    extractWranglerErrorMessage('', wranglerJsonError),
+    "Couldn't find DB with name 'does-not-exist' Authentication error [code: 10000]"
+  );
+
+  assert.equal(
+    extractWranglerErrorMessage('', 'plain fallback error'),
+    'plain fallback error'
+  );
 });
 
 test('isRetriableDeployError classifies transient deploy failures', () => {

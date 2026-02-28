@@ -18,7 +18,7 @@ import { getMediaTierConfig } from '../../shared/monetization/media.js';
 const VIDEO_STYLES = VIDEO_STYLE_PRESETS;
 
 const POLL_INTERVAL_MS = 5000;
-const MAX_POLL_MS = 120000;
+const MAX_POLL_MS = 240000;
 const MAX_POLL_ERRORS = 2;
 const MAX_POLL_HTTP_ERRORS = 3;
 const MAX_POLL_NOT_FOUND_RETRIES = 4;
@@ -90,7 +90,7 @@ function VideoLoadingSkeleton({ prefersReducedMotion = false }) {
           className="w-16 h-16 border-2 border-accent/40 border-t-primary rounded-full"
         />
         <p className="text-accent/80 text-sm mt-4">Generating reveal...</p>
-        <p className="text-muted text-xs mt-1">This may take 30-60 seconds</p>
+        <p className="text-muted text-xs mt-1">This may take up to a few minutes</p>
       </div>
     </div>
   );
@@ -447,7 +447,8 @@ export default function AnimatedReveal({
   const [style, setStyleRaw] = useState(DEFAULT_VIDEO_STYLE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [, setJobId] = useState(null);
+  const [errorReason, setErrorReason] = useState(null);
+  const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
   const [progress, setProgress] = useState(0);
   const [videoData, setVideoData] = useState(null);
@@ -526,6 +527,7 @@ export default function AnimatedReveal({
     setVideoData(null);
     setLoading(false);
     setError(null);
+    setErrorReason(null);
     setJobStatus(null);
     setJobId(null);
     setProgress(0);
@@ -551,7 +553,8 @@ export default function AnimatedReveal({
     try {
       const meta = pollMetaRef.current;
       if (meta.startedAt && Date.now() - meta.startedAt > MAX_POLL_MS) {
-        setError('Video generation is taking longer than expected. Please try again.');
+        setError('Video generation is taking longer than expected. Retry will keep checking this request.');
+        setErrorReason('timeout');
         setJobStatus('failed');
         setLoading(false);
         setProgress(0);
@@ -593,6 +596,7 @@ export default function AnimatedReveal({
         const messageParts = [data?.error, data?.details, data?.hint].filter(Boolean);
         const message = messageParts.join(' ').trim() || 'Failed to check video status.';
         setError(message);
+        setErrorReason('status-check');
         setJobStatus('failed');
         setLoading(false);
         setProgress(0);
@@ -603,6 +607,7 @@ export default function AnimatedReveal({
       if (data?.error) {
         const messageParts = [data?.error, data?.details, data?.hint].filter(Boolean);
         setError(messageParts.join(' ').trim() || 'Video generation failed.');
+        setErrorReason('status-check');
         setJobStatus('failed');
         setLoading(false);
         setProgress(0);
@@ -616,6 +621,8 @@ export default function AnimatedReveal({
         setJobStatus('completed');
         setProgress(100);
         setLoading(false);
+        setErrorReason(null);
+        setJobId(null);
         clearPolling();
         
         if (onVideoReady) {
@@ -627,6 +634,7 @@ export default function AnimatedReveal({
         }
       } else if (normalizeClientStatus(data.status) === 'failed') {
         setError(data?.message || 'Video generation failed. Please try again.');
+        setErrorReason('provider-failed');
         setJobStatus('failed');
         setLoading(false);
         setProgress(0);
@@ -648,6 +656,7 @@ export default function AnimatedReveal({
       pollMetaRef.current = meta;
       if (meta.errorCount >= MAX_POLL_ERRORS) {
         setError('Unable to reach the video service. Please try again.');
+        setErrorReason('status-check');
         setJobStatus('failed');
         setLoading(false);
         setProgress(0);
@@ -661,6 +670,36 @@ export default function AnimatedReveal({
       pollInFlightRef.current = false;
     }
   }, [cardMediaMeta, clearPolling, onVideoReady, style]);
+
+  const startPolling = useCallback((id, requestToken, options = {}) => {
+    if (!id) return;
+    const { delayMs = 0, resetStartAt = false } = options;
+    const runPoll = () => {
+      if (requestToken !== requestTokenRef.current) return;
+      pollJobStatus(id, requestToken);
+    };
+
+    const meta = pollMetaRef.current;
+    pollMetaRef.current = {
+      ...meta,
+      startedAt: resetStartAt || !meta.startedAt ? Date.now() : meta.startedAt,
+      errorCount: 0,
+      notFoundCount: 0,
+      httpErrorCount: 0
+    };
+    clearPolling();
+
+    if (delayMs > 0) {
+      pollStartTimeoutRef.current = window.setTimeout(() => {
+        runPoll();
+        pollIntervalRef.current = setInterval(runPoll, POLL_INTERVAL_MS);
+      }, delayMs);
+      return;
+    }
+
+    runPoll();
+    pollIntervalRef.current = setInterval(runPoll, POLL_INTERVAL_MS);
+  }, [clearPolling, pollJobStatus]);
   
   // Start video generation
   const handleGenerate = useCallback(async () => {
@@ -678,6 +717,7 @@ export default function AnimatedReveal({
 
     setLoading(true);
     setError(null);
+    setErrorReason(null);
     setVideoData(null);
     setJobStatus('pending');
     setProgress(10);
@@ -728,6 +768,7 @@ export default function AnimatedReveal({
         setJobStatus('completed');
         setProgress(100);
         setLoading(false);
+        setJobId(null);
         
         if (onVideoReady) {
           onVideoReady(data.video, cardMediaMeta({
@@ -742,29 +783,41 @@ export default function AnimatedReveal({
         setJobStatus('pending');
         setProgress((prev) => Math.max(prev, 12));
         pollMetaRef.current = {
+          ...pollMetaRef.current,
           startedAt: Date.now(),
           errorCount: 0,
           notFoundCount: 0,
           httpErrorCount: 0
         };
-        pollStartTimeoutRef.current = window.setTimeout(() => {
-          if (requestToken !== requestTokenRef.current) return;
-          pollJobStatus(data.jobId, requestToken);
-          pollIntervalRef.current = setInterval(() => {
-            pollJobStatus(data.jobId, requestToken);
-          }, POLL_INTERVAL_MS);
-        }, INITIAL_POLL_DELAY_MS);
+        startPolling(data.jobId, requestToken, { delayMs: INITIAL_POLL_DELAY_MS });
       } else {
         throw new Error('Video generation did not return a job id.');
       }
     } catch (err) {
       if (requestToken !== requestTokenRef.current) return;
       setError(err.message);
+      setErrorReason('generation-start');
       setLoading(false);
       setJobStatus('failed');
       setProgress(0);
     }
-  }, [card, question, position, style, config.enabled, onVideoReady, pollJobStatus, cardMediaMeta, clearPolling]);
+  }, [card, question, position, style, config.enabled, onVideoReady, cardMediaMeta, clearPolling, startPolling]);
+
+  const handleRetry = useCallback(() => {
+    if (errorReason === 'timeout' && jobId) {
+      const requestToken = requestTokenRef.current + 1;
+      requestTokenRef.current = requestToken;
+      setError(null);
+      setErrorReason(null);
+      setLoading(true);
+      setJobStatus('processing');
+      setProgress((prev) => Math.max(prev, 40));
+      startPolling(jobId, requestToken, { resetStartAt: true });
+      return;
+    }
+
+    handleGenerate();
+  }, [errorReason, handleGenerate, jobId, startPolling]);
   
   // Auto-generate when context changes
   useEffect(() => {
@@ -895,10 +948,10 @@ export default function AnimatedReveal({
               Dismiss
             </button>
             <button
-              onClick={handleGenerate}
+              onClick={handleRetry}
               className="text-error hover:text-error/80 text-xs underline"
             >
-              Retry
+              {errorReason === 'timeout' && jobId ? 'Retry Status Check' : 'Retry'}
             </button>
           </div>
         </div>

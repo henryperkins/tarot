@@ -59,7 +59,8 @@ export function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQu
     '- Use paragraphs/sections that fit the spread size; paragraph count should flex to meet the length band. Include one short bullet list of practical steps. Avoid filler.',
     '- Keep paragraphs to about 2–4 sentences; break up anything longer for readability.',
     '- Do NOT format card sections as a rigid template like “WHAT: … WHY: … WHAT’S NEXT: …” for every card. Keep the spine, but express it as natural prose. If you use explicit mini labels at all, use them sparingly (at most once in the entire reading) and only when it improves clarity.',
-    '- OUTPUT STYLE: Do NOT preface the reading with "Here is your reading" or "I have analyzed the cards." Start directly with the Opening section or the first header.'
+    '- OUTPUT STYLE: Do NOT preface the reading with "Here is your reading" or "I have analyzed the cards." Start directly with the Opening section or the first header.',
+    '- LANGUAGE: Write the entire reading in the same language as the user\'s question. If the question is in Spanish, write in Spanish; if French, write in French; and so on. Keep card names in their original form but translate all prose, headers, and guidance.'
   );
 
   lines.push(

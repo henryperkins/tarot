@@ -181,8 +181,13 @@ function summarizeSample(sample) {
     hasHarshTone: tone.harsh,
     hasSupportiveTone: tone.supportive
   });
-  const coherenceScore = spine.totalSections
-    ? spine.completeSections / spine.totalSections
+  // Use card-aware coherence: only card-interpretation sections need spine
+  // structure. Structural sections (opening, guidance, closing) are intentionally
+  // atmospheric and should not drag the coherence score down.
+  const cardSections = spine.cardSections ?? 0;
+  const cardComplete = spine.cardComplete ?? 0;
+  const coherenceScore = cardSections > 0
+    ? cardComplete / cardSections
     : spine.isValid
       ? 1
       : 0;

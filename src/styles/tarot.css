@@ -952,8 +952,41 @@ body {
   transition: none !important;
 }
 
+.mobile-stable-mode .scene-stage__panel,
+.mobile-stable-mode .narrative-panel--stable {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background: var(--surface-92, rgba(20, 17, 26, 0.96));
+}
+
+.mobile-stable-mode .scene-stage__panel {
+  border-color: var(--border-warm-light);
+  box-shadow: 0 18px 36px -28px rgba(0, 0, 0, 0.82);
+}
+
+.mobile-stable-mode .scene-shell--stable,
+.mobile-stable-mode .scene-shell--stable .scene-stage {
+  overflow: visible;
+}
+
+.mobile-stable-mode .narrative-atmosphere::before,
+.mobile-stable-mode .narrative-atmosphere::after {
+  display: none;
+}
+
 .mobile-stable-mode .card-swipe-hint {
   display: none;
+}
+
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 639px) {
+    .scene-stage__panel,
+    .narrative-panel--stable {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      background: color-mix(in srgb, var(--bg-surface) 94%, var(--bg-main));
+    }
+  }
 }
 
 /* Light mode: Additional styles can be added here when implementing light mode support */

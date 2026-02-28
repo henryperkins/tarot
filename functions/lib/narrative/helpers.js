@@ -1332,7 +1332,21 @@ function buildReflectionsSection(reflectionsText) {
     }
   }
   if (!safeReflection) return '';
-  return `### Your Reflections\n\nThis reflection shows how this reading lands in your lived experience.\n\n${safeReflection}\n\nYour intuitive impressions are valid and add personal meaning to this reading.`;
+  const reflectionIntros = [
+    'This reflection shows how this reading lands in your lived experience.',
+    'Here is how this moment connects to what you are feeling.',
+    'Your own words add texture to what the cards are showing.',
+    'Let this sit alongside the reading as your personal anchor.'
+  ];
+  const reflectionClosings = [
+    'Your intuitive impressions are valid and add personal meaning to this reading.',
+    'Trust this inner knowing — it deepens the cards\' message.',
+    'These impressions hold their own wisdom alongside the spread.',
+    'What you sense here matters as much as any symbol on the table.'
+  ];
+  const intro = pickOne(reflectionIntros, `reflectionIntro|${safeReflection}`);
+  const closing = pickOne(reflectionClosings, `reflectionClosing|${safeReflection}`);
+  return `### Your Reflections\n\n${intro}\n\n${safeReflection}\n\n${closing}`;
 }
 
 function buildOccultFlavor(cardInfo) {

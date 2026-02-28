@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { animate, set } from '../../lib/motionAdapter';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useSounds } from '../../hooks/useSounds';
 import { applyColorScript, resetColorScript } from '../../lib/colorScript';
 import { ParticleLayer } from '../ParticleLayer';
+import { SceneContext } from './SceneContext';
 
 const SCENE_PARTICLE_FALLBACK = {
   idle: 'idle',
@@ -72,16 +73,6 @@ const TRANSITION_PROFILES = {
   }
 };
 
-const SceneContext = createContext({
-  currentScene: 'idle',
-  transitionTo: () => {},
-  sceneData: {}
-});
-
-export function useScene() {
-  return useContext(SceneContext);
-}
-
 export function SceneShell({
   orchestrator,
   scenes = {},
@@ -89,6 +80,7 @@ export function SceneShell({
   className = '',
   colorScript = null,
   colorScriptOwner = 'scene-shell',
+  isMobileStableMode = false,
   children = null
 }) {
   const prefersReducedMotion = useReducedMotion();
@@ -254,6 +246,7 @@ export function SceneShell({
   const particlePreset = transitionMeta?.particlePreset
     || SCENE_PARTICLE_FALLBACK[activeScene]
     || 'idle';
+  const shouldRenderSceneParticles = !(isMobileStableMode && (activeScene === 'narrative' || activeScene === 'complete'));
 
   const sceneContext = useMemo(() => ({
     currentScene: activeScene,
@@ -265,7 +258,7 @@ export function SceneShell({
 
   return (
     <SceneContext.Provider value={sceneContext}>
-      <div className={`relative overflow-hidden ${className}`}>
+      <div className={`relative overflow-hidden ${isMobileStableMode ? 'scene-shell--stable' : ''} ${className}`}>
         <div
           className="absolute inset-0"
           style={{
@@ -282,14 +275,16 @@ export function SceneShell({
           className="absolute inset-0 z-[0] pointer-events-none"
           aria-hidden="true"
         />
-        <ParticleLayer
-          id={`scene-shell-particles-${activeScene}`}
-          preset={particlePreset}
-          suit={sceneData?.dominantSuit}
-          element={sceneData?.dominantElement}
-          intensity={sceneData?.particleIntensity || 1}
-          zIndex={1}
-        />
+        {shouldRenderSceneParticles ? (
+          <ParticleLayer
+            id={`scene-shell-particles-${activeScene}`}
+            preset={particlePreset}
+            suit={sceneData?.dominantSuit}
+            element={sceneData?.dominantElement}
+            intensity={sceneData?.particleIntensity || 1}
+            zIndex={1}
+          />
+        ) : null}
         <div
           ref={overlayRef}
           className="pointer-events-none absolute inset-0 z-[2]"

@@ -397,7 +397,8 @@ export function buildEnhancedClaudePrompt({
       {
         ...controls,
         personalization,
-        contextDiagnostics: diagnostics
+        contextDiagnostics: diagnostics,
+        deckStyle: resolvedDeckStyle
       }
     );
 

@@ -10,7 +10,7 @@ import {
 import { getSectionKeyFromHeading } from '../lib/narrativeSections';
 import { STREAM_AUTO_NARRATE_DEBOUNCE_MS } from '../lib/narrationStream.js';
 
-const LONG_MOBILE_WORD_THRESHOLD = 280;
+const LONG_MOBILE_WORD_THRESHOLD = 200;
 const LONG_DESKTOP_WORD_THRESHOLD = 600; // Guardrail for very long narratives on any device
 const BASE_WORD_DELAY = 45;
 const PUNCTUATION_DELAY_BONUS = 160;
@@ -61,6 +61,39 @@ function splitIntoWords(text) {
 
   // Filter in single pass
   return parts.filter(part => part && part.length > 0);
+}
+
+function computeRevealStep({ totalWords, useMarkdown, isSmallScreen }) {
+  if (!totalWords || totalWords < 1) return 1;
+
+  // Markdown parsing is significantly heavier than plain text rendering.
+  // Reveal larger chunks to keep update frequency low on constrained devices.
+  if (useMarkdown && isSmallScreen) {
+    return Math.max(6, Math.ceil(totalWords / 26));
+  }
+
+  if (useMarkdown) {
+    return Math.max(3, Math.ceil(totalWords / 48));
+  }
+
+  if (isSmallScreen && totalWords > 120) {
+    return Math.max(2, Math.ceil(totalWords / 90));
+  }
+
+  if (totalWords > 420) {
+    return 2;
+  }
+
+  return 1;
+}
+
+function computeRevealDelay(chunkText, revealStep) {
+  const hasPunctuation = /[.!?;:]/.test(chunkText);
+  const baseDelay = Math.max(BASE_WORD_DELAY, BASE_WORD_DELAY * Math.max(1, revealStep));
+  return Math.min(
+    hasPunctuation ? baseDelay + PUNCTUATION_DELAY_BONUS : baseDelay,
+    420
+  );
 }
 
 function findTokenIndexForOffset(tokens, offset) {
@@ -160,6 +193,10 @@ export function StreamingNarrative({
     if (!units.length) return 0;
     return units.reduce((count, unit) => (unit.trim() ? count + 1 : count), 0);
   }, [units]);
+  const revealStep = useMemo(
+    () => computeRevealStep({ totalWords, useMarkdown, isSmallScreen }),
+    [totalWords, useMarkdown, isSmallScreen]
+  );
 
   const ttsWordIndex = useMemo(() => {
     if (useMarkdown) return -1;
@@ -169,13 +206,15 @@ export function StreamingNarrative({
   }, [units, useMarkdown, wordBoundary]);
 
   const isLongMobileNarrative = isSmallScreen && totalWords > LONG_MOBILE_WORD_THRESHOLD;
+  const isMarkdownMobileNarrative = isSmallScreen && useMarkdown;
+  const shouldSuppressMobileStreaming = isLongMobileNarrative || isMarkdownMobileNarrative;
   const isVeryLongNarrative = totalWords > LONG_DESKTOP_WORD_THRESHOLD;
   const shouldStreamOnNarrativeReset = Boolean(
     isStreamingEnabled &&
     !prefersReducedMotion &&
     units.length > 0 &&
     !isVeryLongNarrative &&
-    !isLongMobileNarrative
+    !shouldSuppressMobileStreaming
   );
   const [mobileStreamingOptIn, setMobileStreamingOptIn] = useState(false);
   const [visibleCount, setVisibleCount] = useState(() => (
@@ -196,12 +235,12 @@ export function StreamingNarrative({
     !prefersReducedMotion &&
     units.length > 0 &&
     !isVeryLongNarrative && // Guardrail: skip streaming for extremely long text on any device
-    (!isLongMobileNarrative || mobileStreamingOptIn)
+    (!shouldSuppressMobileStreaming || mobileStreamingOptIn)
   );
   const streamingSuppressedForMobile = Boolean(
     isStreamingEnabled &&
     !prefersReducedMotion &&
-    isLongMobileNarrative &&
+    shouldSuppressMobileStreaming &&
     !isVeryLongNarrative &&
     !mobileStreamingOptIn
   );
@@ -300,21 +339,18 @@ export function StreamingNarrative({
       return;
     }
 
-    // Calculate delay between words for natural reading pace
-    const currentWord = units[visibleCount] || '';
-    // Add extra delay for punctuation (pause at end of sentences/clauses)
-    const hasPunctuation = /[.!?;:]/.test(currentWord);
-    const delay = hasPunctuation ? BASE_WORD_DELAY + PUNCTUATION_DELAY_BONUS : BASE_WORD_DELAY;
+    const nextChunk = units.slice(visibleCount, Math.min(units.length, visibleCount + revealStep)).join('');
+    const delay = computeRevealDelay(nextChunk, revealStep);
 
     clearTimer();
     timerRef.current = window.setTimeout(() => {
-      setVisibleCount((prev) => prev + 1);
+      setVisibleCount((prev) => Math.min(prev + revealStep, units.length));
     }, delay);
 
     return () => {
       clearTimer();
     };
-  }, [visibleCount, units, streamingActive, clearTimer]);
+  }, [visibleCount, units, streamingActive, revealStep, clearTimer]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -423,9 +459,12 @@ export function StreamingNarrative({
     return buildTokenMeta(visibleWords, highlightRanges);
   }, [useMarkdown, visibleWords, highlightRanges]);
 
+  const streamingSuppressionMessage = isMarkdownMobileNarrative
+    ? 'Markdown readings show instantly on small screens for smoother performance.'
+    : 'Long readings show instantly on small screens.';
   const streamingOptInNotice = streamingSuppressedForMobile ? (
     <div className="sm:hidden mb-3 rounded-xl border border-secondary/40 bg-surface/80 px-3 xxs:px-4 py-3 text-center">
-      <p className="text-xs-plus text-muted mb-2">Long readings show instantly on small screens.</p>
+      <p className="text-xs-plus text-muted mb-2">{streamingSuppressionMessage}</p>
       <button
         type="button"
         onClick={handleEnableStreaming}
@@ -508,7 +547,12 @@ export function StreamingNarrative({
           
           // Use CSS animation for word reveal to avoid JS bottleneck on long narratives
           // Animate only the most recently revealed word(s) to match incremental reveal behavior
-          const isNewWord = idx === visibleCount - 1 && streamingActive && !prefersReducedMotion;
+          const revealWindowStart = Math.max(0, visibleCount - revealStep);
+          const isNewWord = idx >= revealWindowStart
+            && idx < visibleCount
+            && streamingActive
+            && !prefersReducedMotion
+            && !isSmallScreen;
 
           return (
             <span
