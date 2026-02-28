@@ -2,6 +2,7 @@ import { ArrowCounterClockwise, ChatCircle } from '@phosphor-icons/react';
 import { MediaGallery } from '../MediaGallery';
 import { FeedbackPanel } from '../FeedbackPanel';
 import FollowUpModal from '../FollowUpModal';
+import { NarrativeStageContent } from './NarrativeStageContent';
 
 const USAGE_BADGE_CLASSES = {
   used: 'border-[color:rgb(var(--status-success-rgb)/0.45)] bg-[color:rgb(var(--status-success-rgb)/0.12)] text-[color:rgb(var(--status-success-rgb)/0.95)]',
@@ -130,8 +131,12 @@ export function CompleteScene({
       data-scene="complete"
     >
       <div className="scene-stage__panel scene-stage__panel--complete relative z-[2] max-w-5xl mx-auto p-4 sm:p-6">
-        {narrativePanel}
-        {narrativePanel && personalReading && children ? <div className="mt-6 sm:mt-8">{children}</div> : null}
+        <NarrativeStageContent
+          narrativePanel={narrativePanel}
+          showChildren={Boolean(narrativePanel && personalReading)}
+        >
+          {children}
+        </NarrativeStageContent>
 
         {personalReading && !isPersonalReadingError && narrativePhase === 'complete' && !isHandset && (
           <div className="w-full max-w-2xl mx-auto mt-6">

@@ -122,6 +122,28 @@ function JournalStatusNotice({
   );
 }
 
+function QuestionAnchor({
+  question,
+  compact = false
+}) {
+  if (!question) return null;
+
+  if (compact) {
+    return (
+      <div className="max-w-3xl mx-auto mt-3 rounded-lg border border-secondary/35 bg-surface/65 px-3 py-2">
+        <p className="text-2xs uppercase tracking-[0.12em] text-muted/80">Anchor</p>
+        <p className="text-xs text-accent/85 mt-1 leading-relaxed">{question}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-surface/85 rounded-lg px-3 xxs:px-4 py-3 border border-secondary/40">
+      <p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {question}</p>
+    </div>
+  );
+}
+
 export function NarrativePanel({
   personalReading,
   isPersonalReadingError,
@@ -189,20 +211,14 @@ export function NarrativePanel({
       }
     });
   };
-  const desktopAnchor = !isHandset && userQuestion ? (
-    <div className="bg-surface/85 rounded-lg px-3 xxs:px-4 py-3 border border-secondary/40">
-      <p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p>
-    </div>
-  ) : null;
-  const mobileAnchor = isHandset && userQuestion ? (
-    <div className="max-w-3xl mx-auto mt-3 rounded-lg border border-secondary/35 bg-surface/65 px-3 py-2">
-      <p className="text-2xs uppercase tracking-[0.12em] text-muted/80">Anchor</p>
-      <p className="text-xs text-accent/85 mt-1 leading-relaxed">{userQuestion}</p>
-    </div>
-  ) : null;
+  const question = typeof userQuestion === 'string' ? userQuestion.trim() : '';
+  const desktopAnchor = !isHandset ? <QuestionAnchor question={question} /> : null;
+  const mobileAnchor = isHandset ? <QuestionAnchor question={question} compact /> : null;
+  const panelClassName = `bg-surface/95 ${isMobileStableMode ? 'narrative-panel--stable' : 'backdrop-blur-xl'} rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`;
+  const streamClassName = `max-w-3xl mx-auto mt-4 sm:mt-5 ${hasHeroStoryArt ? 'glass-panel' : ''}`;
 
   return (
-    <div className={`bg-surface/95 ${isMobileStableMode ? 'narrative-panel--stable' : 'backdrop-blur-xl'} rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`}>
+    <div className={panelClassName}>
       <div className="space-y-3 sm:space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <h3 className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight">
@@ -227,7 +243,7 @@ export function NarrativePanel({
       <NarrativeSafetyNotice className="max-w-3xl mx-auto mt-4" compact={isHandset} />
 
       <StreamingNarrative
-        className={`max-w-3xl mx-auto mt-4 sm:mt-5 ${hasHeroStoryArt ? 'glass-panel' : ''}`}
+        className={streamClassName}
         text={narrativeText}
         useMarkdown={Boolean(personalReading?.hasMarkdown)}
         isStreamingEnabled={shouldStreamNarrative}

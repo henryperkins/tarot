@@ -361,24 +361,17 @@ export function StreamingNarrative({
   }, [clearTimer, clearNarrationTimer]);
 
   const visibleWords = units.slice(0, visibleCount);
-  const visiblePlainText = useMemo(() => {
+  const visibleText = useMemo(() => {
     if (!visibleWords.length) return '';
     return visibleWords.join('');
   }, [visibleWords]);
 
-  const visibleTextForHighlights = useMemo(() => {
-    if (useMarkdown) {
-      return visibleWords.join('');
-    }
-    return visiblePlainText;
-  }, [useMarkdown, visibleWords, visiblePlainText]);
-
   useEffect(() => {
     if (!onHighlightPhrase) return;
     if (!normalizedHighlightPhrases.length) return;
-    if (!visibleTextForHighlights) return;
+    if (!visibleText) return;
 
-    const lowerText = visibleTextForHighlights.toLowerCase();
+    const lowerText = visibleText.toLowerCase();
     const triggered = triggeredHighlightRef.current;
 
     normalizedHighlightPhrases.forEach((phrase) => {
@@ -388,14 +381,14 @@ export function StreamingNarrative({
       triggered.add(key);
       onHighlightPhrase(phrase);
     });
-  }, [onHighlightPhrase, normalizedHighlightPhrases, visibleTextForHighlights]);
+  }, [onHighlightPhrase, normalizedHighlightPhrases, visibleText]);
 
   useEffect(() => {
     if (!useMarkdown || !onSectionEnter) return;
-    if (!visibleTextForHighlights) return;
+    if (!visibleText) return;
 
     const seen = triggeredSectionRef.current;
-    const matches = visibleTextForHighlights.matchAll(/^#{2,6}\s+(.+)$/gm);
+    const matches = visibleText.matchAll(/^#{2,6}\s+(.+)$/gm);
     for (const match of matches) {
       const heading = match?.[1] || '';
       const sectionKey = getSectionKeyFromHeading(heading);
@@ -403,7 +396,7 @@ export function StreamingNarrative({
       seen.add(sectionKey);
       onSectionEnter(sectionKey);
     }
-  }, [useMarkdown, onSectionEnter, visibleTextForHighlights]);
+  }, [useMarkdown, onSectionEnter, visibleText]);
 
   const atmosphereClass = useMemo(() => (
     withAtmosphere
@@ -435,9 +428,9 @@ export function StreamingNarrative({
   const highlightRanges = useMemo(() => {
     if (useMarkdown) return [];
     if (!normalizedHighlightPhrases.length) return [];
-    if (!visiblePlainText) return [];
-    return computeHighlightRanges(visiblePlainText, normalizedHighlightPhrases);
-  }, [useMarkdown, normalizedHighlightPhrases, visiblePlainText]);
+    if (!visibleText) return [];
+    return computeHighlightRanges(visibleText, normalizedHighlightPhrases);
+  }, [useMarkdown, normalizedHighlightPhrases, visibleText]);
 
   const showSkipButton = streamingActive && !isComplete;
   const textBottomPaddingClass = showSkipButton
@@ -498,32 +491,48 @@ export function StreamingNarrative({
     </div>
   ) : null;
 
-  // For markdown: render completed text progressively
-  if (useMarkdown) {
-    const visibleText = visibleWords.join('');
-    return (
-      <div className={wrapperClassName} aria-live="off">
-        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-          {narrationStatusMessage}
-        </p>
-        {streamingOptInNotice}
-        {personalizedIntro}
-        {/* Container with min-height to prevent layout shift during streaming */}
-        <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[70ch] w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 mx-auto rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--md ${atmosphereClass} ${textBottomPaddingClass}`}>
-          <MarkdownRenderer
-            content={visibleText}
-            highlightPhrases={normalizedHighlightPhrases}
-            wordBoundary={wordBoundary}
-          />
-        </div>
-
-        {skipButton}
-      </div>
-    );
-  }
-
-  // For plain text: render words with streaming animation
   const EMPHASIS_POP_THRESHOLD = 8;
+  const narrativeBody = useMarkdown ? (
+    <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[70ch] w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 mx-auto rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--md ${atmosphereClass} ${textBottomPaddingClass}`}>
+      <MarkdownRenderer
+        content={visibleText}
+        highlightPhrases={normalizedHighlightPhrases}
+        wordBoundary={wordBoundary}
+      />
+    </div>
+  ) : (
+    <div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[68ch] mx-auto text-left min-h-[5.5rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--plain ${atmosphereClass} ${textBottomPaddingClass}`}>
+      {visibleWords.map((word, idx) => {
+        const meta = tokenMeta[idx] || { isWhitespace: /^\s+$/.test(word), isHighlighted: false };
+
+        if (meta.isWhitespace) {
+          // Render whitespace without animation
+          return <span key={idx}>{word}</span>;
+        }
+
+        const shouldPop = meta.isHighlighted && idx >= visibleCount - EMPHASIS_POP_THRESHOLD;
+        const isTtsWord = idx === ttsWordIndex && idx < visibleCount;
+
+        // Use CSS animation for word reveal to avoid JS bottleneck on long narratives
+        // Animate only the most recently revealed word(s) to match incremental reveal behavior
+        const revealWindowStart = Math.max(0, visibleCount - revealStep);
+        const isNewWord = idx >= revealWindowStart
+          && idx < visibleCount
+          && streamingActive
+          && !prefersReducedMotion
+          && !isSmallScreen;
+
+        return (
+          <span
+            key={idx}
+            className={`inline-block ${isNewWord ? 'narrative-word-reveal' : ''} ${meta.isHighlighted ? 'narrative-emphasis' : ''} ${shouldPop ? 'narrative-emphasis--pop' : ''} ${isTtsWord ? 'narrative-tts-word narrative-tts-word--active' : ''}`}
+          >
+            {word}
+          </span>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className={wrapperClassName} aria-live="off">
@@ -532,39 +541,7 @@ export function StreamingNarrative({
       </p>
       {streamingOptInNotice}
       {personalizedIntro}
-      {/* Mobile-optimized text with good line height and spacing - min-height prevents layout shift */}
-      <div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[68ch] mx-auto text-left min-h-[5.5rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--plain ${atmosphereClass} ${textBottomPaddingClass}`}>
-        {visibleWords.map((word, idx) => {
-          const meta = tokenMeta[idx] || { isWhitespace: /^\s+$/.test(word), isHighlighted: false };
-
-          if (meta.isWhitespace) {
-            // Render whitespace without animation
-            return <span key={idx}>{word}</span>;
-          }
-
-          const shouldPop = meta.isHighlighted && idx >= visibleCount - EMPHASIS_POP_THRESHOLD;
-          const isTtsWord = idx === ttsWordIndex && idx < visibleCount;
-          
-          // Use CSS animation for word reveal to avoid JS bottleneck on long narratives
-          // Animate only the most recently revealed word(s) to match incremental reveal behavior
-          const revealWindowStart = Math.max(0, visibleCount - revealStep);
-          const isNewWord = idx >= revealWindowStart
-            && idx < visibleCount
-            && streamingActive
-            && !prefersReducedMotion
-            && !isSmallScreen;
-
-          return (
-            <span
-              key={idx}
-              className={`inline-block ${isNewWord ? 'narrative-word-reveal' : ''} ${meta.isHighlighted ? 'narrative-emphasis' : ''} ${shouldPop ? 'narrative-emphasis--pop' : ''} ${isTtsWord ? 'narrative-tts-word narrative-tts-word--active' : ''}`}
-            >
-              {word}
-            </span>
-          );
-        })}
-      </div>
-
+      {narrativeBody}
       {skipButton}
     </div>
   );

@@ -715,46 +715,47 @@ export function ReadingDisplay({
 
     const shouldHighlightTtsWord = ttsProvider === 'azure-sdk' && ttsState?.status === 'playing';
     const activeWordBoundary = shouldHighlightTtsWord ? wordBoundary : null;
+    const narrativePanelProps = {
+        personalReading,
+        isPersonalReadingError,
+        narrativePhase,
+        narrativeText,
+        fullReadingText,
+        shouldStreamNarrative,
+        emotionalTone,
+        displayName,
+        userQuestion,
+        reading,
+        isHandset,
+        isLandscape,
+        focusToggleAvailable,
+        isNarrativeFocus,
+        setIsNarrativeFocus,
+        canAutoNarrate,
+        handleNarrationWrapper,
+        handleNarrationStop,
+        notifyCompletion,
+        narrativeHighlightPhrases,
+        narrativeAtmosphereClassName,
+        handleNarrativeHighlight,
+        notifySectionEnter,
+        activeWordBoundary,
+        voiceOn,
+        ttsState,
+        ttsProvider,
+        showVoicePrompt,
+        setShowVoicePrompt,
+        handleVoicePromptWrapper,
+        saveReading,
+        isSaving,
+        journalStatus,
+        shouldShowJournalNudge,
+        markJournalNudgeSeen,
+        hasHeroStoryArt,
+        isMobileStableMode
+    };
     const narrativePanel = personalReading ? (
-        <NarrativePanel
-            personalReading={personalReading}
-            isPersonalReadingError={isPersonalReadingError}
-            narrativePhase={narrativePhase}
-            narrativeText={narrativeText}
-            fullReadingText={fullReadingText}
-            shouldStreamNarrative={shouldStreamNarrative}
-            emotionalTone={emotionalTone}
-            displayName={displayName}
-            userQuestion={userQuestion}
-            reading={reading}
-            isHandset={isHandset}
-            isLandscape={isLandscape}
-            focusToggleAvailable={focusToggleAvailable}
-            isNarrativeFocus={isNarrativeFocus}
-            setIsNarrativeFocus={setIsNarrativeFocus}
-            canAutoNarrate={canAutoNarrate}
-            handleNarrationWrapper={handleNarrationWrapper}
-            handleNarrationStop={handleNarrationStop}
-            notifyCompletion={notifyCompletion}
-            narrativeHighlightPhrases={narrativeHighlightPhrases}
-            narrativeAtmosphereClassName={narrativeAtmosphereClassName}
-            handleNarrativeHighlight={handleNarrativeHighlight}
-            notifySectionEnter={notifySectionEnter}
-            activeWordBoundary={activeWordBoundary}
-            voiceOn={voiceOn}
-            ttsState={ttsState}
-            ttsProvider={ttsProvider}
-            showVoicePrompt={showVoicePrompt}
-            setShowVoicePrompt={setShowVoicePrompt}
-            handleVoicePromptWrapper={handleVoicePromptWrapper}
-            saveReading={saveReading}
-            isSaving={isSaving}
-            journalStatus={journalStatus}
-            shouldShowJournalNudge={shouldShowJournalNudge}
-            markJournalNudgeSeen={markJournalNudgeSeen}
-            hasHeroStoryArt={hasHeroStoryArt}
-            isMobileStableMode={isMobileStableMode}
-        />
+        <NarrativePanel {...narrativePanelProps} />
     ) : null;
 
     useEffect(() => {
