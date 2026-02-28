@@ -1,10 +1,9 @@
-import { NarrativeStagePanel } from './NarrativeStagePanel';
-
 export function NarrativeScene({
   children,
   sceneData = {}
 }) {
-  const narrativePanelProps = sceneData?.narrativePanelProps || null;
+  const narrativePanel = sceneData?.narrativePanel || null;
+  const hasNarrativePanel = Boolean(narrativePanel);
   const contentClassName =
     'scene-stage__panel scene-stage__panel--narrative relative z-[2] max-w-5xl mx-auto p-4 sm:p-6';
 
@@ -14,9 +13,8 @@ export function NarrativeScene({
       data-scene="narrative"
     >
       <div className={contentClassName}>
-        <NarrativeStagePanel narrativePanelProps={narrativePanelProps}>
-          {children}
-        </NarrativeStagePanel>
+        {narrativePanel}
+        {children ? (hasNarrativePanel ? <div className="mt-6 sm:mt-8">{children}</div> : children) : null}
       </div>
     </section>
   );

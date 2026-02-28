@@ -559,7 +559,7 @@ test.describe('Tarot Reading Flow - Mobile @mobile', () => {
     await expect(generateButton).toBeVisible({ timeout: 5000 });
   });
 
-  test('mobile narrative uses a single follow-up trigger and collapsed guidance', async ({ page }) => {
+  test('mobile narrative keeps one follow-up trigger and shows safety guidance', async ({ page }) => {
     await selectSpread(page, 'One-Card');
 
     const questionInput = page.locator('textarea').first();
@@ -576,9 +576,8 @@ test.describe('Tarot Reading Flow - Mobile @mobile', () => {
     await expect(followUpTrigger).toHaveCount(1);
     await expect(page.getByText(/continue with a follow-up chat/i)).toHaveCount(0);
 
-    const guidanceToggle = page.getByRole('button', { name: /narrative style & guidance/i });
-    await expect(guidanceToggle).toBeVisible();
-    await expect(page.getByText(/this narrative braids together your spread positions/i)).not.toBeVisible();
+    await expect(page.getByText(/this narrative braids together your spread positions/i)).toBeVisible();
+    await expect(page.getByText(/reflective guidance only/i)).toBeVisible();
   });
 });
 

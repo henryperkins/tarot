@@ -2,7 +2,6 @@ import { ArrowCounterClockwise, ChatCircle } from '@phosphor-icons/react';
 import { MediaGallery } from '../MediaGallery';
 import { FeedbackPanel } from '../FeedbackPanel';
 import FollowUpModal from '../FollowUpModal';
-import { NarrativeStagePanel } from './NarrativeStagePanel';
 
 const USAGE_BADGE_CLASSES = {
   used: 'border-[color:rgb(var(--status-success-rgb)/0.45)] bg-[color:rgb(var(--status-success-rgb)/0.12)] text-[color:rgb(var(--status-success-rgb)/0.95)]',
@@ -98,7 +97,12 @@ export function CompleteScene({
   children
 }) {
   const {
-    narrativePanelProps,
+    narrativePanel,
+    personalReading,
+    isPersonalReadingError,
+    narrativePhase,
+    isHandset,
+    userQuestion,
     isShuffling,
     shuffle,
     readingMeta,
@@ -117,11 +121,6 @@ export function CompleteScene({
     setFollowUpOpen,
     followUpAutoFocus
   } = sceneData;
-  const personalReading = narrativePanelProps?.personalReading;
-  const isPersonalReadingError = Boolean(narrativePanelProps?.isPersonalReadingError);
-  const narrativePhase = narrativePanelProps?.narrativePhase;
-  const isHandset = Boolean(narrativePanelProps?.isHandset);
-  const userQuestion = narrativePanelProps?.userQuestion;
   const sourceUsage = formatUsageSummary(readingMeta?.sourceUsage);
   const sourceUsageRows = sourceUsage.rows;
 
@@ -131,9 +130,8 @@ export function CompleteScene({
       data-scene="complete"
     >
       <div className="scene-stage__panel scene-stage__panel--complete relative z-[2] max-w-5xl mx-auto p-4 sm:p-6">
-        <NarrativeStagePanel narrativePanelProps={narrativePanelProps}>
-          {personalReading ? children : null}
-        </NarrativeStagePanel>
+        {narrativePanel}
+        {narrativePanel && personalReading && children ? <div className="mt-6 sm:mt-8">{children}</div> : null}
 
         {personalReading && !isPersonalReadingError && narrativePhase === 'complete' && !isHandset && (
           <div className="w-full max-w-2xl mx-auto mt-6">

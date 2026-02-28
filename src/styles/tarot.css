@@ -980,8 +980,8 @@ body {
 
 @supports (-webkit-touch-callout: none) {
   @media (max-width: 639px) {
-    .scene-stage__panel,
-    .narrative-panel--stable {
+    .mobile-stable-mode .scene-stage__panel,
+    .mobile-stable-mode .narrative-panel--stable {
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
       background: color-mix(in srgb, var(--bg-surface) 94%, var(--bg-main));

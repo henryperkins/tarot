@@ -4,7 +4,7 @@ import { Sparkle, BookmarkSimple } from '@phosphor-icons/react';
 import { StreamingNarrative } from './StreamingNarrative';
 import { NarrationProgress } from './NarrationProgress';
 import { NarrationStatus, NarrationError } from './NarrationStatus';
-import { NarrativeGuidancePanel } from './NarrativeGuidancePanel';
+import { NarrativeSafetyNotice } from './NarrativeSafetyNotice';
 import { JournalNudge } from './nudges';
 
 function getNarrationLabels(narrationState) {
@@ -138,9 +138,6 @@ export function NarrativePanel({
   focusToggleAvailable,
   isNarrativeFocus,
   setIsNarrativeFocus,
-  toneLabel,
-  frameLabel,
-  isNewbie,
   canAutoNarrate,
   handleNarrationWrapper,
   handleNarrationStop,
@@ -192,17 +189,6 @@ export function NarrativePanel({
       }
     });
   };
-  const guidancePanel = (
-    <NarrativeGuidancePanel
-      toneLabel={toneLabel}
-      frameLabel={frameLabel}
-      isHandset={isHandset}
-      isNewbie={isNewbie}
-      defaultOpen={isHandset ? false : undefined}
-      compact
-      className="max-w-3xl mx-auto"
-    />
-  );
   const desktopAnchor = !isHandset && userQuestion ? (
     <div className="bg-surface/85 rounded-lg px-3 xxs:px-4 py-3 border border-secondary/40">
       <p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {userQuestion}</p>
@@ -236,9 +222,9 @@ export function NarrativePanel({
         </div>
 
         {desktopAnchor}
-
-        {!isHandset ? guidancePanel : null}
       </div>
+
+      <NarrativeSafetyNotice className="max-w-3xl mx-auto mt-4" compact={isHandset} />
 
       <StreamingNarrative
         className={`max-w-3xl mx-auto mt-4 sm:mt-5 ${hasHeroStoryArt ? 'glass-panel' : ''}`}
@@ -258,7 +244,6 @@ export function NarrativePanel({
         atmosphereClassName={narrativeAtmosphereClassName}
       />
       {mobileAnchor}
-      {isHandset ? <div className="mt-3">{guidancePanel}</div> : null}
 
       <div className="mt-4 max-w-3xl mx-auto space-y-4">
         {showNarrationStatus ? (
@@ -331,9 +316,6 @@ NarrativePanel.propTypes = {
   focusToggleAvailable: PropTypes.bool,
   isNarrativeFocus: PropTypes.bool,
   setIsNarrativeFocus: PropTypes.func,
-  toneLabel: PropTypes.string,
-  frameLabel: PropTypes.string,
-  isNewbie: PropTypes.bool,
   canAutoNarrate: PropTypes.bool,
   handleNarrationWrapper: PropTypes.func,
   handleNarrationStop: PropTypes.func,

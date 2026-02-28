@@ -6,7 +6,8 @@ import { ParticleLayer } from './ParticleLayer';
 import { SpreadPatterns } from './SpreadPatterns';
 import { VisionValidationPanel } from './VisionValidationPanel';
 import { CardModal } from './CardModal';
-import { NarrativeGuidancePanel } from './NarrativeGuidancePanel';
+import { NarrativePanel } from './NarrativePanel';
+import { NarrativeSafetyNotice } from './NarrativeSafetyNotice';
 import { MoonPhaseIndicator } from './MoonPhaseIndicator';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
@@ -279,7 +280,6 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
 
 export function ReadingDisplay({
     sectionRef,
-    onOpenFollowUp,
     followUpOpen,
     onFollowUpOpenChange,
     followUpAutoFocus = true,
@@ -491,20 +491,12 @@ export function ReadingDisplay({
     } = usePreferences();
     const displayName = personalization?.displayName?.trim();
     const _isExperienced = personalization?.tarotExperience === 'experienced';
-    const isNewbie = personalization?.tarotExperience === 'newbie';
-    const readingTone = personalization?.readingTone || 'balanced';
-    const spiritualFrame = personalization?.spiritualFrame || 'mixed';
     const { isAuthenticated } = useAuth();
-
-    // Labels for narrative styling
-    const TONE_LABELS = { gentle: 'Gentle', balanced: 'Balanced', blunt: 'Direct' };
-    const FRAME_LABELS = { psychological: 'Psychological', spiritual: 'Spiritual', mixed: 'Balanced', playful: 'Playful' };
-    const toneLabel = TONE_LABELS[readingTone] || 'Balanced';
-    const frameLabel = FRAME_LABELS[spiritualFrame] || 'Balanced';
 
     const {
         visionResearch: visionResearchEnabled,
-        newDeckInterface
+        newDeckInterface,
+        autoGenerateVisuals: autoGenerateVisualsEnabled
     } = useFeatureFlags();
     const isLandscape = useLandscape();
     const isHandsetLayout = useHandsetLayout();
@@ -632,6 +624,7 @@ export function ReadingDisplay({
     const canAutoGenerateVisuals = effectiveTier === 'plus' || effectiveTier === 'pro';
     const canUseMediaGallery = isAuthenticated && canAutoGenerateVisuals;
     const autoGenerateVisuals = Boolean(
+        autoGenerateVisualsEnabled &&
         canAutoGenerateVisuals &&
         personalReading &&
         !isPersonalReadingError &&
@@ -722,49 +715,47 @@ export function ReadingDisplay({
 
     const shouldHighlightTtsWord = ttsProvider === 'azure-sdk' && ttsState?.status === 'playing';
     const activeWordBoundary = shouldHighlightTtsWord ? wordBoundary : null;
-    const narrativePanelProps = {
-        personalReading,
-        isPersonalReadingError,
-        narrativePhase,
-        narrativeText,
-        fullReadingText,
-        shouldStreamNarrative,
-        emotionalTone,
-        displayName,
-        userQuestion,
-        reading,
-        isHandset,
-        isLandscape,
-        focusToggleAvailable,
-        isNarrativeFocus,
-        setIsNarrativeFocus,
-        toneLabel,
-        frameLabel,
-        isNewbie,
-        canAutoNarrate,
-        handleNarrationWrapper,
-        handleNarrationStop,
-        notifyCompletion,
-        narrativeHighlightPhrases,
-        narrativeAtmosphereClassName,
-        handleNarrativeHighlight,
-        notifySectionEnter,
-        activeWordBoundary,
-        voiceOn,
-        ttsState,
-        ttsProvider,
-        showVoicePrompt,
-        setShowVoicePrompt,
-        handleVoicePromptWrapper,
-        saveReading,
-        isSaving,
-        journalStatus,
-        shouldShowJournalNudge,
-        markJournalNudgeSeen,
-        hasHeroStoryArt,
-        onOpenFollowUp,
-        isMobileStableMode
-    };
+    const narrativePanel = personalReading ? (
+        <NarrativePanel
+            personalReading={personalReading}
+            isPersonalReadingError={isPersonalReadingError}
+            narrativePhase={narrativePhase}
+            narrativeText={narrativeText}
+            fullReadingText={fullReadingText}
+            shouldStreamNarrative={shouldStreamNarrative}
+            emotionalTone={emotionalTone}
+            displayName={displayName}
+            userQuestion={userQuestion}
+            reading={reading}
+            isHandset={isHandset}
+            isLandscape={isLandscape}
+            focusToggleAvailable={focusToggleAvailable}
+            isNarrativeFocus={isNarrativeFocus}
+            setIsNarrativeFocus={setIsNarrativeFocus}
+            canAutoNarrate={canAutoNarrate}
+            handleNarrationWrapper={handleNarrationWrapper}
+            handleNarrationStop={handleNarrationStop}
+            notifyCompletion={notifyCompletion}
+            narrativeHighlightPhrases={narrativeHighlightPhrases}
+            narrativeAtmosphereClassName={narrativeAtmosphereClassName}
+            handleNarrativeHighlight={handleNarrativeHighlight}
+            notifySectionEnter={notifySectionEnter}
+            activeWordBoundary={activeWordBoundary}
+            voiceOn={voiceOn}
+            ttsState={ttsState}
+            ttsProvider={ttsProvider}
+            showVoicePrompt={showVoicePrompt}
+            setShowVoicePrompt={setShowVoicePrompt}
+            handleVoicePromptWrapper={handleVoicePromptWrapper}
+            saveReading={saveReading}
+            isSaving={isSaving}
+            journalStatus={journalStatus}
+            shouldShowJournalNudge={shouldShowJournalNudge}
+            markJournalNudgeSeen={markJournalNudgeSeen}
+            hasHeroStoryArt={hasHeroStoryArt}
+            isMobileStableMode={isMobileStableMode}
+        />
+    ) : null;
 
     useEffect(() => {
         if (!personalReading) {
@@ -1327,7 +1318,7 @@ export function ReadingDisplay({
         followUpOpen: isFollowUpOpen,
         setFollowUpOpen: setIsFollowUpOpen,
         followUpAutoFocus,
-        narrativePanelProps,
+        narrativePanel,
         isMobileStableMode
     };
 
@@ -1463,13 +1454,7 @@ export function ReadingDisplay({
 
                     {!personalReading && !isGenerating && (
                         <div className="bg-surface/95 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-secondary/40 max-w-full sm:max-w-5xl mx-auto">
-                            <NarrativeGuidancePanel
-                                toneLabel={toneLabel}
-                                frameLabel={frameLabel}
-                                isHandset={isHandset}
-                                isNewbie={isNewbie}
-                                className="max-w-3xl mx-auto"
-                            />
+                            <NarrativeSafetyNotice className="max-w-3xl mx-auto" compact={isHandset} />
                         </div>
                     )}
 
