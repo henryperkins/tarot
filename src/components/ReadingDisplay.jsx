@@ -1,13 +1,12 @@
-import { useCallback, useMemo, useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkle, ArrowCounterClockwise } from '@phosphor-icons/react';
+import { ArrowCounterClockwise } from '@phosphor-icons/react';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { ParticleLayer } from './ParticleLayer';
-import { SpreadPatterns } from './SpreadPatterns';
 import { VisionValidationPanel } from './VisionValidationPanel';
 import { CardModal } from './CardModal';
 import { NarrativePanel } from './NarrativePanel';
-import { NarrativeSafetyNotice } from './NarrativeSafetyNotice';
+import { NarrativeReadingSurface } from './NarrativeReadingSurface';
 import { MoonPhaseIndicator } from './MoonPhaseIndicator';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
@@ -41,9 +40,6 @@ import {
     NarrativeScene,
     CompleteScene
 } from './scenes';
-
-const AnimatedReveal = lazy(() => import('./AnimatedReveal'));
-const StoryIllustration = lazy(() => import('./StoryIllustration'));
 const COLOR_SCRIPT_OWNER = 'reading-display';
 const SCENE_COMPONENTS = {
     idle: ({ children }) => (
@@ -1375,99 +1371,32 @@ export function ReadingDisplay({
                     className={sceneShellClassName}
                 >
                     <div className={isLandscape ? 'space-y-4' : 'space-y-8'}>
-                    {shouldShowVisualCompanion && (
-                        <div className="bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/30 max-w-full sm:max-w-5xl mx-auto overflow-hidden">
-                            <div className="px-4 sm:px-6 py-4 border-b border-secondary/25 bg-gradient-to-r from-primary/10 via-surface/40 to-accent/10">
-                                <div className="flex items-center justify-between gap-3 flex-wrap">
-                                    <h3 className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight">
-                                        <Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
-                                        Visual Companion Studio
-                                    </h3>
-                                    <span className="rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-2xs sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted">
-                                        {visualCompanionModeLabel}
-                                    </span>
-                                </div>
-                                <p className="text-xs sm:text-sm text-muted mt-2">
-                                    {visualCompanionMessage}
-                                </p>
-                            </div>
-                            <div className={`p-4 sm:p-6 grid gap-4 ${shouldShowCinematicReveal && shouldShowStoryIllustration ? 'lg:grid-cols-2' : ''}`}>
-                                {shouldShowCinematicReveal ? (
-                                    <div className="rounded-xl border border-secondary/30 bg-surface/70 p-4 sm:p-5">
-                                        <div className="flex items-center justify-between gap-3 flex-wrap">
-                                            <h4 className="text-sm sm:text-base font-semibold text-main">
-                                                Cinematic Reveal
-                                            </h4>
-                                            <span className="text-2xs sm:text-xs text-muted">
-                                                {cinematicPosition}
-                                            </span>
-                                        </div>
-                                        <p className="text-xs sm:text-sm text-muted mt-2">
-                                            {cinematicRevealMessage}
-                                        </p>
-                                        <Suspense fallback={<div className="mt-4 rounded-xl border border-secondary/30 bg-surface/70 p-4 text-xs text-muted">Loading cinematic module...</div>}>
-                                            <AnimatedReveal
-                                                key={`cinematic-${readingIdentity}`}
-                                                card={cinematicCard}
-                                                position={cinematicPosition}
-                                                question={resolvedQuestion}
-                                                userTier={effectiveTier}
-                                                autoGenerate={autoGenerateVisuals}
-                                                onVideoReady={handleCinematicMediaReady}
-                                                className="mt-4"
-                                            />
-                                        </Suspense>
-                                    </div>
-                                ) : null}
-
-                                {shouldShowStoryIllustration ? (
-                                    <div className="rounded-xl border border-secondary/30 bg-surface/70 p-4 sm:p-5">
-                                        <div className="flex items-center justify-between gap-3 flex-wrap">
-                                            <h4 className="text-sm sm:text-base font-semibold text-main">
-                                                Narrative Illustration
-                                            </h4>
-                                            <span className="text-2xs sm:text-xs text-muted">
-                                                {storyArtCards.length} cards
-                                            </span>
-                                        </div>
-                                        <p className="text-xs sm:text-sm text-muted mt-2">
-                                            Uses your full reading text and spread context.
-                                        </p>
-                                        <Suspense fallback={<div className="mt-4 rounded-xl border border-secondary/30 bg-surface/70 p-4 text-xs text-muted">Loading illustration tools...</div>}>
-                                            <StoryIllustration
-                                                cards={storyArtCards}
-                                                question={resolvedQuestion}
-                                                narrative={fullReadingText || narrativeText}
-                                                userTier={effectiveTier}
-                                                autoGenerate={autoGenerateVisuals}
-                                                generationKey={readingIdentity}
-                                                onMediaReady={handleStoryArtMediaReady}
-                                                heroMode
-                                                embedded
-                                                className="mt-4"
-                                            />
-                                        </Suspense>
-                                    </div>
-                                ) : null}
-                            </div>
-                        </div>
-                    )}
-
-                    {!personalReading && !isGenerating && (
-                        <div className="bg-surface/95 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-secondary/40 max-w-full sm:max-w-5xl mx-auto">
-                            <NarrativeSafetyNotice className="max-w-3xl mx-auto" compact={isHandset} />
-                        </div>
-                    )}
-
-                    {shouldShowSpreadInsights && (
-                        <div className="w-full max-w-5xl mx-auto">
-                            <SpreadPatterns
-                                themes={themes}
-                                spreadHighlights={highlightItems}
-                                passages={traditionalPassages}
-                            />
-                        </div>
-                    )}
+                        <NarrativeReadingSurface
+                            shouldShowVisualCompanion={shouldShowVisualCompanion}
+                            shouldShowCinematicReveal={shouldShowCinematicReveal}
+                            shouldShowStoryIllustration={shouldShowStoryIllustration}
+                            visualCompanionModeLabel={visualCompanionModeLabel}
+                            visualCompanionMessage={visualCompanionMessage}
+                            cinematicPosition={cinematicPosition}
+                            cinematicRevealMessage={cinematicRevealMessage}
+                            readingIdentity={readingIdentity}
+                            cinematicCard={cinematicCard}
+                            resolvedQuestion={resolvedQuestion}
+                            effectiveTier={effectiveTier}
+                            autoGenerateVisuals={autoGenerateVisuals}
+                            onCinematicMediaReady={handleCinematicMediaReady}
+                            storyArtCards={storyArtCards}
+                            fullReadingText={fullReadingText}
+                            narrativeText={narrativeText}
+                            onStoryArtMediaReady={handleStoryArtMediaReady}
+                            personalReading={personalReading}
+                            isGenerating={isGenerating}
+                            isHandset={isHandset}
+                            shouldShowSpreadInsights={shouldShowSpreadInsights}
+                            themes={themes}
+                            highlightItems={highlightItems}
+                            traditionalPassages={traditionalPassages}
+                        />
 
                     </div>
                 </SceneShell>

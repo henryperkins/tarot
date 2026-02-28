@@ -1,4 +1,4 @@
-export function NarrativeStageContent({
+export function renderNarrativeStage({
   narrativePanel = null,
   children = null,
   showChildren = true
