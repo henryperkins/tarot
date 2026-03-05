@@ -200,7 +200,11 @@ function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSem
       semanticScoringAttempted: false,
       qualityMetrics,
       reason,
-      skippedReason: reason === 'graphrag-disabled-env' ? 'disabled_by_env' : 'retrieval_failed_or_empty'
+      skippedReason: reason === 'graphrag-disabled-env'
+        ? 'disabled_by_env'
+        : reason === 'missing-graph-keys'
+          ? 'no_patterns_detected'
+          : 'retrieval_failed_or_empty'
     },
     maxPassages: 0,
     initialPassageCount: 0,

@@ -421,7 +421,7 @@ export function resolveGraphRAGStats(analysis, promptMeta = null) {
         result.skippedReason = 'disabled_by_env';
       } else if (summary.reason === 'missing-graph-keys') {
         result.disabledByEnv = false;
-        result.skippedReason = 'retrieval_failed_or_empty';
+        result.skippedReason = 'no_patterns_detected';
       }
       // Keep original reason field for debugging
     }
