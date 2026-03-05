@@ -85,14 +85,17 @@ export async function buildDecisionReading({
   const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
   const nameInline = buildNameClause(personalization?.displayName, 'inline');
   const proseOptions = { proseMode: options.proseMode === true };
+  const hasUserQuestion = typeof userQuestion === 'string' && userQuestion.trim().length > 0;
 
   // Use reasoning-aware opening if available
-  const openingQuestion = userQuestion ||
-    'This spread illuminates the heart of your decision, two possible paths, clarifying insight, and a reminder of your agency.';
+  const openingQuestion = hasUserQuestion ? userQuestion : '';
   const opening = reasoning
     ? buildReasoningAwareOpening(spreadName, openingQuestion, context, reasoning, { personalization: options.personalization })
     : buildOpening(spreadName, openingQuestion, context, { personalization: options.personalization });
   sections.push(opening);
+  if (!hasUserQuestion) {
+    sections.push('This spread illuminates the heart of your decision, two possible paths, clarifying insight, and a reminder of your agency.');
+  }
 
   const normalizedCards = cardsInfo;
   const prioritized = sortCardsByImportance(normalizedCards, 'decision');

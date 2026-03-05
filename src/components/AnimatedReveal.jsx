@@ -851,7 +851,7 @@ export default function AnimatedReveal({
   }
   
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative w-full min-w-0 ${className}`}>
       {/* Video display */}
       {videoData && (
         <div
@@ -894,7 +894,7 @@ export default function AnimatedReveal({
               </button>
 
               {showStylePicker && (
-                <div className="flex gap-2 justify-center mt-2">
+                <div className="flex flex-wrap gap-2 justify-center mt-2">
                   {availableStyles.map(s => (
                     <button
                       key={s.id}

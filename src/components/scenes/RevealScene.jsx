@@ -1,12 +1,14 @@
 import { Sparkle } from '@phosphor-icons/react';
 import { ReadingBoard } from '../ReadingBoard';
+import { getSceneModel } from './sceneModelUtils';
 
 export function RevealScene({
   title = 'Reveal',
   showTitle = true,
   className = '',
-  sceneData = {}
+  sceneModels = {}
 }) {
+  const revealModel = getSceneModel(sceneModels, 'revealModel');
   const {
     spreadName,
     visibleCount,
@@ -36,7 +38,7 @@ export function RevealScene({
     generatePersonalReading,
     hasVisionData,
     isVisionReady
-  } = sceneData;
+  } = revealModel;
 
   if (!reading) return null;
 

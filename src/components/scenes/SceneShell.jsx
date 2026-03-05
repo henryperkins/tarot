@@ -76,7 +76,7 @@ const TRANSITION_PROFILES = {
 export function SceneShell({
   orchestrator,
   scenes = {},
-  sceneData = {},
+  sceneModels = {},
   className = '',
   colorScript = null,
   colorScriptOwner = 'scene-shell',
@@ -249,12 +249,15 @@ export function SceneShell({
   const shouldRenderSceneParticles = !(isMobileStableMode && (activeScene === 'narrative' || activeScene === 'complete'));
 
   const sceneContext = useMemo(() => ({
+    activeScene,
     currentScene: activeScene,
     transitionTo: orchestrator?.transitionTo || (() => {}),
     dispatch: orchestrator?.dispatch || (() => {}),
     transitionMeta,
-    sceneData
-  }), [activeScene, orchestrator?.dispatch, orchestrator?.transitionTo, sceneData, transitionMeta]);
+    sceneModels,
+    // Transitional alias while consumers migrate from sceneData naming.
+    sceneData: sceneModels
+  }), [activeScene, orchestrator?.dispatch, orchestrator?.transitionTo, sceneModels, transitionMeta]);
 
   return (
     <SceneContext.Provider value={sceneContext}>
@@ -279,9 +282,9 @@ export function SceneShell({
           <ParticleLayer
             id={`scene-shell-particles-${activeScene}`}
             preset={particlePreset}
-            suit={sceneData?.dominantSuit}
-            element={sceneData?.dominantElement}
-            intensity={sceneData?.particleIntensity || 1}
+            suit={sceneModels?.sceneVisuals?.dominantSuit}
+            element={sceneModels?.sceneVisuals?.dominantElement}
+            intensity={sceneModels?.sceneVisuals?.particleIntensity || 1}
             zIndex={1}
           />
         ) : null}
@@ -295,7 +298,7 @@ export function SceneShell({
           aria-hidden="true"
         />
         <div ref={contentRef} className="relative z-[3]">
-          {ActiveScene ? <ActiveScene sceneData={sceneData}>{children}</ActiveScene> : children}
+          {ActiveScene ? <ActiveScene sceneModels={sceneModels}>{children}</ActiveScene> : children}
         </div>
       </div>
     </SceneContext.Provider>

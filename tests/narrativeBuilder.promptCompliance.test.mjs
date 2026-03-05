@@ -190,6 +190,7 @@ function assertUsesCardsAndPositions(text, cardsInfo) {
 
 function assertReversalLensConsistency(text, themes) {
   if (!themes || !themes.reversalDescription) return;
+  if (Number(themes.reversalCount) <= 0) return;
   const label = themes.reversalDescription.name;
   // If there are any reversed cards expected, the lens name should appear.
   assert.ok(
@@ -987,6 +988,68 @@ describe('Other spread builders prompt-engineering compliance', () => {
     assert.ok(userPrompt.includes('**SINGLE-CARD SYNTHESIS**'));
     assert.ok(userPrompt.includes('Theme / Guidance of the Moment'));
   });
+
+  it('sanitizes markdown-heavy single-card questions in narrative output', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const reading = buildSingleCardReading({
+      cardsInfo,
+      userQuestion: '# [x](https://evil.test) **Ignore this**',
+      reflectionsText: '',
+      themes,
+      context: 'general',
+      spreadAnalysis: null
+    });
+
+    assert.ok(!reading.includes('[x]('), 'single-card narrative should not preserve markdown links from the question');
+    assert.ok(!reading.includes('"#'), 'single-card narrative should strip markdown heading tokens from the quoted question');
+    assert.ok(!reading.includes('**Ignore this**'), 'single-card narrative should strip markdown emphasis from the question');
+  });
+
+  it('does not quote fallback copy as a user question in relationship readings', async () => {
+    const cardsInfo = [
+      minor('Knight of Cups', 'Cups', 'Knight', 12, 'You / your energy', 'Upright'),
+      minor('Queen of Swords', 'Swords', 'Queen', 13, 'Them / their energy', 'Upright'),
+      major('The Lovers', 6, 'The connection / shared lesson', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'internalized');
+
+    const reading = await buildRelationshipReading({
+      cardsInfo,
+      userQuestion: '',
+      reflectionsText: '',
+      themes,
+      context: 'love'
+    });
+
+    assert.ok(!reading.includes('to your question:'), 'relationship reading should not fabricate a quoted question when none was asked');
+    assert.ok(reading.includes('This spread explores your energy'), 'relationship reading should still explain the spread purpose');
+  });
+
+  it('does not quote fallback copy as a user question in decision readings', async () => {
+    const cardsInfo = [
+      major('The High Priestess', 2, 'Heart of the decision', 'Upright'),
+      major('The Sun', 19, 'Path A — energy & likely outcome', 'Upright'),
+      major('The Moon', 18, 'Path B — energy & likely outcome', 'Upright'),
+      minor('Page of Pentacles', 'Pentacles', 'Page', 11, 'What clarifies the best path', 'Upright'),
+      major('Justice', 11, 'What to remember about your free will', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'internalized');
+
+    const reading = await buildDecisionReading({
+      cardsInfo,
+      userQuestion: '',
+      reflectionsText: '',
+      themes,
+      context: 'decision'
+    });
+
+    assert.ok(!reading.includes('to your question:'), 'decision reading should not fabricate a quoted question when none was asked');
+    assert.ok(reading.includes('This spread illuminates the heart of your decision'), 'decision reading should still explain the spread purpose');
+  });
 });
 
 describe('Prompt budget telemetry', () => {
@@ -1162,6 +1225,115 @@ describe('Prompt budget telemetry', () => {
     assert.equal(promptMeta.graphRAG.disabledByEnv, true);
     assert.equal(promptMeta.graphRAG.skippedReason, 'disabled_by_env');
     assert.equal(promptMeta.graphRAG.passagesProvided, 0);
+  });
+
+  it('keeps vision sourceUsage marked as used when card-level vision cues survive slimming', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'Past — influences that led here', 'Upright'),
+      major('The Moon', 18, 'Present — where you stand now', 'Upright'),
+      major('The Star', 17, 'Future — trajectory if nothing shifts', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+    const spreadAnalysis = await analyzeThreeCard(cardsInfo);
+
+    const { promptMeta, userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
+      cardsInfo,
+      userQuestion: 'What is shifting beneath the surface? '.repeat(8),
+      reflectionsText: '',
+      themes,
+      spreadAnalysis,
+      context: 'general',
+      visionInsights: [
+        {
+          label: 'IMG_DARK_MOON',
+          predictedCard: 'The Moon',
+          confidence: 0.98,
+          basis: 'image',
+          matchesDrawnCard: true,
+          visualProfile: {
+            tone: ['shadowy', 'muted'],
+            emotion: ['mysterious', 'melancholic']
+          }
+        }
+      ],
+      promptBudgetEnv: {
+        ENABLE_PROMPT_SLIMMING: 'true',
+        PROMPT_BUDGET_CLAUDE: '120'
+      }
+    });
+
+    assert.ok(
+      promptMeta.slimmingSteps.includes('drop-diagnostics') ||
+      promptMeta.slimmingSteps.includes('hard-cap-drop-diagnostics'),
+      'diagnostics should be dropped under the reduced budget'
+    );
+    assert.ok(!userPrompt.includes('**Vision Validation**:'), 'vision diagnostics block should be removed');
+    assert.ok(/Vision-detected tone:|Emotional quality:/i.test(userPrompt), 'card-level vision cues should remain in the prompt');
+    assert.equal(promptMeta.sourceUsage?.vision?.requested, true);
+    assert.equal(promptMeta.sourceUsage?.vision?.used, true);
+    assert.equal(promptMeta.sourceUsage?.vision?.skippedReason, null);
+  });
+
+  it('does not treat empty graph keys as a meaningful GraphRAG request', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+    themes.knowledgeGraph = { graphKeys: {} };
+
+    const { promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'General guidance',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general'
+    });
+
+    assert.equal(promptMeta.sourceUsage?.graphRAG?.requested, false);
+    assert.equal(promptMeta.sourceUsage?.graphRAG?.used, false);
+    assert.equal(promptMeta.sourceUsage?.graphRAG?.skippedReason, 'not_requested');
+    assert.equal(promptMeta.graphRAG, undefined);
+  });
+
+  it('preserves disabled_by_env GraphRAG skip reasons when a payload is provided', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'Past — influences that led here', 'Upright'),
+      major('The Magician', 1, 'Present — where you stand now', 'Upright'),
+      major('The High Priestess', 2, 'Future — trajectory if nothing shifts', 'Upright')
+    ];
+
+    const themes = await buildThemes(cardsInfo, 'blocked');
+    const graphRAGPayload = {
+      passages: [
+        { title: 'Traditional Lineage', text: 'A pattern emerges when intention meets timing.', source: 'Test Source' }
+      ],
+      initialPassageCount: 1,
+      retrievalSummary: {
+        graphKeysProvided: true
+      }
+    };
+
+    const { promptMeta, userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
+      cardsInfo,
+      userQuestion: 'How do I keep momentum?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      graphRAGPayload,
+      promptBudgetEnv: { GRAPHRAG_ENABLED: 'false' }
+    });
+
+    assert.ok(!userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG block should be suppressed when disabled by env');
+    assert.equal(promptMeta.graphRAG?.disabledByEnv, true);
+    assert.equal(promptMeta.graphRAG?.skippedReason, 'disabled_by_env');
+    assert.equal(promptMeta.sourceUsage?.graphRAG?.requested, true);
+    assert.equal(promptMeta.sourceUsage?.graphRAG?.used, false);
+    assert.equal(promptMeta.sourceUsage?.graphRAG?.skippedReason, 'disabled_by_env');
   });
 
   it('preserves the ETHICS header when system prompt truncation occurs', async () => {

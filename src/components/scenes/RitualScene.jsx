@@ -1,13 +1,15 @@
 import { DeckPile } from '../DeckPile';
 import { DeckRitual } from '../DeckRitual';
 import { RitualNudge } from '../nudges';
+import { getSceneModel } from './sceneModelUtils';
 
 export function RitualScene({
   title = 'Ritual',
   showTitle = true,
   className = '',
-  sceneData = {}
+  sceneModels = {}
 }) {
+  const ritualModel = getSceneModel(sceneModels, 'ritualModel');
   const {
     reading,
     revealedCards,
@@ -30,7 +32,7 @@ export function RitualScene({
     deckRef,
     revealStage,
     dealNext
-  } = sceneData;
+  } = ritualModel;
 
   if (!reading || !revealedCards || revealedCards.size >= visibleCount) return null;
 

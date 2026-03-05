@@ -8,6 +8,7 @@ import {
 import {
   buildCelticCrossReading,
   buildEnhancedClaudePrompt,
+  buildSingleCardReading,
   buildThreeCardReading,
   buildPositionCardText
 } from '../functions/lib/narrativeBuilder.js';
@@ -165,6 +166,67 @@ async function buildBlockedThemes(cardsInfo) {
   assert.ok(
     /At this rank, it marks/.test(text),
     'Minor summary should include pip-level numerology for non-court ranks'
+  );
+})();
+
+(async () => {
+  const singleCard = [
+    {
+      position: 'Theme / Guidance of the Moment',
+      card: 'The Star',
+      orientation: 'Upright',
+      meaning: 'Hope, healing, and renewal.',
+      number: 17
+    }
+  ];
+  const singleThemes = await buildBlockedThemes(singleCard);
+  const singleReading = buildSingleCardReading({
+    cardsInfo: singleCard,
+    userQuestion: 'What should I trust right now?',
+    reflectionsText: '',
+    themes: singleThemes
+  });
+
+  assert.ok(
+    !singleReading.includes('Reversal lens reminder'),
+    'Single-card upright-only readings should not append a reversal reminder'
+  );
+
+  const threeCardUpright = [
+    {
+      position: 'Past — influences that led here',
+      card: 'The Fool',
+      orientation: 'Upright',
+      meaning: 'New beginnings.',
+      number: 0
+    },
+    {
+      position: 'Present — where you stand now',
+      card: 'The Magician',
+      orientation: 'Upright',
+      meaning: 'Focused will.',
+      number: 1
+    },
+    {
+      position: 'Future — trajectory if nothing shifts',
+      card: 'The High Priestess',
+      orientation: 'Upright',
+      meaning: 'Intuition deepens.',
+      number: 2
+    }
+  ];
+  const uprightThemes = await buildBlockedThemes(threeCardUpright);
+  const uprightReading = await buildThreeCardReading({
+    cardsInfo: threeCardUpright,
+    userQuestion: 'What is unfolding right now?',
+    reflectionsText: '',
+    threeCardAnalysis: null,
+    themes: uprightThemes
+  });
+
+  assert.ok(
+    !uprightReading.includes('Reversal lens reminder'),
+    'Three-card upright-only readings should not append a reversal reminder'
   );
 })();
 

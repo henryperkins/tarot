@@ -320,6 +320,14 @@ describe('stripResponseEchoContent', () => {
     assert.equal(result, text);
   });
 
+  test('redacts direct echoed trajectory labels that still contain the quoted question', () => {
+    const text = 'Outcome — likely path for "How do I handle this relationship?" if unchanged';
+    const result = stripResponseEchoContent(text);
+
+    assert.ok(result.includes('[USER_QUESTION_REDACTED]'));
+    assert.ok(!result.includes('How do I handle this relationship?'));
+  });
+
   test('redacts direct echoed question markers', () => {
     const text = '**Question**: How do I handle this conflict with Alex?';
     const result = stripResponseEchoContent(text);
@@ -436,6 +444,47 @@ describe('buildPromptEngineeringPayload', () => {
       'Response narrative phrasing should remain when it is not a prompt echo'
     );
   });
+
+  test('redacts direct echoed trajectory labels from persisted responses', async () => {
+    const payload = await buildPromptEngineeringPayload({
+      systemPrompt: 'System prompt',
+      userPrompt: stripUserPromptContent('**Question**: Should I leave my job?'),
+      response: 'Future — likely trajectory for "Should I leave my job?" if nothing shifts',
+      userQuestion: 'Should I leave my job?',
+      redactionOptions: { displayName: 'Taylor' }
+    });
+
+    assert.ok(payload.redacted.response.includes('[USER_QUESTION_REDACTED]'));
+    assert.ok(!payload.redacted.response.includes('Should I leave my job?'));
+  });
+
+  test('does not over-redact topical phrases from guided-style questions', async () => {
+    const payload = await buildPromptEngineeringPayload({
+      systemPrompt: 'System prompt',
+      userPrompt: '**Question**: How can I stay aligned with my career direction and purpose today with confidence?',
+      response: 'Your career direction and purpose become clearer through steady action.',
+      userQuestion: 'How can I stay aligned with my career direction and purpose today with confidence?',
+      redactionOptions: { displayName: 'Taylor' }
+    });
+
+    assert.ok(payload.redacted.response.includes('career direction and purpose'));
+    assert.ok(!payload.redacted.response.includes('[NAME]'));
+  });
+
+  test('supports disabling automatic name extraction in payload redaction', async () => {
+    const payload = await buildPromptEngineeringPayload({
+      systemPrompt: 'System prompt',
+      userPrompt: '**Question**: How can I reconnect with Alex and Jamie?',
+      response: 'Alex needs clarity and Jamie needs patience.',
+      userQuestion: 'How can I reconnect with Alex and Jamie?',
+      nameHints: ['Alex'],
+      disableAutomaticNameExtraction: true,
+      redactionOptions: { displayName: 'Taylor' }
+    });
+
+    assert.ok(!payload.redacted.response.includes('Alex'));
+    assert.ok(payload.redacted.response.includes('Jamie'));
+  });
 });
 
 describe('buildPromptRedactionOptions', () => {
@@ -461,6 +510,46 @@ describe('buildPromptRedactionOptions', () => {
     });
 
     assert.deepEqual(options.additionalNames, ['Alex', 'Jamie']);
+  });
+
+  test('treats explicit nameHints as additive instead of replacing extracted hints', () => {
+    const options = buildPromptRedactionOptions({
+      redactionOptions: { displayName: 'Casey' },
+      userQuestion: 'How do I move forward with Alex and Jamie?',
+      nameHints: ['Alex']
+    });
+
+    assert.deepEqual(options.additionalNames, ['Alex', 'Jamie']);
+  });
+
+  test('does not disable automatic extraction when nameHints is an empty array', () => {
+    const options = buildPromptRedactionOptions({
+      redactionOptions: { displayName: 'Casey' },
+      userQuestion: 'What should I do between alex and jamie?',
+      nameHints: []
+    });
+
+    assert.deepEqual(options.additionalNames, ['Alex', 'Jamie']);
+  });
+
+  test('does not treat topical paired terms as person names', () => {
+    const options = buildPromptRedactionOptions({
+      redactionOptions: { displayName: 'Casey' },
+      userQuestion: 'How can I stay aligned with my career direction and purpose today with confidence?'
+    });
+
+    assert.deepEqual(options.additionalNames || [], []);
+  });
+
+  test('supports disabling automatic extraction while honoring explicit hints', () => {
+    const options = buildPromptRedactionOptions({
+      redactionOptions: { displayName: 'Casey' },
+      userQuestion: 'How can I reconnect with Alex and Jamie?',
+      nameHints: ['Alex'],
+      disableAutomaticNameExtraction: true
+    });
+
+    assert.deepEqual(options.additionalNames, ['Alex']);
   });
 
   test('caps and sanitizes overly large name hint sets', () => {

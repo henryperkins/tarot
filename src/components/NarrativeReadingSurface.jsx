@@ -14,7 +14,7 @@ function VisualCompanionStudio({
   children
 }) {
   return (
-    <div className="bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/30 max-w-full sm:max-w-5xl mx-auto overflow-hidden">
+    <div className="w-full bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/30 max-w-full sm:max-w-5xl mx-auto overflow-hidden">
       <div className="px-4 sm:px-6 py-4 border-b border-secondary/25 bg-gradient-to-r from-primary/10 via-surface/40 to-accent/10">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h3 className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight">
@@ -42,7 +42,7 @@ function VisualCompanionModule({
   children
 }) {
   return (
-    <div className="rounded-xl border border-secondary/30 bg-surface/70 p-4 sm:p-5">
+    <div className="min-w-0 rounded-xl border border-secondary/30 bg-surface/70 p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h4 className="text-sm sm:text-base font-semibold text-main">{title}</h4>
         {badge ? <span className="text-2xs sm:text-xs text-muted">{badge}</span> : null}
@@ -62,31 +62,34 @@ function VisualCompanionModule({
 }
 
 export function NarrativeReadingSurface({
-  shouldShowVisualCompanion,
-  shouldShowCinematicReveal,
-  shouldShowStoryIllustration,
-  visualCompanionModeLabel,
-  visualCompanionMessage,
-  cinematicPosition,
-  cinematicRevealMessage,
-  readingIdentity,
-  cinematicCard,
-  resolvedQuestion,
-  effectiveTier,
-  autoGenerateVisuals,
-  onCinematicMediaReady,
-  storyArtCards = [],
-  fullReadingText,
-  narrativeText,
-  onStoryArtMediaReady,
-  personalReading,
-  isGenerating,
-  isHandset,
-  shouldShowSpreadInsights,
-  themes,
-  highlightItems = [],
-  traditionalPassages = []
+  surfaceModel = {},
+  callbacks = {}
 }) {
+  const {
+    shouldShowVisualCompanion,
+    shouldShowCinematicReveal,
+    shouldShowStoryIllustration,
+    visualCompanionModeLabel,
+    visualCompanionMessage,
+    cinematicPosition,
+    cinematicRevealMessage,
+    readingIdentity,
+    cinematicCard,
+    resolvedQuestion,
+    effectiveTier,
+    autoGenerateVisuals,
+    storyArtCards = [],
+    fullReadingText,
+    narrativeText,
+    personalReading,
+    isGenerating,
+    isHandset,
+    shouldShowSpreadInsights,
+    themes,
+    highlightItems = [],
+    traditionalPassages = []
+  } = surfaceModel;
+  const { onCinematicMediaReady, onStoryArtMediaReady } = callbacks;
   const shouldShowSafetyNotice = !personalReading && !isGenerating;
   const shouldSplitCompanionGrid = shouldShowCinematicReveal && shouldShowStoryIllustration;
   const narrativeForIllustration = fullReadingText || narrativeText;
@@ -163,28 +166,32 @@ export function NarrativeReadingSurface({
 }
 
 NarrativeReadingSurface.propTypes = {
-  shouldShowVisualCompanion: PropTypes.bool,
-  shouldShowCinematicReveal: PropTypes.bool,
-  shouldShowStoryIllustration: PropTypes.bool,
-  visualCompanionModeLabel: PropTypes.string,
-  visualCompanionMessage: PropTypes.string,
-  cinematicPosition: PropTypes.string,
-  cinematicRevealMessage: PropTypes.string,
-  readingIdentity: PropTypes.string,
-  cinematicCard: PropTypes.object,
-  resolvedQuestion: PropTypes.string,
-  effectiveTier: PropTypes.string,
-  autoGenerateVisuals: PropTypes.bool,
-  onCinematicMediaReady: PropTypes.func,
-  storyArtCards: PropTypes.array,
-  fullReadingText: PropTypes.string,
-  narrativeText: PropTypes.string,
-  onStoryArtMediaReady: PropTypes.func,
-  personalReading: PropTypes.oneOfType([PropTypes.object, PropTypes.string]),
-  isGenerating: PropTypes.bool,
-  isHandset: PropTypes.bool,
-  shouldShowSpreadInsights: PropTypes.bool,
-  themes: PropTypes.object,
-  highlightItems: PropTypes.array,
-  traditionalPassages: PropTypes.array
+  surfaceModel: PropTypes.shape({
+    shouldShowVisualCompanion: PropTypes.bool,
+    shouldShowCinematicReveal: PropTypes.bool,
+    shouldShowStoryIllustration: PropTypes.bool,
+    visualCompanionModeLabel: PropTypes.string,
+    visualCompanionMessage: PropTypes.string,
+    cinematicPosition: PropTypes.string,
+    cinematicRevealMessage: PropTypes.string,
+    readingIdentity: PropTypes.string,
+    cinematicCard: PropTypes.object,
+    resolvedQuestion: PropTypes.string,
+    effectiveTier: PropTypes.string,
+    autoGenerateVisuals: PropTypes.bool,
+    storyArtCards: PropTypes.array,
+    fullReadingText: PropTypes.string,
+    narrativeText: PropTypes.string,
+    personalReading: PropTypes.oneOfType([PropTypes.object, PropTypes.string]),
+    isGenerating: PropTypes.bool,
+    isHandset: PropTypes.bool,
+    shouldShowSpreadInsights: PropTypes.bool,
+    themes: PropTypes.object,
+    highlightItems: PropTypes.array,
+    traditionalPassages: PropTypes.array
+  }),
+  callbacks: PropTypes.shape({
+    onCinematicMediaReady: PropTypes.func,
+    onStoryArtMediaReady: PropTypes.func
+  })
 };

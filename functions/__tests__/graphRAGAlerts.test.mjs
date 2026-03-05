@@ -40,4 +40,16 @@ describe('collectGraphRAGAlerts', () => {
     it('returns empty array when no graph metadata', () => {
         assert.deepEqual(collectGraphRAGAlerts(), []);
     });
+
+    it('suppresses omission alerts when passages are visible in debug output', () => {
+        const alerts = collectGraphRAGAlerts({
+            graphRAG: {
+                includedInPrompt: false,
+                passagesProvided: 2,
+                passagesUsedInPrompt: 2,
+                debugVisibleInOutput: true
+            }
+        });
+        assert.ok(!alerts.some((msg) => msg.includes('omitted')));
+    });
 });

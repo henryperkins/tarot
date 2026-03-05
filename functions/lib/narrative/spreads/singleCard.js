@@ -3,7 +3,8 @@ import {
   appendReversalReminder,
   buildPositionCardText,
   getPositionOptions,
-  buildContextReminder
+  buildContextReminder,
+  sanitizeQuestionForNarrative
 } from '../helpers.js';
 import { getToneStyle, getFrameVocabulary, buildNameClause } from '../styleHelpers.js';
 import {
@@ -62,6 +63,7 @@ class SingleCardBuilder extends BaseSpreadBuilder {
 
     const card = cardsInfo[0];
     const positionOptions = getPositionOptions(themes, context);
+    const narrativeQuestion = sanitizeQuestionForNarrative(userQuestion);
 
     let narrative = '';
 
@@ -77,9 +79,9 @@ class SingleCardBuilder extends BaseSpreadBuilder {
       narrative += '\n\n';
     } else {
       narrative = `### One-Card Insight\n\n`;
-      if (userQuestion && userQuestion.trim()) {
+      if (narrativeQuestion) {
         const subject = nameOpening ? `${nameOpening}this card` : 'This card';
-        narrative += `${subject} offers a ${tone.openingAdjectives[0] || 'thoughtful'} snapshot on your question "${userQuestion.trim()}".\n\n`;
+        narrative += `${subject} offers a ${tone.openingAdjectives[0] || 'thoughtful'} snapshot on your question "${narrativeQuestion}".\n\n`;
       } else {
         const subject = nameOpening ? `${nameOpening}this single card` : 'This single card';
         narrative += `${subject} offers a ${tone.openingAdjectives[0] || 'grounded'} glimpse of the energy around you right now.\n\n`;

@@ -5,8 +5,8 @@
  * and orientation meaning helpers.
  */
 
-import { MAJOR_ARCANA } from '../data/majorArcana';
-import { MINOR_ARCANA } from '../data/minorArcana';
+import { MAJOR_ARCANA } from '../data/majorArcana.js';
+import { MINOR_ARCANA } from '../data/minorArcana.js';
 
 // Fallback image for missing cards
 export const FALLBACK_IMAGE = '/images/cards/card-back.jpeg';

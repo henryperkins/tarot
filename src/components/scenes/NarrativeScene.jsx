@@ -1,24 +1,19 @@
+import { NarrativeStageLayout } from '../reading/NarrativeStageLayout';
+import { getSceneModel } from './sceneModelUtils';
+
 export function NarrativeScene({
-  children,
-  sceneData = {}
+  sceneModels = {}
 }) {
-  const narrativePanel = sceneData?.narrativePanel || null;
-  const hasNarrativePanel = Boolean(narrativePanel);
-  const hasChildren = Boolean(children);
-  const contentClassName =
-    'scene-stage__panel scene-stage__panel--narrative relative z-[2] max-w-5xl mx-auto p-4 sm:p-6';
+  const narrativeModel = getSceneModel(sceneModels, 'narrativeModel');
+  const narrativePanel = narrativeModel?.narrativePanel || null;
+  const secondaryContent = narrativeModel?.secondaryContent || null;
 
   return (
-    <section
-      className="scene-stage scene-stage--narrative relative px-3 xs:px-4 sm:px-6 py-6 sm:py-8"
-      data-scene="narrative"
-    >
-      <div className={contentClassName}>
-        {hasNarrativePanel ? narrativePanel : null}
-        {hasChildren ? (
-          hasNarrativePanel ? <div className="mt-6 sm:mt-8">{children}</div> : children
-        ) : null}
-      </div>
-    </section>
+    <NarrativeStageLayout
+      scene="narrative"
+      panelVariant="narrative"
+      narrativePanel={narrativePanel}
+      secondaryContent={secondaryContent}
+    />
   );
 }

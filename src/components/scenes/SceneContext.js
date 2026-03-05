@@ -1,8 +1,10 @@
 import { createContext, useContext } from 'react';
 
 export const SceneContext = createContext({
+  activeScene: 'idle',
   currentScene: 'idle',
   transitionTo: () => {},
+  sceneModels: {},
   sceneData: {}
 });
 

@@ -1154,13 +1154,11 @@ function formatMeaningForPosition(meaning, position) {
   return `This shows ${lowered} as a live theme.`;
 }
 
-function buildOpening(spreadName, userQuestion, context, options = {}) {
-  const personalization = options.personalization || null;
-  const tone = getToneStyle(personalization?.readingTone);
+function sanitizeQuestionForNarrative(userQuestion, maxLength = MAX_QUESTION_TEXT_LENGTH) {
   const rawQuestion = typeof userQuestion === 'string' ? userQuestion.trim() : '';
   let safeQuestion = rawQuestion
     ? sanitizeText(rawQuestion, {
-      maxLength: MAX_QUESTION_TEXT_LENGTH,
+      maxLength,
       addEllipsis: true,
       stripMarkdown: true,
       filterInstructions: true
@@ -1172,7 +1170,13 @@ function buildOpening(spreadName, userQuestion, context, options = {}) {
       safeQuestion = injectionCheck.sanitizedText || safeQuestion;
     }
   }
-  const question = safeQuestion;
+  return safeQuestion;
+}
+
+function buildOpening(spreadName, userQuestion, context, options = {}) {
+  const personalization = options.personalization || null;
+  const tone = getToneStyle(personalization?.readingTone);
+  const question = sanitizeQuestionForNarrative(userQuestion);
   const spreadLabel = spreadName || 'your chosen spread';
   const descriptor = tone.openingAdjectives?.[0] || 'thoughtful';
   const nameOpening = buildNameClause(personalization?.displayName, 'opening');
@@ -1201,6 +1205,14 @@ function appendReversalReminder(text, cardsInfo, themes) {
   if (!text) return text;
 
   if (!themes?.reversalDescription) {
+    return text;
+  }
+
+  const hasReversedCards = (
+    Array.isArray(cardsInfo) &&
+    cardsInfo.some((card) => typeof card?.orientation === 'string' && card.orientation.trim().toLowerCase() === 'reversed')
+  ) || Number(themes?.reversalCount) > 0;
+  if (!hasReversedCards) {
     return text;
   }
 
@@ -1759,6 +1771,7 @@ export {
   buildReversalGuidance,
   getPositionOptions,
   getCrossCheckReversalNote,
+  sanitizeQuestionForNarrative,
   buildOpening,
   appendReversalReminder,
   getConnector,

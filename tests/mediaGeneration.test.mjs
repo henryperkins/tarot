@@ -1015,4 +1015,166 @@ describe('Media generation APIs', () => {
     assert.equal(Number.isInteger(retryAfterPost), true);
     assert.equal(retryAfterPost > 0 && retryAfterPost <= 60, true);
   });
+
+  it('rejects malformed story-art card payloads before provider calls', async () => {
+    const user = {
+      id: 'user-plus',
+      subscription_tier: 'plus',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({ DB: createMockDb(user) });
+
+    const request = createMockRequest('/api/generate-story-art', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        cards: [{ name: '   ', position: 'Present', reversed: false }],
+        question: 'What should I focus on?',
+        format: 'single',
+        style: 'watercolor'
+      }
+    });
+
+    const response = await onStoryArtPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(payload.error, /cards\[0\]\.name is required/);
+    assert.equal(mockFetch.mock.calls.length, 0);
+  });
+
+  it('slims oversized story-art prompts under configured budget before provider calls', async () => {
+    let capturedPromptLength = 0;
+
+    mockFetch.mock.mockImplementation(async (_url, options) => {
+      const body = JSON.parse(options.body);
+      capturedPromptLength = body.prompt.length;
+      return new Response(JSON.stringify({
+        data: [{ b64_json: 'abc', revised_prompt: '' }]
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+
+    const user = {
+      id: 'user-plus',
+      subscription_tier: 'plus',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({
+      DB: createMockDb(user),
+      MEDIA_PROMPT_BUDGET_GUARDS: 'true',
+      MEDIA_PROMPT_BUDGET_STORY_ART_CHARS: '7000'
+    });
+
+    const request = createMockRequest('/api/generate-story-art', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        cards: [{ name: 'The Fool', position: 'Present', reversed: false, meaning: 'New beginnings' }],
+        question: 'What should I focus on?',
+        narrative: 'I am at a major transition point and need symbolic guidance for the next chapter.',
+        format: 'single',
+        style: 'watercolor'
+      }
+    });
+
+    const response = await onStoryArtPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.success, true);
+    assert.equal(capturedPromptLength > 0, true);
+    assert.equal(capturedPromptLength <= 7000, true);
+  });
+
+  it('returns explicit budget error when story-art prompt cannot fit hard cap', async () => {
+    const user = {
+      id: 'user-plus',
+      subscription_tier: 'plus',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({
+      DB: createMockDb(user),
+      MEDIA_PROMPT_BUDGET_GUARDS: 'true',
+      MEDIA_PROMPT_BUDGET_STORY_ART_CHARS: '200'
+    });
+
+    const request = createMockRequest('/api/generate-story-art', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        cards: [{ name: 'The Fool', position: 'Present', reversed: false }],
+        question: 'What should I focus on?',
+        format: 'single',
+        style: 'watercolor'
+      }
+    });
+
+    const response = await onStoryArtPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(payload.code, 'media_prompt_budget_exceeded');
+    assert.equal(mockFetch.mock.calls.length, 0);
+  });
+
+  it('rejects invalid card-video position characters before provider calls', async () => {
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({ DB: createMockDb(user) });
+
+    const request = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        card: { name: 'The Fool', reversed: false },
+        question: 'What should I focus on?',
+        position: 'Present {system}',
+        style: 'mystical',
+        seconds: 4
+      }
+    });
+
+    const response = await onCardVideoPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(payload.error, /position contains unsupported characters/);
+    assert.equal(mockFetch.mock.calls.length, 0);
+  });
+
+  it('returns explicit budget error when card-video prompts exceed configured cap', async () => {
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({
+      DB: createMockDb(user),
+      MEDIA_PROMPT_BUDGET_GUARDS: 'true',
+      MEDIA_PROMPT_BUDGET_CARD_VIDEO_CHARS: '200',
+      MEDIA_PROMPT_BUDGET_KEYFRAME_CHARS: '200'
+    });
+
+    const request = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        card: { name: 'The Fool', reversed: false },
+        question: 'What should I focus on?',
+        position: 'Present',
+        style: 'mystical',
+        seconds: 4
+      }
+    });
+
+    const response = await onCardVideoPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(payload.code, 'media_prompt_budget_exceeded');
+    assert.equal(mockFetch.mock.calls.length, 0);
+  });
 });

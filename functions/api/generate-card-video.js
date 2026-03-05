@@ -32,6 +32,17 @@ import {
   VIDEO_STYLES
 } from '../lib/videoPrompts.js';
 import { getCardVideoLimits } from '../../shared/monetization/media.js';
+import {
+  MEDIA_PROMPT_LIMITS,
+  isValidMediaPositionText,
+  sanitizeMediaCard,
+  sanitizeMediaPosition,
+  sanitizeMediaQuestion
+} from '../lib/mediaPromptSanitization.js';
+import {
+  enforceMediaPromptBudget,
+  resolveMediaPromptBudgets
+} from '../lib/mediaPromptBudget.js';
 
 // Azure OpenAI Video Generation configuration (Sora 2 API)
 // Note: AZURE_OPENAI_VIDEO_MODEL should be your Azure deployment name
@@ -61,6 +72,21 @@ const STATUS_RATE_LIMIT_KEY_PREFIX = 'card-video-status';
 const RATE_LIMIT_BACKEND_D1 = 'd1';
 const RATE_LIMIT_BACKEND_KV = 'kv';
 const RATE_LIMIT_COUNTERS_TABLE = '_request_rate_limits';
+const CARD_VIDEO_SANITIZED_FIELDS = Object.freeze([
+  'card.name',
+  'card.position',
+  'card.meaning',
+  'question',
+  'position'
+]);
+
+function isMediaPromptSanitizationEnabled(env) {
+  return env.MEDIA_PROMPT_SANITIZATION_V2 !== 'false';
+}
+
+function isMediaPromptBudgetGuardsEnabled(env) {
+  return env.MEDIA_PROMPT_BUDGET_GUARDS !== 'false';
+}
 
 // OpenAI docs: Sora input_reference works best when the reference image matches
 // the requested video aspect. We prefer exact matches and otherwise fall back to
@@ -398,38 +424,115 @@ async function enforceRateLimitWithD1(env, request, userId, config) {
 /**
  * Validate request payload
  */
+function addValidationError(errors, code, message) {
+  errors.push({ code, message });
+}
+
 function validatePayload(payload) {
   const errors = [];
-  
-  if (!payload.card || typeof payload.card !== 'object') {
-    errors.push('card object is required');
+
+  if (!payload || typeof payload !== 'object') {
+    addValidationError(errors, 'invalid_payload_structure', 'request body must be an object');
+    return errors;
+  }
+
+  if (!payload.card || typeof payload.card !== 'object' || Array.isArray(payload.card)) {
+    addValidationError(errors, 'invalid_card', 'card object is required');
   } else {
-    if (!payload.card.name) errors.push('card.name is required');
+    const rawCardName = typeof payload.card.name === 'string'
+      ? payload.card.name
+      : (typeof payload.card.card === 'string' ? payload.card.card : '');
+    if (!rawCardName.trim()) {
+      addValidationError(errors, 'invalid_card_name', 'card.name is required');
+    } else if (rawCardName.trim().length > MEDIA_PROMPT_LIMITS.cardName) {
+      addValidationError(
+        errors,
+        'invalid_card_name_length',
+        `card.name must be ${MEDIA_PROMPT_LIMITS.cardName} characters or fewer`
+      );
+    }
+
+    if (payload.card.meaning !== undefined && payload.card.meaning !== null) {
+      if (typeof payload.card.meaning !== 'string') {
+        addValidationError(errors, 'invalid_card_meaning', 'card.meaning must be a string when provided');
+      } else if (payload.card.meaning.trim().length > MEDIA_PROMPT_LIMITS.meaning) {
+        addValidationError(
+          errors,
+          'invalid_card_meaning_length',
+          `card.meaning must be ${MEDIA_PROMPT_LIMITS.meaning} characters or fewer`
+        );
+      }
+    }
+
+    if (payload.card.position !== undefined && payload.card.position !== null) {
+      if (typeof payload.card.position !== 'string' || !payload.card.position.trim()) {
+        addValidationError(errors, 'invalid_card_position', 'card.position must be a non-empty string when provided');
+      } else if (payload.card.position.trim().length > MEDIA_PROMPT_LIMITS.position) {
+        addValidationError(
+          errors,
+          'invalid_card_position_length',
+          `card.position must be ${MEDIA_PROMPT_LIMITS.position} characters or fewer`
+        );
+      } else if (!isValidMediaPositionText(payload.card.position)) {
+        addValidationError(errors, 'invalid_card_position_chars', 'card.position contains unsupported characters');
+      }
+    }
+
     if (typeof payload.card.reversed !== 'boolean') {
       payload.card.reversed = false; // default
     }
   }
-  
-  if (!payload.question || typeof payload.question !== 'string') {
-    errors.push('question string is required');
+
+  if (typeof payload.question !== 'string' || !payload.question.trim()) {
+    addValidationError(errors, 'invalid_question', 'question string is required');
+  } else if (payload.question.trim().length > MEDIA_PROMPT_LIMITS.question) {
+    addValidationError(
+      errors,
+      'invalid_question_length',
+      `question must be ${MEDIA_PROMPT_LIMITS.question} characters or fewer`
+    );
   }
-  
+
+  if (payload.position !== undefined && payload.position !== null) {
+    if (typeof payload.position !== 'string' || !payload.position.trim()) {
+      addValidationError(errors, 'invalid_position', 'position must be a non-empty string when provided');
+    } else if (payload.position.trim().length > MEDIA_PROMPT_LIMITS.position) {
+      addValidationError(
+        errors,
+        'invalid_position_length',
+        `position must be ${MEDIA_PROMPT_LIMITS.position} characters or fewer`
+      );
+    } else if (!isValidMediaPositionText(payload.position)) {
+      addValidationError(errors, 'invalid_position_chars', 'position contains unsupported characters');
+    }
+  }
+
   if (payload.style && !VIDEO_STYLES[payload.style]) {
-    errors.push(`style must be one of: ${Object.keys(VIDEO_STYLES).join(', ')}`);
+    addValidationError(errors, 'invalid_style', `style must be one of: ${Object.keys(VIDEO_STYLES).join(', ')}`);
   }
 
   if (payload.seconds !== undefined && payload.seconds !== null && payload.seconds !== '') {
     const normalizedSeconds = parseStrictPositiveInt(payload.seconds);
     if (!Number.isInteger(normalizedSeconds)) {
-      errors.push('seconds must be a positive integer');
+      addValidationError(errors, 'invalid_seconds', 'seconds must be a positive integer');
     } else if (!SUPPORTED_VIDEO_SECONDS.includes(normalizedSeconds)) {
-      errors.push(`seconds must be one of: ${SUPPORTED_VIDEO_SECONDS.join(', ')}`);
+      addValidationError(errors, 'invalid_seconds_range', `seconds must be one of: ${SUPPORTED_VIDEO_SECONDS.join(', ')}`);
     } else {
       payload.seconds = normalizedSeconds;
     }
   }
-  
+
   return errors;
+}
+
+function normalizeCardVideoPayload(payload) {
+  const safeCard = sanitizeMediaCard(payload.card || {}, 0);
+  return {
+    ...payload,
+    card: safeCard,
+    question: sanitizeMediaQuestion(payload.question),
+    position: sanitizeMediaPosition(payload.position || safeCard.position || '', 0)
+  };
 }
 
 /**
@@ -1015,16 +1118,25 @@ export async function onRequestPost({ request, env }) {
   
   const errors = validatePayload(payload);
   if (errors.length > 0) {
-    return jsonResponse({ error: errors.join('; ') }, 400);
+    return jsonResponse({
+      error: errors.map(({ message }) => message).join('; '),
+      code: errors[0]?.code || 'invalid_payload',
+      errors
+    }, 400);
   }
-  
+
+  const sanitizationApplied = isMediaPromptSanitizationEnabled(env);
+  const normalizedPayload = sanitizationApplied
+    ? normalizeCardVideoPayload(payload)
+    : payload;
+
   const {
     card,
     question,
     position = 'Present',
     style = 'mystical',
     seconds = DEFAULT_VIDEO_SECONDS
-  } = payload;
+  } = normalizedPayload;
   const normalizedSeconds = Number.isInteger(seconds) ? seconds : DEFAULT_VIDEO_SECONDS;
   const imageModel = env.AZURE_OPENAI_IMAGE_MODEL || 'gpt-image-1.5';
   const videoModel = env.AZURE_OPENAI_VIDEO_MODEL || DEFAULT_VIDEO_MODEL;
@@ -1084,6 +1196,8 @@ export async function onRequestPost({ request, env }) {
         width: videoWidth,
         height: videoHeight,
         questionLength: typeof question === 'string' ? question.length : 0,
+        sanitizationApplied,
+        sanitizedFields: sanitizationApplied ? CARD_VIDEO_SANITIZED_FIELDS : [],
         imageEndpointSource,
         imageApiKeySource,
         videoEndpointSource,
@@ -1123,29 +1237,76 @@ export async function onRequestPost({ request, env }) {
   }
   
   let usageReservation = null;
-  if (Number.isFinite(limits.maxPerDay)) {
-    const usage = await checkAndIncrementDailyUsage(env, {
-      feature: 'card-video',
-      userId: user.id,
-      limit: limits.maxPerDay
-    });
-    if (!usage.allowed) {
-      return jsonResponse({
-        error: 'Daily card video limit reached.',
-        limit: usage.limit,
-        remaining: usage.remaining,
-        resetsAt: usage.resetsAt
-      }, 429);
-    }
-    usageReservation = usage;
-  }
 
   try {
     // Build keyframe prompt (even if we don't generate the image) so we can reuse the
     // starting pose description for prompt alignment.
     const keyframeResult = buildKeyframePrompt(card, question, position, style);
-    const keyframePromptStr = typeof keyframeResult === 'string' ? keyframeResult : keyframeResult.prompt;
+    let keyframePromptStr = typeof keyframeResult === 'string' ? keyframeResult : keyframeResult.prompt;
     const startingPoseDescription = typeof keyframeResult === 'object' ? keyframeResult.startingPoseDescription : null;
+    const promptBudgets = resolveMediaPromptBudgets(env);
+    const budgetGuardsEnabled = isMediaPromptBudgetGuardsEnabled(env);
+    let keyframeBudgetMeta = {
+      originalLength: typeof keyframePromptStr === 'string' ? keyframePromptStr.length : 0,
+      finalLength: typeof keyframePromptStr === 'string' ? keyframePromptStr.length : 0,
+      slimmed: false,
+      trimmedSections: []
+    };
+
+    if (budgetGuardsEnabled) {
+      keyframeBudgetMeta = enforceMediaPromptBudget(keyframePromptStr, promptBudgets.keyframe);
+      if (!keyframeBudgetMeta.ok) {
+        return jsonResponse({
+          error: keyframeBudgetMeta.message,
+          code: keyframeBudgetMeta.errorCode,
+          budget: keyframeBudgetMeta.budget,
+          originalLength: keyframeBudgetMeta.originalLength,
+          finalLength: keyframeBudgetMeta.finalLength,
+          trimmedSections: keyframeBudgetMeta.trimmedSections
+        }, 400);
+      }
+      keyframePromptStr = keyframeBudgetMeta.prompt;
+    }
+
+    let videoPrompt = buildCardRevealPrompt(card, question, position, style, startingPoseDescription);
+    let videoPromptBudgetMeta = {
+      originalLength: typeof videoPrompt === 'string' ? videoPrompt.length : 0,
+      finalLength: typeof videoPrompt === 'string' ? videoPrompt.length : 0,
+      slimmed: false,
+      trimmedSections: []
+    };
+
+    if (budgetGuardsEnabled) {
+      videoPromptBudgetMeta = enforceMediaPromptBudget(videoPrompt, promptBudgets.cardVideo);
+      if (!videoPromptBudgetMeta.ok) {
+        return jsonResponse({
+          error: videoPromptBudgetMeta.message,
+          code: videoPromptBudgetMeta.errorCode,
+          budget: videoPromptBudgetMeta.budget,
+          originalLength: videoPromptBudgetMeta.originalLength,
+          finalLength: videoPromptBudgetMeta.finalLength,
+          trimmedSections: videoPromptBudgetMeta.trimmedSections
+        }, 400);
+      }
+      videoPrompt = videoPromptBudgetMeta.prompt;
+    }
+
+    if (Number.isFinite(limits.maxPerDay)) {
+      const usage = await checkAndIncrementDailyUsage(env, {
+        feature: 'card-video',
+        userId: user.id,
+        limit: limits.maxPerDay
+      });
+      if (!usage.allowed) {
+        return jsonResponse({
+          error: 'Daily card video limit reached.',
+          limit: usage.limit,
+          remaining: usage.remaining,
+          resetsAt: usage.resetsAt
+        }, 429);
+      }
+      usageReservation = usage;
+    }
 
     const inputRefMode = getInputReferenceMode(env);
     const imageFamily = inferImageModelFamily(imageModel, env);
@@ -1160,7 +1321,7 @@ export async function onRequestPost({ request, env }) {
     let inputReferenceUsedInJob = false;
 
     if (shouldTryKeyframe && keyframeSize) {
-      maybeLogPromptPayload(env, requestId, 'card-video-keyframe', '', keyframeResult, null, {
+      maybeLogPromptPayload(env, requestId, 'card-video-keyframe', '', keyframePromptStr, null, {
         personalization: { displayName: user?.display_name }
       });
       const keyframeStart = Date.now();
@@ -1192,9 +1353,8 @@ export async function onRequestPost({ request, env }) {
         `[${requestId}] [card-video] Skipping input_reference: image model '${imageModel}' (family: ${imageFamily}) has no compatible keyframe strategy for ${videoSize}.`
       );
     }
-    
+
     // Step 2: Build video prompt (use startingPoseDescription for pose consistency)
-    const videoPrompt = buildCardRevealPrompt(card, question, position, style, startingPoseDescription);
     maybeLogPromptPayload(env, requestId, 'card-video', '', videoPrompt, null, {
       personalization: { displayName: user?.display_name }
     });
@@ -1290,8 +1450,18 @@ export async function onRequestPost({ request, env }) {
         width: videoWidth,
         height: videoHeight,
         questionLength: typeof question === 'string' ? question.length : 0,
-        keyframePromptLength: typeof keyframePromptStr === 'string' ? keyframePromptStr.length : 0,
-        videoPromptLength: typeof videoPrompt === 'string' ? videoPrompt.length : 0,
+        keyframePromptLength: keyframeBudgetMeta.finalLength,
+        keyframePromptOriginalLength: keyframeBudgetMeta.originalLength,
+        keyframePromptFinalLength: keyframeBudgetMeta.finalLength,
+        keyframePromptSlimmed: Boolean(keyframeBudgetMeta.slimmed),
+        keyframePromptSlimmingSteps: keyframeBudgetMeta.trimmedSections,
+        videoPromptLength: videoPromptBudgetMeta.finalLength,
+        videoPromptOriginalLength: videoPromptBudgetMeta.originalLength,
+        videoPromptFinalLength: videoPromptBudgetMeta.finalLength,
+        videoPromptSlimmed: Boolean(videoPromptBudgetMeta.slimmed),
+        videoPromptSlimmingSteps: videoPromptBudgetMeta.trimmedSections,
+        sanitizationApplied,
+        sanitizedFields: sanitizationApplied ? CARD_VIDEO_SANITIZED_FIELDS : [],
         inputReferenceMode: inputRefMode,
         inputReferenceUsed: inputReferenceUsedInJob,
         keyframeSize,
@@ -1356,6 +1526,8 @@ export async function onRequestPost({ request, env }) {
         width: videoWidth,
         height: videoHeight,
         questionLength: typeof question === 'string' ? question.length : 0,
+        sanitizationApplied,
+        sanitizedFields: sanitizationApplied ? CARD_VIDEO_SANITIZED_FIELDS : [],
         imageEndpointSource,
         imageApiKeySource,
         videoEndpointSource,

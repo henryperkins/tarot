@@ -127,4 +127,20 @@ describe('GraphRAG stub telemetry', () => {
             'Should not warn about omitted passages when none were retrieved'
         );
     });
+
+    it('does not warn about omission when GraphRAG passages are visible in debug output', () => {
+        const alerts = collectGraphRAGAlerts({
+            graphRAG: {
+                includedInPrompt: false,
+                passagesProvided: 2,
+                passagesUsedInPrompt: 2,
+                debugVisibleInOutput: true
+            }
+        });
+
+        assert.ok(
+            !alerts.some((a) => a.includes('omitted')),
+            'Should not warn about omitted passages when debug output visibly includes them'
+        );
+    });
 });

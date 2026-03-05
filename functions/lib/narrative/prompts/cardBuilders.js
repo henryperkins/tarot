@@ -183,12 +183,19 @@ function shouldIncludeImageryForPosition(spreadKey, positionIndex, promptOptions
   return getPositionWeight(spreadKey, positionIndex) >= DEFAULT_WEIGHT_DETAIL_THRESHOLD;
 }
 
+function markVisionProfileCueUsed(options = {}) {
+  if (options?.sourceUsageSignals && typeof options.sourceUsageSignals === 'object') {
+    options.sourceUsageSignals.visionCardCuesUsed = true;
+  }
+}
+
 function makeCardOptions(spreadKey, positionIndex, baseOptions, promptOptions = {}) {
   const includeImagery = shouldIncludeImageryForPosition(spreadKey, positionIndex, promptOptions);
   return {
     ...baseOptions,
     omitImagery: !includeImagery,
-    deckStyle: promptOptions.deckStyle || baseOptions?.deckStyle || 'rws-1909'
+    deckStyle: promptOptions.deckStyle || baseOptions?.deckStyle || 'rws-1909',
+    sourceUsageSignals: promptOptions.sourceUsageSignals || baseOptions?.sourceUsageSignals || null
   };
 }
 
@@ -222,12 +229,14 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
       if (visualProfile?.tone?.length) {
         const toneDescriptors = visualProfile.tone.slice(0, 2).join(', ');
         text += `*Vision-detected tone: ${toneDescriptors} — interpret the archetype through this visual lens*\n`;
+        markVisionProfileCueUsed(safeOptions);
       }
 
       // NEW: Add vision-detected emotion if available
       if (visualProfile?.emotion?.length) {
         const emotionDescriptors = visualProfile.emotion.slice(0, 2).join(', ');
         text += `*Emotional quality: ${emotionDescriptors}*\n`;
+        markVisionProfileCueUsed(safeOptions);
       }
     }
   } else if (allowImagery && cardInfo.suit && cardInfo.rank) {
@@ -250,6 +259,7 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
       if (visualProfile?.emotion?.length) {
         const emotionDescriptors = visualProfile.emotion.slice(0, 2).join(', ');
         text += `*Vision-detected emotion: ${emotionDescriptors}*\n`;
+        markVisionProfileCueUsed(safeOptions);
       }
     }
   }

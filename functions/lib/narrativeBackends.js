@@ -166,6 +166,36 @@ function shouldAppendGraphRAGDebugOutput(env) {
   );
 }
 
+function hasMeaningfulGraphData(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'boolean') return value === true;
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some((entry) => hasMeaningfulGraphData(entry));
+  if (typeof value === 'object') {
+    return Object.values(value).some((entry) => hasMeaningfulGraphData(entry));
+  }
+  return false;
+}
+
+function hasMeaningfulGraphKeys(graphKeys) {
+  return hasMeaningfulGraphData(graphKeys);
+}
+
+function hasMeaningfulGraphRAGPayload(payload) {
+  if (!payload || typeof payload !== 'object') return false;
+  if (Array.isArray(payload.passages) && payload.passages.length > 0) return true;
+  if (typeof payload.formattedBlock === 'string' && payload.formattedBlock.trim()) return true;
+  if (typeof payload.initialPassageCount === 'number') return true;
+  if (typeof payload.maxPassages === 'number') return true;
+  if (payload.semanticScoringRequested === true || payload.semanticScoringFallback === true || payload.enableSemanticScoring === true) {
+    return true;
+  }
+  return payload.retrievalSummary && typeof payload.retrievalSummary === 'object'
+    ? Object.keys(payload.retrievalSummary).length > 0
+    : false;
+}
+
 function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
   const analysis = payload?.analysis || {};
   const personalization = payload?.personalization || {};
@@ -179,13 +209,10 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
 
   const hasVisionSource = Array.isArray(payload?.visionInsights) && payload.visionInsights.length > 0;
 
-  const hasGraphRAGSource = Boolean(
-    graphRAGPayload ||
-    analysis?.themes?.knowledgeGraph?.graphKeys
-  );
+  const hasGraphRAGSource = hasMeaningfulGraphRAGPayload(graphRAGPayload) || hasMeaningfulGraphKeys(analysis?.themes?.knowledgeGraph?.graphKeys);
   const graphRAGHighlightsUsed = Array.isArray(analysis?.themes?.knowledgeGraph?.narrativeHighlights)
     && analysis.themes.knowledgeGraph.narrativeHighlights.length > 0;
-  const graphRAGVisibleInOutput = Boolean(promptMeta?.graphRAG?.debugVisibleInOutput);
+  const graphRAGVisibleInOutput = Boolean(promptMeta?.graphRAG?.debugVisibleInOutput || promptMeta?.graphRAG?.visibleInOutput);
   const graphRAGUsed = graphRAGVisibleInOutput || graphRAGHighlightsUsed;
   const graphRAGMode = graphRAGVisibleInOutput
     ? 'full'
@@ -1020,7 +1047,8 @@ export async function composeReadingEnhanced(payload, env = null) {
       disabledByEnv: retrievalSummary.disabledByEnv === true,
       parseStatus: retrievalSummary.parseStatus || 'absent',
       referenceBlockClosed: retrievalSummary.referenceBlockClosed || false,
-      debugVisibleInOutput: false
+      debugVisibleInOutput: false,
+      visibleInOutput: false
     };
   }
 
@@ -1036,8 +1064,9 @@ export async function composeReadingEnhanced(payload, env = null) {
       if (payload.promptMeta?.graphRAG) {
         payload.promptMeta.graphRAG = {
           ...payload.promptMeta.graphRAG,
-          injectedIntoPrompt: true,
+          injectedIntoPrompt: false,
           debugVisibleInOutput: true,
+          visibleInOutput: true,
           passagesUsedInPrompt: graphRAGPayload.passages.length,
           parseStatus: 'complete',
           referenceBlockClosed: true,
@@ -1048,14 +1077,15 @@ export async function composeReadingEnhanced(payload, env = null) {
         payload.promptMeta.graphRAG = {
           ...(graphRAGPayload.retrievalSummary || {}),
           includedInPrompt: false,
-          injectedIntoPrompt: true,
+          injectedIntoPrompt: false,
           passagesProvided,
           passagesUsedInPrompt: graphRAGPayload.passages.length,
           disabledByEnv: false,
           skippedReason: null,
           parseStatus: 'complete',
           referenceBlockClosed: true,
-          debugVisibleInOutput: true
+          debugVisibleInOutput: true,
+          visibleInOutput: true
         };
       }
     }

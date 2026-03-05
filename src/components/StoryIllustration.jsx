@@ -33,13 +33,13 @@ function LoadingSkeleton({ format }) {
   const panelCount = format === 'triptych' ? 3 : 1;
   
   return (
-    <div className="flex gap-2 justify-center">
+    <div className="flex flex-wrap gap-2 justify-center">
       {Array.from({ length: panelCount }).map((_, i) => (
         <div
           key={i}
-          className="bg-gradient-to-br from-primary/20 to-accent/15 rounded-lg overflow-hidden animate-pulse"
+          className="w-full bg-gradient-to-br from-primary/20 to-accent/15 rounded-lg overflow-hidden animate-pulse"
           style={{
-            width: format === 'triptych' ? '200px' : '400px',
+            maxWidth: format === 'triptych' ? '200px' : '400px',
             height: format === 'vignette' ? '300px' : '200px',
             aspectRatio: format === 'vignette' ? '2/3' : '3/2'
           }}
@@ -93,7 +93,7 @@ function FormatSelector({ value, onChange, allowedFormats }) {
   );
   
   return (
-    <div className="flex gap-2 justify-center">
+    <div className="flex flex-wrap gap-2 justify-center">
       {available.map(format => (
         <button
           key={format.id}
@@ -147,12 +147,12 @@ function GeneratedArt({
       )}
       
       {/* Action buttons */}
-      <div className={`flex gap-3 justify-center ${showImage ? 'mt-4' : 'mt-1'}`}>
+      <div className={`flex flex-wrap gap-3 justify-center ${showImage ? 'mt-4' : 'mt-1'}`}>
         {canSave && (
           <button
             onClick={onSave}
             type="button"
-            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 
+            className="w-full sm:w-auto max-w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 
                        text-surface rounded-lg transition-colors text-sm border border-primary/60
                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
           >
@@ -167,7 +167,7 @@ function GeneratedArt({
         <button
           onClick={onDownload}
           type="button"
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm
+          className={`w-full sm:w-auto max-w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm
                       ${downloadClasses}
                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`}
         >
@@ -182,7 +182,7 @@ function GeneratedArt({
           onClick={onShare}
           type="button"
           disabled={!canShare}
-          className="flex items-center gap-2 px-4 py-2 bg-surface-muted hover:bg-surface 
+          className="w-full sm:w-auto max-w-full flex items-center justify-center gap-2 px-4 py-2 bg-surface-muted hover:bg-surface 
                      text-main rounded-lg transition-colors text-sm border border-secondary/30
                      disabled:opacity-45 disabled:cursor-not-allowed
                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
@@ -541,8 +541,8 @@ export default function StoryIllustration({
     <HeroBackground image={generatedImage} format={format} activePanel={activePanel} />
   ) : null;
   const containerClassName = embedded
-    ? `rounded-xl border border-secondary/25 bg-surface/65 p-4 sm:p-5 transition-opacity duration-200 ease-out ${className}`
-    : `p-6 bg-surface/95 backdrop-blur-xl rounded-xl border border-secondary/40 transition-opacity duration-200 ease-out ${className}`;
+    ? `w-full min-w-0 rounded-xl border border-secondary/25 bg-surface/65 p-4 sm:p-5 transition-opacity duration-200 ease-out ${className}`
+    : `w-full min-w-0 p-6 bg-surface/95 backdrop-blur-xl rounded-xl border border-secondary/40 transition-opacity duration-200 ease-out ${className}`;
 
   return (
     <div className={containerClassName}>

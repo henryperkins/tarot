@@ -1,16 +1,18 @@
 import { NarrativeSkeleton } from '../NarrativeSkeleton';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
+import { getSceneModel } from './sceneModelUtils';
 
 export function InterludeScene({
   title = 'Interlude',
   message = 'Gathering insight...',
   showTitle = true,
   className = '',
-  sceneData = {}
+  sceneModels = {}
 }) {
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
+  const interludeModel = getSceneModel(sceneModels, 'interludeModel');
   const {
     isGenerating,
     personalReading,
@@ -22,7 +24,7 @@ export function InterludeScene({
     userQuestion,
     readingCount,
     reasoning
-  } = sceneData;
+  } = interludeModel;
 
   const isExiting = !isGenerating && Boolean(personalReading);
 

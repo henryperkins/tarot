@@ -12,8 +12,9 @@ export function collectGraphRAGAlerts(promptMeta = {}) {
     const passagesProvided =
         (typeof graphMeta.passagesProvided === 'number' ? graphMeta.passagesProvided : null) ??
         (typeof graphMeta.passagesRetrieved === 'number' ? graphMeta.passagesRetrieved : 0);
+    const visibleInOutput = graphMeta.debugVisibleInOutput === true || graphMeta.visibleInOutput === true;
 
-    if (graphMeta.includedInPrompt === false && passagesProvided > 0) {
+    if (graphMeta.includedInPrompt === false && passagesProvided > 0 && !visibleInOutput) {
         alerts.push('GraphRAG passages were retrieved but omitted from prompt');
     }
 

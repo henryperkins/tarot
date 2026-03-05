@@ -305,6 +305,7 @@ export function maybeLogNarrativeEnhancements(env, requestId, provider, summary)
  * @param {string} options.userQuestion - User question for name hint extraction
  * @param {string} options.reflectionsText - User reflections for name hint extraction
  * @param {string[]} options.nameHints - Explicit name hints to redact
+ * @param {boolean} options.disableAutomaticNameExtraction - Optional explicit extraction bypass
  * @param {Object} options.redactionOptions - Explicit redaction options override
  */
 export function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt, userPrompt, promptMeta, options = {}) {
@@ -326,7 +327,8 @@ export function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt
     },
     userQuestion: options.userQuestion,
     reflectionsText: options.reflectionsText,
-    nameHints: options.nameHints
+    nameHints: options.nameHints,
+    disableAutomaticNameExtraction: options.disableAutomaticNameExtraction
   });
 
   const redactedSystem = redactPII(systemPrompt, redactionOptions);

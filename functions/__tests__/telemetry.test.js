@@ -170,6 +170,36 @@ describe('maybeLogPromptPayload redaction', () => {
     assert.ok(!joined.includes('Jamie'));
     assert.match(joined, /\[NAME\]/);
   });
+
+  it('supports disabling automatic name extraction while honoring explicit hints', () => {
+    const captured = [];
+    const originalConsoleLog = console.log;
+    console.log = (...args) => {
+      captured.push(args.map((value) => String(value)).join(' '));
+    };
+
+    try {
+      maybeLogPromptPayload(
+        { LOG_LLM_PROMPTS: 'true', NODE_ENV: 'development' },
+        'req-3',
+        'azure-gpt5',
+        '',
+        'Prompt with Alex and Jamie in context.',
+        null,
+        {
+          userQuestion: 'How can I reconnect with Alex and Jamie?',
+          nameHints: ['Alex'],
+          disableAutomaticNameExtraction: true
+        }
+      );
+    } finally {
+      console.log = originalConsoleLog;
+    }
+
+    const joined = captured.join('\n');
+    assert.ok(!joined.includes('Alex'));
+    assert.ok(joined.includes('Jamie'));
+  });
 });
 
 describe('prompt slimming respects budget order', () => {

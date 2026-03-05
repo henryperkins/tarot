@@ -15,6 +15,7 @@ import {
   getCardAnimation,
   detectQuestionCategory
 } from './generativeVisuals.js';
+import { buildMediaNarrativeReference } from './mediaPromptAlignment.js';
 
 /**
  * Cinematic style presets for card reveal animations
@@ -64,6 +65,21 @@ if (missingStyleIds.length) {
 
 if (extraStyleIds.length) {
   console.warn('[videoPrompts] Unlisted style configs:', extraStyleIds);
+}
+
+function buildPromptSafeCard(card, narrativeReference, fallbackPosition = 'Card 1') {
+  const safeCard = narrativeReference?.cards?.[0] || {};
+  const safeName = safeCard.card || safeCard.name || card?.name || 'Card 1';
+  const safePosition = safeCard.position || fallbackPosition || 'Card 1';
+  const safeMeaning = safeCard.meaning || card?.meaning || card?.interpretation || '';
+
+  return {
+    ...card,
+    card: safeName,
+    name: safeName,
+    position: safePosition,
+    meaning: safeMeaning
+  };
 }
 
 /**
@@ -190,23 +206,32 @@ export const CARD_ANIMATIONS = {
  */
 export function buildCardRevealPrompt(card, question, position, style = 'mystical', keyframeDescription = null) {
   const styleConfig = VIDEO_STYLES[style] || VIDEO_STYLES.mystical;
-  const visual = getCardVisuals(card);
-  const legacyVisual = CARD_VISUALS[card.number] || {};
-  const minorAnimation = getCardAnimation(card);
-  const animation = CARD_ANIMATIONS[card.number] || minorAnimation || {
+  const narrativeReference = buildMediaNarrativeReference({
+    cards: [card],
+    question,
+    spreadKey: 'single'
+  });
+  const safeQuestion = narrativeReference.question;
+  const safeCard = buildPromptSafeCard(card, narrativeReference, position);
+  const safePosition = safeCard.position;
+  // Prompt builders must never interpolate unsanitized request payload fields directly.
+  const visual = getCardVisuals(safeCard);
+  const legacyVisual = CARD_VISUALS[safeCard.number] || {};
+  const minorAnimation = getCardAnimation(safeCard);
+  const animation = CARD_ANIMATIONS[safeCard.number] || minorAnimation || {
     action: 'Figure emerges from shadow into light, energy gathering around them',
     camera: 'slow push-in with soft focus transition',
     beat: 'revelation unfolding'
   };
   
-  const suitVisual = card.suit ? SUIT_VISUALS[card.suit.toLowerCase()] : null;
+  const suitVisual = safeCard.suit ? SUIT_VISUALS[safeCard.suit.toLowerCase()] : null;
   
   // Detect question category for contextual cues
-  const questionCategory = detectQuestionCategory(question);
+  const questionCategory = detectQuestionCategory(safeQuestion);
   const questionCues = QUESTION_VISUAL_CUES[questionCategory] || QUESTION_VISUAL_CUES.general;
   
   // Unified reversal treatment
-  const reversedNote = card.reversed 
+  const reversedNote = safeCard.reversed 
     ? `REVERSED ENERGY: ${REVERSAL_TREATMENT.forVideo}`
     : '';
 
@@ -231,9 +256,11 @@ export function buildCardRevealPrompt(card, question, position, style = 'mystica
   // Use combined visual data
   const symbols = visual.symbols || legacyVisual.symbols || 'archetypal mystical imagery';
   const figure = visual.figure || legacyVisual.figure || 'symbolic archetypal figure';
-  const mood = visual.mood || legacyVisual.mood || card.meaning;
+  const mood = visual.mood || legacyVisual.mood || safeCard.meaning;
 
   return `
+${narrativeReference.referenceBlock}
+
 Style: ${styleConfig.style}
 Lighting: ${styleConfig.lighting}
 Palette: ${styleConfig.palette}
@@ -242,8 +269,8 @@ ${reversedNote}
 ${elementNote}
 ${minorAtmosphere}
 
-A mystical scene capturing the essence of ${card.name} in the context of "${question}".
-This card appears in the ${position} position, suggesting ${mood}.
+A mystical scene capturing the essence of ${safeCard.name} in the context of "${safeQuestion}".
+This card appears in the ${safePosition} position, suggesting ${mood}.
 
 Question theme cues: ${questionCues.cues}
 Visual metaphor: ${questionCues.metaphors}
@@ -281,17 +308,25 @@ Constraints:
  */
 export function buildKeyframePrompt(card, question, position, style = 'mystical') {
   const styleConfig = VIDEO_STYLES[style] || VIDEO_STYLES.mystical;
-  const visual = getCardVisuals(card);
-  const legacyVisual = CARD_VISUALS[card.number] || {};
-  const minorAnimation = getCardAnimation(card);
-  const animation = CARD_ANIMATIONS[card.number] || minorAnimation || {};
+  const narrativeReference = buildMediaNarrativeReference({
+    cards: [card],
+    question,
+    spreadKey: 'single'
+  });
+  const safeQuestion = narrativeReference.question;
+  const safeCard = buildPromptSafeCard(card, narrativeReference, position);
+  const safePosition = safeCard.position;
+  const visual = getCardVisuals(safeCard);
+  const legacyVisual = CARD_VISUALS[safeCard.number] || {};
+  const minorAnimation = getCardAnimation(safeCard);
+  const animation = CARD_ANIMATIONS[safeCard.number] || minorAnimation || {};
   
   // Detect question category for contextual cues
-  const questionCategory = detectQuestionCategory(question);
+  const questionCategory = detectQuestionCategory(safeQuestion);
   const questionCues = QUESTION_VISUAL_CUES[questionCategory] || QUESTION_VISUAL_CUES.general;
   
   // Unified reversal treatment
-  const reversedNote = card.reversed 
+  const reversedNote = safeCard.reversed 
     ? REVERSAL_TREATMENT.forKeyframe
     : 'Energy flowing openly, vibrant presence.';
   
@@ -302,7 +337,7 @@ export function buildKeyframePrompt(card, question, position, style = 'mystical'
   // Use combined visual data
   const figure = visual.figure || legacyVisual.figure || 'Archetypal figure';
   const symbols = visual.symbols || legacyVisual.symbols || 'symbolic imagery';
-  const mood = visual.mood || legacyVisual.mood || card.meaning;
+  const mood = visual.mood || legacyVisual.mood || safeCard.meaning;
   const colors = legacyVisual.colors || '';
   
   // Minor arcana atmosphere
@@ -311,6 +346,8 @@ export function buildKeyframePrompt(card, question, position, style = 'mystical'
     : '';
 
   const prompt = `
+${narrativeReference.referenceBlock}
+
 VISUAL MEDIUM:
 Cinematic film still, ${styleConfig.style}
 
@@ -337,7 +374,7 @@ ${colors ? `Card-specific colors: ${colors}` : ''}
 MOOD:
 ${styleConfig.mood}
 ${reversedNote}
-Thematic context: ${questionCues.cues} (${position} position, ${mood})
+Thematic context: ${questionCues.cues} (${safePosition} position, ${mood})
 
 CONSTRAINTS:
 - No text, words, or labels
@@ -363,12 +400,18 @@ CONSTRAINTS:
 export function buildRevealSequence(cards, question, style = 'mystical') {
   return cards.map((card, index) => {
     const keyframe = buildKeyframePrompt(card, question, card.position, style);
+    const narrativeReference = buildMediaNarrativeReference({
+      cards: [card],
+      question,
+      spreadKey: 'single'
+    });
+    const safeCard = buildPromptSafeCard(card, narrativeReference, card.position);
     return {
       index,
-      card: card.name,
-      position: card.position,
+      card: safeCard.name,
+      position: safeCard.position,
       keyframePrompt: keyframe.prompt || keyframe.toString(),
-      videoPrompt: buildCardRevealPrompt(card, question, card.position, style, keyframe.startingPoseDescription),
+      videoPrompt: buildCardRevealPrompt(safeCard, question, safeCard.position, style, keyframe.startingPoseDescription),
       duration: 4, // seconds
       size: '1280x720' // landscape for cinematic feel
     };

@@ -94,6 +94,10 @@ const NAME_HINT_PATTERNS = [
     'giu'
   ),
   new RegExp(
+    String.raw`(?:\bwith|\babout|\bregarding)\s+(${NAME_SEQUENCE})\s+and\s+(${NAME_SEQUENCE})`,
+    'giu'
+  ),
+  new RegExp(
     String.raw`(?:\bme\s+and|\bI\s+and|\band\s+me|\band\s+I|\bbetween|\bwith|\babout|\bregarding|\bmy\s+(?:partner|spouse|friend|mother|father|sister|brother|boss|manager|coworker|colleague|mentor|client|child|son|daughter|ex|roommate))\s+(${NAME_SEQUENCE})`,
     'giu'
   ),
@@ -296,7 +300,8 @@ function dedupeRedactionNames(candidates = [], limit = MAX_REDACTION_NAME_HINTS)
  * @param {string} params.displayName - Optional display name override
  * @param {string} params.userQuestion - Optional user question for name hint extraction
  * @param {string} params.reflectionsText - Optional reflections for name hint extraction
- * @param {string[]} params.nameHints - Optional explicit name hints (skips extraction when provided)
+ * @param {string[]} params.nameHints - Optional explicit name hints (merged with extracted hints)
+ * @param {boolean} params.disableAutomaticNameExtraction - Optional explicit extraction bypass
  * @returns {Object} Sanitized redaction options
  */
 export function buildPromptRedactionOptions(params = {}) {
@@ -305,7 +310,8 @@ export function buildPromptRedactionOptions(params = {}) {
     displayName,
     userQuestion,
     reflectionsText,
-    nameHints
+    nameHints,
+    disableAutomaticNameExtraction = false
   } = params;
 
   const baseOptions = redactionOptions && typeof redactionOptions === 'object' ? redactionOptions : {};
@@ -313,13 +319,14 @@ export function buildPromptRedactionOptions(params = {}) {
     typeof displayName === 'string' ? displayName : baseOptions.displayName
   );
 
-  const providedNameHints = Array.isArray(nameHints)
-    ? nameHints
+  const extractedNameHints = disableAutomaticNameExtraction === true
+    ? []
     : extractNameHints([userQuestion, reflectionsText].filter(Boolean).join('\n'));
+  const providedNameHints = Array.isArray(nameHints) ? nameHints : [];
   const baseAdditionalNames = Array.isArray(baseOptions.additionalNames) ? baseOptions.additionalNames : [];
 
   const additionalNames = dedupeRedactionNames(
-    [...baseAdditionalNames, ...providedNameHints].filter((entry) => {
+    [...baseAdditionalNames, ...providedNameHints, ...extractedNameHints].filter((entry) => {
       if (!resolvedDisplayName || typeof entry !== 'string') return true;
       return entry.trim().toLowerCase() !== resolvedDisplayName.toLowerCase();
     })
@@ -482,6 +489,7 @@ export function extractPromptFeatures(prompt) {
  * @param {string} params.userQuestion - The user's question (for name redaction hints)
  * @param {string} params.reflectionsText - The user's reflections (for name redaction hints)
  * @param {string[]} params.nameHints - Optional explicit name hints to redact
+ * @param {boolean} params.disableAutomaticNameExtraction - Optional explicit extraction bypass
  * @param {Object} params.redactionOptions - Options for PII redaction
  * @param {boolean} params.stripUserContent - Whether to strip user questions/reflections (default: true)
  * @returns {Promise<Object>} Prompt engineering payload
@@ -494,6 +502,7 @@ export async function buildPromptEngineeringPayload(params) {
     userQuestion,
     reflectionsText,
     nameHints,
+    disableAutomaticNameExtraction = false,
     redactionOptions = {},
     stripUserContent: shouldStripUserContent = true,
     skipPIIRedaction = false
@@ -528,7 +537,8 @@ export async function buildPromptEngineeringPayload(params) {
     redactionOptions,
     userQuestion,
     reflectionsText,
-    nameHints
+    nameHints,
+    disableAutomaticNameExtraction
   });
 
   // Layer 2: Redact PII patterns from prompts and response (unless skipped)
@@ -690,6 +700,71 @@ function stripCommonUserContent(text) {
   return result;
 }
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+const TRAJECTORY_LABEL_RULES = [
+  {
+    label: 'Outcome',
+    descriptor: 'likely path',
+    suffix: 'if unchanged'
+  },
+  {
+    label: 'Future',
+    descriptor: 'likely trajectory',
+    suffix: 'if nothing shifts'
+  }
+];
+
+function stripTrajectoryQuestionLabels(text, { echoOnly = false } = {}) {
+  if (!text || typeof text !== 'string') return text || '';
+
+  const quotedQuestionPattern = String.raw`(?:["“][^\n"”]+["”]|['‘][^\n'’]+['’])`;
+  let result = text;
+
+  for (const rule of TRAJECTORY_LABEL_RULES) {
+    const prefixPattern = `${escapeRegex(rule.label)}\\s*[—–-]\\s*${escapeRegex(rule.descriptor)}\\s+for`;
+    const suffixPattern = `(\\s*${escapeRegex(rule.suffix)}[^\\n]*)`;
+    const canonicalPrefix = `${rule.label} — ${rule.descriptor} for`;
+
+    if (echoOnly) {
+      const suffixAwarePattern = new RegExp(
+        `${prefixPattern}\\s*(?!\\[USER_QUESTION_REDACTED\\])${quotedQuestionPattern}${suffixPattern}`,
+        'giu'
+      );
+      result = result.replace(
+        suffixAwarePattern,
+        (_match, suffix = '') => `${canonicalPrefix} [USER_QUESTION_REDACTED]${suffix || ''}`
+      );
+
+      const generalPattern = new RegExp(
+        `${prefixPattern}(?!\\s*\\[USER_QUESTION_REDACTED\\])\\s*${quotedQuestionPattern}`,
+        'giu'
+      );
+      result = result.replace(generalPattern, `${canonicalPrefix} [USER_QUESTION_REDACTED]`);
+      continue;
+    }
+
+    const promptSuffixAwarePattern = new RegExp(
+      `${prefixPattern}\\s*(?!\\[USER_QUESTION_REDACTED\\])[^\\n]*?${suffixPattern}`,
+      'giu'
+    );
+    result = result.replace(
+      promptSuffixAwarePattern,
+      (_match, suffix = '') => `${canonicalPrefix} [USER_QUESTION_REDACTED]${suffix || ''}`
+    );
+
+    const promptGeneralPattern = new RegExp(
+      `${prefixPattern}(?!\\s*\\[USER_QUESTION_REDACTED\\])\\s*[^\\n]*`,
+      'giu'
+    );
+    result = result.replace(promptGeneralPattern, `${canonicalPrefix} [USER_QUESTION_REDACTED]`);
+  }
+
+  return result;
+}
+
 /**
  * Strip user-provided content (questions, reflections) from prompt text for storage.
  * This provides an additional privacy layer beyond PII pattern matching.
@@ -700,29 +775,7 @@ function stripCommonUserContent(text) {
 export function stripUserPromptContent(text) {
   let result = stripCommonUserContent(text);
   if (!result || typeof result !== 'string') return result || '';
-
-  // Strip questions embedded in card position labels
-  // Pattern: Outcome — likely path for "<question>" if unchanged
-  result = result.replace(
-    /Outcome\s*[—–-]\s*likely path for\s*(?!\[USER_QUESTION_REDACTED\])[^\n]*?(\s*if unchanged[^\n]*)/gi,
-    (_match, suffix = '') => `Outcome — likely path for [USER_QUESTION_REDACTED]${suffix || ''}`
-  );
-  result = result.replace(
-    /Outcome\s*[—–-]\s*likely path for(?!\s*\[USER_QUESTION_REDACTED\])\s*[^\n]*/gi,
-    'Outcome — likely path for [USER_QUESTION_REDACTED]'
-  );
-
-  // Pattern: Future — likely trajectory for "<question>" if nothing shifts
-  result = result.replace(
-    /Future\s*[—–-]\s*likely trajectory for\s*(?!\[USER_QUESTION_REDACTED\])[^\n]*?(\s*if nothing shifts[^\n]*)/gi,
-    (_match, suffix = '') => `Future — likely trajectory for [USER_QUESTION_REDACTED]${suffix || ''}`
-  );
-  result = result.replace(
-    /Future\s*[—–-]\s*likely trajectory for(?!\s*\[USER_QUESTION_REDACTED\])\s*[^\n]*/gi,
-    'Future — likely trajectory for [USER_QUESTION_REDACTED]'
-  );
-
-  return result;
+  return stripTrajectoryQuestionLabels(result);
 }
 
 /**
@@ -733,7 +786,7 @@ export function stripUserPromptContent(text) {
  * @returns {string} Response text with direct prompt echoes removed
  */
 export function stripResponseEchoContent(text) {
-  return stripCommonUserContent(text);
+  return stripTrajectoryQuestionLabels(stripCommonUserContent(text), { echoOnly: true });
 }
 
 /**

@@ -99,14 +99,17 @@ export async function buildRelationshipReading({
   const frameVocab = getFrameVocabulary(personalization?.spiritualFrame);
   const nameInline = buildNameClause(personalization?.displayName, 'inline');
   const proseOptions = { proseMode: options.proseMode === true };
+  const hasUserQuestion = typeof userQuestion === 'string' && userQuestion.trim().length > 0;
 
   // Use reasoning-aware opening if available
-  const openingQuestion = userQuestion ||
-    'This spread explores your energy, their energy, the connection between you, and guidance for relating with agency and care.';
+  const openingQuestion = hasUserQuestion ? userQuestion : '';
   const opening = reasoning
     ? buildReasoningAwareOpening(spreadName, openingQuestion, context, reasoning, { personalization: options.personalization })
     : buildOpening(spreadName, openingQuestion, context, { personalization: options.personalization });
   sections.push(opening);
+  if (!hasUserQuestion) {
+    sections.push('This spread explores your energy, their energy, the connection between you, and guidance for relating with agency and care.');
+  }
 
   const normalizedCards = cardsInfo;
   const prioritized = sortCardsByImportance(normalizedCards, 'relationship');

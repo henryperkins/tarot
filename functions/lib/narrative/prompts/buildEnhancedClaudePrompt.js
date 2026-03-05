@@ -183,6 +183,56 @@ export function parseGraphRAGSummaryBlock(promptText) {
   };
 }
 
+function hasMeaningfulGraphData(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'boolean') return value === true;
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some((entry) => hasMeaningfulGraphData(entry));
+  if (typeof value === 'object') {
+    return Object.values(value).some((entry) => hasMeaningfulGraphData(entry));
+  }
+  return false;
+}
+
+function hasMeaningfulGraphKeys(graphKeys) {
+  return hasMeaningfulGraphData(graphKeys);
+}
+
+function hasMeaningfulGraphRAGPayload(payload) {
+  if (!payload || typeof payload !== 'object') return false;
+  if (Array.isArray(payload.passages) && payload.passages.length > 0) return true;
+  if (typeof payload.formattedBlock === 'string' && payload.formattedBlock.trim()) return true;
+  if (typeof payload.initialPassageCount === 'number') return true;
+  if (typeof payload.maxPassages === 'number') return true;
+  if (payload.semanticScoringRequested === true || payload.semanticScoringFallback === true || payload.enableSemanticScoring === true) {
+    return true;
+  }
+  return payload.retrievalSummary && typeof payload.retrievalSummary === 'object'
+    ? Object.keys(payload.retrievalSummary).length > 0
+    : false;
+}
+
+function hasVisibleVisionDiagnostics(promptText) {
+  return typeof promptText === 'string' && promptText.includes('**Vision Validation**:');
+}
+
+function hasVisibleVisionCardCues(promptText) {
+  return typeof promptText === 'string' &&
+    /Vision-detected tone:|Vision-detected emotion:|Emotional quality:/i.test(promptText);
+}
+
+function isGraphRAGBudgetTrimmed(slimmingSteps = []) {
+  return slimmingSteps.some((step) =>
+    step === 'trim-graphrag-passages' ||
+    step === 'reduce-graphrag-to-summary' ||
+    step === 'drop-graphrag-summary' ||
+    step === 'hard-cap-trim-graphrag-passages' ||
+    step === 'hard-cap-reduce-graphrag-to-summary' ||
+    step === 'hard-cap-drop-graphrag-summary'
+  );
+}
+
 export function buildEnhancedClaudePrompt({
   spreadInfo,
   cardsInfo,
@@ -257,7 +307,7 @@ export function buildEnhancedClaudePrompt({
     null;
   let graphRAGInjectionDisabled = false;
   const graphEnv = resolveGraphEnv(promptBudgetEnv);
-  if (!effectiveGraphRAGPayload && isGraphRAGEnabled(graphEnv) && activeThemes?.knowledgeGraph?.graphKeys) {
+  if (!effectiveGraphRAGPayload && isGraphRAGEnabled(graphEnv) && hasMeaningfulGraphKeys(activeThemes?.knowledgeGraph?.graphKeys)) {
     const effectiveSpreadKey = spreadKey || 'general';
     const maxPassages = getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);
     const graphRAGContextInput =
@@ -371,6 +421,9 @@ export function buildEnhancedClaudePrompt({
   };
 
   const buildWithControls = (controls) => {
+    const sourceUsageSignals = {
+      visionCardCuesUsed: false
+    };
     const systemPrompt = buildSystemPrompt(
       spreadKey,
       activeThemes,
@@ -398,7 +451,8 @@ export function buildEnhancedClaudePrompt({
         ...controls,
         personalization,
         contextDiagnostics: diagnostics,
-        deckStyle: resolvedDeckStyle
+        deckStyle: resolvedDeckStyle,
+        sourceUsageSignals
       }
     );
 
@@ -410,7 +464,8 @@ export function buildEnhancedClaudePrompt({
       userPrompt,
       systemTokens,
       userTokens,
-      totalTokens: systemTokens + userTokens
+      totalTokens: systemTokens + userTokens,
+      sourceUsageSignals
     };
   };
 
@@ -722,11 +777,13 @@ export function buildEnhancedClaudePrompt({
     } : null
   };
 
-  if (controls.graphRAGPayload?.retrievalSummary) {
+  const graphRAGBudgetTrimmed = isGraphRAGBudgetTrimmed(slimmingSteps);
+
+  if (hasMeaningfulGraphRAGPayload(controls.graphRAGPayload)) {
     const payload = controls.graphRAGPayload;
-    const retrievalSummary = { ...payload.retrievalSummary };
+    const retrievalSummary = { ...(payload.retrievalSummary || {}) };
     const envForGraph = controls.env ?? (typeof process !== 'undefined' ? process.env : {});
-    const graphragEnabled = isGraphRAGEnabled(envForGraph) || (!controls.env && Boolean(payload));
+    const graphragEnabled = isGraphRAGEnabled(envForGraph) || (!controls.env && hasMeaningfulGraphRAGPayload(payload));
     const passagesAfterSlimming = Array.isArray(payload.passages)
       ? payload.passages.length
       : 0;
@@ -804,16 +861,23 @@ export function buildEnhancedClaudePrompt({
     }
     retrievalSummary.disabledByEnv = !graphragEnabled;
     retrievalSummary.includedInPrompt = graphRAGInjectionMode !== 'none';
+    if (!retrievalSummary.skippedReason && graphRAGInjectionMode === 'none') {
+      if (!graphragEnabled) {
+        retrievalSummary.skippedReason = 'disabled_by_env';
+      } else if (graphRAGBudgetTrimmed) {
+        retrievalSummary.skippedReason = 'removed_for_budget';
+      } else {
+        retrievalSummary.skippedReason = 'retrieval_failed_or_empty';
+      }
+    }
 
     promptMeta.graphRAG = retrievalSummary;
   } else if (
-    themes?.knowledgeGraph?.graphKeys &&
-    typeof themes.knowledgeGraph.graphKeys === 'object' &&
-    Object.keys(themes.knowledgeGraph.graphKeys).length > 0
+    hasMeaningfulGraphKeys(themes?.knowledgeGraph?.graphKeys)
   ) {
     // Emit stub telemetry when graphKeys exist but retrieval was skipped/failed
     const envForGraph = controls.env ?? (typeof process !== 'undefined' ? process.env : {});
-    const graphragEnabled = isGraphRAGEnabled(envForGraph) || (!controls.env && Boolean(controls.graphRAGPayload));
+    const graphragEnabled = isGraphRAGEnabled(envForGraph) || (!controls.env && hasMeaningfulGraphRAGPayload(controls.graphRAGPayload));
     promptMeta.graphRAG = {
       includedInPrompt: false,
       injectionMode: 'none',
@@ -851,22 +915,13 @@ export function buildEnhancedClaudePrompt({
     : [];
   const hasFocusAreas = focusAreas.length > 0;
   const hasVisionSource = Array.isArray(visionInsights) && visionInsights.length > 0;
-  const visionDiagnosticsIncluded = hasVisionSource && controls.includeDiagnostics !== false;
+  const visionDiagnosticsIncluded = hasVisionSource && hasVisibleVisionDiagnostics(finalUser);
+  const visionCardCuesIncluded = built.sourceUsageSignals?.visionCardCuesUsed === true && hasVisibleVisionCardCues(finalUser);
+  const visionUsed = hasVisionSource && (visionDiagnosticsIncluded || visionCardCuesIncluded);
   const visionRemovedForBudget = slimmingSteps.some((step) =>
     step === 'drop-diagnostics' || step === 'hard-cap-drop-diagnostics'
   );
-  const hasGraphRAGSource = Boolean(
-    controls.graphRAGPayload ||
-    activeThemes?.knowledgeGraph?.graphKeys
-  );
-  const graphRAGBudgetTrimmed = slimmingSteps.some((step) =>
-    step === 'trim-graphrag-passages' ||
-    step === 'reduce-graphrag-to-summary' ||
-    step === 'drop-graphrag-summary' ||
-    step === 'hard-cap-trim-graphrag-passages' ||
-    step === 'hard-cap-reduce-graphrag-to-summary' ||
-    step === 'hard-cap-drop-graphrag-summary'
-  );
+  const hasGraphRAGSource = hasMeaningfulGraphRAGPayload(controls.graphRAGPayload) || hasMeaningfulGraphKeys(activeThemes?.knowledgeGraph?.graphKeys);
   const ephemerisRemovedForBudget = slimmingSteps.some((step) =>
     step === 'drop-ephemeris' || step === 'hard-cap-drop-ephemeris'
   );
@@ -883,9 +938,9 @@ export function buildEnhancedClaudePrompt({
     },
     vision: {
       requested: hasVisionSource,
-      used: visionDiagnosticsIncluded,
+      used: visionUsed,
       skippedReason: hasVisionSource
-        ? (visionDiagnosticsIncluded ? null : (visionRemovedForBudget ? 'removed_for_budget' : 'diagnostics_disabled'))
+        ? (visionUsed ? null : (visionRemovedForBudget ? 'removed_for_budget' : 'diagnostics_disabled'))
         : 'not_provided'
     },
     userContext: {
