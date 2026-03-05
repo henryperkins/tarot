@@ -354,6 +354,10 @@ export default function StoryIllustration({
       setShowUpgrade(true);
       return;
     }
+
+    const requestCards = format === 'vignette' && Array.isArray(cards)
+      ? cards.slice(0, 1)
+      : cards;
     
     const requestToken = requestTokenRef.current + 1;
     requestTokenRef.current = requestToken;
@@ -376,7 +380,7 @@ export default function StoryIllustration({
         credentials: 'include',
         signal: controller.signal,
         body: JSON.stringify({
-          cards,
+          cards: requestCards,
           question,
           narrative,
           style,
@@ -416,7 +420,7 @@ export default function StoryIllustration({
           format: data.artFormat || format,
           mimeType: 'image/jpeg',
           question,
-          cardCount: Array.isArray(cards) ? cards.length : 0
+          cardCount: Array.isArray(requestCards) ? requestCards.length : 0
         });
       }
       

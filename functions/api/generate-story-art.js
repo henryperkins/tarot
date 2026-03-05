@@ -92,6 +92,18 @@ function normalizeStoryArtPayload(payload) {
   };
 }
 
+function coerceStoryArtPayload(payload) {
+  if (!payload || typeof payload !== 'object') return payload;
+  if (!Array.isArray(payload.cards)) return payload;
+  if (payload.format !== 'vignette' || payload.cards.length <= 1) return payload;
+
+  return {
+    ...payload,
+    // Backward-compatible handling for older clients that send all spread cards for vignette.
+    cards: payload.cards.slice(0, 1)
+  };
+}
+
 /**
  * Validate request payload
  */
@@ -388,8 +400,9 @@ export async function onRequestPost(ctx) {
   } catch (_err) {
     return jsonResponse({ error: 'Invalid JSON body' }, 400);
   }
-  
-  const errors = validatePayload(payload);
+
+  const coercedPayload = coerceStoryArtPayload(payload);
+  const errors = validatePayload(coercedPayload);
   if (errors.length > 0) {
     return jsonResponse({
       error: errors.map(({ message }) => message).join('; '),
@@ -400,8 +413,8 @@ export async function onRequestPost(ctx) {
 
   const sanitizationApplied = isMediaPromptSanitizationEnabled(env);
   const normalizedPayload = sanitizationApplied
-    ? normalizeStoryArtPayload(payload)
-    : payload;
+    ? normalizeStoryArtPayload(coercedPayload)
+    : coercedPayload;
 
   const {
     cards,

@@ -11,7 +11,12 @@ export const MEDIA_PROMPT_LIMITS = Object.freeze({
   maxCards: 10
 });
 
-const POSITION_ALLOWED_PATTERN = /^[\p{L}\p{N}\s.,:;!?'"()&/+ -]+$/u;
+const POSITION_ALLOWED_PATTERN = /^[\p{L}\p{N}\s.,:;!?'"()&/+\-‐–—―−]+$/u;
+const DASH_VARIANT_PATTERN = /[‐–—―−]/gu;
+
+export function normalizeMediaDashPunctuation(value = '') {
+  return String(value).replace(DASH_VARIANT_PATTERN, '-');
+}
 
 function sanitizeMediaText(value, { maxLength, addEllipsis = true } = {}) {
   return sanitizeText(value, {
@@ -51,7 +56,8 @@ export function sanitizeMediaPosition(rawPosition, index = 0) {
     maxLength: MEDIA_PROMPT_LIMITS.position,
     addEllipsis: true
   });
-  return safePosition || `Card ${index + 1}`;
+  const normalizedPosition = normalizeMediaDashPunctuation(safePosition);
+  return normalizedPosition || `Card ${index + 1}`;
 }
 
 export function sanitizeMediaMeaning(rawMeaning = '') {

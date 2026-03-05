@@ -1043,6 +1043,48 @@ describe('Media generation APIs', () => {
     assert.equal(mockFetch.mock.calls.length, 0);
   });
 
+  it('accepts vignette story-art requests with multiple cards by trimming to the lead card', async () => {
+    let imageRequests = 0;
+    mockFetch.mock.mockImplementation(async (url) => {
+      const requestUrl = typeof url === 'string' ? url : String(url);
+      if (requestUrl.includes('/openai/v1/images/generations?')) {
+        imageRequests += 1;
+        return new Response(JSON.stringify({
+          data: [{ b64_json: 'abc', revised_prompt: '' }]
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      throw new Error(`Unexpected fetch URL in vignette compatibility test: ${requestUrl}`);
+    });
+
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({ DB: createMockDb(user) });
+
+    const request = createMockRequest('/api/generate-story-art', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        cards: [
+          { name: 'The Fool', position: 'Past — influences that led here', reversed: false },
+          { name: 'The Magician', position: 'Present — where you stand now', reversed: false }
+        ],
+        question: 'What should I focus on?',
+        format: 'vignette',
+        style: 'watercolor'
+      }
+    });
+
+    const response = await onStoryArtPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.success, true);
+    assert.equal(imageRequests, 1);
+  });
+
   it('slims oversized story-art prompts under configured budget before provider calls', async () => {
     let capturedPromptLength = 0;
 
@@ -1143,6 +1185,52 @@ describe('Media generation APIs', () => {
     assert.equal(response.status, 400);
     assert.match(payload.error, /position contains unsupported characters/);
     assert.equal(mockFetch.mock.calls.length, 0);
+  });
+
+  it('accepts card-video position labels containing em dashes', async () => {
+    let videoRequests = 0;
+    mockFetch.mock.mockImplementation(async (url) => {
+      const requestUrl = typeof url === 'string' ? url : String(url);
+      if (requestUrl.includes('/openai/v1/videos?')) {
+        videoRequests += 1;
+        return new Response(JSON.stringify({ id: 'job-emdash-1', status: 'queued' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      throw new Error(`Unexpected fetch URL in em dash position test: ${requestUrl}`);
+    });
+
+    const user = {
+      id: 'user-pro',
+      subscription_tier: 'pro',
+      subscription_status: 'active'
+    };
+    const env = createBaseEnv({
+      DB: createMockDb(user),
+      CARD_VIDEO_INPUT_REFERENCE: 'off'
+    });
+
+    const request = createMockRequest('/api/generate-card-video', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        card: { name: 'The Fool', reversed: false },
+        question: 'What should I focus on?',
+        position: 'Future — trajectory if nothing shifts',
+        style: 'mystical',
+        seconds: 4
+      }
+    });
+
+    const response = await onCardVideoPost({ request, env });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.success, true);
+    assert.equal(payload.status, 'pending');
+    assert.equal(payload.jobId, 'job-emdash-1');
+    assert.equal(videoRequests, 1);
   });
 
   it('returns explicit budget error when card-video prompts exceed configured cap', async () => {

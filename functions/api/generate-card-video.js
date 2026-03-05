@@ -35,6 +35,7 @@ import { getCardVideoLimits } from '../../shared/monetization/media.js';
 import {
   MEDIA_PROMPT_LIMITS,
   isValidMediaPositionText,
+  normalizeMediaDashPunctuation,
   sanitizeMediaCard,
   sanitizeMediaPosition,
   sanitizeMediaQuestion
@@ -540,7 +541,7 @@ function normalizeCardVideoPayload(payload) {
  */
 function normalizeCacheValue(value) {
   if (typeof value !== 'string') return '';
-  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+  return normalizeMediaDashPunctuation(value).trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 /**
