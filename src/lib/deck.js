@@ -35,7 +35,7 @@ export function cryptoShuffle(arr) {
   return copy;
 }
 
-export function computeSeed({ cutIndex, knockTimes, userQuestion }) {
+export function computeSeed({ cutIndex, knockTimes, userQuestion, timestamp }) {
   const intervals = (knockTimes || [])
     .slice(-3)
     .map((t, i, arr) => (i ? t - arr[i - 1] : 0))
@@ -48,8 +48,12 @@ export function computeSeed({ cutIndex, knockTimes, userQuestion }) {
   const timingPattern = avgInterval > 500 ? 'slow' : avgInterval > 200 ? 'medium' : 'rapid';
   const timingHash = hashString(timingPattern);
 
+  // Include timestamp so each shuffle event produces a unique seed, preventing
+  // journal dedup collisions when ritual inputs are identical across readings.
+  const ts = (typeof timestamp === 'number' ? timestamp : Date.now()) & 0xFFFFFFFF;
+
   const qHash = hashString(userQuestion || '');
-  let seed = (qHash ^ (cutIndex * 2654435761) ^ Math.floor(intervals) ^ (knockCount * 1664525) ^ timingHash) >>> 0;
+  let seed = (qHash ^ (cutIndex * 2654435761) ^ Math.floor(intervals) ^ (knockCount * 1664525) ^ timingHash ^ ts) >>> 0;
   if (seed === 0) seed = 0x9e3779b9;
   return seed >>> 0;
 }

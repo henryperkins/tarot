@@ -13,13 +13,15 @@ describe('Deck Shuffling and Seeding', () => {
       const seed1 = computeSeed({
         cutIndex: 5,
         knockTimes: [100, 200, 300],
-        userQuestion: 'What is my path?'
+        userQuestion: 'What is my path?',
+        timestamp: 1000000
       });
       
       const seed2 = computeSeed({
         cutIndex: 5,
         knockTimes: [100, 200, 300],
-        userQuestion: 'What is my path?'
+        userQuestion: 'What is my path?',
+        timestamp: 1000000
       });
       
       assert.strictEqual(seed1, seed2, 'Same inputs should produce same seed');
@@ -29,13 +31,15 @@ describe('Deck Shuffling and Seeding', () => {
       const seed1 = computeSeed({
         cutIndex: 5,
         knockTimes: [100, 200, 300],
-        userQuestion: 'What is my path?'
+        userQuestion: 'What is my path?',
+        timestamp: 1000000
       });
       
       const seed2 = computeSeed({
         cutIndex: 5,
         knockTimes: [100, 200, 300],
-        userQuestion: 'What should I focus on?'
+        userQuestion: 'What should I focus on?',
+        timestamp: 1000000
       });
       
       assert.notStrictEqual(seed1, seed2, 'Different questions should produce different seeds');
@@ -45,13 +49,15 @@ describe('Deck Shuffling and Seeding', () => {
       const seed1 = computeSeed({
         cutIndex: 5,
         knockTimes: [100, 200], // 2 knocks
-        userQuestion: 'Test'
+        userQuestion: 'Test',
+        timestamp: 1000000
       });
       
       const seed2 = computeSeed({
         cutIndex: 5,
         knockTimes: [100, 200, 300, 400], // 4 knocks
-        userQuestion: 'Test'
+        userQuestion: 'Test',
+        timestamp: 1000000
       });
       
       assert.notStrictEqual(seed1, seed2, 'Different knock counts should produce different seeds');
@@ -61,13 +67,15 @@ describe('Deck Shuffling and Seeding', () => {
       const seed1 = computeSeed({
         cutIndex: 5,
         knockTimes: [100, 150, 200], // rapid knocks (50ms intervals)
-        userQuestion: 'Test'
+        userQuestion: 'Test',
+        timestamp: 1000000
       });
       
       const seed2 = computeSeed({
         cutIndex: 5,
         knockTimes: [100, 600, 1100], // slow knocks (500ms intervals)
-        userQuestion: 'Test'
+        userQuestion: 'Test',
+        timestamp: 1000000
       });
       
       assert.notStrictEqual(seed1, seed2, 'Different timing patterns should produce different seeds');
@@ -77,11 +85,30 @@ describe('Deck Shuffling and Seeding', () => {
       const seed = computeSeed({
         cutIndex: 0,
         knockTimes: [],
-        userQuestion: ''
+        userQuestion: '',
+        timestamp: 1000000
       });
       
       assert.strictEqual(typeof seed, 'number', 'Should produce a number even with empty inputs');
       assert.notStrictEqual(seed, 0, 'Should not produce zero seed');
+    });
+
+    it('should produce different seeds for different timestamps', () => {
+      const seed1 = computeSeed({
+        cutIndex: 5,
+        knockTimes: [100, 200, 300],
+        userQuestion: 'Test',
+        timestamp: 1000000
+      });
+
+      const seed2 = computeSeed({
+        cutIndex: 5,
+        knockTimes: [100, 200, 300],
+        userQuestion: 'Test',
+        timestamp: 1000001
+      });
+
+      assert.notStrictEqual(seed1, seed2, 'Different timestamps should produce different seeds');
     });
   });
   

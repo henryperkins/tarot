@@ -33,6 +33,15 @@ export function useSaveReading() {
     const [isSaving, setIsSaving] = useState(false);
     const lastSavedSeedRef = useRef(null);
 
+    // Reset saved-seed tracking when a new reading starts (sessionSeed goes null on shuffle)
+    const prevSeedRef = useRef(sessionSeed);
+    if (prevSeedRef.current !== sessionSeed) {
+        if (sessionSeed === null && prevSeedRef.current !== null) {
+            lastSavedSeedRef.current = null;
+        }
+        prevSeedRef.current = sessionSeed;
+    }
+
     const saveReading = useCallback(async function saveReading() {
         // Prevent double-saves
         if (isSaving) {

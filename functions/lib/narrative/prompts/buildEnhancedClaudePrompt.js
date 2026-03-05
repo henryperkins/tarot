@@ -969,14 +969,18 @@ export function buildEnhancedClaudePrompt({
       used: Boolean(promptMeta.ephemeris?.available && controls.includeEphemeris),
       skippedReason: promptMeta.ephemeris?.available
         ? (controls.includeEphemeris ? null : (ephemerisRemovedForBudget ? 'removed_for_budget' : 'not_relevant'))
-        : (ephemerisContext ? 'unavailable' : 'not_requested')
+        : (ephemerisContext
+          ? (ephemerisContext.available ? 'not_relevant' : 'unavailable')
+          : 'not_requested')
     },
     forecast: {
       requested: Boolean(ephemerisForecast),
       used: Boolean(promptMeta.forecast?.available && controls.includeForecast),
       skippedReason: promptMeta.forecast?.available
         ? (controls.includeForecast ? null : (forecastRemovedForBudget ? 'removed_for_budget' : 'not_relevant'))
-        : (ephemerisForecast ? 'unavailable' : 'not_requested')
+        : (ephemerisForecast
+          ? (ephemerisForecast.available ? 'not_relevant' : 'unavailable')
+          : 'not_requested')
     }
   };
 
