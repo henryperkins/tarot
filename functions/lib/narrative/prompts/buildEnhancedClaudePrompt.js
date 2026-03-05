@@ -203,8 +203,8 @@ function hasMeaningfulGraphRAGPayload(payload) {
   if (!payload || typeof payload !== 'object') return false;
   if (Array.isArray(payload.passages) && payload.passages.length > 0) return true;
   if (typeof payload.formattedBlock === 'string' && payload.formattedBlock.trim()) return true;
-  if (typeof payload.initialPassageCount === 'number') return true;
-  if (typeof payload.maxPassages === 'number') return true;
+  if (typeof payload.initialPassageCount === 'number' && payload.initialPassageCount > 0) return true;
+  if (typeof payload.maxPassages === 'number' && payload.maxPassages > 0) return true;
   if (payload.semanticScoringRequested === true || payload.semanticScoringFallback === true || payload.enableSemanticScoring === true) {
     return true;
   }

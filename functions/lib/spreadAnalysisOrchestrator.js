@@ -199,7 +199,8 @@ function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSem
       semanticScoringFallback: requestedSemanticScoring,
       semanticScoringAttempted: false,
       qualityMetrics,
-      reason
+      reason,
+      skippedReason: reason === 'graphrag-disabled-env' ? 'disabled_by_env' : 'retrieval_failed_or_empty'
     },
     maxPassages: 0,
     initialPassageCount: 0,

@@ -143,8 +143,9 @@
     // Keep debug routes disabled unless explicitly needed for admin-only diagnostics.
     "ENABLE_DEBUG_ROUTES": "false",
     // -------------------------------------------------------------------------
-    // Prompt Budget & GraphRAG Settings (not set = use defaults)
+    // Prompt Budget & GraphRAG Settings
     // -------------------------------------------------------------------------
+    "GRAPHRAG_ENABLED": "true",
     // ENABLE_PROMPT_SLIMMING: "false" (default) - When "true", enables token
     //   budget slimming that progressively drops prompt sections when over budget.
     //   Disabled because modern LLMs have large context windows and slimming

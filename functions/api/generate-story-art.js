@@ -132,12 +132,6 @@ function validatePayload(payload) {
   if (payload.narrative !== undefined && payload.narrative !== null) {
     if (typeof payload.narrative !== 'string') {
       addValidationError(errors, 'invalid_narrative', 'narrative must be a string when provided');
-    } else if (payload.narrative.trim().length > MEDIA_PROMPT_LIMITS.reflections) {
-      addValidationError(
-        errors,
-        'invalid_narrative_length',
-        `narrative must be ${MEDIA_PROMPT_LIMITS.reflections} characters or fewer`
-      );
     }
   }
 

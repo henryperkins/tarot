@@ -4,7 +4,7 @@ export const DEFAULT_MEDIA_QUESTION = 'What energy should this reading highlight
 
 export const MEDIA_PROMPT_LIMITS = Object.freeze({
   question: 280,
-  reflections: 600,
+  reflections: 2000,
   cardName: 80,
   position: 80,
   meaning: 180,
