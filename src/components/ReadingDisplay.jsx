@@ -753,7 +753,6 @@ export function ReadingDisplay({
     const narrativePanel = personalReading ? (
         <NarrativePanel {...narrativePanelProps} />
     ) : null;
-
     useEffect(() => {
         if (!personalReading) {
             autoNarrationTriggeredRef.current = false;
@@ -1063,6 +1062,38 @@ export function ReadingDisplay({
         });
     }, [persistMediaRecord, resolvedQuestion, setHasHeroStoryArt, storyArtCards]);
 
+    const narrativeReadingSurfaceProps = {
+        shouldShowVisualCompanion,
+        shouldShowCinematicReveal,
+        shouldShowStoryIllustration,
+        visualCompanionModeLabel,
+        visualCompanionMessage,
+        cinematicPosition,
+        cinematicRevealMessage,
+        readingIdentity,
+        cinematicCard,
+        resolvedQuestion,
+        effectiveTier,
+        autoGenerateVisuals,
+        onCinematicMediaReady: handleCinematicMediaReady,
+        storyArtCards,
+        fullReadingText,
+        narrativeText,
+        onStoryArtMediaReady: handleStoryArtMediaReady,
+        personalReading,
+        isGenerating,
+        isHandset,
+        shouldShowSpreadInsights,
+        themes,
+        highlightItems,
+        traditionalPassages
+    };
+    const narrativeReadingSurface = (
+        <div className={isLandscape ? 'space-y-4' : 'space-y-8'}>
+            <NarrativeReadingSurface {...narrativeReadingSurfaceProps} />
+        </div>
+    );
+
     useEffect(() => {
         if (!canUseMediaGallery) return;
         const timerId = window.setTimeout(() => {
@@ -1370,35 +1401,7 @@ export function ReadingDisplay({
                     isMobileStableMode={isMobileStableMode}
                     className={sceneShellClassName}
                 >
-                    <div className={isLandscape ? 'space-y-4' : 'space-y-8'}>
-                        <NarrativeReadingSurface
-                            shouldShowVisualCompanion={shouldShowVisualCompanion}
-                            shouldShowCinematicReveal={shouldShowCinematicReveal}
-                            shouldShowStoryIllustration={shouldShowStoryIllustration}
-                            visualCompanionModeLabel={visualCompanionModeLabel}
-                            visualCompanionMessage={visualCompanionMessage}
-                            cinematicPosition={cinematicPosition}
-                            cinematicRevealMessage={cinematicRevealMessage}
-                            readingIdentity={readingIdentity}
-                            cinematicCard={cinematicCard}
-                            resolvedQuestion={resolvedQuestion}
-                            effectiveTier={effectiveTier}
-                            autoGenerateVisuals={autoGenerateVisuals}
-                            onCinematicMediaReady={handleCinematicMediaReady}
-                            storyArtCards={storyArtCards}
-                            fullReadingText={fullReadingText}
-                            narrativeText={narrativeText}
-                            onStoryArtMediaReady={handleStoryArtMediaReady}
-                            personalReading={personalReading}
-                            isGenerating={isGenerating}
-                            isHandset={isHandset}
-                            shouldShowSpreadInsights={shouldShowSpreadInsights}
-                            themes={themes}
-                            highlightItems={highlightItems}
-                            traditionalPassages={traditionalPassages}
-                        />
-
-                    </div>
+                    {narrativeReadingSurface}
                 </SceneShell>
             )}
 

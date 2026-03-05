@@ -109,12 +109,17 @@ def rename_and_modify_files_to_md(directory, recursive=False, dry_run=False, log
                 new_path = os.path.join(root, new_filename)
 
                 if os.path.exists(new_path):
-                    msg = f"Skipping '{old_path}': '{new_filename}' already exists."
-                    if log_callback:
-                        log_callback(msg)
-                    else:
-                        print(msg)
-                    continue
+                    # Disambiguate by appending the original extension (without dot) before .md
+                    base_name = os.path.splitext(filename)[0]
+                    orig_ext = file_ext.lstrip('.')
+                    new_filename = f"{base_name}.{orig_ext}.md"
+                    new_path = os.path.join(root, new_filename)
+                    # If still collides, add numeric suffix
+                    counter = 2
+                    while os.path.exists(new_path):
+                        new_filename = f"{base_name}.{orig_ext}.{counter}.md"
+                        new_path = os.path.join(root, new_filename)
+                        counter += 1
 
                 if dry_run:
                     msg = f"[Dry Run] Would rename: '{old_path}' -> '{new_path}' and modify contents."
