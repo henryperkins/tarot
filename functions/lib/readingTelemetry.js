@@ -316,15 +316,8 @@ export function maybeLogPromptPayload(env, requestId, backendLabel, systemPrompt
   // and any user-provided display name
   const personalization = options.personalization || null;
   const redactionOptions = buildPromptRedactionOptions({
-    redactionOptions: {
-      ...(options.redactionOptions && typeof options.redactionOptions === 'object' ? options.redactionOptions : {}),
-      displayName:
-        options?.redactionOptions?.displayName ??
-        personalization?.displayName,
-      additionalNames:
-        options?.redactionOptions?.additionalNames ??
-        personalization?.additionalNames
-    },
+    redactionOptions: options.redactionOptions,
+    personalization,
     userQuestion: options.userQuestion,
     reflectionsText: options.reflectionsText,
     nameHints: options.nameHints,

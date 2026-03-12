@@ -114,7 +114,7 @@ export default [
 
   // Node.js scripts (including CJS files that use require/module)
   {
-    files: ['scripts/**/*.{js,mjs}', '*.config.{js,mjs}', 'test-telemetry.js'],
+    files: ['scripts/**/*.{js,mjs}', 'mcp/**/*.{js,mjs}', '*.config.{js,mjs}', 'test-telemetry.js'],
     languageOptions: {
       globals: {
         ...globals.node,

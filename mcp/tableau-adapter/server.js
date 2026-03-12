@@ -536,9 +536,7 @@ function attachMcpRoutes(authMiddleware) {
 
       if (!sessionId && isInitializeRequest(req.body)) {
         const server = createServer();
-        let transport;
-
-        transport = new StreamableHTTPServerTransport({
+        const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (initializedSessionId) => {
             sessions.set(initializedSessionId, { transport, server });

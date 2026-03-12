@@ -53,6 +53,7 @@ import { withSpan } from './tracingSpans.js';
  * Frozen to prevent accidental mutation.
  */
 export const NARRATIVE_BACKEND_ORDER = Object.freeze(['azure-gpt5', 'claude-opus45', 'local-composer']);
+export const LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE = 'local_composer_unsupported_language';
 
 /**
  * Backend definitions with availability checks.
@@ -95,6 +96,218 @@ export function getAvailableNarrativeBackends(env) {
       return backend;
     })
     .filter(Boolean);
+}
+
+const LOCAL_COMPOSER_SCRIPT_PROFILES = Object.freeze([
+  {
+    code: 'ja',
+    label: 'Japanese',
+    pattern: /[\p{Script=Hiragana}\p{Script=Katakana}]/gu
+  },
+  {
+    code: 'han',
+    label: 'Han-script language',
+    pattern: /\p{Script=Han}/gu
+  },
+  {
+    code: 'hangul',
+    label: 'Korean',
+    pattern: /\p{Script=Hangul}/gu
+  },
+  {
+    code: 'cyrillic',
+    label: 'Cyrillic-script language',
+    pattern: /\p{Script=Cyrillic}/gu
+  },
+  {
+    code: 'arabic',
+    label: 'Arabic',
+    pattern: /\p{Script=Arabic}/gu
+  },
+  {
+    code: 'hebrew',
+    label: 'Hebrew',
+    pattern: /\p{Script=Hebrew}/gu
+  },
+  {
+    code: 'greek',
+    label: 'Greek',
+    pattern: /\p{Script=Greek}/gu
+  },
+  {
+    code: 'devanagari',
+    label: 'Devanagari-script language',
+    pattern: /\p{Script=Devanagari}/gu
+  }
+]);
+
+const LOCAL_COMPOSER_LANGUAGE_PROFILES = Object.freeze([
+  {
+    code: 'es',
+    label: 'Spanish',
+    accentPattern: /[¿¡ñáéíóú]/u,
+    strongTokens: new Set(['puedo', 'debo', 'quiero', 'necesito', 'siento', 'estoy', 'esta', 'avanzar', 'necesitas', 'puedes']),
+    weakTokens: new Set(['como', 'relacion', 'trabajo', 'amor', 'lectura'])
+  },
+  {
+    code: 'fr',
+    label: 'French',
+    accentPattern: /[àâçéèêëîïôùûüÿœ]/u,
+    strongTokens: new Set(['puis', 'dois', 'avec', 'sans', 'cette', 'dans', 'besoin', 'ressens', 'voudrais', 'peux']),
+    weakTokens: new Set(['comment', 'relation', 'travail', 'amour', 'lecture', 'avance'])
+  },
+  {
+    code: 'pt',
+    label: 'Portuguese',
+    accentPattern: /[ãõáàâêéíóôúç]/u,
+    strongTokens: new Set(['posso', 'devo', 'preciso', 'estou', 'sinto', 'nesta', 'nessa', 'relacao', 'avancar']),
+    weakTokens: new Set(['como', 'trabalho', 'amor', 'leitura'])
+  },
+  {
+    code: 'de',
+    label: 'German',
+    accentPattern: /[äöüß]/u,
+    strongTokens: new Set(['wie', 'kann', 'soll', 'beziehung', 'arbeit', 'liebe', 'fuhle', 'mochte', 'brauche']),
+    weakTokens: new Set(['lesen'])
+  },
+  {
+    code: 'it',
+    label: 'Italian',
+    accentPattern: /[àèéìòù]/u,
+    strongTokens: new Set(['posso', 'devo', 'relazione', 'lavoro', 'amore', 'lettura', 'sento', 'bisogno', 'avanzare']),
+    weakTokens: new Set(['come'])
+  }
+]);
+
+function tokenizeLanguageHintText(text) {
+  return text
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .match(/\p{L}+/gu) || [];
+}
+
+function buildUnsupportedLocalComposerLanguageResult(language, label, score, reason) {
+  return {
+    supported: false,
+    language,
+    label,
+    score,
+    reason,
+    userFacingMessage: 'Non-English questions require an AI narrative provider because the local fallback only supports English.'
+  };
+}
+
+function countScriptMatches(text, pattern) {
+  return (text.match(pattern) || []).length;
+}
+
+function detectUnsupportedNonLatinScript(question) {
+  const latinLetterCount = countScriptMatches(question, /\p{Script=Latin}/gu);
+
+  for (const profile of LOCAL_COMPOSER_SCRIPT_PROFILES) {
+    const scriptCharCount = countScriptMatches(question, profile.pattern);
+    if (scriptCharCount === 0) continue;
+
+    const likelyPrimaryScript = latinLetterCount === 0 ||
+      scriptCharCount >= 4 ||
+      scriptCharCount > latinLetterCount;
+    if (!likelyPrimaryScript) {
+      continue;
+    }
+
+    const reason = `Local composer only supports English question prompts. Detected likely ${profile.label} input; same-language output requires an AI narrative provider.`;
+    return buildUnsupportedLocalComposerLanguageResult(
+      profile.code,
+      profile.label,
+      scriptCharCount + latinLetterCount,
+      reason
+    );
+  }
+
+  return null;
+}
+
+function scoreLanguageProfile(question, tokens, profile) {
+  const accentHit = profile.accentPattern.test(question) ? 1 : 0;
+  let strongHits = 0;
+  let weakHits = 0;
+
+  for (const token of tokens) {
+    if (profile.strongTokens.has(token)) {
+      strongHits += 1;
+      continue;
+    }
+    if (profile.weakTokens.has(token)) {
+      weakHits += 1;
+    }
+  }
+
+  return {
+    accentHit,
+    strongHits,
+    weakHits,
+    score: (accentHit * 3) + (strongHits * 2) + weakHits
+  };
+}
+
+export function getLocalComposerLanguageSupport(userQuestion) {
+  const question = typeof userQuestion === 'string' ? userQuestion.trim() : '';
+  if (!question) {
+    return {
+      supported: true,
+      language: 'unknown',
+      label: 'Unknown',
+      score: 0,
+      reason: null,
+      userFacingMessage: null
+    };
+  }
+
+  // Be conservative about blocking: a false positive is worse than falling back
+  // to English when the signal is weak or just a borrowed noun.
+  const unsupportedScriptResult = detectUnsupportedNonLatinScript(question);
+  if (unsupportedScriptResult) {
+    return unsupportedScriptResult;
+  }
+
+  const tokens = tokenizeLanguageHintText(question);
+  let bestMatch = null;
+
+  for (const profile of LOCAL_COMPOSER_LANGUAGE_PROFILES) {
+    const profileScore = scoreLanguageProfile(question, tokens, profile);
+
+    if (!bestMatch || profileScore.score > bestMatch.score) {
+      bestMatch = {
+        code: profile.code,
+        label: profile.label,
+        score: profileScore.score,
+        accentHit: profileScore.accentHit,
+        strongHits: profileScore.strongHits,
+        weakHits: profileScore.weakHits
+      };
+    }
+  }
+
+  const shouldBlock = Boolean(bestMatch) && (
+    (bestMatch.accentHit >= 1 && (bestMatch.strongHits + bestMatch.weakHits) >= 1) ||
+    bestMatch.strongHits >= 2 ||
+    (bestMatch.strongHits >= 1 && bestMatch.weakHits >= 1)
+  );
+
+  if (!shouldBlock) {
+    return {
+      supported: true,
+      language: 'en',
+      label: 'English or unknown',
+      score: bestMatch?.score || 0,
+      reason: null,
+      userFacingMessage: null
+    };
+  }
+
+  const reason = `Local composer only supports English question prompts. Detected likely ${bestMatch.label} input; same-language output requires an AI narrative provider.`;
+  return buildUnsupportedLocalComposerLanguageResult(bestMatch.code, bestMatch.label, bestMatch.score, reason);
 }
 
 // ============================================================================
@@ -402,10 +615,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
   }
 
   const promptRedactionOptions = buildPromptRedactionOptions({
-    redactionOptions: {
-      displayName: payload?.personalization?.displayName,
-      additionalNames: payload?.personalization?.additionalNames
-    },
+    personalization: payload.personalization,
     userQuestion,
     reflectionsText
   });
@@ -579,10 +789,7 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
   }
 
   const promptRedactionOptions = buildPromptRedactionOptions({
-    redactionOptions: {
-      displayName: payload?.personalization?.displayName,
-      additionalNames: payload?.personalization?.additionalNames
-    },
+    personalization: payload.personalization,
     userQuestion,
     reflectionsText
   });
@@ -1001,6 +1208,14 @@ export async function composeReadingEnhanced(payload, env = null) {
     personalization = null,
     visionInsights = []
   } = payload;
+  const languageSupport = getLocalComposerLanguageSupport(userQuestion);
+  if (!languageSupport.supported) {
+    const error = new Error(languageSupport.reason);
+    error.code = LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE;
+    error.detectedLanguage = languageSupport.language;
+    error.userFacingMessage = languageSupport.userFacingMessage;
+    throw error;
+  }
   const { themes, spreadAnalysis, spreadKey } = analysis;
   const collectedSections = [];
 

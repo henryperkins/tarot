@@ -69,7 +69,9 @@ import {
   normalizeBooleanFlag
 } from '../lib/readingTelemetry.js';
 import {
+  LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE,
   NARRATIVE_BACKENDS,
+  getLocalComposerLanguageSupport,
   getAvailableNarrativeBackends,
   buildAzureGPT5Prompts,
   runNarrativeBackend
@@ -392,9 +394,7 @@ async function finalizeReading({
         response: finalReading,
         userQuestion,
         reflectionsText,
-        redactionOptions: {
-          displayName: personalization?.displayName
-        },
+        personalization,
         skipPIIRedaction
       });
     } catch (err) {
@@ -1196,6 +1196,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     let acceptedQualityMetrics = null; // Store metrics from successful backend to avoid recomputation
     const candidateBackends = getAvailableNarrativeBackends(env);
     const backendsToTry = candidateBackends.length ? candidateBackends : [NARRATIVE_BACKENDS['local-composer']];
+    const localComposerLanguageSupport = getLocalComposerLanguageSupport(userQuestion);
 
     // Track captured prompts for engineering persistence
     let capturedPrompts = null;
@@ -1204,6 +1205,16 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
     for (const backend of backendsToTry) {
       const attemptStart = Date.now();
+      if (backend.id === 'local-composer' && !localComposerLanguageSupport.supported) {
+        backendErrors.push({
+          backend: backend.id,
+          error: localComposerLanguageSupport.reason,
+          code: LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE,
+          detectedLanguage: localComposerLanguageSupport.language
+        });
+        console.warn(`[${requestId}] Skipping local-composer: ${localComposerLanguageSupport.reason}`);
+        continue;
+      }
       console.log(`[${requestId}] Attempting narrative backend ${backend.id} (${backend.label})...`);
       narrativePayload.narrativeEnhancements = [];
       narrativePayload.promptMeta = null;
@@ -1298,6 +1309,19 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       console.error(`[${requestId}] All narrative backends failed.`, backendErrors);
       // Release the reading reservation - user shouldn't lose quota when all backends fail
       await releaseReadingReservation(env, readingReservation);
+      const localComposerLanguageError = backendErrors.find(
+        (entry) => entry.code === LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE
+      );
+      if (localComposerLanguageError) {
+        return jsonResponse(
+          {
+            error: 'All narrative providers are currently unavailable for this request. Non-English questions require an AI narrative provider because the local fallback only supports English.',
+            code: LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE,
+            detectedLanguage: localComposerLanguageError.detectedLanguage || null
+          },
+          { status: 503 }
+        );
+      }
       return jsonResponse(
         { error: 'All narrative providers are currently unavailable. Please try again shortly.' },
         { status: 503 }

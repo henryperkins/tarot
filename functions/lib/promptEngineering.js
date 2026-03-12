@@ -297,6 +297,7 @@ function dedupeRedactionNames(candidates = [], limit = MAX_REDACTION_NAME_HINTS)
  *
  * @param {Object} params - Redaction option inputs
  * @param {Object} params.redactionOptions - Existing redaction options
+ * @param {Object} params.personalization - Optional personalization object with displayName/additionalNames
  * @param {string} params.displayName - Optional display name override
  * @param {string} params.userQuestion - Optional user question for name hint extraction
  * @param {string} params.reflectionsText - Optional reflections for name hint extraction
@@ -307,6 +308,7 @@ function dedupeRedactionNames(candidates = [], limit = MAX_REDACTION_NAME_HINTS)
 export function buildPromptRedactionOptions(params = {}) {
   const {
     redactionOptions = {},
+    personalization = null,
     displayName,
     userQuestion,
     reflectionsText,
@@ -314,7 +316,17 @@ export function buildPromptRedactionOptions(params = {}) {
     disableAutomaticNameExtraction = false
   } = params;
 
-  const baseOptions = redactionOptions && typeof redactionOptions === 'object' ? redactionOptions : {};
+  const personalizationOptions = personalization && typeof personalization === 'object'
+    ? personalization
+    : {};
+  const rawBaseOptions = redactionOptions && typeof redactionOptions === 'object'
+    ? redactionOptions
+    : {};
+  const baseOptions = {
+    ...rawBaseOptions,
+    displayName: rawBaseOptions.displayName ?? personalizationOptions.displayName,
+    additionalNames: rawBaseOptions.additionalNames ?? personalizationOptions.additionalNames
+  };
   const resolvedDisplayName = normalizeRedactionName(
     typeof displayName === 'string' ? displayName : baseOptions.displayName
   );
@@ -488,6 +500,7 @@ export function extractPromptFeatures(prompt) {
  * @param {string} params.response - The LLM response
  * @param {string} params.userQuestion - The user's question (for name redaction hints)
  * @param {string} params.reflectionsText - The user's reflections (for name redaction hints)
+ * @param {Object} params.personalization - Optional personalization object with displayName/additionalNames
  * @param {string[]} params.nameHints - Optional explicit name hints to redact
  * @param {boolean} params.disableAutomaticNameExtraction - Optional explicit extraction bypass
  * @param {Object} params.redactionOptions - Options for PII redaction
@@ -501,6 +514,7 @@ export async function buildPromptEngineeringPayload(params) {
     response,
     userQuestion,
     reflectionsText,
+    personalization = null,
     nameHints,
     disableAutomaticNameExtraction = false,
     redactionOptions = {},
@@ -535,6 +549,7 @@ export async function buildPromptEngineeringPayload(params) {
 
   const effectiveRedactionOptions = buildPromptRedactionOptions({
     redactionOptions,
+    personalization,
     userQuestion,
     reflectionsText,
     nameHints,
@@ -773,7 +788,7 @@ function stripTrajectoryQuestionLabels(text, { echoOnly = false } = {}) {
  * @returns {string} Text with user content replaced by placeholders
  */
 export function stripUserPromptContent(text) {
-  let result = stripCommonUserContent(text);
+  const result = stripCommonUserContent(text);
   if (!result || typeof result !== 'string') return result || '';
   return stripTrajectoryQuestionLabels(result);
 }

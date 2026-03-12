@@ -485,9 +485,38 @@ describe('buildPromptEngineeringPayload', () => {
     assert.ok(!payload.redacted.response.includes('Alex'));
     assert.ok(payload.redacted.response.includes('Jamie'));
   });
+
+  test('hydrates additionalNames from personalization for persisted prompt redaction', async () => {
+    const payload = await buildPromptEngineeringPayload({
+      systemPrompt: 'System prompt',
+      userPrompt: 'User prompt',
+      response: 'Alex may need reassurance before opening up.',
+      personalization: {
+        displayName: 'Sam',
+        additionalNames: ['Alex']
+      },
+      disableAutomaticNameExtraction: true
+    });
+
+    assert.ok(payload.redacted.response.includes('[NAME]'));
+    assert.ok(!payload.redacted.response.includes('Alex'));
+  });
 });
 
 describe('buildPromptRedactionOptions', () => {
+  test('hydrates displayName and additionalNames from personalization', () => {
+    const options = buildPromptRedactionOptions({
+      personalization: {
+        displayName: 'Sam',
+        additionalNames: ['Alex', 'Jamie']
+      },
+      disableAutomaticNameExtraction: true
+    });
+
+    assert.equal(options.displayName, 'Sam');
+    assert.deepEqual(options.additionalNames, ['Alex', 'Jamie']);
+  });
+
   test('derives and dedupes additionalNames from user context', () => {
     const options = buildPromptRedactionOptions({
       redactionOptions: {

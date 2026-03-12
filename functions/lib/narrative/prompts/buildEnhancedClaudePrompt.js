@@ -107,6 +107,17 @@ export function countGraphRAGPassagesInPrompt(promptText) {
   return parsed.passageCount;
 }
 
+function countNumberedGraphRAGPassages(text) {
+  if (!text || typeof text !== 'string') {
+    return 0;
+  }
+
+  return text
+    .split('\n')
+    .filter((line) => /^\s*\d+\.\s+/.test(line.trim()))
+    .length;
+}
+
 export function parseGraphRAGReferenceBlock(promptText) {
   if (!promptText || typeof promptText !== 'string') {
     return {
@@ -158,10 +169,7 @@ export function parseGraphRAGReferenceBlock(promptText) {
     };
   }
 
-  const passageCount = referenceBody
-    .split('\n')
-    .filter((line) => /^\s*\d+\.\s+/.test(line.trim()))
-    .length;
+  const passageCount = countNumberedGraphRAGPassages(referenceBody);
 
   return {
     status: referenceBlockClosed ? 'complete' : 'partial',
@@ -816,24 +824,32 @@ export function buildEnhancedClaudePrompt({
     const retrievalSummary = { ...(payload.retrievalSummary || {}) };
     const envForGraph = controls.env ?? (typeof process !== 'undefined' ? process.env : {});
     const graphragEnabled = isGraphRAGEnabled(envForGraph) || (!controls.env && hasMeaningfulGraphRAGPayload(payload));
+    const formattedBlockPassageCount = countNumberedGraphRAGPassages(payload.formattedBlock);
     const passagesAfterSlimming = Array.isArray(payload.passages)
       ? payload.passages.length
       : 0;
     const initialPassageCount = typeof payload.initialPassageCount === 'number'
       ? payload.initialPassageCount
-      : passagesAfterSlimming;
+      : (Number.isFinite(retrievalSummary.passagesProvided)
+          ? retrievalSummary.passagesProvided
+          : (Number.isFinite(retrievalSummary.passagesRetrieved)
+              ? retrievalSummary.passagesRetrieved
+              : (passagesAfterSlimming > 0 ? passagesAfterSlimming : formattedBlockPassageCount)));
     const graphRAGParse = parseGraphRAGReferenceBlock(finalUser);
     const graphRAGSummaryParse = parseGraphRAGSummaryBlock(finalUser);
     const graphRAGBlockPresent = graphRAGParse.status !== 'absent';
     const passagesInPrompt = graphRAGParse.status === 'complete'
       ? graphRAGParse.passageCount
       : null;
+    const formattedBlockFallbackPresent = typeof payload.formattedBlock === 'string' && payload.formattedBlock.trim().length > 0;
     const graphRAGIncludedFull = graphragEnabled &&
       controls.includeGraphRAG !== false &&
       graphRAGParse.status === 'complete' &&
-      typeof passagesInPrompt === 'number' &&
-      passagesInPrompt > 0 &&
-      graphRAGBlockPresent;
+      graphRAGBlockPresent &&
+      (
+        (typeof passagesInPrompt === 'number' && passagesInPrompt > 0) ||
+        formattedBlockFallbackPresent
+      );
     const graphRAGIncludedSummary = graphragEnabled &&
       controls.graphRAGSummaryOnly === true &&
       graphRAGSummaryParse.present === true;
@@ -841,7 +857,15 @@ export function buildEnhancedClaudePrompt({
       ? 'full'
       : (graphRAGIncludedSummary ? 'summary' : 'none');
     const passagesUsed = graphRAGParse.status === 'complete'
-      ? (graphRAGIncludedFull ? passagesInPrompt : 0)
+      ? (
+        graphRAGIncludedFull
+          ? (
+            typeof passagesInPrompt === 'number' && passagesInPrompt > 0
+              ? passagesInPrompt
+              : (initialPassageCount > 0 ? initialPassageCount : null)
+          )
+          : 0
+      )
       : (graphRAGIncludedSummary ? 0 : null);
     const trimmedCount = typeof passagesUsed === 'number'
       ? Math.max(0, initialPassageCount - passagesUsed)

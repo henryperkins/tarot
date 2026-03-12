@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE,
   buildAzureGPT5Prompts,
   composeReadingEnhanced,
   generateWithClaudeOpus45,
+  getLocalComposerLanguageSupport,
   runNarrativeBackend
 } from '../functions/lib/narrativeBackends.js';
 import { applyGraphRAGAlerts } from '../functions/lib/graphRAGAlerts.js';
@@ -136,6 +138,39 @@ describe('composeReadingEnhanced', () => {
     assert.ok(payload.reasoningMeta, 'Reasoning metadata should be attached to payload');
     assert.ok(payload.reasoningMeta.questionIntent, 'Reasoning metadata should include question intent');
     assert.ok(payload.reasoningMeta.narrativeArc, 'Reasoning metadata should include narrative arc');
+  });
+
+  it('fails closed for likely non-English questions', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    const payload = {
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      cardsInfo,
+      userQuestion: '¿Cómo puedo avanzar en esta relación?',
+      reflectionsText: '',
+      analysis: {
+        themes,
+        spreadAnalysis: null,
+        spreadKey: 'single'
+      },
+      context: 'general'
+    };
+
+    const languageSupport = getLocalComposerLanguageSupport(payload.userQuestion);
+    assert.equal(languageSupport.supported, false);
+    assert.equal(languageSupport.language, 'es');
+
+    await assert.rejects(
+      composeReadingEnhanced(payload),
+      (error) => {
+        assert.equal(error.code, LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE);
+        assert.equal(error.detectedLanguage, 'es');
+        assert.match(error.message, /only supports English/i);
+        return true;
+      }
+    );
   });
 
   it('does not append GraphRAG passages to local composer output by default', async () => {
@@ -324,6 +359,53 @@ describe('composeReadingEnhanced', () => {
     assert.ok(result.reading.includes('### Your Reflections'));
     assert.ok(!result.reading.includes('[this support thread]('), 'reflection markdown links should be stripped');
     assert.ok(!result.reading.includes('**Your Reflections**\n\nI keep revisiting [this support thread]'), 'raw reflections should not be echoed verbatim');
+  });
+});
+
+describe('getLocalComposerLanguageSupport', () => {
+  it('keeps ambiguous English phrasing on the English path', () => {
+    const samples = [
+      'Can you comment on this relation?',
+      'Please comment on my work relation.',
+      'I need comment and relation guidance'
+    ];
+
+    for (const sample of samples) {
+      const result = getLocalComposerLanguageSupport(sample);
+      assert.equal(result.supported, true, `Expected English support for: ${sample}`);
+      assert.equal(result.language, 'en');
+    }
+  });
+
+  it('flags likely Latin-script non-English prompts conservatively', () => {
+    const cases = [
+      { question: '¿Cómo puedo avanzar en esta relación?', language: 'es' },
+      { question: 'Comment puis-je avancer dans cette relation ?', language: 'fr' },
+      { question: 'Wie kann ich weitergehen?', language: 'de' },
+      { question: 'Como posso avançar nesta relação?', language: 'pt' },
+      { question: 'Come posso andare avanti?', language: 'it' }
+    ];
+
+    for (const { question, language } of cases) {
+      const result = getLocalComposerLanguageSupport(question);
+      assert.equal(result.supported, false, `Expected non-English detection for: ${question}`);
+      assert.equal(result.language, language);
+      assert.match(result.reason || '', /only supports English/i);
+    }
+  });
+
+  it('treats non-Latin scripts as unsupported for the local composer', () => {
+    const cases = [
+      { question: 'Как мне двигаться дальше?', language: 'cyrillic' },
+      { question: 'どう進めばいいですか？', language: 'ja' }
+    ];
+
+    for (const { question, language } of cases) {
+      const result = getLocalComposerLanguageSupport(question);
+      assert.equal(result.supported, false, `Expected non-Latin detection for: ${question}`);
+      assert.equal(result.language, language);
+      assert.match(result.reason || '', /only supports English/i);
+    }
   });
 });
 

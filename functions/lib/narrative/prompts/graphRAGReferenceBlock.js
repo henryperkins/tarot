@@ -95,26 +95,22 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
     let retrievedPassages = Array.isArray(payload?.passages) && payload.passages.length
       ? payload.passages
       : null;
-
-    if (!retrievedPassages || retrievedPassages.length === 0) {
-      return '';
-    }
-
-    const effectiveSpreadKey = spreadKey || 'general';
-    const maxPassages = payload?.maxPassages || getPassageCountForSpread(effectiveSpreadKey, options.subscriptionTier);
-
-    if (retrievedPassages.length > maxPassages) {
-      retrievedPassages = retrievedPassages.slice(0, maxPassages);
-    }
-
-    const hasRelevanceScores = retrievedPassages.some((passage) => typeof passage.relevanceScore === 'number');
-    if (hasRelevanceScores) {
-      const avgRelevance = retrievedPassages.reduce((sum, passage) => sum + (passage.relevanceScore || 0), 0) / retrievedPassages.length;
-      console.log(`[GraphRAG] Injecting ${retrievedPassages.length} passages (avg relevance: ${(avgRelevance * 100).toFixed(1)}%)`);
-    }
-
     let formattedPassages = null;
-    if (retrievedPassages.length > 0) {
+
+    if (retrievedPassages && retrievedPassages.length > 0) {
+      const effectiveSpreadKey = spreadKey || 'general';
+      const maxPassages = payload?.maxPassages || getPassageCountForSpread(effectiveSpreadKey, options.subscriptionTier);
+
+      if (retrievedPassages.length > maxPassages) {
+        retrievedPassages = retrievedPassages.slice(0, maxPassages);
+      }
+
+      const hasRelevanceScores = retrievedPassages.some((passage) => typeof passage.relevanceScore === 'number');
+      if (hasRelevanceScores) {
+        const avgRelevance = retrievedPassages.reduce((sum, passage) => sum + (passage.relevanceScore || 0), 0) / retrievedPassages.length;
+        console.log(`[GraphRAG] Injecting ${retrievedPassages.length} passages (avg relevance: ${(avgRelevance * 100).toFixed(1)}%)`);
+      }
+
       formattedPassages = formatPassagesForPrompt(retrievedPassages, {
         includeSource: true,
         markdown: true

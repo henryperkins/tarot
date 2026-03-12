@@ -87,6 +87,41 @@ describe('GraphRAG fallback behavior', () => {
     assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
   });
 
+  it('injects legacy formattedBlock-only payloads and preserves GraphRAG telemetry', () => {
+    const graphRAGPayload = {
+      formattedBlock: [
+        '**Retrieved Wisdom from Tarot Tradition:**',
+        '',
+        '1. **Temperance**',
+        '   "Integration comes through steady blending of opposites."',
+        '   — Tableu Tarot Canon'
+      ].join('\n'),
+      retrievalSummary: {
+        passagesRetrieved: 1
+      }
+    };
+
+    const { userPrompt, promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo: [{ card: 'Temperance', number: 14, position: 'Theme', orientation: 'Upright', meaning: 'Balance.' }],
+      userQuestion: 'What should I integrate right now?',
+      reflectionsText: '',
+      themes: { knowledgeGraph: {} },
+      spreadAnalysis: null,
+      context: 'general',
+      graphRAGPayload
+    });
+
+    assert.ok(userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'));
+    assert.ok(userPrompt.includes('Integration comes through steady blending of opposites.'));
+    assert.equal(promptMeta.graphRAG?.includedInPrompt, true);
+    assert.equal(promptMeta.graphRAG?.injectionMode, 'full');
+    assert.equal(promptMeta.graphRAG?.parseStatus, 'complete');
+    assert.equal(promptMeta.graphRAG?.passagesProvided, 1);
+    assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
+    assert.equal(promptMeta.graphRAG?.skippedReason ?? null, null);
+  });
+
   it('rebuilds GraphRAG from the effective capped passage list instead of stale formattedBlock text', () => {
     const graphRAGPayload = {
       passages: [
