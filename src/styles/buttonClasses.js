@@ -16,7 +16,7 @@ export const OUTLINE_BUTTON_CLASS = [
 
 export const PANEL_OUTLINE_BUTTON_CLASS = [
   'flex items-center gap-1.5 px-4 py-2.5 min-h-touch rounded-lg text-sm font-medium',
-  'border border-[color:var(--border-warm-light)] text-[color:var(--text-muted-high)] bg-[color:var(--border-warm-subtle)]',
+  'border border-[color:var(--border-warm-light)] text-muted-high bg-[color:var(--border-warm-subtle)]',
   'hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)]',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
   'transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation',

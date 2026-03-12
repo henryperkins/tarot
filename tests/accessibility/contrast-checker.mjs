@@ -1,9 +1,155 @@
 /**
  * Automated Contrast Ratio Checker
  * Validates WCAG AA/AAA compliance for color combinations used in the app
+ * using the live values from `src/styles/theme.css`.
  */
 
-// Color utilities
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { getHexToken, loadThemeTokenScopes } from '../../scripts/lib/themeTokens.mjs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const themeCssPath = path.resolve(__dirname, '../../src/styles/theme.css');
+
+const DISPLAY_TOKENS = [
+  'color-black',
+  'color-charcoal',
+  'color-slate-dark',
+  'color-gray-light',
+  'color-white',
+  'color-gold-champagne',
+  'color-silver',
+  'bg-main',
+  'bg-surface',
+  'bg-surface-muted',
+  'text-main',
+  'text-muted',
+  'text-accent',
+  'text-on-brand',
+  'brand-primary',
+  'brand-secondary',
+  'brand-accent',
+  'focus-ring-color'
+];
+
+const TEST_CASES = [
+  {
+    name: 'text-muted on bg-surface',
+    fgToken: 'text-muted',
+    bgToken: 'bg-surface',
+    location: 'theme.css semantic text tokens',
+    wcagLevel: 'AA',
+    isText: true
+  },
+  {
+    name: 'text-muted on bg-surface-muted',
+    fgToken: 'text-muted',
+    bgToken: 'bg-surface-muted',
+    location: 'theme.css semantic text tokens',
+    wcagLevel: 'AA',
+    isText: true
+  },
+  {
+    name: 'text-main on bg-main',
+    fgToken: 'text-main',
+    bgToken: 'bg-main',
+    location: 'theme.css base surface tokens',
+    wcagLevel: 'AAA',
+    isText: true
+  },
+  {
+    name: 'text-accent on bg-surface',
+    fgToken: 'text-accent',
+    bgToken: 'bg-surface',
+    location: 'theme.css brand accent tokens',
+    wcagLevel: 'AA',
+    isText: true
+  },
+  {
+    name: 'text-muted on bg-surface-muted/60 (ReadingPreparation helper)',
+    fgToken: 'text-muted',
+    bgToken: 'bg-surface-muted',
+    bgOpacity: 0.6,
+    opacityBackdropToken: 'bg-main',
+    location: 'ReadingPreparation translucent helper surfaces',
+    wcagLevel: 'AA',
+    isText: true,
+    translucent: true
+  },
+  {
+    name: 'text-muted on bg-surface-muted/70 (SpreadSelector cards)',
+    fgToken: 'text-muted',
+    bgToken: 'bg-surface-muted',
+    bgOpacity: 0.7,
+    opacityBackdropToken: 'bg-main',
+    location: 'SpreadSelector translucent card shells',
+    wcagLevel: 'AA',
+    isText: true,
+    translucent: true
+  },
+  {
+    name: 'focus-ring-color on bg-main',
+    fgToken: 'focus-ring-color',
+    bgToken: 'bg-main',
+    location: 'Focus treatment tokens',
+    wcagLevel: 'AA',
+    isText: false
+  },
+  {
+    name: 'text-main on bg-surface/80 (SpreadSelector navigation buttons)',
+    fgToken: 'text-main',
+    bgToken: 'bg-surface',
+    bgOpacity: 0.8,
+    opacityBackdropToken: 'bg-main',
+    location: 'SpreadSelector navigation arrows',
+    wcagLevel: 'AA',
+    isText: true,
+    translucent: true
+  },
+  {
+    name: 'text-muted on bg-surface/88 (SpreadSelector complexity badge)',
+    fgToken: 'text-muted',
+    bgToken: 'bg-surface',
+    bgOpacity: 0.88,
+    opacityBackdropToken: 'bg-main',
+    location: 'SpreadSelector complexity badges',
+    wcagLevel: 'AA',
+    isText: true,
+    translucent: true
+  },
+  {
+    name: 'brand-primary on bg-surface/88 (SpreadSelector complexity stars)',
+    fgToken: 'brand-primary',
+    bgToken: 'bg-surface',
+    bgOpacity: 0.88,
+    opacityBackdropToken: 'bg-main',
+    location: 'SpreadSelector complexity badges',
+    wcagLevel: 'AA',
+    isText: false,
+    translucent: true
+  },
+  {
+    name: 'brand-accent on bg-surface (buttons)',
+    fgToken: 'brand-accent',
+    bgToken: 'bg-surface',
+    location: 'Primary and outline button surfaces',
+    wcagLevel: 'AA',
+    isText: true
+  },
+  {
+    name: 'text-main on bg-surface/85 (card revealed content)',
+    fgToken: 'text-main',
+    bgToken: 'bg-surface',
+    bgOpacity: 0.85,
+    opacityBackdropToken: 'bg-main',
+    location: 'Card revealed overlays',
+    wcagLevel: 'AA',
+    isText: true,
+    translucent: true
+  }
+];
+
 function hexToRgb(hex) {
   const cleaned = hex.replace('#', '');
   return {
@@ -15,9 +161,9 @@ function hexToRgb(hex) {
 
 function getLuminance(hex) {
   const { r, g, b } = hexToRgb(hex);
-  const [rs, gs, bs] = [r, g, b].map(c => {
-    const val = c / 255;
-    return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4);
+  const [rs, gs, bs] = [r, g, b].map((channel) => {
+    const value = channel / 255;
+    return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
   });
   return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
 }
@@ -30,234 +176,135 @@ function getContrastRatio(fg, bg) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-function applyOpacity(hex, opacity) {
+function applyOpacity(hex, opacity, backdropHex) {
   const { r, g, b } = hexToRgb(hex);
-  // Simplified opacity calculation (assumes blending with black background)
-  const bgHex = '#0F0E13'; // --bg-main
-  const { r: bgR, g: bgG, b: bgB } = hexToRgb(bgHex);
-  
-  const newR = Math.round(r * opacity + bgR * (1 - opacity));
-  const newG = Math.round(g * opacity + bgG * (1 - opacity));
-  const newB = Math.round(b * opacity + bgB * (1 - opacity));
-  
-  return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+  const { r: bgR, g: bgG, b: bgB } = hexToRgb(backdropHex);
+
+  const nextR = Math.round(r * opacity + bgR * (1 - opacity));
+  const nextG = Math.round(g * opacity + bgG * (1 - opacity));
+  const nextB = Math.round(b * opacity + bgB * (1 - opacity));
+
+  return `#${nextR.toString(16).padStart(2, '0')}${nextG.toString(16).padStart(2, '0')}${nextB.toString(16).padStart(2, '0')}`.toUpperCase();
 }
-
-// Color palette from theme.css
-const colors = {
-  // Base colors
-  'color-black': '#0F0E13',
-  'color-charcoal': '#1C1A22',
-  'color-slate-dark': '#2A2730',
-  'color-gray-light': '#9B9388',
-  'color-white': '#E8E6E3',
-  'color-gold-champagne': '#D4B896',
-  'color-silver': '#A8A39E',
-  
-  // Semantic tokens
-  'bg-main': '#0F0E13',
-  'bg-surface': '#1C1A22',
-  'bg-surface-muted': '#2A2730',
-  'text-main': '#E8E6E3',
-  'text-muted': '#B5AFA4', // Updated value from report
-  'text-accent': '#D4B896',
-  'brand-primary': '#D4B896',
-  'brand-secondary': '#A89D92',
-  'brand-accent': '#E8DAC3',
-  'focus-ring-color': '#E8DAC3'
-};
-
-// Test cases from the codebase
-const testCases = [
-  // Base tokens (opaque surfaces)
-  {
-    name: 'text-muted on bg-surface (opaque)',
-    fg: colors['text-muted'],
-    bg: colors['bg-surface'],
-    location: 'theme.css:52, various components',
-    wcagLevel: 'AA',
-    isText: true
-  },
-  {
-    name: 'text-muted on bg-surface-muted (opaque)',
-    fg: colors['text-muted'],
-    bg: colors['bg-surface-muted'],
-    location: 'theme.css:52',
-    wcagLevel: 'AA',
-    isText: true
-  },
-  {
-    name: 'text-main on bg-main',
-    fg: colors['text-main'],
-    bg: colors['bg-main'],
-    location: 'theme.css:50',
-    wcagLevel: 'AAA',
-    isText: true
-  },
-  {
-    name: 'text-accent on bg-surface',
-    fg: colors['text-accent'],
-    bg: colors['bg-surface'],
-    location: 'theme.css:54',
-    wcagLevel: 'AA',
-    isText: true
-  },
-  
-  // Translucent surfaces (problematic areas from report)
-  {
-    name: 'text-muted on bg-surface-muted/60 (ReadingPreparation helper)',
-    fg: colors['text-muted'],
-    bg: applyOpacity(colors['bg-surface-muted'], 0.60),
-    location: 'ReadingPreparation.jsx:104',
-    wcagLevel: 'AA',
-    isText: true,
-    translucent: true
-  },
-  {
-    name: 'text-muted on bg-surface-muted/70 (SpreadSelector cards)',
-    fg: colors['text-muted'],
-    bg: applyOpacity(colors['bg-surface-muted'], 0.70),
-    location: 'SpreadSelector.jsx:146',
-    wcagLevel: 'AA',
-    isText: true,
-    translucent: true
-  },
-  
-  // Focus rings and borders (3:1 for non-text)
-  {
-    name: 'focus-ring-color on bg-main',
-    fg: colors['focus-ring-color'],
-    bg: colors['bg-main'],
-    location: 'tarot.css:331, theme.css:70',
-    wcagLevel: 'AA',
-    isText: false
-  },
-  {
-    name: 'border-secondary/75 on bg-surface-muted',
-    fg: applyOpacity(colors['brand-secondary'], 0.75),
-    bg: colors['bg-surface-muted'],
-    location: 'SpreadSelector.jsx navigation arrows (hover state)',
-    wcagLevel: 'AA',
-    isText: false
-  },
-  {
-    name: 'border-primary/60 on bg-primary/15 (complexity badge)',
-    fg: applyOpacity(colors['brand-primary'], 0.60),
-    bg: applyOpacity(colors['brand-primary'], 0.15),
-    location: 'SpreadSelector.jsx:19 getComplexity',
-    wcagLevel: 'AA',
-    isText: false
-  },
-  
-  // Button states
-  {
-    name: 'brand-accent on bg-surface (buttons)',
-    fg: colors['brand-accent'],
-    bg: colors['bg-surface'],
-    location: 'GlobalNav, buttons',
-    wcagLevel: 'AA',
-    isText: true
-  },
-  
-  // Card elements
-  {
-    name: 'text-main on bg-surface/85 (card revealed content)',
-    fg: colors['text-main'],
-    bg: applyOpacity(colors['bg-surface'], 0.85),
-    location: 'Card.jsx:301',
-    wcagLevel: 'AA',
-    isText: true,
-    translucent: true
-  }
-];
 
 function checkWCAG(ratio, isText, level = 'AA') {
   if (isText) {
-    // Text contrast requirements
-    if (level === 'AAA') {
-      return ratio >= 7.0 ? 'PASS' : 'FAIL';
-    }
-    return ratio >= 4.5 ? 'PASS' : 'FAIL';
-  } else {
-    // Non-text (UI components, borders, etc.)
-    return ratio >= 3.0 ? 'PASS' : 'FAIL';
+    return level === 'AAA' ? ratio >= 7.0 : ratio >= 4.5;
   }
+  return ratio >= 3.0;
 }
 
 function formatRatio(ratio) {
   return `${ratio.toFixed(2)}:1`;
 }
 
-console.log('╔════════════════════════════════════════════════════════════════════╗');
-console.log('║          Tableu Tarot - Contrast Ratio Analysis Report            ║');
-console.log('║                    WCAG 2.1 AA/AAA Compliance                      ║');
-console.log('╚════════════════════════════════════════════════════════════════════╝\n');
+function buildPalette(scope) {
+  return Object.fromEntries(
+    DISPLAY_TOKENS.map((tokenName) => [tokenName, getHexToken(scope, tokenName)])
+  );
+}
 
-console.log('Color Palette:');
-console.log('─────────────');
-Object.entries(colors).forEach(([name, hex]) => {
-  console.log(`  ${name.padEnd(25)} ${hex}`);
-});
-console.log('\n');
+function resolveTokenColor(colors, tokenName) {
+  if (!(tokenName in colors)) {
+    throw new Error(`Missing color token '${tokenName}' in the loaded theme palette.`);
+  }
+  return colors[tokenName];
+}
 
-console.log('Contrast Test Results:');
-console.log('═════════════════════════════════════════════════════════════════════\n');
+function evaluateCase(colors, testCase) {
+  const opacityBackdrop = resolveTokenColor(
+    colors,
+    testCase.opacityBackdropToken || 'bg-main'
+  );
+  let fg = resolveTokenColor(colors, testCase.fgToken);
+  let bg = resolveTokenColor(colors, testCase.bgToken);
 
+  if (typeof testCase.fgOpacity === 'number') {
+    fg = applyOpacity(fg, testCase.fgOpacity, opacityBackdrop);
+  }
+  if (typeof testCase.bgOpacity === 'number') {
+    bg = applyOpacity(bg, testCase.bgOpacity, opacityBackdrop);
+  }
+
+  return { fg, bg };
+}
+
+const themeScopes = await loadThemeTokenScopes(themeCssPath);
 let totalTests = 0;
 let passedTests = 0;
 let failedTests = 0;
 const failures = [];
 
-testCases.forEach((test, index) => {
-  totalTests++;
-  const ratio = getContrastRatio(test.fg, test.bg);
-  const status = checkWCAG(ratio, test.isText, test.wcagLevel);
-  const passed = status === 'PASS';
-  
-  if (passed) {
-    passedTests++;
-  } else {
-    failedTests++;
-    failures.push({ ...test, ratio });
-  }
-  
-  const statusIcon = passed ? '✅' : '❌';
-  const typeLabel = test.isText ? 'Text' : 'UI';
-  const translucentFlag = test.translucent ? ' [TRANSLUCENT]' : '';
-  
-  console.log(`${index + 1}. ${test.name}${translucentFlag}`);
-  console.log(`   ${statusIcon} ${status} - ${formatRatio(ratio)} (${typeLabel}, WCAG ${test.wcagLevel})`);
-  console.log(`   Location: ${test.location}`);
-  console.log(`   FG: ${test.fg} | BG: ${test.bg}`);
-  
-  if (!passed) {
-    const required = test.isText ? (test.wcagLevel === 'AAA' ? 7.0 : 4.5) : 3.0;
-    const deficit = (required - ratio).toFixed(2);
-    console.log(`   ⚠️  Falls short by ${deficit} (needs ${required}:1)`);
-  }
-  console.log('');
-});
+console.log('╔════════════════════════════════════════════════════════════════════╗');
+console.log('║          Tableu Tarot - Contrast Ratio Analysis Report            ║');
+console.log('║                    WCAG 2.1 AA/AAA Compliance                      ║');
+console.log('╚════════════════════════════════════════════════════════════════════╝\n');
+
+for (const [modeName, scope] of Object.entries(themeScopes)) {
+  const colors = buildPalette(scope);
+
+  console.log(`${modeName.toUpperCase()} token palette (from src/styles/theme.css):`);
+  console.log('─────────────');
+  Object.entries(colors).forEach(([tokenName, hex]) => {
+    console.log(`  ${tokenName.padEnd(25)} ${hex}`);
+  });
+  console.log('\n');
+
+  console.log(`${modeName.toUpperCase()} contrast test results:`);
+  console.log('═════════════════════════════════════════════════════════════════════\n');
+
+  TEST_CASES.forEach((testCase, index) => {
+    totalTests += 1;
+    const { fg, bg } = evaluateCase(colors, testCase);
+    const ratio = getContrastRatio(fg, bg);
+    const passed = checkWCAG(ratio, testCase.isText, testCase.wcagLevel);
+
+    if (passed) {
+      passedTests += 1;
+    } else {
+      failedTests += 1;
+      failures.push({ ...testCase, modeName, ratio, fg, bg });
+    }
+
+    const statusIcon = passed ? '✅' : '❌';
+    const statusLabel = passed ? 'PASS' : 'FAIL';
+    const typeLabel = testCase.isText ? 'Text' : 'UI';
+    const translucentFlag = testCase.translucent ? ' [TRANSLUCENT]' : '';
+
+    console.log(`${index + 1}. ${testCase.name}${translucentFlag}`);
+    console.log(`   ${statusIcon} ${statusLabel} - ${formatRatio(ratio)} (${typeLabel}, WCAG ${testCase.wcagLevel}, ${modeName})`);
+    console.log(`   Location: ${testCase.location}`);
+    console.log(`   FG: ${fg} | BG: ${bg}`);
+
+    if (!passed) {
+      const required = testCase.isText ? (testCase.wcagLevel === 'AAA' ? 7.0 : 4.5) : 3.0;
+      const deficit = (required - ratio).toFixed(2);
+      console.log(`   ⚠️  Falls short by ${deficit} (needs ${required}:1)`);
+    }
+    console.log('');
+  });
+}
 
 console.log('═════════════════════════════════════════════════════════════════════\n');
 console.log('Summary:');
 console.log('─────────');
 console.log(`  Total Tests:   ${totalTests}`);
-console.log(`  ✅ Passed:     ${passedTests} (${((passedTests/totalTests)*100).toFixed(1)}%)`);
-console.log(`  ❌ Failed:     ${failedTests} (${((failedTests/totalTests)*100).toFixed(1)}%)`);
+console.log(`  ✅ Passed:     ${passedTests} (${((passedTests / totalTests) * 100).toFixed(1)}%)`);
+console.log(`  ❌ Failed:     ${failedTests} (${((failedTests / totalTests) * 100).toFixed(1)}%)`);
 console.log('');
 
 if (failures.length > 0) {
   console.log('═════════════════════════════════════════════════════════════════════');
   console.log('FAILED TESTS - Requires Attention:');
   console.log('═════════════════════════════════════════════════════════════════════\n');
-  
-  failures.forEach((test, index) => {
-    const required = test.isText ? (test.wcagLevel === 'AAA' ? 7.0 : 4.5) : 3.0;
-    console.log(`${index + 1}. ${test.name}`);
-    console.log(`   Current:  ${formatRatio(test.ratio)}`);
-    console.log(`   Required: ${required}:1 (WCAG ${test.wcagLevel})`);
-    console.log(`   Location: ${test.location}`);
-    console.log(`   Type:     ${test.isText ? 'Text' : 'UI Component/Border'}`);
+
+  failures.forEach((testCase, index) => {
+    const required = testCase.isText ? (testCase.wcagLevel === 'AAA' ? 7.0 : 4.5) : 3.0;
+    console.log(`${index + 1}. ${testCase.name} (${testCase.modeName})`);
+    console.log(`   Current:  ${formatRatio(testCase.ratio)}`);
+    console.log(`   Required: ${required}:1 (WCAG ${testCase.wcagLevel})`);
+    console.log(`   Location: ${testCase.location}`);
+    console.log(`   Type:     ${testCase.isText ? 'Text' : 'UI Component/Border'}`);
     console.log('');
   });
 }
@@ -266,9 +313,9 @@ console.log('══════════════════════�
 console.log('Recommendations:');
 console.log('═════════════════════════════════════════════════════════════════════\n');
 
-console.log('1. ✅ Base tokens meet WCAG AA');
-console.log('   - text-muted (#B5AFA4) achieves 7.89:1 on bg-surface');
-console.log('   - This confirms the UX report\'s recommendation is working\n');
+console.log('1. ✅ Palette comes from the live theme tokens');
+console.log('   - This script now reads both dark and light values directly from `src/styles/theme.css`');
+console.log('   - Token drift now changes the report immediately instead of waiting for manual updates\n');
 
 console.log('2. ⚠️  Translucent surfaces need validation');
 console.log('   - Use browser DevTools or axe to measure actual rendered contrast');
@@ -283,9 +330,8 @@ console.log('4. 📋 Next Steps:');
 console.log('   - Run `npm run dev` and test with axe DevTools browser extension');
 console.log('   - Check actual rendered contrast on problematic components');
 console.log('   - Validate focus rings with keyboard navigation');
-console.log('   - Test on real devices at various brightness levels\n');
+console.log('   - Test both light and dark themes on real devices at various brightness levels\n');
 
 console.log('═════════════════════════════════════════════════════════════════════\n');
 
-// Exit with error code if there are failures
 process.exit(failedTests > 0 ? 1 : 0);

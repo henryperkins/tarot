@@ -205,7 +205,7 @@ export function ExperienceSettings({ className = '' }) {
 
       {reversalFramework && (
         <HelperToggle className="mt-2 max-w-xl">
-          <div className="rounded-2xl border border-secondary/25 bg-secondary/5 px-3 py-2 text-[clamp(0.78rem,2vw,0.92rem)] leading-snug text-muted">
+          <div className="rounded-2xl border border-secondary/25 bg-secondary/5 px-3 py-2 text-xs-plus leading-snug text-muted">
             {reversalFramework === 'blocked' && (
               <><span className="font-semibold text-secondary">Blocked</span> — themes face resistance or barriers</>
             )}

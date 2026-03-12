@@ -21,8 +21,9 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    // Explicitly specify entry points to avoid scanning venv
-    entries: ['index.html', 'src/**/*.{js,jsx}']
+    // Keep dependency scanning on browser entrypoints only.
+    // Broad src globs pull the Cloudflare worker graph into the frontend optimizer.
+    entries: ['index.html', 'src/main.jsx']
   },
   build: {
     rollupOptions: {

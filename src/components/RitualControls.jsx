@@ -103,7 +103,7 @@ export function RitualControls({
       {/* Desktop Header - Hidden on Mobile */}
       <div className="hidden sm:flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-[0.78rem] uppercase tracking-[0.35em] text-secondary/80">Ritual</p>
+          <p className="text-xs uppercase tracking-[0.35em] text-secondary/80">Ritual</p>
           {!isExperienced && (
             <p className="text-sm text-muted">A grounding moment before the draw.</p>
           )}
@@ -135,7 +135,7 @@ export function RitualControls({
             >
               <Sparkle className="h-4 w-4" />
             </span>
-            <div className="flex flex-1 items-center gap-1.5 text-[0.85rem] normal-case tracking-normal">
+            <div className="flex flex-1 items-center gap-1.5 text-xs-plus normal-case tracking-normal">
               <span className="font-semibold text-main">Clear the deck</span>
               <Tooltip
                 content="Clear deck energy"
@@ -181,7 +181,7 @@ export function RitualControls({
             >
               <Scissors className="h-4 w-4" />
             </span>
-            <div className="flex flex-1 items-center gap-1.5 text-[0.85rem] normal-case tracking-normal">
+            <div className="flex flex-1 items-center gap-1.5 text-xs-plus normal-case tracking-normal">
               <span className="font-semibold text-main">Cut the deck</span>
               <Tooltip
                 content="Choose cut position"
@@ -329,7 +329,7 @@ export function RitualControls({
             >
               <p className="font-semibold text-accent">Skip?</p>
               <p className="text-muted mt-1">Draw immediately without ritual.</p>
-              <div className="mt-3 flex items-center justify-end gap-2 text-[0.8rem]">
+              <div className="mt-3 flex items-center justify-end gap-2 text-xs">
                 <button
                   type="button"
                   onClick={() => setShowSkipConfirm(false)}

@@ -62,6 +62,14 @@ const NON_TOKEN_TYPOGRAPHY_PROSE_COLOR_RE = new RegExp(
 );
 const RAW_RGBA_COLOR_LITERAL_RE =
   /\[color:rgba\(\s*(?:25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(?:0|1|0?\.\d+)\s*\)\]/g;
+const ARBITRARY_TEXT_COLOR_RE = /^text-\[(?:color:[^\]]+|rgb\([^\]]+)\]$/;
+const ARBITRARY_TEXT_FLUID_RE = /^text-\[clamp\([^\]]+\)\]$/;
+const ARBITRARY_TEXT_NUMERIC_RE = /^text-\[\d+(?:\.\d+)?(?:rem|px)\]$/;
+const ARBITRARY_TEXT_RELATIVE_RE = /^text-\[\d+(?:\.\d+)?em\]$/;
+const INTERACTIVE_TAG_NAME_RE = /^<(button|a|input|select|textarea|summary)\b/i;
+const ROLE_BUTTON_RE = /role\s*=\s*(?:["']button["']|\{\s*['"]button['"]\s*\})/i;
+const ONCLICK_RE = /onClick\s*=/;
+const MIN_HEIGHT_PX_VALUE_RE = /^min-h-\[(\d+(?:\.\d+)?)px\]$/;
 
 function isUiProductFile(relPath) {
   return relPath.startsWith('src/components/')
@@ -117,6 +125,84 @@ function incrementCount(map, key, by = 1) {
   map[key] = (map[key] || 0) + by;
 }
 
+function classifyArbitraryTextToken(token) {
+  if (ARBITRARY_TEXT_COLOR_RE.test(token)) return 'semanticColor';
+  if (ARBITRARY_TEXT_FLUID_RE.test(token)) return 'fluidScale';
+  if (ARBITRARY_TEXT_NUMERIC_RE.test(token)) return 'numericScale';
+  if (ARBITRARY_TEXT_RELATIVE_RE.test(token)) return 'relativeScale';
+  return 'other';
+}
+
+function getLocation(content, index) {
+  const lines = content.substring(0, index).split('\n');
+  return {
+    line: lines.length,
+    column: lines[lines.length - 1].length + 1
+  };
+}
+
+function extractElementTag(content, startIndex) {
+  const afterMatch = content.substring(startIndex);
+  let depth = 0;
+  let inString = false;
+  let stringChar = '';
+
+  for (let i = 0; i < Math.min(afterMatch.length, 4000); i += 1) {
+    const char = afterMatch[i];
+    const prevChar = i > 0 ? afterMatch[i - 1] : '';
+
+    if ((char === '"' || char === '\'') && prevChar !== '\\') {
+      if (!inString) {
+        inString = true;
+        stringChar = char;
+      } else if (char === stringChar) {
+        inString = false;
+      }
+    }
+
+    if (!inString) {
+      if (char === '{') depth += 1;
+      if (char === '}') depth -= 1;
+      if (char === '>' && depth === 0) {
+        return afterMatch.substring(0, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function findInteractiveMinHeightBypasses(content, relPath) {
+  const matches = [];
+  const tagStartRe = /<([A-Za-z][\w.]*)\b/g;
+
+  for (const match of content.matchAll(tagStartRe)) {
+    const tag = extractElementTag(content, match.index);
+    if (!tag) continue;
+
+    const isInteractive = INTERACTIVE_TAG_NAME_RE.test(tag) || ROLE_BUTTON_RE.test(tag) || ONCLICK_RE.test(tag);
+    if (!isInteractive || !tag.includes('min-h-[')) continue;
+
+    const classMatches = tag.match(ARBITRARY_MIN_HEIGHT_RE) || [];
+    for (const minHeightToken of classMatches) {
+      const pxMatch = minHeightToken.match(MIN_HEIGHT_PX_VALUE_RE);
+      if (!pxMatch) continue;
+      if (Number.parseFloat(pxMatch[1]) >= 44) continue;
+
+      const location = getLocation(content, match.index);
+      matches.push({
+        file: relPath,
+        line: location.line,
+        column: location.column,
+        token: minHeightToken,
+        excerpt: tag.trim().slice(0, 180)
+      });
+    }
+  }
+
+  return matches;
+}
+
 async function buildReport(roots) {
   const report = {
     createdAt: new Date().toISOString(),
@@ -128,7 +214,15 @@ async function buildReport(roots) {
     arbitraryTextAny: {
       count: 0
     },
+    arbitraryTextBreakdown: {
+      byCategory: {},
+      matches: []
+    },
     arbitraryMinHeight: {
+      count: 0,
+      matches: []
+    },
+    interactiveMinHeightBypass: {
       count: 0,
       matches: []
     },
@@ -190,6 +284,16 @@ async function buildReport(roots) {
           const arbitraryTextMatches = line.match(ARBITRARY_TEXT_ANY_RE);
           if (arbitraryTextMatches) {
             report.arbitraryTextAny.count += arbitraryTextMatches.length;
+            for (const token of arbitraryTextMatches) {
+              const category = classifyArbitraryTextToken(token);
+              incrementCount(report.arbitraryTextBreakdown.byCategory, category);
+              report.arbitraryTextBreakdown.matches.push({
+                file: relPath,
+                line: idx + 1,
+                token,
+                category
+              });
+            }
           }
         });
       }
@@ -206,6 +310,10 @@ async function buildReport(roots) {
             excerpt: line.trim().slice(0, 180)
           });
         });
+
+        const interactiveBypasses = findInteractiveMinHeightBypasses(content, relPath);
+        report.interactiveMinHeightBypass.count += interactiveBypasses.length;
+        report.interactiveMinHeightBypass.matches.push(...interactiveBypasses);
       }
 
       // Focus ring token entropy.
@@ -299,11 +407,24 @@ async function main() {
     return;
   }
 
+  if (report.interactiveMinHeightBypass.count > 0) {
+    fail(`Design contract failed: found ${report.interactiveMinHeightBypass.count} interactive elements below the 44px touch target.`);
+    for (const match of report.interactiveMinHeightBypass.matches.slice(0, 25)) {
+      console.error(`- ${match.file}:${match.line}:${match.column} ${match.token} ${match.excerpt}`);
+    }
+    if (report.interactiveMinHeightBypass.matches.length > 25) {
+      console.error(`...and ${report.interactiveMinHeightBypass.matches.length - 25} more.`);
+    }
+    return;
+  }
+
   if (shouldWriteBaseline) {
     await writeBaseline(report);
     console.log(`Wrote design contract baseline to ${path.relative(process.cwd(), BASELINE_PATH)}`, {
       arbitraryTextAny: report.arbitraryTextAny,
+      arbitraryTextBreakdown: report.arbitraryTextBreakdown,
       arbitraryMinHeight: report.arbitraryMinHeight,
+      interactiveMinHeightBypass: report.interactiveMinHeightBypass,
       focusVisibleRings: report.focusVisibleRings,
       nonTokenTailwindColors: report.nonTokenTailwindColors,
       nonTokenProseColors: report.nonTokenProseColors,
@@ -344,6 +465,22 @@ async function main() {
     failures.push(`Arbitrary text utilities increased: ${priorArbitraryTextAny} → ${report.arbitraryTextAny.count}`);
   }
 
+  const priorNumericScale = baseline?.arbitraryTextBreakdown?.byCategory?.numericScale
+    ?? report.arbitraryTextBreakdown.byCategory.numericScale
+    ?? 0;
+  const currentNumericScale = report.arbitraryTextBreakdown.byCategory.numericScale || 0;
+  if (currentNumericScale > priorNumericScale) {
+    failures.push(`Numeric arbitrary text utilities increased: ${priorNumericScale} → ${currentNumericScale}`);
+  }
+
+  const priorFluidScale = baseline?.arbitraryTextBreakdown?.byCategory?.fluidScale
+    ?? report.arbitraryTextBreakdown.byCategory.fluidScale
+    ?? 0;
+  const currentFluidScale = report.arbitraryTextBreakdown.byCategory.fluidScale || 0;
+  if (currentFluidScale > priorFluidScale) {
+    failures.push(`Fluid arbitrary text utilities increased: ${priorFluidScale} → ${currentFluidScale}`);
+  }
+
   const priorArbitraryMinHeight = baseline?.arbitraryMinHeight?.count || 0;
   if (report.arbitraryMinHeight.count > priorArbitraryMinHeight) {
     failures.push(`Arbitrary min-height utilities increased: ${priorArbitraryMinHeight} → ${report.arbitraryMinHeight.count}`);
@@ -376,7 +513,9 @@ async function main() {
 
   console.log('Design contract gate passed.', {
     arbitraryTextAny: report.arbitraryTextAny,
+    arbitraryTextBreakdown: report.arbitraryTextBreakdown,
     arbitraryMinHeight: report.arbitraryMinHeight,
+    interactiveMinHeightBypass: report.interactiveMinHeightBypass,
     focusVisibleRings: report.focusVisibleRings,
     nonTokenTailwindColors: report.nonTokenTailwindColors,
     nonTokenProseColors: report.nonTokenProseColors,

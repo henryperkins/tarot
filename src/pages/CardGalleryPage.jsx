@@ -125,7 +125,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
         {/* Top: Status */}
         <div className="flex justify-between items-start">
           {isFound ? (
-            <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full bg-[color:var(--brand-primary)] text-2xs font-bold text-[color:var(--bg-main)] shadow-sm">
+            <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full bg-[color:var(--brand-primary)] text-2xs font-bold text-surface shadow-sm">
               {count}x
             </span>
           ) : (
@@ -570,7 +570,7 @@ export default function CardGalleryPage() {
                 type="button"
                 onClick={handleLoadFullHistory}
                 disabled={loadingFullHistory || loadingMore}
-                className={`inline-flex min-h-[36px] items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-2xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
+                className={`inline-flex min-h-touch items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-2xs font-semibold uppercase tracking-[0.18em] text-main transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
                   loadingFullHistory || loadingMore ? 'cursor-not-allowed opacity-60' : ''
                 }`}
               >
@@ -590,7 +590,7 @@ export default function CardGalleryPage() {
             <button
               type="button"
               onClick={() => navigate('/account#analytics')}
-              className="px-4 py-2 rounded-full border border-[color:var(--border-warm-light)] text-[color:var(--text-main)] hover:bg-[color:var(--border-warm-subtle)]"
+              className="px-4 py-2 rounded-full border border-[color:var(--border-warm-light)] text-main hover:bg-[color:var(--border-warm-subtle)]"
             >
               Go to Settings
             </button>

@@ -19,7 +19,7 @@ function StatCard({ label, value, helper }) {
 
 function MetaChip({ label }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-primary/30 px-3 py-2 min-h-[36px] text-xs-plus text-primary">
+    <span className="inline-flex min-h-touch items-center rounded-full border border-primary/30 px-3 py-2 text-xs-plus text-primary">
       {label}
     </span>
   );

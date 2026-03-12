@@ -37,7 +37,9 @@ npm run test:contrast
 A PR should be blocked if any of these increase versus baseline:
 
 - Arbitrary text utilities (`text-[...]`)
+- Numeric or fluid arbitrary text utilities should be reviewed separately from semantic color wrappers in the gate report.
 - Arbitrary min-height utilities (`min-h-[...]`)
+- Any interactive element below 44px should fail immediately, even if total `min-h-[...]` usage does not increase.
 - Focus ring token total or unique variant count
 - Product-file hard-coded hex literals
 - Feature-local `*BUTTON_CLASS` constant declarations

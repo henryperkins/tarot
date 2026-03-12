@@ -50,6 +50,15 @@ async function waitForAppReady(page) {
   });
 }
 
+async function waitForDesignPageReady(page) {
+  await page.waitForSelector('h1', {
+    timeout: 15000
+  });
+  await expect(page.getByRole('heading', { name: 'Design System' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Switch to (light|dark)/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Load full history' })).toBeVisible();
+}
+
 /**
  * Run axe analysis and return violations
  * @param {import('@playwright/test').Page} page
@@ -155,6 +164,23 @@ test.describe('Accessibility - Core Pages', () => {
 
     const violations = await analyzeAccessibility(page);
     expectNoViolations(violations, 'question input');
+  });
+
+  test('design system page has no critical violations in both themes', async ({ page }) => {
+    await page.goto('/design');
+    await waitForDesignPageReady(page);
+    await page.waitForTimeout(500);
+
+    const darkViolations = await analyzeAccessibility(page);
+    expectNoViolations(darkViolations, 'design system page (dark)');
+
+    const themeToggle = page.getByRole('button', { name: /Switch to light/i });
+    await themeToggle.click();
+    await expect(page.getByRole('button', { name: /Switch to dark/i })).toBeVisible();
+    await page.waitForTimeout(500);
+
+    const lightViolations = await analyzeAccessibility(page);
+    expectNoViolations(lightViolations, 'design system page (light)');
   });
 });
 

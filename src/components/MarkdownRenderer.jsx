@@ -14,7 +14,7 @@ const STYLE_VARIANTS = {
       'text-main space-y-4 xs:space-y-5 md:space-y-6 max-w-[calc(100vw-1.5rem)] xs:max-w-sm sm:max-w-prose mx-auto text-left px-1 xs:px-2 sm:px-4 lg:px-6',
     inner: 'space-y-3 xs:space-y-4',
     paragraph: 'text-base md:text-lg leading-relaxed xs:leading-7 md:leading-loose',
-    heading: 'font-serif text-lg sm:text-xl text-secondary mt-5 xs:mt-6 mb-2 xs:mb-3',
+    heading: 'font-serif text-lg sm:text-xl text-main mt-5 xs:mt-6 mb-2 xs:mb-3',
     headingSizes: {
       h1: 'text-xl xs:text-2xl',
       h2: 'text-lg xs:text-xl',
@@ -24,13 +24,13 @@ const STYLE_VARIANTS = {
     blockquote:
       'border-l-2 border-secondary/40 pl-4 xs:pl-5 italic text-accent/85 my-4 xs:my-5',
     inlineCode:
-      'bg-surface-muted/70 text-accent px-1.5 py-0.5 rounded text-[0.85rem] xs:text-sm font-mono break-words',
+      'bg-surface-muted/70 text-accent px-1.5 py-0.5 rounded text-xs-plus xs:text-sm font-mono break-words',
     codeBlock:
-      'block p-3 text-[0.8rem] xs:text-sm font-mono whitespace-pre-wrap break-words',
+      'block p-3 text-xs xs:text-sm font-mono whitespace-pre-wrap break-words',
     pre: 'bg-surface-muted/50 rounded-lg overflow-x-auto my-3 xs:my-4 border border-secondary/20 max-w-full',
     hr: 'border-secondary/30 my-6 xs:my-8',
     tableWrapper: 'overflow-x-auto my-4 xs:my-5 -mx-1 px-1',
-    table: 'w-full border-collapse text-[0.8rem] xs:text-sm',
+    table: 'w-full border-collapse text-xs xs:text-sm',
     thead: 'bg-surface-muted/50',
     th: 'border border-secondary/30 px-2 xs:px-3 py-1.5 xs:py-2 text-left font-semibold text-accent',
     td: 'border border-secondary/30 px-2 xs:px-3 py-1.5 xs:py-2',
@@ -40,7 +40,7 @@ const STYLE_VARIANTS = {
     wrapper: 'text-main text-left',
     inner: 'space-y-2',
     paragraph: 'text-sm leading-relaxed',
-    heading: 'font-serif text-sm text-secondary mt-3 mb-2',
+    heading: 'font-serif text-sm text-main mt-3 mb-2',
     headingSizes: {
       h1: 'text-base',
       h2: 'text-sm',
@@ -49,12 +49,12 @@ const STYLE_VARIANTS = {
     list: 'list-disc pl-4 space-y-1 text-sm',
     blockquote: 'border-l-2 border-secondary/40 pl-3 italic text-accent/85 my-2 text-sm',
     inlineCode:
-      'bg-surface-muted/70 text-accent px-1.5 py-0.5 rounded text-[0.75rem] font-mono break-words',
-    codeBlock: 'block p-2 text-[0.75rem] font-mono whitespace-pre-wrap break-words',
+      'bg-surface-muted/70 text-accent px-1.5 py-0.5 rounded text-xs font-mono break-words',
+    codeBlock: 'block p-2 text-xs font-mono whitespace-pre-wrap break-words',
     pre: 'bg-surface-muted/50 rounded-lg overflow-x-auto my-2 border border-secondary/20 max-w-full',
     hr: 'border-secondary/30 my-3',
     tableWrapper: 'overflow-x-auto my-2 -mx-1 px-1',
-    table: 'w-full border-collapse text-[0.75rem]',
+    table: 'w-full border-collapse text-xs',
     thead: 'bg-surface-muted/50',
     th: 'border border-secondary/30 px-2 py-1 text-left font-semibold text-accent',
     td: 'border border-secondary/30 px-2 py-1',

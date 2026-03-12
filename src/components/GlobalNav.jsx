@@ -36,7 +36,7 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
 
   const activeClasses = 'bg-primary text-surface shadow shadow-primary/30 active:bg-primary/90';
   const inactiveClasses = `
-    bg-surface text-main/85 border border-secondary/50
+    bg-surface text-main border border-secondary/50
     hover:bg-surface-muted hover:text-main hover:border-secondary/60
     active:bg-surface-muted
   `;
