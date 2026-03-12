@@ -10,6 +10,7 @@ import {
 import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../../src/data/knowledgeGraphData.js';
 import { canonicalCardKey } from '../../../../shared/vision/cardNameMapping.js';
 import { getPositionWeight } from '../../positionWeights.js';
+import { evaluateVisionInsightPromptEligibility } from '../../readingQuality.js';
 import { sanitizeText } from '../../utils.js';
 import { detectPromptInjection } from '../../promptInjectionDetector.js';
 import { RELATIONSHIP_SPREAD_MAX_CLARIFIERS } from '../../spreadContracts.js';
@@ -169,12 +170,18 @@ function findVisionInsightForCard(cardInfo, visionInsights, deckStyle = 'rws-190
 
   return visionInsights.find((insight) => {
     const insightCanonicalKey = canonicalCardKey(insight?.predictedCard || insight?.card, deckStyle);
-    if (insightCanonicalKey) {
-      return insightCanonicalKey === cardCanonicalKey;
+    const matchesCard = insightCanonicalKey
+      ? insightCanonicalKey === cardCanonicalKey
+      : Boolean(
+        typeof insight?.predictedCard === 'string' &&
+        insight.predictedCard.trim().toLowerCase() === cardCanonicalKey
+      );
+
+    if (!matchesCard) {
+      return false;
     }
 
-    const rawInsightName = typeof insight?.predictedCard === 'string' ? insight.predictedCard.trim().toLowerCase() : null;
-    return Boolean(rawInsightName && rawInsightName === cardCanonicalKey);
+    return evaluateVisionInsightPromptEligibility(insight).promptEligible === true;
   }) || null;
 }
 

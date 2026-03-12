@@ -442,6 +442,44 @@ describe('Vision validation prompt context', () => {
     assert.match(userPrompt, /Emotional quality: composed, alert/i);
   });
 
+  it('keeps weak matched visual profiles telemetry-only so they cannot steer prompt tone', async () => {
+    const cardsInfo = [
+      major('The Star', 17, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { userPrompt, promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'What should I trust here?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      visionInsights: [
+        {
+          label: 'IMG_WEAK_STAR',
+          predictedCard: 'The Star',
+          confidence: 0.01,
+          basis: 'image',
+          matchesDrawnCard: true,
+          visualProfile: {
+            tone: ['ominous', 'cold'],
+            emotion: ['dread', 'fatigue']
+          }
+        }
+      ]
+    });
+
+    assert.ok(!/Vision-detected tone:|Emotional quality:|Vision-detected emotion:/i.test(userPrompt));
+    assert.ok(!/Visual Profile:/i.test(userPrompt), 'telemetry-only uploads should not expose visual profile cues in diagnostics');
+    assert.match(userPrompt, /\[telemetry only: low confidence\]/i);
+    assert.equal(promptMeta.sourceUsage?.vision?.eligibleUploads, 0);
+    assert.equal(promptMeta.sourceUsage?.vision?.telemetryOnlyUploads, 1);
+    assert.deepEqual(promptMeta.sourceUsage?.vision?.suppressionReasons, { low_confidence: 1 });
+    assert.equal(promptMeta.sourceUsage?.vision?.cardCuesUsed, false);
+  });
+
   it('masks mismatched card names to prevent hallucination priming', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'One-Card Insight', 'Upright')

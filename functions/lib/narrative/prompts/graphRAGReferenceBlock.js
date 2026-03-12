@@ -113,12 +113,15 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
       console.log(`[GraphRAG] Injecting ${retrievedPassages.length} passages (avg relevance: ${(avgRelevance * 100).toFixed(1)}%)`);
     }
 
-    let formattedPassages = payload.formattedBlock;
-    if (!formattedPassages) {
+    let formattedPassages = null;
+    if (retrievedPassages.length > 0) {
       formattedPassages = formatPassagesForPrompt(retrievedPassages, {
         includeSource: true,
         markdown: true
       });
+    } else if (typeof payload.formattedBlock === 'string' && payload.formattedBlock.trim()) {
+      // Legacy fallback when only a preformatted block is available.
+      formattedPassages = payload.formattedBlock;
     }
 
     if (!formattedPassages) {

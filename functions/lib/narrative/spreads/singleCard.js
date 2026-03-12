@@ -78,7 +78,7 @@ class SingleCardBuilder extends BaseSpreadBuilder {
       );
       narrative += '\n\n';
     } else {
-      narrative = `### One-Card Insight\n\n`;
+      narrative = `### Opening\n\n`;
       if (narrativeQuestion) {
         const subject = nameOpening ? `${nameOpening}this card` : 'This card';
         narrative += `${subject} offers a ${tone.openingAdjectives[0] || 'thoughtful'} snapshot on your question "${narrativeQuestion}".\n\n`;

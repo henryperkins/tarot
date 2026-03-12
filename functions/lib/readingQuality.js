@@ -920,6 +920,52 @@ export function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1
 // Vision Metrics
 // ============================================================================
 
+export const DEFAULT_VISION_PROMPT_CONFIDENCE_FLOOR = 0.65;
+export const DEFAULT_VISION_PROMPT_SYMBOL_MATCH_FLOOR = 0.45;
+
+function normalizeVisionThreshold(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(1, Math.max(0, parsed));
+}
+
+export function resolveVisionPromptThresholds(options = {}) {
+  return {
+    confidenceFloor: normalizeVisionThreshold(
+      options.promptConfidenceFloor ?? options.confidenceFloor,
+      DEFAULT_VISION_PROMPT_CONFIDENCE_FLOOR
+    ),
+    symbolMatchFloor: normalizeVisionThreshold(
+      options.promptSymbolMatchFloor ?? options.symbolMatchFloor,
+      DEFAULT_VISION_PROMPT_SYMBOL_MATCH_FLOOR
+    )
+  };
+}
+
+export function evaluateVisionInsightPromptEligibility(insight, options = {}) {
+  const { confidenceFloor, symbolMatchFloor } = resolveVisionPromptThresholds(options);
+  const confidence = Number.isFinite(insight?.confidence) ? insight.confidence : null;
+  const symbolMatchRate = Number.isFinite(insight?.symbolVerification?.matchRate)
+    ? insight.symbolVerification.matchRate
+    : null;
+
+  let suppressionReason = null;
+  if (insight?.matchesDrawnCard !== true) {
+    suppressionReason = insight?.matchesDrawnCard === false ? 'card_mismatch' : 'match_unverified';
+  } else if (symbolMatchRate !== null && symbolMatchRate < symbolMatchFloor) {
+    suppressionReason = 'weak_symbol_verification';
+  } else if (confidence !== null ? confidence < confidenceFloor : symbolMatchRate === null) {
+    suppressionReason = confidence === null ? 'confidence_unavailable' : 'low_confidence';
+  }
+
+  return {
+    promptEligible: suppressionReason === null,
+    telemetryOnly: suppressionReason !== null,
+    suppressionReason
+  };
+}
+
 /**
  * Annotate vision proof insights with match information.
  *
@@ -931,7 +977,7 @@ export function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1
  * @param {string} deckStyle - Deck style for name canonicalization
  * @returns {Array} Annotated vision insights
  */
-export function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle = 'rws-1909') {
+export function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle = 'rws-1909', promptOptions = {}) {
   if (!Array.isArray(proofInsights) || proofInsights.length === 0) {
     return [];
   }
@@ -970,7 +1016,7 @@ export function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle 
           .slice(0, 3)
         : [];
 
-      return {
+      const annotated = {
         label: normalizeVisionLabel(entry.label),
         predictedCard,
         confidence: typeof entry.confidence === 'number' ? entry.confidence : null,
@@ -988,6 +1034,14 @@ export function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle 
           ? entry.componentScores
           : null
       };
+
+      const promptEligibility = evaluateVisionInsightPromptEligibility(annotated, promptOptions);
+      return {
+        ...annotated,
+        promptEligible: promptEligibility.promptEligible,
+        telemetryOnly: promptEligibility.telemetryOnly,
+        suppressionReason: promptEligibility.suppressionReason
+      };
     })
     .filter(Boolean)
     .slice(0, 10);
@@ -1003,6 +1057,15 @@ export function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle 
  */
 export function buildVisionMetrics(insights, avgConfidence, mismatchCount) {
   const safeInsights = Array.isArray(insights) ? insights : [];
+  const promptEligibleCount = safeInsights.filter((entry) => entry?.promptEligible === true).length;
+  const telemetryOnlyCount = safeInsights.filter((entry) => entry?.telemetryOnly === true).length;
+  const suppressionReasons = safeInsights.reduce((acc, entry) => {
+    if (!entry?.telemetryOnly || !entry?.suppressionReason) {
+      return acc;
+    }
+    acc[entry.suppressionReason] = (acc[entry.suppressionReason] || 0) + 1;
+    return acc;
+  }, {});
   const symbolStats = safeInsights
     .filter((entry) => entry && entry.symbolVerification)
     .map((entry) => ({
@@ -1022,6 +1085,9 @@ export function buildVisionMetrics(insights, avgConfidence, mismatchCount) {
     uploads: safeInsights.length,
     avgConfidence: Number.isFinite(avgConfidence) ? avgConfidence : null,
     mismatchCount,
+    promptEligibleCount,
+    telemetryOnlyCount,
+    suppressionReasons: Object.keys(suppressionReasons).length > 0 ? suppressionReasons : null,
     symbolStats
   };
 }

@@ -1177,17 +1177,16 @@ function buildOpening(spreadName, userQuestion, context, options = {}) {
   const personalization = options.personalization || null;
   const tone = getToneStyle(personalization?.readingTone);
   const question = sanitizeQuestionForNarrative(userQuestion);
-  const spreadLabel = spreadName || 'your chosen spread';
   const descriptor = tone.openingAdjectives?.[0] || 'thoughtful';
   const nameOpening = buildNameClause(personalization?.displayName, 'opening');
   const subject = nameOpening ? `${nameOpening}the cards` : 'The cards';
 
   const responseLead = question
-    ? `${subject} offer a ${descriptor} response through the ${spreadLabel} to your question: "${question}".`
-    : `${subject} share a ${descriptor} impression of what the ${spreadLabel.toLowerCase()} reveals around you.`;
+    ? `${subject} first settle on the part of your question that feels most ${descriptor} right now: "${question}".`
+    : `${subject} gather around the energy asking for attention right now.`;
 
-  const followUp = 'They honor both seen and unseen influences while centering your agency.';
-  const base = `${responseLead}\n\n${followUp}`;
+  const followUp = 'This reading stays with what is present, why it matters, and the next choice that remains yours.';
+  const base = `### Opening\n\n${responseLead}\n\n${followUp}`;
   const contextDescriptor = getContextDescriptor(context);
   const personalizationBridge = buildPersonalizationBridge(personalization, { contextDescriptor });
   const contextReminder = buildContextReminder(context);

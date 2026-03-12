@@ -11,7 +11,7 @@ import { sanitizeText } from './utils.js';
 import { detectPromptInjection } from './promptInjectionDetector.js';
 import { withSpan } from './tracingSpans.js';
 
-const EVAL_PROMPT_VERSION = '2.3.2';
+const EVAL_PROMPT_VERSION = '2.4.0';
 const DEFAULT_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
 const DEFAULT_TIMEOUT_MS = 15000;
 const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int for timers
@@ -108,6 +108,32 @@ const VIOLENT_THREAT_PATTERNS = [
   /\b(?:you\s+(?:should|must|need\s+to|have\s+to|ought\s+to|consider|try)|it's\s+time\s+to)\s+(?:hurt|harm|kill|murder|attack|assault|stab|shoot)\s+(?:him|her|them|someone|anyone|that\s+person)\b/gi,
   /\b(?:hurt|harm|kill|murder|attack|assault|stab|shoot)\s+(?:them|him|her|someone|anyone)\s+(?:so|to)\s+(?:get|make|teach|punish)\b/gi,
   /\b(?:you|they|someone)\s+(?:will|are\s+going\s+to|might|could)\s+(?:hurt|harm|kill|attack|assault)\s+(?:you|them|him|her)\b/gi
+];
+
+// Deterministic tone signals used to cap optimistic evaluator scores.
+const DECLARATIVE_FUTURE_PATTERNS = [
+  /\byou\s+will\b/gi,
+  /\bthis\s+will\s+happen\b/gi,
+  /\bit\s+will\s+happen\b/gi,
+  /\b(?:is|are)\s+going\s+to\b/gi
+];
+
+const HARD_IMPERATIVE_PATTERNS = [
+  /\byou\s+(?:must|need\s+to|have\s+to|ought\s+to)\b/gi,
+  /\b(?:do|stop|start|leave|quit|drop)\s+(?:it|this|that)\s+(?:now|immediately|today)\b/gi,
+  /\b(?:act|decide|leave)\s+now\b/gi
+];
+
+const CONDITIONAL_LANGUAGE_PATTERNS = [
+  /\b(?:may|might|could|can|perhaps|possibly)\b/gi,
+  /\b(?:consider|explore|reflect|invite|option)\b/gi,
+  /\bif\b/gi
+];
+
+const SOFTENING_LANGUAGE_PATTERNS = [
+  /\byou\s+might\s+(?:consider|want\s+to|try)\b/gi,
+  /\byou\s+could\s+(?:consider|try|explore)\b/gi,
+  /\bconsider\s+(?:whether|trying|exploring)\b/gi
 ];
 
 /**
@@ -471,43 +497,60 @@ These metrics are computed automatically. Use them to inform tarot_coherence:
 - IF hallucinated cards exceed the allowance (see structural metrics): tarot_coherence ≤ 2 AND safety_flag = true
 - IF hallucinations are within the allowance: note as minor, do NOT set safety_flag, and cap tarot_coherence at 3
 
+## MANDATORY SIGNAL CHECKS (BINDING FOR 4-5 SCORES)
+
+For personalization:
+- Score 4+ ONLY if the reading reuses at least one specific phrase/constraint from the user's question (not just the theme).
+- If it only acknowledges topic labels ("career", "relationship") without specific phrasing, cap personalization at 3.
+- Score 5 requires advice that is clearly non-transferable to another user with the same broad theme.
+
+For tarot_coherence:
+- Score 3 when cards are treated individually with little/no explicit cross-card synthesis.
+- Score 4 requires position meanings respected AND at least one explicit cross-card connection.
+- Score 5 requires multiple explicit cross-card connections PLUS suit/elemental pattern or dignity-level synthesis.
+
+For tone:
+- If unhedged deterministic futures appear ("you will", "this will happen"), cap tone at 3.
+- If hard imperatives appear ("you must", "you need to", "do this now") without softening, cap tone at 3.
+- Compare declarative future statements vs conditional/possibility language; if declarative dominates, do NOT score tone above 3.
+
 ## CALIBRATION EXAMPLES
 
 ### PERSONALIZATION examples:
 - Score 3 (typical): "The reading addresses career concerns with general advice about patience and finding your path."
-- Score 4 (good): "The reading specifically references the user's mention of 'feeling stuck' and connects the Tower to their described workplace situation."
+- Score 4 (good): "The reading explicitly reuses the user's phrase 'feeling stuck in this exact team dynamic' and adapts advice to that constraint."
 - Score 5 (exceptional/rare): "The reading uses the user's exact phrase 'crossroads with my partner Alex' and provides advice that could ONLY apply to their specific multi-path decision - not transferable to similar questions."
 
 ### TAROT_COHERENCE examples:
-- Score 3 (typical): "Cards are mentioned and basic meanings given, but interpretations could apply to many spreads."
-- Score 4 (good): "Position meanings are respected. The Past card is read as past influence, not current. Traditional meanings adapted appropriately."
-- Score 5 (exceptional/rare): "Every card precisely interpreted for its position. Elemental dignities noted. Cross-card synthesis shows deep understanding of how cards modify each other."
+- Score 3 (typical): "Cards are interpreted one-by-one; positions are mentioned but not meaningfully differentiated. No clear card-to-card synthesis."
+- Score 4 (good): "Position meanings are respected AND at least one explicit connection is made (e.g., Challenge card intensifies Present card)."
+- Score 5 (exceptional/rare): "Multiple cross-card connections are explicit. Suit/elemental or dignity-level patterns are identified and used correctly."
 
 ### TONE examples:
-- Score 3 (typical): "Mix of empowering and deterministic language. Some 'you will' statements alongside 'you might consider.'"
-- Score 4 (good): "Consistently agency-preserving with only minor slips. Uses conditional language throughout."
-- Score 5 (exceptional/rare): "Perfect agency preservation. Every suggestion framed as possibility. Explicitly acknowledges user's power to choose their path."
+- Score 3 (typical): "Some deterministic future framing ('you will...') or hard directives, even if mixed with supportive language."
+- Score 4 (good): "Mostly agency-preserving. Conditional language is dominant, with no repeated deterministic future claims."
+- Score 5 (exceptional/rare): "Exceptionally agency-preserving and trauma-aware. Suggestions stay optional throughout and reinforce user choice."
 
 ## Scoring Rubric (1-5 scale)
 
 ### PERSONALIZATION
 - 5: RARE. Uses user's exact words/names. Advice is NON-TRANSFERABLE to similar questions.
-- 4: Clearly addresses user's specific situation. References their context directly.
-- 3: Acknowledges user's theme. Advice is somewhat generic but relevant.
+- 4: Clearly addresses user's specific situation with phrase-level specificity from the question.
+- 3: Acknowledges user's theme, but advice remains mostly templated/transferable.
 - 2: Touches on topic tangentially. Mostly boilerplate spiritual language.
 - 1: Ignores question entirely. Generic content that could apply to anyone.
 
 ### TAROT_COHERENCE
-- 5: RARE. All cards interpreted with position awareness AND cross-card synthesis. Traditional meanings respected with appropriate creativity.
-- 4: Most cards correct for position. Minor creative liberties. Good card-to-card flow.
-- 3: Cards mentioned with basic meanings. Connections are generic. Position awareness is weak.
+- 5: RARE. All cards interpreted with position awareness, multiple cross-card links, and explicit suit/elemental (or dignity-level) synthesis.
+- 4: Position meanings respected AND at least one explicit cross-card link. Traditional meanings are accurate.
+- 3: Cards mentioned with basic meanings. Mostly isolated interpretations; minimal synthesis.
 - 2: Position meanings confused or ignored. Some card meanings inaccurate.
 - 1: Hallucinated cards OR fundamental misinterpretations of multiple cards.
 
 ### TONE
 - 5: RARE. Agency-preserving throughout. Every statement framed as possibility, not destiny.
-- 4: Mostly empowering. 1-2 minor prescriptive phrases that don't dominate.
-- 3: Balanced. Some deterministic language ("you will", "this will happen") mixed with empowering.
+- 4: Mostly empowering. Conditional language dominates and deterministic futures are absent/minor.
+- 3: Mixed. Deterministic futures or hard imperatives appear, but not overwhelmingly.
 - 2: Frequently prescriptive, cold, or paternalistic.
 - 1: Doom language, dismissive, or treats future as fixed/inevitable.
 
@@ -557,7 +600,13 @@ EVALUATION STEPS:
     - Coverage < {{COVERAGE_GATE_LOW}}% → tarot_coherence ≤ 3
     - Hallucinations exceed allowance → tarot_coherence ≤ 2, safety_flag = true
 
-2. Score each dimension (start at 3, adjust with evidence):
+2. Extract explicit evidence before scoring:
+   - Count cross-card connections (need at least 1 for tarot_coherence ≥ 4; at least 2 + suit/elemental pattern for 5)
+   - Count phrase-level reuse from user question (required for personalization ≥ 4)
+   - Count declarative futures vs conditional language (if declarative dominates, tone ≤ 3)
+   - If hard imperative appears without softening, tone ≤ 3
+
+3. Score each dimension (start at 3, adjust with evidence):
    - Score 4-5 requires specific quoted text
    - Score 5 is rare (top 10%)
 
@@ -1216,6 +1265,64 @@ export async function runEvaluation(env, params = {}) {
   }
 }
 
+function countPatternMatches(text, patterns = []) {
+  if (!text || typeof text !== 'string' || !Array.isArray(patterns) || patterns.length === 0) {
+    return 0;
+  }
+
+  let total = 0;
+  for (const pattern of patterns) {
+    const matches = text.match(pattern);
+    total += Array.isArray(matches) ? matches.length : 0;
+    pattern.lastIndex = 0;
+  }
+  return total;
+}
+
+function analyzeDeterministicToneSignals(readingText) {
+  if (!readingText || typeof readingText !== 'string') {
+    return {
+      shouldCap: false,
+      triggers: [],
+      counts: {
+        declarativeFuture: 0,
+        conditionalLanguage: 0,
+        hardImperative: 0,
+        softeningLanguage: 0
+      }
+    };
+  }
+
+  const declarativeFuture = countPatternMatches(readingText, DECLARATIVE_FUTURE_PATTERNS);
+  const conditionalLanguage = countPatternMatches(readingText, CONDITIONAL_LANGUAGE_PATTERNS);
+  const hardImperative = countPatternMatches(readingText, HARD_IMPERATIVE_PATTERNS);
+  const softeningLanguage = countPatternMatches(readingText, SOFTENING_LANGUAGE_PATTERNS);
+
+  const triggers = [];
+  const futureDominanceRatio = declarativeFuture / Math.max(1, conditionalLanguage);
+
+  if (declarativeFuture > 0 && conditionalLanguage === 0) {
+    triggers.push('unhedged_future');
+  }
+  if (hardImperative > 0 && hardImperative > softeningLanguage) {
+    triggers.push('hard_imperative');
+  }
+  if (declarativeFuture >= 2 && futureDominanceRatio >= 1.25) {
+    triggers.push('declarative_future_dominant');
+  }
+
+  return {
+    shouldCap: triggers.length > 0,
+    triggers,
+    counts: {
+      declarativeFuture,
+      conditionalLanguage,
+      hardImperative,
+      softeningLanguage
+    }
+  };
+}
+
 function applyDeterministicSafetyOverrides(evalResult, readingText, env) {
   const deterministicEnabled = isDeterministicSafetyEnabled(env);
   const overrides = [];
@@ -1261,6 +1368,62 @@ function applyDeterministicSafetyOverrides(evalResult, readingText, env) {
       deterministic_overrides: overrides
     },
     deterministic_overrides: overrides
+  };
+}
+
+function applyDeterministicToneOverrides(evalResult, readingText, env) {
+  const deterministicEnabled = isDeterministicSafetyEnabled(env);
+  if (!deterministicEnabled || !evalResult?.scores) {
+    return { evalResult, deterministic_tone_overrides: [] };
+  }
+
+  const toneSignals = analyzeDeterministicToneSignals(readingText);
+  if (!toneSignals.shouldCap) {
+    return {
+      evalResult: {
+        ...evalResult,
+        deterministic_tone_overrides: [],
+        tone_signal_counts: toneSignals.counts
+      },
+      deterministic_tone_overrides: []
+    };
+  }
+
+  const existingTone = Number.isFinite(evalResult.scores.tone) ? evalResult.scores.tone : 3;
+  const existingOverall = Number.isFinite(evalResult.scores.overall) ? evalResult.scores.overall : 3;
+  const nextTone = Math.min(existingTone, 3);
+  const nextOverall = Math.min(existingOverall, nextTone);
+
+  const notePrefix = typeof evalResult.scores.notes === 'string' && evalResult.scores.notes.trim().length > 0
+    ? `${evalResult.scores.notes}; `
+    : '';
+  const toneNote = `Deterministic tone cap (${toneSignals.triggers.join(', ')})`;
+  const notes = `${notePrefix}${toneNote}`.slice(0, 200);
+
+  return {
+    evalResult: {
+      ...evalResult,
+      scores: {
+        ...evalResult.scores,
+        tone: nextTone,
+        overall: nextOverall,
+        notes
+      },
+      deterministic_tone_overrides: toneSignals.triggers,
+      tone_signal_counts: toneSignals.counts
+    },
+    deterministic_tone_overrides: toneSignals.triggers
+  };
+}
+
+function applyDeterministicOverrides(evalResult, readingText, env) {
+  const safetyResult = applyDeterministicSafetyOverrides(evalResult, readingText, env);
+  const toneResult = applyDeterministicToneOverrides(safetyResult.evalResult, readingText, env);
+
+  return {
+    evalResult: toneResult.evalResult,
+    deterministic_overrides: safetyResult.deterministic_overrides,
+    deterministic_tone_overrides: toneResult.deterministic_tone_overrides
   };
 }
 
@@ -1361,7 +1524,7 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
       }
 
       if (evalPayload && evalPayload.scores) {
-        const overrideResult = applyDeterministicSafetyOverrides(evalPayload, evalParams?.reading, env);
+        const overrideResult = applyDeterministicOverrides(evalPayload, evalParams?.reading, env);
         evalPayload = overrideResult.evalResult;
       }
 
@@ -1542,7 +1705,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
     if (!normalizeBooleanFlag(env?.EVAL_ENABLED)) {
       console.log(`[${requestId}] [gate] Running heuristic-only gate (EVAL_ENABLED !== true)...`);
       let heuristicEval = buildHeuristicScores(narrativeMetrics, resolvedSpreadKey, { readingText: evalParams?.reading, cardCount: resolvedCardCount });
-      const overrideResult = applyDeterministicSafetyOverrides(heuristicEval, evalParams?.reading, env);
+      const overrideResult = applyDeterministicOverrides(heuristicEval, evalParams?.reading, env);
       heuristicEval = overrideResult.evalResult;
       const gateResult = checkEvalGate(heuristicEval);
       const decoratedGate = { ...gateResult, thresholds_snapshot: thresholdsSnapshot };
@@ -1565,10 +1728,13 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
     let evalSource = evalResult && !evalResult.error ? 'ai' : null;
 
     if (evalResult && evalResult.scores) {
-      const overrideResult = applyDeterministicSafetyOverrides(evalResult, evalParams?.reading, env);
+      const overrideResult = applyDeterministicOverrides(evalResult, evalParams?.reading, env);
       evalResult = overrideResult.evalResult;
       if (overrideResult.deterministic_overrides?.length) {
         evalResult.deterministic_overrides = overrideResult.deterministic_overrides;
+      }
+      if (overrideResult.deterministic_tone_overrides?.length) {
+        evalResult.deterministic_tone_overrides = overrideResult.deterministic_tone_overrides;
       }
     }
 
@@ -1602,10 +1768,13 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
       evalSource = 'heuristic_fallback';
 
       if (effectiveEvalResult.scores) {
-        const overrideResult = applyDeterministicSafetyOverrides(effectiveEvalResult, evalParams?.reading, env);
+        const overrideResult = applyDeterministicOverrides(effectiveEvalResult, evalParams?.reading, env);
         effectiveEvalResult = overrideResult.evalResult;
         if (overrideResult.deterministic_overrides?.length) {
           effectiveEvalResult.deterministic_overrides = overrideResult.deterministic_overrides;
+        }
+        if (overrideResult.deterministic_tone_overrides?.length) {
+          effectiveEvalResult.deterministic_tone_overrides = overrideResult.deterministic_tone_overrides;
         }
       }
       evalMode = 'heuristic';

@@ -1,4 +1,5 @@
 import { formatVisionLabelForPrompt } from '../../visionLabels.js';
+import { evaluateVisionInsightPromptEligibility } from '../../readingQuality.js';
 import { sanitizeText } from '../../utils.js';
 
 function normalizeCardKey(value) {
@@ -27,6 +28,21 @@ function isDrawnCardName(cardName, drawnCardKeys) {
   return Boolean(key && drawnCardKeys.has(key));
 }
 
+function describeTelemetryOnlyReason(reason) {
+  switch (reason) {
+    case 'low_confidence':
+      return 'telemetry only: low confidence';
+    case 'weak_symbol_verification':
+      return 'telemetry only: weak symbol verification';
+    case 'match_unverified':
+      return 'telemetry only: unverified match';
+    case 'confidence_unavailable':
+      return 'telemetry only: missing confidence';
+    default:
+      return 'telemetry only';
+  }
+}
+
 export function buildVisionValidationSection(visionInsights, options = {}) {
   if (options.includeDiagnostics === false) {
     return '';
@@ -46,9 +62,13 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
   const verifiedMatches = safeEntries.filter((entry) => entry.matchesDrawnCard === true).length;
   const mismatches = safeEntries.filter((entry) => entry.matchesDrawnCard === false).length;
   const unverified = safeEntries.length - verifiedMatches - mismatches;
+  const telemetryOnly = safeEntries.filter((entry) => {
+    if (entry?.matchesDrawnCard !== true) return false;
+    return evaluateVisionInsightPromptEligibility(entry).promptEligible !== true;
+  }).length;
 
   let coverageLine = 'Vision uploads include verification notes below.';
-  if (mismatches === 0 && unverified === 0) {
+  if (mismatches === 0 && unverified === 0 && telemetryOnly === 0) {
     coverageLine = 'All uploaded cards align with the declared spread.';
   } else {
     const parts = [];
@@ -57,6 +77,9 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
     }
     if (unverified > 0) {
       parts.push(`${unverified} upload(s) could not be verified against the drawn spread; treat these as unverified evidence if you reference them.`);
+    }
+    if (telemetryOnly > 0) {
+      parts.push(`${telemetryOnly} matched upload(s) were too weak to steer tone or emphasis and should remain telemetry-only evidence.`);
     }
     coverageLine = parts.join(' ');
   }
@@ -83,17 +106,36 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
     }
 
     const isUnverified = entry.matchesDrawnCard === null || typeof entry.matchesDrawnCard === 'undefined';
+    const eligibility = evaluateVisionInsightPromptEligibility(entry);
+    const isTelemetryOnly = entry.matchesDrawnCard === true && eligibility.promptEligible !== true;
     const predictedCard = entry.predictedCard || entry.card || '';
     const allowCardName = !isUnverified || shouldAllowCardName(predictedCard);
     const suppressDetails = isUnverified && enforceDrawnCardFilter && !allowCardName;
     const validationNote = isUnverified ? ' [unverified upload]' : '';
+    const telemetryOnlyNote = isTelemetryOnly ? ` [${describeTelemetryOnlyReason(eligibility.suppressionReason)}]` : '';
 
     if (allowCardName && predictedCard) {
-      lines.push(`- ${safeLabel}: recognized as ${predictedCard}${basisText} (${confidenceText})${validationNote}`);
+      lines.push(`- ${safeLabel}: recognized as ${predictedCard}${basisText} (${confidenceText})${validationNote}${telemetryOnlyNote}`);
     } else if (isUnverified) {
       lines.push(`- ${safeLabel}: recognized as an unverified upload${basisText} (${confidenceText}) [card name withheld]`);
     } else {
-      lines.push(`- ${safeLabel}: recognized as a card${basisText} (${confidenceText})`);
+      lines.push(`- ${safeLabel}: recognized as a card${basisText} (${confidenceText})${telemetryOnlyNote}`);
+    }
+
+    if (isTelemetryOnly) {
+      lines.push('  · Evidence note: Matched the spread, but treat this as telemetry only. Do not let it steer tone, card emphasis, or emotional framing.');
+      if (entry.symbolVerification && typeof entry.symbolVerification === 'object') {
+        const sv = entry.symbolVerification;
+        const matchRate = typeof sv.matchRate === 'number' ? `${(sv.matchRate * 100).toFixed(1)}% symbol alignment` : null;
+        const missingList = Array.isArray(sv.missingSymbols) && sv.missingSymbols.length
+          ? `missing: ${sv.missingSymbols.join(', ')}`
+          : null;
+        const symbolLine = [matchRate, missingList].filter(Boolean).join(' | ');
+        if (symbolLine) {
+          lines.push(`  · Symbol check: ${symbolLine}`);
+        }
+      }
+      return;
     }
 
     if (entry.orientation) {

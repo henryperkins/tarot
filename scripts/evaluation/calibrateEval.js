@@ -2,10 +2,54 @@
 /**
  * Analyze evaluation scores and suggest calibration adjustments
  *
- * Usage: cat eval-data.jsonl | node scripts/evaluation/calibrateEval.js
+ * Usage: cat eval-data.jsonl | node scripts/evaluation/calibrateEval.js [--synthetic data/evaluations/synthetic-failure-readings.json]
  */
 
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import * as readline from 'node:readline';
+import { runSyncEvaluationGate } from '../../functions/lib/evaluation.js';
+
+const DEFAULT_SYNTHETIC_FIXTURE = 'data/evaluations/synthetic-failure-readings.json';
+
+function printUsage() {
+  console.log('Usage: cat eval-data.jsonl | node scripts/evaluation/calibrateEval.js [options]');
+  console.log('');
+  console.log('Options:');
+  console.log(`  --synthetic <path>     Synthetic failure fixture path (default: ${DEFAULT_SYNTHETIC_FIXTURE})`);
+  console.log('  --no-synthetic         Skip synthetic calibration pass');
+  console.log('  --strict-synthetic     Exit non-zero when synthetic cases fail');
+  console.log('  --help, -h             Show this help');
+}
+
+function parseArgs(argv) {
+  const options = {
+    synthetic: true,
+    syntheticPath: DEFAULT_SYNTHETIC_FIXTURE,
+    strictSynthetic: false,
+    help: false
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--help' || arg === '-h') {
+      options.help = true;
+    } else if (arg === '--no-synthetic') {
+      options.synthetic = false;
+    } else if (arg === '--strict-synthetic') {
+      options.strictSynthetic = true;
+    } else if (arg === '--synthetic') {
+      const value = argv[i + 1];
+      if (!value) {
+        throw new Error('Missing value for --synthetic');
+      }
+      options.syntheticPath = value;
+      i += 1;
+    }
+  }
+
+  return options;
+}
 
 // Helper to get prompt version from both v1 and v2 schema payloads
 function getPromptVersion(payload) {
@@ -38,18 +82,149 @@ function getVariantId(payload) {
   return payload.variantId || null;
 }
 
-const rl = readline.createInterface({ input: process.stdin });
-const records = [];
+function missingExpectedItems(actual = [], expected = []) {
+  return expected.filter((item) => !actual.includes(item));
+}
 
-rl.on('line', (line) => {
-  try {
-    records.push(JSON.parse(line));
-  } catch (_e) {
-    // Skip invalid lines
+function validateSyntheticCase(caseDef, gateResult) {
+  const expected = caseDef?.expected || {};
+  const scores = gateResult?.evalResult?.scores || {};
+  const errors = [];
+
+  if (typeof expected.gateShouldBlock === 'boolean' && gateResult?.gateResult?.shouldBlock !== expected.gateShouldBlock) {
+    errors.push(`gate_should_block expected ${expected.gateShouldBlock}, got ${gateResult?.gateResult?.shouldBlock}`);
   }
-});
+  if (typeof expected.safetyFlag === 'boolean' && scores.safety_flag !== expected.safetyFlag) {
+    errors.push(`safety_flag expected ${expected.safetyFlag}, got ${scores.safety_flag}`);
+  }
+  if (typeof expected.toneAtMost === 'number' && !(scores.tone <= expected.toneAtMost)) {
+    errors.push(`tone expected <= ${expected.toneAtMost}, got ${scores.tone}`);
+  }
+  if (typeof expected.safetyAtMost === 'number' && !(scores.safety <= expected.safetyAtMost)) {
+    errors.push(`safety expected <= ${expected.safetyAtMost}, got ${scores.safety}`);
+  }
+  if (typeof expected.tarotCoherenceAtMost === 'number' && !(scores.tarot_coherence <= expected.tarotCoherenceAtMost)) {
+    errors.push(`tarot_coherence expected <= ${expected.tarotCoherenceAtMost}, got ${scores.tarot_coherence}`);
+  }
 
-rl.on('close', () => {
+  const missingToneOverrides = missingExpectedItems(
+    gateResult?.evalResult?.deterministic_tone_overrides || [],
+    expected.requiredToneOverrides || []
+  );
+  if (missingToneOverrides.length > 0) {
+    errors.push(`missing deterministic_tone_overrides: ${missingToneOverrides.join(', ')}`);
+  }
+
+  const missingDeterministicOverrides = missingExpectedItems(
+    gateResult?.evalResult?.deterministic_overrides || [],
+    expected.requiredDeterministicOverrides || []
+  );
+  if (missingDeterministicOverrides.length > 0) {
+    errors.push(`missing deterministic_overrides: ${missingDeterministicOverrides.join(', ')}`);
+  }
+
+  const missingHeuristicTriggers = missingExpectedItems(
+    gateResult?.evalResult?.heuristic_triggers || [],
+    expected.requiredHeuristicTriggers || []
+  );
+  if (missingHeuristicTriggers.length > 0) {
+    errors.push(`missing heuristic_triggers: ${missingHeuristicTriggers.join(', ')}`);
+  }
+
+  return errors;
+}
+
+async function runSyntheticCalibration(options) {
+  if (!options.synthetic) {
+    return null;
+  }
+
+  const fixturePath = path.resolve(process.cwd(), options.syntheticPath);
+  let payload;
+
+  try {
+    const raw = await fs.readFile(fixturePath, 'utf-8');
+    payload = JSON.parse(raw);
+  } catch (error) {
+    console.log('\n=== Synthetic Failure Calibration ===\n');
+    console.log(`Could not load synthetic fixture: ${fixturePath}`);
+    console.log(`Reason: ${error.message}`);
+    if (options.strictSynthetic) {
+      process.exitCode = 1;
+    }
+    return null;
+  }
+
+  const cases = Array.isArray(payload?.cases) ? payload.cases : [];
+  console.log('\n=== Synthetic Failure Calibration ===\n');
+  console.log(`Fixture: ${path.relative(process.cwd(), fixturePath)}`);
+  console.log(`Synthetic cases: ${cases.length}`);
+
+  if (cases.length === 0) {
+    console.log('No synthetic cases found.');
+    if (options.strictSynthetic) {
+      process.exitCode = 1;
+    }
+    return { total: 0, passed: 0, failed: 0 };
+  }
+
+  const env = {
+    EVAL_ENABLED: 'false',
+    EVAL_GATE_ENABLED: 'true',
+    DETERMINISTIC_SAFETY_ENABLED: 'true'
+  };
+
+  const results = [];
+  for (const caseDef of cases) {
+    const gateResult = await runSyncEvaluationGate(
+      env,
+      {
+        requestId: `calibration-${caseDef.id}`,
+        reading: caseDef.reading,
+        userQuestion: caseDef.userQuestion,
+        cardsInfo: caseDef.cardsInfo,
+        spreadKey: caseDef.spreadKey
+      },
+      caseDef.narrativeMetrics || {}
+    );
+
+    const errors = validateSyntheticCase(caseDef, gateResult);
+    results.push({
+      id: caseDef.id,
+      pass: errors.length === 0,
+      errors,
+      scores: gateResult?.evalResult?.scores || {}
+    });
+  }
+
+  const passed = results.filter((r) => r.pass).length;
+  const failed = results.length - passed;
+  console.log(`Passed: ${passed}/${results.length} (${((passed / results.length) * 100).toFixed(1)}%)`);
+  console.log(`Failed: ${failed}`);
+
+  const toneLowEnd = results.some((r) => Number.isFinite(r.scores.tone) && r.scores.tone <= 2);
+  const safetyLowEnd = results.some((r) => Number.isFinite(r.scores.safety) && r.scores.safety <= 2);
+  const coherenceLowEnd = results.some((r) => Number.isFinite(r.scores.tarot_coherence) && r.scores.tarot_coherence <= 2);
+  console.log(`Low-end coverage: tone<=2=${toneLowEnd ? 'yes' : 'no'}, safety<=2=${safetyLowEnd ? 'yes' : 'no'}, tarot_coherence<=2=${coherenceLowEnd ? 'yes' : 'no'}`);
+
+  if (failed > 0) {
+    console.log('\nFailed synthetic cases:');
+    results
+      .filter((r) => !r.pass)
+      .slice(0, 10)
+      .forEach((entry) => {
+        console.log(`  - ${entry.id}: ${entry.errors.join('; ')}`);
+      });
+  }
+
+  if (options.strictSynthetic && failed > 0) {
+    process.exitCode = 1;
+  }
+
+  return { total: results.length, passed, failed };
+}
+
+function runPrimaryCalibration(records) {
   if (records.length === 0) {
     console.log('No records to analyze');
     return;
@@ -125,6 +300,17 @@ rl.on('close', () => {
     console.log('WARNING: Scores compressed around 3 (>60% at score 3)');
     console.log('  Consider: Adding more specific scoring criteria\n');
   }
+
+  const lowEndDims = ['personalization', 'tarot_coherence', 'tone', 'safety'];
+  lowEndDims.forEach((dim) => {
+    const d = distributions[dim];
+    if (!d) return;
+    const lowEndCount = (d.distribution[1] || 0) + (d.distribution[2] || 0);
+    if (lowEndCount === 0) {
+      console.log(`WARNING: ${dim} has no scores in 1-2 range`);
+      console.log(`  Consider: validating with synthetic failures and reviewing rubric anchors\n`);
+    }
+  });
 
   if (coherenceVsCoverage.length > 10) {
     const highCovLowScore = coherenceVsCoverage.filter(
@@ -263,4 +449,31 @@ rl.on('close', () => {
       const mean = withScores.reduce((a, r) => a + r.eval.scores.overall, 0) / withScores.length;
       console.log(`  ${spread}: n=${recs.length}, mean_overall=${mean.toFixed(2)}`);
     });
+}
+
+const options = parseArgs(process.argv.slice(2));
+if (options.help) {
+  printUsage();
+  process.exit(0);
+}
+
+const rl = readline.createInterface({ input: process.stdin });
+const records = [];
+
+rl.on('line', (line) => {
+  try {
+    records.push(JSON.parse(line));
+  } catch (_e) {
+    // Skip invalid lines
+  }
+});
+
+rl.on('close', async () => {
+  try {
+    runPrimaryCalibration(records);
+    await runSyntheticCalibration(options);
+  } catch (error) {
+    console.error(`Calibration failed: ${error.message}`);
+    process.exitCode = 1;
+  }
 });

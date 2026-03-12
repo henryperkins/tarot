@@ -86,4 +86,53 @@ describe('GraphRAG fallback behavior', () => {
     assert.equal(promptMeta.graphRAG?.passagesProvided, 1);
     assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
   });
+
+  it('rebuilds GraphRAG from the effective capped passage list instead of stale formattedBlock text', () => {
+    const graphRAGPayload = {
+      passages: [
+        {
+          title: 'Temperance',
+          source: 'Tableu Tarot Canon',
+          text: 'Integration comes through steady blending of opposites.'
+        },
+        {
+          title: 'The Tower',
+          source: 'Tableu Tarot Canon',
+          text: 'Sudden upheaval breaks false structures apart.'
+        }
+      ],
+      formattedBlock: [
+        '**Retrieved Wisdom from Tarot Tradition:**',
+        '',
+        '1. **Temperance**',
+        '   "Integration comes through steady blending of opposites."',
+        '   — Tableu Tarot Canon',
+        '',
+        '2. **The Tower**',
+        '   "Sudden upheaval breaks false structures apart."',
+        '   — Tableu Tarot Canon'
+      ].join('\n'),
+      retrievalSummary: {
+        passagesRetrieved: 2
+      },
+      initialPassageCount: 2,
+      maxPassages: 1
+    };
+
+    const { userPrompt, promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo: [{ card: 'Temperance', number: 14, position: 'Theme', orientation: 'Upright', meaning: 'Balance.' }],
+      userQuestion: 'What should I integrate right now?',
+      reflectionsText: '',
+      themes: { knowledgeGraph: {} },
+      spreadAnalysis: null,
+      context: 'general',
+      graphRAGPayload
+    });
+
+    assert.ok(userPrompt.includes('Temperance'));
+    assert.ok(!userPrompt.includes('Sudden upheaval breaks false structures apart.'));
+    assert.equal(promptMeta.graphRAG?.passagesProvided, 2);
+    assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
+  });
 });

@@ -8,7 +8,7 @@ import {
 } from '../../graphRAG.js';
 import { inferGraphRAGContext } from '../../contextDetection.js';
 import { getReadingPromptVersion } from '../../promptVersioning.js';
-import { getSpreadKey } from '../../readingQuality.js';
+import { evaluateVisionInsightPromptEligibility, getSpreadKey } from '../../readingQuality.js';
 import { shouldIncludeAstroInsights } from './astro.js';
 import { DEFAULT_REVERSAL_DESCRIPTION } from './constants.js';
 import { estimateTokenCount, getHardCapBudget, getPromptBudgetForTarget } from './budgeting.js';
@@ -220,6 +220,38 @@ function hasVisibleVisionDiagnostics(promptText) {
 function hasVisibleVisionCardCues(promptText) {
   return typeof promptText === 'string' &&
     /Vision-detected tone:|Vision-detected emotion:|Emotional quality:/i.test(promptText);
+}
+
+function summarizeVisionPromptEligibility(visionInsights) {
+  if (!Array.isArray(visionInsights) || visionInsights.length === 0) {
+    return {
+      eligibleUploads: 0,
+      telemetryOnlyUploads: 0,
+      suppressionReasons: null
+    };
+  }
+
+  const suppressionReasons = {};
+  let eligibleUploads = 0;
+  let telemetryOnlyUploads = 0;
+
+  visionInsights.forEach((entry) => {
+    const eligibility = evaluateVisionInsightPromptEligibility(entry);
+    if (eligibility.promptEligible) {
+      eligibleUploads += 1;
+      return;
+    }
+    telemetryOnlyUploads += 1;
+    if (eligibility.suppressionReason) {
+      suppressionReasons[eligibility.suppressionReason] = (suppressionReasons[eligibility.suppressionReason] || 0) + 1;
+    }
+  });
+
+  return {
+    eligibleUploads,
+    telemetryOnlyUploads,
+    suppressionReasons: Object.keys(suppressionReasons).length > 0 ? suppressionReasons : null
+  };
 }
 
 function isGraphRAGBudgetTrimmed(slimmingSteps = []) {
@@ -915,6 +947,7 @@ export function buildEnhancedClaudePrompt({
     : [];
   const hasFocusAreas = focusAreas.length > 0;
   const hasVisionSource = Array.isArray(visionInsights) && visionInsights.length > 0;
+  const visionPromptEligibility = summarizeVisionPromptEligibility(visionInsights);
   const visionDiagnosticsIncluded = hasVisionSource && hasVisibleVisionDiagnostics(finalUser);
   const visionCardCuesIncluded = built.sourceUsageSignals?.visionCardCuesUsed === true && hasVisibleVisionCardCues(finalUser);
   const visionUsed = hasVisionSource && (visionDiagnosticsIncluded || visionCardCuesIncluded);
@@ -939,6 +972,11 @@ export function buildEnhancedClaudePrompt({
     vision: {
       requested: hasVisionSource,
       used: visionUsed,
+      eligibleUploads: visionPromptEligibility.eligibleUploads,
+      telemetryOnlyUploads: visionPromptEligibility.telemetryOnlyUploads,
+      suppressionReasons: visionPromptEligibility.suppressionReasons,
+      diagnosticsIncluded: visionDiagnosticsIncluded,
+      cardCuesUsed: visionCardCuesIncluded,
       skippedReason: hasVisionSource
         ? (visionUsed ? null : (visionRemovedForBudget ? 'removed_for_budget' : 'diagnostics_disabled'))
         : 'not_provided'

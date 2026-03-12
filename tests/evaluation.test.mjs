@@ -156,7 +156,7 @@ describe('evaluation', () => {
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
       assert.equal(result.model, '@cf/qwen/qwen3-30b-a3b-fp8');
-      assert.equal(result.promptVersion, '2.3.2');
+      assert.equal(result.promptVersion, '2.4.0');
     });
 
     test('normalizes string safety_flag values', async () => {
@@ -333,7 +333,7 @@ describe('evaluation', () => {
         safety_flag: false
       },
       model: 'test-model',
-      promptVersion: '2.3.2',
+      promptVersion: '2.4.0',
       latencyMs: 10,
       timestamp: new Date().toISOString()
     };

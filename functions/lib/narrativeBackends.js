@@ -35,6 +35,7 @@ import { getToneStyle, buildPersonalizedClosing, getDepthProfile } from './narra
 import { buildOpening, buildReflectionsSection } from './narrative/helpers.js';
 import { formatPassagesForPrompt } from './graphRAG.js';
 import { buildPromptRedactionOptions, redactPII } from './promptEngineering.js';
+import { evaluateVisionInsightPromptEligibility } from './readingQuality.js';
 import {
   resolveSemanticScoring,
   shouldLogLLMPrompts,
@@ -196,6 +197,38 @@ function hasMeaningfulGraphRAGPayload(payload) {
     : false;
 }
 
+function summarizeVisionPromptEligibility(visionInsights) {
+  if (!Array.isArray(visionInsights) || visionInsights.length === 0) {
+    return {
+      eligibleUploads: 0,
+      telemetryOnlyUploads: 0,
+      suppressionReasons: null
+    };
+  }
+
+  const suppressionReasons = {};
+  let eligibleUploads = 0;
+  let telemetryOnlyUploads = 0;
+
+  visionInsights.forEach((entry) => {
+    const eligibility = evaluateVisionInsightPromptEligibility(entry);
+    if (eligibility.promptEligible) {
+      eligibleUploads += 1;
+      return;
+    }
+    telemetryOnlyUploads += 1;
+    if (eligibility.suppressionReason) {
+      suppressionReasons[eligibility.suppressionReason] = (suppressionReasons[eligibility.suppressionReason] || 0) + 1;
+    }
+  });
+
+  return {
+    eligibleUploads,
+    telemetryOnlyUploads,
+    suppressionReasons: Object.keys(suppressionReasons).length > 0 ? suppressionReasons : null
+  };
+}
+
 function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
   const analysis = payload?.analysis || {};
   const personalization = payload?.personalization || {};
@@ -208,6 +241,7 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
   const hasFocusAreas = focusAreas.length > 0;
 
   const hasVisionSource = Array.isArray(payload?.visionInsights) && payload.visionInsights.length > 0;
+  const visionPromptEligibility = summarizeVisionPromptEligibility(payload?.visionInsights);
 
   const hasGraphRAGSource = hasMeaningfulGraphRAGPayload(graphRAGPayload) || hasMeaningfulGraphKeys(analysis?.themes?.knowledgeGraph?.graphKeys);
   const graphRAGHighlightsUsed = Array.isArray(analysis?.themes?.knowledgeGraph?.narrativeHighlights)
@@ -255,6 +289,9 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
     vision: {
       requested: hasVisionSource,
       used: false,
+      eligibleUploads: visionPromptEligibility.eligibleUploads,
+      telemetryOnlyUploads: visionPromptEligibility.telemetryOnlyUploads,
+      suppressionReasons: visionPromptEligibility.suppressionReasons,
       skippedReason: hasVisionSource ? 'not_used_by_backend' : 'not_provided'
     },
     userContext: {

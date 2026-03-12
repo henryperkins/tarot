@@ -81,6 +81,7 @@ import {
   buildNarrativeMetrics,
   annotateVisionInsights,
   buildVisionMetrics,
+  resolveVisionPromptThresholds,
   persistReadingMetrics
 } from '../lib/readingQuality.js';
 import { buildMetricsPayload } from '../lib/telemetrySchema.js';
@@ -122,6 +123,14 @@ function resolveVisionMismatchPolicy(env) {
     ),
     maxMismatchRate: parseMismatchRate(effectiveEnv.VISION_MAX_MISMATCH_RATE, 0.5)
   };
+}
+
+function resolveVisionPromptPolicy(env) {
+  const effectiveEnv = env || {};
+  return resolveVisionPromptThresholds({
+    confidenceFloor: effectiveEnv.VISION_PROMPT_CONFIDENCE_FLOOR,
+    symbolMatchFloor: effectiveEnv.VISION_PROMPT_SYMBOL_MATCH_FLOOR
+  });
 }
 
 function evaluateQualityGate({ readingText, cardsInfo, deckStyle, analysis, requestId }) {
@@ -739,6 +748,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     let sanitizedVisionInsights = [];
     let visionMetrics = null;
     const visionMismatchPolicy = resolveVisionMismatchPolicy(env);
+    const visionPromptPolicy = resolveVisionPromptPolicy(env);
 
     if (!visionProof) {
       console.log(`[${requestId}] No vision proof provided (research mode disabled). Proceeding with standard reading.`);
@@ -770,7 +780,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         }
       }
 
-      sanitizedVisionInsights = annotateVisionInsights(verifiedProof.insights, cardsInfo, deckStyle);
+      sanitizedVisionInsights = annotateVisionInsights(verifiedProof.insights, cardsInfo, deckStyle, visionPromptPolicy);
 
       if (sanitizedVisionInsights.length === 0) {
         console.warn(`[${requestId}] Vision proof did not contain recognizable cards. Proceeding without vision data.`);

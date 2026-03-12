@@ -944,7 +944,7 @@ describe('Reasoning Integration', () => {
   });
 
   describe('buildReasoningAwareOpening', () => {
-    it('should include spread name', () => {
+    it('starts with an opening section instead of a spread-title preface', () => {
       const opening = buildReasoningAwareOpening(
         'Three-Card Story',
         'How can I heal?',
@@ -953,7 +953,8 @@ describe('Reasoning Integration', () => {
         {}
       );
 
-      expect(opening).toContain('Three-Card Story');
+      expect(opening.startsWith('### Opening')).toBe(true);
+      expect(opening).not.toContain('Three-Card Story');
     });
 
     it('should include arc description for notable arcs', () => {

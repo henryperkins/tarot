@@ -148,39 +148,39 @@ const INTENT_OPENINGS = {
     'You\'re navigating a decision that matters.'
   ],
   timing: [
-    'You\'re wondering about timing and readiness.',
-    'The question of "when" is on your mind.',
-    'You sense something wants to shift, and wonder when.'
+    'Timing feels alive here, but not fully settled yet.',
+    'Readiness is part of the story here, not just the clock.',
+    'Something wants to move, though the pace is still finding its shape.'
   ],
   blockage: [
-    'You sense something in the way.',
-    'There\'s a feeling of friction or stuckness you\'re exploring.',
-    'You\'re investigating what might be holding things back.'
+    'Something is catching where movement wants to happen.',
+    'There is friction here that deserves a closer look.',
+    'The stuck point is not random; it is showing where the tension lives.'
   ],
   confirmation: [
-    'You\'re looking for guidance on a path you\'re considering.',
-    'You want to check your direction.',
-    'You\'re seeking clarity on something you\'re already feeling.'
+    'Part of you already senses the direction, and the cards are testing its strength.',
+    'The path in front of you already has a shape; this reading checks how true it feels.',
+    'There is a direction here that wants clearer confirmation, not blind certainty.'
   ],
   outcome: [
-    'You\'re curious about where things are heading.',
-    'You want to understand the trajectory you\'re on.',
-    'You\'re looking ahead to see what\'s unfolding.'
+    'The path ahead is forming, even if every detail is not visible yet.',
+    'This reading leans toward trajectory: where the current pattern is carrying you.',
+    'What comes next is already taking shape in the energy of the spread.'
   ],
   understanding: [
-    'You\'re seeking deeper understanding.',
-    'You want to see more clearly into this situation.',
-    'You\'re looking for insight and meaning.'
+    'There is more here than the surface story first shows.',
+    'This situation asks for clarity deeper than the obvious layer.',
+    'A fuller understanding is available here if you stay with what the cards emphasize.'
   ],
   exploration: [
-    'You\'re open to what the cards reveal.',
-    'You come with curiosity and openness.',
-    'You\'re ready to explore what wants attention.'
+    'Something wants your attention, and the cards gather around it now.',
+    'The energy here is open, but not empty; it already has a pulse.',
+    'There is a live thread in this reading, asking to be noticed clearly.'
   ],
   open: [
-    'Let\'s see what the cards have to share.',
-    'The spread is laid; let\'s explore together.',
-    'Here\'s what emerges for you today.'
+    'A clear thread is already moving through this reading.',
+    'The spread opens on something present and ready to be named.',
+    'What stands out first is the energy pressing closest to the surface.'
   ]
 };
 
@@ -195,10 +195,7 @@ const INTENT_OPENINGS = {
  * @returns {string} Opening text
  */
 export function buildReasoningAwareOpening(spreadName, userQuestion, context, reasoning, options = {}) {
-  const parts = [];
-
-  // Spread introduction
-  parts.push(`**${spreadName}**`);
+  const parts = ['### Opening'];
 
   // Question-intent-aware opening
   const intentType = reasoning.questionIntent?.type || 'open';
@@ -213,7 +210,7 @@ export function buildReasoningAwareOpening(spreadName, userQuestion, context, re
   // Add personalization bridge if available
   const safeName = sanitizeDisplayName(options.personalization?.displayName);
   if (safeName) {
-    parts.push(`${safeName}, let's explore what the cards reveal.`);
+    parts.push(`${safeName}, stay with what feels most alive here.`);
   }
 
   return parts.join('\n\n');

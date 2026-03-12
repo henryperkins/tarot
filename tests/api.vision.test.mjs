@@ -67,6 +67,35 @@ describe('vision research mode', () => {
     assert.ok(typeof payload.reading === 'string' && payload.reading.length > 0);
   });
 
+  it('keeps weak matched uploads as telemetry-only evidence without blocking the reading', async () => {
+    const proof = await createVisionProof({
+      insights: [
+        {
+          label: 'IMG_WEAK_MATCH',
+          predictedCard: 'The Fool',
+          confidence: 0.01,
+          visualProfile: {
+            tone: ['ominous'],
+            emotion: ['dread']
+          }
+        }
+      ]
+    });
+    const request = makeRequest({
+      ...BASE_PAYLOAD,
+      visionProof: proof
+    });
+
+    const response = await onRequestPost({ request, env: { VISION_PROOF_SECRET: TEST_SECRET } });
+    assert.equal(response.status, 200);
+
+    const payload = await response.json();
+    assert.ok(typeof payload.reading === 'string' && payload.reading.length > 0);
+    assert.equal(payload.sourceUsage?.vision?.eligibleUploads, 0);
+    assert.equal(payload.sourceUsage?.vision?.telemetryOnlyUploads, 1);
+    assert.deepEqual(payload.sourceUsage?.vision?.suppressionReasons, { low_confidence: 1 });
+  });
+
   it('blocks when strict deck mismatch policy is enabled', async () => {
     const proof = await createVisionProof({
       deckStyle: 'thoth-a1',

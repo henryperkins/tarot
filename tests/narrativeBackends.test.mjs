@@ -558,10 +558,12 @@ describe('Claude backend + dispatch coverage', () => {
       assert.equal(claudeResult.reading, 'Claude dispatch reading.');
 
       const localResult = await runNarrativeBackend('local-composer', {}, structuredClone(basePayload), 'req-local-dispatch');
-      assert.ok(localResult.reading.includes('One-Card Insight'));
+      assert.ok(localResult.reading.startsWith('### Opening'));
+      assert.ok(!localResult.reading.startsWith('**One-Card Insight**'));
 
       const fallbackResult = await runNarrativeBackend('unknown-backend', {}, structuredClone(basePayload), 'req-fallback-dispatch');
-      assert.ok(fallbackResult.reading.includes('One-Card Insight'), 'unknown backends should currently fall back to local-composer');
+      assert.ok(fallbackResult.reading.startsWith('### Opening'), 'unknown backends should currently fall back to local-composer');
+      assert.ok(!fallbackResult.reading.startsWith('**One-Card Insight**'));
     });
   });
 });
