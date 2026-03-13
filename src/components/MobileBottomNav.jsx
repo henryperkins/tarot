@@ -38,7 +38,7 @@ export function MobileBottomNav() {
     <nav
       aria-label="Main navigation"
       className={`
-        lg:hidden fixed bottom-0 left-0 right-0 z-30
+        lg:hidden fixed bottom-0 left-0 right-0 z-sticky-nav
         bg-surface/95 backdrop-blur-sm
         border-t border-secondary/20
         shadow-[0_-2px_10px_rgba(0,0,0,0.1)]

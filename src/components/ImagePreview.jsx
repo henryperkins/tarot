@@ -71,7 +71,7 @@ export function ImagePreview({ image, onConfirm, onRetake }) {
       role="dialog"
       aria-modal="true"
       aria-label="Image preview"
-      className="fixed inset-0 z-50 flex flex-col bg-main animate-fade-in"
+      className="fixed inset-0 z-50 flex flex-col bg-main animate-fade-in pt-safe px-safe"
       onKeyDown={handleKeyDown}
     >
       {/* Image container */}

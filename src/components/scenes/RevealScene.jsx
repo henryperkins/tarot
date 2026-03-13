@@ -60,7 +60,7 @@ export function RevealScene({
               <button
                 type="button"
                 onClick={handleAnimatedDeal}
-                className="min-h-touch px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition"
+                className="min-h-touch px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
               >
                 {guidedRevealLabel}
               </button>
@@ -68,7 +68,7 @@ export function RevealScene({
                 type="button"
                 onClick={handleRevealAllWithScroll}
                 aria-label="Reveal all cards"
-                className="min-h-touch px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition"
+                className="min-h-touch px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
               >
                 Reveal instantly
               </button>
@@ -104,7 +104,7 @@ export function RevealScene({
             <button
               type="button"
               onClick={handleResetReveals}
-              className="inline-flex items-center justify-center min-h-touch px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition touch-manipulation"
+              className="inline-flex items-center justify-center min-h-touch px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
             >
               <span className="hidden xs:inline">Reset reveals (keep this spread)</span>
               <span className="xs:hidden">Reset reveals</span>
@@ -117,7 +117,7 @@ export function RevealScene({
             {isHandset ? (
               <p className="text-xs text-muted">Use the action bar below to create your narrative.</p>
             ) : (
-              <button onClick={generatePersonalReading} className="bg-accent hover:bg-accent/90 text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg">
+              <button onClick={generatePersonalReading} className="bg-accent hover:bg-accent/90 text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">
                 <Sparkle className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>Create Personal Narrative</span>
               </button>

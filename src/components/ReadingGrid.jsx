@@ -520,7 +520,7 @@ export function ReadingGrid({
                 type="button"
                 aria-pressed={!isListView}
                 onClick={() => handleLayoutToggle('carousel')}
-                className={`flex-1 min-h-touch rounded-full border px-3 py-2 text-xs font-semibold ${isListView ? 'border-secondary/40 text-muted' : 'border-primary/60 bg-primary/10 text-primary'}`}
+                className={`flex-1 min-h-touch rounded-full border px-3 py-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${isListView ? 'border-secondary/40 text-muted' : 'border-primary/60 bg-primary/10 text-primary'}`}
               >
                 Swipe view
               </button>
@@ -528,7 +528,7 @@ export function ReadingGrid({
                 type="button"
                 aria-pressed={isListView}
                 onClick={() => handleLayoutToggle('list')}
-                className={`flex-1 min-h-touch rounded-full border px-3 py-2 text-xs font-semibold ${isListView ? 'border-primary/60 bg-primary/10 text-primary' : 'border-secondary/40 text-muted'}`}
+                className={`flex-1 min-h-touch rounded-full border px-3 py-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${isListView ? 'border-primary/60 bg-primary/10 text-primary' : 'border-secondary/40 text-muted'}`}
               >
                 List view
               </button>

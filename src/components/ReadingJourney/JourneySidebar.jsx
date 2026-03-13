@@ -372,7 +372,7 @@ export default function JourneySidebar({
           </h3>
           <Link
             to="/account#analytics"
-            className="flex items-center justify-center w-8 h-8 rounded-full text-muted hover:text-main hover:bg-[color:var(--border-warm-subtle)] transition-colors"
+            className="flex items-center justify-center min-w-touch min-h-touch rounded-full text-muted hover:text-main hover:bg-[color:var(--border-warm-subtle)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
             aria-label="Journey settings"
             title="Settings"
           >

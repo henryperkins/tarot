@@ -134,7 +134,7 @@ export function TactileLensOverlay({
   return (
     <div
       ref={overlayRef}
-      className="absolute inset-0 pointer-events-none z-30"
+      className="absolute inset-0 pointer-events-none z-sticky-nav"
       role="region"
       aria-label={MICROCOPY.positionMeanings}
       aria-live="polite"

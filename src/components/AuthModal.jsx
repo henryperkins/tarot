@@ -205,7 +205,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
 
   const errorId = error || authError ? 'auth-error' : undefined;
   const overlayClasses = [
-    'fixed inset-0 z-[1300] flex justify-center bg-main/90 backdrop-blur-sm animate-fade-in overflow-y-auto px-safe pt-safe pb-safe',
+    'fixed inset-0 z-auth flex justify-center bg-main/90 backdrop-blur-sm animate-fade-in overflow-y-auto px-safe pt-safe pb-safe',
     isSmallScreen ? 'items-start px-4 py-8' : 'items-center p-4',
   ].join(' ');
   const modalClasses = [
@@ -453,7 +453,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                     <button
                       type="button"
                     onClick={goToForgot}
-                    className="text-accent hover:text-accent/80 underline underline-offset-4"
+                    className="text-accent hover:text-accent/80 underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
                     disabled={loading}
                   >
                     Forgot password?
@@ -461,7 +461,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                   <button
                     type="button"
                     onClick={handleResendVerification}
-                    className="text-accent hover:text-accent/80 underline underline-offset-4 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="text-accent hover:text-accent/80 underline underline-offset-4 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
                     disabled={loading}
                   >
                     Resend verification email

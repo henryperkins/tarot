@@ -13,13 +13,13 @@ function CoachSuggestionSwitcher({
   const styles = tone === 'amber'
     ? {
       label: 'text-2xs uppercase tracking-[0.18em] text-muted/70',
-      buttonBase: 'min-h-touch rounded-full border border-primary/25 px-2.5 py-1 text-2xs uppercase tracking-[0.16em] text-accent/80 transition-colors',
+      buttonBase: 'min-h-touch rounded-full border border-primary/25 px-2.5 py-1 text-2xs uppercase tracking-[0.16em] text-accent/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
       buttonActive: 'bg-primary/20 text-main border-primary/40',
       buttonInactive: 'hover:border-primary/40 hover:text-main',
     }
     : {
       label: 'text-2xs uppercase tracking-[0.18em] text-muted',
-      buttonBase: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-2.5 py-1 text-2xs uppercase tracking-[0.16em] text-muted-high transition-colors',
+      buttonBase: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-2.5 py-1 text-2xs uppercase tracking-[0.16em] text-muted-high transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
       buttonActive: 'bg-[color:var(--border-warm-subtle)] text-main border-[color:var(--border-warm)]',
       buttonInactive: 'hover:text-main hover:border-[color:var(--border-warm)]',
     };

@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { CaretDown } from '@phosphor-icons/react';
 import { getCanonicalCard } from '../../lib/cardLookup';
 import {
@@ -43,6 +44,7 @@ export function JournalSummaryBand({
   dataSource = 'client',
   embedded = false
 }) {
+  const prefersReducedMotion = useReducedMotion();
   const [isExpanded, setIsExpanded] = useState(!isMobileLayout);
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
   const sourceLabel = dataSource === 'server' ? 'D1' : 'Journal';
@@ -288,7 +290,7 @@ export function JournalSummaryBand({
                 onClick={() => {
                   const journeySection = document.querySelector('[aria-label="Journal insights and journey"]');
                   if (journeySection) {
-                    journeySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    journeySection.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
                   }
                 }}
                 className="inline-flex min-h-touch w-full min-w-0 items-center justify-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-4 py-3 text-sm font-medium text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)] sm:w-auto sm:flex-1"

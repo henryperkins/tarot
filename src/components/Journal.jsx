@@ -15,6 +15,7 @@ import { OUTLINE_BUTTON_CLASS } from '../styles/buttonClasses';
 import { ReadingJourney } from './ReadingJourney';
 import { NoFiltersIllustration } from './illustrations/NoFiltersIllustration';
 import { useSmallScreen, SMALL_SCREEN_MAX } from '../hooks/useSmallScreen';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useToast } from '../contexts/ToastContext.jsx';
 import AuthModal from './AuthModal';
 import { getTimestamp } from '../../shared/journal/utils.js';
@@ -75,6 +76,7 @@ export default function Journal() {
   // Layout detection
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
   const isSmallSummary = useSmallScreen(SMALL_SCREEN_MAX);
+  const prefersReducedMotion = useReducedMotion();
   const shellClass = isMobileLayout ? AMBER_SHELL_MOBILE_CLASS : AMBER_SHELL_CLASS;
   const cardClass = isMobileLayout ? AMBER_CARD_MOBILE_CLASS : AMBER_CARD_CLASS;
 
@@ -243,7 +245,7 @@ export default function Journal() {
       || document.getElementById('journal-history-filters')
       || document.getElementById('history');
     if (!target) return;
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
     if (typeof window === 'undefined') return;
     window.setTimeout(() => {
       const input = searchInputRef.current;
@@ -253,7 +255,7 @@ export default function Journal() {
         input.select();
       }
     }, 240);
-  }, [historyFiltersEl]);
+  }, [historyFiltersEl, prefersReducedMotion]);
 
   const handleMonthJump = useCallback((event) => {
     const value = event.target.value;
@@ -261,9 +263,9 @@ export default function Journal() {
     if (!value || typeof document === 'undefined') return;
     const anchor = document.getElementById(`month-${value}`);
     if (anchor) {
-      anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      anchor.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
     }
-  }, []);
+  }, [prefersReducedMotion]);
 
   const locale = useMemo(() => {
     if (typeof navigator !== 'undefined' && navigator.language) {
@@ -433,7 +435,7 @@ export default function Journal() {
     const handle = window.setTimeout(() => {
       const el = document.getElementById(id);
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
       }
     }, 50);
 
@@ -446,7 +448,7 @@ export default function Journal() {
       window.clearTimeout(handle);
       window.clearTimeout(clearHandle);
     };
-  }, [pendingHighlightEntryId, filteredEntries, visibleCount]);
+  }, [pendingHighlightEntryId, filteredEntries, visibleCount, prefersReducedMotion]);
 
   useEffect(() => {
     if (!hasEntries) return undefined;
@@ -742,7 +744,7 @@ export default function Journal() {
       <div className="min-h-screen bg-main text-main animate-fade-in">
         {/* Sticky navigation header with safe-area padding */}
         <header
-          className="sticky top-0 z-40 bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
+          className="sticky top-0 z-sticky-elevated bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
             <GlobalNav withUserChip />

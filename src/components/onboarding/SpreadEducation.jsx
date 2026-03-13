@@ -123,8 +123,9 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
               <div
                 key={spreadKey}
                 role="button"
-                tabIndex={-1}
+                tabIndex={0}
                 onClick={handleCardClick}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick(e); } }}
                 className={`relative flex flex-col text-left rounded-2xl border overflow-hidden transition touch-manipulation cursor-pointer [&:has(:focus-visible)]:outline-none [&:has(:focus-visible)]:ring-2 [&:has(:focus-visible)]:ring-accent [&:has(:focus-visible)]:ring-offset-2 [&:has(:focus-visible)]:ring-offset-main ${
                   isSelected
                     ? 'border-accent bg-accent/10 ring-1 ring-accent/50'

@@ -162,7 +162,7 @@ function ToastViewport({ toasts, onDismiss, onRemove, toastRefs, positionsRef })
   }, [toasts, prefersReducedMotion, positionsRef, toastRefs]);
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-4 z-[1200] flex flex-col items-center gap-3 px-4 sm:top-6 sm:items-end sm:px-6">
+    <div className="pointer-events-none fixed inset-x-0 top-4 z-toast flex flex-col items-center gap-3 px-4 sm:top-6 sm:items-end sm:px-6">
       {toasts.map((toast) => (
         <ToastItem
           key={toast.id}
@@ -287,7 +287,7 @@ function ToastItem({ toast, onDismiss, onRemove, toastRefs }) {
         <button
           type="button"
           onClick={() => onDismiss(toast.id)}
-          className="rounded-full p-1 text-sm text-white/70 transition-all duration-200 hover:scale-110 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+          className="rounded-full p-1 min-h-touch min-w-touch flex items-center justify-center text-sm text-white/80 transition-all duration-200 hover:scale-110 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           aria-label="Dismiss notification"
         >
           <X className="h-4 w-4" weight="bold" />

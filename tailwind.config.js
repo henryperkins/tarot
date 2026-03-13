@@ -114,6 +114,13 @@ export default {
         serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
         sans: ['-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Inter', 'sans-serif']
       },
+      zIndex: {
+        'sticky-nav': 'var(--z-sticky-nav, 30)',
+        'sticky-elevated': 'var(--z-sticky-elevated, 40)',
+        'toast': 'var(--z-toast, 90)',
+        'auth': 'var(--z-auth, 100)',
+        'tooltip-portal': 'var(--z-tooltip-portal, 110)',
+      },
       backdropBlur: {
         xs: "2px"
       },

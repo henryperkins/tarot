@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 /**
  * GlowToggle - A clean toggle switch with subtle glow feedback on state change
@@ -11,6 +12,7 @@ export function GlowToggle({
   labelId,
   describedBy
 }) {
+  const prefersReducedMotion = useReducedMotion();
   const [glowing, setGlowing] = useState(false);
   const isFirstRender = useRef(true);
   const prevChecked = useRef(checked);
@@ -37,7 +39,7 @@ export function GlowToggle({
 
   const handleToggle = () => {
     if (disabled) return;
-    setGlowing(true);
+    if (!prefersReducedMotion) setGlowing(true);
     onChange(!checked);
   };
 
@@ -86,7 +88,7 @@ export function GlowToggle({
           border: checked
             ? '1.5px solid rgb(var(--color-silver-rgb) / 0.7)'
             : '1.5px solid rgb(var(--color-silver-rgb) / 0.3)',
-          transition: 'all 200ms ease-out',
+          transition: prefersReducedMotion ? 'none' : 'all 200ms ease-out',
           boxShadow: glowing
             ? checked
               ? '0 0 12px 3px rgb(var(--brand-primary-rgb) / 0.5)'
@@ -107,7 +109,7 @@ export function GlowToggle({
             ? 'var(--brand-primary)'
             : 'rgb(var(--color-silver-rgb) / 0.6)',
           transform: `translateX(${checked ? thumbTravel : 0}px) scale(${glowing ? 1.1 : 1})`,
-          transition: 'all 200ms ease-out',
+          transition: prefersReducedMotion ? 'none' : 'all 200ms ease-out',
           boxShadow: checked
             ? '0 2px 8px rgb(var(--brand-primary-rgb) / 0.5)'
             : '0 1px 3px rgb(var(--bg-main-rgb) / 0.3)',

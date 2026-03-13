@@ -310,7 +310,7 @@ function VideoPlayer({ videoData, prefersReducedMotion = false }) {
 
   const expandedOverlay = isExpanded && originRect ? createPortal(
     <div
-      className="fixed inset-0 z-[200] bg-black/85 flex items-center justify-center"
+      className="fixed inset-0 z-auth bg-black/85 flex items-center justify-center px-safe pt-safe pb-safe"
       role="dialog"
       aria-modal="true"
       onClick={closeExpanded}
@@ -355,7 +355,6 @@ function VideoPlayer({ videoData, prefersReducedMotion = false }) {
       <div
         ref={containerRef}
         className="relative w-full aspect-square bg-main rounded-lg overflow-hidden group"
-        onClick={openExpanded}
       >
       <video
         ref={videoRef}

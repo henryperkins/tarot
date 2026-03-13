@@ -36,7 +36,7 @@ export function NarrationControls({
           type="button"
           onClick={onSaveReading}
           disabled={controlsModel.isSaving}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent/20 border border-accent/40 text-accent text-xs sm:text-sm font-semibold hover:bg-accent/30 transition touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent/20 border border-accent/40 text-accent text-xs sm:text-sm font-semibold hover:bg-accent/30 transition touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
         >
           <BookmarkSimple className="w-3.5 h-3.5" weight="fill" />
           <span>{controlsModel.isSaving ? 'Saving...' : 'Save to Journal'}</span>
@@ -46,7 +46,7 @@ export function NarrationControls({
       <button
         type="button"
         onClick={onOpenJournal}
-        className="px-3 sm:px-4 py-2 rounded-lg bg-primary/15 border border-primary/40 text-primary text-xs sm:text-sm hover:bg-primary/25 hover:text-primary transition"
+        className="px-3 sm:px-4 py-2 rounded-lg bg-primary/15 border border-primary/40 text-primary text-xs sm:text-sm hover:bg-primary/25 hover:text-primary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
       >
         View Journal
       </button>

@@ -121,13 +121,13 @@ export const AlertCard = memo(function AlertCard({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="What was done to address this alert?"
-            className="w-full rounded-lg border border-secondary/30 bg-main px-3 py-2 text-sm text-main placeholder:text-muted/50 resize-none focus:border-accent/50 focus:outline-none"
+            className="w-full rounded-lg border border-secondary/30 bg-main px-3 py-2 text-sm text-main placeholder:text-muted/50 resize-none focus:border-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
             rows={2}
           />
           <button
             onClick={handleAcknowledge}
             disabled={isLoading}
-            className="mt-2 flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-main transition-colors hover:bg-accent/90 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="mt-2 flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-main transition-colors hover:bg-accent/90 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
           >
             <CheckCircle className="h-4 w-4" weight="duotone" />
             {isLoading ? 'Saving...' : 'Confirm Acknowledgment'}

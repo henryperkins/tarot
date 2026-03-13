@@ -1105,7 +1105,7 @@ export default function AccountPage() {
     <div className="min-h-screen bg-main text-main">
       {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
       <header
-        className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
+        className="sticky top-0 z-sticky-elevated border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
       >
         <div className="mx-auto max-w-2xl px-4 py-3">
           <GlobalNav condensed withUserChip />
@@ -1131,7 +1131,7 @@ export default function AccountPage() {
 
         {/* Section Navigation Chips */}
         <nav
-          className="sticky z-30 -mx-4 px-4 py-2 bg-main/95 backdrop-blur-sm border-b border-secondary/20 overflow-x-auto top-[calc(var(--safe-pad-top)+4.5rem)]"
+          className="sticky z-sticky-nav -mx-4 px-4 py-2 bg-main/95 backdrop-blur-sm border-b border-secondary/20 overflow-x-auto top-[calc(var(--safe-pad-top)+4.5rem)]"
           aria-label="Jump to section"
           style={{
             scrollbarWidth: 'none',

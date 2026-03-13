@@ -22,7 +22,7 @@ export function CoachTemplatePanel({
 
   return (
     <div
-      className={`absolute inset-0 z-40 flex items-stretch bg-surface/70 backdrop-blur-sm ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
+      className={`absolute inset-0 z-sticky-elevated flex items-stretch bg-surface/70 backdrop-blur-sm ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
       onClick={onClose}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
@@ -51,7 +51,7 @@ export function CoachTemplatePanel({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex items-center justify-center rounded-full border border-secondary/40 p-1 text-secondary hover:bg-secondary/10"
+            className="inline-flex items-center justify-center rounded-full border border-secondary/40 p-1 min-h-touch min-w-touch text-secondary hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
             aria-label="Close template panel"
           >
             <X className="h-4 w-4" />
@@ -74,7 +74,7 @@ export function CoachTemplatePanel({
                 <button
                   type="button"
                   onClick={handleSaveTemplate}
-                  className="inline-flex items-center justify-center gap-1 rounded-full border border-secondary/60 bg-secondary/10 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/20 transition"
+                  className="inline-flex items-center justify-center gap-1 rounded-full border border-secondary/60 bg-secondary/10 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                 >
                   <Sparkle className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                   Save

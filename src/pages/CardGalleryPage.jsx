@@ -171,7 +171,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
               event.stopPropagation();
               onViewInJournal(card);
             }}
-            className="absolute top-2 right-2 z-20 rounded-full border border-[color:var(--border-warm-light)] bg-[color:color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted-high opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="absolute top-2 right-2 z-20 rounded-full border border-[color:var(--border-warm-light)] bg-[color:color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 min-h-touch text-2xs font-semibold uppercase tracking-[0.18em] text-muted-high opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] inline-flex items-center"
             aria-label={`View ${card.name} in Journal`}
           >
             View in Journal
@@ -427,7 +427,7 @@ export default function CardGalleryPage() {
       <div className="min-h-screen bg-main text-main animate-fade-in">
         {/* Sticky navigation header with safe-area padding */}
         <header
-          className="sticky top-0 z-40 bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
+          className="sticky top-0 z-sticky-elevated bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
         >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
           <GlobalNav withUserChip />

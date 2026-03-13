@@ -57,7 +57,7 @@ export function RitualControls({
   const infoButtonClass =
     'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
   const primaryButtonBase =
-    'flex w-full items-center justify-between rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200';
+    'flex w-full items-center justify-between rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]';
   const primaryButtonActive = 'border-secondary/60 bg-secondary/15 text-secondary shadow-lg shadow-secondary/20';
   const primaryButtonIdle = 'border-accent/20 bg-surface/60 text-main/90 hover:border-accent/60 hover:text-main';
   const sliderWrapClass = 'rounded-2xl border border-accent/20 bg-surface/60 px-3 py-2.5';
@@ -324,6 +324,7 @@ export function RitualControls({
           {showSkipConfirm && (
             <div
               role="dialog"
+              aria-modal="true"
               aria-label="Skip ritual confirmation"
               className="absolute left-1/2 top-full mt-2 w-64 -translate-x-1/2 rounded-2xl border border-accent/40 bg-surface/95 p-4 text-xs sm:text-sm text-main shadow-lg"
             >

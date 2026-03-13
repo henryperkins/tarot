@@ -102,7 +102,8 @@ export default function PatternAlertBanner({ isAuthenticated }) {
         </div>
         <button
           onClick={handleDismiss}
-          className="flex-shrink-0 text-muted/60 hover:text-main transition-colors"
+          className="flex-shrink-0 min-h-touch min-w-touch flex items-center justify-center text-muted/60 hover:text-main transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded-full"
+          aria-label="Dismiss alert"
         >
           <X className="h-4 w-4" />
         </button>

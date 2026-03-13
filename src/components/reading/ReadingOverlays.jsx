@@ -133,7 +133,7 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
     <>
       <div
         ref={nodeRef}
-        className={`ghost-card fixed left-0 top-0 pointer-events-none z-[200] ${suitClass}`}
+        className={`ghost-card fixed left-0 top-0 pointer-events-none z-auth ${suitClass}`}
         style={{
           width: safeStartWidth,
           height: safeStartHeight,
@@ -169,7 +169,7 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
       {!prefersReducedMotion && trailBursts.map((burst) => (
         <div
           key={burst.id}
-          className="pointer-events-none fixed left-0 top-0 z-[195]"
+          className="pointer-events-none fixed left-0 top-0 z-auth"
           style={{
             width: 42,
             height: 42,

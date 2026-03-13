@@ -183,7 +183,7 @@ export function ReadingPreparation({
                                 onClick={() => handleTabChange(tab.id)}
                                 onKeyDown={(e) => handleTabKeyDown(e, index)}
                                 className={`
-                                    flex-1 flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-lg
+                                    flex-1 flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-lg min-h-touch
                                     text-xs font-semibold transition-colors touch-manipulation
                                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70
                                     ${isActive

@@ -52,7 +52,7 @@ export function OnboardingProgress({
               type="button"
               onClick={() => isAccessible && onStepSelect?.(step)}
               disabled={!isAccessible}
-              className={`relative min-w-[2rem] w-8 h-8 xs:min-w-[2.25rem] xs:w-9 xs:h-9 rounded-full flex items-center justify-center shrink-0 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+              className={`relative w-8 h-8 xs:w-9 xs:h-9 p-0 rounded-full flex items-center justify-center shrink-0 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main before:absolute before:inset-[-6px] before:content-[''] ${
                 isCurrent
                   ? 'bg-accent text-surface'
                   : isCompleted

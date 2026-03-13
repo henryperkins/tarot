@@ -9,7 +9,7 @@ import {
 } from './mobileActionBarConstants';
 
 // Shared button styles - reduced height in landscape while maintaining touch target
-const BTN_BASE = 'inline-flex items-center justify-center rounded-xl font-semibold transition touch-manipulation';
+const BTN_BASE = 'inline-flex items-center justify-center rounded-xl font-semibold transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]';
 const BTN_PRIMARY = `${BTN_BASE} bg-accent text-surface shadow-lg hover:opacity-90`;
 const BTN_SECONDARY = `${BTN_BASE} bg-surface-muted text-accent border border-accent/30 hover:bg-surface`;
 const BTN_TERTIARY = `${BTN_BASE} bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30`;

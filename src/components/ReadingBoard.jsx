@@ -280,7 +280,7 @@ function CardFocusOverlay({
 
   return (
     <div
-      className={`fixed inset-0 z-[85] ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
+      className={`fixed inset-0 z-toast ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
       style={{ background: getDrawerGradient() }}
     >
       <div

@@ -82,14 +82,19 @@
 
    Z-INDEX SCALE
    -------------
-   --z-base          : 0  (default)
-   --z-content       : 1  (above pseudo-elements)
-   --z-dropdown      : 10 (tooltips)
-   --z-sticky        : 20 (sticky headers)
-   --z-fixed         : 50 (fixed elements)
-   --z-modal-backdrop: 60 (backdrops)
-   --z-modal         : 70 (modals)
-   --z-skip-link     : 80 (skip links)
+   --z-base            : 0   (default)
+   --z-content         : 1   (above pseudo-elements)
+   --z-dropdown        : 10  (tooltips)
+   --z-sticky          : 20  (sticky headers)
+   --z-sticky-nav      : 30  (sticky navs, bottom bars)
+   --z-sticky-elevated : 40  (elevated sticky headers, filters)
+   --z-fixed           : 50  (fixed elements)
+   --z-modal-backdrop  : 60  (backdrops)
+   --z-modal           : 70  (modals)
+   --z-skip-link       : 80  (skip links)
+   --z-toast           : 90  (toasts, card modals, overlays)
+   --z-auth            : 100 (auth modals, upgrade overlays)
+   --z-tooltip-portal  : 110 (portalled tooltips, popovers)
 
 
    BREAKPOINT REFERENCE
@@ -179,10 +184,15 @@
   --z-content: 1; /* Content above pseudo-elements */
   --z-dropdown: 10; /* Dropdowns and tooltips */
   --z-sticky: 20; /* Sticky headers */
+  --z-sticky-nav: 30; /* Sticky navs, bottom bars */
+  --z-sticky-elevated: 40; /* Elevated sticky headers, filters */
   --z-fixed: 50; /* Fixed positioning */
   --z-modal-backdrop: 60; /* Modal/drawer backdrops */
   --z-modal: 70; /* Modals and drawers */
-  --z-skip-link: 80; /* Skip links (highest) */
+  --z-skip-link: 80; /* Skip links */
+  --z-toast: 90; /* Toasts, card modals, overlays */
+  --z-auth: 100; /* Auth modals, upgrade overlays */
+  --z-tooltip-portal: 110; /* Portalled tooltips, popovers */
 
   /* Mobile action bar sizing (updated at runtime) */
   --mobile-action-bar-height: 0px;

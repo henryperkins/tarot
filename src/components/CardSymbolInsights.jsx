@@ -463,7 +463,7 @@ export function CardSymbolInsights({
         onMouseEnter={shouldHover ? handleOpen : undefined}
         onMouseLeave={shouldHover ? handleClose : undefined}
         onBlur={handleBlur}
-        className={`absolute z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-secondary/40 bg-surface/98 p-4 shadow-2xl backdrop-blur-sm transition-all duration-200
+        className={`absolute z-sticky-nav mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-secondary/40 bg-surface/98 p-4 shadow-2xl backdrop-blur-sm transition-all duration-200
           left-0 sm:left-auto sm:right-0
           ${isOpen
             ? 'opacity-100 translate-y-0 visible'

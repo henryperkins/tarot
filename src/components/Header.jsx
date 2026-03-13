@@ -153,7 +153,7 @@ export function Header({
       {/* Sticky Navigation Bar */}
       <div
         className={`
-          full-bleed sticky top-0 z-30 ${minimalNav ? 'mb-3' : 'mb-5'}
+          full-bleed sticky top-0 z-sticky-nav ${minimalNav ? 'mb-3' : 'mb-5'}
           bg-surface/95 backdrop-blur
           border-y border-accent/20
           ${minimalNav ? 'pt-[max(0.35rem,var(--safe-pad-top))]' : 'pt-[var(--safe-pad-top)]'}

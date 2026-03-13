@@ -206,7 +206,7 @@ export function AtmosphericInterlude({
 
           <p
             className="text-sm mt-2"
-            style={{ color: 'var(--text-muted)', opacity: 0.7 }}
+            style={{ color: 'var(--text-muted)' }}
           >
             Take a breath. The reading will unfold in a moment.
           </p>

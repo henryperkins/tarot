@@ -372,7 +372,7 @@ export function GuidedIntentionCoachView() {
                         if (typeof chip.step === 'number') {
                           setStep(chip.step);
                           if (chip.step === step && chip.type === 'Depth') {
-                            depthSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            depthSectionRef.current?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
                           }
                         }
                         if (chip.action === 'focus') {

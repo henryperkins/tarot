@@ -57,7 +57,7 @@ export default function DesignSystemPage() {
 
   return (
     <div className="min-h-screen bg-main text-main">
-      <header className="sticky top-0 z-30 border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]">
+      <header className="sticky top-0 z-sticky-nav border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]">
         <div className="mx-auto max-w-5xl px-4 py-3">
           <GlobalNav condensed withUserChip />
         </div>

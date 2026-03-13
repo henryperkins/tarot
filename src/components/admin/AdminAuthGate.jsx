@@ -127,7 +127,7 @@ export default function AdminAuthGate({ children }) {
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="Enter your admin API key"
                 autoComplete="off"
-                className="w-full rounded-xl border border-secondary/30 bg-main px-4 py-3 pr-10 text-main placeholder:text-muted/50 focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/30"
+                className="w-full rounded-xl border border-secondary/30 bg-main px-4 py-3 pr-10 text-main placeholder:text-muted/50 focus-visible:border-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
               />
               <button
                 type="button"
@@ -153,7 +153,7 @@ export default function AdminAuthGate({ children }) {
           <button
             type="submit"
             disabled={isChecking}
-            className="w-full rounded-full bg-accent px-4 py-3 text-sm font-semibold text-main transition-all hover:bg-accent/90 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full rounded-full bg-accent px-4 py-3 text-sm font-semibold text-main transition-all hover:bg-accent/90 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
           >
             {isChecking ? 'Verifying...' : 'Access Dashboard'}
           </button>

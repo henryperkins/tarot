@@ -184,7 +184,7 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-main/95 backdrop-blur-sm px-safe pt-safe pb-safe ${
+      className={`fixed inset-0 z-toast flex items-center justify-center bg-main/95 backdrop-blur-sm px-safe pt-safe pb-safe ${
         prefersReducedMotion ? '' : 'animate-fade-in'
       }`}
       onClick={createBackdropHandler(onDismiss)}
@@ -299,7 +299,7 @@ export function GestureCoachOverlay({ isOpen, onDismiss }) {
             <button
               type="button"
               onClick={onDismiss}
-              className="w-full mt-3 text-xs text-muted/70 hover:text-muted transition touch-manipulation min-h-touch flex items-center justify-center"
+              className="w-full mt-3 text-xs text-muted/70 hover:text-muted transition touch-manipulation min-h-touch flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded-lg"
             >
               Skip tutorial
             </button>

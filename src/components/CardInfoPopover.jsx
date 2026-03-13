@@ -91,7 +91,7 @@ export function CardInfoPopover({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[210] pointer-events-none"
+      className="fixed inset-0 z-tooltip-portal pointer-events-none"
       aria-hidden={!open}
     >
       <div

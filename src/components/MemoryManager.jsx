@@ -112,7 +112,7 @@ export function MemoryManager({ className = '' }) {
           )}
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="p-1.5 rounded-lg border border-secondary/30 hover:border-secondary/60 transition-colors"
+            className="p-1.5 min-h-touch min-w-touch flex items-center justify-center rounded-lg border border-secondary/30 hover:border-secondary/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
             aria-label={showAddForm ? 'Cancel adding memory' : 'Add new memory'}
           >
             {showAddForm ? (
@@ -147,13 +147,13 @@ export function MemoryManager({ className = '' }) {
           <div className="flex gap-2">
             <button
               onClick={handleClearAll}
-              className="px-3 py-1.5 text-xs bg-error/20 hover:bg-error/30 text-error rounded-lg transition-colors"
+              className="px-3 py-1.5 text-xs bg-error/20 hover:bg-error/30 text-error rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
             >
               Yes, delete all
             </button>
             <button
               onClick={() => setShowClearConfirm(false)}
-              className="px-3 py-1.5 text-xs bg-surface/50 hover:bg-surface/70 text-muted rounded-lg transition-colors"
+              className="px-3 py-1.5 text-xs bg-surface/50 hover:bg-surface/70 text-muted rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
             >
               Cancel
             </button>
@@ -199,7 +199,7 @@ export function MemoryManager({ className = '' }) {
           <button
             type="submit"
             disabled={!newMemoryText.trim() || isSubmitting}
-            className="w-full py-2 text-sm bg-secondary/20 hover:bg-secondary/30 disabled:opacity-50 disabled:cursor-not-allowed text-secondary rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full py-2 text-sm bg-secondary/20 hover:bg-secondary/30 disabled:opacity-50 disabled:cursor-not-allowed text-secondary rounded-lg transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
           >
             {isSubmitting ? (
               <SpinnerGap className="w-4 h-4 animate-spin" />
@@ -268,7 +268,7 @@ export function MemoryManager({ className = '' }) {
           <button
             onClick={refresh}
             disabled={loading}
-            className="text-xs text-muted hover:text-secondary transition-colors"
+            className="text-xs text-muted hover:text-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
           >
             Refresh
           </button>
@@ -314,7 +314,7 @@ function MemoryItem({ memory, onDelete }) {
       <button
         onClick={handleDelete}
         disabled={isDeleting}
-        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-error/20 transition-all"
+        className="opacity-0 group-hover:opacity-100 p-1.5 min-h-touch min-w-touch flex items-center justify-center rounded-lg hover:bg-error/20 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
         aria-label="Delete memory"
       >
         {isDeleting ? (

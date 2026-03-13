@@ -44,7 +44,7 @@ export default function FollowUpDrawer({ isOpen, onClose, autoFocusInput = true 
   return (
     <div
       className={clsx(
-        'fixed inset-0 z-[80] flex items-end justify-center transition-opacity duration-200 pt-[max(16px,var(--safe-pad-top))]',
+        'fixed inset-0 z-modal flex items-end justify-center transition-opacity duration-200 pt-[max(16px,var(--safe-pad-top))]',
         isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
       )}
       style={wrapperStyle}

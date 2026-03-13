@@ -239,7 +239,7 @@ export default function ShareReading() {
   return (
     <div className="min-h-screen bg-main text-main">
       {/* Top navigation bar with safe-area padding */}
-      <header ref={headerRef} className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-safe pr-safe">
+      <header ref={headerRef} className="sticky top-0 z-sticky-elevated border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-safe pr-safe">
         <div className="mx-auto max-w-6xl flex items-center justify-between py-3 px-4">
           <div className="flex items-center gap-3">
             <button
@@ -465,7 +465,7 @@ export default function ShareReading() {
         {/* Mobile: bottom CTA to jump to note form - only for authenticated users without bottom bar */}
         {mobileView === 'notes' && isAuthenticated && (
           <div
-            className="lg:hidden fixed right-4 z-30 bottom-[calc(var(--safe-pad-bottom)+1rem)]"
+            className="lg:hidden fixed right-4 z-sticky-nav bottom-[calc(var(--safe-pad-bottom)+1rem)]"
           >
             <button
               type="button"
@@ -519,7 +519,7 @@ export default function ShareReading() {
       {/* Bottom sticky "Open in app" bar for guests */}
       {!isAuthenticated && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-30 border-t border-accent/30 bg-surface/95 backdrop-blur-sm shadow-[0_-8px_30px_rgba(0,0,0,0.4)] pb-safe-action pl-safe pr-safe"
+          className="fixed bottom-0 left-0 right-0 z-sticky-nav border-t border-accent/30 bg-surface/95 backdrop-blur-sm shadow-[0_-8px_30px_rgba(0,0,0,0.4)] pb-safe-action pl-safe pr-safe"
         >
           <div className="mx-auto max-w-6xl px-4 py-3">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">

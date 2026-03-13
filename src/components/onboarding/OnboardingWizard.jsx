@@ -412,7 +412,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   return (
     <>
       <div
-        className={`fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm px-safe pt-safe pb-safe ${
+        className={`fixed inset-0 z-toast flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm px-safe pt-safe pb-safe ${
           prefersReducedMotion ? '' : 'animate-fade-in'
         }`}
         // eslint-disable-next-line react-hooks/refs -- handleSkipRequest only reads ref when invoked (event handler), not during render
@@ -453,7 +453,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
             {/* Header with close button and progress */}
             <header
-              className={`sticky top-0 z-30 pt-[max(var(--safe-pad-top),0.75rem)] bg-main/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur-lg border-b border-secondary/10 shadow-lg shadow-main/40 ${
+              className={`sticky top-0 z-sticky-nav pt-[max(var(--safe-pad-top),0.75rem)] bg-main/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur-lg border-b border-secondary/10 shadow-lg shadow-main/40 ${
                 isLandscape ? 'pb-1.5' : 'pb-3 xs:pb-4'
               }`}
             >
@@ -492,14 +492,14 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
                     <button
                       type="button"
                       onClick={handleSkipRequest}
-                      className="min-h-touch rounded-full border border-secondary/30 px-3 text-xs-plus font-semibold text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation"
+                      className="min-h-touch rounded-full border border-secondary/30 px-3 text-xs-plus font-semibold text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                     >
                       Skip for now
                     </button>
                     <button
                       type="button"
                       onClick={handleResumeRequest}
-                      className="min-h-touch rounded-full bg-gradient-to-r from-accent/80 to-primary/80 px-3 text-xs-plus font-semibold text-main shadow-md shadow-primary/30 hover:from-accent hover:to-primary transition touch-manipulation"
+                      className="min-h-touch rounded-full bg-gradient-to-r from-accent/80 to-primary/80 px-3 text-xs-plus font-semibold text-main shadow-md shadow-primary/30 hover:from-accent hover:to-primary transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                     >
                       Save & resume later
                     </button>

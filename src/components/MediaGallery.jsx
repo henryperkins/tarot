@@ -193,7 +193,7 @@ export function MediaGallery({
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-secondary/35 bg-surface/70 text-xs sm:text-sm text-muted hover:text-main hover:border-secondary/55 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-3 py-2 min-h-touch rounded-lg border border-secondary/35 bg-surface/70 text-xs sm:text-sm text-muted hover:text-main hover:border-secondary/55 transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
         >
           <ArrowsClockwise className={`w-4 h-4 ${loading ? 'motion-safe:animate-spin' : ''}`} />
           <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
@@ -276,7 +276,7 @@ export function MediaGallery({
                   <div className="mt-3 flex items-center gap-1.5 flex-wrap">
                     <a
                       href={item.downloadUrl}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-2xs border border-secondary/30 bg-surface/60 text-main hover:bg-surface transition"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-touch rounded-md text-2xs border border-secondary/30 bg-surface/60 text-main hover:bg-surface transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                     >
                       <DownloadSimple className="w-3.5 h-3.5" />
                       Download
@@ -284,7 +284,7 @@ export function MediaGallery({
                     <button
                       type="button"
                       onClick={() => handleShare(item)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-2xs border border-secondary/30 bg-surface/60 text-main hover:bg-surface transition"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-touch rounded-md text-2xs border border-secondary/30 bg-surface/60 text-main hover:bg-surface transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                     >
                       <ShareNetwork className="w-3.5 h-3.5" />
                       Share
@@ -292,7 +292,7 @@ export function MediaGallery({
                     <button
                       type="button"
                       onClick={() => toggleFavorite(item.id)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-2xs border transition ${
+                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 min-h-touch rounded-md text-2xs border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
                         isFavorite
                           ? 'border-accent/55 bg-accent/20 text-accent'
                           : 'border-secondary/30 bg-surface/60 text-main hover:bg-surface'
@@ -306,7 +306,7 @@ export function MediaGallery({
                         type="button"
                         onClick={() => handleDelete(item.id)}
                         disabled={isDeleting}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-2xs border border-error/40 bg-error/10 text-error hover:bg-error/20 transition disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-touch rounded-md text-2xs border border-error/40 bg-error/10 text-error hover:bg-error/20 transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                       >
                         <Trash className="w-3.5 h-3.5" />
                         {isDeleting ? 'Removing...' : 'Remove'}
@@ -322,7 +322,7 @@ export function MediaGallery({
 
       {lightboxItem && (
         <div
-          className="fixed inset-0 z-[140] bg-black/90 backdrop-blur-sm px-4 py-6 sm:p-8"
+          className="fixed inset-0 z-toast bg-black/90 backdrop-blur-sm px-safe pt-safe pb-safe"
           onClick={() => setLightboxItem(null)}
         >
           <div
@@ -342,7 +342,7 @@ export function MediaGallery({
                 ref={lightboxCloseRef}
                 type="button"
                 onClick={() => setLightboxItem(null)}
-                className="absolute top-3 right-3 z-10 px-3 py-1.5 rounded-full border border-secondary/35 bg-surface/80 text-xs text-main hover:bg-surface transition"
+                className="absolute top-3 right-3 z-10 px-3 py-1.5 min-h-touch rounded-full border border-secondary/35 bg-surface/80 text-xs text-main hover:bg-surface transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] inline-flex items-center"
               >
                 Close
               </button>
@@ -365,7 +365,7 @@ export function MediaGallery({
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <a
                   href={lightboxItem.downloadUrl}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs border border-secondary/35 bg-surface/80 text-main hover:bg-surface transition"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 min-h-touch rounded-lg text-xs border border-secondary/35 bg-surface/80 text-main hover:bg-surface transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                 >
                   <DownloadSimple className="w-4 h-4" />
                   Download
@@ -373,7 +373,7 @@ export function MediaGallery({
                 <button
                   type="button"
                   onClick={() => handleShare(lightboxItem)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs border border-secondary/35 bg-surface/80 text-main hover:bg-surface transition"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 min-h-touch rounded-lg text-xs border border-secondary/35 bg-surface/80 text-main hover:bg-surface transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                 >
                   <ShareNetwork className="w-4 h-4" />
                   Share

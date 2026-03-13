@@ -789,13 +789,13 @@ export function DeckRitual({
             <div className="flex justify-between mt-2 xs:mt-3 gap-2">
               <button
                 onClick={() => setShowCutSlider(false)}
-                className="text-xs-plus text-muted hover:text-main transition-colors px-3 py-2 rounded-full hover:bg-surface-muted/50 min-h-touch touch-manipulation"
+                className="text-xs-plus text-muted hover:text-main transition-colors px-3 py-2 rounded-full hover:bg-surface-muted/50 min-h-touch touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCutConfirm}
-                className="px-4 py-2 rounded-full bg-secondary/20 border border-secondary/50 text-secondary text-xs-plus font-semibold hover:bg-secondary/30 transition-colors min-h-touch touch-manipulation"
+                className="px-4 py-2 rounded-full bg-secondary/20 border border-secondary/50 text-secondary text-xs-plus font-semibold hover:bg-secondary/30 transition-colors min-h-touch touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
               >
                 Confirm Cut
               </button>
@@ -811,7 +811,7 @@ export function DeckRitual({
             onClick={handleDealWithAnimation}
             disabled={isShuffling}
             type="button"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm min-h-cta motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm min-h-cta motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
             style={{ boxShadow: '0 10px 30px color-mix(in srgb, var(--brand-primary) 30%, transparent)' }}
           >
             <span>{minimalUI ? 'Deal the cards' : `Draw: ${nextPosition || 'Next Card'}`}</span>
@@ -831,6 +831,7 @@ export function DeckRitual({
               className={`
                 flex items-center rounded-full font-medium
                 transition-all touch-manipulation min-h-touch
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]
                 ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-xs-plus' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-xs-plus xs:text-sm'}
                 ${knockComplete
                   ? 'bg-secondary/15 border border-secondary/40 text-secondary cursor-default'
@@ -849,6 +850,7 @@ export function DeckRitual({
               className={`
                 flex items-center rounded-full font-medium
                 transition-all touch-manipulation min-h-touch
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]
                 ${isLandscape ? 'gap-1 px-2.5 py-1.5 text-xs-plus' : 'gap-1.5 px-2.5 xs:px-3 py-2 text-xs-plus xs:text-sm'}
                 ${hasCut
                   ? 'bg-secondary/15 border border-secondary/40 text-secondary'
@@ -941,7 +943,7 @@ export function DeckRitual({
             onClick={handleDealWithAnimation}
             disabled={isShuffling}
             type="button"
-            className={`inline-flex items-center rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-primary/90 min-h-cta motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 ${isLandscape ? 'gap-2 px-4 py-2 text-sm' : 'gap-2 xs:gap-3 px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 text-sm xs:text-base'}`}
+            className={`inline-flex items-center rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-primary/90 min-h-cta motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${isLandscape ? 'gap-2 px-4 py-2 text-sm' : 'gap-2 xs:gap-3 px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 text-sm xs:text-base'}`}
             style={{ boxShadow: '0 10px 30px color-mix(in srgb, var(--brand-primary) 30%, transparent)' }}
           >
             <span>{minimalUI ? 'Deal the cards' : (isLandscape ? nextPosition || 'Next' : `Draw: ${nextPosition || 'Next Card'}`)}</span>

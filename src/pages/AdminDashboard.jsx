@@ -126,7 +126,7 @@ function DashboardContent({ apiKey, onLogout }) {
   return (
     <div className="min-h-screen bg-main text-main">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-sticky-elevated border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)]">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link

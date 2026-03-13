@@ -154,7 +154,7 @@ export function UserMenu({ condensed = false }) {
 
   return (
     <>
-      <div className="relative z-40">
+      <div className="relative z-sticky-elevated">
         {isAuthenticated ? (
           <div className="relative">
             <button
@@ -187,7 +187,7 @@ export function UserMenu({ condensed = false }) {
               <>
                 {/* Backdrop for mobile */}
                 <div
-                  className="fixed inset-0 z-40 bg-main/40 sm:bg-transparent"
+                  className="fixed inset-0 z-sticky-elevated bg-main/40 sm:bg-transparent"
                   onClick={closeDropdown}
                   aria-hidden="true"
                 />

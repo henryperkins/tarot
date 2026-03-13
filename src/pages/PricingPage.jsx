@@ -672,7 +672,7 @@ export default function PricingPage() {
     <div className="min-h-screen bg-main text-main">
       {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
       <header
-        className="sticky top-0 z-40 border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
+        className="sticky top-0 z-sticky-elevated border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
       >
         <div className="mx-auto max-w-6xl px-4 py-3">
           <GlobalNav condensed withUserChip />
@@ -861,7 +861,7 @@ export default function PricingPage() {
                 type="button"
                 onClick={() => setBillingInterval('monthly')}
                 className={[
-                  'rounded-full px-4 py-1.5 text-sm font-medium transition',
+                  'rounded-full px-4 py-1.5 min-h-touch text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
                   billingInterval === 'monthly'
                     ? 'bg-accent text-surface'
                     : 'text-secondary hover:text-main'
@@ -873,7 +873,7 @@ export default function PricingPage() {
                 type="button"
                 onClick={() => setBillingInterval('annual')}
                 className={[
-                  'inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition',
+                  'inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 min-h-touch text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
                   billingInterval === 'annual'
                     ? 'bg-accent text-surface'
                     : 'text-secondary hover:text-main'
@@ -1019,7 +1019,7 @@ export default function PricingPage() {
 
       {/* Sticky mobile CTA */}
       {showMobileSticky && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-secondary/40 bg-main/95 px-safe pt-3 pb-[max(0.75rem,var(--safe-pad-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.6)] lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-sticky-nav border-t border-secondary/40 bg-main/95 px-safe pt-3 pb-[max(0.75rem,var(--safe-pad-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.6)] lg:hidden">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
             <div className="text-xs text-muted">
               <p className="font-semibold text-main">Upgrade to Plus</p>

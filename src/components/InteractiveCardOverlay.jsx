@@ -202,7 +202,7 @@ export function InteractiveCardOverlay({ card }) {
             fill: isActive ? 'rgb(var(--brand-primary-rgb) / 0.25)' : 'transparent',
             stroke: isActive ? 'rgb(var(--brand-primary-rgb) / 0.7)' : 'rgb(var(--text-main-rgb) / 0.18)',
             strokeWidth: "3",
-            className: "cursor-pointer transition-all duration-200 hover:fill-primary/20 hover:stroke-primary/60 focus:outline-none focus:stroke-primary focus:stroke-[6px]",
+            className: "cursor-pointer transition-all duration-200 hover:fill-primary/20 hover:stroke-primary/60 focus-visible:outline-none focus-visible:stroke-primary focus-visible:stroke-[6px]",
             onClick: (e) => handleSymbolActivate(symbolCoord.symbol, e),
             onKeyDown: (e) => handleKeyDown(symbolCoord.symbol, e),
             style: { pointerEvents: 'all' },
@@ -262,7 +262,7 @@ export function InteractiveCardOverlay({ card }) {
       {/* Tooltip Portal */}
       {activeSymbol && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed z-[9999] pointer-events-none"
+          className="fixed z-tooltip-portal pointer-events-none"
           style={{
             left: tooltipPosition.x,
             top: tooltipPosition.y,
@@ -304,7 +304,7 @@ export function InteractiveCardOverlay({ card }) {
               {(reflection || relatedCards.length > 0) && (
                 <button
                   onClick={handleToggleExpand}
-                  className="flex items-center gap-1 text-xs text-secondary/70 hover:text-accent transition-colors p-1 -m-1"
+                  className="flex items-center gap-1 text-xs text-secondary/70 hover:text-accent transition-colors p-1 min-h-touch min-w-touch justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
                   aria-expanded={isExpanded}
                   aria-label={isExpanded ? 'Show less' : 'Explore deeper'}
                 >
@@ -360,7 +360,7 @@ export function InteractiveCardOverlay({ card }) {
             {!isExpanded && (reflection || relatedCards.length > 0) && (
               <button
                 onClick={handleToggleExpand}
-                className="mt-2 text-xs text-secondary/50 hover:text-accent transition-colors flex items-center gap-1"
+                className="mt-2 text-xs text-secondary/50 hover:text-accent transition-colors flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
               >
                 <span>Explore deeper</span>
                 <CaretDown className="w-3 h-3" />

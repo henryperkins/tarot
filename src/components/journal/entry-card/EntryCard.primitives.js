@@ -141,7 +141,7 @@ export const styles = {
 
   // Menu
   menu:
-    'fixed z-[200] w-72 max-h-[75vh] overflow-y-auto rounded-2xl ' +
+    'fixed z-toast w-72 max-h-[75vh] overflow-y-auto rounded-2xl ' +
     'border border-[color:var(--border-warm)] bg-[color:var(--bg-main)] p-2 ' +
     'shadow-[0_18px_60px_-34px_rgba(0,0,0,0.95)]',
 
