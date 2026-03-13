@@ -1,13 +1,16 @@
 import assert from 'assert';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
 import { getHexToken, loadThemeTokenScopes } from '../scripts/lib/themeTokens.mjs';
 import { scanContent } from '../tests/accessibility/wcag-analyzer.mjs';
+import { normalizeRoutePath, shouldSkipAuthCheckForPath } from '../src/lib/authRouteUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const themeCssPath = path.resolve(__dirname, '../src/styles/theme.css');
+const tailwindConfigPath = path.resolve(__dirname, '../tailwind.config.js');
 
 describe('Design accessibility scripts', () => {
   it('loads dark and light theme tokens from theme.css', async () => {
@@ -44,5 +47,20 @@ describe('Design accessibility scripts', () => {
     const issues = scanContent('<div onClick={openPanel}>Open</div>');
     assert.strictEqual(issues.length, 1);
     assert.strictEqual(issues[0].checkName, 'divAsButton');
+  });
+
+  it('keeps text-2xs aligned to the 11px contract', async () => {
+    const tailwindConfigSource = await fs.readFile(tailwindConfigPath, 'utf8');
+    assert.match(
+      tailwindConfigSource,
+      /'2xs': \['0\.6875rem', \{ lineHeight: '1\.4' \}\]/
+    );
+  });
+
+  it('treats /design as an auth-optional review route', () => {
+    assert.strictEqual(normalizeRoutePath('/design/'), '/design');
+    assert.strictEqual(shouldSkipAuthCheckForPath('/design'), true);
+    assert.strictEqual(shouldSkipAuthCheckForPath('/design/'), true);
+    assert.strictEqual(shouldSkipAuthCheckForPath('/account'), false);
   });
 });

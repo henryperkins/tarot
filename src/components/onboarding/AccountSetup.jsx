@@ -3,6 +3,14 @@ import { ArrowLeft, ArrowRight, User, EnvelopeSimple, Lock, Check, CircleNotch, 
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  FOCUS_RING_ACCENT,
+  FOCUS_RING_OFFSET_MAIN,
+  FOCUS_RING_SECONDARY
+} from '../../styles/focusClasses';
+
+const ACCENT_RING_WITH_OFFSET = `${FOCUS_RING_ACCENT} ${FOCUS_RING_OFFSET_MAIN}`;
+const SECONDARY_RING_WITH_OFFSET = `${FOCUS_RING_SECONDARY} ${FOCUS_RING_OFFSET_MAIN}`;
 
 /**
  * AccountSetup - Step 2 of onboarding
@@ -89,7 +97,7 @@ export function AccountSetup({ onNext, onBack }) {
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center justify-center gap-1 min-h-cta px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+            className={`flex items-center justify-center gap-1 min-h-cta px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation ${SECONDARY_RING_WITH_OFFSET}`}
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden xs:inline">Back</span>
@@ -97,7 +105,7 @@ export function AccountSetup({ onNext, onBack }) {
           <button
             type="button"
             onClick={onNext}
-            className="flex-1 flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+            className={`flex-1 flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation ${ACCENT_RING_WITH_OFFSET}`}
           >
             Continue
             <ArrowRight className="w-5 h-5" weight="bold" />
@@ -234,7 +242,7 @@ export function AccountSetup({ onNext, onBack }) {
           <button
             type="submit"
             disabled={isSubmitting || authLoading}
-            className="w-full flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+            className={`w-full flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${ACCENT_RING_WITH_OFFSET}`}
           >
             {isSubmitting ? (
               <>
@@ -257,7 +265,7 @@ export function AccountSetup({ onNext, onBack }) {
                 <button
                   type="button"
                   onClick={toggleMode}
-                  className="text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  className={`text-accent hover:underline ${FOCUS_RING_ACCENT}`}
                 >
                   Sign in
                 </button>
@@ -268,7 +276,7 @@ export function AccountSetup({ onNext, onBack }) {
                 <button
                   type="button"
                   onClick={toggleMode}
-                  className="text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  className={`text-accent hover:underline ${FOCUS_RING_ACCENT}`}
                 >
                   Create an account
                 </button>
@@ -284,7 +292,7 @@ export function AccountSetup({ onNext, onBack }) {
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center justify-center gap-1 min-h-cta px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+            className={`flex items-center justify-center gap-1 min-h-cta px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation ${SECONDARY_RING_WITH_OFFSET}`}
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden xs:inline">Back</span>
@@ -292,7 +300,7 @@ export function AccountSetup({ onNext, onBack }) {
           <button
             type="button"
             onClick={onNext}
-            className="flex-1 min-h-cta px-4 py-3 text-muted hover:text-main text-sm transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+            className={`flex-1 min-h-cta px-4 py-3 text-muted hover:text-main text-sm transition touch-manipulation ${SECONDARY_RING_WITH_OFFSET}`}
           >
             Skip
           </button>

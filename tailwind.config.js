@@ -96,9 +96,9 @@ export default {
         surface: 'rgb(var(--text-on-brand-rgb) / <alpha-value>)', // text color chosen for brand surfaces
       },
       fontSize: {
-        // Keep the smallest utility at 12px to avoid sub-minimum micro text in UI.
-        // On mobile, prefer `text-xs-plus` (14px) or `text-sm-mobile` (16px) for readability.
-        '2xs': ['0.75rem', { lineHeight: '1.4' }],
+        // Reserve the smallest utility for compact metadata only.
+        // On mobile, prefer `text-xs-plus` (14px) or `text-sm-mobile` (16px) for readable copy.
+        '2xs': ['0.6875rem', { lineHeight: '1.4' }],
         'xs-plus': ['0.875rem', { lineHeight: '1.4' }], // 14px - improved mobile readability
         'sm-mobile': ['var(--text-sm-mobile)', { lineHeight: '1.5' }], // 16px - comfortable mobile body text
       },

@@ -229,7 +229,8 @@ async function buildReport(roots) {
     focusVisibleRings: {
       total: 0,
       uniqueCount: 0,
-      byToken: {}
+      byToken: {},
+      byFile: {}
     },
     nonTokenTailwindColors: {
       total: 0,
@@ -321,6 +322,7 @@ async function buildReport(roots) {
         const token = match[0].replace(/[},;)+]+$/g, '');
         report.focusVisibleRings.total += 1;
         incrementCount(report.focusVisibleRings.byToken, token);
+        incrementCount(report.focusVisibleRings.byFile, relPath);
       }
 
       // Tailwind numeric palette colors (non-token).
@@ -390,6 +392,15 @@ async function writeBaseline(report) {
 function fail(message) {
   console.error(message);
   process.exitCode = 1;
+}
+
+function getTopEntries(map, limit = 10) {
+  return Object.entries(map)
+    .sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      return a[0].localeCompare(b[0]);
+    })
+    .slice(0, limit);
 }
 
 async function main() {
@@ -508,6 +519,17 @@ async function main() {
 
   if (failures.length) {
     fail(`Design contract failed: design-system drift increased.\n- ${failures.join('\n- ')}`);
+    const hasFocusRingFailure = failures.some((failure) => failure.startsWith('Focus-visible ring token'));
+    if (hasFocusRingFailure) {
+      console.error('Top focus-ring files:');
+      for (const [file, count] of getTopEntries(report.focusVisibleRings.byFile)) {
+        console.error(`- ${file}: ${count}`);
+      }
+      console.error('Top focus-ring tokens:');
+      for (const [token, count] of getTopEntries(report.focusVisibleRings.byToken)) {
+        console.error(`- ${token}: ${count}`);
+      }
+    }
     return;
   }
 

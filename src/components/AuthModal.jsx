@@ -5,6 +5,14 @@ import { X, Eye, EyeSlash } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useSmallScreen } from '../hooks/useSmallScreen';
+import {
+  FOCUS_RING_ACCENT_SOFT,
+  FOCUS_RING_DEFAULT,
+  FOCUS_RING_OFFSET_SURFACE,
+  FOCUS_RING_PRIMARY_60
+} from '../styles/focusClasses';
+
+const PRIMARY_60_RING_WITH_SURFACE_OFFSET = `${FOCUS_RING_PRIMARY_60} ${FOCUS_RING_OFFSET_SURFACE}`;
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   const { register, login, requestPasswordReset, resendVerification, startOAuth, error: authError } = useAuth();
@@ -236,7 +244,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
           {/* Close button - 44px touch target */}
           <button
             onClick={onClose}
-            className="
+            className={`
               absolute top-3 right-3 z-10
               flex items-center justify-center
               w-11 h-11 min-w-touch min-h-touch
@@ -244,8 +252,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
               text-accent hover:text-main hover:bg-accent/10
               active:bg-accent/20 active:scale-95
               transition touch-manipulation
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-            "
+              ${FOCUS_RING_ACCENT_SOFT}
+            `}
             aria-label="Close dialog"
           >
             <X className="w-5 h-5" aria-hidden="true" />
@@ -373,7 +381,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="
+                        className={`
                           absolute right-1 top-1/2 -translate-y-1/2
                           flex items-center justify-center
                           w-10 h-10 min-w-touch min-h-touch
@@ -381,8 +389,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                           text-muted hover:text-accent
                           active:bg-accent/10
                           transition touch-manipulation
-                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                        "
+                          ${FOCUS_RING_ACCENT_SOFT}
+                        `}
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                         aria-pressed={showPassword}
                       >
@@ -425,7 +433,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="
+                        className={`
                           absolute right-1 top-1/2 -translate-y-1/2
                           flex items-center justify-center
                           w-10 h-10 min-w-touch min-h-touch
@@ -433,8 +441,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                           text-muted hover:text-accent
                           active:bg-accent/10
                           transition touch-manipulation
-                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                        "
+                          ${FOCUS_RING_ACCENT_SOFT}
+                        `}
                         aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                         aria-pressed={showConfirmPassword}
                       >
@@ -453,7 +461,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                     <button
                       type="button"
                     onClick={goToForgot}
-                    className="text-accent hover:text-accent/80 underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
+                    className={`text-accent hover:text-accent/80 underline underline-offset-4 rounded ${FOCUS_RING_DEFAULT}`}
                     disabled={loading}
                   >
                     Forgot password?
@@ -461,7 +469,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                   <button
                     type="button"
                     onClick={handleResendVerification}
-                    className="text-accent hover:text-accent/80 underline underline-offset-4 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
+                    className={`text-accent hover:text-accent/80 underline underline-offset-4 disabled:opacity-60 disabled:cursor-not-allowed rounded ${FOCUS_RING_DEFAULT}`}
                     disabled={loading}
                   >
                     Resend verification email
@@ -492,15 +500,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
             <button
               type="submit"
               disabled={loading}
-              className="
+              className={`
                 mt-6 w-full px-6 py-3 min-h-cta
                 bg-primary hover:bg-primary/90 active:bg-primary/80
                 text-surface font-medium rounded-lg
                 transition touch-manipulation
                 disabled:opacity-50 disabled:cursor-not-allowed
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60
-                focus-visible:ring-offset-2 focus-visible:ring-offset-surface
-              "
+                ${PRIMARY_60_RING_WITH_SURFACE_OFFSET}
+              `}
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -531,14 +538,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                 <button
                   type="button"
                   onClick={goToLogin}
-                  className="
+                  className={`
                     text-sm text-accent hover:text-accent/80
                     underline underline-offset-2
                     disabled:opacity-50 disabled:cursor-not-allowed
                     touch-manipulation
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                    ${FOCUS_RING_ACCENT_SOFT}
                     rounded px-2 py-1
-                  "
+                  `}
                   disabled={loading}
                 >
                   Remembered it? Back to sign in
@@ -547,14 +554,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                 <button
                   type="button"
                   onClick={switchMode}
-                  className="
+                  className={`
                     text-sm text-accent hover:text-accent/80
                     underline underline-offset-2
                     disabled:opacity-50 disabled:cursor-not-allowed
                     touch-manipulation
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                    ${FOCUS_RING_ACCENT_SOFT}
                     rounded px-2 py-1
-                  "
+                  `}
                   disabled={loading}
                 >
                   {mode === 'login'

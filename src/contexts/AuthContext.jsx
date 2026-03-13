@@ -1,7 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { clearAllNarrativeCaches } from '../lib/safeStorage';
 import { clearJournalInsightsCache } from '../lib/journalInsights';
+import {
+  getCurrentPathname,
+  normalizeRoutePath,
+  shouldSkipAuthCheckForPath
+} from '../lib/authRouteUtils';
 
 const AuthContext = createContext(null);
 
@@ -37,10 +42,19 @@ function normalizeUser(userData, existingUser = null) {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !shouldSkipAuthCheckForPath(getCurrentPathname()));
   const [error, setError] = useState(null);
+  const [routePathname, setRoutePathname] = useState(() => getCurrentPathname());
+  const hasCompletedInitialCheckRef = useRef(false);
+  const previousSkipAuthRef = useRef(shouldSkipAuthCheckForPath(routePathname));
 
-  const checkAuth = useCallback(async () => {
+  const checkAuth = useCallback(async (pathname = getCurrentPathname()) => {
+    if (shouldSkipAuthCheckForPath(pathname)) {
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch('/api/auth/me', {
@@ -71,10 +85,49 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Check if user is authenticated on mount
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    if (typeof window === 'undefined') return undefined;
+
+    const updateRoutePathname = (nextPathname = getCurrentPathname()) => {
+      const normalizedPathname = normalizeRoutePath(nextPathname);
+      setRoutePathname((currentPathname) => (
+        currentPathname === normalizedPathname ? currentPathname : normalizedPathname
+      ));
+    };
+
+    const handleRouteChange = (event) => {
+      updateRoutePathname(event?.detail?.pathname || getCurrentPathname());
+    };
+
+    const handlePopState = () => {
+      updateRoutePathname(getCurrentPathname());
+    };
+
+    window.addEventListener('tableau:route-change', handleRouteChange);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('tableau:route-change', handleRouteChange);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  useEffect(() => {
+    const shouldSkipAuthCheck = shouldSkipAuthCheckForPath(routePathname);
+    const skippedPreviousRoute = previousSkipAuthRef.current;
+    previousSkipAuthRef.current = shouldSkipAuthCheck;
+
+    if (shouldSkipAuthCheck) {
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    if (!hasCompletedInitialCheckRef.current || skippedPreviousRoute) {
+      hasCompletedInitialCheckRef.current = true;
+      checkAuth(routePathname);
+    }
+  }, [checkAuth, routePathname]);
 
   const register = async (email, username, password) => {
     setError(null);

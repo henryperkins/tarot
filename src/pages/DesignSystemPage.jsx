@@ -8,6 +8,10 @@ import {
   OUTLINE_BUTTON_CLASS,
   PANEL_OUTLINE_BUTTON_CLASS
 } from '../styles/buttonClasses';
+import {
+  FOCUS_RING_ERROR_40,
+  FOCUS_RING_PRIMARY_40
+} from '../styles/focusClasses';
 
 function ColorSwatch({
   name,
@@ -45,7 +49,7 @@ export default function DesignSystemPage() {
   ].join('\n'), []);
 
   const typographySamples = useMemo(() => ([
-    { label: '2xs (12px min)', className: 'text-2xs text-muted' },
+    { label: '2xs (11px min)', className: 'text-2xs text-muted' },
     { label: 'xs (12px)', className: 'text-xs text-muted' },
     { label: 'xs-plus (14px)', className: 'text-xs-plus text-muted-high' },
     { label: 'sm (14px)', className: 'text-sm text-main' },
@@ -68,7 +72,7 @@ export default function DesignSystemPage() {
           <div>
             <h1 className="text-2xl font-serif text-accent">Design System</h1>
             <p className="mt-1 text-sm text-muted">
-              Apple-aligned typography and semantic color tokens.
+              Typography tokens, semantic colors, and shared focus treatments.
             </p>
             <p className="mt-1 text-2xs text-muted">
               Reference: `apple-color.md` and `apple-typography.md`
@@ -77,7 +81,7 @@ export default function DesignSystemPage() {
           <button
             type="button"
             onClick={() => setTheme(isLight ? 'dark' : 'light')}
-            className="inline-flex min-h-touch items-center gap-2 rounded-full border border-secondary/30 bg-surface/60 px-4 py-2 text-sm font-semibold text-main hover:bg-surface-muted/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className={`inline-flex min-h-touch items-center gap-2 rounded-full border border-secondary/30 bg-surface/60 px-4 py-2 text-sm font-semibold text-main hover:bg-surface-muted/60 transition touch-manipulation ${FOCUS_RING_PRIMARY_40}`}
           >
             {isLight ? (
               <>
@@ -150,7 +154,7 @@ export default function DesignSystemPage() {
               </button>
               <button
                 type="button"
-                className="inline-flex min-h-touch items-center gap-2 rounded-full border border-error/40 bg-error/10 px-4 py-2 text-sm font-semibold text-main hover:bg-error/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/40"
+                className={`inline-flex min-h-touch items-center gap-2 rounded-full border border-error/40 bg-error/10 px-4 py-2 text-sm font-semibold text-main hover:bg-error/20 transition ${FOCUS_RING_ERROR_40}`}
               >
                 <XCircle className="h-4 w-4 text-error" weight="duotone" aria-hidden="true" />
                 Destructive
@@ -166,7 +170,7 @@ export default function DesignSystemPage() {
                   id="ds-input"
                   type="text"
                   placeholder="Type here…"
-                  className="w-full min-h-touch rounded-xl border border-secondary/20 bg-surface-muted/40 px-4 py-3 text-sm-mobile sm:text-sm text-main placeholder:text-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  className={`w-full min-h-touch rounded-xl border border-secondary/20 bg-surface-muted/40 px-4 py-3 text-sm-mobile sm:text-sm text-main placeholder:text-muted/60 ${FOCUS_RING_PRIMARY_40}`}
                 />
               </div>
               <div className="space-y-1.5">
@@ -175,7 +179,7 @@ export default function DesignSystemPage() {
                 </label>
                 <select
                   id="ds-select"
-                  className="w-full min-h-touch rounded-xl border border-secondary/20 bg-surface-muted/40 px-4 py-3 text-sm-mobile sm:text-sm text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  className={`w-full min-h-touch rounded-xl border border-secondary/20 bg-surface-muted/40 px-4 py-3 text-sm-mobile sm:text-sm text-main ${FOCUS_RING_PRIMARY_40}`}
                   defaultValue="one"
                 >
                   <option value="one">Option one</option>
@@ -224,7 +228,7 @@ export default function DesignSystemPage() {
                   <span>Only part of your history is loaded. Shared button variants should still keep 44px touch targets.</span>
                   <button
                     type="button"
-                    className={`${PANEL_OUTLINE_BUTTON_CLASS} rounded-full text-2xs uppercase tracking-[0.18em]`}
+                    className={`${PANEL_OUTLINE_BUTTON_CLASS} rounded-full text-xs uppercase tracking-[0.18em]`}
                   >
                     Load full history
                   </button>

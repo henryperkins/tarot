@@ -43,6 +43,6 @@ Completed the responsive + a11y audit and applied the remediation updates below.
 - Keyboard avoidance keeps actions visible via `--mobile-action-bar-offset` (`src/components/MobileActionBar.jsx`, `src/components/StreamingNarrative.jsx`).
 - Breakpoint usage matches contract; avoid ad-hoc width thresholds (`tailwind.config.js`, `src/components/ReadingGrid.jsx`, `src/components/journal/entry-card/EntrySections/CardsDrawnSection/CardsDrawnSection.jsx`).
 - Landscape/short behavior aligns between CSS utilities and JS hooks (`src/hooks/useLandscape.js`, `src/styles/tarot.css`).
-- Prose containers use `text-sm-mobile` on mobile; metadata uses `text-xs-plus`; badges use `text-2xs` (`src/styles/tarot.css`, `tailwind.config.js`).
+- Prose containers use `text-sm-mobile` on mobile; metadata uses `text-xs-plus`; compact badges and low-priority metadata use `text-2xs` at 11px (`src/styles/tarot.css`, `tailwind.config.js`).
 - Headings scale at `sm`/`md` where layouts widen (`src/components/StreamingNarrative.jsx`).
 - Animations respect reduced-motion and durations use tokens (`src/styles/tarot.css`, `tailwind.config.js`, `src/components/MobileActionBar.jsx`).

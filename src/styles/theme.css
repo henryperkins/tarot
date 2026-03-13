@@ -115,6 +115,21 @@
   --drawer-gold-16: rgba(229, 196, 142, 0.16);
   --focus-ring-color: var(--brand-accent);
   --halo-star-color: rgba(232, 230, 227, 0.08);
+  --ui-selected-bg: rgba(212, 184, 150, 0.15);
+  --ui-selected-bg-strong: rgba(212, 184, 150, 0.2);
+  --ui-selected-bg-subtle: rgba(212, 184, 150, 0.1);
+  --ui-selected-bg-faint: rgba(212, 184, 150, 0.05);
+  --ui-overlay-strong: rgba(15, 14, 19, 0.96);
+  --ui-overlay: rgba(15, 14, 19, 0.8);
+  --ui-overlay-soft: rgba(15, 14, 19, 0.7);
+  --ui-overlay-muted: rgba(15, 14, 19, 0.5);
+  --ui-overlay-emphasis: rgba(255, 255, 255, 0.05);
+  --ui-selected-shadow-strong: 0 12px 30px -18px rgba(212, 184, 150, 0.75);
+  --ui-selected-shadow: 0 12px 30px -18px rgba(212, 184, 150, 0.6);
+  --ui-selected-shadow-soft: 0 12px 30px -18px rgba(212, 184, 150, 0.55);
+  --ui-card-shadow-strong: 0 14px 36px -20px rgba(212, 184, 150, 0.6);
+  --ui-card-shadow-soft: 0 10px 30px -24px rgba(212, 184, 150, 0.5);
+  --ui-elevated-shadow: 0 20px 48px -24px rgba(0, 0, 0, 0.75);
 
   /* Let the browser theme native UI controls appropriately. */
   color-scheme: dark;
@@ -159,6 +174,21 @@
   --border-warm-light: rgba(125, 98, 59, 0.14);
   --border-warm-subtle: rgba(125, 98, 59, 0.06);
   --halo-star-color: rgba(26, 26, 26, 0.08);
+  --ui-selected-bg: rgba(125, 98, 59, 0.12);
+  --ui-selected-bg-strong: rgba(125, 98, 59, 0.16);
+  --ui-selected-bg-subtle: rgba(125, 98, 59, 0.08);
+  --ui-selected-bg-faint: rgba(125, 98, 59, 0.04);
+  --ui-overlay-strong: rgba(250, 250, 250, 0.96);
+  --ui-overlay: rgba(250, 250, 250, 0.88);
+  --ui-overlay-soft: rgba(250, 250, 250, 0.76);
+  --ui-overlay-muted: rgba(250, 250, 250, 0.62);
+  --ui-overlay-emphasis: rgba(26, 26, 26, 0.04);
+  --ui-selected-shadow-strong: 0 12px 30px -18px rgba(125, 98, 59, 0.28);
+  --ui-selected-shadow: 0 12px 30px -18px rgba(125, 98, 59, 0.22);
+  --ui-selected-shadow-soft: 0 12px 30px -18px rgba(125, 98, 59, 0.18);
+  --ui-card-shadow-strong: 0 14px 36px -20px rgba(125, 98, 59, 0.24);
+  --ui-card-shadow-soft: 0 10px 30px -24px rgba(125, 98, 59, 0.2);
+  --ui-elevated-shadow: 0 20px 48px -24px rgba(77, 59, 42, 0.2);
 
   color-scheme: light;
 }
@@ -199,6 +229,10 @@
     --border-warm-subtle: rgba(232, 218, 195, 0.14);
     --focus-ring-color: var(--brand-primary);
     --halo-star-color: rgba(232, 230, 227, 0.14);
+    --ui-selected-bg: rgba(232, 218, 195, 0.22);
+    --ui-selected-bg-strong: rgba(232, 218, 195, 0.28);
+    --ui-selected-bg-subtle: rgba(232, 218, 195, 0.16);
+    --ui-selected-bg-faint: rgba(232, 218, 195, 0.1);
   }
 
   :root.light {
@@ -226,5 +260,9 @@
     --border-warm-subtle: rgba(125, 98, 59, 0.14);
     --focus-ring-color: var(--brand-primary);
     --halo-star-color: rgba(26, 26, 26, 0.12);
+    --ui-selected-bg: rgba(95, 70, 39, 0.18);
+    --ui-selected-bg-strong: rgba(95, 70, 39, 0.24);
+    --ui-selected-bg-subtle: rgba(95, 70, 39, 0.12);
+    --ui-selected-bg-faint: rgba(95, 70, 39, 0.08);
   }
 }

@@ -38,9 +38,16 @@ import { useToast } from '../contexts/ToastContext';
 import { useJournal } from '../hooks/useJournal';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { computeJournalStats, exportJournalEntriesToCsv } from '../lib/journalInsights';
+import {
+  FOCUS_RING_ACCENT_SOFT,
+  FOCUS_RING_OFFSET_SURFACE,
+  FOCUS_RING_PRIMARY_60
+} from '../styles/focusClasses';
 
 // Lazy load PDF export (pulls in jspdf + html2canvas which are large)
 const loadPdfExport = () => import('../lib/pdfExport').then(m => m.exportJournalInsightsToPdf);
+const ACCENT_SOFT_RING_WITH_SURFACE_OFFSET = `${FOCUS_RING_ACCENT_SOFT} ${FOCUS_RING_OFFSET_SURFACE}`;
+const PRIMARY_60_RING_WITH_SURFACE_OFFSET = `${FOCUS_RING_PRIMARY_60} ${FOCUS_RING_OFFSET_SURFACE}`;
 
 /**
  * Settings toggle component - matches UserMenu style
@@ -61,8 +68,7 @@ function SettingsToggle({ id, label, description, enabled, loading, onChange, er
         className={`
           w-full flex items-center justify-between gap-4 text-left
           min-h-touch transition-colors touch-manipulation
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60
-          focus-visible:ring-offset-2 focus-visible:ring-offset-surface
+          ${PRIMARY_60_RING_WITH_SURFACE_OFFSET}
           ${isDisabled ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}
         `}
         aria-checked={enabled === true}
@@ -141,11 +147,10 @@ function SectionCard({ title, icon: Icon, children, id, highlighted = false, bad
             id={headingId}
             tabIndex={-1}
             data-section-heading="true"
-            className="
+            className={`
               text-sm font-semibold text-main rounded-md
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-              focus-visible:ring-offset-2 focus-visible:ring-offset-surface
-            "
+              ${ACCENT_SOFT_RING_WITH_SURFACE_OFFSET}
+            `}
           >
             {title}
           </h2>
@@ -1405,8 +1410,7 @@ export default function AccountPage() {
                       absolute right-2 top-1/2 -translate-y-1/2
                       min-w-touch min-h-touch flex items-center justify-center
                       text-muted hover:text-main
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                      focus-visible:ring-offset-2 focus-visible:ring-offset-surface
+                      ${ACCENT_SOFT_RING_WITH_SURFACE_OFFSET}
                     "
                     aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
                   >
@@ -1441,8 +1445,7 @@ export default function AccountPage() {
                       absolute right-2 top-1/2 -translate-y-1/2
                       min-w-touch min-h-touch flex items-center justify-center
                       text-muted hover:text-main
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                      focus-visible:ring-offset-2 focus-visible:ring-offset-surface
+                      ${ACCENT_SOFT_RING_WITH_SURFACE_OFFSET}
                     "
                     aria-label={showNextPassword ? 'Hide new password' : 'Show new password'}
                   >
@@ -1483,8 +1486,7 @@ export default function AccountPage() {
                       absolute right-2 top-1/2 -translate-y-1/2
                       min-w-touch min-h-touch flex items-center justify-center
                       text-muted hover:text-main
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                      focus-visible:ring-offset-2 focus-visible:ring-offset-surface
+                      ${ACCENT_SOFT_RING_WITH_SURFACE_OFFSET}
                     "
                     aria-label={showConfirmPassword ? 'Hide confirmation password' : 'Show confirmation password'}
                   >
@@ -1971,8 +1973,7 @@ export default function AccountPage() {
                     className={`
                       min-h-touch px-4 py-2 rounded-full text-xs font-semibold
                       flex items-center gap-2 transition
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                      focus-visible:ring-offset-2 focus-visible:ring-offset-surface
+                      ${ACCENT_SOFT_RING_WITH_SURFACE_OFFSET}
                       ${isActive
                         ? 'bg-surface border border-secondary/40 text-main'
                         : 'text-muted hover:text-main'}
