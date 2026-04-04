@@ -6,6 +6,8 @@ set -euo pipefail
 
 WORKER_NAME="${WORKER_NAME:-tableau}"
 PREVIEW_ENV_NAME="${PREVIEW_ENV_NAME:-preview}"
+DEFAULT_AZURE_OPENAI_ENDPOINT="${DEFAULT_AZURE_OPENAI_ENDPOINT:-https://judas2.openai.azure.com}"
+DEFAULT_AZURE_OPENAI_MODEL="${DEFAULT_AZURE_OPENAI_MODEL:-gpt-5.4-mini}"
 
 put_worker_secret() {
   local secret_name="$1"
@@ -30,15 +32,18 @@ echo ""
 echo "📝 Please provide your Azure OpenAI credentials..."
 echo ""
 
-read -p "GPT-5.1 Endpoint (e.g., https://your-resource.openai.azure.com): " gpt5_endpoint
+read -p "GPT-5 endpoint [$DEFAULT_AZURE_OPENAI_ENDPOINT]: " gpt5_endpoint
+gpt5_endpoint="${gpt5_endpoint:-$DEFAULT_AZURE_OPENAI_ENDPOINT}"
 echo ""
-echo "GPT-5.1 API Key (input will be hidden):"
+echo "GPT-5.4-mini API Key (input will be hidden):"
 read -s gpt5_api_key
 echo ""
-read -p "GPT-5.1 Deployment Name (e.g., gpt-5.1): " gpt5_model
+read -p "GPT-5 deployment name [$DEFAULT_AZURE_OPENAI_MODEL]: " gpt5_model
+gpt5_model="${gpt5_model:-$DEFAULT_AZURE_OPENAI_MODEL}"
 
 echo ""
-read -p "TTS Endpoint (e.g., https://your-tts-resource.openai.azure.com): " tts_endpoint
+read -p "TTS endpoint [$DEFAULT_AZURE_OPENAI_ENDPOINT]: " tts_endpoint
+tts_endpoint="${tts_endpoint:-$DEFAULT_AZURE_OPENAI_ENDPOINT}"
 echo ""
 echo "TTS API Key (input will be hidden):"
 read -s tts_api_key

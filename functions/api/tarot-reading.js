@@ -4,7 +4,7 @@
  * Enhanced with authentic position-relationship analysis, elemental dignities,
  * and spread-specific narrative construction.
  *
- * Delegates narrative synthesis to Azure OpenAI GPT-5.1 via the Responses API
+ * Delegates narrative synthesis to Azure OpenAI GPT-5.4-mini via the Responses API
  * when AZURE_OPENAI_API_KEY / AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_GPT5_MODEL are configured.
  * Falls back to local deterministic composer with full analysis.
  */

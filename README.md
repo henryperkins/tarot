@@ -7,7 +7,7 @@
 ## ✨ Features
 
 - **Multiple Spread Types**: One-Card Insight, Three-Card Story, Five-Card Clarity, Decision/Two-Path, Relationship Snapshot, and Celtic Cross (10-card)
-- **AI-Generated Narratives**: Context-aware readings powered by Azure OpenAI GPT-5.1 with Claude fallback
+- **AI-Generated Narratives**: Context-aware readings powered by Azure OpenAI GPT-5.4-mini with Claude fallback
 - **Knowledge Graph Analysis**: Advanced pattern detection including elemental dignities, suit progressions, and archetypal triads
 - **Text-to-Speech**: Listen to readings with Azure GPT-4o-mini TTS
 - **Personal Journal**: Save and reflect on readings (cloud sync for authenticated users, localStorage for anonymous)
@@ -22,7 +22,7 @@
 | --------------------- | --------------------------------------------------------- |
 | Frontend              | React 18, Vite, Tailwind CSS                              |
 | Backend               | Cloudflare Workers (serverless)                           |
-| AI                    | Azure OpenAI (GPT-5.1, GPT-4o-mini TTS), Anthropic Claude |
+| AI                    | Azure OpenAI (GPT-5.4-mini, GPT-4o-mini TTS), Anthropic Claude |
 | Database              | Cloudflare D1 (SQLite)                                    |
 | Caching/Rate Limiting | Cloudflare KV                                             |
 | Storage               | Cloudflare R2                                             |
@@ -75,12 +75,12 @@ npm install
 
    ```bash
    # Azure OpenAI (required for AI-generated readings)
-   AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
+   AZURE_OPENAI_ENDPOINT=https://judas2.openai.azure.com
    AZURE_OPENAI_API_KEY=your-api-key
-   AZURE_OPENAI_GPT5_MODEL=gpt-5.1
+   AZURE_OPENAI_GPT5_MODEL=gpt-5.4-mini
 
    # Azure TTS (optional, for voice readings)
-   AZURE_OPENAI_TTS_ENDPOINT=https://your-resource.openai.azure.com
+   AZURE_OPENAI_TTS_ENDPOINT=https://judas2.openai.azure.com
    AZURE_OPENAI_TTS_API_KEY=your-tts-api-key
    AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT=gpt-4o-mini-tts
 
@@ -107,6 +107,8 @@ npm install
    ```bash
    npm run config:check
    ```
+
+   Production defaults in `wrangler.jsonc` now set GPT-5 reasoning effort to `xhigh`.
 
 > ⚠️ Never commit `.dev.vars` to version control. It's already in `.gitignore`.
 

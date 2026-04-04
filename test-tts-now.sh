@@ -20,7 +20,7 @@ echo ""
 
 if [ -z "$AZURE_OPENAI_ENDPOINT" ]; then
     echo "❌ AZURE_OPENAI_ENDPOINT is not set in .env.local"
-    echo "   Add: AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com"
+    echo "   Add: AZURE_OPENAI_ENDPOINT=https://judas2.openai.azure.com"
     exit 1
 else
     echo "✅ AZURE_OPENAI_ENDPOINT: $AZURE_OPENAI_ENDPOINT"

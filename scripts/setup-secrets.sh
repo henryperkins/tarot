@@ -7,6 +7,8 @@
 set -e
 
 WORKER_NAME="tableau"
+DEFAULT_AZURE_OPENAI_ENDPOINT="${DEFAULT_AZURE_OPENAI_ENDPOINT:-https://judas2.openai.azure.com}"
+DEFAULT_AZURE_OPENAI_MODEL="${DEFAULT_AZURE_OPENAI_MODEL:-gpt-5.4-mini}"
 
 echo "=================================================="
 echo "  Mystic Tarot - Cloudflare Workers Secrets Setup"
@@ -23,13 +25,14 @@ echo ""
 read -p "Press Enter to continue or Ctrl+C to cancel..."
 
 echo ""
-echo "📝 Setting up Azure OpenAI GPT-5.1 (Responses API) secrets..."
+echo "📝 Setting up Azure OpenAI GPT-5.4-mini (Responses API) secrets..."
 echo ""
 
 # AZURE_OPENAI_ENDPOINT
 echo "1️⃣  Azure OpenAI Endpoint"
-echo "   Example: https://your-resource-name.openai.azure.com"
-read -p "   Enter your Azure OpenAI endpoint: " ENDPOINT
+echo "   Production default: $DEFAULT_AZURE_OPENAI_ENDPOINT"
+read -p "   Enter your Azure OpenAI endpoint [$DEFAULT_AZURE_OPENAI_ENDPOINT]: " ENDPOINT
+ENDPOINT="${ENDPOINT:-$DEFAULT_AZURE_OPENAI_ENDPOINT}"
 echo "$ENDPOINT" | wrangler secret put AZURE_OPENAI_ENDPOINT --name "$WORKER_NAME"
 echo "   ✅ AZURE_OPENAI_ENDPOINT set"
 echo ""
@@ -44,10 +47,11 @@ echo "   ✅ AZURE_OPENAI_API_KEY set"
 echo ""
 
 # AZURE_OPENAI_GPT5_MODEL
-echo "3️⃣  GPT-5.1 Model Deployment Name"
+echo "3️⃣  GPT-5.4-mini Model Deployment Name"
 echo "   Get from: Azure Portal → Azure OpenAI → Deployments"
-echo "   Example: gpt-5.1, gpt-5.1-pro, etc."
-read -p "   Enter your GPT-5.1 deployment name: " GPT5_MODEL
+echo "   Production default: $DEFAULT_AZURE_OPENAI_MODEL"
+read -p "   Enter your GPT-5 deployment name [$DEFAULT_AZURE_OPENAI_MODEL]: " GPT5_MODEL
+GPT5_MODEL="${GPT5_MODEL:-$DEFAULT_AZURE_OPENAI_MODEL}"
 echo "$GPT5_MODEL" | wrangler secret put AZURE_OPENAI_GPT5_MODEL --name "$WORKER_NAME"
 echo "   ✅ AZURE_OPENAI_GPT5_MODEL set"
 echo ""
@@ -59,15 +63,16 @@ read -p "Do you want to set up TTS secrets now? (y/n): " SETUP_TTS
 if [[ "$SETUP_TTS" == "y" || "$SETUP_TTS" == "Y" ]]; then
     # AZURE_OPENAI_TTS_ENDPOINT
     echo "4️⃣  Azure OpenAI TTS Endpoint"
-    echo "   (Can be the same as GPT-5.1 endpoint if using same resource)"
-    read -p "   Enter your TTS endpoint: " TTS_ENDPOINT
+    echo "   (Can be the same as the GPT-5.4-mini endpoint if using same resource)"
+    read -p "   Enter your TTS endpoint [$DEFAULT_AZURE_OPENAI_ENDPOINT]: " TTS_ENDPOINT
+    TTS_ENDPOINT="${TTS_ENDPOINT:-$DEFAULT_AZURE_OPENAI_ENDPOINT}"
     echo "$TTS_ENDPOINT" | wrangler secret put AZURE_OPENAI_TTS_ENDPOINT --name "$WORKER_NAME"
     echo "   ✅ AZURE_OPENAI_TTS_ENDPOINT set"
     echo ""
 
     # AZURE_OPENAI_TTS_API_KEY
     echo "5️⃣  Azure OpenAI TTS API Key"
-    echo "   (Can be the same as GPT-5.1 API key if using same resource)"
+    echo "   (Can be the same as the GPT-5.4-mini API key if using same resource)"
     read -sp "   Enter your TTS API key: " TTS_API_KEY
     echo ""
     echo "$TTS_API_KEY" | wrangler secret put AZURE_OPENAI_TTS_API_KEY --name "$WORKER_NAME"

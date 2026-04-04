@@ -20,11 +20,11 @@ echo ""
 
 # Fix TTS endpoint (remove /openai/v1/chat/completions path)
 echo "📝 Step 1: Fixing TTS endpoint URL..."
-echo "   Old: https://hperk-mhsylcwu-centralus.openai.azure.com/openai/v1/chat/completions"
-echo "   New: https://hperk-mhsylcwu-centralus.openai.azure.com"
+echo "   Old: https://judas2.openai.azure.com/openai/v1/chat/completions"
+echo "   New: https://judas2.openai.azure.com"
 echo ""
 
-echo "https://hperk-mhsylcwu-centralus.openai.azure.com" | \
+echo "https://judas2.openai.azure.com" | \
   wrangler secret put AZURE_OPENAI_TTS_ENDPOINT --name "$WORKER_NAME"
 echo "✅ TTS endpoint updated in Cloudflare"
 echo ""
@@ -50,7 +50,7 @@ echo "=================================================="
 echo ""
 echo "🧪 Test your deployment:"
 echo ""
-echo "   # GPT-5.1 Health Check"
+echo "   # GPT-5.4-mini Health Check"
 echo "   curl https://tableau.YOUR_SUBDOMAIN.workers.dev/api/tarot-reading"
 echo ""
 echo "   # TTS Health Check"
