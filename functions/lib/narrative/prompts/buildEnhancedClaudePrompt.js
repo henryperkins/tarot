@@ -15,6 +15,7 @@ import { estimateTokenCount, getHardCapBudget, getPromptBudgetForTarget } from '
 import { truncateSystemPromptSafely, truncateToTokenBudget, truncateUserPromptSafely } from './truncation.js';
 import { buildSystemPrompt } from './systemPrompt.js';
 import { buildUserPrompt } from './userPrompt.js';
+import { buildUserContextSourceUsage } from '../sourceUsage.js';
 
 function resolveDeckStyle({ deckStyle, spreadInfo, themes, cardsInfo, diagnostics = [] }) {
   const candidates = [];
@@ -228,6 +229,72 @@ function hasVisibleVisionDiagnostics(promptText) {
 function hasVisibleVisionCardCues(promptText) {
   return typeof promptText === 'string' &&
     /Vision-detected tone:|Vision-detected emotion:|Emotional quality:/i.test(promptText);
+}
+
+function hasPromptMarker(promptText, marker) {
+  return typeof promptText === 'string' && promptText.includes(marker);
+}
+
+function resolvePromptUserContextField(signal, used) {
+  const provided = Boolean(signal?.provided);
+  if (!provided) {
+    return {
+      provided: false,
+      used: false,
+      skippedReason: null
+    };
+  }
+
+  if (signal?.eligible === false) {
+    return {
+      provided: true,
+      used: false,
+      skippedReason: signal?.skippedReasonIfNotEligible || 'not_used'
+    };
+  }
+
+  return {
+    provided: true,
+    used: Boolean(used),
+    skippedReason: used ? null : (signal?.skippedReasonIfMissing || 'removed_for_budget')
+  };
+}
+
+function buildPromptUserContextSourceUsage(sourceUsageSignals, finalUserPrompt, finalSystemPrompt) {
+  const userContextSignals = sourceUsageSignals?.userContext || {};
+  const depthUsed = hasPromptMarker(finalUserPrompt, '**Depth Preference**:')
+    || hasPromptMarker(finalSystemPrompt, '## Narrative Depth Preference');
+
+  return buildUserContextSourceUsage({
+    question: resolvePromptUserContextField(
+      userContextSignals.question,
+      hasPromptMarker(finalUserPrompt, '**Question**:')
+    ),
+    reflections: resolvePromptUserContextField(
+      userContextSignals.reflections,
+      hasPromptMarker(finalUserPrompt, '**Querent\'s Reflections**:')
+    ),
+    focusAreas: resolvePromptUserContextField(
+      userContextSignals.focusAreas,
+      hasPromptMarker(finalUserPrompt, 'Focus areas (from onboarding):')
+    ),
+    displayName: resolvePromptUserContextField(
+      userContextSignals.displayName,
+      hasPromptMarker(finalUserPrompt, '**Querent Name**:')
+    ),
+    tone: resolvePromptUserContextField(
+      userContextSignals.tone,
+      hasPromptMarker(finalSystemPrompt, '## Reading Tone')
+    ),
+    frame: resolvePromptUserContextField(
+      userContextSignals.frame,
+      hasPromptMarker(finalSystemPrompt, '## Interpretive Frame')
+    ),
+    depth: resolvePromptUserContextField(
+      userContextSignals.depth,
+      depthUsed
+    )
+  });
 }
 
 function summarizeVisionPromptEligibility(visionInsights) {
@@ -462,7 +529,8 @@ export function buildEnhancedClaudePrompt({
 
   const buildWithControls = (controls) => {
     const sourceUsageSignals = {
-      visionCardCuesUsed: false
+      visionCardCuesUsed: false,
+      userContext: {}
     };
     const systemPrompt = buildSystemPrompt(
       spreadKey,
@@ -473,7 +541,8 @@ export function buildEnhancedClaudePrompt({
       {
         ...controls,
         personalization,
-        maxTokenBudget: promptBudget
+        maxTokenBudget: promptBudget,
+        sourceUsageSignals
       }
     );
 
@@ -964,12 +1033,6 @@ export function buildEnhancedClaudePrompt({
     };
   }
 
-  const hasUserQuestion = typeof userQuestion === 'string' && userQuestion.trim().length > 0;
-  const hasReflections = typeof reflectionsText === 'string' && reflectionsText.trim().length > 0;
-  const focusAreas = Array.isArray(personalization?.focusAreas)
-    ? personalization.focusAreas.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
-    : [];
-  const hasFocusAreas = focusAreas.length > 0;
   const hasVisionSource = Array.isArray(visionInsights) && visionInsights.length > 0;
   const visionPromptEligibility = summarizeVisionPromptEligibility(visionInsights);
   const visionDiagnosticsIncluded = hasVisionSource && hasVisibleVisionDiagnostics(finalUser);
@@ -1005,14 +1068,7 @@ export function buildEnhancedClaudePrompt({
         ? (visionUsed ? null : (visionRemovedForBudget ? 'removed_for_budget' : 'diagnostics_disabled'))
         : 'not_provided'
     },
-    userContext: {
-      requested: true,
-      used: hasUserQuestion || hasReflections || hasFocusAreas,
-      skippedReason: hasUserQuestion || hasReflections || hasFocusAreas ? null : 'not_provided',
-      questionProvided: hasUserQuestion,
-      reflectionsProvided: hasReflections,
-      focusAreasProvided: hasFocusAreas
-    },
+    userContext: buildPromptUserContextSourceUsage(built.sourceUsageSignals, finalUser, finalSystem),
     graphRAG: {
       requested: hasGraphRAGSource,
       used: graphRAGMode !== 'none',

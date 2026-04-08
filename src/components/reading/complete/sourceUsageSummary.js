@@ -9,6 +9,16 @@ function toReadableLabel(value) {
     return String(value).replaceAll('_', ' ');
 }
 
+const USER_CONTEXT_LABELS = {
+    question: 'question',
+    reflections: 'reflections',
+    focusAreas: 'focus areas',
+    displayName: 'display name',
+    tone: 'tone',
+    frame: 'frame',
+    depth: 'depth preference'
+};
+
 function getUsageState(entry) {
     if (!entry || typeof entry !== 'object') return 'notRequested';
     if (entry.used) return 'used';
@@ -48,13 +58,36 @@ export function formatUsageSummary(sourceUsage) {
     pushRow('Vision uploads', sourceUsage.vision);
 
     if (sourceUsage.userContext && typeof sourceUsage.userContext === 'object') {
-        const contextParts = [];
-        if (sourceUsage.userContext.questionProvided) contextParts.push('question');
-        if (sourceUsage.userContext.reflectionsProvided) contextParts.push('reflections');
-        if (sourceUsage.userContext.focusAreasProvided) contextParts.push('focus areas');
-        const contextDetail = contextParts.length > 0
-            ? contextParts.join(', ')
-            : '';
+        const usedInputs = Array.isArray(sourceUsage.userContext.usedInputs)
+            ? sourceUsage.userContext.usedInputs
+                .map((key) => USER_CONTEXT_LABELS[key] || toReadableLabel(key))
+                .filter(Boolean)
+            : [];
+        const skippedInputs = sourceUsage.userContext.skippedInputs && typeof sourceUsage.userContext.skippedInputs === 'object'
+            ? Object.entries(sourceUsage.userContext.skippedInputs)
+                .map(([key, reason]) => {
+                    const label = USER_CONTEXT_LABELS[key] || toReadableLabel(key);
+                    return `${label} (${toReadableLabel(reason)})`;
+                })
+            : [];
+        const fallbackParts = [];
+        if (sourceUsage.userContext.questionProvided) fallbackParts.push('question');
+        if (sourceUsage.userContext.reflectionsProvided) fallbackParts.push('reflections');
+        if (sourceUsage.userContext.focusAreasProvided) fallbackParts.push('focus areas');
+        if (sourceUsage.userContext.displayNameProvided) fallbackParts.push('display name');
+        if (sourceUsage.userContext.toneProvided) fallbackParts.push('tone');
+        if (sourceUsage.userContext.frameProvided) fallbackParts.push('frame');
+        if (sourceUsage.userContext.depthProvided) fallbackParts.push('depth preference');
+        const detailParts = [];
+        if (usedInputs.length > 0) {
+            detailParts.push(`Used: ${usedInputs.join(', ')}`);
+        }
+        if (skippedInputs.length > 0) {
+            detailParts.push(`Skipped: ${skippedInputs.join(', ')}`);
+        }
+        const contextDetail = detailParts.length > 0
+            ? detailParts.join(' | ')
+            : (fallbackParts.length > 0 ? fallbackParts.join(', ') : '');
         pushRow('User context', sourceUsage.userContext, contextDetail);
     }
 

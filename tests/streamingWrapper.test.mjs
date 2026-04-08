@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import {
+  buildConversationHistoryFromFollowUps,
   wrapStreamWithMetadata,
   resolveStreamingPersistenceText
 } from '../functions/api/reading-followup.js';
@@ -15,14 +16,52 @@ function formatSSEEvent(event, data) {
 }
 
 describe('resolveStreamingPersistenceText', () => {
-  test('persists the exact streamed response when a repaired variant exists', () => {
+  test('preserves delivered text while preferring the repaired canonical variant when provided', () => {
     const streamed = 'This is what the client received.';
-    const repaired = 'This is a revised diagnostic variant.';
-    assert.equal(resolveStreamingPersistenceText(streamed, repaired), streamed);
+    const repaired = 'This is the repaired canonical variant.';
+    assert.deepEqual(resolveStreamingPersistenceText(streamed, repaired), {
+      deliveredText: streamed,
+      canonicalText: repaired,
+      repairApplied: true,
+      canonicalSource: 'repaired'
+    });
   });
 
-  test('returns empty string when streamed response is not a string', () => {
-    assert.equal(resolveStreamingPersistenceText(null, 'repaired'), '');
+  test('falls back to streamed text when no canonical repair is available', () => {
+    const streamed = 'Streamed only.';
+    assert.deepEqual(resolveStreamingPersistenceText(streamed), {
+      deliveredText: streamed,
+      canonicalText: streamed,
+      repairApplied: false,
+      canonicalSource: 'streamed'
+    });
+  });
+
+  test('returns empty delivered and canonical text when streamed response is not a string', () => {
+    assert.deepEqual(resolveStreamingPersistenceText(null, 'repaired'), {
+      deliveredText: '',
+      canonicalText: 'repaired',
+      repairApplied: true,
+      canonicalSource: 'repaired'
+    });
+  });
+});
+
+describe('buildConversationHistoryFromFollowUps', () => {
+  test('prefers canonical assistant text when available', () => {
+    const history = buildConversationHistoryFromFollowUps([
+      {
+        turnNumber: 1,
+        question: 'What did that mean?',
+        answer: 'Raw streamed answer.',
+        canonicalAnswer: 'Repaired canonical answer.'
+      }
+    ]);
+
+    assert.deepEqual(history, [
+      { role: 'user', content: 'What did that mean?' },
+      { role: 'assistant', content: 'Repaired canonical answer.' }
+    ]);
   });
 });
 

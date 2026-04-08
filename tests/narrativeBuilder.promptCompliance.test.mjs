@@ -1397,6 +1397,107 @@ describe('Prompt budget telemetry', () => {
     assert.match(systemPrompt, /\nETHICS\n- Emphasize choice/);
     assert.ok(systemPrompt.includes('Do NOT provide diagnosis'), 'Ethics guardrail should remain intact');
   });
+
+  it('tracks personalization-only user context when those inputs shape the prompt', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { promptMeta, systemPrompt, userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: '',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      personalization: {
+        displayName: 'Sam',
+        focusAreas: ['career', 'purpose'],
+        readingTone: 'gentle',
+        spiritualFrame: 'mixed',
+        preferredSpreadDepth: 'deep'
+      }
+    });
+
+    assert.ok(userPrompt.includes('**Querent Name**: Sam'));
+    assert.ok(userPrompt.includes('Focus areas (from onboarding): career, purpose'));
+    assert.ok(systemPrompt.includes('## Reading Tone'));
+    assert.ok(systemPrompt.includes('## Interpretive Frame'));
+    assert.ok(systemPrompt.includes('## Narrative Depth Preference'));
+    assert.equal(promptMeta.sourceUsage?.userContext?.used, true);
+    assert.deepEqual(
+      promptMeta.sourceUsage?.userContext?.usedInputs,
+      ['focusAreas', 'displayName', 'tone', 'frame', 'depth']
+    );
+    assert.equal(promptMeta.sourceUsage?.userContext?.displayNameUsed, true);
+    assert.equal(promptMeta.sourceUsage?.userContext?.toneUsed, true);
+    assert.equal(promptMeta.sourceUsage?.userContext?.frameUsed, true);
+    assert.equal(promptMeta.sourceUsage?.userContext?.depthUsed, true);
+  });
+
+  it('marks duplicate global reflections as skipped instead of used', async () => {
+    const cardsInfo = [
+      {
+        ...major('The Fool', 0, 'One-Card Insight', 'Upright'),
+        userReflection: 'I keep thinking about a fresh start.'
+      }
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { promptMeta, userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: '',
+      reflectionsText: 'I keep thinking about a fresh start.',
+      themes,
+      spreadAnalysis: null,
+      context: 'general'
+    });
+
+    assert.ok(!userPrompt.includes('**Querent\'s Reflections**:'), 'duplicate global reflections should be omitted from the prompt');
+    assert.equal(promptMeta.sourceUsage?.userContext?.reflectionsProvided, true);
+    assert.equal(promptMeta.sourceUsage?.userContext?.reflectionsUsed, false);
+    assert.equal(
+      promptMeta.sourceUsage?.userContext?.skippedInputs?.reflections,
+      'deduped_against_card_reflection'
+    );
+  });
+
+  it('reports tone and frame as skipped when prompt budget removes them', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { promptMeta, systemPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'What matters most right now?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      personalization: {
+        readingTone: 'gentle',
+        spiritualFrame: 'spiritual',
+        preferredSpreadDepth: 'deep'
+      },
+      promptBudgetEnv: {
+        PROMPT_BUDGET_CLAUDE: '80'
+      }
+    });
+
+    assert.ok(!systemPrompt.includes('## Reading Tone'));
+    assert.ok(!systemPrompt.includes('## Interpretive Frame'));
+    assert.equal(promptMeta.sourceUsage?.userContext?.toneProvided, true);
+    assert.equal(promptMeta.sourceUsage?.userContext?.toneUsed, false);
+    assert.equal(promptMeta.sourceUsage?.userContext?.frameProvided, true);
+    assert.equal(promptMeta.sourceUsage?.userContext?.frameUsed, false);
+    assert.equal(promptMeta.sourceUsage?.userContext?.skippedInputs?.tone, 'removed_for_budget');
+    assert.equal(promptMeta.sourceUsage?.userContext?.skippedInputs?.frame, 'removed_for_budget');
+  });
 });
 
 describe('Prompt sanitization', () => {

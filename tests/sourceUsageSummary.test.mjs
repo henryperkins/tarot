@@ -24,8 +24,16 @@ describe('formatUsageSummary', () => {
         requested: true,
         used: true,
         questionProvided: true,
+        questionUsed: true,
         reflectionsProvided: true,
-        focusAreasProvided: false
+        reflectionsUsed: false,
+        displayNameProvided: true,
+        displayNameUsed: true,
+        focusAreasProvided: false,
+        usedInputs: ['question', 'displayName'],
+        skippedInputs: {
+          reflections: 'deduped_against_card_reflection'
+        }
       },
       graphRAG: {
         requested: true,
@@ -42,7 +50,7 @@ describe('formatUsageSummary', () => {
 
     assert.equal(byLabel['Spread & cards'].state, 'used');
     assert.equal(byLabel['Vision uploads'].state, 'requestedNotUsed');
-    assert.equal(byLabel['User context'].detail, 'question, reflections');
+    assert.equal(byLabel['User context'].detail, 'Used: question, display name | Skipped: reflections (deduped against card reflection)');
     assert.equal(byLabel['Traditional wisdom'].detail, 'semantic_scoring mode, 4/9 passages');
     assert.equal(byLabel.Ephemeris.state, 'skipped');
     assert.equal(byLabel.Ephemeris.detail, 'Reason: token budget');

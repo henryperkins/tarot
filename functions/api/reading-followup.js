@@ -147,11 +147,21 @@ async function repairHallucinatedFollowUp(env, {
 }
 
 /**
- * For streaming responses, persist exactly what was delivered to the client.
- * Any repaired variants are diagnostics-only unless explicitly surfaced in-stream.
+ * Resolve the delivered text versus the canonical text that should be reused in
+ * later follow-up history. Callers should only pass a repaired variant after it
+ * has already cleared safety checks.
  */
-function resolveStreamingPersistenceText(streamedText, _repairedText = null) {
-  return typeof streamedText === 'string' ? streamedText : '';
+function resolveStreamingPersistenceText(streamedText, repairedText = null) {
+  const deliveredText = typeof streamedText === 'string' ? streamedText : '';
+  const safeRepairedText = typeof repairedText === 'string' ? repairedText.trim() : '';
+  const canonicalText = safeRepairedText || deliveredText;
+
+  return {
+    deliveredText,
+    canonicalText,
+    repairApplied: Boolean(safeRepairedText && safeRepairedText !== deliveredText),
+    canonicalSource: safeRepairedText ? 'repaired' : 'streamed'
+  };
 }
 
 function getReservationTtlSeconds(env) {
@@ -189,8 +199,11 @@ function buildConversationHistoryFromFollowUps(followUps) {
     if (typeof item?.question === 'string' && item.question) {
       history.push({ role: 'user', content: item.question });
     }
-    if (typeof item?.answer === 'string' && item.answer) {
-      history.push({ role: 'assistant', content: item.answer });
+    const assistantText = typeof item?.canonicalAnswer === 'string' && item.canonicalAnswer
+      ? item.canonicalAnswer
+      : item?.answer;
+    if (typeof assistantText === 'string' && assistantText) {
+      history.push({ role: 'assistant', content: assistantText });
     }
   });
   return history;
@@ -199,7 +212,8 @@ function buildConversationHistoryFromFollowUps(followUps) {
 async function loadStoredConversationHistory(env, userId, entryId) {
   if (!env?.DB || !userId || !entryId) return [];
   const followupMap = await loadFollowUpsByEntry(env.DB, userId, [entryId], {
-    limitPerEntry: MAX_STORED_HISTORY_TURNS
+    limitPerEntry: MAX_STORED_HISTORY_TURNS,
+    includeCanonical: true
   });
   const storedFollowUps = followupMap.get(entryId) || [];
   return buildConversationHistoryFromFollowUps(storedFollowUps);
@@ -692,11 +706,13 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               return;
             }
 
-            const persistedResponseText = resolveStreamingPersistenceText(fullText);
+            const persistenceResult = resolveStreamingPersistenceText(fullText);
+            const deliveredResponseText = persistenceResult.deliveredText;
+            let canonicalResponseText = persistenceResult.canonicalText;
 
             // Safety check for streaming responses (post-hoc logging for monitoring)
             // Note: For streaming, we can't block after sending, but we log for alerting/analysis
-            const safetyCheck = checkFollowUpSafety(persistedResponseText);
+            const safetyCheck = checkFollowUpSafety(deliveredResponseText);
             if (!safetyCheck.safe) {
               console.error(`[${requestId}] CRITICAL: Streamed unsafe follow-up response: ${safetyCheck.issues.join(', ')}`);
             } else if (safetyCheck.issues.length > 0) {
@@ -705,7 +721,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
             // Hallucination check for streaming (post-hoc logging - can't block after sending)
             const hallucinations = detectHallucinatedCards(
-              persistedResponseText,
+              deliveredResponseText,
               effectiveContext?.cardsInfo || [],
               effectiveContext?.deckStyle || 'rws-1909'
             );
@@ -714,7 +730,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               const repair = await repairHallucinatedFollowUp(env, {
                 requestId,
                 followUpQuestion,
-                responseText: persistedResponseText,
+                responseText: deliveredResponseText,
                 hallucinations,
                 cardsInfo: effectiveContext?.cardsInfo || [],
                 deckStyle: effectiveContext?.deckStyle || 'rws-1909'
@@ -723,14 +739,17 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 const repairedSafety = checkFollowUpSafety(repair.response);
                 if (!repairedSafety.safe) {
                   console.warn(`[${requestId}] Repaired streamed follow-up failed safety gate: ${repairedSafety.issues.join(', ')}`);
+                } else {
+                  const resolvedPersistence = resolveStreamingPersistenceText(fullText, repair.response);
+                  canonicalResponseText = resolvedPersistence.canonicalText;
+                  console.log(`[${requestId}] Follow-up streamed response canonicalized with repaired text for stored history reuse.`);
                 }
-                console.log(`[${requestId}] Follow-up streamed response repaired for diagnostics; preserving original streamed text for persistence.`);
               }
             }
 
             const trackingPromise = finalizeFollowUpUsage(env.DB, {
               reservationId,
-              responseLength: persistedResponseText.length,
+              responseLength: deliveredResponseText.length,
               journalContextUsed: Boolean(journalContext),
               patternsFound: journalContext?.patterns?.length || 0,
               latencyMs,
@@ -751,7 +770,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 }, {
                   turnNumber,
                   question: followUpQuestion,
-                  answer: persistedResponseText,
+                  answer: deliveredResponseText,
+                  canonicalAnswer: canonicalResponseText,
                   journalContext,
                   requestId
                 })
@@ -923,6 +943,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             turnNumber,
             question: followUpQuestion,
             answer: responseText,
+            canonicalAnswer: responseText,
             journalContext,
             requestId
           })
@@ -2090,6 +2111,7 @@ export {
   createToolRoundTripStream,
   wrapStreamWithMetadata,
   resolveStreamingPersistenceText,
+  buildConversationHistoryFromFollowUps,
   getPerReadingFollowUpCount,
   getDailyFollowUpCount,
   reserveFollowUpSlot,

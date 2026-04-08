@@ -10,6 +10,11 @@ function clampText(value, max = MAX_TEXT_LENGTH) {
   return truncateText(value, max, { accountForEllipsis: false });
 }
 
+function isMissingCanonicalAnswerColumnError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return message.includes('no such column: canonical_answer');
+}
+
 /**
  * Sanitize follow-up payloads from client/UI.
  * @param {Array} followUps
@@ -28,6 +33,7 @@ export function sanitizeFollowUps(followUps, { max = MAX_FOLLOWUPS_PER_ENTRY } =
 
     const question = clampText(item.question, 800);
     const answer = clampText(item.answer, MAX_TEXT_LENGTH);
+    const canonicalAnswer = clampText(item.canonicalAnswer, MAX_TEXT_LENGTH) || answer;
     if (!question || !answer) return;
 
     const explicitTurn = Number.isFinite(item.turnNumber)
@@ -53,6 +59,7 @@ export function sanitizeFollowUps(followUps, { max = MAX_FOLLOWUPS_PER_ENTRY } =
       turnNumber: turnNumber > 0 ? turnNumber : index + 1,
       question,
       answer,
+      canonicalAnswer,
       journalContext,
       createdAt
     });
@@ -82,8 +89,8 @@ export async function insertFollowUps(db, userId, entryId, followUps, { readingR
       await db.prepare(`
         INSERT OR IGNORE INTO journal_followups (
           id, user_id, entry_id, reading_request_id, request_id,
-          turn_number, question, answer, journal_context_json, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          turn_number, question, answer, canonical_answer, journal_context_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         id,
         userId,
@@ -93,11 +100,38 @@ export async function insertFollowUps(db, userId, entryId, followUps, { readingR
         item.turnNumber || null,
         item.question,
         item.answer,
+        item.canonicalAnswer || item.answer,
         ctxJson,
         createdAt
       ).run();
       inserted += 1;
     } catch (error) {
+      if (isMissingCanonicalAnswerColumnError(error)) {
+        try {
+          await db.prepare(`
+            INSERT OR IGNORE INTO journal_followups (
+              id, user_id, entry_id, reading_request_id, request_id,
+              turn_number, question, answer, journal_context_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            id,
+            userId,
+            entryId,
+            readingRequestId || null,
+            requestId || null,
+            item.turnNumber || null,
+            item.question,
+            item.answer,
+            ctxJson,
+            createdAt
+          ).run();
+          inserted += 1;
+          continue;
+        } catch (fallbackError) {
+          console.warn('[insertFollowUps] Error inserting follow-up without canonical_answer:', fallbackError?.message || fallbackError);
+          continue;
+        }
+      }
       // Table may not exist yet; degrade gracefully
       console.warn('[insertFollowUps] Error inserting follow-up:', error?.message || error);
     }
@@ -117,7 +151,7 @@ export async function appendFollowUp(db, userId, entryId, followUp, meta = {}) {
  * Load follow-ups for a set of entry IDs.
  * Returns a Map of entryId -> array of follow-ups ordered by createdAt ASC.
  */
-export async function loadFollowUpsByEntry(db, userId, entryIds, { limitPerEntry = MAX_FOLLOWUPS_PER_ENTRY } = {}) {
+export async function loadFollowUpsByEntry(db, userId, entryIds, { limitPerEntry = MAX_FOLLOWUPS_PER_ENTRY, includeCanonical = false } = {}) {
   const resultMap = new Map();
   if (!db || !userId || !Array.isArray(entryIds) || entryIds.length === 0) {
     return resultMap;
@@ -128,23 +162,40 @@ export async function loadFollowUpsByEntry(db, userId, entryIds, { limitPerEntry
 
   const placeholders = uniqueIds.map(() => '?').join(', ');
   try {
-    const rows = await db.prepare(`
-      SELECT entry_id, turn_number, question, answer, journal_context_json, created_at
-      FROM journal_followups
-      WHERE user_id = ? AND entry_id IN (${placeholders})
-      ORDER BY created_at ASC
-    `).bind(userId, ...uniqueIds).all();
+    let rows;
+    try {
+      rows = await db.prepare(`
+        SELECT entry_id, turn_number, question, answer, canonical_answer, journal_context_json, created_at
+        FROM journal_followups
+        WHERE user_id = ? AND entry_id IN (${placeholders})
+        ORDER BY created_at ASC
+      `).bind(userId, ...uniqueIds).all();
+    } catch (error) {
+      if (!isMissingCanonicalAnswerColumnError(error)) {
+        throw error;
+      }
+      rows = await db.prepare(`
+        SELECT entry_id, turn_number, question, answer, journal_context_json, created_at
+        FROM journal_followups
+        WHERE user_id = ? AND entry_id IN (${placeholders})
+        ORDER BY created_at ASC
+      `).bind(userId, ...uniqueIds).all();
+    }
 
     const grouped = new Map();
     (rows?.results || []).forEach((row) => {
       const list = grouped.get(row.entry_id) || [];
-      list.push({
+      const entry = {
         turnNumber: row.turn_number,
         question: row.question,
         answer: row.answer,
         createdAt: row.created_at ? row.created_at * 1000 : null,
         journalContext: safeJsonParse(row.journal_context_json, null)
-      });
+      };
+      if (includeCanonical && typeof row.canonical_answer === 'string' && row.canonical_answer) {
+        entry.canonicalAnswer = row.canonical_answer;
+      }
+      list.push(entry);
       grouped.set(row.entry_id, list);
     });
 

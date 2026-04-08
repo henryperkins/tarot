@@ -31,8 +31,16 @@ import {
   buildReasoningSynthesis,
   buildReadingWithReasoning
 } from './narrative/reasoningIntegration.js';
-import { getToneStyle, buildPersonalizedClosing, getDepthProfile } from './narrative/styleHelpers.js';
-import { buildOpening, buildReflectionsSection } from './narrative/helpers.js';
+import {
+  getToneStyle,
+  buildPersonalizedClosing,
+  getDepthProfile,
+  sanitizeDisplayName,
+  TONE_STYLES,
+  FRAME_VOCABULARY
+} from './narrative/styleHelpers.js';
+import { buildOpening, buildReflectionsSection, sanitizeQuestionForNarrative } from './narrative/helpers.js';
+import { buildUserContextSourceUsage } from './narrative/sourceUsage.js';
 import { formatPassagesForPrompt } from './graphRAG.js';
 import { buildPromptRedactionOptions, redactPII } from './promptEngineering.js';
 import { evaluateVisionInsightPromptEligibility } from './readingQuality.js';
@@ -251,9 +259,26 @@ function scoreLanguageProfile(question, tokens, profile) {
   };
 }
 
-export function getLocalComposerLanguageSupport(userQuestion) {
-  const question = typeof userQuestion === 'string' ? userQuestion.trim() : '';
-  if (!question) {
+function normalizeLocalComposerLanguageInput(input) {
+  if (typeof input === 'string') {
+    return input.trim();
+  }
+  if (!input || typeof input !== 'object') {
+    return '';
+  }
+
+  return [
+    input.userQuestion,
+    input.reflectionsText
+  ]
+    .filter((value) => typeof value === 'string' && value.trim())
+    .join('\n')
+    .trim();
+}
+
+export function getLocalComposerLanguageSupport(input) {
+  const text = normalizeLocalComposerLanguageInput(input);
+  if (!text) {
     return {
       supported: true,
       language: 'unknown',
@@ -266,16 +291,16 @@ export function getLocalComposerLanguageSupport(userQuestion) {
 
   // Be conservative about blocking: a false positive is worse than falling back
   // to English when the signal is weak or just a borrowed noun.
-  const unsupportedScriptResult = detectUnsupportedNonLatinScript(question);
+  const unsupportedScriptResult = detectUnsupportedNonLatinScript(text);
   if (unsupportedScriptResult) {
     return unsupportedScriptResult;
   }
 
-  const tokens = tokenizeLanguageHintText(question);
+  const tokens = tokenizeLanguageHintText(text);
   let bestMatch = null;
 
   for (const profile of LOCAL_COMPOSER_LANGUAGE_PROFILES) {
-    const profileScore = scoreLanguageProfile(question, tokens, profile);
+    const profileScore = scoreLanguageProfile(text, tokens, profile);
 
     if (!bestMatch || profileScore.score > bestMatch.score) {
       bestMatch = {
@@ -445,13 +470,61 @@ function summarizeVisionPromptEligibility(visionInsights) {
 function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
   const analysis = payload?.analysis || {};
   const personalization = payload?.personalization || {};
-
-  const hasUserQuestion = typeof payload?.userQuestion === 'string' && payload.userQuestion.trim().length > 0;
-  const hasReflections = typeof payload?.reflectionsText === 'string' && payload.reflectionsText.trim().length > 0;
-  const focusAreas = Array.isArray(personalization?.focusAreas)
+  const rawUserQuestion = typeof payload?.userQuestion === 'string' ? payload.userQuestion : '';
+  const rawReflections = typeof payload?.reflectionsText === 'string' ? payload.reflectionsText : '';
+  const rawFocusAreas = Array.isArray(personalization?.focusAreas)
     ? personalization.focusAreas.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
     : [];
-  const hasFocusAreas = focusAreas.length > 0;
+  const rawDisplayName = typeof personalization?.displayName === 'string' ? personalization.displayName : '';
+  const safeDisplayName = sanitizeDisplayName(rawDisplayName);
+  const sanitizedQuestion = sanitizeQuestionForNarrative(rawUserQuestion);
+  const reflectionsSection = buildReflectionsSection(rawReflections);
+  const toneKey = typeof personalization?.readingTone === 'string' ? personalization.readingTone : '';
+  const frameKey = typeof personalization?.spiritualFrame === 'string' ? personalization.spiritualFrame : '';
+  const depthKey = typeof personalization?.preferredSpreadDepth === 'string' ? personalization.preferredSpreadDepth : '';
+  const hasSupportedTone = Boolean(toneKey && Object.prototype.hasOwnProperty.call(TONE_STYLES, toneKey));
+  const hasSupportedFrame = Boolean(frameKey && Object.prototype.hasOwnProperty.call(FRAME_VOCABULARY, frameKey));
+  const depthProfile = getDepthProfile(depthKey);
+  const hasDepthOverride = Boolean(depthKey) && depthProfile.key !== 'standard';
+  const userContext = buildUserContextSourceUsage({
+    question: {
+      provided: rawUserQuestion.trim().length > 0,
+      used: Boolean(sanitizedQuestion),
+      skippedReason: rawUserQuestion.trim().length > 0 && !sanitizedQuestion ? 'sanitized_empty' : null
+    },
+    reflections: {
+      provided: rawReflections.trim().length > 0,
+      used: Boolean(reflectionsSection),
+      skippedReason: rawReflections.trim().length > 0 && !reflectionsSection ? 'sanitized_empty' : null
+    },
+    focusAreas: {
+      provided: rawFocusAreas.length > 0,
+      used: rawFocusAreas.length > 0,
+      skippedReason: rawFocusAreas.length > 0 ? null : null
+    },
+    displayName: {
+      provided: rawDisplayName.trim().length > 0,
+      used: Boolean(safeDisplayName),
+      skippedReason: rawDisplayName.trim().length > 0 && !safeDisplayName ? 'sanitized_empty' : null
+    },
+    tone: {
+      provided: Boolean(toneKey),
+      used: hasSupportedTone,
+      skippedReason: toneKey && !hasSupportedTone ? 'unsupported_value' : null
+    },
+    frame: {
+      provided: Boolean(frameKey),
+      used: hasSupportedFrame,
+      skippedReason: frameKey && !hasSupportedFrame ? 'unsupported_value' : null
+    },
+    depth: {
+      provided: Boolean(depthKey),
+      used: hasDepthOverride,
+      skippedReason: depthKey
+        ? (hasDepthOverride ? null : (depthKey === 'standard' ? 'default_profile' : 'unsupported_value'))
+        : null
+    }
+  });
 
   const hasVisionSource = Array.isArray(payload?.visionInsights) && payload.visionInsights.length > 0;
   const visionPromptEligibility = summarizeVisionPromptEligibility(payload?.visionInsights);
@@ -507,14 +580,7 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
       suppressionReasons: visionPromptEligibility.suppressionReasons,
       skippedReason: hasVisionSource ? 'not_used_by_backend' : 'not_provided'
     },
-    userContext: {
-      requested: true,
-      used: hasUserQuestion || hasReflections || hasFocusAreas,
-      skippedReason: hasUserQuestion || hasReflections || hasFocusAreas ? null : 'not_provided',
-      questionProvided: hasUserQuestion,
-      reflectionsProvided: hasReflections,
-      focusAreasProvided: hasFocusAreas
-    },
+    userContext,
     graphRAG: {
       requested: hasGraphRAGSource,
       used: graphRAGUsed,
@@ -1208,7 +1274,10 @@ export async function composeReadingEnhanced(payload, env = null) {
     personalization = null,
     visionInsights = []
   } = payload;
-  const languageSupport = getLocalComposerLanguageSupport(userQuestion);
+  const languageSupport = getLocalComposerLanguageSupport({
+    userQuestion,
+    reflectionsText
+  });
   if (!languageSupport.supported) {
     const error = new Error(languageSupport.reason);
     error.code = LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE;

@@ -130,6 +130,22 @@ describe('local-composer language fallback', () => {
     assert.match(payload.error, /local fallback only supports English/i);
   });
 
+  it('returns 503 when reflections are non-English and the question is empty', async () => {
+    const request = makeRequest({
+      ...BASE_PAYLOAD,
+      userQuestion: '',
+      reflectionsText: 'Comment puis-je comprendre ce moment ?'
+    });
+
+    const response = await onRequestPost({ request, env: {} });
+    assert.equal(response.status, 503);
+
+    const payload = await response.json();
+    assert.equal(payload.code, LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE);
+    assert.equal(payload.detectedLanguage, 'fr');
+    assert.match(payload.error, /local fallback only supports English/i);
+  });
+
   it('returns 503 for Cyrillic questions when only the local composer is available', async () => {
     const request = makeRequest({
       ...BASE_PAYLOAD,

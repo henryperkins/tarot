@@ -1,4 +1,22 @@
-import { trace, SpanStatusCode } from '@opentelemetry/api';
+let trace = {
+  getTracer() {
+    return {
+      startActiveSpan(_spanName, _options, fn) {
+        return fn({
+          setAttribute() {},
+          setStatus() {},
+          recordException() {},
+          end() {}
+        });
+      }
+    };
+  }
+};
+
+let SpanStatusCode = {
+  OK: 'ok',
+  ERROR: 'error'
+};
 
 /**
  * Whether a real OTLP exporter is configured.
@@ -13,6 +31,15 @@ const NOOP_SPAN = {
   recordException() {},
   end() {}
 };
+
+try {
+  const otelApi = await import('@opentelemetry/api');
+  trace = otelApi.trace;
+  SpanStatusCode = otelApi.SpanStatusCode;
+} catch {
+  // Local test/dev environments can run without the optional tracing package
+  // because spans are skipped entirely unless an exporter is activated.
+}
 
 /**
  * Called once from tracing.js after resolving the OTLP endpoint.

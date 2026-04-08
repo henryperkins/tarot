@@ -69,6 +69,14 @@ function sanitizeReflectionForDedupe(reflectionText) {
   });
 }
 
+function recordUserContextSignal(target, key, patch) {
+  if (!target || !key || !patch || typeof patch !== 'object') return;
+  target[key] = {
+    ...(target[key] || {}),
+    ...patch
+  };
+}
+
 export function buildUserPrompt(
   spreadKey,
   cardsInfo,
@@ -82,7 +90,9 @@ export function buildUserPrompt(
   promptOptions = {}
 ) {
   const personalization = promptOptions.personalization || null;
+  const userContextSignals = promptOptions.sourceUsageSignals?.userContext || null;
   const displayName = sanitizeDisplayName(personalization?.displayName);
+  const rawDisplayNameProvided = typeof personalization?.displayName === 'string' && personalization.displayName.trim().length > 0;
   const depthPreference = personalization?.preferredSpreadDepth;
   const depthProfile = depthPreference ? getDepthProfile(depthPreference) : null;
   const activeThemes = typeof themes === 'object' && themes !== null ? themes : {};
@@ -93,6 +103,7 @@ export function buildUserPrompt(
   const includeDiagnostics = promptOptions.includeDiagnostics !== false;
 
   // Question - filter instruction patterns and detect semantic injection
+  const rawQuestionProvided = typeof userQuestion === 'string' && userQuestion.trim().length > 0;
   let safeQuestion = userQuestion ? sanitizeText(userQuestion, { maxLength: MAX_QUESTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true, filterInstructions: true }) : '';
   
   // Semantic injection detection for novel attack patterns
@@ -106,15 +117,35 @@ export function buildUserPrompt(
     // Use sanitized version
     safeQuestion = injectionCheck.sanitizedText;
   }
+  recordUserContextSignal(userContextSignals, 'question', {
+    provided: rawQuestionProvided,
+    eligible: Boolean(safeQuestion),
+    skippedReasonIfNotEligible: rawQuestionProvided && !safeQuestion ? 'sanitized_empty' : null,
+    skippedReasonIfMissing: 'removed_for_budget'
+  });
   
   const questionLine = safeQuestion || '(No explicit question; speak to the energy most present for the querent.)';
   prompt += `**Question**: ${questionLine}\n\n`;
 
+  recordUserContextSignal(userContextSignals, 'displayName', {
+    provided: rawDisplayNameProvided,
+    eligible: Boolean(displayName),
+    skippedReasonIfNotEligible: rawDisplayNameProvided && !displayName ? 'sanitized_empty' : null,
+    skippedReasonIfMissing: 'removed_for_budget'
+  });
   if (displayName) {
     prompt += `**Querent Name**: ${displayName}\n\n`;
     prompt += `**Name Usage**:\n- Weave the querent's name naturally in key transitions (for example, "For you, ${displayName}, this suggests...").\n- If you acknowledge the question, do so after the opening felt-experience sentences; avoid rigid openers.\n- Close with "Remember, ${displayName}, ..." to keep the reading personal without overusing the name.\n\n`;
   }
 
+  recordUserContextSignal(userContextSignals, 'depth', {
+    provided: Boolean(depthPreference),
+    eligible: Boolean(depthProfile && depthProfile.promptReminder && depthProfile.key !== 'standard'),
+    skippedReasonIfNotEligible: depthPreference
+      ? (depthPreference === 'standard' ? 'default_profile' : 'unsupported_value')
+      : null,
+    skippedReasonIfMissing: 'removed_for_budget'
+  });
   if (depthProfile && depthProfile.promptReminder && depthProfile.key !== 'standard') {
     prompt += `**Depth Preference**: ${depthProfile.promptReminder}\n\n`;
   }
@@ -133,12 +164,23 @@ export function buildUserPrompt(
   if (activeThemes.suitFocus) thematicLines.push(`- ${activeThemes.suitFocus}`);
   if (activeThemes.archetypeDescription) thematicLines.push(`- ${activeThemes.archetypeDescription}`);
   if (activeThemes.elementalBalance) thematicLines.push(`- ${activeThemes.elementalBalance}`);
-  if (Array.isArray(personalization?.focusAreas) && personalization.focusAreas.length > 0) {
-    const focusList = personalization.focusAreas
-      .slice(0, 5)
-      .map((entry) => (typeof entry === 'string' ? sanitizeText(entry, { maxLength: 40, addEllipsis: true, stripMarkdown: true, filterInstructions: true }) : ''))
-      .filter(Boolean)
-      .join(', ');
+  const rawFocusAreas = Array.isArray(personalization?.focusAreas) && personalization.focusAreas.length > 0
+    ? personalization.focusAreas
+    : [];
+  const sanitizedFocusAreas = rawFocusAreas
+    .slice(0, 5)
+    .map((entry) => (typeof entry === 'string' ? sanitizeText(entry, { maxLength: 40, addEllipsis: true, stripMarkdown: true, filterInstructions: true }) : ''))
+    .filter(Boolean);
+  recordUserContextSignal(userContextSignals, 'focusAreas', {
+    provided: rawFocusAreas.some((entry) => typeof entry === 'string' && entry.trim().length > 0),
+    eligible: sanitizedFocusAreas.length > 0,
+    skippedReasonIfNotEligible: rawFocusAreas.some((entry) => typeof entry === 'string' && entry.trim().length > 0) && sanitizedFocusAreas.length === 0
+      ? 'sanitized_empty'
+      : null,
+    skippedReasonIfMissing: 'removed_for_budget'
+  });
+  if (sanitizedFocusAreas.length > 0) {
+    const focusList = sanitizedFocusAreas.join(', ');
     thematicLines.push(`- Focus areas (from onboarding): ${focusList}`);
   }
   if (activeThemes.timingProfile) {
@@ -218,6 +260,17 @@ export function buildUserPrompt(
   const sanitizedReflections = sanitizeReflectionForPrompt(reflectionsText);
   const globalReflectionKey = reflectionDedupKey(sanitizedReflections);
   const isDuplicateGlobalReflection = globalReflectionKey && perCardReflectionKeys.has(globalReflectionKey);
+  const rawReflectionsProvided = typeof reflectionsText === 'string' && reflectionsText.trim().length > 0;
+  recordUserContextSignal(userContextSignals, 'reflections', {
+    provided: rawReflectionsProvided,
+    eligible: Boolean(sanitizedReflections && !isDuplicateGlobalReflection),
+    skippedReasonIfNotEligible: rawReflectionsProvided
+      ? (sanitizedReflections
+        ? (isDuplicateGlobalReflection ? 'deduped_against_card_reflection' : null)
+        : 'sanitized_empty')
+      : null,
+    skippedReasonIfMissing: 'removed_for_budget'
+  });
 
   if (sanitizedReflections && !isDuplicateGlobalReflection) {
     prompt += `\n**Querent's Reflections**:\n${sanitizedReflections}\n\n`;

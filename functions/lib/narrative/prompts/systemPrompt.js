@@ -4,8 +4,17 @@ import { FRAME_GUIDANCE, TONE_GUIDANCE, getDepthProfile } from '../styleHelpers.
 import { getDeckStyleNotes } from './deckStyle.js';
 import { estimateTokenCount } from './budgeting.js';
 
+function recordUserContextSignal(target, key, patch) {
+  if (!target || !key || !patch || typeof patch !== 'object') return;
+  target[key] = {
+    ...(target[key] || {}),
+    ...patch
+  };
+}
+
 export function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQuestion = '', options = {}) {
   const personalization = options.personalization || null;
+  const userContextSignals = options.sourceUsageSignals?.userContext || null;
   const variantOverrides = options.variantOverrides || null;
   const depthPreference = personalization?.preferredSpreadDepth;
   const depthProfile = depthPreference ? getDepthProfile(depthPreference) : null;
@@ -206,6 +215,26 @@ export function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQu
   const frameKey = personalization?.spiritualFrame;
   const hasToneSection = toneKey && TONE_GUIDANCE[toneKey];
   const hasFrameSection = frameKey && FRAME_GUIDANCE[frameKey];
+  recordUserContextSignal(userContextSignals, 'tone', {
+    provided: Boolean(toneKey),
+    eligible: Boolean(hasToneSection),
+    skippedReasonIfNotEligible: toneKey && !hasToneSection ? 'unsupported_value' : null,
+    skippedReasonIfMissing: 'removed_for_budget'
+  });
+  recordUserContextSignal(userContextSignals, 'frame', {
+    provided: Boolean(frameKey),
+    eligible: Boolean(hasFrameSection),
+    skippedReasonIfNotEligible: frameKey && !hasFrameSection ? 'unsupported_value' : null,
+    skippedReasonIfMissing: 'removed_for_budget'
+  });
+  recordUserContextSignal(userContextSignals, 'depth', {
+    provided: Boolean(depthPreference),
+    eligible: Boolean(depthProfile && depthProfile.systemGuidance && depthProfile.key !== 'standard'),
+    skippedReasonIfNotEligible: depthPreference
+      ? (depthPreference === 'standard' ? 'default_profile' : 'unsupported_value')
+      : null,
+    skippedReasonIfMissing: 'removed_for_budget'
+  });
 
   if (hasToneSection || hasFrameSection) {
     const basePrompt = lines.join('\n');

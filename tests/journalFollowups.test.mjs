@@ -1,13 +1,20 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { sanitizeFollowUps, insertFollowUps, deleteFollowUpsByEntry } from '../functions/lib/journalFollowups.js';
+import {
+  sanitizeFollowUps,
+  insertFollowUps,
+  loadFollowUpsByEntry,
+  deleteFollowUpsByEntry
+} from '../functions/lib/journalFollowups.js';
 
 class MockDB {
-  constructor({ changes = 0 } = {}) {
+  constructor({ changes = 0, failCanonicalInsert = false, followupRows = [] } = {}) {
     this.calls = [];
     this.queries = [];
     this.changes = changes;
+    this.failCanonicalInsert = failCanonicalInsert;
+    this.followupRows = followupRows;
   }
 
   prepare(query) {
@@ -15,8 +22,17 @@ class MockDB {
     return {
       bind: (...args) => ({
         run: async () => {
+          if (this.failCanonicalInsert && query.includes('canonical_answer')) {
+            throw new Error('no such column: canonical_answer');
+          }
           this.calls.push(args);
           return { success: true, changes: this.changes };
+        },
+        all: async () => {
+          if (query.includes('canonical_answer') && this.failCanonicalInsert) {
+            throw new Error('no such column: canonical_answer');
+          }
+          return { results: this.followupRows };
         }
       })
     };
@@ -36,7 +52,9 @@ describe('journal follow-ups', () => {
 
     assert.equal(cleaned.length, 2, 'should keep two valid follow-ups');
     assert.equal(cleaned[0].turnNumber, 1);
+    assert.equal(cleaned[0].canonicalAnswer, 'a1');
     assert.ok(cleaned[1].answer.endsWith('…'), 'long answer should be clamped with ellipsis');
+    assert.ok(cleaned[1].canonicalAnswer.endsWith('…'), 'long canonical answer should be clamped with ellipsis');
     assert.equal(cleaned[1].turnNumber, 2, 'auto-increment missing turn');
   });
 
@@ -58,6 +76,42 @@ describe('journal follow-ups', () => {
     assert.equal(bindArgs[5], 1);
     assert.equal(bindArgs[6], 'q1');
     assert.equal(bindArgs[7], 'a1');
+    assert.equal(bindArgs[8], 'a1');
+  });
+
+  test('insertFollowUps falls back when canonical_answer column is not yet available', async () => {
+    const db = new MockDB({ failCanonicalInsert: true });
+    const result = await insertFollowUps(db, 'user-1', 'entry-1', [
+      { question: 'q1', answer: 'a1', canonicalAnswer: 'canonical a1', turnNumber: 1 }
+    ], { readingRequestId: 'read-1', requestId: 'req-1' });
+
+    assert.equal(result.inserted, 1);
+    assert.equal(db.calls.length, 1);
+    assert.equal(db.queries.some((query) => query.includes('canonical_answer')), true);
+    const bindArgs = db.calls[0];
+    assert.equal(bindArgs[7], 'a1');
+  });
+
+  test('loadFollowUpsByEntry includes canonical answers only when requested', async () => {
+    const db = new MockDB({
+      followupRows: [
+        {
+          entry_id: 'entry-1',
+          turn_number: 1,
+          question: 'q1',
+          answer: 'a1',
+          canonical_answer: 'canonical a1',
+          journal_context_json: JSON.stringify({ note: 'ctx' }),
+          created_at: 1_700_000_000
+        }
+      ]
+    });
+
+    const withoutCanonical = await loadFollowUpsByEntry(db, 'user-1', ['entry-1']);
+    const withCanonical = await loadFollowUpsByEntry(db, 'user-1', ['entry-1'], { includeCanonical: true });
+
+    assert.equal(withoutCanonical.get('entry-1')[0].canonicalAnswer, undefined);
+    assert.equal(withCanonical.get('entry-1')[0].canonicalAnswer, 'canonical a1');
   });
 
   test('deleteFollowUpsByEntry binds user and unique entry ids', async () => {

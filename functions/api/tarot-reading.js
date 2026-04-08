@@ -1196,7 +1196,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     let acceptedQualityMetrics = null; // Store metrics from successful backend to avoid recomputation
     const candidateBackends = getAvailableNarrativeBackends(env);
     const backendsToTry = candidateBackends.length ? candidateBackends : [NARRATIVE_BACKENDS['local-composer']];
-    const localComposerLanguageSupport = getLocalComposerLanguageSupport(userQuestion);
+    const localComposerLanguageSupport = getLocalComposerLanguageSupport({
+      userQuestion,
+      reflectionsText
+    });
 
     // Track captured prompts for engineering persistence
     let capturedPrompts = null;

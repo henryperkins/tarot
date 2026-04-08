@@ -158,7 +158,10 @@ describe('composeReadingEnhanced', () => {
       context: 'general'
     };
 
-    const languageSupport = getLocalComposerLanguageSupport(payload.userQuestion);
+    const languageSupport = getLocalComposerLanguageSupport({
+      userQuestion: payload.userQuestion,
+      reflectionsText: payload.reflectionsText
+    });
     assert.equal(languageSupport.supported, false);
     assert.equal(languageSupport.language, 'es');
 
@@ -327,8 +330,12 @@ describe('composeReadingEnhanced', () => {
     assert.equal(sourceUsage.vision.used, false);
     assert.equal(sourceUsage.userContext.used, true);
     assert.equal(sourceUsage.userContext.questionProvided, true);
+    assert.equal(sourceUsage.userContext.questionUsed, true);
     assert.equal(sourceUsage.userContext.reflectionsProvided, true);
+    assert.equal(sourceUsage.userContext.reflectionsUsed, true);
     assert.equal(sourceUsage.userContext.focusAreasProvided, true);
+    assert.equal(sourceUsage.userContext.focusAreasUsed, true);
+    assert.deepEqual(sourceUsage.userContext.usedInputs, ['question', 'reflections', 'focusAreas']);
     assert.equal(sourceUsage.graphRAG.requested, true);
     assert.equal(sourceUsage.graphRAG.used, false);
     assert.equal(sourceUsage.ephemeris.used, true);
@@ -359,6 +366,41 @@ describe('composeReadingEnhanced', () => {
     assert.ok(result.reading.includes('### Your Reflections'));
     assert.ok(!result.reading.includes('[this support thread]('), 'reflection markdown links should be stripped');
     assert.ok(!result.reading.includes('**Your Reflections**\n\nI keep revisiting [this support thread]'), 'raw reflections should not be echoed verbatim');
+  });
+
+  it('fails closed when only reflections carry a likely non-English signal', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    const payload = {
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      cardsInfo,
+      userQuestion: '',
+      reflectionsText: 'Siento que esta lectura me habla directamente.',
+      analysis: {
+        themes,
+        spreadAnalysis: null,
+        spreadKey: 'single'
+      },
+      context: 'general'
+    };
+
+    const languageSupport = getLocalComposerLanguageSupport({
+      userQuestion: payload.userQuestion,
+      reflectionsText: payload.reflectionsText
+    });
+    assert.equal(languageSupport.supported, false);
+    assert.equal(languageSupport.language, 'es');
+
+    await assert.rejects(
+      composeReadingEnhanced(payload),
+      (error) => {
+        assert.equal(error.code, LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE);
+        assert.equal(error.detectedLanguage, 'es');
+        return true;
+      }
+    );
   });
 });
 
@@ -392,6 +434,16 @@ describe('getLocalComposerLanguageSupport', () => {
       assert.equal(result.language, language);
       assert.match(result.reason || '', /only supports English/i);
     }
+  });
+
+  it('considers reflections text when question text is empty', () => {
+    const result = getLocalComposerLanguageSupport({
+      userQuestion: '',
+      reflectionsText: 'Comment puis-je comprendre ce moment ?'
+    });
+
+    assert.equal(result.supported, false);
+    assert.equal(result.language, 'fr');
   });
 
   it('treats non-Latin scripts as unsupported for the local composer', () => {
