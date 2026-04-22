@@ -153,12 +153,16 @@ $defaults = array(
 $attributes = wp_parse_args( (array) $attributes, $defaults );
 $plans      = is_array( $attributes['plans'] ) ? $attributes['plans'] : $defaults['plans'];
 
-$wrapper_attributes = get_block_wrapper_attributes(
-	array(
-		'class' => 'wp-block-group alignfull has-light-grey-background-color has-background',
-		'style' => 'padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)',
-	)
+$wrapper_args = array(
+	'class' => 'wp-block-group has-light-grey-background-color has-background',
+	'style' => 'padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)',
 );
+
+if ( ! empty( $attributes['anchor'] ) ) {
+	$wrapper_args['id'] = sanitize_title( (string) $attributes['anchor'] );
+}
+
+$wrapper_attributes = get_block_wrapper_attributes( $wrapper_args );
 
 $allowed_feature_html = array(
 	'strong' => array(),

@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Lakefront Content Kit
- * Description: Reusable Lakefront marketing patterns plus a dynamic pricing table block.
- * Version: 0.1.0
+ * Description: Reusable Lakefront marketing patterns plus dynamic case study and pricing table blocks.
+ * Version: 0.2.0
  * Requires at least: 6.6
  * Requires PHP: 7.4
  * Author: Lakefront Digital
@@ -11,6 +11,28 @@
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
+}
+
+/**
+ * Load pattern markup and substitute plugin asset URLs.
+ *
+ * @param string $slug Pattern slug.
+ * @return string
+ */
+function lakefront_content_kit_get_pattern_content( $slug ) {
+	$file = __DIR__ . '/patterns/' . $slug . '.html';
+
+	if ( ! file_exists( $file ) ) {
+		return '';
+	}
+
+	$content = file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+
+	if ( false === $content ) {
+		return '';
+	}
+
+	return str_replace( '{{plugin_url}}', plugin_dir_url( __FILE__ ), $content );
 }
 
 /**
@@ -46,8 +68,13 @@ function lakefront_content_kit_register_assets() {
 	);
 
 	foreach ( $patterns as $slug => $pattern ) {
-		$file = __DIR__ . '/patterns/' . $slug . '.html';
-		if ( ! file_exists( $file ) || ! function_exists( 'register_block_pattern' ) ) {
+		if ( ! function_exists( 'register_block_pattern' ) ) {
+			continue;
+		}
+
+		$content = lakefront_content_kit_get_pattern_content( $slug );
+
+		if ( '' === $content ) {
 			continue;
 		}
 
@@ -58,7 +85,7 @@ function lakefront_content_kit_register_assets() {
 				'description' => $pattern['description'],
 				'categories'  => array( 'lakefront' ),
 				'inserter'    => true,
-				'content'     => file_get_contents( $file ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+				'content'     => $content,
 			)
 		);
 	}

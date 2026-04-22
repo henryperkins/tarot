@@ -49,13 +49,16 @@ $attributes  = wp_parse_args( (array) $attributes, $defaults );
 $metrics     = isset( $attributes['metrics'] ) && is_array( $attributes['metrics'] ) ? $attributes['metrics'] : $defaults['metrics'];
 $deliverables = isset( $attributes['deliverables'] ) && is_array( $attributes['deliverables'] ) ? $attributes['deliverables'] : $defaults['deliverables'];
 
-$wrapper_attributes = get_block_wrapper_attributes(
-	array(
-		'id'    => 'case-studies',
-		'class' => 'wp-block-group alignfull has-light-grey-background-color has-background',
-		'style' => 'padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)',
-	)
+$wrapper_args = array(
+	'class' => 'wp-block-group has-light-grey-background-color has-background',
+	'style' => 'padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)',
 );
+
+if ( ! empty( $attributes['anchor'] ) ) {
+	$wrapper_args['id'] = sanitize_title( (string) $attributes['anchor'] );
+}
+
+$wrapper_attributes = get_block_wrapper_attributes( $wrapper_args );
 
 $allowed_inline_html = array(
 	'strong' => array(),

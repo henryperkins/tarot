@@ -2,7 +2,7 @@
 	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
 	"name": "lakefront/pricing-table",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"title": "Lakefront Pricing Table",
 	"category": "design",
 	"icon": "table-col-after",
@@ -23,6 +23,52 @@
 		},
 		"plans": {
 			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"price": {
+						"type": "string"
+					},
+					"period": {
+						"type": "string"
+					},
+					"tagline": {
+						"type": "string"
+					},
+					"featured": {
+						"type": "boolean"
+					},
+					"badge": {
+						"type": "string"
+					},
+					"buttonLabel": {
+						"type": "string"
+					},
+					"buttonUrl": {
+						"type": "string"
+					},
+					"buttonStyle": {
+						"type": "string"
+					},
+					"features": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"text": {
+									"type": "string"
+								},
+								"included": {
+									"type": "boolean"
+								}
+							}
+						}
+					}
+				}
+			},
 			"default": [
 				{
 					"name": "Starter",
@@ -86,6 +132,13 @@
 					]
 				}
 			]
+		},
+		"anchor": {
+			"type": "string"
+		},
+		"align": {
+			"type": "string",
+			"default": "full"
 		}
 	},
 	"supports": {
@@ -93,5 +146,6 @@
 		"anchor": true,
 		"html": false
 	},
+	"editorScript": "file:./editor.js",
 	"render": "file:./render.php"
 }
