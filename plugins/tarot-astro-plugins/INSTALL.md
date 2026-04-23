@@ -1,5 +1,9 @@
 # Installation Guide
 
+Type: guide
+Status: active
+Last reviewed: 2026-04-23
+
 Quick installation guide for the Tarot Astro Plugins marketplace.
 
 ## Prerequisites
@@ -15,10 +19,7 @@ Quick installation guide for the Tarot Astro Plugins marketplace.
 From your tarot project directory:
 
 ```bash
-# Navigate to your project root
-cd /home/azureuser/tarot
-
-# Start Claude Code
+# From the repository root
 claude
 
 # In Claude Code, add the marketplace
@@ -41,7 +42,7 @@ Open a new terminal and run:
 
 ```bash
 # Install ephemeris server dependencies
-cd /home/azureuser/tarot/plugins/tarot-astro-plugins/ephemeris-server
+cd plugins/tarot-astro-plugins/ephemeris-server
 npm install
 
 # Download Swiss Ephemeris data files (required for calculations)
@@ -58,13 +59,13 @@ npm install
 Expected output:
 ```
 ✅ Swiss Ephemeris data files found!
-   Location: /home/azureuser/tarot/plugins/tarot-astro-plugins/ephemeris-server/ephe
+   Location: plugins/tarot-astro-plugins/ephemeris-server/ephe
    Files: sepl_18.se1, semo_18.se1
 
 added 2 packages in 12s
 ```
 
-**Note:** The ephemeris server uses Swiss Ephemeris, which requires data files for calculations. The `npm install` postinstall script will check for these files and provide guidance if they're missing.
+**Note:** The ephemeris server uses Swiss Ephemeris data files for calculations. See `docs/SWISS_EPHEMERIS_DATA.md` for download options and path overrides.
 
 ### 4. Restart Claude Code
 
@@ -121,7 +122,7 @@ Check that everything is working:
 **Solution:**
 ```bash
 # Check that dependencies are installed
-cd /home/azureuser/tarot/plugins/tarot-astro-plugins/ephemeris-server
+cd plugins/tarot-astro-plugins/ephemeris-server
 ls node_modules
 
 # If empty, run:
@@ -139,7 +140,7 @@ npm install
 **Solution:**
 ```bash
 # Reinstall dependencies
-cd /home/azureuser/tarot/plugins/tarot-astro-plugins/ephemeris-server
+cd plugins/tarot-astro-plugins/ephemeris-server
 rm -rf node_modules
 npm install
 ```

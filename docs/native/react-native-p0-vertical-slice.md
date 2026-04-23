@@ -1,5 +1,9 @@
 # P0 Native Vertical Slice: Card + Reading Flow
 
+Type: design note
+Status: active reference
+Last reviewed: 2026-04-23
+
 ## Goal
 Deliver a native reading flow that covers spread selection, ritual, dealing, revealing, and narrative display with placeholder audio controls.
 

@@ -2,13 +2,15 @@
 
 **Date:** 2026-03-05
 
+> Historical note: this plan preserves the original review content, but its file references have been normalized to repo-relative links for portability. Treat it as an audit snapshot, not maintained cross-references.
+
 **Goal:** Reduce the nesting, prop fan-out, and mixed responsibilities in the Narrative Reading UI without changing the user-facing reading flow, scene transitions, or mobile behavior.
 
 **Primary Hotspots:**
-- [`src/components/ReadingDisplay.jsx`](/home/azureuser/tarot/src/components/ReadingDisplay.jsx) is currently the controller, scene assembler, modal host, media manager, and narrative view-model builder.
-- [`src/components/NarrativePanel.jsx`](/home/azureuser/tarot/src/components/NarrativePanel.jsx) mixes narrative presentation, narration controls, journal navigation, prompting, and status UI.
-- [`src/components/scenes/CompleteScene.jsx`](/home/azureuser/tarot/src/components/scenes/CompleteScene.jsx) and [`src/components/scenes/NarrativeScene.jsx`](/home/azureuser/tarot/src/components/scenes/NarrativeScene.jsx) duplicate the same “narrative panel + secondary sections” composition pattern.
-- [`src/components/NarrativeReadingSurface.jsx`](/home/azureuser/tarot/src/components/NarrativeReadingSurface.jsx) is structurally simple, but it is wired into the rest of the flow through a large prop object assembled upstream.
+- [`src/components/ReadingDisplay.jsx`](../../src/components/ReadingDisplay.jsx) is currently the controller, scene assembler, modal host, media manager, and narrative view-model builder.
+- [`src/components/NarrativePanel.jsx`](../../src/components/NarrativePanel.jsx) mixes narrative presentation, narration controls, journal navigation, prompting, and status UI.
+- [`src/components/scenes/CompleteScene.jsx`](../../src/components/scenes/CompleteScene.jsx) and [`src/components/scenes/NarrativeScene.jsx`](../../src/components/scenes/NarrativeScene.jsx) duplicate the same “narrative panel + secondary sections” composition pattern.
+- [`src/components/NarrativeReadingSurface.jsx`](../../src/components/NarrativeReadingSurface.jsx) is structurally simple, but it is wired into the rest of the flow through a large prop object assembled upstream.
 
 **Scope:**
 - `src/components/ReadingDisplay.jsx`
@@ -44,13 +46,13 @@ Today it handles:
 - toast milestone side effects
 - scene payload construction
 
-This makes [`ReadingDisplay.jsx`](/home/azureuser/tarot/src/components/ReadingDisplay.jsx#L277) expensive to reason about and difficult to change safely.
+This makes [`ReadingDisplay.jsx`](../../src/components/ReadingDisplay.jsx#L277) expensive to reason about and difficult to change safely.
 
 ### 2. Prop assembly is replacing real boundaries
 
 `ReadingDisplay` builds large objects for:
-- `narrativePanelProps` at [`ReadingDisplay.jsx`](/home/azureuser/tarot/src/components/ReadingDisplay.jsx#L714)
-- `sceneData` at [`ReadingDisplay.jsx`](/home/azureuser/tarot/src/components/ReadingDisplay.jsx#L1278)
+- `narrativePanelProps` at [`ReadingDisplay.jsx`](../../src/components/ReadingDisplay.jsx#L714)
+- `sceneData` at [`ReadingDisplay.jsx`](../../src/components/ReadingDisplay.jsx#L1278)
 
 Those objects are effectively view models, but they are untyped, inline, and broad enough that scene and panel components depend on the controller’s internal shape.
 
@@ -67,8 +69,8 @@ Both scenes render:
 - optional secondary content below it
 
 See:
-- [`NarrativeScene.jsx`](/home/azureuser/tarot/src/components/scenes/NarrativeScene.jsx#L1)
-- [`CompleteScene.jsx`](/home/azureuser/tarot/src/components/scenes/CompleteScene.jsx#L95)
+- [`NarrativeScene.jsx`](../../src/components/scenes/NarrativeScene.jsx#L1)
+- [`CompleteScene.jsx`](../../src/components/scenes/CompleteScene.jsx#L95)
 
 The duplication is small per file, but it forces future narrative-layout changes to be repeated across scenes.
 
@@ -85,7 +87,7 @@ The composition is also inverted today: `ReadingDisplay` prebuilds the panel and
 
 ### 5. Legacy/canonical scene state duality adds cognitive load
 
-[`useSceneOrchestrator.js`](/home/azureuser/tarot/src/hooks/useSceneOrchestrator.js#L1) still exposes both legacy and canonical scene names. That may be necessary short term, but it makes the rest of the tree harder to simplify because consumers need to know which flavor they are reading.
+[`useSceneOrchestrator.js`](../../src/hooks/useSceneOrchestrator.js#L1) still exposes both legacy and canonical scene names. That may be necessary short term, but it makes the rest of the tree harder to simplify because consumers need to know which flavor they are reading.
 
 ---
 
@@ -164,7 +166,7 @@ Create `useNarrativeReadingController()` to own:
 - question normalization
 - narrative panel/surface view data
 
-This removes the biggest cluster of derived narrative booleans from [`ReadingDisplay.jsx`](/home/azureuser/tarot/src/components/ReadingDisplay.jsx#L578).
+This removes the biggest cluster of derived narrative booleans from [`ReadingDisplay.jsx`](../../src/components/ReadingDisplay.jsx#L578).
 
 ### Step 1.2: Extract selection and overlay state
 
@@ -175,7 +177,7 @@ Create `useReadingSelection()` to own:
 - revealed-card navigation
 - narrative mention pulse state
 
-This isolates the modal/navigation logic currently spread across [`ReadingDisplay.jsx`](/home/azureuser/tarot/src/components/ReadingDisplay.jsx#L362) and [`ReadingDisplay.jsx`](/home/azureuser/tarot/src/components/ReadingDisplay.jsx#L1121).
+This isolates the modal/navigation logic currently spread across [`ReadingDisplay.jsx`](../../src/components/ReadingDisplay.jsx#L362) and [`ReadingDisplay.jsx`](../../src/components/ReadingDisplay.jsx#L1121).
 
 ### Step 1.3: Extract media gallery logic
 
@@ -217,12 +219,12 @@ Create `NarrativeStageLayout` to encapsulate:
 - secondary content slot
 
 Then use it in both:
-- [`NarrativeScene.jsx`](/home/azureuser/tarot/src/components/scenes/NarrativeScene.jsx)
-- [`CompleteScene.jsx`](/home/azureuser/tarot/src/components/scenes/CompleteScene.jsx)
+- [`NarrativeScene.jsx`](../../src/components/scenes/NarrativeScene.jsx)
+- [`CompleteScene.jsx`](../../src/components/scenes/CompleteScene.jsx)
 
 ### Step 2.2: Turn completion blocks into explicit section components
 
-Extract from [`CompleteScene.jsx`](/home/azureuser/tarot/src/components/scenes/CompleteScene.jsx#L137):
+Extract from [`CompleteScene.jsx`](../../src/components/scenes/CompleteScene.jsx#L137):
 - follow-up CTA and modal
 - source-usage summary
 - media gallery section
@@ -256,7 +258,7 @@ This reduces the prop count and keeps `NarrativePanel` focused on composition.
 
 ### Step 3.2: Remove routing and journal-navigation knowledge from leaf UI
 
-Move journal navigation callbacks out of [`NarrativePanel.jsx`](/home/azureuser/tarot/src/components/NarrativePanel.jsx#L205) so leaf components receive simple handlers rather than creating routes internally.
+Move journal navigation callbacks out of [`NarrativePanel.jsx`](../../src/components/NarrativePanel.jsx#L205) so leaf components receive simple handlers rather than creating routes internally.
 
 ### Step 3.3: Collapse duplicated visibility logic into a panel view model
 
@@ -284,7 +286,7 @@ Examples:
 
 ### Step 4.3: Reduce legacy scene naming once consumers are stable
 
-After scene consumers move to canonical scene names, remove legacy scene references from most UI code and keep conversion logic isolated inside [`useSceneOrchestrator.js`](/home/azureuser/tarot/src/hooks/useSceneOrchestrator.js).
+After scene consumers move to canonical scene names, remove legacy scene references from most UI code and keep conversion logic isolated inside [`useSceneOrchestrator.js`](../../src/hooks/useSceneOrchestrator.js).
 
 ---
 

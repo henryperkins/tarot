@@ -1,14 +1,14 @@
 # Monetization Logic Reference
 
-> **Generated:** 2025-12-16
-> **Last reviewed:** 2025-12-17
-> **Status:** Working implementations marked with ✅, placeholders/planned with ⏳
+> Type: reference
+> Status: active
+> Last reviewed: 2026-04-23
 
-This document consolidates all monetization-related logic across the Tableu codebase.
+This document consolidates the monetization behavior implemented in the current Tableu codebase.
 
-It is intended to be the canonical reference for what is implemented today. For prioritization and rollout sequencing, see `docs/monetization-gaps-and-plan.md`.
+It is the canonical reference for implemented monetization behavior. For rollout sequencing and open work, see `./monetization-gaps-and-plan.md`.
 
-Phase 1–3 are complete ✅ (usage tracking + reading limits, API key gating, Stripe webhook idempotency, scheduled cleanup, API-key tier derivation, Stripe Customer Portal, and a basic usage meter). See `docs/monetization-gaps-and-plan.md` for deployment steps and a manual testing checklist.
+See `./monetization-gaps-and-plan.md` for rollout notes and backlog context.
 
 > Note: Avoid referencing this document by line number; prefer section headings (for example, “3.5 Reading Limits”). File line ranges in this doc are approximate and may drift.
 
@@ -28,7 +28,7 @@ Phase 1–3 are complete ✅ (usage tracking + reading limits, API key gating, S
 
 ## 1. Tier Definitions
 
-### Source: `src/contexts/SubscriptionContext.jsx`
+### Source: `shared/monetization/subscription.js`
 
 ```javascript
 export const SUBSCRIPTION_TIERS = {
@@ -655,7 +655,7 @@ if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Google Play Billing | ❌ Documented only | See `docs/enhanced-monetization.md` |
+| Google Play Billing | ❌ Documented only | See `./enhanced-monetization.md` |
 | Usage dashboard | ⏳ Partial | Account shows readings + TTS + API calls; add historical charts if desired |
 | Prompt tier differentiation | ⏳ Placeholder | Different prompt depth per tier |
 
@@ -694,4 +694,4 @@ if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
 | `migrations/0008_add_subscriptions.sql` | Subscription schema |
 | `migrations/0011_add_usage_tracking.sql` | Usage tracking schema |
 | `migrations/0012_add_webhook_idempotency.sql` | Webhook idempotency schema |
-| `docs/enhanced-monetization.md` | Strategy documentation |
+| `docs/monetization/enhanced-monetization.md` | Platform expansion strategy |

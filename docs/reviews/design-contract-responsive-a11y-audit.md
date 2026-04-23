@@ -1,4 +1,8 @@
-Completed the responsive + a11y audit and applied the remediation updates below. This is the current design contract, standardization tokens, and regression checklist.
+Type: review
+Status: historical snapshot
+Last reviewed: 2026-04-23
+
+Completed the responsive + a11y audit and applied the remediation updates below. This is a point-in-time audit snapshot, not the canonical design contract. Use `docs/design-contract.md` for the active reference.
 
 ## Design Contract
 - Base type: mobile body and prose are 16px via `--text-sm-mobile` / `text-sm-mobile` (`src/styles/tarot.css`, `tailwind.config.js`).

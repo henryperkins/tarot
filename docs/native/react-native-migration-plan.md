@@ -1,4 +1,8 @@
-# React Native Migration Plan: Tableu Tarot App
+# React Native Migration Plan
+
+Type: reference
+Status: active background document
+Last reviewed: 2026-04-23
 
 ## Executive Summary
 
@@ -9,7 +13,7 @@ Converting Tableu from a WebView wrapper to a **full native React Native app** u
 **Target RN version**: **0.83** (React 19.2, Expo SDK 55 — Jan 2026)  
 **Estimated effort**: 2-3 months (1 developer full-time)
 
-## Current Implementation Status (2026-02-03)
+## Current Implementation Status Snapshot (2026-02-03)
 
 - Native scaffold added in `native/` (Expo SDK 55 preview, RN 0.83, React Navigation, NativeWind v4.2, Reanimated/gesture-handler).
 - Preferences storage wired to MMKV (`native/src/lib/storage.js`, `native/src/contexts/PreferencesContext.jsx`).
@@ -22,7 +26,7 @@ Converting Tableu from a WebView wrapper to a **full native React Native app** u
 
 ---
 
-## React Native 0.83 Features to Leverage
+## React Native 0.83 Features To Leverage
 
 ### React 19.2 APIs
 

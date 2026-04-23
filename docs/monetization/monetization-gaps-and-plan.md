@@ -1,3 +1,7 @@
+Type: plan
+Status: active
+Last reviewed: 2026-04-23
+
 **Phase 1 Implementation Complete ✅**
 
 Summary of Changes
@@ -207,10 +211,10 @@ npm run deploy
 ---
 
 **Monetization gaps (current state)**  
-(Canonical reference: `docs/monetization-logic.md` — see §3 “Backend Enforcement” and §7 “Implementation Gaps”.)
+(Canonical reference: `./monetization-logic.md` — see §3 “Backend Enforcement” and §7 “Implementation Gaps”.)
 
-- **Prompt tier differentiation is a placeholder** — no tier-based prompt depth/advanced layers (see `docs/monetization-logic.md` §7).
-- **Google Play Billing is documentation-only** — no purchase verification + RTDN handling (see `docs/monetization-logic.md` §7).
+- **Prompt tier differentiation is a placeholder** — no tier-based prompt depth/advanced layers (see `./monetization-logic.md` §7).
+- **Google Play Billing is documentation-only** — no purchase verification + RTDN handling (see `./monetization-logic.md` §7).
 
 ---
 

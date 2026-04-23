@@ -1,3 +1,7 @@
+Type: reference
+Status: active
+Last reviewed: 2026-04-23
+
 ```mermaid
 flowchart TB
 %% Frontend
@@ -73,7 +77,7 @@ flowchart TB
     
 %% External Services
     subgraph External [**External Services**]
-        OIDC_Provider["OpenID Connect Provider<br/>(Replit Auth)"]
+        OIDC_Provider["OpenID Connect Provider<br/>(local Express auth integration)"]
         Postgres["Neon Postgres – User DB (drizzle-orm)"]
         StripeAPI["Stripe API – payments"]
         AzureOpenAI["Azure OpenAI GPT-5 API – narrative generation"]

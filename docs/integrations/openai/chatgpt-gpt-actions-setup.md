@@ -1,4 +1,8 @@
-# Using This Tarot Backend on a Custom GPT (chatgpt.com)
+# Using This Tarot Backend On A Custom GPT
+
+Type: integration guide
+Status: active
+Last reviewed: 2026-04-23
 
 This setup uses GPT Actions with your existing Worker API.
 

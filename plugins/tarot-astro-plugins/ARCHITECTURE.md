@@ -420,4 +420,4 @@ Instructions for Claude to execute...
 
 ---
 
-**Architecture designed for:** Performance, extensibility, and seamless integration with Mystic Tarot application.
+**Architecture designed for:** Performance, extensibility, and seamless integration with the Tableu application.

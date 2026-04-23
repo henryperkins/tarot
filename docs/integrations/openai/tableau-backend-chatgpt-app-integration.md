@@ -1,6 +1,8 @@
-# Tableau Backend + ChatGPT App Integration (Production Guide)
+# Tableau Backend + ChatGPT App Integration
 
-Last verified: February 28, 2026
+Type: integration guide
+Status: active
+Last reviewed: 2026-04-23
 
 ## Goal
 

@@ -1,5 +1,9 @@
 # Swiss Ephemeris Data Files
 
+Type: guide
+Status: active
+Last reviewed: 2026-04-23
+
 This server requires Swiss Ephemeris data files for astronomical calculations.
 
 ## Quick Setup
@@ -10,10 +14,10 @@ Download the minimal required files for planetary calculations:
 
 ```bash
 # Create data directory
-mkdir -p /home/azureuser/tarot/plugins/tarot-astro-plugins/ephemeris-server/ephe
+mkdir -p plugins/tarot-astro-plugins/ephemeris-server/ephe
 
 # Download essential planetary files (planets 1800-2400)
-cd /home/azureuser/tarot/plugins/tarot-astro-plugins/ephemeris-server/ephe
+cd plugins/tarot-astro-plugins/ephemeris-server/ephe
 curl -O https://www.astro.com/ftp/swisseph/ephe/sepl_18.se1
 curl -O https://www.astro.com/ftp/swisseph/ephe/semo_18.se1
 
@@ -28,7 +32,7 @@ For extended date ranges and asteroid support:
 
 ```bash
 # Download all files (warning: ~200MB)
-cd /home/azureuser/tarot/plugins/tarot-astro-plugins/ephemeris-server/ephe
+cd plugins/tarot-astro-plugins/ephemeris-server/ephe
 wget -r -np -nH --cut-dirs=3 -R "index.html*" https://www.astro.com/ftp/swisseph/ephe/
 ```
 
@@ -87,7 +91,7 @@ After downloading the files, test the server:
 
 ```bash
 # Navigate to plugin directory
-cd /home/azureuser/tarot/plugins/tarot-astro-plugins/ephemeris-server
+cd plugins/tarot-astro-plugins/ephemeris-server
 
 # Run the server test
 npm test
@@ -125,7 +129,7 @@ For tarot readings, **sepl_18.se1 and semo_18.se1** cover all modern dates (1800
 
 3. Set explicit path:
    ```bash
-   export SE_EPHE_PATH=/home/azureuser/tarot/plugins/tarot-astro-plugins/ephemeris-server/ephe
+    export SE_EPHE_PATH=plugins/tarot-astro-plugins/ephemeris-server/ephe
    ```
 
 ### Wrong date range

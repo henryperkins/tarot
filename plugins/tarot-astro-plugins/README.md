@@ -1,5 +1,9 @@
 # Tarot Astro Plugins
 
+Type: guide
+Status: active
+Last reviewed: 2026-04-23
+
 Enhance your tarot readings with real-time astrological context and comprehensive symbolism analysis.
 
 ## Overview
@@ -16,9 +20,9 @@ Comprehensive symbolism database covering animals, colors, numbers, elements, pl
 
 ### Installation
 
-1. **Add the marketplace** to Claude Code:
+1. **Add the marketplace** to Claude Code from the repository root:
+
    ```bash
-   cd /home/azureuser/tarot
    /plugin marketplace add ./plugins/tarot-astro-plugins
    ```
 
@@ -310,7 +314,7 @@ Both plugins are configured to run as stdio MCP servers:
 - **Precision:** 0.001 arcsecond accuracy for major planets
 - Based on JPL DE431 planetary ephemeris data
 - Real-time calculations with minimal latency
-- Requires ephemeris data files (see EPHEMERIS_DATA_README.md)
+- Requires ephemeris data files (see `docs/SWISS_EPHEMERIS_DATA.md`)
 
 **Symbolism Server:**
 - Curated database of traditional tarot symbolism
@@ -440,7 +444,7 @@ MIT License - See LICENSE file for details
 - Cross-cultural archetypal research
 
 **Developed for:**
-Mystic Tarot - Authentic tarot reading web application
+Tableu
 
 ## Support
 

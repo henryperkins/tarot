@@ -1,5 +1,11 @@
 # React Native Migration Execution Plan
 
+Type: plan
+Status: archived schedule snapshot
+Last reviewed: 2026-04-23
+
+This document captures a dated execution schedule from 2026-02-03. Keep it for historical context, but use `./react-native-migration-plan.md` as the active background reference.
+
 ## Assumptions
 - Kickoff date: 2026-02-03 (adjust if different).
 - Staffing: 1 core developer (update owners if team expands).

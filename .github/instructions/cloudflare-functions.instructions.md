@@ -2,7 +2,7 @@
 applyTo: "functions/**/*.js"
 ---
 
-# Cloudflare Pages Functions Guidelines
+# Cloudflare Worker Route Guidelines
 
 ## Environment
 - Functions run in Cloudflare Workers (not Node.js)

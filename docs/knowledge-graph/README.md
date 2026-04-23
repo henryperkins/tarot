@@ -2,7 +2,7 @@
 
 ## Purpose
 
-These documents define the data structures and detection logic for the Mystic Tarot Knowledge Graph system. This system detects multi-card archetypal patterns that create synergistic meaning beyond individual card interpretations.
+These documents define the data structures and detection logic for the Tableu knowledge graph system. This system detects multi-card archetypal patterns that create synergistic meaning beyond individual card interpretations.
 
 ## Documentation Files
 

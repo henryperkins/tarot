@@ -1,6 +1,10 @@
-# Complete Architecture Diagram - Mystic Tarot Application
+# Full System Diagrams
 
-This document contains comprehensive Mermaid diagrams covering the full application architecture.
+Type: reference
+Status: active
+Last reviewed: 2026-04-23
+
+This document contains comprehensive Mermaid diagrams covering the current application architecture.
 
 ## 1. High-Level System Architecture
 

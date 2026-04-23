@@ -1,22 +1,34 @@
 # Tarot Vision Training Pipeline
 
-This directory contains the Python-based training pipeline for the Tarot Vision system, replacing the legacy Node.js prototypes.
+Type: guide
+Status: active
+Last reviewed: 2026-04-23
+
+This directory contains a mixed training and data-prep toolchain for the vision system. Python scripts handle LoRA training, FAISS indexing, and test harnesses, while Node scripts handle dataset/export utilities and legacy prototype generation.
 
 ## Prerequisites
 
-1.  **Python 3.10+**
-2.  **CUDA-capable GPU** (recommended for training)
-3.  Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
+1. **Python 3.10+** for model training and FAISS tooling
+2. **Node.js 20+** for dataset/export scripts already wired into the repo workflow
+3. **CUDA-capable GPU** for practical training runs
+4. Install Python dependencies when using the Python scripts:
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Directory Structure
 
--   `trainLoRA.py`: Main script for fine-tuning the CLIP model using LoRA.
--   `buildVectorIndex.py`: Generates FAISS vector indices for fast card retrieval.
--   `requirements.txt`: Python dependencies.
--   `../../data/raw_images/{deck_name}/`: Place your raw card scans here (e.g., `data/raw_images/rws/`).
+- `trainLoRA.py` - fine-tunes the CLIP model using LoRA
+- `buildVectorIndex.py` - generates FAISS vector indices for deck retrieval
+- `testIndex.py` - local verification helper for generated indices
+- `buildMultimodalDataset.js` - Node-based dataset assembly helper
+- `exportReadings.js` - exports reading data for downstream training and evaluation
+- `logToWandB.js` - WandB logging helper
+- `buildVisionPrototypes.js` - older Node prototype builder retained for comparison
+- `requirements.txt` - Python dependencies
+- `../../data/raw_images/{deck_name}/` - raw source scans
+- `../../data/indices/{deck_name}/` - generated FAISS indices and metadata
 
 ## Workflow
 
@@ -42,5 +54,7 @@ python buildVectorIndex.py --deck rws --adapter_path models/adapters/rws
 
 This will save `index.faiss` and `metadata.json` to `data/indices/rws`.
 
-## Legacy Scripts
--   `buildVisionPrototypes.js`: The old Node.js script for calculating static centroids. Kept for reference but deprecated.
+## Notes
+
+- The Python path is the preferred training path.
+- The Node scripts in this directory are still useful for data preparation, exports, and legacy comparisons; they are not all deprecated.
