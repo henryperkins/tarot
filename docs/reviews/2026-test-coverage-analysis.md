@@ -1,5 +1,11 @@
 # Test Coverage Analysis
 
+Type: review
+Status: historical snapshot
+Last reviewed: 2026-04-23
+
+This document preserves a point-in-time coverage audit. Counts and recommendations below are not maintained as current source of truth; use `package.json`, `tests/`, `functions/__tests__/`, and `e2e/` for the live test surface.
+
 ## Executive Summary
 
 The codebase has **strong backend/business logic test coverage** (~85% of tests) but **critically weak frontend/UI test coverage** with:

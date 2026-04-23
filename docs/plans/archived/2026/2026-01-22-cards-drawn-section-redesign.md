@@ -1,5 +1,9 @@
 # Cards Drawn Section Redesign
 
+Type: design note
+Status: archived snapshot
+Last reviewed: 2026-04-23
+
 ## Overview
 
 Reimagine the CardsDrawnSection component from a bulky list view to a compact, interactive card fan optimized for quick reference on mobile devices.

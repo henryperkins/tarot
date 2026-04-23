@@ -1,8 +1,11 @@
 # Narrative Builder Improvements - Action Plan
 
-**Created:** 2026-01-21  
-**Status:** In Progress  
-**Priority:** High
+Type: plan
+Status: archived snapshot
+Last reviewed: 2026-04-23
+
+Created: 2026-01-21  
+Priority: High
 
 ---
 

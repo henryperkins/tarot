@@ -188,5 +188,4 @@ For detailed information, consult:
 
 ### Scripts
 
-Utility scripts in `scripts/`:
-- **`scripts/check-environment.sh`** - Detect local vs production environment
+Utility scripts in `scripts/` vary by repository; verify the current repo scripts before relying on a fixed environment-detection helper.

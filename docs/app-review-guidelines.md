@@ -1,14 +1,10 @@
----
-title: "App Review Guidelines"
-source: "https://developer.apple.com/app-store/review/guidelines/#design"
-author:
-  - "[[Apple Inc.]]"
-published:
-created: 2026-02-03
-description: "The App Review Guidelines provide guidance and examples across a range of development topics, including user interface design, functionality, content, and the use of specific technologies. These guidelines are designed to help you prepare your apps for the approval process."
-tags:
-  - "clippings"
----
+# App Review Guidelines
+
+Type: reference
+Status: active reference
+Last reviewed: 2026-04-23
+Source: `https://developer.apple.com/app-store/review/guidelines/#design`
+
 [View in English](https://developer.apple.com/app-store/review/guidelines/#)
 
 ### Introduction

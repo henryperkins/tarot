@@ -1,5 +1,9 @@
 # Vision Research Mode Refactoring
 
+Type: design note
+Status: active background document
+Last reviewed: 2026-04-23
+
 ## Summary
 
 The vision validation system has been refactored from a **production requirement** to an **optional research feature**. Users can now generate AI readings without uploading photos, while still preserving the vision validation infrastructure for research and development purposes.
@@ -205,8 +209,8 @@ Consider adding:
 
 ## Related Documentation
 
-- `docs/AI_Tarot_Master.md` - AI training research methodology and deck subtleties
-- `docs/VISION_PIPELINE.md` - Technical implementation of CLIP-based vision validation
+- `./AI_Tarot_Master.md` - AI training research methodology and deck subtleties
+- `./vision-pipeline.md` - Technical implementation of CLIP-based vision validation
 - `wrangler.jsonc` - Deployment configuration and secrets management (see secrets section)
 
 ## Migration Notes

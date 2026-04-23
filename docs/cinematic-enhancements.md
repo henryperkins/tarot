@@ -1,5 +1,9 @@
 # Cinematic Enhancements Documentation
 
+Type: reference
+Status: active reference
+Last reviewed: 2026-04-23
+
 ## Overview
 
 This document describes the cinematic enhancements added to the Tableu tarot reading application, focusing on atmospheric transitions, immersive loading states, and dynamic visual feedback.

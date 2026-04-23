@@ -1,6 +1,10 @@
 # Tableu App Store Metadata Recommendations
 ## Optimized for 4.3(b) Appeal Success
 
+Type: guide
+Status: active background document
+Last reviewed: 2026-04-23
+
 ---
 
 ## App Name (30 characters max)

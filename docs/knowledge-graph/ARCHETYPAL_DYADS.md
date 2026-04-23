@@ -1,5 +1,9 @@
 # Archetypal Dyads - Data Structure Specification
 
+Type: spec
+Status: active reference
+Last reviewed: 2026-04-23
+
 ## Overview
 
 Archetypal Dyads are powerful two-card combinations that create synergistic meaning beyond their individual interpretations. When these specific pairs appear together in a spread, they tell a recognizable story or highlight a particular dynamic that professional readers consistently observe.

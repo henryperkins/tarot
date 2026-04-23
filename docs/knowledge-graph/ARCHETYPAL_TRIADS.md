@@ -1,5 +1,9 @@
 # Archetypal Triads - Data Structure Specification
 
+Type: spec
+Status: active reference
+Last reviewed: 2026-04-23
+
 ## Overview
 
 Archetypal Triads are powerful three-card combinations that form complete narrative arcs. When these cards appear together in a spread, they create a synergy greater than the sum of their parts—telling a specific, recognizable story of transformation, growth, or challenge.

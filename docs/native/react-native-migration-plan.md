@@ -523,7 +523,7 @@ const stack = createModalStack(modalConfig);
 ### 4.2 Charts & Analytics
 - [ ] `charts/CardRelationshipGraph.jsx` → victory-native or react-native-svg
 - [ ] `charts/TrendSparkline.jsx` → victory-native line chart
-- [ ] `MoonPhaseIndicator.jsx` → Custom SVG (astronomy-engine works in RN)
+- [ ] `MoonPhaseIndicator.jsx` → Custom SVG or a backend-provided moon-phase payload; do not assume the current ephemeris plugin runtime is directly reusable in RN.
 
 ### 4.3 Camera/Vision Features
 - [ ] `CameraCapture.jsx` → expo-camera

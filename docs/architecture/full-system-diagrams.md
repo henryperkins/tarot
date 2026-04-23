@@ -1,10 +1,12 @@
 # Full System Diagrams
 
 Type: reference
-Status: active
+Status: active reference
 Last reviewed: 2026-04-23
 
 This document contains comprehensive Mermaid diagrams covering the current application architecture.
+
+These diagrams are maintained as high-level references, not exact schema dumps. Validate auth endpoints, route ownership, and database fields against `src/worker/index.js`, `server/`, and `migrations/` when making implementation changes.
 
 ## 1. High-Level System Architecture
 
@@ -478,7 +480,7 @@ sequenceDiagram
     PricingPage->>Stripe: Redirect to checkout
     User->>Stripe: Complete payment
     Stripe->>WebhookAPI: POST /api/webhooks/stripe
-    WebhookAPI->>D1: UPDATE subscriptions
+    WebhookAPI->>D1: UPDATE users.subscription_*
     D1-->>WebhookAPI: Confirmed
     WebhookAPI-->>Stripe: 200 OK
     User->>PricingPage: Return to app
@@ -704,7 +706,6 @@ erDiagram
     users ||--o{ sessions : has
     users ||--o{ journals : writes
     users ||--o{ readings : performs
-    users ||--o{ subscriptions : has
     users ||--o{ api_keys : owns
     users ||--o{ archetype_journey : tracks
     users ||--o{ user_preferences : configures
@@ -721,6 +722,10 @@ erDiagram
         int id PK
         string email
         string display_name
+        string subscription_tier
+        string subscription_provider
+        string subscription_status
+        string stripe_customer_id
         string password_hash
         timestamp created_at
     }
@@ -751,16 +756,6 @@ erDiagram
         text narrative
         json evaluation
         timestamp created_at
-    }
-
-    subscriptions {
-        int id PK
-        int user_id FK
-        string stripe_customer_id
-        string stripe_subscription_id
-        string status
-        string plan
-        timestamp current_period_end
     }
 
     archetype_journey {

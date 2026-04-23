@@ -284,7 +284,7 @@ The plugins seamlessly integrate with your tarot reading workflow:
 - npm (for dependency installation)
 
 ### Dependencies
-- **Ephemeris Server**: `astronomy-engine`, `@modelcontextprotocol/sdk`
+- **Ephemeris Server**: `sweph`, `@modelcontextprotocol/sdk`
 - **Symbolism Server**: `@modelcontextprotocol/sdk`
 
 ### MCP Server Configuration
@@ -392,7 +392,7 @@ npm install
 
 The ephemeris server uses well-tested astronomical algorithms. If you encounter discrepancies:
 
-1. Check that `astronomy-engine` is properly installed
+1. Check that `sweph` and the Swiss Ephemeris data files are installed correctly
 2. Verify your system time is correct
 3. Compare with https://www.astro.com/swisseph/ for validation
 
@@ -434,7 +434,7 @@ MIT License - See LICENSE file for details
 ## Credits
 
 **Astronomical Calculations:**
-- Swiss Ephemeris via `astronomy-engine`
+- Swiss Ephemeris via `sweph`
 - JPL Planetary Ephemeris data
 
 **Symbolism Database:**

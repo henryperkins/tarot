@@ -1,10 +1,12 @@
 # React Native Migration Execution Plan
 
 Type: plan
-Status: archived schedule snapshot
+Status: archived snapshot
 Last reviewed: 2026-04-23
 
-This document captures a dated execution schedule from 2026-02-03. Keep it for historical context, but use `./react-native-migration-plan.md` as the active background reference.
+This document captures a dated execution schedule from 2026-02-03. Keep it for historical context, but use `../../../native/react-native-migration-plan.md` as the active background reference.
+
+This file was moved out of `docs/native/` so that directory only contains active native references.
 
 ## Assumptions
 - Kickoff date: 2026-02-03 (adjust if different).

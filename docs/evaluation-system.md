@@ -1,13 +1,9 @@
----
-tags:
-- evaluation
-- qa
-- ops
-- tarot
-- docs
----
+# Evaluation System
 
-# evaluation-system
+Type: reference
+Status: active reference
+Last reviewed: 2026-04-23
+
 ## Automated Evaluation & Feedback System (Tarot Readings)
 
 Tableu includes an automated quality assurance system that evaluates every AI-generated tarot reading on multiple dimensions. The system runs asynchronously (non-blocking), stores scores alongside reading metrics, and provides tooling for analysis and prompt optimization.

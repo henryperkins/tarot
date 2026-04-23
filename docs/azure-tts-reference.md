@@ -1,5 +1,9 @@
 # Azure Text-to-Speech Complete Reference
 
+Type: reference
+Status: active reference
+Last reviewed: 2026-04-23
+
 Compiled from Microsoft Azure documentation (January 2026).
 
 **Sources:**

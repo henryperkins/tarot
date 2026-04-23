@@ -1,6 +1,10 @@
 # Feature Spec: Generative Media for Tableu
 ## Animated Card Reveals + Story Illustration
 
+Type: spec
+Status: active background document
+Last reviewed: 2026-04-23
+
 ---
 
 ## Overview

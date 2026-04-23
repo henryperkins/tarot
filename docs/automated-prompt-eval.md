@@ -1,5 +1,9 @@
 # Automated Prompt Eval (Archived Plan)
 
+Type: plan
+Status: archived snapshot
+Last reviewed: 2026-04-23
+
 This document captures the original implementation plan for automated prompt
 evaluation. The production system now lives in `functions/lib/evaluation.js`
 and is documented in `docs/evaluation-system.md`.

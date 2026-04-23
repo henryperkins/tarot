@@ -1,5 +1,9 @@
 # Motion Strategy
 
+Type: strategy
+Status: active reference
+Last reviewed: 2026-04-23
+
 Single source of truth for reduced motion across the app.
 
 ## Canonical Sources

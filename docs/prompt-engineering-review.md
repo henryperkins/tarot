@@ -1,3 +1,9 @@
+# Prompt Engineering Review
+
+Type: review
+Status: historical snapshot
+Last reviewed: 2026-04-23
+
 **Findings**
 - **High** `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js:444` User-prompt hard-cap trimming drops the tail, which currently contains the only explicit “write the reading” and per-card/next-steps requirements in `functions/lib/narrative/prompts/userPrompt.js:165`; if truncation triggers, those guardrails disappear. This is amplified by prefix-only truncation in `functions/lib/narrative/prompts/truncation.js:27`.
 - **Medium** `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js:542` GraphRAG telemetry assumes all passages are present if the header survives, so a partially truncated block can overstate `passagesUsedInPrompt` and hide trimming; detection relies on a header substring and ignores mid-block truncation driven by `functions/lib/narrative/prompts/truncation.js:27`.

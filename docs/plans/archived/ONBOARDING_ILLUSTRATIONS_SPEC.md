@@ -1,5 +1,9 @@
 # Onboarding Illustrations Integration Specification
 
+Type: spec
+Status: archived snapshot
+Last reviewed: 2026-04-23
+
 Based on analysis of the onboarding wizard components and user flow, this document identifies all areas where original custom illustrations could be integrated to enhance the first-time user experience.
 
 ---

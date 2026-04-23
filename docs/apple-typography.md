@@ -1,14 +1,10 @@
----
-title: "Typography"
-source: "https://developer.apple.com/design/human-interface-guidelines/typography"
-author:
-  - "[[Apple Developer Documentation]]"
-published:
-created: 2026-02-03
-description: "Your typographic choices can help you display legible text, convey an information hierarchy, communicate important content, and express your brand or style."
-tags:
-  - "clippings"
----
+# Typography
+
+Type: reference
+Status: active reference
+Last reviewed: 2026-04-23
+Source: `https://developer.apple.com/design/human-interface-guidelines/typography`
+
 [Skip Navigation](https://developer.apple.com/design/human-interface-guidelines/#app-main)
 
 Your typographic choices can help you display legible text, convey an information hierarchy, communicate important content, and express your brand or style.

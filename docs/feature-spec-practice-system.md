@@ -1,6 +1,10 @@
 # Feature Spec: Tarot Practice System
 ## "Fitness App for Self-Reflection"
 
+Type: spec
+Status: active background document
+Last reviewed: 2026-04-23
+
 ---
 
 ## Core Concept

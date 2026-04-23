@@ -53,7 +53,7 @@ node tests/accessibility/wcag-analyzer.mjs
 - Code snippets showing issues
 - Fix suggestions for each issue
 
-### 3. Playwright axe-core Tests (`accessibility.spec.js`)
+### 3. Playwright axe-core Tests (`e2e/accessibility.spec.js`)
 
 Runtime accessibility testing using axe-core on actual rendered pages. Catches issues that static analysis misses.
 
@@ -343,7 +343,7 @@ This runs contrast checker, WCAG analyzer, and Playwright axe-core tests.
 
 ## Continuous Integration
 
-Add to `.github/workflows/accessibility.yml`:
+If you want a dedicated accessibility workflow, add a new workflow file or extend the existing Playwright/CI workflows under `.github/workflows/`:
 
 ```yaml
 name: Accessibility Tests

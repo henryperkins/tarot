@@ -1,7 +1,7 @@
 # Developer Onboarding
 
 Type: guide
-Status: active
+Status: active reference
 Last reviewed: 2026-04-23
 
 This guide is the current starting point for engineers working in the Tableu repository.
@@ -127,8 +127,8 @@ npm run lint
 1. `README.md`
 2. `CLAUDE.md`
 3. `docs/README.md`
-4. `docs/NARRATIVE_ARCHITECTURE.md`
-5. `docs/VISION_PIPELINE.md`
+4. `docs/architecture/narrative-architecture.md`
+5. `docs/vision-pipeline.md`
 6. `docs/monetization/monetization-logic.md`
 
 ## Practical Next Steps

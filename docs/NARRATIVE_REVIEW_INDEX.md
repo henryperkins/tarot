@@ -1,9 +1,13 @@
 # Narrative Builder & Prompt Engineering Review - Index
 
-**Review Date:** 2026-01-21
-**Reviewer:** GitHub Copilot Code Review Agent
-**Repository:** henryperkins/tarot
-**Branch:** copilot/review-narrative-builder-prompt-engineering
+Type: index
+Status: historical snapshot
+Last reviewed: 2026-04-23
+
+Review date: 2026-01-21
+Reviewer: GitHub Copilot Code Review Agent
+Repository: henryperkins/tarot
+Branch: copilot/review-narrative-builder-prompt-engineering
 
 ---
 
@@ -71,7 +75,7 @@ This comprehensive review analyzes the narrative builder and prompt engineering 
 ---
 
 ### 4. Architecture Diagram
-**File:** [NARRATIVE_ARCHITECTURE.md](./NARRATIVE_ARCHITECTURE.md)
+**File:** [architecture/narrative-architecture.md](./architecture/narrative-architecture.md)
 **Size:** 15KB
 **Audience:** Everyone - visual learners, onboarding engineers, architects
 
@@ -204,8 +208,8 @@ All review documents are in the `docs/` directory:
 docs/
 ├── NARRATIVE_REVIEW_SUMMARY.md      # Start here (executive summary)
 ├── NARRATIVE_BUILDER_REVIEW.md      # Full technical review
-├── NARRATIVE_IMPROVEMENTS_PLAN.md   # Implementation guide
-├── NARRATIVE_ARCHITECTURE.md        # Visual diagrams
+├── plans/archived/NARRATIVE_IMPROVEMENTS_PLAN.md  # Historical implementation guide
+├── architecture/narrative-architecture.md         # Visual diagrams
 └── NARRATIVE_REVIEW_INDEX.md        # This file
 ```
 

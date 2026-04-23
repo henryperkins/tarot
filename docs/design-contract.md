@@ -1,5 +1,9 @@
 # Tableu Design Contract
 
+Type: spec
+Status: active reference
+Last reviewed: 2026-04-23
+
 Responsive, accessibility, and motion foundations.
 Audit date: 2026-02-05 | Covers `src/`, `src/styles/`, `tailwind.config.js`
 

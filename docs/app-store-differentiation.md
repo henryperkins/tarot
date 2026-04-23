@@ -1,6 +1,10 @@
 # Tableu Feature Differentiation Document
 ## For App Store Appeal — Guideline 4.3(b) Response
 
+Type: strategy
+Status: active background document
+Last reviewed: 2026-04-23
+
 ---
 
 ## Executive Summary

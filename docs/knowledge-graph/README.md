@@ -1,5 +1,9 @@
 # Knowledge Graph Documentation - Overview
 
+Type: index
+Status: active reference
+Last reviewed: 2026-04-23
+
 ## Purpose
 
 These documents define the data structures and detection logic for the Tableu knowledge graph system. This system detects multi-card archetypal patterns that create synergistic meaning beyond individual card interpretations.

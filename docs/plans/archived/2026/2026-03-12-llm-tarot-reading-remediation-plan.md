@@ -1,3 +1,7 @@
+Type: plan
+Status: archived snapshot
+Last reviewed: 2026-04-23
+
 > Historical note: this plan preserves the original review content, but its file references have been normalized to repo-relative links for portability. Treat it as an audit snapshot, not maintained cross-references.
 
 **Execution Order**

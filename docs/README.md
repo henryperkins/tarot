@@ -1,7 +1,7 @@
 # Documentation Index
 
 Type: index
-Status: active
+Status: active reference
 Last reviewed: 2026-04-23
 
 This directory mixes active references, design and product notes, audits, and archived plans. Start here when you need the current source of truth.
@@ -16,11 +16,11 @@ This directory mixes active references, design and product notes, audits, and ar
 
 - `architecture/full-system-diagrams.md` - detailed system diagrams
 - `architecture/overview-diagram.md` - lighter architecture overview
+- `architecture/narrative-architecture.md` - narrative-generation architecture
 - `design-contract.md` - current design-system contract
 - `monetization/monetization-logic.md` - implemented monetization behavior
 - `native/react-native-migration-plan.md` - current native migration background and status
-- `VISION_PIPELINE.md` - current vision pipeline and evaluation flow
-- `NARRATIVE_ARCHITECTURE.md` - narrative-generation architecture
+- `vision-pipeline.md` - current vision pipeline and evaluation flow
 
 ## Integrations
 
@@ -31,16 +31,17 @@ This directory mixes active references, design and product notes, audits, and ar
 
 - `reviews/2026-frontend-ui-review.md` - point-in-time frontend review
 - `reviews/design-contract-responsive-a11y-audit.md` - responsive/a11y audit snapshot
+- `reviews/2026-test-coverage-analysis.md` - point-in-time test coverage audit
 
 ## Product And Strategy
 
 - `monetization/monetization-strategy.md` - forward-looking monetization strategy
 - `monetization/monetization-gaps-and-plan.md` - rollout gaps and implementation backlog
-- `strategic-roadmap.md` - retention and revenue roadmap
 
 ## Archived Plans
 
 - `plans/archived/` - completed or superseded implementation plans kept for history
+- `plans/archived/2026/2026-02-tableu-strategic-roadmap.md` - historical product roadmap snapshot
 
 ## Conventions
 

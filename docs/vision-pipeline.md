@@ -1,7 +1,11 @@
-# Vision Pipeline Prototype
+# Vision Pipeline
+
+Type: reference
+Status: active reference
+Last reviewed: 2026-04-23
 
 ## Goal
-Stand up the first iteration of the multimodal pipeline described in the vision research docs (see `docs/VISION_RESEARCH_MODE.md` and `docs/AI_Tarot_Master.md`): embed tarot card images with CLIP, compare them to text prototypes for each card, and surface the closest symbolic matches. This allows us to validate the feasibility of photo-based readings before wiring the flow into the Cloudflare Worker API.
+Stand up the current multimodal pipeline described in the vision research docs (see `./VISION_RESEARCH_MODE.md` and `./AI_Tarot_Master.md`): embed tarot card images with CLIP, compare them to text prototypes for each card, and surface the closest symbolic matches. This allows us to validate the feasibility of photo-based readings before wiring the flow into the Cloudflare Worker API.
 
 ## Implementation Overview
 - **Model**: `Xenova/clip-vit-base-patch32` via `@xenova/transformers` (runs locally/in-browser, downloads weights on first use).

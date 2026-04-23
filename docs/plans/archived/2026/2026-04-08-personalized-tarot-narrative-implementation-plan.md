@@ -1,5 +1,9 @@
 # Personalized Tarot Narrative Implementation Plan (2026-04-08)
 
+Type: plan
+Status: archived snapshot
+Last reviewed: 2026-04-23
+
 ## Scope
 
 This plan turns the three findings from the personalized narrative review into implementation work:

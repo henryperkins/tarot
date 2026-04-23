@@ -1,5 +1,9 @@
 # Personalized Tarot Narrative Review Prompt
 
+Type: prompt
+Status: active reference
+Last reviewed: 2026-04-23
+
 ```text
 Review the personalized tarot reading / narrative-generation system in this repository as a code reviewer, not as a copy editor.
 

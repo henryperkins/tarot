@@ -1,5 +1,9 @@
 # Techniques for Teaching AI to Understand Tarot Deck Subtleties and Artistic Styles
 
+Type: guide
+Status: active background document
+Last reviewed: 2026-04-23
+
 ## Overview
 
 Teaching AI to understand and incorporate the subtleties of different tarot decks and artistic styles requires a multifaceted approach combining computer vision, natural language processing, generative models, and specialized training techniques. This comprehensive guide documents proven methodologies based on current research and practical implementations.

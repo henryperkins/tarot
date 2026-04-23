@@ -1,5 +1,9 @@
 # Design System Baseline And Gate Checklist (2026-02-23)
 
+Type: reference
+Status: active reference
+Last reviewed: 2026-04-23
+
 This document captures the current design-system drift baseline and the PR checklist enforced by `npm run gate:design`.
 
 ## Baseline Source

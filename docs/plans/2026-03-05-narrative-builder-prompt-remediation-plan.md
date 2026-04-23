@@ -1,6 +1,10 @@
 # Narrative Builder And Prompt Engineering Remediation Plan
 
-**Date:** 2026-03-05
+Type: plan
+Status: active background document
+Last reviewed: 2026-04-23
+
+Date: 2026-03-05
 
 **Goal:** Remediate all review findings in the narrative builder and prompt-engineering paths, starting with privacy leaks and user-visible output defects, then fixing telemetry drift and missing backend coverage.
 

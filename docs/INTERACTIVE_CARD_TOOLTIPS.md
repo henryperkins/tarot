@@ -1,5 +1,9 @@
 # Interactive Card Tooltips (P5)
 
+Type: spec
+Status: active background document
+Last reviewed: 2026-04-23
+
 ## Overview
 
 Interactive Card Tooltips transform card symbols from passive metadata lists into an explorable "Museum Mode" experience. Users can tap/click directly on symbols within card images to discover their meanings contextually.

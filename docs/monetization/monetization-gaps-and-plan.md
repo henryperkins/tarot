@@ -1,5 +1,5 @@
 Type: plan
-Status: active
+Status: active background document
 Last reviewed: 2026-04-23
 
 **Phase 1 Implementation Complete ✅**

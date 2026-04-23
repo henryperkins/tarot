@@ -208,11 +208,11 @@ Retrograde periods invite internal processing and review in the planet's domain:
 ## Technical Details
 
 ### Dependencies
-- `astronomy-engine`: High-precision astronomical calculations
+- `sweph`: Swiss Ephemeris Node.js bindings for astronomical calculations
 - `@modelcontextprotocol/sdk`: MCP server framework
 
 ### Accuracy
-Uses Swiss Ephemeris algorithms via astronomy-engine for accurate planetary positions (precision: ±0.1°).
+Uses Swiss Ephemeris data via `sweph` for accurate planetary positions.
 
 ### Performance
 All calculations are performed in real-time with minimal latency (<10ms per query).

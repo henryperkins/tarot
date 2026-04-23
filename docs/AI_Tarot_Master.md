@@ -1,22 +1,8 @@
----
-title: AI Tarot master guide – training, deck subtleties & interpretation
-aliases:
-  - AI Tarot Master Guide
-  - AI Training for Tarot Interpretation
-  - Unified Playbook for Tarot Deck Subtleties
-tags:
-  - ai/tarot
-  - research/playbook
-  - multimodal
-  - symbolic-ai
-  - cv
-  - nlp
-  - evaluation
-  - ethics
-status: canonical
----
-
 # AI Tarot master guide – training, deck subtleties & interpretation
+
+Type: guide
+Status: active background document
+Last reviewed: 2026-04-23
 
 > Merged and deduplicated from:
 > - [[Advanced Approaches to AI Training for Tarot Card Interpretation and Evaluation]]

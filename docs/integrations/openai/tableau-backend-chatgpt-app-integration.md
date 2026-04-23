@@ -1,7 +1,7 @@
 # Tableau Backend + ChatGPT App Integration
 
-Type: integration guide
-Status: active
+Type: guide
+Status: active reference
 Last reviewed: 2026-04-23
 
 ## Goal

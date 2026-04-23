@@ -1,8 +1,11 @@
 # Evaluation Pipeline Remediation Plan
 
-- Date: 2026-01-25
-- Status: Phase 1 implemented; awaiting review
-- Schema: v2 (additive fields only)
+Type: plan
+Status: active background document
+Last reviewed: 2026-04-23
+
+Date: 2026-01-25
+Schema: v2 (additive fields only)
 
 **Goal:** Harden the evaluation pipeline with deterministic safety enforcement, unified gate thresholds, and improved observability to keep safety decisions consistent and auditable.
 

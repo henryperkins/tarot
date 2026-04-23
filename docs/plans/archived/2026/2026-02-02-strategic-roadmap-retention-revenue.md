@@ -1,9 +1,12 @@
 # Strategic Roadmap: Leveraging Existing Features for Retention & Revenue Growth
 
-**Document Type:** Strategic Planning  
-**Version:** 1.0  
-**Date:** February 2, 2026  
-**Audience:** Product, Engineering, and Business Leadership
+Type: strategy
+Status: archived snapshot
+Last reviewed: 2026-04-23
+
+Version: 1.0  
+Date: February 2, 2026  
+Audience: Product, Engineering, and Business Leadership
 
 ---
 

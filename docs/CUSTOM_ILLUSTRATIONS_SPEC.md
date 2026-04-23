@@ -1,5 +1,9 @@
 # Custom Illustrations Integration Specification
 
+Type: spec
+Status: active background document
+Last reviewed: 2026-04-23
+
 Based on analysis of the Journal screenshot and existing codebase, this document identifies all areas where original custom illustrations could be integrated to enhance the visual experience.
 
 ---

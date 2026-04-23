@@ -135,7 +135,7 @@ npm install
 # Restart Claude Code
 ```
 
-### Issue: "astronomy-engine not found"
+### Issue: `sweph` or ephemeris files not found
 
 **Solution:**
 ```bash

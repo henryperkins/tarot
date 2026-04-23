@@ -1,5 +1,9 @@
 # Narrative Builder Architecture Diagram
 
+Type: reference
+Status: active reference
+Last reviewed: 2026-04-23
+
 ## Source Precedence Contract
 
 Spread understanding follows a strict precedence order so enrichment never overrides drawn-card truth:

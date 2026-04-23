@@ -1,7 +1,11 @@
 # Tableau Journal Insights + Coach Suggestion Report
 
-**Updated:** 2026-01-27
-**Scope:** Reading Journey insights + coach suggestion pipeline (client + worker).
+Type: review
+Status: historical snapshot
+Last reviewed: 2026-04-23
+
+Updated: 2026-01-27
+Scope: Reading Journey insights + coach suggestion pipeline (client + worker).
 
 ## Top 7 status updates and remaining gaps (ranked by user impact)
 

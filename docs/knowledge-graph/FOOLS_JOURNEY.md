@@ -1,5 +1,9 @@
 # The Fool's Journey - Data Structure Specification
 
+Type: spec
+Status: active reference
+Last reviewed: 2026-04-23
+
 ## Overview
 
 The Fool's Journey represents the progression through all 22 Major Arcana cards as a unified narrative arc of spiritual development and psychological maturation. This structure divides the journey into three acts following Joseph Campbell's Hero's Journey and Jungian individuation stages.

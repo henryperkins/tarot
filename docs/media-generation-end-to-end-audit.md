@@ -1,5 +1,9 @@
 # Media Generation End-to-End Audit
 
+Type: review
+Status: historical snapshot
+Last reviewed: 2026-04-23
+
 Yes. I traced the full media path and there are multiple cost/abuse gaps.
 
 **End-to-End Flow**

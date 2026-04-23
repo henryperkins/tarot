@@ -1,5 +1,9 @@
 # Regression Findings Remediation Plan (2026-03-05)
 
+Type: plan
+Status: active background document
+Last reviewed: 2026-04-23
+
 ## Scope
 
 This plan remediates both findings from the uncommitted-change regression review:

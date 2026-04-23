@@ -1,5 +1,9 @@
 # Suit Progressions - Data Structure Specification
 
+Type: spec
+Status: active reference
+Last reviewed: 2026-04-23
+
 ## Overview
 
 Each Minor Arcana suit (Wands, Cups, Swords, Pentacles) tells a complete narrative story from Ace (pure potential) through Ten (culmination). These progressions follow consistent patterns across suits, representing the journey of that suit's element through three developmental stages.

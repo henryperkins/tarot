@@ -1,5 +1,9 @@
 # Sora 2: Prompting Guide
 
+Type: guide
+Status: active reference
+Last reviewed: 2026-04-23
+
 # Crafting a successful video prompt
 
 ## Before you prompt

@@ -1,7 +1,11 @@
 # Follow-Up Suggestions Analysis Report
 
-**Updated:** 2026-01-27
-**Scope:** `generateFollowUpSuggestions()` function in `src/lib/followUpSuggestions.js`
+Type: review
+Status: historical snapshot
+Last reviewed: 2026-04-23
+
+Updated: 2026-01-27
+Scope: `generateFollowUpSuggestions()` function in `src/lib/followUpSuggestions.js`
 
 ---
 

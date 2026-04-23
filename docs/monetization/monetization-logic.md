@@ -1,8 +1,8 @@
 # Monetization Logic Reference
 
-> Type: reference
-> Status: active
-> Last reviewed: 2026-04-23
+Type: reference
+Status: active reference
+Last reviewed: 2026-04-23
 
 This document consolidates the monetization behavior implemented in the current Tableu codebase.
 

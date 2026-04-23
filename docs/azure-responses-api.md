@@ -1,14 +1,10 @@
----
-title: "Azure OpenAI in Microsoft Foundry Models REST API v1 preview reference - Azure OpenAI"
-source: "https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest?view=foundry-classic#video-generation-jobs---create"
-author:
-  - "[[mrbullwinkle]]"
-published:
-created: 2026-02-03
-description: "Learn how to use Azure OpenAI's latest v1 preview REST API. In this article, you learn about authorization options,  how to structure a request and receive a response."
-tags:
-  - "clippings"
----
+# Azure OpenAI in Microsoft Foundry Models REST API v1 Preview Reference
+
+Type: reference
+Status: active reference
+Last reviewed: 2026-04-23
+Source: `https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest?view=foundry-classic#video-generation-jobs---create`
+
 ## Azure OpenAI in Microsoft Foundry Models REST API v1 preview reference
 
 This article provides details on the inference REST API endpoints for Azure OpenAI.

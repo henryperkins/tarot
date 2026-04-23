@@ -2,6 +2,10 @@
 
 **Date:** 2026-03-05
 
+Type: plan
+Status: archived snapshot
+Last reviewed: 2026-04-23
+
 > Historical note: this plan preserves the original review content, but its file references have been normalized to repo-relative links for portability. Treat it as an audit snapshot, not maintained cross-references.
 
 **Goal:** Reduce the nesting, prop fan-out, and mixed responsibilities in the Narrative Reading UI without changing the user-facing reading flow, scene transitions, or mobile behavior.

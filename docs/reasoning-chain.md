@@ -1,5 +1,9 @@
 # Reasoning Chain for Local Composer
 
+Type: design note
+Status: active background document
+Last reviewed: 2026-04-23
+
 > ⚠️ **STATUS: PROTOTYPE — NOT IN PRODUCTION**
 >
 > This feature is implemented but **not yet integrated into the production reading flow**. The code exists at the locations below, but the main [`functions/api/tarot-reading.js`](../functions/api/tarot-reading.js) endpoint does not currently invoke it.

@@ -1,5 +1,9 @@
 # Evaluation, Redaction, Quality, and Gating Review
 
+Type: review
+Status: active background document
+Last reviewed: 2026-04-23
+
 This document captures findings and key behaviors for evaluation, redaction,
 quality checks, and gating mechanisms in the Tarot codebase. It complements
 `docs/evaluation-system.md` with cross-cutting review notes.

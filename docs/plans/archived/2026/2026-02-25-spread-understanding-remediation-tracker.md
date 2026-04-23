@@ -1,5 +1,9 @@
 # Spread Understanding Remediation Tracker (2026-02-25)
 
+Type: plan
+Status: archived snapshot
+Last reviewed: 2026-04-23
+
 This is the working document for fixing narrative-builder and prompt-engineering issues that affect model understanding of the spread.
 
 ## Scope
@@ -41,7 +45,7 @@ This tracker covers all currently identified issues:
 - `functions/api/tarot-reading.js`
 - `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js`
 - `functions/lib/narrative/prompts/userPrompt.js`
-- `docs/NARRATIVE_ARCHITECTURE.md` (or equivalent)
+- `docs/architecture/narrative-architecture.md` (or equivalent)
 
 **Validation**
 

@@ -1,5 +1,9 @@
 # Narrative Quality Pipeline Fixes Implementation Plan
 
+Type: plan
+Status: archived snapshot
+Last reviewed: 2026-04-23
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Fix three related issues in the narrative quality pipeline: spread-key resolution drift, spine ratio false positives, and GraphRAG telemetry skew.

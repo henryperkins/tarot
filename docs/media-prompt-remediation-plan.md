@@ -1,5 +1,9 @@
 # Media Prompt Remediation Plan
 
+Type: plan
+Status: active background document
+Last reviewed: 2026-04-23
+
 ## Scope
 
 This plan remediates all findings from the media prompt review:

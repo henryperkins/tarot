@@ -33,8 +33,8 @@
 │ • Daily Weather  │    │ • Color/Number   │
 │                  │    │   Analysis       │
 ├──────────────────┤    ├──────────────────┤
-│ astronomy-engine │    │ symbols.json     │
-│ (Swiss Ephemeris)│    │ (Database)       │
+│ sweph bindings   │    │ symbols.json     │
+│ + ephemeris data │    │ (Database)       │
 └──────────────────┘    └──────────────────┘
 ```
 
@@ -54,8 +54,7 @@ tarot-astro-plugins/
 │   │   └── astro-reading.md      ← Custom slash command
 │   ├── server/
 │   │   ├── index.js              ← MCP server (stdio)
-│   │   ├── ephemeris.js          ← Astronomical calculations
-│   │   └── aspects.js            ← Aspect detection
+│   │   └── ephemeris.js          ← Astronomical calculations
 │   ├── package.json
 │   └── README.md
 │
@@ -67,8 +66,7 @@ tarot-astro-plugins/
 │   │   └── symbol-analysis.md
 │   ├── server/
 │   │   ├── index.js              ← MCP server (stdio)
-│   │   ├── database.js           ← Symbol search engine
-│   │   └── search.js
+│   │   └── database.js           ← Symbol search engine
 │   ├── data/
 │   │   └── symbols.json          ← Comprehensive symbol DB
 │   ├── package.json
@@ -107,7 +105,7 @@ User Request
          ▼
 ┌─────────────────────────────────────────┐
 │ Ephemeris Server calculates:             │
-│ 1. Query astronomy-engine                │
+│ 1. Query Swiss Ephemeris via sweph       │
 │ 2. Compute ecliptic positions            │
 │ 3. Detect aspects between planets        │
 │ 4. Identify retrograde motion            │
@@ -262,7 +260,7 @@ User Request: "/symbol-analysis The Fool"
 ### Ephemeris Server
 - **Runtime**: Node.js
 - **Framework**: MCP SDK (`@modelcontextprotocol/sdk`)
-- **Astronomy**: `astronomy-engine` (Swiss Ephemeris algorithms)
+- **Astronomy**: `sweph` Node bindings + Swiss Ephemeris data files
 - **Transport**: stdio (local process)
 - **Data Format**: JSON responses
 - **Accuracy**: ±0.1° for planetary positions
@@ -318,7 +316,7 @@ User Workflow:
 ## Performance Characteristics
 
 ### Ephemeris Server
-- **Startup Time**: ~500ms (load astronomy-engine)
+- **Startup Time**: ~500ms (load `sweph` and ephemeris metadata)
 - **Query Response**: <25ms per tool call
 - **Memory Usage**: ~50MB (astronomy data tables)
 - **CPU Usage**: Minimal (mathematical calculations)

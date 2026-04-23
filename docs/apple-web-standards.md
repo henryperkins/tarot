@@ -1,14 +1,10 @@
----
-title: "Configuring Web Applications"
-source: "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html#//apple_ref/doc/uid/TP40002051-CH3-SW8"
-author:
-  - "[[Copyright 2018 Apple Inc. All Rights Reserved.]]"
-published:
-created: 2026-02-03
-description: "Conceptual information and techniques on creating effective web content for Safari and WebKit using HTML, JavaScript, and CSS."
-tags:
-  - "clippings"
----
+# Configuring Web Applications
+
+Type: reference
+Status: active reference
+Last reviewed: 2026-04-23
+Source: `https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html#//apple_ref/doc/uid/TP40002051-CH3-SW8`
+
 A web application is designed to look and behave in a way similar to a native application—for example, it is scaled to fit the entire screen on iOS. You can tailor your web application for Safari on iOS even further, by making it appear like a native application when the user adds it to the Home screen. You do this by using settings for iOS that are ignored by other platforms.
 
 For example, you can specify an icon for your web application used to represent it when added to the Home screen on iOS, as described in [Specifying a Webpage Icon for Web Clip](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/#//apple_ref/doc/uid/TP40002051-CH3-SW4). You can also minimize the Safari on iOS user interface, as described in [Changing the Status Bar Appearance](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/#//apple_ref/doc/uid/TP40002051-CH3-SW1) and [Hiding Safari User Interface Components](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/#//apple_ref/doc/uid/TP40002051-CH3-SW2), when your web application is launched from the Home screen. These are all optional settings that when added to your web content are ignored by other platforms.

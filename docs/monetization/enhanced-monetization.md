@@ -1,7 +1,11 @@
 # Payment Integration Guide: Stripe & Google Play Store
 
-**Author:** Manus AI
-**Date:** December 05, 2025
+Type: guide
+Status: active background document
+Last reviewed: 2026-04-23
+
+Author: Manus AI
+Date: December 05, 2025
 
 ## 1. Introduction
 

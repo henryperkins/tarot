@@ -1,7 +1,7 @@
 # Using This Tarot Backend On A Custom GPT
 
-Type: integration guide
-Status: active
+Type: guide
+Status: active reference
 Last reviewed: 2026-04-23
 
 This setup uses GPT Actions with your existing Worker API.

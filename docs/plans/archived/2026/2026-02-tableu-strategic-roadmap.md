@@ -1,6 +1,12 @@
 # Tableu Strategic Roadmap
 ## Leveraging Technical Capabilities for User Retention & Revenue Growth
 
+Type: strategy
+Status: archived snapshot
+Last reviewed: 2026-04-23
+
+This roadmap is retained for historical product context. It is not a maintained operational plan.
+
 *Version 1.0 | February 2026*
 
 ---

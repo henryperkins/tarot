@@ -1,5 +1,9 @@
 # Cinematic Enhancements - Visual Examples
 
+Type: reference
+Status: active background document
+Last reviewed: 2026-04-23
+
 This document provides visual examples of the cinematic enhancements in action.
 
 ## Scene Flow Diagram

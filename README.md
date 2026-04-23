@@ -124,7 +124,7 @@ The deploy flow is managed by `scripts/deploy.js` and supports migrations, dry r
 - `docs/README.md` - documentation index
 - `docs/DEVELOPER_ONBOARDING.md` - contributor setup and architecture orientation
 - `docs/architecture/full-system-diagrams.md` - detailed architecture diagrams
-- `docs/VISION_PIPELINE.md` - current vision pipeline and evaluation flow
+- `docs/vision-pipeline.md` - current vision pipeline and evaluation flow
 - `docs/monetization/monetization-logic.md` - implemented monetization behavior
 - `docs/native/react-native-migration-plan.md` - native app migration background and status
 

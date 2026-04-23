@@ -1,8 +1,11 @@
 # Azure OpenAI TTS Improvements Design
 
-**Date:** 2026-01-22
-**Status:** Approved
-**Scope:** Improve gpt-4o-mini-tts so reading context translates into voice and audio is easier to control/observe
+Type: design note
+Status: archived snapshot
+Last reviewed: 2026-04-23
+
+Date: 2026-01-22
+Scope: Improve gpt-4o-mini-tts so reading context translates into voice and audio is easier to control/observe
 
 ## Overview
 

@@ -1,6 +1,8 @@
 Type: reference
-Status: active
+Status: active reference
 Last reviewed: 2026-04-23
+
+This is a high-level runtime view. For endpoint-level details, verify against `src/worker/index.js` and `server/` because auth and local-dev responsibilities are split across both runtimes.
 
 ```mermaid
 flowchart TB
@@ -63,10 +65,10 @@ flowchart TB
     Cron --> KV_Metrics
     Cron --> KV_Feedback
     
-%% Backend - Express Server (for Dev/OIDC)
+%% Backend - Express Server (for local preview + Replit auth)
     subgraph ExpressSrv [**Express API Server (server/index.ts)**]
-        ExpressAuth["OIDC Auth Setup (passport OpenID Connect,<br/>session store via connect-pg-simple)"]
-        ExpressRoutes["Auth Routes (/api/login, /api/logout,<br/>/api/callback, /api/auth/user)"]
+        ExpressAuth["Replit OIDC setup (passport OpenID Connect,<br/>session store via connect-pg-simple)"]
+        ExpressRoutes["Local auth routes (/api/login, /api/logout,<br/>/api/callback, /api/auth/user)"]
         ExpressHealth["Health Check (/api/health)"]
         ExpressStatic["Static Content Server<br/>(serves React /dist files)"]
     end
@@ -77,23 +79,22 @@ flowchart TB
     
 %% External Services
     subgraph External [**External Services**]
-        OIDC_Provider["OpenID Connect Provider<br/>(local Express auth integration)"]
+        OIDC_Provider["OpenID Connect Provider<br/>(Replit OIDC for local Express auth)"]
         Postgres["Neon Postgres – User DB (drizzle-orm)"]
         StripeAPI["Stripe API – payments"]
         AzureOpenAI["Azure OpenAI GPT-5 API – narrative generation"]
         AzureSpeech["Azure Speech Service – TTS (client SDK)"]
         HumeAI["Hume AI API – alt. TTS/emotion"]
-        LogRocket["LogRocket – client monitoring"]
+        Auth0["Auth0 – worker OAuth flows"]
     end
     Worker -->|"Generate reading"| AzureOpenAI
     Worker -->|TTS generation| AzureOpenAI
     Worker -->|Hume emotion TTS| HumeAI
     Worker -->|Create sessions, Portal| StripeAPI
     Worker <-->|Stripe Webhook| StripeAPI
-    Worker -->|Issue OIDC JWT| OIDC_Provider
+    Worker -->|Auth0 login / callback| Auth0
     ExpressAuth --> Postgres
     Frontend -->|OIDC Login Flow| OIDC_Provider
-    Frontend -->|Log data| LogRocket
     Frontend -->|Speech audio fetch| AzureSpeech
     Frontend <-->|API calls (REST & SSE)| Worker
     Worker --> Assets["Static Assets (binding to /dist)"]

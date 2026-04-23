@@ -1,15 +1,9 @@
----
-title:
-source: "https://raw.githubusercontent.com/openai/openai-cookbook/refs/heads/main/examples/agents_sdk/context_personalization.ipynb"
-author:
-published:
-created: 2026-01-11
-description:
-tags:
-  - "clippings"
----
-
 # Context Engineering for Personalization - State Management with Long-Term Memory Notes using OpenAI Agents SDK
+
+Type: reference
+Status: active reference
+Last reviewed: 2026-04-23
+Source: `https://raw.githubusercontent.com/openai/openai-cookbook/refs/heads/main/examples/agents_sdk/context_personalization.ipynb`
 
 Modern AI agents are no longer just reactive assistants-they're becoming adaptive collaborators. The leap from "responding" to "remembering" defines the new frontier of **context engineering**. At its core, context engineering is about shaping what the model knows at any given moment. By managing what's stored, recalled, and injected into the model's working memory, we can make an agent that feels personal, consistent, and context-aware.
 

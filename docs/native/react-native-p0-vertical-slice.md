@@ -28,19 +28,20 @@ Deliver a native reading flow that covers spread selection, ritual, dealing, rev
 | `src/components/QuestionInput.jsx` | `native/src/components/QuestionInput.jsx` | Replace textarea/input with TextInput + KeyboardAvoidingView. |
 | `src/components/ReadingPreparation.jsx` | `native/src/components/ReadingPreparation.jsx` | Simplify panels to RN stacks, remove DOM-only scroll logic. |
 | `src/components/DeckRitual.jsx` | `native/src/components/DeckRitual.jsx` | Reanimated sequences + haptics. |
-| `src/components/DeckPile.jsx` | `native/src/components/DeckPile.jsx` | RNGH drag + Reanimated. |
 | `src/components/Card.jsx` | `native/src/components/Card/Card.jsx` | 3D flip with Reanimated; replace blur with opacity/scale approximation. |
 | `src/components/ReadingGrid.jsx` | `native/src/components/ReadingGrid.jsx` | Flex layout grid with View/Pressable. |
 | `src/components/ReadingDisplay.jsx` | `native/src/components/ReadingDisplay.jsx` | ScrollView with card grid and narrative section. |
 | `src/components/StreamingNarrative.jsx` | `native/src/components/StreamingNarrative.jsx` | Replace DOM streaming with RN Text + incremental state. |
-| `src/components/NarrationText.jsx` | `native/src/components/NarrationText.jsx` | expo-av controls + progress state. |
 | `src/components/AudioControls.jsx` | `native/src/components/AudioControls.jsx` | RN playback controls (no Web Audio). |
 | `src/contexts/ReadingContext.jsx` | `native/src/contexts/ReadingContext.jsx` | Remove window/document usage; replace localStorage with MMKV. |
 | `src/contexts/PreferencesContext.jsx` | `native/src/contexts/PreferencesContext.jsx` | MMKV wrapper with user-scoped keys. |
-| `src/hooks/useTarotState.js` | `native/src/hooks/useTarotState.js` | Remove DOM dependencies; keep pure state and helpers. |
-| `src/hooks/useUISounds.js` | `native/src/hooks/useUISounds.js` | expo-av only; no Web Audio APIs. |
-| `src/lib/formatting.js` | `native/src/lib/formatting.js` | Can be shared from `shared/` if RN-safe. |
-| `src/lib/utils.js` | `native/src/lib/utils.js` | Port only RN-safe helpers; drop DOM utilities. |
+| `src/lib/formatting.js` | `shared/` or `native/src/lib/api.js` | Prefer shared helpers when RN-safe; keep native-only fetch helpers in `native/src/lib/`. |
+
+## Current native surface
+
+- `native/src/screens/ReadingScreen.jsx` owns the current vertical-slice screen flow.
+- `native/src/components/ReadingDisplay.jsx`, `SpreadSelector.jsx`, `QuestionInput.jsx`, `ReadingPreparation.jsx`, `DeckRitual.jsx`, `ReadingGrid.jsx`, `StreamingNarrative.jsx`, and `AudioControls.jsx` exist today.
+- The native app does not currently have a `native/src/hooks/` directory; behavior is still mostly component/context-driven.
 
 ## Shared code reuse candidates
 - `shared/contracts/` for API payloads.
