@@ -1374,7 +1374,7 @@ describe('Prompt budget telemetry', () => {
     assert.equal(promptMeta.sourceUsage?.graphRAG?.skippedReason, 'disabled_by_env');
   });
 
-  it('preserves the ETHICS header when system prompt truncation occurs', async () => {
+  it('caps experiment overrides before they can pressure ETHICS out of the system prompt', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'One-Card Insight', 'Upright')
     ];
@@ -1393,9 +1393,10 @@ describe('Prompt budget telemetry', () => {
       variantOverrides: { systemPromptAddition: hugeAddition }
     });
 
-    assert.ok(promptMeta.truncation?.systemTruncated, 'system prompt should be truncated under hard cap');
     assert.match(systemPrompt, /\nETHICS\n- Emphasize choice/);
     assert.ok(systemPrompt.includes('Do NOT provide diagnosis'), 'Ethics guardrail should remain intact');
+    assert.ok(promptMeta.variantPrompt?.applied, 'variant override metadata should be recorded');
+    assert.ok(!systemPrompt.includes('A'.repeat(2000)), 'oversized override text should be capped before prompt assembly');
   });
 
   it('tracks personalization-only user context when those inputs shape the prompt', async () => {
@@ -1415,6 +1416,7 @@ describe('Prompt budget telemetry', () => {
       personalization: {
         displayName: 'Sam',
         focusAreas: ['career', 'purpose'],
+        tarotExperience: 'experienced',
         readingTone: 'gentle',
         spiritualFrame: 'mixed',
         preferredSpreadDepth: 'deep'
@@ -1422,19 +1424,50 @@ describe('Prompt budget telemetry', () => {
     });
 
     assert.ok(userPrompt.includes('**Querent Name**: Sam'));
-    assert.ok(userPrompt.includes('Focus areas (from onboarding): career, purpose'));
+    assert.ok(userPrompt.includes('**Focus Areas**:'));
+    assert.ok(userPrompt.includes('career, purpose'));
+    assert.ok(userPrompt.includes('**Tarot Experience**:'));
     assert.ok(systemPrompt.includes('## Reading Tone'));
     assert.ok(systemPrompt.includes('## Interpretive Frame'));
     assert.ok(systemPrompt.includes('## Narrative Depth Preference'));
     assert.equal(promptMeta.sourceUsage?.userContext?.used, true);
     assert.deepEqual(
       promptMeta.sourceUsage?.userContext?.usedInputs,
-      ['focusAreas', 'displayName', 'tone', 'frame', 'depth']
+      ['focusAreas', 'displayName', 'experience', 'tone', 'frame', 'depth']
     );
     assert.equal(promptMeta.sourceUsage?.userContext?.displayNameUsed, true);
+    assert.equal(promptMeta.sourceUsage?.userContext?.experienceUsed, true);
     assert.equal(promptMeta.sourceUsage?.userContext?.toneUsed, true);
     assert.equal(promptMeta.sourceUsage?.userContext?.frameUsed, true);
     assert.equal(promptMeta.sourceUsage?.userContext?.depthUsed, true);
+  });
+
+  it('injects returning-querent memories into the prompt as advisory context', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'What pattern should I stay aware of?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      memories: [
+        {
+          text: 'They are navigating a long relocation season.',
+          category: 'life_context',
+          scope: 'global'
+        }
+      ]
+    });
+
+    assert.ok(userPrompt.includes('**Returning Querent Context**:'));
+    assert.ok(userPrompt.includes('long relocation season'));
+    assert.ok(userPrompt.includes('Current question, current reflections, and current onboarding preferences override remembered context.'));
   });
 
   it('marks duplicate global reflections as skipped instead of used', async () => {

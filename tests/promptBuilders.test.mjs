@@ -67,8 +67,9 @@ describe('buildSingleScenePrompt', () => {
   it('includes text-model alignment reference block', () => {
     const prompt = buildSingleScenePrompt([majorArcanaCard], testQuestion, 'watercolor');
     assert.ok(prompt.includes('READING MODEL ALIGNMENT'), 'Should include narrative alignment block');
-    assert.ok(prompt.includes('TEXT MODEL SYSTEM PROMPT'), 'Should include text model system prompt reference');
-    assert.ok(prompt.includes('TEXT MODEL USER PROMPT'), 'Should include text model user prompt reference');
+    assert.ok(prompt.includes('ALLOWED CARD EVIDENCE'), 'Should include media-safe card evidence');
+    assert.ok(!prompt.includes('TEXT MODEL SYSTEM PROMPT'), 'Should not embed full text model system prompt');
+    assert.ok(!prompt.includes('TEXT MODEL USER PROMPT'), 'Should not embed full text model user prompt');
   });
 
   it('generates prompt for Major Arcana cards', () => {

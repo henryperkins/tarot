@@ -14,13 +14,22 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.1.0';
+export const READING_PROMPT_VERSION = '1.1.1';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.1.1',
+    date: '2026-04-24',
+    notes: 'Harden prompt assembly and telemetry under truncation and injected reference text.',
+    changes: [
+      'Preserved critical user prompt footer instructions under hard-cap truncation.',
+      'Neutralized GraphRAG reference delimiters and required complete summary blocks before reporting inclusion.',
+    ],
+  },
   {
     version: '1.1.0',
     date: '2026-01-07',

@@ -10,7 +10,7 @@ Guidance for Claude Code when working with this repository.
 |-------|------|----------|
 | Frontend | React + Vite | `src/` |
 | Backend | Cloudflare Workers | `functions/api/` |
-| AI | Azure GPT-5.1 (fallback: Claude/local composer) | `functions/api/tarot-reading.js` |
+| AI | OpenAI GPT-5.4 via Responses API (native or Azure; fallback: Claude/local composer) | `functions/api/tarot-reading.js` |
 | Database | Cloudflare D1 | `migrations/*.sql` |
 | Storage | Cloudflare KV + D1 archival | Metrics, feedback |
 
@@ -115,7 +115,7 @@ npm run gate:design   # Verify design contract compliance
 2. **Ritual** — Knocks + cut position + question → `computeSeed()`
 3. **Draw** — `drawSpread()` uses seeded shuffle, assigns upright/reversed
 4. **Reveal** — Card flip animation, user reflections per card
-5. **Narrative** — Azure GPT-5.1 via API (fallback: Claude/local composer)
+5. **Narrative** — OpenAI GPT-5.4 via Responses API (native `OPENAI_API_KEY`, or Azure; fallback: Claude/local composer)
 
 **Pipeline**: `spreadAnalysis.js` (dignities, reversals) + `knowledgeGraph.js` (patterns) → `graphContext.js` → `graphRAG.js` (passages) → `prompts.js` → AI → `evaluation.js` (async scoring)
 
@@ -394,7 +394,8 @@ npm run test:wcag     # Static ARIA analysis
 ## Secrets
 
 Via `wrangler secret put`:
-- `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_GPT5_MODEL`
+- `OPENAI_API_KEY` — OpenAI native Responses API key (preferred; when set, takes priority over Azure)
+- `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_GPT5_MODEL` — Azure fallback path
 - `AZURE_ANTHROPIC_ENDPOINT`, `AZURE_ANTHROPIC_API_KEY`, `AZURE_ANTHROPIC_MODEL`
 - `AZURE_OPENAI_TTS_ENDPOINT`, `AZURE_OPENAI_TTS_API_KEY`, `AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT`
 - `VISION_PROOF_SECRET`

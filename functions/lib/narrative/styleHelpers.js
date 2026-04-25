@@ -163,7 +163,7 @@ function buildFocusBridgeLine(focusAreas, contextDescriptor) {
   return `We'll stay attuned to your focus on ${formatted} as this reading unfolds.`;
 }
 
-function buildExperienceLine(level) {
+export function buildExperienceLine(level) {
   if (!level) return '';
   const lines = {
     newbie: "I'll keep the symbolism grounded and translate each card into everyday choices you can work with.",

@@ -680,8 +680,99 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           transformedStream = transformAzureStream(azureStream);
         }
 
-        // Wrap with metadata injection and usage tracking
-        const wrappedStream = wrapStreamWithMetadata(transformedStream, {
+        // Buffer before emitting so safety/card checks can repair or replace unsafe content.
+        const fullText = await collectFullTextFromSse(transformedStream, { requestId });
+        heartbeatReservation({ fullTextLength: fullText?.length || 0 });
+        const latencyMs = Date.now() - startTime;
+        console.log(`[${requestId}] Buffered streaming completed in ${latencyMs}ms, ${fullText?.length || 0} chars`);
+
+        if (!fullText || !fullText.trim()) {
+          console.log(`[${requestId}] Streaming produced empty response; releasing reservation`);
+          await scheduleRelease('empty_response');
+          return createSSEErrorResponse('Failed to generate response. Please try again.', 503);
+        }
+
+        let persistenceResult = resolveStreamingPersistenceText(fullText);
+        let deliveredResponseText = persistenceResult.deliveredText;
+        let canonicalResponseText = persistenceResult.canonicalText;
+
+        const safetyCheck = checkFollowUpSafety(deliveredResponseText);
+        if (!safetyCheck.safe) {
+          console.warn(`[${requestId}] Follow-up streaming safety gate triggered before delivery: ${safetyCheck.issues.join(', ')}`);
+          deliveredResponseText = generateSafeFollowUpFallback(safetyCheck.issues[0]);
+          canonicalResponseText = deliveredResponseText;
+        } else if (safetyCheck.issues.length > 0) {
+          console.warn(`[${requestId}] Follow-up safety warnings before streamed delivery: ${safetyCheck.issues.join(', ')}`);
+        }
+
+        let hallucinations = detectHallucinatedCards(
+          deliveredResponseText,
+          effectiveContext?.cardsInfo || [],
+          effectiveContext?.deckStyle || 'rws-1909'
+        );
+        if (hallucinations.length > 0) {
+          console.warn(`[${requestId}] Follow-up hallucinated cards before streamed delivery: ${hallucinations.join(', ')}`);
+          const repair = await repairHallucinatedFollowUp(env, {
+            requestId,
+            followUpQuestion,
+            responseText: deliveredResponseText,
+            hallucinations,
+            cardsInfo: effectiveContext?.cardsInfo || [],
+            deckStyle: effectiveContext?.deckStyle || 'rws-1909'
+          });
+          if (repair.repaired) {
+            const repairedSafety = checkFollowUpSafety(repair.response);
+            if (!repairedSafety.safe) {
+              console.warn(`[${requestId}] Repaired streamed follow-up failed safety gate: ${repairedSafety.issues.join(', ')}`);
+              deliveredResponseText = generateSafeFollowUpFallback(repairedSafety.issues[0]);
+              canonicalResponseText = deliveredResponseText;
+            } else {
+              persistenceResult = resolveStreamingPersistenceText(fullText, repair.response);
+              deliveredResponseText = repair.response;
+              canonicalResponseText = persistenceResult.canonicalText;
+              hallucinations = [];
+            }
+          } else if (hallucinations.length > 1) {
+            deliveredResponseText += '\n\n*Please note: Focus on the cards actually drawn in your spread for the most grounded guidance.*';
+            canonicalResponseText = deliveredResponseText;
+          }
+        }
+
+        const trackingPromise = finalizeFollowUpUsage(env.DB, {
+          reservationId,
+          responseLength: deliveredResponseText.length,
+          journalContextUsed: Boolean(journalContext),
+          patternsFound: journalContext?.patterns?.length || 0,
+          latencyMs,
+          provider: 'azure-responses-stream-buffered'
+        }).then(result => {
+          if (result.updated) {
+            reservationCompleted = true;
+          } else {
+            console.warn(`[${requestId}] Failed to finalize follow-up usage; releasing reservation`);
+            return releaseReservation('finalize_failed');
+          }
+        });
+
+        const persistPromise = canPersistFollowups
+          ? persistFollowUpToJournal(env, user.id, {
+              requestId: readingRequestId,
+              sessionSeed
+            }, {
+              turnNumber,
+              question: followUpQuestion,
+              answer: deliveredResponseText,
+              canonicalAnswer: canonicalResponseText,
+              journalContext,
+              requestId
+            })
+          : Promise.resolve();
+
+        const consolidationPromise = consolidateOnce();
+        await Promise.allSettled([trackingPromise, persistPromise, consolidationPromise]);
+
+        return createSSEResponse(createBufferedFollowUpStream({
+          text: deliveredResponseText,
           turn: turnNumber,
           journalContext: journalContext ? {
             entriesSearched: journalContext.entriesSearched,
@@ -689,107 +780,11 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           } : null,
           memoryEnabled,
           meta: {
-            provider: 'azure-responses-stream',
-            requestId
-          },
-          ctx, // Pass context for waitUntil
-          onHeartbeat: heartbeatReservation,
-          // Usage tracking callback - will be called when stream completes successfully
-          onComplete: async (fullText) => {
-            const latencyMs = Date.now() - startTime;
-            console.log(`[${requestId}] Streaming completed in ${latencyMs}ms, ${fullText.length} chars`);
-
-            // Defensive guard: don't track/persist empty responses (e.g., tool-only)
-            if (!fullText || !fullText.trim()) {
-              console.log(`[${requestId}] Skipping tracking - empty response`);
-              await releaseReservation('empty_response');
-              return;
-            }
-
-            const persistenceResult = resolveStreamingPersistenceText(fullText);
-            const deliveredResponseText = persistenceResult.deliveredText;
-            let canonicalResponseText = persistenceResult.canonicalText;
-
-            // Safety check for streaming responses (post-hoc logging for monitoring)
-            // Note: For streaming, we can't block after sending, but we log for alerting/analysis
-            const safetyCheck = checkFollowUpSafety(deliveredResponseText);
-            if (!safetyCheck.safe) {
-              console.error(`[${requestId}] CRITICAL: Streamed unsafe follow-up response: ${safetyCheck.issues.join(', ')}`);
-            } else if (safetyCheck.issues.length > 0) {
-              console.warn(`[${requestId}] Follow-up safety warnings (streamed): ${safetyCheck.issues.join(', ')}`);
-            }
-
-            // Hallucination check for streaming (post-hoc logging - can't block after sending)
-            const hallucinations = detectHallucinatedCards(
-              deliveredResponseText,
-              effectiveContext?.cardsInfo || [],
-              effectiveContext?.deckStyle || 'rws-1909'
-            );
-            if (hallucinations.length > 0) {
-              console.warn(`[${requestId}] Follow-up hallucinated cards (streamed): ${hallucinations.join(', ')}`);
-              const repair = await repairHallucinatedFollowUp(env, {
-                requestId,
-                followUpQuestion,
-                responseText: deliveredResponseText,
-                hallucinations,
-                cardsInfo: effectiveContext?.cardsInfo || [],
-                deckStyle: effectiveContext?.deckStyle || 'rws-1909'
-              });
-              if (repair.repaired) {
-                const repairedSafety = checkFollowUpSafety(repair.response);
-                if (!repairedSafety.safe) {
-                  console.warn(`[${requestId}] Repaired streamed follow-up failed safety gate: ${repairedSafety.issues.join(', ')}`);
-                } else {
-                  const resolvedPersistence = resolveStreamingPersistenceText(fullText, repair.response);
-                  canonicalResponseText = resolvedPersistence.canonicalText;
-                  console.log(`[${requestId}] Follow-up streamed response canonicalized with repaired text for stored history reuse.`);
-                }
-              }
-            }
-
-            const trackingPromise = finalizeFollowUpUsage(env.DB, {
-              reservationId,
-              responseLength: deliveredResponseText.length,
-              journalContextUsed: Boolean(journalContext),
-              patternsFound: journalContext?.patterns?.length || 0,
-              latencyMs,
-              provider: 'azure-responses-stream'
-            }).then(result => {
-              if (result.updated) {
-                reservationCompleted = true;
-              } else {
-                console.warn(`[${requestId}] Failed to finalize follow-up usage; releasing reservation`);
-                return releaseReservation('finalize_failed');
-              }
-            });
-
-            const persistPromise = canPersistFollowups
-              ? persistFollowUpToJournal(env, user.id, {
-                  requestId: readingRequestId,
-                  sessionSeed
-                }, {
-                  turnNumber,
-                  question: followUpQuestion,
-                  answer: deliveredResponseText,
-                  canonicalAnswer: canonicalResponseText,
-                  journalContext,
-                  requestId
-                })
-              : Promise.resolve();
-
-            // Consolidate session memories to global scope after each successful follow-up.
-            // This ensures memories are promoted even if user doesn't hit their turn limit.
-            // Without this, session memories would expire after 24h and never personalize future readings.
-            const consolidationPromise = consolidateOnce();
-
-            await Promise.allSettled([trackingPromise, persistPromise, consolidationPromise]);
-          },
-          onError: (info) => scheduleRelease(info?.type || 'stream_error'),
-          onEmpty: () => scheduleRelease('empty_response'),
-          onCancel: () => scheduleRelease('client_cancel')
-        });
-
-        return createSSEResponse(wrappedStream);
+            provider: 'azure-responses-stream-buffered',
+            requestId,
+            latencyMs
+          }
+        }));
 
       } catch (streamError) {
         console.error(`[${requestId}] Streaming error: ${streamError.message}`);
@@ -1843,6 +1838,30 @@ async function collectFullTextFromSse(stream, { requestId } = {}) {
   }
 
   return doneText ?? fullText;
+}
+
+function createBufferedFollowUpStream({ text, turn, journalContext, memoryEnabled, meta }) {
+  const encoder = new TextEncoder();
+  const safeText = typeof text === 'string' ? text : '';
+
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(formatSSEEvent('meta', {
+        turn,
+        journalContext,
+        memoryEnabled,
+        ...meta
+      })));
+      if (safeText) {
+        controller.enqueue(encoder.encode(formatSSEEvent('delta', { text: safeText })));
+      }
+      controller.enqueue(encoder.encode(formatSSEEvent('done', {
+        fullText: safeText,
+        isEmpty: !safeText.trim()
+      })));
+      controller.close();
+    }
+  });
 }
 
 /**

@@ -1,49 +1,21 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from 'react';
-import { animate, set, stagger } from '../lib/motionAdapter';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowsClockwise,
   ArrowsOut,
-  BookmarkSimple,
   DownloadSimple,
-  ShareNetwork,
+  ImageSquare,
+  PlayCircle,
   Trash
 } from '@phosphor-icons/react';
-import { useReducedMotion } from '../hooks/useReducedMotion';
-import { useModalA11y } from '../hooks/useModalA11y';
-
-const FAVORITES_STORAGE_KEY = 'tarot_media_gallery_favorites';
+import { READING_MEDIA_GALLERY_VISIBLE_LIMIT } from '../lib/mediaGalleryConstants.js';
 
 function formatTimestamp(value) {
   const timestamp = Number(value);
   if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
   return new Date(timestamp).toLocaleString(undefined, {
     month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
+    day: 'numeric'
   });
-}
-
-function readFavoriteIds() {
-  if (typeof localStorage === 'undefined') return new Set();
-  try {
-    const stored = localStorage.getItem(FAVORITES_STORAGE_KEY);
-    if (!stored) return new Set();
-    const parsed = JSON.parse(stored);
-    if (!Array.isArray(parsed)) return new Set();
-    return new Set(parsed.filter((id) => typeof id === 'string' && id.trim().length > 0));
-  } catch {
-    return new Set();
-  }
-}
-
-function writeFavoriteIds(idsSet) {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(Array.from(idsSet)));
-  } catch {
-    // no-op if localStorage is unavailable/quota-limited
-  }
 }
 
 function buildMediaTitle(item) {
@@ -57,29 +29,21 @@ function buildMediaTitle(item) {
   return item?.mediaType === 'video' ? 'Generated video' : 'Generated image';
 }
 
+function getMediaUrl(item) {
+  return item?.contentUrl || item?.downloadUrl || '';
+}
+
 export function MediaGallery({
   items = [],
+  totalItems = items.length,
   loading = false,
   error = null,
   onRefresh,
   onDelete,
   className = ''
 }) {
-  const prefersReducedMotion = useReducedMotion();
-  const galleryRef = useRef(null);
-  const lightboxRef = useRef(null);
-  const lightboxCloseRef = useRef(null);
-  const lightboxTitleId = useId();
-  const [lightboxItem, setLightboxItem] = useState(null);
-  const [favoriteIds, setFavoriteIds] = useState(() => readFavoriteIds());
-  const [shareNotice, setShareNotice] = useState('');
   const [deletingId, setDeletingId] = useState(null);
-
-  useModalA11y(!!lightboxItem, {
-    onClose: () => setLightboxItem(null),
-    containerRef: lightboxRef,
-    initialFocusRef: lightboxCloseRef
-  });
+  const [localError, setLocalError] = useState('');
 
   const sortedItems = useMemo(() => {
     return [...(Array.isArray(items) ? items : [])].sort((a, b) => {
@@ -89,227 +53,165 @@ export function MediaGallery({
     });
   }, [items]);
 
-  useLayoutEffect(() => {
-    if (prefersReducedMotion) return undefined;
-    const root = galleryRef.current;
-    if (!root) return undefined;
-    const nodes = root.querySelectorAll('[data-media-card="true"]');
-    if (!nodes.length) return undefined;
+  const visibleItems = useMemo(() => (
+    sortedItems.slice(0, READING_MEDIA_GALLERY_VISIBLE_LIMIT)
+  ), [sortedItems]);
 
-    set(nodes, { opacity: 0, translateY: 18, scale: 0.985 });
-    const entrance = animate(nodes, {
-      opacity: [0, 1],
-      translateY: [18, 0],
-      scale: [0.985, 1],
-      duration: 420,
-      delay: stagger(55),
-      ease: 'outQuad'
-    });
-
-    return () => entrance?.pause?.();
-  }, [prefersReducedMotion, sortedItems.length]);
+  const totalItemCount = Number.isFinite(Number(totalItems))
+    ? Math.max(visibleItems.length, Number(totalItems))
+    : sortedItems.length;
+  const hiddenCount = Math.max(0, totalItemCount - visibleItems.length);
+  const hasItems = visibleItems.length > 0;
 
   useEffect(() => {
-    writeFavoriteIds(favoriteIds);
-  }, [favoriteIds]);
+    if (!error) {
+      setLocalError('');
+    }
+  }, [error, items]);
 
-  useEffect(() => {
-    if (!shareNotice) return undefined;
-    const timer = window.setTimeout(() => setShareNotice(''), 2200);
-    return () => window.clearTimeout(timer);
-  }, [shareNotice]);
-
-  const toggleFavorite = useCallback((id) => {
-    if (!id) return;
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
+  const handleRefresh = useCallback(() => {
+    setLocalError('');
+    onRefresh?.();
+  }, [onRefresh]);
 
   const handleDelete = useCallback(async (id) => {
     if (!onDelete || !id) return;
     setDeletingId(id);
+    setLocalError('');
     try {
       await onDelete(id);
     } catch {
-      setShareNotice('Unable to remove media right now.');
+      setLocalError('Unable to remove media right now.');
     } finally {
       setDeletingId(null);
     }
   }, [onDelete]);
 
-  const handleShare = useCallback(async (item) => {
-    if (!item) return;
-    let shareUrl = '';
-    try {
-      shareUrl = new URL(item.contentUrl, window.location.origin).toString();
-    } catch {
-      setShareNotice('Invalid media URL.');
-      return;
-    }
-    const title = buildMediaTitle(item);
-
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title,
-          url: shareUrl
-        });
-        return;
-      }
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
-        setShareNotice('Media link copied to clipboard.');
-        return;
-      }
-      setShareNotice('Sharing is unavailable on this device.');
-    } catch {
-      setShareNotice('Unable to share right now.');
-    }
-  }, []);
-
-  const hasItems = sortedItems.length > 0;
+  const statusMessage = error || localError;
 
   return (
     <section
-      ref={galleryRef}
-      className={`rounded-2xl border border-secondary/35 bg-surface/90 backdrop-blur-md p-4 sm:p-6 ${className}`}
-      aria-label="Generated media gallery"
+      className={`rounded-xl border border-secondary/25 bg-surface/80 p-4 sm:p-5 ${className}`}
+      aria-label="Recent generated media"
     >
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg sm:text-xl font-serif text-accent">Media Gallery</h3>
-          <p className="text-xs sm:text-sm text-muted mt-1">
-            Your generated story art and cinematic reveals.
+          <h3 className="text-base sm:text-lg font-serif text-accent">Recent media</h3>
+          <p className="mt-1 text-xs sm:text-sm text-muted">
+            Saved visuals from this reading flow.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-3 py-2 min-h-touch rounded-lg border border-secondary/35 bg-surface/70 text-xs sm:text-sm text-muted hover:text-main hover:border-secondary/55 transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
-        >
-          <ArrowsClockwise className={`w-4 h-4 ${loading ? 'motion-safe:animate-spin' : ''}`} />
-          <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
-        </button>
+        {onRefresh && (
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={loading}
+            className="inline-flex min-h-touch items-center gap-2 rounded-lg border border-secondary/30 bg-main/35 px-3 py-2 text-xs text-muted transition hover:border-secondary/50 hover:text-main disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+          >
+            <ArrowsClockwise className={`h-4 w-4 ${loading ? 'motion-safe:animate-spin' : ''}`} aria-hidden="true" />
+            <span>{loading ? 'Refreshing' : 'Refresh'}</span>
+          </button>
+        )}
       </div>
 
-      {shareNotice && (
-        <p className="mt-3 text-xs text-accent" role="status" aria-live="polite">
-          {shareNotice}
+      {statusMessage && (
+        <p className="mt-3 rounded-lg border border-error/35 bg-error/10 px-3 py-2 text-xs sm:text-sm text-error">
+          {statusMessage}
         </p>
       )}
 
-      {error && (
-        <p className="mt-3 rounded-lg border border-error/40 bg-error/10 px-3 py-2 text-xs sm:text-sm text-error">
-          {error}
-        </p>
-      )}
-
-      {!loading && !hasItems && !error && (
-        <p className="mt-4 rounded-lg border border-secondary/25 bg-surface/60 px-4 py-4 text-sm text-muted text-center">
-          No generated media saved yet.
+      {!hasItems && !statusMessage && (
+        <p className="mt-4 rounded-lg border border-secondary/20 bg-main/25 px-4 py-3 text-sm text-muted">
+          {loading ? 'Loading saved media...' : 'No generated media saved yet.'}
         </p>
       )}
 
       {hasItems && (
-        <div className="mt-4 grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-          {sortedItems.map((item) => {
-            const isFavorite = favoriteIds.has(item.id);
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {visibleItems.map((item) => {
             const title = buildMediaTitle(item);
             const createdLabel = formatTimestamp(item.createdAt);
             const isVideo = item.mediaType === 'video';
             const isDeleting = deletingId === item.id;
+            const mediaUrl = getMediaUrl(item);
+            const downloadUrl = item.downloadUrl || mediaUrl;
 
             return (
               <article
                 key={item.id}
-                data-media-card="true"
-                className="rounded-xl border border-secondary/25 bg-main/40 overflow-hidden shadow-lg shadow-main/40"
+                className="flex min-w-0 items-center gap-3 rounded-lg border border-secondary/20 bg-main/30 p-2.5"
               >
-                <button
-                  type="button"
-                  onClick={() => setLightboxItem(item)}
-                  className="w-full relative aspect-[16/10] bg-main/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-                  aria-label={`Open ${title}`}
+                <a
+                  href={mediaUrl || undefined}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`relative flex h-16 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-main/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${mediaUrl ? '' : 'pointer-events-none opacity-60'}`}
+                  aria-label={mediaUrl ? `Open ${title}` : `${title} unavailable`}
                 >
-                  {isVideo ? (
-                    <video
-                      src={item.contentUrl}
-                      muted
-                      playsInline
-                      preload="metadata"
-                      className="w-full h-full object-cover"
-                    />
+                  {mediaUrl ? (
+                    isVideo ? (
+                      <video
+                        src={mediaUrl}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <img
+                        src={mediaUrl}
+                        alt=""
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
+                    )
                   ) : (
-                    <img
-                      src={item.contentUrl}
-                      alt={title}
-                      loading="lazy"
-                      className="w-full h-full object-cover"
-                    />
+                    <ImageSquare className="h-6 w-6 text-muted" aria-hidden="true" />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-main/80 via-transparent to-transparent" />
-                  <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2">
-                    <span className="text-2xs px-2 py-1 rounded-full bg-surface/80 text-main border border-secondary/35">
-                      {isVideo ? 'Video' : 'Image'}
+                  {isVideo && (
+                    <span className="absolute inset-0 flex items-center justify-center bg-main/25 text-main">
+                      <PlayCircle className="h-6 w-6" aria-hidden="true" />
                     </span>
-                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-surface/75 border border-secondary/35 text-main">
-                      <ArrowsOut className="w-4 h-4" />
-                    </span>
-                  </div>
-                </button>
+                  )}
+                </a>
 
-                <div className="p-3">
-                  <p className="text-sm font-semibold text-main truncate">{title}</p>
-                  <p className="text-2xs text-muted mt-1 truncate">
-                    {createdLabel}
-                    {item.styleId ? ` • ${item.styleId}` : ''}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-main">{title}</p>
+                  <p className="mt-0.5 truncate text-2xs text-muted">
+                    {[createdLabel, item.styleId].filter(Boolean).join(' • ') || 'Generated media'}
                   </p>
-
-                  <div className="mt-3 flex items-center gap-1.5 flex-wrap">
-                    <a
-                      href={item.downloadUrl}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-touch rounded-md text-2xs border border-secondary/30 bg-surface/60 text-main hover:bg-surface transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
-                    >
-                      <DownloadSimple className="w-3.5 h-3.5" />
-                      Download
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => handleShare(item)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-touch rounded-md text-2xs border border-secondary/30 bg-surface/60 text-main hover:bg-surface transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
-                    >
-                      <ShareNetwork className="w-3.5 h-3.5" />
-                      Share
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => toggleFavorite(item.id)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 min-h-touch rounded-md text-2xs border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
-                        isFavorite
-                          ? 'border-accent/55 bg-accent/20 text-accent'
-                          : 'border-secondary/30 bg-surface/60 text-main hover:bg-surface'
-                      }`}
-                    >
-                      <BookmarkSimple className="w-3.5 h-3.5" weight={isFavorite ? 'fill' : 'regular'} />
-                      Save
-                    </button>
-                    {onDelete && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {mediaUrl && (
+                      <a
+                        href={mediaUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-touch items-center gap-1 rounded-md border border-secondary/25 bg-surface/60 px-2.5 py-1.5 text-2xs text-main transition hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                      >
+                        <ArrowsOut className="h-3.5 w-3.5" aria-hidden="true" />
+                        Open
+                      </a>
+                    )}
+                    {downloadUrl && (
+                      <a
+                        href={downloadUrl}
+                        download
+                        className="inline-flex min-h-touch items-center gap-1 rounded-md border border-secondary/25 bg-surface/60 px-2.5 py-1.5 text-2xs text-main transition hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                      >
+                        <DownloadSimple className="h-3.5 w-3.5" aria-hidden="true" />
+                        Download
+                      </a>
+                    )}
+                    {onDelete && item.id && (
                       <button
                         type="button"
                         onClick={() => handleDelete(item.id)}
                         disabled={isDeleting}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 min-h-touch rounded-md text-2xs border border-error/40 bg-error/10 text-error hover:bg-error/20 transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                        className="inline-flex min-h-touch items-center justify-center rounded-md border border-error/35 bg-error/10 px-2.5 py-1.5 text-2xs text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                        aria-label={`Remove ${title}`}
                       >
-                        <Trash className="w-3.5 h-3.5" />
-                        {isDeleting ? 'Removing...' : 'Remove'}
+                        <Trash className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span className="sr-only">{isDeleting ? 'Removing' : 'Remove'}</span>
                       </button>
                     )}
                   </div>
@@ -320,80 +222,10 @@ export function MediaGallery({
         </div>
       )}
 
-      {lightboxItem && (
-        <div
-          className="fixed inset-0 z-toast bg-black/90 backdrop-blur-sm px-safe pt-safe pb-safe"
-          onClick={() => setLightboxItem(null)}
-        >
-          <div
-            className="w-full h-full max-w-6xl mx-auto flex items-center justify-center"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div
-              ref={lightboxRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby={lightboxTitleId}
-              tabIndex={-1}
-              className="relative w-full max-h-full rounded-2xl border border-secondary/35 bg-main/70 p-3 sm:p-4 overflow-hidden"
-            >
-              <h2 id={lightboxTitleId} className="sr-only">Media lightbox</h2>
-              <button
-                ref={lightboxCloseRef}
-                type="button"
-                onClick={() => setLightboxItem(null)}
-                className="absolute top-3 right-3 z-10 px-3 py-1.5 min-h-touch rounded-full border border-secondary/35 bg-surface/80 text-xs text-main hover:bg-surface transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] inline-flex items-center"
-              >
-                Close
-              </button>
-              <div className="max-h-[80vh] overflow-auto rounded-xl bg-black/55">
-                {lightboxItem.mediaType === 'video' ? (
-                  <video
-                    src={lightboxItem.contentUrl}
-                    controls
-                    autoPlay
-                    className="w-full h-auto max-h-[78vh]"
-                  />
-                ) : (
-                  <img
-                    src={lightboxItem.contentUrl}
-                    alt={buildMediaTitle(lightboxItem)}
-                    className="w-full h-auto max-h-[78vh] object-contain"
-                  />
-                )}
-              </div>
-              <div className="mt-3 flex items-center gap-2 flex-wrap">
-                <a
-                  href={lightboxItem.downloadUrl}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 min-h-touch rounded-lg text-xs border border-secondary/35 bg-surface/80 text-main hover:bg-surface transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
-                >
-                  <DownloadSimple className="w-4 h-4" />
-                  Download
-                </a>
-                <button
-                  type="button"
-                  onClick={() => handleShare(lightboxItem)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 min-h-touch rounded-lg text-xs border border-secondary/35 bg-surface/80 text-main hover:bg-surface transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
-                >
-                  <ShareNetwork className="w-4 h-4" />
-                  Share
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleFavorite(lightboxItem.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs border transition ${
-                    favoriteIds.has(lightboxItem.id)
-                      ? 'border-accent/55 bg-accent/20 text-accent'
-                      : 'border-secondary/35 bg-surface/80 text-main hover:bg-surface'
-                  }`}
-                >
-                  <BookmarkSimple className="w-4 h-4" weight={favoriteIds.has(lightboxItem.id) ? 'fill' : 'regular'} />
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {hiddenCount > 0 && (
+        <p className="mt-3 text-xs text-muted">
+          Showing the latest {visibleItems.length}; {hiddenCount} older {hiddenCount === 1 ? 'item stays' : 'items stay'} saved.
+        </p>
       )}
     </section>
   );

@@ -552,4 +552,33 @@ describe('persistReadingMetrics', () => {
     assert.ok(!('backendErrors' in storedPayload), 'backendErrors should be stripped in redacted mode');
     assert.ok(storedPayload.narrative, 'narrative metrics should be preserved');
   });
+
+  it('preserves storage-safe prompt engineering payloads in redacted mode', async () => {
+    const mockDB = new MockDB();
+    const payload = {
+      requestId: 'metrics-redacted-prompts-test',
+      spreadKey: 'single',
+      deckStyle: 'rws-1909',
+      provider: 'azure-gpt5',
+      promptEngineering: {
+        hashes: { combined: 'abc123', system: 'sys', user: 'usr', response: 'rsp' },
+        redacted: {
+          systemPrompt: 'System prompt',
+          userPrompt: '**Question**: [USER_QUESTION_REDACTED]',
+          response: 'Hello [NAME].'
+        },
+        privacy: { userContentStripped: true, piiRedacted: true }
+      }
+    };
+
+    await persistReadingMetrics({ DB: mockDB }, payload);
+
+    const query = mockDB.getLastQuery();
+    const payloadBinding = query.bindings.find(binding => typeof binding === 'string' && binding.startsWith('{'));
+    const storedPayload = JSON.parse(payloadBinding);
+
+    assert.equal(storedPayload.promptEngineering.hashes.combined, 'abc123');
+    assert.equal(storedPayload.promptEngineering.redacted.userPrompt, '**Question**: [USER_QUESTION_REDACTED]');
+    assert.ok(!storedPayload.promptEngineering.redacted.response.includes('Alex'));
+  });
 });

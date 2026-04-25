@@ -64,7 +64,15 @@
     "AZURE_OPENAI_STREAMING_ENABLED": "true",
     // AZURE_OPENAI_REASONING_EFFORT: Controls reasoning depth for narrative generation
     // Valid values: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh'
-    "AZURE_OPENAI_REASONING_EFFORT": "high",
+    "AZURE_OPENAI_REASONING_EFFORT": "xhigh",
+    // ---------------------------------------------------------------------
+    // OpenAI native Responses API (takes priority when OPENAI_API_KEY secret is set)
+    // OPENAI_BASE_URL defaults to https://api.openai.com if empty.
+    // OPENAI_MODEL is the model id sent in the request body (e.g. "gpt-5.4").
+    // Azure config remains as fallback when OPENAI_API_KEY is absent.
+    // ---------------------------------------------------------------------
+    "OPENAI_BASE_URL": "https://api.openai.com",
+    "OPENAI_MODEL": "gpt-5.4",
     "ALLOW_STREAMING_WITH_EVAL_GATE": "true",
     "STREAMING_QUALITY_GATE_ENABLED": "false",
     "STREAMING_SAFETY_SCAN_ENABLED": "false",
@@ -231,7 +239,10 @@
   // ============================================================================
   // Secrets (set via CLI, not in config)
   // ============================================================================
-  // Azure OpenAI (GPT-5 narrative generation)
+  // OpenAI native Responses API (preferred when set; overrides Azure below)
+  // wrangler secret put OPENAI_API_KEY
+  //
+  // Azure OpenAI Responses API (fallback when OPENAI_API_KEY is not set)
   // wrangler secret put AZURE_OPENAI_ENDPOINT
   // wrangler secret put AZURE_OPENAI_API_KEY
   // wrangler secret put AZURE_OPENAI_GPT5_MODEL

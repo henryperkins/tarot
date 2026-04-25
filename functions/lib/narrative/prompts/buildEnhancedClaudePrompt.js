@@ -183,12 +183,19 @@ export function parseGraphRAGReferenceBlock(promptText) {
 
 export function parseGraphRAGSummaryBlock(promptText) {
   if (!promptText || typeof promptText !== 'string') {
-    return { present: false };
+    return { present: false, complete: false };
   }
 
   const marker = '## TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)';
+  const markerIdx = promptText.indexOf(marker);
+  if (markerIdx === -1) {
+    return { present: false, complete: false };
+  }
+
+  const summaryText = promptText.slice(markerIdx);
   return {
-    present: promptText.includes(marker)
+    present: true,
+    complete: summaryText.includes('Signals:') && summaryText.includes('CARD GUARDRAIL:')
   };
 }
 
@@ -276,11 +283,15 @@ function buildPromptUserContextSourceUsage(sourceUsageSignals, finalUserPrompt, 
     ),
     focusAreas: resolvePromptUserContextField(
       userContextSignals.focusAreas,
-      hasPromptMarker(finalUserPrompt, 'Focus areas (from onboarding):')
+      hasPromptMarker(finalUserPrompt, '**Focus Areas**:')
     ),
     displayName: resolvePromptUserContextField(
       userContextSignals.displayName,
       hasPromptMarker(finalUserPrompt, '**Querent Name**:')
+    ),
+    experience: resolvePromptUserContextField(
+      userContextSignals.experience,
+      hasPromptMarker(finalUserPrompt, '**Tarot Experience**:')
     ),
     tone: resolvePromptUserContextField(
       userContextSignals.tone,
@@ -340,6 +351,42 @@ function isGraphRAGBudgetTrimmed(slimmingSteps = []) {
   );
 }
 
+function stableSerialize(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableSerialize(entry)).join(',')}]`;
+  }
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`).join(',')}}`;
+}
+
+function fingerprintVariantOverrides(variantOverrides) {
+  const serialized = stableSerialize(variantOverrides);
+  if (!serialized) return null;
+  let hash = 2166136261;
+  for (let i = 0; i < serialized.length; i += 1) {
+    hash ^= serialized.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function buildVariantPromptMeta(variantOverrides) {
+  if (!variantOverrides || typeof variantOverrides !== 'object') {
+    return null;
+  }
+
+  return {
+    applied: true,
+    variantId: variantOverrides.variantId || null,
+    experimentId: variantOverrides.experimentId || null,
+    overrideFingerprint: fingerprintVariantOverrides(variantOverrides),
+    overrideKeys: Object.keys(variantOverrides)
+      .filter((key) => !['variantId', 'experimentId'].includes(key))
+      .sort()
+  };
+}
+
 export function buildEnhancedClaudePrompt({
   spreadInfo,
   cardsInfo,
@@ -359,6 +406,7 @@ export function buildEnhancedClaudePrompt({
   contextDiagnostics = [],
   promptBudgetEnv = null,
   personalization = null,
+  memories = [],
   enableSemanticScoring = null,
   subscriptionTier = null,
   variantOverrides = null
@@ -508,7 +556,7 @@ export function buildEnhancedClaudePrompt({
 
   const baseControls = {
     // Source precedence contract:
-    // spread/cards > validated matched vision > user context > GraphRAG > ephemeris.
+    // spread/cards > validated matched vision > current user context > stored memory > GraphRAG > ephemeris.
     // These controls can slim or suppress enrichment, but must not alter drawn-card identity/positions.
     graphRAGPayload: effectiveGraphRAGPayload,
     ephemerisContext: astroContext,
@@ -559,6 +607,7 @@ export function buildEnhancedClaudePrompt({
       {
         ...controls,
         personalization,
+        memories,
         contextDiagnostics: diagnostics,
         deckStyle: resolvedDeckStyle,
         sourceUsageSignals
@@ -883,7 +932,8 @@ export function buildEnhancedClaudePrompt({
       originalSystemTokens: built.systemTokens,
       originalUserTokens: built.userTokens,
       originalTotalTokens: built.totalTokens
-    } : null
+    } : null,
+    variantPrompt: buildVariantPromptMeta(controls.variantOverrides)
   };
 
   const graphRAGBudgetTrimmed = isGraphRAGBudgetTrimmed(slimmingSteps);
@@ -921,7 +971,7 @@ export function buildEnhancedClaudePrompt({
       );
     const graphRAGIncludedSummary = graphragEnabled &&
       controls.graphRAGSummaryOnly === true &&
-      graphRAGSummaryParse.present === true;
+      graphRAGSummaryParse.complete === true;
     const graphRAGInjectionMode = graphRAGIncludedFull
       ? 'full'
       : (graphRAGIncludedSummary ? 'summary' : 'none');
@@ -972,6 +1022,7 @@ export function buildEnhancedClaudePrompt({
     retrievalSummary.parseStatus = graphRAGParse.status;
     retrievalSummary.referenceBlockClosed = graphRAGParse.referenceBlockClosed;
     retrievalSummary.summaryBlockPresent = graphRAGSummaryParse.present;
+    retrievalSummary.summaryBlockComplete = graphRAGSummaryParse.complete;
     retrievalSummary.injectionMode = graphRAGInjectionMode;
     if (typeof trimmedCount === 'number' && trimmedCount > 0) {
       retrievalSummary.truncatedPassages = trimmedCount;

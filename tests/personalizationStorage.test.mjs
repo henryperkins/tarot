@@ -1,16 +1,19 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import { describe, test } from 'node:test';
 
 import {
   DEFAULT_PERSONALIZATION,
   PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH,
   PERSONALIZATION_GUEST_KEY,
   PERSONALIZATION_STORAGE_KEY_BASE,
+  buildPersonalizationRequestPayload,
+  derivePersonalizationExplicitFields,
   getPersonalizationStorageKey,
   loadPersonalizationFromStorage,
-  sanitizePersonalization,
-  sanitizeGuestPersonalization
+  sanitizeGuestPersonalization,
+  sanitizePersonalization
 } from '../src/utils/personalizationStorage.js';
+import { PERSONALIZATION_REQUEST_EXPLICIT_FIELDS_KEY } from '../shared/contracts/personalizationConstants.js';
 
 test('getPersonalizationStorageKey scopes personalization per user', () => {
   assert.equal(getPersonalizationStorageKey(null), PERSONALIZATION_GUEST_KEY);
@@ -89,4 +92,60 @@ test('loadPersonalizationFromStorage sanitizes stale invalid values', () => {
   assert.equal(loaded.displayName.length, PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH);
   assert.equal(loaded.readingTone, DEFAULT_PERSONALIZATION.readingTone);
   assert.equal(loaded.tarotExperience, DEFAULT_PERSONALIZATION.tarotExperience);
+});
+
+describe('buildPersonalizationRequestPayload', () => {
+  test('omits untouched default personalization from narrative requests', () => {
+    const result = buildPersonalizationRequestPayload({
+      displayName: '',
+      tarotExperience: 'newbie',
+      readingTone: 'balanced',
+      focusAreas: [],
+      preferredSpreadDepth: 'standard',
+      spiritualFrame: 'mixed',
+      showRitualSteps: true
+    });
+
+    assert.equal(result, null);
+  });
+
+  test('includes non-default fields and explicit default selections', () => {
+    const result = buildPersonalizationRequestPayload(
+      {
+        displayName: 'Ava',
+        tarotExperience: 'newbie',
+        readingTone: 'balanced',
+        focusAreas: ['career clarity'],
+        preferredSpreadDepth: 'standard',
+        spiritualFrame: 'psychological',
+        showRitualSteps: true
+      },
+      ['readingTone', 'preferredSpreadDepth']
+    );
+
+    assert.deepEqual(result, {
+      displayName: 'Ava',
+      readingTone: 'balanced',
+      spiritualFrame: 'psychological',
+      preferredSpreadDepth: 'standard',
+      focusAreas: ['career clarity'],
+      [PERSONALIZATION_REQUEST_EXPLICIT_FIELDS_KEY]: ['readingTone', 'preferredSpreadDepth']
+    });
+  });
+});
+
+describe('derivePersonalizationExplicitFields', () => {
+  test('derives explicit fields for existing non-default stored values', () => {
+    assert.deepEqual(
+      derivePersonalizationExplicitFields({
+        displayName: 'Ava',
+        tarotExperience: 'experienced',
+        readingTone: 'balanced',
+        focusAreas: [],
+        preferredSpreadDepth: 'standard',
+        spiritualFrame: 'mixed'
+      }),
+      ['displayName', 'tarotExperience']
+    );
+  });
 });

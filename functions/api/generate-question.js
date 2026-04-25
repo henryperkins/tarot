@@ -6,6 +6,7 @@ import {
 import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
+import { sanitizeText } from '../lib/utils.js';
 import { hashString, ensureQuestionMark } from '../../shared/utils.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
@@ -15,9 +16,34 @@ function canUseAIQuestions(subscription) {
   return tier === 'plus' || tier === 'pro';
 }
 
-function sanitizeSnippet(value, fallback) {
+function sanitizeSnippet(value, fallback, maxLength = 140) {
   if (!value || typeof value !== 'string') return fallback;
-  return value.trim();
+  const sanitized = sanitizeText(value, {
+    maxLength,
+    stripMarkdown: true,
+    stripControlChars: true,
+    filterInstructions: true
+  })
+    .replace(/\{\{|\}\}|\$\{|\}|<%|%>|\{#|#\}|\{%|%\}/g, '')
+    .replace(/\[%|%\]|\[\[|\]\]/g, '')
+    .trim();
+  return sanitized || fallback;
+}
+
+function sanitizeSnippetList(values, maxItems, maxLength) {
+  if (!Array.isArray(values)) return [];
+  return values
+    .slice(0, maxItems)
+    .map((value) => sanitizeSnippet(value, '', maxLength))
+    .filter(Boolean);
+}
+
+function sanitizeGeneratedQuestion(value) {
+  const sanitized = sanitizeSnippet(value, '', 180)
+    .replace(/^[-•\d.)\s]+/, '')
+    .replace(/^['"“”‘’]+|['"“”‘’]+$/g, '')
+    .trim();
+  return ensureQuestionMark(sanitized || 'What question would help me explore this moment with clarity');
 }
 
 /**
@@ -47,10 +73,11 @@ function pick(list, seed = '') {
  * @param {Object} metadata - Question metadata including seed
  * @returns {string} Generated question text
  */
-function craftQuestionFromPrompt(prompt, metadata = {}) {
-  const focusMatch = prompt.match(/about (.+?) for the/i);
-  const timeframeMatch = prompt.match(/for the (.+?)(?:\.|$)/i);
-  const depthMatch = prompt.match(/depth is (.+?)(?:\.|$)/i);
+export function craftQuestionFromPrompt(prompt, metadata = {}) {
+  const safePrompt = sanitizeSnippet(prompt, '', 500);
+  const focusMatch = safePrompt.match(/about (.+?) for the/i);
+  const timeframeMatch = safePrompt.match(/for the (.+?)(?:\.|$)/i);
+  const depthMatch = safePrompt.match(/depth is (.+?)(?:\.|$)/i);
 
   const focus = sanitizeSnippet(metadata.focus || metadata.customFocus || (focusMatch ? focusMatch[1] : ''), 'this area of my life');
   const timeframePhrase = sanitizeSnippet(metadata.timeframePhrase || (timeframeMatch ? timeframeMatch[1] : ''), '');
@@ -123,7 +150,7 @@ function craftQuestionFromPrompt(prompt, metadata = {}) {
     : `${focusWithTimeframe}|${depthLabel}|${topicLabel}|${pattern}`;
 
   const question = picker(variants, pickerSeed);
-  return ensureQuestionMark(question);
+  return sanitizeGeneratedQuestion(question);
 }
 
 function inferPattern(patternValue, depthLabel = '') {
@@ -161,10 +188,11 @@ function getForecastDays(metadata = {}) {
   return null;
 }
 
-function buildAzureQuestionPrompt(prompt, metadata = {}) {
-  const focusMatch = prompt.match(/about (.+?) for the/i);
-  const timeframeMatch = prompt.match(/for the (.+?)(?:\.|$)/i);
-  const depthMatch = prompt.match(/depth is (.+?)(?:\.|$)/i);
+export function buildAzureQuestionPrompt(prompt, metadata = {}) {
+  const safePrompt = sanitizeSnippet(prompt, '', 500);
+  const focusMatch = safePrompt.match(/about (.+?) for the/i);
+  const timeframeMatch = safePrompt.match(/for the (.+?)(?:\.|$)/i);
+  const depthMatch = safePrompt.match(/depth is (.+?)(?:\.|$)/i);
 
   const focus = sanitizeSnippet(metadata.focus || metadata.customFocus || (focusMatch ? focusMatch[1] : ''), 'this area of my life');
   const timeframe = sanitizeSnippet(metadata.timeframePhrase || (timeframeMatch ? timeframeMatch[1] : ''), 'the current moment');
@@ -175,16 +203,19 @@ function buildAzureQuestionPrompt(prompt, metadata = {}) {
 
   const personalizationLines = [];
   if (Array.isArray(metadata.recentThemes) && metadata.recentThemes.length > 0) {
-    personalizationLines.push(`Recent themes: ${metadata.recentThemes.slice(0, 3).join(', ')}`);
+    const recentThemes = sanitizeSnippetList(metadata.recentThemes, 3, 80);
+    if (recentThemes.length) personalizationLines.push(`Recent themes: ${recentThemes.join(', ')}`);
   }
-  if (metadata.frequentCard) personalizationLines.push(`Recurring card: ${metadata.frequentCard}`);
-  if (metadata.leadingContext) personalizationLines.push(`Common context: ${metadata.leadingContext}`);
-  if (metadata.reversalRate) personalizationLines.push(`Reversals: ${metadata.reversalRate}`);
+  if (metadata.frequentCard) personalizationLines.push(`Recurring card: ${sanitizeSnippet(metadata.frequentCard, '', 80)}`);
+  if (metadata.leadingContext) personalizationLines.push(`Common context: ${sanitizeSnippet(metadata.leadingContext, '', 80)}`);
+  if (metadata.reversalRate) personalizationLines.push(`Reversals: ${sanitizeSnippet(String(metadata.reversalRate), '', 40)}`);
   if (Array.isArray(metadata.recentQuestions) && metadata.recentQuestions.length > 0) {
-    personalizationLines.push(`Avoid repeating: ${metadata.recentQuestions.join('; ')}`);
+    const recentQuestions = sanitizeSnippetList(metadata.recentQuestions, 4, 120);
+    if (recentQuestions.length) personalizationLines.push(`Avoid repeating: ${recentQuestions.join('; ')}`);
   }
   if (Array.isArray(metadata.focusAreas) && metadata.focusAreas.length > 0) {
-    personalizationLines.push(`User focus areas: ${metadata.focusAreas.join(', ')}`);
+    const focusAreas = sanitizeSnippetList(metadata.focusAreas, 5, 80);
+    if (focusAreas.length) personalizationLines.push(`User focus areas: ${focusAreas.join(', ')}`);
   }
 
   const astroHighlights = Array.isArray(metadata.ephemerisForecast?.highlights)
@@ -197,7 +228,7 @@ function buildAzureQuestionPrompt(prompt, metadata = {}) {
     'Do not add quotes, bullets, or any preamble. Respond with the question only and end with a question mark.',
     `Pattern: ${pattern} (support/navigate/lesson/transform), Closing: ${closing || 'none'}.`,
     astroHighlights.length ? 'Astro window is contextual; you may echo the timing (e.g., “this cycle”, “up to the next Full Moon”) but do not list the events verbatim.' : null,
-    metadata.seed ? `Seed: ${metadata.seed} (use to pick a variant; do not mention).` : null
+    metadata.seed ? `Seed: ${sanitizeSnippet(String(metadata.seed), '', 80)} (use to pick a variant; do not mention).` : null
   ].filter(Boolean).join('\n');
 
   const inputLines = [
@@ -206,7 +237,7 @@ function buildAzureQuestionPrompt(prompt, metadata = {}) {
     `Depth: ${depthLabel}`,
     `Topic: ${topicLabel}`,
     personalizationLines.length > 0 ? personalizationLines.join('\n') : null,
-    astroHighlights.length ? `Astro window: ${astroHighlights.slice(0, 3).join(' • ')}` : null,
+    astroHighlights.length ? `Astro window: ${sanitizeSnippetList(astroHighlights, 3, 120).join(' • ')}` : null,
     '',
     'Return a single question. Keep it under 28 words.'
   ].filter(Boolean).join('\n');
@@ -228,13 +259,13 @@ async function generateQuestionWithAzure(env, prompt, metadata) {
     verbosity: 'low'
   });
 
-  const finalQuestion = ensureQuestionMark(question);
+  const finalQuestion = sanitizeGeneratedQuestion(question);
 
   // Log successful Azure-backed question for debugging (no PII beyond prompt summary)
   try {
-    console.log('[generate-question] Azure question generated', {
-      provider: 'azure-gpt5',
-      model: env?.AZURE_OPENAI_GPT5_MODEL || null,
+    console.log('[generate-question] Responses question generated', {
+      provider: resolveResponsesProviderLabel(env),
+      model: resolveResponsesModelLabel(env),
       snippet: finalQuestion.slice(0, 160)
     });
   } catch (logError) {
@@ -245,7 +276,17 @@ async function generateQuestionWithAzure(env, prompt, metadata) {
 }
 
 function isAzureConfigured(env) {
+  if (env?.OPENAI_API_KEY) return true;
   return Boolean(env?.AZURE_OPENAI_API_KEY && env?.AZURE_OPENAI_ENDPOINT && env?.AZURE_OPENAI_GPT5_MODEL);
+}
+
+function resolveResponsesModelLabel(env) {
+  if (env?.OPENAI_API_KEY) return env?.OPENAI_MODEL || 'gpt-5.4';
+  return env?.AZURE_OPENAI_GPT5_MODEL || null;
+}
+
+function resolveResponsesProviderLabel(env) {
+  return env?.OPENAI_API_KEY ? 'openai-native' : 'azure-gpt5';
 }
 
 export async function onRequestPost({ request, env }) {
@@ -322,9 +363,9 @@ export async function onRequestPost({ request, env }) {
     if (isAzureConfigured(env)) {
       try {
         question = await generateQuestionWithAzure(env, prompt, metadata);
-        provider = 'azure-gpt5';
+        provider = resolveResponsesProviderLabel(env);
       } catch (error) {
-        console.warn('Azure GPT-5 question generation failed, using fallback:', error?.message || error);
+        console.warn('Responses API question generation failed, using fallback:', error?.message || error);
       }
     }
 
@@ -333,11 +374,13 @@ export async function onRequestPost({ request, env }) {
       provider = 'local-fallback';
     }
 
+    const isResponsesProvider = provider === 'azure-gpt5' || provider === 'openai-native';
+
     return new Response(
       JSON.stringify({
         question,
         provider,
-        model: provider === 'azure-gpt5' ? env?.AZURE_OPENAI_GPT5_MODEL || null : null,
+        model: isResponsesProvider ? resolveResponsesModelLabel(env) : null,
         forecast: ephemerisForecast
       }),
       { status: 200, headers: JSON_HEADERS }

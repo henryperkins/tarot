@@ -109,6 +109,9 @@ export function useSaveReading() {
                 tarotExperience: personalization.tarotExperience || 'intermediate',
                 // Capture reading depth preference for narrative length consistency
                 preferredSpreadDepth: personalization.preferredSpreadDepth || 'standard',
+                focusAreas: Array.isArray(personalization.focusAreas)
+                    ? personalization.focusAreas.filter((area) => typeof area === 'string' && area.trim().length > 0)
+                    : [],
                 // Store displayName only if set (avoid null/empty)
                 ...(personalization.displayName?.trim() ? { displayName: personalization.displayName.trim() } : {})
             } : null,

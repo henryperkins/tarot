@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH } from './personalizationConstants.js';
+import {
+  PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH,
+  PERSONALIZATION_REQUEST_FIELDS,
+  PERSONALIZATION_REQUEST_EXPLICIT_FIELDS_KEY
+} from './personalizationConstants.js';
 
 const trimmedString = (label) =>
   z
@@ -75,7 +79,8 @@ const personalizationSchema = z
     spiritualFrame: z.enum(['psychological', 'spiritual', 'mixed', 'playful']).optional(),
     tarotExperience: z.enum(['newbie', 'intermediate', 'experienced']).optional(),
     preferredSpreadDepth: z.enum(['short', 'standard', 'deep']).optional(),
-    focusAreas: z.array(z.string().trim().min(1)).optional()
+    focusAreas: z.array(z.string().trim().min(1)).optional(),
+    [PERSONALIZATION_REQUEST_EXPLICIT_FIELDS_KEY]: z.array(z.enum(PERSONALIZATION_REQUEST_FIELDS)).optional()
   })
   .catchall(z.unknown());
 

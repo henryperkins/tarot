@@ -1,8 +1,9 @@
 import { getContextDescriptor } from '../helpers.js';
 import { buildCardTransitNotes, generateTimingGuidance } from '../../ephemerisIntegration.js';
-import { sanitizeDisplayName, getDepthProfile } from '../styleHelpers.js';
+import { buildExperienceLine, sanitizeDisplayName, getDepthProfile } from '../styleHelpers.js';
 import { sanitizeText } from '../../utils.js';
 import { detectPromptInjection } from '../../promptInjectionDetector.js';
+import { formatMemoriesForPrompt } from '../../userMemory.js';
 import {
   DEFAULT_REVERSAL_DESCRIPTION,
   MAX_QUESTION_TEXT_LENGTH,
@@ -77,6 +78,18 @@ function recordUserContextSignal(target, key, patch) {
   };
 }
 
+function buildReturningQuerentContext(memories) {
+  const formattedMemories = formatMemoriesForPrompt(memories);
+  if (!formattedMemories) return '';
+
+  return [
+    '**Returning Querent Context**:',
+    '- These are recurring notes from earlier readings. Use them only when they clearly illuminate the current question.',
+    '- Current question, current reflections, and current onboarding preferences override remembered context.',
+    formattedMemories
+  ].join('\n');
+}
+
 export function buildUserPrompt(
   spreadKey,
   cardsInfo,
@@ -95,6 +108,7 @@ export function buildUserPrompt(
   const rawDisplayNameProvided = typeof personalization?.displayName === 'string' && personalization.displayName.trim().length > 0;
   const depthPreference = personalization?.preferredSpreadDepth;
   const depthProfile = depthPreference ? getDepthProfile(depthPreference) : null;
+  const experienceGuidance = buildExperienceLine(personalization?.tarotExperience);
   const activeThemes = typeof themes === 'object' && themes !== null ? themes : {};
   const reversalDescriptor = activeThemes.reversalDescription || { ...DEFAULT_REVERSAL_DESCRIPTION };
   let prompt = ``;
@@ -150,6 +164,16 @@ export function buildUserPrompt(
     prompt += `**Depth Preference**: ${depthProfile.promptReminder}\n\n`;
   }
 
+  recordUserContextSignal(userContextSignals, 'experience', {
+    provided: Boolean(personalization?.tarotExperience),
+    eligible: Boolean(experienceGuidance),
+    skippedReasonIfNotEligible: personalization?.tarotExperience && !experienceGuidance ? 'unsupported_value' : null,
+    skippedReasonIfMissing: 'removed_for_budget'
+  });
+  if (experienceGuidance) {
+    prompt += `**Tarot Experience**: ${experienceGuidance}\n\n`;
+  }
+
   // Deck style name only - detailed tips are in system prompt
   const deckNotes = getDeckStyleNotes(deckStyle);
   if (deckNotes && deckStyle !== 'rws-1909') {
@@ -181,7 +205,7 @@ export function buildUserPrompt(
   });
   if (sanitizedFocusAreas.length > 0) {
     const focusList = sanitizedFocusAreas.join(', ');
-    thematicLines.push(`- Focus areas (from onboarding): ${focusList}`);
+    prompt += `**Focus Areas**:\n- Keep the reading anchored in: ${focusList}\n- Return to these themes when naming patterns, advice, and next steps.\n\n`;
   }
   if (activeThemes.timingProfile) {
     const timingDescriptions = {
@@ -279,6 +303,11 @@ export function buildUserPrompt(
   const visionSection = buildVisionValidationSection(visionInsights, { includeDiagnostics, cardsInfo });
   if (visionSection) {
     prompt += visionSection;
+  }
+
+  const memorySection = buildReturningQuerentContext(promptOptions.memories);
+  if (memorySection) {
+    prompt += `\n${memorySection}\n\n`;
   }
 
   const graphRAGSection = buildGraphRAGReferenceBlock(spreadKey, activeThemes, promptOptions);

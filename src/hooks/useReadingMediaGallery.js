@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { READING_MEDIA_GALLERY_VISIBLE_LIMIT } from '../lib/mediaGalleryConstants.js';
 
 export function useReadingMediaGallery({
     canUseMediaGallery
 }) {
     const [mediaItems, setMediaItems] = useState([]);
+    const [mediaTotal, setMediaTotal] = useState(0);
     const [mediaLoading, setMediaLoading] = useState(false);
     const [mediaError, setMediaError] = useState(null);
     const mediaRequestTokenRef = useRef(0);
@@ -11,6 +13,7 @@ export function useReadingMediaGallery({
     const loadMediaGallery = useCallback(async () => {
         if (!canUseMediaGallery) {
             setMediaItems([]);
+            setMediaTotal(0);
             setMediaLoading(false);
             setMediaError(null);
             return;
@@ -22,7 +25,7 @@ export function useReadingMediaGallery({
         setMediaError(null);
 
         try {
-            const response = await fetch('/api/media?limit=36', {
+            const response = await fetch(`/api/media?limit=${READING_MEDIA_GALLERY_VISIBLE_LIMIT}`, {
                 credentials: 'include'
             });
             let data = null;
@@ -41,7 +44,9 @@ export function useReadingMediaGallery({
             }
 
             const nextItems = Array.isArray(data?.media) ? data.media : [];
-            setMediaItems(nextItems);
+            const nextTotal = Number(data?.pagination?.total);
+            setMediaItems(nextItems.slice(0, READING_MEDIA_GALLERY_VISIBLE_LIMIT));
+            setMediaTotal(Number.isFinite(nextTotal) ? Math.max(nextItems.length, nextTotal) : nextItems.length);
             setMediaError(null);
             setMediaLoading(false);
         } catch (_err) {
@@ -101,16 +106,21 @@ export function useReadingMediaGallery({
 
             const next = data?.media;
             if (next?.id) {
+                const hasVisibleMatch = mediaItems.some((item) => item.id === next.id);
                 setMediaItems((prev) => {
                     const withoutCurrent = prev.filter((item) => item.id !== next.id);
-                    return [next, ...withoutCurrent];
+                    return [next, ...withoutCurrent].slice(0, READING_MEDIA_GALLERY_VISIBLE_LIMIT);
+                });
+                setMediaTotal((prev) => {
+                    if (hasVisibleMatch) return Math.max(prev, mediaItems.length);
+                    return Math.max(prev + 1, mediaItems.length + 1);
                 });
             }
             setMediaError(null);
         } catch (_err) {
             setMediaError('Unable to save generated media.');
         }
-    }, [canUseMediaGallery]);
+    }, [canUseMediaGallery, mediaItems]);
 
     const deleteMediaById = useCallback(async (id) => {
         if (!canUseMediaGallery || !id) return;
@@ -131,7 +141,9 @@ export function useReadingMediaGallery({
         }
 
         setMediaItems((prev) => prev.filter((item) => item.id !== id));
-    }, [canUseMediaGallery]);
+        setMediaTotal((prev) => Math.max(0, prev - 1));
+        await loadMediaGallery();
+    }, [canUseMediaGallery, loadMediaGallery]);
 
     useEffect(() => {
         if (!canUseMediaGallery) {
@@ -150,6 +162,7 @@ export function useReadingMediaGallery({
 
     return {
         mediaItems: canUseMediaGallery ? mediaItems : [],
+        mediaTotal: canUseMediaGallery ? mediaTotal : 0,
         mediaLoading: canUseMediaGallery ? mediaLoading : false,
         mediaError: canUseMediaGallery ? mediaError : null,
         loadMediaGallery,

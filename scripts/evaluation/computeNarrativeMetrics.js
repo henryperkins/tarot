@@ -29,7 +29,11 @@ const AGENCY_PATTERNS = [
   /\byou decide\b/i,
   /\byou direct\b/i,
   /\bco-?creat(?:e|ing)\b/i,
-  /\byou can shape\b/i
+  /\byou can shape\b/i,
+  /\belecci(?:o|ó)n(?:es)?\b/i,
+  /\belige\b/i,
+  /\bdecid(?:ir|e|es|a|as|an)\b/i,
+  /\bopci(?:o|ó)n(?:es)?\b/i
 ];
 
 const SUPPORTIVE_TONE_PATTERNS = [
@@ -46,15 +50,26 @@ const SUPPORTIVE_TONE_PATTERNS = [
   /\binvite\b/i,
   /\bconsider\b/i,
   /\bchoice\b/i,
-  /\bagency\b/i
+  /\bagency\b/i,
+  /\bsuave(?:s|mente)?\b/i,
+  /\bcuid(?:ar|ado|arte|arte a ti|arse)\b/i,
+  /\bdescanso\b/i,
+  /\bpresencia\b/i,
+  /\bpresente\b/i,
+  /\bpermiso\b/i,
+  /\brespiro\b/i,
+  /\bcompasi(?:o|ó)n\b/i,
+  /\bamabilidad\b/i,
+  /\bcalma\b/i
 ];
 
 const HARSH_TONE_PATTERNS = [
   /\byou must\b/i,
   /\byou should\b/i,
   /\bno choice\b/i,
-  /\bnever\b/i,
-  /\balways\b/i,
+  /\byou (?:never|always)\b/i,
+  /\bnever (?:again|do|ignore|forget|allow)\b/i,
+  /\balways (?:do|avoid|choose)\b/i,
   /\bonly way\b/i,
   /\bcannot avoid\b/i,
   /\bmust not\b/i

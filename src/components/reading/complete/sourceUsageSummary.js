@@ -14,6 +14,7 @@ const USER_CONTEXT_LABELS = {
     reflections: 'reflections',
     focusAreas: 'focus areas',
     displayName: 'display name',
+    experience: 'tarot experience',
     tone: 'tone',
     frame: 'frame',
     depth: 'depth preference'
@@ -75,6 +76,7 @@ export function formatUsageSummary(sourceUsage) {
         if (sourceUsage.userContext.reflectionsProvided) fallbackParts.push('reflections');
         if (sourceUsage.userContext.focusAreasProvided) fallbackParts.push('focus areas');
         if (sourceUsage.userContext.displayNameProvided) fallbackParts.push('display name');
+        if (sourceUsage.userContext.experienceProvided) fallbackParts.push('tarot experience');
         if (sourceUsage.userContext.toneProvided) fallbackParts.push('tone');
         if (sourceUsage.userContext.frameProvided) fallbackParts.push('frame');
         if (sourceUsage.userContext.depthProvided) fallbackParts.push('depth preference');

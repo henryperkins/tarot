@@ -336,6 +336,41 @@ function sanitizeCardsInfo(cardsInfo) {
   }));
 }
 
+function sanitizePromptEngineeringMetrics(promptEngineering) {
+  if (!promptEngineering || typeof promptEngineering !== 'object') {
+    return null;
+  }
+
+  const redacted = promptEngineering.redacted;
+  if (!redacted || typeof redacted !== 'object') {
+    return null;
+  }
+  const privacy = promptEngineering.privacy && typeof promptEngineering.privacy === 'object'
+    ? promptEngineering.privacy
+    : null;
+  if (!privacy || privacy.piiRedacted !== true) {
+    return null;
+  }
+
+  return {
+    hashes: promptEngineering.hashes && typeof promptEngineering.hashes === 'object'
+      ? { ...promptEngineering.hashes }
+      : undefined,
+    redacted: {
+      systemPrompt: typeof redacted.systemPrompt === 'string' ? redacted.systemPrompt : '',
+      userPrompt: typeof redacted.userPrompt === 'string' ? redacted.userPrompt : '',
+      response: typeof redacted.response === 'string' ? redacted.response : ''
+    },
+    structure: promptEngineering.structure && typeof promptEngineering.structure === 'object'
+      ? promptEngineering.structure
+      : undefined,
+    lengths: promptEngineering.lengths && typeof promptEngineering.lengths === 'object'
+      ? promptEngineering.lengths
+      : undefined,
+    privacy
+  };
+}
+
 export function sanitizeMetricsPayload(metricsPayload = {}, mode = DEFAULT_METRICS_STORAGE_MODE) {
   if (mode === 'full') {
     return { ...metricsPayload };
@@ -395,6 +430,11 @@ export function sanitizeMetricsPayload(metricsPayload = {}, mode = DEFAULT_METRI
     }
     return acc;
   }, {});
+
+  const safePromptEngineering = sanitizePromptEngineeringMetrics(metricsPayload.promptEngineering);
+  if (safePromptEngineering) {
+    sanitized.promptEngineering = safePromptEngineering;
+  }
 
   // For 'redact' mode: preserve location metadata (timezone, locationUsed) but strip coordinates
   // Coordinates are PII; timezone is analytics-safe
@@ -761,19 +801,39 @@ function collectJsonCandidates(text) {
   return candidates;
 }
 
+function hasEvaluationScoreShape(parsed) {
+  if (!parsed || typeof parsed !== 'object') {
+    return false;
+  }
+
+  const scores = parsed.scores && typeof parsed.scores === 'object'
+    ? parsed.scores
+    : parsed;
+  const scoreKeys = ['personalization', 'tarot_coherence', 'tone', 'safety', 'overall', 'safety_flag'];
+  return scoreKeys.some((key) => Object.prototype.hasOwnProperty.call(scores, key));
+}
+
 function parseEvaluationResponse(responseText) {
   const candidates = collectJsonCandidates(responseText);
+  let firstParsed = null;
+
   for (const candidate of candidates) {
     try {
       const parsed = JSON.parse(candidate);
       if (parsed && typeof parsed === 'object') {
-        return parsed;
+        if (!firstParsed) {
+          firstParsed = parsed;
+        }
+        if (hasEvaluationScoreShape(parsed)) {
+          return parsed;
+        }
       }
     } catch {
       // continue
     }
   }
-  return null;
+
+  return firstParsed && hasEvaluationScoreShape(firstParsed) ? firstParsed : null;
 }
 
 export function getEvaluationTimeoutMs(env) {
@@ -931,10 +991,46 @@ function sanitizeEvalPromptValue(value, maxLength, fallback = '') {
   return sanitized || fallback;
 }
 
+function sanitizeEvalPromptText(value, maxLength, fallback = '') {
+  if (typeof value !== 'string') return fallback;
+
+  let sanitized = sanitizeText(value, {
+    maxLength,
+    stripControlChars: true,
+    filterInstructions: true,
+    collapseWhitespace: false
+  });
+
+  if (!sanitized) return fallback;
+
+  const detection = detectPromptInjection(sanitized, { confidenceThreshold: 0.6, sanitize: true });
+  if (detection.isInjection && detection.sanitizedText) {
+    sanitized = detection.sanitizedText;
+  }
+
+  sanitized = sanitized
+    .replace(/```\s*(?:system|developer|assistant|user)?/gi, '```')
+    .replace(/<\s*\/?\s*(?:system|developer|assistant|user)\s*>/gi, '[role-marker]')
+    .replace(/\{\{|\}\}|\$\{|\}|<%|%>|\{#|#\}|\{%|%\}/g, '')
+    .replace(/\[%|%\]|\[\[|\]\]/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  if (!sanitized) return fallback;
+  if (maxLength && sanitized.length > maxLength) {
+    sanitized = sanitized.slice(0, maxLength).trim();
+  }
+
+  return sanitized || fallback;
+}
+
 function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, narrativeMetrics = {}, requestId = 'unknown' }) {
   const cardsResult = buildCardsList(cardsInfo, MAX_CARDS_INFO_LENGTH);
-  const questionResult = truncateText(userQuestion, MAX_QUESTION_LENGTH);
-  const readingResult = truncateTextWithTail(reading, MAX_READING_LENGTH);
+  const sanitizedQuestion = sanitizeEvalPromptValue(userQuestion, MAX_QUESTION_LENGTH * 2, '');
+  const sanitizedReading = sanitizeEvalPromptText(reading, MAX_READING_LENGTH * 2, '');
+  const questionResult = truncateText(sanitizedQuestion, MAX_QUESTION_LENGTH);
+  const readingResult = truncateTextWithTail(sanitizedReading, MAX_READING_LENGTH);
   const cardCount = Array.isArray(cardsInfo) ? cardsInfo.length : 0;
   const spreadHints = buildSpreadEvaluationHints(spreadKey);
   const structuralMetrics = buildStructuralMetricsSection(narrativeMetrics, { spreadKey, cardCount });

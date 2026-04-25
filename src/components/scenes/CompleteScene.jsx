@@ -29,6 +29,7 @@ export function CompleteScene({
     feedbackVisionSummary,
     canUseMediaGallery,
     mediaItems,
+    mediaTotal,
     mediaLoading,
     mediaError,
     onRefreshMedia,
@@ -61,8 +62,10 @@ export function CompleteScene({
 
       <ReadingMediaSection
         personalReading={personalReading}
+        isPersonalReadingError={isPersonalReadingError}
         canUseMediaGallery={canUseMediaGallery}
         mediaItems={mediaItems}
+        mediaTotal={mediaTotal}
         mediaLoading={mediaLoading}
         mediaError={mediaError}
         onRefreshMedia={onRefreshMedia}

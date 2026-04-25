@@ -50,7 +50,7 @@ function getTestSetupScript() {
   };
 }
 
-async function mockTarotReading(page, overrides = {}) {
+async function mockTarotReading(page, overrides = {}, options = {}) {
   const responseBody = { ...MOCK_NARRATIVE_RESPONSE, ...overrides };
   const jobId = responseBody.jobId || 'mock-reading-job';
   const jobToken = responseBody.jobToken || 'mock-reading-token';
@@ -60,6 +60,9 @@ async function mockTarotReading(page, overrides = {}) {
   const themes = responseBody.themes || MOCK_NARRATIVE_RESPONSE.themes;
 
   await page.route(/\/api\/tarot-reading\/jobs$/, async (route) => {
+    if (typeof options.onJobStart === 'function') {
+      await options.onJobStart(route.request().postDataJSON());
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -162,7 +165,7 @@ async function applyCut(page) {
   }
 
   // After ritual is complete, click "Draw cards" to deal
-  const drawCardsButton = page.getByRole('button', { name: /draw cards/i });
+  const drawCardsButton = page.getByRole('button', { name: /draw cards|deal the cards/i });
   if (await drawCardsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
     await drawCardsButton.click({ force: true });
   }
@@ -194,7 +197,7 @@ async function skipRitual(page) {
   }
 
   // Fallback: click the "Draw cards" button directly
-  const drawCardsButton = page.getByRole('button', { name: /draw cards/i });
+  const drawCardsButton = page.getByRole('button', { name: /draw cards|deal the cards/i });
   if (await drawCardsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
     await drawCardsButton.scrollIntoViewIfNeeded();
     await drawCardsButton.click({ force: true });
@@ -290,8 +293,8 @@ async function waitForNarrativeComplete(page) {
   await expect(narrativeStream).toBeVisible({ timeout: 5000 });
 }
 
-async function generateAndCompleteNarrative(page, readingOverrides = {}) {
-  await mockTarotReading(page, readingOverrides);
+async function generateAndCompleteNarrative(page, readingOverrides = {}, options = {}) {
+  await mockTarotReading(page, readingOverrides, options);
   await generateNarrative(page);
   await waitForNarrativeComplete(page);
 }
@@ -325,7 +328,7 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(getTestSetupScript());
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForAppReady(page);
   });
 
@@ -501,6 +504,7 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
     await expect(page.getByText(/mock narrative response for desktop completion checks/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /view journal/i })).toBeVisible();
   });
+
 });
 
 // ============================================================================
@@ -512,7 +516,7 @@ test.describe('Tarot Reading Flow - Mobile @mobile', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(getTestSetupScript());
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForAppReady(page);
   });
 
@@ -590,7 +594,7 @@ test.describe('Ritual Mechanics @desktop', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(getTestSetupScript());
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForAppReady(page);
     await selectSpread(page, 'Three-Card');
   });
@@ -635,7 +639,7 @@ test.describe('Deterministic Shuffle @desktop', () => {
     await page.addInitScript(getTestSetupScript());
 
     // First reading
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForAppReady(page);
     await selectSpread(page, 'Three-Card');
 
@@ -661,7 +665,7 @@ test.describe('Error Handling @desktop', () => {
 
   test('handles network errors gracefully', async ({ page }) => {
     await page.addInitScript(getTestSetupScript());
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForAppReady(page);
     await selectSpread(page, 'One-Card');
     await skipRitual(page);
@@ -686,7 +690,7 @@ test.describe('Error Handling @desktop', () => {
 
   test('can retry after error', async ({ page }) => {
     await page.addInitScript(getTestSetupScript());
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForAppReady(page);
     await selectSpread(page, 'One-Card');
     await skipRitual(page);
@@ -725,7 +729,7 @@ test.describe('Accessibility @desktop', () => {
 
   test('spread selector is keyboard navigable', async ({ page }) => {
     await page.addInitScript(getTestSetupScript());
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForAppReady(page);
 
     // Focus the first spread button in the spread selector
@@ -747,7 +751,7 @@ test.describe('Accessibility @desktop', () => {
 
   test('cards have proper ARIA labels', async ({ page }) => {
     await page.addInitScript(getTestSetupScript());
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForAppReady(page);
     await selectSpread(page, 'One-Card');
     await skipRitual(page);
@@ -764,7 +768,7 @@ test.describe('Accessibility @desktop', () => {
 
   test('step progress indicates current stage', async ({ page }) => {
     await page.addInitScript(getTestSetupScript());
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForAppReady(page);
 
     // Step progress should be visible
@@ -783,7 +787,7 @@ test.describe('Performance @desktop', () => {
   test('app loads within acceptable time', async ({ page }) => {
     await page.addInitScript(getTestSetupScript());
     const startTime = Date.now();
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForAppReady(page);
     const loadTime = Date.now() - startTime;
 
@@ -793,7 +797,7 @@ test.describe('Performance @desktop', () => {
 
   test('shuffle animation completes smoothly', async ({ page }) => {
     await page.addInitScript(getTestSetupScript());
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForAppReady(page);
     await selectSpread(page, 'One-Card');
 

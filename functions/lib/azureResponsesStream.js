@@ -43,9 +43,8 @@ export async function callAzureResponsesStream(env, {
   user = null,
   tools = null
 }) {
-  const { endpoint, apiKey, model, apiVersion } = ensureAzureConfig(env);
+  const { model, apiVersion, url, authHeaders, provider } = ensureAzureConfig(env);
   const resolvedUser = resolveResponsesUser(env, user);
-  const url = `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
 
   const body = {
     model,
@@ -80,6 +79,7 @@ export async function callAzureResponsesStream(env, {
 
   console.log('[azureResponsesStream] Starting streaming request', {
     url,
+    provider,
     model,
     apiVersion,
     maxTokens: maxTokens ?? 'unlimited',
@@ -92,7 +92,7 @@ export async function callAzureResponsesStream(env, {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'api-key': apiKey,
+      ...authHeaders,
       'content-type': 'application/json'
     },
     body: JSON.stringify(body)
@@ -103,9 +103,10 @@ export async function callAzureResponsesStream(env, {
     console.error('[azureResponsesStream] Non-OK HTTP status', {
       status: response.status,
       statusText: response.statusText,
+      provider,
       bodyPreview: errText.slice(0, 500)
     });
-    throw new Error(`Azure Responses API error ${response.status}: ${errText}`);
+    throw new Error(`Responses API error ${response.status}: ${errText}`);
   }
 
   if (!response.body) {
@@ -721,9 +722,8 @@ export async function callAzureResponsesStreamWithConversation(env, {
   verbosity = 'medium',
   user = null
 }) {
-  const { endpoint, apiKey, model, apiVersion } = ensureAzureConfig(env);
+  const { model, url, authHeaders, provider } = ensureAzureConfig(env);
   const resolvedUser = resolveResponsesUser(env, user);
-  const url = `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
 
   const body = {
     model,
@@ -743,6 +743,7 @@ export async function callAzureResponsesStreamWithConversation(env, {
 
   console.log('[azureResponsesStream] Starting continuation request', {
     url,
+    provider,
     model,
     conversationLength: conversation.length,
     maxTokens: maxTokens ?? 'unlimited',
@@ -753,7 +754,7 @@ export async function callAzureResponsesStreamWithConversation(env, {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'api-key': apiKey,
+      ...authHeaders,
       'content-type': 'application/json'
     },
     body: JSON.stringify(body)
@@ -764,9 +765,10 @@ export async function callAzureResponsesStreamWithConversation(env, {
     console.error('[azureResponsesStream] Continuation request failed', {
       status: response.status,
       statusText: response.statusText,
+      provider,
       bodyPreview: errText.slice(0, 500)
     });
-    throw new Error(`Azure Responses API continuation error ${response.status}: ${errText}`);
+    throw new Error(`Responses API continuation error ${response.status}: ${errText}`);
   }
 
   if (!response.body) {

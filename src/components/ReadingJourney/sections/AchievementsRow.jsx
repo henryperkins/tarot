@@ -102,7 +102,7 @@ function AchievementsRow({ badges = [] }) {
               title={title}
             >
               {BadgeIllustration ? (
-                <BadgeIllustration className="h-7 w-7 flex-shrink-0" />
+                <BadgeIllustration className="h-7 w-7 flex-shrink-0" size="compact" />
               ) : (
                 <FallbackIcon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
               )}

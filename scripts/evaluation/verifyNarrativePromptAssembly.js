@@ -131,7 +131,7 @@ async function main() {
     'User prompt should include personalized name usage guidance'
   );
   assert(
-    userPrompt.includes('Focus areas (from onboarding)'),
+    userPrompt.includes('**Focus Areas**:'),
     'User prompt should include focus area guidance when provided'
   );
 

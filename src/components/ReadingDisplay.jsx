@@ -282,6 +282,7 @@ export function ReadingDisplay({
     }, [isHandset, newDeckInterface, reading, revealedCards, visibleCount]);
     const {
         mediaItems,
+        mediaTotal,
         mediaLoading,
         mediaError,
         loadMediaGallery,
@@ -615,6 +616,7 @@ export function ReadingDisplay({
         feedbackVisionSummary,
         canUseMediaGallery,
         mediaItems,
+        mediaTotal,
         mediaLoading,
         mediaError,
         onRefreshMedia: loadMediaGallery,

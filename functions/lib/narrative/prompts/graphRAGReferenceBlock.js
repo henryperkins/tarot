@@ -59,6 +59,17 @@ function buildGraphRAGSummaryBlock(payload) {
   return lines.join('\n');
 }
 
+function neutralizeReferenceDelimiters(text) {
+  if (!text || typeof text !== 'string') {
+    return '';
+  }
+
+  return text.replace(/<\s*(\/?\s*reference)\s*>/gi, (_match, tag) => {
+    const normalized = String(tag || '').replace(/\s+/g, '').toLowerCase();
+    return normalized.startsWith('/') ? '[/reference]' : '[reference]';
+  });
+}
+
 export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
   const includeGraphRAG = options.includeGraphRAG !== false;
   const includeGraphRAGSummaryOnly = options.graphRAGSummaryOnly === true;
@@ -119,6 +130,8 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
       // Legacy fallback when only a preformatted block is available.
       formattedPassages = payload.formattedBlock;
     }
+
+    formattedPassages = neutralizeReferenceDelimiters(formattedPassages);
 
     if (!formattedPassages) {
       return '';

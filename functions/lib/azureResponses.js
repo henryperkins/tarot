@@ -13,6 +13,28 @@ import { fetchWithRetry } from './retryWithBackoff.js';
  * @throws {Error} If required configuration is missing
  */
 export function ensureAzureConfig(env) {
+  // Native OpenAI Responses API takes priority when its key is configured.
+  // Azure and OpenAI-native share the Responses API body schema; only the URL
+  // path and auth header differ.
+  if (env?.OPENAI_API_KEY) {
+    const rawBase = (env.OPENAI_BASE_URL || 'https://api.openai.com').trim();
+    const endpoint = rawBase
+      .replace(/\/+$/, '')
+      .replace(/\/v1\/?$/, '');
+    const apiKey = env.OPENAI_API_KEY;
+    const model = env.OPENAI_MODEL || 'gpt-5.4';
+
+    return {
+      endpoint,
+      apiKey,
+      model,
+      apiVersion: null,
+      url: `${endpoint}/v1/responses`,
+      authHeaders: { 'Authorization': `Bearer ${apiKey}` },
+      provider: 'openai-native'
+    };
+  }
+
   const rawEndpoint = env.AZURE_OPENAI_ENDPOINT || '';
   const endpoint = rawEndpoint
     .replace(/\/+$/, '')                    // Remove trailing slashes
@@ -32,7 +54,10 @@ export function ensureAzureConfig(env) {
     endpoint,
     apiKey,
     model,
-    apiVersion
+    apiVersion,
+    url: `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`,
+    authHeaders: { 'api-key': apiKey },
+    provider: 'azure'
   };
 }
 
@@ -134,9 +159,8 @@ export async function callAzureResponses(env, {
   returnFullResponse = false,
   requestId = 'unknown'
 }) {
-  const { endpoint, apiKey, model, apiVersion } = ensureAzureConfig(env);
+  const { model, apiVersion, url, authHeaders, provider } = ensureAzureConfig(env);
   const resolvedUser = resolveResponsesUser(env, user);
-  const url = `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`;
 
   // Build request body
   // NOTE: When reasoningEffort is null, we intentionally omit the `reasoning` block.
@@ -175,6 +199,7 @@ export async function callAzureResponses(env, {
   // Debug logging for request metadata (no secrets)
   console.log('[azureResponses] Requesting Responses API', {
     url,
+    provider,
     model,
     apiVersion,
     maxTokens: maxTokens ?? 'unlimited',
@@ -191,12 +216,12 @@ export async function callAzureResponses(env, {
     {
       method: 'POST',
       headers: {
-        'api-key': apiKey,
+        ...authHeaders,
         'content-type': 'application/json'
       },
       body: JSON.stringify(body)
     },
-    'azure-openai',
+    provider === 'openai-native' ? 'openai-native' : 'azure-openai',
     requestId,
     {
       maxRetries: 3,

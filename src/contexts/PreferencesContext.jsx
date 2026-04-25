@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { PERSONALIZATION_REQUEST_FIELDS } from '../../shared/contracts/personalizationConstants.js';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { getDeckPool } from '../lib/deck';
 import { initAudio, cleanupAudio, stopTTS, toggleAmbience } from '../lib/audio';
@@ -7,7 +8,10 @@ import {
   DEFAULT_PERSONALIZATION,
   PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH,
   LEGACY_PERSONALIZATION_STORAGE_KEY,
+  derivePersonalizationExplicitFields,
+  loadPersonalizationExplicitFields,
   getPersonalizationStorageKey,
+  savePersonalizationExplicitFields,
   sanitizePersonalization,
   sanitizeGuestPersonalization,
   loadPersonalizationFromStorage
@@ -26,6 +30,7 @@ const DEFAULT_PREPARE_SECTIONS = {
   ritual: false,
   audio: false
 };
+const PERSONALIZATION_REQUEST_FIELD_SET = new Set(PERSONALIZATION_REQUEST_FIELDS);
 
 /** Nudge state for contextual discovery (trimmed onboarding) */
 const DEFAULT_NUDGE_STATE = {
@@ -248,6 +253,11 @@ export function PreferencesProvider({ children }) {
   const [personalization, setPersonalizationState] = useState(() =>
     loadPersonalizationFromStorage(personalizationStorageKey)
   );
+  const [personalizationExplicitFields, setPersonalizationExplicitFields] = useState(() => {
+    const storedFields = loadPersonalizationExplicitFields(personalizationStorageKey);
+    if (storedFields.length > 0) return storedFields;
+    return derivePersonalizationExplicitFields(loadPersonalizationFromStorage(personalizationStorageKey));
+  });
 
   // Handle auth transitions + migrate legacy device-scoped personalization storage.
   useEffect(() => {
@@ -279,7 +289,14 @@ export function PreferencesProvider({ children }) {
       }
     }
 
-    setPersonalizationState(loadPersonalizationFromStorage(nextKey));
+    const loadedPersonalization = loadPersonalizationFromStorage(nextKey);
+    const loadedExplicitFields = loadPersonalizationExplicitFields(nextKey);
+    setPersonalizationState(loadedPersonalization);
+    setPersonalizationExplicitFields(
+      loadedExplicitFields.length > 0
+        ? loadedExplicitFields
+        : derivePersonalizationExplicitFields(loadedPersonalization)
+    );
   }, [authLoading, personalizationStorageKey, userId]);
 
   // Persist personalization changes
@@ -294,8 +311,13 @@ export function PreferencesProvider({ children }) {
     }
   }, [personalization]);
 
+  useEffect(() => {
+    savePersonalizationExplicitFields(personalizationKeyRef.current, personalizationExplicitFields);
+  }, [personalizationExplicitFields]);
+
   const resetPersonalization = useCallback(() => {
     setPersonalizationState({ ...DEFAULT_PERSONALIZATION });
+    setPersonalizationExplicitFields([]);
     if (typeof localStorage !== 'undefined') {
       try {
         localStorage.removeItem(personalizationKeyRef.current);
@@ -305,14 +327,40 @@ export function PreferencesProvider({ children }) {
     }
   }, []);
 
-  const updatePersonalization = useCallback((nextValueOrUpdater) => {
+  const markPersonalizationFieldsExplicit = useCallback((fields) => {
+    const touchedFields = Array.isArray(fields)
+      ? fields.filter((field) => PERSONALIZATION_REQUEST_FIELD_SET.has(field))
+      : [];
+
+    if (touchedFields.length === 0) return;
+
+    setPersonalizationExplicitFields((current) => {
+      const merged = new Set(current);
+      let changed = false;
+      touchedFields.forEach((field) => {
+        if (!merged.has(field)) {
+          merged.add(field);
+          changed = true;
+        }
+      });
+      return changed ? Array.from(merged) : current;
+    });
+  }, []);
+
+  const updatePersonalization = useCallback((nextValueOrUpdater, explicitFields) => {
+    markPersonalizationFieldsExplicit(
+      Array.isArray(explicitFields)
+        ? explicitFields
+        : Object.keys(nextValueOrUpdater || {})
+    );
+
     setPersonalizationState((prev) => {
       const nextValue = typeof nextValueOrUpdater === 'function'
         ? nextValueOrUpdater(prev)
         : { ...prev, ...nextValueOrUpdater };
       return sanitizePersonalization(nextValue);
     });
-  }, []);
+  }, [markPersonalizationFieldsExplicit]);
 
   // Individual setters for personalization fields
   const setDisplayName = (value) => {
@@ -355,7 +403,7 @@ export function PreferencesProvider({ children }) {
       } else {
         return { ...prev, focusAreas: [...current, area] };
       }
-    });
+    }, ['focusAreas']);
   };
 
   // --- UI State: Prepare Sections ---
@@ -565,6 +613,7 @@ export function PreferencesProvider({ children }) {
     togglePrepareSection,
     // Personalization
     personalization,
+    personalizationExplicitFields,
     setDisplayName,
     setTarotExperience,
     setReadingTone,

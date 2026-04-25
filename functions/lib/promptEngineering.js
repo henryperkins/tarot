@@ -312,6 +312,7 @@ export function buildPromptRedactionOptions(params = {}) {
     displayName,
     userQuestion,
     reflectionsText,
+    additionalTextSources,
     nameHints,
     disableAutomaticNameExtraction = false
   } = params;
@@ -331,9 +332,15 @@ export function buildPromptRedactionOptions(params = {}) {
     typeof displayName === 'string' ? displayName : baseOptions.displayName
   );
 
+  const textSources = [
+    userQuestion,
+    reflectionsText,
+    ...(Array.isArray(additionalTextSources) ? additionalTextSources : [])
+  ].filter(Boolean);
+
   const extractedNameHints = disableAutomaticNameExtraction === true
     ? []
-    : extractNameHints([userQuestion, reflectionsText].filter(Boolean).join('\n'));
+    : extractNameHints(textSources.join('\n'));
   const providedNameHints = Array.isArray(nameHints) ? nameHints : [];
   const baseAdditionalNames = Array.isArray(baseOptions.additionalNames) ? baseOptions.additionalNames : [];
 
@@ -526,15 +533,6 @@ export async function buildPromptEngineeringPayload(params) {
   const safeUser = userPrompt || '';
   const safeResponse = response || '';
 
-  // Generate hashes for the raw prompts (for deduplication)
-  const combinedPrompt = `${safeSystem}\n---SEPARATOR---\n${safeUser}`;
-  const [promptHash, systemHash, userHash, responseHash] = await Promise.all([
-    hashText(combinedPrompt),
-    fingerprint(safeSystem),
-    fingerprint(safeUser),
-    fingerprint(safeResponse)
-  ]);
-
   // Layer 1: Strip user-provided content (questions, reflections)
   // This removes potentially sensitive free-form text before PII pattern matching
   let processedSystem = safeSystem;
@@ -567,6 +565,16 @@ export async function buildPromptEngineeringPayload(params) {
     redactedUser = redactPII(processedUser, effectiveRedactionOptions);
     redactedResponse = redactPII(processedResponse, effectiveRedactionOptions);
   }
+
+  // Generate hashes from storage-safe text, so analytics identifiers do not
+  // become stable fingerprints of raw PII-bearing prompts or responses.
+  const combinedPrompt = `${redactedSystem}\n---SEPARATOR---\n${redactedUser}`;
+  const [promptHash, systemHash, userHash, responseHash] = await Promise.all([
+    hashText(combinedPrompt),
+    fingerprint(redactedSystem),
+    fingerprint(redactedUser),
+    fingerprint(redactedResponse)
+  ]);
 
   // Extract structural features (from original for accurate metrics)
   const systemFeatures = extractPromptFeatures(safeSystem);
@@ -698,6 +706,10 @@ function stripCommonUserContent(text) {
     /\*\*Name Usage\*\*:\s*[\s\S]*?(?=\n\n|\n\*\*|$)/gi,
     '**Name Usage**: [NAME_USAGE_REDACTED]'
   );
+  result = result.replace(
+    /\*\*Tarot Experience\*\*:\s*[^\n]*/gi,
+    '**Tarot Experience**: [TAROT_EXPERIENCE_REDACTED]'
+  );
 
   // Strip displayName-prefixed questions: "Name, you asked: <question>"
   // This handles personalized question formats
@@ -706,10 +718,18 @@ function stripCommonUserContent(text) {
     ', you asked: [USER_QUESTION_REDACTED]'
   );
 
-  // Strip onboarding focus areas (can contain sensitive user details)
+  // Strip focus areas (can contain sensitive user details)
+  result = result.replace(
+    /\*\*Focus Areas\*\*:\s*[\s\S]*?(?=\n\n|\n\*\*Thematic Context\*\*|$)/gi,
+    '**Focus Areas**: [FOCUS_AREAS_REDACTED]'
+  );
   result = result.replace(
     /-\s*Focus areas\s*\(from onboarding\)\s*:[^\n]*/gi,
     '- Focus areas (from onboarding): [FOCUS_AREAS_REDACTED]'
+  );
+  result = result.replace(
+    /\*\*Returning Querent Context\*\*:\s*[\s\S]*?(?=\n\n## TRADITIONAL WISDOM \(GraphRAG\)|\n\nPlease now write|\n\n\*\*Querent['’]s Reflections\*\*|\n\n\*\*Vision Validation\*\*:|\n\n\*\*VISION VALIDATION\*\*:|$)/gi,
+    '**Returning Querent Context**: [MEMORY_REDACTED]'
   );
 
   return result;

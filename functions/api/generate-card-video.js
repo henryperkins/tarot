@@ -82,7 +82,10 @@ const CARD_VIDEO_SANITIZED_FIELDS = Object.freeze([
 ]);
 
 function isMediaPromptSanitizationEnabled(env) {
-  return env.MEDIA_PROMPT_SANITIZATION_V2 !== 'false';
+  if (env?.MEDIA_PROMPT_SANITIZATION_V2 === 'false') {
+    console.warn('[media] MEDIA_PROMPT_SANITIZATION_V2=false ignored; media prompt sanitization is mandatory.');
+  }
+  return true;
 }
 
 function isMediaPromptBudgetGuardsEnabled(env) {

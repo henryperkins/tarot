@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
+import { buildUserContextSourceUsage } from '../functions/lib/narrative/sourceUsage.js';
 import { formatUsageSummary } from '../src/components/reading/complete/sourceUsageSummary.js';
 
 describe('formatUsageSummary', () => {
@@ -59,5 +60,21 @@ describe('formatUsageSummary', () => {
       used: 3,
       requestedNotUsed: 2
     });
+  });
+
+  test('renders missing user context as not requested instead of skipped', () => {
+    const result = formatUsageSummary({
+      spreadCards: { requested: true, used: true },
+      vision: { requested: false, used: false },
+      userContext: buildUserContextSourceUsage({}),
+      graphRAG: { requested: false, used: false },
+      ephemeris: { requested: false, used: false },
+      forecast: { requested: false, used: false }
+    });
+
+    const byLabel = Object.fromEntries(result.rows.map((row) => [row.label, row]));
+    assert.equal(byLabel['User context'].state, 'notRequested');
+    assert.equal(byLabel['User context'].badgeText, 'Not requested');
+    assert.equal(byLabel['User context'].detail, '');
   });
 });

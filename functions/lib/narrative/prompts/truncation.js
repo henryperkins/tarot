@@ -152,13 +152,31 @@ export function truncateToTokenBudget(text, maxTokens, options = {}) {
 
 const USER_PROMPT_INSTRUCTION_MARKER = USER_PROMPT_INSTRUCTION_HEADER;
 const USER_PROMPT_GRAPHRAG_MARKER = '## TRADITIONAL WISDOM (GraphRAG)';
+const USER_PROMPT_GRAPHRAG_SUMMARY_MARKER = '## TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)';
 const USER_PROMPT_CARD_BOUNDARY_MARKERS = [
   '**Thoth Titles & Decans**',
   '**Marseille Pip Geometry**',
   '**Querent\'s Reflections**',
   '**VISION VALIDATION**',
   '**Vision Validation**',
-  USER_PROMPT_GRAPHRAG_MARKER
+  '**Returning Querent Context**:',
+  USER_PROMPT_GRAPHRAG_MARKER,
+  USER_PROMPT_GRAPHRAG_SUMMARY_MARKER
+];
+
+const USER_PROMPT_GRAPHRAG_MARKERS = [
+  USER_PROMPT_GRAPHRAG_MARKER,
+  USER_PROMPT_GRAPHRAG_SUMMARY_MARKER
+];
+
+const CRITICAL_INSTRUCTION_PATTERNS = [
+  /Do not introduce any card names/i,
+  /Reference each card by name/i,
+  /Tie each card's insight/i,
+  /Use the question and focus areas/i,
+  /Apply the reversal lens consistently/i,
+  /Offer 2-4 specific/i,
+  /Close with a trajectory reminder/i
 ];
 
 const USER_PROMPT_CARD_MARKERS = Object.freeze({
@@ -194,6 +212,78 @@ function findFirstMarkerIndex(text, markers = [], fromIndex = 0) {
     }
   }
   return best;
+}
+
+function splitAtFirstMarker(text, markers = []) {
+  const safeText = typeof text === 'string' ? text : '';
+  const idx = findFirstMarkerIndex(safeText, markers);
+  if (idx === -1) {
+    return { before: safeText.trim(), after: '' };
+  }
+  return {
+    before: safeText.slice(0, idx).trim(),
+    after: safeText.slice(idx).trim()
+  };
+}
+
+function appendInstructionLine(parts, line, maxTokens) {
+  const text = typeof line === 'string' ? line.trim() : '';
+  if (!text) return false;
+  const candidate = [...parts, text].join('\n').trim();
+  if (estimateTokenCount(candidate) > maxTokens) {
+    return false;
+  }
+  parts.push(text);
+  return true;
+}
+
+function fitInstructionBlockToBudget(instructions, maxTokens) {
+  const safeInstructions = typeof instructions === 'string' ? instructions.trim() : '';
+  if (!safeInstructions || maxTokens <= 0) {
+    return '';
+  }
+  if (estimateTokenCount(safeInstructions) <= maxTokens) {
+    return safeInstructions;
+  }
+
+  const lines = safeInstructions
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) {
+    return '';
+  }
+
+  const header = lines[0];
+  const bullets = lines.slice(1);
+  const selected = [];
+  const seen = new Set();
+
+  for (const pattern of CRITICAL_INSTRUCTION_PATTERNS) {
+    const match = bullets.find((line) => pattern.test(line));
+    if (match && !seen.has(match)) {
+      selected.push(match);
+      seen.add(match);
+    }
+  }
+
+  for (const line of bullets) {
+    if (!seen.has(line)) {
+      selected.push(line);
+      seen.add(line);
+    }
+  }
+
+  const parts = [];
+  if (!appendInstructionLine(parts, header, maxTokens)) {
+    return truncatePrefixToTokenBudget(header, maxTokens);
+  }
+
+  for (const line of selected) {
+    appendInstructionLine(parts, line, maxTokens);
+  }
+
+  return parts.join('\n').trim();
 }
 
 function splitQuestionBlock(introText) {
@@ -307,13 +397,9 @@ function splitUserPromptSections(text, spreadKey) {
   }
 
   const betweenCardsAndInstructions = safeText.slice(optionalStart, instructionsStart).trim();
-  const graphRAGIdx = betweenCardsAndInstructions.indexOf(USER_PROMPT_GRAPHRAG_MARKER);
-  const optionalContext = graphRAGIdx === -1
-    ? betweenCardsAndInstructions
-    : betweenCardsAndInstructions.slice(0, graphRAGIdx).trim();
-  const graphRAGText = graphRAGIdx === -1
-    ? ''
-    : betweenCardsAndInstructions.slice(graphRAGIdx).trim();
+  const splitOptional = splitAtFirstMarker(betweenCardsAndInstructions, USER_PROMPT_GRAPHRAG_MARKERS);
+  const optionalContext = splitOptional.before;
+  const graphRAGText = splitOptional.after;
   const instructions = instructionIdx >= 0 ? safeText.slice(instructionIdx).trim() : '';
 
   const { questionBlock, introRemainder } = splitQuestionBlock(introText);
@@ -329,10 +415,10 @@ function splitUserPromptSections(text, spreadKey) {
     }
   }
 
-  if (!resolvedGraphRAGText && resolvedIntroRemainder.includes(USER_PROMPT_GRAPHRAG_MARKER)) {
-    const fallbackGraphRAGIdx = resolvedIntroRemainder.indexOf(USER_PROMPT_GRAPHRAG_MARKER);
-    resolvedGraphRAGText = resolvedIntroRemainder.slice(fallbackGraphRAGIdx).trim();
-    resolvedIntroRemainder = resolvedIntroRemainder.slice(0, fallbackGraphRAGIdx).trim();
+  if (!resolvedGraphRAGText && findFirstMarkerIndex(resolvedIntroRemainder, USER_PROMPT_GRAPHRAG_MARKERS) !== -1) {
+    const fallbackSplit = splitAtFirstMarker(resolvedIntroRemainder, USER_PROMPT_GRAPHRAG_MARKERS);
+    resolvedGraphRAGText = fallbackSplit.after;
+    resolvedIntroRemainder = fallbackSplit.before;
   }
 
   return {
@@ -389,9 +475,9 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
   const bodySegments = [
     { key: 'question', value: questionBlock },
     { key: 'cards', value: cardsText },
-    { key: 'graphrag', value: graphRAGText },
     { key: 'intro', value: introRemainder },
-    { key: 'optional-context', value: optionalContext }
+    { key: 'optional-context', value: optionalContext },
+    { key: 'graphrag', value: graphRAGText }
   ];
 
   for (const segment of bodySegments) {
@@ -425,7 +511,7 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
       0,
       maxTokens - currentTokens - (finalParts.length > 0 ? separatorTokens : 0)
     );
-    const fittedInstructions = truncatePrefixToTokenBudget(instructions, availableForInstructions);
+    const fittedInstructions = fitInstructionBlockToBudget(instructions, availableForInstructions);
     if (fittedInstructions) {
       finalParts.push(fittedInstructions);
       preservedSections.push('instructions');

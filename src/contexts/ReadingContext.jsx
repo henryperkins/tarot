@@ -7,7 +7,7 @@ import { usePreferences } from './PreferencesContext';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
-import { sanitizePersonalization } from '../utils/personalizationStorage';
+import { buildPersonalizationRequestPayload } from '../utils/personalizationStorage';
 import { formatReading } from '../lib/formatting';
 import { canonicalCardKey, canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 import { computeRelationships } from '../lib/deck';
@@ -62,7 +62,8 @@ export function ReadingProvider({ children }) {
         voiceOn,
         locationEnabled,
         cachedLocation,
-        persistLocationToJournal
+        persistLocationToJournal,
+        personalizationExplicitFields
     } = usePreferences();
 
     // 3. Vision Analysis
@@ -74,22 +75,8 @@ export function ReadingProvider({ children }) {
             return null;
         }
 
-        const normalized = sanitizePersonalization(personalization);
-        const focusAreas = Array.isArray(normalized.focusAreas)
-            ? normalized.focusAreas
-            : [];
-
-        const payload = {
-            displayName: normalized.displayName || undefined,
-            readingTone: normalized.readingTone || undefined,
-            spiritualFrame: normalized.spiritualFrame || undefined,
-            tarotExperience: normalized.tarotExperience || undefined,
-            preferredSpreadDepth: normalized.preferredSpreadDepth || undefined,
-            focusAreas: focusAreas.length ? focusAreas : undefined
-        };
-
-        return Object.values(payload).some((value) => value !== undefined) ? payload : null;
-    }, [personalization]);
+        return buildPersonalizationRequestPayload(personalization, personalizationExplicitFields);
+    }, [personalization, personalizationExplicitFields]);
 
     // 4. Reading Generation State
     const [personalReading, setPersonalReading] = useState(null);

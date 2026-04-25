@@ -1,4 +1,4 @@
-import { jsonResponse, readJsonBody } from '../lib/utils.js';
+import { jsonResponse, readJsonBody, sanitizeText } from '../lib/utils.js';
 import { createVisionBackend } from '../../shared/vision/visionBackends.js';
 import { buildVisionProofPayload, signVisionProof } from '../lib/visionProof.js';
 import { canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
@@ -160,9 +160,17 @@ function sanitizeOrientation(orientation) {
 
 function sanitizeReasoning(reasoning) {
   if (typeof reasoning !== 'string') return null;
-  const trimmed = reasoning.trim();
+  const trimmed = sanitizeText(reasoning, {
+    maxLength: 600,
+    stripMarkdown: true,
+    stripControlChars: true,
+    filterInstructions: true
+  })
+    .replace(/\b(?:system|developer|assistant|user|override)\b/gi, '[filtered]')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
   if (!trimmed) return null;
-  return trimmed.slice(0, 600);
+  return trimmed;
 }
 
 function sanitizeVisualDetails(visualDetails) {
@@ -171,10 +179,20 @@ function sanitizeVisualDetails(visualDetails) {
     ? visualDetails
     : (typeof visualDetails === 'string' ? visualDetails.split(/[\n;]+/g) : []);
   const normalized = items
-    .map((item) => (typeof item === 'string' ? item.trim() : null))
+    .map((item) => (typeof item === 'string'
+      ? sanitizeText(item, {
+        maxLength: 120,
+        stripMarkdown: true,
+        stripControlChars: true,
+        filterInstructions: true
+      })
+        .replace(/\b(?:system|developer|assistant|user|override)\b/gi, '[filtered]')
+        .replace(/\s{2,}/g, ' ')
+        .trim()
+      : null))
     .filter(Boolean)
     .slice(0, 6);
-  return normalized.length ? normalized.map((item) => item.slice(0, 120)) : null;
+  return normalized.length ? normalized : null;
 }
 
 function sanitizeComponentScores(componentScores) {

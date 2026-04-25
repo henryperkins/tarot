@@ -4,8 +4,8 @@
  * Enhanced with authentic position-relationship analysis, elemental dignities,
  * and spread-specific narrative construction.
  *
- * Delegates narrative synthesis to Azure OpenAI GPT-5.1 via the Responses API
- * when AZURE_OPENAI_API_KEY / AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_GPT5_MODEL are configured.
+ * Delegates narrative synthesis to the Responses API (OpenAI native when
+ * OPENAI_API_KEY is set, otherwise Azure OpenAI via AZURE_OPENAI_* vars).
  * Falls back to local deterministic composer with full analysis.
  */
 
@@ -34,11 +34,13 @@ import { applyGraphRAGAlerts } from '../lib/graphRAGAlerts.js';
 import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { buildTierLimitedPayload, getSubscriptionContext } from '../lib/entitlements.js';
+import { resolveReadingPersonalizationContext } from '../lib/userPersonalization.js';
 import { canonicalCardKey, canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 import {
   loadActiveExperiments,
   getABAssignment,
   getVariantPromptOverrides,
+  isKnownPromptVariant,
   recordExperimentAssignment
 } from '../lib/abTesting.js';
 import { getReasoningEffort, getTextVerbosity } from '../lib/azureResponses.js';
@@ -133,6 +135,36 @@ function resolveVisionPromptPolicy(env) {
     confidenceFloor: effectiveEnv.VISION_PROMPT_CONFIDENCE_FLOOR,
     symbolMatchFloor: effectiveEnv.VISION_PROMPT_SYMBOL_MATCH_FLOOR
   });
+}
+
+function resolveAttemptABAssignment(requestId, activeExperiments, context = {}) {
+  const assignment = activeExperiments?.length
+    ? getABAssignment(requestId, activeExperiments, context)
+    : null;
+
+  if (!assignment) {
+    return { assignment: null, variantPromptOverrides: null };
+  }
+
+  if (!assignment.isControl && !isKnownPromptVariant(assignment.variantId)) {
+    console.warn(`[${requestId}] A/B assignment skipped: unknown prompt variant "${assignment.variantId}" for experiment ${assignment.experimentId}.`);
+    return { assignment: null, variantPromptOverrides: null };
+  }
+
+  const overrides = assignment.isControl
+    ? null
+    : getVariantPromptOverrides(assignment.variantId);
+
+  return {
+    assignment,
+    variantPromptOverrides: overrides
+      ? {
+        ...overrides,
+        variantId: assignment.variantId,
+        experimentId: assignment.experimentId
+      }
+      : null
+  };
 }
 
 function evaluateQualityGate({ readingText, cardsInfo, deckStyle, analysis, requestId }) {
@@ -500,11 +532,23 @@ async function finalizeReading({
   };
 }
 
+function resolveResponsesNarrativeProvider(env) {
+  return env?.OPENAI_API_KEY ? 'openai-native' : 'azure-gpt5';
+}
+
+function resolveNarrativeProviderId(backendId, env) {
+  return backendId === 'azure-gpt5'
+    ? resolveResponsesNarrativeProvider(env)
+    : backendId;
+}
+
 export const onRequestGet = async ({ env }) => {
   // Health check endpoint
   return jsonResponse({
     status: 'ok',
-    provider: env?.AZURE_OPENAI_GPT5_MODEL ? 'azure-gpt5' : 'local',
+    provider: env?.OPENAI_API_KEY || env?.AZURE_OPENAI_GPT5_MODEL
+      ? resolveResponsesNarrativeProvider(env)
+      : 'local',
     timestamp: new Date().toISOString()
   });
 };
@@ -543,7 +587,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       reversalFrameworkOverride,
       visionProof,
       deckStyle: requestDeckStyle,
-      personalization,
+      personalization: requestPersonalization,
       location: rawLocation,
       persistLocationToJournal: _persistLocationToJournal // Used by journal endpoint, not reading
     } = normalizedPayload;
@@ -593,11 +637,11 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       cardCount: cardsInfo?.length,
       hasQuestion: !!userQuestion,
       hasReflections: !!reflectionsText,
-      hasFocusAreas: Array.isArray(personalization?.focusAreas) && personalization.focusAreas.length > 0,
+      hasFocusAreas: Array.isArray(requestPersonalization?.focusAreas) && requestPersonalization.focusAreas.length > 0,
       reversalOverride: reversalFrameworkOverride,
       deckStyle,
       hasVisionProof: !!visionProof,
-      hasPersonalization: Boolean(personalization),
+      hasPersonalization: Boolean(requestPersonalization),
       hasLocation: Boolean(sanitizedLocation),
       locationTimezone: sanitizedLocation?.timezone || null
     });
@@ -612,26 +656,37 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     }
     console.log(`[${requestId}] Payload validation passed`);
 
+    const user = await getUserFromRequest(request, env);
+    const subscription = getSubscriptionContext(user);
+    const subscriptionTier = subscription.effectiveTier;
+
+    const {
+      personalization,
+      storedPersonalization,
+      memories
+    } = await resolveReadingPersonalizationContext(env?.DB, user?.id, requestPersonalization);
     const contextDiagnostics = [];
     const contextInputText = buildContextInferenceInput({
       userQuestion,
       reflectionsText,
       focusAreas: personalization?.focusAreas
     });
-    console.log(`[${requestId}] Context inference input prepared`, {
-      hasContextInput: Boolean(contextInputText),
-      contextInputLength: contextInputText.length
-    });
-
-    const user = await getUserFromRequest(request, env);
-    const subscription = getSubscriptionContext(user);
-    const subscriptionTier = subscription.effectiveTier;
 
     console.log(`[${requestId}] Subscription context:`, {
       tier: subscription.tier,
       status: subscription.status,
       effectiveTier: subscriptionTier,
       authProvider: user?.auth_provider || 'session_or_anonymous'
+    });
+    console.log(`[${requestId}] Personalization context resolved`, {
+      hasRequestPersonalization: Boolean(requestPersonalization),
+      hasStoredPersonalization: Boolean(storedPersonalization),
+      effectiveFocusAreas: Array.isArray(personalization?.focusAreas) ? personalization.focusAreas.length : 0,
+      memoryCount: Array.isArray(memories) ? memories.length : 0
+    });
+    console.log(`[${requestId}] Context inference input prepared`, {
+      hasContextInput: Boolean(contextInputText),
+      contextInputLength: contextInputText.length
     });
 
     const crisisCheck = detectCrisisSignals([userQuestion, reflectionsText].filter(Boolean).join(' '));
@@ -742,7 +797,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     }
 
     // Source precedence contract for spread understanding:
-    // spread/cards > validated matched vision > question/reflections/focus areas > GraphRAG > ephemeris.
+    // spread/cards > validated matched vision > current question/reflections/preferences > stored memory > GraphRAG > ephemeris.
     // Enrichment layers can add nuance but must never override drawn-card identity/position.
     // Vision validation is OPTIONAL - used for research/development purposes only
     let sanitizedVisionInsights = [];
@@ -887,6 +942,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       visionInsights: sanitizedVisionInsights,
       deckStyle,
       personalization: personalization || null,
+      memories,
       subscriptionTier,
       narrativeEnhancements: [],
       graphRAGPayload: analysis.graphRAGPayload || null,
@@ -948,27 +1004,21 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     let streamingGateNotice = null;
 
     if (canUseAzureStreaming) {
-      const streamProvider = 'azure-gpt5';
+      const streamProvider = resolveNarrativeProviderId('azure-gpt5', env);
 
       // A/B Testing: assign per-provider so targeting is accurate
-      const attemptAssignment = activeExperiments.length
-        ? getABAssignment(requestId, activeExperiments, {
-          spreadKey: analysis.spreadKey,
-          provider: streamProvider
-        })
-        : null;
+      const {
+        assignment: attemptAssignment,
+        variantPromptOverrides
+      } = resolveAttemptABAssignment(requestId, activeExperiments, {
+        spreadKey: analysis.spreadKey,
+        provider: streamProvider
+      });
       narrativePayload.abAssignment = attemptAssignment;
-      narrativePayload.variantPromptOverrides = attemptAssignment
-        ? getVariantPromptOverrides(attemptAssignment.variantId)
-        : null;
+      narrativePayload.variantPromptOverrides = variantPromptOverrides;
 
       if (attemptAssignment) {
-        abAssignment = attemptAssignment;
-        console.log(`[${requestId}] A/B assignment: ${abAssignment.experimentId} → ${abAssignment.variantId} (provider: ${streamProvider})`);
-        const recordPromise = recordExperimentAssignment(env.DB, abAssignment.experimentId);
-        if (typeof waitUntil === 'function') {
-          waitUntil(recordPromise);
-        }
+        console.log(`[${requestId}] A/B assignment candidate: ${attemptAssignment.experimentId} → ${attemptAssignment.variantId} (provider: ${streamProvider})`);
       }
 
       let systemPrompt = null;
@@ -984,14 +1034,15 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       if (!streamingFallback) {
         applyGraphRAGAlerts(narrativePayload, requestId, streamProvider);
 
-        const reasoningEffort = getReasoningEffort(env, env.AZURE_OPENAI_GPT5_MODEL);
-        const verbosity = getTextVerbosity(env, env.AZURE_OPENAI_GPT5_MODEL);
-        if (reasoningEffort === 'high') {
-          console.log(`[${requestId}] Detected ${env.AZURE_OPENAI_GPT5_MODEL} deployment, using 'high' reasoning effort`);
-        }
+        const effectiveModel = env.OPENAI_API_KEY
+          ? (env.OPENAI_MODEL || 'gpt-5.4')
+          : env.AZURE_OPENAI_GPT5_MODEL;
+        const reasoningEffort = getReasoningEffort(env, effectiveModel);
+        const verbosity = getTextVerbosity(env, effectiveModel);
 
         console.log(`[${requestId}] Streaming request config:`, {
-          deployment: env.AZURE_OPENAI_GPT5_MODEL,
+          provider: streamProvider,
+          model: effectiveModel,
           max_output_tokens: 'unlimited',
           reasoning_effort: reasoningEffort,
           reasoning_summary: 'auto',
@@ -1091,7 +1142,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               reflectionsText,
               context,
               visionMetrics,
-              abAssignment,
+              abAssignment: attemptAssignment,
               capturedPrompts,
               capturedUsage: null,
               waitUntil,
@@ -1101,6 +1152,14 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               allowGateBlocking: true,
               gateOverride
             });
+
+            if (attemptAssignment) {
+              console.log(`[${requestId}] A/B assignment accepted: ${attemptAssignment.experimentId} → ${attemptAssignment.variantId} (provider: ${streamProvider})`);
+              const recordPromise = recordExperimentAssignment(env.DB, attemptAssignment.experimentId);
+              if (typeof waitUntil === 'function') {
+                waitUntil(recordPromise);
+              }
+            }
 
             return createSSEResponse(createReadingStream(responsePayload));
           }
@@ -1161,7 +1220,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 reflectionsText,
                 context,
                 visionMetrics,
-                abAssignment,
+                abAssignment: attemptAssignment,
                 capturedPrompts,
                 capturedUsage: null,
                 waitUntil,
@@ -1170,6 +1229,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 acceptedQualityMetrics: null,
                 allowGateBlocking: false
               });
+              if (attemptAssignment) {
+                console.log(`[${requestId}] A/B assignment accepted: ${attemptAssignment.experimentId} → ${attemptAssignment.variantId} (provider: ${streamProvider})`);
+                await recordExperimentAssignment(env.DB, attemptAssignment.experimentId);
+              }
             },
             onError: async () => {
               await releaseReadingReservation(env, readingReservation);
@@ -1208,32 +1271,32 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
     for (const backend of backendsToTry) {
       const attemptStart = Date.now();
+      const backendProvider = resolveNarrativeProviderId(backend.id, env);
       if (backend.id === 'local-composer' && !localComposerLanguageSupport.supported) {
         backendErrors.push({
-          backend: backend.id,
+          backend: backendProvider,
           error: localComposerLanguageSupport.reason,
           code: LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE,
           detectedLanguage: localComposerLanguageSupport.language
         });
-        console.warn(`[${requestId}] Skipping local-composer: ${localComposerLanguageSupport.reason}`);
+        console.warn(`[${requestId}] Skipping ${backendProvider}: ${localComposerLanguageSupport.reason}`);
         continue;
       }
-      console.log(`[${requestId}] Attempting narrative backend ${backend.id} (${backend.label})...`);
+      console.log(`[${requestId}] Attempting narrative backend ${backendProvider} (${backend.label})...`);
       narrativePayload.narrativeEnhancements = [];
       narrativePayload.promptMeta = null;
       // Reset diagnostics each attempt to avoid carrying alerts across backends
       narrativePayload.contextDiagnostics = [...baseContextDiagnostics];
       // A/B Testing: assign per-provider so targeting is accurate
-      const attemptAssignment = activeExperiments.length
-        ? getABAssignment(requestId, activeExperiments, {
-          spreadKey: analysis.spreadKey,
-          provider: backend.id
-        })
-        : null;
+      const {
+        assignment: attemptAssignment,
+        variantPromptOverrides
+      } = resolveAttemptABAssignment(requestId, activeExperiments, {
+        spreadKey: analysis.spreadKey,
+        provider: backendProvider
+      });
       narrativePayload.abAssignment = attemptAssignment;
-      narrativePayload.variantPromptOverrides = attemptAssignment
-        ? getVariantPromptOverrides(attemptAssignment.variantId)
-        : null;
+      narrativePayload.variantPromptOverrides = variantPromptOverrides;
       try {
         const backendResult = await runNarrativeBackend(backend.id, env, narrativePayload, requestId);
 
@@ -1262,7 +1325,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           narrativePayload.promptMeta = backendResult.promptMeta;
         }
 
-        applyGraphRAGAlerts(narrativePayload, requestId, backend.id);
+        applyGraphRAGAlerts(narrativePayload, requestId, backendProvider);
 
         // Quality gate: validate narrative structure and content before accepting
         const { qualityMetrics, qualityIssues } = evaluateQualityGate({
@@ -1274,7 +1337,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         });
 
         if (qualityIssues.length > 0) {
-          console.warn(`[${requestId}] Backend ${backend.id} failed quality gate: ${qualityIssues.join('; ')}`);
+          console.warn(`[${requestId}] Backend ${backendProvider} failed quality gate: ${qualityIssues.join('; ')}`);
           const qualityError = new Error(`Narrative failed quality checks: ${qualityIssues.join('; ')}`);
           qualityError.qualityIssues = qualityIssues;
           throw qualityError;
@@ -1286,25 +1349,25 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         capturedReasoningSummary = attemptReasoningSummary;
 
         reading = result;
-        provider = backend.id;
+        provider = backendProvider;
         acceptedQualityMetrics = qualityMetrics; // Store for reuse in response
         if (attemptAssignment) {
           abAssignment = attemptAssignment;
-          console.log(`[${requestId}] A/B assignment: ${abAssignment.experimentId} → ${abAssignment.variantId} (provider: ${backend.id})`);
+          console.log(`[${requestId}] A/B assignment: ${abAssignment.experimentId} → ${abAssignment.variantId} (provider: ${backendProvider})`);
           const recordPromise = recordExperimentAssignment(env.DB, abAssignment.experimentId);
           if (typeof waitUntil === 'function') {
             waitUntil(recordPromise);
           }
         }
-        console.log(`[${requestId}] Backend ${backend.id} succeeded in ${Date.now() - attemptStart}ms, reading length: ${reading.length}, coverage: ${(qualityMetrics.cardCoverage * 100).toFixed(0)}%`);
+        console.log(`[${requestId}] Backend ${backendProvider} succeeded in ${Date.now() - attemptStart}ms, reading length: ${reading.length}, coverage: ${(qualityMetrics.cardCoverage * 100).toFixed(0)}%`);
         break;
       } catch (err) {
-        const errorEntry = { backend: backend.id, error: err.message };
+        const errorEntry = { backend: backendProvider, error: err.message };
         if (Array.isArray(err.qualityIssues) && err.qualityIssues.length > 0) {
           errorEntry.qualityIssues = err.qualityIssues;
         }
         backendErrors.push(errorEntry);
-        console.error(`[${requestId}] Backend ${backend.id} failed:`, err.message);
+        console.error(`[${requestId}] Backend ${backendProvider} failed:`, err.message);
       }
     }
 

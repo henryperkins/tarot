@@ -338,7 +338,8 @@ describe('composeReadingEnhanced', () => {
     assert.deepEqual(sourceUsage.userContext.usedInputs, ['question', 'reflections', 'focusAreas']);
     assert.equal(sourceUsage.graphRAG.requested, true);
     assert.equal(sourceUsage.graphRAG.used, false);
-    assert.equal(sourceUsage.ephemeris.used, true);
+    assert.equal(sourceUsage.ephemeris.used, false);
+    assert.equal(sourceUsage.ephemeris.skippedReason, 'not_used_by_backend');
     assert.equal(sourceUsage.forecast.used, false);
     assert.equal(sourceUsage.forecast.skippedReason, 'unavailable');
   });

@@ -26,6 +26,27 @@ describe('ensureAzureConfig', () => {
     assert.strictEqual(config.apiVersion, 'v1'); // Default
   });
 
+  test('returns native OpenAI config when OPENAI_API_KEY is present', () => {
+    const env = {
+      OPENAI_API_KEY: 'openai-test-key',
+      OPENAI_BASE_URL: 'https://api.openai.com/v1/',
+      OPENAI_MODEL: 'gpt-5.4',
+      AZURE_OPENAI_ENDPOINT: 'https://myresource.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'azure-test-key',
+      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
+    };
+
+    const config = ensureAzureConfig(env);
+
+    assert.strictEqual(config.endpoint, 'https://api.openai.com');
+    assert.strictEqual(config.apiKey, 'openai-test-key');
+    assert.strictEqual(config.model, 'gpt-5.4');
+    assert.strictEqual(config.apiVersion, null);
+    assert.strictEqual(config.url, 'https://api.openai.com/v1/responses');
+    assert.deepEqual(config.authHeaders, { Authorization: 'Bearer openai-test-key' });
+    assert.strictEqual(config.provider, 'openai-native');
+  });
+
   test('strips trailing slashes from endpoint', () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: 'https://myresource.openai.azure.com///',
@@ -228,6 +249,28 @@ describe('callAzureResponses request body construction', () => {
 
     assert.ok(capturedRequest, 'Fetch should have been called');
     assert.strictEqual(capturedRequest.body.reasoning, undefined, 'reasoning block should be omitted');
+  });
+
+  test('uses bearer auth and native responses URL when OPENAI_API_KEY is set', async () => {
+    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+
+    const env = {
+      OPENAI_API_KEY: 'openai-test-key',
+      OPENAI_BASE_URL: 'https://api.openai.com/v1/',
+      OPENAI_MODEL: 'gpt-5.4'
+    };
+
+    await callAzureResponses(env, {
+      instructions: 'System prompt',
+      input: 'User input',
+      reasoningEffort: null
+    });
+
+    assert.ok(capturedRequest, 'Fetch should have been called');
+    assert.strictEqual(capturedRequest.url, 'https://api.openai.com/v1/responses');
+    assert.strictEqual(capturedRequest.options.headers.Authorization, 'Bearer openai-test-key');
+    assert.strictEqual(capturedRequest.options.headers['api-key'], undefined);
+    assert.strictEqual(capturedRequest.body.model, 'gpt-5.4');
   });
 
   test('includes reasoning block when reasoningEffort is set', async () => {

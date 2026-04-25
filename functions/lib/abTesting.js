@@ -146,8 +146,13 @@ export function getVariantPromptOverrides(variantId) {
     return null;
   }
 
-  // Define variant-specific overrides
-  const VARIANT_OVERRIDES = {
+  const VARIANT_OVERRIDES = getKnownVariantPromptOverrides();
+
+  return VARIANT_OVERRIDES[variantId] || null;
+}
+
+export function getKnownVariantPromptOverrides() {
+  return {
     // Example: More concise readings
     'concise': {
       lengthModifier: 0.8, // 20% shorter
@@ -173,8 +178,13 @@ export function getVariantPromptOverrides(variantId) {
       systemPromptAddition: 'Encourage deep reflection and introspection.',
     },
   };
+}
 
-  return VARIANT_OVERRIDES[variantId] || null;
+export function isKnownPromptVariant(variantId) {
+  if (!variantId || variantId === 'control') {
+    return true;
+  }
+  return Object.prototype.hasOwnProperty.call(getKnownVariantPromptOverrides(), variantId);
 }
 
 /**
@@ -323,4 +333,3 @@ export async function getExperimentResults(db, experimentId) {
     results: stats.results || [],
   };
 }
-

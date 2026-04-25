@@ -32,6 +32,7 @@ import {
   buildReadingWithReasoning
 } from './narrative/reasoningIntegration.js';
 import {
+  buildExperienceLine,
   getToneStyle,
   buildPersonalizedClosing,
   getDepthProfile,
@@ -70,8 +71,11 @@ export const LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE = 'local_composer_unsuppor
 export const NARRATIVE_BACKENDS = Object.freeze({
   'azure-gpt5': Object.freeze({
     id: 'azure-gpt5',
-    label: 'Azure GPT-5 Responses',
-    isAvailable: (env) => Boolean(env?.AZURE_OPENAI_API_KEY && env?.AZURE_OPENAI_ENDPOINT && env?.AZURE_OPENAI_GPT5_MODEL)
+    label: 'Responses API (OpenAI native or Azure)',
+    isAvailable: (env) => {
+      if (env?.OPENAI_API_KEY) return true;
+      return Boolean(env?.AZURE_OPENAI_API_KEY && env?.AZURE_OPENAI_ENDPOINT && env?.AZURE_OPENAI_GPT5_MODEL);
+    }
   }),
   'claude-opus45': Object.freeze({
     id: 'claude-opus45',
@@ -481,9 +485,11 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
   const reflectionsSection = buildReflectionsSection(rawReflections);
   const toneKey = typeof personalization?.readingTone === 'string' ? personalization.readingTone : '';
   const frameKey = typeof personalization?.spiritualFrame === 'string' ? personalization.spiritualFrame : '';
+  const experienceKey = typeof personalization?.tarotExperience === 'string' ? personalization.tarotExperience : '';
   const depthKey = typeof personalization?.preferredSpreadDepth === 'string' ? personalization.preferredSpreadDepth : '';
   const hasSupportedTone = Boolean(toneKey && Object.prototype.hasOwnProperty.call(TONE_STYLES, toneKey));
   const hasSupportedFrame = Boolean(frameKey && Object.prototype.hasOwnProperty.call(FRAME_VOCABULARY, frameKey));
+  const hasSupportedExperience = Boolean(buildExperienceLine(experienceKey));
   const depthProfile = getDepthProfile(depthKey);
   const hasDepthOverride = Boolean(depthKey) && depthProfile.key !== 'standard';
   const userContext = buildUserContextSourceUsage({
@@ -506,6 +512,11 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
       provided: rawDisplayName.trim().length > 0,
       used: Boolean(safeDisplayName),
       skippedReason: rawDisplayName.trim().length > 0 && !safeDisplayName ? 'sanitized_empty' : null
+    },
+    experience: {
+      provided: Boolean(experienceKey),
+      used: hasSupportedExperience,
+      skippedReason: experienceKey && !hasSupportedExperience ? 'unsupported_value' : null
     },
     tone: {
       provided: Boolean(toneKey),
@@ -562,9 +573,7 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
   const ephemerisContext = analysis?.ephemerisContext || null;
   const ephemerisForecast = analysis?.ephemerisForecast || null;
   const ephemerisRequested = Boolean(ephemerisContext);
-  const ephemerisUsed = Boolean(ephemerisContext?.available);
   const forecastRequested = Boolean(ephemerisForecast);
-  const forecastUsed = Boolean(ephemerisForecast?.available);
 
   return {
     spreadCards: {
@@ -591,16 +600,16 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
     },
     ephemeris: {
       requested: ephemerisRequested,
-      used: ephemerisUsed,
+      used: false,
       skippedReason: ephemerisRequested
-        ? (ephemerisUsed ? null : 'unavailable')
+        ? (ephemerisContext?.available ? 'not_used_by_backend' : 'unavailable')
         : 'not_requested'
     },
     forecast: {
       requested: forecastRequested,
-      used: forecastUsed,
+      used: false,
       skippedReason: forecastRequested
-        ? (forecastUsed ? null : 'unavailable')
+        ? (ephemerisForecast?.available ? 'not_used_by_backend' : 'unavailable')
         : 'not_requested'
     }
   };
@@ -667,6 +676,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
     contextDiagnostics,
     promptBudgetEnv: env,
     personalization: payload.personalization,
+    memories: payload.memories,
     enableSemanticScoring,
     subscriptionTier: payload.subscriptionTier,
     variantOverrides: payload.variantPromptOverrides
@@ -683,7 +693,10 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
   const promptRedactionOptions = buildPromptRedactionOptions({
     personalization: payload.personalization,
     userQuestion,
-    reflectionsText
+    reflectionsText,
+    additionalTextSources: Array.isArray(payload.memories)
+      ? payload.memories.map((memory) => memory?.text).filter(Boolean)
+      : []
   });
 
   console.log(`[${requestId}] System prompt length: ${systemPrompt.length}, User prompt length: ${userPrompt.length}`);
@@ -718,18 +731,18 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
  * @returns {Promise<Object>} { reading, prompts, usage }
  */
 export async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown') {
-  const deploymentName = env.AZURE_OPENAI_GPT5_MODEL;
+  const isNative = Boolean(env?.OPENAI_API_KEY);
+  const effectiveModel = isNative
+    ? (env.OPENAI_MODEL || 'gpt-5.4')
+    : env.AZURE_OPENAI_GPT5_MODEL;
   const { systemPrompt, userPrompt, promptMeta } = buildAzureGPT5Prompts(env, payload, requestId);
 
-  // Determine reasoning effort based on model
-  const reasoningEffort = getReasoningEffort(env, deploymentName);
-  const verbosity = getTextVerbosity(env, deploymentName);
-  if (reasoningEffort === 'high') {
-    console.log(`[${requestId}] Detected ${deploymentName} deployment, using 'high' reasoning effort`);
-  }
+  const reasoningEffort = getReasoningEffort(env, effectiveModel);
+  const verbosity = getTextVerbosity(env, effectiveModel);
 
   console.log(`[${requestId}] Request config:`, {
-    deployment: deploymentName,
+    provider: isNative ? 'openai-native' : 'azure',
+    model: effectiveModel,
     max_output_tokens: 'unlimited',
     reasoning_effort: reasoningEffort,
     verbosity
@@ -837,6 +850,7 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
     contextDiagnostics,
     promptBudgetEnv: env,
     personalization: payload.personalization,
+    memories: payload.memories,
     enableSemanticScoring,
     subscriptionTier: payload.subscriptionTier,
     variantOverrides: payload.variantPromptOverrides
@@ -857,7 +871,10 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
   const promptRedactionOptions = buildPromptRedactionOptions({
     personalization: payload.personalization,
     userQuestion,
-    reflectionsText
+    reflectionsText,
+    additionalTextSources: Array.isArray(payload.memories)
+      ? payload.memories.map((memory) => memory?.text).filter(Boolean)
+      : []
   });
 
   maybeLogPromptPayload(

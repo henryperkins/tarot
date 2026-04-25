@@ -427,6 +427,8 @@ const INSTRUCTION_OVERRIDE_PATTERNS = [
   /disregard\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|above|system|developer)\s+(?:instructions?|prompts?|rules?|guidelines?)/gi,
   /forget\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|above|system|developer)\s+(?:instructions?|prompts?|rules?|guidelines?)/gi,
   /override\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|above|system|developer)\s+(?:instructions?|prompts?|rules?|guidelines?)/gi,
+  /(?:respond|reply|answer|return)\s+(?:only|just)\s+(?:with\s+)?(?:yes|no|true|false|\d+|all\s+scores?\s+\d+)/gi,
+  /(?:return|set)\s+all\s+scores?\s+(?:to\s+)?\d+/gi,
 
   // Role/persona injection
   /you\s+are\s+now\s+(?:a\s+)?(?:different|new|evil|unrestricted)/gi,

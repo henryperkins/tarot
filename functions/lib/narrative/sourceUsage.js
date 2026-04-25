@@ -15,6 +15,10 @@ const USER_CONTEXT_FIELD_CONFIG = Object.freeze({
     providedProp: 'displayNameProvided',
     usedProp: 'displayNameUsed'
   }),
+  experience: Object.freeze({
+    providedProp: 'experienceProvided',
+    usedProp: 'experienceUsed'
+  }),
   tone: Object.freeze({
     providedProp: 'toneProvided',
     usedProp: 'toneUsed'
@@ -32,9 +36,8 @@ const USER_CONTEXT_FIELD_CONFIG = Object.freeze({
 export const USER_CONTEXT_FIELDS = Object.freeze(Object.keys(USER_CONTEXT_FIELD_CONFIG));
 
 export function buildUserContextSourceUsage(fieldStates = {}, options = {}) {
-  const requested = options.requested !== false;
   const result = {
-    requested
+    requested: false
   };
   const providedInputs = [];
   const usedInputs = [];
@@ -60,6 +63,9 @@ export function buildUserContextSourceUsage(fieldStates = {}, options = {}) {
   });
 
   result.used = usedInputs.length > 0;
+  result.requested = typeof options.requested === 'boolean'
+    ? options.requested
+    : providedInputs.length > 0;
   result.skippedReason = result.used
     ? null
     : (providedInputs.length > 0 ? 'provided_but_not_used' : 'not_provided');
