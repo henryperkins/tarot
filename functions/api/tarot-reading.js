@@ -31,6 +31,7 @@ import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
 import { getPositionWeight } from '../lib/positionWeights.js';
 import { detectCrisisSignals } from '../lib/safetyChecks.js';
 import { applyGraphRAGAlerts } from '../lib/graphRAGAlerts.js';
+import { buildVisionEvidencePackets } from '../lib/visionEvidence.js';
 import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { buildTierLimitedPayload, getSubscriptionContext } from '../lib/entitlements.js';
@@ -801,6 +802,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     // Enrichment layers can add nuance but must never override drawn-card identity/position.
     // Vision validation is OPTIONAL - used for research/development purposes only
     let sanitizedVisionInsights = [];
+    let visionEvidence = [];
     let visionMetrics = null;
     const visionMismatchPolicy = resolveVisionMismatchPolicy(env);
     const visionPromptPolicy = resolveVisionPromptPolicy(env);
@@ -867,6 +869,11 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       }
     }
 
+    visionEvidence = buildVisionEvidencePackets(
+      sanitizedVisionInsights,
+      cardsInfo,
+      deckStyle
+    );
 
     // Enforce reading limits before expensive processing
     const readingLimitResult = await enforceReadingLimit(env, request, user, subscription, requestId);
@@ -940,6 +947,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       contextInputText,
       contextDiagnostics: [...baseContextDiagnostics],
       visionInsights: sanitizedVisionInsights,
+      visionEvidence,
       deckStyle,
       personalization: personalization || null,
       memories,
