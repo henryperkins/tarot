@@ -29,6 +29,14 @@ Stand up the current multimodal pipeline described in the vision research docs (
 - **Sample Payloads:** Dev scripts (`scripts/fix-and-deploy.sh`, `scripts/setup-*.sh`) demonstrate the two-step flow for research mode: call `/api/vision-proof` with a data URL, then reuse the returned `visionProof` when calling `/api/tarot-reading`. Tests build signed proofs via `functions/lib/visionProof.js` helpers—see `tests/api.vision.test.mjs` for an example.
 - **Support Expectations:** Automations that previously injected `visionInsights` JSON should be upgraded to obtain proofs when participating in vision research. Proofs are optional, but when supplied they must be valid and signed; set `VISION_PROOF_SECRET` in environments that accept proofs.
 
+### RWS Evidence Chain
+
+When a signed proof is attached to `/api/tarot-reading`, the Worker now derives a `visionEvidence` packet from prompt-eligible uploads:
+
+`visionProof.insights -> annotateVisionInsights() -> buildVisionEvidencePackets() -> buildEnhancedClaudePrompt()`
+
+The prompt treats uploaded visible evidence separately from canonical Rider-Waite-Smith imagery. Low-confidence, mismatched, unverified, or telemetry-only uploads remain available for metrics but must not steer interpretation.
+
 ## Usage
 1. Install dependencies (already part of `npm install` after adding `@xenova/transformers`).
 2. Run the CLI against any local card images:

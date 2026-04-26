@@ -142,6 +142,12 @@ The frontend now treats vision uploads as a build-time toggle. Set `VITE_ENABLE_
 
 When the flag is enabled and `VISION_PROOF_SECRET` is configured on the worker, the research UI appears (for authenticated users) and uploads will be signed before `/api/tarot-reading` receives them.
 
+## Prompt Evidence Boundary
+
+Signed proofs are still optional. When a proof is present, `/api/tarot-reading` verifies it, annotates the insights against the drawn spread, and builds `visionEvidence` packets only for prompt-eligible uploaded images. Prompt assembly renders uploaded visible evidence separately from canonical Rider-Waite-Smith imagery, so card-name-only readings can use traditional imagery without implying that the model saw a user-uploaded detail.
+
+Mismatched, unverified, low-confidence, or weak-symbol uploads remain telemetry-only. They can inform metrics and review queues, but they must not override drawn card identity, card count, position semantics, or narrative emphasis.
+
 ## Testing
 
 To verify the changes work correctly:
