@@ -55,13 +55,20 @@ export const AMBIGUOUS_THOTH_EPITHETS = new Set([
   'love',           // Two of Cups
   'abundance',      // Three of Cups
   'luxury',         // Four of Cups
+  'disappointment', // Five of Cups
   'pleasure',       // Six of Cups
+  'debauch',        // Seven of Cups
+  'indolence',      // Eight of Cups
   'happiness',      // Nine of Cups
+  'satiety',        // Ten of Cups
   'peace',          // Two of Swords
   'sorrow',         // Three of Swords
   'truce',          // Four of Swords
   'defeat',         // Five of Swords
   'science',        // Six of Swords
+  'futility',       // Seven of Swords
+  'interference',   // Eight of Swords
+  'cruelty',        // Nine of Swords
   'ruin',           // Ten of Swords
   'dominion',       // Two of Wands
   'virtue',         // Three of Wands

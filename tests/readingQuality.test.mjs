@@ -380,6 +380,14 @@ describe('detectHallucinatedCards', () => {
       const result = detectHallucinatedCards(text, cardsInfo, 'thoth-a1');
       assert.ok(result.includes('Two of Cups'), 'Two of Cups (canonical for Love) should be flagged');
     });
+
+    it('does not flag Interference when used as ordinary prose', () => {
+      const text = 'This feels less like lack of intuition and more like interference: too much input.';
+      const cardsInfo = [{ card: 'The High Priestess', position: 'Present' }];
+
+      const result = detectHallucinatedCards(text, cardsInfo, 'thoth-a1');
+      assert.deepStrictEqual(result, [], 'Interference should require explicit card context');
+    });
   });
 
   describe('Marseille deck alias handling', () => {

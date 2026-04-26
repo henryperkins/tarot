@@ -190,6 +190,24 @@ describe('narrative spine helper heuristics', () => {
     assert.ok(validation.isValid, 'Reading should pass required spine checks');
   });
 
+  it('recognizes Marseille minor suit aliases in card sections', () => {
+    const reading = [
+      '### Core of the matter — **Four of Epees**',
+      'At the center, **Four of Epees** is wonderfully blunt: rest is not a side issue here.',
+      'Because the mind is still pacing, this card frames recovery as structured pause.',
+      '',
+      '### Support / helpful energy — **Six of Coins**',
+      'The **Six of Coins** shows practical support and reciprocal care.',
+      'That matters because too much of your energy may be flowing outward.'
+    ].join('\n');
+
+    const validation = validateReadingNarrative(reading);
+
+    assert.equal(validation.cardSections, 2);
+    assert.equal(validation.cardIncomplete, 0);
+    assert.ok(validation.isValid, 'Marseille aliases should satisfy card-section WHAT detection');
+  });
+
   it('accepts colon headings on standalone lines', () => {
     const reading = [
       'Opening:',

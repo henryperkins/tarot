@@ -24,7 +24,9 @@ const DETERMINISTIC_PATTERNS = [
 const AGENCY_PATTERNS = [
   /\bfree will\b/i,
   /\bchoices?\b/i,
-  /\bchoose\b/i,
+  /\bchoos(?:e|es|ing)\b/i,
+  /\bchose\b/i,
+  /\bchosen\b/i,
   /\bagency\b/i,
   /\byou decide\b/i,
   /\byou direct\b/i,

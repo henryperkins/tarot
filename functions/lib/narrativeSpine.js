@@ -37,7 +37,7 @@ const CARD_HEADER_PATTERN = /^(?:\*\*)?([^:\n]{1,60}?)(?:\*\*)?[:\-–]/;
 const SPINE_HEADER_PATTERN = /^(?:WHAT|WHY|WHAT'S NEXT)$/i;
 const POSITION_HEADER_PATTERN = /^(?:card|position)\s*(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)?$/i;
 const POSITION_KEYWORD_PATTERN = /^(?:past|present|future|near\s+future|outcome|challenge|advice|subconscious|conscious|external|hopes\s*(?:&|and)\s*fears|core|hidden|support|direction|path\s*[ab]|heart|clarity|connection)\b/i;
-const MINOR_ARCANA_PATTERN = /\b(?:ace|two|three|four|five|six|seven|eight|nine|ten|page|knight|queen|king)\s+of\s+(?:wands|cups|swords|pentacles)\b/i;
+const MINOR_ARCANA_PATTERN = /\b(?:ace|two|three|four|five|six|seven|eight|nine|ten|page|knight|queen|king|valet|cavalier|roi|reine)\s+of\s+(?:wands|cups|swords|pentacles|disks|batons|coupes|epees|coins)\b/i;
 const MAJOR_ARCANA_BASE = MAJOR_ARCANA_NAMES.map((name) =>
   name.toLowerCase().replace(/^the\s+/, '')
 );

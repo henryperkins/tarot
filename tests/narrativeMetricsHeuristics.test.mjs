@@ -71,3 +71,24 @@ test('narrative metrics detect Spanish agency and supportive tone cues', async (
   assert.ok(!metrics.perSample[0].issueFlags.includes('missing-agency-language'));
   assert.ok(!metrics.perSample[0].issueFlags.includes('missing-supportive-tone'));
 });
+
+test('narrative metrics count choosing as agency language', async () => {
+  const metrics = await computeMetrics([
+    {
+      id: 'choosing-agency',
+      spreadKey: 'single',
+      spreadName: 'One-Card Insight',
+      userQuestion: 'How can I stay centered?',
+      reading: [
+        '### Opening',
+        'This is a gentle reading about grounded presence.',
+        'Your center returns as you keep choosing clarity over noise.',
+        'Consider one small step that supports self-compassion.'
+      ].join('\n\n'),
+      cardsInfo: []
+    }
+  ]);
+
+  assert.equal(metrics.perSample[0].hasAgencyLanguage, true);
+  assert.ok(!metrics.perSample[0].issueFlags.includes('missing-agency-language'));
+});
