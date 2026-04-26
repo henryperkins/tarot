@@ -32,6 +32,10 @@ pip install -r requirements.txt
 
 ## Workflow
 
+### RWS Grounding Dataset
+
+Run `npm run training:rws-grounding` to emit multi-task JSONL records from the Rider-Waite-Smith evidence ontology. The output includes card identification, symbol grounding, tarot VQA, and absent-symbol checks. This complements `buildMultimodalDataset.js`, which remains the reading-level export path.
+
 ### 1. Data Ingestion
 Place your high-resolution card scans in `data/raw_images/{deck_name}`.
 Filenames should be descriptive (e.g., `01_magician.jpg`, `ace_of_cups.png`) as they are currently used for basic text prompting.

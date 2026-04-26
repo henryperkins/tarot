@@ -81,6 +81,7 @@
     "ci:rws-grounding-check": "npm run eval:rws-grounding && npm run gate:rws-grounding",
     "review:narrative": "node scripts/evaluation/processNarrativeReviews.js",
     "training:export": "node scripts/training/exportReadings.js",
+    "training:rws-grounding": "node scripts/training/buildRwsGroundingDataset.js",
     "training:wandb": "node scripts/training/logToWandB.js",
     "training:fine-tune-vision": "node scripts/training/fineTuneVision.js",
     "prompts:view": "node scripts/viewPrompts.js",
