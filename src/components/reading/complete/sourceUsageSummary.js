@@ -56,7 +56,20 @@ export function formatUsageSummary(sourceUsage) {
     };
 
     pushRow('Spread & cards', sourceUsage.spreadCards);
-    pushRow('Vision uploads', sourceUsage.vision);
+
+    if (sourceUsage.vision && typeof sourceUsage.vision === 'object') {
+        const detailParts = [];
+        if (sourceUsage.vision.evidencePacketsUsed > 0) {
+            const count = sourceUsage.vision.evidencePacketsUsed;
+            detailParts.push(`${count} uploaded evidence packet${count === 1 ? '' : 's'} used`);
+        }
+        if (sourceUsage.vision.telemetryOnlyUploads > 0) {
+            detailParts.push(`${sourceUsage.vision.telemetryOnlyUploads} telemetry-only`);
+        }
+        pushRow('Vision uploads', sourceUsage.vision, detailParts.join(' | '));
+    } else {
+        pushRow('Vision uploads', sourceUsage.vision);
+    }
 
     if (sourceUsage.userContext && typeof sourceUsage.userContext === 'object') {
         const usedInputs = Array.isArray(sourceUsage.userContext.usedInputs)

@@ -77,4 +77,20 @@ describe('formatUsageSummary', () => {
     assert.equal(byLabel['User context'].badgeText, 'Not requested');
     assert.equal(byLabel['User context'].detail, '');
   });
+
+  test('formats uploaded vision evidence usage distinctly from telemetry-only uploads', () => {
+    const usage = formatUsageSummary({
+      vision: {
+        requested: true,
+        used: true,
+        eligibleUploads: 1,
+        telemetryOnlyUploads: 2,
+        evidencePacketsUsed: 1,
+        evidenceMode: 'uploaded_image'
+      }
+    });
+    const row = usage.rows.find((entry) => entry.label === 'Vision uploads');
+    assert.ok(row.detail.includes('1 uploaded evidence packet used'));
+    assert.ok(row.detail.includes('2 telemetry-only'));
+  });
 });
