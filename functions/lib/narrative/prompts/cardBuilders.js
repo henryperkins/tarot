@@ -229,7 +229,7 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
   if (allowImagery && isMajorArcana(cardInfo)) {
     const hook = getImageryHook(cardInfo.number, cardInfo.orientation);
     if (hook) {
-      text += `*Imagery: ${hook.visual}*\n`;
+      text += `*Canonical RWS imagery: ${hook.visual}*\n`;
       text += `*Sensory: ${hook.sensory}*\n`;
 
       // NEW: Add vision-detected tone if available

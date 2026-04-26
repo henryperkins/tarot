@@ -224,6 +224,15 @@ export function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQu
 
   lines.push(
     '',
+    'IMAGE EVIDENCE RULES:',
+    '- If uploaded image evidence is present, separate literal observations from symbolic meanings before interpreting.',
+    '- If only card names are present, use canonical Rider-Waite-Smith imagery as tradition, but do not say "I see" or imply the user uploaded visible details.',
+    '- Do not import symbols from another card. If a symbol is not in the uploaded evidence or canonical card profile, omit it.',
+    '- Treat low-confidence, mismatched, or telemetry-only vision uploads as research data, not interpretive evidence.'
+  );
+
+  lines.push(
+    '',
     'SYNTHESIS RULE: If a **Traditional Wisdom** (GraphRAG) section is present, use it to understand the core archetype (the "What"). If **Visual Profile** cues are present in the card notes or Vision Validation, use them to determine the specific manifestation or emotional texture (the "How"). If either source is missing, rely on standard Rider–Waite–Smith meanings and the provided imagery; do not invent passages or visual details. If the Visual Profile contradicts the Traditional Wisdom (e.g., a dark Sun card), explicitly acknowledge this tension in the narrative if it adds depth—interpret it as the archetype expressing itself through that specific visual lens (e.g., "joy found in darkness").',
     '',
     'MODEL DIRECTIVES:',

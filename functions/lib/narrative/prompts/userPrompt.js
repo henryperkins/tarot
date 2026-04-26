@@ -12,7 +12,10 @@ import {
 } from './constants.js';
 import { getDeckStyleNotes } from './deckStyle.js';
 import { buildGraphRAGReferenceBlock } from './graphRAGReferenceBlock.js';
-import { buildVisionValidationSection } from './visionValidation.js';
+import {
+  buildUploadedVisibleEvidenceSection,
+  buildVisionValidationSection
+} from './visionValidation.js';
 import {
   buildCelticCrossPromptCards,
   buildThreeCardPromptCards,
@@ -303,6 +306,11 @@ export function buildUserPrompt(
   const visionSection = buildVisionValidationSection(visionInsights, { includeDiagnostics, cardsInfo });
   if (visionSection) {
     prompt += visionSection;
+  }
+
+  const uploadedEvidenceSection = buildUploadedVisibleEvidenceSection(promptOptions.visionEvidence);
+  if (uploadedEvidenceSection) {
+    prompt += uploadedEvidenceSection;
   }
 
   const memorySection = buildReturningQuerentContext(promptOptions.memories);

@@ -233,6 +233,10 @@ function hasVisibleVisionDiagnostics(promptText) {
   return typeof promptText === 'string' && promptText.includes('**Vision Validation**:');
 }
 
+function hasUploadedVisibleEvidence(promptText) {
+  return typeof promptText === 'string' && promptText.includes('**Uploaded Visible Evidence**:');
+}
+
 function hasVisibleVisionCardCues(promptText) {
   return typeof promptText === 'string' &&
     /Vision-detected tone:|Vision-detected emotion:|Emotional quality:/i.test(promptText);
@@ -340,6 +344,29 @@ function summarizeVisionPromptEligibility(visionInsights) {
   };
 }
 
+function summarizeVisionEvidence(visionEvidence) {
+  if (!Array.isArray(visionEvidence) || visionEvidence.length === 0) {
+    return {
+      evidencePacketsProvided: 0,
+      evidencePacketsUsed: 0,
+      telemetryOnlyEvidencePackets: 0,
+      evidenceMode: 'none'
+    };
+  }
+
+  const evidencePacketsUsed = visionEvidence.filter((packet) => packet?.evidenceMode === 'uploaded_image').length;
+  const telemetryOnlyEvidencePackets = visionEvidence.filter((packet) => packet?.evidenceMode === 'telemetry_only').length;
+
+  return {
+    evidencePacketsProvided: visionEvidence.length,
+    evidencePacketsUsed,
+    telemetryOnlyEvidencePackets,
+    evidenceMode: evidencePacketsUsed > 0
+      ? 'uploaded_image'
+      : (telemetryOnlyEvidencePackets > 0 ? 'telemetry_only' : 'none')
+  };
+}
+
 function isGraphRAGBudgetTrimmed(slimmingSteps = []) {
   return slimmingSteps.some((step) =>
     step === 'trim-graphrag-passages' ||
@@ -397,6 +424,7 @@ export function buildEnhancedClaudePrompt({
   spreadAnalysis,
   context,
   visionInsights,
+  visionEvidence = [],
   deckStyle = 'rws-1909',
   graphRAGPayload = null,
   ephemerisContext = null,
@@ -610,6 +638,7 @@ export function buildEnhancedClaudePrompt({
         memories,
         contextDiagnostics: diagnostics,
         deckStyle: resolvedDeckStyle,
+        visionEvidence,
         sourceUsageSignals
       }
     );
@@ -1085,10 +1114,13 @@ export function buildEnhancedClaudePrompt({
   }
 
   const hasVisionSource = Array.isArray(visionInsights) && visionInsights.length > 0;
+  const visionEvidenceSummary = summarizeVisionEvidence(visionEvidence);
+  const hasVisionEvidenceSource = visionEvidenceSummary.evidencePacketsProvided > 0;
   const visionPromptEligibility = summarizeVisionPromptEligibility(visionInsights);
   const visionDiagnosticsIncluded = hasVisionSource && hasVisibleVisionDiagnostics(finalUser);
   const visionCardCuesIncluded = built.sourceUsageSignals?.visionCardCuesUsed === true && hasVisibleVisionCardCues(finalUser);
-  const visionUsed = hasVisionSource && (visionDiagnosticsIncluded || visionCardCuesIncluded);
+  const evidencePacketsIncluded = visionEvidenceSummary.evidencePacketsUsed > 0 && hasUploadedVisibleEvidence(finalUser);
+  const visionUsed = (hasVisionSource && (visionDiagnosticsIncluded || visionCardCuesIncluded)) || evidencePacketsIncluded;
   const visionRemovedForBudget = slimmingSteps.some((step) =>
     step === 'drop-diagnostics' || step === 'hard-cap-drop-diagnostics'
   );
@@ -1100,6 +1132,17 @@ export function buildEnhancedClaudePrompt({
     step === 'drop-forecast' || step === 'hard-cap-drop-forecast'
   );
   const graphRAGMode = promptMeta.graphRAG?.injectionMode || 'none';
+  const visionSkippedReason = (() => {
+    if (!hasVisionSource && !hasVisionEvidenceSource) return 'not_provided';
+    if (visionUsed) return null;
+    if (visionRemovedForBudget || (visionEvidenceSummary.evidencePacketsUsed > 0 && !evidencePacketsIncluded)) {
+      return 'removed_for_budget';
+    }
+    if (!hasVisionSource && visionEvidenceSummary.telemetryOnlyEvidencePackets > 0) {
+      return 'telemetry_only';
+    }
+    return 'diagnostics_disabled';
+  })();
 
   promptMeta.sourceUsage = {
     spreadCards: {
@@ -1108,16 +1151,18 @@ export function buildEnhancedClaudePrompt({
       skippedReason: null
     },
     vision: {
-      requested: hasVisionSource,
+      requested: hasVisionSource || hasVisionEvidenceSource,
       used: visionUsed,
       eligibleUploads: visionPromptEligibility.eligibleUploads,
       telemetryOnlyUploads: visionPromptEligibility.telemetryOnlyUploads,
       suppressionReasons: visionPromptEligibility.suppressionReasons,
       diagnosticsIncluded: visionDiagnosticsIncluded,
       cardCuesUsed: visionCardCuesIncluded,
-      skippedReason: hasVisionSource
-        ? (visionUsed ? null : (visionRemovedForBudget ? 'removed_for_budget' : 'diagnostics_disabled'))
-        : 'not_provided'
+      evidencePacketsUsed: evidencePacketsIncluded ? visionEvidenceSummary.evidencePacketsUsed : 0,
+      evidencePacketsProvided: visionEvidenceSummary.evidencePacketsProvided,
+      telemetryOnlyEvidencePackets: visionEvidenceSummary.telemetryOnlyEvidencePackets,
+      evidenceMode: evidencePacketsIncluded ? 'uploaded_image' : visionEvidenceSummary.evidenceMode,
+      skippedReason: visionSkippedReason
     },
     userContext: buildPromptUserContextSourceUsage(built.sourceUsageSignals, finalUser, finalSystem),
     graphRAG: {

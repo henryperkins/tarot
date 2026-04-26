@@ -43,6 +43,56 @@ function describeTelemetryOnlyReason(reason) {
   }
 }
 
+function sanitizeEvidenceText(value, maxLength = 180) {
+  return sanitizeText(String(value || ''), {
+    maxLength,
+    stripMarkdown: true,
+    stripControlChars: true,
+    filterInstructions: true
+  });
+}
+
+export function buildUploadedVisibleEvidenceSection(visionEvidence = []) {
+  const packets = Array.isArray(visionEvidence)
+    ? visionEvidence.filter((packet) => packet?.evidenceMode === 'uploaded_image')
+    : [];
+
+  if (!packets.length) {
+    return '';
+  }
+
+  const lines = ['\n**Uploaded Visible Evidence**:'];
+
+  packets.slice(0, 5).forEach((packet) => {
+    const cardName = sanitizeEvidenceText(packet.card || 'Uploaded card', 80);
+    const label = sanitizeEvidenceText(packet.label || 'upload', 80);
+    const confidence = typeof packet.confidence === 'number'
+      ? `${(packet.confidence * 100).toFixed(1)}%`
+      : 'confidence unavailable';
+
+    lines.push(`- ${cardName} (${label}, ${confidence})`);
+    (packet.visibleEvidence || []).slice(0, 5).forEach((entry) => {
+      const literal = sanitizeEvidenceText(entry?.literalObservation, 180);
+      if (literal) {
+        lines.push(`  - Literal: ${literal}`);
+      }
+
+      const symbolic = Array.isArray(entry?.symbolicMeaning)
+        ? entry.symbolicMeaning
+          .map((meaning) => sanitizeEvidenceText(meaning, 60))
+          .filter(Boolean)
+          .slice(0, 5)
+        : [];
+      if (symbolic.length) {
+        lines.push(`  - Symbolic: ${symbolic.join(', ')}`);
+      }
+    });
+  });
+
+  lines.push('');
+  return `${lines.join('\n')}\n`;
+}
+
 export function buildVisionValidationSection(visionInsights, options = {}) {
   if (options.includeDiagnostics === false) {
     return '';

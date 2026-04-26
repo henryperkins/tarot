@@ -134,3 +134,40 @@ test('keeps unverified or mismatched visual profiles telemetry-only', () => {
   assert.equal(promptMeta.sourceUsage?.vision?.diagnosticsIncluded, true);
   assert.equal(promptMeta.sourceUsage?.vision?.cardCuesUsed, false);
 });
+
+test('separates uploaded visible evidence from canonical rws imagery', () => {
+  const { userPrompt, systemPrompt, promptMeta } = buildEnhancedClaudePrompt({
+    spreadInfo: baseSpreadInfo,
+    cardsInfo: baseCardsInfo,
+    userQuestion: 'How can I navigate this new phase?',
+    reflectionsText: null,
+    themes: baseThemes,
+    spreadAnalysis: baseSpreadAnalysis,
+    context: 'self',
+    visionInsights: [],
+    visionEvidence: [
+      {
+        label: 'fool-photo',
+        card: 'The Fool',
+        evidenceMode: 'uploaded_image',
+        confidence: 0.92,
+        visibleEvidence: [
+          {
+            symbol: 'cliff',
+            label: 'cliff',
+            literalObservation: 'The figure is near a precipice.',
+            symbolicMeaning: ['threshold', 'risk', 'unknown outcome']
+          }
+        ]
+      }
+    ],
+    deckStyle: 'rws-1909'
+  });
+
+  assert.match(systemPrompt, /If uploaded image evidence is present/i);
+  assert.match(systemPrompt, /If only card names are present/i);
+  assert.match(userPrompt, /\*\*Uploaded Visible Evidence\*\*/);
+  assert.match(userPrompt, /Literal: The figure is near a precipice\./);
+  assert.match(userPrompt, /Symbolic: threshold, risk, unknown outcome/);
+  assert.equal(promptMeta.sourceUsage?.vision?.evidencePacketsUsed, 1);
+});
