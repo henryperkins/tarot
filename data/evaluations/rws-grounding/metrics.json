@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-04-26T22:21:54.795Z",
+  "metrics": {
+    "sampleCount": 6,
+    "absenceAccuracy": 1,
+    "hallucinatedSymbolRate": 0,
+    "safetyPassRate": 1,
+    "groundedness": 0.9
+  }
+}
