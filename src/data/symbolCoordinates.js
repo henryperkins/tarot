@@ -1,4 +1,4 @@
-import { SYMBOL_ANNOTATIONS } from '../../shared/symbols/symbolAnnotations';
+import { SYMBOL_ANNOTATIONS } from '../../shared/symbols/symbolAnnotations.js';
 
 /**
  * symbolCoordinates.js

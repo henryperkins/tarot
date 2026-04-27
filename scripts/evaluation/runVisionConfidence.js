@@ -9,6 +9,7 @@ function parseArgs(rawArgs) {
   const options = {
     scope: 'all',
     deckStyle: 'rws-1909',
+    backendId: 'clip-default',
     out: 'data/evaluations/vision-confidence.json',
     limit: null,
     outProvided: false
@@ -21,6 +22,9 @@ function parseArgs(rawArgs) {
       i += 1;
     } else if (arg === '--deck-style') {
       options.deckStyle = rawArgs[i + 1] || options.deckStyle;
+      i += 1;
+    } else if (arg === '--backend-id') {
+      options.backendId = rawArgs[i + 1] || options.backendId;
       i += 1;
     } else if (arg === '--out') {
       options.out = rawArgs[i + 1] || options.out;
@@ -79,13 +83,13 @@ async function main() {
   }
 
   const backend = await createVisionBackend({
-    backendId: 'clip-default',
+    backendId: options.backendId,
     cardScope: options.scope,
     deckStyle: options.deckStyle,
     maxResults: 5
   });
 
-  console.log(`Evaluating ${imageInputs.length} images with deck style ${options.deckStyle}...`);
+  console.log(`Evaluating ${imageInputs.length} images with deck style ${options.deckStyle} using ${options.backendId}...`);
   await backend.warmup();
   const analyses = await backend.analyzeImages(imageInputs, {
     includeAttention: true,
@@ -103,7 +107,12 @@ async function main() {
       confidence: entry.confidence,
       matches: entry.matches,
       attention: entry.attention || null,
-      symbolVerification: entry.symbolVerification || null
+      symbolVerification: entry.symbolVerification || null,
+      routerFeatures: entry.routerFeatures || null,
+      calibratedConfidence: entry.calibratedConfidence ?? null,
+      decisionReason: entry.decisionReason || null,
+      abstain: Boolean(entry.abstain),
+      imageQuality: entry.imageQuality || null
     }))
   };
 

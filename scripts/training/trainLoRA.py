@@ -1,11 +1,6 @@
 import os
 import argparse
-import torch
-from transformers import CLIPProcessor, CLIPModel
-from peft import LoraConfig, get_peft_model
-from torch.utils.data import Dataset, DataLoader
-from PIL import Image
-from tqdm import tqdm
+import json
 
 """
 Tarot Vision - LoRA Training Script
@@ -18,29 +13,86 @@ Usage:
     python trainLoRA.py --deck rws --epochs 5 --batch_size 4
 """
 
-class TarotCardDataset(Dataset):
-    def __init__(self, image_dir, processor):
+class TarotCardDataset:
+    def __init__(self, image_dir, processor, captions_jsonl=None):
         self.image_dir = image_dir
         self.processor = processor
-        self.images = [f for f in os.listdir(image_dir) if f.endswith(('.jpg', '.jpeg', '.png'))]
-        if not self.images:
+        self.samples = self._load_caption_samples(captions_jsonl)
+        if not self.samples:
+            self.samples = [
+                {
+                    "image_path": os.path.join(image_dir, f),
+                    "caption": self._caption_from_filename(f)
+                }
+                for f in os.listdir(image_dir)
+                if f.endswith(('.jpg', '.jpeg', '.png'))
+            ]
+        if not self.samples:
             print(f"Warning: No images found in {image_dir}")
 
+    def _caption_from_filename(self, filename):
+        clean_name = filename.split('.')[0].replace('_', ' ').replace('-', ' ')
+        return f"a tarot card of {clean_name}"
+
+    def _resolve_image_path(self, image):
+        if not image:
+            return None
+        if os.path.isabs(image):
+            return image
+        return os.path.join(os.getcwd(), image)
+
+    def _load_caption_samples(self, captions_jsonl):
+        if not captions_jsonl:
+            return []
+        if not os.path.exists(captions_jsonl):
+            print(f"Warning: captions JSONL {captions_jsonl} does not exist. Falling back to filename captions.")
+            return []
+
+        samples = []
+        skipped = 0
+        with open(captions_jsonl, "r", encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, start=1):
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                try:
+                    row = json.loads(stripped)
+                except json.JSONDecodeError as exc:
+                    print(f"Warning: Skipping malformed caption row {line_number}: {exc}")
+                    skipped += 1
+                    continue
+
+                image_path = self._resolve_image_path(row.get("image"))
+                if not image_path or not os.path.exists(image_path):
+                    print(f"Warning: Skipping caption row {line_number}; image not found: {row.get('image')}")
+                    skipped += 1
+                    continue
+
+                captions = row.get("positive_captions") or []
+                captions = [caption for caption in captions if isinstance(caption, str) and caption.strip()]
+                if not captions:
+                    captions = [self._caption_from_filename(os.path.basename(image_path))]
+
+                for caption in captions:
+                    samples.append({
+                        "image_path": image_path,
+                        "caption": caption.strip()
+                    })
+
+        print(f"Loaded {len(samples)} caption samples from {captions_jsonl} ({skipped} skipped rows)")
+        return samples
+
     def __len__(self):
-        return len(self.images)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        img_name = self.images[idx]
-        img_path = os.path.join(self.image_dir, img_name)
-        image = Image.open(img_path).convert("RGB")
+        from PIL import Image
 
-        # Basic text prompt for now - in future will use detailed descriptions
-        # Clean filename to get card name (e.g., "01_magician.jpg" -> "magician")
-        clean_name = img_name.split('.')[0].replace('_', ' ').replace('-', ' ')
-        text = f"a tarot card of {clean_name}"
+        sample = self.samples[idx]
+        image = Image.open(sample["image_path"]).convert("RGB")
 
         processed = self.processor(
-            text=[text],
+            text=[sample["caption"]],
             images=image,
             return_tensors="pt",
             padding="max_length",
@@ -55,6 +107,12 @@ class TarotCardDataset(Dataset):
         }
 
 def train(args):
+    import torch
+    from transformers import CLIPProcessor, CLIPModel
+    from peft import LoraConfig, get_peft_model
+    from torch.utils.data import DataLoader
+    from tqdm import tqdm
+
     print(f"Initializing LoRA training for deck: {args.deck}")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -86,7 +144,7 @@ def train(args):
         print(f"Warning: Dataset path {dataset_path} does not exist. Creating dummy dataset for structure verification.")
         os.makedirs(dataset_path, exist_ok=True)
 
-    dataset = TarotCardDataset(dataset_path, processor)
+    dataset = TarotCardDataset(dataset_path, processor, captions_jsonl=args.captions_jsonl)
     if len(dataset) == 0:
         print("No data found. Skipping training loop.")
         return
@@ -138,6 +196,7 @@ if __name__ == "__main__":
     parser.add_argument("--deck", type=str, default="rws", help="Target deck style (rws, thoth, marseille)")
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=4)
+    parser.add_argument("--captions_jsonl", type=str, default=None, help="Optional JSONL captions generated by scripts/training/generateRwsCaptionDataset.mjs")
 
     args = parser.parse_args()
     train(args)

@@ -283,17 +283,47 @@ export function VisionValidationPanel({
               {result.symbolVerification && (
                 <div className="mt-2 text-xs text-secondary/70">
                   <p className="font-semibold text-secondary">Symbol verification</p>
-                  <p>
-                    Match rate:{' '}
-                    <span className={typeof result.symbolVerification.matchRate === 'number' && result.symbolVerification.matchRate >= 0.7 ? 'text-accent' : ''}>
-                      {typeof result.symbolVerification.matchRate === 'number'
-                        ? `${(result.symbolVerification.matchRate * 100).toFixed(0)}%`
-                        : 'n/a'}
-                    </span>
-                  </p>
+                  <div className="mt-1 grid gap-1 xs:grid-cols-2">
+                    <p>
+                      Flat:{' '}
+                      <span className={typeof result.symbolVerification.matchRate === 'number' && result.symbolVerification.matchRate >= 0.7 ? 'text-accent' : ''}>
+                        {typeof result.symbolVerification.matchRate === 'number'
+                          ? `${(result.symbolVerification.matchRate * 100).toFixed(0)}%`
+                          : 'n/a'}
+                      </span>
+                    </p>
+                    <p>
+                      Weighted:{' '}
+                      <span className={typeof result.symbolVerification.weightedMatchRate === 'number' && result.symbolVerification.weightedMatchRate >= 0.65 ? 'text-accent' : ''}>
+                        {typeof result.symbolVerification.weightedMatchRate === 'number'
+                          ? `${(result.symbolVerification.weightedMatchRate * 100).toFixed(0)}%`
+                          : 'n/a'}
+                      </span>
+                    </p>
+                  </div>
+                  {Array.isArray(result.symbolVerification.highSalienceMissing) && result.symbolVerification.highSalienceMissing.length > 0 && (
+                    <p className="mt-1 text-error/80">
+                      High-salience missing: {result.symbolVerification.highSalienceMissing.join(', ')}
+                    </p>
+                  )}
+                  {Array.isArray(result.symbolVerification.lowSalienceMissing) && result.symbolVerification.lowSalienceMissing.length > 0 && (
+                    <p className="mt-1 text-muted">
+                      Low-salience missing: {result.symbolVerification.lowSalienceMissing.join(', ')}
+                    </p>
+                  )}
                   {Array.isArray(result.symbolVerification.missingSymbols) && result.symbolVerification.missingSymbols.length > 0 && (
                     <p className="mt-1 text-error/80">
                       Missing: {result.symbolVerification.missingSymbols.join(', ')}
+                    </p>
+                  )}
+                  {result.symbolVerification.absentSymbolFalsePositive && (
+                    <p className="mt-1 text-error/80">
+                      Review warning: absent-symbol false positive
+                    </p>
+                  )}
+                  {Array.isArray(result.symbolVerification.absenceDetections) && result.symbolVerification.absenceDetections.length > 0 && (
+                    <p className="mt-1 text-error/80">
+                      Absence detections: {result.symbolVerification.absenceDetections.map((det) => det.label).join(', ')}
                     </p>
                   )}
                   {Array.isArray(result.symbolVerification.unexpectedDetections) && result.symbolVerification.unexpectedDetections.length > 0 && (

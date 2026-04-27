@@ -1,5 +1,6 @@
 import { pipeline, RawImage } from '@xenova/transformers';
 import { SYMBOL_ANNOTATIONS } from '../symbols/symbolAnnotations.js';
+import { getRwsCardEvidence, normalizeRwsSymbolName } from './rwsEvidenceOntology.js';
 import { getMinorSymbolAnnotation } from './minorSymbolLexicon.js';
 
 function getEnvValue(key) {
@@ -227,11 +228,123 @@ function getAnnotation(card) {
 }
 
 function getExpectedSymbols(card) {
+  const ontology = getRwsCardEvidence(card?.canonicalName || card?.name || card?.cardName || card?.card);
+  if (ontology?.visualSymbols?.length) {
+    return ontology.visualSymbols.map((symbol) => ({
+      ...symbol,
+      object: symbol.label || symbol.symbol
+    }));
+  }
+
   const annotation = getAnnotation(card);
   if (!annotation?.symbols || !annotation.symbols.length) {
     return null;
   }
   return annotation.symbols;
+}
+
+function symbolLabel(symbol) {
+  return symbol?.label || symbol?.object || symbol?.symbol || '';
+}
+
+function normalizeDetectionLabel(label = '') {
+  return normalizeLabel(label).replace(/^(a|an|the)\s+/, '');
+}
+
+function normalizedTermSet(values = []) {
+  const terms = new Set();
+  values.forEach((value) => {
+    const normalized = normalizeDetectionLabel(value);
+    if (normalized) terms.add(normalized);
+    const slug = normalizeRwsSymbolName(value);
+    if (slug) terms.add(slug.replace(/_/g, ' '));
+  });
+  return terms;
+}
+
+function findMatchForSymbol(symbol, matches, index) {
+  if (matches[index]) return matches[index];
+  const expectedTerms = normalizedTermSet([
+    symbolLabel(symbol),
+    symbol?.object,
+    symbol?.symbol,
+    ...(symbol?.aliases || [])
+  ]);
+  return matches.find((match) => {
+    const matchTerms = normalizedTermSet([match?.object, match?.label, match?.symbol, match?.detectionLabel]);
+    return Array.from(matchTerms).some((term) => expectedTerms.has(term));
+  }) || null;
+}
+
+export function computeSymbolVerificationScores(expectedSymbols = [], matches = [], detections = []) {
+  const expected = Array.isArray(expectedSymbols) ? expectedSymbols.filter(Boolean) : [];
+  const safeMatches = Array.isArray(matches) ? matches.filter(Boolean) : [];
+  const safeDetections = Array.isArray(detections) ? detections.filter(Boolean) : [];
+
+  const enrichedMatches = expected.map((symbol, index) => {
+    const match = findMatchForSymbol(symbol, safeMatches, index);
+    return {
+      object: symbolLabel(symbol),
+      symbolId: symbol.symbolId || null,
+      salience: Number.isFinite(symbol.salience) ? symbol.salience : 0.6,
+      expectedRegion: symbol.expectedRegion || null,
+      aliases: symbol.aliases || [],
+      absenceNegatives: symbol.absenceNegatives || [],
+      expectedPosition: match?.expectedPosition || symbol.location || symbol.position || null,
+      found: Boolean(match?.found),
+      confidence: Number.isFinite(match?.confidence) ? match.confidence : 0,
+      detectionLabel: match?.detectionLabel || null,
+      box: match?.box || null
+    };
+  });
+
+  const foundCount = enrichedMatches.filter((match) => match.found).length;
+  const expectedCount = expected.length;
+  const matchRate = expectedCount ? Number((foundCount / expectedCount).toFixed(4)) : 0;
+  const salienceTotal = enrichedMatches.reduce((sum, match) => sum + match.salience, 0);
+  const weightedTotal = enrichedMatches.reduce((sum, match) => (
+    sum + (match.found ? match.confidence * match.salience : 0)
+  ), 0);
+  const weightedMatchRate = salienceTotal > 0 ? Number((weightedTotal / salienceTotal).toFixed(4)) : 0;
+  const missing = enrichedMatches.filter((match) => !match.found);
+
+  const absenceDetections = safeDetections
+    .filter((det) => det?.absenceNegative === true || det?.kind === 'absence_negative')
+    .map((det) => ({
+      label: det.label,
+      confidence: Number.isFinite(det.confidence) ? det.confidence : (Number.isFinite(det.score) ? det.score : null),
+      box: det.box || null
+    }))
+    .slice(0, 5);
+
+  const unexpectedDetections = safeDetections
+    .filter((det) => !(det?.absenceNegative === true || det?.kind === 'absence_negative'))
+    .map((det) => ({
+      label: det.label,
+      confidence: Number.isFinite(det.confidence) ? det.confidence : (Number.isFinite(det.score) ? det.score : null),
+      box: det.box || null
+    }))
+    .slice(0, 5);
+
+  return {
+    expectedCount,
+    detectedCount: foundCount,
+    matchRate,
+    weightedMatchRate,
+    matches: enrichedMatches,
+    missingSymbols: missing.map((match) => match.object).slice(0, 5),
+    highSalienceMissing: missing
+      .filter((match) => match.salience >= 0.75)
+      .map((match) => match.object)
+      .slice(0, 5),
+    lowSalienceMissing: missing
+      .filter((match) => match.salience < 0.75)
+      .map((match) => match.object)
+      .slice(0, 5),
+    absentSymbolFalsePositive: absenceDetections.length > 0,
+    absenceDetections,
+    unexpectedDetections
+  };
 }
 
 function centerFromBox(box = {}) {
@@ -308,23 +421,10 @@ export class SymbolDetector {
 
     const detector = await this._getDetector();
     const rawImage = await RawImage.read(imageSource);
-    const { candidateLabels, labelLookup } = this._buildCandidateLabels(expectedSymbols);
+    const { candidateLabels, labelLookup, absenceLabels } = this._buildCandidateLabels(expectedSymbols);
 
     if (!candidateLabels.length) {
-      return {
-        expectedCount: expectedSymbols.length,
-        detectedCount: 0,
-        matchRate: 0,
-        matches: expectedSymbols.map((symbol) => ({
-          object: symbol.object,
-          expectedPosition: symbol.position || null,
-          found: false,
-          confidence: 0,
-          detectionLabel: null
-        })),
-        missingSymbols: expectedSymbols.map((symbol) => symbol.object),
-        unexpectedDetections: []
-      };
+      return computeSymbolVerificationScores(expectedSymbols, [], []);
     }
 
     const detections = await detector(rawImage, candidateLabels, {
@@ -337,7 +437,8 @@ export class SymbolDetector {
             label: det.label,
             score: Number(det.score?.toFixed?.(4) ?? 0),
             box: normalizeBox(det.box || {}, { width: rawImage.width, height: rawImage.height }),
-            id: `${det.label || 'object'}-${index}`
+            id: `${det.label || 'object'}-${index}`,
+            absenceNegative: absenceLabels.has(det.label)
           }))
           .sort((a, b) => b.score - a.score)
       : [];
@@ -348,6 +449,7 @@ export class SymbolDetector {
 
     const matches = expectedSymbols.map((symbol, symbolIndex) => {
       const detection = normalizedDetections.find((det) => {
+        if (det.absenceNegative) return false;
         const candidates = labelLookup.get(det.label) || [];
         const isCandidate = candidates.includes(symbolIndex);
         if (!isCandidate) return false;
@@ -359,8 +461,13 @@ export class SymbolDetector {
       }
 
       return {
-        object: symbol.object,
-        expectedPosition: symbol.position || null,
+        object: symbolLabel(symbol),
+        symbolId: symbol.symbolId || null,
+        salience: symbol.salience ?? 0.6,
+        expectedRegion: symbol.expectedRegion || null,
+        aliases: symbol.aliases || [],
+        absenceNegatives: symbol.absenceNegatives || [],
+        expectedPosition: symbol.location || symbol.position || null,
         found: Boolean(detection),
         confidence: detection?.score ?? 0,
         detectionLabel: detection?.label || null,
@@ -368,33 +475,36 @@ export class SymbolDetector {
       };
     });
 
-    const foundCount = matches.filter((match) => match.found).length;
-    const matchRate = Number((foundCount / expectedSymbols.length).toFixed(4));
-    const missingSymbols = matches
-      .filter((match) => !match.found)
-      .map((match) => match.object);
-
     const unexpectedDetections = normalizedDetections
       .filter((det) => !matchedDetectionIds.has(det.id))
       .slice(0, 5)
-      .map((det) => ({ label: det.label, confidence: det.score, box: det.box }));
+      .map((det) => ({
+        label: det.label,
+        confidence: det.score,
+        box: det.box,
+        absenceNegative: det.absenceNegative
+      }));
+
+    const scores = computeSymbolVerificationScores(expectedSymbols, matches, unexpectedDetections);
 
     return {
-      expectedCount: expectedSymbols.length,
-      detectedCount: foundCount,
-      matchRate,
-      matches: matches.slice(0, 8),
-      missingSymbols: missingSymbols.slice(0, 5),
-      unexpectedDetections,
+      ...scores,
+      verifiedCard: card?.canonicalName || card?.name || card?.cardName || card?.card || null,
+      verificationSource: 'symbol-detector',
+      matches: scores.matches.slice(0, 8),
       heatmap
     };
   }
   _buildCandidateLabels(symbols = []) {
     const labelLookup = new Map();
     const orderedLabels = [];
+    const absenceLabelSet = new Set();
 
     symbols.forEach((symbol, index) => {
-      const terms = buildSymbolTerms(symbol.object);
+      const terms = Array.from(new Set([
+        ...buildSymbolTerms(symbolLabel(symbol)),
+        ...(symbol.aliases || [])
+      ]));
       if (!terms.length) return;
       terms.forEach((term) => {
         const prompt = formatPrompt(term);
@@ -404,10 +514,19 @@ export class SymbolDetector {
         mapping.push(index);
         labelLookup.set(prompt, mapping);
       });
+
+      (symbol.absenceNegatives || []).forEach((negative) => {
+        buildSymbolTerms(negative).forEach((term) => {
+          const prompt = formatPrompt(term);
+          if (!prompt) return;
+          orderedLabels.push(prompt);
+          absenceLabelSet.add(prompt);
+        });
+      });
     });
 
     const uniqueLabels = Array.from(new Set(orderedLabels));
-    return { candidateLabels: uniqueLabels, labelLookup };
+    return { candidateLabels: uniqueLabels, labelLookup, absenceLabels: absenceLabelSet };
   }
 }
 

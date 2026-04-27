@@ -922,6 +922,7 @@ export function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1
 
 export const DEFAULT_VISION_PROMPT_CONFIDENCE_FLOOR = 0.65;
 export const DEFAULT_VISION_PROMPT_SYMBOL_MATCH_FLOOR = 0.45;
+export const DEFAULT_VISION_PROMPT_WEIGHTED_SYMBOL_MATCH_FLOOR = 0.65;
 
 function normalizeVisionThreshold(value, fallback) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -931,31 +932,47 @@ function normalizeVisionThreshold(value, fallback) {
 }
 
 export function resolveVisionPromptThresholds(options = {}) {
+  const explicitSymbolFloor = options.promptSymbolMatchFloor ?? options.symbolMatchFloor;
   return {
     confidenceFloor: normalizeVisionThreshold(
       options.promptConfidenceFloor ?? options.confidenceFloor,
       DEFAULT_VISION_PROMPT_CONFIDENCE_FLOOR
     ),
     symbolMatchFloor: normalizeVisionThreshold(
-      options.promptSymbolMatchFloor ?? options.symbolMatchFloor,
+      explicitSymbolFloor,
       DEFAULT_VISION_PROMPT_SYMBOL_MATCH_FLOOR
+    ),
+    weightedSymbolMatchFloor: normalizeVisionThreshold(
+      options.promptWeightedSymbolMatchFloor ?? options.weightedSymbolMatchFloor ?? explicitSymbolFloor,
+      explicitSymbolFloor === undefined || explicitSymbolFloor === null || explicitSymbolFloor === ''
+        ? DEFAULT_VISION_PROMPT_WEIGHTED_SYMBOL_MATCH_FLOOR
+        : DEFAULT_VISION_PROMPT_SYMBOL_MATCH_FLOOR
     )
   };
 }
 
 export function evaluateVisionInsightPromptEligibility(insight, options = {}) {
-  const { confidenceFloor, symbolMatchFloor } = resolveVisionPromptThresholds(options);
+  const { confidenceFloor, symbolMatchFloor, weightedSymbolMatchFloor } = resolveVisionPromptThresholds(options);
   const confidence = Number.isFinite(insight?.confidence) ? insight.confidence : null;
+  const weightedSymbolMatchRate = Number.isFinite(insight?.symbolVerification?.weightedMatchRate)
+    ? insight.symbolVerification.weightedMatchRate
+    : null;
   const symbolMatchRate = Number.isFinite(insight?.symbolVerification?.matchRate)
     ? insight.symbolVerification.matchRate
     : null;
+  const effectiveSymbolMatchRate = weightedSymbolMatchRate ?? symbolMatchRate;
+  const effectiveSymbolMatchFloor = weightedSymbolMatchRate !== null
+    ? weightedSymbolMatchFloor
+    : symbolMatchFloor;
 
   let suppressionReason = null;
   if (insight?.matchesDrawnCard !== true) {
     suppressionReason = insight?.matchesDrawnCard === false ? 'card_mismatch' : 'match_unverified';
-  } else if (symbolMatchRate !== null && symbolMatchRate < symbolMatchFloor) {
-    suppressionReason = 'weak_symbol_verification';
-  } else if (confidence !== null ? confidence < confidenceFloor : symbolMatchRate === null) {
+  } else if (effectiveSymbolMatchRate !== null && effectiveSymbolMatchRate < effectiveSymbolMatchFloor) {
+    suppressionReason = weightedSymbolMatchRate !== null
+      ? 'weak_weighted_symbol_verification'
+      : 'weak_symbol_verification';
+  } else if (confidence !== null ? confidence < confidenceFloor : effectiveSymbolMatchRate === null) {
     suppressionReason = confidence === null ? 'confidence_unavailable' : 'low_confidence';
   }
 

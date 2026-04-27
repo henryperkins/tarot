@@ -7,6 +7,10 @@ const ACC_THRESHOLD = parseFloat(process.env.VISION_MIN_ACCURACY || '0.9');
 const COVERAGE_THRESHOLD = parseFloat(process.env.VISION_MIN_HIGH_CONFIDENCE_COVERAGE || '0.75');
 const COVERAGE_ACC_THRESHOLD = parseFloat(process.env.VISION_MIN_HIGH_CONFIDENCE_ACCURACY || '0.9');
 const SYMBOL_COVERAGE_THRESHOLD = parseFloat(process.env.VISION_MIN_SYMBOL_COVERAGE || '0.6');
+const WEIGHTED_SYMBOL_COVERAGE_THRESHOLD = parseFloat(process.env.VISION_MIN_WEIGHTED_SYMBOL_COVERAGE || '0.65');
+const HIGH_SALIENCE_RECALL_THRESHOLD = parseFloat(process.env.VISION_MIN_HIGH_SALIENCE_RECALL || '0.8');
+const ABSENT_SYMBOL_FALSE_POSITIVE_MAX = parseFloat(process.env.VISION_MAX_ABSENT_SYMBOL_FALSE_POSITIVE_RATE || '0.02');
+const HIGH_CONFIDENCE_ERROR_MAX = parseFloat(process.env.VISION_MAX_HIGH_CONFIDENCE_ERROR_RATE || '0.05');
 
 function formatPct(value) {
   return `${(value * 100).toFixed(2)}%`;
@@ -57,6 +61,10 @@ async function main() {
   const coverage = metrics?.highConfidenceCoverage ?? 0;
   const coverageAccuracy = metrics?.highConfidenceAccuracy ?? 0;
   const symbolCoverage = metrics?.symbolCoverageRate ?? 0;
+  const weightedSymbolCoverage = metrics?.weightedSymbolCoverageRate ?? metrics?.symbolCoverageRate ?? 0;
+  const highSalienceRecall = metrics?.highSalienceSymbolRecall ?? 1;
+  const absentSymbolFalsePositiveRate = metrics?.absentSymbolFalsePositiveRate ?? 0;
+  const highConfidenceErrorRate = metrics?.highConfidenceErrorRate ?? (1 - coverageAccuracy);
 
   const failures = [];
   if (accuracy < ACC_THRESHOLD) {
@@ -71,6 +79,18 @@ async function main() {
   if (symbolCoverage < SYMBOL_COVERAGE_THRESHOLD) {
     failures.push(`symbol coverage ${formatPct(symbolCoverage)} < threshold ${formatPct(SYMBOL_COVERAGE_THRESHOLD)}`);
   }
+  if (weightedSymbolCoverage < WEIGHTED_SYMBOL_COVERAGE_THRESHOLD) {
+    failures.push(`weighted symbol coverage ${formatPct(weightedSymbolCoverage)} < threshold ${formatPct(WEIGHTED_SYMBOL_COVERAGE_THRESHOLD)}`);
+  }
+  if (highSalienceRecall < HIGH_SALIENCE_RECALL_THRESHOLD) {
+    failures.push(`high-salience recall ${formatPct(highSalienceRecall)} < threshold ${formatPct(HIGH_SALIENCE_RECALL_THRESHOLD)}`);
+  }
+  if (absentSymbolFalsePositiveRate > ABSENT_SYMBOL_FALSE_POSITIVE_MAX) {
+    failures.push(`absent-symbol false-positive rate ${formatPct(absentSymbolFalsePositiveRate)} > threshold ${formatPct(ABSENT_SYMBOL_FALSE_POSITIVE_MAX)}`);
+  }
+  if (highConfidenceErrorRate > HIGH_CONFIDENCE_ERROR_MAX) {
+    failures.push(`high-confidence error rate ${formatPct(highConfidenceErrorRate)} > threshold ${formatPct(HIGH_CONFIDENCE_ERROR_MAX)}`);
+  }
 
   if (failures.length) {
     console.error('Vision gate failed:', failures.join('; '));
@@ -82,7 +102,11 @@ async function main() {
     accuracy: formatPct(accuracy),
     highConfidenceCoverage: formatPct(coverage),
     highConfidenceAccuracy: formatPct(coverageAccuracy),
-    symbolCoverage: formatPct(symbolCoverage)
+    symbolCoverage: formatPct(symbolCoverage),
+    weightedSymbolCoverage: formatPct(weightedSymbolCoverage),
+    highSalienceRecall: formatPct(highSalienceRecall),
+    absentSymbolFalsePositiveRate: formatPct(absentSymbolFalsePositiveRate),
+    highConfidenceErrorRate: formatPct(highConfidenceErrorRate)
   });
 }
 

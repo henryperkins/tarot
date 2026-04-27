@@ -51,6 +51,33 @@ function normalizeComponentScores(componentScores) {
   return { clip, llama };
 }
 
+function normalizeRouterFeatures(routerFeatures) {
+  if (!routerFeatures || typeof routerFeatures !== 'object') return null;
+  return {
+    clipScore: typeof routerFeatures.clipScore === 'number' ? routerFeatures.clipScore : null,
+    llamaScore: typeof routerFeatures.llamaScore === 'number' ? routerFeatures.llamaScore : null,
+    llamaOk: Boolean(routerFeatures.llamaOk),
+    clipScoreGap: typeof routerFeatures.clipScoreGap === 'number' ? routerFeatures.clipScoreGap : null,
+    llamaAgrees: Boolean(routerFeatures.llamaAgrees),
+    symbolWeightedMatch: typeof routerFeatures.symbolWeightedMatch === 'number' ? routerFeatures.symbolWeightedMatch : null,
+    orientationKnown: Boolean(routerFeatures.orientationKnown),
+    imageQualityScore: typeof routerFeatures.imageQualityScore === 'number' ? routerFeatures.imageQualityScore : null
+  };
+}
+
+function normalizeImageQuality(imageQuality) {
+  if (!imageQuality || typeof imageQuality !== 'object') return null;
+  return {
+    cardRectFound: typeof imageQuality.cardRectFound === 'boolean' ? imageQuality.cardRectFound : null,
+    perspectiveSkew: typeof imageQuality.perspectiveSkew === 'number' ? imageQuality.perspectiveSkew : null,
+    blurScore: typeof imageQuality.blurScore === 'number' ? imageQuality.blurScore : null,
+    glareScore: typeof imageQuality.glareScore === 'number' ? imageQuality.glareScore : null,
+    occlusionScore: typeof imageQuality.occlusionScore === 'number' ? imageQuality.occlusionScore : null,
+    borderVisible: typeof imageQuality.borderVisible === 'boolean' ? imageQuality.borderVisible : null,
+    usableForSymbolDetection: imageQuality.usableForSymbolDetection !== false
+  };
+}
+
 function getSubtle() {
   if (globalThis.crypto?.subtle) {
     return globalThis.crypto.subtle;
@@ -124,7 +151,12 @@ export function trimInsights(rawInsights = [], deckStyle = 'rws-1909') {
       reasoning: truncateText(insight.reasoning, MAX_REASONING_CHARS),
       visualDetails: normalizeVisualDetails(insight.visualDetails),
       mergeSource: normalizeMergeSource(insight.mergeSource),
-      componentScores: normalizeComponentScores(insight.componentScores)
+      componentScores: normalizeComponentScores(insight.componentScores),
+      routerFeatures: normalizeRouterFeatures(insight.routerFeatures),
+      calibratedConfidence: typeof insight.calibratedConfidence === 'number' ? insight.calibratedConfidence : null,
+      decisionReason: normalizeMergeSource(insight.decisionReason),
+      abstain: Boolean(insight.abstain),
+      imageQuality: normalizeImageQuality(insight.imageQuality)
     }));
 }
 

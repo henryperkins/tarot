@@ -480,6 +480,83 @@ describe('Vision validation prompt context', () => {
     assert.equal(promptMeta.sourceUsage?.vision?.cardCuesUsed, false);
   });
 
+  it('uses weighted symbol failures to keep high-confidence uploads telemetry-only', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { userPrompt, promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'What should I trust here?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      visionInsights: [
+        {
+          label: 'IMG_WEAK_WEIGHTED',
+          predictedCard: 'The Fool',
+          confidence: 0.93,
+          basis: 'image',
+          matchesDrawnCard: true,
+          symbolVerification: {
+            matchRate: 0.8,
+            weightedMatchRate: 0.2,
+            missingSymbols: ['cliff'],
+            highSalienceMissing: ['cliff']
+          }
+        }
+      ]
+    });
+
+    assert.match(userPrompt, /\[telemetry only: weak weighted symbol verification\]/i);
+    assert.equal(promptMeta.sourceUsage?.vision?.eligibleUploads, 0);
+    assert.deepEqual(promptMeta.sourceUsage?.vision?.suppressionReasons, { weak_weighted_symbol_verification: 1 });
+  });
+
+  it('renders uploaded evidence as separated knowledge levels with visual claim constraints', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await buildThemes(cardsInfo, 'blocked');
+
+    const { userPrompt } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo,
+      userQuestion: 'What should I trust here?',
+      reflectionsText: '',
+      themes,
+      spreadAnalysis: null,
+      context: 'general',
+      visionEvidence: [
+        {
+          label: 'fool-photo',
+          card: 'The Fool',
+          confidence: 0.92,
+          evidenceMode: 'uploaded_image',
+          visualClaimMode: 'verified_visual_evidence',
+          symbolMatchRate: 0.8,
+          weightedSymbolMatchRate: 0.74,
+          cardKnowledge: { coreThemes: ['beginnings', 'risk'] },
+          expectedRiderSymbols: [{ label: 'cliff' }, { label: 'dog' }],
+          verifiedUploadedEvidence: [{ label: 'cliff', literalObservation: 'The cliff was detected in the uploaded image.' }],
+          uncertainSymbols: [{ label: 'bright sky' }],
+          forbiddenClaims: ['Do not say "I see" for symbols outside Verified uploaded-image evidence.']
+        }
+      ]
+    });
+
+    assert.match(userPrompt, /Traditional card knowledge:/);
+    assert.match(userPrompt, /Expected Rider symbols:/);
+    assert.match(userPrompt, /Verified uploaded-image evidence:/);
+    assert.match(userPrompt, /Uncertain image details:/);
+    assert.match(userPrompt, /Visual-claim constraints:/);
+    assert.match(userPrompt, /Weighted symbol score: 74\.0%/);
+    assert.match(userPrompt, /Do not say "I see" for symbols outside Verified uploaded-image evidence\./);
+  });
+
   it('masks mismatched card names to prevent hallucination priming', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'One-Card Insight', 'Upright')

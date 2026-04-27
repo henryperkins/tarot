@@ -28,6 +28,16 @@ const NODE_BASE_URL = !IS_BROWSER && typeof process !== 'undefined'
     })()
   : null;
 
+export const DEFAULT_IMAGE_QUALITY = Object.freeze({
+  cardRectFound: null,
+  perspectiveSkew: null,
+  blurScore: null,
+  glareScore: null,
+  occlusionScore: null,
+  borderVisible: null,
+  usableForSymbolDetection: true
+});
+
 const POSITION_KEYWORDS = {
   top: ['top', 'upper', 'crown'],
   bottom: ['bottom', 'lower', 'base'],
@@ -605,7 +615,8 @@ export class TarotVisionPipeline {
         confidence: matches[0]?.score ?? 0,
         attention,
         symbolVerification,
-        visualProfile
+        visualProfile,
+        imageQuality: { ...DEFAULT_IMAGE_QUALITY }
       });
     }
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
@@ -74,6 +75,170 @@ function buildReviewKey(row) {
   return `${row.image}||${row.expected}||${row.predicted}`;
 }
 
+function resolveExpected(entry, imageNameMap) {
+  if (entry?.expected) return entry.expected;
+  const image = entry?.image || entry?.label || entry?.imagePath;
+  const basename = path.basename(image || '');
+  return imageNameMap?.get?.(basename) || null;
+}
+
+function confidenceFor(entry) {
+  const value = entry?.calibratedConfidence ?? entry?.topMatch?.calibratedConfidence ?? entry?.topMatch?.score ?? entry?.confidence;
+  return Number.isFinite(value) ? value : 0;
+}
+
+function computeExpectedCalibrationError(rows, binCount = 10) {
+  if (!rows.length) return 0;
+  let ece = 0;
+  for (let bin = 0; bin < binCount; bin += 1) {
+    const lower = bin / binCount;
+    const upper = (bin + 1) / binCount;
+    const bucket = rows.filter((row) => (
+      bin === binCount - 1
+        ? row.confidence >= lower && row.confidence <= upper
+        : row.confidence >= lower && row.confidence < upper
+    ));
+    if (!bucket.length) continue;
+    const avgConfidence = bucket.reduce((sum, row) => sum + row.confidence, 0) / bucket.length;
+    const accuracy = bucket.filter((row) => row.correct).length / bucket.length;
+    ece += (bucket.length / rows.length) * Math.abs(avgConfidence - accuracy);
+  }
+  return Number(ece.toFixed(4));
+}
+
+export function computeVisionMetricEntry(samples = [], options = {}) {
+  const deckStyle = options.deckStyle || 'rws-1909';
+  const rows = [];
+  const mismatches = [];
+  const perLabelCounts = new Map();
+  const symbolMatchRates = [];
+  const weightedSymbolRates = [];
+  let symbolExpectedTotal = 0;
+  let symbolDetectedTotal = 0;
+  let highConfidenceCorrect = 0;
+  let highConfidenceTotal = 0;
+  let absentSymbolFalsePositiveCount = 0;
+  let symbolVerificationCount = 0;
+  let symbolHallucinationCount = 0;
+  let highSalienceRecallTotal = 0;
+  let highSalienceRecallSamples = 0;
+  const missingSymbolTally = new Map();
+
+  for (const entry of samples) {
+    const expected = resolveExpected(entry, options.imageNameMap);
+    if (!expected) continue;
+    const predicted = entry.topMatch?.cardName || entry.predictedCard || entry.card;
+    const confidence = confidenceFor(entry);
+    const normalizedExpected = normalizeName(expected);
+    const normalizedPredicted = normalizeName(canonicalizeCardName(predicted, deckStyle) || predicted);
+    const correct = normalizedPredicted === normalizedExpected;
+    rows.push({ expected, predicted, confidence, correct });
+
+    if (correct) {
+      if (confidence >= 0.9) highConfidenceCorrect += 1;
+    } else {
+      mismatches.push({
+        image: path.basename(entry.image || entry.label || entry.imagePath || ''),
+        expected,
+        predicted: predicted || 'n/a',
+        confidence,
+        basis: entry.topMatch?.basis
+      });
+    }
+    if (confidence >= 0.9) highConfidenceTotal += 1;
+
+    const labelStats = perLabelCounts.get(expected) || { total: 0, correct: 0 };
+    labelStats.total += 1;
+    if (correct) labelStats.correct += 1;
+    perLabelCounts.set(expected, labelStats);
+
+    const symbolVerification = entry.symbolVerification;
+    if (symbolVerification && typeof symbolVerification === 'object') {
+      symbolVerificationCount += 1;
+      if (typeof symbolVerification.matchRate === 'number') {
+        symbolMatchRates.push(symbolVerification.matchRate);
+      }
+      if (typeof symbolVerification.weightedMatchRate === 'number') {
+        weightedSymbolRates.push(symbolVerification.weightedMatchRate);
+      }
+      if (typeof symbolVerification.expectedCount === 'number') {
+        symbolExpectedTotal += symbolVerification.expectedCount;
+      }
+      if (typeof symbolVerification.detectedCount === 'number') {
+        symbolDetectedTotal += symbolVerification.detectedCount;
+      }
+      if (Array.isArray(symbolVerification.missingSymbols)) {
+        symbolVerification.missingSymbols.forEach((symbol) => {
+          if (!symbol) return;
+          missingSymbolTally.set(symbol, (missingSymbolTally.get(symbol) || 0) + 1);
+        });
+      }
+      const highMissing = Array.isArray(symbolVerification.highSalienceMissing)
+        ? symbolVerification.highSalienceMissing.length
+        : 0;
+      highSalienceRecallTotal += highMissing > 0 ? 0 : 1;
+      highSalienceRecallSamples += 1;
+      if (symbolVerification.absentSymbolFalsePositive || (Array.isArray(symbolVerification.absenceDetections) && symbolVerification.absenceDetections.length > 0)) {
+        absentSymbolFalsePositiveCount += 1;
+        symbolHallucinationCount += 1;
+      }
+    }
+  }
+
+  const total = rows.length;
+  const correct = rows.filter((row) => row.correct).length;
+  const accuracy = total ? correct / total : 0;
+  const highConfidenceAccuracy = highConfidenceTotal ? highConfidenceCorrect / highConfidenceTotal : 0;
+  const highConfidenceErrorRate = highConfidenceTotal
+    ? (highConfidenceTotal - highConfidenceCorrect) / highConfidenceTotal
+    : 0;
+  const brierScore = total
+    ? rows.reduce((sum, row) => sum + ((row.confidence - (row.correct ? 1 : 0)) ** 2), 0) / total
+    : 0;
+
+  return {
+    deckStyle,
+    generatedAt: new Date().toISOString(),
+    sourceFile: options.sourceFile || null,
+    sampleSize: total,
+    accuracy,
+    microPrecision: accuracy,
+    microRecall: accuracy,
+    microF1: accuracy,
+    highConfidenceCoverage: highConfidenceTotal / (total || 1),
+    highConfidenceAccuracy,
+    highConfidenceErrorRate,
+    symbolCoverageRate: symbolMatchRates.length
+      ? symbolMatchRates.reduce((sum, value) => sum + value, 0) / symbolMatchRates.length
+      : null,
+    symbolDetectionRate: symbolExpectedTotal ? symbolDetectedTotal / symbolExpectedTotal : null,
+    weightedSymbolCoverageRate: weightedSymbolRates.length
+      ? Number((weightedSymbolRates.reduce((sum, value) => sum + value, 0) / weightedSymbolRates.length).toFixed(4))
+      : null,
+    highSalienceSymbolRecall: highSalienceRecallSamples
+      ? Number((highSalienceRecallTotal / highSalienceRecallSamples).toFixed(4))
+      : null,
+    absentSymbolFalsePositiveRate: symbolVerificationCount
+      ? Number((absentSymbolFalsePositiveCount / symbolVerificationCount).toFixed(4))
+      : null,
+    symbolHallucinationRate: symbolVerificationCount
+      ? Number((symbolHallucinationCount / symbolVerificationCount).toFixed(4))
+      : null,
+    brierScore: Number(brierScore.toFixed(4)),
+    expectedCalibrationError: computeExpectedCalibrationError(rows),
+    symbolMissingLeaders: Array.from(missingSymbolTally.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([symbol, count]) => ({ symbol, count })),
+    perLabelAccuracy: Array.from(perLabelCounts.entries()).map(([label, stats]) => ({
+      label,
+      accuracy: stats.total ? stats.correct / stats.total : 0,
+      total: stats.total
+    })).sort((a, b) => a.label.localeCompare(b.label)),
+    mismatches
+  };
+}
+
 async function readExistingAnnotations(filePath) {
   try {
     const content = await fs.readFile(filePath, 'utf-8');
@@ -83,6 +248,7 @@ async function readExistingAnnotations(filePath) {
     const predictedIdx = header.indexOf('predicted');
     const verdictIdx = header.indexOf('human_verdict');
     const notesIdx = header.indexOf('human_notes');
+    const failureLabelIdx = header.indexOf('failure_label');
     if (imageIdx === -1 || expectedIdx === -1 || predictedIdx === -1 || verdictIdx === -1) {
       return new Map();
     }
@@ -92,7 +258,8 @@ async function readExistingAnnotations(filePath) {
       const key = `${cols[imageIdx]}||${cols[expectedIdx]}||${cols[predictedIdx]}`;
       map.set(key, {
         human_verdict: verdictIdx >= 0 ? cols[verdictIdx] : '',
-        human_notes: notesIdx >= 0 ? cols[notesIdx] : ''
+        human_notes: notesIdx >= 0 ? cols[notesIdx] : '',
+        failure_label: failureLabelIdx >= 0 ? cols[failureLabelIdx] : ''
       });
     });
     return map;
@@ -105,7 +272,20 @@ async function readExistingAnnotations(filePath) {
 }
 
 async function writeReviewCsv(rows, filePath, existingAnnotations) {
-  const header = ['image', 'expected', 'predicted', 'confidence', 'basis', 'human_verdict', 'human_notes'];
+  const header = [
+    'image',
+    'expected',
+    'predicted',
+    'confidence',
+    'basis',
+    'weighted_score',
+    'hallucinated_symbols',
+    'visible_symbols',
+    'action',
+    'failure_label',
+    'human_verdict',
+    'human_notes'
+  ];
   const lines = [stringifyRow(header)];
 
   rows.forEach((row) => {
@@ -118,6 +298,11 @@ async function writeReviewCsv(rows, filePath, existingAnnotations) {
         row.predicted,
         row.confidence?.toFixed(4) ?? '',
         row.basis || '',
+        typeof row.weightedScore === 'number' ? row.weightedScore.toFixed(4) : '',
+        Array.isArray(row.hallucinatedSymbols) ? row.hallucinatedSymbols.join('; ') : '',
+        Array.isArray(row.visibleSymbols) ? row.visibleSymbols.join('; ') : '',
+        row.action || '',
+        annotation.failure_label || '',
         annotation.human_verdict || '',
         annotation.human_notes || ''
       ])
@@ -180,7 +365,17 @@ async function main() {
       correct += 1;
       if (confidence >= 0.9) highConfidenceCorrect += 1;
     } else {
-      mismatches.push({ image: basename, expected, predicted: predicted || 'n/a', confidence, basis: entry.topMatch?.basis });
+      mismatches.push({
+        image: basename,
+        expected,
+        predicted: predicted || 'n/a',
+        confidence,
+        basis: entry.topMatch?.basis,
+        weightedScore: entry.symbolVerification?.weightedMatchRate,
+        hallucinatedSymbols: (entry.symbolVerification?.absenceDetections || []).map((det) => det.label).filter(Boolean),
+        visibleSymbols: (entry.symbolVerification?.matches || []).filter((match) => match.found).map((match) => match.object).filter(Boolean),
+        action: entry.symbolVerification?.absentSymbolFalsePositive ? 'review_absence_false_positive' : 'review_prediction'
+      });
     }
     if (confidence >= 0.9) highConfidenceTotal += 1;
 
@@ -278,6 +473,13 @@ async function main() {
     })).sort((a, b) => b.coverage - a.coverage),
     perLabelAccuracy
   };
+  const enhancedMetrics = computeVisionMetricEntry(samples, {
+    deckStyle,
+    sourceFile: path.relative(process.cwd(), inputPath),
+    imageNameMap
+  });
+  delete enhancedMetrics.mismatches;
+  Object.assign(metricsEntry, enhancedMetrics);
 
   const metricsPath = path.resolve(process.cwd(), options.metricsOut);
   await fs.mkdir(path.dirname(metricsPath), { recursive: true });
@@ -309,7 +511,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error('Vision metrics computation failed:', err);
-  process.exit(1);
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  main().catch((err) => {
+    console.error('Vision metrics computation failed:', err);
+    process.exit(1);
+  });
+}

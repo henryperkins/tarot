@@ -76,6 +76,13 @@ function sanitizeSymbolVerification(symbolVerification) {
   const matches = Array.isArray(symbolVerification.matches)
     ? symbolVerification.matches.slice(0, 6).map((match) => ({
       object: match.object,
+      symbolId: match.symbolId || null,
+      salience: typeof match.salience === 'number'
+        ? Number(Number(match.salience).toFixed(4))
+        : null,
+      expectedRegion: match.expectedRegion || null,
+      aliases: Array.isArray(match.aliases) ? match.aliases.slice(0, 8) : [],
+      absenceNegatives: Array.isArray(match.absenceNegatives) ? match.absenceNegatives.slice(0, 8) : [],
       expectedPosition: match.expectedPosition || null,
       found: Boolean(match.found),
       confidence: typeof match.confidence === 'number'
@@ -98,13 +105,36 @@ function sanitizeSymbolVerification(symbolVerification) {
     }))
     : [];
 
+  const absenceDetections = Array.isArray(symbolVerification.absenceDetections)
+    ? symbolVerification.absenceDetections.slice(0, 5).map((det) => ({
+      label: det.label,
+      confidence: typeof det.confidence === 'number'
+        ? Number(Number(det.confidence).toFixed(4))
+        : null,
+      box: det.box || null
+    }))
+    : [];
+
   return {
     expectedCount: symbolVerification.expectedCount ?? null,
     detectedCount: symbolVerification.detectedCount ?? null,
     matchRate,
+    weightedMatchRate: typeof symbolVerification.weightedMatchRate === 'number'
+      ? Number(Number(symbolVerification.weightedMatchRate).toFixed(4))
+      : null,
     matches,
     missingSymbols,
-    unexpectedDetections
+    highSalienceMissing: Array.isArray(symbolVerification.highSalienceMissing)
+      ? symbolVerification.highSalienceMissing.slice(0, 6)
+      : [],
+    lowSalienceMissing: Array.isArray(symbolVerification.lowSalienceMissing)
+      ? symbolVerification.lowSalienceMissing.slice(0, 6)
+      : [],
+    absentSymbolFalsePositive: Boolean(symbolVerification.absentSymbolFalsePositive),
+    absenceDetections,
+    unexpectedDetections,
+    verifiedCard: typeof symbolVerification.verifiedCard === 'string' ? symbolVerification.verifiedCard : null,
+    verificationSource: typeof symbolVerification.verificationSource === 'string' ? symbolVerification.verificationSource : null
   };
 }
 
@@ -203,6 +233,35 @@ function sanitizeComponentScores(componentScores) {
   return { clip, llama };
 }
 
+function sanitizeRouterFeatures(routerFeatures) {
+  if (!routerFeatures || typeof routerFeatures !== 'object') return null;
+  return {
+    clipScore: clampConfidence(routerFeatures.clipScore),
+    llamaScore: clampConfidence(routerFeatures.llamaScore),
+    llamaOk: Boolean(routerFeatures.llamaOk),
+    clipScoreGap: clampConfidence(routerFeatures.clipScoreGap),
+    llamaAgrees: Boolean(routerFeatures.llamaAgrees),
+    symbolWeightedMatch: clampConfidence(routerFeatures.symbolWeightedMatch),
+    orientationKnown: Boolean(routerFeatures.orientationKnown),
+    imageQualityScore: clampConfidence(routerFeatures.imageQualityScore)
+  };
+}
+
+function sanitizeImageQuality(imageQuality) {
+  if (!imageQuality || typeof imageQuality !== 'object') return null;
+  const numericOrNull = (value) => (typeof value === 'number' && Number.isFinite(value) ? Number(value.toFixed(4)) : null);
+  const boolOrNull = (value) => (typeof value === 'boolean' ? value : null);
+  return {
+    cardRectFound: boolOrNull(imageQuality.cardRectFound),
+    perspectiveSkew: numericOrNull(imageQuality.perspectiveSkew),
+    blurScore: numericOrNull(imageQuality.blurScore),
+    glareScore: numericOrNull(imageQuality.glareScore),
+    occlusionScore: numericOrNull(imageQuality.occlusionScore),
+    borderVisible: boolOrNull(imageQuality.borderVisible),
+    usableForSymbolDetection: imageQuality.usableForSymbolDetection !== false
+  };
+}
+
 function sanitizeMergeSource(mergeSource) {
   if (typeof mergeSource !== 'string') return null;
   const trimmed = mergeSource.trim();
@@ -233,7 +292,12 @@ async function analyzeEvidence(evidence, deckStyle, backendId, env, timeoutMs) {
       reasoning: sanitizeReasoning(entry.reasoning),
       visualDetails: sanitizeVisualDetails(entry.visualDetails),
       mergeSource: sanitizeMergeSource(entry.mergeSource),
-      componentScores: sanitizeComponentScores(entry.componentScores)
+      componentScores: sanitizeComponentScores(entry.componentScores),
+      routerFeatures: sanitizeRouterFeatures(entry.routerFeatures),
+      calibratedConfidence: clampConfidence(entry.calibratedConfidence),
+      decisionReason: sanitizeMergeSource(entry.decisionReason),
+      abstain: Boolean(entry.abstain),
+      imageQuality: sanitizeImageQuality(entry.imageQuality)
     };
   });
 }

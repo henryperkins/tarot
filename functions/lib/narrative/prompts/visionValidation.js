@@ -34,6 +34,8 @@ function describeTelemetryOnlyReason(reason) {
       return 'telemetry only: low confidence';
     case 'weak_symbol_verification':
       return 'telemetry only: weak symbol verification';
+    case 'weak_weighted_symbol_verification':
+      return 'telemetry only: weak weighted symbol verification';
     case 'match_unverified':
       return 'telemetry only: unverified match';
     case 'confidence_unavailable':
@@ -41,6 +43,103 @@ function describeTelemetryOnlyReason(reason) {
     default:
       return 'telemetry only';
   }
+}
+
+function sanitizeEvidenceText(value, maxLength = 180) {
+  return sanitizeText(String(value || ''), {
+    maxLength,
+    stripMarkdown: true,
+    stripControlChars: true,
+    filterInstructions: true
+  });
+}
+
+export function buildUploadedVisibleEvidenceSection(visionEvidence = []) {
+  const packets = Array.isArray(visionEvidence)
+    ? visionEvidence.filter((packet) => packet?.evidenceMode === 'uploaded_image')
+    : [];
+
+  if (!packets.length) {
+    return '';
+  }
+
+  const lines = ['\n**Uploaded Visible Evidence**:'];
+
+  packets.slice(0, 5).forEach((packet) => {
+    const cardName = sanitizeEvidenceText(packet.card || 'Uploaded card', 80);
+    const label = sanitizeEvidenceText(packet.label || 'upload', 80);
+    const confidence = typeof packet.confidence === 'number'
+      ? `${(packet.confidence * 100).toFixed(1)}%`
+      : 'confidence unavailable';
+
+    lines.push(`- ${cardName} (${label}, ${confidence})`);
+    const weightedScore = typeof packet.weightedSymbolMatchRate === 'number'
+      ? `${(packet.weightedSymbolMatchRate * 100).toFixed(1)}%`
+      : null;
+    if (weightedScore) {
+      lines.push(`  - Weighted symbol score: ${weightedScore}`);
+    }
+
+    if (packet.cardKnowledge || packet.expectedRiderSymbols || packet.verifiedUploadedEvidence || packet.uncertainSymbols || packet.forbiddenClaims) {
+      const coreThemes = Array.isArray(packet.cardKnowledge?.coreThemes)
+        ? packet.cardKnowledge.coreThemes.map((theme) => sanitizeEvidenceText(theme, 60)).filter(Boolean).slice(0, 5)
+        : [];
+      lines.push(`  - Traditional card knowledge: ${coreThemes.length ? coreThemes.join(', ') : 'card meaning only'}`);
+
+      const expectedSymbols = Array.isArray(packet.expectedRiderSymbols)
+        ? packet.expectedRiderSymbols.map((entry) => sanitizeEvidenceText(entry?.label || entry?.symbol, 60)).filter(Boolean).slice(0, 8)
+        : [];
+      lines.push(`  - Expected Rider symbols: ${expectedSymbols.length ? expectedSymbols.join(', ') : 'not supplied'}`);
+
+      const verified = Array.isArray(packet.verifiedUploadedEvidence)
+        ? packet.verifiedUploadedEvidence.slice(0, 5)
+        : [];
+      lines.push('  - Verified uploaded-image evidence:');
+      if (verified.length) {
+        verified.forEach((entry) => {
+          const literal = sanitizeEvidenceText(entry?.literalObservation || entry?.label, 180);
+          if (literal) lines.push(`    - ${literal}`);
+        });
+      } else {
+        lines.push('    - none');
+      }
+
+      const uncertain = Array.isArray(packet.uncertainSymbols)
+        ? packet.uncertainSymbols.map((entry) => sanitizeEvidenceText(entry?.label || entry?.literalObservation, 80)).filter(Boolean).slice(0, 6)
+        : [];
+      lines.push(`  - Uncertain image details: ${uncertain.length ? uncertain.join('; ') : 'none'}`);
+
+      const constraints = Array.isArray(packet.forbiddenClaims)
+        ? packet.forbiddenClaims.map((claim) => sanitizeEvidenceText(claim, 160)).filter(Boolean).slice(0, 5)
+        : [];
+      lines.push('  - Visual-claim constraints:');
+      const defaultConstraint = 'Do not say "I see" for symbols outside Verified uploaded-image evidence.';
+      Array.from(new Set([defaultConstraint, ...constraints])).forEach((claim) => {
+        lines.push(`    - ${claim}`);
+      });
+      return;
+    }
+
+    (packet.visibleEvidence || []).slice(0, 5).forEach((entry) => {
+      const literal = sanitizeEvidenceText(entry?.literalObservation, 180);
+      if (literal) {
+        lines.push(`  - Literal: ${literal}`);
+      }
+
+      const symbolic = Array.isArray(entry?.symbolicMeaning)
+        ? entry.symbolicMeaning
+          .map((meaning) => sanitizeEvidenceText(meaning, 60))
+          .filter(Boolean)
+          .slice(0, 5)
+        : [];
+      if (symbolic.length) {
+        lines.push(`  - Symbolic: ${symbolic.join(', ')}`);
+      }
+    });
+  });
+
+  lines.push('');
+  return `${lines.join('\n')}\n`;
 }
 
 export function buildVisionValidationSection(visionInsights, options = {}) {
@@ -239,29 +338,6 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
     }
   });
 
-  lines.push('');
-  return `${lines.join('\n')}\n`;
-}
-
-export function buildUploadedVisibleEvidenceSection(visionEvidence = []) {
-  const packets = Array.isArray(visionEvidence)
-    ? visionEvidence.filter((packet) => packet?.evidenceMode === 'uploaded_image')
-    : [];
-  if (!packets.length) return '';
-
-  const lines = ['\n**Uploaded Visible Evidence**:'];
-  packets.slice(0, 5).forEach((packet) => {
-    const confidence = typeof packet.confidence === 'number'
-      ? `${(packet.confidence * 100).toFixed(1)}%`
-      : 'confidence unavailable';
-    lines.push(`- ${packet.card || 'Uploaded card'} (${packet.label || 'upload'}, ${confidence})`);
-    (packet.visibleEvidence || []).slice(0, 5).forEach((entry) => {
-      lines.push(`  - Literal: ${entry.literalObservation}`);
-      if (Array.isArray(entry.symbolicMeaning) && entry.symbolicMeaning.length) {
-        lines.push(`  - Symbolic: ${entry.symbolicMeaning.join(', ')}`);
-      }
-    });
-  });
   lines.push('');
   return `${lines.join('\n')}\n`;
 }

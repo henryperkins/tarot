@@ -6,10 +6,26 @@ import { parseCsv } from './lib/csv.js';
 
 const DEFAULT_QUEUE = 'data/evaluations/vision-review-queue.csv';
 const DEFAULT_OUTPUT = 'data/evaluations/vision-review-summary.json';
+const DEFAULT_ACTIVE_LEARNING_OUT = 'data/evaluations/vision-active-learning.jsonl';
 
 const POSITIVE_VERDICTS = new Set(['correct', 'match', 'accept', 'accepted', 'ok', 'true']);
 const NEGATIVE_VERDICTS = new Set(['incorrect', 'reject', 'mismatch', 'fail', 'false']);
 const NEUTRAL_VERDICTS = new Set(['needs_review', 'uncertain', 'pending', 'skip']);
+export const ACCEPTED_FAILURE_LABELS = new Set([
+  'bad_crop',
+  'reversed_orientation_missed',
+  'similar_card_confusion',
+  'symbol_hallucination',
+  'deck_variant_unsupported',
+  'low_light_or_blur',
+  'absence_false_positive',
+  'calibration_overconfidence'
+]);
+
+function usage() {
+  console.log('Usage: node scripts/evaluation/processVisionReviews.js [--queue path] [--out path] [--active-learning-out path]');
+  console.log(`Accepted failure labels: ${Array.from(ACCEPTED_FAILURE_LABELS).join(', ')}`);
+}
 
 function normalizeVerdict(value = '') {
   const normalized = value.trim().toLowerCase();
@@ -23,7 +39,8 @@ function normalizeVerdict(value = '') {
 function parseArgs(args) {
   const options = {
     queue: DEFAULT_QUEUE,
-    output: DEFAULT_OUTPUT
+    output: DEFAULT_OUTPUT,
+    activeLearningOut: DEFAULT_ACTIVE_LEARNING_OUT
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -34,6 +51,12 @@ function parseArgs(args) {
     } else if (arg === '--out') {
       options.output = args[i + 1] || options.output;
       i += 1;
+    } else if (arg === '--active-learning-out') {
+      options.activeLearningOut = args[i + 1] || options.activeLearningOut;
+      i += 1;
+    } else if (arg === '--help' || arg === '-h') {
+      usage();
+      process.exit(0);
     }
   }
 
@@ -72,6 +95,12 @@ async function main() {
   const imageIdx = extractIndex(header, 'image');
   const expectedIdx = extractIndex(header, 'expected');
   const predictedIdx = extractIndex(header, 'predicted');
+  const confidenceIdx = header.indexOf('confidence');
+  const weightedScoreIdx = header.indexOf('weighted_score');
+  const hallucinatedSymbolsIdx = header.indexOf('hallucinated_symbols');
+  const visibleSymbolsIdx = header.indexOf('visible_symbols');
+  const actionIdx = header.indexOf('action');
+  const failureLabelIdx = header.indexOf('failure_label');
 
   const verdictCounts = {};
   const reviewedRows = [];
@@ -87,6 +116,14 @@ async function main() {
       image: cols[imageIdx],
       expected: cols[expectedIdx],
       predicted: cols[predictedIdx],
+      confidence: confidenceIdx >= 0 ? cols[confidenceIdx] : '',
+      weightedScore: weightedScoreIdx >= 0 ? cols[weightedScoreIdx] : '',
+      hallucinatedSymbols: hallucinatedSymbolsIdx >= 0 ? cols[hallucinatedSymbolsIdx] : '',
+      visibleSymbols: visibleSymbolsIdx >= 0 ? cols[visibleSymbolsIdx] : '',
+      action: actionIdx >= 0 ? cols[actionIdx] : '',
+      failureLabel: failureLabelIdx >= 0 && ACCEPTED_FAILURE_LABELS.has((cols[failureLabelIdx] || '').trim())
+        ? cols[failureLabelIdx].trim()
+        : '',
       verdict: normalizedVerdict,
       notes: notesIdx >= 0 ? cols[notesIdx] : ''
     });
@@ -118,7 +155,28 @@ async function main() {
   const outputPath = path.resolve(process.cwd(), options.output);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, JSON.stringify(summary, null, 2));
+
+  const activeLearningRows = reviewedRows
+    .filter((row) => row.verdict === 'rejected' || row.failureLabel)
+    .map((row) => ({
+      image: row.image,
+      expected_card: row.expected,
+      predicted_card: row.predicted,
+      confidence: row.confidence ? Number(row.confidence) : null,
+      weighted_score: row.weightedScore ? Number(row.weightedScore) : null,
+      failure_label: row.failureLabel || (row.verdict === 'rejected' ? 'similar_card_confusion' : ''),
+      hallucinated_symbols: row.hallucinatedSymbols ? row.hallucinatedSymbols.split(/;\s*/g).filter(Boolean) : [],
+      visible_symbols: row.visibleSymbols ? row.visibleSymbols.split(/;\s*/g).filter(Boolean) : [],
+      action: row.action || 'review_training_example',
+      notes: row.notes || ''
+    }));
+
+  const activeLearningPath = path.resolve(process.cwd(), options.activeLearningOut);
+  await fs.mkdir(path.dirname(activeLearningPath), { recursive: true });
+  await fs.writeFile(activeLearningPath, activeLearningRows.map((row) => JSON.stringify(row)).join('\n') + (activeLearningRows.length ? '\n' : ''));
+
   console.log('Review summary written to', outputPath);
+  console.log('Active-learning failures written to', activeLearningPath);
   console.log(`Reviewed ${reviewedCount} rows. Acceptance rate: ${(summary.acceptanceRate * 100).toFixed(2)}%`);
 }
 
