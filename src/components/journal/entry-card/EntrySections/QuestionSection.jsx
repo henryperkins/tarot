@@ -1,6 +1,6 @@
 /**
  * QuestionSection.jsx
- * Displays the reading question in Cormorant Garamond italic style.
+ * Displays the reading question in the shared editorial serif italic style.
  */
 import { memo } from 'react';
 import { styles } from '../EntryCard.primitives';

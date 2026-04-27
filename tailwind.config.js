@@ -111,8 +111,8 @@ export default {
         touch: 'var(--touch-target, 44px)',
       },
       fontFamily: {
-        serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Inter', 'sans-serif']
+        serif: ['var(--font-serif, Georgia, "Times New Roman", serif)', 'Georgia', '"Times New Roman"', 'serif'],
+        sans: ['var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif)', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'system-ui', 'sans-serif']
       },
       zIndex: {
         'sticky-nav': 'var(--z-sticky-nav, 30)',

@@ -9,7 +9,10 @@ import { normalizeRoutePath, shouldSkipAuthCheckForPath } from '../src/lib/authR
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const indexHtmlPath = path.resolve(__dirname, '../index.html');
+const packageJsonPath = path.resolve(__dirname, '../package.json');
 const themeCssPath = path.resolve(__dirname, '../src/styles/theme.css');
+const tailwindCssPath = path.resolve(__dirname, '../src/styles/tailwind.css');
 const tailwindConfigPath = path.resolve(__dirname, '../tailwind.config.js');
 
 describe('Design accessibility scripts', () => {
@@ -55,6 +58,34 @@ describe('Design accessibility scripts', () => {
       tailwindConfigSource,
       /'2xs': \['0\.6875rem', \{ lineHeight: '1\.4' \}\]/
     );
+  });
+
+  it('self-hosts the editorial font stack through shared tokens', async () => {
+    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
+    const indexHtmlSource = await fs.readFile(indexHtmlPath, 'utf8');
+    const themeCssSource = await fs.readFile(themeCssPath, 'utf8');
+    const tailwindCssSource = await fs.readFile(tailwindCssPath, 'utf8');
+    const tailwindConfigSource = await fs.readFile(tailwindConfigPath, 'utf8');
+
+    assert.ok(packageJson.dependencies['@fontsource-variable/inter']);
+    assert.ok(packageJson.dependencies['@fontsource-variable/source-serif-4']);
+    assert.match(tailwindCssSource, /inter-latin-opsz-normal\.woff2/);
+    assert.match(tailwindCssSource, /inter-latin-opsz-italic\.woff2/);
+    assert.match(tailwindCssSource, /source-serif-4-latin-opsz-normal\.woff2/);
+    assert.match(tailwindCssSource, /source-serif-4-latin-opsz-italic\.woff2/);
+    assert.match(tailwindCssSource, /unicode-range:\s*U\+0000-00FF/);
+    assert.doesNotMatch(tailwindCssSource, /(?:cyrillic|greek|vietnamese|latin-ext)-opsz/);
+    assert.match(themeCssSource, /--font-sans:\s*"Inter Variable"/);
+    assert.match(themeCssSource, /--font-serif:\s*"Source Serif 4 Variable"/);
+    assert.match(
+      tailwindConfigSource,
+      /serif:\s*\[\s*'var\(--font-serif,\s*Georgia,\s*"Times New Roman",\s*serif\)',\s*'Georgia',\s*'"Times New Roman"',\s*'serif'\s*\]/
+    );
+    assert.match(
+      tailwindConfigSource,
+      /sans:\s*\[\s*'var\(--font-sans,\s*-apple-system,\s*BlinkMacSystemFont,\s*"Segoe UI",\s*system-ui,\s*sans-serif\)',\s*'-apple-system',\s*'BlinkMacSystemFont',\s*'"Segoe UI"',\s*'system-ui',\s*'sans-serif'\s*\]/
+    );
+    assert.doesNotMatch(indexHtmlSource, /fonts\.(?:googleapis|gstatic)\.com/);
   });
 
   it('treats /design as an auth-optional review route', () => {

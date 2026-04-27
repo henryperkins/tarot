@@ -79,6 +79,8 @@
     "prompts:export": "node scripts/viewPrompts.js --export"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/source-serif-4": "^5.2.9",
     "@microlabs/otel-cf-workers": "^1.0.0-rc.52",
     "@opentelemetry/api": "^1.9.0",
     "@phosphor-icons/react": "^2.1.10",

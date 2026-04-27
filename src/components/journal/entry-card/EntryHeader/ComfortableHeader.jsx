@@ -121,7 +121,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                   </div>
 
                   {/* Title */}
-                  <h3 className="mt-1 min-w-0 font-[Cormorant_Garamond] text-lg sm:text-xl text-[color:var(--brand-primary)] tracking-[0.04em] leading-snug line-clamp-2">
+                  <h3 className="mt-1 min-w-0 font-serif text-lg sm:text-xl text-[color:var(--brand-primary)] tracking-[0.04em] leading-snug line-clamp-2">
                     {entry.spread || entry.spreadName || 'Tarot Reading'}
                   </h3>
                 </>

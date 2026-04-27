@@ -1969,7 +1969,7 @@ textarea:focus-visible {
 
 /* Nameplate at bottom like traditional cards */
 .tarot-card-face-name {
-  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(0.6875rem, 2.2vw, 0.875rem);
   /* Minimum 11px (0.6875rem) for readability */
   letter-spacing: 0.09em;
@@ -4415,7 +4415,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 /* Main question/title text */
 .coach-note__title {
-  font-family: "Cormorant Garamond", Georgia, serif;
+  font-family: var(--font-serif);
   font-size: 17px;
   font-weight: 500;
   line-height: 1.45;

@@ -4,6 +4,10 @@
    * Clean, sophisticated, refined
    */
 
+  /* Typography */
+  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-serif: "Source Serif 4 Variable", Georgia, "Times New Roman", serif;
+
   /* Neutral Foundation (warmer, softer tones) */
   --color-black: #0F0E13;
   --color-charcoal: #1C1A22;

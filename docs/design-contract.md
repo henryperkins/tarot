@@ -181,8 +181,8 @@ All fixed bottom bars must use this formula (via `.pb-safe-action` or equivalent
 
 | Family | Token | Use Case |
 |--------|-------|----------|
-| Cormorant Garamond | `font-serif` | Headings, card names, ritual text |
-| Inter | `font-sans` | Body text, UI controls, labels |
+| Source Serif 4 Variable | `font-serif` | Headings, card names, ritual text |
+| Inter Variable | `font-sans` | Body text, UI controls, labels |
 
 ### Sub-12px Text (Intentional Decorative)
 

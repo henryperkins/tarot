@@ -110,10 +110,7 @@ export function CardInfoPopover({
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h4
-              className="text-lg leading-tight"
-              style={{ fontFamily: '"Cormorant Garamond", serif' }}
-            >
+            <h4 className="font-serif text-lg leading-tight">
               {card.name}
             </h4>
             {positionLabel ? (
