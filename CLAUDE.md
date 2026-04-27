@@ -19,8 +19,8 @@ Guidance for Claude Code when working with this repository.
 ## Commands
 
 ```bash
-npm run dev:vite      # Full-stack dev (Vite 5173/5174 + Worker 8787)
-npm run dev           # Serve built dist via Express (PORT=5000)
+npm run dev           # Full-stack dev (Vite 5173/5174 + Worker 8787)
+npm run dev:vite      # Alias for `npm run dev`
 npm run dev:frontend  # Vite-only for UI work
 npm run dev:workers   # Worker dev server with live reload
 npm run build         # Production build to dist/

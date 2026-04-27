@@ -34,9 +34,7 @@ Common local variables include:
 | `functions/api/` | Worker route handlers |
 | `functions/lib/` | Worker-only backend logic |
 | `src/worker/index.js` | Worker router and route wiring |
-| `server/` | Express server for static preview and auth-related local routes |
-| `native/` | Expo native app |
-| `shared/` | Code shared across frontend, worker, and native surfaces |
+| `shared/` | Code shared across frontend and worker surfaces |
 | `scripts/` | Deploy, evaluation, training, and utility scripts |
 
 ## Runtime Boundaries
@@ -52,8 +50,6 @@ Do not cross-import browser code into Worker code or Worker code into browser co
 
 - Frontend: React 19, Vite, Tailwind CSS
 - Backend: Cloudflare Workers with route handlers in `functions/api/`
-- Native: Expo SDK 55 preview, React Native 0.83, React Navigation 7, NativeWind 4
-- Local static preview: Express server in `server/index.ts`
 - Data: Cloudflare D1, KV, R2
 
 ## App Entry And Routing
@@ -96,20 +92,10 @@ Data fetching is primarily custom-hook based using `fetch`, local component stat
 ### Full-stack web development
 
 ```bash
-npm run dev:vite
-```
-
-### Static preview and auth server
-
-```bash
 npm run dev
 ```
 
-### Native app
-
-```bash
-npm run dev:native
-```
+(`npm run dev:vite` is an alias.)
 
 ## Validation Commands
 

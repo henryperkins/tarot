@@ -65,36 +65,18 @@ flowchart TB
     Cron --> KV_Metrics
     Cron --> KV_Feedback
     
-%% Backend - Express Server (for local preview + Replit auth)
-    subgraph ExpressSrv [**Express API Server (server/index.ts)**]
-        ExpressAuth["Replit OIDC setup (passport OpenID Connect,<br/>session store via connect-pg-simple)"]
-        ExpressRoutes["Local auth routes (/api/login, /api/logout,<br/>/api/callback, /api/auth/user)"]
-        ExpressHealth["Health Check (/api/health)"]
-        ExpressStatic["Static Content Server<br/>(serves React /dist files)"]
-    end
-    ExpressSrv -->|Sessions & Users| Postgres
-    ExpressSrv --> OIDC_Provider
-    Frontend <-->|Auth redirect| ExpressSrv
-    Frontend -->|Load static assets| ExpressStatic
-    
 %% External Services
     subgraph External [**External Services**]
-        OIDC_Provider["OpenID Connect Provider<br/>(Replit OIDC for local Express auth)"]
-        Postgres["Neon Postgres – User DB (drizzle-orm)"]
         StripeAPI["Stripe API – payments"]
         AzureOpenAI["Azure OpenAI GPT-5 API – narrative generation"]
         AzureSpeech["Azure Speech Service – TTS (client SDK)"]
         HumeAI["Hume AI API – alt. TTS/emotion"]
-        Auth0["Auth0 – worker OAuth flows"]
     end
     Worker -->|"Generate reading"| AzureOpenAI
     Worker -->|TTS generation| AzureOpenAI
     Worker -->|Hume emotion TTS| HumeAI
     Worker -->|Create sessions, Portal| StripeAPI
     Worker <-->|Stripe Webhook| StripeAPI
-    Worker -->|Auth0 login / callback| Auth0
-    ExpressAuth --> Postgres
-    Frontend -->|OIDC Login Flow| OIDC_Provider
     Frontend -->|Speech audio fetch| AzureSpeech
     Frontend <-->|API calls (REST & SSE)| Worker
     Worker --> Assets["Static Assets (binding to /dist)"]
