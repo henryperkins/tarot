@@ -15,6 +15,7 @@ import { parseMinorName } from '../lib/minorMeta.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
 import { verifyVisionProof } from '../lib/visionProof.js';
+import { buildVisionEvidencePackets } from '../lib/visionEvidence.js';
 import {
   buildPromptEngineeringPayload,
   shouldAllowUnredactedPromptStorage,
@@ -930,6 +931,11 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
     // STEP 2: Generate reading via configured narrative backends
     const baseContextDiagnostics = Array.isArray(contextDiagnostics) ? [...contextDiagnostics] : [];
+    const visionEvidence = buildVisionEvidencePackets(
+      sanitizedVisionInsights,
+      cardsInfo,
+      deckStyle
+    );
     const narrativePayload = {
       spreadInfo,
       cardsInfo,
@@ -940,6 +946,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       contextInputText,
       contextDiagnostics: [...baseContextDiagnostics],
       visionInsights: sanitizedVisionInsights,
+      visionEvidence,
       deckStyle,
       personalization: personalization || null,
       memories,
