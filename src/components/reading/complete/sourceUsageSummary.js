@@ -56,7 +56,19 @@ export function formatUsageSummary(sourceUsage) {
     };
 
     pushRow('Spread & cards', sourceUsage.spreadCards);
-    pushRow('Vision uploads', sourceUsage.vision);
+
+    const visionDetailParts = [];
+    if (sourceUsage.vision && typeof sourceUsage.vision === 'object') {
+        const visionUsage = sourceUsage.vision;
+        if (Number.isFinite(visionUsage.evidencePacketsUsed) && visionUsage.evidencePacketsUsed > 0) {
+            const noun = visionUsage.evidencePacketsUsed === 1 ? 'packet' : 'packets';
+            visionDetailParts.push(`${visionUsage.evidencePacketsUsed} uploaded evidence ${noun} used`);
+        }
+        if (Number.isFinite(visionUsage.telemetryOnlyUploads) && visionUsage.telemetryOnlyUploads > 0) {
+            visionDetailParts.push(`${visionUsage.telemetryOnlyUploads} telemetry-only`);
+        }
+    }
+    pushRow('Vision uploads', sourceUsage.vision, visionDetailParts.join(', '));
 
     if (sourceUsage.userContext && typeof sourceUsage.userContext === 'object') {
         const usedInputs = Array.isArray(sourceUsage.userContext.usedInputs)

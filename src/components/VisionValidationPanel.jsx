@@ -233,6 +233,16 @@ export function VisionValidationPanel({
                   ))}
                 </ul>
               )}
+              {Array.isArray(result.visualDetails) && result.visualDetails.length > 0 && (
+                <div className="mt-2 text-xs text-secondary/70">
+                  <p className="font-semibold text-secondary">Model observations</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    {result.visualDetails.slice(0, 4).map((detail) => (
+                      <li key={`${result.uploadId || result.label}-detail-${detail}`}>{detail}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {result.attention?.focusRegions?.length > 0 && (
                 <div className="mt-2 text-xs text-secondary/70">
                   <p className="font-semibold text-secondary">Model focus</p>

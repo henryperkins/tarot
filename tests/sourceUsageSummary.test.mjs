@@ -62,6 +62,23 @@ describe('formatUsageSummary', () => {
     });
   });
 
+  test('formats uploaded vision evidence usage distinctly from telemetry-only uploads', () => {
+    const usage = formatUsageSummary({
+      vision: {
+        requested: true,
+        used: true,
+        eligibleUploads: 1,
+        telemetryOnlyUploads: 2,
+        evidencePacketsUsed: 1,
+        evidenceMode: 'uploaded_image'
+      }
+    });
+    const row = usage.rows.find((entry) => entry.label === 'Vision uploads');
+    assert.ok(row, 'expected Vision uploads row');
+    assert.ok(row.detail.includes('1 uploaded evidence packet used'), `detail was: ${row.detail}`);
+    assert.ok(row.detail.includes('2 telemetry-only'), `detail was: ${row.detail}`);
+  });
+
   test('renders missing user context as not requested instead of skipped', () => {
     const result = formatUsageSummary({
       spreadCards: { requested: true, used: true },
