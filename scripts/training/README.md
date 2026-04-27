@@ -54,6 +54,10 @@ python buildVectorIndex.py --deck rws --adapter_path models/adapters/rws
 
 This will save `index.faiss` and `metadata.json` to `data/indices/rws`.
 
+### RWS Grounding Dataset
+
+Run `node scripts/training/buildRwsGroundingDataset.js` to emit multi-task JSONL records from the Rider-Waite-Smith evidence ontology. The output includes `card_identification`, `symbol_grounding`, `tarot_vqa`, and `symbol_absence_check` records sourced from `shared/vision/rwsEvidenceOntology.js`. This complements `buildMultimodalDataset.js`, which remains the reading-level export path.
+
 ## Notes
 
 - The Python path is the preferred training path.

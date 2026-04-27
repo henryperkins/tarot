@@ -49,6 +49,16 @@ The first run downloads ~350 MB of model weights into the transformers cache. 
 - `npm run eval:vision:marseille` → evaluates the Marseille scan set and writes `data/evaluations/vision-confidence.marseille.json`.
 - `npm run eval:vision:all` → runs the three commands sequentially so every deck has a fresh confidence snapshot before computing metrics.
 
+## RWS Evidence Chain
+
+When a signed proof is attached to `/api/tarot-reading`, the Worker now derives a `visionEvidence` packet from prompt-eligible uploads:
+
+`visionProof.insights → annotateVisionInsights() → buildVisionEvidencePackets() → buildEnhancedClaudePrompt()`
+
+The prompt treats uploaded visible evidence separately from canonical Rider-Waite-Smith imagery. Low-confidence, mismatched, unverified, or telemetry-only uploads remain available for metrics but must not steer interpretation. Each packet carries `evidenceMode` (`uploaded_image` or `telemetry_only`) and a `suppressionReason` so downstream telemetry can distinguish prompt influence from research-only data.
+
+The user prompt renders an **Uploaded Visible Evidence** section with literal/symbolic separation per detected symbol, while the system prompt's IMAGE EVIDENCE RULES instruct the model to omit symbols not present in the uploaded evidence or canonical card profile. `cardBuilders.js` labels stock RWS imagery hooks as **Canonical RWS imagery** so the model never implies the user uploaded those visual details.
+
 ## Next Steps
 - Persist proof summaries (requestId, deck, proof id) in KV so we can audit vision evidence post-reading.
 - Turn the metrics output into a hard gate (e.g., require accuracy ≥ 0.9 and zero mismatches before releasing deck updates).
