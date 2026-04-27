@@ -242,3 +242,26 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
   lines.push('');
   return `${lines.join('\n')}\n`;
 }
+
+export function buildUploadedVisibleEvidenceSection(visionEvidence = []) {
+  const packets = Array.isArray(visionEvidence)
+    ? visionEvidence.filter((packet) => packet?.evidenceMode === 'uploaded_image')
+    : [];
+  if (!packets.length) return '';
+
+  const lines = ['\n**Uploaded Visible Evidence**:'];
+  packets.slice(0, 5).forEach((packet) => {
+    const confidence = typeof packet.confidence === 'number'
+      ? `${(packet.confidence * 100).toFixed(1)}%`
+      : 'confidence unavailable';
+    lines.push(`- ${packet.card || 'Uploaded card'} (${packet.label || 'upload'}, ${confidence})`);
+    (packet.visibleEvidence || []).slice(0, 5).forEach((entry) => {
+      lines.push(`  - Literal: ${entry.literalObservation}`);
+      if (Array.isArray(entry.symbolicMeaning) && entry.symbolicMeaning.length) {
+        lines.push(`  - Symbolic: ${entry.symbolicMeaning.join(', ')}`);
+      }
+    });
+  });
+  lines.push('');
+  return `${lines.join('\n')}\n`;
+}

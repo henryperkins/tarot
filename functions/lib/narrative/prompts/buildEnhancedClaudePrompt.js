@@ -397,6 +397,7 @@ export function buildEnhancedClaudePrompt({
   spreadAnalysis,
   context,
   visionInsights,
+  visionEvidence = [],
   deckStyle = 'rws-1909',
   graphRAGPayload = null,
   ephemerisContext = null,
@@ -610,7 +611,8 @@ export function buildEnhancedClaudePrompt({
         memories,
         contextDiagnostics: diagnostics,
         deckStyle: resolvedDeckStyle,
-        sourceUsageSignals
+        sourceUsageSignals,
+        visionEvidence
       }
     );
 
@@ -1115,6 +1117,12 @@ export function buildEnhancedClaudePrompt({
       suppressionReasons: visionPromptEligibility.suppressionReasons,
       diagnosticsIncluded: visionDiagnosticsIncluded,
       cardCuesUsed: visionCardCuesIncluded,
+      evidencePacketsUsed: Array.isArray(visionEvidence)
+        ? visionEvidence.filter((packet) => packet?.evidenceMode === 'uploaded_image').length
+        : 0,
+      evidenceMode: Array.isArray(visionEvidence) && visionEvidence.some((packet) => packet?.evidenceMode === 'uploaded_image')
+        ? 'uploaded_image'
+        : 'none',
       skippedReason: hasVisionSource
         ? (visionUsed ? null : (visionRemovedForBudget ? 'removed_for_budget' : 'diagnostics_disabled'))
         : 'not_provided'
