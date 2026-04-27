@@ -462,6 +462,55 @@ describe('getLocalComposerLanguageSupport', () => {
   });
 });
 
+describe('buildAzureGPT5Prompts vision evidence threading', () => {
+  it('threads narrativePayload.visionEvidence through to the user prompt and source usage', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'Past — influences that led here', 'Upright'),
+      major('The Magician', 1, 'Present — where you stand now', 'Upright'),
+      major('The High Priestess', 2, 'Future — trajectory if nothing shifts', 'Upright')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    const spreadAnalysis = analyzeThreeCard(cardsInfo);
+
+    const payload = {
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)', key: 'threeCard', deckStyle: 'rws-1909' },
+      cardsInfo,
+      userQuestion: 'How can I navigate this new phase?',
+      reflectionsText: '',
+      analysis: { themes, spreadAnalysis, spreadKey: 'threeCard' },
+      context: 'self',
+      contextInputText: '',
+      visionInsights: [],
+      visionEvidence: [
+        {
+          label: 'fool-photo',
+          card: 'The Fool',
+          evidenceMode: 'uploaded_image',
+          confidence: 0.92,
+          visibleEvidence: [
+            {
+              symbol: 'cliff',
+              label: 'cliff',
+              literalObservation: 'The figure is near a precipice.',
+              symbolicMeaning: ['threshold', 'risk', 'unknown outcome']
+            }
+          ]
+        }
+      ],
+      personalization: null,
+      memories: []
+    };
+
+    const { userPrompt, promptMeta } = buildAzureGPT5Prompts({}, payload, 'req-vision-evidence');
+
+    assert.match(userPrompt, /\*\*Uploaded Visible Evidence\*\*/);
+    assert.match(userPrompt, /Literal: The figure is near a precipice\./);
+    assert.match(userPrompt, /Symbolic: threshold, risk, unknown outcome/);
+    assert.equal(promptMeta?.sourceUsage?.vision?.evidencePacketsUsed, 1);
+    assert.equal(promptMeta?.sourceUsage?.vision?.evidenceMode, 'uploaded_image');
+  });
+});
+
 describe('buildAzureGPT5Prompts', () => {
   it('passes derived redaction hints into prompt logging', async () => {
     const cardsInfo = [

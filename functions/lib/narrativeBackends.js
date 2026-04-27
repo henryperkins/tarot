@@ -637,6 +637,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
     context,
     contextInputText,
     visionInsights,
+    visionEvidence,
     contextDiagnostics = []
   } = payload;
 
@@ -667,6 +668,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
     spreadAnalysis: analysis.spreadAnalysis,
     context,
     visionInsights,
+    visionEvidence,
     deckStyle,
     graphRAGPayload: effectiveGraphRAGPayload,
     ephemerisContext: analysis.ephemerisContext,
@@ -798,7 +800,7 @@ export async function generateWithAzureGPT5Responses(env, payload, requestId = '
  * @returns {Promise<Object>} { reading, prompts, usage }
  */
 export async function generateWithClaudeOpus45(env, payload, requestId = 'unknown') {
-  const { spreadInfo, cardsInfo, userQuestion, contextInputText, reflectionsText, analysis, context, visionInsights, contextDiagnostics = [] } = payload;
+  const { spreadInfo, cardsInfo, userQuestion, contextInputText, reflectionsText, analysis, context, visionInsights, visionEvidence, contextDiagnostics = [] } = payload;
 
   // Track prompts for engineering analysis
   let capturedSystemPrompt = '';
@@ -841,6 +843,7 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
     spreadAnalysis: analysis.spreadAnalysis,
     context,
     visionInsights,
+    visionEvidence,
     deckStyle,
     graphRAGPayload: effectiveGraphRAGPayload,
     ephemerisContext: analysis.ephemerisContext,
