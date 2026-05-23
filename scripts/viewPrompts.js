@@ -470,7 +470,7 @@ async function main() {
 
   if (records.length === 0) {
     console.log('No readings found in eval_metrics.');
-    console.log('Readings are stored when using Azure GPT-5 or Claude backends.');
+    console.log('Readings are stored when using OpenAI Responses, Azure OpenAI fallback, or Claude backends.');
     return;
   }
 

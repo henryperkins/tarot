@@ -21,21 +21,18 @@ put_worker_secret() {
 
 echo "Setting up secrets for Cloudflare Worker '$WORKER_NAME'"
 echo ""
-echo "⚠️  You will be prompted for your Azure credentials."
+echo "⚠️  You will be prompted for your OpenAI reading credentials and Azure TTS credentials."
 echo ""
 
 read -p "Press Enter to continue or Ctrl+C to cancel..."
 
 echo ""
-echo "📝 Please provide your Azure OpenAI credentials..."
+echo "📝 Please provide your OpenAI Responses API reading credential..."
 echo ""
 
-read -p "GPT-5.1 Endpoint (e.g., https://your-resource.openai.azure.com): " gpt5_endpoint
-echo ""
-echo "GPT-5.1 API Key (input will be hidden):"
+echo "OpenAI API Key (input will be hidden):"
 read -s gpt5_api_key
 echo ""
-read -p "GPT-5.1 Deployment Name (e.g., gpt-5.1): " gpt5_model
 
 echo ""
 read -p "TTS Endpoint (e.g., https://your-tts-resource.openai.azure.com): " tts_endpoint
@@ -47,9 +44,7 @@ read -p "TTS Deployment Name (e.g., gpt-audio-mini): " tts_deployment
 
 echo ""
 echo "📝 Setting secrets on default Worker environment..."
-put_worker_secret AZURE_OPENAI_ENDPOINT "$gpt5_endpoint"
-put_worker_secret AZURE_OPENAI_API_KEY "$gpt5_api_key"
-put_worker_secret AZURE_OPENAI_GPT5_MODEL "$gpt5_model"
+put_worker_secret OPENAI_API_KEY "$gpt5_api_key"
 put_worker_secret AZURE_OPENAI_TTS_ENDPOINT "$tts_endpoint"
 put_worker_secret AZURE_OPENAI_TTS_API_KEY "$tts_api_key"
 put_worker_secret AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT "$tts_deployment"
@@ -59,9 +54,7 @@ read -p "Also set secrets on Workers env '$PREVIEW_ENV_NAME'? (y/N): " set_previ
 if [[ "$set_preview" == "y" || "$set_preview" == "Y" ]]; then
   echo ""
   echo "📝 Setting secrets on env '$PREVIEW_ENV_NAME'..."
-  put_worker_secret AZURE_OPENAI_ENDPOINT "$gpt5_endpoint" "$PREVIEW_ENV_NAME"
-  put_worker_secret AZURE_OPENAI_API_KEY "$gpt5_api_key" "$PREVIEW_ENV_NAME"
-  put_worker_secret AZURE_OPENAI_GPT5_MODEL "$gpt5_model" "$PREVIEW_ENV_NAME"
+  put_worker_secret OPENAI_API_KEY "$gpt5_api_key" "$PREVIEW_ENV_NAME"
   put_worker_secret AZURE_OPENAI_TTS_ENDPOINT "$tts_endpoint" "$PREVIEW_ENV_NAME"
   put_worker_secret AZURE_OPENAI_TTS_API_KEY "$tts_api_key" "$PREVIEW_ENV_NAME"
   put_worker_secret AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT "$tts_deployment" "$PREVIEW_ENV_NAME"

@@ -123,7 +123,7 @@ describe('ensureAzureConfig', () => {
 
     assert.throws(
       () => ensureAzureConfig(env),
-      /Azure OpenAI configuration is missing/
+      /Responses API configuration is missing/
     );
   });
 
@@ -135,7 +135,7 @@ describe('ensureAzureConfig', () => {
 
     assert.throws(
       () => ensureAzureConfig(env),
-      /Azure OpenAI configuration is missing/
+      /Responses API configuration is missing/
     );
   });
 
@@ -147,7 +147,7 @@ describe('ensureAzureConfig', () => {
 
     assert.throws(
       () => ensureAzureConfig(env),
-      /Azure OpenAI configuration is missing/
+      /Responses API configuration is missing/
     );
   });
 });

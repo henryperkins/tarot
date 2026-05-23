@@ -25,7 +25,7 @@ import {
   computeRemedyRotationIndex
 } from './narrativeBuilder.js';
 import { enhanceSection } from './narrativeSpine.js';
-import { callAzureResponses, getReasoningEffort, getTextVerbosity } from './azureResponses.js';
+import { callAzureResponses, getReasoningEffort, getTextVerbosity, OPENAI_DEFAULT_MODEL } from './azureResponses.js';
 import {
   buildReasoningAwareOpening,
   buildReasoningSynthesis,
@@ -616,11 +616,11 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
 }
 
 // ============================================================================
-// Azure GPT-5 Backend
+// Responses API Backend
 // ============================================================================
 
 /**
- * Build prompts for Azure GPT-5 backend.
+ * Build prompts for the Responses API backend.
  *
  * @param {Object} env - Environment bindings
  * @param {Object} payload - Reading payload
@@ -643,7 +643,8 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
 
   const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
 
-  console.log(`[${requestId}] Building Azure GPT-5 prompts...`);
+  const promptProvider = env?.OPENAI_API_KEY ? 'OpenAI Responses' : 'Azure OpenAI Responses';
+  console.log(`[${requestId}] Building ${promptProvider} prompts...`);
 
   // Resolve semantic scoring: env override takes priority, then graphRAG payload setting
   const enableSemanticScoring = resolveSemanticScoring(
@@ -735,7 +736,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
 export async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown') {
   const isNative = Boolean(env?.OPENAI_API_KEY);
   const effectiveModel = isNative
-    ? (env.OPENAI_MODEL || 'gpt-5.4')
+    ? (env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL)
     : env.AZURE_OPENAI_GPT5_MODEL;
   const { systemPrompt, userPrompt, promptMeta } = buildAzureGPT5Prompts(env, payload, requestId);
 

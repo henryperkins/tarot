@@ -44,7 +44,7 @@ import {
   isKnownPromptVariant,
   recordExperimentAssignment
 } from '../lib/abTesting.js';
-import { getReasoningEffort, getTextVerbosity } from '../lib/azureResponses.js';
+import { getReasoningEffort, getTextVerbosity, OPENAI_DEFAULT_MODEL } from '../lib/azureResponses.js';
 import {
   callAzureResponsesStream,
   transformAzureStream,
@@ -1004,7 +1004,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     }
 
     if (useStreaming && tokenStreamingEnabled && !azureStreamingAvailable) {
-      console.warn(`[${requestId}] Token streaming requested but Azure GPT-5 is unavailable; falling back to buffered streaming.`);
+      console.warn(`[${requestId}] Token streaming requested but no Responses API provider is available; falling back to buffered streaming.`);
     }
 
     let streamingFallback = false;
@@ -1042,7 +1042,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         applyGraphRAGAlerts(narrativePayload, requestId, streamProvider);
 
         const effectiveModel = env.OPENAI_API_KEY
-          ? (env.OPENAI_MODEL || 'gpt-5.4')
+          ? (env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL)
           : env.AZURE_OPENAI_GPT5_MODEL;
         const reasoningEffort = getReasoningEffort(env, effectiveModel);
         const verbosity = getTextVerbosity(env, effectiveModel);

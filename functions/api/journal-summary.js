@@ -14,7 +14,7 @@ import { jsonResponse, readJsonBody, sanitizeText } from '../lib/utils.js';
 import { buildTierLimitedPayload, isEntitled } from '../lib/entitlements.js';
 import { computeJournalStats } from '../../shared/journal/stats.js';
 import { buildHeuristicJourneySummary } from '../../shared/journal/summary.js';
-import { callAzureResponses } from '../lib/azureResponses.js';
+import { callAzureResponses, OPENAI_DEFAULT_MODEL } from '../lib/azureResponses.js';
 
 const MAX_SUMMARY_ENTRIES = 10;
 
@@ -275,7 +275,7 @@ export async function onRequestPost(context) {
       meta: {
         provider,
         totalEntries: entries.length,
-        model: env.OPENAI_API_KEY ? (env.OPENAI_MODEL || 'gpt-5.4') : (env.AZURE_OPENAI_GPT5_MODEL || null)
+        model: env.OPENAI_API_KEY ? (env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL) : (env.AZURE_OPENAI_GPT5_MODEL || null)
       }
     });
   } catch (error) {

@@ -16,7 +16,7 @@ echo "=================================================="
 echo "  Mystic Tarot - Cloudflare Workers Secrets Setup"
 echo "=================================================="
 echo ""
-echo "This script uploads your Azure OpenAI credentials"
+echo "This script uploads your OpenAI reading credentials"
 echo "to Cloudflare Workers as encrypted secrets."
 echo ""
 echo "⚠️  IMPORTANT: make sure you have:"
@@ -27,24 +27,14 @@ echo ""
 read -p "Press Enter to continue or Ctrl+C to cancel..."
 
 echo ""
-echo "📝 Setting up Azure OpenAI GPT-5.1 secrets..."
+echo "📝 Setting up OpenAI Responses API reading secrets..."
 echo ""
 
-read -p "Enter your Azure OpenAI Endpoint (e.g., https://your-resource.openai.azure.com): " gpt5_endpoint
-put_worker_secret AZURE_OPENAI_ENDPOINT "$gpt5_endpoint"
-echo "✅ AZURE_OPENAI_ENDPOINT set"
-
-echo ""
-echo "Enter your Azure OpenAI API Key (input will be hidden):"
+echo "Enter your OpenAI API Key (input will be hidden):"
 read -s gpt5_api_key
-put_worker_secret AZURE_OPENAI_API_KEY "$gpt5_api_key"
+put_worker_secret OPENAI_API_KEY "$gpt5_api_key"
 echo ""
-echo "✅ AZURE_OPENAI_API_KEY set"
-
-echo ""
-read -p "Enter your GPT-5.1 deployment name (e.g., gpt-5.1): " gpt5_model
-put_worker_secret AZURE_OPENAI_GPT5_MODEL "$gpt5_model"
-echo "✅ AZURE_OPENAI_GPT5_MODEL set"
+echo "✅ OPENAI_API_KEY set"
 
 echo ""
 echo "📝 Setting up Azure OpenAI TTS secrets..."

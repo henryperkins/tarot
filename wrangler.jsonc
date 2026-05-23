@@ -61,6 +61,7 @@
     // Optional: override the api-version used for /openai/v1/responses TTS calls.
     // If unset/empty, falls back to AZURE_OPENAI_RESPONSES_API_VERSION (then AZURE_OPENAI_API_VERSION).
     "AZURE_OPENAI_TTS_RESPONSES_API_VERSION": "",
+    "OPENAI_STREAMING_ENABLED": "true",
     "AZURE_OPENAI_STREAMING_ENABLED": "true",
     // AZURE_OPENAI_REASONING_EFFORT: Controls reasoning depth for narrative generation
     // Valid values: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh'
@@ -68,11 +69,11 @@
     // ---------------------------------------------------------------------
     // OpenAI native Responses API (takes priority when OPENAI_API_KEY secret is set)
     // OPENAI_BASE_URL defaults to https://api.openai.com if empty.
-    // OPENAI_MODEL is the model id sent in the request body (e.g. "gpt-5.4").
+    // OPENAI_MODEL is the model id sent in the request body (e.g. "gpt-5.5").
     // Azure config remains as fallback when OPENAI_API_KEY is absent.
     // ---------------------------------------------------------------------
     "OPENAI_BASE_URL": "https://api.openai.com",
-    "OPENAI_MODEL": "gpt-5.4",
+    "OPENAI_MODEL": "gpt-5.5",
     "ALLOW_STREAMING_WITH_EVAL_GATE": "true",
     "STREAMING_QUALITY_GATE_ENABLED": "false",
     "STREAMING_SAFETY_SCAN_ENABLED": "false",

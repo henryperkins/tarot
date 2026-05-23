@@ -14,12 +14,17 @@ This guide is the current starting point for engineers working in the Tableu rep
 
 Common local variables include:
 
-- `AZURE_OPENAI_ENDPOINT`
-- `AZURE_OPENAI_API_KEY`
-- `AZURE_OPENAI_GPT5_MODEL`
-- `AZURE_OPENAI_TTS_ENDPOINT`
-- `AZURE_OPENAI_TTS_API_KEY`
-- `AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL` (defaults to `gpt-5.5` when omitted)
+- `OPENAI_STREAMING_ENABLED`
+- Azure OpenAI fallback variables, if not using native OpenAI for readings:
+  - `AZURE_OPENAI_ENDPOINT`
+  - `AZURE_OPENAI_API_KEY`
+  - `AZURE_OPENAI_GPT5_MODEL`
+- Azure OpenAI TTS variables:
+  - `AZURE_OPENAI_TTS_ENDPOINT`
+  - `AZURE_OPENAI_TTS_API_KEY`
+  - `AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT`
 - `AZURE_ANTHROPIC_ENDPOINT`
 - `AZURE_ANTHROPIC_API_KEY`
 - `AZURE_ANTHROPIC_MODEL`

@@ -1,4 +1,4 @@
-import { callAzureResponses, ensureAzureConfig } from '../lib/azureResponses.js';
+import { callAzureResponses, ensureAzureConfig, OPENAI_DEFAULT_MODEL } from '../lib/azureResponses.js';
 import {
   fetchEphemerisForecast,
   formatForecastHighlights
@@ -281,7 +281,7 @@ function isAzureConfigured(env) {
 }
 
 function resolveResponsesModelLabel(env) {
-  if (env?.OPENAI_API_KEY) return env?.OPENAI_MODEL || 'gpt-5.4';
+  if (env?.OPENAI_API_KEY) return env?.OPENAI_MODEL || OPENAI_DEFAULT_MODEL;
   return env?.AZURE_OPENAI_GPT5_MODEL || null;
 }
 

@@ -1,9 +1,14 @@
 import { fetchWithRetry } from './retryWithBackoff.js';
 
+export const OPENAI_DEFAULT_MODEL = 'gpt-5.5';
+
 /**
- * Validate and normalize Azure OpenAI configuration
+ * Validate and normalize Responses API configuration.
  *
- * Normalizes endpoint URL to prevent double-pathing issues:
+ * Native OpenAI takes priority when OPENAI_API_KEY is configured.
+ * Azure OpenAI remains as a fallback for deployments that still use it.
+ *
+ * Normalizes Azure endpoint URL to prevent double-pathing issues:
  * - Strips trailing slashes
  * - Removes /openai/v1 suffix if present
  * - Removes /openai suffix if present
@@ -22,7 +27,7 @@ export function ensureAzureConfig(env) {
       .replace(/\/+$/, '')
       .replace(/\/v1\/?$/, '');
     const apiKey = env.OPENAI_API_KEY;
-    const model = env.OPENAI_MODEL || 'gpt-5.4';
+    const model = env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL;
 
     return {
       endpoint,
@@ -45,7 +50,7 @@ export function ensureAzureConfig(env) {
   const model = env.AZURE_OPENAI_GPT5_MODEL;
 
   if (!endpoint || !apiKey || !model) {
-    throw new Error('Azure OpenAI configuration is missing.');
+    throw new Error('Responses API configuration is missing. Set OPENAI_API_KEY or complete the Azure OpenAI fallback configuration.');
   }
 
   const apiVersion = env.AZURE_OPENAI_RESPONSES_API_VERSION || env.AZURE_OPENAI_API_VERSION || 'v1';

@@ -6,7 +6,17 @@ import path from 'node:path';
 // This script is intended to help you verify that AI-powered features and
 // integration tests have the credentials they need.
 
-const REQUIRED_FOR_AI_READINGS = [
+const REQUIRED_FOR_OPENAI_READINGS = [
+  'OPENAI_API_KEY'
+];
+
+const OPTIONAL_FOR_OPENAI_READINGS = [
+  'OPENAI_MODEL',
+  'OPENAI_BASE_URL',
+  'OPENAI_STREAMING_ENABLED'
+];
+
+const REQUIRED_FOR_AZURE_OPENAI_FALLBACK = [
   'AZURE_OPENAI_ENDPOINT',
   'AZURE_OPENAI_API_KEY',
   'AZURE_OPENAI_GPT5_MODEL'
@@ -105,12 +115,21 @@ function run() {
   const fileVars = parseDevVars(devVarsPath);
   const results = {};
 
-  const missingAi = [];
-  for (const key of REQUIRED_FOR_AI_READINGS) {
+  const missingOpenAI = [];
+  for (const key of REQUIRED_FOR_OPENAI_READINGS) {
     const resolved = resolveVariable(key, process.env, fileVars);
     results[key] = resolved;
-    if (!resolved) missingAi.push(key);
+    if (!resolved) missingOpenAI.push(key);
   }
+  const openAIConfigured = missingOpenAI.length === 0;
+
+  const missingAzureFallback = [];
+  for (const key of REQUIRED_FOR_AZURE_OPENAI_FALLBACK) {
+    const resolved = resolveVariable(key, process.env, fileVars);
+    results[key] = resolved;
+    if (!resolved) missingAzureFallback.push(key);
+  }
+  const azureFallbackConfigured = missingAzureFallback.length === 0;
 
   // Conditional: vision proof secret is only required when the vision UI is enabled.
   const visionEnabledValue = resolveValue('VITE_ENABLE_VISION_RESEARCH', process.env, fileVars);
@@ -141,11 +160,25 @@ function run() {
   console.log('🔐 Environment prerequisite check');
   console.log(`- Loaded ${Object.keys(fileVars).length} entries from ${path.basename(devVarsPath)}${fs.existsSync(devVarsPath) ? '' : ' (file not present)'}`);
 
-  console.log('\nAI-generated readings (Azure OpenAI):');
-  for (const key of REQUIRED_FOR_AI_READINGS) {
+  console.log('\nAI-generated readings (OpenAI native):');
+  for (const key of REQUIRED_FOR_OPENAI_READINGS) {
     const entry = results[key];
     if (entry) console.log(`✔ ${key} (${entry.source})`);
     else console.log(`✖ ${key} (missing)`);
+  }
+
+  console.log('\nOpenAI native optional settings:');
+  for (const key of OPTIONAL_FOR_OPENAI_READINGS) {
+    const entry = resolveVariable(key, process.env, fileVars);
+    if (entry) console.log(`• ${key} (${entry.source})`);
+    else console.log(`• ${key} (not set)`);
+  }
+
+  console.log('\nFallback: Azure OpenAI readings:');
+  for (const key of REQUIRED_FOR_AZURE_OPENAI_FALLBACK) {
+    const entry = results[key];
+    if (entry) console.log(`✔ ${key} (${entry.source})`);
+    else console.log(`• ${key} (not set)`);
   }
 
   if (visionEnabled) {
@@ -166,8 +199,8 @@ function run() {
     }
   }
 
-  if (missingAi.length > 0) {
-    console.error(`\nMissing Azure OpenAI credentials: ${missingAi.join(', ')}`);
+  if (!openAIConfigured && !azureFallbackConfigured) {
+    console.error(`\nMissing AI reading provider credentials: ${REQUIRED_FOR_OPENAI_READINGS.join(', ')} (preferred) or ${REQUIRED_FOR_AZURE_OPENAI_FALLBACK.join(', ')} (fallback).`);
     console.error('Populate .dev.vars (or export env vars) to enable AI-generated readings.');
     console.error('Note: `npm run dev` will still run, but API-powered features may fall back to local generators.');
     process.exitCode = 1;
@@ -220,7 +253,8 @@ function run() {
     });
   }
 
-  console.log('\nAll required environment variables for AI-generated readings are present. You are ready to run `npm run dev` 🙌');
+  const activeProvider = openAIConfigured ? 'OpenAI native' : 'Azure OpenAI fallback';
+  console.log(`\nAll required environment variables for AI-generated readings are present (${activeProvider}). You are ready to run \`npm run dev\` 🙌`);
 }
 
 run();
