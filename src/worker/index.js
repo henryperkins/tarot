@@ -14,6 +14,7 @@ import { withSpan } from '../../functions/lib/tracingSpans.js';
 
 // API Route Handlers (imported from existing functions)
 import * as tarotReading from '../../functions/api/tarot-reading.js';
+import * as tarotReadingDraw from '../../functions/api/tarot-reading-draw.js';
 import * as tarotReadingJobStart from '../../functions/api/tarot-reading-job-start.js';
 import * as tarotReadingJobStatus from '../../functions/api/tarot-reading-job-status.js';
 import * as tarotReadingJobStream from '../../functions/api/tarot-reading-job-stream.js';
@@ -212,6 +213,7 @@ const routes = [
   { pattern: /^\/api\/tarot-reading\/jobs\/([^/]+)\/stream$/, handlers: tarotReadingJobStream, params: ['id'] },
   { pattern: /^\/api\/tarot-reading\/jobs\/([^/]+)\/cancel$/, handlers: tarotReadingJobCancel, params: ['id'] },
   { pattern: /^\/api\/tarot-reading\/jobs\/([^/]+)$/, handlers: tarotReadingJobStatus, params: ['id'] },
+  { pattern: /^\/api\/tarot-reading\/draw$/, handlers: tarotReadingDraw },
   { pattern: /^\/api\/tarot-reading$/, handlers: tarotReading },
   { pattern: /^\/api\/reading-followup$/, handlers: readingFollowup },
   { pattern: /^\/api\/tts$/, handlers: tts },

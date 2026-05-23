@@ -1,0 +1,556 @@
+openapi: 3.1.0
+info:
+  title: Tarot Reading API
+  description: >
+    API for generating personalized tarot readings through the deployed
+    tarot backend. This schema is designed for use as a custom GPT Action.
+  version: "1.0.0"
+servers:
+  - url: https://tarot.lakefrontdev.com
+    description: Production tarot backend
+security:
+  - bearerAuth: []
+paths:
+  /api/tarot-reading:
+    post:
+      operationId: createTarotReading
+      summary: Generate a personalized tarot reading
+      description: >
+        Creates a tarot reading synchronously. The request must include
+        spread information and an array of cards with their positions,
+        names, orientations, and meanings. Optional user question,
+        reflections, personalization, deck style, and location data may
+        be included when available.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTarotReadingRequest"
+            examples:
+              threeCardReading:
+                summary: Three-card tarot reading
+                value:
+                  spreadInfo:
+                    name: Three Card Spread
+                    key: three-card
+                  cardsInfo:
+                    - position: Past
+                      card: The Fool
+                      orientation: upright
+                      meaning: New beginnings, openness, and a willingness to take a leap.
+                    - position: Present
+                      card: The Magician
+                      orientation: upright
+                      meaning: Focused intention, resourcefulness, and creative power.
+                    - position: Future
+                      card: Six of Swords
+                      orientation: reversed
+                      meaning: Resistance to transition or difficulty moving on.
+                  userQuestion: What should I know about my career path?
+                  reflectionsText: I am considering changing jobs soon.
+                  deckStyle: rws-1909
+                  personalization:
+                    displayName: Henry
+                    readingTone: balanced
+                    spiritualFrame: mixed
+                    tarotExperience: intermediate
+                    preferredSpreadDepth: standard
+                    focusAreas:
+                      - career
+                      - decision-making
+      responses:
+        "200":
+          description: Tarot reading generated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TarotReadingResponse"
+        "400":
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized. Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Request could not be processed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/tarot-reading/draw:
+    post:
+      operationId: drawTarotReading
+      summary: Draw cards and generate a personalized tarot reading
+      description: >
+        Draws cards on the backend and generates a reading in one call.
+        Use when the user has NOT provided cards. Returns both the drawn
+        cardsInfo and the narrative. If the user already has cards, use
+        `createTarotReading` instead.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DrawTarotReadingRequest"
+            examples:
+              drawCelticCross:
+                summary: Backend-drawn Celtic Cross reading
+                value:
+                  spreadInfo:
+                    name: Celtic Cross
+                    key: celtic
+                  userQuestion: What should I focus on this season?
+                  deckStyle: rws-1909
+                  allowReversals: true
+                  personalization:
+                    displayName: Henry
+                    readingTone: balanced
+                    spiritualFrame: mixed
+                    tarotExperience: intermediate
+                    preferredSpreadDepth: deep
+                    focusAreas:
+                      - career
+                      - growth
+              drawThreeCard:
+                summary: Backend-drawn three-card reading with seed
+                value:
+                  spreadInfo:
+                    name: Three Card Spread
+                    key: threeCard
+                  userQuestion: How can I show up for my partner this week?
+                  reflectionsText: We have been distant lately.
+                  deckStyle: rws-1909
+                  allowReversals: true
+                  seed: "ritual-2026-05-23-knocks-3-cut-mid"
+      responses:
+        "200":
+          description: Tarot reading drawn and generated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrawTarotReadingResponse"
+        "400":
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized. Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Request could not be processed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+  schemas:
+    CreateTarotReadingRequest:
+      type: object
+      required:
+        - spreadInfo
+        - cardsInfo
+      additionalProperties: false
+      properties:
+        spreadInfo:
+          $ref: "#/components/schemas/SpreadInfo"
+        cardsInfo:
+          type: array
+          description: Cards in the order they appear in the spread.
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/CardInfo"
+        userQuestion:
+          type: string
+          description: Optional question or topic posed by the user.
+        reflectionsText:
+          type: string
+          description: Optional reflection or additional context from the user.
+        reversalFrameworkOverride:
+          type: string
+          description: Optional override for the reversal interpretation framework.
+        deckStyle:
+          type: string
+          description: Optional deck style identifier.
+          examples:
+            - rws-1909
+        personalization:
+          $ref: "#/components/schemas/Personalization"
+        location:
+          $ref: "#/components/schemas/Location"
+        persistLocationToJournal:
+          type: boolean
+          description: Whether to persist location data with the journal entry.
+    DrawTarotReadingRequest:
+      type: object
+      required:
+        - spreadInfo
+      additionalProperties: false
+      description: >
+        Request to draw cards on the backend and generate a reading.
+        Mirrors `CreateTarotReadingRequest` but omits `cardsInfo` because
+        the server performs the draw. Include `spreadInfo.key` whenever
+        possible so the backend can resolve position metadata.
+      properties:
+        spreadInfo:
+          $ref: "#/components/schemas/SpreadInfo"
+        userQuestion:
+          type: string
+          description: Optional question or topic posed by the user.
+        reflectionsText:
+          type: string
+          description: Optional reflection or additional context from the user.
+        reversalFrameworkOverride:
+          type: string
+          description: Optional override for the reversal interpretation framework.
+        deckStyle:
+          type: string
+          description: Optional deck style identifier.
+          examples:
+            - rws-1909
+            - thoth-a1
+            - marseille-classic
+        allowReversals:
+          type: boolean
+          description: >
+            Whether the backend may deal reversed cards. Defaults to true
+            when omitted.
+          default: true
+        seed:
+          type: string
+          description: >
+            Optional deterministic seed for the shuffle/draw. When provided,
+            the backend reuses it so the same ritual inputs produce the
+            same hand. Free-form string.
+        personalization:
+          $ref: "#/components/schemas/Personalization"
+        location:
+          $ref: "#/components/schemas/Location"
+        persistLocationToJournal:
+          type: boolean
+          description: Whether to persist location data with the journal entry.
+    DrawTarotReadingResponse:
+      type: object
+      required:
+        - reading
+        - provider
+        - requestId
+        - cardsInfo
+      additionalProperties: true
+      description: >
+        Response returned by `drawTarotReading`. Extends the standard
+        reading response with `cardsInfo` describing the cards the backend
+        actually drew, plus an optional `seed` so the draw can be
+        reproduced or journaled.
+      properties:
+        reading:
+          type: string
+          description: Generated tarot reading narrative.
+        provider:
+          type: string
+          description: Reading backend or provider used.
+          examples:
+            - local-composer
+            - openai-native
+            - azure-gpt5
+        requestId:
+          type: string
+          description: Unique request identifier.
+        cardsInfo:
+          type: array
+          description: Cards the backend drew, in spread order.
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/CardInfo"
+        spreadInfo:
+          $ref: "#/components/schemas/SpreadInfo"
+        seed:
+          type: string
+          description: Seed actually used for the draw, when available.
+        themes:
+          description: Overarching themes detected in the reading.
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        reasoning:
+          description: Reasoning or model metadata.
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        context:
+          description: Contextual inference applied to the reading.
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        visionInsights:
+          type: array
+          description: Vision-derived insights, if card images were used.
+          items:
+            type: object
+            additionalProperties: true
+        narrativeMetrics:
+          description: Coverage or quality metrics for the generated narrative.
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        graphRAG:
+          description: Graph retrieval-augmented generation metadata.
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+    SpreadInfo:
+      type: object
+      required:
+        - name
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Display name of the tarot spread.
+          examples:
+            - Three Card Spread
+            - Celtic Cross
+        key:
+          type: string
+          description: Optional spread identifier.
+          examples:
+            - three-card
+            - celtic-cross
+    CardInfo:
+      type: object
+      required:
+        - position
+        - card
+        - orientation
+        - meaning
+      additionalProperties: false
+      properties:
+        position:
+          type: string
+          description: Position of the card in the spread.
+          examples:
+            - Past
+            - Present
+            - Future
+        card:
+          type: string
+          description: Name of the tarot card.
+          examples:
+            - The Fool
+            - The Magician
+            - Six of Swords
+        orientation:
+          type: string
+          description: Orientation of the card. Prefer lowercase values.
+          enum:
+            - upright
+            - reversed
+            - Upright
+            - Reversed
+        meaning:
+          type: string
+          description: Meaning or interpretation of the card in this position.
+        number:
+          type: integer
+          description: Optional card number if known.
+        suit:
+          type: string
+          description: Optional suit for minor arcana cards.
+          examples:
+            - Cups
+            - Pentacles
+            - Swords
+            - Wands
+        rank:
+          type: string
+          description: Optional rank name for minor arcana cards.
+          examples:
+            - Ace
+            - Two
+            - Queen
+        rankValue:
+          type: integer
+          description: Optional numeric rank value for minor arcana cards.
+    Personalization:
+      type: object
+      description: Optional personalization settings for the reading narrative.
+      additionalProperties: false
+      properties:
+        displayName:
+          type: string
+          description: User's preferred name.
+        readingTone:
+          type: string
+          description: Preferred tone of the reading.
+          enum:
+            - gentle
+            - balanced
+            - blunt
+        spiritualFrame:
+          type: string
+          description: Preferred interpretive frame.
+          enum:
+            - psychological
+            - spiritual
+            - mixed
+            - playful
+        tarotExperience:
+          type: string
+          description: User's experience level with tarot.
+          enum:
+            - newbie
+            - intermediate
+            - experienced
+        preferredSpreadDepth:
+          type: string
+          description: Preferred depth of the reading.
+          enum:
+            - short
+            - standard
+            - deep
+        focusAreas:
+          type: array
+          description: Specific life areas or themes to emphasize.
+          items:
+            type: string
+          examples:
+            - - career
+              - relationships
+              - decision-making
+    Location:
+      type: object
+      description: Optional location context.
+      additionalProperties: false
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        timezone:
+          type: string
+          description: IANA timezone name.
+          examples:
+            - America/Chicago
+        accuracy:
+          type: number
+          description: Optional GPS accuracy in meters.
+        source:
+          type: string
+          description: Source of the location data.
+          enum:
+            - browser
+            - manual
+    TarotReadingResponse:
+      type: object
+      required:
+        - reading
+        - provider
+        - requestId
+      additionalProperties: true
+      properties:
+        reading:
+          type: string
+          description: Generated tarot reading narrative.
+        provider:
+          type: string
+          description: Reading backend or provider used.
+          examples:
+            - local-composer
+            - openai-native
+            - azure-gpt5
+        requestId:
+          type: string
+          description: Unique request identifier.
+        themes:
+          description: Overarching themes detected in the reading.
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        reasoning:
+          description: Reasoning or model metadata.
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        context:
+          description: Contextual inference applied to the reading.
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        visionInsights:
+          type: array
+          description: Vision-derived insights, if card images were used.
+          items:
+            type: object
+            additionalProperties: true
+        narrativeMetrics:
+          description: Coverage or quality metrics for the generated narrative.
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        graphRAG:
+          description: Graph retrieval-augmented generation metadata.
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+    ErrorResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        error:
+          type: string
+          description: Error message.
+        message:
+          type: string
+          description: Human-readable error message.
+        code:
+          type: string
+          description: Machine-readable error code.
+        requestId:
+          type: string
+          description: Request identifier for debugging.
