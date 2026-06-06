@@ -61,7 +61,6 @@ import {
   collectSSEStreamText
 } from '../lib/readingStream.js';
 import {
-  isEvalGateEnabled,
   isAzureTokenStreamingEnabled,
   allowStreamingWithEvalGate,
   summarizeNarrativeEnhancements,
@@ -96,6 +95,7 @@ import {
   buildSpreadAnalysisPayload
 } from '../lib/spreadAnalysisOrchestrator.js';
 import { buildReadingReasoning } from '../lib/narrative/reasoning.js';
+import { buildSelectiveEvalGatePolicy } from '../lib/evalGatePolicy.js';
 
 function parseBooleanLike(value, defaultValue = false) {
   if (value === undefined || value === null) return defaultValue;
@@ -274,7 +274,9 @@ async function finalizeReading({
   acceptedQualityMetrics = null,
   allowGateBlocking = true,
   gateOverride = null,
-  gateNotice = null
+  gateNotice = null,
+  evalGateEnv = env,
+  evalGatePolicy = null
 }) {
   const originalReading = reading;
   const originalProvider = provider;
@@ -327,6 +329,10 @@ async function finalizeReading({
     narrativeMetrics: baseNarrativeMetrics
   };
 
+  if (evalGatePolicy?.forced) {
+    console.warn(`[${requestId}] Selective evaluation gate enabled for this reading: ${evalGatePolicy.reasons.join(', ')}`);
+  }
+
   const gateResult = gateOverride?.blocked
     ? {
       passed: false,
@@ -335,7 +341,7 @@ async function finalizeReading({
       latencyMs: gateOverride.latencyMs || 0
     }
     : await runSyncEvaluationGate(
-      env,
+      evalGateEnv,
       evalParams,
       baseNarrativeMetrics
     );
@@ -917,6 +923,18 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       analysis.themes,
       analysis.spreadKey
     );
+    const localComposerLanguageSupport = getLocalComposerLanguageSupport({
+      userQuestion,
+      reflectionsText
+    });
+    const evalGatePolicy = buildSelectiveEvalGatePolicy({
+      env,
+      context,
+      languageSupport: localComposerLanguageSupport,
+      userQuestion,
+      reflectionsText
+    });
+    const evalGateEnv = evalGatePolicy.effectiveEnv;
 
     // A/B Testing: Load active experiments (assignment happens per provider attempt)
     let abAssignment = null;
@@ -959,7 +977,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     const backendErrors = [];
 
     const tokenStreamingEnabled = isAzureTokenStreamingEnabled(env);
-    const evalGateEnabled = isEvalGateEnabled(env);
+    const evalGateEnabled = evalGatePolicy.effectiveEvalGateEnabled;
     const allowStreamingGateBypass = allowStreamingWithEvalGate(env);
     const safetyScanExplicit = env?.STREAMING_SAFETY_SCAN_ENABLED !== undefined;
     const qualityGateExplicit = env?.STREAMING_QUALITY_GATE_ENABLED !== undefined;
@@ -1157,7 +1175,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               backendErrors: [],
               acceptedQualityMetrics: qualityMetrics,
               allowGateBlocking: true,
-              gateOverride
+              gateOverride,
+              evalGateEnv,
+              evalGatePolicy
             });
 
             if (attemptAssignment) {
@@ -1234,7 +1254,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 personalization,
                 backendErrors: [],
                 acceptedQualityMetrics: null,
-                allowGateBlocking: false
+                allowGateBlocking: false,
+                evalGateEnv,
+                evalGatePolicy
               });
               if (attemptAssignment) {
                 console.log(`[${requestId}] A/B assignment accepted: ${attemptAssignment.experimentId} → ${attemptAssignment.variantId} (provider: ${streamProvider})`);
@@ -1266,10 +1288,6 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     let acceptedQualityMetrics = null; // Store metrics from successful backend to avoid recomputation
     const candidateBackends = getAvailableNarrativeBackends(env);
     const backendsToTry = candidateBackends.length ? candidateBackends : [NARRATIVE_BACKENDS['local-composer']];
-    const localComposerLanguageSupport = getLocalComposerLanguageSupport({
-      userQuestion,
-      reflectionsText
-    });
 
     // Track captured prompts for engineering persistence
     let capturedPrompts = null;
@@ -1444,7 +1462,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       acceptedQualityMetrics,
       gateNotice: streamingGateNotice,
       allowGateBlocking: true,
-      gateOverride
+      gateOverride,
+      evalGateEnv,
+      evalGatePolicy
     });
 
     if (useStreaming) {

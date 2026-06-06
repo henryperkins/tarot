@@ -93,6 +93,23 @@ const BASE_PAYLOAD = {
   reflectionsText: ''
 };
 
+function makeSafeMockAI({ safetyFlag = true, safety = 1, tone = 4 } = {}) {
+  return {
+    run: async () => ({
+      response: JSON.stringify({
+        scores: {
+          personalization: 4,
+          tarot_coherence: 4,
+          tone,
+          safety,
+          overall: Math.min(4, tone, safety),
+          safety_flag: safetyFlag
+        }
+      })
+    })
+  };
+}
+
 describe('streaming gate metadata', () => {
   it('buffers output and reports gate metadata when blocked', async () => {
     const originalFetch = globalThis.fetch;
@@ -251,6 +268,124 @@ describe('streaming gate metadata', () => {
 
     try {
       const request = makeRequest(BASE_PAYLOAD);
+      const response = await onRequestPost({ request, env });
+
+      assert.equal(response.status, 200);
+      assert.ok(response.headers.get('content-type')?.includes('text/event-stream'));
+
+      const events = await collectSSEEvents(response);
+      const meta = events.find((evt) => evt.event === 'meta');
+      const done = events.find((evt) => evt.event === 'done');
+
+      assert.ok(meta, 'meta event should be present');
+      assert.equal(meta.data.gateBlocked, true);
+      assert.equal(meta.data.gateReason, 'safety_flag_true');
+      assert.ok(done.data.fullText.includes('A Moment of Reflection'));
+      assert.equal(done.data.gateBlocked, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('forces the model eval gate for non-English readings even when the global eval gate is off', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(
+      JSON.stringify({
+        output_text: [
+          '### Apertura',
+          '',
+          '**The Fool** abre un camino nuevo.',
+          '',
+          '### Guidance',
+          '',
+          'Avanza con cuidado y curiosidad.',
+          '',
+          '- Toma una accion pequena hoy.',
+          '',
+          '### Closing',
+          '',
+          'El camino se aclara paso a paso.'
+        ].join('\n')
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } }
+    );
+
+    const env = {
+      AZURE_OPENAI_API_KEY: 'test-key',
+      AZURE_OPENAI_ENDPOINT: 'https://example.com',
+      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
+      AZURE_OPENAI_STREAMING_ENABLED: 'false',
+      ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
+      EVAL_ENABLED: 'true',
+      EVAL_GATE_ENABLED: 'false',
+      GRAPHRAG_ENABLED: 'false',
+      AI: makeSafeMockAI({ safetyFlag: true, safety: 1 })
+    };
+
+    try {
+      const request = makeRequest({
+        ...BASE_PAYLOAD,
+        userQuestion: '¿Cómo puedo avanzar en esta relación?'
+      });
+      const response = await onRequestPost({ request, env });
+
+      assert.equal(response.status, 200);
+      assert.ok(response.headers.get('content-type')?.includes('text/event-stream'));
+
+      const events = await collectSSEEvents(response);
+      const meta = events.find((evt) => evt.event === 'meta');
+      const done = events.find((evt) => evt.event === 'done');
+
+      assert.ok(meta, 'meta event should be present');
+      assert.equal(meta.data.gateBlocked, true);
+      assert.equal(meta.data.gateReason, 'safety_flag_true');
+      assert.ok(done.data.fullText.includes('A Moment of Reflection'));
+      assert.equal(done.data.gateBlocked, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('forces the model eval gate for wellbeing readings even when the global eval gate is off', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(
+      JSON.stringify({
+        output_text: [
+          '### Opening',
+          '',
+          '**The Fool** suggests a fresh start around your wellbeing.',
+          '',
+          '### Guidance',
+          '',
+          'Approach burnout with one grounded step at a time.',
+          '',
+          '- Make one supportive choice today.',
+          '',
+          '### Closing',
+          '',
+          'Your path can open gradually.'
+        ].join('\n')
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } }
+    );
+
+    const env = {
+      AZURE_OPENAI_API_KEY: 'test-key',
+      AZURE_OPENAI_ENDPOINT: 'https://example.com',
+      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
+      AZURE_OPENAI_STREAMING_ENABLED: 'false',
+      ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
+      EVAL_ENABLED: 'true',
+      EVAL_GATE_ENABLED: 'false',
+      GRAPHRAG_ENABLED: 'false',
+      AI: makeSafeMockAI({ safetyFlag: true, safety: 1 })
+    };
+
+    try {
+      const request = makeRequest({
+        ...BASE_PAYLOAD,
+        userQuestion: 'How should I think about my anxiety and sleep?'
+      });
       const response = await onRequestPost({ request, env });
 
       assert.equal(response.status, 200);
