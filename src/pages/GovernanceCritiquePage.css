@@ -1,0 +1,340 @@
+.governance-critique-page,
+.governance-critique-page * {
+  box-sizing: border-box;
+}
+
+.governance-critique-page {
+  --gc-paper: #fbfaf6;
+  --gc-ink: #1b1a17;
+  --gc-soft: #5c574e;
+  --gc-faint: #8a8478;
+  --gc-accent: #b23a2e;
+  --gc-accent-soft: #f3e3df;
+  --gc-line: #e3ddd0;
+  --gc-mono-bg: #f2eee4;
+  --gc-good: #3f6b4e;
+  --gc-good-soft: #e6efe6;
+  --gc-font-sans: var(--font-sans, 'Inter Variable', system-ui, sans-serif);
+  --gc-font-serif: var(--font-serif, 'Source Serif 4 Variable', Georgia, serif);
+  --gc-font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(178, 58, 46, 0.08), transparent 30%),
+    linear-gradient(180deg, #fdfcf9 0%, var(--gc-paper) 20%, #f7f3ea 100%);
+  color: var(--gc-ink);
+  font-family: var(--gc-font-sans);
+  font-size: 16px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+  padding: var(--safe-pad-top, 0px) var(--safe-pad-right, 0px) var(--safe-pad-bottom, 0px) var(--safe-pad-left, 0px);
+}
+
+.governance-critique-page__sheet {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 64px 56px 80px;
+}
+
+.governance-critique-page code,
+.governance-critique-page__mono {
+  font-family: var(--gc-font-mono);
+  font-size: 0.86em;
+}
+
+.governance-critique-page code {
+  background: var(--gc-mono-bg);
+  border-radius: 3px;
+  color: #43403a;
+  padding: 0.08em 0.34em;
+  white-space: nowrap;
+}
+
+.governance-critique-page__header {
+  border-bottom: 2px solid var(--gc-ink);
+  margin-bottom: 8px;
+  padding-bottom: 26px;
+}
+
+.governance-critique-page__eyebrow {
+  color: var(--gc-accent);
+  font-family: var(--gc-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  margin: 0 0 18px;
+  text-transform: uppercase;
+}
+
+.governance-critique-page__title {
+  font-family: var(--gc-font-serif);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.16;
+  margin: 0 0 20px;
+  max-width: 18ch;
+}
+
+.governance-critique-page__meta {
+  color: var(--gc-soft);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13.5px;
+  gap: 6px 30px;
+}
+
+.governance-critique-page__meta b {
+  color: var(--gc-ink);
+  font-weight: 600;
+}
+
+.governance-critique-page__meta-note {
+  color: var(--gc-faint);
+  font-style: italic;
+}
+
+.governance-critique-page__update {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid var(--gc-line);
+  border-left: 3px solid var(--gc-good);
+  border-radius: 5px;
+  margin-top: 22px;
+  padding: 14px 16px;
+}
+
+.governance-critique-page__update p {
+  margin: 0;
+}
+
+.governance-critique-page__section {
+  padding-top: 44px;
+}
+
+.governance-critique-page__section-number {
+  color: var(--gc-accent);
+  font-family: var(--gc-font-serif);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.governance-critique-page__section-title {
+  font-family: var(--gc-font-serif);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 4px 0 16px;
+}
+
+.governance-critique-page p {
+  margin: 0 0 14px;
+}
+
+.governance-critique-page__lead {
+  color: var(--gc-soft);
+}
+
+.governance-critique-page strong,
+.governance-critique-page__accent {
+  font-weight: 600;
+}
+
+.governance-critique-page__accent {
+  color: var(--gc-accent);
+}
+
+.governance-critique-page__layers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.governance-critique-page__chip {
+  background: #fff;
+  border: 1px solid var(--gc-line);
+  border-radius: 20px;
+  color: var(--gc-soft);
+  font-family: var(--gc-font-mono);
+  font-size: 11.5px;
+  padding: 4px 11px;
+}
+
+.governance-critique-page__chip--soft {
+  border-style: dashed;
+}
+
+.governance-critique-page__card {
+  background: #fff;
+  border: 1px solid var(--gc-line);
+  border-left: 3px solid var(--gc-accent);
+  border-radius: 5px;
+  margin: 14px 0;
+  padding: 18px 20px;
+}
+
+.governance-critique-page__card--shipped {
+  border-left-color: var(--gc-good);
+}
+
+.governance-critique-page__card-title {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-family: var(--gc-font-sans);
+  font-size: 15.5px;
+  font-weight: 600;
+  gap: 10px;
+  margin: 0 0 10px;
+}
+
+.governance-critique-page__stage {
+  background: var(--gc-accent-soft);
+  border-radius: 4px;
+  color: var(--gc-accent);
+  font-family: var(--gc-font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+
+.governance-critique-page__pill {
+  background: var(--gc-good-soft);
+  border: 1px solid #cfe0d0;
+  border-radius: 20px;
+  color: var(--gc-good);
+  font-family: var(--gc-font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  text-transform: uppercase;
+}
+
+.governance-critique-page__field {
+  font-size: 14.5px;
+  margin: 7px 0;
+}
+
+.governance-critique-page__field-label {
+  color: var(--gc-faint);
+  display: inline-block;
+  font-family: var(--gc-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  min-width: 96px;
+  text-transform: uppercase;
+  vertical-align: top;
+}
+
+.governance-critique-page__field-value {
+  color: var(--gc-ink);
+  display: inline;
+}
+
+.governance-critique-page__field-value--why {
+  color: var(--gc-soft);
+}
+
+.governance-critique-page__quote {
+  border-left: 3px solid var(--gc-accent);
+  color: var(--gc-ink);
+  font-family: var(--gc-font-serif);
+  font-size: 19px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.4;
+  margin: 20px 0;
+  padding: 6px 0 6px 20px;
+}
+
+.governance-critique-page__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.governance-critique-page__metric {
+  background: #fff;
+  border: 1px solid var(--gc-line);
+  border-radius: 5px;
+  flex: 1 1 150px;
+  padding: 12px 14px;
+}
+
+.governance-critique-page__metric-number {
+  font-family: var(--gc-font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.governance-critique-page__metric--warn .governance-critique-page__metric-number {
+  color: var(--gc-accent);
+}
+
+.governance-critique-page__metric-label {
+  color: var(--gc-soft);
+  font-size: 11.5px;
+  margin-top: 5px;
+}
+
+.governance-critique-page__status {
+  align-items: baseline;
+  border-top: 2px solid var(--gc-ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  margin-top: 48px;
+  padding-top: 20px;
+}
+
+.governance-critique-page__status-title {
+  font-family: var(--gc-font-serif);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.governance-critique-page__status-item {
+  color: var(--gc-soft);
+  font-size: 13.5px;
+}
+
+.governance-critique-page__status-item b {
+  color: var(--gc-ink);
+}
+
+.governance-critique-page__rule {
+  border: 0;
+  border-top: 1px solid var(--gc-line);
+  margin: 36px 0 0;
+}
+
+@supports (text-wrap: balance) {
+  .governance-critique-page__title,
+  .governance-critique-page__section-title,
+  .governance-critique-page__quote {
+    text-wrap: balance;
+  }
+}
+
+@media (max-width: 640px) {
+  .governance-critique-page__sheet {
+    padding: 40px 22px 56px;
+  }
+
+  .governance-critique-page__title {
+    font-size: 27px;
+  }
+
+  .governance-critique-page__field-label {
+    display: block;
+    margin-bottom: 1px;
+    min-width: 0;
+  }
+}

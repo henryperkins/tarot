@@ -14,14 +14,9 @@
   ],
   // Sentry source map uploads
   "upload_source_maps": true,
-  // Routes - custom domain configuration
-  "routes": [
-    {
-      "pattern": "tarot.lakefrontdev.com",
-      "zone_name": "lakefrontdev.com",
-      "custom_domain": true
-    }
-  ],
+  // Route management lives in the Cloudflare dashboard; keep Wrangler from
+  // reconciling zone routes during deploys.
+  "workers_dev": false,
   // Main worker entry point (unified router)
   "main": "./src/worker/index.js",
   // Static assets configuration (SPA fallback enabled)

@@ -1,4 +1,7 @@
-const AUTH_OPTIONAL_PATHS = new Set(['/design']);
+const AUTH_OPTIONAL_PATHS = new Set([
+  '/design',
+  '/governance-critique'
+]);
 
 export function normalizeRoutePath(pathname = '/') {
   if (typeof pathname !== 'string') return '/';
