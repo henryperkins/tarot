@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {
   ensureAzureConfig,
   getReasoningEffort,
+  getTextVerbosity,
   resolveResponsesUser
 } from '../functions/lib/azureResponses.js';
 
@@ -179,9 +180,63 @@ describe('getReasoningEffort', () => {
     assert.strictEqual(getReasoningEffort(null, 'custom-model'), 'medium');
   });
 
+  test('returns high for gpt-5.6-sol (the native default model)', () => {
+    assert.strictEqual(getReasoningEffort(null, 'gpt-5.6-sol'), 'high');
+  });
+
   test('respects env override', () => {
     const env = { AZURE_OPENAI_REASONING_EFFORT: 'low' };
     assert.strictEqual(getReasoningEffort(env, 'gpt-5.2'), 'low');
+  });
+
+  test('prefers OPENAI_REASONING_EFFORT on the native path', () => {
+    const env = {
+      OPENAI_API_KEY: 'sk-test',
+      OPENAI_REASONING_EFFORT: 'high',
+      AZURE_OPENAI_REASONING_EFFORT: 'xhigh'
+    };
+    assert.strictEqual(getReasoningEffort(env, 'gpt-5.6-sol'), 'high');
+  });
+
+  test('ignores OPENAI_REASONING_EFFORT when OPENAI_API_KEY is absent (Azure fallback keeps its setting)', () => {
+    const env = {
+      OPENAI_REASONING_EFFORT: 'high',
+      AZURE_OPENAI_REASONING_EFFORT: 'xhigh'
+    };
+    assert.strictEqual(getReasoningEffort(env, 'gpt-5'), 'xhigh');
+  });
+
+  test('falls back to AZURE_OPENAI_REASONING_EFFORT on the native path when no native override', () => {
+    const env = {
+      OPENAI_API_KEY: 'sk-test',
+      AZURE_OPENAI_REASONING_EFFORT: 'medium'
+    };
+    assert.strictEqual(getReasoningEffort(env, 'gpt-5.6-sol'), 'medium');
+  });
+
+  test('ignores an invalid native override and falls through to the model default', () => {
+    const env = { OPENAI_API_KEY: 'sk-test', OPENAI_REASONING_EFFORT: 'bogus' };
+    assert.strictEqual(getReasoningEffort(env, 'gpt-5.6-sol'), 'high');
+  });
+});
+
+describe('getTextVerbosity', () => {
+  test('defaults to low for GPT-5 variants', () => {
+    assert.strictEqual(getTextVerbosity(null, 'gpt-5.6-sol'), 'low');
+  });
+
+  test('prefers OPENAI_VERBOSITY on the native path', () => {
+    const env = {
+      OPENAI_API_KEY: 'sk-test',
+      OPENAI_VERBOSITY: 'high',
+      AZURE_OPENAI_VERBOSITY: 'medium'
+    };
+    assert.strictEqual(getTextVerbosity(env, 'gpt-5.6-sol'), 'high');
+  });
+
+  test('ignores OPENAI_VERBOSITY when OPENAI_API_KEY is absent', () => {
+    const env = { OPENAI_VERBOSITY: 'high', AZURE_OPENAI_VERBOSITY: 'medium' };
+    assert.strictEqual(getTextVerbosity(env, 'gpt-5.6-sol'), 'medium');
   });
 });
 

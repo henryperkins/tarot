@@ -1,6 +1,6 @@
 import { fetchWithRetry } from './retryWithBackoff.js';
 
-export const OPENAI_DEFAULT_MODEL = 'gpt-5.5';
+export const OPENAI_DEFAULT_MODEL = 'gpt-5.6-sol';
 
 /**
  * Validate and normalize Responses API configuration.
@@ -100,6 +100,17 @@ export function resolveResponsesUser(env = null, explicitUser = null) {
  * @returns {string} Reasoning effort level ('none'|'minimal'|'low'|'medium'|'high'|'xhigh')
  */
 export function getReasoningEffort(env = null, modelName = '') {
+  // Native OpenAI override takes priority when OPENAI_API_KEY is configured,
+  // mirroring how OPENAI_STREAMING_ENABLED precedes the legacy Azure flag. This
+  // lets the OpenAI-native path (e.g. gpt-5.6-sol on 'high') be tuned
+  // independently of the Azure fallback's AZURE_OPENAI_REASONING_EFFORT.
+  const nativeOverride = env?.OPENAI_API_KEY && typeof env?.OPENAI_REASONING_EFFORT === 'string'
+    ? env.OPENAI_REASONING_EFFORT.trim().toLowerCase()
+    : null;
+  if (nativeOverride && VALID_REASONING_EFFORTS.has(nativeOverride)) {
+    return nativeOverride;
+  }
+
   const rawOverride = typeof env?.AZURE_OPENAI_REASONING_EFFORT === 'string'
     ? env.AZURE_OPENAI_REASONING_EFFORT.trim().toLowerCase()
     : null;
@@ -123,6 +134,16 @@ export function getReasoningEffort(env = null, modelName = '') {
  * @returns {string} Verbosity level ('low'|'medium'|'high')
  */
 export function getTextVerbosity(env = null, modelName = '') {
+  // Native OpenAI override takes priority when OPENAI_API_KEY is configured
+  // (parallels getReasoningEffort), so the OpenAI-native path can set verbosity
+  // independently of the Azure fallback's AZURE_OPENAI_VERBOSITY.
+  const nativeOverride = env?.OPENAI_API_KEY && typeof env?.OPENAI_VERBOSITY === 'string'
+    ? env.OPENAI_VERBOSITY.trim().toLowerCase()
+    : null;
+  if (nativeOverride && VALID_VERBOSITY_LEVELS.has(nativeOverride)) {
+    return nativeOverride;
+  }
+
   const rawOverride = typeof env?.AZURE_OPENAI_VERBOSITY === 'string'
     ? env.AZURE_OPENAI_VERBOSITY.trim().toLowerCase()
     : null;
