@@ -102,6 +102,12 @@
     "LOG_ENHANCEMENT_TELEMETRY": "true",
     "PERSIST_PROMPTS": "false",
     "SKIP_PII_REDACTION": "false",
+    // PROMPT_DEBUG_ENABLED: when "true", the /api/tarot-reading response may
+    // return the verbatim assembled prompt as `promptDebug`. Additionally gated
+    // on the caller being the GPT service account (GPT_SERVICE_TOKEN) and the
+    // request setting includePromptDebug=true. Keep "false" in production unless
+    // the service token is exclusively owner-controlled.
+    "PROMPT_DEBUG_ENABLED": "false",
     "ENABLE_TTS_DEBUG_LOGGING": "false",
     "ENABLE_SPEECH_TOKEN_DEBUG": "false",
     // -------------------------------------------------------------------------

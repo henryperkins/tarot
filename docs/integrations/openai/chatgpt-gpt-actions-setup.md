@@ -77,9 +77,93 @@ paths:
                       meaning: { type: string }
                 userQuestion: { type: string }
                 reflectionsText: { type: string }
+                includePromptDebug:
+                  type: boolean
+                  default: false
+                  description: >
+                    Diagnostic opt-in. When true AND the request is
+                    authenticated as the first-party service account AND the
+                    backend has PROMPT_DEBUG_ENABLED set, the response includes a
+                    promptDebug object with the assembled system/user prompt.
+                    Ignored (silently) for any other caller.
       responses:
         '200':
           description: Reading response
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reading]
+                properties:
+                  reading:
+                    type: string
+                    description: Generated tarot-reading narrative.
+                  provider:
+                    type: string
+                    description: Narrative provider used (e.g. openai-native, azure-gpt5, local-composer).
+                  requestId:
+                    type: string
+                    description: Unique request identifier.
+                  promptDebug:
+                    type: object
+                    description: >
+                      Present only for authorized diagnostic requests (service
+                      account + PROMPT_DEBUG_ENABLED + includePromptDebug=true).
+                      Omitted otherwise, and absent when the local composer
+                      served the reading (it uses no LLM prompt).
+                    properties:
+                      templateVersion:
+                        type: string
+                        description: Reading prompt template version (READING_PROMPT_VERSION).
+                      provider:
+                        type: string
+                        description: Backend that assembled the prompt.
+                      systemPrompt:
+                        type: string
+                        description: Verbatim system prompt sent to the narrative model.
+                      userPrompt:
+                        type: string
+                        description: Verbatim user prompt assembled from cards and context.
+```
+
+## Optional: prompt debug (`promptDebug`)
+
+For first-party diagnostics, the backend can return the exact prompt it
+assembled from the cards so the GPT can inspect it. This is **off by default**
+and gated three ways — all required:
+
+1. **Env flag** — set `PROMPT_DEBUG_ENABLED=true` (var in `wrangler.jsonc`).
+   Unset/false disables the feature entirely.
+2. **Service account** — the request must authenticate with `GPT_SERVICE_TOKEN`
+   (`auth_provider: 'service'`). API-key, session, and anonymous callers never
+   receive `promptDebug`, even with the flag on.
+3. **Opt-in** — the request body must set `includePromptDebug: true`.
+
+When all three hold, the `200` response gains a `promptDebug` object containing
+the **verbatim (unredacted)** `systemPrompt` and `userPrompt`, plus
+`templateVersion` and the assembling `provider`. Because the system prompt holds
+proprietary instructions and the user prompt can carry PII (question,
+reflections, stored memories, retrieved passages), keep the flag off in any
+environment where the service token is not exclusively owner-controlled.
+
+`promptDebug` is omitted when the reading is served by the local composer, which
+generates deterministically without an LLM prompt.
+
+Example diagnostic request:
+
+```json
+{
+  "spreadInfo": { "name": "Three Card" },
+  "cardsInfo": [
+    {
+      "position": "Past",
+      "card": "The Fool",
+      "orientation": "Upright",
+      "meaning": "New beginnings and openness"
+    }
+  ],
+  "includePromptDebug": true
+}
 ```
 
 ## Auth choice for this backend

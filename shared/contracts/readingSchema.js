@@ -105,7 +105,12 @@ export const readingRequestSchema = z.object({
   visionProof: optionalVisionProofSchema.optional(),
   personalization: personalizationSchema.optional(),
   location: locationSchema,
-  persistLocationToJournal: z.boolean().optional()
+  persistLocationToJournal: z.boolean().optional(),
+  // Opt-in diagnostic flag: request the assembled system/user prompt back in
+  // the response. Only honored for the trusted first-party service account and
+  // when PROMPT_DEBUG_ENABLED is set (see resolvePromptDebugAccess in
+  // functions/api/tarot-reading.js). Ignored otherwise.
+  includePromptDebug: z.boolean().optional()
 });
 
 export const readingResponseSchema = z.object({
