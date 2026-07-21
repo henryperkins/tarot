@@ -416,12 +416,6 @@ export function isValidPassword(password) {
  * @returns {Promise<object|null>} User object or null if unauthenticated
  */
 export async function getUserFromRequest(request, env) {
-  // Defensive check: return null if DB is not available
-  // This prevents errors in routes that don't have DB binding
-  if (!env?.DB) {
-    return null;
-  }
-
   const authHeader = request.headers.get('Authorization');
 
   // Authorization: Bearer <token>
@@ -429,12 +423,24 @@ export async function getUserFromRequest(request, env) {
     const token = authHeader.split(' ')[1];
 
     // Service-account path (trusted first-party integrations, e.g. the Custom
-    // GPT). Checked before the API-key/session paths so an owner-configured
+    // GPT). Checked before the API-key/session paths — and before the DB guard
+    // below, since service tokens need no database — so an owner-configured
     // GPT_SERVICE_TOKEN authenticates as a synthetic Plus-or-higher user
-    // without a Stripe-backed account. No-op unless GPT_SERVICE_TOKEN is set.
-    const serviceUser = await resolveServiceUser(token, env);
-    if (serviceUser) {
-      return serviceUser;
+    // without a Stripe-backed account. Skipped for sk_ keys, which are never
+    // service tokens, to avoid needless hashing. No-op unless GPT_SERVICE_TOKEN
+    // is set.
+    if (token && !token.startsWith('sk_')) {
+      const serviceUser = await resolveServiceUser(token, env);
+      if (serviceUser) {
+        return serviceUser;
+      }
+    }
+
+    // The remaining Bearer paths (API key, session token) need the DB.
+    // Defensive check: return null if DB is not available (routes without a
+    // DB binding).
+    if (!env?.DB) {
+      return null;
     }
 
     // API key path (Bearer sk_...)
@@ -467,10 +473,11 @@ export async function getUserFromRequest(request, env) {
     }
   }
 
-  // Fallback to session cookie
+  // Fallback to session cookie (needs the DB, so re-assert the guard here now
+  // that the top-level check has moved below the DB-less service path).
   const cookieHeader = request.headers.get('Cookie');
   const sessionToken = getSessionFromCookie(cookieHeader);
-  if (!sessionToken) return null;
+  if (!sessionToken || !env?.DB) return null;
 
   return validateSession(env.DB, sessionToken);
 }

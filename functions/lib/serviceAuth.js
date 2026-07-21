@@ -59,6 +59,25 @@ export function isServiceAuthConfigured(env) {
   return token.length >= MIN_SERVICE_TOKEN_LENGTH;
 }
 
+// Warn at most once per isolate about a misconfigured (too-short) token —
+// matchesServiceToken runs on every Bearer request, so an unconditional warn
+// would spam logs (and log-ingestion cost) on each one.
+let hasWarnedShortToken = false;
+
+// The configured token is static for the isolate's lifetime, so memoize its
+// digest instead of re-hashing it on every request. Keyed on the raw value so a
+// rotated token (new value) recomputes rather than returning a stale hash.
+let cachedExpectedToken = null;
+let cachedExpectedHashPromise = null;
+
+function getExpectedTokenHash(configuredToken) {
+  if (configuredToken !== cachedExpectedToken) {
+    cachedExpectedToken = configuredToken;
+    cachedExpectedHashPromise = sha256Hex(configuredToken);
+  }
+  return cachedExpectedHashPromise;
+}
+
 /**
  * Constant-time check that a presented bearer token matches the configured
  * service token. Both sides are SHA-256 hashed first so the comparison is
@@ -71,7 +90,8 @@ export function isServiceAuthConfigured(env) {
 export async function matchesServiceToken(token, env) {
   if (typeof token !== 'string' || !token) return false;
   if (!isServiceAuthConfigured(env)) {
-    if (typeof env?.GPT_SERVICE_TOKEN === 'string' && env.GPT_SERVICE_TOKEN.length > 0) {
+    if (typeof env?.GPT_SERVICE_TOKEN === 'string' && env.GPT_SERVICE_TOKEN.length > 0 && !hasWarnedShortToken) {
+      hasWarnedShortToken = true;
       console.warn(
         `[serviceAuth] GPT_SERVICE_TOKEN is set but shorter than the ${MIN_SERVICE_TOKEN_LENGTH}-char minimum; ignoring it.`
       );
@@ -81,7 +101,7 @@ export async function matchesServiceToken(token, env) {
 
   const [presented, expected] = await Promise.all([
     sha256Hex(token),
-    sha256Hex(env.GPT_SERVICE_TOKEN)
+    getExpectedTokenHash(env.GPT_SERVICE_TOKEN)
   ]);
   return timingSafeEqual(presented, expected);
 }

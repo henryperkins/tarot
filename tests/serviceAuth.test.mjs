@@ -113,6 +113,22 @@ test('getUserFromRequest authenticates the service token as a Plus user', async 
   assert.strictEqual(subscription.config.spreads, 'all');
 });
 
+test('getUserFromRequest authenticates the service token without a DB binding', async () => {
+  // Service tokens need no database, so they must resolve even on routes/envs
+  // where env.DB is absent.
+  const env = { GPT_SERVICE_TOKEN: SERVICE_TOKEN };
+  const user = await getUserFromRequest(bearer(SERVICE_TOKEN), env);
+  assert.ok(user, 'service token should authenticate without a DB binding');
+  assert.strictEqual(user.auth_provider, 'service');
+  assert.strictEqual(user.subscription_tier, 'plus');
+});
+
+test('getUserFromRequest returns null for a non-service Bearer token when DB is absent', async () => {
+  const env = { GPT_SERVICE_TOKEN: SERVICE_TOKEN }; // no DB
+  const user = await getUserFromRequest(bearer('sk_live_whatever'), env);
+  assert.strictEqual(user, null, 'API-key/session paths still require the DB');
+});
+
 test('getUserFromRequest honors GPT_SERVICE_TIER=pro', async () => {
   const env = { DB: new NullDB(), GPT_SERVICE_TOKEN: SERVICE_TOKEN, GPT_SERVICE_TIER: 'pro' };
   const user = await getUserFromRequest(bearer(SERVICE_TOKEN), env);
