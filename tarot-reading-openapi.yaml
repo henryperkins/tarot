@@ -217,6 +217,15 @@ components:
         persistLocationToJournal:
           type: boolean
           description: Whether to persist location data with the journal entry.
+        includePromptDebug:
+          type: boolean
+          default: false
+          description: >
+            Diagnostic opt-in. When true AND the request is authenticated as
+            the service account (GPT_SERVICE_TOKEN) AND the backend has
+            PROMPT_DEBUG_ENABLED set, the response includes a `promptDebug`
+            object with the verbatim assembled system/user prompt. Ignored
+            (silently) for any other caller.
     DrawTarotReadingRequest:
       type: object
       required:
@@ -265,6 +274,15 @@ components:
         persistLocationToJournal:
           type: boolean
           description: Whether to persist location data with the journal entry.
+        includePromptDebug:
+          type: boolean
+          default: false
+          description: >
+            Diagnostic opt-in. When true AND the request is authenticated as
+            the service account (GPT_SERVICE_TOKEN) AND the backend has
+            PROMPT_DEBUG_ENABLED set, the response includes a `promptDebug`
+            object with the verbatim assembled system/user prompt. Ignored
+            (silently) for any other caller.
     DrawTarotReadingResponse:
       type: object
       required:
@@ -339,6 +357,8 @@ components:
             - type: object
               additionalProperties: true
             - type: "null"
+        promptDebug:
+          $ref: "#/components/schemas/PromptDebug"
     SpreadInfo:
       type: object
       required:
@@ -542,6 +562,34 @@ components:
             - type: object
               additionalProperties: true
             - type: "null"
+        promptDebug:
+          $ref: "#/components/schemas/PromptDebug"
+    PromptDebug:
+      type: object
+      additionalProperties: true
+      description: >
+        Diagnostic echo of the exact prompt the backend assembled for the
+        narrative model. Present only when the request set
+        `includePromptDebug: true`, the caller authenticated as the service
+        account, and the backend has `PROMPT_DEBUG_ENABLED` set. Absent for
+        readings served by the local composer, which uses no model prompt.
+        The prompt text is returned verbatim (unredacted).
+      properties:
+        templateVersion:
+          type: string
+          description: Reading prompt template version (READING_PROMPT_VERSION).
+        provider:
+          type: string
+          description: Narrative backend that assembled the prompt.
+          examples:
+            - openai-native
+            - azure-gpt5
+        systemPrompt:
+          type: string
+          description: Verbatim system prompt sent to the narrative model.
+        userPrompt:
+          type: string
+          description: Verbatim user prompt assembled from the cards and context.
     ErrorResponse:
       type: object
       additionalProperties: true

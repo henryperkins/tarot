@@ -96,6 +96,7 @@ import {
 } from '../lib/spreadAnalysisOrchestrator.js';
 import { buildReadingReasoning } from '../lib/narrative/reasoning.js';
 import { buildSelectiveEvalGatePolicy } from '../lib/evalGatePolicy.js';
+import { getReadingPromptVersion } from '../lib/promptVersioning.js';
 
 function parseBooleanLike(value, defaultValue = false) {
   if (value === undefined || value === null) return defaultValue;
@@ -113,6 +114,65 @@ function parseMismatchRate(value, fallback = 0.5) {
   const parsed = Number.parseFloat(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(1, Math.max(0, parsed));
+}
+
+/**
+ * Decide whether the assembled prompt (`promptDebug`) may be returned to the
+ * caller. All three conditions are required:
+ *   1. The request opted in via `includePromptDebug: true`.
+ *   2. `PROMPT_DEBUG_ENABLED` is set on the environment (off by default).
+ *   3. The caller authenticated as the trusted first-party service account
+ *      (`auth_provider === 'service'`, i.e. presented `GPT_SERVICE_TOKEN`).
+ *
+ * The system prompt contains proprietary instructions and the user prompt can
+ * carry PII (question, reflections, stored memories, retrieved passages), so
+ * exposure is deliberately restricted to the owner's own GPT integration and is
+ * never available to anonymous or ordinary authenticated callers.
+ *
+ * @param {Object} params
+ * @param {Object} params.env - Worker environment bindings
+ * @param {Object|null} params.user - Authenticated user (from getUserFromRequest)
+ * @param {boolean} params.requested - Whether the request set includePromptDebug
+ * @returns {{ allowed: boolean, reason: string }}
+ */
+export function resolvePromptDebugAccess({ env, user, requested } = {}) {
+  if (requested !== true) {
+    return { allowed: false, reason: 'not_requested' };
+  }
+  if (!parseBooleanLike(env?.PROMPT_DEBUG_ENABLED, false)) {
+    return { allowed: false, reason: 'disabled' };
+  }
+  if (user?.auth_provider !== 'service') {
+    return { allowed: false, reason: 'unauthorized' };
+  }
+  return { allowed: true, reason: 'service' };
+}
+
+/**
+ * Build the raw prompt-debug payload from the captured prompts.
+ *
+ * Returns null when no assembled prompt exists — e.g. the local composer, which
+ * produces readings deterministically without an LLM prompt (its captured
+ * prompts are null). Prompt text is returned verbatim (unredacted) by design;
+ * access is already gated to the trusted service account by
+ * resolvePromptDebugAccess before this runs.
+ *
+ * @param {Object} params
+ * @param {{ system?: string, user?: string }|null} params.capturedPrompts
+ * @param {string|null} params.provider - Backend that produced the prompt
+ * @param {Object|null} params.promptMeta - Narrative promptMeta (for version)
+ * @returns {Object|null}
+ */
+export function buildPromptDebugPayload({ capturedPrompts, provider = null, promptMeta = null } = {}) {
+  if (!capturedPrompts || (!capturedPrompts.system && !capturedPrompts.user)) {
+    return null;
+  }
+  return {
+    templateVersion: promptMeta?.readingPromptVersion || getReadingPromptVersion(),
+    provider: provider || null,
+    systemPrompt: capturedPrompts.system || null,
+    userPrompt: capturedPrompts.user || null
+  };
 }
 
 function resolveVisionMismatchPolicy(env) {
@@ -276,7 +336,8 @@ async function finalizeReading({
   gateOverride = null,
   gateNotice = null,
   evalGateEnv = env,
-  evalGatePolicy = null
+  evalGatePolicy = null,
+  promptDebugAllowed = false
 }) {
   const originalReading = reading;
   const originalProvider = provider;
@@ -532,6 +593,21 @@ async function finalizeReading({
     ...responseGateStatus
   };
 
+  // Diagnostic: return the assembled prompt verbatim when the caller is
+  // authorized (service account + PROMPT_DEBUG_ENABLED + opt-in). Uses the
+  // original provider/prompts even when the eval gate swapped in a safe
+  // fallback, since promptDebug describes what was actually assembled and sent.
+  if (promptDebugAllowed) {
+    const promptDebug = buildPromptDebugPayload({
+      capturedPrompts,
+      provider: originalProvider,
+      promptMeta
+    });
+    if (promptDebug) {
+      responsePayload.promptDebug = promptDebug;
+    }
+  }
+
   return {
     responsePayload,
     evalGateResult,
@@ -596,7 +672,8 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       deckStyle: requestDeckStyle,
       personalization: requestPersonalization,
       location: rawLocation,
-      persistLocationToJournal: _persistLocationToJournal // Used by journal endpoint, not reading
+      persistLocationToJournal: _persistLocationToJournal, // Used by journal endpoint, not reading
+      includePromptDebug
     } = normalizedPayload;
     const deckStyle = requestDeckStyle || spreadInfo?.deckStyle || 'rws-1909';
     const cardsInfo = rawCardsInfo.map((card) => {
@@ -666,6 +743,18 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     const user = await getUserFromRequest(request, env);
     const subscription = getSubscriptionContext(user);
     const subscriptionTier = subscription.effectiveTier;
+
+    // Resolve prompt-debug access once: only the trusted service account may
+    // receive the assembled prompt back, and only when PROMPT_DEBUG_ENABLED is
+    // set and the request opted in. See resolvePromptDebugAccess.
+    const promptDebugAccess = resolvePromptDebugAccess({
+      env,
+      user,
+      requested: includePromptDebug === true
+    });
+    if (includePromptDebug === true && !promptDebugAccess.allowed) {
+      console.log(`[${requestId}] promptDebug requested but not granted (${promptDebugAccess.reason})`);
+    }
 
     const {
       personalization,
@@ -1177,7 +1266,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               allowGateBlocking: true,
               gateOverride,
               evalGateEnv,
-              evalGatePolicy
+              evalGatePolicy,
+              promptDebugAllowed: promptDebugAccess.allowed
             });
 
             if (attemptAssignment) {
@@ -1202,6 +1292,14 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             : contextDiagnostics;
           const emotionalTone = deriveEmotionalTone(analysis.themes);
 
+          const streamPromptDebug = promptDebugAccess.allowed
+            ? buildPromptDebugPayload({
+              capturedPrompts,
+              provider: streamProvider,
+              promptMeta: narrativePayload.promptMeta
+            })
+            : null;
+
           const streamMeta = {
             requestId,
             provider: streamProvider,
@@ -1216,7 +1314,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             spreadAnalysis: buildSpreadAnalysisPayload(analysis),
             gateBlocked: false,
             gateReason: null,
-            backendErrors: null
+            backendErrors: null,
+            ...(streamPromptDebug ? { promptDebug: streamPromptDebug } : {})
           };
 
           const wrappedStream = wrapReadingStreamWithMetadata(transformedStream, {
@@ -1256,7 +1355,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 acceptedQualityMetrics: null,
                 allowGateBlocking: false,
                 evalGateEnv,
-                evalGatePolicy
+                evalGatePolicy,
+                promptDebugAllowed: promptDebugAccess.allowed
               });
               if (attemptAssignment) {
                 console.log(`[${requestId}] A/B assignment accepted: ${attemptAssignment.experimentId} → ${attemptAssignment.variantId} (provider: ${streamProvider})`);
@@ -1464,7 +1564,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       allowGateBlocking: true,
       gateOverride,
       evalGateEnv,
-      evalGatePolicy
+      evalGatePolicy,
+      promptDebugAllowed: promptDebugAccess.allowed
     });
 
     if (useStreaming) {
