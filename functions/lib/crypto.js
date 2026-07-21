@@ -46,3 +46,21 @@ export function timingSafeEqual(a, b) {
 
   return result === 0;
 }
+
+/**
+ * Compute the SHA-256 hash of a string and return it as lowercase hex.
+ *
+ * Useful for reducing secrets of arbitrary length to a fixed-width digest
+ * before a constant-time comparison, so the comparison itself cannot leak
+ * the secret's length through timing.
+ *
+ * @param {string} value - Input string to hash
+ * @returns {Promise<string>} Hex-encoded SHA-256 digest (64 chars)
+ */
+export async function sha256Hex(value) {
+  const data = new TextEncoder().encode(String(value));
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}

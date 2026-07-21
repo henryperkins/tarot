@@ -1,5 +1,6 @@
 import { validateApiKey } from './apiKeys.js';
 import { timingSafeEqual } from './crypto.js';
+import { resolveServiceUser } from './serviceAuth.js';
 
 /**
  * Authentication library for Mystic Tarot
@@ -415,17 +416,34 @@ export function isValidPassword(password) {
  * @returns {Promise<object|null>} User object or null if unauthenticated
  */
 export async function getUserFromRequest(request, env) {
-  // Defensive check: return null if DB is not available
-  // This prevents errors in routes that don't have DB binding
-  if (!env?.DB) {
-    return null;
-  }
-
   const authHeader = request.headers.get('Authorization');
 
   // Authorization: Bearer <token>
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
+
+    // Service-account path (trusted first-party integrations, e.g. the Custom
+    // GPT). Checked before the API-key/session paths — and before the DB guard
+    // below, since the token itself validates without a database — so an
+    // owner-configured GPT_SERVICE_TOKEN authenticates as a synthetic
+    // Plus-or-higher user without a Stripe-backed account. When env.DB *is*
+    // present this also provisions the backing users row that metering and
+    // journal writes need (see serviceAuth.ensureServiceUserRow). Skipped for
+    // sk_ keys, which are never service tokens, to avoid needless hashing.
+    // No-op unless GPT_SERVICE_TOKEN is set.
+    if (token && !token.startsWith('sk_')) {
+      const serviceUser = await resolveServiceUser(token, env);
+      if (serviceUser) {
+        return serviceUser;
+      }
+    }
+
+    // The remaining Bearer paths (API key, session token) need the DB.
+    // Defensive check: return null if DB is not available (routes without a
+    // DB binding).
+    if (!env?.DB) {
+      return null;
+    }
 
     // API key path (Bearer sk_...)
     if (token && token.startsWith('sk_')) {
@@ -457,10 +475,11 @@ export async function getUserFromRequest(request, env) {
     }
   }
 
-  // Fallback to session cookie
+  // Fallback to session cookie (needs the DB, so re-assert the guard here now
+  // that the top-level check has moved below the DB-less service path).
   const cookieHeader = request.headers.get('Cookie');
   const sessionToken = getSessionFromCookie(cookieHeader);
-  if (!sessionToken) return null;
+  if (!sessionToken || !env?.DB) return null;
 
   return validateSession(env.DB, sessionToken);
 }

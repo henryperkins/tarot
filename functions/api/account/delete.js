@@ -12,6 +12,7 @@
  */
 
 import { getUserFromRequest, clearSessionCookie, isSecureRequest } from '../../lib/auth.js';
+import { isMachineCredential } from '../../lib/entitlements.js';
 import { jsonResponse, readJsonBody } from '../../lib/utils.js';
 import { stripeRequest, fetchLatestStripeSubscription } from '../../lib/stripe.js';
 
@@ -153,7 +154,7 @@ export async function onRequestPost(context) {
       return jsonResponse({ error: 'Authentication required' }, { status: 401 });
     }
 
-    if (user.auth_provider === 'api_key') {
+    if (isMachineCredential(user)) {
       return jsonResponse({ error: 'Session authentication required' }, { status: 401 });
     }
 

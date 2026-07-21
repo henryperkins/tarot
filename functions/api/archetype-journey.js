@@ -13,6 +13,7 @@ import { getUserFromRequest } from '../lib/auth.js';
 import { trackPatterns } from '../lib/patternTracking.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { buildCorsHeaders } from '../lib/utils.js';
+import { isApiKeyUser, isMachineCredential } from '../lib/entitlements.js';
 
 const defaultDeps = { getUserFromRequest };
 
@@ -108,14 +109,18 @@ export async function onRequest(context, deps = defaultDeps) {
       });
     }
 
-    if (user.auth_provider === 'api_key') {
-      // Only allow API key access for card frequency; enforce plan/usage limits.
-      if (!isCardFrequency) {
-        return new Response(JSON.stringify({ error: 'Session authentication required' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
+    // Non-interactive credentials (API keys, service tokens) get card-frequency
+    // access at most; everything else here needs a real session.
+    if (isMachineCredential(user) && !isCardFrequency) {
+      return new Response(JSON.stringify({ error: 'Session authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Per-key API metering applies to API keys only — service tokens are
+    // exempt by design (see isMachineCredential in lib/entitlements.js).
+    if (isApiKeyUser(user)) {
       const apiLimit = await enforceApiCallLimit(env, user);
       if (!apiLimit.allowed) {
         return new Response(JSON.stringify(apiLimit.payload), {

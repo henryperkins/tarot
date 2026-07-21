@@ -10,7 +10,7 @@ Guidance for Claude Code when working with this repository.
 |-------|------|----------|
 | Frontend | React + Vite | `src/` |
 | Backend | Cloudflare Workers | `functions/api/` |
-| AI | OpenAI GPT-5.4 via Responses API (native or Azure; fallback: Claude/local composer) | `functions/api/tarot-reading.js` |
+| AI | OpenAI GPT-5.6-sol (high reasoning) via Responses API (native or Azure; fallback: Claude/local composer) | `functions/api/tarot-reading.js` |
 | Database | Cloudflare D1 | `migrations/*.sql` |
 | Storage | Cloudflare KV + D1 archival | Metrics, feedback |
 
@@ -115,7 +115,7 @@ npm run gate:design   # Verify design contract compliance
 2. **Ritual** — Knocks + cut position + question → `computeSeed()`
 3. **Draw** — `drawSpread()` uses seeded shuffle, assigns upright/reversed
 4. **Reveal** — Card flip animation, user reflections per card
-5. **Narrative** — OpenAI GPT-5.4 via Responses API (native `OPENAI_API_KEY`, or Azure; fallback: Claude/local composer)
+5. **Narrative** — OpenAI GPT-5.6-sol on high reasoning via Responses API (native `OPENAI_API_KEY`, or Azure; fallback: Claude/local composer)
 
 **Pipeline**: `spreadAnalysis.js` (dignities, reversals) + `knowledgeGraph.js` (patterns) → `graphContext.js` → `graphRAG.js` (passages) → `prompts.js` → AI → `evaluation.js` (async scoring)
 
@@ -401,3 +401,4 @@ Via `wrangler secret put`:
 - `VISION_PROOF_SECRET`
 - `RESEND_API_KEY` — Email delivery (auth verification/reset)
 - `ADMIN_API_KEY` — Admin endpoints
+- `GPT_SERVICE_TOKEN` — Bearer token for the Tableu Custom GPT / ChatGPT App; authenticates as a synthetic service user entitled at `GPT_SERVICE_TIER` (var, default `plus`). See `functions/lib/serviceAuth.js` and `docs/integrations/openai/`.

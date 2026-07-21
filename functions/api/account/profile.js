@@ -8,6 +8,7 @@
  */
 
 import { getUserFromRequest, isValidEmail, isValidUsername } from '../../lib/auth.js';
+import { isMachineCredential } from '../../lib/entitlements.js';
 import { jsonResponse, readJsonBody } from '../../lib/utils.js';
 import { sendVerificationEmail } from '../../lib/authNotifications.js';
 
@@ -21,7 +22,7 @@ export async function onRequestPatch(context) {
       return jsonResponse({ error: 'Authentication required' }, { status: 401 });
     }
 
-    if (user.auth_provider === 'api_key') {
+    if (isMachineCredential(user)) {
       return jsonResponse({ error: 'Session authentication required' }, { status: 401 });
     }
 

@@ -33,21 +33,29 @@ function runConfigCheck(devVarsText) {
 }
 
 describe('native OpenAI provider configuration', () => {
-  it('uses GPT-5.5 as the default native OpenAI Responses model', () => {
+  it('uses gpt-5.6-sol as the default native OpenAI Responses model', () => {
     const config = ensureAzureConfig({
       OPENAI_API_KEY: 'openai-test-key'
     });
 
     assert.equal(config.provider, 'openai-native');
-    assert.equal(config.model, 'gpt-5.5');
+    assert.equal(config.model, 'gpt-5.6-sol');
     assert.equal(config.url, 'https://api.openai.com/v1/responses');
     assert.deepEqual(config.authHeaders, { Authorization: 'Bearer openai-test-key' });
+  });
+
+  it('honors an explicit OPENAI_MODEL override', () => {
+    const config = ensureAzureConfig({
+      OPENAI_API_KEY: 'openai-test-key',
+      OPENAI_MODEL: 'gpt-5.6-sol-preview'
+    });
+    assert.equal(config.model, 'gpt-5.6-sol-preview');
   });
 
   it('accepts OPENAI_API_KEY as sufficient for AI-generated readings in config checks', () => {
     const output = runConfigCheck([
       'OPENAI_API_KEY=sk-test',
-      'OPENAI_MODEL=gpt-5.5'
+      'OPENAI_MODEL=gpt-5.6-sol'
     ].join('\n'));
 
     assert.match(output, /AI-generated readings \(OpenAI native\):/);

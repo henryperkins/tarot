@@ -34,6 +34,7 @@ import {
   stripeRequest
 } from '../lib/stripe.js';
 import { getTierConfig, isActiveStatus } from '../../shared/monetization/subscription.js';
+import { isMachineCredential } from '../lib/entitlements.js';
 
 const defaultDeps = {
   getUserFromRequest,
@@ -123,7 +124,7 @@ export async function onRequestPost(context, deps = defaultDeps) {
       return toJson({ error: 'Authentication required' }, { status: 401 });
     }
 
-    if (user.auth_provider === 'api_key') {
+    if (isMachineCredential(user)) {
       return toJson({ error: 'Session authentication required' }, { status: 401 });
     }
 

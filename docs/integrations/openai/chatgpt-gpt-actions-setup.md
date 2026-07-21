@@ -88,6 +88,57 @@ paths:
 - For per-user identity, use `OAuth`.
 - This backend already accepts `Authorization: Bearer sk_...` (see `functions/lib/auth.js`).
 
+### Service token (recommended for the owner's own GPT)
+
+Per-user `sk_...` API keys are **Pro-only** and must belong to a Stripe-backed
+account, so they can't be minted for a GPT that just needs Plus-level access
+(e.g. the Celtic Cross spread requires Plus). For a trusted first-party
+integration, configure a **service token** instead:
+
+1. Generate a long random secret and set it:
+
+   ```bash
+   openssl rand -hex 32 | wrangler secret put GPT_SERVICE_TOKEN
+   ```
+
+2. (Optional) Choose the entitlement tier — defaults to `plus`, clamped to
+   Plus-or-higher. Set `GPT_SERVICE_TIER` to `pro` in `wrangler.jsonc` to also
+   unlock custom spreads and unlimited readings.
+
+3. In GPT Builder, set the Action auth to **API Key** with **Auth Type:
+   `Bearer`**, and paste the same token value.
+
+Any request presenting `Authorization: Bearer <GPT_SERVICE_TOKEN>` then
+authenticates as a synthetic service user entitled at that tier
+(`auth_provider: 'service'`). It does **not** require a Stripe subscription and
+is not subject to the Pro-only, metered API-key limiter. When
+`GPT_SERVICE_TOKEN` is unset, auth behaves exactly as before.
+
+On first authenticated request the service account is provisioned a real row in
+`users` (id `service:gpt` by default). This is required, not cosmetic: per-user
+tables declare `FOREIGN KEY (user_id) REFERENCES users(id)` and D1 enforces
+foreign keys by default, so without the row every metering and journal write
+fails — and `enforceReadingLimit` swallows that failure, which would hand the
+service account unlimited unmetered readings. The row carries random, unusable
+credentials and a reserved `.invalid` address, so it can never be signed into or
+password-reset.
+
+Notes:
+
+- Use a long, random token. Values shorter than 24 chars are ignored.
+- Reading quota follows the tier: `plus` = 50 readings/mo (tracked under a
+  single service-account id), `pro` = unlimited. Override the id with
+  `GPT_SERVICE_USER_ID` if you want separate metering.
+- The token is a **machine credential**: account and billing endpoints
+  (profile, password, delete, Stripe checkout/portal, subscription restore)
+  reject it with `401 Session authentication required`, same as an API key.
+- `GPT_SERVICE_EMAIL` is a label for logs only. The backing row's address is
+  always derived from the id so a misconfigured value can't collide with a real
+  account and block provisioning.
+- Rotate by putting a new secret; the old token stops working immediately.
+  Rotation does not change the `users` row, so usage history carries over.
+- Implementation: `functions/lib/serviceAuth.js`, wired in `functions/lib/auth.js`.
+
 ## Instruction pattern to reduce tool-call errors
 
 - Example:
