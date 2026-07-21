@@ -176,6 +176,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: API Key
+      description: >
+        Bearer token. Either a per-user API key (`sk_...`, Pro-only) or the
+        configured service token (`GPT_SERVICE_TOKEN`), which authenticates as a
+        Plus-or-higher service account. Send as `Authorization: Bearer <token>`.
   schemas:
     CreateTarotReadingRequest:
       type: object

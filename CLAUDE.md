@@ -401,3 +401,4 @@ Via `wrangler secret put`:
 - `VISION_PROOF_SECRET`
 - `RESEND_API_KEY` — Email delivery (auth verification/reset)
 - `ADMIN_API_KEY` — Admin endpoints
+- `GPT_SERVICE_TOKEN` — Bearer token for the Tableu Custom GPT / ChatGPT App; authenticates as a synthetic service user entitled at `GPT_SERVICE_TIER` (var, default `plus`). See `functions/lib/serviceAuth.js` and `docs/integrations/openai/`.

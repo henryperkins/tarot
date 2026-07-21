@@ -101,6 +101,17 @@
     "ENABLE_TTS_DEBUG_LOGGING": "false",
     "ENABLE_SPEECH_TOKEN_DEBUG": "false",
     // -------------------------------------------------------------------------
+    // Service-account auth for the Tableu Custom GPT / ChatGPT App.
+    // When the GPT_SERVICE_TOKEN secret is set, requests bearing it
+    // (Authorization: Bearer <token>) authenticate as a synthetic service user
+    // entitled at GPT_SERVICE_TIER. This unblocks subscription-gated spreads
+    // (e.g. Celtic Cross needs Plus) for the owner's own GPT without a
+    // Stripe-backed account. Tier is clamped to Plus-or-higher: 'plus' | 'pro'.
+    // Optional overrides: GPT_SERVICE_USER_ID (usage-tracking id),
+    // GPT_SERVICE_EMAIL. See docs/integrations/openai/.
+    // -------------------------------------------------------------------------
+    "GPT_SERVICE_TIER": "plus",
+    // -------------------------------------------------------------------------
     // Vision validation backend settings (server-side only; UI still pins clip-default)
     // -------------------------------------------------------------------------
     "VISION_TIMEOUT_MS": "12000",
@@ -262,6 +273,10 @@
   //
   // Other
   // wrangler secret put VISION_PROOF_SECRET
+  //
+  // Custom GPT / ChatGPT App service-account token (Plus-or-higher access).
+  // Use a long random value, e.g. `openssl rand -hex 32`. Tier via GPT_SERVICE_TIER.
+  // wrangler secret put GPT_SERVICE_TOKEN
   //
   // Admin (for manual archival trigger)
   // wrangler secret put ADMIN_API_KEY

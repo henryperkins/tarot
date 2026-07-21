@@ -1,5 +1,6 @@
 import { validateApiKey } from './apiKeys.js';
 import { timingSafeEqual } from './crypto.js';
+import { resolveServiceUser } from './serviceAuth.js';
 
 /**
  * Authentication library for Mystic Tarot
@@ -426,6 +427,15 @@ export async function getUserFromRequest(request, env) {
   // Authorization: Bearer <token>
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
+
+    // Service-account path (trusted first-party integrations, e.g. the Custom
+    // GPT). Checked before the API-key/session paths so an owner-configured
+    // GPT_SERVICE_TOKEN authenticates as a synthetic Plus-or-higher user
+    // without a Stripe-backed account. No-op unless GPT_SERVICE_TOKEN is set.
+    const serviceUser = await resolveServiceUser(token, env);
+    if (serviceUser) {
+      return serviceUser;
+    }
 
     // API key path (Bearer sk_...)
     if (token && token.startsWith('sk_')) {
