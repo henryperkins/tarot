@@ -6,8 +6,11 @@ import {
   resolvePromptDebugAccess,
   buildPromptDebugPayload
 } from '../functions/api/tarot-reading.js';
+import { onRequestPost as drawTarotReading } from '../functions/api/tarot-reading-draw.js';
 import { safeParseReadingRequest } from '../shared/contracts/readingSchema.js';
 import { READING_PROMPT_VERSION } from '../functions/lib/promptVersioning.js';
+import { drawSpread } from '../src/lib/deck.js';
+import { hashString } from '../shared/utils.js';
 
 // A 24+ char token so isServiceAuthConfigured accepts it (MIN_SERVICE_TOKEN_LENGTH).
 const SERVICE_TOKEN = 'svc-tok-0123456789abcdef012345';
@@ -67,6 +70,31 @@ function mockAzureFetch() {
   return async () => new Response(
     JSON.stringify({
       output_text: MOCK_READING,
+      usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 }
+    }),
+    { status: 200, headers: { 'content-type': 'application/json' } }
+  );
+}
+
+// Build a mock narrative that names the given cards, so a backend-drawn hand
+// clears the card-coverage quality gate and the azure-gpt5 backend is accepted.
+function mockAzureFetchCovering(cardNames) {
+  const body = [
+    '### Opening',
+    '',
+    ...cardNames.map((name) => `**${name}** speaks to a fresh threshold for you.`),
+    '',
+    '### Guidance',
+    '',
+    'Move with curiosity and one clear step at a time.',
+    '',
+    '### Closing',
+    '',
+    'Your path clarifies as you move forward.'
+  ].join('\n');
+  return async () => new Response(
+    JSON.stringify({
+      output_text: body,
       usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 }
     }),
     { status: 200, headers: { 'content-type': 'application/json' } }
@@ -307,5 +335,68 @@ describe('tarot-reading promptDebug response', () => {
     const payload = await response.json();
     assert.equal(payload.provider, 'local-composer');
     assert.equal(payload.promptDebug, undefined);
+  });
+});
+
+describe('drawTarotReading promptDebug passthrough', () => {
+  it('forwards includePromptDebug and preserves promptDebug for the service account', async () => {
+    // The draw handler forwards the whole payload (incl. includePromptDebug)
+    // and the original auth header to the /api/tarot-reading pipeline, then
+    // spreads the inner response back out — so promptDebug must survive.
+    const seedStr = 'promptdebug-draw-seed';
+    const seed = (hashString(seedStr) >>> 0) || 0x9e3779b9; // mirror coerceSeed
+    const drawn = drawSpread({ spreadKey: 'single', useSeed: true, seed, includeMinors: true });
+    const cardNames = drawn.map((c) => c.name);
+
+    const request = makeRequest(
+      {
+        spreadInfo: { name: 'One-Card Insight', key: 'single' },
+        userQuestion: 'How can I support my friend Zephyrina?',
+        allowReversals: false,
+        seed: seedStr,
+        includePromptDebug: true
+      },
+      { authorization: `Bearer ${SERVICE_TOKEN}` }
+    );
+    const env = {
+      ...AZURE_ENV,
+      PROMPT_DEBUG_ENABLED: 'true',
+      GPT_SERVICE_TOKEN: SERVICE_TOKEN
+    };
+
+    await withMockedFetch(mockAzureFetchCovering(cardNames), async () => {
+      const response = await drawTarotReading({ request, env });
+      assert.equal(response.status, 200);
+      const payload = await response.json();
+      assert.ok(Array.isArray(payload.cardsInfo) && payload.cardsInfo.length === 1);
+      assert.equal(payload.provider, 'azure-gpt5');
+      assert.ok(payload.promptDebug, 'draw response should carry promptDebug');
+      assert.equal(payload.promptDebug.provider, 'azure-gpt5');
+      assert.match(payload.promptDebug.userPrompt, /Zephyrina/);
+    });
+  });
+
+  it('omits promptDebug on the draw path for anonymous callers', async () => {
+    const seedStr = 'promptdebug-draw-seed-anon';
+    const seed = (hashString(seedStr) >>> 0) || 0x9e3779b9;
+    const drawn = drawSpread({ spreadKey: 'single', useSeed: true, seed, includeMinors: true });
+    const cardNames = drawn.map((c) => c.name);
+
+    const request = makeRequest({
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      userQuestion: 'How can I move forward?',
+      allowReversals: false,
+      seed: seedStr,
+      includePromptDebug: true
+    });
+    const env = { ...AZURE_ENV, PROMPT_DEBUG_ENABLED: 'true' }; // no service token
+
+    await withMockedFetch(mockAzureFetchCovering(cardNames), async () => {
+      const response = await drawTarotReading({ request, env });
+      assert.equal(response.status, 200);
+      const payload = await response.json();
+      assert.equal(payload.provider, 'azure-gpt5');
+      assert.equal(payload.promptDebug, undefined);
+    });
   });
 });
