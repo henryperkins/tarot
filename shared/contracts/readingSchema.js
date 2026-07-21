@@ -5,14 +5,34 @@ import {
   PERSONALIZATION_REQUEST_EXPLICIT_FIELDS_KEY
 } from './personalizationConstants.js';
 
-const trimmedString = (label) =>
-  z
+// Bounds keep a single request from inflating the response past the 100,000
+// character ceiling GPT Actions enforces. These strings are counted twice: once
+// echoed back in `cardsInfo`, and again inside the assembled prompt that
+// promptDebug can return. Sized so the largest spread (10 cards) at every
+// maximum still leaves ~30% headroom — see the end-to-end size test in
+// tests/promptDebugHardening.test.mjs. Real values are far smaller: deck
+// meanings run ~100 characters.
+export const CARD_MEANING_MAX_LENGTH = 1000;
+export const CARD_REFLECTION_MAX_LENGTH = 2000;
+export const USER_QUESTION_MAX_LENGTH = 2000;
+export const REFLECTIONS_TEXT_MAX_LENGTH = 5000;
+// A reading cannot contain more cards than exist in the deck (78).
+export const MAXIMUM_CARD_COUNT = 78;
+
+const trimmedString = (label, maxLength = null) => {
+  const base = z
     .string({
       required_error: `${label || 'Value'} is required`,
       invalid_type_error: `${label || 'Value'} must be a string`
     })
     .transform((val) => val.trim())
     .refine((val) => val.length > 0, `${label || 'Value'} is required`);
+  if (!maxLength) return base;
+  return base.refine(
+    (val) => val.length <= maxLength,
+    `${label || 'Value'} must be at most ${maxLength} characters`
+  );
+};
 
 const orientationSchema = z.enum(['Upright', 'Reversed'], {
   errorMap: () => ({ message: 'orientation must be "Upright" or "Reversed"' })
@@ -20,13 +40,13 @@ const orientationSchema = z.enum(['Upright', 'Reversed'], {
 
 const optionalNumber = () => z.number().int().optional().nullable();
 
-const optionalCleanString = () =>
+const optionalCleanString = (maxLength = null) =>
   z.preprocess((value) => {
     if (value === undefined || value === null) return undefined;
     if (typeof value !== 'string') return value;
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
-  }, z.string().optional());
+  }, maxLength ? z.string().max(maxLength).optional() : z.string().optional());
 
 export const cardInfoSchema = z
   .object({
@@ -36,7 +56,7 @@ export const cardInfoSchema = z
     canonicalKey: z.string().min(1).optional().nullable(),
     aliases: z.array(z.string().min(1)).optional().default([]),
     orientation: orientationSchema,
-    meaning: trimmedString('meaning'),
+    meaning: trimmedString('meaning', CARD_MEANING_MAX_LENGTH),
     number: optionalNumber(),
     suit: z.string().min(1).optional().nullable(),
     rank: z.string().min(1).optional().nullable(),
@@ -47,7 +67,7 @@ export const cardInfoSchema = z
         if (typeof value !== 'string') return null;
         const trimmed = value.trim();
         return trimmed.length > 0 ? trimmed : null;
-      }, z.string().min(1).nullable()),
+      }, z.string().min(1).max(CARD_REFLECTION_MAX_LENGTH).nullable()),
     deckStyle: z.string().optional(),
     canonicalId: z.string().optional()
   })
@@ -97,9 +117,12 @@ const locationSchema = z
 
 export const readingRequestSchema = z.object({
   spreadInfo: spreadInfoSchema,
-  cardsInfo: z.array(cardInfoSchema).min(1, 'cardsInfo must include at least one card'),
-  userQuestion: optionalCleanString(),
-  reflectionsText: optionalCleanString(),
+  cardsInfo: z
+    .array(cardInfoSchema)
+    .min(1, 'cardsInfo must include at least one card')
+    .max(MAXIMUM_CARD_COUNT, `cardsInfo must not exceed the ${MAXIMUM_CARD_COUNT}-card deck`),
+  userQuestion: optionalCleanString(USER_QUESTION_MAX_LENGTH),
+  reflectionsText: optionalCleanString(REFLECTIONS_TEXT_MAX_LENGTH),
   reversalFrameworkOverride: optionalCleanString(),
   deckStyle: optionalCleanString(),
   visionProof: optionalVisionProofSchema.optional(),

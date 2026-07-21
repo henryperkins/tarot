@@ -14,6 +14,9 @@ import { hashString } from '../shared/utils.js';
 
 // A 24+ char token so isServiceAuthConfigured accepts it (MIN_SERVICE_TOKEN_LENGTH).
 const SERVICE_TOKEN = 'svc-tok-0123456789abcdef012345';
+// promptDebug is owner-gated, so the end-to-end cases authenticate with the
+// separate owner token rather than the shared service token.
+const OWNER_TOKEN = 'own-tok-0123456789abcdef012345';
 
 const SINGLE_CARD_PAYLOAD = {
   spreadInfo: { name: 'One-Card Insight' },
@@ -115,7 +118,9 @@ const AZURE_ENV = {
 // ---------------------------------------------------------------------------
 
 describe('resolvePromptDebugAccess', () => {
-  const serviceUser = { auth_provider: 'service' };
+  // The owner credential, not the shared service token — see
+  // tests/promptDebugHardening.test.mjs for why the two differ.
+  const serviceUser = { auth_provider: 'service', is_owner: true };
   const enabledEnv = { PROMPT_DEBUG_ENABLED: 'true' };
 
   it('denies when the request did not opt in', () => {
@@ -148,10 +153,10 @@ describe('resolvePromptDebugAccess', () => {
     }
   });
 
-  it('allows only the service account with flag on and opt-in', () => {
+  it('allows only the owner with flag on and opt-in', () => {
     const result = resolvePromptDebugAccess({ env: enabledEnv, user: serviceUser, requested: true });
     assert.equal(result.allowed, true);
-    assert.equal(result.reason, 'service');
+    assert.equal(result.reason, 'owner');
   });
 
   it('accepts truthy string forms of the flag', () => {
@@ -225,19 +230,20 @@ describe('readingRequestSchema includePromptDebug', () => {
 // ---------------------------------------------------------------------------
 
 describe('tarot-reading promptDebug response', () => {
-  it('returns the verbatim assembled prompt for the service account when enabled + opted in', async () => {
+  it('returns the verbatim assembled prompt for the owner when enabled + opted in', async () => {
     const request = makeRequest(
       {
         ...SINGLE_CARD_PAYLOAD,
         userQuestion: 'How can I support my friend Zephyrina?',
         includePromptDebug: true
       },
-      { authorization: `Bearer ${SERVICE_TOKEN}` }
+      { authorization: `Bearer ${OWNER_TOKEN}` }
     );
     const env = {
       ...AZURE_ENV,
       PROMPT_DEBUG_ENABLED: 'true',
-      GPT_SERVICE_TOKEN: SERVICE_TOKEN
+      GPT_SERVICE_TOKEN: SERVICE_TOKEN,
+      GPT_OWNER_TOKEN: OWNER_TOKEN
     };
 
     await withMockedFetch(mockAzureFetch(), async () => {
@@ -299,6 +305,29 @@ describe('tarot-reading promptDebug response', () => {
     });
   });
 
+  it('omits promptDebug for the shared service token even when enabled + opted in', async () => {
+    // The service token ships inside a Custom GPT that may be published, so any
+    // of that GPT's users could ask it to set includePromptDebug. Only the
+    // separate owner token unlocks the prompt.
+    const request = makeRequest(
+      { ...SINGLE_CARD_PAYLOAD, userQuestion: 'How can I move forward?', includePromptDebug: true },
+      { authorization: `Bearer ${SERVICE_TOKEN}` }
+    );
+    const env = {
+      ...AZURE_ENV,
+      PROMPT_DEBUG_ENABLED: 'true',
+      GPT_SERVICE_TOKEN: SERVICE_TOKEN,
+      GPT_OWNER_TOKEN: OWNER_TOKEN
+    };
+
+    await withMockedFetch(mockAzureFetch(), async () => {
+      const response = await onRequestPost({ request, env });
+      assert.equal(response.status, 200);
+      const payload = await response.json();
+      assert.equal(payload.promptDebug, undefined, 'the shared token must not expose the system prompt');
+    });
+  });
+
   it('omits promptDebug for non-service (anonymous) callers even when enabled + opted in', async () => {
     const request = makeRequest({
       ...SINGLE_CARD_PAYLOAD,
@@ -339,7 +368,7 @@ describe('tarot-reading promptDebug response', () => {
 });
 
 describe('drawTarotReading promptDebug passthrough', () => {
-  it('forwards includePromptDebug and preserves promptDebug for the service account', async () => {
+  it('forwards includePromptDebug and preserves promptDebug for the owner', async () => {
     // The draw handler forwards the whole payload (incl. includePromptDebug)
     // and the original auth header to the /api/tarot-reading pipeline, then
     // spreads the inner response back out — so promptDebug must survive.
@@ -356,12 +385,13 @@ describe('drawTarotReading promptDebug passthrough', () => {
         seed: seedStr,
         includePromptDebug: true
       },
-      { authorization: `Bearer ${SERVICE_TOKEN}` }
+      { authorization: `Bearer ${OWNER_TOKEN}` }
     );
     const env = {
       ...AZURE_ENV,
       PROMPT_DEBUG_ENABLED: 'true',
-      GPT_SERVICE_TOKEN: SERVICE_TOKEN
+      GPT_SERVICE_TOKEN: SERVICE_TOKEN,
+      GPT_OWNER_TOKEN: OWNER_TOKEN
     };
 
     await withMockedFetch(mockAzureFetchCovering(cardNames), async () => {

@@ -6,6 +6,7 @@ import { getQualityLevel, scoreQuestion } from '../lib/questionQuality';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useAutoGrow } from '../hooks/useAutoGrow';
+import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingSchema.js';
 
 export function QuestionInput({
   userQuestion,
@@ -128,6 +129,9 @@ export function QuestionInput({
           onKeyDown={handleKeyDown}
           placeholder={EXAMPLE_QUESTIONS[placeholderIndex]}
           rows={1}
+          // Mirrors the server contract so an over-long paste is trimmed here
+          // rather than rejected with a 400 after the ritual.
+          maxLength={USER_QUESTION_MAX_LENGTH}
           className="w-full bg-surface border border-primary/40 rounded-lg px-3 xs:px-4 py-3 pr-12 text-base text-main placeholder:text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all resize-none"
           // text-base (16px) prevents iOS zoom on focus
           onFocus={onFocus}

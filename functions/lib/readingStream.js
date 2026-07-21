@@ -84,7 +84,12 @@ export function createReadingStream(responsePayload, options = {}) {
     spreadAnalysis: responsePayload?.spreadAnalysis || null,
     gateBlocked: responsePayload?.gateBlocked || false,
     gateReason: responsePayload?.gateReason || null,
-    backendErrors: responsePayload?.backendErrors || null
+    backendErrors: responsePayload?.backendErrors || null,
+    // Mirrors the live-streaming path, which attaches promptDebug to its meta
+    // event. Without this the buffered branches silently drop an authorized
+    // caller's promptDebug. Omitted entirely when absent so unauthorized
+    // callers see no such key at all.
+    ...(responsePayload?.promptDebug ? { promptDebug: responsePayload.promptDebug } : {})
   };
 
   const donePayload = {

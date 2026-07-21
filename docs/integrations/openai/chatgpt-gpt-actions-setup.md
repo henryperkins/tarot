@@ -133,18 +133,27 @@ assembled from the cards so the GPT can inspect it. This is **off by default**
 and gated three ways — all required:
 
 1. **Env flag** — set `PROMPT_DEBUG_ENABLED=true` (var in `wrangler.jsonc`).
-   Unset/false disables the feature entirely.
-2. **Service account** — the request must authenticate with `GPT_SERVICE_TOKEN`
-   (`auth_provider: 'service'`). API-key, session, and anonymous callers never
-   receive `promptDebug`, even with the flag on.
+   Unset/false disables the feature entirely. Defaults to `false`.
+2. **Owner token** — the request must authenticate with `GPT_OWNER_TOKEN`, a
+   *separate* secret from `GPT_SERVICE_TOKEN`. Ordinary service-account callers,
+   API-key, session, and anonymous callers never receive `promptDebug`, even
+   with the flag on. When `GPT_OWNER_TOKEN` is unset nobody is an owner, so the
+   channel stays closed.
 3. **Opt-in** — the request body must set `includePromptDebug: true`.
+
+> **Why the owner token is separate.** `GPT_SERVICE_TOKEN` is embedded in a
+> Custom GPT. If that GPT is published, every one of its users can instruct it
+> to call this Action with `includePromptDebug: true` and read the system prompt
+> back. Service authentication proves "a trusted integration", never "the
+> owner" — so the two capabilities need two credentials. Put the owner token
+> only in a private GPT (or call the API directly with `curl`).
 
 When all three hold, the `200` response gains a `promptDebug` object containing
 the **verbatim (unredacted)** `systemPrompt` and `userPrompt`, plus
-`templateVersion` and the assembling `provider`. Because the system prompt holds
-proprietary instructions and the user prompt can carry PII (question,
-reflections, stored memories, retrieved passages), keep the flag off in any
-environment where the service token is not exclusively owner-controlled.
+`templateVersion`, the assembling `provider`, and a `truncated` flag. Each
+prompt is capped at 15,000 characters so the response stays under the
+100,000-character ceiling GPT Actions enforces; `truncated: true` means text was
+elided (marked inline).
 
 `promptDebug` is omitted when the reading is served by the local composer, which
 generates deterministically without an LLM prompt.
@@ -185,11 +194,25 @@ integration, configure a **service token** instead:
    openssl rand -hex 32 | wrangler secret put GPT_SERVICE_TOKEN
    ```
 
+   The token must **not** begin with `sk_` — that prefix is the per-user API-key
+   namespace, and such a token is routed to key validation and never matched as
+   a service token. A misconfigured `sk_` value is rejected at startup with a
+   warning rather than silently failing every request.
+
 2. (Optional) Choose the entitlement tier — defaults to `plus`, clamped to
    Plus-or-higher. Set `GPT_SERVICE_TIER` to `pro` in `wrangler.jsonc` to also
    unlock custom spreads and unlimited readings.
 
-3. In GPT Builder, set the Action auth to **API Key** with **Auth Type:
+3. (Optional) For owner-gated diagnostics, mint a second, never-shared token:
+
+   ```bash
+   openssl rand -hex 32 | wrangler secret put GPT_OWNER_TOKEN
+   ```
+
+   It authenticates as the same synthetic user but additionally unlocks
+   `promptDebug`. Use it only from a private GPT or direct API calls.
+
+4. In GPT Builder, set the Action auth to **API Key** with **Auth Type:
    `Bearer`**, and paste the same token value.
 
 Any request presenting `Authorization: Bearer <GPT_SERVICE_TOKEN>` then
@@ -202,10 +225,21 @@ On first authenticated request the service account is provisioned a real row in
 `users` (id `service:gpt` by default). This is required, not cosmetic: per-user
 tables declare `FOREIGN KEY (user_id) REFERENCES users(id)` and D1 enforces
 foreign keys by default, so without the row every metering and journal write
-fails — and `enforceReadingLimit` swallows that failure, which would hand the
-service account unlimited unmetered readings. The row carries random, unusable
-credentials and a reserved `.invalid` address, so it can never be signed into or
-password-reset.
+fails. The row carries random, unusable credentials and a reserved `.invalid`
+address, so it can never be signed into or password-reset. (Registration also
+refuses `.invalid` addresses, so the derived address cannot be squatted.)
+
+Provisioning is verified, and **authentication fails closed if it cannot be**:
+
+- If `GPT_SERVICE_USER_ID` names a row that is not a service account, the
+  request is rejected. Otherwise a misconfigured id pointing at a real person
+  would let the shared token act *as that person* — reading their memories and
+  reaching their media.
+- If the row cannot be created or read back at all (unique collision, D1 error),
+  the request is rejected rather than served unmetered.
+- If usage tracking then fails for a machine credential, the request is denied.
+  Interactive users still fail open, since a transient D1 blip should not block
+  a reading someone is waiting on.
 
 Notes:
 

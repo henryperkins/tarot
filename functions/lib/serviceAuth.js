@@ -46,6 +46,15 @@ const DEFAULT_SERVICE_TIER = 'plus';
 const ALLOWED_SERVICE_TIERS = new Set(['plus', 'pro']);
 const DEFAULT_SERVICE_USER_ID = 'service:gpt';
 
+// Reserved prefix for per-user API keys (`sk_...`). A service token must not
+// use it — see isServiceAuthConfigured.
+const API_KEY_PREFIX = 'sk_';
+
+// `auth_provider` value stamped on the backing row. Provisioning requires the
+// row to carry this, so GPT_SERVICE_USER_ID can never resolve onto a human
+// account.
+const SERVICE_AUTH_PROVIDER = 'service';
+
 // Per-isolate memo of service ids whose `users` row is known to exist, so the
 // provisioning round-trip happens once per isolate rather than per request.
 const ensuredServiceUserIds = new Set();
@@ -71,26 +80,88 @@ export function resolveServiceTier(env) {
  */
 export function isServiceAuthConfigured(env) {
   const token = typeof env?.GPT_SERVICE_TOKEN === 'string' ? env.GPT_SERVICE_TOKEN : '';
-  return token.length >= MIN_SERVICE_TOKEN_LENGTH;
+  if (token.length < MIN_SERVICE_TOKEN_LENGTH) return false;
+  // `sk_` is the per-user API-key namespace. getUserFromRequest routes those
+  // tokens straight to validateApiKey and never attempts service matching, so
+  // an `sk_` service token would silently never authenticate. Reject it here so
+  // the misconfiguration surfaces as a startup-time warning rather than as a
+  // mystery 401 on every request.
+  return !token.startsWith(API_KEY_PREFIX);
 }
 
-// Warn at most once per isolate about a misconfigured (too-short) token —
-// matchesServiceToken runs on every Bearer request, so an unconditional warn
-// would spam logs (and log-ingestion cost) on each one.
-let hasWarnedShortToken = false;
+// Warn at most once per isolate about a misconfigured token — matchesServiceToken
+// runs on every Bearer request, so an unconditional warn would spam logs (and
+// log-ingestion cost) on each one.
+let hasWarnedBadToken = false;
 
-// The configured token is static for the isolate's lifetime, so memoize its
-// digest instead of re-hashing it on every request. Keyed on the raw value so a
-// rotated token (new value) recomputes rather than returning a stale hash.
-let cachedExpectedToken = null;
-let cachedExpectedHashPromise = null;
+function warnMisconfiguredToken(token) {
+  if (hasWarnedBadToken) return;
+  hasWarnedBadToken = true;
+  const reason = token.startsWith(API_KEY_PREFIX)
+    ? `it uses the "${API_KEY_PREFIX}" API-key prefix, which is routed to per-user key validation and never matched as a service token`
+    : `it is shorter than the ${MIN_SERVICE_TOKEN_LENGTH}-char minimum`;
+  console.warn(`[serviceAuth] GPT_SERVICE_TOKEN is set but ignored: ${reason}.`);
+}
+
+// Configured tokens are static for the isolate's lifetime, so memoize their
+// digests instead of re-hashing on every request. Only the *expected* (config)
+// side is cached — never the caller-presented value, which is unbounded and
+// attacker-controlled. Keyed on the raw value so a rotated token recomputes
+// rather than returning a stale hash.
+const expectedHashCache = new Map();
 
 function getExpectedTokenHash(configuredToken) {
-  if (configuredToken !== cachedExpectedToken) {
-    cachedExpectedToken = configuredToken;
-    cachedExpectedHashPromise = sha256Hex(configuredToken);
+  let promise = expectedHashCache.get(configuredToken);
+  if (!promise) {
+    promise = sha256Hex(configuredToken);
+    expectedHashCache.set(configuredToken, promise);
   }
-  return cachedExpectedHashPromise;
+  return promise;
+}
+
+/**
+ * Constant-time comparison of a presented token against a configured one.
+ * Both sides are SHA-256 hashed first so the comparison is fixed-width and
+ * cannot leak length through timing.
+ */
+async function tokenMatches(presentedToken, configuredToken) {
+  const [presented, expected] = await Promise.all([
+    sha256Hex(presentedToken),
+    getExpectedTokenHash(configuredToken)
+  ]);
+  return timingSafeEqual(presented, expected);
+}
+
+/**
+ * Whether an owner credential is configured.
+ *
+ * `GPT_OWNER_TOKEN` is a *separate*, strictly owner-held secret. It exists
+ * because `GPT_SERVICE_TOKEN` is shared: it is embedded in a Custom GPT that
+ * may be published, so anyone who can talk to that GPT can induce it to call
+ * this API. Service auth therefore proves "a trusted integration", never "the
+ * owner". Capabilities that expose proprietary or sensitive internals (today:
+ * `promptDebug`) require this token instead.
+ *
+ * @param {object} env - Worker environment bindings
+ * @returns {boolean}
+ */
+export function isOwnerAuthConfigured(env) {
+  const token = typeof env?.GPT_OWNER_TOKEN === 'string' ? env.GPT_OWNER_TOKEN : '';
+  return token.length >= MIN_SERVICE_TOKEN_LENGTH && !token.startsWith(API_KEY_PREFIX);
+}
+
+/**
+ * Constant-time check that a presented bearer token is the owner token.
+ * Always false when no owner token is configured, so ownership fails closed.
+ *
+ * @param {string} token - Bearer token presented by the caller
+ * @param {object} env - Worker environment bindings
+ * @returns {Promise<boolean>}
+ */
+export async function matchesOwnerToken(token, env) {
+  if (typeof token !== 'string' || !token) return false;
+  if (!isOwnerAuthConfigured(env)) return false;
+  return tokenMatches(token, env.GPT_OWNER_TOKEN);
 }
 
 /**
@@ -105,20 +176,13 @@ function getExpectedTokenHash(configuredToken) {
 export async function matchesServiceToken(token, env) {
   if (typeof token !== 'string' || !token) return false;
   if (!isServiceAuthConfigured(env)) {
-    if (typeof env?.GPT_SERVICE_TOKEN === 'string' && env.GPT_SERVICE_TOKEN.length > 0 && !hasWarnedShortToken) {
-      hasWarnedShortToken = true;
-      console.warn(
-        `[serviceAuth] GPT_SERVICE_TOKEN is set but shorter than the ${MIN_SERVICE_TOKEN_LENGTH}-char minimum; ignoring it.`
-      );
+    if (typeof env?.GPT_SERVICE_TOKEN === 'string' && env.GPT_SERVICE_TOKEN.length > 0) {
+      warnMisconfiguredToken(env.GPT_SERVICE_TOKEN);
     }
     return false;
   }
 
-  const [presented, expected] = await Promise.all([
-    sha256Hex(token),
-    getExpectedTokenHash(env.GPT_SERVICE_TOKEN)
-  ]);
-  return timingSafeEqual(presented, expected);
+  return tokenMatches(token, env.GPT_SERVICE_TOKEN);
 }
 
 /**
@@ -133,7 +197,7 @@ export async function matchesServiceToken(token, env) {
  * @param {object} env - Worker environment bindings
  * @returns {object} Synthetic user
  */
-export function buildServiceUser(env) {
+export function buildServiceUser(env, { isOwner = false } = {}) {
   const tier = resolveServiceTier(env);
   const rawId = typeof env?.GPT_SERVICE_USER_ID === 'string' ? env.GPT_SERVICE_USER_ID.trim() : '';
   const rawEmail = typeof env?.GPT_SERVICE_EMAIL === 'string' ? env.GPT_SERVICE_EMAIL.trim() : '';
@@ -147,7 +211,10 @@ export function buildServiceUser(env) {
     stripe_customer_id: null,
     email_verified: true,
     auth_provider: 'service',
-    is_service_account: true
+    is_service_account: true,
+    // True only when the caller presented GPT_OWNER_TOKEN. The shared service
+    // token never implies ownership — see isOwnerAuthConfigured.
+    is_owner: isOwner === true
   };
 }
 
@@ -238,12 +305,27 @@ export async function ensureServiceUserRow(env, user) {
 
     // Verify rather than trust: OR IGNORE also swallows a unique-constraint
     // collision on email/username, which would leave the FK unsatisfied.
-    const row = await db.prepare('SELECT id FROM users WHERE id = ?').bind(id).first();
+    const row = await db
+      .prepare('SELECT id, auth_provider FROM users WHERE id = ?')
+      .bind(id)
+      .first();
     if (!row) {
       console.error(
         `[serviceAuth] Could not provision the users row for "${id}" — it is still absent after INSERT OR IGNORE, ` +
-        'likely a unique-constraint collision on email/username. Reading quota will not be enforced and journal ' +
-        'saves will fail until this is resolved.'
+        'likely a unique-constraint collision on email/username. Refusing to authenticate.'
+      );
+      return false;
+    }
+
+    // The id already existed. Existence alone is not enough: a misconfigured
+    // GPT_SERVICE_USER_ID pointing at a real account would otherwise let the
+    // shared service token authenticate *as that person* — reading their
+    // memories and reaching their media. Only a row we own is acceptable.
+    if (row.auth_provider !== SERVICE_AUTH_PROVIDER) {
+      console.error(
+        `[serviceAuth] GPT_SERVICE_USER_ID "${id}" refers to an existing account that is not a service account ` +
+        `(auth_provider="${row.auth_provider || 'unknown'}"). Refusing to authenticate as it. ` +
+        'Choose an unused id (conventionally prefixed "service:").'
       );
       return false;
     }
@@ -253,7 +335,7 @@ export async function ensureServiceUserRow(env, user) {
   } catch (error) {
     console.error(
       `[serviceAuth] Failed to provision the users row for "${id}": ${error?.message || error}. ` +
-      'Reading quota will not be enforced and journal saves will fail until this is resolved.'
+      'Refusing to authenticate.'
     );
     return false;
   }
@@ -268,12 +350,25 @@ export async function ensureServiceUserRow(env, user) {
  * @returns {Promise<object|null>}
  */
 export async function resolveServiceUser(token, env) {
-  const matched = await matchesServiceToken(token, env);
-  if (!matched) return null;
+  // Owner first: it is the strictly stronger credential, and both map to the
+  // same synthetic identity — only the privilege level differs.
+  const isOwner = await matchesOwnerToken(token, env);
+  if (!isOwner && !(await matchesServiceToken(token, env))) return null;
 
-  const user = buildServiceUser(env);
+  const user = buildServiceUser(env, { isOwner });
   // Awaited, not fire-and-forget: downstream writes on this same request
   // (usage_tracking, journal_entries) need the row to already exist.
-  await ensureServiceUserRow(env, user);
+  const provisioned = await ensureServiceUserRow(env, user);
+
+  // Fail closed when a database is bound but the backing row could not be
+  // verified. Authenticating anyway is not merely degraded — `enforceReadingLimit`
+  // swallows the resulting FK failure and returns allowed:true, so the account
+  // would get unlimited unmetered readings; and if the id collided with a real
+  // user, the token would act as that person. Envs with no DB binding need no
+  // row (nothing to meter, no FK to satisfy), so they stay allowed.
+  if (env?.DB && !provisioned) {
+    return null;
+  }
+
   return user;
 }

@@ -103,15 +103,15 @@
     "PERSIST_PROMPTS": "false",
     "SKIP_PII_REDACTION": "false",
     // PROMPT_DEBUG_ENABLED: when "true", the /api/tarot-reading response may
-    // return the verbatim assembled prompt as `promptDebug`. Additionally gated
-    // on the caller being the GPT service account (GPT_SERVICE_TOKEN) and the
-    // request setting includePromptDebug=true. Keep "false" in production unless
-    // the service token is exclusively owner-controlled.
-    // Enabled: the service token is owner-controlled (the Tableu Custom GPT).
-    // Note this makes the system prompt reachable by anyone who can get that GPT
-    // to send includePromptDebug=true — set back to "false" if the GPT is
-    // published beyond the owner.
-    "PROMPT_DEBUG_ENABLED": "true",
+    // return the verbatim assembled prompt as `promptDebug`. This is the master
+    // switch; it is NOT sufficient on its own. Access additionally requires:
+    //   - the request setting includePromptDebug=true, and
+    //   - the caller presenting GPT_OWNER_TOKEN (not GPT_SERVICE_TOKEN).
+    // The distinction matters: GPT_SERVICE_TOKEN is embedded in a Custom GPT
+    // that may be published, so any user of that GPT can induce it to request
+    // promptDebug. GPT_OWNER_TOKEN is never shared, so ownership fails closed
+    // when it is unset — which is the default.
+    "PROMPT_DEBUG_ENABLED": "false",
     "ENABLE_TTS_DEBUG_LOGGING": "false",
     "ENABLE_SPEECH_TOKEN_DEBUG": "false",
     // -------------------------------------------------------------------------
@@ -123,6 +123,15 @@
     // Stripe-backed account. Tier is clamped to Plus-or-higher: 'plus' | 'pro'.
     // Optional overrides: GPT_SERVICE_USER_ID (usage-tracking id),
     // GPT_SERVICE_EMAIL. See docs/integrations/openai/.
+    //
+    // GPT_SERVICE_USER_ID must name an id that either does not exist yet or is
+    // already a service row; provisioning refuses to authenticate onto an
+    // existing human account. Neither token may use the "sk_" prefix, which is
+    // the per-user API-key namespace.
+    //
+    // GPT_OWNER_TOKEN (secret, optional) is a separate owner-only bearer token.
+    // It authenticates as the same synthetic user but additionally unlocks
+    // owner-gated diagnostics (promptDebug). Leave unset unless you need them.
     // -------------------------------------------------------------------------
     "GPT_SERVICE_TIER": "plus",
     // -------------------------------------------------------------------------

@@ -386,7 +386,13 @@ export function isSecureRequest(request) {
  */
 export function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  if (!emailRegex.test(email)) return false;
+  // `.invalid` is reserved by RFC 2606 and is never deliverable, so it has no
+  // legitimate use at registration. It is also the TLD the service account's
+  // derived backing address uses (`service:<id>@service.invalid`); allowing
+  // signups there would let someone squat that address and permanently block
+  // service-row provisioning.
+  return !/\.invalid$/i.test(email.trim());
 }
 
 /**

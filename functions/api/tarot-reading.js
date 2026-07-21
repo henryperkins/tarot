@@ -145,7 +145,15 @@ export function resolvePromptDebugAccess({ env, user, requested } = {}) {
   if (user?.auth_provider !== 'service') {
     return { allowed: false, reason: 'unauthorized' };
   }
-  return { allowed: true, reason: 'service' };
+  // Service auth proves "a trusted integration", not "the owner". The service
+  // token lives inside a Custom GPT that may be published, so any user of that
+  // GPT can induce it to send includePromptDebug=true. Ownership needs its own
+  // secret (GPT_OWNER_TOKEN); when none is configured nobody is an owner and
+  // the channel stays closed.
+  if (user?.is_owner !== true) {
+    return { allowed: false, reason: 'not_owner' };
+  }
+  return { allowed: true, reason: 'owner' };
 }
 
 /**
@@ -163,15 +171,35 @@ export function resolvePromptDebugAccess({ env, user, requested } = {}) {
  * @param {Object|null} params.promptMeta - Narrative promptMeta (for version)
  * @returns {Object|null}
  */
+/**
+ * Per-prompt character budget. GPT Actions reject responses over 100,000
+ * characters, and promptDebug rides alongside the reading itself, so both
+ * prompts together must leave ample headroom.
+ */
+export const PROMPT_DEBUG_MAX_PROMPT_CHARS = 15000;
+
+function truncateForPromptDebug(text) {
+  if (typeof text !== 'string' || !text) return { text: text || null, truncated: false };
+  if (text.length <= PROMPT_DEBUG_MAX_PROMPT_CHARS) return { text, truncated: false };
+  const marker = `\n\n… [truncated: ${text.length} chars total, showing the first ${PROMPT_DEBUG_MAX_PROMPT_CHARS}]`;
+  return {
+    text: `${text.slice(0, PROMPT_DEBUG_MAX_PROMPT_CHARS - marker.length)}${marker}`,
+    truncated: true
+  };
+}
+
 export function buildPromptDebugPayload({ capturedPrompts, provider = null, promptMeta = null } = {}) {
   if (!capturedPrompts || (!capturedPrompts.system && !capturedPrompts.user)) {
     return null;
   }
+  const system = truncateForPromptDebug(capturedPrompts.system);
+  const user = truncateForPromptDebug(capturedPrompts.user);
   return {
     templateVersion: promptMeta?.readingPromptVersion || getReadingPromptVersion(),
     provider: provider || null,
-    systemPrompt: capturedPrompts.system || null,
-    userPrompt: capturedPrompts.user || null
+    systemPrompt: system.text,
+    userPrompt: user.text,
+    truncated: system.truncated || user.truncated
   };
 }
 

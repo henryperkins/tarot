@@ -221,11 +221,12 @@ components:
           type: boolean
           default: false
           description: >
-            Diagnostic opt-in. When true AND the request is authenticated as
-            the service account (GPT_SERVICE_TOKEN) AND the backend has
-            PROMPT_DEBUG_ENABLED set, the response includes a `promptDebug`
-            object with the verbatim assembled system/user prompt. Ignored
-            (silently) for any other caller.
+            Diagnostic opt-in, owner-only. When true AND the request is
+            authenticated with the owner token (GPT_OWNER_TOKEN, not the shared
+            GPT_SERVICE_TOKEN) AND the backend has PROMPT_DEBUG_ENABLED set, the
+            response includes a `promptDebug` object with the assembled
+            system/user prompt. Ignored (silently) for every other caller,
+            including ordinary service-account callers.
     DrawTarotReadingRequest:
       type: object
       required:
@@ -278,11 +279,12 @@ components:
           type: boolean
           default: false
           description: >
-            Diagnostic opt-in. When true AND the request is authenticated as
-            the service account (GPT_SERVICE_TOKEN) AND the backend has
-            PROMPT_DEBUG_ENABLED set, the response includes a `promptDebug`
-            object with the verbatim assembled system/user prompt. Ignored
-            (silently) for any other caller.
+            Diagnostic opt-in, owner-only. When true AND the request is
+            authenticated with the owner token (GPT_OWNER_TOKEN, not the shared
+            GPT_SERVICE_TOKEN) AND the backend has PROMPT_DEBUG_ENABLED set, the
+            response includes a `promptDebug` object with the assembled
+            system/user prompt. Ignored (silently) for every other caller,
+            including ordinary service-account callers.
     DrawTarotReadingResponse:
       type: object
       required:
@@ -570,10 +572,12 @@ components:
       description: >
         Diagnostic echo of the exact prompt the backend assembled for the
         narrative model. Present only when the request set
-        `includePromptDebug: true`, the caller authenticated as the service
-        account, and the backend has `PROMPT_DEBUG_ENABLED` set. Absent for
-        readings served by the local composer, which uses no model prompt.
-        The prompt text is returned verbatim (unredacted).
+        `includePromptDebug: true`, the caller authenticated with the owner
+        token (`GPT_OWNER_TOKEN`), and the backend has `PROMPT_DEBUG_ENABLED`
+        set. Absent for readings served by the local composer, which uses no
+        model prompt. Prompt text is unredacted, and each prompt is truncated to
+        20,000 characters so the response stays under the 100,000-character
+        Actions ceiling.
       properties:
         templateVersion:
           type: string
@@ -590,6 +594,11 @@ components:
         userPrompt:
           type: string
           description: Verbatim user prompt assembled from the cards and context.
+        truncated:
+          type: boolean
+          description: >
+            True when either prompt exceeded the 20,000-character budget and was
+            cut short. The elided text is marked inline.
     ErrorResponse:
       type: object
       additionalProperties: true

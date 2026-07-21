@@ -15,7 +15,7 @@ This guide is the current starting point for engineers working in the Tableu rep
 Common local variables include:
 
 - `OPENAI_API_KEY`
-- `OPENAI_MODEL` (defaults to `gpt-5.5` when omitted)
+- `OPENAI_MODEL` (defaults to `gpt-5.6-sol` when omitted)
 - `OPENAI_STREAMING_ENABLED`
 - Azure OpenAI fallback variables, if not using native OpenAI for readings:
   - `AZURE_OPENAI_ENDPOINT`

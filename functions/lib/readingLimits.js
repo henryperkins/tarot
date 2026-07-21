@@ -15,6 +15,7 @@ import {
   incrementUsageCounter
 } from './usageTracking.js';
 import { getHashedClientIdentifier } from './clientId.js';
+import { isMachineCredential } from './entitlements.js';
 
 // ============================================================================
 // Constants
@@ -163,6 +164,21 @@ export async function enforceReadingLimit(env, request, user, subscription, requ
         reservation: { type: 'd1', userId: user.id, month }
       };
     } catch (error) {
+      // Machine credentials fail closed. A service token or API key is a program
+      // that will keep calling, so "unmeterable" means unlimited and unbilled —
+      // and a missing backing users row surfaces here as exactly this error.
+      // Interactive users fail open: a transient D1 blip should not block a
+      // reading someone is waiting on.
+      if (isMachineCredential(user)) {
+        console.error(`[${requestId}] Usage tracking error (denying machine credential):`, error.message);
+        return {
+          allowed: false,
+          used: 0,
+          limit: limit === Infinity ? null : limit,
+          resetAt,
+          message: 'Usage tracking is temporarily unavailable. Please retry shortly.'
+        };
+      }
       console.error(`[${requestId}] Usage tracking error (allowing request):`, error.message);
       return { allowed: true, used: 0, limit: limit === Infinity ? null : limit, resetAt };
     }

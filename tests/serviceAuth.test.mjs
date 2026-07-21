@@ -184,14 +184,23 @@ class FakeDB {
                 (u) => u.email === email || u.username === username
               );
               if (db.users.has(id) || collides) return { meta: { changes: 0 } };
-              db.users.set(id, { id, email, username, password_hash, password_salt });
+              // The real INSERT stamps auth_provider='service'; provisioning
+              // reads it back to prove the row is one we own.
+              db.users.set(id, {
+                id,
+                email,
+                username,
+                password_hash,
+                password_salt,
+                auth_provider: 'service'
+              });
               return { meta: { changes: 1 } };
             }
             return { meta: { changes: 0 } };
           },
           async first() {
             db.statements.push({ sql, args });
-            if (/SELECT id FROM users WHERE id = \?/i.test(sql)) {
+            if (/FROM users WHERE id = \?/i.test(sql)) {
               return db.users.get(args[0]) || null;
             }
             return null;
