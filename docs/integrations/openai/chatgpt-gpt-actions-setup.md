@@ -114,13 +114,29 @@ authenticates as a synthetic service user entitled at that tier
 is not subject to the Pro-only, metered API-key limiter. When
 `GPT_SERVICE_TOKEN` is unset, auth behaves exactly as before.
 
+On first authenticated request the service account is provisioned a real row in
+`users` (id `service:gpt` by default). This is required, not cosmetic: per-user
+tables declare `FOREIGN KEY (user_id) REFERENCES users(id)` and D1 enforces
+foreign keys by default, so without the row every metering and journal write
+fails — and `enforceReadingLimit` swallows that failure, which would hand the
+service account unlimited unmetered readings. The row carries random, unusable
+credentials and a reserved `.invalid` address, so it can never be signed into or
+password-reset.
+
 Notes:
 
 - Use a long, random token. Values shorter than 24 chars are ignored.
 - Reading quota follows the tier: `plus` = 50 readings/mo (tracked under a
   single service-account id), `pro` = unlimited. Override the id with
   `GPT_SERVICE_USER_ID` if you want separate metering.
+- The token is a **machine credential**: account and billing endpoints
+  (profile, password, delete, Stripe checkout/portal, subscription restore)
+  reject it with `401 Session authentication required`, same as an API key.
+- `GPT_SERVICE_EMAIL` is a label for logs only. The backing row's address is
+  always derived from the id so a misconfigured value can't collide with a real
+  account and block provisioning.
 - Rotate by putting a new secret; the old token stops working immediately.
+  Rotation does not change the `users` row, so usage history carries over.
 - Implementation: `functions/lib/serviceAuth.js`, wired in `functions/lib/auth.js`.
 
 ## Instruction pattern to reduce tool-call errors

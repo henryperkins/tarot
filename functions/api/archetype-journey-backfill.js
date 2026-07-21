@@ -11,6 +11,7 @@
 
 import { getUserFromRequest } from '../lib/auth.js';
 import { buildCorsHeaders } from '../lib/utils.js';
+import { isMachineCredential } from '../lib/entitlements.js';
 
 /**
  * Parse cards from journal entry
@@ -74,7 +75,7 @@ export async function onRequest(context) {
       });
     }
 
-    if (user.auth_provider === 'api_key') {
+    if (isMachineCredential(user)) {
       return new Response(JSON.stringify({ error: 'Session authentication required' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

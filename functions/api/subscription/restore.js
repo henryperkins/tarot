@@ -15,6 +15,7 @@ import {
   fetchLatestStripeSubscription
 } from '../../lib/stripe.js';
 import { getClientIdentifier } from '../../lib/clientId.js';
+import { isMachineCredential } from '../../lib/entitlements.js';
 
 const RESTORE_RATE_LIMIT_KEY_PREFIX = 'restore-rate';
 const RESTORE_RATE_LIMIT_MAX = 5;
@@ -69,7 +70,7 @@ export async function onRequestPost(context) {
       return jsonResponse({ error: 'Authentication required' }, { status: 401 });
     }
 
-    if (user.auth_provider === 'api_key') {
+    if (isMachineCredential(user)) {
       return jsonResponse({ error: 'Session authentication required' }, { status: 401 });
     }
 

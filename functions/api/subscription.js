@@ -13,6 +13,7 @@ import {
   extractTierFromSubscription,
   fetchLatestStripeSubscription
 } from '../lib/stripe.js';
+import { isMachineCredential } from '../lib/entitlements.js';
 
 function getStripeDates(subscription) {
   const toMs = (value) => (value ? value * 1000 : null);
@@ -34,7 +35,7 @@ export async function onRequestGet(context) {
       return jsonResponse({ error: 'Authentication required' }, { status: 401 });
     }
 
-    if (user.auth_provider === 'api_key') {
+    if (isMachineCredential(user)) {
       return jsonResponse({ error: 'Session authentication required' }, { status: 401 });
     }
 

@@ -424,11 +424,13 @@ export async function getUserFromRequest(request, env) {
 
     // Service-account path (trusted first-party integrations, e.g. the Custom
     // GPT). Checked before the API-key/session paths — and before the DB guard
-    // below, since service tokens need no database — so an owner-configured
-    // GPT_SERVICE_TOKEN authenticates as a synthetic Plus-or-higher user
-    // without a Stripe-backed account. Skipped for sk_ keys, which are never
-    // service tokens, to avoid needless hashing. No-op unless GPT_SERVICE_TOKEN
-    // is set.
+    // below, since the token itself validates without a database — so an
+    // owner-configured GPT_SERVICE_TOKEN authenticates as a synthetic
+    // Plus-or-higher user without a Stripe-backed account. When env.DB *is*
+    // present this also provisions the backing users row that metering and
+    // journal writes need (see serviceAuth.ensureServiceUserRow). Skipped for
+    // sk_ keys, which are never service tokens, to avoid needless hashing.
+    // No-op unless GPT_SERVICE_TOKEN is set.
     if (token && !token.startsWith('sk_')) {
       const serviceUser = await resolveServiceUser(token, env);
       if (serviceUser) {

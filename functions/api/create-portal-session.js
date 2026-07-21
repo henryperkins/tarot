@@ -14,6 +14,7 @@ import { getUserFromRequest } from '../lib/auth.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { sanitizeRedirectUrl } from '../lib/urlSafety.js';
 import { stripeRequest } from '../lib/stripe.js';
+import { isMachineCredential } from '../lib/entitlements.js';
 
 const defaultDeps = {
   getUserFromRequest,
@@ -44,7 +45,7 @@ export async function onRequestPost(context, deps = defaultDeps) {
       return toJson({ error: 'Authentication required', code: 'AUTH_REQUIRED' }, { status: 401 });
     }
 
-    if (user.auth_provider === 'api_key') {
+    if (isMachineCredential(user)) {
       return toJson({ error: 'Session authentication required', code: 'SESSION_REQUIRED' }, { status: 401 });
     }
 
