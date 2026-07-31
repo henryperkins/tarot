@@ -264,10 +264,15 @@ Notes:
 
 ## Instruction pattern to reduce tool-call errors
 
-- Example:
-  - “When the user asks for a tarot reading, call `createTarotReading`.”
-  - “If required fields are missing (`spreadInfo`, `cardsInfo`), ask follow-up questions before calling.”
-  - “Do not fabricate card payload fields.”
+Full recommended instruction text: `gpt-instructions.md` (same directory) —
+paste it into GPT Builder → Configure → Instructions. Key rules it encodes:
+
+- “When the user asks for a tarot reading, call `createTarotReading`.”
+- “If required fields are missing (`spreadInfo`, `cardsInfo`), ask follow-up questions before calling.”
+- “Do not fabricate card payload fields.”
+- Always send the canonical spread `key` (`single`, `threeCard`, `fiveCard`,
+  `decision`, `relationship`, `celtic`) — name-only requests can 400 when the
+  display name isn't in the backend alias map (e.g. "Three Card Spread").
 
 ## Optional: add async job-mode actions
 
