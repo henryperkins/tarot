@@ -195,7 +195,13 @@ Use when the user has **not** provided cards. This is the normal path.
     example, a ritual string built from the user's chosen numbers or words:
     `"ritual-2026-07-31-knocks-3-cut-mid"`). Same seed + same spread = same
     hand. Omit for a fresh random draw.
+  - `reversalFrameworkOverride` — force a specific reversal lens (see §7).
   - `personalization` — see below.
+
+The backend tolerates near-miss spread keys (`three-card`, `celtic-cross`,
+`daily-draw` and similar resolve to the canonical spread), but prefer the
+exact keys from §4. An unrecognized spread returns a 400 listing the valid
+keys.
 - **Response**: `reading` (the narrative), `cardsInfo` (the cards actually
   drawn, in spread order), `seed` (echoed for journaling/reproduction), plus
   optional `themes`, `context`, and `narrativeMetrics`.
@@ -332,7 +338,7 @@ Example of framework discipline: with the *delayed* lens, a reversed Star is
 the *shadow* lens, a reversed Moon is "a fear that eases once named aloud" —
 not "confusion".
 
-`createTarotReading` accepts `reversalFrameworkOverride` with any key above
+Both actions accept `reversalFrameworkOverride` with any key above
 (`blocked`, `delayed`, `internalized`, `contextual`, `shadow`, `mirror`,
 `potentialBlocked`) if the user explicitly wants a particular lens.
 
