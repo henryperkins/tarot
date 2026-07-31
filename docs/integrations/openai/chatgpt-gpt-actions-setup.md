@@ -6,6 +6,11 @@ Last reviewed: 2026-04-23
 
 This setup uses GPT Actions with your existing Worker API.
 
+Companion file: upload `gpt-knowledge-base.md` (same directory) to the GPT's
+Knowledge section — it teaches the GPT how to use the app (spreads, question
+crafting, Action usage) and how to interpret cards (position-first method,
+reversal frameworks, patterns, 78-card reference, ethics).
+
 ## Official OpenAI GPT Actions docs
 
 - Getting started: https://developers.openai.com/api/docs/actions/getting-started
