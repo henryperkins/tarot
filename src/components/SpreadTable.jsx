@@ -501,7 +501,7 @@ function AnimatedCardButton({
       style={{
         ...style,
         display: isHidden ? 'none' : undefined,
-        scale: positionScale || 1,
+        '--layout-card-scale': positionScale || 1,
         rotate: positionRotate ? `${positionRotate}deg` : undefined
       }}
     >
@@ -932,22 +932,26 @@ export function SpreadTable({
         );
 
         return (
-          <SlotPulseWrapper
+          <div
             key={i}
-            // Keep pulse for empty placeholders, but avoid scaling a populated
-            // hidden card slot (it can desync deck-to-slot landing alignment).
-            active={isNext && !card}
-            prefersReducedMotion={prefersReducedMotion}
-            className="absolute transform -translate-x-1/2 -translate-y-1/2"
+            className="absolute"
             style={{
               left: `${pos.x}%`,
               top: `${pos.y}%`,
+              translate: '-50% -50%',
               zIndex: isRevealed ? 10 : card ? 5 : 1,
               marginLeft: pos.offsetX ? `${pos.offsetX}%` : 0
             }}
             data-slot-index={i}
             id={`spread-slot-${i}`}
           >
+            <SlotPulseWrapper
+              // Keep pulse for empty placeholders, but avoid scaling a populated
+              // hidden card slot (it can desync deck-to-slot landing alignment).
+              active={isNext && !card}
+              prefersReducedMotion={prefersReducedMotion}
+              className="relative flex"
+            >
             {!card && (
               // Empty placeholder - dual-trigger: tappable to deal card here
               <button
@@ -1005,15 +1009,15 @@ export function SpreadTable({
               positionRotate={pos.rotate}
               className={`
                 ${sizeClass}
-                relative rounded-lg border-2 cursor-pointer overflow-hidden
+                relative rounded-lg border-2 cursor-pointer overflow-visible
                 transition-all touch-manipulation
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
                 disabled:opacity-60 disabled:cursor-not-allowed
                 ${isRevealed
                   ? 'shadow-lg'
                   : showRevealPill
-                    ? 'border-primary/70 ring-2 ring-primary/30 shadow-md shadow-primary/20 hover:border-primary/80 active:scale-95'
-                    : 'border-primary/35 shadow-[0_0_16px_var(--primary-20)] hover:border-primary/50 active:scale-95'
+                    ? 'border-primary/70 ring-2 ring-primary/30 shadow-md shadow-primary/20 hover:border-primary/80'
+                    : 'border-primary/35 shadow-[0_0_16px_var(--primary-20)] hover:border-primary/50'
                 }
               `}
               style={{
@@ -1101,7 +1105,7 @@ export function SpreadTable({
                       }}
                     >
                       <div
-                        className="absolute inset-0 bg-surface flex items-center justify-center"
+                        className="absolute inset-0 rounded-[inherit] overflow-hidden bg-surface flex items-center justify-center"
                         style={{
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
@@ -1137,6 +1141,7 @@ export function SpreadTable({
                         />
                         <OneShotRing
                           key={`mention-${mentionPulseId}-${i}`}
+                          data-mention-pulse-ring
                           active={shouldMentionPulse}
                           prefersReducedMotion={prefersReducedMotion}
                           className="absolute inset-[-10%] rounded-xl border-2 pointer-events-none"
@@ -1151,7 +1156,7 @@ export function SpreadTable({
                         />
                       </div>
                       <div
-                        className="absolute inset-0 bg-surface-muted flex items-center justify-center"
+                        className="absolute inset-0 rounded-[inherit] overflow-hidden bg-surface-muted flex items-center justify-center"
                         style={{
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
@@ -1191,7 +1196,8 @@ export function SpreadTable({
                   />
                 </div>
               ))}
-          </SlotPulseWrapper>
+            </SlotPulseWrapper>
+          </div>
         );
       })}
 

@@ -233,6 +233,14 @@
   --glass-border: rgba(232, 218, 195, 0.22);
 }
 
+[data-layout-card] {
+  scale: var(--layout-card-scale, 1);
+}
+
+[data-layout-card]:active:not(:disabled) {
+  scale: calc(var(--layout-card-scale, 1) * 0.95);
+}
+
 .glass-panel {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);

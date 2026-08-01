@@ -17,6 +17,9 @@ const GovernanceCritiquePage = lazy(() => import('../pages/GovernanceCritiquePag
 const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage.jsx'));
 const VerifyEmailPage = lazy(() => import('../pages/VerifyEmailPage.jsx'));
 const OAuthCallbackPage = lazy(() => import('../pages/OAuthCallbackPage.jsx'));
+const SpreadLayoutFixture = import.meta.env.DEV
+  ? lazy(() => import('./SpreadLayoutFixture.jsx'))
+  : null;
 
 // Minimal loading fallback for route transitions
 function RouteLoader() {
@@ -207,6 +210,9 @@ export function AnimatedRoutes() {
           <Route path="/reset-password" element={<PageTransition><ResetPasswordPage /></PageTransition>} />
           <Route path="/verify-email" element={<PageTransition><VerifyEmailPage /></PageTransition>} />
           <Route path="/auth/callback" element={<PageTransition><OAuthCallbackPage /></PageTransition>} />
+          {SpreadLayoutFixture && (
+            <Route path="/__e2e/spread-layout" element={<SpreadLayoutFixture />} />
+          )}
           <Route path="*" element={<PageTransition><TarotReading /></PageTransition>} />
         </Routes>
       </Suspense>
