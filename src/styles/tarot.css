@@ -233,6 +233,14 @@
   --glass-border: rgba(232, 218, 195, 0.22);
 }
 
+[data-layout-card] {
+  scale: var(--layout-card-scale, 1);
+}
+
+[data-layout-card]:active:not(:disabled) {
+  scale: calc(var(--layout-card-scale, 1) * 0.95);
+}
+
 .glass-panel {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -2992,6 +3000,43 @@ input[type="range"]:focus::-webkit-slider-thumb {
   pointer-events: none;
   background: radial-gradient(circle, var(--bloom-color) 0%, transparent 66%);
   animation: slotRevealBloom 0.8s ease-out forwards;
+}
+
+/* Reveal burst: one shared keyframe drives every spark; direction and reach
+   come from per-spark --angle / --distance. Transform and opacity only, so the
+   sparks composite on the GPU and the global reduced-motion block collapses
+   them for free. */
+@keyframes slotRevealSpark {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateX(0) scale(0.35);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateX(var(--distance)) scale(1);
+  }
+}
+
+.slot-reveal-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.slot-reveal-burst__spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 999px;
+  background: var(--spark-color);
+  box-shadow: 0 0 6px var(--spark-color);
+  animation: slotRevealSpark 0.72s ease-out forwards;
 }
 
 @supports (color: color-mix(in srgb, red 50%, blue)) {

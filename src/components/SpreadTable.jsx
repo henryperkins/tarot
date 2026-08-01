@@ -6,6 +6,7 @@ import { useSounds } from '../hooks/useSounds';
 import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
 import { getSuitBorderColor, getRevealedCardGlow, getSuitGlowColor } from '../lib/suitColors';
 import { getSpreadTableContainerPresentation } from '../lib/spreadTablePresentation';
+import { CARD_ASPECT, COMPACT_SPREAD_LAYOUTS, getMaxCardWidth, getSpreadLayout } from '../lib/spreadLayouts';
 import { extractShortLabel, getPositionLabel } from './readingBoardUtils';
 import { HandTap } from '@phosphor-icons/react';
 import { useHaptic } from '../hooks/useHaptic';
@@ -15,57 +16,10 @@ import { TactileLensButton, TactileLensOverlay } from './TactileLensOverlay';
 import { SpreadProgressIndicator } from './SpreadProgressIndicator';
 import { CardBack } from './CardBack';
 import { CardInfoPopover } from './CardInfoPopover';
-import { ParticleLayer } from './ParticleLayer';
+import { getSlotRevealSparks } from '../lib/slotRevealBurst';
 
-/**
- * Spread layout definitions (x, y as percentage of container)
- * Each position includes coordinates and optional rotation
- */
-const SPREAD_LAYOUTS = {
-  single: [
-    { x: 50, y: 50, scale: 1.2 }
-  ],
-  threeCard: [
-    { x: 20, y: 50, label: 'Past' },
-    { x: 50, y: 50, label: 'Present' },
-    { x: 80, y: 50, label: 'Future' }
-  ],
-  fiveCard: [
-    { x: 50, y: 20, label: 'Core' },
-    { x: 20, y: 50, label: 'Challenge' },
-    { x: 50, y: 50, label: 'Hidden' },
-    { x: 80, y: 50, label: 'Support' },
-    { x: 50, y: 80, label: 'Direction' }
-  ],
-  decision: [
-    { x: 50, y: 20, label: 'Heart' },
-    { x: 25, y: 50, label: 'Path A' },
-    { x: 75, y: 50, label: 'Path B' },
-    { x: 50, y: 70, label: 'Clarity' },
-    { x: 50, y: 80, label: 'Free Will' }
-  ],
-  relationship: [
-    { x: 30, y: 50, label: 'You' },
-    { x: 70, y: 50, label: 'Them' },
-    { x: 50, y: 75, label: 'Connection' },
-    { x: 25, y: 22, label: 'Dynamics' },
-    { x: 75, y: 22, label: 'Outcome' }
-  ],
-  celtic: [
-    { x: 35, y: 50, label: 'Present' },
-    { x: 35, y: 50, label: 'Challenge', rotate: 90, offsetX: 3 },
-    { x: 15, y: 50, label: 'Past' },
-    { x: 55, y: 50, label: 'Near Future' },
-    { x: 35, y: 20, label: 'Conscious' },
-    { x: 35, y: 80, label: 'Subconscious' },
-    { x: 80, y: 80, label: 'Self/Advice' },
-    { x: 80, y: 60, label: 'External' },
-    { x: 80, y: 40, label: 'Hopes/Fears' },
-    { x: 80, y: 20, label: 'Outcome' }
-  ]
-};
+const SLOT_REVEAL_SPARKS = getSlotRevealSparks();
 
-const CARD_ASPECT = 2 / 3;
 const CELTIC_CHALLENGE_OFFSET = {
   minPx: 18,
   maxPx: 44,
@@ -80,8 +34,7 @@ const CARD_LAYOUT_DURATION = 380;
 const CARD_LAYOUT_EXIT_DURATION = 240;
 const CARD_LAYOUT_STAGGER = 40;
 
-function getCenterOutOrder(spreadKey, totalCards) {
-  const layout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
+function getCenterOutOrder(layout, totalCards) {
   const count = Math.max(0, Math.min(totalCards || 0, layout.length));
   if (count <= 1) {
     return count === 1 ? [0] : [];
@@ -101,32 +54,6 @@ function getCenterOutOrder(spreadKey, totalCards) {
       return da - db;
     });
 }
-
-const getMaxCardWidth = (layout, bounds) => {
-  const width = bounds.width;
-  const height = bounds.height;
-  if (!width || !height) return null;
-  let maxWidth = Infinity;
-
-  layout.forEach((pos) => {
-    const offsetX = pos.offsetX || 0;
-    const x = ((pos.x + offsetX) / 100) * width;
-    const y = (pos.y / 100) * height;
-    const scale = pos.scale || 1;
-    const isRotated = pos.rotate && Math.abs(pos.rotate) % 180 === 90;
-    const aspect = isRotated ? 1 / CARD_ASPECT : CARD_ASPECT;
-    const xLimit = 2 * Math.min(x, width - x);
-    const yLimit = 2 * Math.min(y, height - y);
-    const widthLimit = Math.min(xLimit, yLimit * aspect) / scale;
-
-    if (widthLimit < maxWidth) {
-      maxWidth = widthLimit;
-    }
-  });
-
-  if (!Number.isFinite(maxWidth)) return null;
-  return Math.max(0, maxWidth);
-};
 
 function SlotPulseWrapper({ active, prefersReducedMotion, className, style, children, ...props }) {
   const ref = useRef(null);
@@ -264,6 +191,32 @@ function FlashRing({ active, prefersReducedMotion, className }) {
   if (!active) return null;
 
   return <div ref={ref} className={className} />;
+}
+
+/**
+ * SlotRevealBurst - CSS spark burst played when a slot reveals.
+ * Decorative and non-interactive; one shared keyframe drives every spark, with
+ * direction and reach carried on per-spark custom properties.
+ */
+function SlotRevealBurst({ suit }) {
+  const sparkColor = getSuitGlowColor({ suit }, 0.85);
+
+  return (
+    <div className="slot-reveal-burst" data-slot-reveal-burst aria-hidden="true">
+      {SLOT_REVEAL_SPARKS.map((spark, index) => (
+        <span
+          key={index}
+          className="slot-reveal-burst__spark"
+          data-slot-reveal-spark
+          style={{
+            '--angle': `${spark.angle}deg`,
+            '--distance': `${spark.distance}px`,
+            '--spark-color': sparkColor
+          }}
+        />
+      ))}
+    </div>
+  );
 }
 
 function FlipCard({
@@ -501,7 +454,7 @@ function AnimatedCardButton({
       style={{
         ...style,
         display: isHidden ? 'none' : undefined,
-        scale: positionScale || 1,
+        '--layout-card-scale': positionScale || 1,
         rotate: positionRotate ? `${positionRotate}deg` : undefined
       }}
     >
@@ -531,14 +484,18 @@ export function SpreadTable({
   mentionPulse = null,
   showProgress = true,
   showTactileLens = true,
-  cardsOnly = false
+  cardsOnly = false,
+  isHandset = false
 }) {
   const prefersReducedMotion = useReducedMotion();
   const { vibrate, vibrateType } = useHaptic();
   const sounds = useSounds();
   const tactileLens = useTactileLens({ disabled: !showTactileLens || compact });
   const scopeRootRef = useRef(null);
-  const baseLayout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
+  const layoutDefinition = getSpreadLayout(spreadKey, { isHandset });
+  const usesCompactLayout = layoutDefinition === COMPACT_SPREAD_LAYOUTS[spreadKey];
+  const baseLayout = layoutDefinition.positions;
+  const allowOverlap = layoutDefinition.allowOverlap;
   const spreadInfo = SPREADS[spreadKey];
   const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
   const drawCount = typeof spreadInfo?.drawCount === 'number'
@@ -568,8 +525,8 @@ export function SpreadTable({
   const revealBurstIdRef = useRef(0);
   const revealBurstTimersRef = useRef([]);
   const centerOutOrder = useMemo(
-    () => getCenterOutOrder(spreadKey, limitedLayout.length),
-    [spreadKey, limitedLayout.length]
+    () => getCenterOutOrder(baseLayout, limitedLayout.length),
+    [baseLayout, limitedLayout.length]
   );
   const centerOutDelayByIndex = useMemo(() => {
     const delayMap = new Map();
@@ -647,8 +604,8 @@ export function SpreadTable({
 
 
   const baseMaxCardWidth = useMemo(
-    () => getMaxCardWidth(limitedLayout, tableBounds),
-    [limitedLayout, tableBounds]
+    () => getMaxCardWidth(limitedLayout, tableBounds, allowOverlap),
+    [allowOverlap, limitedLayout, tableBounds]
   );
 
   const resolvedLayout = useMemo(() => {
@@ -750,8 +707,8 @@ export function SpreadTable({
   }, [cards, visibleLayout, tableBounds.width, tableBounds.height, prefersReducedMotion, layoutStagger]);
 
   const maxCardWidth = useMemo(
-    () => getMaxCardWidth(visibleLayout, tableBounds),
-    [visibleLayout, tableBounds]
+    () => getMaxCardWidth(visibleLayout, tableBounds, allowOverlap),
+    [allowOverlap, visibleLayout, tableBounds]
   );
 
   const cardSizeStyle = useMemo(() => {
@@ -762,8 +719,11 @@ export function SpreadTable({
     };
   }, [maxCardWidth]);
 
-  // Aspect ratio based on spread type
-  const aspectRatio = spreadKey === 'celtic' ? '4/3' : '3/2';
+  // Aspect ratio based on spread type. The compact handset Celtic layout stacks
+  // four card rows, so it needs a square board rather than the landscape one.
+  const aspectRatio = spreadKey === 'celtic'
+    ? (usesCompactLayout ? '1/1' : '6/5')
+    : '3/2';
   const containerPresentation = useMemo(() => getSpreadTableContainerPresentation({
     cardsOnly,
     compact,
@@ -772,9 +732,13 @@ export function SpreadTable({
 
   const sizeClass = compact
     ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]'
-    : size === 'large'
-      ? 'w-20 h-[120px] xs:w-24 xs:h-[140px] sm:w-28 sm:h-[160px] md:w-32 md:h-[180px]'
-      : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28';
+    : usesCompactLayout
+      // Compact handset boards are sized by the fitter, not by this class, so
+      // the class only has to stay clear of the board-derived maximum.
+      ? 'w-16 h-24 xs:w-24 xs:h-36 sm:w-32 sm:h-48'
+      : size === 'large'
+        ? 'w-20 h-[120px] xs:w-24 xs:h-[140px] sm:w-28 sm:h-[160px] md:w-32 md:h-[180px]'
+        : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28';
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -932,22 +896,26 @@ export function SpreadTable({
         );
 
         return (
-          <SlotPulseWrapper
+          <div
             key={i}
-            // Keep pulse for empty placeholders, but avoid scaling a populated
-            // hidden card slot (it can desync deck-to-slot landing alignment).
-            active={isNext && !card}
-            prefersReducedMotion={prefersReducedMotion}
-            className="absolute transform -translate-x-1/2 -translate-y-1/2"
+            className="absolute"
             style={{
               left: `${pos.x}%`,
               top: `${pos.y}%`,
+              translate: '-50% -50%',
               zIndex: isRevealed ? 10 : card ? 5 : 1,
               marginLeft: pos.offsetX ? `${pos.offsetX}%` : 0
             }}
             data-slot-index={i}
             id={`spread-slot-${i}`}
           >
+            <SlotPulseWrapper
+              // Keep pulse for empty placeholders, but avoid scaling a populated
+              // hidden card slot (it can desync deck-to-slot landing alignment).
+              active={isNext && !card}
+              prefersReducedMotion={prefersReducedMotion}
+              className="relative flex"
+            >
             {!card && (
               // Empty placeholder - dual-trigger: tappable to deal card here
               <button
@@ -1005,15 +973,15 @@ export function SpreadTable({
               positionRotate={pos.rotate}
               className={`
                 ${sizeClass}
-                relative rounded-lg border-2 cursor-pointer overflow-hidden
+                relative rounded-lg border-2 cursor-pointer overflow-visible
                 transition-all touch-manipulation
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
                 disabled:opacity-60 disabled:cursor-not-allowed
                 ${isRevealed
                   ? 'shadow-lg'
                   : showRevealPill
-                    ? 'border-primary/70 ring-2 ring-primary/30 shadow-md shadow-primary/20 hover:border-primary/80 active:scale-95'
-                    : 'border-primary/35 shadow-[0_0_16px_var(--primary-20)] hover:border-primary/50 active:scale-95'
+                    ? 'border-primary/70 ring-2 ring-primary/30 shadow-md shadow-primary/20 hover:border-primary/80'
+                    : 'border-primary/35 shadow-[0_0_16px_var(--primary-20)] hover:border-primary/50'
                 }
               `}
               style={{
@@ -1071,7 +1039,7 @@ export function SpreadTable({
               ariaDisabled={isRevealDisabled}
               ariaLabel={card
                 ? isRevealed
-                  ? `${card.name} in ${positionLabel} position. Click to view details.`
+                  ? `${card.name}${card.isReversed ? ', reversed' : ''}, in ${positionLabel} position. Click to view details.`
                   : disableReveal
                     ? `${positionLabel} position. Draw from the deck to reveal.`
                     : `Card in ${positionLabel} position. Click to reveal.`
@@ -1093,7 +1061,7 @@ export function SpreadTable({
                       isRevealed={isRevealed}
                       prefersReducedMotion={prefersReducedMotion}
                       forceRevealOnMount={forceRevealOnMount}
-                      className="w-full h-full relative"
+                      className="w-full h-full relative rounded-[inherit]"
                       style={{
                         transformStyle: 'preserve-3d',
                         WebkitTransformStyle: 'preserve-3d',
@@ -1101,19 +1069,20 @@ export function SpreadTable({
                       }}
                     >
                       <div
-                        className="absolute inset-0 bg-surface flex items-center justify-center"
+                        className="absolute inset-0 rounded-[inherit] overflow-hidden bg-surface flex items-center justify-center"
                         style={{
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
-                          transform: displayCard.isReversed
-                            ? 'rotateZ(180deg) translateZ(0.1px)'
-                            : 'translateZ(0.1px)'
+                          transform: 'translateZ(0.1px)'
                         }}
                       >
                         <img
                           src={displayImage}
                           alt={displayCard.name}
                           className="w-full h-full object-cover"
+                          style={{
+                            transform: displayCard.isReversed ? 'rotateZ(180deg)' : undefined
+                          }}
                           loading={isNext || isRevealed ? 'eager' : 'lazy'}
                           decoding="async"
                           onError={(e) => {
@@ -1121,37 +1090,22 @@ export function SpreadTable({
                             e.target.src = FALLBACK_IMAGE;
                           }}
                         />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1">
-                          <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-2xs'} text-main font-semibold leading-tight block truncate`}>
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1 flex items-center gap-1">
+                          <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-2xs'} text-main font-semibold leading-tight min-w-0 truncate`}>
                             {displayCard.name.replace(/^The /, '')}
                           </span>
+                          {displayCard.isReversed ? (
+                            <span
+                              className="inline-flex shrink-0 items-center rounded-full border bg-surface-muted/90 text-accent border-accent/50 px-1.5 py-0.5 text-2xs font-semibold leading-none"
+                              aria-label="Reversed"
+                            >
+                              {compact ? '⟲' : 'Reversed'}
+                            </span>
+                          ) : null}
                         </div>
-                        <OneShotRing
-                          active={shouldHighlightReturn}
-                          prefersReducedMotion={prefersReducedMotion}
-                          className="absolute inset-[-8%] rounded-xl border-2 border-secondary/70 pointer-events-none"
-                          duration={prefersReducedMotion ? 500 : 1100}
-                          opacityKeyframes={[0.8, 0.35, 0]}
-                          scaleKeyframes={[1, 1.03, 1.05]}
-                          reducedOpacity={0.5}
-                        />
-                        <OneShotRing
-                          key={`mention-${mentionPulseId}-${i}`}
-                          active={shouldMentionPulse}
-                          prefersReducedMotion={prefersReducedMotion}
-                          className="absolute inset-[-10%] rounded-xl border-2 pointer-events-none"
-                          duration={prefersReducedMotion ? 500 : 950}
-                          opacityKeyframes={[0.75, 0.45, 0]}
-                          scaleKeyframes={[1, 1.04, 1.08]}
-                          reducedOpacity={0.55}
-                          style={{
-                            borderColor: getSuitBorderColor(displayCard),
-                            boxShadow: `0 0 18px ${getSuitGlowColor(displayCard, 0.5)}`
-                          }}
-                        />
                       </div>
                       <div
-                        className="absolute inset-0 bg-surface-muted flex items-center justify-center"
+                        className="absolute inset-0 rounded-[inherit] overflow-hidden bg-surface-muted flex items-center justify-center"
                         style={{
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
@@ -1172,6 +1126,30 @@ export function SpreadTable({
                           ) : null}
                         </div>
                       </div>
+                      <OneShotRing
+                        active={shouldHighlightReturn}
+                        prefersReducedMotion={prefersReducedMotion}
+                        className="absolute inset-[-8%] rounded-xl border-2 border-secondary/70 pointer-events-none"
+                        duration={prefersReducedMotion ? 500 : 1100}
+                        opacityKeyframes={[0.8, 0.35, 0]}
+                        scaleKeyframes={[1, 1.03, 1.05]}
+                        reducedOpacity={0.5}
+                      />
+                      <OneShotRing
+                        key={`mention-${mentionPulseId}-${i}`}
+                        data-mention-pulse-ring
+                        active={shouldMentionPulse}
+                        prefersReducedMotion={prefersReducedMotion}
+                        className="absolute inset-[-10%] rounded-xl border-2 pointer-events-none"
+                        duration={prefersReducedMotion ? 500 : 950}
+                        opacityKeyframes={[0.75, 0.45, 0]}
+                        scaleKeyframes={[1, 1.04, 1.08]}
+                        reducedOpacity={0.55}
+                        style={{
+                          borderColor: getSuitBorderColor(displayCard),
+                          boxShadow: `0 0 18px ${getSuitGlowColor(displayCard, 0.5)}`
+                        }}
+                      />
                     </FlipCard>
                   </>
                 );
@@ -1182,16 +1160,11 @@ export function SpreadTable({
               .map((burst) => (
                 <div key={burst.id} className="pointer-events-none absolute inset-[-22%] z-[15]">
                   <div className="slot-reveal-bloom" aria-hidden="true" />
-                  <ParticleLayer
-                    id={`slot-reveal-burst-${spreadKey}-${i}-${burst.id}`}
-                    preset="reveal-burst"
-                    suit={burst.suit || card?.suit || null}
-                    intensity={prefersReducedMotion ? 0.25 : 0.62}
-                    zIndex={1}
-                  />
+                  <SlotRevealBurst suit={burst.suit || card?.suit || null} />
                 </div>
               ))}
-          </SlotPulseWrapper>
+            </SlotPulseWrapper>
+          </div>
         );
       })}
 
@@ -1236,9 +1209,11 @@ export function SpreadTable({
         </div>
       )}
 
-      {/* Tactile Lens button - press-hold to view position meanings */}
+      {/* Tactile Lens button - press-hold to view position meanings.
+          Handset boards fill their card field edge to edge, so the button sits
+          in the reserved band below the board instead of over the cards. */}
       {!compact && showTactileLens && (
-        <div className="absolute bottom-3 left-3 z-20">
+        <div className={`absolute left-3 z-20 ${isHandset ? 'top-full mt-2' : 'bottom-3'}`}>
           <TactileLensButton
             disabled={cards.length === 0}
             isActive={tactileLens.isActive}
@@ -1281,7 +1256,7 @@ export function SpreadTableCompact({
   onSlotClick,
   activeSlot
 }) {
-  const layout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
+  const layout = getSpreadLayout(spreadKey).positions;
   const spreadInfo = SPREADS[spreadKey];
   const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
   const drawCount = typeof spreadInfo?.drawCount === 'number'
@@ -1304,6 +1279,7 @@ export function SpreadTableCompact({
         const card = cards?.[i];
         const isRevealed = revealedIndices?.has?.(i) || false;
         const isActive = activeSlot === i;
+        const positionLabel = getPositionLabel(spreadInfo, i, pos);
 
         const slotClasses = `
           w-7 h-10 xs:w-8 xs:h-11 rounded border
@@ -1320,11 +1296,13 @@ export function SpreadTableCompact({
           ${isInteractive ? 'cursor-pointer hover:border-primary/60 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary' : ''}
         `;
 
+        const accessibleLabel = `${positionLabel}${card ? `: ${card.name}${card.isReversed ? ', reversed' : ''}` : ''}`;
         const content = (
           <>
             {card && isRevealed ? (
-              <span className="text-2xs xs:text-2xs text-secondary font-bold">
-                {card.name.charAt(0)}
+              <span className="inline-flex items-center gap-0.5 text-2xs xs:text-2xs text-secondary font-bold">
+                <span aria-hidden="true">{card.name.charAt(0)}</span>
+                {card.isReversed ? <span aria-label="Reversed">⟲</span> : null}
               </span>
             ) : card ? (
               <span className="text-2xs xs:text-2xs text-primary">?</span>
@@ -1340,7 +1318,7 @@ export function SpreadTableCompact({
               onClick={() => onSlotClick(i)}
               role="option"
               aria-selected={isActive}
-              aria-label={`${pos.label || `Position ${i + 1}`}${card ? `: ${card.name}` : ''}`}
+              aria-label={accessibleLabel}
               className={slotClasses}
             >
               {content}
@@ -1352,7 +1330,9 @@ export function SpreadTableCompact({
           <div
             key={i}
             className={slotClasses}
-            title={pos.label || `Position ${i + 1}`}
+            role="group"
+            aria-label={accessibleLabel}
+            title={positionLabel}
           >
             {content}
           </div>

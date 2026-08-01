@@ -5,6 +5,7 @@ import { getCardImage, getOrientationMeaning } from '../lib/cardLookup';
 import { getDrawerGradient } from '../lib/suitColors';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { getSpreadLayout } from '../lib/spreadLayouts';
 import { SpreadTable } from './SpreadTable';
 import { getNextUnrevealedIndex, getPositionLabel } from './readingBoardUtils';
 
@@ -22,19 +23,14 @@ const CELTIC_POSITION_LABELS = [
   'Outcome'
 ];
 
-// Celtic Cross map overlay positions (percentage-based for responsive layout)
-const CELTIC_MAP_POSITIONS = [
-  { x: 35, y: 50 },        // 1: Present (center)
-  { x: 35, y: 50, rotated: true }, // 2: Challenge (crossing)
-  { x: 15, y: 50 },        // 3: Past
-  { x: 55, y: 50 },        // 4: Future
-  { x: 35, y: 20 },        // 5: Conscious
-  { x: 35, y: 80 },        // 6: Subconscious
-  { x: 80, y: 80 },        // 7: Advice
-  { x: 80, y: 60 },        // 8: External
-  { x: 80, y: 40 },        // 9: Hopes/Fears
-  { x: 80, y: 20 }         // 10: Outcome
-];
+// Derive the responsive position map from whichever Celtic layout is on screen.
+const toCelticMapPositions = (isHandset) => (
+  getSpreadLayout('celtic', { isHandset }).positions.map((position) => ({
+    x: position.x,
+    y: position.y,
+    rotated: Math.abs(position.rotate || 0) % 180 === 90
+  }))
+);
 
 function CardDetailContent({
   focusedCardData,
@@ -361,7 +357,7 @@ function CardFocusOverlay({
  * Celtic Cross map overlay - shows numbered position layout
  * Helps users understand the complex Celtic Cross layout on mobile
  */
-function CelticCrossMapOverlay({ onClose }) {
+function CelticCrossMapOverlay({ onClose, positions }) {
   return (
     <div
       className="absolute inset-0 z-20 rounded-2xl sm:rounded-3xl overflow-hidden"
@@ -375,7 +371,7 @@ function CelticCrossMapOverlay({ onClose }) {
 
       {/* Position markers */}
       <div className="relative w-full h-full">
-        {CELTIC_MAP_POSITIONS.map((pos, i) => (
+        {positions.map((pos, i) => (
           <div
             key={`map-pos-${i}`}
             className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5"
@@ -447,6 +443,7 @@ export function ReadingBoard({
   const [showCelticMap, setShowCelticMap] = useState(false);
   const isCelticCross = spreadKey === 'celtic';
   const showMapToggle = isCelticCross && isHandset;
+  const celticMapPositions = useMemo(() => toCelticMapPositions(isHandset), [isHandset]);
   const revealStatusText = allowBoardReveal
     ? `Tap positions to reveal. ${nextLabel ? `Next: ${nextLabel}.` : 'All cards revealed.'}`
     : `Draw from the deck to place your first card.${nextLabel ? ` Next: ${nextLabel}.` : ''}`;
@@ -486,7 +483,9 @@ export function ReadingBoard({
   if (!reading) return null;
 
   return (
-    <div className="space-y-3">
+    // Handset: reserve a band under the board for the relocated Tactile Lens
+    // button, and as defence in depth against cards reaching the Reset control.
+    <div className={`space-y-3 ${isHandset ? 'pb-16' : ''}`}>
       <p className="sr-only" aria-live="polite">{revealStatusTextWithFocusHint}</p>
       {!cardsOnly && (
         <div className="px-4 flex items-center justify-center gap-3">
@@ -534,10 +533,14 @@ export function ReadingBoard({
           flashNextSlot={flashNextSlot}
           mentionPulse={narrativeMentionPulse}
           cardsOnly={cardsOnly}
+          isHandset={isHandset}
         />
         {/* Celtic Cross map overlay */}
         {showCelticMap && isCelticCross && (
-          <CelticCrossMapOverlay onClose={() => setShowCelticMap(false)} />
+          <CelticCrossMapOverlay
+            onClose={() => setShowCelticMap(false)}
+            positions={celticMapPositions}
+          />
         )}
       </div>
       {!isHandset && (
