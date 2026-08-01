@@ -1097,7 +1097,7 @@ export function SpreadTable({
                       isRevealed={isRevealed}
                       prefersReducedMotion={prefersReducedMotion}
                       forceRevealOnMount={forceRevealOnMount}
-                      className="w-full h-full relative"
+                      className="w-full h-full relative rounded-[inherit]"
                       style={{
                         transformStyle: 'preserve-3d',
                         WebkitTransformStyle: 'preserve-3d',
@@ -1130,30 +1130,6 @@ export function SpreadTable({
                             {displayCard.name.replace(/^The /, '')}
                           </span>
                         </div>
-                        <OneShotRing
-                          active={shouldHighlightReturn}
-                          prefersReducedMotion={prefersReducedMotion}
-                          className="absolute inset-[-8%] rounded-xl border-2 border-secondary/70 pointer-events-none"
-                          duration={prefersReducedMotion ? 500 : 1100}
-                          opacityKeyframes={[0.8, 0.35, 0]}
-                          scaleKeyframes={[1, 1.03, 1.05]}
-                          reducedOpacity={0.5}
-                        />
-                        <OneShotRing
-                          key={`mention-${mentionPulseId}-${i}`}
-                          data-mention-pulse-ring
-                          active={shouldMentionPulse}
-                          prefersReducedMotion={prefersReducedMotion}
-                          className="absolute inset-[-10%] rounded-xl border-2 pointer-events-none"
-                          duration={prefersReducedMotion ? 500 : 950}
-                          opacityKeyframes={[0.75, 0.45, 0]}
-                          scaleKeyframes={[1, 1.04, 1.08]}
-                          reducedOpacity={0.55}
-                          style={{
-                            borderColor: getSuitBorderColor(displayCard),
-                            boxShadow: `0 0 18px ${getSuitGlowColor(displayCard, 0.5)}`
-                          }}
-                        />
                       </div>
                       <div
                         className="absolute inset-0 rounded-[inherit] overflow-hidden bg-surface-muted flex items-center justify-center"
@@ -1177,6 +1153,30 @@ export function SpreadTable({
                           ) : null}
                         </div>
                       </div>
+                      <OneShotRing
+                        active={shouldHighlightReturn}
+                        prefersReducedMotion={prefersReducedMotion}
+                        className="absolute inset-[-8%] rounded-xl border-2 border-secondary/70 pointer-events-none"
+                        duration={prefersReducedMotion ? 500 : 1100}
+                        opacityKeyframes={[0.8, 0.35, 0]}
+                        scaleKeyframes={[1, 1.03, 1.05]}
+                        reducedOpacity={0.5}
+                      />
+                      <OneShotRing
+                        key={`mention-${mentionPulseId}-${i}`}
+                        data-mention-pulse-ring
+                        active={shouldMentionPulse}
+                        prefersReducedMotion={prefersReducedMotion}
+                        className="absolute inset-[-10%] rounded-xl border-2 pointer-events-none"
+                        duration={prefersReducedMotion ? 500 : 950}
+                        opacityKeyframes={[0.75, 0.45, 0]}
+                        scaleKeyframes={[1, 1.04, 1.08]}
+                        reducedOpacity={0.55}
+                        style={{
+                          borderColor: getSuitBorderColor(displayCard),
+                          boxShadow: `0 0 18px ${getSuitGlowColor(displayCard, 0.5)}`
+                        }}
+                      />
                     </FlipCard>
                   </>
                 );

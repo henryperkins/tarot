@@ -153,18 +153,19 @@ test('keeps a narrative mention pulse visible beyond the revealed card border', 
   await page.setViewportSize(VIEWPORTS[2]);
   await seedReadingUi(page);
   await openSpread(page, 'single', 1);
-  await page.getByRole('button', { name: /trigger mention pulse/i }).click();
-
-  const ring = page.locator('[data-mention-pulse-ring]');
-  await expect(ring).toBeVisible();
-  const [ringBox, cardBox] = await Promise.all([
-    ring.boundingBox(),
-    page.locator('[data-slot-index="0"] [data-layout-card]').boundingBox()
-  ]);
-  expect(ringBox).not.toBeNull();
+  const cardBox = await page.locator('[data-slot-index="0"] [data-layout-card]').boundingBox();
   expect(cardBox).not.toBeNull();
-  expect(ringBox.x).toBeLessThan(cardBox.x);
-  expect(ringBox.y).toBeLessThan(cardBox.y);
-  expect(ringBox.x + ringBox.width).toBeGreaterThan(cardBox.x + cardBox.width);
-  expect(ringBox.y + ringBox.height).toBeGreaterThan(cardBox.y + cardBox.height);
+  const outsideTopBorder = {
+    x: cardBox.x + 12,
+    y: cardBox.y - (cardBox.height * 0.1) - 4,
+    width: cardBox.width - 24,
+    height: 8
+  };
+  const beforePulse = await page.screenshot({ clip: outsideTopBorder });
+
+  await page.getByRole('button', { name: /trigger mention pulse/i }).click();
+  await expect(page.locator('[data-mention-pulse-ring]')).toBeVisible();
+  const afterPulse = await page.screenshot({ clip: outsideTopBorder });
+
+  expect(afterPulse.equals(beforePulse), 'mention pulse must paint pixels outside the card border').toBe(false);
 });
