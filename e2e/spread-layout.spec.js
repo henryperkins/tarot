@@ -178,7 +178,12 @@ test('keeps reversed-card labels upright and exposes reversal in every live repr
   const card = page.locator('[data-slot-index="0"] [data-layout-card]');
   await expect(card).toHaveAccessibleName(/the fool, reversed, in theme position\. click to view details\./i);
   await expect(card.getByText('Reversed', { exact: true })).toBeVisible();
-  await expect(card.locator('img[alt="The Fool"]')).toHaveCSS('transform', 'matrix(-1, 0, 0, -1, 0, 0)');
+  const cardImage = card.locator('img[alt="The Fool"]');
+  const face = cardImage.locator('xpath=..');
+  const nameOverlay = face.locator('xpath=./div');
+  await expect(cardImage).toHaveCSS('transform', 'matrix(-1, 0, 0, -1, 0, 0)');
+  await expect(face).toHaveCSS('transform', 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0.1, 1)');
+  await expect(nameOverlay).toHaveCSS('transform', 'none');
 
   await card.hover();
   await expect(page.getByRole('dialog', { name: /the fool, reversed, in theme position card information/i })).toBeVisible();
@@ -191,4 +196,8 @@ test('keeps reversed-card labels upright and exposes reversal in every live repr
   await expect(uprightCard).toHaveAccessibleName(/the fool, in theme position\. click to view details\./i);
   await expect(uprightCard).not.toHaveAccessibleName(/reversed/i);
   await expect(uprightCard.getByLabel('Reversed')).toHaveCount(0);
+
+  await page.goto('/__e2e/spread-layout?spread=single&reversed=1&compact=1', { waitUntil: 'domcontentloaded' });
+  const compactPrimaryCard = page.locator('[data-slot-index="0"] [data-layout-card]');
+  await expect(compactPrimaryCard.getByLabel('Reversed')).toHaveText('⟲');
 });

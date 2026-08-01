@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { ReadingBoard } from './ReadingBoard';
-import { SpreadTableCompact } from './SpreadTable';
+import { SpreadTable, SpreadTableCompact } from './SpreadTable';
 
 const SUPPORTED_SPREADS = new Set(['single', 'threeCard', 'fiveCard', 'decision', 'relationship', 'celtic']);
 
@@ -10,6 +10,7 @@ export function SpreadLayoutFixture() {
   const [reflections, setReflections] = useState({});
   const spreadKey = new URLSearchParams(window.location.search).get('spread');
   const showReversedCard = new URLSearchParams(window.location.search).get('reversed') === '1';
+  const showPrimaryCompact = new URLSearchParams(window.location.search).get('compact') === '1';
   const safeSpreadKey = SUPPORTED_SPREADS.has(spreadKey) ? spreadKey : 'single';
   const cardCount = safeSpreadKey === 'single' ? 1 : safeSpreadKey === 'celtic' ? 10 : 5;
   const reading = useMemo(() => (
@@ -30,26 +31,38 @@ export function SpreadLayoutFixture() {
       >
         Trigger mention pulse
       </button>
-      <ReadingBoard
-        spreadKey={safeSpreadKey}
-        reading={reading}
-        revealedCards={revealedCards}
-        revealCard={() => {}}
-        onCardClick={() => {}}
-        focusedCardData={null}
-        onCloseDetail={() => {}}
-        reflections={reflections}
-        setReflections={setReflections}
-        onOpenModal={() => {}}
-        onNavigateCard={() => {}}
-        canNavigatePrev={false}
-        canNavigateNext={false}
-        navigationLabel=""
-        revealStage="action"
-        narrativeMentionPulse={mentionPulse}
-        isHandset={isHandset}
-        cardsOnly
-      />
+      {showPrimaryCompact ? (
+        <SpreadTable
+          spreadKey={safeSpreadKey}
+          cards={reading}
+          revealedIndices={revealedCards}
+          onCardClick={() => {}}
+          onCardReveal={() => {}}
+          compact
+          cardsOnly
+        />
+      ) : (
+        <ReadingBoard
+          spreadKey={safeSpreadKey}
+          reading={reading}
+          revealedCards={revealedCards}
+          revealCard={() => {}}
+          onCardClick={() => {}}
+          focusedCardData={null}
+          onCloseDetail={() => {}}
+          reflections={reflections}
+          setReflections={setReflections}
+          onOpenModal={() => {}}
+          onNavigateCard={() => {}}
+          canNavigatePrev={false}
+          canNavigateNext={false}
+          navigationLabel=""
+          revealStage="action"
+          narrativeMentionPulse={mentionPulse}
+          isHandset={isHandset}
+          cardsOnly
+        />
+      )}
       <SpreadTableCompact
         spreadKey={safeSpreadKey}
         cards={reading}
