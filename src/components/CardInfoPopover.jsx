@@ -105,7 +105,7 @@ export function CardInfoPopover({
           transform: popoverPos.transform
         }}
         role="dialog"
-        aria-label={`${card.name} card information`}
+        aria-label={`${card.name}${card.isReversed ? ', reversed' : ', upright'}${positionLabel ? `, in ${positionLabel} position` : ''} card information`}
         onMouseLeave={() => onClose?.()}
       >
         <div className="flex items-start justify-between gap-3">
@@ -156,7 +156,7 @@ export function CardInfoPopover({
           <span
             className={`inline-flex items-center rounded-full px-2.5 py-1 text-2xs border ${
               card?.isReversed
-                ? 'bg-accent/20 border-accent/40 text-accent'
+                ? 'bg-surface-muted/90 text-accent border-accent/50'
                 : 'bg-secondary/20 border-secondary/40 text-secondary'
             }`}
           >

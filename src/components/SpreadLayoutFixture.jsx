@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { ReadingBoard } from './ReadingBoard';
+import { SpreadTableCompact } from './SpreadTable';
 
 const SUPPORTED_SPREADS = new Set(['single', 'threeCard', 'fiveCard', 'decision', 'relationship', 'celtic']);
 
@@ -8,11 +9,15 @@ export function SpreadLayoutFixture() {
   const [mentionPulse, setMentionPulse] = useState(null);
   const [reflections, setReflections] = useState({});
   const spreadKey = new URLSearchParams(window.location.search).get('spread');
+  const showReversedCard = new URLSearchParams(window.location.search).get('reversed') === '1';
   const safeSpreadKey = SUPPORTED_SPREADS.has(spreadKey) ? spreadKey : 'single';
   const cardCount = safeSpreadKey === 'single' ? 1 : safeSpreadKey === 'celtic' ? 10 : 5;
   const reading = useMemo(() => (
-    MAJOR_ARCANA.slice(0, cardCount).map((card) => ({ ...card, isReversed: false }))
-  ), [cardCount]);
+    MAJOR_ARCANA.slice(0, cardCount).map((card, index) => ({
+      ...card,
+      isReversed: showReversedCard && index === 0
+    }))
+  ), [cardCount, showReversedCard]);
   const revealedCards = useMemo(() => new Set(reading.map((_, index) => index)), [reading]);
   const isHandset = window.innerWidth < 640;
 
@@ -44,6 +49,11 @@ export function SpreadLayoutFixture() {
         narrativeMentionPulse={mentionPulse}
         isHandset={isHandset}
         cardsOnly
+      />
+      <SpreadTableCompact
+        spreadKey={safeSpreadKey}
+        cards={reading}
+        revealedIndices={revealedCards}
       />
     </main>
   );

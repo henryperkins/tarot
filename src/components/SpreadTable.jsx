@@ -1075,7 +1075,7 @@ export function SpreadTable({
               ariaDisabled={isRevealDisabled}
               ariaLabel={card
                 ? isRevealed
-                  ? `${card.name} in ${positionLabel} position. Click to view details.`
+                  ? `${card.name}${card.isReversed ? ', reversed' : ''}, in ${positionLabel} position. Click to view details.`
                   : disableReveal
                     ? `${positionLabel} position. Draw from the deck to reveal.`
                     : `Card in ${positionLabel} position. Click to reveal.`
@@ -1109,15 +1109,16 @@ export function SpreadTable({
                         style={{
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
-                          transform: displayCard.isReversed
-                            ? 'rotateZ(180deg) translateZ(0.1px)'
-                            : 'translateZ(0.1px)'
+                          transform: 'translateZ(0.1px)'
                         }}
                       >
                         <img
                           src={displayImage}
                           alt={displayCard.name}
                           className="w-full h-full object-cover"
+                          style={{
+                            transform: displayCard.isReversed ? 'rotateZ(180deg)' : undefined
+                          }}
                           loading={isNext || isRevealed ? 'eager' : 'lazy'}
                           decoding="async"
                           onError={(e) => {
@@ -1125,10 +1126,18 @@ export function SpreadTable({
                             e.target.src = FALLBACK_IMAGE;
                           }}
                         />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1">
-                          <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-2xs'} text-main font-semibold leading-tight block truncate`}>
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1 flex items-center gap-1">
+                          <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-2xs'} text-main font-semibold leading-tight min-w-0 truncate`}>
                             {displayCard.name.replace(/^The /, '')}
                           </span>
+                          {displayCard.isReversed ? (
+                            <span
+                              className="inline-flex shrink-0 items-center rounded-full border bg-surface-muted/90 text-accent border-accent/50 px-1.5 py-0.5 text-2xs font-semibold leading-none"
+                              aria-label="Reversed"
+                            >
+                              {compact ? '⟲' : 'Reversed'}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                       <div
@@ -1310,6 +1319,7 @@ export function SpreadTableCompact({
         const card = cards?.[i];
         const isRevealed = revealedIndices?.has?.(i) || false;
         const isActive = activeSlot === i;
+        const positionLabel = getPositionLabel(spreadInfo, i, pos);
 
         const slotClasses = `
           w-7 h-10 xs:w-8 xs:h-11 rounded border
@@ -1326,11 +1336,13 @@ export function SpreadTableCompact({
           ${isInteractive ? 'cursor-pointer hover:border-primary/60 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary' : ''}
         `;
 
+        const accessibleLabel = `${positionLabel}${card ? `: ${card.name}${card.isReversed ? ', reversed' : ''}` : ''}`;
         const content = (
           <>
             {card && isRevealed ? (
-              <span className="text-2xs xs:text-2xs text-secondary font-bold">
-                {card.name.charAt(0)}
+              <span className="inline-flex items-center gap-0.5 text-2xs xs:text-2xs text-secondary font-bold">
+                <span aria-hidden="true">{card.name.charAt(0)}</span>
+                {card.isReversed ? <span aria-label="Reversed">⟲</span> : null}
               </span>
             ) : card ? (
               <span className="text-2xs xs:text-2xs text-primary">?</span>
@@ -1346,7 +1358,7 @@ export function SpreadTableCompact({
               onClick={() => onSlotClick(i)}
               role="option"
               aria-selected={isActive}
-              aria-label={`${pos.label || `Position ${i + 1}`}${card ? `: ${card.name}` : ''}`}
+              aria-label={accessibleLabel}
               className={slotClasses}
             >
               {content}
@@ -1358,7 +1370,9 @@ export function SpreadTableCompact({
           <div
             key={i}
             className={slotClasses}
-            title={pos.label || `Position ${i + 1}`}
+            role="group"
+            aria-label={accessibleLabel}
+            title={positionLabel}
           >
             {content}
           </div>

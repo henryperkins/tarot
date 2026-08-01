@@ -169,3 +169,26 @@ test('keeps a narrative mention pulse visible beyond the revealed card border', 
 
   expect(afterPulse.equals(beforePulse), 'mention pulse must paint pixels outside the card border').toBe(false);
 });
+
+test('keeps reversed-card labels upright and exposes reversal in every live representation', async ({ page }) => {
+  await page.setViewportSize(VIEWPORTS[2]);
+  await seedReadingUi(page);
+  await page.goto('/__e2e/spread-layout?spread=single&reversed=1', { waitUntil: 'domcontentloaded' });
+
+  const card = page.locator('[data-slot-index="0"] [data-layout-card]');
+  await expect(card).toHaveAccessibleName(/the fool, reversed, in theme position\. click to view details\./i);
+  await expect(card.getByText('Reversed', { exact: true })).toBeVisible();
+  await expect(card.locator('img[alt="The Fool"]')).toHaveCSS('transform', 'matrix(-1, 0, 0, -1, 0, 0)');
+
+  await card.hover();
+  await expect(page.getByRole('dialog', { name: /the fool, reversed, in theme position card information/i })).toBeVisible();
+
+  const compactCard = page.getByRole('group', { name: /theme: the fool, reversed/i });
+  await expect(compactCard).toContainText('⟲');
+
+  await page.goto('/__e2e/spread-layout?spread=single', { waitUntil: 'domcontentloaded' });
+  const uprightCard = page.locator('[data-slot-index="0"] [data-layout-card]');
+  await expect(uprightCard).toHaveAccessibleName(/the fool, in theme position\. click to view details\./i);
+  await expect(uprightCard).not.toHaveAccessibleName(/reversed/i);
+  await expect(uprightCard.getByLabel('Reversed')).toHaveCount(0);
+});
