@@ -8,8 +8,34 @@ const VIEWPORTS = [
 
 const CELTIC_CHALLENGE_OFFSET_BY_VIEWPORT = {
   390: 18,
-  768: 32.725,
-  1280: 43.990625
+  768: 22.32,
+  1280: 30.72
+};
+
+const CARD_WIDTH_FLOORS = {
+  390: {
+    single: 63,
+    threeCard: 63,
+    fiveCard: 44,
+    decision: 63,
+    relationship: 41
+  },
+  768: {
+    single: 127,
+    threeCard: 127,
+    fiveCard: 99,
+    decision: 127,
+    relationship: 92,
+    celtic: 99
+  },
+  1280: {
+    single: 127,
+    threeCard: 127,
+    fiveCard: 127,
+    decision: 127,
+    relationship: 127,
+    celtic: 127
+  }
 };
 
 const SPREADS = [
@@ -42,11 +68,11 @@ const SPREADS = [
     key: 'decision',
     name: 'Decision',
     positions: [
-      { x: 50, y: 20 },
-      { x: 25, y: 50 },
-      { x: 75, y: 50 },
-      { x: 50, y: 70 },
-      { x: 50, y: 80 }
+      { x: 50, y: 22 },
+      { x: 20, y: 50 },
+      { x: 80, y: 50 },
+      { x: 40, y: 78 },
+      { x: 60, y: 78 }
     ]
   },
   {
@@ -66,14 +92,14 @@ const SPREADS = [
     positions: [
       { x: 35, y: 50 },
       { x: 35, y: 50, challengeOffset: true },
-      { x: 15, y: 50 },
-      { x: 55, y: 50 },
-      { x: 35, y: 20 },
-      { x: 35, y: 80 },
-      { x: 80, y: 80 },
-      { x: 80, y: 60 },
-      { x: 80, y: 40 },
-      { x: 80, y: 20 }
+      { x: 12, y: 50 },
+      { x: 58, y: 50 },
+      { x: 35, y: 12 },
+      { x: 35, y: 88 },
+      { x: 82, y: 88 },
+      { x: 82, y: 62.67 },
+      { x: 82, y: 37.33 },
+      { x: 82, y: 12 }
     ]
   }
 ];
@@ -104,7 +130,7 @@ async function openSpread(page, spreadKey, expectedCardCount) {
   await expect(page.locator('[data-slot-index] [data-layout-card]')).toHaveCount(expectedCardCount, { timeout: 10000 });
 }
 
-async function expectLayoutGeometry(page, positions, challengeOffsetPx) {
+async function expectLayoutGeometry(page, spreadKey, positions, challengeOffsetPx, cardWidthFloor) {
   const table = page.locator('[role="region"][aria-label$="layout"]');
   const tableBox = await table.boundingBox();
   const tableMetrics = await table.evaluate((element) => ({
@@ -114,6 +140,9 @@ async function expectLayoutGeometry(page, positions, challengeOffsetPx) {
     clientHeight: element.clientHeight
   }));
   expect(tableBox).not.toBeNull();
+
+  const cardBoxes = [];
+  const logicalCardWidths = [];
 
   for (let index = 0; index < positions.length; index += 1) {
     const position = positions[index];
@@ -135,6 +164,35 @@ async function expectLayoutGeometry(page, positions, challengeOffsetPx) {
 
     expect(Math.abs(actualX - expectedX), `slot ${index} horizontal centre`).toBeLessThanOrEqual(2);
     expect(Math.abs(actualY - expectedY), `slot ${index} vertical centre`).toBeLessThanOrEqual(2);
+    expect(cardBox.x, `slot ${index} left edge`).toBeGreaterThanOrEqual(tableBox.x - 1);
+    expect(cardBox.y, `slot ${index} top edge`).toBeGreaterThanOrEqual(tableBox.y - 1);
+    expect(cardBox.x + cardBox.width, `slot ${index} right edge`).toBeLessThanOrEqual(tableBox.x + tableBox.width + 1);
+    expect(cardBox.y + cardBox.height, `slot ${index} bottom edge`).toBeLessThanOrEqual(tableBox.y + tableBox.height + 1);
+
+    cardBoxes.push(cardBox);
+    logicalCardWidths.push(await card.evaluate((element) => Number.parseFloat(getComputedStyle(element).width)));
+  }
+
+  for (let leftIndex = 0; leftIndex < cardBoxes.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < cardBoxes.length; rightIndex += 1) {
+      if (spreadKey === 'celtic' && leftIndex === 0 && rightIndex === 1) continue;
+      const left = cardBoxes[leftIndex];
+      const right = cardBoxes[rightIndex];
+      const overlapWidth = Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x);
+      const overlapHeight = Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y);
+
+      expect(
+        overlapWidth <= 1 || overlapHeight <= 1,
+        `${spreadKey} slots ${leftIndex}/${rightIndex} overlap by ${overlapWidth.toFixed(2)}x${overlapHeight.toFixed(2)}px`
+      ).toBe(true);
+    }
+  }
+
+  if (cardWidthFloor != null) {
+    expect(
+      Math.min(...logicalCardWidths),
+      `${spreadKey} logical card width floor`
+    ).toBeGreaterThanOrEqual(cardWidthFloor);
   }
 }
 
@@ -144,7 +202,13 @@ for (const viewport of VIEWPORTS) {
     await seedReadingUi(page);
     for (const spread of SPREADS) {
       await openSpread(page, spread.key, spread.positions.length);
-      await expectLayoutGeometry(page, spread.positions, CELTIC_CHALLENGE_OFFSET_BY_VIEWPORT[viewport.width] || 0);
+      await expectLayoutGeometry(
+        page,
+        spread.key,
+        spread.positions,
+        CELTIC_CHALLENGE_OFFSET_BY_VIEWPORT[viewport.width] || 0,
+        CARD_WIDTH_FLOORS[viewport.width][spread.key]
+      );
     }
   });
 }

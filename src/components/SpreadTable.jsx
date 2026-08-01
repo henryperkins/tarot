@@ -6,6 +6,7 @@ import { useSounds } from '../hooks/useSounds';
 import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
 import { getSuitBorderColor, getRevealedCardGlow, getSuitGlowColor } from '../lib/suitColors';
 import { getSpreadTableContainerPresentation } from '../lib/spreadTablePresentation';
+import { CARD_ASPECT, getMaxCardWidth, getSpreadLayout } from '../lib/spreadLayouts';
 import { extractShortLabel, getPositionLabel } from './readingBoardUtils';
 import { HandTap } from '@phosphor-icons/react';
 import { useHaptic } from '../hooks/useHaptic';
@@ -17,55 +18,6 @@ import { CardBack } from './CardBack';
 import { CardInfoPopover } from './CardInfoPopover';
 import { ParticleLayer } from './ParticleLayer';
 
-/**
- * Spread layout definitions (x, y as percentage of container)
- * Each position includes coordinates and optional rotation
- */
-const SPREAD_LAYOUTS = {
-  single: [
-    { x: 50, y: 50, scale: 1.2 }
-  ],
-  threeCard: [
-    { x: 20, y: 50, label: 'Past' },
-    { x: 50, y: 50, label: 'Present' },
-    { x: 80, y: 50, label: 'Future' }
-  ],
-  fiveCard: [
-    { x: 50, y: 20, label: 'Core' },
-    { x: 20, y: 50, label: 'Challenge' },
-    { x: 50, y: 50, label: 'Hidden' },
-    { x: 80, y: 50, label: 'Support' },
-    { x: 50, y: 80, label: 'Direction' }
-  ],
-  decision: [
-    { x: 50, y: 20, label: 'Heart' },
-    { x: 25, y: 50, label: 'Path A' },
-    { x: 75, y: 50, label: 'Path B' },
-    { x: 50, y: 70, label: 'Clarity' },
-    { x: 50, y: 80, label: 'Free Will' }
-  ],
-  relationship: [
-    { x: 30, y: 50, label: 'You' },
-    { x: 70, y: 50, label: 'Them' },
-    { x: 50, y: 75, label: 'Connection' },
-    { x: 25, y: 22, label: 'Dynamics' },
-    { x: 75, y: 22, label: 'Outcome' }
-  ],
-  celtic: [
-    { x: 35, y: 50, label: 'Present' },
-    { x: 35, y: 50, label: 'Challenge', rotate: 90, offsetX: 3 },
-    { x: 15, y: 50, label: 'Past' },
-    { x: 55, y: 50, label: 'Near Future' },
-    { x: 35, y: 20, label: 'Conscious' },
-    { x: 35, y: 80, label: 'Subconscious' },
-    { x: 80, y: 80, label: 'Self/Advice' },
-    { x: 80, y: 60, label: 'External' },
-    { x: 80, y: 40, label: 'Hopes/Fears' },
-    { x: 80, y: 20, label: 'Outcome' }
-  ]
-};
-
-const CARD_ASPECT = 2 / 3;
 const CELTIC_CHALLENGE_OFFSET = {
   minPx: 18,
   maxPx: 44,
@@ -81,7 +33,7 @@ const CARD_LAYOUT_EXIT_DURATION = 240;
 const CARD_LAYOUT_STAGGER = 40;
 
 function getCenterOutOrder(spreadKey, totalCards) {
-  const layout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
+  const layout = getSpreadLayout(spreadKey).positions;
   const count = Math.max(0, Math.min(totalCards || 0, layout.length));
   if (count <= 1) {
     return count === 1 ? [0] : [];
@@ -101,32 +53,6 @@ function getCenterOutOrder(spreadKey, totalCards) {
       return da - db;
     });
 }
-
-const getMaxCardWidth = (layout, bounds) => {
-  const width = bounds.width;
-  const height = bounds.height;
-  if (!width || !height) return null;
-  let maxWidth = Infinity;
-
-  layout.forEach((pos) => {
-    const offsetX = pos.offsetX || 0;
-    const x = ((pos.x + offsetX) / 100) * width;
-    const y = (pos.y / 100) * height;
-    const scale = pos.scale || 1;
-    const isRotated = pos.rotate && Math.abs(pos.rotate) % 180 === 90;
-    const aspect = isRotated ? 1 / CARD_ASPECT : CARD_ASPECT;
-    const xLimit = 2 * Math.min(x, width - x);
-    const yLimit = 2 * Math.min(y, height - y);
-    const widthLimit = Math.min(xLimit, yLimit * aspect) / scale;
-
-    if (widthLimit < maxWidth) {
-      maxWidth = widthLimit;
-    }
-  });
-
-  if (!Number.isFinite(maxWidth)) return null;
-  return Math.max(0, maxWidth);
-};
 
 function SlotPulseWrapper({ active, prefersReducedMotion, className, style, children, ...props }) {
   const ref = useRef(null);
@@ -538,7 +464,9 @@ export function SpreadTable({
   const sounds = useSounds();
   const tactileLens = useTactileLens({ disabled: !showTactileLens || compact });
   const scopeRootRef = useRef(null);
-  const baseLayout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
+  const layoutDefinition = getSpreadLayout(spreadKey);
+  const baseLayout = layoutDefinition.positions;
+  const allowOverlap = layoutDefinition.allowOverlap;
   const spreadInfo = SPREADS[spreadKey];
   const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
   const drawCount = typeof spreadInfo?.drawCount === 'number'
@@ -647,8 +575,8 @@ export function SpreadTable({
 
 
   const baseMaxCardWidth = useMemo(
-    () => getMaxCardWidth(limitedLayout, tableBounds),
-    [limitedLayout, tableBounds]
+    () => getMaxCardWidth(limitedLayout, tableBounds, allowOverlap),
+    [allowOverlap, limitedLayout, tableBounds]
   );
 
   const resolvedLayout = useMemo(() => {
@@ -750,8 +678,8 @@ export function SpreadTable({
   }, [cards, visibleLayout, tableBounds.width, tableBounds.height, prefersReducedMotion, layoutStagger]);
 
   const maxCardWidth = useMemo(
-    () => getMaxCardWidth(visibleLayout, tableBounds),
-    [visibleLayout, tableBounds]
+    () => getMaxCardWidth(visibleLayout, tableBounds, allowOverlap),
+    [allowOverlap, visibleLayout, tableBounds]
   );
 
   const cardSizeStyle = useMemo(() => {
@@ -763,7 +691,7 @@ export function SpreadTable({
   }, [maxCardWidth]);
 
   // Aspect ratio based on spread type
-  const aspectRatio = spreadKey === 'celtic' ? '4/3' : '3/2';
+  const aspectRatio = spreadKey === 'celtic' ? '6/5' : '3/2';
   const containerPresentation = useMemo(() => getSpreadTableContainerPresentation({
     cardsOnly,
     compact,
@@ -1296,7 +1224,7 @@ export function SpreadTableCompact({
   onSlotClick,
   activeSlot
 }) {
-  const layout = SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
+  const layout = getSpreadLayout(spreadKey).positions;
   const spreadInfo = SPREADS[spreadKey];
   const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
   const drawCount = typeof spreadInfo?.drawCount === 'number'

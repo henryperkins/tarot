@@ -5,6 +5,7 @@ import { getCardImage, getOrientationMeaning } from '../lib/cardLookup';
 import { getDrawerGradient } from '../lib/suitColors';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { SPREAD_LAYOUTS } from '../lib/spreadLayouts';
 import { SpreadTable } from './SpreadTable';
 import { getNextUnrevealedIndex, getPositionLabel } from './readingBoardUtils';
 
@@ -22,19 +23,12 @@ const CELTIC_POSITION_LABELS = [
   'Outcome'
 ];
 
-// Celtic Cross map overlay positions (percentage-based for responsive layout)
-const CELTIC_MAP_POSITIONS = [
-  { x: 35, y: 50 },        // 1: Present (center)
-  { x: 35, y: 50, rotated: true }, // 2: Challenge (crossing)
-  { x: 15, y: 50 },        // 3: Past
-  { x: 55, y: 50 },        // 4: Future
-  { x: 35, y: 20 },        // 5: Conscious
-  { x: 35, y: 80 },        // 6: Subconscious
-  { x: 80, y: 80 },        // 7: Advice
-  { x: 80, y: 60 },        // 8: External
-  { x: 80, y: 40 },        // 9: Hopes/Fears
-  { x: 80, y: 20 }         // 10: Outcome
-];
+// Derive the responsive position map from the live Celtic layout.
+const CELTIC_MAP_POSITIONS = SPREAD_LAYOUTS.celtic.positions.map((position) => ({
+  x: position.x,
+  y: position.y,
+  rotated: Math.abs(position.rotate || 0) % 180 === 90
+}));
 
 function CardDetailContent({
   focusedCardData,
