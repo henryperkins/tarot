@@ -23,7 +23,6 @@ const PRESET_COUNTS = {
   idle: 24,
   shuffle: 46,
   'deal-trail': 52,
-  'reveal-burst': 70,
   'element-ambient': 30,
   'narrative-glow': 28
 };
@@ -91,13 +90,6 @@ function getPresetConfig({ preset, color, reducedMotion, intensity = 1 }) {
     shared.particles.shape.type = ['circle', 'star'];
     shared.particles.size.value = { min: 1, max: 2.5 };
     shared.particles.opacity.value = { min: 0.14, max: 0.65 };
-  }
-
-  if (preset === 'reveal-burst') {
-    shared.particles.move.speed = reducedMotion ? 0.7 : 2.4;
-    shared.particles.shape.type = ['circle', 'triangle', 'star'];
-    shared.particles.size.value = { min: 1, max: 4.2 };
-    shared.particles.opacity.value = { min: 0.22, max: 0.85 };
   }
 
   if (preset === 'element-ambient') {

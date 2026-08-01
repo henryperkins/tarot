@@ -16,7 +16,9 @@ import { TactileLensButton, TactileLensOverlay } from './TactileLensOverlay';
 import { SpreadProgressIndicator } from './SpreadProgressIndicator';
 import { CardBack } from './CardBack';
 import { CardInfoPopover } from './CardInfoPopover';
-import { ParticleLayer } from './ParticleLayer';
+import { getSlotRevealSparks } from '../lib/slotRevealBurst';
+
+const SLOT_REVEAL_SPARKS = getSlotRevealSparks();
 
 const CELTIC_CHALLENGE_OFFSET = {
   minPx: 18,
@@ -189,6 +191,32 @@ function FlashRing({ active, prefersReducedMotion, className }) {
   if (!active) return null;
 
   return <div ref={ref} className={className} />;
+}
+
+/**
+ * SlotRevealBurst - CSS spark burst played when a slot reveals.
+ * Decorative and non-interactive; one shared keyframe drives every spark, with
+ * direction and reach carried on per-spark custom properties.
+ */
+function SlotRevealBurst({ suit }) {
+  const sparkColor = getSuitGlowColor({ suit }, 0.85);
+
+  return (
+    <div className="slot-reveal-burst" data-slot-reveal-burst aria-hidden="true">
+      {SLOT_REVEAL_SPARKS.map((spark, index) => (
+        <span
+          key={index}
+          className="slot-reveal-burst__spark"
+          data-slot-reveal-spark
+          style={{
+            '--angle': `${spark.angle}deg`,
+            '--distance': `${spark.distance}px`,
+            '--spark-color': sparkColor
+          }}
+        />
+      ))}
+    </div>
+  );
 }
 
 function FlipCard({
@@ -1132,13 +1160,7 @@ export function SpreadTable({
               .map((burst) => (
                 <div key={burst.id} className="pointer-events-none absolute inset-[-22%] z-[15]">
                   <div className="slot-reveal-bloom" aria-hidden="true" />
-                  <ParticleLayer
-                    id={`slot-reveal-burst-${spreadKey}-${i}-${burst.id}`}
-                    preset="reveal-burst"
-                    suit={burst.suit || card?.suit || null}
-                    intensity={prefersReducedMotion ? 0.25 : 0.62}
-                    zIndex={1}
-                  />
+                  <SlotRevealBurst suit={burst.suit || card?.suit || null} />
                 </div>
               ))}
             </SlotPulseWrapper>

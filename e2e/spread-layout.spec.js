@@ -373,6 +373,141 @@ test('anchors handset Celtic orientation overlays to the compact coordinates', a
   );
 });
 
+// Motion is set per test rather than left to the runner: these cases assert
+// opposite behaviour under each setting.
+async function openStagedCelticReveal(page, reducedMotion) {
+  await page.emulateMedia({ reducedMotion });
+  await page.setViewportSize(VIEWPORTS[2]);
+  await seedReadingUi(page);
+  await page.goto('/__e2e/spread-layout?spread=celtic&staged=1', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('spread-layout-fixture')).toBeVisible();
+  await expect(page.locator('[data-slot-index] [data-layout-card]')).toHaveCount(10, { timeout: 10000 });
+}
+
+// Samples the page for the whole burst window. Started before the click so the
+// first frames of the reveal are covered.
+function sampleRevealWindow(page) {
+  return page.evaluate(async () => {
+    const countCanvases = () => document.querySelectorAll('canvas').length;
+    let peakCanvases = countCanvases();
+    let sawSpark = false;
+    let sawBloom = false;
+    const deadline = performance.now() + 2500;
+
+    while (performance.now() < deadline) {
+      peakCanvases = Math.max(peakCanvases, countCanvases());
+      if (document.querySelector('[data-slot-reveal-spark]')) sawSpark = true;
+      if (document.querySelector('.slot-reveal-bloom')) sawBloom = true;
+      await new Promise((resolve) => { requestAnimationFrame(resolve); });
+    }
+
+    return { peakCanvases, sawSpark, sawBloom };
+  });
+}
+
+test.describe('reveal burst under normal motion', () => {
+  test('reveals a full Celtic spread without adding a canvas per slot', async ({ page }) => {
+    await openStagedCelticReveal(page, 'no-preference');
+    const baselineCanvases = await page.locator('canvas').count();
+
+    const sampled = sampleRevealWindow(page);
+    await page.getByRole('button', { name: 'Reveal all' }).click();
+    const { peakCanvases, sawSpark, sawBloom } = await sampled;
+
+    expect(peakCanvases, 'reveal-all must not add a canvas per slot').toBe(baselineCanvases);
+    expect(sawSpark, 'the reveal must render burst sparks').toBe(true);
+    expect(sawBloom, 'the slot reveal bloom must still run').toBe(true);
+  });
+
+  test('throws burst sparks radially outward from the slot', async ({ page }) => {
+    await openStagedCelticReveal(page, 'no-preference');
+
+    const measured = page.evaluate(async () => {
+      const deadline = performance.now() + 3000;
+      while (performance.now() < deadline) {
+        const burst = document.querySelector('[data-slot-reveal-burst]');
+        if (burst) {
+          const sparks = [...burst.querySelectorAll('[data-slot-reveal-spark]')];
+          const readTranslation = (spark, progress) => {
+            const animation = spark.getAnimations()[0];
+            if (!animation) return null;
+            animation.pause();
+            animation.currentTime = animation.effect.getComputedTiming().activeDuration * progress;
+            const matrix = new DOMMatrixReadOnly(getComputedStyle(spark).transform);
+            return { x: matrix.m41, y: matrix.m42 };
+          };
+
+          return sparks.map((spark) => {
+            const start = readTranslation(spark, 0);
+            const end = readTranslation(spark, 0.9);
+            if (!start || !end) return null;
+            return {
+              startReach: Math.hypot(start.x, start.y),
+              endReach: Math.hypot(end.x, end.y),
+              endDirection: (((Math.atan2(end.y, end.x) * 180) / Math.PI) + 360) % 360
+            };
+          });
+        }
+        await new Promise((resolve) => { requestAnimationFrame(resolve); });
+      }
+      return null;
+    });
+
+    await page.getByRole('button', { name: 'Reveal all' }).click();
+    const sparks = await measured;
+
+    expect(sparks, 'a burst must render sparks with animations').not.toBeNull();
+    expect(sparks.length).toBeGreaterThanOrEqual(6);
+
+    sparks.forEach((spark, index) => {
+      expect(spark, `spark ${index} must be animated`).not.toBeNull();
+      expect(spark.startReach, `spark ${index} must start at the slot centre`).toBeLessThanOrEqual(1);
+      expect(spark.endReach, `spark ${index} must travel outward`).toBeGreaterThanOrEqual(20);
+    });
+
+    const step = 360 / sparks.length;
+    sparks.forEach((spark, index) => {
+      const expectedDirection = (index * step) % 360;
+      expect(
+        Math.abs(spark.endDirection - expectedDirection),
+        `spark ${index} must fan to ${expectedDirection} degrees`
+      ).toBeLessThanOrEqual(1);
+    });
+  });
+});
+
+test('disables the reveal burst under reduced motion', async ({ page }) => {
+  await openStagedCelticReveal(page, 'reduce');
+
+  const observed = page.evaluate(async () => {
+    const deadline = performance.now() + 3000;
+    while (performance.now() < deadline) {
+      const spark = document.querySelector('[data-slot-reveal-spark]');
+      if (spark) {
+        const style = getComputedStyle(spark);
+        const raw = style.animationDuration;
+        // Normalise the unit: the stylesheet declares seconds, the global
+        // reduced-motion override declares milliseconds.
+        const durationMs = raw.endsWith('ms')
+          ? Number.parseFloat(raw)
+          : Number.parseFloat(raw) * 1000;
+        return { durationMs, raw, opacity: Number.parseFloat(style.opacity) };
+      }
+      await new Promise((resolve) => { requestAnimationFrame(resolve); });
+    }
+    return null;
+  });
+
+  await page.getByRole('button', { name: 'Reveal all' }).click();
+  const spark = await observed;
+
+  expect(spark, 'the burst markup must still render under reduced motion').not.toBeNull();
+  expect(
+    spark.durationMs,
+    'the global reduced-motion block must collapse the burst animation'
+  ).toBeLessThanOrEqual(1);
+});
+
 test('keeps a narrative mention pulse visible beyond the revealed card border', async ({ page }) => {
   await page.setViewportSize(VIEWPORTS[2]);
   await seedReadingUi(page);

@@ -19,7 +19,10 @@ export function SpreadLayoutFixture() {
       isReversed: showReversedCard && index === 0
     }))
   ), [cardCount, showReversedCard]);
-  const revealedCards = useMemo(() => new Set(reading.map((_, index) => index)), [reading]);
+  const stageReveal = new URLSearchParams(window.location.search).get('staged') === '1';
+  const allRevealed = useMemo(() => new Set(reading.map((_, index) => index)), [reading]);
+  const [stagedRevealed, setStagedRevealed] = useState(() => new Set());
+  const revealedCards = stageReveal ? stagedRevealed : allRevealed;
   const isHandset = window.innerWidth < 640;
 
   return (
@@ -31,6 +34,15 @@ export function SpreadLayoutFixture() {
       >
         Trigger mention pulse
       </button>
+      {stageReveal && (
+        <button
+          type="button"
+          onClick={() => setStagedRevealed(allRevealed)}
+          className="mb-3 ml-2 rounded-full border border-secondary/40 px-3 py-2 text-sm text-muted"
+        >
+          Reveal all
+        </button>
+      )}
       {showPrimaryCompact ? (
         <SpreadTable
           spreadKey={safeSpreadKey}
