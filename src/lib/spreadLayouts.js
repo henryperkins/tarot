@@ -57,7 +57,36 @@ export const SPREAD_LAYOUTS = {
   }
 };
 
-export function getSpreadLayout(spreadKey) {
+/**
+ * Handset substitutions for spreads the desktop geometry cannot fit legibly on a
+ * narrow board. Position order and labels mirror `SPREAD_LAYOUTS` exactly so the
+ * numbering, roles and narrative contracts are unchanged.
+ */
+export const COMPACT_SPREAD_LAYOUTS = {
+  celtic: {
+    // Cross as a compact plus over a single horizontal staff row. Four card rows
+    // spaced a quarter of the square board apart, so the board height rather
+    // than the crossing card sets the card size.
+    positions: [
+      { x: 50, y: 37.5, label: 'Present' },
+      { x: 50, y: 37.5, label: 'Challenge', rotate: 90 },
+      { x: 22, y: 37.5, label: 'Past' },
+      { x: 78, y: 37.5, label: 'Near Future' },
+      { x: 50, y: 12.5, label: 'Conscious' },
+      { x: 50, y: 62.5, label: 'Subconscious' },
+      { x: 12.5, y: 87.5, label: 'Self/Advice' },
+      { x: 37.5, y: 87.5, label: 'External' },
+      { x: 62.5, y: 87.5, label: 'Hopes/Fears' },
+      { x: 87.5, y: 87.5, label: 'Outcome' }
+    ],
+    allowOverlap: [[0, 1]]
+  }
+};
+
+export function getSpreadLayout(spreadKey, { isHandset = false } = {}) {
+  if (isHandset && COMPACT_SPREAD_LAYOUTS[spreadKey]) {
+    return COMPACT_SPREAD_LAYOUTS[spreadKey];
+  }
   return SPREAD_LAYOUTS[spreadKey] || SPREAD_LAYOUTS.single;
 }
 

@@ -18,7 +18,9 @@ const CARD_WIDTH_FLOORS = {
     threeCard: 63,
     fiveCard: 44,
     decision: 63,
-    relationship: 41
+    relationship: 41,
+    // Compact handset Celtic fits a square board six card-heights tall.
+    celtic: 55
   },
   768: {
     single: 127,
@@ -100,13 +102,43 @@ const SPREADS = [
       { x: 82, y: 62.67 },
       { x: 82, y: 37.33 },
       { x: 82, y: 12 }
-    ]
+    ],
+    // Handsets substitute the compact plus-over-staff layout; every other
+    // viewport keeps the desktop geometry above.
+    positionsByViewportWidth: {
+      390: [
+        { x: 50, y: 37.5 },
+        { x: 50, y: 37.5, challengeOffset: true },
+        { x: 22, y: 37.5 },
+        { x: 78, y: 37.5 },
+        { x: 50, y: 12.5 },
+        { x: 50, y: 62.5 },
+        { x: 12.5, y: 87.5 },
+        { x: 37.5, y: 87.5 },
+        { x: 62.5, y: 87.5 },
+        { x: 87.5, y: 87.5 }
+      ]
+    }
   }
 ];
+
+function getExpectedPositions(spread, viewportWidth) {
+  return spread.positionsByViewportWidth?.[viewportWidth] || spread.positions;
+}
+
+function boxOverlap(left, right) {
+  return {
+    width: Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x),
+    height: Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y)
+  };
+}
 
 function seedReadingUi(page) {
   return page.addInitScript(() => {
     localStorage.setItem('tarot-onboarding-complete', 'true');
+    // Suppress the Tactile Lens micro-tutorial; its pulse animation would
+    // resize the button mid-measurement.
+    localStorage.setItem('tableu_lens_tutorial_shown', 'true');
     localStorage.setItem('tarot-nudge-state', JSON.stringify({
       readingCount: 1,
       hasSeenRitualNudge: true,
@@ -176,14 +208,11 @@ async function expectLayoutGeometry(page, spreadKey, positions, challengeOffsetP
   for (let leftIndex = 0; leftIndex < cardBoxes.length; leftIndex += 1) {
     for (let rightIndex = leftIndex + 1; rightIndex < cardBoxes.length; rightIndex += 1) {
       if (spreadKey === 'celtic' && leftIndex === 0 && rightIndex === 1) continue;
-      const left = cardBoxes[leftIndex];
-      const right = cardBoxes[rightIndex];
-      const overlapWidth = Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x);
-      const overlapHeight = Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y);
+      const overlap = boxOverlap(cardBoxes[leftIndex], cardBoxes[rightIndex]);
 
       expect(
-        overlapWidth <= 1 || overlapHeight <= 1,
-        `${spreadKey} slots ${leftIndex}/${rightIndex} overlap by ${overlapWidth.toFixed(2)}x${overlapHeight.toFixed(2)}px`
+        overlap.width <= 1 || overlap.height <= 1,
+        `${spreadKey} slots ${leftIndex}/${rightIndex} overlap by ${overlap.width.toFixed(2)}x${overlap.height.toFixed(2)}px`
       ).toBe(true);
     }
   }
@@ -205,13 +234,144 @@ for (const viewport of VIEWPORTS) {
       await expectLayoutGeometry(
         page,
         spread.key,
-        spread.positions,
+        getExpectedPositions(spread, viewport.width),
         CELTIC_CHALLENGE_OFFSET_BY_VIEWPORT[viewport.width] || 0,
         CARD_WIDTH_FLOORS[viewport.width][spread.key]
       );
     }
   });
 }
+
+test('keeps handset Celtic board controls clear of the card field', async ({ page }) => {
+  await page.setViewportSize(VIEWPORTS[0]);
+  await seedReadingUi(page);
+  await openSpread(page, 'celtic', 10);
+
+  const controlBoxes = {
+    'tactile lens': await page.getByRole('button', { name: 'Position meanings' }).boundingBox(),
+    reset: await page.getByRole('button', { name: /reset reveals/i }).boundingBox()
+  };
+
+  for (const [name, box] of Object.entries(controlBoxes)) {
+    expect(box, `${name} control must be rendered`).not.toBeNull();
+  }
+
+  for (let index = 0; index < 10; index += 1) {
+    const cardBox = await page.locator(`[data-slot-index="${index}"] [data-layout-card]`).boundingBox();
+    expect(cardBox).not.toBeNull();
+
+    for (const [name, controlBox] of Object.entries(controlBoxes)) {
+      const overlap = boxOverlap(controlBox, cardBox);
+      expect(
+        overlap.width <= 1 || overlap.height <= 1,
+        `${name} control overlaps card ${index} by ${overlap.width.toFixed(2)}x${overlap.height.toFixed(2)}px`
+      ).toBe(true);
+    }
+  }
+
+  const controlOverlap = boxOverlap(controlBoxes['tactile lens'], controlBoxes.reset);
+  expect(
+    controlOverlap.width <= 1 || controlOverlap.height <= 1,
+    `tactile lens overlaps reset by ${controlOverlap.width.toFixed(2)}x${controlOverlap.height.toFixed(2)}px`
+  ).toBe(true);
+
+  await expect(page.getByRole('button', { name: 'Position meanings' })).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('grows compact Celtic cards to the board on a wide handset', async ({ page }) => {
+  await page.setViewportSize({ width: 600, height: 900 });
+  await seedReadingUi(page);
+  await openSpread(page, 'celtic', 10);
+
+  const table = page.locator('[role="region"][aria-label$="layout"]');
+  const tableBox = await table.boundingBox();
+  const cardBoxes = [];
+  const logicalCardWidths = [];
+
+  for (let index = 0; index < 10; index += 1) {
+    const card = page.locator(`[data-slot-index="${index}"] [data-layout-card]`);
+    const cardBox = await card.boundingBox();
+    expect(cardBox).not.toBeNull();
+
+    expect(cardBox.x, `slot ${index} left edge`).toBeGreaterThanOrEqual(tableBox.x - 1);
+    expect(cardBox.y, `slot ${index} top edge`).toBeGreaterThanOrEqual(tableBox.y - 1);
+    expect(cardBox.x + cardBox.width, `slot ${index} right edge`).toBeLessThanOrEqual(tableBox.x + tableBox.width + 1);
+    expect(cardBox.y + cardBox.height, `slot ${index} bottom edge`).toBeLessThanOrEqual(tableBox.y + tableBox.height + 1);
+
+    cardBoxes.push(cardBox);
+    logicalCardWidths.push(await card.evaluate((element) => Number.parseFloat(getComputedStyle(element).width)));
+  }
+
+  for (let leftIndex = 0; leftIndex < cardBoxes.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < cardBoxes.length; rightIndex += 1) {
+      if (leftIndex === 0 && rightIndex === 1) continue;
+      const overlap = boxOverlap(cardBoxes[leftIndex], cardBoxes[rightIndex]);
+      expect(
+        overlap.width <= 1 || overlap.height <= 1,
+        `celtic slots ${leftIndex}/${rightIndex} overlap by ${overlap.width.toFixed(2)}x${overlap.height.toFixed(2)}px`
+      ).toBe(true);
+    }
+  }
+
+  // The board, not a fixed size class, must set the card size across the whole
+  // handset range: a 544px board fits cards a sixth of its height.
+  expect(Math.min(...logicalCardWidths), 'wide handset celtic card width floor').toBeGreaterThanOrEqual(88);
+});
+
+test('anchors handset Celtic orientation overlays to the compact coordinates', async ({ page }) => {
+  const compactPositions = SPREADS.find((spread) => spread.key === 'celtic').positionsByViewportWidth[390];
+  // Self/Advice moves from the desktop staff column (82%, 88%) to the compact
+  // staff row, so it separates live coordinates from stale ones.
+  const adviceIndex = 6;
+  const advice = compactPositions[adviceIndex];
+
+  await page.setViewportSize(VIEWPORTS[0]);
+  await seedReadingUi(page);
+  await openSpread(page, 'celtic', 10);
+
+  const expectCentredAt = async (marker, container, position, label) => {
+    const markerBox = await marker.boundingBox();
+    const containerBox = await container.boundingBox();
+    expect(markerBox, `${label} marker must be rendered`).not.toBeNull();
+
+    const actualX = markerBox.x + (markerBox.width / 2);
+    const actualY = markerBox.y + (markerBox.height / 2);
+    const expectedX = containerBox.x + (containerBox.width * (position.x / 100));
+    const expectedY = containerBox.y + (containerBox.height * (position.y / 100));
+
+    expect(Math.abs(actualX - expectedX), `${label} horizontal centre`).toBeLessThanOrEqual(2);
+    expect(Math.abs(actualY - expectedY), `${label} vertical centre`).toBeLessThanOrEqual(2);
+  };
+
+  const lensButton = page.getByRole('button', { name: 'Position meanings' });
+  const lensButtonBox = await lensButton.boundingBox();
+  await page.mouse.move(
+    lensButtonBox.x + (lensButtonBox.width / 2),
+    lensButtonBox.y + (lensButtonBox.height / 2)
+  );
+  await page.mouse.down();
+
+  const lensOverlay = page.getByRole('region', { name: 'Position meanings' });
+  await expect(lensOverlay).toBeVisible();
+  await expectCentredAt(
+    lensOverlay.getByText('Self / Advice — how to meet this').locator('xpath=../..'),
+    page.locator('[role="region"][aria-label$="layout"]'),
+    advice,
+    'tactile lens Self/Advice'
+  );
+  await page.mouse.up();
+  await expect(lensOverlay).toBeHidden();
+
+  await page.getByRole('button', { name: 'Show Celtic Cross position map' }).click();
+  const mapOverlay = page.getByRole('dialog', { name: 'Celtic Cross position map' });
+  await expect(mapOverlay).toBeVisible();
+  await expectCentredAt(
+    mapOverlay.getByText('Advice', { exact: true }).locator('xpath=..'),
+    mapOverlay,
+    advice,
+    'position map Advice'
+  );
+});
 
 test('keeps a narrative mention pulse visible beyond the revealed card border', async ({ page }) => {
   await page.setViewportSize(VIEWPORTS[2]);

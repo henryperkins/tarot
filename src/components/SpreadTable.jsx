@@ -6,7 +6,7 @@ import { useSounds } from '../hooks/useSounds';
 import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
 import { getSuitBorderColor, getRevealedCardGlow, getSuitGlowColor } from '../lib/suitColors';
 import { getSpreadTableContainerPresentation } from '../lib/spreadTablePresentation';
-import { CARD_ASPECT, getMaxCardWidth, getSpreadLayout } from '../lib/spreadLayouts';
+import { CARD_ASPECT, COMPACT_SPREAD_LAYOUTS, getMaxCardWidth, getSpreadLayout } from '../lib/spreadLayouts';
 import { extractShortLabel, getPositionLabel } from './readingBoardUtils';
 import { HandTap } from '@phosphor-icons/react';
 import { useHaptic } from '../hooks/useHaptic';
@@ -32,8 +32,7 @@ const CARD_LAYOUT_DURATION = 380;
 const CARD_LAYOUT_EXIT_DURATION = 240;
 const CARD_LAYOUT_STAGGER = 40;
 
-function getCenterOutOrder(spreadKey, totalCards) {
-  const layout = getSpreadLayout(spreadKey).positions;
+function getCenterOutOrder(layout, totalCards) {
   const count = Math.max(0, Math.min(totalCards || 0, layout.length));
   if (count <= 1) {
     return count === 1 ? [0] : [];
@@ -457,14 +456,16 @@ export function SpreadTable({
   mentionPulse = null,
   showProgress = true,
   showTactileLens = true,
-  cardsOnly = false
+  cardsOnly = false,
+  isHandset = false
 }) {
   const prefersReducedMotion = useReducedMotion();
   const { vibrate, vibrateType } = useHaptic();
   const sounds = useSounds();
   const tactileLens = useTactileLens({ disabled: !showTactileLens || compact });
   const scopeRootRef = useRef(null);
-  const layoutDefinition = getSpreadLayout(spreadKey);
+  const layoutDefinition = getSpreadLayout(spreadKey, { isHandset });
+  const usesCompactLayout = layoutDefinition === COMPACT_SPREAD_LAYOUTS[spreadKey];
   const baseLayout = layoutDefinition.positions;
   const allowOverlap = layoutDefinition.allowOverlap;
   const spreadInfo = SPREADS[spreadKey];
@@ -496,8 +497,8 @@ export function SpreadTable({
   const revealBurstIdRef = useRef(0);
   const revealBurstTimersRef = useRef([]);
   const centerOutOrder = useMemo(
-    () => getCenterOutOrder(spreadKey, limitedLayout.length),
-    [spreadKey, limitedLayout.length]
+    () => getCenterOutOrder(baseLayout, limitedLayout.length),
+    [baseLayout, limitedLayout.length]
   );
   const centerOutDelayByIndex = useMemo(() => {
     const delayMap = new Map();
@@ -690,8 +691,11 @@ export function SpreadTable({
     };
   }, [maxCardWidth]);
 
-  // Aspect ratio based on spread type
-  const aspectRatio = spreadKey === 'celtic' ? '6/5' : '3/2';
+  // Aspect ratio based on spread type. The compact handset Celtic layout stacks
+  // four card rows, so it needs a square board rather than the landscape one.
+  const aspectRatio = spreadKey === 'celtic'
+    ? (usesCompactLayout ? '1/1' : '6/5')
+    : '3/2';
   const containerPresentation = useMemo(() => getSpreadTableContainerPresentation({
     cardsOnly,
     compact,
@@ -700,9 +704,13 @@ export function SpreadTable({
 
   const sizeClass = compact
     ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]'
-    : size === 'large'
-      ? 'w-20 h-[120px] xs:w-24 xs:h-[140px] sm:w-28 sm:h-[160px] md:w-32 md:h-[180px]'
-      : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28';
+    : usesCompactLayout
+      // Compact handset boards are sized by the fitter, not by this class, so
+      // the class only has to stay clear of the board-derived maximum.
+      ? 'w-16 h-24 xs:w-24 xs:h-36 sm:w-32 sm:h-48'
+      : size === 'large'
+        ? 'w-20 h-[120px] xs:w-24 xs:h-[140px] sm:w-28 sm:h-[160px] md:w-32 md:h-[180px]'
+        : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28';
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -1179,9 +1187,11 @@ export function SpreadTable({
         </div>
       )}
 
-      {/* Tactile Lens button - press-hold to view position meanings */}
+      {/* Tactile Lens button - press-hold to view position meanings.
+          Handset boards fill their card field edge to edge, so the button sits
+          in the reserved band below the board instead of over the cards. */}
       {!compact && showTactileLens && (
-        <div className="absolute bottom-3 left-3 z-20">
+        <div className={`absolute left-3 z-20 ${isHandset ? 'top-full mt-2' : 'bottom-3'}`}>
           <TactileLensButton
             disabled={cards.length === 0}
             isActive={tactileLens.isActive}
