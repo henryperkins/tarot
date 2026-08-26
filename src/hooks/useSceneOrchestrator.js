@@ -129,6 +129,7 @@ export function deriveLegacyScene({
   isShuffling,
   hasConfirmedSpread,
   revealedCards,
+  dealIndex,
   totalCards,
   isGenerating,
   isReadingStreamActive,
@@ -154,7 +155,11 @@ export function deriveLegacyScene({
     }
 
     const total = totalCards || reading.length;
-    if (revealedCount === 0) {
+    const dealtCount = Number.isFinite(dealIndex)
+      ? Math.min(total, Math.max(0, Math.floor(dealIndex)))
+      : total;
+
+    if (dealtCount < total) {
       return LEGACY_SCENES.SHUFFLING;
     }
 
@@ -200,6 +205,7 @@ export function useSceneOrchestrator({
   isShuffling,
   hasConfirmedSpread,
   revealedCards,
+  dealIndex,
   totalCards,
   isGenerating,
   isReadingStreamActive,
@@ -214,6 +220,7 @@ export function useSceneOrchestrator({
     isShuffling,
     hasConfirmedSpread,
     revealedCards,
+    dealIndex,
     totalCards,
     isGenerating,
     isReadingStreamActive,
@@ -223,6 +230,7 @@ export function useSceneOrchestrator({
     isShuffling,
     hasConfirmedSpread,
     revealedCards,
+    dealIndex,
     totalCards,
     isGenerating,
     isReadingStreamActive,

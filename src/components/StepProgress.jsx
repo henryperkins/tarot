@@ -10,17 +10,6 @@ const STEP_ICONS = {
   'reading': Eye
 };
 
-// Short labels for mobile (max ~10 chars for space efficiency)
-const STEP_SHORT_LABELS = {
-  'spread': 'Spread',
-  'intention': 'Intent',
-  'ritual': 'Ritual',
-  'reading': 'Read'
-};
-
-// Steps that are optional (shown with indicator)
-const OPTIONAL_STEPS = new Set(['ritual']);
-
 export function StepProgress({ steps = [], activeStep, onSelect, condensed = false }) {
   const [activeTooltip, setActiveTooltip] = useState(null);
   const tooltipTimeoutRef = useRef(null);
@@ -163,7 +152,6 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
           const isActive = step.id === activeStep;
           const isCelebrating = step.id === celebrateStepId;
           const StepIcon = STEP_ICONS[step.id];
-          const shortLabel = STEP_SHORT_LABELS[step.id] || step.label;
           const isTooltipVisible = activeTooltip === step.id;
 
           // Calculate tooltip position adjustment for edge items
@@ -210,22 +198,8 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                       aria-hidden="true"
                     />
                   )}
-                  {/* Mobile: show short label, Desktop: show full label */}
-                  <span className={`
-                    font-semibold truncate
-                    ${condensed
-                      ? 'text-xs xs:text-xs-plus text-secondary'
-                      : 'text-xs xs:text-xs-plus sm:text-sm'
-                    }
-                    ${isActive ? 'text-main' : 'text-muted-high'}
-                  `}>
-                    <span className="sm:hidden">
-                      {shortLabel}
-                      {OPTIONAL_STEPS.has(step.id) && (
-                        <span aria-hidden="true" className="text-muted/70 ml-0.5">*</span>
-                      )}
-                    </span>
-                    <span className="hidden sm:inline">{step.label}</span>
+                  <span className={`hidden sm:inline font-semibold text-sm ${isActive ? 'text-main' : 'text-muted-high'}`}>
+                    {step.label}
                   </span>
                 </div>
               </button>

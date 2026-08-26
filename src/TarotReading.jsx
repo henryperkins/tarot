@@ -112,6 +112,7 @@ export default function TarotReading() {
     handleKnock,
     applyCut,
     dealNext,
+    revealCard,
     revealAll,
     onSpreadConfirm,
 
@@ -150,6 +151,7 @@ export default function TarotReading() {
   const [followUpIntent, setFollowUpIntent] = useState('continue');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
+  const [isCardOverlayOpen, setIsCardOverlayOpen] = useState(false);
   const [mobileSettingsTab, setMobileSettingsTab] = useState('intention');
   const [highlightQuickIntention, setHighlightQuickIntention] = useState(false);
   const [onboardingDeferred, setOnboardingDeferred] = useState(false);
@@ -733,7 +735,8 @@ export default function TarotReading() {
   const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
   const visibleCount = reading ? (maxCards ? Math.min(reading.length, maxCards) : reading.length) : 0;
   const hasReading = visibleCount > 0;
-  const allCardsRevealed = hasReading && revealedCards.size === visibleCount;
+  const allCardsDealt = hasReading && dealIndex >= visibleCount;
+  const allCardsRevealed = allCardsDealt && revealedCards.size === visibleCount;
   const hasNarrative = Boolean(personalReading && !personalReading.isError && !personalReading.isStreaming);
   const narrativeInProgress = isGenerating && (!personalReading || personalReading.isStreaming);
   const needsNarrativeGeneration = allCardsRevealed && (!personalReading || personalReading.isError || personalReading.isStreaming);
@@ -741,11 +744,8 @@ export default function TarotReading() {
   const showFollowUpButton = isHandset && personalReading && !personalReading.isError && !personalReading.isStreaming && narrativePhase === 'complete';
   const isFollowUpVisible = showFollowUpButton && isFollowUpOpen;
   // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
-  const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen || isFollowUpVisible;
+  const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen || isFollowUpVisible || isCardOverlayOpen;
   const isCinematicFocusMode = shouldFocusCinematicFlow && !showSetupInFocusMode;
-  const revealFocus = isHandset && newDeckInterface && reading && revealedCards.size < visibleCount
-    ? (revealedCards.size === 0 ? 'deck' : 'spread')
-    : 'action';
   const connectionTone = connectionBanner?.status === 'offline'
     ? 'border-error/40'
     : 'border-primary/40';
@@ -781,6 +781,21 @@ export default function TarotReading() {
     return generatePersonalReading();
   }, [generatePersonalReading]);
 
+  const handleNextCardAction = useCallback(() => {
+    if (!reading || visibleCount === 0) return;
+    if (dealIndex < visibleCount) {
+      dealNext();
+      return;
+    }
+
+    const nextIndex = reading
+      .slice(0, visibleCount)
+      .findIndex((_, index) => !revealedCards.has(index));
+    if (nextIndex >= 0) {
+      revealCard(nextIndex);
+    }
+  }, [dealIndex, dealNext, reading, revealCard, revealedCards, visibleCount]);
+
   // Compute the highest milestone achieved (not affected by which panel user views)
   // This ensures the step indicator stays consistent once progress is made
   const { stepIndicatorLabel, stepIndicatorHint, activeStep } = useMemo(() => {
@@ -808,11 +823,20 @@ export default function TarotReading() {
           activeStep: 'reading'
         };
       }
-      // Cards drawn but not all revealed
+      if (!allCardsDealt) {
+        const remainingCards = visibleCount - dealIndex;
+        return {
+          stepIndicatorLabel: 'Deal your cards',
+          stepIndicatorHint: `${remainingCards} card${remainingCards === 1 ? '' : 's'} remaining to deal face-down.`,
+          activeStep: 'reading'
+        };
+      }
+
+      // Cards dealt but not all face-up
       const remainingCards = visibleCount - revealedCards.size;
       return {
-        stepIndicatorLabel: `Reveal your cards`,
-        stepIndicatorHint: `${remainingCards} card${remainingCards === 1 ? '' : 's'} remaining to reveal.`,
+        stepIndicatorLabel: 'Turn your cards',
+        stepIndicatorHint: `${remainingCards} card${remainingCards === 1 ? '' : 's'} remaining to turn face-up.`,
         activeStep: 'reading'
       };
     }
@@ -854,7 +878,7 @@ export default function TarotReading() {
       stepIndicatorHint: 'When you feel ready, deal the cards to begin your reading.',
       activeStep: 'reading'
     };
-  }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, hasQuestion, hasConfirmedSpread, knockCount, hasCut, revealedCards, visibleCount]);
+  }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, allCardsDealt, hasQuestion, hasConfirmedSpread, knockCount, hasCut, dealIndex, revealedCards, visibleCount]);
 
 
   // --- Render Helper Wrappers ---
@@ -1046,6 +1070,7 @@ export default function TarotReading() {
           followUpAutoFocus={followUpIntent === 'ask'}
           suppressInterruptions={suppressFocusInterruptions}
           isMobileStableMode={shouldEnableMobileStableMode}
+          onCardOverlayChange={setIsCardOverlayOpen}
         />
       </main>
 
@@ -1067,7 +1092,6 @@ export default function TarotReading() {
               needsNarrativeGeneration={needsNarrativeGeneration}
               stepIndicatorLabel={stepIndicatorLabel}
               activeStep={activeStep}
-              revealFocus={revealFocus}
               onOpenSettings={() => {
                 setMobileSettingsTab(activeStep === 'ritual' ? 'ritual' : 'intention');
                 setIsMobileSettingsOpen(true);
@@ -1075,7 +1099,7 @@ export default function TarotReading() {
               onOpenCoach={openIntentionCoach}
               onOpenFollowUp={handleOpenFollowUp}
               onShuffle={handleShuffle}
-              onDealNext={dealNext}
+              onDealNext={handleNextCardAction}
               onRevealAll={handleRevealAll}
               onGenerateNarrative={handleGeneratePersonalReading}
               onSaveReading={saveReading}
@@ -1119,7 +1143,6 @@ export default function TarotReading() {
                 needsNarrativeGeneration={needsNarrativeGeneration}
                 stepIndicatorLabel={stepIndicatorLabel}
                 activeStep={activeStep}
-                revealFocus={revealFocus}
                 showUtilityButtons={false}
                 onOpenSettings={() => setIsMobileSettingsOpen(false)}
                 onOpenCoach={() => {
@@ -1127,7 +1150,7 @@ export default function TarotReading() {
                   openIntentionCoach();
                 }}
                 onShuffle={handleShuffle}
-                onDealNext={dealNext}
+                onDealNext={handleNextCardAction}
                 onRevealAll={handleRevealAll}
                 onGenerateNarrative={handleGeneratePersonalReading}
                 onSaveReading={saveReading}

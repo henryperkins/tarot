@@ -340,6 +340,124 @@
   --scene-bloom-b: rgba(6, 182, 212, 0.2);
 }
 
+.reading-cloth-stage {
+  min-height: clamp(44rem, 96vh, 68rem);
+}
+
+.scene-shell--cloth {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.reading-cloth {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.reading-cloth__header {
+  grid-area: header;
+  max-width: 42rem;
+  margin-inline: auto;
+}
+
+.reading-cloth__deck {
+  grid-area: deck;
+  position: relative;
+  z-index: 2;
+  max-width: 30rem;
+  margin: clamp(1.5rem, 4vw, 3rem) auto 0;
+}
+
+.reading-cloth__board {
+  grid-area: board;
+  position: relative;
+  z-index: 1;
+  max-width: 64rem;
+  margin: clamp(2rem, 4vw, 3.5rem) auto 0;
+  padding-bottom: 2rem;
+}
+
+.reading-cloth__actions {
+  grid-area: actions;
+  margin-top: clamp(2rem, 4vw, 3rem);
+}
+
+.reading-cloth__reset {
+  grid-area: reset;
+  margin-top: 1.5rem;
+}
+
+.reading-cloth__narrative {
+  grid-area: narrative;
+  margin-top: 2rem;
+}
+
+.reading-cloth .deck-stack-card {
+  border-color: rgba(212, 175, 55, 0.28);
+  background:
+    linear-gradient(145deg, rgba(55, 34, 104, 0.96), rgba(28, 17, 61, 0.99)),
+    radial-gradient(circle at 50% 46%, rgba(212, 175, 55, 0.14), transparent 64%);
+}
+
+.reading-cloth .deck-stack-top {
+  border-color: rgba(212, 175, 55, 0.42);
+  background:
+    linear-gradient(145deg, rgba(59, 36, 112, 0.98), rgba(30, 18, 66, 0.99)),
+    radial-gradient(circle at 50% 38%, rgba(212, 175, 55, 0.2), transparent 66%);
+  box-shadow:
+    0 24px 54px -30px rgba(0, 0, 0, 0.95),
+    0 0 42px rgba(81, 53, 153, 0.26),
+    inset 0 1px 0 rgba(255, 239, 204, 0.08);
+}
+
+@media (max-width: 639px) {
+  .reading-cloth-stage {
+    min-height: 58rem;
+  }
+
+  .reading-cloth__deck {
+    margin-top: 1rem;
+  }
+
+  .reading-cloth__board {
+    margin-top: 2.5rem;
+    padding-bottom: 3.5rem;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) and (max-width: 1024px) {
+  .reading-cloth {
+    display: grid;
+    grid-template-columns: minmax(13rem, 0.72fr) minmax(22rem, 1.4fr);
+    grid-template-areas:
+      "header header"
+      "deck board"
+      "actions actions"
+      "reset reset"
+      "narrative narrative";
+    column-gap: 1.5rem;
+    align-items: center;
+  }
+
+  .reading-cloth-stage {
+    min-height: 34rem;
+  }
+
+  .reading-cloth__deck,
+  .reading-cloth__board {
+    margin-top: 1rem;
+  }
+
+  .reading-cloth__board {
+    padding-bottom: 2.5rem;
+  }
+}
+
 .scene-stage--interlude {
   --scene-bloom-a: rgba(147, 197, 253, 0.22);
   --scene-bloom-b: rgba(196, 171, 255, 0.22);

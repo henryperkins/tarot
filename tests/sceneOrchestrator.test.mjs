@@ -7,6 +7,7 @@ function baseState(overrides = {}) {
     isShuffling: false,
     hasConfirmedSpread: true,
     revealedCards: new Set([0, 1, 2]),
+    dealIndex: 3,
     totalCards: 3,
     isGenerating: true,
     isReadingStreamActive: false,
@@ -79,6 +80,24 @@ describe('deriveLegacyScene', () => {
       isGenerating: false
     }));
     assert.equal(scene, 'drawing');
+  });
+
+  it('enters the reveal scene after every card is dealt face-down', () => {
+    const scene = deriveLegacyScene(baseState({
+      dealIndex: 3,
+      revealedCards: new Set(),
+      isGenerating: false
+    }));
+    assert.equal(scene, 'drawing');
+  });
+
+  it('keeps the ritual scene while a card remains undealt', () => {
+    const scene = deriveLegacyScene(baseState({
+      dealIndex: 2,
+      revealedCards: new Set(),
+      isGenerating: false
+    }));
+    assert.equal(scene, 'shuffling');
   });
 
   it('returns revealing when all cards revealed but no personal reading', () => {

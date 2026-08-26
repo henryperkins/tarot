@@ -485,7 +485,8 @@ export function SpreadTable({
   showProgress = true,
   showTactileLens = true,
   cardsOnly = false,
-  isHandset = false
+  isHandset = false,
+  showPositionLabels = false
 }) {
   const prefersReducedMotion = useReducedMotion();
   const { vibrate, vibrateType } = useHaptic();
@@ -939,7 +940,9 @@ export function SpreadTable({
                 }}
                 aria-label={
                   isNext
-                    ? MICROCOPY.revealPosition(shortLabel)
+                    ? onSlotDeal
+                      ? `Deal a card to ${shortLabel}`
+                      : MICROCOPY.revealPosition(shortLabel)
                     : i < nextDealIndex
                       ? `${positionLabel}: waiting for card`
                       : MICROCOPY.awaitingPrevious(getPositionLabel(spreadInfo, nextDealIndex, visibleLayout[nextDealIndex]))
@@ -961,7 +964,7 @@ export function SpreadTable({
                   reducedOpacity={0.5}
                 />
                 <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-xs'} text-muted text-center px-1 leading-tight`}>
-                  {isNext ? MICROCOPY.revealPosition(shortLabel) : shortLabel}
+                  {isNext && onSlotDeal ? `Deal to ${shortLabel}` : isNext ? MICROCOPY.revealPosition(shortLabel) : shortLabel}
                 </span>
               </button>
             )}
@@ -1041,8 +1044,8 @@ export function SpreadTable({
                 ? isRevealed
                   ? `${card.name}${card.isReversed ? ', reversed' : ''}, in ${positionLabel} position. Click to view details.`
                   : disableReveal
-                    ? `${positionLabel} position. Draw from the deck to reveal.`
-                    : `Card in ${positionLabel} position. Click to reveal.`
+                    ? `${positionLabel} position. Card dealt face-down.`
+                    : `Card in ${positionLabel} position. Click to turn face-up.`
                 : undefined
               }
             >
@@ -1090,19 +1093,6 @@ export function SpreadTable({
                             e.target.src = FALLBACK_IMAGE;
                           }}
                         />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1 flex items-center gap-1">
-                          <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-2xs'} text-main font-semibold leading-tight min-w-0 truncate`}>
-                            {displayCard.name.replace(/^The /, '')}
-                          </span>
-                          {displayCard.isReversed ? (
-                            <span
-                              className="inline-flex shrink-0 items-center rounded-full border bg-surface-muted/90 text-accent border-accent/50 px-1.5 py-0.5 text-2xs font-semibold leading-none"
-                              aria-label="Reversed"
-                            >
-                              {compact ? '⟲' : 'Reversed'}
-                            </span>
-                          ) : null}
-                        </div>
                       </div>
                       <div
                         className="absolute inset-0 rounded-[inherit] overflow-hidden bg-surface-muted flex items-center justify-center"
@@ -1155,6 +1145,14 @@ export function SpreadTable({
                 );
               }}
             </AnimatedCardButton>
+            {showPositionLabels && card && (
+              <span
+                className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 max-w-[10rem] whitespace-nowrap rounded-full border border-accent/25 bg-surface/90 px-2.5 py-1 text-xs font-medium text-muted shadow-md"
+                aria-hidden="true"
+              >
+                {shortLabel}{isRevealed && card.isReversed ? ', reversed' : ''}
+              </span>
+            )}
             {revealBursts
               .filter((burst) => burst.slotIndex === i)
               .map((burst) => (

@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ParticleLayer } from '../ParticleLayer';
 import { CardModal } from '../CardModal';
+import { CardBack } from '../CardBack';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 function GhostCard({ startRect, endRect, suit = null, onComplete }) {
@@ -13,7 +14,7 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
   const trailBurstIdRef = useRef(0);
   const trailTimersRef = useRef([]);
   const [trailBursts, setTrailBursts] = useState([]);
-  const durationMs = 350;
+  const durationMs = prefersReducedMotion ? 150 : 520;
   const startX = Number.isFinite(startRect?.left) ? startRect.left : 0;
   const startY = Number.isFinite(startRect?.top) ? startRect.top : 0;
   const endX = Number.isFinite(endRect?.left) ? endRect.left : startX;
@@ -100,7 +101,7 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
       animation = node.animate(
         [
           { transform: startTransform, opacity: 1, offset: 0 },
-          { transform: startTransform, opacity: 1, offset: 0.68 },
+          { transform: endTransform, opacity: 1, offset: 0.88 },
           { transform: endTransform, opacity: 0, offset: 1 }
         ],
         {
@@ -146,24 +147,9 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
       >
         <div
           className="w-full h-full rounded-xl border-2 border-primary/40 overflow-hidden"
-          style={{
-            background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))',
-            boxShadow: '0 12px 22px rgba(0, 0, 0, 0.35)'
-          }}
+          style={{ boxShadow: '0 12px 22px rgba(0, 0, 0, 0.35)' }}
         >
-          <div
-            className="absolute inset-0 opacity-10"
-            style={{
-              backgroundImage: 'radial-gradient(circle at 50% 50%, var(--brand-secondary) 1px, transparent 1px)',
-              backgroundSize: '12px 12px'
-            }}
-          />
-          <div
-            className="absolute inset-0 flex items-center justify-center"
-            style={{
-              background: 'radial-gradient(circle at 50% 50%, rgba(var(--brand-primary-rgb) / 0.12), transparent 70%)'
-            }}
-          />
+          <CardBack className="w-full h-full tarot-card-back--muted" />
         </div>
       </div>
       {!prefersReducedMotion && trailBursts.map((burst) => (

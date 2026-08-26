@@ -56,7 +56,10 @@ const SCENE_BACKDROP = {
 
 const TRANSITION_PROFILES = {
   'ritual->reveal': {
-    duration: 920,
+    duration: 560,
+    peakOpacity: 0.16,
+    contentStartOpacity: 1,
+    contentStartScale: 1,
     overlay: 'radial-gradient(circle at 50% 50%, rgba(9, 8, 14, 0.94), rgba(2, 1, 6, 0.98))'
   },
   'reveal->interlude': {
@@ -138,14 +141,14 @@ export function SceneShell({
         set(content, { opacity: 1, scale: 1 });
       }
       const fade = animate(overlay, {
-        opacity: [0, 0.55, 0],
-        duration: 200,
+        opacity: [0, Math.min(profile?.peakOpacity ?? 0.18, 0.18), 0],
+        duration: 150,
         ease: 'inOutQuad'
       });
       if (content) {
         animate(content, {
           opacity: [0.95, 1],
-          duration: 200,
+          duration: 150,
           ease: 'outQuad'
         });
       }
@@ -155,13 +158,16 @@ export function SceneShell({
 
     set(overlay, { opacity: 0 });
     if (content) {
-      set(content, { opacity: 0.88, scale: 0.988 });
+      set(content, {
+        opacity: profile?.contentStartOpacity ?? 0.88,
+        scale: profile?.contentStartScale ?? 0.988
+      });
     }
     const fadeInDuration = Math.round(duration * 0.45);
     const fadeOutDuration = Math.max(120, duration - fadeInDuration);
     let cancelled = false;
     const enter = animate(overlay, {
-      opacity: [0, 1],
+      opacity: [0, profile?.peakOpacity ?? 1],
       duration: fadeInDuration,
       ease: 'outQuad'
     });
@@ -170,13 +176,13 @@ export function SceneShell({
     enter.then(() => {
       if (cancelled) return;
       const chainedContent = content ? animate(content, {
-        opacity: [0.88, 1],
-        scale: [0.988, 1],
+        opacity: [profile?.contentStartOpacity ?? 0.88, 1],
+        scale: [profile?.contentStartScale ?? 0.988, 1],
         duration: fadeOutDuration,
         ease: 'outQuad'
       }) : null;
       const chainedOverlay = animate(overlay, {
-        opacity: [1, 0],
+        opacity: [profile?.peakOpacity ?? 1, 0],
         duration: fadeOutDuration,
         ease: 'inOutQuad'
       });
@@ -208,7 +214,7 @@ export function SceneShell({
     });
 
     if (previousScene === 'ritual' && activeScene === 'reveal') {
-      void sounds.play('reveal-bloom', { essential: true, volume: 0.72 });
+      void sounds.play('reveal-bloom', { essential: false, volume: 0.62 });
     }
     if (activeScene === 'complete') {
       sounds.stop('narrative-ambient');

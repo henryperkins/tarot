@@ -47,6 +47,7 @@ export function ReadingProvider({ children }) {
         selectedSpread,
         userQuestion,
         revealedCards,
+        dealIndex,
         shuffle,
         dealNext: baseDealNext,
         revealCard: baseRevealCard,
@@ -1383,23 +1384,24 @@ export function ReadingProvider({ children }) {
 
     const dealNext = useCallback(() => {
         if (!reading) return;
-        const nextIndex = reading.findIndex((_, index) => !revealedCards.has(index));
-        if (nextIndex < 0) return;
-        const description = describeCardAtIndex(nextIndex);
-        if (description) {
-            setSrAnnouncement(`Revealed ${description}.`);
-        }
+        const spreadInfo = getSpreadInfo(selectedSpread);
+        const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : reading.length;
+        const visibleCount = Math.min(reading.length, maxCards);
+        const nextIndex = Math.min(Math.max(0, dealIndex), visibleCount);
+        if (nextIndex >= visibleCount) return;
+        const position = spreadInfo?.positions?.[nextIndex] || `Position ${nextIndex + 1}`;
+        setSrAnnouncement(`Dealt a card face-down to ${position}.`);
         baseDealNext();
-    }, [baseDealNext, describeCardAtIndex, reading, revealedCards]);
+    }, [baseDealNext, dealIndex, reading, selectedSpread]);
 
     const revealCard = useCallback((index) => {
-        if (!reading || !reading[index]) return;
+        if (!reading || !reading[index] || index >= dealIndex) return;
         const description = describeCardAtIndex(index);
         if (description) {
-            setSrAnnouncement(`Revealed ${description}.`);
+            setSrAnnouncement(`Turned ${description}`);
         }
         baseRevealCard(index);
-    }, [baseRevealCard, describeCardAtIndex, reading]);
+    }, [baseRevealCard, dealIndex, describeCardAtIndex, reading]);
 
     const revealAll = useCallback(() => {
         if (!reading || reading.length === 0) return;
@@ -1407,22 +1409,23 @@ export function ReadingProvider({ children }) {
         const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
         const visibleReading = maxCards ? reading.slice(0, maxCards) : reading;
         if (visibleReading.length === 0) return;
+        if (dealIndex < visibleReading.length) return;
         const descriptions = visibleReading
             .map((_, index) => (!revealedCards.has(index) ? describeCardAtIndex(index) : null))
             .filter(Boolean);
 
         if (descriptions.length === 1) {
-            setSrAnnouncement(`Revealed ${descriptions[0]}.`);
+            setSrAnnouncement(`Turned ${descriptions[0]}`);
         } else if (descriptions.length > 1) {
             const preview = descriptions.slice(0, 2).join('; ');
             const suffix = descriptions.length > 2 ? '…' : '.';
-            setSrAnnouncement(`Revealed ${descriptions.length} cards — ${preview}${suffix}`);
+            setSrAnnouncement(`Turned ${descriptions.length} cards face-up — ${preview}${suffix}`);
         } else if (revealedCards.size === visibleReading.length) {
-            setSrAnnouncement('All cards already revealed.');
+            setSrAnnouncement('All cards are already face-up.');
         }
 
         baseRevealAll();
-    }, [baseRevealAll, describeCardAtIndex, reading, revealedCards, selectedSpread]);
+    }, [baseRevealAll, dealIndex, describeCardAtIndex, reading, revealedCards, selectedSpread]);
 
     const value = useMemo(() => ({
         ...audioController,

@@ -1,8 +1,7 @@
 import {
   SceneShell,
   IdleScene,
-  RitualScene,
-  RevealScene,
+  ReadingClothScene,
   InterludeScene,
   NarrativeScene,
   CompleteScene
@@ -14,18 +13,8 @@ const SCENE_COMPONENTS = {
       {children}
     </IdleScene>
   ),
-  ritual: (props) => (
-    <RitualScene
-      {...props}
-      showTitle={false}
-    />
-  ),
-  reveal: (props) => (
-    <RevealScene
-      {...props}
-      showTitle={false}
-    />
-  ),
+  ritual: ReadingClothScene,
+  reveal: ReadingClothScene,
   interlude: (props) => (
     <InterludeScene
       {...props}
@@ -47,7 +36,10 @@ export function ReadingSceneRouter({
   colorScriptOwner,
   isMobileStableMode = false
 }) {
-  const className = orchestrator?.activeScene === 'interlude' ? '' : 'scene-shell';
+  const activeScene = orchestrator?.activeScene;
+  const className = activeScene === 'interlude'
+    ? ''
+    : `scene-shell${activeScene === 'ritual' || activeScene === 'reveal' ? ' scene-shell--cloth' : ''}`;
 
   return (
     <SceneShell

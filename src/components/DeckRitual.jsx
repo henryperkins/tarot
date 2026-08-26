@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { animate, createLayout, createTimeline, set, spring } from '../lib/motionAdapter';
-import { TableuLogo } from './TableuLogo';
-import { Scissors, ArrowsClockwise, HandTap } from '@phosphor-icons/react';
+import { Scissors, ArrowsClockwise, HandTap, Sparkle } from '@phosphor-icons/react';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
@@ -48,8 +47,7 @@ function DeckStackCard({ card, sizeClass, prefersReducedMotion, isShuffling }) {
       className={`deck-stack-card absolute rounded-xl border-2 border-primary/30 overflow-hidden ${sizeClass}`}
       style={{
         zIndex: card.zIndex,
-        opacity: card.opacity,
-        background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))'
+        opacity: card.opacity
       }}
     >
       <div
@@ -173,6 +171,7 @@ export function DeckRitual({
   nextPosition,
   spreadPositions = [],
   revealedCount = 0,
+  dealtCount = revealedCount,
   totalCards = 0,
 
   // Deal action
@@ -184,6 +183,12 @@ export function DeckRitual({
 
   // Reveal staging (deck-first vs board-first on mobile)
   revealStage = 'action',
+
+  // Reading phase keeps the deck present while cards turn on the same cloth.
+  phase = 'deal',
+
+  // Handsets use the docked action bar as the single labeled primary action.
+  showDealAction = true,
 
   // External ref for ghost card animation coordination
   externalDeckRef,
@@ -218,14 +223,14 @@ export function DeckRitual({
   const springEase = useMemo(() => spring({ stiffness: 320, damping: 26, mass: 1 }), []);
   const cadenceResetTimerRef = useRef(null);
   const knockComplete = knockCount >= 3;
+  const isTurningPhase = phase === 'turn';
   const isIdleBreathing = !prefersReducedMotion &&
     !isShuffling &&
     knockCount === 0 &&
-    revealedCount === 0 &&
+    dealtCount === 0 &&
     cardsRemaining === totalCards;
-  const canShuffleGesture = !isShuffling && revealedCount === 0 && cardsRemaining === totalCards && knockComplete;
-  const isDeckPrimary = revealStage !== 'spread';
-  const boardHintRef = useRef(0);
+  const canShuffleGesture = !isShuffling && dealtCount === 0 && cardsRemaining === totalCards && knockComplete;
+  const isDeckPrimary = !isTurningPhase && revealStage !== 'spread';
   const stackCardClass = isSmallScreen
     ? 'w-[clamp(5.5rem,32vw,7.5rem)] h-[clamp(8.25rem,48vw,11.25rem)]'
     : 'w-[clamp(7rem,35vw,8.5rem)] h-[clamp(10.5rem,52vw,12.75rem)]';
@@ -399,22 +404,7 @@ export function DeckRitual({
   }, []);
   const handleDeckTap = useCallback(() => {
     if (showCutSlider) return;
-
-    if (!isDeckPrimary && cardsRemaining > 0) {
-      const now = Date.now();
-      if (now - boardHintRef.current > 1200) {
-        if (shouldShowToasts) {
-          publishToast({
-            type: 'info',
-            title: 'Reveal on the board',
-            description: nextPosition ? `Tap ${nextPosition} to reveal.` : 'Tap a position to reveal the next card.',
-            duration: 900
-          });
-        }
-        boardHintRef.current = now;
-      }
-      return;
-    }
+    if (!isDeckPrimary) return;
 
     if (!knockComplete) {
       triggerKnock();
@@ -448,7 +438,7 @@ export function DeckRitual({
     }
 
     handleDealWithAnimation();
-  }, [showCutSlider, isDeckPrimary, cardsRemaining, publishToast, nextPosition, knockComplete, triggerKnock, canShuffleGesture, onShuffle, vibrate, handleDealWithAnimation, clearSingleTapTimeout, shouldShowToasts]);
+  }, [showCutSlider, isDeckPrimary, knockComplete, triggerKnock, canShuffleGesture, onShuffle, vibrate, handleDealWithAnimation, clearSingleTapTimeout]);
 
   // Long-press to reveal cut slider
   const longPressTimerRef = useRef(null);
@@ -590,7 +580,7 @@ export function DeckRitual({
     runTopCardAnimation({ scale: 1, translateY: 0, rotateX: 0 }, { duration: 200, ease: 'outQuad' });
   }, [isIdleBreathing, prefersReducedMotion, runTopCardAnimation, startIdleBreath, stopIdleBreath]);
   const knockHint = '3 quick taps within 2s';
-  const drawLabel = nextPosition ? `Tap to draw card for ${nextPosition}.` : 'Tap to draw the next card.';
+  const dealLabel = nextPosition ? `Tap to deal a card to ${nextPosition}.` : 'Tap to deal the next card.';
   const boardLabel = nextPosition
     ? `Tap ${nextPosition} on the board to reveal.`
     : 'Tap a position on the board to reveal the next card.';
@@ -600,10 +590,10 @@ export function DeckRitual({
   const deckAriaLabel = cardsRemaining > 0
     ? isDeckPrimary
       ? knockComplete
-        ? `${drawLabel}${cutLabel}${shuffleLabel}`
+        ? `${dealLabel}${cutLabel}${shuffleLabel}`
         : `${knockLabel}${cutLabel}${shuffleLabel}`
       : boardLabel
-    : 'All cards dealt';
+    : 'All cards dealt face-down';
 
   useEffect(() => {
     if (!knockCadenceResetAt) return;
@@ -634,35 +624,39 @@ export function DeckRitual({
   return (
     <div className={`deck-ritual-container relative ${isLandscape ? 'py-3' : 'py-4 xs:py-5 sm:py-8'}`}>
       <div className={`deck-ritual-header text-center ${isLandscape ? 'mb-2' : 'mb-3 xs:mb-4 sm:mb-5'}`}>
-        <h3 className="font-serif text-accent text-lg sm:text-xl">
-          {knockComplete ? 'Ritual complete' : 'Knock three times'}
+        <h3 className="font-serif text-accent text-xl sm:text-2xl">
+          {isTurningPhase ? 'Cards on the table' : knockComplete ? 'Ritual complete' : 'Knock three times'}
         </h3>
         <p className="text-xs sm:text-sm text-muted mt-1">
-          {!isDeckPrimary && cardsRemaining > 0
+          {isTurningPhase
+            ? 'Turn each card when you are ready.'
+            : !isDeckPrimary && cardsRemaining > 0
             ? (nextPosition ? `Tap ${nextPosition} on the spread to reveal.` : 'Tap a spread position to reveal.')
             : knockComplete
-              ? 'Tap the deck when you are ready to draw.'
+              ? 'Tap the deck when you are ready to deal.'
               : `Tap the deck ${Math.max(0, 3 - knockCount)} more ${Math.max(0, 3 - knockCount) === 1 ? 'time' : 'times'}.`}
         </p>
       </div>
 
-      <div
-        className={`deck-ritual-knock-badges flex items-center justify-center gap-2 ${isLandscape ? 'mb-3' : 'mb-3 xs:mb-4 sm:mb-5'}`}
-        role="status"
-        aria-live="polite"
-        aria-label={`${Math.min(knockCount, 3)} of 3 ritual knocks complete`}
-      >
-        {Array.from({ length: 3 }).map((_, index) => {
-          const active = knockCount > index;
-          return (
-            <span
-              key={index}
-              className={`deck-ritual-knock-badge ${active ? 'is-active' : ''}`}
-              aria-hidden="true"
-            />
-          );
-        })}
-      </div>
+      {!isTurningPhase && (
+        <div
+          className={`deck-ritual-knock-badges flex items-center justify-center gap-2 ${isLandscape ? 'mb-3' : 'mb-3 xs:mb-4 sm:mb-5'}`}
+          role="status"
+          aria-live="polite"
+          aria-label={`${Math.min(knockCount, 3)} of 3 ritual knocks complete`}
+        >
+          {Array.from({ length: 3 }).map((_, index) => {
+            const active = knockCount > index;
+            return (
+              <span
+                key={index}
+                className={`deck-ritual-knock-badge ${active ? 'is-active' : ''}`}
+                aria-hidden="true"
+              />
+            );
+          })}
+        </div>
+      )}
 
       {/* The Deck - responsive sizing for different screen sizes */}
       <div className="relative flex justify-center" style={{ perspective: '1200px', WebkitPerspective: '1200px' }}>
@@ -725,25 +719,21 @@ export function DeckRitual({
           {/* Top card with logo - responsive sizing */}
           <div
             ref={topCardRef}
-            className={`deck-stack-top relative rounded-xl border-2 border-primary/40 shadow-2xl overflow-hidden ${isSmallScreen ? 'w-[clamp(5.5rem,32vw,7.5rem)] h-[clamp(8.25rem,48vw,11.25rem)]' : 'w-[clamp(7rem,35vw,8.5rem)] h-[clamp(10.5rem,52vw,12.75rem)]'}`}
-            style={{
-              background: 'linear-gradient(145deg, var(--bg-surface), var(--bg-surface-muted))',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.3), 0 0 30px color-mix(in srgb, var(--brand-primary) 10%, transparent)'
-            }}
+            className={`deck-stack-top relative z-20 rounded-xl border-2 border-primary/40 shadow-2xl overflow-hidden ${isSmallScreen ? 'w-[clamp(5.5rem,32vw,7.5rem)] h-[clamp(8.25rem,48vw,11.25rem)]' : 'w-[clamp(7rem,35vw,8.5rem)] h-[clamp(10.5rem,52vw,12.75rem)]'}`}
             onPointerEnter={handleTopCardPointerEnter}
             onPointerLeave={handleTopCardPointerLeave}
             onPointerDown={handleTopCardPointerDown}
             onPointerUp={handleTopCardPointerUp}
             onPointerCancel={handleTopCardPointerLeave}
           >
-            <div className="absolute inset-0 flex items-center justify-center p-3 xs:p-4">
-              <TableuLogo
-                variant="icon"
-                size={isSmallScreen ? 60 : 80}
-                className="opacity-80 group-hover:opacity-100 transition-opacity"
-                outline
-                glow
-                useRaster
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center p-3 xs:p-4"
+              style={{ transform: 'translateZ(2px)' }}
+            >
+              <Sparkle
+                className={`${isSmallScreen ? 'h-8 w-8' : 'h-10 w-10'} text-accent opacity-85 drop-shadow-[0_0_12px_rgba(212,175,55,0.34)]`}
+                weight="fill"
+                aria-hidden="true"
               />
             </div>
 
@@ -805,7 +795,7 @@ export function DeckRitual({
       </AnimatedCutSlider>
 
       {/* Quick draw CTA placed nearer to the deck on mobile */}
-      {isDeckPrimary && cardsRemaining > 0 && (
+      {showDealAction && isDeckPrimary && cardsRemaining > 0 && (
         <div className={`text-center px-3 xs:px-4 ${isLandscape ? 'mt-3' : 'mt-4 xs:mt-5'} sm:hidden`}>
           <button
             onClick={handleDealWithAnimation}
@@ -814,7 +804,7 @@ export function DeckRitual({
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm min-h-cta motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
             style={{ boxShadow: '0 10px 30px color-mix(in srgb, var(--brand-primary) 30%, transparent)' }}
           >
-            <span>{minimalUI ? 'Deal the cards' : `Draw: ${nextPosition || 'Next Card'}`}</span>
+            <span>{minimalUI ? `Deal ${nextPosition || 'next'}` : `Deal: ${nextPosition || 'Next card'}`}</span>
             <span className="opacity-70 text-xs-plus">({cardsRemaining})</span>
           </button>
         </div>
@@ -937,7 +927,7 @@ export function DeckRitual({
       )}
 
       {/* Draw CTA - optimized for small screens */}
-      {isDeckPrimary && cardsRemaining > 0 && (
+      {showDealAction && isDeckPrimary && cardsRemaining > 0 && (
         <div className={`text-center px-3 xs:px-4 ${isLandscape ? 'mt-3' : 'mt-4 xs:mt-5 sm:mt-6 hidden sm:block'}`}>
           <button
             onClick={handleDealWithAnimation}
@@ -946,7 +936,7 @@ export function DeckRitual({
             className={`inline-flex items-center rounded-full bg-primary text-main font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-primary/90 min-h-cta motion-safe:transition-transform motion-safe:hover:scale-[1.03] motion-safe:active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${isLandscape ? 'gap-2 px-4 py-2 text-sm' : 'gap-2 xs:gap-3 px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 text-sm xs:text-base'}`}
             style={{ boxShadow: '0 10px 30px color-mix(in srgb, var(--brand-primary) 30%, transparent)' }}
           >
-            <span>{minimalUI ? 'Deal the cards' : (isLandscape ? nextPosition || 'Next' : `Draw: ${nextPosition || 'Next Card'}`)}</span>
+            <span>{minimalUI ? `Deal ${nextPosition || 'next'}` : (isLandscape ? nextPosition || 'Next' : `Deal: ${nextPosition || 'Next card'}`)}</span>
             <span className="opacity-70 text-xs-plus">({cardsRemaining})</span>
           </button>
         </div>

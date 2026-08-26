@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { getNextUnrevealedIndex, getPositionLabel } from '../src/components/readingBoardUtils.js';
+import * as readingBoardUtils from '../src/components/readingBoardUtils.js';
+
+const {
+  getDealtReading,
+  getNextDealIndex,
+  getNextTurnIndex,
+  getNextUnrevealedIndex,
+  getPositionLabel
+} = readingBoardUtils;
 
 describe('readingBoardUtils', () => {
 
@@ -26,5 +34,31 @@ describe('readingBoardUtils', () => {
     const reading = [{}, {}];
     const revealed = new Set([0, 1]);
     assert.equal(getNextUnrevealedIndex(reading, revealed), -1);
+  });
+
+  it('keeps undealt cards out of the spread while preserving slot order', () => {
+    assert.equal(typeof getDealtReading, 'function');
+    const reading = [{ id: 'moon' }, { id: 'star' }, { id: 'sun' }];
+
+    assert.deepEqual(getDealtReading(reading, 1), [reading[0], null, null]);
+    assert.deepEqual(reading, [{ id: 'moon' }, { id: 'star' }, { id: 'sun' }]);
+  });
+
+  it('advances one deal at a time and stops at the end of the spread', () => {
+    assert.equal(typeof getNextDealIndex, 'function');
+    const reading = [{}, {}, {}];
+
+    assert.equal(getNextDealIndex(reading, 0), 1);
+    assert.equal(getNextDealIndex(reading, 2), 3);
+    assert.equal(getNextDealIndex(reading, 3), 3);
+  });
+
+  it('does not turn a card until the whole spread has been dealt', () => {
+    assert.equal(typeof getNextTurnIndex, 'function');
+    const reading = [{}, {}, {}];
+
+    assert.equal(getNextTurnIndex(reading, new Set(), 2), -1);
+    assert.equal(getNextTurnIndex(reading, new Set(), 3), 0);
+    assert.equal(getNextTurnIndex(reading, new Set([0]), 3), 1);
   });
 });

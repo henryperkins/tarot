@@ -39,3 +39,31 @@ export function getNextUnrevealedIndex(reading, revealedCards) {
   if (!Array.isArray(reading)) return -1;
   return reading.findIndex((_, index) => !revealedCards.has(index));
 }
+
+export function getDealtReading(reading, dealIndex) {
+  if (!Array.isArray(reading)) return [];
+  const dealtCount = Number.isFinite(dealIndex)
+    ? Math.min(reading.length, Math.max(0, Math.floor(dealIndex)))
+    : reading.length;
+
+  return reading.map((card, index) => (index < dealtCount ? card : null));
+}
+
+export function getNextDealIndex(reading, dealIndex) {
+  if (!Array.isArray(reading) || reading.length === 0) return 0;
+  const dealtCount = Number.isFinite(dealIndex)
+    ? Math.min(reading.length, Math.max(0, Math.floor(dealIndex)))
+    : 0;
+
+  return Math.min(reading.length, dealtCount + 1);
+}
+
+export function getNextTurnIndex(reading, revealedCards, dealIndex) {
+  if (!Array.isArray(reading) || reading.length === 0) return -1;
+  const dealtCount = Number.isFinite(dealIndex)
+    ? Math.min(reading.length, Math.max(0, Math.floor(dealIndex)))
+    : reading.length;
+  if (dealtCount < reading.length) return -1;
+
+  return getNextUnrevealedIndex(reading, revealedCards);
+}

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, CaretLeft, CaretRight, MapTrifold } from '@phosphor-icons/react';
 import { getSpreadInfo } from '../data/spreads';
 import { getCardImage, getOrientationMeaning } from '../lib/cardLookup';
@@ -7,7 +8,7 @@ import { useModalA11y } from '../hooks/useModalA11y';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { getSpreadLayout } from '../lib/spreadLayouts';
 import { SpreadTable } from './SpreadTable';
-import { getNextUnrevealedIndex, getPositionLabel } from './readingBoardUtils';
+import { getNextTurnIndex, getPositionLabel } from './readingBoardUtils';
 
 // Celtic Cross position short labels for map overlay
 const CELTIC_POSITION_LABELS = [
@@ -270,11 +271,11 @@ function CardFocusOverlay({
     }
   }, [canNavigatePrev, canNavigateNext, onNavigate]);
 
-  if (!isOpen || !focusedCardData) return null;
+  if (!isOpen || !focusedCardData || typeof document === 'undefined') return null;
 
   const hasNavigation = canNavigatePrev || canNavigateNext;
 
-  return (
+  return createPortal(
     <div
       className={`fixed inset-0 z-toast ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
       style={{ background: getDrawerGradient() }}
@@ -349,7 +350,8 @@ function CardFocusOverlay({
           />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -411,6 +413,9 @@ export function ReadingBoard({
   spreadKey,
   reading,
   revealedCards,
+  dealIndex = null,
+  isDealing = false,
+  onSlotDeal,
   revealCard,
   onCardClick,
   focusedCardData,
@@ -427,13 +432,17 @@ export function ReadingBoard({
   revealStage = 'action',
   narrativeMentionPulse = null,
   isHandset = false,
-  cardsOnly = false
+  cardsOnly = false,
+  showPositionLabels = false
 }) {
   const prefersReducedMotion = useReducedMotion();
   const spreadInfo = useMemo(() => getSpreadInfo(spreadKey), [spreadKey]);
-  const nextIndex = getNextUnrevealedIndex(reading, revealedCards);
+  const dealtCount = Number.isFinite(dealIndex) ? Math.max(0, dealIndex) : reading?.length || 0;
+  const nextIndex = isDealing
+    ? dealtCount < (reading?.length || 0) ? dealtCount : -1
+    : getNextTurnIndex(reading, revealedCards, dealtCount);
   const nextLabel = nextIndex >= 0 ? getPositionLabel(spreadInfo, nextIndex) : null;
-  const allowBoardReveal = revealStage !== 'deck';
+  const allowBoardReveal = !isDealing && revealStage !== 'deck';
   const [flashNextSlot, setFlashNextSlot] = useState(false);
   const flashTimerRef = useRef(null);
   const prevRevealStageRef = useRef(revealStage);
@@ -444,9 +453,9 @@ export function ReadingBoard({
   const isCelticCross = spreadKey === 'celtic';
   const showMapToggle = isCelticCross && isHandset;
   const celticMapPositions = useMemo(() => toCelticMapPositions(isHandset), [isHandset]);
-  const revealStatusText = allowBoardReveal
-    ? `Tap positions to reveal. ${nextLabel ? `Next: ${nextLabel}.` : 'All cards revealed.'}`
-    : `Draw from the deck to place your first card.${nextLabel ? ` Next: ${nextLabel}.` : ''}`;
+  const revealStatusText = isDealing
+    ? `${dealtCount} of ${reading?.length || 0} cards dealt face-down.${nextLabel ? ` Next: ${nextLabel}.` : ''}`
+    : `Tap positions to turn cards face-up. ${nextLabel ? `Next: ${nextLabel}.` : 'All cards are face-up.'}`;
   const revealStatusTextWithFocusHint = isHandset && allowBoardReveal
     ? `${revealStatusText} Tap a revealed card to focus.`
     : revealStatusText;
@@ -523,6 +532,7 @@ export function ReadingBoard({
           spreadKey={spreadKey}
           cards={reading}
           revealedIndices={revealedCards}
+          onSlotDeal={isDealing ? onSlotDeal : undefined}
           onCardClick={onCardClick}
           onCardReveal={revealCard}
           nextDealIndex={nextIndex}
@@ -534,6 +544,8 @@ export function ReadingBoard({
           mentionPulse={narrativeMentionPulse}
           cardsOnly={cardsOnly}
           isHandset={isHandset}
+          showPositionLabels={showPositionLabels}
+          showProgress={false}
         />
         {/* Celtic Cross map overlay */}
         {showCelticMap && isCelticCross && (
@@ -543,7 +555,7 @@ export function ReadingBoard({
           />
         )}
       </div>
-      {!isHandset && (
+      {!isHandset && (!cardsOnly || hasSelection) && (
         <CardDetailPanel
           focusedCardData={focusedCardData}
           hasSelection={hasSelection}

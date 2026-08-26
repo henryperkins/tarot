@@ -6,9 +6,9 @@
 
 export const MICROCOPY = {
   // Card reveal - action-oriented
-  tapToReveal: 'Tap to uncover truth',
-  swipeToReveal: 'Swipe to uncover truth',
-  revealPosition: (positionName) => `Reveal ${positionName}`,
+  tapToReveal: 'Tap to turn',
+  swipeToReveal: 'Swipe to turn',
+  revealPosition: (positionName) => `Turn ${positionName}`,
   summonCard: (positionName) => `Summon card to ${positionName}`,
   awaitingPrevious: (prevPosition) => `Awaiting ${prevPosition}`,
 
@@ -30,25 +30,25 @@ export const MICROCOPY = {
 
   // Card states
   cardReady: 'Ready',
-  cardRevealed: 'Revealed',
+  cardRevealed: 'Face-up',
 
   // Spread progress
   positionOf: (current, total) => `Position ${current} of ${total}`,
-  progressLabel: (revealed, total) => `${revealed} of ${total} revealed`,
+  progressLabel: (revealed, total) => `${revealed} of ${total} face-up`,
 
   // Post-reveal actions
   readFullMeaning: 'Read full meaning',
   viewCompleteReading: 'View Complete Reading',
-  allCardsRevealed: 'All cards revealed',
+  allCardsRevealed: 'All cards face-up',
 
   // Tactile lens
   holdToViewMeanings: 'Hold to view meanings',
   positionMeanings: 'Position meanings',
 
   // Screen reader announcements
-  srRevealed: (cardName, position) => `Revealed ${cardName} in ${position}.`,
-  srRevealedAll: (count) => `Revealed ${count} cards.`,
-  srAllRevealed: 'All cards already revealed.',
+  srRevealed: (cardName, position) => `Turned ${cardName} face-up in ${position}.`,
+  srRevealedAll: (count) => `Turned ${count} cards face-up.`,
+  srAllRevealed: 'All cards are already face-up.',
   srSlotLocked: (position) => `${position} is locked. Complete previous positions first.`,
   srLensActive: 'Viewing position meanings. Release to dismiss.'
 };

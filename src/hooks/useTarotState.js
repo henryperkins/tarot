@@ -6,6 +6,8 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { getSpreadFromDepth } from '../utils/personalization';
 import { resolveFallbackSpreadKey } from '../utils/spreadEntitlements';
+import { getNextDealIndex } from '../components/readingBoardUtils';
+import { useHaptic } from './useHaptic';
 
 const SKIP_RITUAL_DEFAULTS = {
   knockTimes: [100, 200, 300],
@@ -15,6 +17,7 @@ const SKIP_RITUAL_DEFAULTS = {
 export function useTarotState(speak) {
   const { includeMinors, deckSize, personalization } = usePreferences();
   const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { vibrate } = useHaptic();
   const [selectedSpreadState, setSelectedSpreadState] = useState(DEFAULT_SPREAD_KEY);
   const [hasUserSelectedSpread, setHasUserSelectedSpread] = useState(false);
   const autoSelectedSpread = (!hasUserSelectedSpread && personalization?.preferredSpreadDepth)
@@ -128,18 +131,14 @@ export function useTarotState(speak) {
         clearTimeout(knockResetTimeoutRef.current);
         knockResetTimeoutRef.current = null;
       }
-      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-        navigator.vibrate([18, 40, 18]);
-      }
+      vibrate([18, 40, 18]);
     }
-  }, [hasKnocked]);
+  }, [hasKnocked, vibrate]);
 
   const applyCut = useCallback(() => {
     setHasCut(true);
-    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-      navigator.vibrate(12);
-    }
-  }, []);
+    vibrate(12);
+  }, [vibrate]);
 
   const onSpreadConfirm = useCallback((key) => {
     setHasConfirmedSpread(true);
@@ -265,39 +264,32 @@ export function useTarotState(speak) {
     if (!reading) return;
     const spreadInfo = getSpreadInfo(selectedSpread);
     const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : reading.length;
-    const next = reading.findIndex((_, index) => index < maxCards && !revealedCards.has(index));
-    if (next < 0) return;
+    const visibleReading = reading.slice(0, maxCards);
+    const next = Math.min(Math.max(0, dealIndex), visibleReading.length);
+    if (next >= visibleReading.length) return;
 
     void unlockAudio();
-    setRevealedCards(prev => new Set([...prev, next]));
-    setDealIndex(prev => Math.max(prev, next + 1));
-
-    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-      navigator.vibrate(10);
-    }
+    setDealIndex(prev => getNextDealIndex(visibleReading, prev));
+    vibrate(10);
     playFlip();
 
     const position = spreadInfo?.positions?.[next] || `Position ${next + 1}`;
 
     if (speak) {
-      void speak(shortLineForCard(reading[next], position), 'card-reveal');
+      void speak(`Card dealt face-down to ${position}.`, 'card-deal');
     }
-  }, [reading, revealedCards, selectedSpread, speak, shortLineForCard]);
+  }, [dealIndex, reading, selectedSpread, speak, vibrate]);
 
   const revealCard = useCallback((index) => {
     if (!reading || !reading[index]) return;
     if (revealedCards.has(index)) return;
     const spreadInfo = getSpreadInfo(selectedSpread);
     const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : reading.length;
-    if (index >= maxCards) return;
+    if (index >= maxCards || index >= dealIndex) return;
 
     void unlockAudio();
     setRevealedCards(prev => new Set([...prev, index]));
-    setDealIndex(prev => Math.max(prev, index + 1));
-
-    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-      navigator.vibrate(10);
-    }
+    vibrate(10);
     playFlip();
 
     const position = spreadInfo?.positions?.[index] || `Position ${index + 1}`;
@@ -305,17 +297,17 @@ export function useTarotState(speak) {
     if (speak) {
       void speak(shortLineForCard(reading[index], position), 'card-reveal');
     }
-  }, [reading, revealedCards, selectedSpread, speak, shortLineForCard]);
+  }, [dealIndex, reading, revealedCards, selectedSpread, speak, shortLineForCard, vibrate]);
 
   const revealAll = useCallback(() => {
     if (!reading || reading.length === 0) return;
     const spreadInfo = getSpreadInfo(selectedSpread);
     const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : reading.length;
     const visibleCount = Math.min(reading.length, maxCards);
+    if (dealIndex < visibleCount) return;
     const allIndices = new Set(Array.from({ length: visibleCount }, (_, index) => index));
     setRevealedCards(allIndices);
-    setDealIndex(visibleCount);
-  }, [reading, selectedSpread]);
+  }, [dealIndex, reading, selectedSpread]);
 
   return {
     selectedSpread,

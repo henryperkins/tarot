@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-26T06:35:16.528Z",
+  "title": "Design System: Tableu",
+  "extensions": {
+    "colorMeta": {
+      "candlelit-brass": { "role": "primary", "displayName": "Candlelit Brass", "canonical": "#D4B896", "tonalRamp": ["oklch(15% 0.056 72.3)", "oklch(25% 0.056 72.3)", "oklch(35% 0.056 72.3)", "oklch(45% 0.056 72.3)", "oklch(55% 0.056 72.3)", "oklch(65% 0.056 72.3)", "oklch(80% 0.056 72.3)", "oklch(95% 0.056 72.3)"] },
+      "quiet-taupe": { "role": "secondary", "displayName": "Quiet Taupe", "canonical": "#A89D92", "tonalRamp": ["oklch(15% 0.020 67.5)", "oklch(25% 0.020 67.5)", "oklch(35% 0.020 67.5)", "oklch(45% 0.020 67.5)", "oklch(55% 0.020 67.5)", "oklch(65% 0.020 67.5)", "oklch(80% 0.020 67.5)", "oklch(95% 0.020 67.5)"] },
+      "pale-candlelight": { "role": "tertiary", "displayName": "Pale Candlelight", "canonical": "#E8DAC3", "tonalRamp": ["oklch(15% 0.034 80.3)", "oklch(25% 0.034 80.3)", "oklch(35% 0.034 80.3)", "oklch(45% 0.034 80.3)", "oklch(55% 0.034 80.3)", "oklch(65% 0.034 80.3)", "oklch(80% 0.034 80.3)", "oklch(95% 0.034 80.3)"] },
+      "midnight-ink": { "role": "neutral", "displayName": "Midnight Ink", "canonical": "#0F0E13", "tonalRamp": ["oklch(15% 0.010 294.4)", "oklch(25% 0.010 294.4)", "oklch(35% 0.010 294.4)", "oklch(45% 0.010 294.4)", "oklch(55% 0.010 294.4)", "oklch(65% 0.010 294.4)", "oklch(80% 0.010 294.4)", "oklch(95% 0.010 294.4)"] },
+      "reading-surface": { "role": "neutral", "displayName": "Reading Surface", "canonical": "#1C1A22", "tonalRamp": ["oklch(15% 0.016 296.6)", "oklch(25% 0.016 296.6)", "oklch(35% 0.016 296.6)", "oklch(45% 0.016 296.6)", "oklch(55% 0.016 296.6)", "oklch(65% 0.016 296.6)", "oklch(80% 0.016 296.6)", "oklch(95% 0.016 296.6)"] },
+      "muted-reading-surface": { "role": "neutral", "displayName": "Muted Reading Surface", "canonical": "#2A2730", "tonalRamp": ["oklch(15% 0.017 300.5)", "oklch(25% 0.017 300.5)", "oklch(35% 0.017 300.5)", "oklch(45% 0.017 300.5)", "oklch(55% 0.017 300.5)", "oklch(65% 0.017 300.5)", "oklch(80% 0.017 300.5)", "oklch(95% 0.017 300.5)"] },
+      "moonlit-paper": { "role": "neutral", "displayName": "Moonlit Paper", "canonical": "#E8E6E3", "tonalRamp": ["oklch(15% 0.005 78.3)", "oklch(25% 0.005 78.3)", "oklch(35% 0.005 78.3)", "oklch(45% 0.005 78.3)", "oklch(55% 0.005 78.3)", "oklch(65% 0.005 78.3)", "oklch(80% 0.005 78.3)", "oklch(95% 0.005 78.3)"] },
+      "softened-paper": { "role": "neutral", "displayName": "Softened Paper", "canonical": "#CCC5B9", "tonalRamp": ["oklch(15% 0.018 81.3)", "oklch(25% 0.018 81.3)", "oklch(35% 0.018 81.3)", "oklch(45% 0.018 81.3)", "oklch(55% 0.018 81.3)", "oklch(65% 0.018 81.3)", "oklch(80% 0.018 81.3)", "oklch(95% 0.018 81.3)"] },
+      "daylight-paper": { "role": "neutral", "displayName": "Daylight Paper", "canonical": "#FAFAFA", "tonalRamp": ["oklch(15% 0.000 89.9)", "oklch(25% 0.000 89.9)", "oklch(35% 0.000 89.9)", "oklch(45% 0.000 89.9)", "oklch(55% 0.000 89.9)", "oklch(65% 0.000 89.9)", "oklch(80% 0.000 89.9)", "oklch(95% 0.000 89.9)"] },
+      "daylight-surface": { "role": "neutral", "displayName": "Daylight Surface", "canonical": "#FFFFFF", "tonalRamp": ["oklch(15% 0.000 89.9)", "oklch(25% 0.000 89.9)", "oklch(35% 0.000 89.9)", "oklch(45% 0.000 89.9)", "oklch(55% 0.000 89.9)", "oklch(65% 0.000 89.9)", "oklch(80% 0.000 89.9)", "oklch(95% 0.000 89.9)"] },
+      "daylight-muted-surface": { "role": "neutral", "displayName": "Daylight Muted Surface", "canonical": "#F5F5F5", "tonalRamp": ["oklch(15% 0.000 89.9)", "oklch(25% 0.000 89.9)", "oklch(35% 0.000 89.9)", "oklch(45% 0.000 89.9)", "oklch(55% 0.000 89.9)", "oklch(65% 0.000 89.9)", "oklch(80% 0.000 89.9)", "oklch(95% 0.000 89.9)"] },
+      "daylight-ink": { "role": "neutral", "displayName": "Daylight Ink", "canonical": "#1A1A1A", "tonalRamp": ["oklch(15% 0.000 89.9)", "oklch(25% 0.000 89.9)", "oklch(35% 0.000 89.9)", "oklch(45% 0.000 89.9)", "oklch(55% 0.000 89.9)", "oklch(65% 0.000 89.9)", "oklch(80% 0.000 89.9)", "oklch(95% 0.000 89.9)"] },
+      "daylight-muted-ink": { "role": "neutral", "displayName": "Daylight Muted Ink", "canonical": "#555555", "tonalRamp": ["oklch(15% 0.000 89.9)", "oklch(25% 0.000 89.9)", "oklch(35% 0.000 89.9)", "oklch(45% 0.000 89.9)", "oklch(55% 0.000 89.9)", "oklch(65% 0.000 89.9)", "oklch(80% 0.000 89.9)", "oklch(95% 0.000 89.9)"] },
+      "aged-brass": { "role": "primary", "displayName": "Aged Brass", "canonical": "#7D623B", "tonalRamp": ["oklch(15% 0.065 75.6)", "oklch(25% 0.065 75.6)", "oklch(35% 0.065 75.6)", "oklch(45% 0.065 75.6)", "oklch(55% 0.065 75.6)", "oklch(65% 0.065 75.6)", "oklch(80% 0.065 75.6)", "oklch(95% 0.065 75.6)"] },
+      "daylight-taupe": { "role": "secondary", "displayName": "Daylight Taupe", "canonical": "#6A5746", "tonalRamp": ["oklch(15% 0.036 63.6)", "oklch(25% 0.036 63.6)", "oklch(35% 0.036 63.6)", "oklch(45% 0.036 63.6)", "oklch(55% 0.036 63.6)", "oklch(65% 0.036 63.6)", "oklch(80% 0.036 63.6)", "oklch(95% 0.036 63.6)"] },
+      "daylight-candlelight": { "role": "tertiary", "displayName": "Daylight Candlelight", "canonical": "#8A6B3B", "tonalRamp": ["oklch(15% 0.076 77.0)", "oklch(25% 0.076 77.0)", "oklch(35% 0.076 77.0)", "oklch(45% 0.076 77.0)", "oklch(55% 0.076 77.0)", "oklch(65% 0.076 77.0)", "oklch(80% 0.076 77.0)", "oklch(95% 0.076 77.0)"] },
+      "success-sage": { "role": "tertiary", "displayName": "Success Sage", "canonical": "#6B9E78", "tonalRamp": ["oklch(15% 0.079 151.8)", "oklch(25% 0.079 151.8)", "oklch(35% 0.079 151.8)", "oklch(45% 0.079 151.8)", "oklch(55% 0.079 151.8)", "oklch(65% 0.079 151.8)", "oklch(80% 0.079 151.8)", "oklch(95% 0.079 151.8)"] },
+      "warning-amber": { "role": "tertiary", "displayName": "Warning Amber", "canonical": "#F59E0B", "tonalRamp": ["oklch(15% 0.165 70.1)", "oklch(25% 0.165 70.1)", "oklch(35% 0.165 70.1)", "oklch(45% 0.165 70.1)", "oklch(55% 0.165 70.1)", "oklch(65% 0.165 70.1)", "oklch(80% 0.165 70.1)", "oklch(95% 0.165 70.1)"] },
+      "error-rose": { "role": "tertiary", "displayName": "Error Rose", "canonical": "#C97676", "tonalRamp": ["oklch(15% 0.104 20.3)", "oklch(25% 0.104 20.3)", "oklch(35% 0.104 20.3)", "oklch(45% 0.104 20.3)", "oklch(55% 0.104 20.3)", "oklch(65% 0.104 20.3)", "oklch(80% 0.104 20.3)", "oklch(95% 0.104 20.3)"] },
+      "wands-gold": { "role": "secondary", "displayName": "Wands Gold", "canonical": "#C9A876", "tonalRamp": ["oklch(15% 0.077 77.5)", "oklch(25% 0.077 77.5)", "oklch(35% 0.077 77.5)", "oklch(45% 0.077 77.5)", "oklch(55% 0.077 77.5)", "oklch(65% 0.077 77.5)", "oklch(80% 0.077 77.5)", "oklch(95% 0.077 77.5)"] },
+      "cups-silver-blue": { "role": "secondary", "displayName": "Cups Silver-Blue", "canonical": "#8B95A5", "tonalRamp": ["oklch(15% 0.026 259.8)", "oklch(25% 0.026 259.8)", "oklch(35% 0.026 259.8)", "oklch(45% 0.026 259.8)", "oklch(55% 0.026 259.8)", "oklch(65% 0.026 259.8)", "oklch(80% 0.026 259.8)", "oklch(95% 0.026 259.8)"] },
+      "swords-steel": { "role": "secondary", "displayName": "Swords Steel", "canonical": "#6B7280", "tonalRamp": ["oklch(15% 0.023 264.4)", "oklch(25% 0.023 264.4)", "oklch(35% 0.023 264.4)", "oklch(45% 0.023 264.4)", "oklch(55% 0.023 264.4)", "oklch(65% 0.023 264.4)", "oklch(80% 0.023 264.4)", "oklch(95% 0.023 264.4)"] },
+      "pentacles-sage": { "role": "secondary", "displayName": "Pentacles Sage", "canonical": "#8A9985", "tonalRamp": ["oklch(15% 0.034 137.9)", "oklch(25% 0.034 137.9)", "oklch(35% 0.034 137.9)", "oklch(45% 0.034 137.9)", "oklch(55% 0.034 137.9)", "oklch(65% 0.034 137.9)", "oklch(80% 0.034 137.9)", "oklch(95% 0.034 137.9)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Onboarding welcomes and the largest ceremonial headings." },
+      "headline": { "displayName": "Headline", "purpose": "Page titles and major reading sections." },
+      "title": { "displayName": "Title", "purpose": "Card names, spread names, and compact section titles." },
+      "body": { "displayName": "Body", "purpose": "Instructions, controls, reading prose, and form content." },
+      "label": { "displayName": "Label", "purpose": "Uppercase eyebrows, compact metadata, and category labels." }
+    },
+    "shadows": [
+      { "name": "selected-glow", "value": "0 12px 30px -18px rgba(212, 184, 150, 0.60)", "purpose": "Selected controls and cards." },
+      { "name": "card-glow", "value": "0 14px 36px -20px rgba(212, 184, 150, 0.60)", "purpose": "Emphasized card surfaces." },
+      { "name": "elevated-overlay", "value": "0 20px 48px -24px rgba(0, 0, 0, 0.75)", "purpose": "Modals, drawers, and overlays." },
+      { "name": "mystic-panel", "value": "0 24px 64px -40px rgba(0, 0, 0, 0.80)", "purpose": "Signature reading panels with a faint inset highlight." },
+      { "name": "docked-action", "value": "0 -18px 40px rgba(0, 0, 0, 0.35)", "purpose": "Mobile action groups rising from the bottom edge." }
+    ],
+    "motion": [
+      { "name": "duration-fast", "value": "160ms", "purpose": "Hover, focus, and micro-interactions." },
+      { "name": "duration-normal", "value": "200ms", "purpose": "Standard state transitions." },
+      { "name": "duration-medium", "value": "260ms", "purpose": "Card transforms and reveals." },
+      { "name": "duration-slow", "value": "400ms", "purpose": "Complex transitions." },
+      { "name": "duration-slower", "value": "600ms", "purpose": "Card dealing and major reveals." },
+      { "name": "ease-out", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default state and reveal easing." },
+      { "name": "ease-in-out", "value": "ease-in-out", "purpose": "Symmetric ambient loops and reversible transitions." }
+    ],
+    "breakpoints": [
+      { "name": "xxs", "value": "320px" },
+      { "name": "xs", "value": "375px" },
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" },
+      { "name": "short-landscape", "value": "(orientation: landscape) and (max-height: 500px)" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The decisive action that advances a reading or setup flow.",
+      "html": "<button class=\"ds-btn-primary\">Continue</button>",
+      "css": ".ds-btn-primary { min-height: 52px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--brand-accent, #E8DAC3); color: var(--text-on-brand, #1C1A22); font-family: var(--font-sans, system-ui, sans-serif); font-size: 16px; font-weight: 600; transition: background-color 200ms var(--ease-out, ease), transform 160ms var(--ease-out, ease), box-shadow 200ms var(--ease-out, ease); } .ds-btn-primary:hover { background: color-mix(in srgb, var(--brand-accent, #E8DAC3) 90%, white); transform: translateY(-1px); } .ds-btn-primary:active { transform: scale(0.98); } .ds-btn-primary:focus-visible { outline: 2px solid var(--focus-ring-color, #E8DAC3); outline-offset: 3px; }"
+    },
+    {
+      "name": "Outline Action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A quieter pill action for supporting operations.",
+      "html": "<button class=\"ds-btn-outline\">Secondary</button>",
+      "css": ".ds-btn-outline { min-height: 44px; padding: 8px 16px; border: 1px solid rgb(var(--brand-primary-rgb, 212 184 150) / 0.35); border-radius: 9999px; background: rgb(var(--brand-primary-rgb, 212 184 150) / 0.10); color: var(--text-main, #E8E6E3); font-family: var(--font-sans, system-ui, sans-serif); font-size: 14px; font-weight: 600; box-shadow: 0 12px 30px -18px rgb(var(--brand-primary-rgb, 212 184 150) / 0.65); transition: transform 160ms ease, border-color 200ms ease, box-shadow 200ms ease; } .ds-btn-outline:hover { transform: translateY(-2px); border-color: rgb(var(--brand-primary-rgb, 212 184 150) / 0.60); box-shadow: 0 16px 40px -18px rgb(var(--brand-primary-rgb, 212 184 150) / 0.85); } .ds-btn-outline:active { transform: scale(0.98); } .ds-btn-outline:focus-visible { outline: 2px solid var(--focus-ring-color, #E8DAC3); outline-offset: 3px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "A mobile-safe reflective prompt or account field.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-field\">Your question or intention</label><input class=\"ds-field\" id=\"ds-field\" placeholder=\"What should I focus on?\">",
+      "css": ".ds-field-label { display: block; margin-bottom: 8px; color: var(--text-muted, #CCC5B9); font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px; font-weight: 600; } .ds-field { width: 100%; min-height: 44px; padding: 12px 16px; border: 1px solid rgb(var(--brand-secondary-rgb, 168 157 146) / 0.30); border-radius: 12px; background: var(--bg-surface, #1C1A22); color: var(--text-main, #E8E6E3); font-family: var(--font-sans, system-ui, sans-serif); font-size: 16px; transition: border-color 160ms ease, box-shadow 160ms ease; } .ds-field::placeholder { color: rgb(var(--text-muted-rgb, 204 197 185) / 0.65); } .ds-field:hover { border-color: rgb(var(--brand-secondary-rgb, 168 157 146) / 0.55); } .ds-field:focus-visible { outline: 2px solid var(--focus-ring-color, #E8DAC3); outline-offset: 2px; border-color: var(--brand-primary, #D4B896); }"
+    },
+    {
+      "name": "Selection Chip",
+      "kind": "chip",
+      "refersTo": "chip-selected",
+      "description": "A selected preference or compact reading state.",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"true\">Balanced</button>",
+      "css": ".ds-chip { min-height: 36px; padding: 6px 12px; border: 1px solid transparent; border-radius: 9999px; background: var(--brand-accent, #E8DAC3); color: var(--text-on-brand, #1C1A22); font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px; font-weight: 600; transition: transform 160ms ease, background-color 160ms ease; } .ds-chip:hover { background: color-mix(in srgb, var(--brand-accent, #E8DAC3) 90%, white); } .ds-chip:active { transform: scale(0.98); } .ds-chip:focus-visible { outline: 2px solid var(--focus-ring-color, #E8DAC3); outline-offset: 3px; }"
+    },
+    {
+      "name": "Active Navigation Segment",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "The active destination in the pill-based application navigation.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Primary\"><button class=\"ds-nav-item ds-nav-item-active\">Reading</button><button class=\"ds-nav-item\">Journal</button></nav>",
+      "css": ".ds-nav { display: inline-flex; gap: 8px; padding: 4px; border: 1px solid rgb(var(--brand-secondary-rgb, 168 157 146) / 0.30); border-radius: 9999px; background: rgb(var(--bg-surface-rgb, 28 26 34) / 0.80); } .ds-nav-item { min-height: 44px; padding: 10px 14px; border: 0; border-radius: 9999px; background: transparent; color: var(--text-main, #E8E6E3); font-family: var(--font-sans, system-ui, sans-serif); font-size: 14px; font-weight: 600; transition: color 160ms ease, background-color 160ms ease; } .ds-nav-item:hover { background: rgb(var(--brand-primary-rgb, 212 184 150) / 0.10); } .ds-nav-item-active { background: var(--brand-primary, #D4B896); color: var(--text-on-brand, #1C1A22); box-shadow: 0 1px 3px rgb(var(--brand-primary-rgb, 212 184 150) / 0.30); } .ds-nav-item:focus-visible { outline: 2px solid var(--focus-ring-color, #E8DAC3); outline-offset: 2px; }"
+    },
+    {
+      "name": "Surface Card",
+      "kind": "card",
+      "refersTo": "surface-card",
+      "description": "A standard information container outside the signature reading panels.",
+      "html": "<article class=\"ds-card\"><p class=\"ds-card-label\">Reading guidance</p><h3 class=\"ds-card-title\">Begin with a clear intention</h3><p class=\"ds-card-copy\">Specific, open-ended questions create more useful reflection.</p></article>",
+      "css": ".ds-card { padding: 16px; border: 1px solid rgb(var(--brand-secondary-rgb, 168 157 146) / 0.20); border-radius: 14px; background: rgb(var(--bg-surface-rgb, 28 26 34) / 0.78); color: var(--text-main, #E8E6E3); box-shadow: 0 12px 30px -22px rgba(0, 0, 0, 0.70); } .ds-card-label { margin: 0 0 8px; color: var(--brand-primary, #D4B896); font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; } .ds-card-title { margin: 0; color: var(--text-main, #E8E6E3); font-family: var(--font-serif, Georgia, serif); font-size: 18px; line-height: 1.25; } .ds-card-copy { margin: 8px 0 0; color: var(--text-muted, #CCC5B9); font-family: var(--font-sans, system-ui, sans-serif); font-size: 14px; line-height: 1.5; } .ds-card:hover { border-color: rgb(var(--brand-primary-rgb, 212 184 150) / 0.35); } .ds-card:focus-within { outline: 2px solid var(--focus-ring-color, #E8DAC3); outline-offset: 3px; }"
+    },
+    {
+      "name": "Mystic Panel",
+      "kind": "custom",
+      "refersTo": "mystic-panel",
+      "description": "The atmospheric signature container for spread, deck, and ritual decisions.",
+      "html": "<section class=\"ds-mystic-panel\"><p class=\"ds-mystic-eyebrow\">Spread selection</p><h3 class=\"ds-mystic-title\">Choose how your reading unfolds.</h3><p class=\"ds-mystic-copy\">Match the layout to the depth of your inquiry.</p></section>",
+      "css": ".ds-mystic-panel { position: relative; overflow: hidden; padding: 24px; border: 1px solid var(--border-warm, rgba(232, 218, 195, 0.22)); border-radius: 25.6px; background: radial-gradient(circle at 0% 18%, var(--glow-gold, rgba(244, 207, 150, 0.10)), transparent 40%), radial-gradient(circle at 100% 0%, var(--glow-blue, rgba(120, 161, 255, 0.08)), transparent 38%), radial-gradient(circle at 52% 115%, var(--glow-pink, rgba(255, 132, 178, 0.07)), transparent 46%), linear-gradient(135deg, var(--panel-dark-1, #0D0A14), var(--panel-dark-2, #151020) 55%, var(--panel-dark-3, #0F0B17)); color: var(--text-main, #E8E6E3); box-shadow: 0 24px 64px -40px rgba(0, 0, 0, 0.80), inset 0 1px 0 rgba(255, 255, 255, 0.03); } .ds-mystic-eyebrow { margin: 0; color: var(--brand-accent, #E8DAC3); font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; } .ds-mystic-title { margin: 10px 0 0; color: var(--text-main, #E8E6E3); font-family: var(--font-serif, Georgia, serif); font-size: 24px; font-weight: 400; line-height: 1.25; } .ds-mystic-copy { margin: 8px 0 0; color: var(--text-muted, #CCC5B9); font-family: var(--font-sans, system-ui, sans-serif); font-size: 14px; line-height: 1.5; } .ds-mystic-panel:hover { border-color: color-mix(in srgb, var(--brand-accent, #E8DAC3) 36%, transparent); } .ds-mystic-panel:focus-within { outline: 2px solid var(--focus-ring-color, #E8DAC3); outline-offset: 3px; }"
+    },
+    {
+      "name": "Spread Card",
+      "kind": "custom",
+      "refersTo": "spread-card",
+      "description": "The signature selectable card that previews a reading spread.",
+      "html": "<button class=\"ds-spread-card\"><span class=\"ds-spread-art\" aria-hidden=\"true\"></span><span class=\"ds-spread-name\">Three-Card Story</span><span class=\"ds-spread-meta\">Story · 3 cards</span><span class=\"ds-spread-copy\">Past, present, and future in three beats.</span></button>",
+      "css": ".ds-spread-card { display: flex; width: 240px; flex-direction: column; gap: 10px; padding: 16px 18px 22px; overflow: hidden; border: 1px solid rgb(var(--brand-primary-rgb, 212 184 150) / 0.25); border-radius: 21.6px; background: linear-gradient(155deg, rgb(var(--brand-primary-rgb, 212 184 150) / 0.10), var(--panel-dark-2, #151020)); color: var(--text-main, #E8E6E3); text-align: left; box-shadow: 0 18px 36px -24px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.05); transition: transform 160ms ease, border-color 160ms ease, box-shadow 180ms ease; } .ds-spread-art { display: block; width: 100%; aspect-ratio: 4 / 3; border-radius: 14px; background: radial-gradient(circle at 70% 24%, rgba(232, 218, 195, 0.55), transparent 20%), radial-gradient(circle at 32% 62%, rgba(139, 149, 165, 0.50), transparent 28%), linear-gradient(145deg, #151020, #2A2730); } .ds-spread-name { font-family: var(--font-serif, Georgia, serif); font-size: 18px; font-weight: 600; line-height: 1.25; } .ds-spread-meta { color: var(--brand-accent, #E8DAC3); font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; } .ds-spread-copy { color: var(--text-muted, #CCC5B9); font-family: var(--font-sans, system-ui, sans-serif); font-size: 14px; line-height: 1.4; } .ds-spread-card:hover { transform: translateY(-3px); border-color: rgb(var(--brand-primary-rgb, 212 184 150) / 0.50); box-shadow: 0 24px 45px -28px rgba(0, 0, 0, 0.85), 0 8px 22px -18px rgb(var(--brand-primary-rgb, 212 184 150) / 0.40); } .ds-spread-card:active { transform: translateY(-1px); } .ds-spread-card:focus-visible { outline: 2px solid var(--focus-ring-color, #E8DAC3); outline-offset: 4px; }"
+    },
+    {
+      "name": "Warning Banner",
+      "kind": "custom",
+      "description": "A semantic status surface that reinforces warning color with text.",
+      "html": "<div class=\"ds-warning\" role=\"status\"><strong>Connection issue</strong><span>Check your network, then retry.</span></div>",
+      "css": ".ds-warning { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid rgb(var(--status-warning-rgb, 245 158 11) / 0.40); border-radius: 12px; background: rgb(var(--status-warning-rgb, 245 158 11) / 0.10); color: var(--text-main, #E8E6E3); font-family: var(--font-sans, system-ui, sans-serif); font-size: 14px; line-height: 1.4; } .ds-warning strong { color: var(--status-warning, #F59E0B); font-weight: 600; } .ds-warning:hover { border-color: rgb(var(--status-warning-rgb, 245 158 11) / 0.60); } .ds-warning:focus-within { outline: 2px solid var(--focus-ring-color, #E8DAC3); outline-offset: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Midnight Reading Room",
+    "overview": "Tableu feels like entering a private reading room after dark: contemplative, scholarly, and intimate. Warm candlelight marks the places where a person may act, while deep ink surfaces keep attention on cards, language, and ritual. The atmosphere supports reflection without pretending to be supernatural evidence.\n\nThe system is dark-first, softly luminous, and materially restrained. Serif type carries tarot meaning and ceremonial moments; sans-serif type keeps navigation, controls, and explanations direct. Grain, radial light, glass, and motion appear as quiet sensory cues, never as neon-occult spectacle, kitschy mysticism, or casino-like stimulation. Light mode is the same room by day, not a separate identity.\n\nThe approved image composition is the implementation contract. Preserve its bold focal hierarchy, proportions, negative space, and atmosphere before making local refinements. Micro-interactions stay responsive, while card dealing, reveals, and other ritual transitions use the slower 400–600ms cadence already present in the motion system.",
+    "keyCharacteristics": [
+      "Warm brass light against near-black, subtly plum-leaning surfaces.",
+      "Scholarly serif moments within a highly legible sans-serif operating layer.",
+      "Rounded, tactile controls and layered cards with thin warm borders.",
+      "Ambient glow and restrained texture instead of ornamental occult excess.",
+      "Responsive ritual flows that become carousels and docked actions on handsets.",
+      "Bold focal contrast paired with deliberately slower pacing for ceremonial moments."
+    ],
+    "rules": [
+      { "name": "The Candlelight Rule", "body": "Warm brass identifies action, selection, focus, or tarot meaning; its scarcity gives it authority.", "section": "colors" },
+      { "name": "The Dark-First Rule", "body": "Midnight Ink is the default atmosphere. Light mode must preserve the same warm hierarchy rather than becoming a generic white application.", "section": "colors" },
+      { "name": "The No Neon Rule", "body": "Do not introduce high-chroma mystical purples, electric gradients, or unrelated rainbow accents into application chrome.", "section": "colors" },
+      { "name": "The Two Voices Rule", "body": "Serif carries interpretation, ritual, and named artifacts; sans-serif carries operation, explanation, and system state.", "section": "typography" },
+      { "name": "The Four-Pixel Rhythm Rule", "body": "Prefer the established 4px-derived spacing steps; introduce a new interval only when card geometry or safe-area math requires it.", "section": "layout" },
+      { "name": "The Ambient, Not Architectural Rule", "body": "Use shadow and glow to suggest candlelight, selection, and focus—not to assign arbitrary elevation to every container.", "section": "elevation" },
+      { "name": "The Soft Geometry Rule", "body": "Rounded forms should feel tactile and calm; avoid both sharp enterprise rectangles and indiscriminate bubble-like rounding.", "section": "shapes" },
+      { "name": "The Quiet Ceremony Rule", "body": "The approved image composition is the implementation contract: preserve its bold focal hierarchy, proportions, negative space, and atmosphere; reserve the strongest light and slower 400–600ms motion for decisions that advance or reveal a reading.", "section": "components" }
+    ],
+    "dos": [
+      "Do use semantic theme tokens so dark, light, and increased-contrast modes remain aligned.",
+      "Do reserve serif type for interpretation, ritual, card names, and major headings.",
+      "Do keep body copy and mobile form controls at 16px, with 11px reserved for non-essential metadata only.",
+      "Do preserve 44px touch targets, safe-area insets, visible focus, and reduced-motion alternatives.",
+      "Do use Candlelit Brass sparingly for selection, progress, focus, and high-value action.",
+      "Do let mobile reading choices become swipeable carousels and move the primary next action into the bottom dock.",
+      "Do match implementation to the approved image composition before optimizing local details."
+    ],
+    "donts": [
+      "Don't use neon mystical palettes, rainbow chrome, or high-energy casino animation.",
+      "Don't make every surface glassy, glowing, or heavily shadowed; atmospheric treatments lose meaning when universal.",
+      "Don't use Source Serif for dense controls, helper text, or navigation.",
+      "Don't introduce text below 11px or mobile inputs below 16px.",
+      "Don't encode status using color alone or replace focus rings with hover-only treatments.",
+      "Don't turn the light theme into a generic white dashboard; preserve the warm paper-and-brass hierarchy.",
+      "Don't dilute the approved focal hierarchy or accelerate ceremonial motion into generic app-speed transitions."
+    ]
+  }
+}

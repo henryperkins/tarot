@@ -21,6 +21,7 @@ import { determineColorScript } from '../lib/colorScript';
 import { ReadingChrome } from './reading/ReadingChrome';
 import { ReadingSceneRouter } from './reading/ReadingSceneRouter';
 import { ReadingOverlays } from './reading/ReadingOverlays';
+import { getNextTurnIndex } from './readingBoardUtils';
 
 const COLOR_SCRIPT_OWNER = 'reading-display';
 
@@ -38,7 +39,8 @@ export function ReadingDisplay({
     onFollowUpOpenChange,
     followUpAutoFocus = true,
     suppressInterruptions = false,
-    isMobileStableMode = false
+    isMobileStableMode = false,
+    onCardOverlayChange
 }) {
     const { saveReading, isSaving } = useSaveReading();
     const { publish: publishToast } = useToast();
@@ -63,8 +65,9 @@ export function ReadingDisplay({
         isShuffling,
         revealedCards,
         setRevealedCards,
-        dealIndex: _dealIndex,
+        dealIndex,
         setDealIndex,
+        setSrAnnouncement,
         sessionSeed,
         userQuestion,
         shuffle,
@@ -141,6 +144,7 @@ export function ReadingDisplay({
         isShuffling,
         hasConfirmedSpread: !!reading,
         revealedCards,
+        dealIndex,
         totalCards: reading?.length ?? 0,
         isGenerating,
         isReadingStreamActive,
@@ -242,6 +246,12 @@ export function ReadingDisplay({
     });
 
     useEffect(() => {
+        if (typeof onCardOverlayChange !== 'function') return undefined;
+        onCardOverlayChange(Boolean(isHandset && activeFocusedCardData));
+        return () => onCardOverlayChange(false);
+    }, [activeFocusedCardData, isHandset, onCardOverlayChange]);
+
+    useEffect(() => {
         if (!Array.isArray(reading) || visibleCount === 0 || typeof document === 'undefined') return undefined;
         const head = document.head;
         const created = [];
@@ -276,10 +286,10 @@ export function ReadingDisplay({
 
     const revealStage = useMemo(() => {
         if (!isHandset || !newDeckInterface || !reading || visibleCount === 0) return 'action';
-        if (revealedCards.size === 0) return 'deck';
+        if (dealIndex < visibleCount) return 'deck';
         if (revealedCards.size < visibleCount) return 'spread';
         return 'action';
-    }, [isHandset, newDeckInterface, reading, revealedCards, visibleCount]);
+    }, [dealIndex, isHandset, newDeckInterface, reading, revealedCards, visibleCount]);
     const {
         mediaItems,
         mediaTotal,
@@ -371,7 +381,7 @@ export function ReadingDisplay({
         isMobileStableMode
     });
 
-    const handleRevealAllWithScroll = useCallback(() => {
+    const handleTurnAllWithScroll = useCallback(() => {
         revealAll();
         sectionRef.current?.scrollIntoView({
             behavior: prefersReducedMotion ? 'auto' : 'smooth',
@@ -381,8 +391,9 @@ export function ReadingDisplay({
 
     const handleResetReveals = useCallback(() => {
         setRevealedCards(new Set());
-        setDealIndex(0);
-    }, [setRevealedCards, setDealIndex]);
+        setDealIndex(visibleCount);
+        setSrAnnouncement('All cards turned face-down. The spread remains on the cloth.');
+    }, [setRevealedCards, setDealIndex, setSrAnnouncement, visibleCount]);
 
     // Ghost card animation handlers for deck-to-slot fly effect
     const handleAnimatedDeal = useCallback(() => {
@@ -397,8 +408,8 @@ export function ReadingDisplay({
         }
 
         // Find next slot index
-        const nextIndex = reading?.findIndex((_, i) => !revealedCards.has(i)) ?? -1;
-        if (nextIndex < 0) {
+        const nextIndex = Number.isFinite(dealIndex) ? dealIndex : 0;
+        if (!reading || nextIndex < 0 || nextIndex >= visibleCount) {
             dealNext();
             return;
         }
@@ -428,7 +439,7 @@ export function ReadingDisplay({
             targetIndex: nextIndex,
             suit
         });
-    }, [dealNext, reading, revealedCards, prefersReducedMotion]);
+    }, [dealIndex, dealNext, reading, prefersReducedMotion, visibleCount]);
 
     const handleGhostComplete = useCallback(() => {
         ghostInFlightRef.current = false;
@@ -436,17 +447,25 @@ export function ReadingDisplay({
         dealNext();
     }, [dealNext]);
 
+    const handleTurnNext = useCallback(() => {
+        const visibleReading = reading?.slice(0, visibleCount) || [];
+        const nextIndex = getNextTurnIndex(visibleReading, revealedCards, dealIndex);
+        if (nextIndex < 0) return;
+        revealCard(nextIndex);
+    }, [dealIndex, reading, revealCard, revealedCards, visibleCount]);
+
     // Memoize next label computation to avoid IIFE in render
     const nextLabel = useMemo(() => {
         if (!reading) return null;
-        const nextIndex = reading.findIndex((_, i) => !revealedCards.has(i));
+        const nextIndex = Number.isFinite(dealIndex) ? dealIndex : 0;
         if (nextIndex === -1 || (maxCards && nextIndex >= maxCards)) return null;
+        if (nextIndex >= visibleCount) return null;
         const pos = spreadInfo?.positions?.[nextIndex];
         return pos ? pos.split('—')[0].trim() : `Card ${nextIndex + 1}`;
-    }, [reading, revealedCards, spreadInfo, maxCards]);
+    }, [dealIndex, reading, spreadInfo, maxCards, visibleCount]);
     const nextRevealCount = reading ? Math.min(revealedCards.size + 1, visibleCount) : 0;
-    const guidedRevealLabel = reading
-        ? `${revealStage === 'deck' ? 'Draw next' : 'Reveal next'} (${nextRevealCount}/${visibleCount})`
+    const guidedTurnLabel = reading
+        ? `Turn next (${nextRevealCount}/${visibleCount})`
         : '';
 
     useEffect(() => {
@@ -535,6 +554,7 @@ export function ReadingDisplay({
     const ritualModel = {
         reading,
         revealedCards,
+        dealIndex,
         visibleCount,
         newDeckInterface,
         shouldShowRitualNudge,
@@ -562,9 +582,9 @@ export function ReadingDisplay({
         revealedCards,
         isLandscape,
         isHandset,
-        guidedRevealLabel,
-        handleAnimatedDeal,
-        handleRevealAllWithScroll,
+        guidedTurnLabel,
+        handleTurnNext,
+        handleTurnAllWithScroll,
         handleResetReveals,
         safeSpreadKey,
         reading,

@@ -5,7 +5,8 @@ import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import {
   MOBILE_SETTINGS_DIALOG_ID,
   MOBILE_COACH_DIALOG_ID,
-  MOBILE_FOLLOWUP_DIALOG_ID
+  MOBILE_FOLLOWUP_DIALOG_ID,
+  getActionMode
 } from './mobileActionBarConstants';
 
 // Shared button styles - reduced height in landscape while maintaining touch target
@@ -21,20 +22,6 @@ const STEP_BADGES = {
   ritual: 'Step 3',
   reading: 'Step 4'
 };
-
-/**
- * Determines which action mode the mobile bar should display
- */
-function getActionMode({ isShuffling, reading, revealedCount: _revealedCount, allRevealed, needsNarrative, hasNarrative, isGenerating, isError }) {
-  if (isShuffling) return 'shuffling';
-  if (!reading) return 'preparation';
-  if (!allRevealed) return 'revealing';
-  if (needsNarrative && isGenerating) return 'generating';
-  if (needsNarrative && isError) return 'error';
-  if (needsNarrative) return 'ready-for-narrative';
-  if (hasNarrative) return 'completed';
-  return 'completed';
-}
 
 function ActionButton({
   onClick,
@@ -92,6 +79,7 @@ function MobileActionContents({
   isShuffling,
   reading,
   revealedCards,
+  dealIndex,
   isGenerating,
   personalReading,
   needsNarrativeGeneration,
@@ -99,7 +87,6 @@ function MobileActionContents({
   isFollowUpOpen = false,
   stepIndicatorLabel,
   activeStep = 'spread',
-  revealFocus = 'action',
   onOpenSettings,
   onOpenCoach,
   onOpenFollowUp,
@@ -128,18 +115,20 @@ function MobileActionContents({
   const mode = useMemo(() => getActionMode({
     isShuffling,
     reading,
-    revealedCount,
+    dealIndex,
     allRevealed,
     needsNarrative,
     hasNarrative,
     isGenerating,
     isError
-  }), [isShuffling, reading, revealedCount, allRevealed, needsNarrative, hasNarrative, isGenerating, isError]);
+  }), [isShuffling, reading, dealIndex, allRevealed, needsNarrative, hasNarrative, isGenerating, isError]);
 
   const stepBadge = useMemo(() => {
     switch (mode) {
+      case 'dealing':
+        return 'Deal';
       case 'revealing':
-        return 'Reveal';
+        return 'Turn';
       case 'ready-for-narrative':
       case 'generating':
       case 'error':
@@ -164,6 +153,7 @@ function MobileActionContents({
         variant,
         showUtilityButtons,
         readingLength,
+        dealIndex,
         revealedCount,
         stepBadge,
         stepIndicatorLabel,
@@ -171,7 +161,6 @@ function MobileActionContents({
         isLandscape,
         showFollowUp,
         isFollowUpOpen,
-        revealFocus,
         onOpenFollowUp,
         isSettingsOpen,
         isCoachOpen,
@@ -200,6 +189,7 @@ function renderActions(mode, options) {
     variant,
     showUtilityButtons,
     readingLength,
+    dealIndex,
     revealedCount,
     stepBadge,
     stepIndicatorLabel,
@@ -207,7 +197,6 @@ function renderActions(mode, options) {
     isLandscape,
     showFollowUp,
     isFollowUpOpen,
-    revealFocus,
     onOpenFollowUp,
     isSettingsOpen,
     isCoachOpen,
@@ -301,21 +290,37 @@ function renderActions(mode, options) {
       );
     }
 
+    case 'dealing': {
+      const dealtCount = Number.isFinite(dealIndex) ? Math.max(0, dealIndex) : 0;
+      const nextCount = Math.min(dealtCount + 1, readingLength);
+      const nextLabel = isLandscape
+        ? `Deal ${nextCount}/${readingLength}`
+        : `Deal next (${nextCount}/${readingLength})`;
+      return (
+        <ActionButton
+          variant="primary"
+          onClick={onDealNext}
+          stepLabel={stepBadge}
+          ariaLabel={withStepContext(nextLabel, stepIndicatorLabel)}
+          className={`${widthClasses.primary} ${px}`}
+          isLandscape={isLandscape}
+        >
+          {nextLabel}
+        </ActionButton>
+      );
+    }
+
     case 'revealing': {
       const nextCount = Math.min(revealedCount + 1, readingLength);
-      const isDeckPrimary = revealFocus === 'deck';
       const nextLabel = isLandscape
-        ? (isDeckPrimary ? `Draw ${nextCount}/${readingLength}` : `Reveal ${nextCount}/${readingLength}`)
-        : isDeckPrimary
-          ? `Draw next (${nextCount}/${readingLength})`
-          : `Reveal next (${nextCount}/${readingLength})`;
-      const revealVariant = 'primary';
-      const revealAllLabel = isLandscape ? 'Reveal all' : 'Reveal instantly';
-      const showRevealAll = readingLength > 1 && !isDeckPrimary;
+        ? `Turn ${nextCount}/${readingLength}`
+        : `Turn next (${nextCount}/${readingLength})`;
+      const turnAllLabel = 'Turn all';
+      const showTurnAll = readingLength > 1;
       return (
         <>
           <ActionButton
-            variant={revealVariant}
+            variant="primary"
             onClick={onDealNext}
             stepLabel={stepBadge}
             ariaLabel={withStepContext(nextLabel, stepIndicatorLabel)}
@@ -324,15 +329,15 @@ function renderActions(mode, options) {
           >
             {nextLabel}
           </ActionButton>
-          {showRevealAll && (
+          {showTurnAll && (
             <ActionButton
               variant="tertiary"
               onClick={onRevealAll}
-              ariaLabel={withStepContext('Reveal all cards', stepIndicatorLabel)}
+              ariaLabel={withStepContext('Turn all cards face-up', stepIndicatorLabel)}
               className={`${widthClasses.tertiary} ${px}`}
               isLandscape={isLandscape}
             >
-              {revealAllLabel}
+              {turnAllLabel}
             </ActionButton>
           )}
         </>
