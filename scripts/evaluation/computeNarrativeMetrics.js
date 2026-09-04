@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { buildNarrativeMetrics } from '../../functions/lib/readingQuality.js';
+import { normalizeReadingText } from '../../src/lib/formatting.js';
 import { parseCsv, stringifyRow } from './lib/csv.js';
 
 const DEFAULT_INPUT = 'data/evaluations/narrative-samples.json';
@@ -21,16 +22,26 @@ const DETERMINISTIC_PATTERNS = [
   /\binevitable outcome\b/i
 ];
 
+const NEGATED_DETERMINISTIC_PATTERNS = [
+  /\b(?:not|never)\s+(?:(?:a\s+)?guaranteed|fated to|destined to|set in stone|inescapable|an? inevitable outcome)\b/giu,
+  /\bnothing(?:\s+[\p{L}'’-]+){0,4}\s+(?:is|was|will be)\s+guaranteed\b/giu,
+  /\bno\s+(?:outcome|result|path|future)(?:\s+[\p{L}'’-]+){0,3}\s+(?:is|was|will be)\s+guaranteed\b/giu
+];
+
+// Exceptions such as "nothing but success" assert a positive guarantee.
+const NEGATION_EXCEPTION_PATTERN = /\b(?:but|except|save|other\s+than|apart\s+from)\b/iu;
+
 const AGENCY_PATTERNS = [
   /\bfree will\b/i,
   /\bchoices?\b/i,
-  /\bchoose\b/i,
+  /\bchoos(?:e|es|ing)\b/i,
   /\bagency\b/i,
   /\byou decide\b/i,
   /\byou direct\b/i,
   /\bco-?creat(?:e|ing)\b/i,
   /\byou can shape\b/i,
   /\belecci(?:o|ó)n(?:es)?\b/i,
+  /\bdecisi(?:o|ó)n(?:es)?\b/i,
   /\belige\b/i,
   /\bdecid(?:ir|e|es|a|as|an)\b/i,
   /\bopci(?:o|ó)n(?:es)?\b/i
@@ -67,12 +78,15 @@ const HARSH_TONE_PATTERNS = [
   /\byou must\b/i,
   /\byou should\b/i,
   /\bno choice\b/i,
-  /\byou (?:never|always)\b/i,
-  /\bnever (?:again|do|ignore|forget|allow)\b/i,
-  /\balways (?:do|avoid|choose)\b/i,
+  /(?:^|[.!?]\s+)[\t ]*(?:(?:[-+*]|\d+[.)])\s+)?never\s+(?:again|do|ignore|allow)\b/im,
+  /(?:^|[.!?]\s+)[\t ]*(?:(?:[-+*]|\d+[.)])\s+)?always\s+(?:do|avoid)\b/im,
   /\bonly way\b/i,
-  /\bcannot avoid\b/i,
-  /\bmust not\b/i
+  /\bcannot avoid\b/i
+];
+
+const NON_HARSH_TONE_PATTERNS = [
+  /\bnot\s+the\s+only way\b/giu,
+  /\b(?:isn't|isn’t|aren't|aren’t|wasn't|wasn’t|weren't|weren’t)\s+the\s+only way\b/giu
 ];
 
 function usage() {
@@ -111,10 +125,30 @@ function containsPattern(text, patterns) {
   return patterns.some((pattern) => pattern.test(text));
 }
 
+function containsDeterministicLanguage(text) {
+  if (!text) return false;
+  const withoutNegatedClaims = NEGATED_DETERMINISTIC_PATTERNS.reduce(
+    (value, pattern) => value.replace(pattern, (claim) => (
+      NEGATION_EXCEPTION_PATTERN.test(claim) ? claim : ''
+    )),
+    text
+  );
+  return containsPattern(withoutNegatedClaims, DETERMINISTIC_PATTERNS);
+}
+
+function containsHarshTone(text) {
+  if (!text) return false;
+  const withoutBenignPhrases = NON_HARSH_TONE_PATTERNS.reduce(
+    (value, pattern) => value.replace(pattern, ''),
+    text
+  );
+  return containsPattern(withoutBenignPhrases, HARSH_TONE_PATTERNS);
+}
+
 function analyzeToneSignals(reading = '') {
   return {
     supportive: containsPattern(reading, SUPPORTIVE_TONE_PATTERNS),
-    harsh: containsPattern(reading, HARSH_TONE_PATTERNS)
+    harsh: containsHarshTone(reading)
   };
 }
 
@@ -176,6 +210,8 @@ function getIssuesForQueue(result) {
 
 function summarizeSample(sample) {
   const reading = sample.reading || '';
+  // Tone checks use readable text; card detection still needs Markdown context.
+  const plainReading = normalizeReadingText(reading);
   const deckStyle = sample.deckStyle || 'rws-1909';
   const runtimeMetrics = buildNarrativeMetrics(reading, sample.cardsInfo || [], deckStyle);
   const spine = runtimeMetrics.spine || { isValid: false, totalSections: 0, completeSections: 0, incompleteSections: 0 };
@@ -183,10 +219,10 @@ function summarizeSample(sample) {
     coverage: runtimeMetrics.cardCoverage ?? 1,
     missingCards: runtimeMetrics.missingCards || []
   };
-  const deterministicLanguage = containsPattern(reading, DETERMINISTIC_PATTERNS);
-  const hasAgencyLanguage = containsPattern(reading, AGENCY_PATTERNS);
+  const deterministicLanguage = containsDeterministicLanguage(plainReading);
+  const hasAgencyLanguage = containsPattern(plainReading, AGENCY_PATTERNS);
   const hallucinatedCards = runtimeMetrics.hallucinatedCards || [];
-  const tone = analyzeToneSignals(reading);
+  const tone = analyzeToneSignals(plainReading);
   const issueFlags = buildIssueFlags({
     spine,
     missingCards: cardCoverage.missingCards,

@@ -12,11 +12,14 @@ import { isAzureTokenStreamingEnabled } from '../functions/lib/readingTelemetry.
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const checkEnvScript = path.join(repoRoot, 'scripts/checkEnv.js');
 
-function runConfigCheck(devVarsText) {
+function runConfigCheck(devVarsText, wranglerConfigText = null) {
   const dir = mkdtempSync(path.join(tmpdir(), 'tarot-config-check-'));
   try {
     if (devVarsText !== null) {
       writeFileSync(path.join(dir, '.dev.vars'), devVarsText);
+    }
+    if (wranglerConfigText !== null) {
+      writeFileSync(path.join(dir, 'wrangler.jsonc'), wranglerConfigText);
     }
     return execFileSync(process.execPath, [checkEnvScript], {
       cwd: dir,
@@ -33,6 +36,25 @@ function runConfigCheck(devVarsText) {
 }
 
 describe('native OpenAI provider configuration', () => {
+  it('combines a Modal secret from .dev.vars with non-secret Wrangler vars', () => {
+    const output = runConfigCheck(
+      'MODAL_PROXY_TOKEN=wk-test.ws-test',
+      `{
+        // Non-secret provider settings belong in Wrangler configuration.
+        "vars": {
+          "MODAL_ENDPOINT_URL": "https://example.modal.direct",
+          "MODAL_MODEL": "Qwen/Qwen3.8-2.4T-A95B"
+        }
+      }`
+    );
+
+    assert.match(output, /AI-generated readings \(Modal\):/);
+    assert.match(output, /MODAL_PROXY_TOKEN \(\.dev\.vars\)/);
+    assert.match(output, /MODAL_ENDPOINT_URL \(wrangler\.jsonc\)/);
+    assert.match(output, /MODAL_MODEL \(wrangler\.jsonc\)/);
+    assert.match(output, /All required environment variables for AI-generated readings are present \(Modal\)/);
+  });
+
   it('uses gpt-5.6-sol as the default native OpenAI Responses model', () => {
     const config = ensureAzureConfig({
       OPENAI_API_KEY: 'openai-test-key'

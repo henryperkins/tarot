@@ -10,6 +10,18 @@ const REQUIRED_FOR_OPENAI_READINGS = [
   'OPENAI_API_KEY'
 ];
 
+const REQUIRED_FOR_MODAL_READINGS = [
+  'MODAL_PROXY_TOKEN',
+  'MODAL_ENDPOINT_URL',
+  'MODAL_MODEL'
+];
+
+const OPTIONAL_FOR_MODAL_READINGS = [
+  'MODAL_REASONING_EFFORT',
+  'MODAL_MAX_TOKENS',
+  'MODAL_TIMEOUT_MS'
+];
+
 const OPTIONAL_FOR_OPENAI_READINGS = [
   'OPENAI_MODEL',
   'OPENAI_BASE_URL',
@@ -88,7 +100,125 @@ function parseDevVars(filePath) {
     }, {});
 }
 
-function resolveVariable(key, envVars, fileVars) {
+function stripJsonComments(content) {
+  let output = '';
+  let inString = false;
+  let escaped = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    const next = content[index + 1];
+
+    if (inLineComment) {
+      if (char === '\n') {
+        inLineComment = false;
+        output += char;
+      }
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (char === '*' && next === '/') {
+        inBlockComment = false;
+        index += 1;
+      } else if (char === '\n') {
+        output += char;
+      }
+      continue;
+    }
+
+    if (inString) {
+      output += char;
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      output += char;
+    } else if (char === '/' && next === '/') {
+      inLineComment = true;
+      index += 1;
+    } else if (char === '/' && next === '*') {
+      inBlockComment = true;
+      index += 1;
+    } else {
+      output += char;
+    }
+  }
+
+  return output;
+}
+
+function stripTrailingCommas(content) {
+  let output = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+
+    if (inString) {
+      output += char;
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      output += char;
+      continue;
+    }
+
+    if (char === ',') {
+      let lookahead = index + 1;
+      while (/\s/.test(content[lookahead] || '')) lookahead += 1;
+      if (content[lookahead] === '}' || content[lookahead] === ']') {
+        continue;
+      }
+    }
+
+    output += char;
+  }
+
+  return output;
+}
+
+function parseWranglerVars(filePath) {
+  if (!fs.existsSync(filePath)) return {};
+
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const parsed = JSON.parse(stripTrailingCommas(stripJsonComments(content)));
+    const vars = parsed?.vars;
+    if (!vars || typeof vars !== 'object' || Array.isArray(vars)) return {};
+
+    return Object.fromEntries(
+      Object.entries(vars)
+        .filter(([, value]) => ['string', 'number', 'boolean'].includes(typeof value))
+        .map(([key, value]) => [key, String(value)])
+    );
+  } catch (error) {
+    console.warn(`Warning: unable to parse ${path.basename(filePath)}: ${error.message}`);
+    return {};
+  }
+}
+
+function resolveVariable(key, envVars, fileVars, wranglerVars = {}) {
   const fromProcess = envVars[key];
   if (typeof fromProcess === 'string' && fromProcess.trim().length > 0) {
     return { value: fromProcess, source: 'process.env' };
@@ -97,11 +227,15 @@ function resolveVariable(key, envVars, fileVars) {
   if (typeof fromFile === 'string' && fromFile.trim().length > 0) {
     return { value: fromFile, source: '.dev.vars' };
   }
+  const fromWrangler = wranglerVars[key];
+  if (typeof fromWrangler === 'string' && fromWrangler.trim().length > 0) {
+    return { value: fromWrangler, source: 'wrangler.jsonc' };
+  }
   return null;
 }
 
-function resolveValue(key, envVars, fileVars) {
-  return resolveVariable(key, envVars, fileVars)?.value ?? null;
+function resolveValue(key, envVars, fileVars, wranglerVars = {}) {
+  return resolveVariable(key, envVars, fileVars, wranglerVars)?.value ?? null;
 }
 
 function isTruthyFlag(value) {
@@ -112,12 +246,22 @@ function isTruthyFlag(value) {
 
 function run() {
   const devVarsPath = path.resolve(process.cwd(), '.dev.vars');
+  const wranglerConfigPath = path.resolve(process.cwd(), 'wrangler.jsonc');
   const fileVars = parseDevVars(devVarsPath);
+  const wranglerVars = parseWranglerVars(wranglerConfigPath);
   const results = {};
+
+  const missingModal = [];
+  for (const key of REQUIRED_FOR_MODAL_READINGS) {
+    const resolved = resolveVariable(key, process.env, fileVars, wranglerVars);
+    results[key] = resolved;
+    if (!resolved) missingModal.push(key);
+  }
+  const modalConfigured = missingModal.length === 0;
 
   const missingOpenAI = [];
   for (const key of REQUIRED_FOR_OPENAI_READINGS) {
-    const resolved = resolveVariable(key, process.env, fileVars);
+    const resolved = resolveVariable(key, process.env, fileVars, wranglerVars);
     results[key] = resolved;
     if (!resolved) missingOpenAI.push(key);
   }
@@ -125,40 +269,55 @@ function run() {
 
   const missingAzureFallback = [];
   for (const key of REQUIRED_FOR_AZURE_OPENAI_FALLBACK) {
-    const resolved = resolveVariable(key, process.env, fileVars);
+    const resolved = resolveVariable(key, process.env, fileVars, wranglerVars);
     results[key] = resolved;
     if (!resolved) missingAzureFallback.push(key);
   }
   const azureFallbackConfigured = missingAzureFallback.length === 0;
 
   // Conditional: vision proof secret is only required when the vision UI is enabled.
-  const visionEnabledValue = resolveValue('VITE_ENABLE_VISION_RESEARCH', process.env, fileVars);
+  const visionEnabledValue = resolveValue('VITE_ENABLE_VISION_RESEARCH', process.env, fileVars, wranglerVars);
   const visionEnabled = isTruthyFlag(visionEnabledValue);
   const missingVision = [];
   if (visionEnabled) {
     for (const key of OPTIONAL_FOR_VISION_RESEARCH) {
-      const resolved = resolveVariable(key, process.env, fileVars);
+      const resolved = resolveVariable(key, process.env, fileVars, wranglerVars);
       results[key] = resolved;
       if (!resolved) missingVision.push(key);
     }
   }
 
   // Conditional: treat TTS as "wanted" if a deployment is set.
-  const ttsDeployment = resolveValue('AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT', process.env, fileVars);
+  const ttsDeployment = resolveValue('AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT', process.env, fileVars, wranglerVars);
   const ttsEnabled = typeof ttsDeployment === 'string' && ttsDeployment.trim().length > 0;
   const missingTts = [];
   if (ttsEnabled) {
     // Deployment is already truthy here; check whether we have *some* endpoint+key.
-    const endpoint = resolveValue('AZURE_OPENAI_TTS_ENDPOINT', process.env, fileVars)
-      || resolveValue('AZURE_OPENAI_ENDPOINT', process.env, fileVars);
-    const apiKey = resolveValue('AZURE_OPENAI_TTS_API_KEY', process.env, fileVars)
-      || resolveValue('AZURE_OPENAI_API_KEY', process.env, fileVars);
+    const endpoint = resolveValue('AZURE_OPENAI_TTS_ENDPOINT', process.env, fileVars, wranglerVars)
+      || resolveValue('AZURE_OPENAI_ENDPOINT', process.env, fileVars, wranglerVars);
+    const apiKey = resolveValue('AZURE_OPENAI_TTS_API_KEY', process.env, fileVars, wranglerVars)
+      || resolveValue('AZURE_OPENAI_API_KEY', process.env, fileVars, wranglerVars);
     if (!endpoint) missingTts.push('AZURE_OPENAI_TTS_ENDPOINT (or AZURE_OPENAI_ENDPOINT)');
     if (!apiKey) missingTts.push('AZURE_OPENAI_TTS_API_KEY (or AZURE_OPENAI_API_KEY)');
   }
 
   console.log('🔐 Environment prerequisite check');
   console.log(`- Loaded ${Object.keys(fileVars).length} entries from ${path.basename(devVarsPath)}${fs.existsSync(devVarsPath) ? '' : ' (file not present)'}`);
+  console.log(`- Loaded ${Object.keys(wranglerVars).length} non-secret vars from ${path.basename(wranglerConfigPath)}${fs.existsSync(wranglerConfigPath) ? '' : ' (file not present)'}`);
+
+  console.log('\nAI-generated readings (Modal):');
+  for (const key of REQUIRED_FOR_MODAL_READINGS) {
+    const entry = results[key];
+    if (entry) console.log(`✔ ${key} (${entry.source})`);
+    else console.log(`• ${key} (not set)`);
+  }
+
+  console.log('\nModal optional settings:');
+  for (const key of OPTIONAL_FOR_MODAL_READINGS) {
+    const entry = resolveVariable(key, process.env, fileVars, wranglerVars);
+    if (entry) console.log(`• ${key} (${entry.source})`);
+    else console.log(`• ${key} (not set)`);
+  }
 
   console.log('\nAI-generated readings (OpenAI native):');
   for (const key of REQUIRED_FOR_OPENAI_READINGS) {
@@ -169,7 +328,7 @@ function run() {
 
   console.log('\nOpenAI native optional settings:');
   for (const key of OPTIONAL_FOR_OPENAI_READINGS) {
-    const entry = resolveVariable(key, process.env, fileVars);
+    const entry = resolveVariable(key, process.env, fileVars, wranglerVars);
     if (entry) console.log(`• ${key} (${entry.source})`);
     else console.log(`• ${key} (not set)`);
   }
@@ -199,8 +358,8 @@ function run() {
     }
   }
 
-  if (!openAIConfigured && !azureFallbackConfigured) {
-    console.error(`\nMissing AI reading provider credentials: ${REQUIRED_FOR_OPENAI_READINGS.join(', ')} (preferred) or ${REQUIRED_FOR_AZURE_OPENAI_FALLBACK.join(', ')} (fallback).`);
+  if (!modalConfigured && !openAIConfigured && !azureFallbackConfigured) {
+    console.error(`\nMissing AI reading provider credentials: ${REQUIRED_FOR_MODAL_READINGS.join(', ')} (preferred), ${REQUIRED_FOR_OPENAI_READINGS.join(', ')}, or ${REQUIRED_FOR_AZURE_OPENAI_FALLBACK.join(', ')} (fallback).`);
     console.error('Populate .dev.vars (or export env vars) to enable AI-generated readings.');
     console.error('Note: `npm run dev` will still run, but API-powered features may fall back to local generators.');
     process.exitCode = 1;
@@ -217,7 +376,7 @@ function run() {
   if (OPTIONAL_FLAGS.length > 0) {
     console.log('\nOptional flags (set as needed):');
     OPTIONAL_FLAGS.forEach((flag) => {
-      const entry = resolveVariable(flag, process.env, fileVars);
+      const entry = resolveVariable(flag, process.env, fileVars, wranglerVars);
       if (entry) {
         console.log(`• ${flag} (${entry.source})`);
       } else {
@@ -229,7 +388,7 @@ function run() {
   if (OPTIONAL_FOR_CLAUDE_FALLBACK.length > 0) {
     console.log('\nOptional: Claude fallback (Azure AI Foundry Anthropic):');
     OPTIONAL_FOR_CLAUDE_FALLBACK.forEach((key) => {
-      const entry = resolveVariable(key, process.env, fileVars);
+      const entry = resolveVariable(key, process.env, fileVars, wranglerVars);
       if (entry) console.log(`• ${key} (${entry.source})`);
       else console.log(`• ${key} (not set)`);
     });
@@ -238,7 +397,7 @@ function run() {
   if (OPTIONAL_FOR_AUTH.length > 0) {
     console.log('\nOptional: Auth0 social login variables:');
     OPTIONAL_FOR_AUTH.forEach((key) => {
-      const entry = resolveVariable(key, process.env, fileVars);
+      const entry = resolveVariable(key, process.env, fileVars, wranglerVars);
       if (entry) console.log(`• ${key} (${entry.source})`);
       else console.log(`• ${key} (not set)`);
     });
@@ -247,13 +406,15 @@ function run() {
   if (OPTIONAL_FOR_TTS.length > 0) {
     console.log('\nOptional: Azure OpenAI TTS variables:');
     OPTIONAL_FOR_TTS.forEach((key) => {
-      const entry = resolveVariable(key, process.env, fileVars);
+      const entry = resolveVariable(key, process.env, fileVars, wranglerVars);
       if (entry) console.log(`• ${key} (${entry.source})`);
       else console.log(`• ${key} (not set)`);
     });
   }
 
-  const activeProvider = openAIConfigured ? 'OpenAI native' : 'Azure OpenAI fallback';
+  const activeProvider = modalConfigured
+    ? 'Modal'
+    : (openAIConfigured ? 'OpenAI native' : 'Azure OpenAI fallback');
   console.log(`\nAll required environment variables for AI-generated readings are present (${activeProvider}). You are ready to run \`npm run dev\` 🙌`);
 }
 

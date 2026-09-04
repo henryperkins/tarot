@@ -329,6 +329,43 @@ describe('detectHallucinatedCards', () => {
     });
   });
 
+  describe('ambiguous misspelled references', () => {
+    for (const deckStyle of ['rws-1909', 'thoth-a1', 'marseille-classic']) {
+      it(`flags bold misspelled undrawn cards in ${deckStyle}`, () => {
+        const metrics = buildNarrativeMetrics(
+          '**Justce** and **Temperence** offer balance, while **The Mooon** invites reflection.',
+          [{ card: 'The Fool', position: 'Present' }],
+          deckStyle
+        );
+
+        assert.deepStrictEqual(metrics.hallucinatedCards, ['Justice', 'Temperance', 'The Moon']);
+      });
+    }
+
+    it('uses position context around the observed misspelling', () => {
+      const text = 'Present: Justce. Outcome: Temperence. The Mooon card invites reflection.';
+
+      assert.deepStrictEqual(detectHallucinatedCards(text, []).sort(), ['Justice', 'Temperance', 'The Moon']);
+    });
+
+    it('keeps misspelled astronomical prose outside the card context check', () => {
+      const text = 'The Moon is full tonight. The Mooon\'s Pisces transit colors the atmosphere.';
+
+      assert.deepStrictEqual(detectHallucinatedCards(text, []), []);
+    });
+
+    it('does not flag ambiguous misspellings of drawn cards', () => {
+      const text = '**Justce**, **Temperence**, and **The Mooon** appear together.';
+      const cardsInfo = ['Justice', 'Temperance', 'The Moon'].map((card) => ({ card }));
+
+      assert.deepStrictEqual(detectHallucinatedCards(text, cardsInfo), []);
+    });
+
+    it('reports a canonical card once when exact and misspelled references coexist', () => {
+      assert.deepStrictEqual(detectHallucinatedCards('**Justce** and **Justice**.', []), ['Justice']);
+    });
+  });
+
   describe('Thoth deck alias handling', () => {
     it('does not flag Princess when Page is in spread', () => {
       const text = 'The **Princess of Cups** brings emotional intuition.';
@@ -472,6 +509,31 @@ describe('AMBIGUOUS_THOTH_EPITHETS', () => {
 });
 
 describe('buildNarrativeMetrics', () => {
+  it('does not treat astrological Moon context as an undrawn tarot card', () => {
+    const cardsInfo = [
+      {
+        card: 'The Star',
+        orientation: 'Upright',
+        position: 'Guidance',
+        meaning: 'hope and renewal'
+      }
+    ];
+
+    const astrological = buildNarrativeMetrics(
+      '### Guidance\n\n**The Star** offers renewal while The Moon\'s Pisces transit colors the atmosphere.',
+      cardsInfo,
+      'thoth-a1'
+    );
+    assert.ok(!astrological.hallucinatedCards.includes('The Moon'));
+
+    const explicitCard = buildNarrativeMetrics(
+      '### Guidance\n\n**The Star** offers renewal, while **The Moon** appears as a second tarot card.',
+      cardsInfo,
+      'thoth-a1'
+    );
+    assert.ok(explicitCard.hallucinatedCards.includes('The Moon'));
+  });
+
   it('ignores reflections when detecting hallucinated cards', () => {
     const reading = [
       '### Opening',

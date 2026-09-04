@@ -718,6 +718,29 @@ describe('experiment prompt overrides', () => {
 });
 
 describe('truncateUserPromptSafely', () => {
+  test('keeps canonical card names verbatim when the surrounding reading is translated', () => {
+    const prompt = buildUserPrompt(
+      'threeCard',
+      [
+        { card: 'The Hermit', position: 'Past', orientation: 'Upright', meaning: 'Inner guidance.' },
+        { card: 'Eight of Cups', position: 'Present', orientation: 'Upright', meaning: 'Leaving what no longer fits.' },
+        { card: 'The Sun', position: 'Future', orientation: 'Reversed', meaning: 'Clarity arriving gradually.' }
+      ],
+      'Como puedo sostener mi energia?',
+      '',
+      {},
+      null,
+      'general',
+      [],
+      'rws-1909'
+    );
+
+    assert.ok(prompt.includes('Copy each provided card name exactly as written above at least once'));
+    assert.ok(prompt.includes('do not translate, localize, rename, or substitute card names'));
+    assert.ok(prompt.includes('explicit sentence that says the querent\'s choices or decisions shape outcomes'));
+    assert.ok(prompt.includes('Never write “you should” or “you must”'));
+  });
+
   test('preserves instruction block from actual buildUserPrompt output', () => {
     const cardsInfo = [
       { card: 'The Star', position: 'Theme / Guidance of the Moment', number: 17, orientation: 'Upright', meaning: 'Hope and restoration.' }

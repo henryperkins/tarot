@@ -862,6 +862,14 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
       const match = findBestFuzzyAliasMatch(candidate, aliasEntries);
       if (!match) return;
 
+      // The canonical alias may be absent when the actual reference has a typo.
+      if (
+        AMBIGUOUS_CARD_NAMES.has(match.normalizedAlias) &&
+        !hasExplicitCardContext(text, candidate.text)
+      ) {
+        return;
+      }
+
       const canonicalKey = match.canonical.toLowerCase();
       if (drawnKeys.has(canonicalKey)) return;
       if (seenCanonicals.has(canonicalKey)) return;

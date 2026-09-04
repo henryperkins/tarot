@@ -4,9 +4,8 @@
  * Enhanced with authentic position-relationship analysis, elemental dignities,
  * and spread-specific narrative construction.
  *
- * Delegates narrative synthesis to the Responses API (OpenAI native when
- * OPENAI_API_KEY is set, otherwise Azure OpenAI via AZURE_OPENAI_* vars).
- * Falls back to local deterministic composer with full analysis.
+ * Delegates narrative synthesis to Qwen on Modal, then falls back through the
+ * configured OpenAI/Azure, Claude, and local deterministic providers.
  */
 
 // Core imports
@@ -253,6 +252,46 @@ function resolveAttemptABAssignment(requestId, activeExperiments, context = {}) 
         experimentId: assignment.experimentId
       }
       : null
+  };
+}
+
+/**
+ * Convert backend failures into a stable, client-safe diagnostic shape.
+ * Detailed provider errors remain available in Worker logs, but must not be
+ * reflected into JSON responses or SSE metadata because upstream response
+ * bodies can contain internal routing details.
+ */
+function buildPublicBackendError(backend, error) {
+  if (error?.code === LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE) {
+    return {
+      backend,
+      error: 'The local narrative fallback does not support this language.',
+      code: LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE,
+      detectedLanguage: error.detectedLanguage || null
+    };
+  }
+
+  if (Array.isArray(error?.qualityIssues) && error.qualityIssues.length > 0) {
+    return {
+      backend,
+      error: 'Narrative failed quality checks.',
+      code: 'quality_gate_failed',
+      qualityIssues: error.qualityIssues
+    };
+  }
+
+  if (error?.code === 'prompt_build_failed') {
+    return {
+      backend,
+      error: 'Narrative prompt preparation failed.',
+      code: 'prompt_build_failed'
+    };
+  }
+
+  return {
+    backend,
+    error: 'Narrative provider request failed.',
+    code: 'provider_request_failed'
   };
 }
 
@@ -654,12 +693,14 @@ function resolveNarrativeProviderId(backendId, env) {
 }
 
 export const onRequestGet = async ({ env }) => {
+  const primaryBackend = getAvailableNarrativeBackends(env)[0] || NARRATIVE_BACKENDS['local-composer'];
+  const provider = primaryBackend.id === 'local-composer'
+    ? 'local'
+    : resolveNarrativeProviderId(primaryBackend.id, env);
   // Health check endpoint
   return jsonResponse({
     status: 'ok',
-    provider: env?.OPENAI_API_KEY || env?.AZURE_OPENAI_GPT5_MODEL
-      ? resolveResponsesNarrativeProvider(env)
-      : 'local',
+    provider,
     timestamp: new Date().toISOString()
   });
 };
@@ -1105,12 +1146,13 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     const configuredQualityGateStreamingEnabled = qualityGateExplicit
       ? normalizeBooleanFlag(env?.STREAMING_QUALITY_GATE_ENABLED)
       : true;
-    const azureStreamingAvailable = Boolean(NARRATIVE_BACKENDS['azure-gpt5']?.isAvailable(env));
+    const modalNarrativeAvailable = Boolean(NARRATIVE_BACKENDS['modal-qwen']?.isAvailable(env));
+    const azureStreamingAvailable = !modalNarrativeAvailable && Boolean(NARRATIVE_BACKENDS['azure-gpt5']?.isAvailable(env));
     const wantsAzureStreaming = useStreaming && tokenStreamingEnabled && azureStreamingAvailable;
     const canUseAzureStreaming = wantsAzureStreaming && allowStreamingGateBypass;
     let qualityGateStreamingEnabled = configuredQualityGateStreamingEnabled;
 
-    if (canUseAzureStreaming && !evalGateEnabled && !safetyScanStreamingEnabled && !qualityGateStreamingEnabled) {
+    if (useStreaming && !evalGateEnabled && !safetyScanStreamingEnabled && !qualityGateStreamingEnabled) {
       console.warn(`[${requestId}] Streaming safety + quality gates are disabled; enabling safety scan to avoid unvetted output.`);
       safetyScanStreamingEnabled = true;
     }
@@ -1139,7 +1181,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     }
 
     if (useStreaming && tokenStreamingEnabled && !azureStreamingAvailable) {
-      console.warn(`[${requestId}] Token streaming requested but no Responses API provider is available; falling back to buffered streaming.`);
+      console.warn(`[${requestId}] Token streaming is unavailable for the primary narrative provider; falling back to buffered streaming.`);
     }
 
     let streamingFallback = false;
@@ -1169,7 +1211,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         ({ systemPrompt, userPrompt } = buildAzureGPT5Prompts(env, narrativePayload, requestId));
       } catch (promptError) {
         console.warn(`[${requestId}] Streaming prompt build failed: ${promptError.message}`);
-        backendErrors.push({ backend: streamProvider, error: promptError.message, details: promptError.details || null });
+        promptError.code = 'prompt_build_failed';
+        backendErrors.push(buildPublicBackendError(streamProvider, promptError));
         streamingFallback = true;
       }
 
@@ -1235,11 +1278,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
           if (qualityIssues.length > 0) {
             console.warn(`[${requestId}] Streaming backend ${streamProvider} failed quality gate: ${qualityIssues.join('; ')}`);
-            backendErrors.push({
-              backend: streamProvider,
-              error: `Narrative failed quality checks: ${qualityIssues.join('; ')}`,
-              qualityIssues
-            });
+            const qualityError = new Error('Narrative failed quality checks.');
+            qualityError.qualityIssues = qualityIssues;
+            backendErrors.push(buildPublicBackendError(streamProvider, qualityError));
             streamingFallback = true;
             streamingGateNotice = {
               blocked: true,
@@ -1515,12 +1556,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         console.log(`[${requestId}] Backend ${backendProvider} succeeded in ${Date.now() - attemptStart}ms, reading length: ${reading.length}, coverage: ${(qualityMetrics.cardCoverage * 100).toFixed(0)}%`);
         break;
       } catch (err) {
-        const errorEntry = { backend: backendProvider, error: err.message };
-        if (Array.isArray(err.qualityIssues) && err.qualityIssues.length > 0) {
-          errorEntry.qualityIssues = err.qualityIssues;
-        }
-        backendErrors.push(errorEntry);
         console.error(`[${requestId}] Backend ${backendProvider} failed:`, err.message);
+        backendErrors.push(buildPublicBackendError(backendProvider, err));
       }
     }
 

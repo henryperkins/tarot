@@ -2,9 +2,10 @@
  * Narrative Backend Dispatch and Generation
  *
  * Manages the fallback chain of narrative generation backends:
- * 1. azure-gpt5 - Azure OpenAI GPT-5 via Responses API
- * 2. claude-opus45 - Claude Opus 4.5 via Azure AI Foundry
- * 3. local-composer - Deterministic local narrative builder
+ * 1. modal-qwen - Qwen via Modal Chat Completions
+ * 2. azure-gpt5 - OpenAI native or Azure OpenAI via Responses API
+ * 3. claude-opus45 - Claude Opus 4.5 via Azure AI Foundry
+ * 4. local-composer - Deterministic local narrative builder
  *
  * Extracted from tarot-reading.js to maintain <900 line limit.
  */
@@ -26,6 +27,7 @@ import {
 } from './narrativeBuilder.js';
 import { enhanceSection } from './narrativeSpine.js';
 import { callAzureResponses, getReasoningEffort, getTextVerbosity, OPENAI_DEFAULT_MODEL } from './azureResponses.js';
+import { callModalChatCompletions, MODAL_DEFAULT_MODEL } from './modalChatCompletions.js';
 import {
   buildReasoningAwareOpening,
   buildReasoningSynthesis,
@@ -61,7 +63,7 @@ import { withSpan } from './tracingSpans.js';
  * Ordered list of backend IDs to try (first available wins).
  * Frozen to prevent accidental mutation.
  */
-export const NARRATIVE_BACKEND_ORDER = Object.freeze(['azure-gpt5', 'claude-opus45', 'local-composer']);
+export const NARRATIVE_BACKEND_ORDER = Object.freeze(['modal-qwen', 'azure-gpt5', 'claude-opus45', 'local-composer']);
 export const LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE = 'local_composer_unsupported_language';
 
 /**
@@ -69,6 +71,15 @@ export const LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE = 'local_composer_unsuppor
  * Frozen to prevent accidental mutation.
  */
 export const NARRATIVE_BACKENDS = Object.freeze({
+  'modal-qwen': Object.freeze({
+    id: 'modal-qwen',
+    label: 'Qwen 3.8 via Modal Chat Completions',
+    isAvailable: (env) => Boolean(
+      env?.MODAL_PROXY_TOKEN &&
+      env?.MODAL_ENDPOINT_URL &&
+      env?.MODAL_MODEL
+    )
+  }),
   'azure-gpt5': Object.freeze({
     id: 'azure-gpt5',
     label: 'Responses API (OpenAI native or Azure)',
@@ -627,7 +638,7 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
  * @param {string} requestId - Request ID for logging
  * @returns {Object} { systemPrompt, userPrompt, promptMeta }
  */
-export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
+export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown', options = {}) {
   const {
     spreadInfo,
     cardsInfo,
@@ -643,7 +654,8 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
 
   const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
 
-  const promptProvider = env?.OPENAI_API_KEY ? 'OpenAI Responses' : 'Azure OpenAI Responses';
+  const promptProvider = options.providerLabel || (env?.OPENAI_API_KEY ? 'OpenAI Responses' : 'Azure OpenAI Responses');
+  const backendId = options.backendId || 'azure-gpt5';
   console.log(`[${requestId}] Building ${promptProvider} prompts...`);
 
   // Resolve semantic scoring: env override takes priority, then graphRAG payload setting
@@ -675,7 +687,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
     ephemerisContext: analysis.ephemerisContext,
     ephemerisForecast: analysis.ephemerisForecast,
     transitResonances: analysis.transitResonances,
-    budgetTarget: 'azure',
+    budgetTarget: options.budgetTarget || 'azure',
     contextDiagnostics,
     promptBudgetEnv: env,
     personalization: payload.personalization,
@@ -706,7 +718,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
   maybeLogPromptPayload(
     env,
     requestId,
-    'azure-gpt5',
+    backendId,
     systemPrompt,
     userPrompt,
     promptMeta,
@@ -721,6 +733,50 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown') {
   return {
     systemPrompt,
     userPrompt,
+    promptMeta
+  };
+}
+
+/**
+ * Generate a reading with the configured Qwen endpoint on Modal.
+ */
+export async function generateWithModalQwen(env, payload, requestId = 'unknown') {
+  const effectiveModel = env?.MODAL_MODEL || MODAL_DEFAULT_MODEL;
+  const { systemPrompt, userPrompt, promptMeta } = buildAzureGPT5Prompts(
+    env,
+    payload,
+    requestId,
+    {
+      backendId: 'modal-qwen',
+      providerLabel: 'Modal Chat Completions',
+      budgetTarget: 'azure'
+    }
+  );
+
+  console.log(`[${requestId}] Request config:`, {
+    provider: 'modal-qwen',
+    model: effectiveModel,
+    max_tokens: env?.MODAL_MAX_TOKENS || '8192',
+    reasoning_effort: env?.MODAL_REASONING_EFFORT || 'medium',
+    stream: false
+  });
+
+  const result = await callModalChatCompletions(env, {
+    systemPrompt,
+    userPrompt,
+    requestId
+  });
+
+  console.log(`[${requestId}] Generated Modal reading length: ${result.text.length} characters`);
+
+  return {
+    reading: result.text,
+    reasoningSummary: null,
+    prompts: {
+      system: systemPrompt,
+      user: userPrompt
+    },
+    usage: result.usage,
     promptMeta
   };
 }
@@ -1470,6 +1526,9 @@ export async function runNarrativeBackend(backendId, env, payload, requestId) {
   }, async (span) => {
     let result;
     switch (backendId) {
+      case 'modal-qwen':
+        result = await generateWithModalQwen(env, payload, requestId);
+        break;
       case 'azure-gpt5':
         result = await generateWithAzureGPT5Responses(env, payload, requestId);
         break;

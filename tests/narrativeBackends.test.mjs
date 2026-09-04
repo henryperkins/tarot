@@ -6,6 +6,7 @@ import {
   buildAzureGPT5Prompts,
   composeReadingEnhanced,
   generateWithClaudeOpus45,
+  getAvailableNarrativeBackends,
   getLocalComposerLanguageSupport,
   runNarrativeBackend
 } from '../functions/lib/narrativeBackends.js';
@@ -567,6 +568,195 @@ describe('buildAzureGPT5Prompts', () => {
 });
 
 describe('Claude backend + dispatch coverage', () => {
+  it('prioritizes Modal while retaining the configured Responses and local fallbacks', () => {
+    const backends = getAvailableNarrativeBackends({
+      MODAL_PROXY_TOKEN: 'wk-test.ws-test',
+      MODAL_ENDPOINT_URL: 'https://example.modal.direct',
+      MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B',
+      OPENAI_API_KEY: 'openai-test-key'
+    });
+
+    assert.deepEqual(
+      backends.map((backend) => backend.id),
+      ['modal-qwen', 'azure-gpt5', 'local-composer']
+    );
+  });
+
+  it('dispatches Modal Chat Completions with the configured model and bounded reasoning budget', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    const payload = {
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      cardsInfo,
+      userQuestion: 'What should I notice?',
+      reflectionsText: '',
+      analysis: {
+        themes,
+        spreadAnalysis: null,
+        spreadKey: 'single'
+      },
+      context: 'general'
+    };
+    const env = {
+      MODAL_PROXY_TOKEN: 'wk-test.ws-test',
+      MODAL_ENDPOINT_URL: 'https://example.modal.direct/',
+      MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B',
+      MODAL_REASONING_EFFORT: 'xhigh',
+      MODAL_MAX_TOKENS: '6144'
+    };
+
+    let capturedRequest = null;
+    const result = await withMockedFetch(async (url, options) => {
+      capturedRequest = { url, options };
+      return new Response(JSON.stringify({
+        id: 'modal-completion-1',
+        object: 'chat.completion',
+        created: 1787866189,
+        model: 'Qwen/Qwen3.8-2.4T-A95B',
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: '  Modal reading text.  ',
+              reasoning_content: 'Internal reasoning that must not be returned.'
+            },
+            finish_reason: 'stop'
+          }
+        ],
+        usage: {
+          prompt_tokens: 120,
+          completion_tokens: 80,
+          total_tokens: 200,
+          reasoning_tokens: 25
+        }
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      });
+    }, async () => runNarrativeBackend('modal-qwen', env, payload, 'req-modal'));
+
+    assert.equal(capturedRequest.url, 'https://example.modal.direct/v1/chat/completions');
+    assert.equal(capturedRequest.options.method, 'POST');
+    assert.equal(capturedRequest.options.headers.Authorization, 'Bearer wk-test.ws-test');
+
+    const requestBody = JSON.parse(capturedRequest.options.body);
+    assert.equal(requestBody.model, 'Qwen/Qwen3.8-2.4T-A95B');
+    assert.equal(requestBody.messages.length, 2);
+    assert.equal(requestBody.messages[0].role, 'system');
+    assert.ok(requestBody.messages[0].content.length > 0);
+    assert.equal(requestBody.messages[1].role, 'user');
+    assert.ok(requestBody.messages[1].content.includes('What should I notice?'));
+    assert.equal(requestBody.reasoning_effort, 'xhigh');
+    assert.equal(requestBody.max_tokens, 6144);
+    assert.equal(requestBody.stream, false);
+
+    assert.equal(result.reading, 'Modal reading text.');
+    assert.deepEqual(result.usage, {
+      input_tokens: 120,
+      output_tokens: 80,
+      total_tokens: 200,
+      output_tokens_details: {
+        reasoning_tokens: 25
+      }
+    });
+    assert.equal(result.reasoningSummary, null);
+    assert.ok(result.promptMeta, 'Modal dispatch should return promptMeta');
+  });
+
+  it('rejects a Modal completion without assistant text so fallback can continue', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    const payload = {
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      cardsInfo,
+      userQuestion: 'What should I notice?',
+      reflectionsText: '',
+      analysis: {
+        themes,
+        spreadAnalysis: null,
+        spreadKey: 'single'
+      },
+      context: 'general'
+    };
+
+    await withMockedFetch(async () => new Response(JSON.stringify({
+      id: 'modal-completion-empty',
+      object: 'chat.completion',
+      model: 'Qwen/Qwen3.8-2.4T-A95B',
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: '',
+            reasoning_content: 'Reasoning only.'
+          },
+          finish_reason: 'length'
+        }
+      ],
+      usage: {
+        prompt_tokens: 120,
+        completion_tokens: 8192,
+        total_tokens: 8312,
+        reasoning_tokens: 8192
+      }
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' }
+    }), async () => {
+      await assert.rejects(
+        runNarrativeBackend('modal-qwen', {
+          MODAL_PROXY_TOKEN: 'wk-test.ws-test',
+          MODAL_ENDPOINT_URL: 'https://example.modal.direct',
+          MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B'
+        }, payload, 'req-modal-empty'),
+        /Modal Chat Completions returned no text content/
+      );
+    });
+  });
+
+  it('does not expose Modal upstream response bodies in request errors', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'One-Card Insight', 'Upright')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    const payload = {
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      cardsInfo,
+      userQuestion: 'What should I notice?',
+      reflectionsText: '',
+      analysis: {
+        themes,
+        spreadAnalysis: null,
+        spreadKey: 'single'
+      },
+      context: 'general'
+    };
+
+    await withMockedFetch(async () => new Response(
+      'upstream-detail: internal-router-node=gpu-17',
+      { status: 401, headers: { 'content-type': 'text/plain' } }
+    ), async () => {
+      await assert.rejects(
+        runNarrativeBackend('modal-qwen', {
+          MODAL_PROXY_TOKEN: 'wk-test.ws-test',
+          MODAL_ENDPOINT_URL: 'https://example.modal.direct',
+          MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B'
+        }, payload, 'req-modal-upstream-error'),
+        (error) => {
+          assert.match(error.message, /^HTTP 401$/);
+          assert.doesNotMatch(error.message, /internal-router-node/);
+          return true;
+        }
+      );
+    });
+  });
+
   it('generates via Claude with redacted prompt logging and promptMeta propagation', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'Past — influences that led here', 'Upright'),

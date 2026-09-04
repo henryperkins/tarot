@@ -327,10 +327,12 @@ export function buildUserPrompt(
   prompt += `\n${USER_PROMPT_INSTRUCTION_HEADER}
 - Do not introduce any card names beyond the provided spread; treat Fool’s Journey references as stage context only.
 - Reference each card by name at least once
+- CARD NAME CONTRACT: Copy each provided card name exactly as written above at least once; do not translate, localize, rename, or substitute card names. Translate only the surrounding prose, headers, positions, and guidance.
 - Tie each card's insight to its position and at least one concrete anchor (imagery, element, visual profile, or reflection)
 - Use the question and focus areas as the throughline; avoid generic platitudes
 - Offer 2-4 specific, low-stakes next steps linked to the question or focus areas
-- Close with a trajectory reminder (choices shape outcomes)
+- Close with one explicit sentence that says the querent's choices or decisions shape outcomes; use the response language and never imply fixed fate
+- Use invitational language. Never write “you should” or “you must”, and avoid certainty claims, fatalistic wording, or fixed-outcome language even in disclaimers
 - Apply the reversal lens consistently throughout`;
 
   return prompt;
