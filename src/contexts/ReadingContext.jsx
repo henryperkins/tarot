@@ -9,7 +9,7 @@ import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { buildPersonalizationRequestPayload } from '../utils/personalizationStorage';
 import { formatReading } from '../lib/formatting';
-import { canonicalCardKey, canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
+import { buildReadingRequestCard } from '../../shared/contracts/readingRequestCards.js';
 import { computeRelationships } from '../lib/deck';
 import { buildSymbolElementCue } from '../lib/symbolElementBridge';
 import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
@@ -998,30 +998,14 @@ export function ReadingProvider({ children }) {
             const visibleReading = maxCards ? reading.slice(0, maxCards) : reading;
             const cardsInfo = visibleReading.map((card, idx) => {
                 const originalCard = allCards.find(item => item.name === card.name) || card;
-                const meaningText = card.isReversed ? originalCard.reversed : originalCard.upright;
                 const position = spreadInfo.positions[idx] || `Position ${idx + 1}`;
 
-                const suit = originalCard.suit || null;
-                const rank = originalCard.rank || null;
-                const rankValue =
-                    typeof originalCard.rankValue === 'number' ? originalCard.rankValue : null;
-                const canonicalName = canonicalizeCardName(originalCard.name, deckStyleId) || originalCard.name;
-                const canonicalKey = canonicalCardKey(canonicalName || originalCard.name, deckStyleId);
-
-                return {
+                return buildReadingRequestCard(originalCard, {
+                    deckStyle: deckStyleId,
                     position,
-                    card: card.name,
-                    canonicalName,
-                    canonicalKey,
-                    aliases: Array.isArray(originalCard.aliases) ? originalCard.aliases : [],
-                    orientation: card.isReversed ? 'Reversed' : 'Upright',
-                    meaning: meaningText,
-                    number: card.number,
-                    suit,
-                    rank,
-                    rankValue,
-                    userReflection: (reflections[idx] || '').trim() || null
-                };
+                    isReversed: card.isReversed,
+                    userReflection: reflections[idx]
+                });
             });
 
             const reflectionsText = Object.entries(reflections)

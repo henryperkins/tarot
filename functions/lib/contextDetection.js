@@ -1,5 +1,9 @@
 import { normalizeContext } from './narrative/helpers.js';
 import { sanitizeText } from './utils.js';
+import {
+  USER_QUESTION_MAX_LENGTH,
+  REFLECTIONS_TEXT_MAX_LENGTH
+} from '../../shared/contracts/readingSchema.js';
 
 const SPREAD_CONTEXT_DEFAULTS = {
   relationship: 'love',
@@ -381,14 +385,16 @@ const GRAPH_RAG_CONTEXT_PRIORITY = [
   'life-cycle'
 ];
 
-const MAX_CONTEXT_TEXT_LENGTH = 900;
-const MAX_CONTEXT_SEGMENT_LENGTH = 320;
+// The accepted question (2,000) and reflections (5,000), existing six bounded
+// focus labels, and section labels all fit within the embedding input boundary.
+// Smaller explicit caller budgets remain supported without shortening defaults.
+const MAX_CONTEXT_TEXT_LENGTH = 8000;
 
 function sanitizeQuestion(question) {
   return typeof question === 'string' ? question.trim().toLowerCase() : '';
 }
 
-function sanitizeContextSegment(value, maxLength = MAX_CONTEXT_SEGMENT_LENGTH) {
+function sanitizeContextSegment(value, maxLength) {
   if (typeof value !== 'string') return '';
   return sanitizeText(value, {
     maxLength,
@@ -424,8 +430,8 @@ export function buildContextInferenceInput({
   maxLength = MAX_CONTEXT_TEXT_LENGTH
 } = {}) {
   const segments = [];
-  const safeQuestion = sanitizeContextSegment(userQuestion);
-  const safeReflections = sanitizeContextSegment(reflectionsText);
+  const safeQuestion = sanitizeContextSegment(userQuestion, USER_QUESTION_MAX_LENGTH);
+  const safeReflections = sanitizeContextSegment(reflectionsText, REFLECTIONS_TEXT_MAX_LENGTH);
   const normalizedFocusAreas = normalizeFocusAreas(focusAreas);
 
   if (safeQuestion) {
@@ -443,7 +449,7 @@ export function buildContextInferenceInput({
   }
 
   const safeMaxLength = Number.isFinite(maxLength) && maxLength > 0
-    ? Math.min(Math.floor(maxLength), 2000)
+    ? Math.min(Math.floor(maxLength), MAX_CONTEXT_TEXT_LENGTH)
     : MAX_CONTEXT_TEXT_LENGTH;
 
   return sanitizeText(segments.join(' | '), {

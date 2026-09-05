@@ -1,6 +1,8 @@
 import { formatVisionLabelForPrompt } from '../../visionLabels.js';
 import { evaluateVisionInsightPromptEligibility } from '../../readingQuality.js';
 import { sanitizeText } from '../../utils.js';
+import { canonicalCardKey } from '../../../../shared/vision/cardNameMapping.js';
+import { createVisionPromptProjector, projectVisionInsightForPrompt } from '../../visionPromptProjection.js';
 
 function normalizeCardKey(value) {
   if (typeof value !== 'string') return null;
@@ -9,12 +11,22 @@ function normalizeCardKey(value) {
   return trimmed.replace(/^the\s+/, '').replace(/\s+/g, ' ');
 }
 
-function buildDrawnCardKeys(cardsInfo) {
+function resolveCandidateKey(candidate, deckStyle) {
+  const canonical = candidate?.canonicalKey || candidate?.canonicalName;
+  // Canonical identities already use RWS names. Resolving them as display names
+  // again can turn a Thoth Prince (RWS Knight) into the different Thoth Knight.
+  if (canonical) return normalizeCardKey(canonical);
+  return normalizeCardKey(canonicalCardKey(
+    candidate?.predictedCard || candidate?.card || candidate?.name,
+    deckStyle
+  ));
+}
+
+function buildDrawnCardKeys(cardsInfo, deckStyle) {
   const drawn = new Set();
   if (!Array.isArray(cardsInfo)) return drawn;
   cardsInfo.forEach((card) => {
-    const raw = card?.canonicalKey || card?.canonicalName || card?.card || '';
-    const key = normalizeCardKey(raw);
+    const key = resolveCandidateKey(card, deckStyle);
     if (key) {
       drawn.add(key);
     }
@@ -22,9 +34,9 @@ function buildDrawnCardKeys(cardsInfo) {
   return drawn;
 }
 
-function isDrawnCardName(cardName, drawnCardKeys) {
-  if (!cardName || !drawnCardKeys || drawnCardKeys.size === 0) return false;
-  const key = normalizeCardKey(cardName);
+function isDrawnCardCandidate(candidate, drawnCardKeys, deckStyle) {
+  if (!candidate || !drawnCardKeys || drawnCardKeys.size === 0) return false;
+  const key = resolveCandidateKey(candidate, deckStyle);
   return Boolean(key && drawnCardKeys.has(key));
 }
 
@@ -54,9 +66,14 @@ function sanitizeEvidenceText(value, maxLength = 180) {
   });
 }
 
-export function buildUploadedVisibleEvidenceSection(visionEvidence = []) {
+export function buildUploadedVisibleEvidenceSection(visionEvidence = [], options = {}) {
+  const projectText = createVisionPromptProjector(options.cardsInfo, options.deckStyle);
+  const evidenceText = (value, maxLength = 180) => sanitizeEvidenceText(projectText(value), maxLength);
+  const drawnCardKeys = buildDrawnCardKeys(options.cardsInfo, options.deckStyle);
+  const enforceDrawnCardFilter = Array.isArray(options.cardsInfo);
   const packets = Array.isArray(visionEvidence)
-    ? visionEvidence.filter((packet) => packet?.evidenceMode === 'uploaded_image')
+    ? visionEvidence.filter((packet) => packet?.evidenceMode === 'uploaded_image'
+      && (!enforceDrawnCardFilter || isDrawnCardCandidate(packet, drawnCardKeys, options.deckStyle)))
     : [];
 
   if (!packets.length) {
@@ -67,12 +84,16 @@ export function buildUploadedVisibleEvidenceSection(visionEvidence = []) {
 
   packets.slice(0, 5).forEach((packet) => {
     const cardName = sanitizeEvidenceText(packet.card || 'Uploaded card', 80);
-    const label = sanitizeEvidenceText(packet.label || 'upload', 80);
+    const label = evidenceText(packet.label, 80) || 'upload';
     const confidence = typeof packet.confidence === 'number'
       ? `${(packet.confidence * 100).toFixed(1)}%`
       : 'confidence unavailable';
 
-    lines.push(`- ${cardName} (${label}, ${confidence})`);
+    const packetHeading = `- ${cardName} (${label}, ${confidence})`;
+    lines.push(packetHeading);
+    if (Array.isArray(options.sourceUsageSignals?.visionEvidencePacketHeadings)) {
+      options.sourceUsageSignals.visionEvidencePacketHeadings.push(packetHeading);
+    }
     const weightedScore = typeof packet.weightedSymbolMatchRate === 'number'
       ? `${(packet.weightedSymbolMatchRate * 100).toFixed(1)}%`
       : null;
@@ -82,12 +103,12 @@ export function buildUploadedVisibleEvidenceSection(visionEvidence = []) {
 
     if (packet.cardKnowledge || packet.expectedRiderSymbols || packet.verifiedUploadedEvidence || packet.uncertainSymbols || packet.forbiddenClaims) {
       const coreThemes = Array.isArray(packet.cardKnowledge?.coreThemes)
-        ? packet.cardKnowledge.coreThemes.map((theme) => sanitizeEvidenceText(theme, 60)).filter(Boolean).slice(0, 5)
+        ? packet.cardKnowledge.coreThemes.map((theme) => evidenceText(theme, 60)).filter(Boolean).slice(0, 5)
         : [];
       lines.push(`  - Traditional card knowledge: ${coreThemes.length ? coreThemes.join(', ') : 'card meaning only'}`);
 
       const expectedSymbols = Array.isArray(packet.expectedRiderSymbols)
-        ? packet.expectedRiderSymbols.map((entry) => sanitizeEvidenceText(entry?.label || entry?.symbol, 60)).filter(Boolean).slice(0, 8)
+        ? packet.expectedRiderSymbols.map((entry) => evidenceText(entry?.label || entry?.symbol, 60)).filter(Boolean).slice(0, 8)
         : [];
       lines.push(`  - Expected Rider symbols: ${expectedSymbols.length ? expectedSymbols.join(', ') : 'not supplied'}`);
 
@@ -97,7 +118,7 @@ export function buildUploadedVisibleEvidenceSection(visionEvidence = []) {
       lines.push('  - Verified uploaded-image evidence:');
       if (verified.length) {
         verified.forEach((entry) => {
-          const literal = sanitizeEvidenceText(entry?.literalObservation || entry?.label, 180);
+          const literal = evidenceText(entry?.literalObservation || entry?.label, 180);
           if (literal) lines.push(`    - ${literal}`);
         });
       } else {
@@ -105,12 +126,12 @@ export function buildUploadedVisibleEvidenceSection(visionEvidence = []) {
       }
 
       const uncertain = Array.isArray(packet.uncertainSymbols)
-        ? packet.uncertainSymbols.map((entry) => sanitizeEvidenceText(entry?.label || entry?.literalObservation, 80)).filter(Boolean).slice(0, 6)
+        ? packet.uncertainSymbols.map((entry) => evidenceText(entry?.label || entry?.literalObservation, 80)).filter(Boolean).slice(0, 6)
         : [];
       lines.push(`  - Uncertain image details: ${uncertain.length ? uncertain.join('; ') : 'none'}`);
 
       const constraints = Array.isArray(packet.forbiddenClaims)
-        ? packet.forbiddenClaims.map((claim) => sanitizeEvidenceText(claim, 160)).filter(Boolean).slice(0, 5)
+        ? packet.forbiddenClaims.map((claim) => evidenceText(claim, 160)).filter(Boolean).slice(0, 5)
         : [];
       lines.push('  - Visual-claim constraints:');
       const defaultConstraint = 'Do not say "I see" for symbols outside Verified uploaded-image evidence.';
@@ -121,14 +142,14 @@ export function buildUploadedVisibleEvidenceSection(visionEvidence = []) {
     }
 
     (packet.visibleEvidence || []).slice(0, 5).forEach((entry) => {
-      const literal = sanitizeEvidenceText(entry?.literalObservation, 180);
+      const literal = evidenceText(entry?.literalObservation, 180);
       if (literal) {
         lines.push(`  - Literal: ${literal}`);
       }
 
       const symbolic = Array.isArray(entry?.symbolicMeaning)
         ? entry.symbolicMeaning
-          .map((meaning) => sanitizeEvidenceText(meaning, 60))
+          .map((meaning) => evidenceText(meaning, 60))
           .filter(Boolean)
           .slice(0, 5)
         : [];
@@ -151,18 +172,19 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
     return '';
   }
 
-  const safeEntries = visionInsights.slice(0, 5);
-  const drawnCardKeys = buildDrawnCardKeys(options.cardsInfo);
-  const enforceDrawnCardFilter = drawnCardKeys.size > 0;
-  const shouldAllowCardName = (cardName) => {
+  const safeEntries = visionInsights.slice(0, 5).map((entry) => projectVisionInsightForPrompt(entry, options));
+  const drawnCardKeys = buildDrawnCardKeys(options.cardsInfo, options.deckStyle);
+  const enforceDrawnCardFilter = Array.isArray(options.cardsInfo);
+  const shouldAllowCandidate = (candidate) => {
     if (!enforceDrawnCardFilter) return true;
-    return isDrawnCardName(cardName, drawnCardKeys);
+    return isDrawnCardCandidate(candidate, drawnCardKeys, options.deckStyle);
   };
-  const verifiedMatches = safeEntries.filter((entry) => entry.matchesDrawnCard === true).length;
-  const mismatches = safeEntries.filter((entry) => entry.matchesDrawnCard === false).length;
+  const isMismatch = (entry) => entry.matchesDrawnCard === false || !shouldAllowCandidate(entry);
+  const verifiedMatches = safeEntries.filter((entry) => entry.matchesDrawnCard === true && !isMismatch(entry)).length;
+  const mismatches = safeEntries.filter(isMismatch).length;
   const unverified = safeEntries.length - verifiedMatches - mismatches;
   const telemetryOnly = safeEntries.filter((entry) => {
-    if (entry?.matchesDrawnCard !== true) return false;
+    if (entry?.matchesDrawnCard !== true || isMismatch(entry)) return false;
     return evaluateVisionInsightPromptEligibility(entry).promptEligible !== true;
   }).length;
 
@@ -195,7 +217,7 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
     // IMPORTANT: For mismatched cards, omit the predicted card name entirely to avoid
     // priming the AI with off-spread card names that could trigger hallucinations.
     // The model should only see card names that are actually in the drawn spread.
-    if (entry.matchesDrawnCard === false) {
+    if (isMismatch(entry)) {
       lines.push(`- ${safeLabel}: vision detected a card not in the drawn spread (${confidenceText}) [mismatch]`);
       // Skip symbol verification and secondary matches for mismatched cards -
       // this data relates to the wrong card and could prime hallucinations.
@@ -208,12 +230,10 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
     const eligibility = evaluateVisionInsightPromptEligibility(entry);
     const isTelemetryOnly = entry.matchesDrawnCard === true && eligibility.promptEligible !== true;
     const predictedCard = entry.predictedCard || entry.card || '';
-    const allowCardName = !isUnverified || shouldAllowCardName(predictedCard);
-    const suppressDetails = isUnverified && enforceDrawnCardFilter && !allowCardName;
     const validationNote = isUnverified ? ' [unverified upload]' : '';
     const telemetryOnlyNote = isTelemetryOnly ? ` [${describeTelemetryOnlyReason(eligibility.suppressionReason)}]` : '';
 
-    if (allowCardName && predictedCard) {
+    if (predictedCard) {
       lines.push(`- ${safeLabel}: recognized as ${predictedCard}${basisText} (${confidenceText})${validationNote}${telemetryOnlyNote}`);
     } else if (isUnverified) {
       lines.push(`- ${safeLabel}: recognized as an unverified upload${basisText} (${confidenceText}) [card name withheld]`);
@@ -241,7 +261,7 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
       lines.push(`  · Orientation: ${entry.orientation}`);
     }
 
-    if (entry.reasoning && !suppressDetails) {
+    if (entry.reasoning) {
       const safeReasoning = sanitizeText(entry.reasoning, {
         maxLength: 240,
         stripMarkdown: true,
@@ -253,7 +273,7 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
       }
     }
 
-    if (entry.visualDetails && !suppressDetails) {
+    if (entry.visualDetails) {
       const details = Array.isArray(entry.visualDetails)
         ? entry.visualDetails
         : (typeof entry.visualDetails === 'string' ? entry.visualDetails.split(/[\n;]+/g) : []);
@@ -293,7 +313,7 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
       }
     }
 
-    if (entry.symbolVerification && typeof entry.symbolVerification === 'object' && !suppressDetails) {
+    if (entry.symbolVerification && typeof entry.symbolVerification === 'object') {
       const sv = entry.symbolVerification;
       const matchRate = typeof sv.matchRate === 'number' ? `${(sv.matchRate * 100).toFixed(1)}% symbol alignment` : null;
       const missingList = Array.isArray(sv.missingSymbols) && sv.missingSymbols.length
@@ -306,9 +326,7 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
     }
 
     if (Array.isArray(entry.matches) && entry.matches.length) {
-      const matches = isUnverified && enforceDrawnCardFilter
-        ? entry.matches.filter((match) => shouldAllowCardName(match?.card))
-        : entry.matches;
+      const matches = entry.matches.filter(shouldAllowCandidate);
       const preview = matches
         .slice(0, 2)
         .map((match) => {

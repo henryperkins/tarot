@@ -2,7 +2,7 @@
 // Tests for embeddings utility module
 // Run with: npm test -- tests/embeddings.test.mjs
 
-import { test, describe } from 'node:test';
+import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   cosineSimilarity,
@@ -184,12 +184,23 @@ describe('embedText', () => {
 });
 
 describe('Embedding Cache', () => {
-  test('clearEmbeddingCache clears all entries', async () => {
+  const env = {
+    AZURE_OPENAI_ENDPOINT: 'https://embeddings.test',
+    AZURE_OPENAI_API_KEY: 'test-key'
+  };
+
+  beforeEach(clearEmbeddingCache);
+  afterEach(clearEmbeddingCache);
+
+  test('clearEmbeddingCache clears all entries', async (t) => {
+    t.mock.method(globalThis, 'fetch', async () => Response.json({
+      data: [{ embedding: [1, 0] }]
+    }));
     // Add something to cache
-    await embedText('cache test');
+    await embedText('cache test', { env });
 
     const beforeClear = getEmbeddingCacheStats();
-    assert.ok(beforeClear.size > 0 || true, 'May have cached entries');
+    assert.equal(beforeClear.size, 1);
 
     clearEmbeddingCache();
 
@@ -206,18 +217,85 @@ describe('Embedding Cache', () => {
     assert.ok(stats.maxSize > 0, 'MaxSize should be positive');
   });
 
-  test('cache respects max size limit', async () => {
-    clearEmbeddingCache();
-
+  test('cache respects max size limit', async (t) => {
+    t.mock.method(globalThis, 'fetch', async () => Response.json({
+      data: [{ embedding: [1, 0] }]
+    }));
     const stats = getEmbeddingCacheStats();
     const maxSize = stats.maxSize;
 
     // Add more than max entries
     for (let i = 0; i < maxSize + 10; i++) {
-      await embedText(`unique text entry number ${i}`);
+      await embedText(`unique text entry number ${i}`, { env });
     }
 
     const afterStats = getEmbeddingCacheStats();
-    assert.ok(afterStats.size <= maxSize, 'Cache size should not exceed max');
+    assert.equal(afterStats.size, maxSize);
+  });
+
+  test('keeps texts with the same first 200 characters separate', async (t) => {
+    const prefix = 'Shared background before the distinct current question. '.repeat(5);
+    const firstText = `${prefix}Focus on my career.`;
+    const secondText = `${prefix}Focus on my marriage.`;
+    const fetchMock = t.mock.method(globalThis, 'fetch', async (_url, init) => {
+      const { input } = JSON.parse(init.body);
+      return Response.json({ data: [{ embedding: input === firstText ? [1, 0] : [0, 1] }] });
+    });
+
+    assert.deepEqual(await embedText(firstText, { env }), [1, 0]);
+    assert.deepEqual(await embedText(secondText, { env }), [0, 1]);
+    assert.equal(fetchMock.mock.callCount(), 2);
+  });
+
+  for (const [setting, value] of Object.entries({
+    AZURE_OPENAI_ENDPOINT: 'https://another-embeddings.test',
+    AZURE_OPENAI_EMBEDDING_MODEL: 'another-embedding-model',
+    AZURE_OPENAI_EMBEDDINGS_API_VERSION: 'preview',
+    AZURE_OPENAI_API_VERSION: 'preview'
+  })) {
+    test(`separates cached embeddings when ${setting} changes`, async (t) => {
+      let calls = 0;
+      const fetchMock = t.mock.method(globalThis, 'fetch', async () => Response.json({
+        data: [{ embedding: ++calls === 1 ? [1, 0] : [0, 1] }]
+      }));
+
+      assert.deepEqual(await embedText('hope after a transition', { env }), [1, 0]);
+      assert.deepEqual(await embedText('hope after a transition', {
+        env: { ...env, [setting]: value }
+      }), [0, 1]);
+      assert.deepEqual(await embedText('hope after a transition', { env }), [1, 0]);
+      assert.equal(fetchMock.mock.callCount(), 2);
+    });
+  }
+
+  test('reuses embeddings for equivalent normalized inputs and Azure configuration', async (t) => {
+    const fetchMock = t.mock.method(globalThis, 'fetch', async (_url, init) => {
+      assert.equal(JSON.parse(init.body).input, 'hope after a transition');
+      return Response.json({ data: [{ embedding: [1, 0] }] });
+    });
+
+    await embedText('  hope after a transition\n', {
+      env: { ...env, AZURE_OPENAI_ENDPOINT: `${env.AZURE_OPENAI_ENDPOINT}/openai/v1/` }
+    });
+    assert.deepEqual(await embedText('hope after a transition', {
+      env: {
+        ...env,
+        AZURE_OPENAI_EMBEDDING_MODEL: 'text-embedding-3-large',
+        AZURE_OPENAI_EMBEDDINGS_API_VERSION: ' v1 '
+      }
+    }), [1, 0]);
+    assert.equal(fetchMock.mock.callCount(), 1);
+  });
+
+  test('keys the same capped API input consistently', async (t) => {
+    const cappedInput = 'a'.repeat(8000);
+    const fetchMock = t.mock.method(globalThis, 'fetch', async (_url, init) => {
+      assert.equal(JSON.parse(init.body).input, cappedInput);
+      return Response.json({ data: [{ embedding: [1, 0] }] });
+    });
+
+    await embedText(`${cappedInput}first unused suffix`, { env });
+    assert.deepEqual(await embedText(`${cappedInput}second unused suffix`, { env }), [1, 0]);
+    assert.equal(fetchMock.mock.callCount(), 1);
   });
 });

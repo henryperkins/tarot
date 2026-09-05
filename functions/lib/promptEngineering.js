@@ -665,7 +665,8 @@ export function shouldAllowUnredactedPromptStorage(env) {
 function stripCommonUserContent(text) {
   if (!text || typeof text !== 'string') return text || '';
 
-  let result = text;
+  // Remove serialized data before prose regexes can consume a closing tag.
+  let result = text.replace(/<user_context source="[^"]+">[^\n]*?<\/user_context>/g, '[USER_CONTEXT_REDACTED]');
 
   // Strip user questions - **Question**: format (multiline support)
   // Matches from **Question**: to the next blank line or next ** header

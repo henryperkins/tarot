@@ -15,7 +15,7 @@ import {
   AMBIGUOUS_CARD_NAMES,
   TAROT_TERMINOLOGY_EXCLUSIONS
 } from './cardContextDetection.js';
-import { canonicalizeCardName, canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
+import { canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
 import {
   THOTH_MAJOR_ALIASES,
   THOTH_MINOR_TITLES,
@@ -33,6 +33,7 @@ import {
 } from './telemetrySchema.js';
 import { validateReadingNarrative } from './narrativeSpine.js';
 import { normalizeVisionLabel } from './visionLabels.js';
+import { resolveVisionCardIdentity } from './visionProof.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 import {
@@ -796,9 +797,9 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
     safeCards
       .filter((card) => card && (typeof card.canonicalName === 'string' || typeof card.card === 'string'))
       .map((card) => {
-        const sourceName = card.canonicalName || card.card;
-        const canonical = canonicalCardKey(sourceName, deckStyle);
-        return canonical || normalizeCardName(sourceName);
+        if (card.canonicalKey) return card.canonicalKey.toLowerCase();
+        if (card.canonicalName) return card.canonicalName.toLowerCase();
+        return canonicalCardKey(card.card, deckStyle) || normalizeCardName(card.card);
       })
       .filter(Boolean)
   );
@@ -808,6 +809,11 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
 
   // Use deck-aware patterns that include both RWS and deck-specific aliases
   const patterns = buildDeckAwarePatterns(deckStyle);
+  // A Thoth Knight title also names a different RWS court card. A valid name
+  // for a drawn card must not generate a second, undrawn identity report.
+  const drawnAliases = new Set(patterns
+    .filter(({ canonical }) => drawnKeys.has(canonical.toLowerCase()))
+    .map(({ normalized }) => normalized));
 
   patterns.forEach(({ name, canonical, normalized, pattern, isEpithet }) => {
     const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
@@ -842,7 +848,7 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
     const canonicalKey = canonical.toLowerCase();
 
     // Skip if this card is in the drawn spread
-    if (drawnKeys.has(canonicalKey)) {
+    if (drawnKeys.has(canonicalKey) || drawnAliases.has(normalized)) {
       return;
     }
 
@@ -871,7 +877,7 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
       }
 
       const canonicalKey = match.canonical.toLowerCase();
-      if (drawnKeys.has(canonicalKey)) return;
+      if (drawnKeys.has(canonicalKey) || drawnAliases.has(match.normalizedAlias)) return;
       if (seenCanonicals.has(canonicalKey)) return;
 
       seenCanonicals.add(canonicalKey);
@@ -1010,19 +1016,22 @@ export function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle 
   const normalizedDeck = deckStyle || 'rws-1909';
   const drawnNames = new Set(
     (cardsInfo || [])
-      .map((card) => canonicalCardKey(card?.card || card?.name, normalizedDeck))
+      .map((card) => card?.canonicalKey?.toLowerCase()
+        || card?.canonicalName?.toLowerCase()
+        || canonicalCardKey(card?.card || card?.name, normalizedDeck))
       .filter(Boolean)
   );
 
   return proofInsights
     .filter((entry) => entry && typeof entry === 'object')
     .map((entry) => {
-      const predictedCard = canonicalizeCardName(entry.predictedCard || entry.card, normalizedDeck);
+      const identity = resolveVisionCardIdentity(entry, normalizedDeck);
+      const predictedCard = identity.canonicalName;
       if (!predictedCard) {
         return null;
       }
 
-      const predictedKey = canonicalCardKey(predictedCard, normalizedDeck);
+      const predictedKey = identity.canonicalKey;
       const matchesDrawnCard = drawnNames.size > 0
         ? (predictedKey ? drawnNames.has(predictedKey) : null)
         : null;
@@ -1030,11 +1039,12 @@ export function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle 
       const matches = Array.isArray(entry.matches)
         ? entry.matches
           .map((match) => {
-            const card = canonicalizeCardName(match?.card || match?.cardName, normalizedDeck);
-            if (!card) return null;
+            const matchIdentity = resolveVisionCardIdentity(match, normalizedDeck);
+            if (!matchIdentity.canonicalName) return null;
             return {
               ...match,
-              card
+              card: matchIdentity.canonicalName,
+              ...matchIdentity
             };
           })
           .filter(Boolean)
@@ -1044,6 +1054,8 @@ export function annotateVisionInsights(proofInsights, cardsInfo = [], deckStyle 
       const annotated = {
         label: normalizeVisionLabel(entry.label),
         predictedCard,
+        canonicalName: predictedCard,
+        canonicalKey: predictedKey,
         confidence: typeof entry.confidence === 'number' ? entry.confidence : null,
         basis: typeof entry.basis === 'string' ? entry.basis : null,
         matchesDrawnCard,

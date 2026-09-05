@@ -635,7 +635,7 @@ describe('Vision validation prompt context', () => {
     assert.ok(!userPrompt.includes('vibrant, warm'), 'Mismatched tone cues should be withheld');
   });
 
-  it('does not mask secondary matches for verified entries', async () => {
+  it('keeps only drawn secondary matches for verified entries', async () => {
     const cardsInfo = [
       major('The Moon', 18, 'One-Card Insight', 'Upright')
     ];
@@ -658,15 +658,16 @@ describe('Vision validation prompt context', () => {
           matchesDrawnCard: true,
           matches: [
             { card: 'The High Priestess', score: 0.65 },
-            { card: 'The Star', score: 0.42 }
+            { card: 'The Star', score: 0.42 },
+            { card: 'The Moon', score: 0.4 }
           ]
         }
       ]
     });
 
-    // For verified entries, secondary matches are fine to include
-    assert.match(userPrompt, /Secondary matches:/);
-    assert.match(userPrompt, /The High Priestess/);
+    assert.match(userPrompt, /recognized as The Moon/);
+    assert.match(userPrompt, /Secondary matches: The Moon 40\.0%/);
+    assert.doesNotMatch(userPrompt, /The High Priestess|The Star/);
   });
 
   it('omits secondary matches for mismatched entries', async () => {
@@ -753,7 +754,7 @@ describe('reflection source merging', () => {
 });
 
 describe('Prompt safety: user input sanitization', () => {
-  it('sanitizes displayName and truncates userQuestion in prompt headers', async () => {
+  it('sanitizes displayName and retains accepted question tails in prompt headers', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'One-Card Insight', 'Upright')
     ];
@@ -781,8 +782,8 @@ describe('Prompt safety: user input sanitization', () => {
     assert.ok(firstLine.startsWith('**Question**:'), 'User prompt should begin with a Question header');
     assert.ok(!firstLine.includes('**SYSTEM**'), 'Display name should be sanitized to remove markdown injection');
     assert.ok(!firstLine.includes('#'), 'Display name should be sanitized to remove markdown tokens');
-    assert.ok(!userPrompt.includes(' END'), 'User question should be truncated before the tail of the string');
-    assert.ok(firstLine.length < 700, 'Question line should be bounded in length to protect prompt budgets');
+    assert.ok(firstLine.includes(longQuestion), 'Accepted question should retain its complete tail with ample budget');
+    assert.ok(firstLine.length < 2200, 'Question line remains bounded by the request contract plus serialization');
   });
 });
 

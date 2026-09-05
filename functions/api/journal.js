@@ -13,6 +13,7 @@ import { dedupeEntries } from '../../shared/journal/dedupe.js';
 import { scheduleCoachExtraction } from '../lib/coachSuggestion.js';
 import { safeJsonParse } from '../lib/utils.js';
 import { insertFollowUps, loadFollowUpsByEntry, sanitizeFollowUps } from '../lib/journalFollowups.js';
+import { normalizeJournalContext } from '../lib/journalContext.js';
 
 function isMissingColumnError(err) {
   const message = String(err?.message || err || '');
@@ -440,8 +441,8 @@ export async function onRequestPost(context) {
 
     const updatedAt = createdAt;
 
-    // Ensure context is a string (not an object) to prevent "[object Object]" storage
-    const normalizedContext = (typeof context === 'string') ? context : null;
+    // Keep older/unknown context values nullable without rejecting the reading.
+    const normalizedContext = normalizeJournalContext(context);
 
     // Location persistence: only store if BOTH location provided AND user explicitly consents
     const shouldPersistLocation = location?.latitude != null &&

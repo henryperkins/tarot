@@ -20,7 +20,7 @@ import {
   getPassagesForPattern,
   getKnowledgeBaseStats
 } from './knowledgeBase.js';
-import { cosineSimilarity, embedText } from './embeddings.js';
+import { cosineSimilarity, embedTextWithMetadata } from './embeddings.js';
 
 // ============================================================================
 // HELPER: Word Boundary Matching
@@ -649,17 +649,21 @@ export async function scorePassageRelevance(passage, userQuery, options = {}) {
     queryTerms.length > 0 ? keywordMatches.length / queryTerms.length : 0;
 
   // Semantic similarity (requires embeddings API)
-  let semanticScore = 0.5; // Default to neutral if semantic scoring disabled/fails
+  let semanticScore = 0.5; // Default to neutral if semantic scoring is disabled
   if (options.enableSemanticScoring) {
     if (semanticStatus) {
       semanticStatus.attempted = true;
+      semanticStatus.succeeded = false;
     }
     try {
       const [queryEmbed, passageEmbed] = await Promise.all([
-        embedText(queryText, { env: options.env }),
-        embedText(passageText.slice(0, 500), { env: options.env }) // Truncate for efficiency
+        embedTextWithMetadata(queryText, { env: options.env }),
+        embedTextWithMetadata(passageText.slice(0, 500), { env: options.env }) // Truncate for efficiency
       ]);
-      semanticScore = cosineSimilarity(queryEmbed, passageEmbed);
+      if (queryEmbed.source !== 'azure' || passageEmbed.source !== 'azure') {
+        return keywordScore;
+      }
+      semanticScore = cosineSimilarity(queryEmbed.embedding, passageEmbed.embedding);
       if (semanticStatus) {
         semanticStatus.succeeded = true;
       }

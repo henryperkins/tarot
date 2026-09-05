@@ -88,4 +88,71 @@ describe('vision evidence packets', () => {
     assert.ok(packets[0].uncertainSymbols.some((entry) => entry.label === 'a cliff is visible'));
     assert.ok(packets[0].forbiddenClaims.some((claim) => /Do not say "I see"/.test(claim)));
   });
+
+  for (const state of [
+    { name: 'verified', matchesDrawnCard: true, promptEligible: true },
+    { name: 'unverified', matchesDrawnCard: null, promptEligible: false },
+    { name: 'telemetry-only', matchesDrawnCard: true, promptEligible: false }
+  ]) {
+    it(`keeps an undrawn primary telemetry-only despite ${state.name} flags`, () => {
+      const packets = buildVisionEvidencePackets([{
+        ...state,
+        predictedCard: 'The Moon',
+        confidence: 0.92,
+        visualDetails: ['UNDRAWN_PACKET_CUE'],
+        symbolVerification: {
+          matchRate: 0.9,
+          matches: [{ object: 'UNDRAWN_PACKET_CUE', found: true, confidence: 0.9 }]
+        }
+      }], [{ card: 'The Sun', canonicalName: 'The Sun', canonicalKey: 'the sun' }]);
+
+      assert.equal(packets[0].card, 'The Moon', 'retain the excluded identity only in diagnostic packets');
+      assert.equal(packets[0].evidenceMode, 'telemetry_only');
+      assert.equal(packets[0].suppressionReason, 'card_mismatch');
+      assert.deepEqual(packets[0].visibleEvidence, []);
+      assert.deepEqual(packets[0].verifiedUploadedEvidence, []);
+    });
+  }
+
+  it('keeps secondary guesses out of valid primary evidence packets', () => {
+    const [packet] = buildVisionEvidencePackets([{
+      predictedCard: 'Le Soleil',
+      matchesDrawnCard: true,
+      promptEligible: true,
+      confidence: 0.92,
+      visualDetails: ['A gold border surrounds the bright portrait.'],
+      matches: [{ card: 'La Lune', score: 0.9, reasoning: 'UNDRAWN_PACKET_CUE' }]
+    }], [{ card: 'Le Soleil' }], 'marseille-classic');
+
+    assert.equal(packet.card, 'The Sun');
+    assert.equal(packet.evidenceMode, 'uploaded_image');
+    assert.doesNotMatch(JSON.stringify(packet), /La Lune|The Moon|UNDRAWN_PACKET_CUE/);
+  });
+
+  it('does not remap an authoritative Thoth Prince identity onto the Knight alias', () => {
+    const packets = buildVisionEvidencePackets([
+      { predictedCard: 'Prince of Cups', matchesDrawnCard: true, promptEligible: true, confidence: 0.92 },
+      { predictedCard: 'Knight of Cups', matchesDrawnCard: true, promptEligible: true, confidence: 0.92 }
+    ], [{ card: 'Prince of Cups', canonicalName: 'Knight of Cups', canonicalKey: 'knight of cups' }], 'thoth-a1');
+
+    assert.equal(packets[0].card, 'Knight of Cups');
+    assert.equal(packets[0].evidenceMode, 'uploaded_image');
+    assert.equal(packets[1].card, 'King of Cups');
+    assert.equal(packets[1].evidenceMode, 'telemetry_only');
+    assert.equal(packets[1].suppressionReason, 'card_mismatch');
+  });
+
+  it('uses canonical insight fields without remapping them through Thoth aliases', () => {
+    const [packet] = buildVisionEvidencePackets([{
+      predictedCard: 'Knight of Cups',
+      canonicalName: 'Knight of Cups',
+      canonicalKey: 'knight of cups',
+      matchesDrawnCard: true,
+      promptEligible: true,
+      confidence: 0.92
+    }], [{ card: 'Prince of Cups', canonicalKey: 'knight of cups' }], 'thoth-a1');
+
+    assert.equal(packet.card, 'Knight of Cups');
+    assert.equal(packet.evidenceMode, 'uploaded_image');
+  });
 });

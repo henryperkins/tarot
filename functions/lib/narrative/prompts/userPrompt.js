@@ -2,12 +2,10 @@ import { getContextDescriptor } from '../helpers.js';
 import { buildCardTransitNotes, generateTimingGuidance } from '../../ephemerisIntegration.js';
 import { buildExperienceLine, sanitizeDisplayName, getDepthProfile } from '../styleHelpers.js';
 import { sanitizeText } from '../../utils.js';
-import { detectPromptInjection } from '../../promptInjectionDetector.js';
+import { prepareUserContext, renderUserContext } from './userContext.js';
 import { formatMemoriesForPrompt } from '../../userMemory.js';
 import {
   DEFAULT_REVERSAL_DESCRIPTION,
-  MAX_QUESTION_TEXT_LENGTH,
-  MAX_REFLECTION_TEXT_LENGTH,
   USER_PROMPT_INSTRUCTION_HEADER
 } from './constants.js';
 import { getDeckStyleNotes } from './deckStyle.js';
@@ -26,52 +24,6 @@ import {
   buildStandardPromptCards,
   buildDeckSpecificContext
 } from './cardBuilders.js';
-
-function sanitizeReflectionForPrompt(reflectionText, maxLength = MAX_REFLECTION_TEXT_LENGTH) {
-  if (typeof reflectionText !== 'string' || !reflectionText.trim()) {
-    return '';
-  }
-
-  let sanitized = sanitizeText(reflectionText, {
-    maxLength,
-    addEllipsis: true,
-    stripMarkdown: true,
-    filterInstructions: true
-  });
-
-  if (!sanitized) {
-    return '';
-  }
-
-  const reflectionCheck = detectPromptInjection(sanitized, { confidenceThreshold: 0.6, sanitize: true });
-  if (reflectionCheck.isInjection) {
-    console.warn('[PromptInjection] Potential injection detected in reflections:', {
-      confidence: reflectionCheck.confidence,
-      severity: reflectionCheck.severity,
-      reasons: reflectionCheck.reasons.slice(0, 3)
-    });
-    sanitized = reflectionCheck.sanitizedText;
-  }
-
-  return sanitized || '';
-}
-
-function reflectionDedupKey(text) {
-  if (typeof text !== 'string' || !text.trim()) return '';
-  return text.trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-function sanitizeReflectionForDedupe(reflectionText) {
-  if (typeof reflectionText !== 'string' || !reflectionText.trim()) {
-    return '';
-  }
-  return sanitizeText(reflectionText, {
-    maxLength: 120,
-    addEllipsis: true,
-    stripMarkdown: true,
-    filterInstructions: true
-  });
-}
 
 function recordUserContextSignal(target, key, patch) {
   if (!target || !key || !patch || typeof patch !== 'object') return;
@@ -119,21 +71,10 @@ export function buildUserPrompt(
   const includeDeckContext = promptOptions.includeDeckContext !== false;
   const includeDiagnostics = promptOptions.includeDiagnostics !== false;
 
-  // Question - filter instruction patterns and detect semantic injection
-  const rawQuestionProvided = typeof userQuestion === 'string' && userQuestion.trim().length > 0;
-  let safeQuestion = userQuestion ? sanitizeText(userQuestion, { maxLength: MAX_QUESTION_TEXT_LENGTH, addEllipsis: true, stripMarkdown: true, filterInstructions: true }) : '';
-  
-  // Semantic injection detection for novel attack patterns
-  const injectionCheck = detectPromptInjection(safeQuestion, { confidenceThreshold: 0.6, sanitize: true });
-  if (injectionCheck.isInjection) {
-    console.warn('[PromptInjection] Potential injection detected:', {
-      confidence: injectionCheck.confidence,
-      severity: injectionCheck.severity,
-      reasons: injectionCheck.reasons.slice(0, 3)
-    });
-    // Use sanitized version
-    safeQuestion = injectionCheck.sanitizedText;
-  }
+  const contextFields = promptOptions.userContextFields || prepareUserContext(userQuestion, reflectionsText, cardsInfo);
+  promptOptions = { ...promptOptions, userContextFields: contextFields, drawnCards: cardsInfo };
+  const rawQuestionProvided = contextFields.question.originalLength > 0;
+  const safeQuestion = contextFields.question.text;
   recordUserContextSignal(userContextSignals, 'question', {
     provided: rawQuestionProvided,
     eligible: Boolean(safeQuestion),
@@ -141,7 +82,7 @@ export function buildUserPrompt(
     skippedReasonIfMissing: 'removed_for_budget'
   });
   
-  const questionLine = safeQuestion || '(No explicit question; speak to the energy most present for the querent.)';
+  const questionLine = (safeQuestion ? renderUserContext('question', safeQuestion) : '') || '(No explicit question; speak to the energy most present for the querent.)';
   prompt += `**Question**: ${questionLine}\n\n`;
 
   recordUserContextSignal(userContextSignals, 'displayName', {
@@ -278,16 +219,9 @@ export function buildUserPrompt(
   }
 
   // Global reflections are additive to per-card reflections unless duplicated.
-  const perCardReflectionKeys = new Set(
-    (Array.isArray(cardsInfo) ? cardsInfo : [])
-      .map((card) => sanitizeReflectionForDedupe(card?.userReflection))
-      .map(reflectionDedupKey)
-      .filter(Boolean)
-  );
-  const sanitizedReflections = sanitizeReflectionForPrompt(reflectionsText);
-  const globalReflectionKey = reflectionDedupKey(sanitizedReflections);
-  const isDuplicateGlobalReflection = globalReflectionKey && perCardReflectionKeys.has(globalReflectionKey);
-  const rawReflectionsProvided = typeof reflectionsText === 'string' && reflectionsText.trim().length > 0;
+  const sanitizedReflections = contextFields.reflections.text;
+  const isDuplicateGlobalReflection = Boolean(contextFields.reflections.duplicateOf);
+  const rawReflectionsProvided = contextFields.reflections.originalLength > 0;
   recordUserContextSignal(userContextSignals, 'reflections', {
     provided: rawReflectionsProvided,
     eligible: Boolean(sanitizedReflections && !isDuplicateGlobalReflection),
@@ -300,15 +234,19 @@ export function buildUserPrompt(
   });
 
   if (sanitizedReflections && !isDuplicateGlobalReflection) {
-    prompt += `\n**Querent's Reflections**:\n${sanitizedReflections}\n\n`;
+    prompt += `\n**Querent's Reflections**:\n${renderUserContext('reflections', sanitizedReflections)}\n\n`;
   }
 
-  const visionSection = buildVisionValidationSection(visionInsights, { includeDiagnostics, cardsInfo });
+  const visionSection = buildVisionValidationSection(visionInsights, { includeDiagnostics, cardsInfo, deckStyle });
   if (visionSection) {
     prompt += visionSection;
   }
 
-  const uploadedEvidenceSection = buildUploadedVisibleEvidenceSection(promptOptions.visionEvidence);
+  const uploadedEvidenceSection = buildUploadedVisibleEvidenceSection(promptOptions.visionEvidence, {
+    cardsInfo,
+    deckStyle,
+    sourceUsageSignals: promptOptions.sourceUsageSignals
+  });
   if (uploadedEvidenceSection) {
     prompt += uploadedEvidenceSection;
   }

@@ -7,6 +7,7 @@ const MAX_INSIGHTS = 10;
 const MAX_REASONING_CHARS = 600;
 const MAX_VISUAL_DETAILS = 6;
 const MAX_VISUAL_DETAIL_CHARS = 120;
+const CANONICAL_IDENTITY_VERSION = 2;
 
 function normalizeOrientation(orientation) {
   if (typeof orientation !== 'string') return null;
@@ -131,38 +132,101 @@ function serializeProofPayload(payload) {
   return JSON.stringify(payload);
 }
 
+/** Canonical fields use the RWS namespace; only raw display labels use deck aliases. */
+export function resolveVisionCardIdentity(entry, deckStyle = 'rws-1909') {
+  const canonicalReference = (typeof entry?.canonicalKey === 'string' && entry.canonicalKey.trim())
+    || (typeof entry?.canonicalName === 'string' && entry.canonicalName.trim());
+  const canonicalName = canonicalReference
+    ? canonicalizeCardName(canonicalReference, 'rws-1909')
+    : canonicalizeCardName(entry?.predictedCard || entry?.card || entry?.cardName, deckStyle);
+  return {
+    canonicalName: canonicalName || null,
+    canonicalKey: canonicalName ? canonicalName.toLowerCase() : null
+  };
+}
+
+function boundedInsights(rawInsights) {
+  return Array.isArray(rawInsights) ? rawInsights.filter(Boolean).slice(0, MAX_INSIGHTS) : [];
+}
+
+function trimInsight(insight, predictedCard, matches) {
+  return {
+    label: typeof insight.label === 'string' ? insight.label : 'uploaded-image',
+    predictedCard,
+    confidence: typeof insight.confidence === 'number' ? insight.confidence : null,
+    basis: typeof insight.basis === 'string' ? insight.basis : null,
+    matches,
+    attention: insight.attention || null,
+    symbolVerification: insight.symbolVerification || null,
+    visualProfile: insight.visualProfile || null,
+    orientation: normalizeOrientation(insight.orientation),
+    reasoning: truncateText(insight.reasoning, MAX_REASONING_CHARS),
+    visualDetails: normalizeVisualDetails(insight.visualDetails),
+    mergeSource: normalizeMergeSource(insight.mergeSource),
+    componentScores: normalizeComponentScores(insight.componentScores),
+    routerFeatures: normalizeRouterFeatures(insight.routerFeatures),
+    calibratedConfidence: typeof insight.calibratedConfidence === 'number' ? insight.calibratedConfidence : null,
+    decisionReason: normalizeMergeSource(insight.decisionReason),
+    abstain: Boolean(insight.abstain),
+    imageQuality: normalizeImageQuality(insight.imageQuality)
+  };
+}
+
+// Preserve the exact pre-versioned verification shape and alias behavior. New
+// fields must never influence the identity authenticated by a legacy signature.
+function trimLegacyInsights(rawInsights, deckStyle) {
+  return boundedInsights(rawInsights).map((insight) => trimInsight(
+    insight,
+    canonicalizeCardName(insight.predictedCard || insight.card || null, deckStyle) || null,
+    Array.isArray(insight.matches) ? insight.matches.slice(0, 3) : []
+  ));
+}
+
 export function trimInsights(rawInsights = [], deckStyle = 'rws-1909') {
-  if (!Array.isArray(rawInsights)) {
-    return [];
+  return boundedInsights(rawInsights).map((insight) => {
+    const identity = resolveVisionCardIdentity(insight, deckStyle);
+    const matches = Array.isArray(insight.matches)
+      ? insight.matches.slice(0, 3).map((match) => {
+        const matchIdentity = resolveVisionCardIdentity(match, deckStyle);
+        return matchIdentity.canonicalName ? { ...match, card: matchIdentity.canonicalName, ...matchIdentity } : null;
+      }).filter(Boolean)
+      : [];
+    return { ...trimInsight(insight, identity.canonicalName, matches), ...identity };
+  });
+}
+
+function validateSignedIdentities(insights) {
+  const assertIdentity = (entry, nameField) => {
+    const identity = resolveVisionCardIdentity(entry, 'rws-1909');
+    if (entry?.[nameField] !== identity.canonicalName
+      || entry?.canonicalName !== identity.canonicalName
+      || entry?.canonicalKey !== identity.canonicalKey) {
+      throw new Error('Vision proof canonical identity invalid.');
+    }
+  };
+  for (const insight of boundedInsights(insights)) {
+    assertIdentity(insight, 'predictedCard');
+    if (Array.isArray(insight.matches)) {
+      insight.matches.slice(0, 3).forEach((match) => assertIdentity(match, 'card'));
+    }
   }
-  return rawInsights
-    .filter(Boolean)
-    .slice(0, MAX_INSIGHTS)
-    .map((insight) => ({
-      label: typeof insight.label === 'string' ? insight.label : 'uploaded-image',
-      predictedCard: canonicalizeCardName(insight.predictedCard || insight.card || null, deckStyle) || null,
-      confidence: typeof insight.confidence === 'number' ? insight.confidence : null,
-      basis: typeof insight.basis === 'string' ? insight.basis : null,
-      matches: Array.isArray(insight.matches) ? insight.matches.slice(0, 3) : [],
-      attention: insight.attention || null,
-      symbolVerification: insight.symbolVerification || null,
-      visualProfile: insight.visualProfile || null,
-      orientation: normalizeOrientation(insight.orientation),
-      reasoning: truncateText(insight.reasoning, MAX_REASONING_CHARS),
-      visualDetails: normalizeVisualDetails(insight.visualDetails),
-      mergeSource: normalizeMergeSource(insight.mergeSource),
-      componentScores: normalizeComponentScores(insight.componentScores),
-      routerFeatures: normalizeRouterFeatures(insight.routerFeatures),
-      calibratedConfidence: typeof insight.calibratedConfidence === 'number' ? insight.calibratedConfidence : null,
-      decisionReason: normalizeMergeSource(insight.decisionReason),
-      abstain: Boolean(insight.abstain),
-      imageQuality: normalizeImageQuality(insight.imageQuality)
-    }));
+}
+
+function addVerifiedLegacyIdentities(insights) {
+  return insights.map((insight) => ({
+    ...insight,
+    ...resolveVisionCardIdentity({ predictedCard: insight.predictedCard }, 'rws-1909'),
+    matches: insight.matches.map((match) => ({
+      ...match,
+      ...resolveVisionCardIdentity({ card: match?.card || match?.cardName }, 'rws-1909')
+    }))
+  }));
 }
 
 export function buildVisionProofPayload({ id, deckStyle = 'rws-1909', insights, ttlMs = DEFAULT_TTL_MS }) {
   const now = Date.now();
   const payload = {
+    version: CANONICAL_IDENTITY_VERSION,
     id,
     deckStyle,
     createdAt: new Date(now).toISOString(),
@@ -184,16 +248,23 @@ export async function verifyVisionProof(proof, secret) {
   if (!proof || typeof proof !== 'object') {
     throw new Error('Vision proof payload is missing.');
   }
-  const { signature, id, deckStyle = 'rws-1909', createdAt, expiresAt, insights } = proof;
+  const { signature, version, id, deckStyle = 'rws-1909', createdAt, expiresAt, insights } = proof;
   if (!signature || typeof signature !== 'string') {
     throw new Error('Vision proof signature missing.');
   }
+  if (version !== undefined && version !== CANONICAL_IDENTITY_VERSION) {
+    throw new Error('Vision proof version unsupported.');
+  }
+  if (version === CANONICAL_IDENTITY_VERSION) validateSignedIdentities(insights);
   const payload = {
+    ...(version === CANONICAL_IDENTITY_VERSION ? { version } : {}),
     id,
     deckStyle,
     createdAt,
     expiresAt,
-    insights: trimInsights(insights, deckStyle)
+    insights: version === CANONICAL_IDENTITY_VERSION
+      ? trimInsights(insights, deckStyle)
+      : trimLegacyInsights(insights, deckStyle)
   };
   if (!payload.id) {
     throw new Error('Vision proof id missing.');
@@ -214,5 +285,9 @@ export async function verifyVisionProof(proof, secret) {
   if (!verified) {
     throw new Error('Vision proof signature invalid.');
   }
-  return payload;
+  // Legacy predictedCard/matches from the first-party producer are already
+  // canonical. Add the explicit namespace only after their old bytes verify.
+  return version === CANONICAL_IDENTITY_VERSION
+    ? payload
+    : { ...payload, insights: addVerifiedLegacyIdentities(payload.insights) };
 }

@@ -81,7 +81,7 @@ describe('buildFollowUpPrompt', () => {
   });
 
   test('includes journal context patterns when provided', () => {
-    const { systemPrompt } = buildFollowUpPrompt({
+    const { systemPrompt, userPrompt } = buildFollowUpPrompt({
       originalReading: {
         cardsInfo: [],
         narrative: 'test'
@@ -103,8 +103,9 @@ describe('buildFollowUpPrompt', () => {
     });
 
     assert.ok(systemPrompt.includes('## JOURNAL CONTEXT'));
-    assert.ok(systemPrompt.includes('The Tower has appeared 4 times'));
-    assert.ok(systemPrompt.includes('career; relationships'));
+    assert.ok(!systemPrompt.includes('The Tower has appeared 4 times'));
+    assert.ok(userPrompt.includes('The Tower has appeared 4 times'));
+    assert.ok(userPrompt.includes('"contexts":["career","relationships"]'));
     assert.ok(systemPrompt.includes('Frame as observation'));
   });
 

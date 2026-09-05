@@ -16,9 +16,17 @@ function sanitizeDetail(value) {
   }).trim();
 }
 
+function resolveCardKey(card, deckStyle) {
+  const canonical = card?.canonicalKey || card?.canonicalName;
+  const key = canonical || canonicalCardKey(card?.predictedCard || card?.card || card?.name, deckStyle);
+  return typeof key === 'string'
+    ? key.trim().toLowerCase().replace(/^the\s+/, '').replace(/\s+/g, ' ')
+    : null;
+}
+
 function drawnKeySet(cardsInfo, deckStyle) {
   return new Set((cardsInfo || [])
-    .map((card) => canonicalCardKey(card?.canonicalName || card?.card || card?.name, deckStyle))
+    .map((card) => resolveCardKey(card, deckStyle))
     .filter(Boolean));
 }
 
@@ -112,13 +120,21 @@ export function buildVisionEvidencePackets(insights = [], cardsInfo = [], deckSt
     .filter(Boolean)
     .slice(0, 10)
     .map((entry) => {
-      const card = canonicalizeCardName(entry.predictedCard || entry.card, deckStyle);
-      const cardKey = canonicalCardKey(card, deckStyle);
-      const matchesSpread = entry.matchesDrawnCard === true || (cardKey && allowedKeys.has(cardKey));
+      const canonical = entry.canonicalName || entry.canonicalKey;
+      // Metadata from annotation is already canonical; resolve only raw display
+      // names against deck aliases so Thoth court identities are not remapped.
+      const card = canonicalizeCardName(
+        canonical || entry.predictedCard || entry.card,
+        canonical ? 'rws-1909' : deckStyle
+      );
+      const cardKey = resolveCardKey(entry, deckStyle);
+      const matchesSpread = Boolean(cardKey && allowedKeys.has(cardKey));
       const promptEligible = matchesSpread && entry.promptEligible === true;
       const ontology = card ? getRwsCardEvidence(card) : null;
       const evidenceMode = promptEligible ? 'uploaded_image' : 'telemetry_only';
-      const visualClaimMode = resolveVisualClaimMode(entry, weightedSymbolMatchFloor);
+      const visualClaimMode = matchesSpread
+        ? resolveVisualClaimMode(entry, weightedSymbolMatchFloor)
+        : 'ask_for_confirmation';
       const verifiedUploadedEvidence = promptEligible && visualClaimMode === 'verified_visual_evidence'
         ? mapVerifiedSymbols({ ...entry, predictedCard: card })
         : [];
@@ -132,6 +148,8 @@ export function buildVisionEvidencePackets(insights = [], cardsInfo = [], deckSt
       return {
         label: entry.label || 'uploaded-image',
         card,
+        canonicalName: card,
+        canonicalKey: canonicalCardKey(card),
         stableId: ontology?.stableId || null,
         deck: 'Rider-Waite-Smith',
         orientation: entry.orientation || null,
@@ -163,7 +181,7 @@ export function buildVisionEvidencePackets(insights = [], cardsInfo = [], deckSt
         absentSymbolFalsePositive: Boolean(entry.symbolVerification?.absentSymbolFalsePositive),
         suppressionReason: promptEligible
           ? null
-          : (entry.suppressionReason || (matchesSpread ? 'telemetry_only' : 'card_mismatch'))
+          : (matchesSpread ? (entry.suppressionReason || 'telemetry_only') : 'card_mismatch')
       };
     });
 }

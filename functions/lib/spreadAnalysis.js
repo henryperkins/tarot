@@ -15,6 +15,7 @@
  */
 
 import { parseMinorName } from './minorMeta.js';
+import { sanitizeReadingCard } from './readingCardContext.js';
 
 /**
  * Traditional elemental correspondences for Major Arcana
@@ -838,6 +839,7 @@ export function analyzeCelticCross(cardsInfo) {
   for (let i = 0; i < 10; i++) {
     if (!cardsInfo[i]) return null;
   }
+  cardsInfo = cardsInfo.map(sanitizeReadingCard);
 
   const nucleus = analyzeNucleus(cardsInfo[0], cardsInfo[1]);
   const timeline = analyzeTimeline(cardsInfo[2], cardsInfo[0], cardsInfo[3]);
@@ -1322,7 +1324,7 @@ export function analyzeThreeCard(cardsInfo) {
     return null;
   }
 
-  const [first, second, third] = cardsInfo;
+  const [first, second, third] = cardsInfo.map(sanitizeReadingCard);
 
   if (!first || !second || !third) {
     return null;
@@ -1422,6 +1424,7 @@ export function analyzeFiveCard(cardsInfo) {
   for (let i = 0; i < 5; i++) {
     if (!cardsInfo[i]) return null;
   }
+  cardsInfo = cardsInfo.map(sanitizeReadingCard);
 
   // Core vs Challenge
   const coreVsChallenge = analyzeElementalDignity(cardsInfo[0], cardsInfo[1]);
@@ -1490,7 +1493,7 @@ export function analyzeRelationship(cardsInfo) {
     return null;
   }
 
-  const [you, them, connection, dynamics, outcome] = cardsInfo;
+  const [you, them, connection, dynamics, outcome] = cardsInfo.map(sanitizeReadingCard);
   if (!you || !them || !connection) {
     return null;
   }
@@ -1663,7 +1666,7 @@ export function analyzeSingleCard(cardsInfo) {
     return null;
   }
 
-  const [card] = cardsInfo;
+  const [card] = cardsInfo.map(sanitizeReadingCard);
   if (!card) {
     return null;
   }
@@ -1717,7 +1720,7 @@ export function analyzeDecision(cardsInfo) {
     return null;
   }
 
-  const [heart, pathA, pathB, clarifier, freeWill] = cardsInfo;
+  const [heart, pathA, pathB, clarifier, freeWill] = cardsInfo.map(sanitizeReadingCard);
   if (!heart || !pathA || !pathB) {
     return null;
   }

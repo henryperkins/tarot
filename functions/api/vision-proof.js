@@ -1,7 +1,6 @@
 import { jsonResponse, readJsonBody, sanitizeText } from '../lib/utils.js';
 import { createVisionBackend } from '../../shared/vision/visionBackends.js';
-import { buildVisionProofPayload, signVisionProof } from '../lib/visionProof.js';
-import { canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
+import { buildVisionProofPayload, resolveVisionCardIdentity, signVisionProof } from '../lib/visionProof.js';
 import { normalizeVisionLabel } from '../lib/visionLabels.js';
 
 const MAX_EVIDENCE = 5;
@@ -21,11 +20,12 @@ function sanitizeMatches(matches, deckStyle) {
   if (!Array.isArray(matches)) return [];
   return matches
     .map((match) => {
-      const card = canonicalizeCardName(match?.cardName || match?.card, deckStyle);
+      const identity = resolveVisionCardIdentity(match, deckStyle);
       const confidence = clampConfidence(match?.score ?? match?.confidence);
-      if (!card) return null;
+      if (!identity.canonicalName) return null;
       return {
-        card,
+        card: identity.canonicalName,
+        ...identity,
         confidence,
         basis: match?.basis || null
       };
@@ -278,10 +278,11 @@ async function analyzeEvidence(evidence, deckStyle, backendId, env, timeoutMs) {
     { includeAttention: true, includeSymbols: true }
   );
   return analyses.map((entry) => {
-    const predictedCard = canonicalizeCardName(entry.topMatch?.canonicalName || entry.topMatch?.cardName, deckStyle);
+    const identity = resolveVisionCardIdentity(entry.topMatch, deckStyle);
     return {
       label: normalizeVisionLabel(entry.label || entry.imagePath),
-      predictedCard,
+      predictedCard: identity.canonicalName,
+      ...identity,
       confidence: clampConfidence(entry.confidence ?? entry.topMatch?.score ?? null),
       basis: entry.topMatch?.basis || null,
       matches: sanitizeMatches(entry.matches, deckStyle),

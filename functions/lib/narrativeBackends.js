@@ -672,6 +672,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown', optio
 
   // Build enhanced prompts using narrative builder
   const { systemPrompt, userPrompt, promptMeta, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
+    userContextInputStats: payload.userContextInputStats,
     spreadInfo,
     cardsInfo,
     userQuestion,
@@ -891,6 +892,7 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
 
   // Build enhanced prompts using narrative builder
   const { systemPrompt, userPrompt, promptMeta, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
+    userContextInputStats: payload.userContextInputStats,
     spreadInfo,
     cardsInfo,
     userQuestion,

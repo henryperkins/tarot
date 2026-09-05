@@ -1,5 +1,15 @@
 import { estimateTokenCount } from './budgeting.js';
 import { USER_PROMPT_INSTRUCTION_HEADER } from './constants.js';
+import { parseUserContext, fitUserContext } from './userContext.js';
+
+function dropIncompleteReadingContextLines(text) {
+  // Reading context is serialized on one line. Keep each data boundary intact
+  // when a budget cut lands within it, before appending trusted instructions.
+  return text.split('\n').filter((line) => {
+    const outsideCompleteBlocks = line.replace(/<reading_context>[^\n]*?<\/reading_context>|<user_context source="[^"]+">[^\n]*?<\/user_context>/g, '');
+    return !/<\/?(?:reading_context|user_context)\b/.test(outsideCompleteBlocks);
+  }).join('\n').trim();
+}
 
 function truncatePrefixToTokenBudget(text, maxTokens) {
   if (maxTokens <= 0) return '';
@@ -39,7 +49,7 @@ function truncatePrefixToTokenBudget(text, maxTokens) {
     truncated = truncated.slice(0, nextLen).trim();
   }
 
-  return truncated;
+  return dropIncompleteReadingContextLines(truncated);
 }
 
 function truncateSuffixToTokenBudget(text, maxTokens) {
@@ -76,7 +86,7 @@ function truncateSuffixToTokenBudget(text, maxTokens) {
     truncated = truncated.slice(truncated.length - nextLen).trim();
   }
 
-  return truncated;
+  return dropIncompleteReadingContextLines(truncated);
 }
 
 /**
@@ -139,7 +149,7 @@ export function truncateToTokenBudget(text, maxTokens, options = {}) {
       combined = tailText.trim();
       break;
     }
-    headText = headText.slice(0, nextLen).trim();
+    headText = dropIncompleteReadingContextLines(headText.slice(0, nextLen));
     combined = [headText, tailText].filter(Boolean).join(separator).trim();
   }
 
@@ -450,6 +460,45 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
   const originalTokens = estimateTokenCount(text);
   if (originalTokens <= maxTokens) {
     return { text, truncated: false, originalTokens, preservedSections: [] };
+  }
+
+  const userContext = parseUserContext(text);
+  if (userContext.size && !options.contextAllocated) {
+    // Allocate explicit current context separately from verbose derived card
+    // prose. Keep the question first, share the remainder across reflections,
+    // and retain both ends of each field instead of silently losing its tail.
+    const stripped = text.replace(/^.*<user_context source="[^"]+">[^\n]*?<\/user_context>[^\n]*\n?/gm, '');
+    const instructionIdx = stripped.indexOf(USER_PROMPT_INSTRUCTION_MARKER);
+    const instructions = instructionIdx < 0 ? '' : stripped.slice(instructionIdx).trim();
+    const instructionTokens = estimateTokenCount(instructions);
+    const baseReserve = Math.min(
+      estimateTokenCount(stripped),
+      instructionTokens + Math.ceil(Math.max(0, maxTokens - instructionTokens) * 0.5)
+    );
+    const contextBudget = Math.max(0, maxTokens - baseReserve - 10);
+    const parts = [];
+    const question = userContext.get('question');
+    if (question !== undefined) {
+      const fitted = fitUserContext('question', question, contextBudget);
+      if (fitted) parts.push(`**Question**: ${fitted}`);
+    }
+    const remaining = [...userContext.entries()].filter(([source]) => source !== 'question');
+    // Small sources go first so unused shares flow to larger fields.
+    remaining.sort((a, b) => JSON.stringify(a[1]).length - JSON.stringify(b[1]).length);
+    remaining.forEach(([source, value], index) => {
+      const available = Math.max(0, contextBudget - estimateTokenCount(parts.join('\n\n')));
+      const share = Math.max(0, Math.floor(available / (remaining.length - index)) - 20);
+      const fitted = fitUserContext(source, value, share);
+      if (fitted) parts.push(`${source === 'reflections' ? "**Querent's Reflections**:" : `Reflection for card ${Number(source.slice(5)) + 1}:`} ${fitted}`);
+    });
+    const contextText = parts.join('\n\n');
+    const baseBudget = Math.max(0, maxTokens - estimateTokenCount(contextText) - 10);
+    const base = truncateUserPromptSafely(stripped, baseBudget, { ...options, contextAllocated: true });
+    const baseInstructionIdx = base.text.indexOf(USER_PROMPT_INSTRUCTION_MARKER);
+    const body = baseInstructionIdx < 0 ? base.text : base.text.slice(0, baseInstructionIdx).trim();
+    const tail = baseInstructionIdx < 0 ? '' : base.text.slice(baseInstructionIdx);
+    const result = [contextText, body, tail].filter(Boolean).join('\n\n');
+    return { text: result, truncated: true, originalTokens, preservedSections: ['user-context', ...base.preservedSections] };
   }
 
   const {

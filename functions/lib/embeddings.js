@@ -4,6 +4,8 @@
 // Provides text embedding via Azure OpenAI and cosine similarity calculation.
 // Used by graphRAG.js for semantic scoring of passage relevance.
 
+import { sha256Hex } from './crypto.js';
+
 /**
  * Calculate cosine similarity between two vectors.
  * Returns 0-1 where 1 is identical direction.
@@ -69,38 +71,80 @@ const MAX_CACHE_SIZE = 100;
  * @returns {Promise<number[]>} Embedding vector
  */
 export async function embedText(text, options = {}) {
+  const { embedding } = await embedTextWithMetadata(text, options);
+  return embedding;
+}
+
+/**
+ * Get an embedding together with its source so callers can distinguish actual
+ * semantic embeddings from the local pseudo-embedding fallback.
+ *
+ * @param {string} text - Text to embed
+ * @param {Object} [options] - Options
+ * @param {Object} [options.env] - Environment variables (for Cloudflare Workers)
+ * @returns {Promise<{embedding: number[], source: 'azure'|'fallback'}>}
+ */
+export async function embedTextWithMetadata(text, options = {}) {
   if (!text || typeof text !== 'string') {
-    return generateFallbackEmbedding('');
+    return { embedding: generateFallbackEmbedding(''), source: 'fallback' };
   }
 
   const trimmed = text.trim().slice(0, 8000); // Limit input length
   if (!trimmed) {
-    return generateFallbackEmbedding('');
+    return { embedding: generateFallbackEmbedding(''), source: 'fallback' };
   }
 
-  // Check cache first
-  const cacheKey = trimmed.slice(0, 200); // Use prefix as cache key
-  if (embeddingCache.has(cacheKey)) {
-    return embeddingCache.get(cacheKey);
-  }
-
-  // Try Azure OpenAI embeddings
   const env = options.env || (typeof process !== 'undefined' && process.env ? process.env : {});
-  const embedding = await fetchAzureEmbedding(trimmed, env);
-
-  if (embedding) {
-    // Cache the result
-    if (embeddingCache.size >= MAX_CACHE_SIZE) {
-      // Remove oldest entry (first key)
-      const firstKey = embeddingCache.keys().next().value;
-      embeddingCache.delete(firstKey);
+  const config = resolveAzureEmbeddingConfig(env);
+  if (config) {
+    // Hash the full effective request, excluding credentials. Neither shared text
+    // prefixes nor a different endpoint/model/API version can reuse a vector.
+    const cacheKey = await sha256Hex(JSON.stringify([config.url, config.model, trimmed]));
+    if (embeddingCache.has(cacheKey)) {
+      return { embedding: embeddingCache.get(cacheKey), source: 'azure' };
     }
-    embeddingCache.set(cacheKey, embedding);
-    return embedding;
+
+    const embedding = await fetchAzureEmbedding(trimmed, config);
+    if (embedding) {
+      if (embeddingCache.size >= MAX_CACHE_SIZE) {
+        // Remove oldest entry (first key)
+        const firstKey = embeddingCache.keys().next().value;
+        embeddingCache.delete(firstKey);
+      }
+      embeddingCache.set(cacheKey, embedding);
+      return { embedding, source: 'azure' };
+    }
   }
 
-  // Fallback to hash-based pseudo-embedding
-  return generateFallbackEmbedding(trimmed);
+  // Do not cache fallbacks; a subsequent call may succeed after an API outage.
+  return { embedding: generateFallbackEmbedding(trimmed), source: 'fallback' };
+}
+
+// Use the same effective configuration for cache identity and the API request.
+function resolveAzureEmbeddingConfig(env) {
+  const endpoint = env?.AZURE_OPENAI_ENDPOINT;
+  const apiKey = env?.AZURE_OPENAI_API_KEY;
+  const model = env?.AZURE_OPENAI_EMBEDDING_MODEL || 'text-embedding-3-large';
+  // Azure OpenAI embeddings path uses the Foundry v1 API; allow explicit override
+  const explicitApiVersion =
+    env?.AZURE_OPENAI_EMBEDDINGS_API_VERSION || env?.AZURE_OPENAI_API_VERSION;
+  const apiVersion = (explicitApiVersion && String(explicitApiVersion).trim()) || 'v1';
+
+  if (typeof endpoint !== 'string' || !endpoint || !apiKey) {
+    return null;
+  }
+
+  // Normalize endpoint: strip trailing slashes and any existing /openai/v1 path
+  const normalizedEndpoint = endpoint
+    .replace(/\/+$/, '')
+    .replace(/\/openai\/v1\/?$/, '')
+    .replace(/\/openai\/?$/, '');
+
+  return {
+    url: `${normalizedEndpoint}/openai/v1/embeddings?api-version=${encodeURIComponent(apiVersion)}`,
+    apiKey,
+    model
+  };
 }
 
 /**
@@ -110,32 +154,13 @@ export async function embedText(text, options = {}) {
  * See: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/embeddings
  *
  * @param {string} text - Text to embed
- * @param {Object} env - Environment variables
+ * @param {Object} config - Resolved Azure request configuration
  * @returns {Promise<number[]|null>} Embedding vector or null if unavailable
  */
-async function fetchAzureEmbedding(text, env) {
-  const endpoint = env?.AZURE_OPENAI_ENDPOINT;
-  const apiKey = env?.AZURE_OPENAI_API_KEY;
-  const embeddingModel = env?.AZURE_OPENAI_EMBEDDING_MODEL || 'text-embedding-3-large';
-  // Azure OpenAI embeddings path uses the Foundry v1 API; allow explicit override
-  const explicitApiVersion =
-    env?.AZURE_OPENAI_EMBEDDINGS_API_VERSION || env?.AZURE_OPENAI_API_VERSION;
-  const apiVersion = (explicitApiVersion && String(explicitApiVersion).trim()) || 'v1';
-
-  if (!endpoint || !apiKey) {
-    return null;
-  }
+async function fetchAzureEmbedding(text, config) {
+  const { url, apiKey, model } = config;
 
   try {
-    // Normalize endpoint: strip trailing slashes and any existing /openai/v1 path
-    const normalizedEndpoint = endpoint
-      .replace(/\/+$/, '')
-      .replace(/\/openai\/v1\/?$/, '')
-      .replace(/\/openai\/?$/, '');
-
-    // V1 embeddings path with api-version=preview (required for this path)
-    const url = `${normalizedEndpoint}/openai/v1/embeddings?api-version=${encodeURIComponent(apiVersion)}`;
-
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -144,7 +169,7 @@ async function fetchAzureEmbedding(text, env) {
       },
       body: JSON.stringify({
         input: text,
-        model: embeddingModel
+        model
       })
     });
 
@@ -157,11 +182,16 @@ async function fetchAzureEmbedding(text, env) {
     const data = await response.json();
     const embedding = data?.data?.[0]?.embedding;
 
-    if (Array.isArray(embedding) && embedding.length > 0) {
-      return normalizeVector(embedding);
+    if (!Array.isArray(embedding) || embedding.length === 0 || !embedding.every(Number.isFinite)) {
+      return null;
     }
 
-    return null;
+    const squaredNorm = embedding.reduce((sum, value) => sum + value * value, 0);
+    if (!Number.isFinite(squaredNorm) || squaredNorm === 0) {
+      return null;
+    }
+
+    return normalizeVector(embedding);
   } catch (err) {
     console.warn('[Embeddings] Azure embedding fetch failed:', err.message);
     return null;

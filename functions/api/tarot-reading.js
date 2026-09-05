@@ -35,7 +35,8 @@ import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { buildTierLimitedPayload, getSubscriptionContext } from '../lib/entitlements.js';
 import { resolveReadingPersonalizationContext } from '../lib/userPersonalization.js';
-import { canonicalCardKey, canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
+import { canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
+import { ReadingCardResolutionError, resolveReadingCards } from '../lib/readingCardResolution.js';
 import {
   loadActiveExperiments,
   getABAssignment,
@@ -745,30 +746,13 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       includePromptDebug
     } = normalizedPayload;
     const deckStyle = requestDeckStyle || spreadInfo?.deckStyle || 'rws-1909';
-    const cardsInfo = rawCardsInfo.map((card) => {
-      const rawCardNumber = card?.number ?? card?.cardNumber ?? card?.card_number;
-      const trimmedRaw = typeof rawCardNumber === 'string' ? rawCardNumber.trim() : null;
-      const parsedCardNumber = trimmedRaw !== null
-        ? (trimmedRaw ? Number(trimmedRaw) : NaN)
-        : rawCardNumber;
-      const normalizedCardNumber = Number.isInteger(parsedCardNumber) && parsedCardNumber >= 0
-        ? parsedCardNumber
-        : null;
-      const canonicalName = card?.canonicalName ||
-        canonicalizeCardName(card?.card, deckStyle) ||
-        card?.card ||
-        null;
-      const canonicalKey = card?.canonicalKey ||
-        canonicalCardKey(canonicalName || card?.card, deckStyle) ||
-        null;
-      return {
-        ...card,
-        number: normalizedCardNumber,
-        cardNumber: normalizedCardNumber,
-        canonicalName,
-        canonicalKey
-      };
-    });
+    let cardsInfo;
+    try {
+      cardsInfo = resolveReadingCards(rawCardsInfo, deckStyle);
+    } catch (error) {
+      if (!(error instanceof ReadingCardResolutionError)) throw error;
+      return jsonResponse({ error: error.message, code: error.code }, { status: 400 });
+    }
 
     // Sanitize location: validate ranges, strip excess fields, keep only needed data
     let sanitizedLocation = null;
@@ -799,7 +783,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       locationTimezone: sanitizedLocation?.timezone || null
     });
 
-    const validationError = validatePayload(normalizedPayload);
+    const validationError = validatePayload({ ...normalizedPayload, cardsInfo });
     if (validationError) {
       console.error(`[${requestId}] Validation failed:`, validationError);
       return jsonResponse(
@@ -1113,6 +1097,11 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       deckStyle
     );
     const narrativePayload = {
+      userContextInputStats: Object.fromEntries([
+        ['question', { originalLength: userQuestion?.length || 0 }],
+        ['reflections', { originalLength: reflectionsText?.length || 0 }],
+        ...rawCardsInfo.map((card, index) => [`card-${index}`, { originalLength: card.userReflection?.length || 0, sanitizationChanged: (card.userReflection || '') !== (cardsInfo[index].userReflection || '') }])
+      ]),
       spreadInfo,
       cardsInfo,
       userQuestion,

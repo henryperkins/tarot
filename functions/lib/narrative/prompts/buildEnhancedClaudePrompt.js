@@ -1,3 +1,4 @@
+import { prepareUserContext, summarizeUserContext } from './userContext.js';
 import { normalizeContext } from '../helpers.js';
 import {
   buildRetrievalSummary,
@@ -238,6 +239,24 @@ function hasVisibleVisionCardCues(promptText) {
     /Vision-detected tone:|Vision-detected emotion:|Emotional quality:/i.test(promptText);
 }
 
+function countVisibleVisionEvidencePackets(promptText, packetHeadings = []) {
+  const section = typeof promptText === 'string'
+    ? promptText.match(/(?:^|\n)\*\*Uploaded Visible Evidence\*\*:\n([\s\S]*?)(?:\n\n|$)/)?.[1]
+    : null;
+  if (!section || !packetHeadings.length) return 0;
+
+  // These headings come from the renderer after drawn-card filtering and the
+  // preview limit. Count only complete occurrences that survive truncation.
+  const remaining = new Map();
+  packetHeadings.forEach((heading) => remaining.set(heading, (remaining.get(heading) || 0) + 1));
+  return section.split('\n').reduce((count, line) => {
+    const available = remaining.get(line) || 0;
+    if (!available) return count;
+    remaining.set(line, available - 1);
+    return count + 1;
+  }, 0);
+}
+
 function hasPromptMarker(promptText, marker) {
   return typeof promptText === 'string' && promptText.includes(marker);
 }
@@ -275,11 +294,11 @@ function buildPromptUserContextSourceUsage(sourceUsageSignals, finalUserPrompt, 
   return buildUserContextSourceUsage({
     question: resolvePromptUserContextField(
       userContextSignals.question,
-      hasPromptMarker(finalUserPrompt, '**Question**:')
+      hasPromptMarker(finalUserPrompt, '<user_context source="question">')
     ),
     reflections: resolvePromptUserContextField(
       userContextSignals.reflections,
-      hasPromptMarker(finalUserPrompt, '**Querent\'s Reflections**:')
+      hasPromptMarker(finalUserPrompt, '<user_context source="reflections">')
     ),
     focusAreas: resolvePromptUserContextField(
       userContextSignals.focusAreas,
@@ -391,6 +410,7 @@ export function buildEnhancedClaudePrompt({
   spreadInfo,
   cardsInfo,
   userQuestion,
+  userContextInputStats = {},
   contextInputText,
   reflectionsText,
   themes,
@@ -555,7 +575,10 @@ export function buildEnhancedClaudePrompt({
     }
   }
 
+  const userContextFields = prepareUserContext(userQuestion, reflectionsText, cardsInfo, userContextInputStats);
+
   const baseControls = {
+    userContextFields,
     // Source precedence contract:
     // spread/cards > validated matched vision > current user context > stored memory > GraphRAG > ephemeris.
     // These controls can slim or suppress enrichment, but must not alter drawn-card identity/positions.
@@ -579,6 +602,7 @@ export function buildEnhancedClaudePrompt({
   const buildWithControls = (controls) => {
     const sourceUsageSignals = {
       visionCardCuesUsed: false,
+      visionEvidencePacketHeadings: [],
       userContext: {}
     };
     const systemPrompt = buildSystemPrompt(
@@ -1090,6 +1114,7 @@ export function buildEnhancedClaudePrompt({
   const visionPromptEligibility = summarizeVisionPromptEligibility(visionInsights);
   const visionDiagnosticsIncluded = hasVisionSource && hasVisibleVisionDiagnostics(finalUser);
   const visionCardCuesIncluded = built.sourceUsageSignals?.visionCardCuesUsed === true && hasVisibleVisionCardCues(finalUser);
+  const visionEvidencePacketsUsed = countVisibleVisionEvidencePackets(finalUser, built.sourceUsageSignals?.visionEvidencePacketHeadings);
   const visionUsed = hasVisionSource && (visionDiagnosticsIncluded || visionCardCuesIncluded);
   const visionRemovedForBudget = slimmingSteps.some((step) =>
     step === 'drop-diagnostics' || step === 'hard-cap-drop-diagnostics'
@@ -1102,6 +1127,28 @@ export function buildEnhancedClaudePrompt({
     step === 'drop-forecast' || step === 'hard-cap-drop-forecast'
   );
   const graphRAGMode = promptMeta.graphRAG?.injectionMode || 'none';
+
+  const contextRetention = summarizeUserContext(userContextFields, finalUser);
+  if (Object.values(contextRetention).some((field) => field.budgetTruncated || field.limitApplied)) {
+    promptMeta.truncation = { ...promptMeta.truncation, userContextTruncated: true };
+  }
+
+  const userContextUsage = buildPromptUserContextSourceUsage(built.sourceUsageSignals, finalUser, finalSystem);
+  const cardRetention = Object.entries(contextRetention).filter(([key]) => key.startsWith('card-')).map(([, field]) => field);
+  userContextUsage.cardReflectionsProvided = cardRetention.some((field) => field.originalLength > 0);
+  userContextUsage.cardReflectionsUsed = cardRetention.some((field) => field.includedLength > 0);
+  if (userContextUsage.cardReflectionsProvided) {
+    userContextUsage.requested = true;
+    userContextUsage.providedInputs.push('cardReflections');
+    if (userContextUsage.cardReflectionsUsed) {
+      userContextUsage.used = true;
+      userContextUsage.usedInputs.push('cardReflections');
+      userContextUsage.skippedReason = null;
+    } else {
+      userContextUsage.skippedInputs = { ...userContextUsage.skippedInputs, cardReflections: cardRetention.some((field) => field.budgetTruncated) ? 'removed_for_budget' : 'sanitized_empty' };
+      if (!userContextUsage.used) userContextUsage.skippedReason = 'provided_but_not_used';
+    }
+  }
 
   promptMeta.sourceUsage = {
     spreadCards: {
@@ -1117,17 +1164,16 @@ export function buildEnhancedClaudePrompt({
       suppressionReasons: visionPromptEligibility.suppressionReasons,
       diagnosticsIncluded: visionDiagnosticsIncluded,
       cardCuesUsed: visionCardCuesIncluded,
-      evidencePacketsUsed: Array.isArray(visionEvidence)
-        ? visionEvidence.filter((packet) => packet?.evidenceMode === 'uploaded_image').length
-        : 0,
-      evidenceMode: Array.isArray(visionEvidence) && visionEvidence.some((packet) => packet?.evidenceMode === 'uploaded_image')
-        ? 'uploaded_image'
-        : 'none',
+      evidencePacketsUsed: visionEvidencePacketsUsed,
+      evidenceMode: visionEvidencePacketsUsed > 0 ? 'uploaded_image' : 'none',
       skippedReason: hasVisionSource
         ? (visionUsed ? null : (visionRemovedForBudget ? 'removed_for_budget' : 'diagnostics_disabled'))
         : 'not_provided'
     },
-    userContext: buildPromptUserContextSourceUsage(built.sourceUsageSignals, finalUser, finalSystem),
+    userContext: {
+      ...userContextUsage,
+      fields: contextRetention
+    },
     graphRAG: {
       requested: hasGraphRAGSource,
       used: graphRAGMode !== 'none',

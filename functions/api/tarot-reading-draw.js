@@ -25,6 +25,7 @@ import { drawSpread } from '../../src/lib/deck.js';
 import { SPREADS } from '../../src/data/spreads.js';
 import { getSpreadDefinition } from '../lib/readingQuality.js';
 import { hashString } from '../../shared/utils.js';
+import { buildReadingRequestCard } from '../../shared/contracts/readingRequestCards.js';
 
 /**
  * Resolve the canonical spread key from a payload's spreadInfo.
@@ -139,15 +140,12 @@ export const onRequestPost = async (ctx) => {
     );
   }
 
-  const cardsInfo = drawn.map((card, i) => ({
-    position: positions[i],
-    card: card.name,
-    orientation: card.isReversed ? 'Reversed' : 'Upright',
-    meaning: card.isReversed ? card.reversed : card.upright,
-    number: typeof card.number === 'number' ? card.number : null,
-    suit: card.suit || null,
-    rank: card.rank || null,
-    rankValue: typeof card.rankValue === 'number' ? card.rankValue : null
+  const requestDeckStyle = typeof payload.deckStyle === 'string' ? payload.deckStyle.trim() : '';
+  const spreadDeckStyle = typeof spreadInfo.deckStyle === 'string' ? spreadInfo.deckStyle.trim() : '';
+  const deckStyle = requestDeckStyle || spreadDeckStyle || 'rws-1909';
+  const cardsInfo = drawn.map((card, i) => buildReadingRequestCard(card, {
+    deckStyle,
+    position: positions[i]
   }));
 
   // Forward to /api/tarot-reading with the populated cardsInfo. The existing
