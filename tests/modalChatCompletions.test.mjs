@@ -53,3 +53,50 @@ describe('Modal completion finality', () => {
     );
   });
 });
+
+describe('Modal thinking and unconstrained output', () => {
+  it('requests thinking without any application output cap, including a stale deployed cap variable', async (t) => {
+    let body;
+    t.mock.method(globalThis, 'fetch', async (_url, options) => {
+      body = JSON.parse(options.body);
+      return completion('stop', 'A complete reading.');
+    });
+    await callModalChatCompletions({ ...ENV, MODAL_MAX_TOKENS: '8192' }, { systemPrompt: 'System', userPrompt: 'Question' });
+    assert.equal(Object.hasOwn(body, 'max_tokens'), false);
+    assert.equal(Object.hasOwn(body, 'max_completion_tokens'), false);
+    assert.equal(body.chat_template_kwargs.enable_thinking, true);
+    assert.equal(body.chat_template_kwargs.preserve_thinking, true);
+    assert.equal(body.reasoning_effort, 'medium');
+  });
+
+  for (const usage of [
+    { completion_tokens_details: { reasoning_tokens: 508 } },
+    { output_tokens_details: { reasoning_tokens: 664 } },
+    { reasoning_tokens: 0 }
+  ]) {
+    it(`retains and logs actual reasoning evidence from ${JSON.stringify(usage)} without exposing private text`, async (t) => {
+      const logs = [];
+      t.mock.method(console, 'log', (...args) => logs.push(args));
+      t.mock.method(globalThis, 'fetch', async () => Response.json({
+        id: 'reasoning-evidence',
+        choices: [{ finish_reason: 'stop', message: { content: 'A complete reading.', reasoning_content: 'PRIVATE_REASONING_MUST_STAY_PRIVATE' } }],
+        usage
+      }));
+      const result = await callModalChatCompletions(ENV, { systemPrompt: 'System', userPrompt: 'Question' });
+      const expected = usage.completion_tokens_details?.reasoning_tokens ?? usage.output_tokens_details?.reasoning_tokens ?? usage.reasoning_tokens;
+      assert.equal(result.usage.output_tokens_details.reasoning_tokens, expected);
+      assert.equal(result.usage.reasoning_content_present, true);
+      const received = logs.find(([message]) => message.includes('Completion received'))[1];
+      assert.equal(received.reasoningTokens, expected);
+      assert.equal(received.reasoningContentPresent, true);
+      assert.doesNotMatch(JSON.stringify({ result, logs }), /PRIVATE_REASONING_MUST_STAY_PRIVATE/);
+    });
+  }
+
+  it('does not infer thinking from ordinary output counts when reasoning evidence is absent', async (t) => {
+    t.mock.method(globalThis, 'fetch', async () => Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'A complete reading.' } }], usage: { completion_tokens: 100 } }));
+    const result = await callModalChatCompletions(ENV, { systemPrompt: 'System', userPrompt: 'Question' });
+    assert.equal(result.usage.reasoning_content_present, false);
+    assert.equal(result.usage.output_tokens_details, undefined);
+  });
+});

@@ -750,14 +750,13 @@ export async function generateWithModalQwen(env, payload, requestId = 'unknown')
     {
       backendId: 'modal-qwen',
       providerLabel: 'Modal Chat Completions',
-      budgetTarget: 'azure'
+      budgetTarget: 'modal'
     }
   );
 
   console.log(`[${requestId}] Request config:`, {
     provider: 'modal-qwen',
     model: effectiveModel,
-    max_tokens: env?.MODAL_MAX_TOKENS || '8192',
     reasoning_effort: env?.MODAL_REASONING_EFFORT || 'medium',
     stream: false
   });

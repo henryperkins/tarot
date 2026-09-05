@@ -662,7 +662,7 @@ export function buildEnhancedClaudePrompt({
   // DISABLE_PROMPT_SLIMMING=true always wins and forces slimming off.
   const enableSlimmingFlag = readBooleanFlag(promptBudgetEnv?.ENABLE_PROMPT_SLIMMING);
   const disableSlimmingFlag = readBooleanFlag(promptBudgetEnv?.DISABLE_PROMPT_SLIMMING);
-  const disableSlimming = disableSlimmingFlag === true || enableSlimmingFlag !== true;
+  const disableSlimming = !promptBudget || disableSlimmingFlag === true || enableSlimmingFlag !== true;
 
   const maybeSlim = (label, updater) => {
     if (disableSlimming) return false; // Skip all slimming when disabled
@@ -799,15 +799,17 @@ export function buildEnhancedClaudePrompt({
     return dropGraphRAGSummary();
   });
 
-  // Step 8: HARD CAP - Always enforce context window limits even when slimming is disabled
+  // Step 8: Enforce configured hard caps even when slimming is disabled.
+  // Modal has no application cap and must not compare a token count to null.
   const hardCap = getHardCapBudget(budgetTarget);
+  const hasHardCap = Number.isFinite(hardCap) && hardCap > 0;
   let finalSystem = built.systemPrompt;
   let finalUser = built.userPrompt;
   let systemTruncated = false;
   let userTruncated = false;
 
   const applyHardCapTrim = (label, updater) => {
-    if (built.totalTokens <= hardCap) return false;
+    if (!hasHardCap || built.totalTokens <= hardCap) return false;
     const didUpdate = updater();
     if (!didUpdate) return false;
     built = buildWithControls(controls);
@@ -815,7 +817,7 @@ export function buildEnhancedClaudePrompt({
     return true;
   };
 
-  if (built.totalTokens > hardCap) {
+  if (hasHardCap && built.totalTokens > hardCap) {
     console.warn(`[Prompt Budget] Exceeded hard cap after slimming: ${built.totalTokens} > ${hardCap} tokens`);
 
     applyHardCapTrim('hard-cap-drop-low-weight-imagery', () => {
@@ -858,7 +860,7 @@ export function buildEnhancedClaudePrompt({
   finalSystem = built.systemPrompt;
   finalUser = built.userPrompt;
 
-  if (built.totalTokens > hardCap) {
+  if (hasHardCap && built.totalTokens > hardCap) {
     // Calculate how many tokens we need to shed
     const excessTokens = built.totalTokens - hardCap;
 

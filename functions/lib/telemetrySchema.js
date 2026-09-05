@@ -186,11 +186,17 @@ export function buildExperimentTelemetry(promptMeta, abAssignment) {
 export function buildLLMUsageTelemetry(capturedUsage) {
   if (!capturedUsage) return null;
 
+  const reasoningTokens = capturedUsage.output_tokens_details?.reasoning_tokens;
+  const reasoningContentPresent = capturedUsage.reasoning_content_present;
   return {
     inputTokens: capturedUsage.input_tokens,
     outputTokens: capturedUsage.output_tokens,
     totalTokens: capturedUsage.total_tokens || (capturedUsage.input_tokens + capturedUsage.output_tokens),
-    source: 'api'
+    source: 'api',
+    // Preserve explicit provider evidence, including zero/false, without
+    // persisting reasoning text or inferring it from ordinary output counts.
+    ...(Number.isFinite(reasoningTokens) && reasoningTokens >= 0 ? { reasoningTokens } : {}),
+    ...(typeof reasoningContentPresent === 'boolean' ? { reasoningContentPresent } : {})
   };
 }
 

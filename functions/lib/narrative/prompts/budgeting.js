@@ -107,6 +107,10 @@ export function getPromptBudgetForTarget(target = 'default', options = {}) {
   const env = options.env || (typeof process !== 'undefined' && process.env ? process.env : {});
   const normalizedTarget = (target || 'default').toLowerCase();
 
+  // Modal Qwen receives all accepted context without application token caps.
+  // Null explicitly disables this budget without introducing non-JSON numbers.
+  if (normalizedTarget === 'modal') return null;
+
   let raw = null;
   if (normalizedTarget === 'azure') {
     raw = env.PROMPT_BUDGET_AZURE ?? env.PROMPT_BUDGET_DEFAULT;
@@ -128,6 +132,7 @@ export function getPromptBudgetForTarget(target = 'default', options = {}) {
 
 export function getHardCapBudget(target = 'default') {
   const normalizedTarget = (target || 'default').toLowerCase();
+  if (normalizedTarget === 'modal') return null;
   return HARD_CAP_BUDGETS[normalizedTarget] || HARD_CAP_BUDGETS.default;
 }
 

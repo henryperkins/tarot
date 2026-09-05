@@ -209,3 +209,11 @@ This round uses the latest review's numbering, distinct from the original findin
 **Quality-gate limit:** A fresh `NARRATIVE_EVAL_BACKEND=local-composer npm run ci:narrative-check` again stopped at the Spanish fixture because the local composer supports English only. The complete narrative quality gate and live LLM behavior remain unverified. Provider transports and D1 are stubbed in request-boundary regressions. The unchanged CLIP recognition benchmark was not repeated after the prior incomplete run.
 
 **Scope:** Baseline `294a74adfe3107f15d008e25bd594905f4985804` plus the existing uncommitted work and these fixes. Source-precedence, deck-imagery, depth-contract, evaluator, and follow-up context-expansion findings remain open. No commit, push, migration, deployment, or live provider call. Validation logs: `/tmp/tarot-llm-top-three-mfot232u/`.
+
+## Qwen thinking and token budgets (2026-09-05)
+
+- Verified actual production reasoning on the two synthetic reading requests: 508 and 664 reasoning tokens, both with `finishReason: stop`. These counts came from provider completion logs correlated to the reading request IDs, not from the application's spread-analysis `reasoning` object.
+- Qwen requests explicitly enable thinking and preserve-thinking template settings. The existing `medium` reasoning-effort preference remains in use; private reasoning content is excluded from returned readings and logs.
+- Removed Qwen's application output-token cap and its inherited prompt slimming/hard-cap budget. The provider enforces its own model/context limits. Existing request validation and prompt word/depth guidance still apply. Azure and Claude retain their separate budgets.
+- Reasoning usage survives telemetry as optional numeric counts and a content-presence boolean. Missing evidence is not interpreted as proof that thinking was disabled.
+- Verification: 1,777 unit tests, 58 Functions tests, changed-file lint, narrative prompt assembly, and production build passed. The local-composer narrative quality run still stops at its unsupported Spanish fixture; it is not a complete model quality gate.

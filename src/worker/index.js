@@ -379,7 +379,6 @@ function addCorsHeaders(response, request) {
  * @property {string} MODAL_ENDPOINT_URL - Modal endpoint base URL
  * @property {string} MODAL_MODEL - Modal Chat Completions model id
  * @property {string} MODAL_REASONING_EFFORT - Modal reasoning effort
- * @property {string} MODAL_MAX_TOKENS - Modal completion token cap
  * @property {string} MODAL_TIMEOUT_MS - Modal request timeout in milliseconds
  * @property {string} AZURE_OPENAI_ENDPOINT - Azure OpenAI endpoint
  * @property {string} AZURE_OPENAI_API_KEY - Azure OpenAI API key

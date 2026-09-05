@@ -54,7 +54,7 @@
     "MODAL_ENDPOINT_URL": "https://henryperkins--ep-qwen3-8-2-4t-a95b-server.us-west.modal.direct",
     "MODAL_MODEL": "Qwen/Qwen3.8-2.4T-A95B",
     "MODAL_REASONING_EFFORT": "medium",
-    "MODAL_MAX_TOKENS": "8192",
+    // Qwen output and prompt token budgets are managed by the serving model.
     "MODAL_TIMEOUT_MS": "300000",
     "AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT": "mp3",
     "AZURE_OPENAI_USE_V1_FORMAT": "true",

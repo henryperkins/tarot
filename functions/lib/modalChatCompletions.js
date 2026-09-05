@@ -1,11 +1,9 @@
 import { fetchWithRetry } from './retryWithBackoff.js';
 
 export const MODAL_DEFAULT_MODEL = 'Qwen/Qwen3.8-2.4T-A95B';
-export const MODAL_DEFAULT_MAX_TOKENS = 8192;
 export const MODAL_DEFAULT_REASONING_EFFORT = 'medium';
 
 const MODAL_DEFAULT_TIMEOUT_MS = 300000;
-const MODAL_MAX_OUTPUT_TOKENS = 262144;
 const MODAL_MAX_TIMEOUT_MS = 600000;
 const MODAL_REASONING_EFFORTS = new Set(['low', 'medium', 'xhigh']);
 
@@ -83,12 +81,6 @@ export function ensureModalConfig(env) {
     proxyToken,
     model,
     reasoningEffort: resolveReasoningEffort(env?.MODAL_REASONING_EFFORT),
-    maxTokens: parseBoundedInteger(
-      env?.MODAL_MAX_TOKENS,
-      MODAL_DEFAULT_MAX_TOKENS,
-      1,
-      MODAL_MAX_OUTPUT_TOKENS
-    ),
     timeoutMs: parseBoundedInteger(
       env?.MODAL_TIMEOUT_MS,
       MODAL_DEFAULT_TIMEOUT_MS,
@@ -112,7 +104,6 @@ export async function callModalChatCompletions(env, {
     proxyToken,
     model,
     reasoningEffort,
-    maxTokens,
     timeoutMs
   } = ensureModalConfig(env);
 
@@ -123,7 +114,10 @@ export async function callModalChatCompletions(env, {
       { role: 'user', content: userPrompt }
     ],
     reasoning_effort: reasoningEffort,
-    max_tokens: maxTokens,
+    // Qwen3.8 is thinking-only. Make the supported template behavior explicit;
+    // leave the output budget to the serving model instead of clipping thought
+    // and answer tokens together at an application-defined limit.
+    chat_template_kwargs: { enable_thinking: true, preserve_thinking: true },
     stream: false
   };
 
@@ -131,7 +125,6 @@ export async function callModalChatCompletions(env, {
     url,
     model,
     reasoningEffort,
-    maxTokens,
     timeoutMs
   });
 
@@ -170,18 +163,25 @@ export async function callModalChatCompletions(env, {
     throw new Error('Modal Chat Completions returned an incomplete response.');
   }
 
+  const usage = normalizeUsage(data?.usage);
+  const reasoningContentPresent = ['reasoning_content', 'reasoning'].some((field) =>
+    typeof choice?.message?.[field] === 'string' && choice.message[field].trim().length > 0
+  );
+  if (usage) usage.reasoning_content_present = reasoningContentPresent;
+
   console.log('[modalChatCompletions] Completion received', {
     id: data?.id || null,
     model: data?.model || model,
     finishReason: choice.finish_reason,
     promptTokens: data?.usage?.prompt_tokens ?? null,
     completionTokens: data?.usage?.completion_tokens ?? null,
-    reasoningTokens: data?.usage?.reasoning_tokens ?? null,
+    reasoningTokens: usage?.output_tokens_details?.reasoning_tokens ?? null,
+    reasoningContentPresent,
     totalTokens: data?.usage?.total_tokens ?? null
   });
 
   return {
     text,
-    usage: normalizeUsage(data?.usage)
+    usage
   };
 }

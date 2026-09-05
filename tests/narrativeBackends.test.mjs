@@ -670,7 +670,7 @@ describe('Claude backend + dispatch coverage', () => {
     );
   });
 
-  it('dispatches Modal Chat Completions with the configured model and bounded reasoning budget', async () => {
+  it('dispatches Modal Chat Completions with thinking enabled and no application output cap', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'One-Card Insight', 'Upright')
     ];
@@ -738,7 +738,8 @@ describe('Claude backend + dispatch coverage', () => {
     assert.equal(requestBody.messages[1].role, 'user');
     assert.ok(requestBody.messages[1].content.includes('What should I notice?'));
     assert.equal(requestBody.reasoning_effort, 'xhigh');
-    assert.equal(requestBody.max_tokens, 6144);
+    assert.equal(Object.hasOwn(requestBody, 'max_tokens'), false, 'Legacy environment caps must not constrain Qwen output');
+    assert.equal(requestBody.chat_template_kwargs.enable_thinking, true);
     assert.equal(requestBody.stream, false);
 
     assert.equal(result.reading, 'Modal reading text.');
@@ -748,7 +749,8 @@ describe('Claude backend + dispatch coverage', () => {
       total_tokens: 200,
       output_tokens_details: {
         reasoning_tokens: 25
-      }
+      },
+      reasoning_content_present: true
     });
     assert.equal(result.reasoningSummary, null);
     assert.ok(result.promptMeta, 'Modal dispatch should return promptMeta');

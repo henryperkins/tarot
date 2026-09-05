@@ -10,6 +10,7 @@ import {
   buildPromptTelemetry,
   buildGraphRAGTelemetry,
   buildNarrativeTelemetry,
+  buildLLMUsageTelemetry,
   getGraphRAGStats,
   getPromptVersion,
   getNarrativeCoverage,
@@ -230,6 +231,78 @@ describe('telemetrySchema', () => {
         missingCards: [],
         hallucinatedCards: ['The Fool']
       });
+    });
+  });
+
+  describe('buildLLMUsageTelemetry', () => {
+    const baseUsage = { input_tokens: 100, output_tokens: 50, total_tokens: 150 };
+
+    it('keeps missing usage null and does not infer reasoning from output tokens', () => {
+      assert.strictEqual(buildLLMUsageTelemetry(null), null);
+      assert.strictEqual(buildLLMUsageTelemetry(undefined), null);
+      assert.deepStrictEqual(buildLLMUsageTelemetry(baseUsage), {
+        inputTokens: 100, outputTokens: 50, totalTokens: 150, source: 'api'
+      });
+    });
+
+    for (const reasoningTokens of [24, 0]) {
+      it(`preserves an explicit nested reasoning token count of ${reasoningTokens}`, () => {
+        const result = buildLLMUsageTelemetry({
+          ...baseUsage,
+          output_tokens_details: { reasoning_tokens: reasoningTokens }
+        });
+        assert.strictEqual(result.reasoningTokens, reasoningTokens);
+      });
+    }
+
+    it('omits unknown and invalid reasoning token counts without coercing them', () => {
+      for (const reasoningTokens of [undefined, null, -1, NaN, Infinity, -Infinity, '24', true, {}, []]) {
+        const result = buildLLMUsageTelemetry({
+          ...baseUsage,
+          output_tokens_details: { reasoning_tokens: reasoningTokens }
+        });
+        assert.strictEqual(Object.hasOwn(result, 'reasoningTokens'), false);
+      }
+    });
+
+    for (const reasoningContentPresent of [true, false]) {
+      it(`preserves an explicit reasoning presence indicator of ${reasoningContentPresent}`, () => {
+        const result = buildLLMUsageTelemetry({
+          ...baseUsage,
+          reasoning_content_present: reasoningContentPresent
+        });
+        assert.strictEqual(result.reasoningContentPresent, reasoningContentPresent);
+        assert.strictEqual(Object.hasOwn(result, 'reasoningTokens'), false);
+      });
+    }
+
+    it('omits non-boolean reasoning presence indicators', () => {
+      for (const indicator of [undefined, null, 0, 1, 'true', 'false', {}, []]) {
+        const result = buildLLMUsageTelemetry({ ...baseUsage, reasoning_content_present: indicator });
+        assert.strictEqual(Object.hasOwn(result, 'reasoningContentPresent'), false);
+      }
+    });
+
+    it('persists only safe reasoning metadata in the metrics payload', () => {
+      const rawReasoning = 'PRIVATE-REASONING-MUST-NOT-BE-PERSISTED';
+      const result = buildMetricsPayload({
+        capturedUsage: {
+          ...baseUsage,
+          output_tokens_details: { reasoning_tokens: 24, reasoning_content: rawReasoning },
+          reasoning_content_present: true,
+          reasoning_content: rawReasoning,
+          reasoning: rawReasoning,
+          message: { reasoning_content: rawReasoning, reasoning: rawReasoning }
+        }
+      });
+      assert.deepStrictEqual(result.llmUsage, {
+        inputTokens: 100, outputTokens: 50, totalTokens: 150, source: 'api',
+        reasoningTokens: 24, reasoningContentPresent: true
+      });
+      assert.strictEqual(JSON.stringify(result).includes(rawReasoning), false);
+      const noMetadata = buildLLMUsageTelemetry({ ...baseUsage, reasoning_content: rawReasoning, reasoning: rawReasoning });
+      assert.strictEqual(Object.hasOwn(noMetadata, 'reasoningContentPresent'), false);
+      assert.strictEqual(JSON.stringify(noMetadata).includes(rawReasoning), false);
     });
   });
 
