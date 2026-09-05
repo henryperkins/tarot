@@ -431,6 +431,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         cardsInfo: storedContext.cardsInfo?.length ? storedContext.cardsInfo : (readingContext?.cardsInfo || []),
         userQuestion: storedContext.userQuestion || readingContext?.userQuestion || null,
         narrative: storedContext.narrative || readingContext?.narrative || null,
+        // Saved reflections belong to this authorized reading. Never replace
+        // them with client fields, including when the saved map is empty.
+        reflections: storedContext.reflections,
+        reflectionsText: storedContext.reflectionsText || null,
         themes: hasStoredThemes ? storedThemes : (hasClientThemes ? clientThemes : {}),
         spreadKey: storedContext.spreadKey || readingContext?.spreadKey || null,
         deckStyle: storedContext.deckStyle || readingContext?.deckStyle || null
@@ -1278,7 +1282,7 @@ async function fetchReadingContext(env, { requestId, sessionSeed, userId }) {
     // Try request_id first (most specific, but may be null for old entries)
     if (requestId) {
       journalEntry = await env.DB.prepare(`
-        SELECT id, cards_json, question, narrative, themes_json, spread_key, deck_id
+        SELECT id, cards_json, question, narrative, themes_json, reflections_json, spread_key, deck_id
         FROM journal_entries
         WHERE request_id = ? AND user_id = ?
       `).bind(requestId, userId).first();
@@ -1287,7 +1291,7 @@ async function fetchReadingContext(env, { requestId, sessionSeed, userId }) {
     // Fall back to session_seed (available for all entries, has unique index)
     if (!journalEntry && sessionSeed) {
       journalEntry = await env.DB.prepare(`
-        SELECT id, cards_json, question, narrative, themes_json, spread_key, deck_id
+        SELECT id, cards_json, question, narrative, themes_json, reflections_json, spread_key, deck_id
         FROM journal_entries
         WHERE session_seed = ? AND user_id = ?
       `).bind(sessionSeed, userId).first();
@@ -1299,6 +1303,7 @@ async function fetchReadingContext(env, { requestId, sessionSeed, userId }) {
         cardsInfo: safeJsonParse(journalEntry.cards_json, []),
         userQuestion: journalEntry.question,
         narrative: journalEntry.narrative,
+        reflections: safeJsonParse(journalEntry.reflections_json, {}),
         themes: safeJsonParse(journalEntry.themes_json, {}),
         spreadKey: journalEntry.spread_key,
         deckStyle: journalEntry.deck_id
@@ -1354,6 +1359,7 @@ async function buildJournalContext(env, userId, options) {
         entries: similarEntries.map(e => ({
           date: e.created_at ? new Date(e.created_at * 1000).toLocaleDateString() : 'Unknown',
           question: e.question,
+          narrative: e.narrative,
           similarity: e.similarity
         }))
       });

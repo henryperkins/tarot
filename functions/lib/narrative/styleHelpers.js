@@ -73,12 +73,12 @@ export const FRAME_VOCABULARY = {
 export const TONE_GUIDANCE = {
   gentle: 'Use warm, nurturing language throughout. Lead with validation before addressing challenges. Frame difficulties as growth opportunities rather than obstacles. Avoid harsh absolutes or alarming language. Emphasize possibilities, hope, and the querent\'s inner wisdom. When they express doubt, meet it with reassurance before offering perspective.',
   balanced: 'Be honest but kind. Acknowledge both challenges and opportunities with equal weight. Balance difficult truths with encouragement. Use measured language that neither sugarcoats nor dramatizes. Trust the querent to handle nuanced information. Validate their feelings briefly, then offer grounded insight.',
-  blunt: 'Be direct and clear. Skip softening phrases like "perhaps" or "you might consider." State observations plainly without hedging. Focus on clarity over comfort. Assume the querent prefers straightforward guidance over diplomatic cushioning. Get to the point quickly.'
+  blunt: 'Be direct and clear. Use concise observations and concrete language without unnecessary cushioning. Keep uncertainty explicit when an interpretation is tentative or an outcome is unknown, and keep actions optional and invitational. Straightforward guidance must still respect the querent\'s agency. Get to the point quickly.'
 };
 
 export const FRAME_GUIDANCE = {
   psychological: 'Interpret through Jungian archetypes, shadow work, and behavioral patterns. Use language of the psyche: projection, integration, individuation. Ground insights in observable patterns and personal development frameworks.',
-  spiritual: 'Embrace intuitive, mystical language. Reference cosmic cycles, soul contracts, and energetic resonance. Honor the sacred dimension of the reading. Use terms like "spirit guides," "higher self," and "universal wisdom" where appropriate.',
+  spiritual: 'Use intuitive and spiritual vocabulary when it resonates with the querent, such as sacred reflection, inner wisdom, or a higher self. Offer these as symbolic possibilities and personal meaning, not verified facts. Do not assert destiny, soul contracts, or messages from unseen beings as facts about the querent. Keep practical choices and the querent\'s agency central.',
   mixed: 'Keep it grounded and real. You can reference deeper patterns or intuitive hits, but talk about them the way you\'d explain them to a smart friend - no "cosmic downloads" or "sacred portals." This is the default voice.',
   playful: 'Keep it light, fun, and exploratory. Use humor where appropriate. Frame the reading as a curious adventure rather than a solemn ritual. Avoid heavy language even for challenging cards. Maintain wonder and levity throughout.'
 };
@@ -179,6 +179,11 @@ function buildFocusReminder(focusAreas) {
   return `Let the next steps honor your focus on ${formatList(normalized)}.`;
 }
 
+export function canUseSavedFocus(context) {
+  const normalized = typeof context === 'string' ? context.trim().toLowerCase() : '';
+  return !normalized || normalized === 'general' || normalized === 'mixed';
+}
+
 export function resolveToneKey(value) {
   return Object.prototype.hasOwnProperty.call(TONE_STYLES, value) ? value : DEFAULT_TONE;
 }
@@ -196,10 +201,53 @@ export function getDepthProfile(value) {
   return DEPTH_STYLES[key] || DEPTH_STYLES[DEFAULT_DEPTH];
 }
 
-export function buildPersonalizationBridge(personalization, { contextDescriptor } = {}) {
+const SPREAD_LENGTH_BANDS = {
+  single: { min: 300, max: 400, short: [150, 250], label: 'single-card reading', note: 'a focused insight rather than an exhaustive essay.' },
+  threeCard: { min: 500, max: 700, short: [250, 400], label: '3-card spread', note: 'enough depth for each position without excessive elaboration.' },
+  fiveCard: { min: 700, max: 900, short: [400, 550], label: '5-card spread', note: 'give each card meaningful attention while maintaining narrative flow.' },
+  decision: { min: 700, max: 900, short: [400, 550], label: '5-card decision spread', note: 'ensure both paths receive balanced treatment.' },
+  relationship: { min: 500, max: 700, short: [250, 400], label: '3-card relationship spread', note: 'explore each energy with care but stay concise.' },
+  celtic: { min: 1000, max: 1400, short: [600, 800], label: '10-card Celtic Cross', note: 'weave the positions into a cohesive narrative rather than ten separate mini-readings.' }
+};
+
+/** Resolve output requirements before either prompt renders preference guidance. */
+export function resolveNarrativePreferenceContract({ spreadKey, personalization = null, variantOverrides = null } = {}) {
+  const depthProfile = getDepthProfile(personalization?.preferredSpreadDepth);
+  const isShort = depthProfile.key === 'short';
+  const isDeep = depthProfile.key === 'deep';
+  const rawModifier = variantOverrides?.lengthModifier;
+  const lengthModifier = Number.isFinite(rawModifier) ? Math.min(Math.max(rawModifier, 0.6), 1.6) : 1;
+  const spreadBand = SPREAD_LENGTH_BANDS[spreadKey];
+  let lengthBand = null;
+  if (spreadBand) {
+    const [min, max] = isShort ? spreadBand.short : isDeep ? [1500, 1900] : [spreadBand.min, spreadBand.max];
+    lengthBand = {
+      min: Math.round(min * lengthModifier),
+      max: Math.round(max * lengthModifier),
+      label: spreadBand.label,
+      note: isShort
+        ? 'cover every card briefly and keep the clearest throughline.'
+        : isDeep ? 'develop the meaningful layers and connections without padding.' : spreadBand.note
+    };
+  }
+  const perCardMin = Math.max(60, Math.round(120 * lengthModifier));
+  const perCardMax = Math.max(perCardMin, Math.round(160 * lengthModifier));
+  return {
+    depthProfile,
+    nextSteps: { min: isShort ? 1 : 2, max: isShort ? 1 : 4 },
+    nextStepGuidance: `Offer ${isShort ? 'one specific, low-stakes next step' : '2-4 specific, low-stakes next steps'} linked to the current question or relevant reflections; avoid generic affirmations.`,
+    lengthBand,
+    perCardGuidance: isShort
+      ? 'For multi-card spreads, cover every named card and position briefly; let the total length target guide the level of detail.'
+      : `For multi-card spreads, use ~${perCardMin}–${perCardMax} words per card as a soft target; total length guidance is primary.`,
+    recap: isDeep ? { min: Math.round(120 * lengthModifier), max: Math.round(150 * lengthModifier) } : null
+  };
+}
+
+export function buildPersonalizationBridge(personalization, { contextDescriptor, context } = {}) {
   if (!personalization) return '';
   const lines = [];
-  const focusLine = buildFocusBridgeLine(personalization.focusAreas, contextDescriptor);
+  const focusLine = canUseSavedFocus(context) ? buildFocusBridgeLine(personalization.focusAreas, contextDescriptor) : '';
   if (focusLine) {
     lines.push(focusLine);
   }

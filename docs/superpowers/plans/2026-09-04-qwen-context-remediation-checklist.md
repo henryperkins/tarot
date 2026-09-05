@@ -2,7 +2,7 @@
 
 > **For agentic workers:** Use `superpowers:executing-plans` to implement this checklist one finding at a time. This document records proposed work; creating it does not execute the changes or authorize a release.
 
-**Status (2026-09-04):** The original first three checklist items (#1, #6, #7) and the latest review’s top three (journal trust boundary, residual vision prose, silent context clipping) are implemented locally. The latest context work also closes original finding #2 below. Release and live-provider checks remain pending.
+**Status (2026-09-05):** The personalization-quality review's top three are deployed: current-intent precedence (original #3), consistent tone/depth/frame instructions, and follow-up continuity. The production release and its verification limits are recorded below; the complete live narrative gate and authenticated follow-up check remain pending.
 
 **Goal:** Close the remaining Qwen context and prompt review findings with reproducible tests and explicit acceptance criteria.
 
@@ -130,13 +130,13 @@ Do not use higher evaluator scores as evidence that earlier findings are closed 
 
 **Files:** `functions/lib/contextDetection.js:420`, `functions/api/tarot-reading.js`, `functions/lib/spreadAnalysisOrchestrator.js`.
 
-**Tests:** Extend `tests/contextDetection.test.mjs` and `tests/graphContext.test.mjs`.
+**Tests:** `tests/contextDetection.test.mjs` and `tests/readingContextPrecedence.test.mjs` cover classification, actual GraphRAG embedding inputs, prompt-builder fallback, and captured API-to-provider messages.
 
-- [ ] Add the interview question with and without `Love & relationships`, the `What interests me?` false match, and empty/ambiguous-question fixtures.
-- [ ] Score sources separately with explicit precedence: a clear current question wins; current reflections clarify ambiguity; saved focus areas supply a fallback. Preserve the source that selected the context in diagnostics.
-- [ ] Match complete tokens or phrases instead of arbitrary substrings. Cover inflections intentionally rather than restoring broad substring matching.
-- [ ] Apply the same source precedence to the reading context and GraphRAG context mapping; do not change their existing public context labels merely to make the strings identical.
-- [ ] Run `node --test tests/contextDetection.test.mjs tests/graphContext.test.mjs tests/graphRAG.test.mjs`.
+- [x] Add the interview question with and without `Love & relationships`, the `What interests me?` false match, and empty/ambiguous-question fixtures.
+- [x] Score sources separately with explicit precedence: a clear current question wins; current reflections clarify ambiguity; saved focus areas supply a fallback. Preserve the source that selected the context in diagnostics.
+- [x] Match complete tokens or phrases instead of arbitrary substrings. Cover inflections intentionally rather than restoring broad substring matching.
+- [x] Apply the same source precedence to the reading context and GraphRAG context mapping; do not change their existing public context labels merely to make the strings identical.
+- [x] Run the context detection, graph context, and GraphRAG suites as part of `npm test`.
 
 **Done when:** The interview remains career-focused in both pipelines despite saved relationship interests, and `interests` alone does not imply wellbeing. Reflections/focus still help genuinely ambiguous or absent questions.
 
@@ -148,12 +148,14 @@ This was an unnumbered observation in the review, not a replacement for any numb
 
 **Files:** `functions/lib/narrative/styleHelpers.js`, `functions/lib/narrative/prompts/systemPrompt.js`, `functions/lib/narrative/prompts/userPrompt.js`.
 
-**Tests:** Extend `tests/promptBuilders.test.mjs` and `tests/narrativeBuilder.promptCompliance.test.mjs`.
+**Tests:** `tests/preferencePromptContract.test.mjs`, plus existing prompt-builder and compliance suites.
 
-- [ ] Build a prompt matrix across short/standard/deep depth and gentle/balanced/blunt tone; capture conflicting step counts and instructions.
-- [ ] Resolve the output contract once: short requests one action; standard/deep retain the applicable 2–4-step contract. Feed the same resolved values to the system prompt, user footer, and evaluator context.
-- [ ] Define blunt as concise and direct while preserving optional action, uncertainty about future outcomes, and the agency rules. Remove instructions that require unqualified certainty.
-- [ ] Run `node --test tests/promptBuilders.test.mjs tests/narrativeBuilder.promptCompliance.test.mjs`.
+- [x] Build a prompt matrix across short/standard/deep depth and gentle/balanced/blunt tone; capture conflicting step counts and instructions.
+- [x] Resolve the output contract in one shared helper: short requests one action; standard/deep retain the applicable 2–4-step contract. Feed the same resolved values to the system prompt and user footer, including total length guidance and experiment length modifiers.
+- [ ] Feed the resolved preference contract to the evaluator context (part of original finding #9; outside this implementation).
+- [x] Define blunt as concise and direct while preserving optional action, uncertainty about future outcomes, and the agency rules. Remove instructions that require unqualified certainty.
+- [x] Allow the spiritual frame to use symbolic language without asserting destiny, soul contracts, or unseen messages as facts.
+- [x] Run the prompt-builder and compliance suites as part of `npm test`.
 
 **Done when:** Every matrix entry contains one consistent action-count contract and compatible tone/agency instructions.
 
@@ -217,3 +219,30 @@ This round uses the latest review's numbering, distinct from the original findin
 - Removed Qwen's application output-token cap and its inherited prompt slimming/hard-cap budget. The provider enforces its own model/context limits. Existing request validation and prompt word/depth guidance still apply. Azure and Claude retain their separate budgets.
 - Reasoning usage survives telemetry as optional numeric counts and a content-presence boolean. Missing evidence is not interpreted as proof that thinking was disabled.
 - Verification: 1,777 unit tests, 58 Functions tests, changed-file lint, narrative prompt assembly, and production build passed. The local-composer narrative quality run still stops at its unsupported Spanish fixture; it is not a complete model quality gate.
+
+## Personalized reading quality: current implementation (2026-09-05)
+
+This bounded implementation addresses the latest quality review's top three, with reading prompt version `1.2.0`:
+
+- **Current intent:** Reading classification and GraphRAG share source selection: a clear question, then current reflections, then saved interests. Generic decision/energy wording can use reflections to supply the topic. Vocabulary-bounded plural normalization retains jobs, projects, clients, and companies without matching `rest` inside `interests`. Retrieval excludes unrelated saved interests; prompt metadata records the selecting source. Local-composer fallback coverage includes current topics that only exist in the GraphRAG taxonomy, such as grief.
+- **Preferences:** One shared contract supplies both prompts' action counts and total length targets. Short readings request one action and spread-appropriate brevity; standard/deep readings request 2–4 actions. Blunt tone preserves uncertainty and optional action. Spiritual language remains symbolic. Evaluator-context expansion remains separate under original #9.
+- **Follow-up continuity:** Indexed reflections now travel from the reading UI; owned journal records supply authoritative saved reflections. Escaped reading/history/journal references retain the opening, conclusion/actions, question-relevant passages, three complete recent exchanges, and up to three semantically matched journal entries. Omission counts disclose gaps. Serialized text budgets are 2,400 characters for the original question, 6,500 for narrative excerpts, 4,200 for shared reflections, and 4,200 for shared conversation text; short fields return unused capacity.
+
+Regression coverage lives in `readingContextPrecedence.test.mjs`, `localComposerContextPriority.test.mjs`, `preferencePromptContract.test.mjs`, and `followUpContextRetention.test.mjs`, alongside the expanded context-detection and follow-up suites. Provider requests are intercepted in route tests; no real provider call is needed to verify what context is sent. These tests do not establish live-model compliance or deployment.
+
+The complete offline `npm run ci:narrative-check` still stops at the pre-existing Spanish fixture because the local composer supports English only. A separate diagnostic covering all eight English fixtures passed generation, metrics, and thresholds; prompt assembly also passed. This partial diagnostic is not the complete multilingual/model quality gate. Artifacts are isolated at `/tmp/tarot-personalization-narrative-mtbjw3uh/`; tracked evaluation data is unchanged.
+
+**Final local verification:** 1,848 unit tests and 58 Functions tests passed. Changed-file ESLint, `git diff --check`, prompt assembly, and the frontend production build passed. Independent review confirmed closure of the plural-routing and graph-only/generic-fallback regressions. Suppressed saved interests remain reported as provided, but not used, with `current_context_priority`. Unit/build logs are `/tmp/tarot-personalization-final-tests.log`, `/tmp/tarot-personalization-functions.log`, `/tmp/tarot-personalization-lint.log`, and `/tmp/tarot-personalization-build.log`.
+
+**State before deployment:** Changes were local on baseline `dff20d939fb43f5c8fb50dfa7b27eb6b294b4abb`; no commit, push, migration, deployment, or live-provider call had been performed. The pre-existing `CLAUDE.md` edit was preserved. Deck-imagery, evaluator-context, and other review findings outside these three priorities remained outside this change.
+
+## Production deployment of personalization fixes (2026-09-05)
+
+- Deployed Worker `tableau` to the verified custom domain `https://tarot.lakefrontdev.com`. Cloudflare reports version `eccffb18-79d0-4701-919d-71b762e20f5d`, deployment `56071d24-48a0-41e8-9117-2103b9e757e4`, at 100% traffic. Release tag: `reading-1.2.0-361312275971`.
+- Deployment source was the working tree on `60c72dbe2a1092565b573be924457f7f5c0977ff`, including the personalization fixes. The release source SHA-256 is `3613122759717adc55597c09a4ed00a5f752a2f2cd6153f508df2bdf799545cb`; source bytes were checked before and after deployment. No commit or push was performed for this release.
+- Fresh verification passed: 1,848 unit tests, 58 Functions tests, changed-file ESLint, prompt assembly, frontend build, actual Wrangler bundle dry-run, and diff checks. The live HTML's four initial JS/CSS assets match the local build byte-for-byte.
+- Production settings match the repository's non-secret variables. All migration names are already applied, and the required `journal_entries.reflections_json` column exists. Historical applied-migration checksum differences were reported; no migration or database change was applied for this release.
+- A real JSON request returned `modal-qwen`, career context, 250 words, and one next step that honored the twenty-minute interview-preparation constraint. Request ID: `8c1a904d-67da-42b0-8ccb-b2ba18cc2dba`. Prompt-debug/private reasoning was absent. The attempted SSE request returned HTTP 429 at the existing free-tier monthly quota (5/5), so live streamed completion was not verified.
+- Health routes responded successfully, and unauthenticated account/follow-up routes returned the expected HTTP 401. Full live model-gate execution lacks local provider credentials; authenticated follow-up continuity still requires a session. The configured `APP_URL` is `https://tableu.app`, which did not resolve during this check; the dashboard-managed production domain above is live. Routing/configuration was preserved.
+- A fresh Chromium session rendered the production page, dismissed onboarding, and accepted a question while enabling Save intention. Its sole console error was the expected unauthenticated `/api/auth/me` HTTP 401. The verification browser session was closed afterward.
+- Release artifacts, source/asset manifests, provider receipt, and deployment evidence: `/tmp/tarot-production-personalization-eviqcrqv/`. Qwen reading generation continues to call Modal directly; this release does not introduce Cloudflare AI Gateway.

@@ -1,6 +1,6 @@
 import { getContextDescriptor } from '../helpers.js';
 import { buildCardTransitNotes, generateTimingGuidance } from '../../ephemerisIntegration.js';
-import { buildExperienceLine, sanitizeDisplayName, getDepthProfile } from '../styleHelpers.js';
+import { buildExperienceLine, sanitizeDisplayName, resolveNarrativePreferenceContract } from '../styleHelpers.js';
 import { sanitizeText } from '../../utils.js';
 import { prepareUserContext, renderUserContext } from './userContext.js';
 import { formatMemoriesForPrompt } from '../../userMemory.js';
@@ -62,7 +62,8 @@ export function buildUserPrompt(
   const displayName = sanitizeDisplayName(personalization?.displayName);
   const rawDisplayNameProvided = typeof personalization?.displayName === 'string' && personalization.displayName.trim().length > 0;
   const depthPreference = personalization?.preferredSpreadDepth;
-  const depthProfile = depthPreference ? getDepthProfile(depthPreference) : null;
+  const preferenceContract = resolveNarrativePreferenceContract({ spreadKey, personalization, variantOverrides: promptOptions.variantOverrides });
+  const { depthProfile, lengthBand } = preferenceContract;
   const experienceGuidance = buildExperienceLine(personalization?.tarotExperience);
   const activeThemes = typeof themes === 'object' && themes !== null ? themes : {};
   const reversalDescriptor = activeThemes.reversalDescription || { ...DEFAULT_REVERSAL_DESCRIPTION };
@@ -149,7 +150,7 @@ export function buildUserPrompt(
   });
   if (sanitizedFocusAreas.length > 0) {
     const focusList = sanitizedFocusAreas.join(', ');
-    prompt += `**Focus Areas**:\n- Keep the reading anchored in: ${focusList}\n- Return to these themes when naming patterns, advice, and next steps.\n\n`;
+    prompt += `**Focus Areas**:\n- Saved interests: ${focusList}\n- The current question and current reflections take priority over saved interests.\n- Use these interests only when they are relevant to the current request, or as a fallback when current context is absent; do not redirect the reading toward an unrelated saved topic.\n\n`;
   }
   if (activeThemes.timingProfile) {
     const timingDescriptions = {
@@ -267,8 +268,8 @@ export function buildUserPrompt(
 - Reference each card by name at least once
 - CARD NAME CONTRACT: Copy each provided card name exactly as written above at least once; do not translate, localize, rename, or substitute card names. Translate only the surrounding prose, headers, positions, and guidance.
 - Tie each card's insight to its position and at least one concrete anchor (imagery, element, visual profile, or reflection)
-- Use the question and focus areas as the throughline; avoid generic platitudes
-- Offer 2-4 specific, low-stakes next steps linked to the question or focus areas
+- Use the current question and reflections as the throughline; use saved interests only when relevant or when current context is absent
+- ${preferenceContract.nextStepGuidance}${lengthBand ? `\n- LENGTH: Aim for ~${lengthBand.min}-${lengthBand.max} words total, including any recap.` : ''}
 - Close with one explicit sentence that says the querent's choices or decisions shape outcomes; use the response language and never imply fixed fate
 - Use invitational language. Never write “you should” or “you must”, and avoid certainty claims, fatalistic wording, or fixed-outcome language even in disclaimers
 - Apply the reversal lens consistently throughout`;

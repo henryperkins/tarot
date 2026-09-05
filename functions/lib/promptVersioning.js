@@ -14,13 +14,23 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.1.1';
+export const READING_PROMPT_VERSION = '1.2.0';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.2.0',
+    date: '2026-09-05',
+    notes: 'Honor current intent and resolve consistent personalization guidance.',
+    changes: [
+      'Prioritized current question and reflections over saved focus in context selection and retrieval.',
+      'Unified depth, length, and action-count instructions while preserving agency across tone and spiritual-frame preferences.',
+      'Preserved bounded reading conclusions, relevant passages, reflections, and conversation pairs for follow-ups.'
+    ]
+  },
   {
     version: '1.1.1',
     date: '2026-04-24',

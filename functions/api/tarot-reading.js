@@ -9,7 +9,7 @@
  */
 
 // Core imports
-import { buildContextInferenceInput, inferContext } from '../lib/contextDetection.js';
+import { buildContextInferenceInput, resolveContextSelection } from '../lib/contextDetection.js';
 import { parseMinorName } from '../lib/minorMeta.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
@@ -815,11 +815,12 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       memories
     } = await resolveReadingPersonalizationContext(env?.DB, user?.id, requestPersonalization);
     const contextDiagnostics = [];
-    const contextInputText = buildContextInferenceInput({
+    const contextSources = {
       userQuestion,
       reflectionsText,
       focusAreas: personalization?.focusAreas
-    });
+    };
+    const contextInputText = buildContextInferenceInput(contextSources);
 
     console.log(`[${requestId}] Subscription context:`, {
       tier: subscription.tier,
@@ -1043,6 +1044,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       deckStyle,
       userQuestion,
       contextInputText,
+      contextSources,
       subscriptionTier,
       location: sanitizedLocation
     }, requestId, env);
@@ -1054,10 +1056,11 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       reversalFramework: analysis.themes?.reversalFramework
     });
 
-    const context = inferContext(contextInputText || userQuestion, analysis.spreadKey, {
+    const contextSelection = resolveContextSelection(contextSources, analysis.spreadKey, {
       onUnknown: (message) => contextDiagnostics.push(message)
     });
-    console.log(`[${requestId}] Context inferred: ${context}`);
+    const context = contextSelection.context;
+    console.log(`[${requestId}] Context inferred: ${context} (source: ${contextSelection.source})`);
     analysis.reasoning = buildReadingReasoning(
       cardsInfo,
       userQuestion,

@@ -37,6 +37,7 @@ import {
   buildExperienceLine,
   getToneStyle,
   buildPersonalizedClosing,
+  canUseSavedFocus,
   getDepthProfile,
   sanitizeDisplayName,
   TONE_STYLES,
@@ -54,6 +55,7 @@ import {
   trimForTelemetry
 } from './readingTelemetry.js';
 import { withSpan } from './tracingSpans.js';
+import { resolveContextSelection } from './contextDetection.js';
 
 // ============================================================================
 // Backend Registry
@@ -482,7 +484,7 @@ function summarizeVisionPromptEligibility(visionInsights) {
   };
 }
 
-function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
+function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { focusAreasSuppressed = false } = {}) {
   const analysis = payload?.analysis || {};
   const personalization = payload?.personalization || {};
   const rawUserQuestion = typeof payload?.userQuestion === 'string' ? payload.userQuestion : '';
@@ -516,8 +518,8 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload) {
     },
     focusAreas: {
       provided: rawFocusAreas.length > 0,
-      used: rawFocusAreas.length > 0,
-      skippedReason: rawFocusAreas.length > 0 ? null : null
+      used: rawFocusAreas.length > 0 && !focusAreasSuppressed,
+      skippedReason: focusAreasSuppressed ? 'current_context_priority' : null
     },
     displayName: {
       provided: rawDisplayName.trim().length > 0,
@@ -1366,8 +1368,23 @@ export async function composeReadingEnhanced(payload, env = null) {
   const { themes, spreadAnalysis, spreadKey } = analysis;
   const collectedSections = [];
 
+  // A topic can be specific in the graph taxonomy (for example grief) while
+  // its reading label remains general. Use the shared source decision instead
+  // of the reading label to keep saved interests from steering any fallback.
+  const contextSelection = resolveContextSelection({
+    userQuestion,
+    reflectionsText,
+    focusAreas: personalization?.focusAreas
+  }, spreadKey);
+  const hasCurrentTopic = contextSelection.source === 'question'
+    || contextSelection.source === 'reflections'
+    || !canUseSavedFocus(context);
+  const composerPersonalization = personalization && hasCurrentTopic
+    ? { ...personalization, focusAreas: [] }
+    : personalization;
+
   const composerOptions = {
-    personalization,
+    personalization: composerPersonalization,
     proseMode: true,
     collectValidation: (section) => {
       if (!section) return;
@@ -1494,7 +1511,8 @@ export async function composeReadingEnhanced(payload, env = null) {
   payload.promptMeta.sourceUsage = buildLocalComposerSourceUsage(
     { ...payload, visionInsights, personalization },
     payload.promptMeta,
-    graphRAGPayload
+    graphRAGPayload,
+    { focusAreasSuppressed: hasCurrentTopic }
   );
 
   // Return reading with null prompts (local composer doesn't use LLM prompts)

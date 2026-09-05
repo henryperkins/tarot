@@ -7,6 +7,7 @@ import {
   inferGraphRAGContext
 } from '../functions/lib/contextDetection.js';
 import { safeParseReadingRequest } from '../shared/contracts/readingSchema.js';
+import * as contextDetection from '../functions/lib/contextDetection.js';
 
 function acceptedContext(fields) {
   const parsed = safeParseReadingRequest({
@@ -72,6 +73,15 @@ describe('context detection input composition', () => {
 });
 
 describe('context inference routing', () => {
+  it('does not infer health from rest embedded inside interests', () => {
+    assert.equal(inferContext('What interests me?', 'single'), 'general');
+    assert.equal(inferGraphRAGContext('What interests me?', 'single'), 'general');
+  });
+
+  it('matches complete words and phrases with punctuation and possessives', () => {
+    assert.equal(inferContext("My partner’s job affects our relationship.", 'single'), 'love');
+    assert.equal(inferGraphRAGContext('I need help with mental-health and burnout.', 'single'), 'health');
+  });
   it('routes from question context at the accepted question limit', () => {
     const tail = 'My question concerns my career.';
     const fields = acceptedContext({
@@ -115,5 +125,51 @@ describe('context inference routing', () => {
 
     const graphContext = inferGraphRAGContext(contextInput, 'single');
     assert.equal(graphContext, 'grief');
+  });
+});
+
+describe('current intent precedence', () => {
+  const cases = [
+    ...['How can I find better jobs?', 'How can I manage my projects?', 'How can I connect with new clients?', 'How do I compare these companies?'].map(userQuestion => ({ name: `plural topic stays ahead of saved focus: ${userQuestion}`, fields: { userQuestion, focusAreas: ['Love & relationships'] }, context: 'career', graph: 'career', source: 'question' })),
+    { name: 'clear question wins over saved focus', fields: { userQuestion: 'How can I prepare for my job interview?', focusAreas: ['Love & relationships'] }, context: 'career', graph: 'career', source: 'question' },
+    { name: 'clear question wins over unrelated reflections', fields: { userQuestion: 'How can I prepare for my job interview?', reflectionsText: 'My partner and our relationship need love and connection.', focusAreas: ['spiritual growth'] }, context: 'career', graph: 'career', source: 'question' },
+    { name: 'reflections explain a generic question before saved focus', fields: { userQuestion: 'Any guidance?', reflectionsText: 'I need rest because of burnout.', focusAreas: ['Love & relationships'] }, context: 'wellbeing', graph: 'health', source: 'reflections' },
+    { name: 'generic decision wording lets current reflections supply the topic', fields: { userQuestion: 'What should I focus on?', reflectionsText: 'I have a job interview tomorrow.', focusAreas: ['Love & relationships'] }, context: 'career', graph: 'career', source: 'reflections' },
+    { name: 'generic energy wording lets current reflections supply the topic', fields: { userQuestion: 'What energy should I bring?', reflectionsText: 'I have a job interview tomorrow.' }, context: 'career', graph: 'career', source: 'reflections' },
+    { name: 'saved focus supplies context only without current evidence', fields: { userQuestion: 'Any guidance?', focusAreas: ['career'] }, context: 'career', graph: 'career', source: 'focusAreas' },
+    { name: 'graph-only question topic prevents saved focus takeover', fields: { userQuestion: 'How can I process grief?', focusAreas: ['career'] }, context: 'general', graph: 'grief', source: 'question' },
+    { name: 'spread defaults do not prevent reflection fallback', fields: { userQuestion: 'Any guidance?', reflectionsText: 'My career needs attention.' }, spread: 'relationship', context: 'career', graph: 'career', source: 'reflections' },
+    { name: 'empty evidence uses spread default', fields: {}, spread: 'relationship', context: 'love', graph: 'relationship', source: 'spread' }
+  ];
+
+  for (const fixture of cases) {
+    it(fixture.name, () => {
+      const selection = contextDetection.resolveContextSelection(fixture.fields, fixture.spread || 'single');
+      assert.equal(selection.context, fixture.context);
+      assert.equal(selection.graphRAGContext, fixture.graph);
+      assert.equal(selection.source, fixture.source);
+    });
+  }
+
+  it('uses reflections to clarify a tied question without allowing a third topic to replace it', () => {
+    const fields = { userQuestion: 'How do I balance my job and relationship?' };
+    const selected = contextDetection.resolveContextSelection({ ...fields, reflectionsText: 'My job and career are the immediate concern.' }, 'single');
+    assert.equal(selected.context, 'career');
+    assert.equal(selected.graphRAGContext, 'career');
+    assert.equal(selected.clarifiedBy, 'reflections');
+    const unrelated = contextDetection.resolveContextSelection({ ...fields, reflectionsText: 'Spiritual rituals and divine intuition matter to me.' }, 'single');
+    assert.notEqual(unrelated.context, 'spiritual');
+    assert.notEqual(unrelated.graphRAGContext, 'spiritual');
+  });
+
+  it('keeps relevant current constraints in retrieval but excludes unrelated saved focus', () => {
+    const selection = contextDetection.resolveContextSelection({
+      userQuestion: 'How can I prepare for my job interview?',
+      reflectionsText: 'My career matters, but I can only prepare after my evening shift.',
+      focusAreas: ['Love & relationships']
+    }, 'threeCard');
+    assert.match(selection.retrievalQuery, /job interview/);
+    assert.match(selection.retrievalQuery, /evening shift/);
+    assert.doesNotMatch(selection.retrievalQuery, /Love & relationships/);
   });
 });

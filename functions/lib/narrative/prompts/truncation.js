@@ -183,9 +183,9 @@ const CRITICAL_INSTRUCTION_PATTERNS = [
   /Do not introduce any card names/i,
   /Reference each card by name/i,
   /Tie each card's insight/i,
-  /Use the question and focus areas/i,
+  /Use the (?:current )?question and (?:focus areas|reflections)/i,
   /Apply the reversal lens consistently/i,
-  /Offer 2-4 specific/i,
+  /Offer (?:one|1|2[-–]4) specific/i,
   /Close with a trajectory reminder/i
 ];
 

@@ -389,6 +389,11 @@ const GRAPH_RAG_CONTEXT_PRIORITY = [
 // focus labels, and section labels all fit within the embedding input boundary.
 // Smaller explicit caller budgets remain supported without shortening defaults.
 const MAX_CONTEXT_TEXT_LENGTH = 8000;
+const GENERIC_QUESTION_CUES = new Set([...CONTEXT_KEYWORDS.decision, 'energy', 'energetic']);
+const QUESTION_TOPIC_KEYWORDS = [...new Set([
+  ...Object.values(CONTEXT_KEYWORDS).flat(),
+  ...Object.values(GRAPH_RAG_CONTEXT_KEYWORDS).flat()
+])].filter(keyword => !GENERIC_QUESTION_CUES.has(keyword));
 
 function sanitizeQuestion(question) {
   return typeof question === 'string' ? question.trim().toLowerCase() : '';
@@ -462,19 +467,117 @@ export function buildContextInferenceInput({
   });
 }
 
+const CONTEXT_WORDS = new Set(
+  [...Object.values(CONTEXT_KEYWORDS).flat(), ...Object.values(GRAPH_RAG_CONTEXT_KEYWORDS).flat()]
+    .flatMap(keyword => keyword.match(/[\p{L}\p{N}]+/gu) || [])
+);
+
+function normalizeContextWords(text) {
+  return (text.toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).map(word => {
+    // Normalize common plurals only when their singular is in our vocabulary.
+    // This preserves jobs/companies/bosses without matching rest in interests.
+    if (word.endsWith('ies') && CONTEXT_WORDS.has(`${word.slice(0, -3)}y`)) {
+      return `${word.slice(0, -3)}y`;
+    }
+    const esStem = word.slice(0, -2);
+    if (word.endsWith('es') && /(?:s|x|z|ch|sh)$/.test(esStem) && CONTEXT_WORDS.has(esStem)) {
+      return esStem;
+    }
+    if (word.endsWith('s') && !word.endsWith('ss') && CONTEXT_WORDS.has(word.slice(0, -1))) {
+      return word.slice(0, -1);
+    }
+    return word;
+  }).join(' ');
+}
+
 function countMatches(text, keywords) {
   if (!text) return 0;
+  // Match complete Unicode words; punctuation and hyphens separate phrases.
+  // A substring such as "rest" inside "interests" is not context evidence.
+  const words = ` ${normalizeContextWords(text)} `;
   let score = 0;
-  for (const keyword of keywords) {
-    if (keyword.includes(' ')) {
-      if (text.includes(keyword)) {
-        score += 3;
-      }
-    } else if (text.includes(keyword)) {
-      score += 2;
+  const phrases = new Set(keywords.map(normalizeContextWords));
+  for (const phrase of phrases) {
+    if (phrase && words.includes(` ${phrase} `)) {
+      score += phrase.includes(' ') ? 3 : 2;
     }
   }
   return score;
+}
+
+function scoreContextSource(text, vocabulary) {
+  return Object.fromEntries(Object.entries(vocabulary).map(([key, keywords]) => [key, countMatches(text, keywords)]));
+}
+
+function leadingContexts(scores) {
+  const highest = Math.max(0, ...Object.values(scores));
+  return highest > 0 ? Object.keys(scores).filter(key => scores[key] === highest) : [];
+}
+
+/**
+ * Select topic evidence before applying spread defaults. Sources remain separate
+ * so a long reflection or saved preference cannot outvote a clear question.
+ * The original fields are still supplied independently to the narrative prompt.
+ */
+export function resolveContextSelection({ userQuestion, reflectionsText, focusAreas, contextInputText } = {}, spreadKey, options = {}) {
+  // Legacy callers may only have a combined context string. Treat it as lower
+  // priority background, never as the question when structured fields exist.
+  const hasStructuredBackground = typeof reflectionsText === 'string' || Array.isArray(focusAreas);
+  const background = !hasStructuredBackground && contextInputText !== userQuestion
+    ? contextInputText
+    : reflectionsText;
+  const sources = [
+    { source: 'question', text: sanitizeContextSegment(userQuestion, USER_QUESTION_MAX_LENGTH) },
+    { source: 'reflections', text: sanitizeContextSegment(background, REFLECTIONS_TEXT_MAX_LENGTH) },
+    { source: 'focusAreas', text: normalizeFocusAreas(focusAreas).join(', ') }
+  ].map(source => ({
+    ...source,
+    reading: scoreContextSource(source.text, CONTEXT_KEYWORDS),
+    graph: scoreContextSource(source.text, GRAPH_RAG_CONTEXT_KEYWORDS)
+  }));
+  const hasEvidence = source => [...Object.values(source.reading), ...Object.values(source.graph)].some(score => score > 0);
+  const questionHasTopic = countMatches(sources[0].text, QUESTION_TOPIC_KEYWORDS) > 0;
+  const selected = sources.find(source => hasEvidence(source) && (source.source !== 'question' || questionHasTopic))
+    || (hasEvidence(sources[0]) ? sources[0] : null);
+  const normalizedSpread = typeof spreadKey === 'string' ? spreadKey.toLowerCase() : '';
+  if (!selected) {
+    return {
+      context: inferContext('', spreadKey, options),
+      graphRAGContext: inferGraphRAGContext('', spreadKey),
+      source: SPREAD_CONTEXT_DEFAULTS[normalizedSpread] || GRAPH_RAG_SPREAD_DEFAULTS[normalizedSpread] ? 'spread' : 'none',
+      clarifiedBy: null,
+      retrievalQuery: buildContextInferenceInput({ userQuestion: sources[0].text, reflectionsText: sources[1].text })
+    };
+  }
+
+  let clarifiedBy = null;
+  const pick = (taxonomy, priority, spreadDefault) => {
+    let candidates = leadingContexts(selected[taxonomy]);
+    if (selected.source === 'question' && candidates.length > 1) {
+      const reflectionScores = Object.fromEntries(candidates.map(key => [key, sources[1][taxonomy][key]]));
+      const clarified = leadingContexts(reflectionScores);
+      if (clarified.length && clarified.length < candidates.length) {
+        candidates = clarified;
+        clarifiedBy = 'reflections';
+      }
+    }
+    if (candidates.includes(spreadDefault)) return spreadDefault;
+    return priority.find(key => candidates.includes(key)) || candidates[0] || 'general';
+  };
+  const context = normalizeContext(pick('reading', ['decision', 'wellbeing', 'love', 'career', 'self', 'spiritual'], SPREAD_CONTEXT_DEFAULTS[normalizedSpread]), options);
+  const graphRAGContext = pick('graph', GRAPH_RAG_CONTEXT_PRIORITY, GRAPH_RAG_SPREAD_DEFAULTS[normalizedSpread]);
+  const reflectionHasEvidence = [...Object.values(sources[1].reading), ...Object.values(sources[1].graph)].some(score => score > 0);
+  const reflectionIsRelevant = !reflectionHasEvidence || sources[1].reading[context] > 0 || sources[1].graph[graphRAGContext] > 0;
+  const retrievalQuery = buildContextInferenceInput({
+    userQuestion: sources[0].text,
+    // Question-led retrieval keeps a bounded amount of relevant detail so a long
+    // reflection cannot dominate semantic ranking. Full reflections stay in the prompt.
+    reflectionsText: selected.source === 'question'
+      ? (reflectionIsRelevant ? sanitizeContextSegment(sources[1].text, 750) : '')
+      : sources[1].text,
+    focusAreas: selected.source === 'focusAreas' ? focusAreas : []
+  });
+  return { context, graphRAGContext, source: selected.source, clarifiedBy, retrievalQuery };
 }
 
 export function inferContext(userQuestion, spreadKey, options = {}) {

@@ -1188,7 +1188,7 @@ function buildOpening(spreadName, userQuestion, context, options = {}) {
   const followUp = 'This reading stays with what is present, why it matters, and the next choice that remains yours.';
   const base = `### Opening\n\n${responseLead}\n\n${followUp}`;
   const contextDescriptor = getContextDescriptor(context);
-  const personalizationBridge = buildPersonalizationBridge(personalization, { contextDescriptor });
+  const personalizationBridge = buildPersonalizationBridge(personalization, { contextDescriptor, context });
   const contextReminder = buildContextReminder(context);
   const parts = [base];
   if (personalizationBridge) {

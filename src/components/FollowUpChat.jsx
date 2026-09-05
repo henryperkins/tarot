@@ -40,6 +40,7 @@ export default function FollowUpChat({
     themes,
     readingMeta,
     userQuestion,
+    reflections,
     sessionSeed,
     selectedSpread,
     followUps,
@@ -280,6 +281,7 @@ export default function FollowUpChat({
               return { ...card, position };
             }),
             userQuestion,
+            reflections,
             narrative: personalReading?.raw || (typeof personalReading === 'string' ? personalReading : ''),
             themes,
             spreadKey: readingMeta?.spreadKey,
@@ -466,7 +468,7 @@ export default function FollowUpChat({
     }
   }, [
     isLoading, canAskMore, hasValidReading, readingMeta, messages, reading,
-    userQuestion, personalReading, themes, includeJournal, canUseJournal, isAuthenticated,
+    userQuestion, reflections, personalReading, themes, includeJournal, canUseJournal, isAuthenticated,
     selectedSpread, followUpLimit, upsertFollowUp, serverTurn, turnsUsed, sessionSeed
   ]);
 

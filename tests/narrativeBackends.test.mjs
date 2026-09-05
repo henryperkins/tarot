@@ -338,8 +338,9 @@ describe('composeReadingEnhanced', () => {
     assert.equal(sourceUsage.userContext.reflectionsProvided, true);
     assert.equal(sourceUsage.userContext.reflectionsUsed, true);
     assert.equal(sourceUsage.userContext.focusAreasProvided, true);
-    assert.equal(sourceUsage.userContext.focusAreasUsed, true);
-    assert.deepEqual(sourceUsage.userContext.usedInputs, ['question', 'reflections', 'focusAreas']);
+    assert.equal(sourceUsage.userContext.focusAreasUsed, false);
+    assert.equal(sourceUsage.userContext.skippedInputs.focusAreas, 'current_context_priority');
+    assert.deepEqual(sourceUsage.userContext.usedInputs, ['question', 'reflections']);
     assert.equal(sourceUsage.graphRAG.requested, true);
     assert.equal(sourceUsage.graphRAG.used, false);
     assert.equal(sourceUsage.ephemeris.used, false);

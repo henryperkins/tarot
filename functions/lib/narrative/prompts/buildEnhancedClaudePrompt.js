@@ -7,7 +7,7 @@ import {
   rankPassagesForPrompt,
   retrievePassages
 } from '../../graphRAG.js';
-import { inferGraphRAGContext } from '../../contextDetection.js';
+import { resolveContextSelection } from '../../contextDetection.js';
 import { getReadingPromptVersion } from '../../promptVersioning.js';
 import { evaluateVisionInsightPromptEligibility, getSpreadKey } from '../../readingQuality.js';
 import { shouldIncludeAstroInsights } from './astro.js';
@@ -442,6 +442,12 @@ export function buildEnhancedClaudePrompt({
     : { ...baseThemes, reversalDescription: { ...DEFAULT_REVERSAL_DESCRIPTION } };
 
   const spreadKey = getSpreadKey(spreadInfo?.name, spreadInfo?.key);
+  const contextSelection = resolveContextSelection({
+    userQuestion,
+    reflectionsText,
+    focusAreas: personalization?.focusAreas,
+    contextInputText
+  }, spreadKey);
   const diagnostics = Array.isArray(contextDiagnostics) ? contextDiagnostics : [];
 
   const normalizedContextValue = normalizeContext(context, {
@@ -486,11 +492,9 @@ export function buildEnhancedClaudePrompt({
   if (!effectiveGraphRAGPayload && isGraphRAGEnabled(graphEnv) && hasMeaningfulGraphKeys(activeThemes?.knowledgeGraph?.graphKeys)) {
     const effectiveSpreadKey = spreadKey || 'general';
     const maxPassages = getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);
-    const graphRAGContextInput =
-      typeof contextInputText === 'string' && contextInputText.trim()
-        ? contextInputText
-        : (userQuestion || '');
-    const questionContext = inferGraphRAGContext(graphRAGContextInput, spreadKey);
+    const selection = contextSelection;
+    const graphRAGContextInput = selection.retrievalQuery;
+    const questionContext = selection.graphRAGContext;
 
     // Check if semantic scoring was requested
     // If enableSemanticScoring is explicitly true but we're doing sync retrieval,
@@ -513,6 +517,9 @@ export function buildEnhancedClaudePrompt({
         const semanticScoringFallback = semanticRequested && !semanticScoringUsed;
         const summary = {
           ...retrievalSummary,
+          questionContext,
+          contextSource: selection.source,
+          contextClarifiedBy: selection.clarifiedBy,
           semanticScoringRequested: semanticRequested,
           semanticScoringUsed,
           semanticScoringFallback
@@ -939,7 +946,9 @@ export function buildEnhancedClaudePrompt({
     context: {
       provided: context || null,
       normalized: normalizedContext,
-      fallbackApplied: contextFallbackApplied
+      fallbackApplied: contextFallbackApplied,
+      source: contextSelection.source,
+      clarifiedBy: contextSelection.clarifiedBy
     },
     // Token estimates present when slimming is enabled or hard-cap adjustments occur.
     // Use llmUsage.input_tokens from API response for actual token counts.

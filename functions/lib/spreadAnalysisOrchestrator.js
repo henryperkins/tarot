@@ -28,7 +28,7 @@ import {
 import { getSpreadKey } from './readingQuality.js';
 import { resolveSemanticScoring } from './readingTelemetry.js';
 import * as graphRAG from './graphRAG.js';
-import { inferGraphRAGContext } from './contextDetection.js';
+import { resolveContextSelection } from './contextDetection.js';
 import { withSpan } from './tracingSpans.js';
 
 // ============================================================================
@@ -235,6 +235,7 @@ function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSem
  * @param {string} options.deckStyle - Deck style for card interpretation
  * @param {string} options.userQuestion - User's question text
  * @param {string} options.contextInputText - Sanitized combined context text (question + reflections + focus areas)
+ * @param {Object} options.contextSources - Separate current question/reflections and saved focus for topic precedence
  * @param {string} options.subscriptionTier - User's subscription tier
  * @param {Object} options.location - User's location for ephemeris
  * @param {boolean} options.enableSemanticScoring - Enable semantic GraphRAG scoring
@@ -372,8 +373,14 @@ async function performSpreadAnalysisInner(
         typeof options.contextInputText === 'string' && options.contextInputText.trim()
           ? options.contextInputText
           : (options.userQuestion || '');
-      const questionContext = inferGraphRAGContext(contextInputText, spreadKey);
-      const graphQuery = contextInputText || options.userQuestion || '';
+      const selection = resolveContextSelection(options.contextSources || {
+        userQuestion: options.userQuestion,
+        reflectionsText: options.reflectionsText,
+        focusAreas: options.focusAreas,
+        contextInputText
+      }, spreadKey);
+      const questionContext = selection.graphRAGContext;
+      const graphQuery = selection.retrievalQuery;
       const semanticAvailable = graphRAG.isSemanticScoringAvailable(options.env);
       const semanticScoringSetting = options.enableSemanticScoring;
       const isAutoSemanticScoring = semanticScoringSetting === undefined || semanticScoringSetting === null;
@@ -436,6 +443,9 @@ async function performSpreadAnalysisInner(
 
         retrievalSummary = {
           ...retrievalSummary,
+          questionContext,
+          contextSource: selection.source,
+          contextClarifiedBy: selection.clarifiedBy,
           semanticScoringRequested: requestedSemanticScoring,
           semanticScoringUsed,
           semanticScoringFallback
