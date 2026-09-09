@@ -107,6 +107,15 @@ export function buildGraphRAGTelemetry(graphRAGStats) {
       attempted: graphRAGStats.semanticScoringAttempted || false,
       fallback: graphRAGStats.semanticScoringFallback || false
     },
+    quality: graphRAGStats.qualityMetrics ? {
+      averageRelevance: optionalNumber(graphRAGStats.qualityMetrics.averageRelevance),
+      minRelevance: optionalNumber(graphRAGStats.qualityMetrics.minRelevance),
+      maxRelevance: optionalNumber(graphRAGStats.qualityMetrics.maxRelevance),
+      belowRelevanceThresholdPassages: numberOrDefault(
+        graphRAGStats.qualityMetrics.belowRelevanceThresholdPassages,
+        0
+      )
+    } : null,
     patterns: graphRAGStats.patternsDetected ? {
       completeTriads: graphRAGStats.patternsDetected.completeTriads || 0,
       partialTriads: graphRAGStats.patternsDetected.partialTriads || 0,
@@ -114,6 +123,8 @@ export function buildGraphRAGTelemetry(graphRAGStats) {
       totalMajors: graphRAGStats.patternsDetected.totalMajors || 0,
       highDyads: graphRAGStats.patternsDetected.highDyads || 0,
       mediumHighDyads: graphRAGStats.patternsDetected.mediumHighDyads || 0,
+      mediumDyads: graphRAGStats.patternsDetected.mediumDyads || 0,
+      courtLineages: graphRAGStats.patternsDetected.courtLineages || 0,
       strongSuitProgressions: graphRAGStats.patternsDetected.strongSuitProgressions || 0,
       emergingSuitProgressions: graphRAGStats.patternsDetected.emergingSuitProgressions || 0
     } : null,

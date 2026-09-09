@@ -11,8 +11,17 @@ function summarizeDetectedPatterns(retrievalSummary = {}) {
   if (Number.isFinite(patterns.completeTriads) && patterns.completeTriads > 0) {
     segments.push(`${patterns.completeTriads} complete triad(s)`);
   }
+  if (Number.isFinite(patterns.partialTriads) && patterns.partialTriads > 0) {
+    segments.push(`${patterns.partialTriads} partial triad(s)`);
+  }
   if (Number.isFinite(patterns.highDyads) && patterns.highDyads > 0) {
     segments.push(`${patterns.highDyads} high-significance dyad(s)`);
+  }
+  if (Number.isFinite(patterns.mediumDyads) && patterns.mediumDyads > 0) {
+    segments.push(`${patterns.mediumDyads} medium-significance dyad(s)`);
+  }
+  if (Number.isFinite(patterns.courtLineages) && patterns.courtLineages > 0) {
+    segments.push(`${patterns.courtLineages} court lineage(s)`);
   }
   if (Number.isFinite(patterns.strongSuitProgressions) && patterns.strongSuitProgressions > 0) {
     segments.push(`${patterns.strongSuitProgressions} strong suit progression(s)`);

@@ -10,12 +10,16 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildQualityRetrievalSummary,
+  buildRetrievalSummary,
   retrievePassages,
   retrievePassagesWithQuality
 } from '../functions/lib/graphRAG.js';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts.js';
 import { buildGraphRAGReferenceBlock } from '../functions/lib/narrative/prompts/graphRAGReferenceBlock.js';
 import { clearEmbeddingCache } from '../functions/lib/embeddings.js';
+import { performSpreadAnalysis } from '../functions/lib/spreadAnalysisOrchestrator.js';
+import { buildGraphRAGTelemetry } from '../functions/lib/telemetrySchema.js';
 
 describe('GraphRAG court lineage retrieval', () => {
   test('retrievePassages: court lineage alliance (priority 5)', () => {
@@ -152,6 +156,44 @@ describe('GraphRAG medium-significance dyad retrieval', () => {
   });
 });
 
+describe('GraphRAG pattern coverage telemetry', () => {
+  test('buildRetrievalSummary counts medium dyads and court lineages', () => {
+    const summary = buildRetrievalSummary({
+      dyadPairs: [
+        { cards: [8, 11], significance: 'medium' },
+        { cards: [13, 17], significance: 'high' }
+      ],
+      courtLineages: [
+        { suit: 'Cups', significance: 'alliance' },
+        { suit: 'Wands', significance: 'council' }
+      ]
+    }, []);
+
+    assert.strictEqual(summary.patternsDetected.mediumDyads, 1);
+    assert.strictEqual(summary.patternsDetected.courtLineages, 2);
+  });
+
+  test('summary-only prompts name newly retrieved pattern families', () => {
+    const block = buildGraphRAGReferenceBlock('celtic', {}, {
+      env: { GRAPHRAG_ENABLED: 'true' },
+      graphRAGSummaryOnly: true,
+      graphRAGPayload: {
+        retrievalSummary: {
+          patternsDetected: {
+            partialTriads: 1,
+            mediumDyads: 2,
+            courtLineages: 1
+          }
+        }
+      }
+    });
+
+    assert.match(block, /1 partial triad\(s\)/);
+    assert.match(block, /2 medium-significance dyad\(s\)/);
+    assert.match(block, /1 court lineage\(s\)/);
+  });
+});
+
 describe('GraphRAG quality filtering floor', () => {
   const env = {
     AZURE_OPENAI_ENDPOINT: 'https://embeddings.test',
@@ -187,6 +229,51 @@ describe('GraphRAG quality filtering floor', () => {
     );
 
     assert.strictEqual(passages.length, 0, 'The floor must not invent passages out of nothing');
+  });
+
+  test('reports a grounded fallback when semantic scoring is unavailable', async () => {
+    const graphKeys = { completeTriadIds: ['death-temperance-star'] };
+    const passages = await retrievePassagesWithQuality(graphKeys, {
+      maxPassages: 3,
+      userQuery: 'zzyzx quorbit',
+      minRelevanceScore: 0.3,
+      enableSemanticScoring: true,
+      env: {}
+    });
+    const summary = buildQualityRetrievalSummary(graphKeys, passages);
+
+    assert.strictEqual(passages.length, 1, 'Detected card patterns should retain one grounded passage');
+    assert.strictEqual(passages[0].relevanceScore, 0, 'The fallback score must remain honest');
+    assert.strictEqual(passages[0].belowRelevanceThreshold, true);
+    assert.strictEqual(summary.qualityMetrics.averageRelevance, 0);
+    assert.strictEqual(summary.qualityMetrics.belowRelevanceThresholdPassages, 1);
+    assert.strictEqual(summary.qualityMetrics.semanticScoringUsed, false);
+  });
+
+  test('spread analysis preserves the quality floor when requested embeddings are unavailable', async () => {
+    const cardsInfo = [
+      { card: 'Death', number: 13, position: 'Past', orientation: 'Upright' },
+      { card: 'Temperance', number: 14, position: 'Present', orientation: 'Upright' },
+      { card: 'The Star', number: 17, position: 'Future', orientation: 'Upright' }
+    ];
+    const analysis = await performSpreadAnalysis(
+      { key: 'threeCard', name: 'Three-Card Story' },
+      cardsInfo,
+      { userQuestion: 'zzyzx quorbit', enableSemanticScoring: true, subscriptionTier: 'pro' },
+      'unavailable-embeddings-floor-test',
+      { GRAPHRAG_ENABLED: 'true' }
+    );
+    const { passages, retrievalSummary } = analysis.graphRAGPayload;
+    const telemetry = buildGraphRAGTelemetry(retrievalSummary);
+
+    assert.strictEqual(passages.length, 1);
+    assert.strictEqual(passages[0].belowRelevanceThreshold, true);
+    assert.strictEqual(passages[0].relevanceScore, 0);
+    assert.strictEqual(telemetry.semanticScoring.requested, true);
+    assert.strictEqual(telemetry.semanticScoring.used, false);
+    assert.strictEqual(telemetry.semanticScoring.fallback, true);
+    assert.strictEqual(telemetry.quality.averageRelevance, 0);
+    assert.strictEqual(telemetry.quality.belowRelevanceThresholdPassages, 1);
   });
 });
 

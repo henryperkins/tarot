@@ -580,6 +580,8 @@ export function buildRetrievalSummary(graphKeys, passages) {
       singleMajor: Number.isInteger(graphKeys?.singleMajorNumber) ? 1 : 0,
       highDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'high').length || 0,
       mediumHighDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'medium-high').length || 0,
+      mediumDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'medium').length || 0,
+      courtLineages: graphKeys?.courtLineages?.length || 0,
       strongSuitProgressions:
         graphKeys?.suitProgressions?.filter((p) => p.significance === 'strong-progression')
           .length || 0,
@@ -1015,6 +1017,7 @@ export function buildQualityRetrievalSummary(graphKeys, passages) {
     averageRelevance: 0,
     minRelevance: 0,
     maxRelevance: 0,
+    belowRelevanceThresholdPassages: 0,
     semanticScoringUsed: false,
     semanticScoringAttempted: false
   };
@@ -1030,6 +1033,10 @@ export function buildQualityRetrievalSummary(graphKeys, passages) {
       qualityMetrics.minRelevance = Math.min(...scores);
       qualityMetrics.maxRelevance = Math.max(...scores);
     }
+
+    qualityMetrics.belowRelevanceThresholdPassages = passages.filter(
+      (p) => p?.belowRelevanceThreshold === true
+    ).length;
 
     // Check if semantic scoring was enabled for any passage retrieval
     // Uses the status flags set by retrievePassagesWithQuality

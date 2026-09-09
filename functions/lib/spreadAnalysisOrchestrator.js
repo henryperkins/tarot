@@ -161,26 +161,13 @@ export function buildSpreadAnalysisPayload(analysis) {
  * @returns {Object} Placeholder GraphRAG payload
  */
 function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSemanticScoring, reason) {
-  const patternsDetected = {
-    completeTriads: graphKeys?.completeTriadIds?.length || 0,
-    partialTriads:
-      (graphKeys?.triadIds?.length || 0) -
-      (graphKeys?.completeTriadIds?.length || 0),
-    foolsJourneyStage: graphKeys?.foolsJourneyStageKey || null,
-    totalMajors: typeof graphKeys?.totalMajors === 'number' ? graphKeys.totalMajors : 0,
-    singleMajor: Number.isInteger(graphKeys?.singleMajorNumber) ? 1 : 0,
-    highDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'high').length || 0,
-    mediumHighDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'medium-high').length || 0,
-    strongSuitProgressions:
-      graphKeys?.suitProgressions?.filter((p) => p.significance === 'strong-progression').length || 0,
-    emergingSuitProgressions:
-      graphKeys?.suitProgressions?.filter((p) => p.significance === 'emerging-progression').length || 0
-  };
+  const { patternsDetected } = graphRAG.buildRetrievalSummary(graphKeys, []);
 
   const qualityMetrics = {
     averageRelevance: 0,
     minRelevance: 0,
     maxRelevance: 0,
+    belowRelevanceThresholdPassages: 0,
     semanticScoringUsed: false,
     semanticScoringAttempted: false
   };
@@ -408,9 +395,9 @@ async function performSpreadAnalysisInner(
         let passages;
         let retrievalSummary;
 
-        if (enableSemanticScoring) {
-          // Use quality-aware retrieval with relevance scoring
-          console.log(`[${requestId}] Using quality-aware GraphRAG retrieval with semantic scoring`);
+        if (requestedSemanticScoring) {
+          // Preserve quality scoring and fallback telemetry even without embeddings.
+          console.log(`[${requestId}] Using quality-aware GraphRAG retrieval (semantic scoring requested)`);
           passages = await graphRAG.retrievePassagesWithQuality(graphKeys, {
             maxPassages,
             userQuery: graphQuery,

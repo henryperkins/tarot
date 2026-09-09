@@ -164,6 +164,24 @@ describe('telemetrySchema', () => {
       });
     });
 
+    it('should preserve below-threshold fallback quality without hiding its score', () => {
+      const stats = {
+        qualityMetrics: {
+          averageRelevance: 0,
+          minRelevance: 0,
+          maxRelevance: 0,
+          belowRelevanceThresholdPassages: 1
+        }
+      };
+      const result = buildGraphRAGTelemetry(stats);
+      assert.deepStrictEqual(result.quality, {
+        averageRelevance: 0,
+        minRelevance: 0,
+        maxRelevance: 0,
+        belowRelevanceThresholdPassages: 1
+      });
+    });
+
     it('should extract patterns detected', () => {
       const stats = {
         patternsDetected: {
@@ -173,6 +191,8 @@ describe('telemetrySchema', () => {
           totalMajors: 3,
           highDyads: 2,
           mediumHighDyads: 1,
+          mediumDyads: 4,
+          courtLineages: 2,
           strongSuitProgressions: 1,
           emergingSuitProgressions: 0
         }
@@ -185,6 +205,8 @@ describe('telemetrySchema', () => {
         totalMajors: 3,
         highDyads: 2,
         mediumHighDyads: 1,
+        mediumDyads: 4,
+        courtLineages: 2,
         strongSuitProgressions: 1,
         emergingSuitProgressions: 0
       });
