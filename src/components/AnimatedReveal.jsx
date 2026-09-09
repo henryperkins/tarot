@@ -136,7 +136,7 @@ function ProgressIndicator({ status, progress, prefersReducedMotion = false }) {
 }
 
 // Video player with controls
-function VideoPlayer({ videoData, prefersReducedMotion = false }) {
+function VideoPlayer({ videoData, prefersReducedMotion = false, onExpandedChange }) {
   const videoRef = useRef(null);
   const playButtonRef = useRef(null);
   const containerRef = useRef(null);
@@ -249,6 +249,15 @@ function VideoPlayer({ videoData, prefersReducedMotion = false }) {
       document.body.style.overflow = bodyOverflowRef.current;
     };
   }, [isExpanded]);
+
+  // Let an enclosing dialog know a nested one is on screen so it can hand over
+  // Escape and the focus trap while the expanded video is open.
+  useEffect(() => {
+    onExpandedChange?.(isExpanded);
+    return () => {
+      if (isExpanded) onExpandedChange?.(false);
+    };
+  }, [isExpanded, onExpandedChange]);
 
   useEffect(() => {
     if (!isExpanded) return;
@@ -440,6 +449,7 @@ export default function AnimatedReveal({
   userTier = 'free',
   autoGenerate = false,
   onVideoReady,
+  onNestedOverlayChange,
   className = ''
 }) {
   const prefersReducedMotion = useReducedMotion();
@@ -857,7 +867,11 @@ export default function AnimatedReveal({
           key="video"
           style={{ transition: prefersReducedMotion ? 'none' : 'opacity 220ms ease-out, transform 220ms ease-out' }}
         >
-          <VideoPlayer videoData={videoData} prefersReducedMotion={prefersReducedMotion} />
+          <VideoPlayer
+            videoData={videoData}
+            prefersReducedMotion={prefersReducedMotion}
+            onExpandedChange={onNestedOverlayChange}
+          />
         </div>
       )}
 

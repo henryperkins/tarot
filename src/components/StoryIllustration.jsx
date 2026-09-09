@@ -290,6 +290,8 @@ function HeroBackground({ image, format, activePanel = 1 }) {
   );
 }
 
+const upgradeTitleId = 'story-illustration-upgrade-title';
+
 // Main component
 export default function StoryIllustration({ 
   cards, 
@@ -298,6 +300,7 @@ export default function StoryIllustration({
   userTier = 'free',
   onSaveToJournal,
   onMediaReady,
+  onNestedOverlayChange,
   heroMode = false,
   embedded = false,
   activePanel = 1,
@@ -347,6 +350,34 @@ export default function StoryIllustration({
       requestControllerRef.current = null;
     }
   }, []);
+
+  // The upgrade prompt only renders from the main return, so the tier-gated
+  // early return below can raise showUpgrade without ever painting a dialog.
+  // Report the prompt upward only when it is actually on screen, or an
+  // enclosing dialog would stand down for nothing and stay that way.
+  const isUpgradePromptOpen = showUpgrade && (config.enabled || Boolean(generatedImage));
+
+  // Let an enclosing dialog know a nested one is on screen so it can hand over
+  // Escape and the focus trap while the upgrade prompt is open.
+  useEffect(() => {
+    onNestedOverlayChange?.(isUpgradePromptOpen);
+    return () => {
+      if (isUpgradePromptOpen) onNestedOverlayChange?.(false);
+    };
+  }, [isUpgradePromptOpen, onNestedOverlayChange]);
+
+  // Because the enclosing dialog yields Escape to us, we have to handle it.
+  useEffect(() => {
+    if (!isUpgradePromptOpen) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      setShowUpgrade(false);
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [isUpgradePromptOpen]);
   
   // Generate illustration
   const handleGenerate = useCallback(async () => {
@@ -666,10 +697,19 @@ export default function StoryIllustration({
       )}
       
       {/* Upgrade modal */}
-      {showUpgrade && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-safe pt-safe pb-safe">
-          <div className="bg-surface rounded-xl p-6 max-w-md border border-secondary/40 transition-[opacity,transform] duration-200 ease-out">
-            <h3 className="text-xl font-serif text-accent mb-3">
+      {isUpgradePromptOpen && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-auth px-safe pt-safe pb-safe"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={upgradeTitleId}
+          onClick={() => setShowUpgrade(false)}
+        >
+          <div
+            className="bg-surface rounded-xl p-6 max-w-md border border-secondary/40 transition-[opacity,transform] duration-200 ease-out"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id={upgradeTitleId} className="text-xl font-serif text-accent mb-3">
               Unlock Story Illustrations
             </h3>
             <p className="text-muted text-sm mb-4">

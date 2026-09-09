@@ -40,8 +40,10 @@ export function MediaGallery({
   error = null,
   onRefresh,
   onDelete,
+  variant = 'section',
   className = ''
 }) {
+  const isModalVariant = variant === 'modal';
   const [deletingId, setDeletingId] = useState(null);
   const [localError, setLocalError] = useState('');
 
@@ -89,30 +91,43 @@ export function MediaGallery({
 
   const statusMessage = error || localError;
 
-  return (
-    <section
-      className={`rounded-xl border border-secondary/25 bg-surface/80 p-4 sm:p-5 ${className}`}
-      aria-label="Recent generated media"
+  const refreshButton = onRefresh ? (
+    <button
+      type="button"
+      onClick={handleRefresh}
+      disabled={loading}
+      className="inline-flex min-h-touch items-center gap-2 rounded-lg border border-secondary/30 bg-main/35 px-3 py-2 text-xs text-muted transition hover:border-secondary/50 hover:text-main disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-base sm:text-lg font-serif text-accent">Recent media</h3>
-          <p className="mt-1 text-xs sm:text-sm text-muted">
-            Saved visuals from this reading flow.
-          </p>
+      <ArrowsClockwise className={`h-4 w-4 ${loading ? 'motion-safe:animate-spin' : ''}`} aria-hidden="true" />
+      <span>{loading ? 'Refreshing' : 'Refresh'}</span>
+    </button>
+  ) : null;
+
+  // In the modal variant the surrounding dialog supplies the panel chrome, the
+  // accessible name and the description, so the gallery renders headerless.
+  const Wrapper = isModalVariant ? 'div' : 'section';
+  const wrapperProps = isModalVariant
+    ? { className: className || undefined }
+    : {
+      className: `rounded-xl border border-secondary/25 bg-surface/80 p-4 sm:p-5 ${className}`,
+      'aria-label': 'Recent generated media'
+    };
+
+  return (
+    <Wrapper {...wrapperProps}>
+      {isModalVariant ? (
+        refreshButton ? <div className="flex justify-end">{refreshButton}</div> : null
+      ) : (
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base sm:text-lg font-serif text-accent">Recent media</h3>
+            <p className="mt-1 text-xs sm:text-sm text-muted">
+              Saved visuals from this reading flow.
+            </p>
+          </div>
+          {refreshButton}
         </div>
-        {onRefresh && (
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={loading}
-            className="inline-flex min-h-touch items-center gap-2 rounded-lg border border-secondary/30 bg-main/35 px-3 py-2 text-xs text-muted transition hover:border-secondary/50 hover:text-main disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
-          >
-            <ArrowsClockwise className={`h-4 w-4 ${loading ? 'motion-safe:animate-spin' : ''}`} aria-hidden="true" />
-            <span>{loading ? 'Refreshing' : 'Refresh'}</span>
-          </button>
-        )}
-      </div>
+      )}
 
       {statusMessage && (
         <p className="mt-3 rounded-lg border border-error/35 bg-error/10 px-3 py-2 text-xs sm:text-sm text-error">
@@ -127,7 +142,7 @@ export function MediaGallery({
       )}
 
       {hasItems && (
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div className={`mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 ${isModalVariant ? '' : 'xl:grid-cols-3'}`}>
           {visibleItems.map((item) => {
             const title = buildMediaTitle(item);
             const createdLabel = formatTimestamp(item.createdAt);
@@ -227,7 +242,7 @@ export function MediaGallery({
           Showing the latest {visibleItems.length}; {hiddenCount} older {hiddenCount === 1 ? 'item stays' : 'items stay'} saved.
         </p>
       )}
-    </section>
+    </Wrapper>
   );
 }
 
