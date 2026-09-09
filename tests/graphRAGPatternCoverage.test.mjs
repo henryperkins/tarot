@@ -20,6 +20,7 @@ import { buildGraphRAGReferenceBlock } from '../functions/lib/narrative/prompts/
 import { clearEmbeddingCache } from '../functions/lib/embeddings.js';
 import { performSpreadAnalysis } from '../functions/lib/spreadAnalysisOrchestrator.js';
 import { buildGraphRAGTelemetry } from '../functions/lib/telemetrySchema.js';
+import { TRIAD_PASSAGES } from '../functions/lib/knowledgeBase.js';
 
 describe('GraphRAG court lineage retrieval', () => {
   test('retrievePassages: court lineage alliance (priority 5)', () => {
@@ -70,6 +71,23 @@ describe('GraphRAG court lineage retrieval', () => {
 });
 
 describe('GraphRAG partial triad retrieval', () => {
+  test('retrievePassages: passage data cannot disable the partial-pattern guardrail', () => {
+    const entry = TRIAD_PASSAGES['magician-chariot-world'];
+    const originalPassages = entry.passages;
+    entry.passages = originalPassages.map((passage) => ({
+      ...passage,
+      isPartialPattern: false
+    }));
+
+    try {
+      const passages = retrievePassages({ triadIds: ['magician-chariot-world'] });
+      assert.strictEqual(passages.length, 1);
+      assert.strictEqual(passages[0].isPartialPattern, true);
+    } finally {
+      entry.passages = originalPassages;
+    }
+  });
+
   test('retrievePassages: partial triad (priority 6)', () => {
     const graphKeys = {
       triadIds: ['magician-chariot-world'],

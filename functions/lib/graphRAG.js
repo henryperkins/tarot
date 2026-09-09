@@ -439,10 +439,10 @@ export function retrievePassages(graphKeys, options = {}) {
             patternId: triadId,
             title: entry.title,
             theme: entry.theme,
+            ...passage,
             // Surfaced outside `metadata` so prompt assembly can add an
             // absent-card guardrail without opting into metadata.
             isPartialPattern: true,
-            ...passage,
             ...(includeMetadata ? { metadata: { triadId, isComplete: false } } : {})
           });
         }
