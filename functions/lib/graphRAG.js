@@ -284,7 +284,8 @@ export function retrievePassages(graphKeys, options = {}) {
   if (Array.isArray(graphKeys.dyadPairs) && graphKeys.dyadPairs.length > 0) {
     const dyadPriorityBySignificance = {
       high: 3,
-      'medium-high': 4
+      'medium-high': 4,
+      medium: 5
     };
 
     graphKeys.dyadPairs
@@ -381,6 +382,68 @@ export function retrievePassages(graphKeys, options = {}) {
             stage: prog.stage,
             ...passage,
             ...(includeMetadata ? { metadata: { suit: prog.suit, stage: prog.stage } } : {})
+          });
+        }
+      });
+  }
+
+  // Priority 5: Court lineages (multiple court cards sharing a suit)
+  // Every card behind this pattern is present in the spread, so it is safe to
+  // inject even when no Major Arcana structure was detected.
+  if (Array.isArray(graphKeys.courtLineages) && graphKeys.courtLineages.length > 0) {
+    graphKeys.courtLineages.forEach((lineage) => {
+      const lineageKey = `${lineage.suit}:${lineage.significance}`;
+      const entry = getPassagesForPattern('court-lineage', lineageKey);
+      if (entry && entry.passages && entry.passages.length > 0) {
+        const passage = selectPassageForContext(entry.passages, contextCandidates);
+        if (!passage) {
+          return;
+        }
+        passages.push({
+          priority: 5,
+          type: 'court-lineage',
+          patternId: lineageKey,
+          title: entry.title,
+          theme: entry.theme,
+          suit: lineage.suit,
+          significance: lineage.significance,
+          ...passage,
+          ...(includeMetadata
+            ? { metadata: { suit: lineage.suit, significance: lineage.significance } }
+            : {})
+        });
+      }
+    });
+  }
+
+  // Priority 6: Partial triads (two of three archetypes present)
+  // Ranked below every complete pattern because the arc's third card is absent;
+  // the reference block's card guardrail keeps it contextual.
+  if (Array.isArray(graphKeys.triadIds) && graphKeys.triadIds.length > 0) {
+    const completeTriadIds = new Set(
+      Array.isArray(graphKeys.completeTriadIds) ? graphKeys.completeTriadIds : []
+    );
+
+    graphKeys.triadIds
+      .filter((triadId) => !completeTriadIds.has(triadId))
+      .forEach((triadId) => {
+        const entry = getPassagesForPattern('triad', triadId);
+        if (entry && entry.passages && entry.passages.length > 0) {
+          const passage = selectPassageForContext(entry.passages, contextCandidates);
+          if (!passage) {
+            return;
+          }
+          passages.push({
+            priority: 6,
+            type: 'triad',
+            patternId: triadId,
+            title: entry.title,
+            theme: entry.theme,
+            ...passage,
+            // Surfaced outside `metadata` so prompt assembly can add an
+            // absent-card guardrail without opting into metadata.
+            isPartialPattern: true,
+            ...(includeMetadata ? { metadata: { triadId, isComplete: false } } : {})
           });
         }
       });
@@ -517,6 +580,8 @@ export function buildRetrievalSummary(graphKeys, passages) {
       singleMajor: Number.isInteger(graphKeys?.singleMajorNumber) ? 1 : 0,
       highDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'high').length || 0,
       mediumHighDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'medium-high').length || 0,
+      mediumDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'medium').length || 0,
+      courtLineages: graphKeys?.courtLineages?.length || 0,
       strongSuitProgressions:
         graphKeys?.suitProgressions?.filter((p) => p.significance === 'strong-progression')
           .length || 0,
@@ -913,6 +978,17 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
     (p) => p.relevanceScore >= minRelevanceScore
   );
 
+  // Floor: retrieval found real patterns, so never hand back nothing just
+  // because the question wording scored poorly against every passage. Keep the
+  // single best candidate, flagged so telemetry can tell it apart.
+  if (filtered.length === 0) {
+    const best = scoredPassages.reduce(
+      (top, p) => (p.relevanceScore > top.relevanceScore ? p : top),
+      scoredPassages[0]
+    );
+    filtered = [{ ...best, belowRelevanceThreshold: true }];
+  }
+
   // Deduplicate similar passages
   if (enableDeduplication) {
     filtered = deduplicatePassages(filtered);
@@ -941,6 +1017,7 @@ export function buildQualityRetrievalSummary(graphKeys, passages) {
     averageRelevance: 0,
     minRelevance: 0,
     maxRelevance: 0,
+    belowRelevanceThresholdPassages: 0,
     semanticScoringUsed: false,
     semanticScoringAttempted: false
   };
@@ -956,6 +1033,10 @@ export function buildQualityRetrievalSummary(graphKeys, passages) {
       qualityMetrics.minRelevance = Math.min(...scores);
       qualityMetrics.maxRelevance = Math.max(...scores);
     }
+
+    qualityMetrics.belowRelevanceThresholdPassages = passages.filter(
+      (p) => p?.belowRelevanceThreshold === true
+    ).length;
 
     // Check if semantic scoring was enabled for any passage retrieval
     // Uses the status flags set by retrievePassagesWithQuality
