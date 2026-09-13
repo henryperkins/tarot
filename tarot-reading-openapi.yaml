@@ -35,7 +35,7 @@ paths:
                 value:
                   spreadInfo:
                     name: Three Card Spread
-                    key: three-card
+                    key: threeCard
                   cardsInfo:
                     - position: Past
                       card: The Fool
@@ -375,10 +375,17 @@ components:
             - Celtic Cross
         key:
           type: string
-          description: Optional spread identifier.
-          examples:
-            - three-card
-            - celtic-cross
+          description: >
+            Canonical spread identifier. Always send it: name-only requests
+            can fail when the display name is not in the backend alias map,
+            and the key is what the journal stores and groups history by.
+          enum:
+            - single
+            - threeCard
+            - fiveCard
+            - decision
+            - relationship
+            - celtic
     CardInfo:
       type: object
       required:

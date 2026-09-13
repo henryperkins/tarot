@@ -2,7 +2,7 @@
 
 Type: guide
 Status: active reference
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-13
 
 This setup uses GPT Actions with your existing Worker API.
 
@@ -29,6 +29,10 @@ reversal frameworks, patterns, 78-card reference, ethics).
   - `GET /api/tarot-reading/jobs/{id}`
   - `GET /api/tarot-reading/jobs/{id}/stream`
   - `POST /api/tarot-reading/jobs/{id}/cancel`
+  - Route mapping: `src/worker/index.js`
+- Journal write endpoints (see "Journal write Actions" below):
+  - `POST /api/journal` — handler `functions/api/journal.js`
+  - `POST /api/journal/{id}/reflections` — handler `functions/api/journal/reflections.js`
   - Route mapping: `src/worker/index.js`
 
 ## Quick start (recommended first: sync endpoint)
@@ -261,6 +265,103 @@ Notes:
 - Rotate by putting a new secret; the old token stops working immediately.
   Rotation does not change the `users` row, so usage history carries over.
 - Implementation: `functions/lib/serviceAuth.js`, wired in `functions/lib/auth.js`.
+
+## Journal write Actions (`tarot-journal-actions.yaml`)
+
+`tarot-journal-actions.yaml` (repo root, next to `tarot-reading-openapi.yaml`)
+is a second Action schema that lets the GPT persist what it read:
+
+| Operation | Route | Handler |
+|---|---|---|
+| `saveJournalEntry` | `POST /api/journal` | `functions/api/journal.js` |
+| `addJournalReflection` | `POST /api/journal/{id}/reflections` | `functions/api/journal/reflections.js` |
+
+The journal routes (`/api/journal`, `/api/journal/{id}`, and the reflections
+route) authenticate through `getUserFromRequest`, so the service token works
+there, as do `sk_` API keys and bearer session tokens. The app's own cookie
+session is unaffected. The service account is minted at Plus, which clears the
+journal's `isEntitled(user, 'plus')` gate, and its backing `users` row is what
+lets the `journal_entries` foreign key succeed.
+
+### Install
+
+1. In GPT Builder, **Configure → Actions → Create new action** a second time
+   and paste the file. It is a separate Action because each Action carries a
+   single auth configuration.
+2. Set auth to **API Key**, **Auth Type: `Bearer`**, with the same
+   `GPT_SERVICE_TOKEN` value as the reading Action.
+3. If the GPT is owner-only, you can instead merge the journal `paths` and
+   `components.schemas` into `tarot-reading-openapi.yaml` and drop the
+   duplicated `ErrorResponse` and `bearerAuth`.
+
+### Contract rules the schema encodes
+
+- Cards use the journal shape: `name`, not `card`.
+  `functions/api/archetype-journey.js` reads `card.name` with no fallback, so
+  `cardsInfo` forwarded verbatim from a reading would be searchable but
+  invisible to archetype tracking.
+- `spreadKey` must be one of `single`, `threeCard`, `fiveCard`, `decision`,
+  `relationship`, `celtic`. It is stored verbatim and groups history.
+- `context` is the reading taxonomy (`love`, `career`, `self`, `spiritual`,
+  `wellbeing`, `decision`, `general`); anything else is stored as no context
+  (`functions/lib/journalContext.js`).
+- Reflections are a flat string map in `reflections_json`, keyed by card index
+  (`"0"`, `"1"`, …) or `Overall` for the reading as a whole. That is the only
+  shape the journal UI, the export, and follow-up context read. The
+  reflections route takes `card` and/or `position`, resolves them to the
+  index server-side, and rejects a card that is not in the entry (listing the
+  entry's cards so the GPT can correct itself in one retry). It appends to an
+  existing note by default; `mode: replace` overwrites.
+- Repeating a save with the same `sessionSeed` returns the existing entry with
+  `deduplicated: true` instead of writing a second row.
+
+### Caveats
+
+- **One journal per token.** Every write through `GPT_SERVICE_TOKEN` lands in
+  the single synthetic service account (`service:gpt` by default). That is
+  fine for the owner's private GPT. In a published GPT it means every user
+  shares one journal, and any read-back operation would return other people's
+  entries. Do not expose these operations from a published GPT without
+  per-user OAuth (a separate Action with its own auth config). Gating journal
+  writes on `is_owner` (the `GPT_OWNER_TOKEN` path) is the one-line option for
+  a private-only version.
+- **Archetype tracking is not updated by the save.** The app records
+  `card_appearances` from the client after saving (`src/hooks/useJournal.js`
+  posts to `/api/archetype-journey/track`); `POST /api/journal` alone does
+  not. Run `POST /api/archetype-journey-backfill` to rebuild recurrence data
+  from journal entries, or move tracking into the save path before building
+  any pattern-query Action on top of it.
+
+### Verify locally
+
+Put `GPT_SERVICE_TOKEN=<long random value>` in `.dev.vars`, apply migrations
+to the local database (`npx wrangler d1 migrations apply mystic-tarot-db --local`),
+then:
+
+```bash
+npx wrangler dev --config wrangler.jsonc --port 8788
+```
+
+```bash
+# save
+curl -sS -X POST http://localhost:8788/api/journal \
+  -H "Authorization: Bearer $GPT_SERVICE_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"spread":"Three-Card Story (Past · Present · Future)","spreadKey":"threeCard",
+       "cards":[{"position":"Past","name":"The Hermit","orientation":"Upright","number":9}],
+       "personalReading":"...","sessionSeed":"test-seed-1"}'
+
+# reflect (use the returned entry.id)
+curl -sS -X POST http://localhost:8788/api/journal/ENTRY_ID/reflections \
+  -H "Authorization: Bearer $GPT_SERVICE_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"six months alone","scope":"card","card":"The Hermit","position":"Past"}'
+```
+
+Repeat the save with the same `sessionSeed` and expect `200` with
+`deduplicated: true`. Then `GET /api/journal/ENTRY_ID` with the same bearer
+token and confirm `reflections` is `{"0":"six months alone"}`, the shape the
+journal UI renders.
 
 ## Instruction pattern to reduce tool-call errors
 

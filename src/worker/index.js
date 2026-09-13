@@ -26,6 +26,7 @@ import * as speechToken from '../../functions/api/speech-token.js';
 import * as journal from '../../functions/api/journal.js';
 import * as journalById from '../../functions/api/journal/[id].js';
 import * as journalFollowups from '../../functions/api/journal/followups.js';
+import * as journalReflections from '../../functions/api/journal/reflections.js';
 import * as journalPatternAlerts from '../../functions/api/journal/pattern-alerts.js';
 import * as journalSummary from '../../functions/api/journal-summary.js';
 import * as journalSearch from '../../functions/api/journal/search.js';
@@ -229,6 +230,7 @@ const routes = [
   { pattern: /^\/api\/journal\/search$/, handlers: journalSearch },
   { pattern: /^\/api\/journal\/pattern-alerts$/, handlers: journalPatternAlerts },
   { pattern: /^\/api\/journal\/([^/]+)\/followups$/, handlers: journalFollowups, params: ['id'] },
+  { pattern: /^\/api\/journal\/([^/]+)\/reflections$/, handlers: journalReflections, params: ['id'] },
   { pattern: /^\/api\/journal\/([^/]+)$/, handlers: journalById, params: ['id'] },
   { pattern: /^\/api\/journal-summary$/, handlers: journalSummary },
   { pattern: /^\/api\/feedback$/, handlers: feedback },

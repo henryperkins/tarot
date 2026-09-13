@@ -4,10 +4,7 @@
  * POST /api/journal - Save a new journal entry
  */
 
-import {
-  validateSession,
-  getSessionFromCookie
-} from '../lib/auth.js';
+import { getUserFromRequest } from '../lib/auth.js';
 import { buildTierLimitedPayload, isEntitled } from '../lib/entitlements.js';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
 import { scheduleCoachExtraction } from '../lib/coachSuggestion.js';
@@ -37,9 +34,7 @@ export async function onRequestGet(context) {
 
   try {
     // Authenticate user
-    const cookieHeader = request.headers.get('Cookie');
-    const token = getSessionFromCookie(cookieHeader);
-    const user = await validateSession(env.DB, token);
+    const user = await getUserFromRequest(request, env);
 
     if (!user) {
       return new Response(
@@ -323,13 +318,13 @@ export async function onRequestGet(context) {
  */
 export async function onRequestPost(context) {
   const { request, env, waitUntil } = context;
-  const requestId = crypto.randomUUID();
+  // Log-correlation id. Named distinctly because the request body carries its
+  // own `requestId` (the reading's id), destructured inside the try block.
+  const logRequestId = crypto.randomUUID();
 
   try {
     // Authenticate user
-    const cookieHeader = request.headers.get('Cookie');
-    const token = getSessionFromCookie(cookieHeader);
-    const user = await validateSession(env.DB, token);
+    const user = await getUserFromRequest(request, env);
 
     if (!user) {
       return new Response(
@@ -533,7 +528,7 @@ export async function onRequestPost(context) {
       }
     );
   } catch (error) {
-    console.error(`[${requestId}] [journal] Save entry error:`, error);
+    console.error(`[${logRequestId}] [journal] Save entry error:`, error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

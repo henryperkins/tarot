@@ -10,7 +10,7 @@ The GPT's configuration has three layers; keep them in sync:
 |---|---|---|
 | **Instructions** | block below, pasted verbatim | Everything that must *always* hold: persona and voice, session flow, interpretation standards, presentation, ethics, and the Action contract rules that prevent live failures. Always in context. |
 | **Knowledge** | `gpt-knowledge-base.md` (this directory) | Deep reference retrieved on demand: full spread guide, reversal-framework selection logic, patterns, 78-card meanings, deck aliases, worked example. |
-| **Actions** | `tarot-reading-openapi.yaml` (repo root) | The machine contract: operations, schemas, enums. |
+| **Actions** | `tarot-reading-openapi.yaml` and `tarot-journal-actions.yaml` (repo root) | The machine contract: operations, schemas, enums. The journal schema is a second Action (see `chatgpt-gpt-actions-setup.md`); the block below does not yet route to it. |
 
 Instructions are the retrieval-independent layer — anything the GPT must
 never forget lives here, compressed; the knowledge file expands on it.

@@ -1,0 +1,502 @@
+openapi: 3.1.0
+info:
+  title: Tableu Journal API
+  description: >
+    Journal write operations for the Tableu tarot backend, designed for use as
+    a custom GPT Action alongside the reading schema
+    (`tarot-reading-openapi.yaml`). Saves a completed reading to the cloud
+    journal and adds reflections to a saved entry.
+
+    Every write lands in the journal of the account the bearer token
+    authenticates as. With the shared service token (`GPT_SERVICE_TOKEN`) that
+    is one shared service account, so this Action is for the owner's own
+    private GPT. A published GPT needs per-user auth before these operations
+    are exposed.
+  version: "1.0.0"
+servers:
+  - url: https://tarot.lakefrontdev.com
+    description: Production tarot backend
+security:
+  - bearerAuth: []
+paths:
+  /api/journal:
+    post:
+      operationId: saveJournalEntry
+      summary: Save a completed reading to the journal
+      description: >
+        Persists a reading (spread, cards, narrative, optional question and
+        reflections) as a journal entry, and returns its id for later
+        reflections. Call it once per reading, after the user says they want
+        it saved. Send the cards exactly as drawn, in spread order, using the
+        journal card shape (`name`, not `card`). Always send the canonical
+        `spreadKey`. Pass `sessionSeed` when you have one (the `seed` returned
+        by drawTarotReading); the backend deduplicates on it and answers with
+        the existing entry and `deduplicated: true` rather than saving twice.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveJournalEntryRequest"
+            examples:
+              threeCardSave:
+                summary: Save a backend-drawn three-card reading
+                value:
+                  spread: Three-Card Story (Past · Present · Future)
+                  spreadKey: threeCard
+                  question: How can I make peace with the year that just ended?
+                  cards:
+                    - position: Past
+                      name: The Hermit
+                      orientation: Upright
+                      number: 9
+                    - position: Present
+                      name: Three of Cups
+                      orientation: Reversed
+                      suit: Cups
+                      rank: Three
+                      rankValue: 3
+                    - position: Future
+                      name: The Star
+                      orientation: Upright
+                      number: 17
+                  personalReading: The Hermit in the Past names a season of chosen solitude...
+                  context: self
+                  provider: openai-native
+                  sessionSeed: ritual-2026-05-23-knocks-3-cut-mid
+                  deckId: rws-1909
+                  requestId: 5c1b0d2e-7d1a-4c3e-9b2a-0f6e2a1c9d44
+      responses:
+        "201":
+          description: Entry saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveJournalEntryResponse"
+        "200":
+          description: >
+            An entry with the same `sessionSeed` already existed; its id is
+            returned and `deduplicated` is true. Nothing new was written.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveJournalEntryResponse"
+        "400":
+          description: Missing `spread`, `spreadKey`, or `cards`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized. Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: The account is not entitled to the cloud journal (Plus or Pro required).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/journal/{id}/reflections:
+    post:
+      operationId: addJournalReflection
+      summary: Add a reflection to a saved journal entry
+      description: >
+        Records what the user said about one card, or about the reading as a
+        whole, on an entry previously returned by saveJournalEntry. Name the
+        card by `card` and/or `position` exactly as they were saved; the
+        backend resolves which card is meant and rejects a card that is not in
+        the entry, listing the entry's cards so you can correct the call once.
+        Omit card fields (or set `scope` to `reading`) for a note about the
+        whole reading. By default the note is appended to any reflection
+        already on that card; set `mode` to `replace` only when the user asks
+        to rewrite it.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Journal entry id, as returned in `entry.id` by saveJournalEntry.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddJournalReflectionRequest"
+            examples:
+              cardReflection:
+                summary: Reflection on one card
+                value:
+                  text: Six months alone, and I chose every one of them.
+                  scope: card
+                  card: The Hermit
+                  position: Past
+              readingReflection:
+                summary: Reflection on the whole reading
+                value:
+                  text: The whole spread felt gentler than I expected.
+                  scope: reading
+      responses:
+        "200":
+          description: Reflection stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddJournalReflectionResponse"
+        "400":
+          description: >
+            Blank or over-long text, an unknown `scope`/`mode`, or a card that
+            could not be matched to the entry. For card errors the response
+            lists the entry's cards (`index`, `position`, `name`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReflectionErrorResponse"
+        "401":
+          description: Unauthorized. Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not entitled to the cloud journal, or the entry belongs to another account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No entry with that id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+      description: >
+        Bearer token. Either a per-user API key (`sk_...`, Pro-only) or the
+        configured service token (`GPT_SERVICE_TOKEN`), which authenticates as a
+        Plus-or-higher service account. Send as `Authorization: Bearer <token>`.
+  schemas:
+    SaveJournalEntryRequest:
+      type: object
+      required:
+        - spread
+        - spreadKey
+        - cards
+      additionalProperties: false
+      properties:
+        spread:
+          type: string
+          description: Display name of the spread as shown to the user.
+          examples:
+            - Three-Card Story (Past · Present · Future)
+            - Celtic Cross
+        spreadKey:
+          type: string
+          description: Canonical spread identifier. Stored verbatim and used to group history, so it must be one of these.
+          enum:
+            - single
+            - threeCard
+            - fiveCard
+            - decision
+            - relationship
+            - celtic
+        question:
+          type: string
+          description: The question the user brought to the reading, if any.
+        cards:
+          type: array
+          description: Cards in spread order, in the journal card shape.
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/JournalCard"
+        personalReading:
+          type: string
+          description: The narrative returned by the reading Action (`reading`), verbatim.
+        themes:
+          description: The `themes` object from the reading response, when present.
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        reflections:
+          type: object
+          description: >
+            Reflections already gathered, as a flat map of note text keyed by
+            the card's 0-based index as a string ("0", "1", ...) or "Overall"
+            for the reading as a whole. Prefer addJournalReflection for notes
+            given after the save.
+          additionalProperties:
+            type: string
+          examples:
+            - "0": Six months alone, and I chose every one of them.
+              Overall: Gentler than expected.
+        context:
+          type: string
+          description: >
+            Life-area taxonomy the journal filters on. Anything outside this
+            list is stored as no context.
+          enum:
+            - love
+            - career
+            - self
+            - spiritual
+            - wellbeing
+            - decision
+            - general
+        provider:
+          type: string
+          description: The `provider` value from the reading response.
+          examples:
+            - openai-native
+            - azure-gpt5
+            - local-composer
+        sessionSeed:
+          type: string
+          description: >
+            Deduplication key. Use the `seed` returned by drawTarotReading, or
+            any stable id for this reading. Repeating a save with the same
+            seed returns the existing entry instead of creating another.
+        deckId:
+          type: string
+          description: Deck style used for the reading.
+          examples:
+            - rws-1909
+            - thoth-a1
+            - marseille-classic
+        requestId:
+          type: string
+          description: The `requestId` from the reading response, for tracing.
+    JournalCard:
+      type: object
+      required:
+        - position
+        - name
+        - orientation
+      additionalProperties: false
+      description: >
+        The journal's card shape. `name` (not `card`) is required; entries
+        saved with `card` instead are invisible to archetype tracking.
+      properties:
+        position:
+          type: string
+          description: Position label, exactly as the spread names it.
+          examples:
+            - Past
+            - Present
+            - Future
+        name:
+          type: string
+          description: Card name.
+          examples:
+            - The Hermit
+            - Three of Cups
+        orientation:
+          type: string
+          description: Card orientation, capitalized as the app stores it.
+          enum:
+            - Upright
+            - Reversed
+        number:
+          type: integer
+          minimum: 0
+          maximum: 21
+          description: Major Arcana number (0 for The Fool through 21 for The World). Omit for Minor Arcana.
+        suit:
+          type: string
+          description: Minor Arcana suit. Omit for Major Arcana.
+          enum:
+            - Wands
+            - Cups
+            - Swords
+            - Pentacles
+        rank:
+          type: string
+          description: Minor Arcana rank name. Omit for Major Arcana.
+          examples:
+            - Ace
+            - Three
+            - Queen
+        rankValue:
+          type: integer
+          minimum: 1
+          maximum: 14
+          description: Minor Arcana rank as a number (Ace = 1 through King = 14). Omit for Major Arcana.
+    SaveJournalEntryResponse:
+      type: object
+      required:
+        - success
+        - entry
+      additionalProperties: true
+      properties:
+        success:
+          type: boolean
+        entry:
+          type: object
+          required:
+            - id
+          properties:
+            id:
+              type: string
+              description: Journal entry id. Keep it for addJournalReflection.
+            ts:
+              type: integer
+              description: Entry timestamp in milliseconds since the Unix epoch.
+        deduplicated:
+          type: boolean
+          description: True when an entry with the same `sessionSeed` already existed and was returned instead.
+    AddJournalReflectionRequest:
+      type: object
+      required:
+        - text
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: The reflection, in the user's words. At most 500 characters, like the app's own reflection fields.
+        scope:
+          type: string
+          description: >
+            `card` for a note about one card, `reading` for a note about the
+            whole reading. Defaults to `card` when `card`, `position`, or
+            `cardIndex` is given, otherwise `reading`.
+          enum:
+            - card
+            - reading
+        card:
+          type: string
+          description: Name of the card the note is about, as saved in the entry. Case-insensitive.
+          examples:
+            - The Hermit
+        position:
+          type: string
+          description: Position of the card the note is about, as saved in the entry. Case-insensitive.
+          examples:
+            - Past
+        cardIndex:
+          type: integer
+          minimum: 0
+          description: 0-based index of the card in the entry, as an alternative to `card`/`position`.
+        mode:
+          type: string
+          description: >
+            `append` (default) adds the note after any existing reflection on
+            the same card or reading; `replace` overwrites it.
+          enum:
+            - append
+            - replace
+          default: append
+    AddJournalReflectionResponse:
+      type: object
+      required:
+        - success
+        - entry
+        - reflection
+        - reflections
+      additionalProperties: true
+      properties:
+        success:
+          type: boolean
+        entry:
+          type: object
+          properties:
+            id:
+              type: string
+        reflection:
+          type: object
+          description: The reflection as stored, after any append.
+          properties:
+            key:
+              type: string
+              description: Storage key, the card index as a string or "Overall".
+            scope:
+              type: string
+              enum:
+                - card
+                - reading
+            cardIndex:
+              type: integer
+              description: Resolved 0-based card index. Present for card-scoped notes.
+            card:
+              type: string
+              description: Resolved card name. Present for card-scoped notes.
+            position:
+              type: string
+              description: Resolved position label. Present for card-scoped notes.
+            text:
+              type: string
+              description: Full stored text for this key.
+        reflections:
+          type: object
+          description: The entry's complete reflections map after the write.
+          additionalProperties:
+            type: string
+    ReflectionErrorResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        error:
+          type: string
+          description: What was wrong with the request.
+        maxLength:
+          type: integer
+          description: Present when the text was too long; the allowed maximum.
+        cards:
+          type: array
+          description: Present when the card could not be matched; the entry's cards in order.
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              position:
+                type: string
+              name:
+                type: string
+    ErrorResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        error:
+          type: string
+          description: Error message.
+        message:
+          type: string
+          description: Human-readable error message.
+        code:
+          type: string
+          description: Machine-readable error code.
+        requestId:
+          type: string
+          description: Request identifier for debugging.
+        tierLimited:
+          type: boolean
+          description: Present on 403 when the account's subscription tier is the reason.
+        requiredTier:
+          type: string
+          description: Tier needed for the operation, when `tierLimited` is true.

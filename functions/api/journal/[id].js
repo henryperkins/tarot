@@ -4,10 +4,7 @@
  * DELETE /api/journal/[id] - Delete a specific journal entry
  */
 
-import {
-  validateSession,
-  getSessionFromCookie
-} from '../../lib/auth.js';
+import { getUserFromRequest } from '../../lib/auth.js';
 import { buildTierLimitedPayload, isEntitled } from '../../lib/entitlements.js';
 import { safeJsonParse } from '../../lib/utils.js';
 import { deleteFollowUpsByEntry, loadFollowUpsByEntry } from '../../lib/journalFollowups.js';
@@ -26,9 +23,7 @@ export async function onRequestGet(context) {
   const requestId = crypto.randomUUID();
 
   try {
-    const cookieHeader = request.headers.get('Cookie');
-    const token = getSessionFromCookie(cookieHeader);
-    const user = await validateSession(env.DB, token);
+    const user = await getUserFromRequest(request, env);
 
     if (!user) {
       return new Response(
@@ -207,9 +202,7 @@ export async function onRequestDelete(context) {
 
   try {
     // Authenticate user
-    const cookieHeader = request.headers.get('Cookie');
-    const token = getSessionFromCookie(cookieHeader);
-    const user = await validateSession(env.DB, token);
+    const user = await getUserFromRequest(request, env);
 
     if (!user) {
       return new Response(
