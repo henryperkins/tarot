@@ -49,7 +49,9 @@ export function getCardImage(card) {
 export function getCanonicalCard(card) {
   if (!card) return null;
   
-  const name = typeof card === 'string' ? card : card.name;
+  // Deck aliases can collide with a different canonical card (Thoth's Knight
+  // is the RWS King). Preserve the display name while using explicit identity.
+  const name = typeof card === 'string' ? card : card.canonicalName || card.canonicalKey || card.name;
   if (!name) return null;
   
   // Try various normalizations

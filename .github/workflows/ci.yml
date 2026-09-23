@@ -31,6 +31,12 @@ jobs:
       - name: Run unit tests
         run: npm test
 
+      - name: Install MCP adapter dependencies
+        run: npm ci --prefix mcp/tableau-adapter
+
+      - name: Test private MCP adapter
+        run: npm test --prefix mcp/tableau-adapter
+
       - name: Run deploy script tests
         run: npm run test:deploy
 

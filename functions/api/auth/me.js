@@ -5,29 +5,16 @@
  * Returns the currently authenticated user's information
  */
 
-import {
-  validateSession,
-  getSessionFromCookie
-} from '../../lib/auth.js';
+import { getUserFromRequest } from '../../lib/auth.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
   const requestId = crypto.randomUUID();
 
   try {
-    // Get session token from cookie
-    const cookieHeader = request.headers.get('Cookie');
-    const token = getSessionFromCookie(cookieHeader);
-
-    if (!token) {
-      return new Response(
-        JSON.stringify({ error: 'Not authenticated' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Validate session and get user
-    const user = await validateSession(env.DB, token);
+    // Use the same identity resolver as journal writes so integrations can
+    // compare their bearer identity with the signed-in app account.
+    const user = await getUserFromRequest(request, env);
 
     if (!user) {
       return new Response(
@@ -55,7 +42,7 @@ export async function onRequestGet(context) {
       }),
       {
         status: 200,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
       }
     );
   } catch (error) {

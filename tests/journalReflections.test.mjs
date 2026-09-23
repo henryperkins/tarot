@@ -138,11 +138,11 @@ describe('POST /api/journal/:id/reflections', () => {
     assert.equal(payload.error, 'Entry not found');
   });
 
-  it('returns 403 when the entry belongs to another user', async () => {
+  it('returns 404 when the entry belongs to another user', async () => {
     const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture({ user_id: 'someone-else' }) });
     const { response } = await post({ text: 'note' }, { db });
 
-    assert.equal(response.status, 403);
+    assert.equal(response.status, 404);
     assert.equal(db.updates.length, 0);
   });
 
@@ -155,12 +155,12 @@ describe('POST /api/journal/:id/reflections', () => {
     assert.equal(db.updates.length, 0);
   });
 
-  it('rejects reflection text longer than the app allows (500 chars)', async () => {
+  it('rejects reflection text longer than the audited contract (2000 chars)', async () => {
     const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
-    const { response, payload } = await post({ text: 'x'.repeat(501), card: 'The Hermit' }, { db });
+    const { response, payload } = await post({ text: 'x'.repeat(2001), card: 'The Hermit' }, { db });
 
     assert.equal(response.status, 400);
-    assert.equal(payload.maxLength, 500);
+    assert.equal(payload.maxLength, 2000);
     assert.equal(db.updates.length, 0);
   });
 
