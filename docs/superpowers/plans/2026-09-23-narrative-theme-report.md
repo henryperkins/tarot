@@ -66,4 +66,3 @@ No full suite or build was run by this agent concurrently with integration. The 
 - [Light 320px, 200% text](../../../output/narrative-remediation/theme/light-reference-320-200percent.png)
 
 The narrow component captures retain the application's fixed navigation/action bars. Their overlap in a tall element screenshot is not used as evidence that every row fits simultaneously in the viewport; the reading remains vertically scrollable.
-
