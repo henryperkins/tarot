@@ -220,9 +220,11 @@ props. The MCP handler then does five things:
    `sessionIdGenerator: undefined` and `enableJsonResponse: true`. This is
    stateless, so no sessions live in isolate memory. GET and DELETE return 405.
 
-Tool-level auth failures, such as a user deactivated mid-session, return
-`isError` results carrying `_meta["mcp/www_authenticate"]`, as the docs
-require.
+Every request is authenticated before any tool runs, so every auth failure,
+including an account deactivated between calls, is an HTTP 401 or 403 with
+`WWW-Authenticate`, which prompts ChatGPT to re-link. There is no tool-level
+auth failure path, so no tool result carries `_meta["mcp/www_authenticate"]`.
+That field only matters for servers that let some tools run anonymously.
 
 ### 5.4 Identity (step 3)
 
@@ -262,8 +264,10 @@ describe the order of use:
 
 All tools share these settings:
 - `openWorldHint: false`;
-- `securitySchemes: [{ type: "oauth2", scopes: ["tableu"] }]`, mirrored in
-  `_meta.securitySchemes`;
+- `_meta.securitySchemes: [{ type: "oauth2", scopes: ["tableu"] }]`. The SDK
+  passes custom descriptor fields only through `_meta`, which OpenAI documents
+  as the back-compatible mirror. Every tool also inherits the server-wide OAuth
+  requirement, because `/mcp` answers 401 before any MCP request runs;
 - an `outputSchema`, as the docs ask for any tool that returns
   `structuredContent`.
 
@@ -646,7 +650,7 @@ Each tool's `content` text states the outcome outright. Failures set
 | Input fails validation | Zod field errors; one corrected retry is appropriate |
 | Unknown or someone else's entry or job; wrong job token | Identical "not found" (no existence oracle) |
 | Tier or quota limit (403, 429) | Backend message plus `requiredTier`; the text says not to retry |
-| User deactivated or removed from the allowlist | Refused before any tool runs: HTTP 401 with `WWW-Authenticate` (§5.3), which prompts ChatGPT to re-link. An auth failure that surfaces inside a tool call carries `_meta["mcp/www_authenticate"]`. |
+| User deactivated or removed from the allowlist | Refused before any tool runs: HTTP 401 with `WWW-Authenticate` (§5.3), which prompts ChatGPT to re-link. |
 | Access token lacks the `tableu` scope | HTTP 403 `insufficient_scope` before any tool runs (§5.3) |
 | Payload `requestId` already holds a different reading | "Not saved: your journal already holds a different reading under this request ID"; nothing is written |
 | A card label is unknown, or contradicts its metadata | "Not saved" or "Not started", with the card's index; nothing is written |
