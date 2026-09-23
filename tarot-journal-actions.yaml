@@ -8,10 +8,11 @@ info:
     journal and adds reflections to a saved entry.
 
     Every write lands in the journal of the account the bearer token
-    authenticates as. With the shared service token (`GPT_SERVICE_TOKEN`) that
-    is one shared service account, so this Action is for the owner's own
-    private GPT. A published GPT needs per-user auth before these operations
-    are exposed.
+    authenticates as: a per-user API key (`sk_...`) or a bearer session token.
+    The shared GPT service token is refused with 403
+    `service_account_journal_forbidden`, because its synthetic account can
+    never sign in to the app. The ChatGPT plugin uses the MCP endpoint instead
+    (docs/integrations/openai/chatgpt-mcp.md).
   version: "1.0.0"
 servers:
   - url: https://tarot.lakefrontdev.com
@@ -21,7 +22,7 @@ security:
 paths:
   /api/journal:
     post:
-      operationId: saveJournalEntry
+      operationId: saveReadingToJournal
       summary: Save a completed reading to the journal
       description: >
         Persists a reading (spread, cards, narrative, optional question and
@@ -96,7 +97,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: The account is not entitled to the cloud journal (Plus or Pro required).
+          description: "The account is not entitled to the cloud journal (Plus or Pro required), or it is the shared GPT service account (`code: service_account_journal_forbidden`)."
           content:
             application/json:
               schema:
@@ -109,25 +110,24 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
   /api/journal/{id}/reflections:
     post:
-      operationId: addJournalReflection
+      operationId: addReflectionToJournalEntry
       summary: Add a reflection to a saved journal entry
       description: >
         Records what the user said about one card, or about the reading as a
-        whole, on an entry previously returned by saveJournalEntry. Name the
+        whole, on an entry previously returned by saveReadingToJournal. Name the
         card by `card` and/or `position` exactly as they were saved; the
         backend resolves which card is meant and rejects a card that is not in
         the entry, listing the entry's cards so you can correct the call once.
         Omit card fields (or set `scope` to `reading`) for a note about the
-        whole reading. By default the note is appended to any reflection
-        already on that card; set `mode` to `replace` only when the user asks
-        to rewrite it.
+        whole reading. Notes are appended, never replaced, and the same note
+        is never added twice, so one retry after an unclear failure is safe.
       security:
         - bearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
-          description: Journal entry id, as returned in `entry.id` by saveJournalEntry.
+          description: Journal entry id, as returned in `entry.id` by saveReadingToJournal.
           schema:
             type: string
       requestBody:
@@ -158,7 +158,7 @@ paths:
                 $ref: "#/components/schemas/AddJournalReflectionResponse"
         "400":
           description: >
-            Blank or over-long text, an unknown `scope`/`mode`, or a card that
+            Blank or over-long text, an unknown `scope`, a `mode` field (reflections are append-only), or a card that
             could not be matched to the entry. For card errors the response
             lists the entry's cards (`index`, `position`, `name`).
           content:
@@ -172,13 +172,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Not entitled to the cloud journal, or the entry belongs to another account.
+          description: "Not entitled to the cloud journal, or authenticated as the shared GPT service account (`code: service_account_journal_forbidden`)."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
-          description: No entry with that id.
+          description: No entry with that id for this account. Another account's entry gets the same 404.
           content:
             application/json:
               schema:
@@ -196,9 +196,9 @@ components:
       scheme: bearer
       bearerFormat: API Key
       description: >
-        Bearer token. Either a per-user API key (`sk_...`, Pro-only) or the
-        configured service token (`GPT_SERVICE_TOKEN`), which authenticates as a
-        Plus-or-higher service account. Send as `Authorization: Bearer <token>`.
+        Bearer token: a per-user API key (`sk_...`, Pro-only) or a session
+        token. The shared service token (`GPT_SERVICE_TOKEN`) is refused by
+        the journal routes. Send as `Authorization: Bearer <token>`.
   schemas:
     SaveJournalEntryRequest:
       type: object
@@ -247,7 +247,7 @@ components:
           description: >
             Reflections already gathered, as a flat map of note text keyed by
             the card's 0-based index as a string ("0", "1", ...) or "Overall"
-            for the reading as a whole. Prefer addJournalReflection for notes
+            for the reading as a whole. Prefer addReflectionToJournalEntry for notes
             given after the save.
           additionalProperties:
             type: string
@@ -361,7 +361,7 @@ components:
           properties:
             id:
               type: string
-              description: Journal entry id. Keep it for addJournalReflection.
+              description: Journal entry id. Keep it for addReflectionToJournalEntry.
             ts:
               type: integer
               description: Entry timestamp in milliseconds since the Unix epoch.
@@ -377,8 +377,8 @@ components:
         text:
           type: string
           minLength: 1
-          maxLength: 500
-          description: The reflection, in the user's words. At most 500 characters, like the app's own reflection fields.
+          maxLength: 2000
+          description: The reflection, in the user's words. At most 2,000 characters. Outer whitespace is trimmed and Windows line endings become newlines.
         scope:
           type: string
           description: >
@@ -402,31 +402,27 @@ components:
           type: integer
           minimum: 0
           description: 0-based index of the card in the entry, as an alternative to `card`/`position`.
-        mode:
-          type: string
-          description: >
-            `append` (default) adds the note after any existing reflection on
-            the same card or reading; `replace` overwrites it.
-          enum:
-            - append
-            - replace
-          default: append
     AddJournalReflectionResponse:
       type: object
       required:
         - success
-        - entry
+        - entryId
+        - key
         - reflection
         - reflections
       additionalProperties: true
       properties:
         success:
           type: boolean
-        entry:
-          type: object
-          properties:
-            id:
-              type: string
+        entryId:
+          type: string
+          description: The entry the reflection was added to.
+        key:
+          type: string
+          description: Storage key, the card index as a string or "Overall".
+        alreadyPresent:
+          type: boolean
+          description: True when this exact note was already on the target; nothing was written.
         reflection:
           type: object
           description: The reflection as stored, after any append.
@@ -478,6 +474,9 @@ components:
                 type: string
               name:
                 type: string
+              label:
+                type: string
+                description: The card's name in the entry's deck, when that deck is not RWS.
     ErrorResponse:
       type: object
       additionalProperties: true
