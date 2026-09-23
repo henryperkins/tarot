@@ -101,3 +101,37 @@ test('startup fails closed without owner access authentication or matching backe
     assert.equal(result.exited, true);
   }
 });
+
+function initialize(url, authorization) {
+  return fetch(`${url}/mcp`, {
+    method: 'POST',
+    headers: { Authorization: authorization, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'probe', version: '1.0.0' } } })
+  });
+}
+
+test('an expired or revoked OAuth token gets 401 invalid_token so clients reauthorize', async t => {
+  const { url } = await adapter(t, { OAUTH_ENABLED: 'true' });
+  const response = await initialize(url, 'Bearer inactive');
+  assert.equal(response.status, 401);
+  assert.match(response.headers.get('www-authenticate'), /invalid_token/);
+});
+
+test('owner secrets tolerate a trailing newline and the scheme is case-insensitive', async t => {
+  const bearer = await adapter(t, { ADAPTER_OWNER_TOKEN: `${OWNER_TOKEN}\n` });
+  assert.equal((await initialize(bearer.url, `bearer ${OWNER_TOKEN}`)).status, 200);
+  const oauth = await adapter(t, { OAUTH_ENABLED: 'true', OAUTH_OWNER_SUBJECT: 'owner-subject\n' });
+  assert.equal((await initialize(oauth.url, 'Bearer owner')).status, 200);
+});
+
+test('status reports that a loopback bind accepts only localhost Host headers', async t => {
+  const { url } = await adapter(t, { ADAPTER_ALLOWED_HOSTS: '' });
+  assert.equal((await (await fetch(url)).json()).allowedHosts, 'localhost only');
+});
+
+test('SIGTERM shuts the adapter down cleanly', { skip: process.platform === 'win32' && 'Windows cannot deliver SIGTERM to a child process' }, async t => {
+  const { proc } = await adapter(t);
+  proc.kill('SIGTERM');
+  const [code] = await once(proc, 'exit');
+  assert.equal(code, 0);
+});
