@@ -1,5 +1,10 @@
 # Unmerged Work Preservation and Integration Implementation Plan
 
+> Execution status: this is the preserved planning snapshot. See
+> [the local integration checkpoint](2026-09-23-unmerged-work-integration-status.md)
+> for actual candidates, checks, blockers and deferrals. Publication/release and
+> cleanup remain pending; the initial baseline is not a claim about current state.
+
 > **For agentic workers:** Use `superpowers:executing-plans` for sequential execution. Use `superpowers:using-git-worktrees` before creating the verification or guidance worktrees. Steps use checkbox syntax. Do not dispatch agents unless the execution instruction explicitly chooses that method.
 
 **Goal:** Preserve every outstanding workstream, integrate narrative remediation first, reconcile the Worker MCP migration, evaluate Midnight Reading Room, refresh dependency updates, and remove only proven redundant Git state.
