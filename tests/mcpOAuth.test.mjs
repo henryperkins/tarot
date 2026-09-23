@@ -192,6 +192,7 @@ describe('linking the owner', () => {
     assert.match(await response.text(), /Sign in to Tableu to continue/);
     assert.equal(response.headers.get('set-cookie'), null);
     assert.equal(response.headers.get('x-frame-options'), 'DENY');
+    assert.equal(response.headers.get('referrer-policy'), 'same-origin');
     assert.equal(response.headers.get('cache-control'), 'no-store');
   });
 

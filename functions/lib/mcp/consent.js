@@ -19,7 +19,9 @@ const PAGE_HEADERS = Object.freeze({
   'Content-Type': 'text/html; charset=utf-8',
   'Cache-Control': 'no-store',
   'X-Frame-Options': 'DENY',
-  'Referrer-Policy': 'no-referrer',
+  // Same-origin forms need a real Origin header in Chromium. This policy
+  // still withholds the referrer when OAuth redirects to another origin.
+  'Referrer-Policy': 'same-origin',
   // form-action is deliberately omitted: Chromium applies it to the redirect
   // that follows the form POST, which would block the hop back to the client.
   'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'"
