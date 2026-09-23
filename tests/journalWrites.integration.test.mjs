@@ -67,3 +67,16 @@ test('reflections preserve 2000 characters verbatim, resolve duplicate names and
   const denied = await read({ request: apiRequest(`/api/journal/${entry.id}`, undefined, OTHER_KEY), env: env(), params: { id: entry.id } });
   assert.equal(denied.status, 404);
 });
+
+test('a note on every card of a full spread lands even when all are sent at once', async () => {
+  const { entry } = await (await saveReading({ ...SAVED_READING, sessionSeed: 'parallel-notes' })).json();
+  const targets = [
+    ...['Past', 'Present', 'Future'].flatMap(position => Array.from({ length: 3 }, () => ({ scope: 'card', position }))),
+    { scope: 'reading' }, { scope: 'reading' }
+  ];
+  const responses = await Promise.all(targets.map((target, index) => reflection(entry.id, { ...target, text: `note ${index}` })));
+  assert.deepEqual(responses.map(r => r.status), targets.map(() => 200));
+  const row = await fixture.db.prepare('SELECT reflections_json FROM journal_entries WHERE id = ?').bind(entry.id).first();
+  const stored = Object.values(JSON.parse(row.reflections_json)).join('\n\n');
+  for (const index of targets.keys()) assert.match(stored, new RegExp(`\\bnote ${index}\\b`));
+});

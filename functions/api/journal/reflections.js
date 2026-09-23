@@ -53,10 +53,21 @@ function normalizeCardName(value) {
 }
 
 // Journal cards carry `name`; tolerate the reading API's `card` for entries
-// forwarded verbatim from cardsInfo.
+// forwarded verbatim from cardsInfo. A saved deck display name labels the card.
 function cardName(card) {
-  return card?.name || card?.card || '';
+  return card?.displayName || card?.name || card?.card || '';
 }
+
+// Callers may name a card by its canonical name or by the deck's display name.
+function cardNames(card) {
+  return [card?.name, card?.card, card?.displayName, card?.canonicalName]
+    .filter((name) => typeof name === 'string' && name);
+}
+
+// A failed compare-and-swap means another writer succeeded, so N simultaneous
+// appends to one entry all land within N attempts. This covers every note on
+// the largest spread (10 cards plus Overall) with room to spare.
+const MAX_APPEND_ATTEMPTS = 32;
 
 function summarizeCards(cards) {
   return cards.map((card, index) => ({
@@ -76,7 +87,8 @@ function summarizeCards(cards) {
 export function resolveCardIndex(cards, { card, position, cardIndex } = {}) {
   const wantedName = normalizeCardName(card);
   const wantedPosition = normalizeLabel(position);
-  const nameMatches = (candidate) => !wantedName || normalizeCardName(cardName(candidate)) === wantedName;
+  const nameMatches = (candidate) => !wantedName
+    || cardNames(candidate).some((name) => normalizeCardName(name) === wantedName);
   const positionMatches = (candidate) => !wantedPosition || normalizeLabel(candidate?.position) === wantedPosition;
   const describe = (candidate) => `${cardName(candidate) || 'an unnamed card'} (${candidate?.position || 'no position'})`;
 
@@ -210,7 +222,7 @@ export async function onRequestPost(context) {
 
     // Compare-and-swap the entire map to preserve simultaneous notes on any
     // target. Retry only a known zero-change conflict, never an uncertain write.
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < MAX_APPEND_ATTEMPTS; attempt += 1) {
       const parsedReflections = safeJsonParse(entry.reflections_json, {});
       const reflections =
         parsedReflections && typeof parsedReflections === 'object' && !Array.isArray(parsedReflections)
