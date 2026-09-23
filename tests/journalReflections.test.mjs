@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { onRequestPost } from '../functions/api/journal/reflections.js';
+import { onRequestPost, resolveCardIndex } from '../functions/api/journal/reflections.js';
 
 // Realistic long random token (>= MIN_SERVICE_TOKEN_LENGTH chars, no sk_ prefix).
 const SERVICE_TOKEN = 'svc_reflections_0123456789abcdef0123456789abcdef';
@@ -138,11 +138,11 @@ describe('POST /api/journal/:id/reflections', () => {
     assert.equal(payload.error, 'Entry not found');
   });
 
-  it('returns 403 when the entry belongs to another user', async () => {
+  it('returns 404 when the entry belongs to another user', async () => {
     const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture({ user_id: 'someone-else' }) });
     const { response } = await post({ text: 'note' }, { db });
 
-    assert.equal(response.status, 403);
+    assert.equal(response.status, 404);
     assert.equal(db.updates.length, 0);
   });
 
@@ -155,12 +155,12 @@ describe('POST /api/journal/:id/reflections', () => {
     assert.equal(db.updates.length, 0);
   });
 
-  it('rejects reflection text longer than the app allows (500 chars)', async () => {
+  it('rejects reflection text longer than the audited contract (2000 chars)', async () => {
     const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
-    const { response, payload } = await post({ text: 'x'.repeat(501), card: 'The Hermit' }, { db });
+    const { response, payload } = await post({ text: 'x'.repeat(2001), card: 'The Hermit' }, { db });
 
     assert.equal(response.status, 400);
-    assert.equal(payload.maxLength, 500);
+    assert.equal(payload.maxLength, 2000);
     assert.equal(db.updates.length, 0);
   });
 
@@ -340,5 +340,23 @@ describe('POST /api/journal/:id/reflections', () => {
       ([, note]) => typeof note === 'string' && note.trim()
     );
     assert.deepEqual(rendered, [['0', 'visible in the app']]);
+  });
+});
+
+describe('resolveCardIndex with deck display names', () => {
+  // Thoth shows the canonical Knight as Prince and the canonical King as Knight.
+  const thoth = [
+    { position: 'Past', name: 'Knight of Cups', displayName: 'Prince of Cups', canonicalName: 'Knight of Cups' },
+    { position: 'Future', name: 'King of Cups', displayName: 'Knight of Cups', canonicalName: 'King of Cups' }
+  ];
+
+  it('resolves the name the reading showed as well as the canonical name', () => {
+    assert.deepEqual(resolveCardIndex(thoth, { card: 'Prince of Cups' }), { index: 0 });
+    assert.deepEqual(resolveCardIndex(thoth, { card: 'King of Cups' }), { index: 1 });
+  });
+
+  it('asks for a position when a display name is another card\'s canonical name', () => {
+    assert.match(resolveCardIndex(thoth, { card: 'Knight of Cups' }).error, /more than once/);
+    assert.deepEqual(resolveCardIndex(thoth, { card: 'Knight of Cups', position: 'Future' }), { index: 1 });
   });
 });

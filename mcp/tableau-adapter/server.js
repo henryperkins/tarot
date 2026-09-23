@@ -1,7 +1,7 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
 import * as z from 'zod/v4';
-import { jwtVerify, createRemoteJWKSet } from 'jose';
+import { jwtVerify, createRemoteJWKSet, errors as joseErrors } from 'jose';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
@@ -10,18 +10,29 @@ import {
   mcpAuthMetadataRouter,
 } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
+import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { checkResourceAllowed } from '@modelcontextprotocol/sdk/shared/auth-utils.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import { createBackendClient } from './backend.js';
+import { registerJournalTools } from './journal-tools.js';
 
 dotenv.config();
 
 const PORT = Number.parseInt(process.env.PORT || '3334', 10);
 const TABLEAU_BASE_URL = (process.env.TABLEAU_BASE_URL || '').replace(/\/+$/, '');
 const TABLEAU_API_KEY = process.env.TABLEAU_API_KEY || '';
-const ADAPTER_BIND_HOST = process.env.ADAPTER_BIND_HOST || '0.0.0.0';
+const ADAPTER_BIND_HOST = process.env.ADAPTER_BIND_HOST || '127.0.0.1';
 const ADAPTER_ALLOWED_HOSTS = parseCsv(process.env.ADAPTER_ALLOWED_HOSTS);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 const OAUTH_ENABLED = process.env.OAUTH_ENABLED === 'true';
+// Secret stores often append a newline; compare what the operator meant.
+const OWNER_TOKEN = (process.env.ADAPTER_OWNER_TOKEN || '').trim();
+const OWNER_SUBJECT = (process.env.OAUTH_OWNER_SUBJECT || '').trim();
+const LOOPBACK_HOSTS = ['localhost', '127.0.0.1', '::1'];
+// Key-set retrieval problems are server faults. Anything else jose rejects is
+// a bad token and must be a 401, the only status that makes clients reauthorize.
+const JWKS_SERVER_ERRORS = new Set(['ERR_JWKS_INVALID', 'ERR_JWKS_MULTIPLE_MATCHING_KEYS', 'ERR_JWKS_TIMEOUT', 'ERR_JWK_INVALID']);
+const INVALID_TOKEN_MESSAGE = 'The access token is invalid or expired.';
 
 if (!TABLEAU_BASE_URL || !TABLEAU_API_KEY) {
   console.error('Missing required env vars: TABLEAU_BASE_URL and TABLEAU_API_KEY');
@@ -38,6 +49,10 @@ const app = createMcpExpressApp({
  * Keyed by MCP session id.
  */
 const sessions = new Map();
+const backend = createBackendClient({
+  baseUrl: TABLEAU_BASE_URL, apiKey: TABLEAU_API_KEY,
+  ownerUserId: process.env.TABLEAU_OWNER_USER_ID
+});
 
 function parseCsv(value) {
   if (!value) {
@@ -193,31 +208,7 @@ async function loadOAuthMetadata() {
 }
 
 async function callTableau(path, init = {}) {
-  const response = await fetch(`${TABLEAU_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${TABLEAU_API_KEY}`,
-      ...(init.headers || {}),
-    },
-  });
-
-  const raw = await response.text();
-  let parsed = {};
-  if (raw) {
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      parsed = { raw };
-    }
-  }
-
-  if (!response.ok) {
-    const message = parsed?.error || `${response.status} ${response.statusText}`;
-    throw new Error(`Tableau backend error (${response.status}): ${message}`);
-  }
-
-  return parsed;
+  return backend.call(path, init);
 }
 
 const spreadInfoSchema = z.object({
@@ -259,7 +250,7 @@ function createServer() {
   const server = new McpServer(
     {
       name: 'tableau-tarot-reading-adapter',
-      version: '1.1.0',
+      version: '1.2.0',
     },
     { capabilities: { logging: {} } }
   );
@@ -375,6 +366,7 @@ function createServer() {
     }
   );
 
+  registerJournalTools(server, backend);
   return server;
 }
 
@@ -410,6 +402,10 @@ async function setupAuth() {
     );
   }
 
+  // One key set for the process, so jose can cache keys between requests.
+  const jwksUri = process.env.OAUTH_JWKS_URI || oauthMetadata?.jwks_uri;
+  const jwks = jwksUri ? createRemoteJWKSet(new URL(jwksUri)) : null;
+
   const tokenVerifier = introspectionEndpoint
     ? {
         verifyAccessToken: async (token) => {
@@ -440,13 +436,13 @@ async function setupAuth() {
           }
 
           const payload = await response.json();
-          if (payload.active === false) {
-            throw new Error('Token is inactive.');
+          if (payload.active !== true) {
+            throw new InvalidTokenError(INVALID_TOKEN_MESSAGE);
           }
 
           const tokenAudiences = parseAudiences(payload.aud);
           if (!isAudienceAllowed({ tokenAudiences, expectedAudience })) {
-            throw new Error(`Token audience mismatch. Expected: ${expectedAudience}; got: ${tokenAudiences.join(', ')}`);
+            throw new InvalidTokenError(INVALID_TOKEN_MESSAGE);
           }
 
           return {
@@ -455,24 +451,31 @@ async function setupAuth() {
             scopes: parseScopes(payload.scope),
             expiresAt: typeof payload.exp === 'number' ? payload.exp : undefined,
             resource: parseUrlOrNull(tokenAudiences[0]) || undefined,
+            extra: { subject: payload.sub },
           };
         },
       }
     : {
         verifyAccessToken: async (token) => {
-          const jwksUri = process.env.OAUTH_JWKS_URI || oauthMetadata?.jwks_uri;
-          if (!jwksUri) {
+          if (!jwks) {
             throw new Error('OAUTH_JWKS_URI (or metadata.jwks_uri) is required when introspection is disabled.');
           }
 
-          const jwks = createRemoteJWKSet(new URL(jwksUri));
-          const { payload } = await jwtVerify(token, jwks, {
-            issuer: process.env.OAUTH_TOKEN_ISSUER || metadataIssuer,
-          });
+          let payload;
+          try {
+            ({ payload } = await jwtVerify(token, jwks, {
+              issuer: process.env.OAUTH_TOKEN_ISSUER || metadataIssuer,
+            }));
+          } catch (error) {
+            if (error instanceof joseErrors.JOSEError && !JWKS_SERVER_ERRORS.has(error.code)) {
+              throw new InvalidTokenError(INVALID_TOKEN_MESSAGE);
+            }
+            throw error;
+          }
 
           const tokenAudiences = parseAudiences(payload.aud);
           if (!isAudienceAllowed({ tokenAudiences, expectedAudience })) {
-            throw new Error(`Token audience mismatch. Expected: ${expectedAudience}; got: ${tokenAudiences.join(', ')}`);
+            throw new InvalidTokenError(INVALID_TOKEN_MESSAGE);
           }
 
           return {
@@ -502,11 +505,18 @@ async function setupAuth() {
     })
   );
 
-  const authMiddleware = requireBearerAuth({
+  const bearerMiddleware = requireBearerAuth({
     verifier: tokenVerifier,
     requiredScopes,
     resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(resourceServerUrl),
   });
+  const authMiddleware = [bearerMiddleware, (req, res, next) => {
+    if (req.auth?.extra?.subject !== OWNER_SUBJECT) {
+      res.status(403).json({ error: 'This private adapter is restricted to its owner.' });
+      return;
+    }
+    next();
+  }];
 
   if (oauthMetadata?.jwks_uri) {
     app.get('/.well-known/openid-configuration', (_req, res) => {
@@ -631,12 +641,22 @@ app.get('/', (_req, res) => {
     mcpEndpoint: '/mcp',
     oauthEnabled: OAUTH_ENABLED,
     bindHost: ADAPTER_BIND_HOST,
-    allowedHosts: ADAPTER_ALLOWED_HOSTS.length ? ADAPTER_ALLOWED_HOSTS : 'any',
+    allowedHosts: ADAPTER_ALLOWED_HOSTS.length
+      ? ADAPTER_ALLOWED_HOSTS
+      : (LOOPBACK_HOSTS.includes(ADAPTER_BIND_HOST) ? 'localhost only' : 'any'),
   });
 });
 
 async function start() {
   let authRuntime = null;
+
+  if (OAUTH_ENABLED ? !OWNER_SUBJECT : OWNER_TOKEN.length < 32) {
+    throw new Error('Private access requires OAUTH_OWNER_SUBJECT in OAuth mode, or a random ADAPTER_OWNER_TOKEN of at least 32 characters.');
+  }
+  if (!LOOPBACK_HOSTS.includes(ADAPTER_BIND_HOST) && !ADAPTER_ALLOWED_HOSTS.length) {
+    throw new Error('A public bind address requires ADAPTER_ALLOWED_HOSTS.');
+  }
+  await backend.verifyOwner();
 
   if (OAUTH_ENABLED) {
     authRuntime = await setupAuth();
@@ -656,7 +676,19 @@ async function start() {
     });
   }
 
-  attachMcpRoutes(authRuntime?.authMiddleware || null);
+  const ownerAuth = (req, res, next) => {
+    // The auth scheme is case-insensitive (RFC 9110), as in the OAuth path.
+    const match = /^bearer\s+(.+)$/i.exec(normalizeHeader(req.headers.authorization));
+    const token = match ? match[1].trim() : '';
+    const digest = value => createHash('sha256').update(value).digest();
+    if (!token || !timingSafeEqual(digest(token), digest(OWNER_TOKEN))) {
+      res.setHeader('WWW-Authenticate', 'Bearer realm="Tableu owner"');
+      res.status(401).json({ error: 'Owner authentication required.' });
+      return;
+    }
+    next();
+  };
+  attachMcpRoutes(authRuntime?.authMiddleware || ownerAuth);
 
   app.listen(PORT, ADAPTER_BIND_HOST, (error) => {
     if (error) {
@@ -668,6 +700,8 @@ async function start() {
     console.log(`Adapter bind host: ${ADAPTER_BIND_HOST}`);
     if (ADAPTER_ALLOWED_HOSTS.length) {
       console.log(`Adapter allowed hosts: ${ADAPTER_ALLOWED_HOSTS.join(', ')}`);
+    } else if (LOOPBACK_HOSTS.includes(ADAPTER_BIND_HOST)) {
+      console.log('Only localhost Host headers are accepted. Behind a reverse proxy or tunnel, set ADAPTER_ALLOWED_HOSTS to its public hostname.');
     }
     console.log(`MCP endpoint: http://localhost:${PORT}/mcp`);
 
@@ -680,7 +714,7 @@ async function start() {
         console.log(`OAuth required scopes: ${authRuntime.requiredScopes.join(', ')}`);
       }
     } else {
-      console.log('OAuth mode: disabled (static backend key only)');
+      console.log('Private owner bearer authentication enabled.');
     }
   });
 }
@@ -690,7 +724,7 @@ start().catch((error) => {
   process.exit(1);
 });
 
-process.on('SIGINT', async () => {
+async function shutdown() {
   for (const [sessionId, active] of sessions.entries()) {
     try {
       await active.transport.close();
@@ -702,4 +736,8 @@ process.on('SIGINT', async () => {
     }
   }
   process.exit(0);
-});
+}
+
+// Containers stop with SIGTERM, and node as PID 1 ignores it unless handled.
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
