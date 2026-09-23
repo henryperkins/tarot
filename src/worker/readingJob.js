@@ -8,7 +8,11 @@ const STREAM_HEADERS = {
   'Connection': 'keep-alive'
 };
 
-const JOB_TTL_MS = 60 * 60 * 1000;
+export const JOB_TTL_MS = 60 * 60 * 1000;
+// Jobs started by the ChatGPT MCP tools stay readable for a day, so a reading
+// can still be saved later in the same conversation (spec §7.4).
+export const MCP_JOB_TTL_MS = 24 * 60 * 60 * 1000;
+const JOB_NOT_FOUND = 'Reading job not found.';
 const MAX_STORED_EVENTS = 300;
 const PERSIST_BATCH_EVENTS = 15;
 const PERSIST_INTERVAL_MS = 1000;
@@ -26,10 +30,35 @@ function normalizeCursor(value) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
+function emptyJob() {
+  return {
+    status: 'idle',
+    jobId: null,
+    token: null,
+    createdAt: null,
+    updatedAt: null,
+    expiresAt: null,
+    meta: null,
+    result: null,
+    error: null,
+    // Set only for jobs started by the MCP tools (in-Worker callers).
+    principalUserId: null,
+    snapshot: null,
+    retentionMs: null
+  };
+}
+
 export class ReadingJob {
-  constructor(state, env) {
+  /**
+   * @param {DurableObjectState} state
+   * @param {object} env
+   * @param {{ runReading?: Function }} [options] - Tests inject the reading
+   *   runner; the Workers runtime always uses the default.
+   */
+  constructor(state, env, { runReading = tarotReadingPost } = {}) {
     this.state = state;
     this.env = env;
+    this.runReading = runReading;
     this.encoder = new TextEncoder();
     this.subscribers = new Set();
     this.events = [];
@@ -39,17 +68,7 @@ export class ReadingJob {
     this.persistEventCount = 0;
     this.lastPersistAt = 0;
     this.cancelled = false;
-    this.job = {
-      status: 'idle',
-      jobId: null,
-      token: null,
-      createdAt: null,
-      updatedAt: null,
-      expiresAt: null,
-      meta: null,
-      result: null,
-      error: null
-    };
+    this.job = emptyJob();
     this.abortController = null;
     this.runningPromise = null;
     this.initialized = this.state.blockConcurrencyWhile(async () => {
@@ -81,6 +100,12 @@ export class ReadingJob {
     if (pathname === '/cancel') {
       return this.handleCancel(request);
     }
+    if (pathname === '/mcp/snapshot') {
+      return this.handleMcpSnapshot(request);
+    }
+    if (pathname === '/mcp/cancel') {
+      return this.handleMcpCancel(request);
+    }
 
     return buildError(404, 'Not found');
   }
@@ -111,6 +136,11 @@ export class ReadingJob {
 
     const payload = body?.payload;
     const jobId = body?.jobId;
+    // Only in-Worker callers (readingJobs.startReadingJob, for the MCP tools)
+    // send a principal; the public job-start route never does.
+    const principalUserId = typeof body?.principal?.userId === 'string' && body.principal.userId
+      ? body.principal.userId
+      : null;
 
     if (!payload || !jobId) {
       return buildError(400, 'Missing reading payload.');
@@ -130,7 +160,10 @@ export class ReadingJob {
       expiresAt: null,
       error: null,
       meta: null,
-      result: null
+      result: null,
+      principalUserId,
+      snapshot: principalUserId ? (body.snapshot ?? null) : null,
+      retentionMs: principalUserId ? MCP_JOB_TTL_MS : JOB_TTL_MS
     };
     this.cancelled = false;
 
@@ -142,7 +175,7 @@ export class ReadingJob {
       this.runningPromise = this.runJob(payload, {
         authorization: authHeader,
         cookie: cookieHeader
-      });
+      }, principalUserId ? { userId: principalUserId } : null);
       this.state.waitUntil(this.runningPromise);
     }
 
@@ -154,8 +187,8 @@ export class ReadingJob {
 
   async handleStatus(request) {
     const token = getJobToken(request);
-    if (!this.job.jobId) {
-      return buildError(404, 'Reading job not found.');
+    if (!this.job.jobId || this.isPrincipalJob()) {
+      return buildError(404, JOB_NOT_FOUND);
     }
     if (!token || token !== this.job.token) {
       return buildError(403, 'Invalid job token.');
@@ -176,8 +209,8 @@ export class ReadingJob {
 
   async handleStream(request, url) {
     const token = getJobToken(request);
-    if (!this.job.jobId) {
-      return buildError(404, 'Reading job not found.');
+    if (!this.job.jobId || this.isPrincipalJob()) {
+      return buildError(404, JOB_NOT_FOUND);
     }
     if (!token || token !== this.job.token) {
       return buildError(403, 'Invalid job token.');
@@ -234,13 +267,19 @@ export class ReadingJob {
 
   async handleCancel(request) {
     const token = getJobToken(request);
-    if (!this.job.jobId) {
-      return buildError(404, 'Reading job not found.');
+    if (!this.job.jobId || this.isPrincipalJob()) {
+      return buildError(404, JOB_NOT_FOUND);
     }
     if (!token || token !== this.job.token) {
       return buildError(403, 'Invalid job token.');
     }
 
+    this.cancelRun();
+
+    return jsonResponse({ status: 'cancelled' });
+  }
+
+  cancelRun() {
     this.cancelled = true;
 
     if (this.abortController) {
@@ -248,11 +287,60 @@ export class ReadingJob {
     }
 
     this.appendEvent('error', { message: 'Reading cancelled.' });
+  }
 
+  isPrincipalJob() {
+    return Boolean(this.job.principalUserId);
+  }
+
+  /**
+   * Gate for the MCP-only paths. The job must be a principal job, and the
+   * caller must present its token and the same principal. Every failure is
+   * the same 404, so these paths reveal nothing about other jobs.
+   */
+  async authorizeMcp(request) {
+    const token = getJobToken(request);
+    const principal = request.headers.get('X-Principal-User-Id') || '';
+    if (
+      !this.job.jobId ||
+      !this.isPrincipalJob() ||
+      !token ||
+      token !== this.job.token ||
+      principal !== this.job.principalUserId
+    ) {
+      return buildError(404, JOB_NOT_FOUND);
+    }
+    if (await this.expireIfNeeded()) {
+      return buildError(410, 'Reading job expired.');
+    }
+    return null;
+  }
+
+  async handleMcpSnapshot(request) {
+    const denied = await this.authorizeMcp(request);
+    if (denied) return denied;
+    return jsonResponse({
+      jobId: this.job.jobId,
+      status: this.job.status,
+      snapshot: this.job.snapshot ?? null,
+      result: this.job.result,
+      error: this.job.error,
+      meta: { themes: this.job.meta?.themes ?? null }
+    });
+  }
+
+  async handleMcpCancel(request) {
+    const denied = await this.authorizeMcp(request);
+    if (denied) return denied;
+    // A finished reading keeps its result; only a running job is cancelled.
+    if (this.job.status !== 'running') {
+      return jsonResponse({ status: this.job.status });
+    }
+    this.cancelRun();
     return jsonResponse({ status: 'cancelled' });
   }
 
-  async runJob(payload, authHeaders) {
+  async runJob(payload, authHeaders, principal = null) {
     this.abortController = new AbortController();
 
     try {
@@ -260,10 +348,12 @@ export class ReadingJob {
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream'
       });
-      if (authHeaders.authorization) {
+      // A principal job authenticates by principal alone; request
+      // credentials are never forwarded for it.
+      if (!principal && authHeaders.authorization) {
         headers.set('Authorization', authHeaders.authorization);
       }
-      if (authHeaders.cookie) {
+      if (!principal && authHeaders.cookie) {
         headers.set('Cookie', authHeaders.cookie);
       }
 
@@ -274,10 +364,11 @@ export class ReadingJob {
         signal: this.abortController.signal
       });
 
-      const response = await tarotReadingPost({
+      const response = await this.runReading({
         request,
         env: this.env,
-        waitUntil: this.state.waitUntil.bind(this.state)
+        waitUntil: this.state.waitUntil.bind(this.state),
+        ...(principal ? { principal } : {})
       });
 
       await this.consumeResponse(response);
@@ -317,7 +408,7 @@ export class ReadingJob {
         return;
       }
       if (payload?.reading) {
-        this.appendEvent('meta', {
+        const meta = {
           requestId: payload.requestId || null,
           provider: payload.provider || null,
           themes: payload.themes || null,
@@ -332,7 +423,18 @@ export class ReadingJob {
           gateBlocked: payload.gateBlocked || false,
           gateReason: payload.gateReason || null,
           backendErrors: payload.backendErrors || null
-        });
+        };
+        // Mirror processEventBlock, so JSON responses expose meta and result
+        // through /status and /mcp/snapshot exactly as SSE responses do.
+        this.job.meta = meta;
+        this.appendEvent('meta', meta);
+        this.job.result = {
+          reading: payload.reading,
+          provider: payload.provider || null,
+          requestId: payload.requestId || null,
+          gateBlocked: payload.gateBlocked || false,
+          gateReason: payload.gateReason || null
+        };
         this.appendEvent('done', {
           fullText: payload.reading,
           provider: payload.provider || null,
@@ -439,12 +541,12 @@ export class ReadingJob {
     if (eventType === 'error') {
       this.job.status = 'error';
       this.job.error = data?.message || 'Streaming error.';
-      this.job.expiresAt = Date.now() + JOB_TTL_MS;
+      this.job.expiresAt = Date.now() + (this.job.retentionMs || JOB_TTL_MS);
     }
 
     if (eventType === 'done') {
       this.job.status = 'complete';
-      this.job.expiresAt = Date.now() + JOB_TTL_MS;
+      this.job.expiresAt = Date.now() + (this.job.retentionMs || JOB_TTL_MS);
     }
 
     this.job.updatedAt = Date.now();
@@ -534,17 +636,7 @@ export class ReadingJob {
       return false;
     }
     await this.state.storage.delete('job');
-    this.job = {
-      status: 'idle',
-      jobId: null,
-      token: null,
-      createdAt: null,
-      updatedAt: null,
-      expiresAt: null,
-      meta: null,
-      result: null,
-      error: null
-    };
+    this.job = emptyJob();
     this.events = [];
     this.nextEventId = 1;
     this.textSoFar = '';
