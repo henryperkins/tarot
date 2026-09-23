@@ -172,13 +172,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Not entitled to the cloud journal, or the entry belongs to another account.
+          description: Not entitled to the cloud journal.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
-          description: No entry with that id.
+          description: No entry with that id in this account. An entry that belongs to another account is reported the same way.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: >
+            The entry kept changing while the reflection was being stored, so
+            it was not added. `code` is `reflection_conflict`.
           content:
             application/json:
               schema:
@@ -377,8 +385,8 @@ components:
         text:
           type: string
           minLength: 1
-          maxLength: 500
-          description: The reflection, in the user's words. At most 500 characters, like the app's own reflection fields.
+          maxLength: 2000
+          description: The reflection, in the user's words. Stored exactly as sent, including whitespace. At most 2000 characters.
         scope:
           type: string
           description: >

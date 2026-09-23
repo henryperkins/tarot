@@ -20,7 +20,7 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
           {reflections.map(([position, note], index) => {
             const card = /^\d+$/.test(position) ? cards[Number(position)] : null;
             const label = card
-              ? [card.position, card.name].filter(Boolean).join(' — ')
+              ? [card.position, card.name || card.card].filter(Boolean).join(' — ')
               : position || `Note ${index + 1}`;
             return (
               <li
