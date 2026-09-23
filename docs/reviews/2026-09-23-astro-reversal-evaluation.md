@@ -1,6 +1,6 @@
 # Astronomy, reversal, and retrieval evaluation
 
-This candidate is suitable for review as a **draft PR**. Its application unit tests pass, but the paired live narrative run fails the existing story-structure gate. No merge or deployment was performed.
+This report records the pre-release evaluation. Application unit tests pass, but the paired live narrative run fails the existing story-structure gate. The initial recommendation was a draft PR; after these results were reported, the user explicitly requested a local merge into the primary branch, a push to origin, and deployment. That release decision does not change the test results or limitations below.
 
 ## Paired live evaluation
 
