@@ -2,8 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  // Frontend-only runs: skip integration-tagged specs that require Workers
-  testIgnore: ['**/*.integration.spec.js'],
+  // Frontend-only runs: skip integration-tagged specs that require Workers, and
+  // the journal owner spec, which needs the MCP adapter (test:e2e:journal).
+  testIgnore: ['**/*.integration.spec.js', '**/journal-owner.spec.js'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
