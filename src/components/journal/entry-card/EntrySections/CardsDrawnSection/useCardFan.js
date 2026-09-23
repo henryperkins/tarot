@@ -111,7 +111,7 @@ export function getOrientationState(card) {
 }
 
 export function getCardAriaLabel(card, orientationLabel) {
-  const name = card?.name || 'Unknown card';
+  const name = card?.displayName || card?.name || 'Unknown card';
   const position = card?.position || 'Position';
   return `${name}, ${position} position, ${orientationLabel}`;
 }
