@@ -160,6 +160,7 @@ export function StreamingNarrative({
   useMarkdown = false,
   className = '',
   isStreamingEnabled = true,
+  isReadingStreaming = false,
   onDone,
   autoNarrate = false,
   onNarrationStart,
@@ -246,7 +247,7 @@ export function StreamingNarrative({
   );
 
   // Derive isComplete from visibleCount (no need for separate state)
-  const isComplete = units.length > 0 && visibleCount >= units.length;
+  const isComplete = !isReadingStreaming && units.length > 0 && visibleCount >= units.length;
 
   useEffect(() => {
     if (prevNarrativeTextRef.current === narrativeText) {
@@ -438,6 +439,7 @@ export function StreamingNarrative({
     : 'pb-6 sm:pb-6 short:pb-4';
   const stickyActionClass = 'bottom-safe-action';
   const narrationStatusMessage = useMemo(() => {
+    if (isReadingStreaming) return 'Your reading is still being prepared.';
     if (!narrativeText) return '';
     if (streamingActive && !isComplete) {
       return showSkipButton
@@ -445,7 +447,7 @@ export function StreamingNarrative({
         : 'Narrative is revealing.';
     }
     return 'Narrative ready.';
-  }, [narrativeText, streamingActive, isComplete, showSkipButton]);
+  }, [isReadingStreaming, narrativeText, streamingActive, isComplete, showSkipButton]);
 
   const tokenMeta = useMemo(() => {
     if (useMarkdown) return [];

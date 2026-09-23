@@ -8,6 +8,7 @@ export function NarrativeBody({
   narrativeText,
   personalReading,
   shouldStreamNarrative,
+  isReadingStreaming,
   canAutoNarrate,
   onNarrationStart,
   onNarrativeComplete,
@@ -33,6 +34,7 @@ export function NarrativeBody({
         text={narrativeText}
         useMarkdown={Boolean(personalReading?.hasMarkdown)}
         isStreamingEnabled={shouldStreamNarrative}
+        isReadingStreaming={isReadingStreaming}
         autoNarrate={canAutoNarrate}
         onNarrationStart={onNarrationStart}
         onDone={onNarrativeComplete}

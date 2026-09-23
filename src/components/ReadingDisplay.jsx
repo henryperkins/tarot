@@ -149,6 +149,14 @@ export function ReadingDisplay({
     });
 
     useEffect(() => {
+        // Restore focus only when the previous control disappeared or was disabled.
+        // A user who moved elsewhere while waiting keeps their chosen focus.
+        const activeElement = document.activeElement;
+        if (activeElement && activeElement !== document.body && !activeElement.disabled) return;
+        sectionRef.current?.querySelector('[data-reading-focus-target]')?.focus({ preventScroll: true });
+    }, [sceneOrchestrator.activeScene, personalReading?.isError, sectionRef]);
+
+    useEffect(() => {
         const isNarrativeDeliveryActive = Boolean(isReadingStreamActive || personalReading?.isStreaming);
         const shouldClearBeat = sceneOrchestrator.activeScene === 'idle'
             || sceneOrchestrator.activeScene === 'ritual'
@@ -351,6 +359,7 @@ export function ReadingDisplay({
         shouldShowJournalNudge,
         markJournalNudgeSeen,
         saveReading,
+        onRetryNarrative: generatePersonalReading,
         isSaving,
         hasHeroStoryArt,
         handleNarrationStop,

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { animate, set } from '../../lib/motionAdapter';
+import { animate } from '../../lib/motionAdapter';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useSounds } from '../../hooks/useSounds';
 import { applyColorScript, resetColorScript } from '../../lib/colorScript';
@@ -88,10 +88,8 @@ export function SceneShell({
   const activeScene = orchestrator?.activeScene || 'idle';
   const transitionMeta = orchestrator?.transitionMeta || null;
   const overlayRef = useRef(null);
-  const contentRef = useRef(null);
   const transitionPrevSceneRef = useRef(activeScene);
   const soundPrevSceneRef = useRef(activeScene);
-  const transitionAnimRef = useRef(null);
 
   const backdrop = SCENE_BACKDROP[activeScene] || SCENE_BACKDROP.idle;
 
@@ -110,88 +108,25 @@ export function SceneShell({
   useEffect(() => {
     const overlay = overlayRef.current;
     if (!overlay) return undefined;
-    const content = contentRef.current;
     const previousScene = transitionPrevSceneRef.current;
-    const key = `${previousScene}->${activeScene}`;
-    const profile = TRANSITION_PROFILES[key] || null;
-    const duration = Number.isFinite(transitionMeta?.duration)
-      ? transitionMeta.duration
-      : profile?.duration || 560;
-
-    if (transitionAnimRef.current?.pause) {
-      transitionAnimRef.current.pause();
-      transitionAnimRef.current = null;
-    }
-
-    if (previousScene === activeScene) {
-      return undefined;
-    }
-
     transitionPrevSceneRef.current = activeScene;
+    if (previousScene === activeScene || prefersReducedMotion) return undefined;
 
+    const profile = TRANSITION_PROFILES[`${previousScene}->${activeScene}`];
     overlay.style.background = profile?.overlay
       || 'radial-gradient(circle at 50% 50%, rgba(6, 4, 12, 0.75), rgba(2, 1, 6, 0.94))';
 
-    if (prefersReducedMotion) {
-      set(overlay, { opacity: 0 });
-      if (content) {
-        set(content, { opacity: 1, scale: 1 });
-      }
-      const fade = animate(overlay, {
-        opacity: [0, 0.55, 0],
-        duration: 200,
-        ease: 'inOutQuad'
-      });
-      if (content) {
-        animate(content, {
-          opacity: [0.95, 1],
-          duration: 200,
-          ease: 'outQuad'
-        });
-      }
-      transitionAnimRef.current = fade;
-      return () => fade?.pause?.();
-    }
-
-    set(overlay, { opacity: 0 });
-    if (content) {
-      set(content, { opacity: 0.88, scale: 0.988 });
-    }
-    const fadeInDuration = Math.round(duration * 0.45);
-    const fadeOutDuration = Math.max(120, duration - fadeInDuration);
-    let cancelled = false;
-    const enter = animate(overlay, {
-      opacity: [0, 1],
-      duration: fadeInDuration,
-      ease: 'outQuad'
+    // Animate the backdrop only; reading content stays fully painted throughout.
+    const transition = animate(overlay, {
+      opacity: [0, 1, 0],
+      duration: Number.isFinite(transitionMeta?.duration)
+        ? transitionMeta.duration
+        : profile?.duration || 560,
+      ease: 'inOutQuad'
     });
-    transitionAnimRef.current = enter;
-
-    enter.then(() => {
-      if (cancelled) return;
-      const chainedContent = content ? animate(content, {
-        opacity: [0.88, 1],
-        scale: [0.988, 1],
-        duration: fadeOutDuration,
-        ease: 'outQuad'
-      }) : null;
-      const chainedOverlay = animate(overlay, {
-        opacity: [1, 0],
-        duration: fadeOutDuration,
-        ease: 'inOutQuad'
-      });
-      transitionAnimRef.current = {
-        pause() {
-          chainedContent?.pause?.();
-          chainedOverlay?.pause?.();
-        }
-      };
-    });
-
     return () => {
-      cancelled = true;
-      enter?.pause?.();
-      transitionAnimRef.current?.pause?.();
+      transition.cancel();
+      overlay.style.opacity = '0';
     };
   }, [activeScene, prefersReducedMotion, transitionMeta?.duration]);
 
@@ -235,10 +170,6 @@ export function SceneShell({
   useEffect(() => {
     return () => {
       sounds.stop('narrative-ambient');
-      if (transitionAnimRef.current?.pause) {
-        transitionAnimRef.current.pause();
-        transitionAnimRef.current = null;
-      }
     };
   }, [sounds]);
 
@@ -297,7 +228,7 @@ export function SceneShell({
           }}
           aria-hidden="true"
         />
-        <div ref={contentRef} className="relative z-[3]">
+        <div className="relative z-[3]">
           {ActiveScene ? <ActiveScene sceneModels={sceneModels}>{children}</ActiveScene> : children}
         </div>
       </div>

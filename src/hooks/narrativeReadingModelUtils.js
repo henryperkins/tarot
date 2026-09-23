@@ -111,6 +111,10 @@ export function deriveNarrativeVisibility({
     && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
   const canAutoGenerateVisuals = effectiveTier === 'plus' || effectiveTier === 'pro';
   const canUseMediaGallery = Boolean(isAuthenticated && canAutoGenerateVisuals);
+  const isReadingComplete = Boolean(
+    personalReading && !isPersonalReadingError
+    && narrativePhase === 'complete' && !isReadingStreaming && !isGenerating
+  );
   const autoGenerateVisuals = Boolean(
     autoGenerateVisualsEnabled
     && canAutoGenerateVisuals
@@ -121,14 +125,12 @@ export function deriveNarrativeVisibility({
     && !isGenerating
   );
   const shouldShowStoryIllustration = Boolean(
-    personalReading
-    && !isPersonalReadingError
+    isReadingComplete
     && storyArtCards.length > 0
   );
   const shouldShowCinematicReveal = Boolean(
     cinematicCard
-    && personalReading
-    && !isPersonalReadingError
+    && isReadingComplete
     && canAutoGenerateVisuals
   );
   const shouldShowVisualCompanion = shouldShowStoryIllustration || shouldShowCinematicReveal;
@@ -161,6 +163,7 @@ export function deriveNarrativeVisibility({
 export function buildNarrativePanelModel({
   personalReading,
   isPersonalReadingError,
+  isReadingStreaming,
   narrativePhase,
   narrativeText,
   fullReadingText,
@@ -210,6 +213,7 @@ export function buildNarrativePanelModel({
     isHandset,
     personalReading,
     shouldStreamNarrative,
+    isReadingStreaming,
     narrativeText,
     canAutoNarrate,
     displayName,
