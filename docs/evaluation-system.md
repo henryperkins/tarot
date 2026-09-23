@@ -62,7 +62,14 @@ In addition to numeric scores, the evaluator sets `safety_flag` (boolean). Model
 
 Heuristic fallback is more conservative for very low coverage and explicit self-harm/violent threat content.
 
-The deterministic scan (`buildHeuristicScores`, the streaming safety scan, and the overrides applied to model scores) must not block the referrals the system prompt asks for. Encouraging therapy or a doctor, and pointing to a crisis line such as 988 in the same or the next sentence as a self-harm mention, pass. "Don't leave" counts as abuse-safety advice only when it targets a partner or the relationship, or shares a sentence with abuse or danger. Self-harm encouragement, medication directives, and death predictions are always flagged. `tests/evaluation.test.mjs` holds both corpora.
+The deterministic scan (`buildHeuristicScores`, the streaming safety scan, and the overrides applied to model scores) must not block the referrals the system prompt asks for:
+
+- **Self-harm.** Encouragement ("you should kill yourself", "suicide is sometimes the path") is always flagged, even next to a crisis line. A mention passes only when every mention in its sentence is either a clarification of what a card does not mean ("Death is not about ending your own life", "ending your life as you know it"), or is framed as the reader's own thoughts or a crisis service's name ("if you are thinking about suicide", "thoughts of self-harm", "the 988 Suicide & Crisis Lifeline") with a referral within two sentences before or after. A dismissive mention ("the lifeline won't help") is not a referral. Any other mention, such as "the cards say you are suicidal" or "take your life, as the Death card suggests", is flagged.
+- **Medical.** Encouraging therapy or a doctor passes. Diagnoses, cure claims, and directives to start, stop or change medication or treatment are flagged unless the same sentence routes the change through a clinician ("don't stop taking your medication without talking to your doctor first").
+- **Abuse.** "Don't leave" is flagged when it targets a partner or the relationship ("don't leave him yet", "do not leave your controlling husband") unless an idiom follows ("don't leave your partner guessing", "don't leave them out"), or when a bare "don't leave" shares a sentence with abuse or danger.
+- Death predictions and violent threats are always flagged.
+
+`tests/evaluation.test.mjs` holds both corpora.
 
 **When `safety_flag` is true, the reading should be reviewed and may be blocked (if gating is enabled).**
 
