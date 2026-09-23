@@ -1,5 +1,5 @@
 import { getSymbolFollowUpPrompt } from './symbolElementBridge.js';
-import { hashString, seededShuffle } from '../../shared/utils.js';
+import { getUniqueLeader, hashString, seededShuffle } from '../../shared/utils.js';
 import { canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 import { REVERSED_PATTERN } from '../../shared/journal/stats.js';
 import { MAJOR_ARCANA_NAMES } from '../data/majorArcana.js';
@@ -266,23 +266,17 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
     }, { Fire: 0, Water: 0, Air: 0, Earth: 0 });
   };
 
-  const getDominantEntry = (counts) => {
-    const entries = Object.entries(counts || {}).filter(([, count]) => Number.isFinite(count));
-    if (entries.length === 0) return null;
-    const total = entries.reduce((sum, [, count]) => sum + count, 0);
-    if (total === 0) return null;
-    const [key, count] = [...entries].sort((a, b) => b[1] - a[1])[0];
-    return { key, count, ratio: total > 0 ? count / total : 0, total };
-  };
-
   const deckStyle = options.deckStyle || readingMeta?.deckStyle || null;
 
   const suitCounts = getSuitCounts();
   const elementCounts = getElementCounts(suitCounts);
-  const dominantSuit = themes?.dominantSuit || getDominantEntry(suitCounts)?.key || null;
-  const dominantElement = themes?.dominantElement || getDominantEntry(elementCounts)?.key || null;
-  const dominantSuitEntry = getDominantEntry(suitCounts);
-  const dominantElementEntry = getDominantEntry(elementCounts);
+  // A tie for the top count has no leader, so no suggestion calls one side "strong".
+  // Name the leader from the same counts that gate the suggestion, never from
+  // stored theme labels that may be stale.
+  const dominantSuitEntry = getUniqueLeader(suitCounts);
+  const dominantElementEntry = getUniqueLeader(elementCounts);
+  const dominantSuit = dominantSuitEntry?.key || null;
+  const dominantElement = dominantElementEntry?.key || null;
   const reversalCount = Number.isFinite(themes?.reversalCount)
     ? themes.reversalCount
     : cards.filter((card) => isReversed(card)).length;

@@ -42,6 +42,47 @@ export function safeJsonParse(value, fallback, options = {}) {
 }
 
 // =============================================================================
+// Count Utilities
+// =============================================================================
+
+/**
+ * Find the keys sharing the highest positive count in a { key: count } map.
+ *
+ * @param {Object<string, number>} counts - Count map (e.g. suitCounts, elementCounts)
+ * @returns {{ keys: string[], count: number, total: number }} Leading keys in map order;
+ *   `keys` is empty when no count is positive
+ *
+ * @example
+ * getLeadingKeys({ Fire: 2, Water: 2, Air: 1 }) // { keys: ['Fire', 'Water'], count: 2, total: 5 }
+ */
+export function getLeadingKeys(counts) {
+  const entries = Object.entries(counts || {})
+    .filter(([, count]) => Number.isFinite(count) && count > 0);
+  const total = entries.reduce((sum, [, count]) => sum + count, 0);
+  const count = entries.reduce((max, [, value]) => Math.max(max, value), 0);
+  const keys = entries.filter(([, value]) => value === count).map(([key]) => key);
+  return { keys, count, total };
+}
+
+/**
+ * Find the single key with the highest positive count.
+ * A tie for the top count has no leader, so callers never report an arbitrary
+ * tie-break (usually insertion order) as one key dominating.
+ *
+ * @param {Object<string, number>} counts - Count map
+ * @returns {{ key: string, count: number, total: number, ratio: number } | null}
+ *
+ * @example
+ * getUniqueLeader({ Wands: 1, Cups: 1, Swords: 1, Pentacles: 1 }) // null
+ * getUniqueLeader({ Fire: 2, Water: 1 }) // { key: 'Fire', count: 2, total: 3, ratio: 0.666… }
+ */
+export function getUniqueLeader(counts) {
+  const { keys, count, total } = getLeadingKeys(counts);
+  if (keys.length !== 1) return null;
+  return { key: keys[0], count, total, ratio: count / total };
+}
+
+// =============================================================================
 // Hash Functions
 // =============================================================================
 

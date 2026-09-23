@@ -522,7 +522,8 @@ export function buildEnhancedClaudePrompt({
           contextClarifiedBy: selection.clarifiedBy,
           semanticScoringRequested: semanticRequested,
           semanticScoringUsed,
-          semanticScoringFallback
+          semanticScoringFallback,
+          semanticScoringFallbackReason: semanticScoringFallback ? 'not-prefetched' : null
         };
 
         if (reason) {
@@ -566,11 +567,13 @@ export function buildEnhancedClaudePrompt({
             semanticScoringRequested: true,
             semanticScoringUsed: false,
             semanticScoringFallback: true,
+            semanticScoringFallbackReason: 'not-prefetched',
             reason: 'semantic-scoring-not-prefetched'
           },
           maxPassages,
           enableSemanticScoring: true,
-          rankingStrategy: 'semantic',
+          // Nothing was retrieved or ranked
+          rankingStrategy: null,
           semanticScoringRequested: true,
           semanticScoringUsed: false,
           semanticScoringFallback: true

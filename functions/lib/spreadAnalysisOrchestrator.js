@@ -123,7 +123,12 @@ export function buildEphemerisClientPayload(ephemerisContext) {
       illumination: typeof moon.illumination === 'number' ? moon.illumination : null,
       sign: moon.sign || null,
       isWaxing: typeof moon.isWaxing === 'boolean' ? moon.isWaxing : null,
-      interpretation: moon.interpretation || null
+      interpretation: moon.interpretation || null,
+      exactLunation: moon.exactLunation ? {
+        type: moon.exactLunation.type,
+        sign: moon.exactLunation.sign,
+        date: moon.exactLunation.date
+      } : null
     } : null,
     locationUsed: Boolean(locationContext.locationUsed),
     timezone: locationContext.timezone || 'UTC'
@@ -162,6 +167,14 @@ export function buildSpreadAnalysisPayload(analysis) {
  */
 function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSemanticScoring, reason) {
   const { patternsDetected } = graphRAG.buildRetrievalSummary(graphKeys, []);
+  // Requested semantic scoring never ran because retrieval itself was skipped
+  const semanticScoringFallbackReason = !requestedSemanticScoring
+    ? null
+    : reason === 'graphrag-disabled-env'
+      ? 'graphrag-disabled'
+      : reason === 'missing-graph-keys'
+        ? 'no-graph-patterns'
+        : 'retrieval-skipped';
 
   const qualityMetrics = {
     averageRelevance: 0,
@@ -184,6 +197,7 @@ function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSem
       semanticScoringRequested: requestedSemanticScoring,
       semanticScoringUsed: false,
       semanticScoringFallback: requestedSemanticScoring,
+      semanticScoringFallbackReason,
       semanticScoringAttempted: false,
       qualityMetrics,
       reason,
@@ -225,6 +239,8 @@ function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSem
  * @param {Object} options.contextSources - Separate current question/reflections and saved focus for topic precedence
  * @param {string} options.subscriptionTier - User's subscription tier
  * @param {Object} options.location - User's location for ephemeris
+ * @param {string} [options.referenceTime] - ISO instant for transits and forecast (defaults to now;
+ *   pass a past reading's timestamp to reproduce its astrological context)
  * @param {boolean} options.enableSemanticScoring - Enable semantic GraphRAG scoring
  * @param {string} requestId - Request ID for logging
  * @param {Object} env - Cloudflare environment bindings
@@ -427,6 +443,17 @@ async function performSpreadAnalysisInner(
 
         const semanticScoringUsed = retrievalSummary?.qualityMetrics?.semanticScoringUsed === true;
         const semanticScoringFallback = requestedSemanticScoring && !semanticScoringUsed;
+        const semanticScoringFallbackReason = !semanticScoringFallback
+          ? null
+          : !semanticAvailable
+            ? 'embeddings-not-configured'
+            : passages.length === 0
+              ? 'no-passages'
+              : passages.some((p) => p?._qualityFilteringDisabled)
+                ? 'quality-filtering-disabled'
+                : !retrievalSummary?.qualityMetrics?.semanticScoringAttempted
+                  ? 'no-query'
+                  : 'embeddings-failed';
 
         retrievalSummary = {
           ...retrievalSummary,
@@ -435,7 +462,8 @@ async function performSpreadAnalysisInner(
           contextClarifiedBy: selection.clarifiedBy,
           semanticScoringRequested: requestedSemanticScoring,
           semanticScoringUsed,
-          semanticScoringFallback
+          semanticScoringFallback,
+          semanticScoringFallbackReason
         };
 
         const formattedBlock = graphRAG.formatPassagesForPrompt(passages, {
@@ -449,7 +477,8 @@ async function performSpreadAnalysisInner(
           retrievalSummary,
           maxPassages,
           initialPassageCount: passages.length,
-          rankingStrategy: enableSemanticScoring ? 'semantic' : 'keyword',
+          // What actually scored the passages, not what was configured
+          rankingStrategy: graphRAG.describeScoringMethod(passages),
           enableSemanticScoring,
           qualityMetrics: retrievalSummary.qualityMetrics || null,
           semanticScoringRequested: requestedSemanticScoring,
@@ -489,7 +518,8 @@ async function performSpreadAnalysisInner(
 
   try {
     console.log(`[${requestId}] Fetching ephemeris context...`);
-    ephemerisContext = await fetchEphemerisContext(null, { location: options.location });
+    const referenceTime = options.referenceTime || new Date().toISOString();
+    ephemerisContext = await fetchEphemerisContext(referenceTime, { location: options.location });
 
     if (ephemerisContext?.available) {
       console.log(`[${requestId}] Ephemeris context available:`, getEphemerisSummary(ephemerisContext));
@@ -504,7 +534,10 @@ async function performSpreadAnalysisInner(
       const forecastDays = detectForecastTimeframe(options.userQuestion);
       if (forecastDays) {
         console.log(`[${requestId}] Detected future timeframe, fetching ${forecastDays}-day forecast...`);
-        ephemerisForecast = await fetchEphemerisForecast(forecastDays);
+        ephemerisForecast = await fetchEphemerisForecast(forecastDays, {
+          referenceTime,
+          timezone: options.location?.timezone
+        });
         if (ephemerisForecast?.available) {
           console.log(`[${requestId}] Forecast available: ${ephemerisForecast.events?.length || 0} events`);
         }

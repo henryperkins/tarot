@@ -1,0 +1,46 @@
+{
+  "url": "http://127.0.0.1:5193/astro-fixture",
+  "title": "Tableu reading details verification",
+  "errors": [],
+  "results": [
+    {
+      "width": 1440,
+      "tooltipBox": {
+        "x": 450.375,
+        "y": 232,
+        "width": 94.53125,
+        "height": 418
+      },
+      "horizontalOverflow": false,
+      "keyboard": "pass",
+      "tiedSuits": "pass",
+      "legacyDominance": "pass"
+    },
+    {
+      "width": 390,
+      "tooltipBox": {
+        "x": 30.375,
+        "y": 232,
+        "width": 94.53125,
+        "height": 418
+      },
+      "horizontalOverflow": false,
+      "keyboard": "pass",
+      "tiedSuits": "pass",
+      "legacyDominance": "pass"
+    },
+    {
+      "width": 320,
+      "tooltipBox": {
+        "x": -1.265625,
+        "y": 256,
+        "width": 94.53125,
+        "height": 418
+      },
+      "horizontalOverflow": true,
+      "keyboard": "pass",
+      "tiedSuits": "pass",
+      "legacyDominance": "pass"
+    }
+  ]
+}

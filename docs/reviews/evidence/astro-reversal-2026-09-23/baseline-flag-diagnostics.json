@@ -1,0 +1,139 @@
+{
+  "isValid": true,
+  "totalSections": 6,
+  "cardSections": 3,
+  "cardComplete": 3,
+  "cardIncomplete": 0,
+  "structuralSections": 3,
+  "completeSections": 4,
+  "incompleteSections": 2,
+  "sectionAnalyses": [
+    {
+      "header": "Opening",
+      "isCardSection": false,
+      "analysis": {
+        "isComplete": true,
+        "present": {
+          "what": true,
+          "why": false,
+          "whatsNext": true
+        },
+        "missing": [
+          "why"
+        ],
+        "missingRequired": [],
+        "suggestions": [
+          "Consider adding: Why/How (connector)"
+        ]
+      }
+    },
+    {
+      "header": "The Spark and the Knot",
+      "isCardSection": true,
+      "analysis": {
+        "isComplete": true,
+        "present": {
+          "what": true,
+          "why": false,
+          "whatsNext": true
+        },
+        "missing": [
+          "why"
+        ],
+        "missingRequired": [],
+        "suggestions": [
+          "Consider adding: Why/How (connector)"
+        ]
+      }
+    },
+    {
+      "header": "What’s Working Beneath and Around You",
+      "isCardSection": true,
+      "analysis": {
+        "isComplete": true,
+        "present": {
+          "what": true,
+          "why": false,
+          "whatsNext": false
+        },
+        "missing": [
+          "why",
+          "whatsNext"
+        ],
+        "missingRequired": [],
+        "suggestions": [
+          "Consider adding: Why/How (connector)",
+          "Consider adding: What's next"
+        ]
+      }
+    },
+    {
+      "header": "Direction on the Current Path",
+      "isCardSection": true,
+      "analysis": {
+        "isComplete": true,
+        "present": {
+          "what": true,
+          "why": false,
+          "whatsNext": true
+        },
+        "missing": [
+          "why"
+        ],
+        "missingRequired": [],
+        "suggestions": [
+          "Consider adding: Why/How (connector)"
+        ]
+      }
+    },
+    {
+      "header": "Gentle Next Steps",
+      "isCardSection": false,
+      "analysis": {
+        "isComplete": false,
+        "present": {
+          "what": false,
+          "why": false,
+          "whatsNext": false
+        },
+        "missing": [
+          "what",
+          "why",
+          "whatsNext"
+        ],
+        "missingRequired": [
+          "what"
+        ],
+        "suggestions": [
+          "Consider adding: What is happening",
+          "Consider adding: Why/How (connector)",
+          "Consider adding: What's next"
+        ]
+      }
+    },
+    {
+      "header": "Synthesis",
+      "isCardSection": false,
+      "analysis": {
+        "isComplete": false,
+        "present": {
+          "what": false,
+          "why": false,
+          "whatsNext": true
+        },
+        "missing": [
+          "what",
+          "why"
+        ],
+        "missingRequired": [
+          "what"
+        ],
+        "suggestions": [
+          "Consider adding: What is happening",
+          "Consider adding: Why/How (connector)"
+        ]
+      }
+    }
+  ],
+  "suggestions": []
+}

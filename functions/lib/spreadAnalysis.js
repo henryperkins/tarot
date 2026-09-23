@@ -16,6 +16,7 @@
 
 import { parseMinorName } from './minorMeta.js';
 import { sanitizeReadingCard } from './readingCardContext.js';
+import { getLeadingKeys, getUniqueLeader } from '../../shared/utils.js';
 
 /**
  * Traditional elemental correspondences for Major Arcana
@@ -400,16 +401,6 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
   const reversalRatio = totalCards > 0 ? reversalCount / totalCards : 0;
   const majorRatio = totalCards > 0 ? majorCount / totalCards : 0;
 
-  // Find dominant suit
-  const sortedSuitEntries = Object.entries(suitCounts)
-    .sort((a, b) => b[1] - a[1]);
-  const dominantSuitEntry = sortedSuitEntries[0] || [null, 0];
-  const secondSuitEntry = sortedSuitEntries[1] || [null, 0];
-
-  // Find dominant element
-  const dominantElementEntry = Object.entries(elementCounts)
-    .sort((a, b) => b[1] - a[1])[0] || [null, 0];
-
   // Calculate average card number
   const avgNumber = numbers.length > 0
     ? numbers.reduce((sum, n) => sum + n, 0) / numbers.length
@@ -425,17 +416,14 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
 
   const themes = {
     deckStyle,
-    // Suit analysis
+    // Suit analysis (a tie for the top count has no dominant suit)
     suitCounts,
-    dominantSuit: dominantSuitEntry[1] > 0 ? dominantSuitEntry[0] : null,
-    suitFocus: getSuitFocusDescription({
-      top: dominantSuitEntry,
-      second: secondSuitEntry
-    }),
+    dominantSuit: getUniqueLeader(suitCounts)?.key ?? null,
+    suitFocus: getSuitFocusDescription(suitCounts),
 
     // Elemental analysis
     elementCounts,
-    dominantElement: dominantElementEntry[1] > 0 ? dominantElementEntry[0] : null,
+    dominantElement: getUniqueLeader(elementCounts)?.key ?? null,
     elementalBalance: getMajorAwareElementalBalanceDescription({
       elementCounts,
       totalCards,
@@ -628,13 +616,13 @@ export const REVERSAL_FRAMEWORKS = {
   },
   delayed: {
     name: 'Delayed Timing',
-    description: 'Reversed cards indicate timing is not yet ripe; patience and preparation are needed.',
-    guidance: 'Read reversals as energies that will manifest later, after certain conditions are met.',
+    description: 'Reversed cards suggest timing may not be ripe yet; readiness, obstacles, or conditions may need attention first.',
+    guidance: 'Explore readiness, obstacles, and conditions that may need attention. Waiting or preparation does not guarantee that the desired outcome will occur.',
     examples: {
-      'The Star': 'Hope and renewal are coming, but the full restoration requires more time and gentle tending',
-      'The Sun': 'Success and clarity will arrive after necessary groundwork is complete',
-      'Ace of Wands': 'New creative spark is forming but needs incubation before launching externally',
-      'Two of Cups': 'Partnership or connection is developing beneath the surface, not yet ready for full expression'
+      'The Star': 'Hope and renewal are not yet taking hold; what gentle tending or support would help restoration begin?',
+      'The Sun': 'Success and clarity are not yet in view; groundwork may improve the odds, but it cannot promise the result',
+      'Ace of Wands': 'A creative spark may need incubation; test whether conditions are ready before launching it externally',
+      'Two of Cups': 'Connection may be forming beneath the surface or may need tending; what would help it find full expression?'
     }
   },
   internalized: {
@@ -664,7 +652,7 @@ export const REVERSAL_FRAMEWORKS = {
     description: 'Reversals reveal disowned emotions, avoided needs, or unconscious habits surfacing for healing and wholeness.',
     guidance: 'Name the hidden feeling, show how it can be witnessed safely, and suggest a micro-practice for reintegration.',
     examples: {
-      'The Moon': 'Anxiety eases when you name the fear aloud and create grounding rituals; try writing it down each morning.',
+      'The Moon': 'An unnamed fear may be shaping the mood; naming it aloud or writing it down is one way to meet it rather than avoid it.',
       'Five of Swords': 'Step out of zero-sum thinking by repairing the belief that conflict automatically equals abandonment.',
       'The Tower': 'Resistance to change reveals fear of losing control; acknowledge the grief of letting go as a first step.',
       'The Devil': 'An attachment you judge in yourself deserves compassion; get curious about what need it serves.'
@@ -708,23 +696,28 @@ function getReversalFrameworkDescription(framework) {
   };
 }
 
+function formatNameList(names) {
+  if (names.length <= 1) return names.join('');
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
 /**
  * Get description of suit focus
  *
- * @param {Object} params - Suit entry data
- * @param {Array} params.top - [suitName, count] for dominant suit
- * @param {Array} params.second - [suitName, count] for second suit
+ * @param {Object} suitCounts - Suit count map
  * @returns {string|null} Description or null if no clear focus
  */
-function getSuitFocusDescription({ top, second }) {
-  const [topSuit, topCount] = top || [null, 0];
-  const [secondSuit, secondCount] = second || [null, 0];
+function getSuitFocusDescription(suitCounts) {
+  const { keys: leadingSuits, count: topCount } = getLeadingKeys(suitCounts);
 
-  if (!topSuit || topCount < 2) return null;
+  if (leadingSuits.length === 0 || topCount < 2) return null;
 
-  if (topCount === secondCount && topCount > 1 && secondSuit) {
-    return `Balanced focus between ${topSuit} and ${secondSuit}, each surfacing ${topCount} times.`;
+  if (leadingSuits.length > 1) {
+    return `Balanced focus between ${formatNameList(leadingSuits)}, each surfacing ${topCount} times.`;
   }
+
+  const topSuit = leadingSuits[0];
 
   const descriptions = {
     Wands: `${topCount} Wands cards suggest a strong focus on action, creativity, passion, drive, and personal will.`,
@@ -772,6 +765,15 @@ function getElementalBalanceDescription(elementCounts, total) {
 
   const [dominant] = active;
   const ratio = dominant[1] / total;
+  const { keys: leaders } = getLeadingKeys(elementCounts);
+
+  if (leaders.length > 1 && ratio >= 0.35) {
+    const others = active.filter(([element]) => !leaders.includes(element));
+    const support = others.length > 0
+      ? `, with ${others.map(([e, c]) => `${e} (${c})`).join(', ')} providing supporting or contrasting energies`
+      : '';
+    return `${formatNameList(leaders)} share the lead (${dominant[1]} each of ${total})${support}.`;
+  }
 
   if (ratio >= 0.5) {
     return `${dominant[0]} energy strongly dominates (${dominant[1]}/${total} cards), requiring attention to balance with other elements.`;
