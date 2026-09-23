@@ -13,8 +13,8 @@ function VoicePrompt({
     <div className="text-xs text-muted bg-surface/70 border border-accent/30 rounded-lg px-3 py-2 text-center space-y-2" aria-live="polite">
       <p>Voice narration is disabled. Turn it on?</p>
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <button type="button" onClick={onEnableVoice} className="px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary hover:bg-primary/30 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">Enable voice & play</button>
-        <button type="button" onClick={onDismiss} className="px-3 py-1.5 rounded-full border border-accent/50 text-muted hover:text-main text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">Maybe later</button>
+        <button type="button" onClick={onEnableVoice} className="min-h-touch min-w-touch px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary hover:bg-primary/30 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">Enable voice & play</button>
+        <button type="button" onClick={onDismiss} className="min-h-touch min-w-touch px-3 py-1.5 rounded-full border border-accent/50 text-muted hover:text-main text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">Maybe later</button>
       </div>
     </div>
   );
@@ -35,7 +35,7 @@ function JournalStatusNotice({
         <button
           type="button"
           onClick={() => onViewEntry?.(journalStatus.action.entryId)}
-          className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-2xs font-semibold text-accent hover:bg-accent/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          className="min-h-touch min-w-touch inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-2xs font-semibold text-accent hover:bg-accent/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
         >
           {journalStatus.action.label || 'View entry'}
         </button>

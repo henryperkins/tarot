@@ -20,13 +20,11 @@ export function NarrativeBody({
   narrativeAtmosphereClassName,
   hasHeroStoryArt
 }) {
-  const desktopAnchor = !isHandset ? <NarrativeQuestionAnchor question={question} /> : null;
-  const mobileAnchor = isHandset ? <NarrativeQuestionAnchor question={question} compact /> : null;
   const streamClassName = `max-w-3xl mx-auto mt-4 sm:mt-5 ${hasHeroStoryArt ? 'glass-panel' : ''}`;
 
   return (
     <>
-      {desktopAnchor}
+      <NarrativeQuestionAnchor question={question} compact={isHandset} />
 
       <NarrativeSafetyNotice className="max-w-3xl mx-auto mt-4" compact={isHandset} />
 
@@ -47,8 +45,6 @@ export function NarrativeBody({
         withAtmosphere
         atmosphereClassName={narrativeAtmosphereClassName}
       />
-
-      {mobileAnchor}
     </>
   );
 }

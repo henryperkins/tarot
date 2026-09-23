@@ -115,7 +115,7 @@ export function NarrationError({ ttsState, onUpgrade, className = '' }) {
         <button
           type="button"
           onClick={onUpgrade}
-          className="mt-1.5 text-error underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 rounded"
+          className="min-h-touch min-w-touch mt-1.5 px-2 text-error underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 rounded"
         >
           View subscription options
         </button>

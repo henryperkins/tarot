@@ -461,7 +461,7 @@ export function StreamingNarrative({
       <button
         type="button"
         onClick={handleEnableStreaming}
-        className="w-full rounded-full border border-secondary/40 bg-secondary/20 px-4 py-2 text-xs-plus font-semibold text-secondary shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+        className="min-h-touch w-full rounded-full border border-secondary/40 bg-secondary/20 px-4 py-2 text-xs-plus font-semibold text-secondary shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
       >
         Play typing effect
       </button>
@@ -495,6 +495,7 @@ export function StreamingNarrative({
   const narrativeBody = useMarkdown ? (
     <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[70ch] w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 mx-auto rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--md ${atmosphereClass} ${textBottomPaddingClass}`}>
       <MarkdownRenderer
+        className="narrative-stream__markdown"
         content={visibleText}
         highlightPhrases={normalizedHighlightPhrases}
         wordBoundary={wordBoundary}

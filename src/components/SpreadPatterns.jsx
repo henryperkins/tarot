@@ -126,11 +126,11 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
       <button
         type="button"
         onClick={() => setIsExpanded(prev => !prev)}
-        className="sm:hidden w-full flex items-center justify-between gap-2 mb-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 rounded"
+        className={`${isHandset ? 'flex' : 'hidden'} min-h-touch w-full items-center justify-between gap-2 mb-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 rounded`}
         aria-expanded={isExpanded}
         aria-controls="spread-patterns-content"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Star className="w-5 h-5 text-accent" aria-hidden="true" />
           <span className="text-accent text-base font-serif">Spread Insights</span>
           <span className="text-xs text-muted">({totalCount})</span>
@@ -143,13 +143,13 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
       </button>
 
       {/* Desktop: Static header */}
-      <div className="hidden sm:flex items-center gap-2 mb-4">
+      <div className={`${isHandset ? 'hidden' : 'flex'} items-center gap-2 mb-4`}>
         <Star className="w-5 h-5 text-accent" aria-hidden="true" />
         <span className="text-accent text-lg font-serif">Spread Insights</span>
       </div>
 
       {/* Unified content: collapsed on mobile (unless expanded), always visible on desktop */}
-      <div id="spread-patterns-content" className={`${isExpanded ? '' : 'hidden'} sm:block mt-3 sm:mt-0 space-y-4`}>
+      <div id="spread-patterns-content" className={`${shouldRenderContent ? '' : 'hidden'} ${isHandset ? 'mt-3' : 'mt-0'} space-y-4`}>
         {shouldRenderContent && (
           <>
         {/* Spread Highlights Section */}

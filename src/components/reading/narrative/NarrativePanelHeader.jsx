@@ -16,7 +16,7 @@ export function NarrativePanelHeader({
           type="button"
           aria-pressed={isNarrativeFocus}
           onClick={onToggleNarrativeFocus}
-          className="inline-flex items-center gap-2 rounded-full border border-secondary/50 px-3 xxs:px-4 py-1.5 text-xs-plus sm:text-sm font-semibold text-muted hover:text-main hover:border-secondary/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 sm:ml-auto"
+          className="min-h-touch min-w-touch inline-flex items-center gap-2 rounded-full border border-secondary/50 px-3 xxs:px-4 py-1.5 text-xs-plus sm:text-sm font-semibold text-muted hover:text-main hover:border-secondary/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 sm:ml-auto"
         >
           {isNarrativeFocus ? 'Show insight panels' : 'Focus on narrative'}
         </button>

@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 
+// Keep the reading API fixtures visible to Playwright in production previews.
+test.use({ serviceWorkers: 'block' });
+
 /**
  * Tarot Reading Flow E2E Tests
  *
@@ -216,22 +219,27 @@ async function skipRitual(page) {
 /**
  * Wait for shuffle animation to complete and cards to appear
  */
-async function waitForCardsDealt(page, _expectedCount) {
-  // Wait for the card grid/carousel to appear with cards
-  await expect(async () => {
-    const cards = page.locator('[aria-label*="Tap to reveal"], [aria-label*="Click to reveal"]');
-    const count = await cards.count();
-    expect(count).toBeGreaterThanOrEqual(1);
-  }).toPass({ timeout: 5000 });
+function getDealtCards(page) {
+  return page.locator('button[aria-label*="Tap to reveal"], button[aria-label*="position. Click to reveal."], button[aria-label*="position. Click to view details."]');
+}
+
+async function waitForCardsDealt(page, expectedCount) {
+  // Drawing prepares the deck; the interlude has an explicit deal action.
+  const dealCardsButton = page.getByRole('button', { name: /^Deal the cards/ });
+  await expect(dealCardsButton).toBeVisible();
+  await dealCardsButton.click();
+
+  // Dealing can reveal the first card immediately, especially in a one-card spread.
+  await expect(getDealtCards(page)).toHaveCount(expectedCount);
 }
 
 /**
  * Reveal a single card by index
  */
 async function revealCard(page, index) {
-  const cards = page.locator('[aria-label*="Tap to reveal"], [aria-label*="Click to reveal"]');
+  const cards = getDealtCards(page);
   const card = cards.nth(index);
-  if (await card.isVisible()) {
+  if (await card.isVisible() && /(?:Tap|Click) to reveal/.test(await card.getAttribute('aria-label'))) {
     // Use force:true to bypass actionability checks on animated elements
     // reducedMotion is set in config but some CSS animations may still affect stability
     await card.click({ force: true });
@@ -255,11 +263,10 @@ async function revealAllCards(page) {
 /**
  * Check if all cards are revealed
  */
-async function areAllCardsRevealed(page, _expectedCount) {
-  // Look for card images (revealed cards show images)
-  const revealedCards = page.locator('.card-front img, [class*="card"] img[alt*="card"], [class*="card"] img[alt*="Arcana"]');
+async function areAllCardsRevealed(page, expectedCount) {
+  const revealedCards = page.getByRole('button', { name: /position\. Click to view details\.$/ });
   const count = await revealedCards.count();
-  return count >= 1; // At least one card revealed
+  return count === expectedCount;
 }
 
 /**
@@ -453,16 +460,15 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
     await skipRitual(page);
     await waitForCardsDealt(page, 1);
     await revealCard(page, 0);
+    await generateAndCompleteNarrative(page);
 
     // Start new reading
     await startNewReading(page);
 
-    // Should have new unrevealed card(s)
+    // A fresh deal replaces the completed narrative.
     await waitForCardsDealt(page, 1);
-
-    // Card should be unrevealed (back showing)
-    const unrevealedCard = page.locator('[aria-label*="Tap to reveal"], [aria-label*="Click to reveal"]');
-    await expect(unrevealedCard).toBeVisible({ timeout: 3000 });
+    await expect(getDealtCards(page).first()).toBeVisible();
+    await expect(page.locator('.narrative-stream')).toHaveCount(0);
   });
 
   test('question persists after shuffle', async ({ page }) => {
@@ -477,13 +483,16 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
     // Shuffle
     await skipRitual(page);
     await waitForCardsDealt(page, 1);
+    await generateAndCompleteNarrative(page);
+    await expect(page.locator('.scene-shell--reading bdi')).toHaveText(testQuestion);
 
     // Shuffle again
     await startNewReading(page);
     await waitForCardsDealt(page, 1);
 
-    // Question should still be there
-    await expect(questionInput).toHaveValue(testQuestion);
+    // The question remains in the next completed reading.
+    await generateAndCompleteNarrative(page);
+    await expect(page.locator('.scene-shell--reading bdi')).toHaveText(testQuestion);
   });
 
   test('narrative completion renders stable live status semantics', async ({ page }) => {
@@ -757,13 +766,13 @@ test.describe('Accessibility @desktop', () => {
     await skipRitual(page);
     await waitForCardsDealt(page, 1);
 
-    // Unrevealed card should have descriptive label
-    const card = page.locator('[aria-label*="reveal"]').first();
+    // A dealt card describes its position and its current action.
+    const card = getDealtCards(page).first();
     await expect(card).toBeVisible();
 
     const label = await card.getAttribute('aria-label');
     expect(label).toBeTruthy();
-    expect(label.toLowerCase()).toContain('reveal');
+    expect(label).toMatch(/position\. Click to (?:reveal|view details)\./);
   });
 
   test('step progress indicates current stage', async ({ page }) => {
