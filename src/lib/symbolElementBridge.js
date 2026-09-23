@@ -1,5 +1,6 @@
 import { buildCardInsights } from './cardInsights.js';
 import { getSymbolFamily } from '../../shared/symbols/symbolIndex.js';
+import { getUniqueLeader } from '../../shared/utils.js';
 
 const ELEMENT_FAMILY_MAP = {
   Fire: ['fire', 'flame', 'wand', 'torch', 'sun', 'salamander', 'lion'],
@@ -32,14 +33,11 @@ export function getElementForSymbolFamily(family) {
 }
 
 function getDominantEntry(counts = {}, { minTotal = 3, minRatio = 0.5, minCount = 2 } = {}) {
-  const entries = Object.entries(counts).filter(([, count]) => Number.isFinite(count));
-  const total = entries.reduce((sum, [, count]) => sum + count, 0);
-  if (total < minTotal) return null;
-  const [key, count] = entries.sort((a, b) => b[1] - a[1])[0] || [];
-  if (!key || !count) return null;
-  const ratio = count / total;
-  if (ratio < minRatio && count < minCount) return null;
-  return { key, count, total, ratio };
+  // A tie for the top count has no leader, so the cue never "leans" toward one side.
+  const leader = getUniqueLeader(counts);
+  if (!leader || leader.total < minTotal) return null;
+  if (leader.ratio < minRatio && leader.count < minCount) return null;
+  return leader;
 }
 
 function collectSymbols(reading = []) {

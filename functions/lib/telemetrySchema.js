@@ -105,7 +105,8 @@ export function buildGraphRAGTelemetry(graphRAGStats) {
       requested: graphRAGStats.semanticScoringRequested || false,
       used: graphRAGStats.semanticScoringUsed || false,
       attempted: graphRAGStats.semanticScoringAttempted || false,
-      fallback: graphRAGStats.semanticScoringFallback || false
+      fallback: graphRAGStats.semanticScoringFallback || false,
+      fallbackReason: graphRAGStats.semanticScoringFallbackReason || null
     },
     quality: graphRAGStats.qualityMetrics ? {
       averageRelevance: optionalNumber(graphRAGStats.qualityMetrics.averageRelevance),

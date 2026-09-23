@@ -22,8 +22,10 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  // Run the full E2E suite (all specs) against the Workers backend
+  // Run the full E2E suite (all specs) against the Workers backend. The journal
+  // owner spec runs its own handlers and server (test:e2e:journal).
   testMatch: ['**/*.spec.js'],
+  testIgnore: ['**/journal-owner.spec.js'],
 
   fullyParallel: false, // Sequential for full-stack tests to avoid port conflicts
   forbidOnly: !!process.env.CI,

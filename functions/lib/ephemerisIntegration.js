@@ -29,6 +29,29 @@ const SIGN_NAMES = [
   'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
 ];
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Only these retrogrades carry advice; the slow outer planets are retrograde for
+// months each year, so they are reported as facts without guidance.
+const PERSONAL_PLANETS = ['Mercury', 'Venus', 'Mars'];
+
+function getPersonalRetrogrades(retrogrades) {
+  return (retrogrades || [])
+    .map((r) => r.planet)
+    .filter((planet) => PERSONAL_PLANETS.includes(planet));
+}
+
+function formatNames(names) {
+  if (names.length <= 1) return names.join('');
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+// astronomy-engine throws plain strings (e.g. "Excessive iteration in Search()")
+function describeError(err) {
+  return err instanceof Error ? err.message : String(err);
+}
+
 /**
  * Extract planet and sign from a card's astrological correspondence
  * e.g., "Mars in Aries" -> { planet: 'Mars', sign: 'Aries' }
@@ -81,6 +104,85 @@ function formatLocalTime(date, timezone) {
   } catch {
     return null;
   }
+}
+
+// Intl.DateTimeFormat is costly to construct; reuse one per timezone and style
+const DATE_FORMAT_OPTIONS = {
+  calendarDay: { year: 'numeric', month: 'numeric', day: 'numeric' },
+  label: { weekday: 'short', month: 'short', day: 'numeric' }
+};
+const dateFormatterCache = new Map();
+
+function getDateFormatter(timezone, style) {
+  const key = `${style}|${timezone}`;
+  let formatter = dateFormatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', { timeZone: timezone, ...DATE_FORMAT_OPTIONS[style] });
+    dateFormatterCache.set(key, formatter);
+  }
+  return formatter;
+}
+
+/**
+ * Return a usable IANA timezone, or null when it is missing or unrecognized
+ */
+function resolveTimezone(timezone) {
+  if (!timezone) return null;
+
+  try {
+    getDateFormatter(timezone, 'calendarDay');
+    return timezone;
+  } catch {
+    return null;
+  }
+}
+
+function getCalendarDayIndex(date, timezone) {
+  const parts = getDateFormatter(timezone, 'calendarDay').formatToParts(date);
+  const part = (type) => Number(parts.find((p) => p.type === type).value);
+  return Date.UTC(part('year'), part('month') - 1, part('day')) / DAY_MS;
+}
+
+/**
+ * Whole calendar days from `fromDate` to `toDate` on the clock in `timezone`,
+ * so "today"/"tomorrow" follow the querent's calendar rather than elapsed hours
+ */
+function getCalendarDayOffset(fromDate, toDate, timezone) {
+  return getCalendarDayIndex(toDate, timezone) - getCalendarDayIndex(fromDate, timezone);
+}
+
+/**
+ * Format an event date as e.g. "Sat, Sep 26" in the given timezone
+ */
+function formatEventDateLabel(date, timezone) {
+  return getDateFormatter(timezone, 'label').format(date);
+}
+
+/**
+ * Phrase a span of time ("about 14 hours", "about 3 days") without assuming
+ * the querent's calendar
+ */
+function describeSpan(hours) {
+  const wholeHours = Math.round(Math.abs(hours));
+  if (wholeHours < 1) return 'less than an hour';
+  if (wholeHours === 1) return 'about an hour';
+  if (wholeHours < 48) return `about ${wholeHours} hours`;
+  return `about ${Math.round(Math.abs(hours) / 24)} days`;
+}
+
+/**
+ * Phrase when a forecast event happens. Calendar words ("tomorrow; Sat, Sep 26")
+ * need the querent's timezone; without one, elapsed time is the honest phrasing.
+ */
+function describeEventTiming(event, { tomorrow = 'tomorrow' } = {}) {
+  if (!event.dateLabel && Number.isFinite(event.hoursUntil)) {
+    return `in ${describeSpan(event.hoursUntil)}`;
+  }
+
+  const inDays = event.dayOffset === 0 ? 'today'
+    : event.dayOffset === 1 ? tomorrow
+    : `in ${event.dayOffset} days`;
+  return event.dateLabel ? `${inDays}; ${event.dateLabel}` : inDays;
 }
 
 /**
@@ -139,7 +241,8 @@ export async function fetchEphemerisContext(timestamp = null, options = {}) {
       locationContext
     };
   } catch (err) {
-    console.warn('[ephemerisIntegration] Failed to fetch ephemeris data:', err.message);
+    const message = describeError(err);
+    console.warn('[ephemerisIntegration] Failed to fetch ephemeris data:', message);
     return {
       timestamp: new Date().toISOString(),
       positions: null,
@@ -147,7 +250,7 @@ export async function fetchEphemerisContext(timestamp = null, options = {}) {
       aspects: null,
       retrogrades: null,
       available: false,
-      error: err.message,
+      error: message,
       locationContext: { timezone: 'UTC', localTimeDescription: null, locationUsed: false }
     };
   }
@@ -309,9 +412,18 @@ export function buildAstrologicalWeatherSection(ephemerisContext) {
     lines.push('');
   }
 
-  // Moon phase
+  // Moon phase (near a lunation, keep the Moon's current sign apart from the lunation's)
   if (moonPhase) {
-    lines.push(`- **Lunar Phase**: ${moonPhase.phaseName} (${moonPhase.illumination}% illumination) in ${moonPhase.sign}`);
+    const lunation = moonPhase.exactLunation;
+    if (lunation) {
+      const lunationName = lunation.type === 'new-moon' ? 'New Moon' : 'Full Moon';
+      const timing = lunation.hoursFromNow >= 0
+        ? `falls in ${lunation.sign} in ${describeSpan(lunation.hoursFromNow)}`
+        : `was in ${lunation.sign} ${describeSpan(lunation.hoursFromNow)} ago`;
+      lines.push(`- **Lunar Phase**: ${moonPhase.phaseName} (${moonPhase.illumination}% illumination), Moon now in ${moonPhase.sign}; the exact ${lunationName} ${timing}`);
+    } else {
+      lines.push(`- **Lunar Phase**: ${moonPhase.phaseName} (${moonPhase.illumination}% illumination) in ${moonPhase.sign}`);
+    }
     if (moonPhase.interpretation) {
       lines.push(`  - ${moonPhase.interpretation}`);
     }
@@ -322,11 +434,14 @@ export function buildAstrologicalWeatherSection(ephemerisContext) {
     lines.push(`- **Solar Season**: Sun in ${positions.Sun.sign} at ${positions.Sun.degree.toFixed(1)}°`);
   }
 
-  // Retrogrades
+  // Retrogrades: every planet is listed as fact; only personal planets carry advice
   if (retrogrades?.length > 0) {
     const retroList = retrogrades.map(r => `${r.planet} in ${r.sign}`).join(', ');
     lines.push(`- **Retrograde Planets** (${retrogrades.length}): ${retroList}`);
-    lines.push('  - Retrogrades suggest review, reflection, and revisiting rather than initiating');
+    const personal = getPersonalRetrogrades(retrogrades);
+    if (personal.length > 0) {
+      lines.push(`  - ${formatNames(personal)} retrograde ${personal.length === 1 ? 'is' : 'are'} often read as a time to review and revisit what is already in motion; an invitation, not a rule`);
+    }
   }
 
   // Tight aspects (orb < 2°)
@@ -387,19 +502,16 @@ export function generateTimingGuidance(ephemerisContext, spreadKey) {
     }
   }
 
-  // Retrograde timing (especially for decision spreads)
-  if (retrogrades?.length > 0) {
-    const hasCommRetro = retrogrades.some(r =>
-      ['Mercury', 'Venus'].includes(r.planet)
-    );
+  // Retrograde timing: only personal planets carry advice, phrased as an invitation
+  const personal = getPersonalRetrogrades(retrogrades);
+  const communication = personal.filter((planet) => planet !== 'Mars');
 
-    if (spreadKey === 'decision' && hasCommRetro) {
-      guidance.push('With communication/relationship planets retrograde, consider gathering more information before finalizing decisions');
-    }
+  if (spreadKey === 'decision' && communication.length > 0) {
+    guidance.push(`${formatNames(communication)} retrograde ${communication.length === 1 ? 'is' : 'are'} often read as a time to double-check information before finalizing decisions; the choice and its timing remain the querent's`);
+  }
 
-    if (retrogrades.length >= 4) {
-      guidance.push('Multiple retrogrades suggest this is a time for internal processing rather than external action');
-    }
+  if (personal.length >= 2) {
+    guidance.push(`With ${formatNames(personal)} retrograde together, this stretch is often read as a time for reflection and revision; an invitation, not a reason to hold back`);
   }
 
   return guidance.length > 0 ? guidance : null;
@@ -409,160 +521,129 @@ export function generateTimingGuidance(ephemerisContext, spreadKey) {
  * Fetch ephemeris forecast for upcoming days
  * Detects key events: moon phases, retrograde stations, sign ingresses
  *
- * Uses adaptive sampling to balance accuracy with performance:
- * - Short forecasts (≤14 days): daily sampling for moon phase precision
+ * Each event is dated by an exact astronomical search (see
+ * findEphemerisEvents). Adaptive sampling only spaces the checks that detect
+ * stations and ingresses:
+ * - Short forecasts (≤14 days): daily
  * - Medium forecasts (15-30 days): every 2 days
  * - Long forecasts (31-90 days): every 3 days
+ *
+ * @param {number} days - Forecast length in days
+ * @param {Object} [options]
+ * @param {string|Date} [options.referenceTime] - Forecast start (defaults to now); pass a
+ *   reading's timestamp to reproduce the forecast it received
+ * @param {string} [options.timezone] - The querent's IANA timezone. When known, events are
+ *   phrased in calendar days with a local date label; otherwise in elapsed time, because
+ *   UTC's "today" is not necessarily the querent's
  */
-export async function fetchEphemerisForecast(days = 30, _options = {}) {
+export async function fetchEphemerisForecast(days = 30, options = {}) {
   try {
-    const now = new Date();
-    const events = [];
-
-    // Adaptive sampling interval based on forecast length
-    const sampleInterval = days <= 14 ? 1 : days <= 30 ? 2 : 3;
-
-    let prevMoonPhase = null;
-    let prevPositions = null;
-    let prevRetrogrades = null;
-
-    for (let dayOffset = 0; dayOffset <= days; dayOffset += sampleInterval) {
-      const sampleDate = new Date(now);
-      sampleDate.setDate(sampleDate.getDate() + dayOffset);
-      const isoDate = sampleDate.toISOString();
-
-      // Use Workers-compatible ephemeris module
-      const positionsPayload = ephemerisWorkers.getCurrentPositions(isoDate);
-      const positions = positionsPayload?.positions || positionsPayload || null;
-      const moonPhase = ephemerisWorkers.getMoonPhase(isoDate);
-      const retrogrades = ephemerisWorkers.getRetrogradePlanets(isoDate);
-
-      // Detect New Moon / Full Moon transitions
-      if (prevMoonPhase) {
-        const prevPhase = prevMoonPhase.phaseName?.toLowerCase() || '';
-        const currPhase = moonPhase.phaseName?.toLowerCase() || '';
-
-        if (currPhase.includes('new moon') && !prevPhase.includes('new moon')) {
-          events.push({
-            type: 'new-moon',
-            date: isoDate,
-            dayOffset,
-            description: `New Moon in ${moonPhase.sign}`,
-            guidance: 'Ideal for setting intentions and beginning new cycles'
-          });
-        }
-        if (currPhase.includes('full moon') && !prevPhase.includes('full moon')) {
-          events.push({
-            type: 'full-moon',
-            date: isoDate,
-            dayOffset,
-            description: `Full Moon in ${moonPhase.sign}`,
-            guidance: 'Time of illumination, culmination, and release'
-          });
-        }
-      }
-
-      // Detect retrograde stations (planet goes direct)
-      if (prevRetrogrades && retrogrades) {
-        const prevRetroSet = new Set(prevRetrogrades.map(r => r.planet));
-        const currRetroSet = new Set(retrogrades.map(r => r.planet));
-
-        // Planet went direct (was retrograde, now isn't)
-        for (const planet of prevRetroSet) {
-          if (!currRetroSet.has(planet)) {
-            events.push({
-              type: 'station-direct',
-              date: isoDate,
-              dayOffset,
-              planet,
-              description: `${planet} stations direct`,
-              guidance: getDirectStationGuidance(planet)
-            });
-          }
-        }
-
-        // Planet went retrograde (wasn't retrograde, now is)
-        for (const planet of currRetroSet) {
-          if (!prevRetroSet.has(planet)) {
-            events.push({
-              type: 'station-retrograde',
-              date: isoDate,
-              dayOffset,
-              planet,
-              description: `${planet} stations retrograde`,
-              guidance: getRetrogradeStationGuidance(planet)
-            });
-          }
-        }
-      }
-
-      // Detect Sun sign ingress (season change)
-      if (prevPositions?.Sun && positions?.Sun) {
-        if (prevPositions.Sun.sign !== positions.Sun.sign) {
-          events.push({
-            type: 'sun-ingress',
-            date: isoDate,
-            dayOffset,
-            sign: positions.Sun.sign,
-            description: `Sun enters ${positions.Sun.sign}`,
-            guidance: getSeasonGuidance(positions.Sun.sign)
-          });
-        }
-      }
-
-      prevMoonPhase = moonPhase;
-      prevPositions = positions;
-      prevRetrogrades = retrogrades;
+    const referenceDate = options.referenceTime ? new Date(options.referenceTime) : new Date();
+    if (Number.isNaN(referenceDate.getTime())) {
+      throw new Error(`Invalid forecast reference time: ${options.referenceTime}`);
     }
+    const timezone = resolveTimezone(options.timezone); // null when unknown
+    const sampleIntervalDays = days <= 14 ? 1 : days <= 30 ? 2 : 3;
+
+    const events = ephemerisWorkers
+      .findEphemerisEvents(referenceDate, days, { sampleIntervalDays })
+      .map((event) => describeForecastEvent(event, referenceDate, timezone));
 
     // Get current state for context
-    const currentContext = await fetchEphemerisContext();
+    const currentContext = await fetchEphemerisContext(referenceDate.toISOString());
 
     return {
       available: true,
       forecastDays: days,
-      startDate: now.toISOString(),
-      endDate: new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString(),
-      events: events.sort((a, b) => a.dayOffset - b.dayOffset),
+      startDate: referenceDate.toISOString(),
+      endDate: new Date(referenceDate.getTime() + days * DAY_MS).toISOString(),
+      timezone,
+      events,
       currentContext,
       source: 'astronomy-engine'
     };
   } catch (err) {
-    console.warn('[ephemerisIntegration] Failed to fetch forecast:', err.message);
+    const message = describeError(err);
+    console.warn('[ephemerisIntegration] Failed to fetch forecast:', message);
     return {
       available: false,
-      error: err.message,
+      error: message,
       events: []
     };
   }
 }
 
+/**
+ * Attach prompt-facing text and timing to an exact event. `dayOffset` counts
+ * calendar days in the querent's timezone (UTC when unknown); `dateLabel` is
+ * only set when that timezone is known.
+ */
+function describeForecastEvent(event, referenceDate, timezone) {
+  const timing = {
+    type: event.type,
+    date: event.date.toISOString(),
+    dayOffset: getCalendarDayOffset(referenceDate, event.date, timezone || 'UTC'),
+    hoursUntil: Math.round(((event.date - referenceDate) / (60 * 60 * 1000)) * 10) / 10,
+    ...(timezone ? { dateLabel: formatEventDateLabel(event.date, timezone) } : {})
+  };
+
+  switch (event.type) {
+    case 'new-moon':
+      return {
+        ...timing,
+        description: `New Moon in ${event.sign}`,
+        guidance: 'Ideal for setting intentions and beginning new cycles'
+      };
+    case 'full-moon':
+      return {
+        ...timing,
+        description: `Full Moon in ${event.sign}`,
+        guidance: 'Time of illumination, culmination, and release'
+      };
+    case 'station-direct':
+      return {
+        ...timing,
+        planet: event.planet,
+        description: `${event.planet} stations direct`,
+        guidance: getDirectStationGuidance(event.planet)
+      };
+    case 'station-retrograde':
+      return {
+        ...timing,
+        planet: event.planet,
+        description: `${event.planet} stations retrograde`,
+        guidance: getRetrogradeStationGuidance(event.planet)
+      };
+    case 'sun-ingress':
+      return {
+        ...timing,
+        sign: event.sign,
+        description: `Sun enters ${event.sign}`,
+        guidance: getSeasonGuidance(event.sign)
+      };
+    default:
+      return { ...timing, description: 'Astrological event', guidance: '' };
+  }
+}
+
+// Station guidance exists only for the personal planets and is phrased as a
+// traditional reading, not a directive; outer-planet stations stay dated facts.
 function getDirectStationGuidance(planet) {
   const guidance = {
-    Mercury: 'Communication clears, plans can move forward, good time to sign agreements',
-    Venus: 'Relationships clarify, creative projects gain momentum',
-    Mars: 'Action energy returns, projects stalled can restart',
-    Jupiter: 'Expansion resumes, opportunities open up',
-    Saturn: 'Structures solidify, responsibilities become clearer',
-    Uranus: 'Change accelerates, breakthroughs possible',
-    Neptune: 'Clarity emerges from confusion, spiritual insights manifest',
-    Pluto: 'Transformation completes a phase, power dynamics shift'
+    Mercury: 'Often read as communication and plans moving more freely again',
+    Venus: 'Often read as relationships and creative work finding clearer footing',
+    Mars: 'Often read as momentum returning to efforts that stalled'
   };
-  return guidance[planet] || 'Forward momentum returns';
+  return guidance[planet] || '';
 }
 
 function getRetrogradeStationGuidance(planet) {
   const guidance = {
-    Mercury: 'Review communications, avoid signing contracts, backup data',
-    Venus: 'Reflect on relationships and values, past connections may resurface',
-    Mars: 'Slow down, redirect energy inward, avoid forcing action',
-    Jupiter: 'Internal growth phase, reassess beliefs and goals',
-    Saturn: 'Review commitments and structures, karmic lessons surface',
-    Uranus: 'Internal revolution, question assumptions about freedom',
-    Neptune: 'Deepen spiritual practice, dreams become significant',
-    Pluto: 'Deep psychological work, transform from within'
+    Mercury: 'Often read as a time to review communications and double-check details',
+    Venus: 'Often read as a time to reflect on relationships and values',
+    Mars: 'Often read as a time to pace effort and reconsider where energy goes'
   };
-  return guidance[planet] || 'Time for reflection and review';
+  return guidance[planet] || '';
 }
 
 function getSeasonGuidance(sign) {
@@ -596,11 +677,10 @@ export function buildForecastSection(forecast) {
   lines.push('');
 
   for (const event of forecast.events.slice(0, 6)) {
-    const inDays = event.dayOffset === 0 ? 'today' :
-                   event.dayOffset === 1 ? 'tomorrow' :
-                   `in ${event.dayOffset} days`;
-    lines.push(`- **${event.description}** (${inDays})`);
-    lines.push(`  - ${event.guidance}`);
+    lines.push(`- **${event.description}** (${describeEventTiming(event)})`);
+    if (event.guidance) {
+      lines.push(`  - ${event.guidance}`);
+    }
   }
 
   lines.push('');
@@ -621,7 +701,8 @@ export function getEphemerisSummary(ephemerisContext) {
   const { moonPhase, retrogrades, positions } = ephemerisContext;
 
   if (moonPhase) {
-    parts.push(`Moon: ${moonPhase.phaseName} in ${moonPhase.sign}`);
+    // A New/Full Moon is named by the sign of the exact lunation
+    parts.push(`Moon: ${moonPhase.phaseName} in ${moonPhase.exactLunation?.sign ?? moonPhase.sign}`);
   }
 
   if (positions?.Sun) {
@@ -648,12 +729,8 @@ export function formatForecastHighlights(forecast, maxItems = 4) {
   for (const event of events) {
     if (highlights.length >= maxItems) break;
 
-    const inDays = event.dayOffset === 0 ? 'today'
-      : event.dayOffset === 1 ? 'in 1 day'
-      : `in ${event.dayOffset} days`;
-
     const desc = event.description || 'Astrological event';
-    highlights.push(`${desc} (${inDays})`);
+    highlights.push(`${desc} (${describeEventTiming(event, { tomorrow: 'in 1 day' })})`);
   }
 
   // Add current retrogrades context if space remains

@@ -128,11 +128,19 @@ export function MoonPhaseIndicator({ ephemeris, variant = 'compact' }) {
     if (!moon) return '';
     const phaseName = moon.phaseName || 'Unknown';
     const illum = typeof moon.illumination === 'number' ? `${moon.illumination}%` : '—';
-    const sign = moon.sign ? ` in ${moon.sign}` : '';
+    // Near a New/Full Moon, name the lunation by its own sign and exact local time,
+    // not by the sign the Moon happened to be in when the reading was generated.
+    const lunation = moon.exactLunation;
+    const signName = lunation?.sign || moon.sign;
+    const sign = signName ? ` in ${signName}` : '';
+    const exactTime = lunation?.date ? new Date(lunation.date) : null;
+    const exact = exactTime && !Number.isNaN(exactTime.getTime())
+      ? `\nExact: ${exactTime.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+      : '';
     const interp = moon.interpretation ? `\n\n${moon.interpretation}` : '';
     const disclaimer = '\n\nAstrology here is symbolic context, not a prediction.';
     // Newlines are rendered by Tooltip (whitespace-pre-line).
-    return `Moon: ${phaseName}${sign}\nIllumination: ${illum}${interp}${disclaimer}\n\nCaptured at the moment your reading was generated.`;
+    return `Moon: ${phaseName}${sign}${exact}\nIllumination: ${illum}${interp}${disclaimer}\n\nCaptured at the moment your reading was generated.`;
   }, [moon]);
 
   if (!moon || !moon.phaseName) {

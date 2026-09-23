@@ -37,6 +37,23 @@ describe('GraphRAG alert heuristics', () => {
         );
     });
 
+    it('names why semantic scoring fell back', () => {
+        const alerts = collectGraphRAGAlerts({
+            graphRAG: {
+                includedInPrompt: true,
+                passagesProvided: 2,
+                semanticScoringRequested: true,
+                semanticScoringFallback: true,
+                semanticScoringFallbackReason: 'embeddings-failed'
+            }
+        });
+
+        assert.ok(
+            alerts.some((a) => a.includes('fell back') && a.includes('embeddings-failed')),
+            `Expected fallback alert with reason, got: ${alerts.join(' | ')}`
+        );
+    });
+
     it('warns when GraphRAG passages are heavily truncated', () => {
         const alerts = collectGraphRAGAlerts({
             graphRAG: {

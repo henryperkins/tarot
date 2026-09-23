@@ -1178,8 +1178,10 @@ export function ReadingProvider({ children }) {
                     ? 'Full deck (Major + Minor Arcana).'
                     : 'Major Arcana focus (archetypal themes).';
                 notes.push({ key: 'deck-scope', icon: '-', title: 'Deck scope:', text: deckScope });
-                if (themes.dominantSuit || themes.suitFocus) {
-                    notes.push({ key: 'suit-dominance', icon: '♠', title: 'Suit Dominance:', text: themes.suitFocus || `A strong presence of ${themes.dominantSuit} suggests this suit's themes are central to your situation.` });
+                // suitFocus covers every repeated suit (including ties); a bare dominantSuit
+                // may be a single card, so it never becomes a dominance claim on its own.
+                if (themes.suitFocus) {
+                    notes.push({ key: 'suit-dominance', icon: '♠', title: 'Suit Focus:', text: themes.suitFocus });
                 }
                 if (themes.elementalBalance) {
                     notes.push({ key: 'elemental-balance', icon: '⚡', title: 'Elemental Balance:', text: themes.elementalBalance });

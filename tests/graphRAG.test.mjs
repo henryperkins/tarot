@@ -523,10 +523,12 @@ describe('GraphRAG Utilities', () => {
 
 describe('GraphRAG Passage Ranking', () => {
   test('rankPassagesForPrompt prioritizes semantic relevance scores', () => {
+    // Provenance flags as set by retrievePassagesWithQuality when embeddings succeed.
+    const semantic = { _semanticScoringAttempted: true, _semanticScoringSucceeded: true };
     const passages = [
-      { title: 'A', relevanceScore: 0.35, priority: 2 },
-      { title: 'B', relevanceScore: 0.91, priority: 3 },
-      { title: 'C', relevanceScore: 0.62, priority: 1 }
+      { title: 'A', relevanceScore: 0.35, priority: 2, ...semantic },
+      { title: 'B', relevanceScore: 0.91, priority: 3, ...semantic },
+      { title: 'C', relevanceScore: 0.62, priority: 1, ...semantic }
     ];
 
     const { passages: ranked, strategy } = rankPassagesForPrompt(passages);

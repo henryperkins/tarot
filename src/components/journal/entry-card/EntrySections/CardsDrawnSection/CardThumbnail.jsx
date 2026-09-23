@@ -16,7 +16,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   className,
   nameMaxWidth = 84
 }) {
-  const name = card?.name || 'Unknown card';
+  const name = card?.displayName || card?.name || 'Unknown card';
   const position = card?.position || 'Position';
   const cardImage = getCardImage(card);
   const shouldShowPosition = showLabels && showPosition;

@@ -1,12 +1,14 @@
 {
   "name": "@tableau/chatgpt-mcp-adapter",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "MCP adapter for Tableau tarot-reading backend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "smoke:backend": "node scripts/smoke-backend.js"
+    "smoke:backend": "node scripts/smoke-backend.js",
+    "verify:identity": "node scripts/verify-identity.js",
+    "test": "node --test tests/*.test.mjs"
   },
   "keywords": [
     "mcp",

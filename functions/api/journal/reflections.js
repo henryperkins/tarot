@@ -24,8 +24,8 @@ import { getUserFromRequest } from '../../lib/auth.js';
 import { buildTierLimitedPayload, isEntitled } from '../../lib/entitlements.js';
 import { safeJsonParse } from '../../lib/utils.js';
 
-// Matches the app's own reflection inputs (Card.jsx / ReadingBoard.jsx maxLength).
-export const MAX_REFLECTION_LENGTH = 500;
+// Audited conversational-write contract; existing app inputs may be shorter.
+export const MAX_REFLECTION_LENGTH = 2000;
 // Reserved key for a note about the reading as a whole; the UI renders the key as the label.
 export const READING_REFLECTION_KEY = 'Overall';
 
@@ -53,10 +53,21 @@ function normalizeCardName(value) {
 }
 
 // Journal cards carry `name`; tolerate the reading API's `card` for entries
-// forwarded verbatim from cardsInfo.
+// forwarded verbatim from cardsInfo. A saved deck display name labels the card.
 function cardName(card) {
-  return card?.name || card?.card || '';
+  return card?.displayName || card?.name || card?.card || '';
 }
+
+// Callers may name a card by its canonical name or by the deck's display name.
+function cardNames(card) {
+  return [card?.name, card?.card, card?.displayName, card?.canonicalName]
+    .filter((name) => typeof name === 'string' && name);
+}
+
+// A failed compare-and-swap means another writer succeeded, so N simultaneous
+// appends to one entry all land within N attempts. This covers every note on
+// the largest spread (10 cards plus Overall) with room to spare.
+const MAX_APPEND_ATTEMPTS = 32;
 
 function summarizeCards(cards) {
   return cards.map((card, index) => ({
@@ -76,7 +87,8 @@ function summarizeCards(cards) {
 export function resolveCardIndex(cards, { card, position, cardIndex } = {}) {
   const wantedName = normalizeCardName(card);
   const wantedPosition = normalizeLabel(position);
-  const nameMatches = (candidate) => !wantedName || normalizeCardName(cardName(candidate)) === wantedName;
+  const nameMatches = (candidate) => !wantedName
+    || cardNames(candidate).some((name) => normalizeCardName(name) === wantedName);
   const positionMatches = (candidate) => !wantedPosition || normalizeLabel(candidate?.position) === wantedPosition;
   const describe = (candidate) => `${cardName(candidate) || 'an unnamed card'} (${candidate?.position || 'no position'})`;
 
@@ -150,8 +162,8 @@ export async function onRequestPost(context) {
       return json({ error: 'Invalid reflection payload' }, 400);
     }
 
-    const text = typeof body.text === 'string' ? body.text.trim() : '';
-    if (!text) {
+    const text = typeof body.text === 'string' ? body.text : '';
+    if (!text.trim()) {
       return json({ error: 'Reflection text is required' }, 400);
     }
     if (text.length > MAX_REFLECTION_LENGTH) {
@@ -176,15 +188,16 @@ export async function onRequestPost(context) {
     }
 
     // Verify ownership and load the cards the note must refer to.
-    const entry = await env.DB.prepare(
-      'SELECT id, user_id, cards_json, reflections_json FROM journal_entries WHERE id = ?'
-    ).bind(entryId).first();
+    const loadEntry = () => env.DB.prepare(
+      'SELECT id, user_id, cards_json, reflections_json FROM journal_entries WHERE id = ? AND user_id = ?'
+    ).bind(entryId, user.id).first();
+    let entry = await loadEntry();
 
     if (!entry) {
       return json({ error: 'Entry not found' }, 404);
     }
     if (entry.user_id !== user.id) {
-      return json({ error: 'Unauthorized to modify this entry' }, 403);
+      return json({ error: 'Entry not found' }, 404);
     }
 
     const parsedCards = safeJsonParse(entry.cards_json, []);
@@ -207,30 +220,41 @@ export async function onRequestPost(context) {
       };
     }
 
-    const parsedReflections = safeJsonParse(entry.reflections_json, {});
-    const reflections =
-      parsedReflections && typeof parsedReflections === 'object' && !Array.isArray(parsedReflections)
-        ? { ...parsedReflections }
-        : {};
+    // Compare-and-swap the entire map to preserve simultaneous notes on any
+    // target. Retry only a known zero-change conflict, never an uncertain write.
+    for (let attempt = 0; attempt < MAX_APPEND_ATTEMPTS; attempt += 1) {
+      const parsedReflections = safeJsonParse(entry.reflections_json, {});
+      const reflections =
+        parsedReflections && typeof parsedReflections === 'object' && !Array.isArray(parsedReflections)
+          ? { ...parsedReflections }
+          : {};
 
-    const existing = typeof reflections[key] === 'string' ? reflections[key].trim() : '';
-    const value = mode === 'append' && existing ? `${existing}\n\n${text}` : text;
-    reflections[key] = value;
+      const existing = typeof reflections[key] === 'string' ? reflections[key] : '';
+      const value = mode === 'append' && existing ? `${existing}\n\n${text}` : text;
+      reflections[key] = value;
 
-    const nowSeconds = Math.floor(Date.now() / 1000);
-    await env.DB.prepare(
-      'UPDATE journal_entries SET reflections_json = ?, updated_at = ? WHERE id = ? AND user_id = ?'
-    ).bind(JSON.stringify(reflections), nowSeconds, entryId, user.id).run();
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      const updated = await env.DB.prepare(
+        'UPDATE journal_entries SET reflections_json = ?, updated_at = ? WHERE id = ? AND user_id = ? AND reflections_json IS ?'
+      ).bind(JSON.stringify(reflections), nowSeconds, entryId, user.id, entry.reflections_json).run();
 
-    return json(
-      {
-        success: true,
-        entry: { id: entryId },
-        reflection: { key, scope, ...(resolvedCard || {}), text: value },
-        reflections
-      },
-      200
-    );
+      if (updated.meta.changes === 0) {
+        entry = await loadEntry();
+        if (!entry || entry.user_id !== user.id) return json({ error: 'Entry not found' }, 404);
+        continue;
+      }
+
+      return json(
+        {
+          success: true,
+          entry: { id: entryId },
+          reflection: { key, scope, ...(resolvedCard || {}), text: value },
+          reflections
+        },
+        200
+      );
+    }
+    return json({ error: 'Entry changed concurrently; reflection was not appended', code: 'reflection_conflict' }, 409);
   } catch (error) {
     console.error(`[${logRequestId}] [journal] Add reflection error:`, error);
     return json({ error: 'Internal server error' }, 500);

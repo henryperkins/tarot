@@ -1,82 +1,116 @@
-# Tableau ChatGPT MCP Adapter
+# Tableu private MCP adapter
 
-Thin MCP service that exposes this repo's tarot jobs backend to ChatGPT Apps.
+Owner-only Streamable HTTP MCP at `/mcp`. This service forwards one personal
+Tableu backend credential. It is not a multi-user authorization system.
 
-## What it exposes
+## Tools
 
-- `start_tarot_reading` -> `POST /api/tarot-reading/jobs`
-- `get_tarot_reading_status` -> `GET /api/tarot-reading/jobs/:id`
-- `cancel_tarot_reading` -> `POST /api/tarot-reading/jobs/:id/cancel`
-- `wait_for_tarot_reading` -> polling helper around status endpoint
+| Tool | Backend |
+| --- | --- |
+| `start_tarot_reading` | POST `/api/tarot-reading/jobs` with supplied cards |
+| `get_tarot_reading_status` | GET `/api/tarot-reading/jobs/:id` |
+| `wait_for_tarot_reading` | Poll the existing job; a timeout is not a new reading |
+| `cancel_tarot_reading` | POST `/api/tarot-reading/jobs/:id/cancel` |
+| `drawTarotReading` | POST `/api/tarot-reading/draw`; backend draws and generates a narrative |
+| `saveReadingToJournal` | POST `/api/journal`; explicit user consent required |
+| `addReflectionToJournalEntry` | POST `/api/journal/:id/reflections`; explicit consent required |
 
-## Prerequisites
+After explicit consent, pass a draw's returned `savePayload` unchanged to the save
+tool. It preserves the full narrative, card order/positions/orientations, canonical
+deck identities, metadata and the returned seed. For supplied-card jobs, retain
+the actual request cards and completed result; never start another job to save it.
 
-- Node 20+
-- A valid backend API key (`sk_...`) from Tableau
-- Backend reachable at `TABLEAU_BASE_URL`
+Compatibility extensions to the v0.27.3 audited contract: `personalReading` is
+required; numeric backend seeds are accepted and stored as strings; null optional
+card metadata is omitted. As in app saves, each card's `name` is its canonical
+card, which every journal view and statistic keys on. A deck label that differs,
+such as Thoth's Prince of Cups for the canonical Knight, is kept as `displayName`
+for display, and `canonicalName`/`canonicalKey` are preserved. A draw's
+`savePayload` records `rws-1909` when no deck was chosen, and keeps the location
+only when the draw set `persistLocationToJournal`.
 
-## Setup
+Deduplication uses the draw's seed paired with its `requestId`, so saving the same
+draw twice returns the original entry, while a later draw with the same caller
+seed is saved separately. Omit `sessionSeed` for supplied-card jobs. A
+deduplicated save returns the original entry without overwriting it.
 
-1. Copy env file:
-   - `cp .env.example .env`
-2. Fill:
-   - `TABLEAU_BASE_URL`
-   - `TABLEAU_API_KEY`
-   - Optional host binding controls:
-     - `ADAPTER_BIND_HOST` (default `0.0.0.0`)
-     - `ADAPTER_ALLOWED_HOSTS` (comma-separated hostnames for DNS-rebinding protection)
-3. Install:
-   - `npm install`
-4. Run:
-   - `npm run start`
+A crisis-gated draw (`gateReason: crisis_gate`) returns only the support message,
+with no cards and no `savePayload`. Share it; never present or save a reading.
 
-Default endpoint:
+Reflections preserve 1–2,000 characters verbatim and append. Name the card as it
+was saved or as the reading showed it, with its position when that name is
+repeated. The adapter accepts only an entry id
+returned by a successful save in the same MCP transport session. After session
+loss, check the app; do not guess an id or repeat an unseeded save to recover it.
+No history or archetype-tracking tools are exposed.
 
-- `http://localhost:3334/mcp`
+Write tools declare `readOnlyHint: false` and `idempotentHint: false`. No network
+write is retried automatically. Lost responses, malformed successes and server
+failures return `isError: true`, `outcome: unknown`, and instructions to check the
+app. Explicit rejections return `outcome: rejected`. An identity mismatch blocks
+dispatch with `outcome: not_started`. A failed read, such as a job status poll,
+also reports `not_started` with the backend's reason and is safe to repeat.
 
-## Dev mode
+## Setup and identity proof
 
-- `npm run dev`
+Use Node 22.16+ or Node 24. Run `npm ci` in this directory, copy
+`.env.example` to an ignored `.env`, and configure:
 
-## OAuth mode (optional)
+- `TABLEAU_BASE_URL`: deployed backend HTTPS origin.
+- `TABLEAU_API_KEY`: personal app API key (`sk_...`), or temporary personal
+  session bearer for verification. Existing app entitlements still apply.
+- `TABLEAU_OWNER_USER_ID`: exact `user.id` from the signed-in app's
+  `/api/auth/me` response. Do not infer it from an email or successful auth.
+- Owner access authentication as described below.
 
-Use this for per-user tools instead of static service-account auth.
+Startup and every backend operation verify `/api/auth/me` and reject a different
+or synthetic account. `GPT_SERVICE_TOKEN` represents a synthetic account.
+Changing `GPT_SERVICE_USER_ID` to a human id is not a supported workaround.
 
-1. Set `OAUTH_ENABLED=true` in `.env`.
-2. Configure either:
-   - `OAUTH_ISSUER_URL` (adapter discovers metadata from `/.well-known/*`), or
-   - `OAUTH_METADATA_URL` directly.
-3. Set `OAUTH_RESOURCE_SERVER_URL` to your public MCP URL (for example `https://adapter.example.com/mcp`).
-4. Choose token verification strategy:
-   - Introspection: set `OAUTH_INTROSPECTION_URL` (+ optional `OAUTH_INTROSPECTION_CLIENT_ID/SECRET`).
-   - JWT: set `OAUTH_JWKS_URI` (or rely on `jwks_uri` from metadata).
+For read-only account parity proof, set `TABLEAU_APP_SESSION_TOKEN` in the local
+process environment from the signed-in app, then run `npm run verify:identity`.
+It compares bearer and cookie identity independently and prints only the matched
+user id/auth method. Remove that temporary variable afterward. Keep the evidence
+private; never commit credentials or actual account identifiers to a public PR.
 
-When enabled, the adapter exposes:
+## Owner access authentication
 
-- `/.well-known/oauth-protected-resource/mcp`
-- `/.well-known/oauth-authorization-server`
+**Private bearer mode:** set `OAUTH_ENABLED=false` and a separate random
+`ADAPTER_OWNER_TOKEN` of at least 32 characters. Every `/mcp` method requires
+it, including on localhost. This mode is for clients/tunnels that securely supply
+a bearer header; it does not implement ChatGPT account linking. Never put a token
+in plugin sources.
 
-and requires bearer auth on `/mcp`.
+**Owner OAuth mode for ChatGPT:** set `OAUTH_ENABLED=true`,
+`OAUTH_OWNER_SUBJECT` to the exact owner's issuer subject, and configure the
+issuer/metadata/JWKS or introspection fields in `.env.example`. Set
+`OAUTH_RESOURCE_SERVER_URL` to the actual deployed HTTPS URL ending `/mcp`.
+Configure audience/scopes and register the exact callback shown by ChatGPT at the
+issuer. The issuer needs MCP-compatible authorization, PKCE S256, and a supported
+client registration method.
 
-## Quick backend smoke check
+Other OAuth subjects are denied, even with an existing session id. OAuth does not
+select the backend user: all allowed calls use the separately verified personal
+backend credential. See [OpenAI authentication](https://developers.openai.com/plugins/build/auth)
+and [connection testing](https://developers.openai.com/plugins/deploy/connect-chatgpt).
+Keep the Tableu plugin private.
 
-This validates backend auth + jobs contract directly:
+## Hosting and checks
 
-- `npm run smoke:backend`
+`npm start` defaults to `127.0.0.1:3334`, which accepts only localhost `Host`
+headers. Behind a reverse proxy or tunnel that forwards the public hostname, set
+`ADAPTER_ALLOWED_HOSTS` to that hostname. Public/container binding requires
+`ADAPTER_BIND_HOST=0.0.0.0` and explicit `ADAPTER_ALLOWED_HOSTS`. Terminate
+HTTPS at the host proxy, preserve Authorization/MCP headers, and support SSE
+without buffering. Use one replica or sticky sessions; state is in memory.
 
-## Connect in ChatGPT
+The optional Dockerfile runs as a non-root user. Inject credentials from the
+host's secret store at runtime. This repository does not allocate a real MCP URL.
 
-1. Enable Developer Mode:
-   - `Settings -> Apps & Connectors -> Advanced settings`
-2. Create connector:
-   - `Settings -> Connectors -> Create`
-3. Use connector URL:
-   - `https://<your-public-host>/mcp`
-4. Save, verify tools, then test in a chat.
+Run `npm test` here. From the repository root, run `npm test`,
+`npm run test:mcp`, `npm run test:e2e:journal`, and `npm run build` after
+installing both dependency trees and Playwright Chromium.
 
-## Notes
-
-- Default mode uses a static backend API key.
-- In default mode, OAuth discovery routes return `404` intentionally.
-- In OAuth mode, discovery routes are served and `/mcp` requires bearer auth.
-- For production, set `ADAPTER_ALLOWED_HOSTS` (for example `adapter.example.com`) when binding to `0.0.0.0`.
+`smoke:backend` starts a real reading job and may consume quota; it is not the
+read-only identity test. See [the rollout checklist](../../docs/integrations/openai/owner-journal-rollout.md)
+for deployment, connection and the live ChatGPT acceptance test.

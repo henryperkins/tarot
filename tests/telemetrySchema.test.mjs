@@ -153,14 +153,16 @@ describe('telemetrySchema', () => {
         semanticScoringRequested: true,
         semanticScoringUsed: false,
         semanticScoringAttempted: true,
-        semanticScoringFallback: true
+        semanticScoringFallback: true,
+        semanticScoringFallbackReason: 'embeddings-failed'
       };
       const result = buildGraphRAGTelemetry(stats);
       assert.deepStrictEqual(result.semanticScoring, {
         requested: true,
         used: false,
         attempted: true,
-        fallback: true
+        fallback: true,
+        fallbackReason: 'embeddings-failed'
       });
     });
 

@@ -21,6 +21,9 @@ const CARD_LOOKUP = new Map([
 
 const DEFAULT_OUTPUT = 'data/evaluations/narrative-samples.json';
 const DEFAULT_BACKEND = process.env.NARRATIVE_EVAL_BACKEND || 'auto';
+// Astrological context (moon phase, retrogrades, forecast) depends on this instant,
+// so a fixed default keeps runs comparable. Pass `--reference-time now` for live sky.
+const DEFAULT_REFERENCE_TIME = process.env.NARRATIVE_EVAL_REFERENCE_TIME || '2026-09-23T14:04:00Z';
 
 const SAMPLE_DEFINITIONS = [
   {
@@ -138,13 +141,29 @@ const SAMPLE_DEFINITIONS = [
 ];
 
 function usage() {
-  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|local-composer|azure-gpt5|claude-opus45] [--trace]`);
+  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|local-composer|azure-gpt5|claude-opus45] [--reference-time ISO|now] [--trace]`);
   console.log(`\nOptions:`);
+  console.log(`  --reference-time  Instant for astrological context (default ${DEFAULT_REFERENCE_TIME}; "now" for the live sky)`);
   console.log(`  --trace    Enable W&B Weave tracing (requires WANDB_API_KEY)`);
 }
 
+function resolveReferenceTime(value) {
+  if (value === 'now') return new Date().toISOString();
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid --reference-time: ${value}`);
+  }
+  return date.toISOString();
+}
+
 function parseArgs(rawArgs) {
-  const options = { output: DEFAULT_OUTPUT, sampleIds: null, backend: DEFAULT_BACKEND, trace: false };
+  const options = {
+    output: DEFAULT_OUTPUT,
+    sampleIds: null,
+    backend: DEFAULT_BACKEND,
+    referenceTime: DEFAULT_REFERENCE_TIME,
+    trace: false
+  };
   for (let i = 0; i < rawArgs.length; i += 1) {
     const arg = rawArgs[i];
     if (arg === '--out') {
@@ -160,6 +179,13 @@ function parseArgs(rawArgs) {
       i += 1;
     } else if (arg === '--backend') {
       options.backend = rawArgs[i + 1] || DEFAULT_BACKEND;
+      i += 1;
+    } else if (arg === '--reference-time') {
+      const value = rawArgs[i + 1];
+      if (!value) {
+        throw new Error('Missing value for --reference-time');
+      }
+      options.referenceTime = value;
       i += 1;
     } else if (arg === '--trace') {
       options.trace = true;
@@ -226,7 +252,7 @@ function resolveBackendId(requestedBackend, env) {
  * Generate a narrative sample. When tracing is enabled, this function
  * is wrapped with weave.op() to log inputs/outputs to W&B.
  */
-async function generateSampleImpl(sample, { env, backendId }) {
+async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
   const spreadInfo = SPREADS[sample.spreadKey];
   if (!spreadInfo) {
     throw new Error(`Unknown spread key: ${sample.spreadKey}`);
@@ -250,7 +276,8 @@ async function generateSampleImpl(sample, { env, backendId }) {
     {
       deckStyle,
       userQuestion: sample.userQuestion,
-      subscriptionTier: sample.subscriptionTier || 'pro'
+      subscriptionTier: sample.subscriptionTier || 'pro',
+      referenceTime
     },
     `eval-${sample.id}`,
     env
@@ -303,6 +330,7 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   const env = { ...process.env };
   const backendId = resolveBackendId(options.backend, env);
+  const referenceTime = resolveReferenceTime(options.referenceTime);
 
   // Initialize Weave tracing if enabled
   let generateSample = generateSampleImpl;
@@ -332,11 +360,12 @@ async function main() {
   const generated = [];
   for (const sample of selectedSamples) {
     console.log(`Generating sample: ${sample.id}...`);
-    generated.push(await generateSample(sample, { env, backendId }));
+    generated.push(await generateSample(sample, { env, backendId, referenceTime }));
   }
 
   const payload = {
     generatedAt: new Date().toISOString(),
+    referenceTime,
     model: backendId,
     backendLabel: NARRATIVE_BACKENDS[backendId]?.label || backendId,
     sampleCount: generated.length,

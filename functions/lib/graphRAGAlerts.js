@@ -26,7 +26,8 @@ export function collectGraphRAGAlerts(promptMeta = {}) {
 
     const semanticRequested = graphMeta.semanticScoringRequested === true;
     if (semanticRequested && graphMeta.semanticScoringFallback) {
-        alerts.push('GraphRAG semantic scoring fell back to keyword ranking');
+        const reason = graphMeta.semanticScoringFallbackReason;
+        alerts.push(`GraphRAG semantic scoring fell back to keyword ranking${reason ? ` (${reason})` : ''}`);
     }
 
     return alerts;

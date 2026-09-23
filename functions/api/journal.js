@@ -448,7 +448,7 @@ export async function onRequestPost(context) {
     const locationTimezone = shouldPersistLocation ? (location.timezone || null) : null;
     const locationConsent = shouldPersistLocation ? 1 : 0;
 
-    await env.DB.prepare(`
+    const inserted = await env.DB.prepare(`
       INSERT INTO journal_entries (
         id,
         user_id,
@@ -472,7 +472,10 @@ export async function onRequestPost(context) {
         location_timezone,
         location_consent
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      WHERE NOT EXISTS (
+        SELECT 1 FROM journal_entries WHERE user_id = ? AND session_seed = ?
+      )
     `)
       .bind(
         entryId,
@@ -495,9 +498,31 @@ export async function onRequestPost(context) {
         locationLatitude,
         locationLongitude,
         locationTimezone,
-        locationConsent
+        locationConsent,
+        user.id,
+        sessionSeed || null
       )
       .run();
+
+    // The preflight lookup is an optimization only. The conditional INSERT is
+    // atomic in D1, so simultaneous saves cannot both claim the same seed.
+    // NULL seeds deliberately never match: requestId is tracing, not dedupe.
+    if (inserted.meta.changes === 0) {
+      const existing = await env.DB.prepare(
+        'SELECT id, created_at FROM journal_entries WHERE user_id = ? AND session_seed = ?'
+      ).bind(user.id, sessionSeed).first();
+      if (!existing) throw new Error('Seeded save could not be resolved');
+      if (sanitizedFollowUps.length) {
+        await insertFollowUps(env.DB, user.id, existing.id, sanitizedFollowUps, {
+          readingRequestId: requestId, requestId
+        });
+      }
+      return new Response(JSON.stringify({
+        success: true,
+        entry: { id: existing.id, ts: existing.created_at * 1000 },
+        deduplicated: true
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
 
     if (sanitizedFollowUps.length) {
       await insertFollowUps(env.DB, user.id, entryId, sanitizedFollowUps, {
