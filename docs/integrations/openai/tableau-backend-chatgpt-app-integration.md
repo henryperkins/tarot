@@ -1,8 +1,12 @@
 # Tableau Backend + ChatGPT App Integration
 
 Type: guide
-Status: active reference
-Last reviewed: 2026-04-23
+Status: superseded
+Last reviewed: 2026-09-23
+
+> **Superseded.** The Node adapter this guide describes (`mcp/tableau-adapter/`) was
+> retired. The MCP endpoint now runs on the main Worker behind OAuth that Tableu
+> issues; see [chatgpt-mcp.md](chatgpt-mcp.md).
 
 ## Goal
 
