@@ -1,5 +1,4 @@
 import { NarrativeSkeleton } from '../NarrativeSkeleton';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
 import { getSceneModel } from './sceneModelUtils';
 
@@ -10,14 +9,12 @@ export function InterludeScene({
   className = '',
   sceneModels = {}
 }) {
-  const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const interludeModel = getSceneModel(sceneModels, 'interludeModel');
   const {
     isGenerating,
     personalReading,
     reasoningSummary,
-    narrativePhase,
     narrativeAtmosphereClasses,
     spreadName,
     displayName,
@@ -54,14 +51,13 @@ export function InterludeScene({
         <NarrativeSkeleton
           className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${
             isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'
-          } ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
+          }`}
           hasQuestion={Boolean(userQuestion)}
           displayName={displayName}
           spreadName={spreadName}
           cardCount={readingCount || 3}
           reasoningSummary={reasoningSummary}
           reasoning={reasoning}
-          narrativePhase={narrativePhase}
           atmosphereClassName={narrativeAtmosphereClasses}
         />
       </div>

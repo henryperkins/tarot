@@ -25,6 +25,12 @@ Design: `docs/superpowers/specs/2026-09-22-chatgpt-mcp-journal-design.md`.
   statelessly.
 - **Service layer.** The tools call service functions with that user:
   `readingJobs.js`, `journalEntries.js` and `journalReflections.js`.
+  Reflection policy is selected internally: HTTP keeps append/replace and
+  repeated appends; MCP is append-only and deduplicates exact retries. Both
+  preserve whitespace and line endings. MCP limits a target to 20,000 characters;
+  HTTP has no new cumulative cap. Both use bounded compare-and-swap writes.
+  Journal cards keep canonical identity for images and deck-specific display
+  labels, including Thoth court cards.
 - **Reading jobs.** Readings run as jobs in the `ReadingJob` Durable Object,
   under an in-Worker principal. Jobs started from ChatGPT are readable only
   through `/mcp` and are kept for 24 hours.
@@ -55,6 +61,9 @@ Design: `docs/superpowers/specs/2026-09-22-chatgpt-mcp-journal-design.md`.
 ## First deployment
 
 ### Before merge
+
+Resource creation and GitHub publication each require the owner's separate yes
+under Task 18 of the implementation plan. Local checks do not authorize either.
 
 1. Create the KV namespace:
    `npx wrangler kv namespace create OAUTH_KV`. Replace the zeros in the
@@ -117,6 +126,11 @@ Never deploy from a working tree with uncommitted `wrangler.jsonc` changes.
   leave them in place.
 
 ## Local development
+
+Use Node 24. Root `npm test` covers the Worker MCP implementation, and
+`npm run test:e2e:journal` exercises real tool dispatch into the same local
+database rendered by the app at 1440, 390, and 320 pixels. The old standalone
+adapter is retired and must not be installed for either suite.
 
 1. `npm run build`, so the assets directory exists.
 2. Create a config copy without the remote-only `ai` binding and with a local

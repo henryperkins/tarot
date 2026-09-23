@@ -97,8 +97,8 @@ describe('buildJournalEntryFromJob', () => {
 
     assert.equal(deckId, 'thoth-a1');
     assert.deepEqual(cards.slice(0, 2), [
-      { position: 'Past', name: 'Knight of Wands', orientation: 'Upright', suit: 'Wands', rank: 'Knight', rankValue: 12 },
-      { position: 'Present', name: 'King of Wands', orientation: 'Upright', suit: 'Wands', rank: 'King', rankValue: 14 }
+      { position: 'Past', name: 'Knight of Wands', displayName: 'Prince of Wands', orientation: 'Upright', suit: 'Wands', rank: 'Knight', rankValue: 12 },
+      { position: 'Present', name: 'King of Wands', displayName: 'Knight of Wands', orientation: 'Upright', suit: 'Wands', rank: 'King', rankValue: 14 }
     ]);
     for (const card of cards) {
       assert.notEqual(getCardImage(card), FALLBACK_IMAGE, `${card.name} must resolve to a real card image`);
@@ -171,7 +171,7 @@ describe('buildJournalEntryFromPayload', () => {
       cards: [{ position: 'Past', name: 'Prince of Wands', orientation: 'upright', suit: 'Wands', rankValue: 12 }]
     };
     assert.deepEqual(buildJournalEntryFromPayload(thoth).cards, [
-      { position: 'Past', name: 'Knight of Wands', orientation: 'Upright', suit: 'Wands', rank: 'Knight', rankValue: 12 }
+      { position: 'Past', name: 'Knight of Wands', displayName: 'Prince of Wands', orientation: 'Upright', suit: 'Wands', rank: 'Knight', rankValue: 12 }
     ]);
   });
 

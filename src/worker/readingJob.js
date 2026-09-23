@@ -16,6 +16,7 @@ const JOB_NOT_FOUND = 'Reading job not found.';
 const MAX_STORED_EVENTS = 300;
 const PERSIST_BATCH_EVENTS = 15;
 const PERSIST_INTERVAL_MS = 1000;
+const HEARTBEAT_INTERVAL_MS = 15000;
 
 function buildError(status, message) {
   return jsonResponse({ error: message }, { status });
@@ -225,8 +226,12 @@ export class ReadingJob {
     let subscriber = null;
     const stream = new ReadableStream({
       start: (controller) => {
-        subscriber = { controller };
+        subscriber = { controller, heartbeat: null };
         this.subscribers.add(subscriber);
+
+        // Transport-only comments keep quiet, buffered providers connected.
+        // They must not consume event IDs or enter durable replay storage.
+        controller.enqueue(this.encoder.encode(': connected\n\n'));
 
         if (this.truncatedBeforeId > 0 && cursor <= this.truncatedBeforeId && this.textSoFar) {
           controller.enqueue(this.encoder.encode(
@@ -252,12 +257,23 @@ export class ReadingJob {
 
         if (this.job.status !== 'running') {
           controller.close();
-          this.subscribers.delete(subscriber);
+          this.removeSubscriber(subscriber);
+        } else {
+          subscriber.heartbeat = setInterval(() => {
+            try {
+              // Do not accumulate heartbeats for a slow/disconnected reader.
+              if (controller.desiredSize > 0) {
+                controller.enqueue(this.encoder.encode(': heartbeat\n\n'));
+              }
+            } catch {
+              this.removeSubscriber(subscriber);
+            }
+          }, HEARTBEAT_INTERVAL_MS);
         }
       },
       cancel: () => {
         if (subscriber) {
-          this.subscribers.delete(subscriber);
+          this.removeSubscriber(subscriber);
         }
       }
     });
@@ -602,9 +618,17 @@ export class ReadingJob {
       try {
         subscriber.controller.enqueue(payload);
       } catch {
-        this.subscribers.delete(subscriber);
+        this.removeSubscriber(subscriber);
       }
     }
+  }
+
+  removeSubscriber(subscriber) {
+    if (subscriber.heartbeat !== null) {
+      clearInterval(subscriber.heartbeat);
+      subscriber.heartbeat = null;
+    }
+    this.subscribers.delete(subscriber);
   }
 
   closeSubscribers() {
@@ -614,6 +638,7 @@ export class ReadingJob {
       } catch {
         // Ignore close errors.
       }
+      this.removeSubscriber(subscriber);
     }
     this.subscribers.clear();
   }

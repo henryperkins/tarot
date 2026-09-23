@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
-import { animate, set } from '../lib/motionAdapter';
 import TarotReading from '../TarotReading.jsx';
 import { PageTransition } from './PageTransition.jsx';
-import { useReducedMotion } from '../hooks/useReducedMotion';
 
 // Lazy load non-critical routes to reduce initial bundle size
 const Journal = lazy(() => import('./Journal.jsx'));
@@ -51,137 +49,6 @@ function isTarotRoutePath(pathname) {
 
 export function AnimatedRoutes() {
   const location = useLocation();
-  const prefersReducedMotion = useReducedMotion();
-  const [displayLocation, setDisplayLocation] = useState(location);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const containerRef = useRef(null);
-  const nextLocationRef = useRef(location);
-  const exitAnimRef = useRef(null);
-  const enterAnimRef = useRef(null);
-
-  const startExit = useCallback(() => {
-    if (prefersReducedMotion) {
-      setDisplayLocation(nextLocationRef.current);
-      return;
-    }
-
-    const node = containerRef.current;
-    if (!node) {
-      setDisplayLocation(nextLocationRef.current);
-      return;
-    }
-
-    enterAnimRef.current?.pause?.();
-    exitAnimRef.current?.pause?.();
-    setIsTransitioning(true);
-    const exitAnim = animate(node, {
-      opacity: [1, 0],
-      duration: 220,
-      ease: 'inOutQuad'
-    });
-    exitAnimRef.current = exitAnim;
-
-    exitAnim
-      .then(() => {
-        if (exitAnimRef.current === exitAnim) {
-          exitAnimRef.current = null;
-        }
-        setDisplayLocation(nextLocationRef.current);
-      })
-      .catch(() => {
-        if (exitAnimRef.current === exitAnim) {
-          exitAnimRef.current = null;
-        }
-        setDisplayLocation(nextLocationRef.current);
-      });
-  }, [prefersReducedMotion]);
-
-  // Synchronize location changes - useLayoutEffect for synchronous DOM updates
-  useLayoutEffect(() => {
-    const isSamePath = location.pathname === displayLocation.pathname;
-    const isSameSearch = location.search === displayLocation.search;
-    const isSameHash = location.hash === displayLocation.hash;
-    const isSameKey = location.key === displayLocation.key;
-
-    if (isSamePath && isSameSearch && isSameHash && isSameKey) return;
-    nextLocationRef.current = location;
-
-    if (isSamePath) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync location update for animation coordination
-      setDisplayLocation(location);
-      return;
-    }
-
-    if (prefersReducedMotion) {
-      setDisplayLocation(location);
-      return;
-    }
-
-    if (!isTransitioning) {
-      startExit();
-    }
-  }, [
-    location,
-    displayLocation.pathname,
-    displayLocation.search,
-    displayLocation.hash,
-    displayLocation.key,
-    prefersReducedMotion,
-    isTransitioning,
-    startExit
-  ]);
-
-  // Handle enter animation after display location changes
-  useLayoutEffect(() => {
-    if (!isTransitioning || prefersReducedMotion) {
-      if (isTransitioning && prefersReducedMotion) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- sync state reset when animations disabled
-        setIsTransitioning(false);
-      }
-      return;
-    }
-
-    const node = containerRef.current;
-    if (!node) {
-      setIsTransitioning(false);
-      return;
-    }
-
-    exitAnimRef.current?.pause?.();
-    enterAnimRef.current?.pause?.();
-    set(node, { opacity: 0 });
-    const enterAnim = animate(node, {
-      opacity: [0, 1],
-      duration: 220,
-      ease: 'inOutQuad'
-    });
-    enterAnimRef.current = enterAnim;
-
-    enterAnim
-      .then(() => {
-        if (enterAnimRef.current === enterAnim) {
-          enterAnimRef.current = null;
-        }
-        setIsTransitioning(false);
-        if (nextLocationRef.current.pathname !== displayLocation.pathname) {
-          startExit();
-        }
-      })
-      .catch(() => {
-        if (enterAnimRef.current === enterAnim) {
-          enterAnimRef.current = null;
-        }
-        setIsTransitioning(false);
-      });
-  }, [displayLocation.pathname, isTransitioning, prefersReducedMotion, startExit]);
-
-  useEffect(() => () => {
-    exitAnimRef.current?.pause?.();
-    enterAnimRef.current?.pause?.();
-    exitAnimRef.current = null;
-    enterAnimRef.current = null;
-  }, []);
-
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(new CustomEvent('tableau:route-change', {
@@ -195,9 +62,9 @@ export function AnimatedRoutes() {
   }, [location.pathname, location.search, location.hash]);
 
   return (
-    <div ref={containerRef}>
+    <div>
       <Suspense fallback={<RouteLoader />}>
-        <Routes location={displayLocation} key={displayLocation.pathname}>
+        <Routes location={location} key={location.pathname}>
           <Route path="/" element={<PageTransition><TarotReading /></PageTransition>} />
           <Route path="/journal/gallery" element={<PageTransition><CardGalleryPage /></PageTransition>} />
           <Route path="/journal" element={<PageTransition><Journal /></PageTransition>} />

@@ -160,6 +160,7 @@ export function StreamingNarrative({
   useMarkdown = false,
   className = '',
   isStreamingEnabled = true,
+  isReadingStreaming = false,
   onDone,
   autoNarrate = false,
   onNarrationStart,
@@ -246,7 +247,7 @@ export function StreamingNarrative({
   );
 
   // Derive isComplete from visibleCount (no need for separate state)
-  const isComplete = units.length > 0 && visibleCount >= units.length;
+  const isComplete = !isReadingStreaming && units.length > 0 && visibleCount >= units.length;
 
   useEffect(() => {
     if (prevNarrativeTextRef.current === narrativeText) {
@@ -438,6 +439,7 @@ export function StreamingNarrative({
     : 'pb-6 sm:pb-6 short:pb-4';
   const stickyActionClass = 'bottom-safe-action';
   const narrationStatusMessage = useMemo(() => {
+    if (isReadingStreaming) return 'Your reading is still being prepared.';
     if (!narrativeText) return '';
     if (streamingActive && !isComplete) {
       return showSkipButton
@@ -445,7 +447,7 @@ export function StreamingNarrative({
         : 'Narrative is revealing.';
     }
     return 'Narrative ready.';
-  }, [narrativeText, streamingActive, isComplete, showSkipButton]);
+  }, [isReadingStreaming, narrativeText, streamingActive, isComplete, showSkipButton]);
 
   const tokenMeta = useMemo(() => {
     if (useMarkdown) return [];
@@ -461,7 +463,7 @@ export function StreamingNarrative({
       <button
         type="button"
         onClick={handleEnableStreaming}
-        className="w-full rounded-full border border-secondary/40 bg-secondary/20 px-4 py-2 text-xs-plus font-semibold text-secondary shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+        className="min-h-touch w-full rounded-full border border-secondary/40 bg-secondary/20 px-4 py-2 text-xs-plus font-semibold text-secondary shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
       >
         Play typing effect
       </button>
@@ -495,6 +497,7 @@ export function StreamingNarrative({
   const narrativeBody = useMarkdown ? (
     <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[70ch] w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 mx-auto rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--md ${atmosphereClass} ${textBottomPaddingClass}`}>
       <MarkdownRenderer
+        className="narrative-stream__markdown"
         content={visibleText}
         highlightPhrases={normalizedHighlightPhrases}
         wordBoundary={wordBoundary}

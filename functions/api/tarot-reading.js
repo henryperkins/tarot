@@ -1270,16 +1270,12 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           // Buffer streamed output so the eval gate can block before we emit SSE.
           const collected = await collectSSEStreamText(transformedStream);
           if (collected.error || collected.sawError) {
-            console.error(`[${requestId}] Streaming error: ${collected.error || 'unknown'}`);
-            await releaseReadingReservation(env, readingReservation);
-            return createSSEErrorResponse('Failed to generate reading.', 503);
+            throw new Error('Streaming provider returned an error.');
           }
 
           const finalText = (collected.fullText || '').trim();
           if (!finalText) {
-            console.warn(`[${requestId}] Streaming completed with empty reading text - releasing quota`);
-            await releaseReadingReservation(env, readingReservation);
-            return createSSEErrorResponse('Failed to generate reading.', 503);
+            throw new Error('Streaming provider returned empty reading text.');
           }
 
           const { qualityMetrics, qualityIssues } = evaluateQualityGate({
@@ -1459,9 +1455,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         }
         } catch (streamError) {
           console.error(`[${requestId}] Streaming error: ${streamError.message}`);
-          // Release the reading reservation - user shouldn't lose quota for failed streaming
-          await releaseReadingReservation(env, readingReservation);
-          return createSSEErrorResponse('Failed to generate reading.', 503);
+          backendErrors.push(buildPublicBackendError(streamProvider, streamError));
+          // No reading has been sent yet. Keep the reservation for the remaining
+          // providers; only release it if the entire fallback chain fails.
+          streamingFallback = true;
         }
       }
     }
@@ -1469,7 +1466,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     let reading = null;
     let provider = 'local-composer';
     let acceptedQualityMetrics = null; // Store metrics from successful backend to avoid recomputation
-    const candidateBackends = getAvailableNarrativeBackends(env);
+    const candidateBackends = getAvailableNarrativeBackends(env)
+      .filter((backend) => !streamingFallback || backend.id !== 'azure-gpt5');
     const backendsToTry = candidateBackends.length ? candidateBackends : [NARRATIVE_BACKENDS['local-composer']];
 
     // Track captured prompts for engineering persistence

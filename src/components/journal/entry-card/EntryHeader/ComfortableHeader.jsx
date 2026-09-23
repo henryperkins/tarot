@@ -155,7 +155,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
               {cardPreview.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 text-2xs text-[color:var(--text-muted)]">
                   {cardPreview.map((card, idx) => {
-                    const name = card.name || 'Card';
+                    const name = card.displayName || card.name || 'Card';
                     const reversed = REVERSED_PATTERN.test(card?.orientation || '') || card?.isReversed;
                     return (
                       <span

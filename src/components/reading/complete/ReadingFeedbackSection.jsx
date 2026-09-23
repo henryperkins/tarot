@@ -10,7 +10,7 @@ export function ReadingFeedbackSection({
     lastCardsForFeedback,
     feedbackVisionSummary
 }) {
-    if (!personalReading) return null;
+    if (!personalReading || personalReading.isError || personalReading.isStreaming) return null;
 
     return (
         <div className="w-full max-w-2xl mx-auto mt-6 sm:mt-8">

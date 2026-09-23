@@ -20,12 +20,12 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
           {reflections.map(([label, note], index) => (
             <li
               key={`${label || 'reflection'}-${index}`}
-              className="flex items-start gap-2 text-sm leading-relaxed"
+              className="min-w-0 space-y-1 text-sm leading-relaxed"
             >
-              <span className="font-semibold text-main">
+              <span className="block font-semibold text-main [overflow-wrap:anywhere]">
                 {label || `Note ${index + 1}`}
               </span>
-              <span className="text-muted whitespace-pre-line">{note}</span>
+              <span className="block whitespace-pre-wrap text-muted [overflow-wrap:anywhere]">{note}</span>
             </li>
           ))}
         </ul>

@@ -47,7 +47,9 @@ export function ReadingSceneRouter({
   colorScriptOwner,
   isMobileStableMode = false
 }) {
-  const className = orchestrator?.activeScene === 'interlude' ? '' : 'scene-shell';
+  const activeScene = orchestrator?.activeScene;
+  const isReadingScene = activeScene === 'narrative' || activeScene === 'complete';
+  const className = activeScene === 'interlude' ? '' : `scene-shell ${isReadingScene ? 'scene-shell--reading' : ''}`;
 
   return (
     <SceneShell

@@ -180,6 +180,7 @@ export function registerJournalTools(server, { env, user, waitUntil }) {
         env,
         user,
         entryId: input.entryId,
+        policy: 'mcp',
         input: { text: input.text, scope: input.scope, card: input.card, position: input.position }
       });
 

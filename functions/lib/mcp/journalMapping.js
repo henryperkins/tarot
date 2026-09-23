@@ -81,8 +81,9 @@ function resolveCatalogCards(labels, deckStyle) {
   }
 }
 
-function toJournalCard({ position, orientation }, catalog) {
+function toJournalCard({ card: label, position, orientation }, catalog) {
   const card = { position, name: catalog.name, orientation };
+  if (label !== catalog.name) card.displayName = label;
   if (catalog.number !== null && catalog.number !== undefined) card.number = catalog.number;
   if (catalog.suit) card.suit = catalog.suit;
   if (catalog.rank) card.rank = catalog.rank;

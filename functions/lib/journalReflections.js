@@ -8,8 +8,8 @@
  * ever written.
  *
  * Contract rules:
- * - text is 1-2,000 characters (outer whitespace trimmed, CRLF -> LF);
- * - notes append only;
+ * - text is 1-2,000 characters, preserved verbatim;
+ * - HTTP supports append/replace; MCP supports idempotent append only;
  * - a missing entry and another user's entry get the same 404.
  *
  * Retries are idempotent by the operation's identity (entry, target key,
@@ -26,7 +26,9 @@ import { safeJsonParse } from './utils.js';
 export { READING_REFLECTION_KEY };
 export const MAX_REFLECTION_LENGTH = 2000;
 export const MAX_TARGET_REFLECTION_LENGTH = 20000;
-export const MAX_WRITE_ATTEMPTS = 3;
+// A failed compare-and-swap means another writer succeeded. Leave room for
+// all ten card notes plus the whole-reading note to arrive concurrently.
+export const MAX_WRITE_ATTEMPTS = 32;
 
 const DEFAULT_DECK = 'rws-1909';
 const NOTE_SEPARATOR = '\n\n';
@@ -50,6 +52,10 @@ function cardName(card) {
   return card?.name || card?.card || '';
 }
 
+function displayName(card) {
+  return card?.displayName || cardName(card);
+}
+
 /**
  * The stored (canonical) name for a label as the reading showed it. Thoth
  * "Prince of Wands" is stored as "Knight of Wands"; deck aliases win over
@@ -63,7 +69,7 @@ function storedNameFor(label, deckId) {
 function summarizeCards(cards, deckId) {
   const showDeckLabels = Boolean(deckId) && deckId !== DEFAULT_DECK;
   return cards.map((card, index) => {
-    const summary = { index, position: card?.position ?? null, name: cardName(card) || null };
+    const summary = { index, position: card?.position ?? null, name: (deckId ? cardName(card) : displayName(card)) || null };
     if (showDeckLabels) summary.label = getDeckAlias(card, deckId);
     return summary;
   });
@@ -78,9 +84,14 @@ function summarizeCards(cards, deckId) {
  * @returns {{ index: number } | { error: string }}
  */
 export function resolveCardIndex(cards, { card, position, cardIndex } = {}, { deckId = null } = {}) {
-  const wantedName = normalizeCardName(storedNameFor(card, deckId));
+  const wantedName = normalizeCardName(deckId ? storedNameFor(card, deckId) : card);
   const wantedPosition = normalizeLabel(position);
-  const nameMatches = (candidate) => !wantedName || normalizeCardName(cardName(candidate)) === wantedName;
+  // HTTP accepts all saved aliases and reports collisions as ambiguous. MCP
+  // receives deck labels, so its explicit deck selects the canonical identity.
+  const nameMatches = (candidate) => !wantedName || (deckId
+    ? normalizeCardName(cardName(candidate)) === wantedName
+    : [candidate?.name, candidate?.card, candidate?.displayName, candidate?.canonicalName]
+      .some(name => normalizeCardName(name) === wantedName));
   const positionMatches = (candidate) => !wantedPosition || normalizeLabel(candidate?.position) === wantedPosition;
   const describe = (candidate) => `${cardName(candidate) || 'an unnamed card'} (${candidate?.position || 'no position'})`;
 
@@ -136,11 +147,10 @@ function parseReflections(json) {
   return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? { ...parsed } : {};
 }
 
-function successBody(entryId, key, target, text, reflections, extra = {}) {
+function successBody(entryId, key, target, text, reflections, extra = {}, policy = 'mcp') {
   return {
     success: true,
-    entryId,
-    key,
+    ...(policy === 'http' ? { entry: { id: entryId } } : { entryId, key }),
     reflection: { key, ...target, text },
     reflections,
     ...extra
@@ -148,26 +158,28 @@ function successBody(entryId, key, target, text, reflections, extra = {}) {
 }
 
 /**
- * Append a reflection to one of the user's entries.
+ * Write a reflection to one of the user's entries under the caller's policy.
  *
  * @param {object} params
  * @param {object} params.env - Worker bindings; env.DB is required
  * @param {object} params.user - Authenticated, journal-entitled user
  * @param {string} params.entryId
  * @param {object} params.input - { text, scope?, card?, position?, cardIndex? }
+ * @param {'http'|'mcp'} [params.policy] - Internal caller policy, never request JSON
  * @returns {Promise<{ status: number, body: object }>}
  */
-export async function addJournalReflection({ env, user, entryId, input }) {
+export async function addJournalReflection({ env, user, entryId, input, policy = 'mcp' }) {
+  const isHttp = policy === 'http';
   if (!entryId) return { status: 400, body: { error: 'Entry ID is required' } };
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return { status: 400, body: { error: 'Invalid reflection payload' } };
   }
-  if (isProvided(input.mode)) {
+  if (!isHttp && isProvided(input.mode)) {
     return { status: 400, body: { error: 'Reflections are append-only; mode is not supported' } };
   }
 
-  const text = typeof input.text === 'string' ? input.text.replace(/\r\n?/g, '\n').trim() : '';
-  if (!text) return { status: 400, body: { error: 'Reflection text is required' } };
+  const text = typeof input.text === 'string' ? input.text : '';
+  if (!text.trim()) return { status: 400, body: { error: 'Reflection text is required' } };
   if (text.length > MAX_REFLECTION_LENGTH) {
     return {
       status: 400,
@@ -182,12 +194,17 @@ export async function addJournalReflection({ env, user, entryId, input }) {
   const scope = isProvided(input.scope) ? input.scope : (namesCard ? 'card' : 'reading');
   if (!SCOPES.has(scope)) return { status: 400, body: { error: 'scope must be "card" or "reading"' } };
 
+  const mode = isHttp && isProvided(input.mode) ? input.mode : 'append';
+  if (mode !== 'append' && mode !== 'replace') {
+    return { status: 400, body: { error: 'mode must be "append" or "replace"' } };
+  }
+
   for (let attempt = 1; attempt <= MAX_WRITE_ATTEMPTS; attempt += 1) {
     // Scoped to the user: another user's entry is indistinguishable from none.
     const entry = await env.DB.prepare(
-      'SELECT id, cards_json, reflections_json, deck_id FROM journal_entries WHERE id = ? AND user_id = ?'
+      'SELECT id, user_id, cards_json, reflections_json, deck_id FROM journal_entries WHERE id = ? AND user_id = ?'
     ).bind(entryId, user.id).first();
-    if (!entry) return { status: 404, body: { error: 'Entry not found' } };
+    if (!entry || entry.user_id !== user.id) return { status: 404, body: { error: 'Entry not found' } };
 
     const parsedCards = safeJsonParse(entry.cards_json, []);
     const cards = Array.isArray(parsedCards) ? parsedCards : [];
@@ -195,9 +212,10 @@ export async function addJournalReflection({ env, user, entryId, input }) {
     let key = READING_REFLECTION_KEY;
     let target = { scope: 'reading' };
     if (scope === 'card') {
-      const resolved = resolveCardIndex(cards, input, { deckId: entry.deck_id });
+      const deckId = isHttp ? null : entry.deck_id || DEFAULT_DECK;
+      const resolved = resolveCardIndex(cards, input, { deckId });
       if (resolved.error) {
-        return { status: 400, body: { error: resolved.error, cards: summarizeCards(cards, entry.deck_id) } };
+        return { status: 400, body: { error: resolved.error, cards: summarizeCards(cards, deckId) } };
       }
       const card = cards[resolved.index];
       const canonicalName = cardName(card);
@@ -206,7 +224,7 @@ export async function addJournalReflection({ env, user, entryId, input }) {
       // label so a caller can retry using reflection.card without changing cards.
       target = {
         scope: 'card', cardIndex: resolved.index,
-        card: canonicalName
+        card: isHttp ? displayName(card) || null : canonicalName
           ? getDeckAlias({ ...card, name: canonicalName }, entry.deck_id || DEFAULT_DECK)
           : null,
         position: card?.position ?? null
@@ -214,13 +232,13 @@ export async function addJournalReflection({ env, user, entryId, input }) {
     }
 
     const reflections = parseReflections(entry.reflections_json);
-    const existing = typeof reflections[key] === 'string' ? reflections[key].trim() : '';
-    if (noteIsPresent(existing, text)) {
+    const existing = typeof reflections[key] === 'string' ? reflections[key] : '';
+    if (!isHttp && noteIsPresent(existing, text)) {
       return { status: 200, body: successBody(entryId, key, target, existing, reflections, { alreadyPresent: true }) };
     }
 
-    const value = existing ? `${existing}${NOTE_SEPARATOR}${text}` : text;
-    if (value.length > MAX_TARGET_REFLECTION_LENGTH) {
+    const value = mode === 'append' && existing ? `${existing}${NOTE_SEPARATOR}${text}` : text;
+    if (!isHttp && value.length > MAX_TARGET_REFLECTION_LENGTH) {
       return { status: 400, body: { error: 'This reflection is full', maxLength: MAX_TARGET_REFLECTION_LENGTH } };
     }
     reflections[key] = value;
@@ -231,10 +249,15 @@ export async function addJournalReflection({ env, user, entryId, input }) {
     ).bind(JSON.stringify(reflections), nowSeconds, entryId, user.id, entry.reflections_json ?? null).run();
 
     if ((result?.meta?.changes ?? 0) === 1) {
-      return { status: 200, body: successBody(entryId, key, target, value, reflections) };
+      return { status: 200, body: successBody(entryId, key, target, value, reflections, {}, policy) };
     }
     // Someone else changed the entry since it was read: re-read and retry.
   }
 
-  return { status: 409, body: { error: 'The entry changed while saving. Please retry.' } };
+  return {
+    status: 409,
+    body: isHttp
+      ? { error: 'Entry changed concurrently; reflection was not appended', code: 'reflection_conflict' }
+      : { error: 'The entry changed while saving. Please retry.' }
+  };
 }

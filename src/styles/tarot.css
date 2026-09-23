@@ -3496,6 +3496,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   line-height: 1.75;
   letter-spacing: 0.01em;
   text-wrap: pretty;
+  overflow-wrap: anywhere;
   hyphens: auto;
   max-width: min(65ch, 100%);
   margin-left: auto;
@@ -3506,6 +3507,10 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 .narrative-stream__text--plain {
   text-align: left;
+}
+
+.narrative-stream__text--plain > span {
+  max-width: 100%;
 }
 
 .narrative-stream__text p + p {
@@ -3970,11 +3975,52 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
-/* Mobile (<= 639px): tighten narrative padding */
+/* The page owns the single 16px mobile reading gutter. */
 @media (max-width: 639px) {
-  .narrative-stream__text {
-    padding-left: clamp(0.75rem, 4vw, 1.5rem);
-    padding-right: clamp(0.75rem, 4vw, 1.5rem);
+  .scene-shell--reading,
+  .scene-shell--reading .scene-stage__panel,
+  .scene-shell--reading .narrative-panel {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .scene-shell--reading {
+    /* Add only the safe-area space not already covered by the page gutter. */
+    padding-left: max(0px, calc(var(--safe-pad-left, 0px) - 1rem));
+    padding-right: max(0px, calc(var(--safe-pad-right, 0px) - 1rem));
+  }
+
+  .scene-shell--reading .scene-stage {
+    padding-inline: 0;
+  }
+
+  .scene-shell--reading .scene-stage__panel,
+  .scene-shell--reading .narrative-panel {
+    min-width: 0;
+    padding-inline: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .narrative-stream {
+    padding-inline: 0;
+  }
+
+  .narrative-stream .narrative-stream__markdown {
+    padding-inline: 0;
+    max-width: 100%;
+  }
+
+  .narrative-stream .narrative-stream__text {
+    padding-inline: 0;
+    width: 100%;
+    max-width: 100%;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    scrollbar-gutter: auto;
     line-height: 1.85;
   }
 }

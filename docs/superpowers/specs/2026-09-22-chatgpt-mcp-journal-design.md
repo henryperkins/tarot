@@ -5,6 +5,24 @@ Status: approved by owner after review round 1 (see §13)
 Date: 2026-09-22
 Branch: `feat/chatgpt-mcp-journal` (based on local `master` at `4f0e125`)
 
+### Integration amendment — 2026-09-23
+
+The executable unmerged-work integration plan supersedes the original shared
+reflection contract below. The HTTP wrapper passes the internal `policy: 'http'`:
+it retains append/replace, repeated appends, raw whitespace, `entry.id`, and
+`reflection_conflict` on exhausted compare-and-swap retries. JSON input cannot
+select a policy. MCP passes `policy: 'mcp'`: append-only, exact-text retry
+deduplication, and a 20,000-character target cap. Both preserve raw text, reject
+blank or over-2,000-character input, enforce ownership, and use 32 bounded write
+attempts. Actions YAML describes HTTP, not MCP-only response fields or policy.
+
+App saves retain master's conditional INSERT for atomic seed admission, including
+databases without the legacy unique seed index. MCP cards retain canonical
+`name` and catalog metadata plus `displayName` when the deck label differs, so
+Thoth images and visible labels both remain correct. CI runs Node 24 and the root
+Worker MCP tests; the retired adapter is removed. Publication and resource
+creation still require the separate confirmations in the implementation plan.
+
 ## 1. Goal
 
 Let the Tableu ChatGPT plugin (v0.27.3, migrated from the former Custom GPT) run a
@@ -451,8 +469,8 @@ reading identity as job mode (§7.2).
 ### 6.5 `add_reflection_to_journal_entry`
 
 Input: `{ entryId, text, scope: "reading" | "card", card?, position? }`.
-- `text` is the user's words verbatim, 1–2,000 characters; only outer
-  whitespace is trimmed.
+- `text` is the user's words verbatim, 1–2,000 characters, including outer
+  whitespace and original line endings. Whitespace-only text is rejected.
 - `card` is required when `scope` is `card`.
 - `position` is required when that card name occurs more than once in the
   entry.
@@ -544,7 +562,7 @@ narrative.
   `alreadyPresent` when applicable. That's a superset of the contract's
   `ReflectionResponse`.
 - Retries are idempotent through a stable operation identity: the entry, the
-  target key, and the exact (outer-trimmed) text.
+  target key, and the exact raw text.
   - The check is against every note on the target, not only the last one. A
     target's value is its notes joined by `"\n\n"`, so a note is present when
     `("\n\n" + stored + "\n\n").includes("\n\n" + text + "\n\n")`.
@@ -562,7 +580,7 @@ narrative.
 - Writes use compare-and-swap:
   `UPDATE … SET reflections_json = ?, updated_at = ? WHERE id = ? AND user_id = ? AND reflections_json IS ?`,
   where the last value is the JSON that was read. If no row changes, re-read,
-  re-run the presence check, and retry, up to 3 attempts, then return a 409
+  re-run the presence check, and retry, up to 32 attempts, then return a 409
   "Please retry". Two concurrent retries of the same note therefore end with one
   write and one `alreadyPresent`.
 - Keys stay as they are: `"0"`, `"1"`, … for cards, `Overall` for the whole

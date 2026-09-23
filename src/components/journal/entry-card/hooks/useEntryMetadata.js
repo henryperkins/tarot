@@ -33,10 +33,10 @@ function buildThemeInsights(entry) {
     return lines;
   }
 
+  // suitFocus covers every repeated suit; a bare dominantSuit (a single card, or
+  // a tie-break stored by older readings) is not evidence that a suit stands out.
   if (themes.suitFocus) {
     lines.push(themes.suitFocus);
-  } else if (themes.dominantSuit) {
-    lines.push(`Suit focus: ${themes.dominantSuit} themes stand out in this spread.`);
   }
 
   if (themes.elementalBalance) {

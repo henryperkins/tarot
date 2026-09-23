@@ -132,7 +132,7 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
   const locationConsent = shouldPersistLocation ? 1 : 0;
 
   try {
-    await env.DB.prepare(`
+    const inserted = await env.DB.prepare(`
       INSERT INTO journal_entries (
         id,
         user_id,
@@ -156,7 +156,10 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
         location_timezone,
         location_consent
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      WHERE NOT EXISTS (
+        SELECT 1 FROM journal_entries WHERE user_id = ? AND session_seed = ?
+      )
     `)
       .bind(
         entryId,
@@ -179,9 +182,18 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
         locationLatitude,
         locationLongitude,
         locationTimezone,
-        locationConsent
+        locationConsent,
+        user.id,
+        sessionSeed || null
       )
       .run();
+    // Preserve the app's atomic seed admission even on older databases that
+    // lack the unique index. NULL seeds deliberately never match this query.
+    if (inserted.meta.changes === 0) {
+      const existing = await findEntryBySeed(env.DB, user.id, sessionSeed);
+      if (!existing) throw new Error('Seeded save could not be resolved');
+      return returnExisting(existing);
+    }
   } catch (error) {
     // A concurrent save of the same seed won the unique index; answer with
     // its entry, exactly as the pre-insert lookup would have.

@@ -31,11 +31,11 @@ export function normalizeThemeLabel(theme) {
     return 'Primarily Minor Arcana (everyday dynamics)';
   }
 
-  // Suit balance phrasing
+  // Suit balance phrasing (every tied suit, e.g. "Wands, Cups, and Swords")
   if (/^balanced focus between\s+/i.test(trimmed)) {
-    const match = trimmed.match(/^balanced focus between\s+([^,]+),/i);
-    const pair = match?.[1]?.replace(/\s+and\s+/i, ' & ');
-    return pair ? `Balanced focus: ${pair}` : 'Balanced suit focus';
+    const match = trimmed.match(/^balanced focus between\s+(.+?),\s+each surfacing/i);
+    const suits = match?.[1]?.replace(/,?\s+and\s+/i, ' & ');
+    return suits ? `Balanced focus: ${suits}` : 'Balanced suit focus';
   }
 
   // Elemental balance phrasing
@@ -54,6 +54,11 @@ export function normalizeThemeLabel(theme) {
   const dominatesMatch = trimmed.match(/^([a-z]+)\s+energy strongly dominates/i);
   if (dominatesMatch) {
     return `${dominatesMatch[1]} energy dominance`;
+  }
+
+  const sharedLeadMatch = trimmed.match(/^(.+?)\s+share the lead\b/i);
+  if (sharedLeadMatch) {
+    return `${sharedLeadMatch[1].replace(/,?\s+and\s+/i, ' & ')} share the lead`;
   }
 
   const leadsMatch = trimmed.match(/^([a-z]+)\s+leads/i);

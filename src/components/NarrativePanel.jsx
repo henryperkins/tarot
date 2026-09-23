@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { NarrativeQuestionAnchor } from './reading/narrative/NarrativeQuestionAnchor';
 import {
   NarrativePanelHeader,
   NarrativeBody,
@@ -19,6 +20,7 @@ export function NarrativePanel({
     narrativeText,
     personalReading,
     shouldStreamNarrative,
+    isReadingStreaming,
     canAutoNarrate,
     displayName,
     narrativeHighlightPhrases,
@@ -45,8 +47,33 @@ export function NarrativePanel({
     onDismissNudge,
     onOpenJournal,
     onSaveReading,
+    onRetryNarrative,
     onUpgradeTier
   } = callbacks;
+
+  if (personalReading?.isError) {
+    return (
+      <div className={panelClassName}>
+        <h3 tabIndex={-1} data-reading-focus-target className="text-lg sm:text-2xl font-serif text-accent">
+          Your reading could not be completed
+        </h3>
+        <p role="alert" className="mt-4 text-main leading-relaxed [overflow-wrap:anywhere]">
+          {narrativeText || 'The connection was interrupted. Please try again.'}
+        </p>
+        <p className="mt-3 text-sm text-muted">Your cards and question are still here. You can retry this reading.</p>
+        <NarrativeQuestionAnchor question={question} compact={isHandset} />
+        {onRetryNarrative && !isHandset && (
+          <button
+            type="button"
+            onClick={onRetryNarrative}
+            className="mt-5 inline-flex min-h-touch items-center justify-center rounded-full border border-secondary/50 px-5 py-2 text-sm font-semibold text-main hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+          >
+            Retry narrative
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={panelClassName}>
@@ -63,6 +90,7 @@ export function NarrativePanel({
           narrativeText={narrativeText}
           personalReading={personalReading}
           shouldStreamNarrative={shouldStreamNarrative}
+          isReadingStreaming={isReadingStreaming}
           canAutoNarrate={canAutoNarrate}
           onNarrationStart={onNarrationStart}
           onNarrativeComplete={onNarrativeComplete}
@@ -113,6 +141,7 @@ NarrativePanel.propTypes = {
     narrativeText: PropTypes.string,
     personalReading: PropTypes.oneOfType([PropTypes.object, PropTypes.string]),
     shouldStreamNarrative: PropTypes.bool,
+    isReadingStreaming: PropTypes.bool,
     canAutoNarrate: PropTypes.bool,
     displayName: PropTypes.string,
     narrativeHighlightPhrases: PropTypes.array,
@@ -139,6 +168,7 @@ NarrativePanel.propTypes = {
     onDismissNudge: PropTypes.func,
     onOpenJournal: PropTypes.func,
     onSaveReading: PropTypes.func,
+    onRetryNarrative: PropTypes.func,
     onUpgradeTier: PropTypes.func
   })
 };

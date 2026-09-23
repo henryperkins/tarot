@@ -14,6 +14,12 @@ const CARDS = [
 ];
 
 describe('buildReflectionEntries', () => {
+  it('preserves the stored deck display label and verbatim note text', () => {
+    assert.deepEqual(buildReflectionEntries({ 0: '  first\r\nsecond  ' }, [
+      { position: 'Past', name: 'Knight of Cups', displayName: 'Prince of Cups' }
+    ]), [['Past · Prince of Cups', '  first\r\nsecond  ']]);
+  });
+
   it('puts the whole-reading note first, then cards in spread order with position and name', () => {
     const entries = buildReflectionEntries({ 2: 'hope returns', Overall: 'gentle overall', 0: 'six months alone' }, CARDS);
     assert.deepEqual(entries, [

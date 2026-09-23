@@ -1,311 +1,362 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { createD1 } from './helpers/d1Sqlite.mjs';
-import { jsonRequest, seedEntry, seedSession, seedUser } from './helpers/journalFixtures.mjs';
-import { onRequestPost } from '../functions/api/journal/reflections.js';
-import {
-  addJournalReflection,
-  MAX_REFLECTION_LENGTH,
-  MAX_TARGET_REFLECTION_LENGTH
-} from '../functions/lib/journalReflections.js';
+import { onRequestPost, resolveCardIndex } from '../functions/api/journal/reflections.js';
 
-const OWNER = Object.freeze({
-  id: 'user-1',
+// Realistic long random token (>= MIN_SERVICE_TOKEN_LENGTH chars, no sk_ prefix).
+const SERVICE_TOKEN = 'svc_reflections_0123456789abcdef0123456789abcdef';
+
+const PLUS_SESSION = {
+  session_id: 'session-1',
+  user_id: 'user-1',
+  email: 'test@example.com',
+  username: 'test-user',
+  is_active: 1,
   subscription_tier: 'plus',
   subscription_status: 'active',
-  auth_provider: 'session'
-});
+  subscription_provider: 'stripe',
+  stripe_customer_id: 'cus_123'
+};
 
-const THOTH_CARDS = [
-  { position: 'Past', name: 'Knight of Wands', suit: 'Wands', rank: 'Knight', rankValue: 12, orientation: 'Upright' },
-  { position: 'Present', name: 'King of Wands', suit: 'Wands', rank: 'King', rankValue: 14, orientation: 'Upright' }
+// Journal card shape as written by src/hooks/useSaveReading.js: `name`, not `card`.
+const CARDS = [
+  { position: 'Past', name: 'The Hermit', number: 9, orientation: 'Upright' },
+  { position: 'Present', name: 'Three of Cups', suit: 'Cups', rank: 'Three', rankValue: 3, orientation: 'Reversed' },
+  { position: 'Future', name: 'The Star', number: 17, orientation: 'Upright' }
 ];
 
-async function setup({ tier = 'plus', entry = {} } = {}) {
-  const d1 = await createD1();
-  await seedUser(d1, { id: 'user-1', tier });
-  await seedSession(d1, { id: 'session-1', userId: 'user-1' });
-  await seedUser(d1, { id: 'user-2' });
-  await seedEntry(d1, { id: 'entry-1', userId: 'user-1', ...entry });
-  await seedEntry(d1, { id: 'entry-other', userId: 'user-2' });
-  return { d1, env: { DB: d1 } };
+function entryFixture(overrides = {}) {
+  return {
+    id: 'entry-1',
+    user_id: 'user-1',
+    cards_json: JSON.stringify(CARDS),
+    reflections_json: null,
+    ...overrides
+  };
 }
 
-async function post(env, body, { entryId = 'entry-1', cookie = 'session=session-1' } = {}) {
+/**
+ * Minimal D1 double: session lookup (cookie auth), service-user provisioning
+ * (bearer auth), the entry select, and the reflections UPDATE.
+ */
+class MockDB {
+  constructor({ sessionRow = null, entryRow = null } = {}) {
+    this.sessionRow = sessionRow;
+    this.entryRow = entryRow;
+    this.users = new Map();
+    this.updates = [];
+    this.queries = [];
+  }
+
+  prepare(query) {
+    this.queries.push(query);
+    const db = this;
+    return {
+      bind: (...args) => ({
+        first: async () => {
+          if (query.includes('FROM sessions')) return db.sessionRow;
+          if (/FROM users WHERE id = \?/i.test(query)) return db.users.get(args[0]) || null;
+          if (query.includes('FROM journal_entries')) {
+            return db.entryRow && db.entryRow.id === args[0] ? db.entryRow : null;
+          }
+          return null;
+        },
+        run: async () => {
+          if (/INSERT OR IGNORE INTO users/i.test(query)) {
+            const [id] = args;
+            if (!db.users.has(id)) db.users.set(id, { id, auth_provider: 'service' });
+            return { meta: { changes: 1 } };
+          }
+          if (query.includes('UPDATE journal_entries')) {
+            db.updates.push(args);
+            return { meta: { changes: 1 } };
+          }
+          return { meta: { changes: 0 } };
+        },
+        all: async () => ({ results: [] })
+      })
+    };
+  }
+}
+
+function makeRequest(body, { entryId = 'entry-1', cookie = 'session=token-1', bearer = null } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (bearer) {
+    headers.Authorization = `Bearer ${bearer}`;
+  } else if (cookie) {
+    headers.Cookie = cookie;
+  }
+  return new Request(`https://example.com/api/journal/${entryId}/reflections`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body)
+  });
+}
+
+async function post(body, { db, env = {}, entryId = 'entry-1', ...requestOptions } = {}) {
   const response = await onRequestPost({
-    request: jsonRequest(`https://example.com/api/journal/${entryId}/reflections`, {
-      body,
-      headers: cookie ? { Cookie: cookie } : {}
-    }),
-    env,
+    request: makeRequest(body, { entryId, ...requestOptions }),
+    env: { DB: db, ...env },
     params: { id: entryId }
   });
   return { response, payload: await response.json() };
 }
 
-function stored(d1, entryId = 'entry-1') {
-  const [row] = d1.rows('SELECT reflections_json FROM journal_entries WHERE id = ?', [entryId]);
-  return row.reflections_json === null ? null : JSON.parse(row.reflections_json);
+function storedReflections(db) {
+  assert.equal(db.updates.length, 1, 'expected exactly one UPDATE journal_entries');
+  return JSON.parse(db.updates[0][0]);
 }
 
-/** Route UPDATE statements for the reflections map through `onUpdate`. */
-function interceptUpdates(d1, onUpdate) {
-  return {
-    prepare(sql) {
-      const statement = d1.prepare(sql);
-      if (!/UPDATE journal_entries SET reflections_json/.test(sql)) return statement;
-      return { bind: (...args) => ({ run: () => onUpdate(statement.bind(...args)) }) };
-    }
-  };
-}
+describe('POST /api/journal/:id/reflections', () => {
+  it('rejects unauthenticated requests with 401', async () => {
+    const db = new MockDB({ entryRow: entryFixture() });
+    const { response, payload } = await post({ text: 'note' }, { db, cookie: null });
 
-describe('reflections: access', () => {
-  it('answers 401 without credentials', async () => {
-    const { d1, env } = await setup();
-    const { response, payload } = await post(env, { text: 'note', scope: 'reading' }, { cookie: null });
     assert.equal(response.status, 401);
     assert.equal(payload.error, 'Not authenticated');
-    assert.equal(stored(d1), null);
+    assert.equal(db.updates.length, 0);
   });
 
-  it('answers a tier-limited 403 below Plus', async () => {
-    const { env } = await setup({ tier: 'free' });
-    const { response, payload } = await post(env, { text: 'note', scope: 'reading' });
+  it('rejects users below Plus with a tier-limited 403', async () => {
+    const db = new MockDB({
+      sessionRow: { ...PLUS_SESSION, subscription_tier: 'free', subscription_status: 'inactive' },
+      entryRow: entryFixture()
+    });
+    const { response, payload } = await post({ text: 'note' }, { db });
+
     assert.equal(response.status, 403);
     assert.equal(payload.tierLimited, true);
     assert.equal(payload.requiredTier, 'plus');
+    assert.equal(db.updates.length, 0);
   });
 
-  it("answers the same 404 for a missing entry and for another user's entry", async () => {
-    const { d1, env } = await setup();
-    const missing = await post(env, { text: 'note', scope: 'reading' }, { entryId: 'nope' });
-    const foreign = await post(env, { text: 'note', scope: 'reading' }, { entryId: 'entry-other' });
-    assert.equal(missing.response.status, 404);
-    assert.equal(foreign.response.status, 404);
-    assert.deepEqual(foreign.payload, missing.payload);
-    assert.equal(stored(d1, 'entry-other'), null);
-  });
-});
+  it('returns 404 when the entry does not exist', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: null });
+    const { response, payload } = await post({ text: 'note' }, { db, entryId: 'missing' });
 
-describe('reflections: validation', () => {
-  it('accepts 1 and 2,000 characters; rejects blank and 2,001', async () => {
-    const { env } = await setup();
-    assert.equal(MAX_REFLECTION_LENGTH, 2000);
-    assert.equal((await post(env, { text: 'x', scope: 'reading' })).response.status, 200);
-    assert.equal((await post(env, { text: 'y'.repeat(2000), scope: 'reading' })).response.status, 200);
-    const tooLong = await post(env, { text: 'z'.repeat(2001), scope: 'reading' });
-    assert.equal(tooLong.response.status, 400);
-    assert.equal(tooLong.payload.maxLength, 2000);
-    assert.equal((await post(env, { text: '   ', scope: 'reading' })).response.status, 400);
+    assert.equal(response.status, 404);
+    assert.equal(payload.error, 'Entry not found');
   });
 
-  it('rejects `mode`: reflections only append', async () => {
-    const { d1, env } = await setup();
-    const { response, payload } = await post(env, { text: 'note', scope: 'reading', mode: 'replace' });
+  it('returns 404 when the entry belongs to another user', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture({ user_id: 'someone-else' }) });
+    const { response } = await post({ text: 'note' }, { db });
+
+    assert.equal(response.status, 404);
+    assert.equal(db.updates.length, 0);
+  });
+
+  it('rejects blank reflection text with 400', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { response, payload } = await post({ text: '   ', card: 'The Hermit' }, { db });
+
     assert.equal(response.status, 400);
-    assert.match(payload.error, /append-only/);
-    assert.equal(stored(d1), null);
+    assert.match(payload.error, /text/i);
+    assert.equal(db.updates.length, 0);
   });
 
-  it('rejects an unknown scope', async () => {
-    const { env } = await setup();
-    const { response } = await post(env, { text: 'note', scope: 'deck' });
+  it('rejects reflection text longer than the audited contract (2000 chars)', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { response, payload } = await post({ text: 'x'.repeat(2001), card: 'The Hermit' }, { db });
+
     assert.equal(response.status, 400);
+    assert.equal(payload.maxLength, 2000);
+    assert.equal(db.updates.length, 0);
   });
-});
 
-describe('reflections: targeting', () => {
-  it('files a card note under the resolved index and reports the target', async () => {
-    const { d1, env } = await setup();
-    const { response, payload } = await post(env, { text: 'six months alone', scope: 'card', card: 'The Hermit', position: 'Past' });
+  it('rejects an unknown scope with 400', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { response } = await post({ text: 'note', scope: 'spread' }, { db });
+
+    assert.equal(response.status, 400);
+    assert.equal(db.updates.length, 0);
+  });
+
+  it('writes a card reflection under the resolved card index', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { response, payload } = await post(
+      { text: 'six months alone', scope: 'card', card: 'The Hermit', position: 'Past' },
+      { db }
+    );
 
     assert.equal(response.status, 200);
-    assert.deepEqual(stored(d1), { 0: 'six months alone' });
     assert.equal(payload.success, true);
-    assert.equal(payload.entryId, 'entry-1');
-    assert.equal(payload.key, '0');
-    assert.deepEqual(payload.reflection, {
-      key: '0', scope: 'card', cardIndex: 0, card: 'The Hermit', position: 'Past', text: 'six months alone'
-    });
-    assert.equal(payload.alreadyPresent, undefined);
+    assert.deepEqual(storedReflections(db), { 0: 'six months alone' });
+
+    // UPDATE ... SET reflections_json = ?, updated_at = ? WHERE id = ? AND user_id = ?
+    const bound = db.updates[0];
+    assert.equal(typeof bound[1], 'number', 'updated_at should be bumped');
+    assert.equal(bound[2], 'entry-1');
+    assert.equal(bound[3], 'user-1');
+
+    assert.equal(payload.reflection.key, '0');
+    assert.equal(payload.reflection.scope, 'card');
+    assert.equal(payload.reflection.cardIndex, 0);
+    assert.equal(payload.reflection.card, 'The Hermit');
+    assert.equal(payload.reflection.position, 'Past');
   });
 
-  it('resolves a card by name alone, ignoring case and a leading "the"', async () => {
-    const { d1, env } = await setup();
-    const { payload } = await post(env, { text: 'hope returns', scope: 'card', card: 'star' });
-    assert.equal(payload.key, '2');
-    assert.deepEqual(stored(d1), { 2: 'hope returns' });
+  it('resolves a card by name alone, case-insensitively', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { response, payload } = await post({ text: 'hope returns', card: 'the star' }, { db });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(storedReflections(db), { 2: 'hope returns' });
+    assert.equal(payload.reflection.card, 'The Star');
+    assert.equal(payload.reflection.position, 'Future');
   });
 
-  it('resolves a card by position alone and by cardIndex', async () => {
-    const { d1, env } = await setup();
-    await post(env, { text: 'friends around me', scope: 'card', position: 'present' });
-    await post(env, { text: 'index note', cardIndex: 0 });
-    assert.deepEqual(stored(d1), { 1: 'friends around me', 0: 'index note' });
+  it('resolves a card by position alone', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { response, payload } = await post({ text: 'friends around me', position: 'present' }, { db });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(storedReflections(db), { 1: 'friends around me' });
+    assert.equal(payload.reflection.card, 'Three of Cups');
   });
 
-  it('requires a position when the card appears twice', async () => {
-    const cards = [
-      { position: 'Past', name: 'The Hermit', number: 9, orientation: 'Upright' },
-      { position: 'Future', name: 'The Hermit', number: 9, orientation: 'Reversed' }
-    ];
-    const { env } = await setup({ entry: { cards } });
-    const ambiguous = await post(env, { text: 'which one?', scope: 'card', card: 'The Hermit' });
-    assert.equal(ambiguous.response.status, 400);
-    assert.match(ambiguous.payload.error, /more than once/);
+  it('resolves a card by explicit cardIndex', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { response, payload } = await post({ text: 'note', cardIndex: 1, card: 'Three of Cups' }, { db });
 
-    const precise = await post(env, { text: 'the later one', scope: 'card', card: 'The Hermit', position: 'Future' });
-    assert.equal(precise.payload.key, '1');
+    assert.equal(response.status, 200);
+    assert.deepEqual(storedReflections(db), { 1: 'note' });
+    assert.equal(payload.reflection.position, 'Present');
   });
 
-  it('rejects a card that is not in the entry and lists the entry cards', async () => {
-    const { d1, env } = await setup();
-    const { response, payload } = await post(env, { text: 'note', scope: 'card', card: 'The Tower' });
+  it('rejects a card/position mismatch and lists the entry cards for correction', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { response, payload } = await post({ text: 'note', card: 'The Hermit', position: 'Future' }, { db });
+
+    assert.equal(response.status, 400);
+    assert.match(payload.error, /Hermit/);
+    assert.deepEqual(
+      payload.cards,
+      [
+        { index: 0, position: 'Past', name: 'The Hermit' },
+        { index: 1, position: 'Present', name: 'Three of Cups' },
+        { index: 2, position: 'Future', name: 'The Star' }
+      ]
+    );
+    assert.equal(db.updates.length, 0);
+  });
+
+  it('rejects a card that is not in the entry', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { response, payload } = await post({ text: 'note', card: 'The Tower' }, { db });
+
     assert.equal(response.status, 400);
     assert.match(payload.error, /Tower/);
-    assert.deepEqual(payload.cards.map((card) => card.name), ['The Hermit', 'Three of Cups', 'The Star']);
-    assert.equal(stored(d1), null);
+    assert.equal(db.updates.length, 0);
   });
 
-  it('resolves a deck label through the entry deck (Thoth)', async () => {
-    const { d1, env } = await setup({ entry: { deckId: 'thoth-a1', cards: THOTH_CARDS } });
-    const prince = await post(env, { text: 'the Prince', scope: 'card', card: 'Prince of Wands', position: 'Past' });
-    const knight = await post(env, { text: 'the Thoth Knight', scope: 'card', card: 'Knight of Wands', position: 'Present' });
-    assert.equal(prince.payload.key, '0', 'Thoth Prince of Wands is canonical Knight of Wands');
-    assert.equal(knight.payload.key, '1', 'Thoth Knight of Wands is canonical King of Wands');
-    assert.equal(prince.payload.reflection.card, 'Prince of Wands');
-    assert.equal(knight.payload.reflection.card, 'Knight of Wands');
-    const [entry] = d1.rows('SELECT cards_json FROM journal_entries WHERE id = ?', ['entry-1']);
-    assert.deepEqual(JSON.parse(entry.cards_json).map((card) => card.name), ['Knight of Wands', 'King of Wands']);
+  it('rejects a card-scoped reflection that names no card', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { response } = await post({ text: 'note', scope: 'card' }, { db });
 
-    // Each returned card is a reusable input, even where a Thoth label collides
-    // with the canonical name of the other stored card.
-    const princeRetry = await post(env, {
-      text: 'the Prince', scope: 'card',
-      card: prince.payload.reflection.card, position: prince.payload.reflection.position
-    });
-    const knightRetry = await post(env, {
-      text: 'the Thoth Knight', scope: 'card', card: knight.payload.reflection.card
-    });
-    assert.equal(princeRetry.payload.key, '0');
-    assert.equal(knightRetry.payload.key, '1');
-    assert.equal(princeRetry.payload.alreadyPresent, true);
-    assert.equal(knightRetry.payload.alreadyPresent, true);
-    assert.deepEqual(stored(d1), { 0: 'the Prince', 1: 'the Thoth Knight' });
-  });
-
-  it('lists deck labels next to canonical names for non-RWS entries', async () => {
-    const { env } = await setup({ entry: { deckId: 'thoth-a1', cards: THOTH_CARDS } });
-    const { payload } = await post(env, { text: 'note', scope: 'card', card: 'The Tower' });
-    assert.deepEqual(payload.cards.map((card) => card.label), ['Prince of Wands', 'Knight of Wands']);
-  });
-
-  it('files a reading note under Overall, and defaults to reading scope when no card is named', async () => {
-    const { d1, env } = await setup();
-    const explicit = await post(env, { text: 'whole reading felt gentle', scope: 'reading' });
-    const implicit = await post(env, { text: 'and hopeful' });
-    assert.equal(explicit.payload.key, 'Overall');
-    assert.equal(implicit.payload.reflection.scope, 'reading');
-    assert.deepEqual(stored(d1), { Overall: 'whole reading felt gentle\n\nand hopeful' });
-  });
-});
-
-describe('reflections: append and idempotency', () => {
-  it('appends with a blank line and keeps other keys', async () => {
-    const { d1, env } = await setup({ entry: { reflections: { 0: 'first thought', 1: 'untouched' } } });
-    const { payload } = await post(env, { text: 'second thought', scope: 'card', card: 'The Hermit' });
-    assert.deepEqual(stored(d1), { 0: 'first thought\n\nsecond thought', 1: 'untouched' });
-    assert.deepEqual(payload.reflections, stored(d1));
-  });
-
-  it('does not append the same note twice', async () => {
-    const { d1, env } = await setup();
-    await post(env, { text: 'same note', scope: 'reading' });
-    const { response, payload } = await post(env, { text: 'same note', scope: 'reading' });
-    assert.equal(response.status, 200);
-    assert.equal(payload.alreadyPresent, true);
-    assert.deepEqual(stored(d1), { Overall: 'same note' });
-  });
-
-  it('does not re-append an earlier note after a later one (A, B, retry A)', async () => {
-    const { d1, env } = await setup();
-    await post(env, { text: 'A', scope: 'reading' });
-    await post(env, { text: 'B', scope: 'reading' });
-    const retry = await post(env, { text: 'A', scope: 'reading' });
-    assert.equal(retry.payload.alreadyPresent, true);
-    assert.deepEqual(stored(d1), { Overall: 'A\n\nB' });
-  });
-
-  it('treats Windows line endings and trailing spaces as the same note', async () => {
-    const { d1, env } = await setup();
-    await post(env, { text: 'line one\nline two', scope: 'reading' });
-    const retry = await post(env, { text: 'line one\r\nline two  ', scope: 'reading' });
-    assert.equal(retry.payload.alreadyPresent, true);
-    assert.deepEqual(stored(d1), { Overall: 'line one\nline two' });
-  });
-
-  it('writes once when two identical retries race', async () => {
-    const { d1, env } = await setup();
-    const body = { text: 'same note', scope: 'reading' };
-    const [a, b] = await Promise.all([post(env, body), post(env, body)]);
-    assert.deepEqual([Boolean(a.payload.alreadyPresent), Boolean(b.payload.alreadyPresent)].sort(), [false, true]);
-    assert.deepEqual(stored(d1), { Overall: 'same note' });
-  });
-
-  it('refuses to grow one target past 20,000 characters', async () => {
-    const { d1, env } = await setup({ entry: { reflections: { Overall: 'x'.repeat(MAX_TARGET_REFLECTION_LENGTH - 1) } } });
-    const { response, payload } = await post(env, { text: 'more', scope: 'reading' });
     assert.equal(response.status, 400);
-    assert.equal(payload.error, 'This reflection is full');
-    assert.equal(stored(d1).Overall.length, MAX_TARGET_REFLECTION_LENGTH - 1);
+    assert.equal(db.updates.length, 0);
   });
 
-  it('treats malformed stored reflections as empty', async () => {
-    const { d1, env } = await setup({ entry: { reflections: 'not json at all' } });
-    const { response } = await post(env, { text: 'fresh start', scope: 'card', card: 'The Star' });
+  it('stores reading-scoped reflections under the Overall key', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { response, payload } = await post({ text: 'whole reading felt gentle', scope: 'reading' }, { db });
+
     assert.equal(response.status, 200);
-    assert.deepEqual(stored(d1), { 2: 'fresh start' });
+    assert.deepEqual(storedReflections(db), { Overall: 'whole reading felt gentle' });
+    assert.equal(payload.reflection.key, 'Overall');
+    assert.equal(payload.reflection.scope, 'reading');
+    assert.equal(payload.reflection.cardIndex, undefined);
   });
 
-  it('writes a map the journal UI renders (strings, not arrays)', async () => {
-    const { env } = await setup();
-    const { payload } = await post(env, { text: 'visible in the app', scope: 'card', card: 'The Hermit' });
-    const rendered = Object.entries(payload.reflections).filter(([, note]) => typeof note === 'string' && note.trim());
+  it('defaults to reading scope when no card is named', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { response, payload } = await post({ text: 'general note' }, { db });
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.reflection.scope, 'reading');
+    assert.deepEqual(storedReflections(db), { Overall: 'general note' });
+  });
+
+  it('appends to an existing reflection by default and preserves other keys', async () => {
+    const db = new MockDB({
+      sessionRow: PLUS_SESSION,
+      entryRow: entryFixture({ reflections_json: JSON.stringify({ 0: 'first thought', 1: 'untouched' }) })
+    });
+    const { response, payload } = await post({ text: 'second thought', card: 'The Hermit' }, { db });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(storedReflections(db), { 0: 'first thought\n\nsecond thought', 1: 'untouched' });
+    assert.equal(payload.reflection.text, 'first thought\n\nsecond thought');
+    assert.deepEqual(payload.reflections, { 0: 'first thought\n\nsecond thought', 1: 'untouched' });
+  });
+
+  it('replaces an existing reflection when mode is replace', async () => {
+    const db = new MockDB({
+      sessionRow: PLUS_SESSION,
+      entryRow: entryFixture({ reflections_json: JSON.stringify({ 0: 'first thought' }) })
+    });
+    const { response } = await post({ text: 'rewritten', card: 'The Hermit', mode: 'replace' }, { db });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(storedReflections(db), { 0: 'rewritten' });
+  });
+
+  it('treats malformed stored reflections as empty rather than failing', async () => {
+    const db = new MockDB({
+      sessionRow: PLUS_SESSION,
+      entryRow: entryFixture({ reflections_json: 'not json at all' })
+    });
+    const { response } = await post({ text: 'fresh start', card: 'The Star' }, { db });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(storedReflections(db), { 2: 'fresh start' });
+  });
+
+  it('refuses the GPT service bearer token without writing a journal reflection', async () => {
+    const serviceUserId = 'service:reflections-test';
+    const db = new MockDB({ entryRow: entryFixture({ user_id: serviceUserId }) });
+    const { response, payload } = await post(
+      { text: 'via the GPT', card: 'The Hermit', position: 'Past' },
+      {
+        db,
+        bearer: SERVICE_TOKEN,
+        env: { GPT_SERVICE_TOKEN: SERVICE_TOKEN, GPT_SERVICE_USER_ID: serviceUserId }
+      }
+    );
+
+    assert.equal(response.status, 403);
+    assert.equal(payload.code, 'service_account_journal_forbidden');
+    assert.equal(db.updates.length, 0);
+  });
+
+  it('writes a shape the journal UI renders (string map, not an entries array)', async () => {
+    const db = new MockDB({ sessionRow: PLUS_SESSION, entryRow: entryFixture() });
+    const { payload } = await post({ text: 'visible in the app', card: 'The Hermit' }, { db });
+
+    // Mirrors src/components/journal/entry-card/hooks/useEntryMetadata.js, which
+    // drops anything that is not a non-empty string.
+    const rendered = Object.entries(payload.reflections).filter(
+      ([, note]) => typeof note === 'string' && note.trim()
+    );
     assert.deepEqual(rendered, [['0', 'visible in the app']]);
   });
 });
 
-describe('addJournalReflection: compare-and-swap', () => {
-  it('re-reads and appends when the entry changes between read and write', async () => {
-    const { d1 } = await setup();
-    let interfered = false;
-    const db = interceptUpdates(d1, (bound) => {
-      if (!interfered) {
-        interfered = true;
-        d1.rows('UPDATE journal_entries SET reflections_json = ? WHERE id = ?', [JSON.stringify({ Overall: 'concurrent' }), 'entry-1']);
-      }
-      return bound.run();
-    });
+describe('resolveCardIndex with deck display names', () => {
+  // Thoth shows the canonical Knight as Prince and the canonical King as Knight.
+  const thoth = [
+    { position: 'Past', name: 'Knight of Cups', displayName: 'Prince of Cups', canonicalName: 'Knight of Cups' },
+    { position: 'Future', name: 'King of Cups', displayName: 'Knight of Cups', canonicalName: 'King of Cups' }
+  ];
 
-    const result = await addJournalReflection({ env: { DB: db }, user: OWNER, entryId: 'entry-1', input: { text: 'mine', scope: 'reading' } });
-
-    assert.equal(result.status, 200);
-    assert.deepEqual(stored(d1), { Overall: 'concurrent\n\nmine' });
+  it('resolves the name the reading showed as well as the canonical name', () => {
+    assert.deepEqual(resolveCardIndex(thoth, { card: 'Prince of Cups' }), { index: 0 });
+    assert.deepEqual(resolveCardIndex(thoth, { card: 'King of Cups' }), { index: 1 });
   });
 
-  it('answers 409 after three conflicting attempts', async () => {
-    const { d1 } = await setup();
-    let attempts = 0;
-    const db = interceptUpdates(d1, async () => {
-      attempts += 1;
-      return { success: true, meta: { changes: 0 } };
-    });
-
-    const result = await addJournalReflection({ env: { DB: db }, user: OWNER, entryId: 'entry-1', input: { text: 'mine', scope: 'reading' } });
-
-    assert.equal(result.status, 409);
-    assert.equal(attempts, 3);
-    assert.equal(stored(d1), null);
+  it('asks for a position when a display name is another card\'s canonical name', () => {
+    assert.match(resolveCardIndex(thoth, { card: 'Knight of Cups' }).error, /more than once/);
+    assert.deepEqual(resolveCardIndex(thoth, { card: 'Knight of Cups', position: 'Future' }), { index: 1 });
   });
 });

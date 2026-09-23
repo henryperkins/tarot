@@ -525,6 +525,16 @@ export function formatPassagesForPrompt(passages, options = {}) {
       }
     }
 
+    // Kept only by the relevance floor: qualify it before the model reads it
+    if (passage.belowRelevanceThreshold === true) {
+      const indent = '  ';
+      if (markdown) {
+        lines.push(`${indent}*Weak match to the question: kept as background on this spread's cards, not as evidence about the querent.*`);
+      } else {
+        lines.push(`${indent}[Weak match to the question: background on this spread's cards, not evidence about the querent]`);
+      }
+    }
+
     // Passage text
     if (passage.text) {
       const indent = '  ';
@@ -806,29 +816,51 @@ export function rankPassagesForPrompt(passages, options = {}) {
     passages.length
   );
 
-  const strategy = determineRankingStrategy(passages);
+  const scoreField = determineScoreField(passages);
   const ranked = [...passages]
-    .sort((a, b) => comparePassagesForPrompt(a, b, strategy))
+    .sort((a, b) => comparePassagesForPrompt(a, b, scoreField))
     .slice(0, limit);
 
-  return { passages: ranked, strategy };
+  return { passages: ranked, strategy: describeScoringMethod(passages) };
 }
 
-function determineRankingStrategy(passages) {
+function determineScoreField(passages) {
   if (passages.some((p) => typeof p?.relevanceScore === 'number')) {
-    return 'semantic';
+    return 'relevanceScore';
   }
   if (passages.some((p) => typeof p?.relevance === 'number')) {
-    return 'keyword';
+    return 'relevance';
   }
   return 'priority';
 }
 
-function getPrimaryScore(passage, strategy) {
-  if (strategy === 'semantic') {
+/**
+ * Name the scoring method that actually produced the passages' relevance.
+ * relevanceScore is set by keyword fallback as well as by embeddings, so only
+ * per-passage provenance shows that semantic scoring ran; 'mixed' means some
+ * scores are semantic and some keyword-only, on different scales.
+ *
+ * @param {Array<Object>} passages
+ * @returns {'semantic'|'mixed'|'keyword'|'priority'|'none'}
+ */
+export function describeScoringMethod(passages) {
+  if (!Array.isArray(passages) || passages.length === 0) return 'none';
+
+  const scored = passages.filter((p) => typeof p?.relevanceScore === 'number');
+  if (scored.length > 0) {
+    const semanticCount = scored.filter((p) => p._semanticScoringSucceeded === true).length;
+    if (semanticCount === 0) return 'keyword';
+    return semanticCount === scored.length ? 'semantic' : 'mixed';
+  }
+
+  return passages.some((p) => typeof p?.relevance === 'number') ? 'keyword' : 'priority';
+}
+
+function getPrimaryScore(passage, scoreField) {
+  if (scoreField === 'relevanceScore') {
     return typeof passage.relevanceScore === 'number' ? passage.relevanceScore : 0;
   }
-  if (strategy === 'keyword') {
+  if (scoreField === 'relevance') {
     return typeof passage.relevance === 'number' ? passage.relevance : 0;
   }
 
@@ -837,9 +869,9 @@ function getPrimaryScore(passage, strategy) {
   return priority === Infinity ? 0 : 1 / (1 + priority);
 }
 
-function comparePassagesForPrompt(a, b, strategy) {
-  const scoreA = getPrimaryScore(a, strategy);
-  const scoreB = getPrimaryScore(b, strategy);
+function comparePassagesForPrompt(a, b, scoreField) {
+  const scoreA = getPrimaryScore(a, scoreField);
+  const scoreB = getPrimaryScore(b, scoreField);
   if (scoreA !== scoreB) {
     return scoreB - scoreA;
   }

@@ -28,7 +28,7 @@ export function ContinueConversationSection({
                     <button
                         type="button"
                         onClick={() => setFollowUpOpen?.(true)}
-                        className="inline-flex items-center gap-2 rounded-full bg-accent/15 border border-accent/40 px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                        className="min-h-touch min-w-touch inline-flex items-center gap-2 rounded-full bg-accent/15 border border-accent/40 px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                     >
                         <ChatCircle className="w-4 h-4" weight="fill" aria-hidden="true" />
                         <span>Open chat</span>

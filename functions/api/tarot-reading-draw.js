@@ -83,6 +83,12 @@ export const onRequestPost = async (ctx) => {
     return innerResponse;
   }
 
+  // The crisis gate replaces the reading with support resources. Attaching the
+  // drawn cards would invite a caller to present or save a card reading anyway.
+  if (innerBody?.gateReason === 'crisis_gate') {
+    return jsonResponse(innerBody, { status: innerResponse.status });
+  }
+
   const augmented = {
     ...innerBody,
     cardsInfo,

@@ -2,28 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
 
-/**
- * Generation phase messages that rotate during loading.
- * Phases progress from initial to extended wait states.
- */
-const PHASE_MESSAGES = {
-  initial: [
-    'Weaving your personalized narrative...',
-    'Drawing connections between the cards...',
-    'Interpreting the spread positions...',
-  ],
-  extended: [
-    'Taking a bit longer than usual...',
-    'Crafting a thoughtful interpretation...',
-    'Almost there, adding final touches...',
-  ],
-};
-
-/** Thresholds for phase transitions (in milliseconds) */
-const PHASE_TIMING = {
-  messageRotation: 3500,  // Rotate messages every 3.5s
-  extendedWait: 12000,    // Show extended messages after 12s
-};
+const EXTENDED_WAIT_MS = 12000;
 
 /**
  * Line configurations for different spread complexities.
@@ -69,15 +48,6 @@ const LINE_CONFIGS = {
 };
 
 /**
- * Narrative generation step labels for visual progress.
- */
-const STEP_LABELS = [
-  'Reading the spread',
-  'Finding the connections',
-  'Weaving the narrative',
-];
-
-/**
  * Select line configuration based on card count.
  * @param {number} cardCount - Number of cards in the spread
  * @param {boolean} isLandscape - Whether in landscape orientation
@@ -113,7 +83,6 @@ function getLineConfig(cardCount, isLandscape) {
  * @param {number} [props.cardCount=3] - Number of cards in the spread
  * @param {string} [props.reasoningSummary] - AI reasoning summary to display during generation
  * @param {Object} [props.reasoning] - Reasoning metadata (narrative arc preview)
- * @param {string} [props.narrativePhase] - Current narrative generation phase ('analyzing'|'drafting'|'polishing')
  * @param {string} [props.atmosphereClassName] - Atmosphere modifier classes
  */
 export function NarrativeSkeleton({
@@ -124,58 +93,20 @@ export function NarrativeSkeleton({
   cardCount = 3,
   reasoningSummary = '',
   reasoning = null,
-  narrativePhase = '',
   atmosphereClassName = '',
 }) {
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
 
-  // Track elapsed time for phase transitions and message rotation
-  const [elapsedMs, setElapsedMs] = useState(0);
-
-  // Single interval for elapsed time - message rotation derived from this
+  const [isExtendedWait, setIsExtendedWait] = useState(false);
   useEffect(() => {
-    const interval = setInterval(() => {
-      setElapsedMs(prev => prev + 1000);
-    }, 1000);
-    return () => clearInterval(interval);
+    const timeout = setTimeout(() => setIsExtendedWait(true), EXTENDED_WAIT_MS);
+    return () => clearTimeout(timeout);
   }, []);
 
-  // Derive message index from elapsed time (changes every messageRotation ms)
-  const messageIndex = prefersReducedMotion
-    ? 0
-    : Math.floor(elapsedMs / PHASE_TIMING.messageRotation);
-
-  // Determine current phase and message
-  const isExtendedWait = elapsedMs >= PHASE_TIMING.extendedWait;
-  const messages = isExtendedWait ? PHASE_MESSAGES.extended : PHASE_MESSAGES.initial;
-  const currentMessage = messages[messageIndex % messages.length];
-
-  // Determine step index from narrative phase (SSE-driven) with time-based fallback
-  const stepIndex = useMemo(() => {
-    // Use actual narrative phase when available
-    if (narrativePhase === 'polishing') return 2;
-    if (narrativePhase === 'drafting') return 1;
-    if (narrativePhase === 'analyzing') return 0;
-    // Fallback to time-based progression if phase not provided
-    if (elapsedMs >= 9000) return 2;
-    if (elapsedMs >= 4500) return 1;
-    return 0;
-  }, [narrativePhase, elapsedMs]);
-
-  // Build personalized status message
-  const statusMessage = useMemo(() => {
-    if (displayName && spreadName) {
-      return `${displayName}, your ${spreadName} reading is being crafted...`;
-    }
-    if (displayName) {
-      return `${displayName}, ${currentMessage.charAt(0).toLowerCase()}${currentMessage.slice(1)}`;
-    }
-    if (spreadName) {
-      return `Interpreting your ${spreadName}...`;
-    }
-    return currentMessage;
-  }, [displayName, spreadName, currentMessage]);
+  const statusMessage = isExtendedWait
+    ? 'This is taking longer than usual. Your reading is still being prepared.'
+    : `${displayName ? `${displayName}, your` : 'Your'} ${spreadName || 'personalized'} reading is being prepared.`;
 
   const cardSlots = useMemo(() => {
     if (isLandscape) return Array.from({ length: 3 }, (_, index) => index);
@@ -190,44 +121,20 @@ export function NarrativeSkeleton({
     [cardCount, isLandscape]
   );
 
-  // Screen reader message adapts to wait time
-  const srMessage = isExtendedWait
-    ? `Still generating your personalized tarot reading. This is taking longer than usual but should complete soon.`
-    : `Please wait while we generate your personalized tarot reading. This typically takes a few seconds.`;
-
-  const arcPreview = useMemo(() => {
-    if (!reasoning?.narrativeArc) return null;
-    return {
-      name: reasoning.narrativeArc?.name || '',
-      description: reasoning.narrativeArc?.description || ''
-    };
-  }, [reasoning?.narrativeArc]);
+  const arcPreview = reasoning?.narrativeArc || null;
 
   return (
     <div
       className={`narrative-skeleton ${className}`}
-      role="status"
+      role="region"
       aria-label="Generating your personalized narrative"
-      aria-live="polite"
-      aria-busy="true"
     >
-      {/* Header skeleton */}
-      <div className="flex items-center gap-2 mb-4">
-        <div
-          className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-secondary/30 ${
-            prefersReducedMotion ? '' : 'animate-pulse'
-          }`}
-          style={{ animationDelay: '0ms' }}
-          aria-hidden="true"
-        />
-        <div
-          className={`h-6 sm:h-7 w-48 sm:w-64 rounded-lg bg-secondary/20 ${
-            prefersReducedMotion ? '' : 'animate-pulse'
-          }`}
-          style={{ animationDelay: '100ms' }}
-          aria-hidden="true"
-        />
-      </div>
+      <h3 tabIndex={-1} data-reading-focus-target className="text-lg sm:text-2xl font-serif text-accent">
+        Preparing your reading
+      </h3>
+      <p role="status" aria-live="polite" aria-atomic="true" className="mt-3 mb-4 text-sm text-muted [overflow-wrap:anywhere]">
+        {statusMessage}
+      </p>
 
       {/* Ritual stage */}
       <div className={`narrative-skeleton__ritual narrative-atmosphere ${atmosphereClassName}`}>
@@ -235,23 +142,6 @@ export function NarrativeSkeleton({
           {cardSlots.map((slot) => (
             <div key={slot} className="narrative-skeleton__card" />
           ))}
-        </div>
-        <div className="narrative-skeleton__steps" role="list" aria-label="Narrative generation progress">
-          {STEP_LABELS.map((label, index) => {
-            const isCurrent = index === stepIndex;
-            const isActive = index <= stepIndex;
-            return (
-              <div
-                key={label}
-                role="listitem"
-                className={`narrative-skeleton__step ${isActive ? 'is-active' : ''} ${isCurrent ? 'is-current' : ''}`}
-                aria-current={isCurrent ? 'step' : undefined}
-              >
-                <span className="narrative-skeleton__step-dot" aria-hidden="true" />
-                <span className="narrative-skeleton__step-label">{label}</span>
-              </div>
-            );
-          })}
         </div>
         {arcPreview && (arcPreview.name || arcPreview.description) && (
           <div className="narrative-skeleton__arc mt-4 px-4 py-3 rounded-xl bg-surface/70">
@@ -273,7 +163,7 @@ export function NarrativeSkeleton({
           </div>
         )}
         <p className="narrative-skeleton__hint text-xs text-muted text-center mt-2">
-          Let your attention rest on the card that feels loudest.
+          Take a quiet moment to reflect on your question.
         </p>
 
         {/* AI Reasoning Summary - shown while generating */}
@@ -332,45 +222,8 @@ export function NarrativeSkeleton({
           })}
         </div>
 
-        {/* Weaving indicator */}
-        <div className="mt-6 pt-4 flex flex-col items-center gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex gap-1.5">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className={`w-2 h-2 rounded-full ${
-                    isExtendedWait ? 'bg-primary/60' : 'bg-accent/60'
-                  } ${prefersReducedMotion ? '' : 'animate-bounce'}`}
-                  style={{
-                    animationDelay: prefersReducedMotion ? '0ms' : `${i * 150}ms`,
-                    animationDuration: '1s',
-                  }}
-                  aria-hidden="true"
-                />
-              ))}
-            </div>
-            <span
-              className={`text-sm transition-colors duration-300 ${
-                isExtendedWait ? 'text-primary/80' : 'text-muted'
-              }`}
-              aria-hidden="true"
-            >
-              {statusMessage}
-            </span>
-          </div>
-
-          {/* Extended wait reassurance */}
-          {isExtendedWait && (
-            <p className="text-xs text-muted/70 text-center max-w-xs animate-fade-in">
-              Complex spreads take a moment to interpret thoughtfully.
-            </p>
-          )}
-        </div>
       </div>
 
-      {/* Screen reader announcement */}
-      <span className="sr-only">{srMessage}</span>
     </div>
   );
 }

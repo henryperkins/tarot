@@ -1,0 +1,255 @@
+--- a/src/components/NarrationStatus.jsx
++++ b/src/components/NarrationStatus.jsx
+@@ -115,7 +115,7 @@
+         <button
+           type="button"
+           onClick={onUpgrade}
+-          className="mt-1.5 text-error underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 rounded"
++          className="min-h-touch min-w-touch mt-1.5 px-2 text-error underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 rounded"
+         >
+           View subscription options
+         </button>
+--- a/src/components/reading/complete/ContinueConversationSection.jsx
++++ b/src/components/reading/complete/ContinueConversationSection.jsx
+@@ -28,7 +28,7 @@
+                     <button
+                         type="button"
+                         onClick={() => setFollowUpOpen?.(true)}
+-                        className="inline-flex items-center gap-2 rounded-full bg-accent/15 border border-accent/40 px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
++                        className="min-h-touch min-w-touch inline-flex items-center gap-2 rounded-full bg-accent/15 border border-accent/40 px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                     >
+                         <ChatCircle className="w-4 h-4" weight="fill" aria-hidden="true" />
+                         <span>Open chat</span>
+--- a/src/components/reading/narrative/NarrationControls.jsx
++++ b/src/components/reading/narrative/NarrationControls.jsx
+@@ -14,7 +14,7 @@
+       <button
+         type="button"
+         onClick={onNarrate}
+-        className="px-3 sm:px-4 py-2 rounded-lg border border-secondary/40 bg-surface/85 hover:bg-surface/80 disabled:opacity-40 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main text-xs sm:text-sm"
++        className="min-h-touch min-w-touch px-3 sm:px-4 py-2 rounded-lg border border-secondary/40 bg-surface/85 hover:bg-surface/80 disabled:opacity-40 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main text-xs sm:text-sm"
+         disabled={!controlsModel.canNarrate}
+       >
+         <span className="hidden xs:inline">{controlsModel.narrationLabel}</span>
+@@ -25,7 +25,7 @@
+         <button
+           type="button"
+           onClick={onStopNarration}
+-          className="px-2 sm:px-3 py-2 rounded-lg border border-secondary/40 bg-surface/70 hover:bg-surface/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main transition disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm"
++          className="min-h-touch min-w-touch px-2 sm:px-3 py-2 rounded-lg border border-secondary/40 bg-surface/70 hover:bg-surface/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main transition disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm"
+         >
+           Stop
+         </button>
+@@ -36,7 +36,7 @@
+           type="button"
+           onClick={onSaveReading}
+           disabled={controlsModel.isSaving}
+-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent/20 border border-accent/40 text-accent text-xs sm:text-sm font-semibold hover:bg-accent/30 transition touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
++          className="min-h-touch min-w-touch inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent/20 border border-accent/40 text-accent text-xs sm:text-sm font-semibold hover:bg-accent/30 transition touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+         >
+           <BookmarkSimple className="w-3.5 h-3.5" weight="fill" />
+           <span>{controlsModel.isSaving ? 'Saving...' : 'Save to Journal'}</span>
+@@ -46,7 +46,7 @@
+       <button
+         type="button"
+         onClick={onOpenJournal}
+-        className="px-3 sm:px-4 py-2 rounded-lg bg-primary/15 border border-primary/40 text-primary text-xs sm:text-sm hover:bg-primary/25 hover:text-primary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
++        className="min-h-touch min-w-touch px-3 sm:px-4 py-2 rounded-lg bg-primary/15 border border-primary/40 text-primary text-xs sm:text-sm hover:bg-primary/25 hover:text-primary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+       >
+         View Journal
+       </button>
+--- a/src/components/reading/narrative/NarrativeBody.jsx
++++ b/src/components/reading/narrative/NarrativeBody.jsx
+@@ -21,13 +21,11 @@
+   narrativeAtmosphereClassName,
+   hasHeroStoryArt
+ }) {
+-  const desktopAnchor = !isHandset ? <NarrativeQuestionAnchor question={question} /> : null;
+-  const mobileAnchor = isHandset ? <NarrativeQuestionAnchor question={question} compact /> : null;
+   const streamClassName = `max-w-3xl mx-auto mt-4 sm:mt-5 ${hasHeroStoryArt ? 'glass-panel' : ''}`;
+ 
+   return (
+     <>
+-      {desktopAnchor}
++      <NarrativeQuestionAnchor question={question} compact={isHandset} />
+ 
+       <NarrativeSafetyNotice className="max-w-3xl mx-auto mt-4" compact={isHandset} />
+ 
+@@ -49,8 +47,6 @@
+         withAtmosphere
+         atmosphereClassName={narrativeAtmosphereClassName}
+       />
+-
+-      {mobileAnchor}
+     </>
+   );
+ }
+--- a/src/components/reading/narrative/NarrativePanelHeader.jsx
++++ b/src/components/reading/narrative/NarrativePanelHeader.jsx
+@@ -16,7 +16,7 @@
+           type="button"
+           aria-pressed={isNarrativeFocus}
+           onClick={onToggleNarrativeFocus}
+-          className="inline-flex items-center gap-2 rounded-full border border-secondary/50 px-3 xxs:px-4 py-1.5 text-xs-plus sm:text-sm font-semibold text-muted hover:text-main hover:border-secondary/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 sm:ml-auto"
++          className="min-h-touch min-w-touch inline-flex items-center gap-2 rounded-full border border-secondary/50 px-3 xxs:px-4 py-1.5 text-xs-plus sm:text-sm font-semibold text-muted hover:text-main hover:border-secondary/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 sm:ml-auto"
+         >
+           {isNarrativeFocus ? 'Show insight panels' : 'Focus on narrative'}
+         </button>
+--- a/src/components/reading/narrative/NarrativeQuestionAnchor.jsx
++++ b/src/components/reading/narrative/NarrativeQuestionAnchor.jsx
+@@ -6,9 +6,8 @@
+ 
+   if (compact) {
+     return (
+-      <div className="max-w-3xl mx-auto mt-3 rounded-lg border border-secondary/35 bg-surface/65 px-3 py-2">
+-        <p className="text-2xs uppercase tracking-[0.12em] text-muted/80">Anchor</p>
+-        <p dir="auto" className="text-xs text-accent/85 mt-1 leading-relaxed [overflow-wrap:anywhere]">{question}</p>
++      <div className="max-w-3xl mx-auto mt-3">
++        <p className="text-sm text-accent/85 leading-relaxed [overflow-wrap:anywhere]">Anchor: <bdi>{question}</bdi></p>
+       </div>
+     );
+   }
+--- a/src/components/reading/narrative/NarrativeStatusStack.jsx
++++ b/src/components/reading/narrative/NarrativeStatusStack.jsx
+@@ -13,8 +13,8 @@
+     <div className="text-xs text-muted bg-surface/70 border border-accent/30 rounded-lg px-3 py-2 text-center space-y-2" aria-live="polite">
+       <p>Voice narration is disabled. Turn it on?</p>
+       <div className="flex flex-wrap items-center justify-center gap-2">
+-        <button type="button" onClick={onEnableVoice} className="px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary hover:bg-primary/30 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">Enable voice & play</button>
+-        <button type="button" onClick={onDismiss} className="px-3 py-1.5 rounded-full border border-accent/50 text-muted hover:text-main text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">Maybe later</button>
++        <button type="button" onClick={onEnableVoice} className="min-h-touch min-w-touch px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary hover:bg-primary/30 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">Enable voice & play</button>
++        <button type="button" onClick={onDismiss} className="min-h-touch min-w-touch px-3 py-1.5 rounded-full border border-accent/50 text-muted hover:text-main text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">Maybe later</button>
+       </div>
+     </div>
+   );
+@@ -35,7 +35,7 @@
+         <button
+           type="button"
+           onClick={() => onViewEntry?.(journalStatus.action.entryId)}
+-          className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-2xs font-semibold text-accent hover:bg-accent/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
++          className="min-h-touch min-w-touch inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-2xs font-semibold text-accent hover:bg-accent/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+         >
+           {journalStatus.action.label || 'View entry'}
+         </button>
+--- a/src/components/reading/ReadingSceneRouter.jsx
++++ b/src/components/reading/ReadingSceneRouter.jsx
+@@ -47,7 +47,9 @@
+   colorScriptOwner,
+   isMobileStableMode = false
+ }) {
+-  const className = orchestrator?.activeScene === 'interlude' ? '' : 'scene-shell';
++  const activeScene = orchestrator?.activeScene;
++  const isReadingScene = activeScene === 'narrative' || activeScene === 'complete';
++  const className = activeScene === 'interlude' ? '' : `scene-shell ${isReadingScene ? 'scene-shell--reading' : ''}`;
+ 
+   return (
+     <SceneShell
+--- a/src/components/SpreadPatterns.jsx
++++ b/src/components/SpreadPatterns.jsx
+@@ -126,11 +126,11 @@
+       <button
+         type="button"
+         onClick={() => setIsExpanded(prev => !prev)}
+-        className="sm:hidden w-full flex items-center justify-between gap-2 mb-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 rounded"
++        className={`${isHandset ? 'flex' : 'hidden'} min-h-touch w-full items-center justify-between gap-2 mb-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 rounded`}
+         aria-expanded={isExpanded}
+         aria-controls="spread-patterns-content"
+       >
+-        <div className="flex items-center gap-2">
++        <div className="flex min-w-0 flex-wrap items-center gap-2">
+           <Star className="w-5 h-5 text-accent" aria-hidden="true" />
+           <span className="text-accent text-base font-serif">Spread Insights</span>
+           <span className="text-xs text-muted">({totalCount})</span>
+@@ -143,13 +143,13 @@
+       </button>
+ 
+       {/* Desktop: Static header */}
+-      <div className="hidden sm:flex items-center gap-2 mb-4">
++      <div className={`${isHandset ? 'hidden' : 'flex'} items-center gap-2 mb-4`}>
+         <Star className="w-5 h-5 text-accent" aria-hidden="true" />
+         <span className="text-accent text-lg font-serif">Spread Insights</span>
+       </div>
+ 
+       {/* Unified content: collapsed on mobile (unless expanded), always visible on desktop */}
+-      <div id="spread-patterns-content" className={`${isExpanded ? '' : 'hidden'} sm:block mt-3 sm:mt-0 space-y-4`}>
++      <div id="spread-patterns-content" className={`${shouldRenderContent ? '' : 'hidden'} ${isHandset ? 'mt-3' : 'mt-0'} space-y-4`}>
+         {shouldRenderContent && (
+           <>
+         {/* Spread Highlights Section */}
+--- a/src/components/StreamingNarrative.jsx
++++ b/src/components/StreamingNarrative.jsx
+@@ -463,7 +463,7 @@
+       <button
+         type="button"
+         onClick={handleEnableStreaming}
+-        className="w-full rounded-full border border-secondary/40 bg-secondary/20 px-4 py-2 text-xs-plus font-semibold text-secondary shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
++        className="min-h-touch w-full rounded-full border border-secondary/40 bg-secondary/20 px-4 py-2 text-xs-plus font-semibold text-secondary shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+       >
+         Play typing effect
+       </button>
+@@ -497,6 +497,7 @@
+   const narrativeBody = useMarkdown ? (
+     <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[70ch] w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 mx-auto rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--md ${atmosphereClass} ${textBottomPaddingClass}`}>
+       <MarkdownRenderer
++        className="narrative-stream__markdown"
+         content={visibleText}
+         highlightPhrases={normalizedHighlightPhrases}
+         wordBoundary={wordBoundary}
+--- a/src/hooks/narrativeReadingModelUtils.js
++++ b/src/hooks/narrativeReadingModelUtils.js
+@@ -203,7 +203,7 @@
+     && !personalReading.isError
+     && !journalStatus
+   );
+-  const panelClassName = `bg-surface/95 ${isMobileStableMode ? 'narrative-panel--stable' : 'backdrop-blur-xl'} rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`;
++  const panelClassName = `narrative-panel bg-surface/95 ${isMobileStableMode ? 'narrative-panel--stable' : 'backdrop-blur-xl'} rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`;
+   const question = typeof userQuestion === 'string' ? userQuestion.trim() : '';
+   const { full: narrationLabel, compact: narrationLabelCompact } = getNarrationLabels(narrationState);
+ 
+--- a/src/styles/tarot.css
++++ b/src/styles/tarot.css
+@@ -3975,14 +3975,43 @@
+   }
+ }
+ 
+-/* Mobile (<= 639px): tighten narrative padding */
++/* The page owns the single 16px mobile reading gutter. */
+ @media (max-width: 639px) {
++  .scene-shell--reading,
++  .scene-shell--reading .scene-stage__panel,
++  .scene-shell--reading .narrative-panel {
++    border: 0;
++    border-radius: 0;
++    box-shadow: none;
++  }
++
++  .scene-shell--reading {
++    /* Add only the safe-area space not already covered by the page gutter. */
++    padding-left: max(0px, calc(var(--safe-pad-left, 0px) - 1rem));
++    padding-right: max(0px, calc(var(--safe-pad-right, 0px) - 1rem));
++  }
++
++  .scene-shell--reading .scene-stage__panel,
++  .scene-shell--reading .narrative-panel {
++    padding-inline: 0;
++    background: transparent;
++    backdrop-filter: none;
++    -webkit-backdrop-filter: none;
++  }
++
+   .narrative-stream {
+     padding-inline: 0;
+   }
+ 
++  .narrative-stream .narrative-stream__markdown {
++    padding-inline: 0;
++    max-width: 100%;
++  }
++
+   .narrative-stream .narrative-stream__text {
+     padding-inline: 0;
++    width: 100%;
++    max-width: 100%;
+     border: 0;
+     box-shadow: none;
+     background: transparent;

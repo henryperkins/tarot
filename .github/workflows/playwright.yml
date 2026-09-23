@@ -22,6 +22,8 @@ jobs:
         run: npx playwright install --with-deps
       - name: Run Playwright tests
         run: npx playwright test --config=playwright.config.js
+      - name: Run journal owner Playwright tests
+        run: npm run test:e2e:journal
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:

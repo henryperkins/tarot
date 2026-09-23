@@ -148,6 +148,8 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
 
     const hasPartialPattern = Array.isArray(retrievedPassages) &&
       retrievedPassages.some((passage) => passage?.isPartialPattern === true);
+    const hasWeakQuestionMatch = Array.isArray(retrievedPassages) &&
+      retrievedPassages.some((passage) => passage?.belowRelevanceThreshold === true);
 
     return [
       '## TRADITIONAL WISDOM (GraphRAG)',
@@ -159,6 +161,9 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
       'CARD GUARDRAIL: Do not add cards that are not in the spread. If a journey stage is mentioned, treat it as context only and do not assert that The Fool (or any other absent card) appears.',
       ...(hasPartialPattern
         ? ['PARTIAL PATTERN: At least one passage above describes a multi-card arc that was only partly drawn. Name only the cards actually in this spread; treat the rest of the arc as the direction this reading leans, never as cards that appeared.']
+        : []),
+      ...(hasWeakQuestionMatch
+        ? ['WEAK QUESTION MATCH: Passages marked as a weak match were kept because they belong to patterns among these cards, not because they fit the question. Use them only as background on those cards, not as evidence about the querent\'s circumstances and not as a basis for predicting outcomes.']
         : [])
     ].join('\n');
   } catch (err) {

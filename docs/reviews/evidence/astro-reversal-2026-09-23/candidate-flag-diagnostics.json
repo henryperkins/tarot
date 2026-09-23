@@ -1,0 +1,197 @@
+{
+  "isValid": false,
+  "totalSections": 8,
+  "cardSections": 5,
+  "cardComplete": 1,
+  "cardIncomplete": 4,
+  "structuralSections": 3,
+  "completeSections": 3,
+  "incompleteSections": 5,
+  "sectionAnalyses": [
+    {
+      "header": "Opening",
+      "isCardSection": false,
+      "analysis": {
+        "isComplete": true,
+        "present": {
+          "what": true,
+          "why": false,
+          "whatsNext": false
+        },
+        "missing": [
+          "why",
+          "whatsNext"
+        ],
+        "missingRequired": [],
+        "suggestions": [
+          "Consider adding: Why/How (connector)",
+          "Consider adding: What's next"
+        ]
+      }
+    },
+    {
+      "header": "Core of the Matter — **Ace of Wands Upright**",
+      "isCardSection": true,
+      "analysis": {
+        "isComplete": false,
+        "present": {
+          "what": false,
+          "why": false,
+          "whatsNext": false
+        },
+        "missing": [
+          "what",
+          "why",
+          "whatsNext"
+        ],
+        "missingRequired": [
+          "what"
+        ],
+        "suggestions": [
+          "Consider adding: What is happening",
+          "Consider adding: Why/How (connector)",
+          "Consider adding: What's next"
+        ]
+      }
+    },
+    {
+      "header": "Challenge — **Seven of Swords Reversed**",
+      "isCardSection": true,
+      "analysis": {
+        "isComplete": false,
+        "present": {
+          "what": false,
+          "why": false,
+          "whatsNext": true
+        },
+        "missing": [
+          "what",
+          "why"
+        ],
+        "missingRequired": [
+          "what"
+        ],
+        "suggestions": [
+          "Consider adding: What is happening",
+          "Consider adding: Why/How (connector)"
+        ]
+      }
+    },
+    {
+      "header": "Hidden Influence — **Queen of Cups Upright**",
+      "isCardSection": true,
+      "analysis": {
+        "isComplete": false,
+        "present": {
+          "what": false,
+          "why": false,
+          "whatsNext": false
+        },
+        "missing": [
+          "what",
+          "why",
+          "whatsNext"
+        ],
+        "missingRequired": [
+          "what"
+        ],
+        "suggestions": [
+          "Consider adding: What is happening",
+          "Consider adding: Why/How (connector)",
+          "Consider adding: What's next"
+        ]
+      }
+    },
+    {
+      "header": "Support — **Three of Pentacles Upright**",
+      "isCardSection": true,
+      "analysis": {
+        "isComplete": false,
+        "present": {
+          "what": false,
+          "why": false,
+          "whatsNext": false
+        },
+        "missing": [
+          "what",
+          "why",
+          "whatsNext"
+        ],
+        "missingRequired": [
+          "what"
+        ],
+        "suggestions": [
+          "Consider adding: What is happening",
+          "Consider adding: Why/How (connector)",
+          "Consider adding: What's next"
+        ]
+      }
+    },
+    {
+      "header": "Likely Direction — **Wheel of Fortune Reversed**",
+      "isCardSection": true,
+      "analysis": {
+        "isComplete": true,
+        "present": {
+          "what": true,
+          "why": false,
+          "whatsNext": true
+        },
+        "missing": [
+          "why"
+        ],
+        "missingRequired": [],
+        "suggestions": [
+          "Consider adding: Why/How (connector)"
+        ]
+      }
+    },
+    {
+      "header": "Gentle Next Steps",
+      "isCardSection": false,
+      "analysis": {
+        "isComplete": false,
+        "present": {
+          "what": false,
+          "why": false,
+          "whatsNext": false
+        },
+        "missing": [
+          "what",
+          "why",
+          "whatsNext"
+        ],
+        "missingRequired": [
+          "what"
+        ],
+        "suggestions": [
+          "Consider adding: What is happening",
+          "Consider adding: Why/How (connector)",
+          "Consider adding: What's next"
+        ]
+      }
+    },
+    {
+      "header": "Synthesis",
+      "isCardSection": false,
+      "analysis": {
+        "isComplete": true,
+        "present": {
+          "what": true,
+          "why": false,
+          "whatsNext": true
+        },
+        "missing": [
+          "why"
+        ],
+        "missingRequired": [],
+        "suggestions": [
+          "Consider adding: Why/How (connector)"
+        ]
+      }
+    }
+  ],
+  "suggestions": [
+    "Review incomplete card sections and ensure they include: what is happening, why/how (connector), and what's next"
+  ]
+}

@@ -49,23 +49,31 @@ export function getCardImage(card) {
 export function getCanonicalCard(card) {
   if (!card) return null;
   
-  const name = typeof card === 'string' ? card : card.name;
-  if (!name) return null;
-  
-  // Try various normalizations
-  const lookups = [
-    name,
-    name.toLowerCase(),
-    name.toLowerCase().replace(/\s+/g, '-'),
-    name.replace(/\s+/g, '-')
-  ];
-  
-  for (const lookup of lookups) {
-    if (CARD_LOOKUP[lookup]) {
-      return CARD_LOOKUP[lookup];
+  // Deck aliases can collide with a different canonical card (Thoth's Knight
+  // is the RWS King), so prefer explicit identity. Fall back to the name when
+  // an identity field is missing, malformed or not in the catalog.
+  const candidates = typeof card === 'string'
+    ? [card]
+    : [card.canonicalName, card.canonicalKey, card.name];
+
+  for (const name of candidates) {
+    if (typeof name !== 'string' || !name) continue;
+
+    // Try various normalizations
+    const lookups = [
+      name,
+      name.toLowerCase(),
+      name.toLowerCase().replace(/\s+/g, '-'),
+      name.replace(/\s+/g, '-')
+    ];
+
+    for (const lookup of lookups) {
+      if (CARD_LOOKUP[lookup]) {
+        return CARD_LOOKUP[lookup];
+      }
     }
   }
-  
+
   return null;
 }
 

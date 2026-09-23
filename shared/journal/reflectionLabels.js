@@ -16,7 +16,7 @@ function cleanText(value) {
 
 function labelForCard(card, index) {
   const position = cleanText(card?.position);
-  const name = cleanText(card?.name) || cleanText(card?.card);
+  const name = cleanText(card?.displayName) || cleanText(card?.name) || cleanText(card?.card);
   if (position && name) return `${position} · ${name}`;
   return position || name || `Card ${index + 1}`;
 }

@@ -9,6 +9,7 @@ import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { buildPersonalizationRequestPayload } from '../utils/personalizationStorage';
 import { formatReading } from '../lib/formatting';
+import { readReadingJobEvents } from '../lib/readingJobStream.js';
 import { buildReadingRequestCard } from '../../shared/contracts/readingRequestCards.js';
 import { computeRelationships } from '../lib/deck';
 import { buildSymbolElementCue } from '../lib/symbolElementBridge';
@@ -137,6 +138,11 @@ export function ReadingProvider({ children }) {
         ttsProvider
     });
     const isTarotRouteRef = useRef(true);
+
+    useEffect(() => () => {
+        inFlightReadingRef.current?.controller?.abort();
+        inFlightReadingRef.current = null;
+    }, []);
 
     const readingJobStorageKey = 'tarot:reading-job';
 
@@ -476,60 +482,9 @@ export function ReadingProvider({ children }) {
         let streamedText = resume
             ? (personalReading?.raw || personalReading?.normalized || '')
             : '';
-        let doneReceived = false;
         let streamMeta = null;
 
         try {
-            const response = await fetch(`/api/tarot-reading/jobs/${jobId}/stream?cursor=${cursor}`, {
-                headers: {
-                    'Accept': 'text/event-stream',
-                    'X-Job-Token': jobToken
-                },
-                signal: controller.signal
-            });
-
-            const contentType = response.headers.get('content-type') || '';
-            const isSSE = contentType.includes('text/event-stream');
-
-            if (!response.ok || !isSSE) {
-                const errText = await response.text();
-                let errPayload = null;
-                try {
-                    errPayload = errText ? JSON.parse(errText) : null;
-                } catch {
-                    errPayload = null;
-                }
-
-                const serverMessage =
-                    typeof errPayload?.error === 'string'
-                        ? errPayload.error.trim()
-                        : '';
-
-                const fallbackByStatus = {
-                    401: 'Please sign in to generate a personal narrative.',
-                    403: 'This request couldn’t be resumed. Please try again.',
-                    404: 'This request couldn’t be resumed. Please try again.',
-                    409: 'This request couldn’t be completed. Please refresh and try again.',
-                    410: 'This request expired. Please generate a new narrative.',
-                    429: 'You’ve reached your reading limit. Please try again later.'
-                };
-
-                const safeServerMessage = serverMessage && serverMessage.length <= 240 ? serverMessage : '';
-                const finalMessage =
-                    safeServerMessage ||
-                    fallbackByStatus[response.status] ||
-                    'Unable to generate reading at this time. Please try again in a moment.';
-
-                throw new Error(finalMessage);
-            }
-
-            const reader = response.body?.getReader();
-            if (!reader) {
-                throw new Error('Streaming response missing body.');
-            }
-
-            const decoder = new TextDecoder();
-            let buffer = '';
             let lastFlush = 0;
 
             const updateCursor = (eventId) => {
@@ -557,180 +512,150 @@ export function ReadingProvider({ children }) {
                 setPersonalReading(formatted);
             };
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                if (controller.signal.aborted) {
-                    reader.cancel().catch(() => null);
-                    return;
+            for await (const { event: eventType, data } of readReadingJobEvents({
+                jobId,
+                jobToken,
+                cursor,
+                signal: controller.signal,
+                onReconnect: () => {
+                    if (!isActiveRequest()) return;
+                    updateReadingJobCursor(readingJobRef.current?.cursor || 0, { force: true });
+                    if (streamedText) flushStreamedText(true);
+                    setSrAnnouncement('Reconnecting to your narrative. Your reading is still being prepared.');
                 }
+            })) {
+                if (!isActiveRequest()) return;
+                updateCursor(data?.eventId);
 
-                buffer += decoder.decode(value, { stream: true });
-                const events = buffer.split('\n\n');
-                buffer = events.pop() || '';
-
-                for (const eventBlock of events) {
-                    if (!eventBlock.trim()) continue;
-
-                    const lines = eventBlock.split('\n');
-                    let eventType = '';
-                    let eventData = '';
-
-                    for (const line of lines) {
-                        if (line.startsWith('event:')) {
-                            eventType = line.slice(6).trim();
-                        } else if (line.startsWith('data:')) {
-                            eventData = line.slice(5).trim();
+                if (eventType === 'meta') {
+                    streamMeta = data;
+                    if (data?.themes !== undefined) {
+                        setThemes(data.themes || null);
+                    }
+                    if (data?.emotionalTone !== undefined) {
+                        setEmotionalTone(data.emotionalTone || null);
+                        narrationEmotionRef.current = data?.emotionalTone?.emotion || null;
+                    }
+                    if (data?.spreadAnalysis !== undefined) {
+                        setSpreadAnalysis(data.spreadAnalysis || null);
+                    }
+                    if (data?.context !== undefined) {
+                        setAnalysisContext(data.context || null);
+                    }
+                    if (data?.reasoning !== undefined) {
+                        setReasoning(data.reasoning || null);
+                    }
+                    if (isActiveRequest()) {
+                        setReadingMeta({
+                            requestId: data.requestId || null,
+                            provider: data.provider || 'local',
+                            spreadKey: safeSpreadKey,
+                            spreadName: spreadInfo?.name || null,
+                            deckStyle: deckStyleId,
+                            userQuestion,
+                            graphContext: data.themes?.knowledgeGraph || null,
+                            ephemeris: data.ephemeris || null,
+                            sourceUsage: data.sourceUsage || null
+                        });
+                    }
+                } else if (eventType === 'snapshot') {
+                    if (typeof data.fullText === 'string') {
+                        streamedText = data.fullText;
+                        flushStreamedText(true);
+                    }
+                } else if (eventType === 'delta') {
+                    streamedText += data.text || '';
+                    flushStreamedText();
+                    appendNarrationBuffer(data.text || '');
+                } else if (eventType === 'reasoning') {
+                    if (data.text && isActiveRequest()) {
+                        if (data.partial) {
+                            // Accumulate partial deltas
+                            setReasoningSummary((prev) => (prev || '') + data.text);
+                        } else {
+                            // Final complete summary replaces accumulated
+                            setReasoningSummary(data.text);
                         }
                     }
-
-                    if (!eventType || !eventData) continue;
-
-                    try {
-                        const data = JSON.parse(eventData);
-                        updateCursor(data?.eventId);
-
-                        if (eventType === 'meta') {
-                            streamMeta = data;
-                            if (data?.themes !== undefined) {
-                                setThemes(data.themes || null);
-                            }
-                            if (data?.emotionalTone !== undefined) {
-                                setEmotionalTone(data.emotionalTone || null);
-                                narrationEmotionRef.current = data?.emotionalTone?.emotion || null;
-                            }
-                            if (data?.spreadAnalysis !== undefined) {
-                                setSpreadAnalysis(data.spreadAnalysis || null);
-                            }
-                            if (data?.context !== undefined) {
-                                setAnalysisContext(data.context || null);
-                            }
-                            if (data?.reasoning !== undefined) {
-                                setReasoning(data.reasoning || null);
-                            }
-                            if (isActiveRequest()) {
-                                setReadingMeta({
-                                    requestId: data.requestId || null,
-                                    provider: data.provider || 'local',
-                                    spreadKey: safeSpreadKey,
-                                    spreadName: spreadInfo?.name || null,
-                                    deckStyle: deckStyleId,
-                                    userQuestion,
-                                    graphContext: data.themes?.knowledgeGraph || null,
-                                    ephemeris: data.ephemeris || null,
-                                    sourceUsage: data.sourceUsage || null
-                                });
-                            }
-                        } else if (eventType === 'snapshot') {
-                            if (typeof data.fullText === 'string') {
-                                streamedText = data.fullText;
-                                flushStreamedText(true);
-                            }
-                        } else if (eventType === 'delta') {
-                            streamedText += data.text || '';
-                            flushStreamedText();
-                            appendNarrationBuffer(data.text || '');
-                        } else if (eventType === 'reasoning') {
-                            if (data.text && isActiveRequest()) {
-                                if (data.partial) {
-                                    // Accumulate partial deltas
-                                    setReasoningSummary((prev) => (prev || '') + data.text);
-                                } else {
-                                    // Final complete summary replaces accumulated
-                                    setReasoningSummary(data.text);
-                                }
-                            }
-                        } else if (eventType === 'done') {
-                            doneReceived = true;
-                            const finalText = (data.fullText || streamedText || '').trim();
-                            if (!finalText) {
-                                throw new Error('Empty reading returned');
-                            }
-
-                            if (!isActiveRequest()) {
-                                return;
-                            }
-
-                            if (!narrationSuppressedRef.current) {
-                                flushNarrationBuffer(true);
-                                finalizeNarrationStream();
-                            }
-
-                            const narrationSettings = narrationSettingsRef.current;
-                            const narrationEligible = narrationSettings.autoNarrate &&
-                                narrationSettings.voiceOn &&
-                                narrationSettings.ttsProvider === 'azure';
-                            if (narrationEligible && !narrationInterruptedByUserRef.current) {
-                                const queuedChars = narrationQueuedCharsRef.current;
-                                const finalChars = finalText.length;
-                                const coverage = finalChars > 0 ? queuedChars / finalChars : 1;
-                                if (import.meta.env?.DEV) {
-                                    console.info('[Narration] Stream queue coverage', {
-                                        queuedChars,
-                                        finalChars,
-                                        coverage: Number(coverage.toFixed(3)),
-                                        suppressed: narrationSuppressedRef.current,
-                                        started: narrationStartedRef.current
-                                    });
-                                }
-                                if (narrationSuppressedRef.current || coverage < 0.6) {
-                                    narrationFallbackPendingRef.current = true;
-                                    narrationFallbackTextRef.current = finalText;
-                                } else {
-                                    narrationFallbackPendingRef.current = false;
-                                    narrationFallbackTextRef.current = '';
-                                }
-                            } else {
-                                narrationFallbackPendingRef.current = false;
-                                narrationFallbackTextRef.current = '';
-                            }
-
-                            setNarrativePhase('polishing');
-                            setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
-
-                            const formatted = formatReading(finalText);
-                            formatted.isError = false;
-                            formatted.isStreaming = false;
-                            formatted.isServerStreamed = true;
-                            formatted.provider = data.provider || streamMeta?.provider || 'local-composer';
-                            formatted.requestId = data.requestId || streamMeta?.requestId || null;
-                            setPersonalReading(formatted);
-                            setIsReadingStreamActive(false);
-                            setNarrativePhase('complete');
-                            setReasoningSummary(null);
-                            setReasoning(null);
-                            setLastCardsForFeedback(
-                                (cardsInfoRef.current || []).map((card) => ({
-                                    position: card.position,
-                                    card: card.card,
-                                    orientation: card.orientation
-                                }))
-                            );
-                            setReadingMeta((prev) => ({
-                                ...prev,
-                                requestId: formatted.requestId,
-                                provider: formatted.provider || prev?.provider || 'local'
-                            }));
-                            clearReadingJob();
-                            setIsGenerating(false);
-                        } else if (eventType === 'error') {
-                            throw new Error(data.message || 'Streaming error occurred');
-                        }
-                    } catch (parseError) {
-                        if (parseError.message && !parseError.message.includes('JSON')) {
-                            throw parseError;
-                        }
-                        console.warn('Failed to parse SSE event:', eventData);
+                } else if (eventType === 'done') {
+                    const finalText = (data.fullText || streamedText || '').trim();
+                    if (!finalText) {
+                        throw new Error('Empty reading returned');
                     }
-                }
-            }
 
-            if (!doneReceived && isActiveRequest()) {
-                updateReadingJobCursor(readingJobRef.current?.cursor || 0, { force: true });
-                pauseReadingStream();
+                    if (!isActiveRequest()) {
+                        return;
+                    }
+
+                    if (!narrationSuppressedRef.current) {
+                        flushNarrationBuffer(true);
+                        finalizeNarrationStream();
+                    }
+
+                    const narrationSettings = narrationSettingsRef.current;
+                    const narrationEligible = narrationSettings.autoNarrate &&
+                        narrationSettings.voiceOn &&
+                        narrationSettings.ttsProvider === 'azure';
+                    if (narrationEligible && !narrationInterruptedByUserRef.current) {
+                        const queuedChars = narrationQueuedCharsRef.current;
+                        const finalChars = finalText.length;
+                        const coverage = finalChars > 0 ? queuedChars / finalChars : 1;
+                        if (import.meta.env?.DEV) {
+                            console.info('[Narration] Stream queue coverage', {
+                                queuedChars,
+                                finalChars,
+                                coverage: Number(coverage.toFixed(3)),
+                                suppressed: narrationSuppressedRef.current,
+                                started: narrationStartedRef.current
+                            });
+                        }
+                        if (narrationSuppressedRef.current || coverage < 0.6) {
+                            narrationFallbackPendingRef.current = true;
+                            narrationFallbackTextRef.current = finalText;
+                        } else {
+                            narrationFallbackPendingRef.current = false;
+                            narrationFallbackTextRef.current = '';
+                        }
+                    } else {
+                        narrationFallbackPendingRef.current = false;
+                        narrationFallbackTextRef.current = '';
+                    }
+
+                    setNarrativePhase('polishing');
+                    setSrAnnouncement('Your reading is ready.');
+
+                    const formatted = formatReading(finalText);
+                    formatted.isError = false;
+                    formatted.isStreaming = false;
+                    formatted.isServerStreamed = true;
+                    formatted.provider = data.provider || streamMeta?.provider || 'local-composer';
+                    formatted.requestId = data.requestId || streamMeta?.requestId || null;
+                    setPersonalReading(formatted);
+                    setIsReadingStreamActive(false);
+                    setNarrativePhase('complete');
+                    setReasoningSummary(null);
+                    setReasoning(null);
+                    setLastCardsForFeedback(
+                        (cardsInfoRef.current || []).map((card) => ({
+                            position: card.position,
+                            card: card.card,
+                            orientation: card.orientation
+                        }))
+                    );
+                    setReadingMeta((prev) => ({
+                        ...prev,
+                        requestId: formatted.requestId,
+                        provider: formatted.provider || prev?.provider || 'local'
+                    }));
+                    clearReadingJob();
+                    setIsGenerating(false);
+                } else if (eventType === 'error') {
+                    throw new Error(data.message || 'Streaming error occurred');
+                }
             }
         } catch (error) {
+            // An older request must never pause or clear a replacement job.
+            if (inFlightReadingRef.current?.controller !== controller || readingJobRef.current?.jobId !== jobId) return;
             if (error?.name === 'AbortError') {
                 updateReadingJobCursor(readingJobRef.current?.cursor || 0, { force: true });
                 pauseReadingStream();
@@ -793,13 +718,13 @@ export function ReadingProvider({ children }) {
         if (!jobId || !jobToken) return;
         if (!isTarotRouteRef.current) return;
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-        if (isReadingStreamActive || narrativePhase === 'complete' || personalReading?.isError) return;
+        if (inFlightReadingRef.current?.controller && !inFlightReadingRef.current.controller.signal.aborted) return;
+        if (narrativePhase === 'complete' || personalReading?.isError) return;
         if (ttsProvider === 'azure' && ttsState?.status === 'paused') {
             void resumeNarrationPlayback();
         }
         streamReadingJob({ jobId, jobToken, cursor, resume: true });
     }, [
-        isReadingStreamActive,
         narrativePhase,
         personalReading,
         streamReadingJob,
@@ -868,6 +793,22 @@ export function ReadingProvider({ children }) {
 
     useEffect(() => {
         if (typeof window === 'undefined' || !window.sessionStorage) return;
+        // Re-renders must not replace a live cursor with an older batched
+        // checkpoint. Still resume an aborted reader (including StrictMode's
+        // effect cleanup/setup cycle) and invalidate changed reading inputs.
+        const activeJob = readingJobRef.current;
+        if (activeJob?.jobId) {
+            if (activeJob.readingKey && activeJob.readingKey !== buildReadingKey()) {
+                cancelInFlightReading();
+                setPersonalReading(null);
+                setIsGenerating(false);
+                setIsReadingStreamActive(false);
+                setNarrativePhase('idle');
+                return;
+            }
+            resumeReadingStreamIfEligible();
+            return;
+        }
         const stored = window.sessionStorage.getItem(readingJobStorageKey);
         if (!stored) return;
         try {
@@ -889,7 +830,7 @@ export function ReadingProvider({ children }) {
         } catch {
             clearReadingJob();
         }
-    }, [buildReadingKey, clearReadingJob, resumeReadingStreamIfEligible]);
+    }, [buildReadingKey, cancelInFlightReading, clearReadingJob, resumeReadingStreamIfEligible]);
 
     useEffect(() => {
         if (typeof document === 'undefined') return;
@@ -982,7 +923,7 @@ export function ReadingProvider({ children }) {
         setReasoning(null);
         setJournalStatus(null);
         setNarrativePhase('analyzing');
-        setSrAnnouncement('Step 1 of 3: Analyzing your spread, positions, and reflections.');
+        setSrAnnouncement('Preparing your personalized reading.');
         setReadingMeta((prev) => ({ ...prev, requestId: null, ephemeris: null, sourceUsage: null }));
         setLastCardsForFeedback([]);
 
@@ -1021,7 +962,7 @@ export function ReadingProvider({ children }) {
                 .join('\n');
 
             setNarrativePhase('analyzing');
-            setSrAnnouncement('Step 1 of 3: Analyzing spread for your narrative.');
+            setSrAnnouncement('Preparing your personalized reading.');
 
             const shouldAttachVisionProof = visionResearchEnabled && visionResults.length > 0;
             if (shouldAttachVisionProof) {
@@ -1092,7 +1033,7 @@ export function ReadingProvider({ children }) {
             }
 
             setNarrativePhase('drafting');
-            setSrAnnouncement('Step 2 of 3: Drafting narrative insights.');
+            setSrAnnouncement('Your reading is being prepared.');
 
             const startResponse = await fetch('/api/tarot-reading/jobs', {
                 method: 'POST',
@@ -1237,8 +1178,10 @@ export function ReadingProvider({ children }) {
                     ? 'Full deck (Major + Minor Arcana).'
                     : 'Major Arcana focus (archetypal themes).';
                 notes.push({ key: 'deck-scope', icon: '-', title: 'Deck scope:', text: deckScope });
-                if (themes.dominantSuit || themes.suitFocus) {
-                    notes.push({ key: 'suit-dominance', icon: '♠', title: 'Suit Dominance:', text: themes.suitFocus || `A strong presence of ${themes.dominantSuit} suggests this suit's themes are central to your situation.` });
+                // suitFocus covers every repeated suit (including ties); a bare dominantSuit
+                // may be a single card, so it never becomes a dominance claim on its own.
+                if (themes.suitFocus) {
+                    notes.push({ key: 'suit-dominance', icon: '♠', title: 'Suit Focus:', text: themes.suitFocus });
                 }
                 if (themes.elementalBalance) {
                     notes.push({ key: 'elemental-balance', icon: '⚡', title: 'Elemental Balance:', text: themes.elementalBalance });

@@ -1,6 +1,6 @@
 /**
  * Journal Reflections
- * POST /api/journal/:id/reflections - Append a reflection to a saved entry
+ * POST /api/journal/:id/reflections - Append or replace a reflection on a saved entry
  *
  * The behaviour lives in functions/lib/journalReflections.js, which is
  * shared with the ChatGPT MCP tools.
@@ -37,7 +37,7 @@ export async function onRequestPost(context) {
     if (denied) return denied;
 
     const input = await request.json().catch(() => null);
-    const result = await addJournalReflection({ env, user, entryId: params?.id, input });
+    const result = await addJournalReflection({ env, user, entryId: params?.id, input, policy: 'http' });
     return json(result.body, result.status);
   } catch (error) {
     console.error(`[${logRequestId}] [journal] Add reflection error:`, error);

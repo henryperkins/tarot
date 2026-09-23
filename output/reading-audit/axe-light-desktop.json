@@ -1,0 +1,15 @@
+{
+  "result": {
+    "type": "object",
+    "value": {
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 54
+        }
+      ],
+      "passes": 17,
+      "violations": []
+    }
+  }
+}

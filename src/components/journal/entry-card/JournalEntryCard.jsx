@@ -202,7 +202,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
             />
           )}
 
-          {hasReflections && <ReflectionsSection reflections={reflections} />}
+          {hasReflections && <ReflectionsSection reflections={reflections} cards={cards} />}
 
           {insights.length > 0 && <KeyThemesSection insights={insights} />}
 
