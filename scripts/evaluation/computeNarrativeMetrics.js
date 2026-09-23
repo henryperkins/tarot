@@ -5,6 +5,7 @@ import path from 'node:path';
 import { buildNarrativeMetrics } from '../../functions/lib/readingQuality.js';
 import { normalizeReadingText } from '../../src/lib/formatting.js';
 import { parseCsv, stringifyRow } from './lib/csv.js';
+import { analyzeQuestionEngagement, analyzeTemplateRepetition } from './lib/narrativeSignals.js';
 
 const DEFAULT_INPUT = 'data/evaluations/narrative-samples.json';
 const DEFAULT_METRICS_OUT = 'data/evaluations/narrative-metrics.json';
@@ -175,6 +176,12 @@ function buildIssueNotes(result) {
   if (!result.hasSupportiveTone) {
     notes.push('Supportive/trauma-informed tone missing');
   }
+  if (!result.questionEngagement.addressed) {
+    notes.push(`Question terms not engaged (${result.questionEngagement.matchedTermCount}/${result.questionEngagement.termCount})`);
+  }
+  if (result.templateRepetition.templated) {
+    notes.push(`Templated sentences repeated across cards (${result.templateRepetition.repeatedSentenceCount}/${result.templateRepetition.sentenceCount})`);
+  }
   return notes.join('; ');
 }
 
@@ -201,6 +208,12 @@ function buildIssueFlags(result) {
   if (!result.hasSupportiveTone) {
     flags.push('missing-supportive-tone');
   }
+  if (!result.questionEngagement.addressed) {
+    flags.push('question-not-addressed');
+  }
+  if (result.templateRepetition.templated) {
+    flags.push('templated-repetition');
+  }
   return flags;
 }
 
@@ -223,6 +236,10 @@ function summarizeSample(sample) {
   const hasAgencyLanguage = containsPattern(plainReading, AGENCY_PATTERNS);
   const hallucinatedCards = runtimeMetrics.hallucinatedCards || [];
   const tone = analyzeToneSignals(plainReading);
+  // A reading can cover every card and still ignore the querent: check that it
+  // engages the question and is not one template repeated per card.
+  const questionEngagement = analyzeQuestionEngagement(sample.userQuestion, plainReading);
+  const templateRepetition = analyzeTemplateRepetition(plainReading);
   const issueFlags = buildIssueFlags({
     spine,
     missingCards: cardCoverage.missingCards,
@@ -230,7 +247,9 @@ function summarizeSample(sample) {
     hasAgencyLanguage,
     hallucinatedCards,
     hasHarshTone: tone.harsh,
-    hasSupportiveTone: tone.supportive
+    hasSupportiveTone: tone.supportive,
+    questionEngagement,
+    templateRepetition
   });
   // Use card-aware coherence: only card-interpretation sections need spine
   // structure. Structural sections (opening, guidance, closing) are intentionally
@@ -261,6 +280,19 @@ function summarizeSample(sample) {
     hallucinatedCards,
     hasSupportiveTone: tone.supportive,
     hasHarshTone: tone.harsh,
+    questionEngagement: {
+      applicable: questionEngagement.applicable,
+      addressed: questionEngagement.addressed,
+      termCount: questionEngagement.terms.length,
+      matchedTermCount: questionEngagement.matchedTerms.length,
+      ratio: questionEngagement.ratio
+    },
+    templateRepetition: {
+      templated: templateRepetition.templated,
+      sentenceCount: templateRepetition.sentenceCount,
+      repeatedSentenceCount: templateRepetition.repeatedSentenceCount,
+      repeatedShare: templateRepetition.repeatedShare
+    },
     issueFlags,
     issuesPresent: issueFlags.length > 0,
     rubric: {
@@ -345,6 +377,8 @@ async function main() {
   const hallucinationCount = analyses.filter((result) => result.hallucinatedCards.length > 0).length;
   const harshToneCount = analyses.filter((result) => result.hasHarshTone).length;
   const missingSupportiveToneCount = analyses.filter((result) => !result.hasSupportiveTone).length;
+  const questionNotAddressedCount = analyses.filter((result) => !result.questionEngagement.addressed).length;
+  const templatedRepetitionCount = analyses.filter((result) => result.templateRepetition.templated).length;
   const flaggedSamples = analyses.filter((result) => result.issueFlags.length > 0);
   const avgCardCoverage = analyses.reduce((sum, result) => sum + result.cardCoverage, 0) / totalSamples;
   const rubricTotals = analyses.reduce(
@@ -377,6 +411,8 @@ async function main() {
     hallucinationCount,
     harshToneCount,
     missingSupportiveToneCount,
+    questionNotAddressedCount,
+    templatedRepetitionCount,
     flaggedSampleCount: flaggedSamples.length,
     avgRubricScores,
     perSample: analyses
