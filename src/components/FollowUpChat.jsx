@@ -576,7 +576,7 @@ export default function FollowUpChat({
               onClick={() => handleSuggestionClick(suggestion)}
               disabled={isLoading || !canAskMore || !isAuthenticated}
               className={clsx(
-                'px-3 py-1.5 rounded-full border transition-all',
+                'px-3 py-1.5 rounded-full border transition-colors',
                 'border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.06)]',
                 'hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(212,184,150,0.12)]',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
