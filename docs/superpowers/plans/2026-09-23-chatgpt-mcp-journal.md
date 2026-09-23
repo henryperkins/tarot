@@ -21,6 +21,12 @@ a principal path, and jobs started from ChatGPT are reachable only through MCP.
 **Spec:** `docs/superpowers/specs/2026-09-22-chatgpt-mcp-journal-design.md`.
 Read it before starting. Section numbers such as "§7.2" refer to it.
 
+**Review amendment (2026-09-23):** this plan replaces spec §5.1's KV
+registration counter with atomic D1 admission and adds migration `0031`.
+The limit remains ten registrations per client address per UTC hour. Follow
+the amended mechanism, browser routing and regression checks below when the
+older spec describes a KV counter or only migration `0030`.
+
 **Working directory:** every command runs in the worktree
 `C:/Users/htper/tarot-chatgpt-mcp` (branch `feat/chatgpt-mcp-journal`), using Git
 Bash. Never run commands in `C:/Users/htper/tarot`: its uncommitted
@@ -35,6 +41,7 @@ Bash. Never run commands in `C:/Users/htper/tarot`: its uncommitted
   - `@cloudflare/workers-oauth-provider` `0.10.3`, exact;
   - `@cfworker/json-schema` `^4.1.1`;
   - devDependency `sql.js` `^1.14.2`.
+  - devDependency `js-yaml` `^4.1.1` for parsing the Actions contract in Task 15.
 - Don't add compatibility flags; in particular, no `global_fetch_strictly_public`. CIMD stays disabled.
 - The OAuth scope is exactly `tableu`. The resource is `MCP_RESOURCE_URL`, default `https://tarot.lakefrontdev.com/mcp`.
 - The allowlist secret is `MCP_ALLOWED_USER_IDS`, comma-separated. When it is unset or empty, nobody can link.
@@ -46,6 +53,7 @@ Bash. Never run commands in `C:/Users/htper/tarot`: its uncommitted
   - notes only append, separated by `"\n\n"`;
   - the whole-reading key is `Overall`.
 - The reading identity key is `idempotency_key = "reading:" + requestId`. Its migration file is `migrations/0030_add_journal_idempotency_key.sql`.
+- Registration admission uses `migrations/0031_add_oauth_registration_counters.sql` on `DB`, not the `RATELIMIT` KV. Both migrations must be applied before deploying the new Worker; missing admission storage fails closed with 503.
 - The service-account refusal is 403 with `{ "error": "Journal requires a personal account", "code": "service_account_journal_forbidden" }`.
 - Job retention: MCP jobs stay readable for 24 h after their terminal state; app jobs keep 1 h.
 - Never log tokens, narratives, reflection text or questions.
@@ -63,6 +71,14 @@ a test in the task named at the end of its line.
 4. A consent form submitted after the CSRF cookie expired, when the user waited more than 10 minutes, gets a clear "start again" page. No grant is issued (Task 14).
 5. An entry deleted in the app and then targeted by `add_reflection_to_journal_entry` returns "not found", and nothing is recreated (Task 13).
 
+The 2026-09-23 review also requires these regression checks:
+
+- A returned MCP draw seed reproduces the same cards and orientations when reused; the existing HTTP draw seed coercion stays compatible (Tasks 8 and 12).
+- A returned Thoth reflection target can be reused without changing which card receives the note (Tasks 6 and 13).
+- Real browser navigation reaches the OAuth consent handler, and concurrent registrations respect the hourly limit without relying on KV counters (Task 14).
+- The Actions document parses as YAML, beyond passing text checks (Task 15).
+- Local OAuth uses the localhost resource, and the journal walkthrough uses an explicitly entitled local test account (Tasks 16 and 17).
+
 ## File Map
 
 | File | Responsibility | Task |
@@ -70,6 +86,7 @@ a test in the task named at the end of its line.
 | `tests/helpers/d1Sqlite.mjs` | D1 API over real SQLite (`sql.js`), with all migrations applied | 1 |
 | `tests/helpers/journalFixtures.mjs` | Seed users, sessions and entries; request helper | 1 |
 | `migrations/0030_add_journal_idempotency_key.sql` | `idempotency_key` column plus its partial unique index | 2 |
+| `migrations/0031_add_oauth_registration_counters.sql` | Atomic D1 admission counters for OAuth registration | 14 |
 | `functions/lib/journalEntries.js` | App saves, and MCP reading saves with atomic identity | 2, 3 |
 | `functions/lib/journalAccess.js` | Journal auth, service-account refusal and tier gate | 4 |
 | `shared/journal/reflectionLabels.js` | Reflection key to display label, shared by the UI and the export | 5 |
@@ -88,11 +105,12 @@ a test in the task named at the end of its line.
 | `functions/lib/mcp/tools/readings.js` | Draw, start, wait, status and cancel tools | 12 |
 | `functions/lib/mcp/tools/journal.js` | Save and reflect tools | 13 |
 | `functions/lib/mcp/redirectUris.js` | Redirect URI allowlist for registration | 14 |
-| `functions/lib/mcp/registrationLimit.js` | Per-IP rate limit on `/oauth/register` | 14 |
+| `functions/lib/mcp/registrationLimit.js` | Atomic D1 per-address hourly admission for `/oauth/register` | 14 |
 | `functions/lib/mcp/consent.js` | `/oauth/authorize` consent page | 14 |
 | `functions/lib/mcp/mcpHandler.js` | `/mcp`: scope, allowlist, user, transport | 14 |
 | `functions/lib/mcp/oauthProvider.js` | Provider options, path routing, entry point | 14 |
 | `src/worker/index.js` | Hands MCP and OAuth paths to the provider | 14 |
+| `playwright.mcp.config.js`, `e2e/mcpOAuthRouting.integration.spec.js` | Real browser routing check against the manually started local Worker | 14, 17 |
 | `docs/integrations/openai/chatgpt-mcp.md`, `docs/integrations/openai/plugin/*` | Runbook and plugin files | 16 |
 
 ---
@@ -1871,7 +1889,7 @@ git commit -m "fix: label journal reflections by card instead of raw map keys" -
   - `READING_REFLECTION_KEY`, re-exported;
   - `resolveCardIndex(cards, { card, position, cardIndex }, { deckId }) → { index } | { error }`;
   - `noteIsPresent(stored, text): boolean`;
-  - `addJournalReflection({ env, user, entryId, input })`, which resolves to `{ status: 200|400|404|409, body }`. The 200 body is `{ success, entryId, key, reflection: { key, scope, cardIndex?, card?, position?, text }, reflections, alreadyPresent? }`.
+  - `addJournalReflection({ env, user, entryId, input })`, which resolves to `{ status: 200|400|404|409, body }`. The 200 body is `{ success, entryId, key, reflection: { key, scope, cardIndex?, card?, position?, text }, reflections, alreadyPresent? }`. `reflection.card` is the reusable deck label; stored journal cards keep their canonical `name`.
 
 - [ ] **Step 1: Rewrite the reflections tests**
 
@@ -2050,10 +2068,28 @@ describe('reflections: targeting', () => {
 
   it('resolves a deck label through the entry deck (Thoth)', async () => {
     const { d1, env } = await setup({ entry: { deckId: 'thoth-a1', cards: THOTH_CARDS } });
-    const prince = await post(env, { text: 'the Prince', scope: 'card', card: 'Prince of Wands' });
-    const knight = await post(env, { text: 'the Thoth Knight', scope: 'card', card: 'Knight of Wands' });
+    const prince = await post(env, { text: 'the Prince', scope: 'card', card: 'Prince of Wands', position: 'Past' });
+    const knight = await post(env, { text: 'the Thoth Knight', scope: 'card', card: 'Knight of Wands', position: 'Present' });
     assert.equal(prince.payload.key, '0', 'Thoth Prince of Wands is canonical Knight of Wands');
     assert.equal(knight.payload.key, '1', 'Thoth Knight of Wands is canonical King of Wands');
+    assert.equal(prince.payload.reflection.card, 'Prince of Wands');
+    assert.equal(knight.payload.reflection.card, 'Knight of Wands');
+    const [entry] = d1.rows('SELECT cards_json FROM journal_entries WHERE id = ?', ['entry-1']);
+    assert.deepEqual(JSON.parse(entry.cards_json).map((card) => card.name), ['Knight of Wands', 'King of Wands']);
+
+    // Each returned card is a reusable input, even where a Thoth label collides
+    // with the canonical name of the other stored card.
+    const princeRetry = await post(env, {
+      text: 'the Prince', scope: 'card',
+      card: prince.payload.reflection.card, position: prince.payload.reflection.position
+    });
+    const knightRetry = await post(env, {
+      text: 'the Thoth Knight', scope: 'card', card: knight.payload.reflection.card
+    });
+    assert.equal(princeRetry.payload.key, '0');
+    assert.equal(knightRetry.payload.key, '1');
+    assert.equal(princeRetry.payload.alreadyPresent, true);
+    assert.equal(knightRetry.payload.alreadyPresent, true);
     assert.deepEqual(stored(d1), { 0: 'the Prince', 1: 'the Thoth Knight' });
   });
 
@@ -2258,7 +2294,7 @@ function summarizeCards(cards, deckId) {
  * Resolve which card of the entry a card-scoped reflection belongs to.
  *
  * @param {Array<object>} cards - Entry cards, in spread order
- * @param {{ card?: string, position?: string, cardIndex?: number|string }} target
+ * @param {{ card?: string, position?: string, cardIndex?: number|string }} target - `card` is a deck label, including one returned in `reflection.card`
  * @param {{ deckId?: string|null }} [options] - The entry's deck
  * @returns {{ index: number } | { error: string }}
  */
@@ -2385,8 +2421,17 @@ export async function addJournalReflection({ env, user, entryId, input }) {
         return { status: 400, body: { error: resolved.error, cards: summarizeCards(cards, entry.deck_id) } };
       }
       const card = cards[resolved.index];
+      const canonicalName = cardName(card);
       key = String(resolved.index);
-      target = { scope: 'card', cardIndex: resolved.index, card: cardName(card) || null, position: card?.position ?? null };
+      // The input resolver treats card names as deck labels. Return that same
+      // label so a caller can retry using reflection.card without changing cards.
+      target = {
+        scope: 'card', cardIndex: resolved.index,
+        card: canonicalName
+          ? getDeckAlias({ ...card, name: canonicalName }, entry.deck_id || DEFAULT_DECK)
+          : null,
+        position: card?.position ?? null
+      };
     }
 
     const reflections = parseReflections(entry.reflections_json);
@@ -2741,6 +2786,7 @@ import { jsonRequest } from './helpers/journalFixtures.mjs';
 import { drawForSpread } from '../functions/lib/serverDraw.js';
 import { onRequestPost as drawRoute } from '../functions/api/tarot-reading-draw.js';
 import { canonicalizeCardName } from '../shared/vision/cardNameMapping.js';
+import { hashString } from '../shared/utils.js';
 import { SPREADS } from '../src/data/spreads.js';
 
 const THREE = { name: SPREADS.threeCard.name, key: 'threeCard' };
@@ -2757,6 +2803,14 @@ describe('drawForSpread', () => {
     assert.deepEqual(a.cardsInfo.map((card) => card.position), SPREADS.threeCard.positions);
     assert.deepEqual(a.spreadInfo, { key: 'threeCard', name: SPREADS.threeCard.name });
     assert.equal(a.deckStyle, 'rws-1909');
+  });
+
+  it('keeps the existing /api semantics for numeric string seeds', () => {
+    const textSeed = drawForSpread({ spreadInfo: THREE, seed: '4242' });
+    const numericSeed = drawForSpread({ spreadInfo: THREE, seed: 4242 });
+    assert.equal(textSeed.seed, hashString('4242'));
+    assert.equal(numericSeed.seed, 4242);
+    assert.notEqual(textSeed.seed, numericSeed.seed);
   });
 
   it('never reverses cards when allowReversals is false', () => {
@@ -2847,8 +2901,11 @@ function generateRandomSeed() {
 
 /**
  * Coerce a caller-supplied seed (number or string) into the 32-bit unsigned
- * integer that `drawSpread`'s seeded path expects. Falls back to a fresh
- * crypto-random seed when nothing usable is provided.
+ * integer that `drawSpread`'s seeded path expects. Preserve the existing
+ * /api behavior: every nonempty string, including decimal text, is hashed.
+ * The MCP tool converts returned decimal replay seeds to numbers before
+ * calling this helper (Task 12). Falls back to a fresh crypto-random seed
+ * when nothing usable is provided.
  */
 export function coerceSeed(input) {
   if (typeof input === 'number' && Number.isFinite(input)) {
@@ -2984,7 +3041,7 @@ Check: `grep -n "SPREADS\|drawSpread\|coerceSeed" functions/api/tarot-reading-dr
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `node --test tests/serverDraw.test.mjs`
-Expected: PASS, 5 tests.
+Expected: PASS, 6 tests.
 
 - [ ] **Step 6: Commit**
 
@@ -4802,8 +4859,28 @@ describe('draw_tarot_reading', () => {
     const { call } = await session();
     const first = await call('draw_tarot_reading', { spreadInfo: THREE, seed: 'rose' });
     const second = await call('draw_tarot_reading', { spreadInfo: THREE, seed: 'rose' });
+    const replay = await call('draw_tarot_reading', { spreadInfo: THREE, seed: first.structuredContent.seed });
     assert.deepEqual(first.structuredContent.cardsInfo, second.structuredContent.cardsInfo);
     assert.equal(first.structuredContent.seed, second.structuredContent.seed);
+    assert.deepEqual(replay.structuredContent.cardsInfo, first.structuredContent.cardsInfo, 'the returned seed replays cards and orientations');
+    assert.equal(replay.structuredContent.seed, first.structuredContent.seed);
+  });
+
+  it('accepts the uint32 boundaries and rejects invalid decimal replay seeds before starting a job', async () => {
+    const { call, jobs } = await session();
+    const zero = await call('draw_tarot_reading', { spreadInfo: THREE, seed: '0' });
+    const max = await call('draw_tarot_reading', { spreadInfo: THREE, seed: '4294967295' });
+    assert.equal(zero.isError, undefined);
+    assert.match(zero.structuredContent.seed, /^\d+$/);
+    assert.equal(max.structuredContent.seed, '4294967295');
+
+    const started = jobs.instances.size;
+    for (const seed of ['-1', '1.5', '4294967296']) {
+      const invalid = await call('draw_tarot_reading', { spreadInfo: THREE, seed });
+      assert.equal(invalid.isError, true, seed);
+      assert.match(invalid.content[0].text, /unsigned 32-bit decimal integer/);
+      assert.equal(jobs.instances.size, started, 'invalid seeds do not start jobs');
+    }
   });
 
   it('runs the reading as the signed-in user, with no request credentials', async () => {
@@ -4976,6 +5053,25 @@ const DEFAULT_DECK = 'rws-1909';
 
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * MCP returns the 32-bit draw seed as decimal text. Convert that form back
+ * to a number so it replays exactly through serverDraw.coerceSeed. All other
+ * text remains a phrase seed and keeps the existing seeded-hash behavior.
+ * This conversion is MCP-only; /api/tarot-reading/draw still hashes every
+ * string seed, including numeric strings (Task 8).
+ */
+function normalizeMcpDrawSeed(seed) {
+  if (seed === undefined) return undefined;
+  if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(seed)) {
+    const numeric = Number(seed);
+    if (!/^\d+$/.test(seed) || !Number.isSafeInteger(numeric) || numeric > 0xffffffff) {
+      throw new RangeError('seed must be an unsigned 32-bit decimal integer');
+    }
+    return numeric;
+  }
+  return seed;
+}
+
 const spreadInfoInput = z.object({
   name: z.string().trim().min(1),
   key: spreadKeySchema
@@ -5128,16 +5224,22 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
     {
       title: 'Draw a tarot reading',
       description:
-        "Draws cards on the Tableu backend for one of the six spreads and starts writing the reading. Returns the drawn cards at once, with a jobId and jobToken; then call wait_for_tarot_reading. Use only when the user has not supplied cards, and never invent cards. Uses one reading from the user's quota. The same seed and spread give the same cards.",
+        "Draws cards on the Tableu backend for one of the six spreads and starts writing the reading. Returns the drawn cards at once, with a jobId and jobToken; then call wait_for_tarot_reading. Use only when the user has not supplied cards, and never invent cards. Uses one reading from the user's quota. A phrase seed is deterministic; pass the returned decimal seed back to replay the exact cards and orientations.",
       inputSchema: drawInput,
       outputSchema: drawOutput,
       annotations: WRITE,
       _meta: toolMeta({ invoking: 'Shuffling and drawing cards…', invoked: 'Cards drawn' })
     },
     async (input) => {
+      let drawSeed;
+      try {
+        drawSeed = normalizeMcpDrawSeed(input.seed);
+      } catch (error) {
+        return fail(`Not started: ${error.message}`);
+      }
       const drawn = drawForSpread({
         spreadInfo: input.spreadInfo,
-        seed: input.seed,
+        seed: drawSeed,
         allowReversals: input.allowReversals,
         deckStyle: input.deckStyle
       });
@@ -5563,6 +5665,41 @@ describe('add_reflection_to_journal_entry', () => {
     assert.deepEqual(stored, { 1: 'this one is me', Overall: 'gentle overall' });
   });
 
+  it('returns reusable Thoth labels for both court cards, including a positioned retry', async () => {
+    const ctx = await session();
+    await seedEntry(ctx.d1, {
+      id: 'thoth-entry', deckId: 'thoth-a1', cards: [
+        { position: 'Past', name: 'Knight of Wands', suit: 'Wands', rank: 'Knight', rankValue: 12, orientation: 'Upright' },
+        { position: 'Present', name: 'King of Wands', suit: 'Wands', rank: 'King', rankValue: 14, orientation: 'Upright' }
+      ]
+    });
+    const prince = await ctx.call('add_reflection_to_journal_entry', {
+      entryId: 'thoth-entry', text: 'Prince note', scope: 'card', card: 'Prince of Wands', position: 'Past'
+    });
+    const knight = await ctx.call('add_reflection_to_journal_entry', {
+      entryId: 'thoth-entry', text: 'Knight note', scope: 'card', card: 'Knight of Wands', position: 'Present'
+    });
+    assert.equal(prince.structuredContent.key, '0');
+    assert.equal(knight.structuredContent.key, '1');
+    assert.equal(prince.structuredContent.target.card, 'Prince of Wands');
+    assert.equal(knight.structuredContent.target.card, 'Knight of Wands');
+
+    const princeRetry = await ctx.call('add_reflection_to_journal_entry', {
+      entryId: 'thoth-entry', text: 'Prince note', scope: 'card',
+      card: prince.structuredContent.target.card, position: prince.structuredContent.target.position
+    });
+    const knightRetry = await ctx.call('add_reflection_to_journal_entry', {
+      entryId: 'thoth-entry', text: 'Knight note', scope: 'card', card: knight.structuredContent.target.card
+    });
+    assert.equal(princeRetry.structuredContent.outcome, 'already_present');
+    assert.equal(knightRetry.structuredContent.outcome, 'already_present');
+    assert.equal(princeRetry.structuredContent.key, '0');
+    assert.equal(knightRetry.structuredContent.key, '1');
+    const [row] = ctx.d1.rows('SELECT cards_json, reflections_json FROM journal_entries WHERE id = ?', ['thoth-entry']);
+    assert.deepEqual(JSON.parse(row.cards_json).map((card) => card.name), ['Knight of Wands', 'King of Wands']);
+    assert.deepEqual(JSON.parse(row.reflections_json), { 0: 'Prince note', 1: 'Knight note' });
+  });
+
   it('treats a repeated note as already present', async () => {
     const ctx = await session();
     const { entryId } = await savedReading(ctx);
@@ -5685,6 +5822,7 @@ const reflectOutput = z.object({
   key: z.string(),
   target: z.object({
     scope: z.enum(['reading', 'card']),
+    // Reusable deck label from addJournalReflection, not the stored canonical name.
     card: z.string().nullable().optional(),
     position: z.string().nullable().optional(),
     cardIndex: z.number().int().optional()
@@ -5781,7 +5919,7 @@ export function registerJournalTools(server, { env, user, waitUntil }) {
     {
       title: 'Add a reflection to a saved reading',
       description:
-        "Attaches the user's own words to a reading saved earlier in this conversation. Call only when the user explicitly asks to save, attach or note what they said, or says yes right after you offer. Send their exact words, up to 2,000 characters; never summarize. Use scope \"reading\" for the whole spread, or scope \"card\" with the card name as the reading showed it (add the position when that card appears twice). Notes are added, never replaced, and the same note is never added twice, so retrying once after an unclear failure is safe.",
+        "Attaches the user's own words to a reading saved earlier in this conversation. Call only when the user explicitly asks to save, attach or note what they said, or says yes right after you offer. Send their exact words, up to 2,000 characters; never summarize. Use scope \"reading\" for the whole spread, or scope \"card\" with the card name as the reading showed it (add the position when that card appears twice). The returned target.card is that same deck label and can be sent with target.position on a retry. Notes are added, never replaced, and the same note is never added twice, so retrying once after an unclear failure is safe.",
       inputSchema: reflectInput,
       outputSchema: reflectOutput,
       annotations: WRITE,
@@ -5803,6 +5941,7 @@ export function registerJournalTools(server, { env, user, waitUntil }) {
 
       if (result.status === 200) {
         const { entryId, key, reflection, alreadyPresent } = result.body;
+        // Task 6 returns the deck label, which this tool accepts on retries.
         const target = reflection.scope === 'card'
           ? { scope: 'card', card: reflection.card, position: reflection.position, cardIndex: reflection.cardIndex }
           : { scope: 'reading' };
@@ -5855,6 +5994,7 @@ git commit -m "feat: add MCP journal save and reflection tools" -m "Co-Authored-
 ### Task 14: OAuth authorization server, consent page and `/mcp` wiring
 
 **Files:**
+- Create: `migrations/0031_add_oauth_registration_counters.sql`
 - Create: `functions/lib/mcp/redirectUris.js`
 - Create: `functions/lib/mcp/registrationLimit.js`
 - Create: `functions/lib/mcp/consent.js`
@@ -5863,6 +6003,8 @@ git commit -m "feat: add MCP journal save and reflection tools" -m "Co-Authored-
 - Create: `tests/helpers/cloudflareWorkersStub.mjs`, `tests/helpers/cloudflareWorkersHooks.mjs`, `tests/helpers/memoryKv.mjs`
 - Modify: `src/worker/index.js`, `wrangler.jsonc`
 - Test: `tests/mcpOAuth.test.mjs`
+- Test: `e2e/mcpOAuthRouting.integration.spec.js` (real browser navigation through Wrangler's asset router)
+- Create: `playwright.mcp.config.js` (browser test against an already running local Worker)
 
 **Interfaces:**
 - Consumes:
@@ -5874,7 +6016,8 @@ git commit -m "feat: add MCP journal save and reflection tools" -m "Co-Authored-
   - `getHashedClientIdentifier` from `functions/lib/clientId.js`.
 - Produces:
   - `isAllowedRedirectUri(uri)`;
-  - `REGISTRATION_LIMIT_PER_HOUR = 10` and `enforceRegistrationRateLimit(env, request, { now })`, which resolves to a `Response` or null;
+  - migration `0031`, an indexed D1 counter keyed by hashed client address and UTC hour;
+  - `REGISTRATION_LIMIT_PER_HOUR = 10` and `enforceRegistrationRateLimit(env, request, { now })`, which atomically admits at most ten registrations per address per hour and resolves to a `Response` or null;
   - `CSRF_COOKIE` and `handleAuthorize(request, env)`;
   - `mcpApiHandler`, of the form `{ fetch(request, env, ctx) }`;
   - `OAUTH_PATHS`, `isMcpOrOAuthPath(pathname)`, `registrationCallback`, `buildOAuthProviderOptions(env)`, `getOAuthProvider(env)` and `handleMcpOrOAuthRequest(request, env, ctx)`.
@@ -5974,6 +6117,7 @@ const { seedSession, seedUser } = await import('./helpers/journalFixtures.mjs');
 const { MemoryKV } = await import('./helpers/memoryKv.mjs');
 const { getOAuthApi } = await import('@cloudflare/workers-oauth-provider');
 const { buildOAuthProviderOptions, handleMcpOrOAuthRequest, isMcpOrOAuthPath } = await import('../functions/lib/mcp/oauthProvider.js');
+const { enforceRegistrationRateLimit } = await import('../functions/lib/mcp/registrationLimit.js');
 
 const ORIGIN = 'https://tarot.example';
 const RESOURCE = `${ORIGIN}/mcp`;
@@ -5988,7 +6132,6 @@ async function setup({ allowed = 'user-1' } = {}) {
   const env = {
     DB: d1,
     OAUTH_KV: new MemoryKV(),
-    RATELIMIT: new MemoryKV(),
     MCP_RESOURCE_URL: RESOURCE,
     MCP_ALLOWED_USER_IDS: allowed
   };
@@ -6331,15 +6474,43 @@ describe('client registration', () => {
     }
   });
 
-  it('rate-limits registration per address', async () => {
-    const { call } = await setup();
+  it('atomically admits exactly ten simultaneous registrations per address', async () => {
+    const { d1, call } = await setup();
+    const attempts = await Promise.all(Array.from({ length: 20 }, () =>
+      registerClient(call, { ip: '198.51.100.1' })));
+    assert.equal(attempts.filter(({ response }) => response.status === 201).length, 10);
+    assert.equal(attempts.filter(({ response }) => response.status === 429).length, 10);
+    assert.deepEqual(d1.rows('SELECT attempts FROM oauth_registration_counters'), [{ attempts: 10 }]);
+    const other = await registerClient(call, { ip: '198.51.100.2' });
+    assert.equal(other.response.status, 201);
+  });
+
+  it('opens a new hourly bucket and removes buckets older than the prior hour', async () => {
+    const { d1, env } = await setup();
+    const request = new Request(`${ORIGIN}/oauth/register`, {
+      headers: { 'cf-connecting-ip': '198.51.100.3' }
+    });
+    const hourStart = 1_800_000_000_000;
     for (let i = 0; i < 10; i += 1) {
-      assert.equal((await registerClient(call, { ip: '198.51.100.1' })).response.status, 201);
+      assert.equal(await enforceRegistrationRateLimit(env, request, { now: hourStart }), null);
     }
-    const limited = await registerClient(call, { ip: '198.51.100.1' });
-    assert.equal(limited.response.status, 429);
-    assert.ok(Number(limited.response.headers.get('retry-after')) > 0);
-    assert.equal((await registerClient(call, { ip: '198.51.100.2' })).response.status, 201);
+    const limited = await enforceRegistrationRateLimit(env, request, { now: hourStart + 1 });
+    assert.equal(limited.status, 429);
+    assert.ok(Number(limited.headers.get('retry-after')) > 0);
+    assert.equal(await enforceRegistrationRateLimit(env, request, { now: hourStart + 3_600_000 }), null);
+    assert.equal(await enforceRegistrationRateLimit(env, request, { now: hourStart + 7_200_000 }), null);
+    assert.deepEqual(d1.rows('SELECT attempts FROM oauth_registration_counters ORDER BY window_start_hour'), [
+      { attempts: 1 }, { attempts: 1 }
+    ]);
+  });
+
+  it('fails closed when D1 is missing or admission fails', async () => {
+    const request = new Request(`${ORIGIN}/oauth/register`, {
+      headers: { 'cf-connecting-ip': '198.51.100.4' }
+    });
+    assert.equal((await enforceRegistrationRateLimit({}, request)).status, 503);
+    const broken = { DB: { prepare() { throw new Error('D1 unavailable'); }, batch() {} } };
+    assert.equal((await enforceRegistrationRateLimit(broken, request)).status, 503);
   });
 });
 ```
@@ -6379,43 +6550,84 @@ export function isAllowedRedirectUri(value) {
 }
 ```
 
+Create `migrations/0031_add_oauth_registration_counters.sql` before running the OAuth tests. Task 1's `createD1()` applies every numbered migration, so these tests exercise the real schema:
+
+```sql
+-- Migration: 0031_add_oauth_registration_counters
+-- Atomic DCR admission, keyed by privacy-preserving address hash and UTC hour.
+CREATE TABLE IF NOT EXISTS oauth_registration_counters (
+  client_key TEXT NOT NULL,
+  window_start_hour INTEGER NOT NULL,
+  attempts INTEGER NOT NULL CHECK (attempts BETWEEN 1 AND 10),
+  PRIMARY KEY (client_key, window_start_hour)
+) WITHOUT ROWID;
+
+CREATE INDEX IF NOT EXISTS idx_oauth_registration_counters_hour
+  ON oauth_registration_counters(window_start_hour);
+```
+
 Create `functions/lib/mcp/registrationLimit.js`:
 
 ```js
 /**
- * Per-address rate limit for dynamic client registration. Registered
- * clients never expire (D13), so this is what bounds registration volume.
+ * Per-address rate limit for dynamic client registration. Registered clients
+ * never expire (D13), so admission must be atomic across Worker isolates.
+ * Workers KV is unsuitable for a read/modify/write counter and rejects rapid
+ * writes to the same key. D1 serializes the conditional UPSERT.
  */
 import { getHashedClientIdentifier } from '../clientId.js';
 
 export const REGISTRATION_LIMIT_PER_HOUR = 10;
-const WINDOW_SECONDS = 3600;
+const WINDOW_MS = 3_600_000;
+
+function unavailable() {
+  return new Response(JSON.stringify({
+    error: 'temporarily_unavailable',
+    error_description: 'Client registration is temporarily unavailable.'
+  }), {
+    status: 503,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Retry-After': '60' }
+  });
+}
 
 /**
  * @returns {Promise<Response|null>} A 429 response, or null when allowed
  */
 export async function enforceRegistrationRateLimit(env, request, { now = Date.now() } = {}) {
-  const store = env?.RATELIMIT;
-  if (!store) return null;
-
-  const bucket = Math.floor(now / (WINDOW_SECONDS * 1000));
-  const client = await getHashedClientIdentifier(request);
-  const key = `oauth-register:${client}:${bucket}`;
-  const count = Number(await store.get(key)) || 0;
-
-  if (count >= REGISTRATION_LIMIT_PER_HOUR) {
-    const retryAfter = Math.max(1, Math.ceil(((bucket + 1) * WINDOW_SECONDS * 1000 - now) / 1000));
+  const db = env?.DB;
+  if (!db?.prepare || !db?.batch) return unavailable();
+  try {
+    const windowStartHour = Math.floor(now / WINDOW_MS);
+    const clientKey = await getHashedClientIdentifier(request);
+    // D1 batches execute sequentially in one transaction. Keep the current
+    // and prior hour; remove older buckets without a separate scheduled job.
+    const [, admission] = await db.batch([
+      db.prepare('DELETE FROM oauth_registration_counters WHERE window_start_hour < ?')
+        .bind(windowStartHour - 1),
+      db.prepare(`
+        INSERT INTO oauth_registration_counters (client_key, window_start_hour, attempts)
+        VALUES (?, ?, 1)
+        ON CONFLICT (client_key, window_start_hour) DO UPDATE
+          SET attempts = attempts + 1
+          WHERE attempts < ?
+        RETURNING attempts
+      `).bind(clientKey, windowStartHour, REGISTRATION_LIMIT_PER_HOUR)
+    ]);
+    if (!admission?.success || !Array.isArray(admission.results)) return unavailable();
+    if (admission.results.length === 1) return null;
+    if (admission.results.length !== 0) return unavailable();
+    const retryAfter = Math.max(1, Math.ceil(((windowStartHour + 1) * WINDOW_MS - now) / 1000));
     return new Response(
       JSON.stringify({
         error: 'too_many_requests',
         error_description: 'Too many client registrations from this address. Try again later.'
       }),
-      { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': String(retryAfter) } }
+      { status: 429, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Retry-After': String(retryAfter) } }
     );
+  } catch {
+    // Missing migration, D1 outage, or malformed response: never admit DCR.
+    return unavailable();
   }
-
-  await store.put(key, String(count + 1), { expirationTtl: WINDOW_SECONDS });
-  return null;
 }
 ```
 
@@ -6826,7 +7038,7 @@ export async function handleMcpOrOAuthRequest(request, env, ctx) {
 - [ ] **Step 8: Run the tests to verify they pass**
 
 Run: `node --test tests/mcpOAuth.test.mjs`
-Expected: PASS, 20 tests.
+Expected: PASS, 22 tests.
 
 - [ ] **Step 9: Route the Worker's MCP and OAuth paths to the provider**
 
@@ -6871,7 +7083,35 @@ with:
       }
 ```
 
-- [ ] **Step 10: Add the bindings to `wrangler.jsonc`**
+- [ ] **Step 10: Route browser navigations through the Worker and add the bindings**
+
+The current `assets.not_found_handling: "single-page-application"` serves `index.html` for `Sec-Fetch-Mode: navigate` before the Worker on this compatibility date. OAuth consent is a browser navigation, so the Worker must run first for its path. In the existing `assets` block of `wrangler.jsonc`, replace:
+
+```jsonc
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+```
+
+with:
+
+```jsonc
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // These routes must reach src/worker/index.js even for browser navigation.
+    // Preserve the existing /api/* router and /share/* OG-page handler.
+    "run_worker_first": [
+      "/api/*",
+      "/share/*",
+      "/mcp",
+      "/mcp/*",
+      "/oauth/*",
+      "/.well-known/oauth-authorization-server",
+      "/.well-known/oauth-protected-resource",
+      "/.well-known/oauth-protected-resource/*"
+    ]
+```
+
+Keep `not_found_handling` and `ASSETS` unchanged so ordinary frontend routes and static files still use the SPA asset handler. The matching paths reach the Worker's existing API/share branches or the new MCP/OAuth branch.
 
 In `wrangler.jsonc`, replace:
 
@@ -6911,16 +7151,83 @@ and replace `    "GPT_SERVICE_TIER": "plus",` with:
     "MCP_RESOURCE_URL": "https://tarot.lakefrontdev.com/mcp",
 ```
 
-- [ ] **Step 11: Verify that the Worker bundles**
+- [ ] **Step 11: Verify the bundle and prepare the real browser routing test**
 
 Run: `npx wrangler deploy --dry-run --outdir .wrangler/dry-run`
 Expected: exit code 0, with a `Total Upload` line and `--dry-run: exiting now.` No `Could not resolve` errors, and no mention of `cloudflare:workers` as unresolved; the Workers runtime provides it. This does not deploy anything.
 
+Create `e2e/mcpOAuthRouting.integration.spec.js`. API-only tests cannot detect the SPA navigation interception, so use `page.goto()` for the OAuth page and discovery document:
+
+```js
+import { expect, test } from '@playwright/test';
+
+test('browser navigation reaches OAuth consent and discovery through the Worker', async ({ page, request }) => {
+  const metadataResponse = await page.goto('/.well-known/oauth-protected-resource/mcp');
+  expect(metadataResponse?.status()).toBe(200);
+  expect(metadataResponse?.headers()['content-type']).toContain('application/json');
+  const metadata = JSON.parse(await metadataResponse.text());
+  expect(metadata.resource).toBe('http://localhost:8787/mcp');
+
+  const registration = await request.post('/oauth/register', {
+    data: {
+      client_name: 'Routing test',
+      redirect_uris: ['http://127.0.0.1:8976/callback'],
+      token_endpoint_auth_method: 'none',
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code']
+    }
+  });
+  expect(registration.status()).toBe(201);
+  const client = await registration.json();
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: client.client_id,
+    redirect_uri: 'http://127.0.0.1:8976/callback',
+    state: 'routing-test',
+    code_challenge: 'A'.repeat(43),
+    code_challenge_method: 'S256',
+    scope: 'tableu',
+    resource: metadata.resource
+  });
+  const consent = await page.goto(`/oauth/authorize?${params}`);
+  expect(consent?.status()).toBe(200);
+  expect(consent?.headers()['cache-control']).toBe('no-store');
+  await expect(page.getByRole('heading', { name: 'Sign in to Tableu to continue' })).toBeVisible();
+
+  const api = await page.goto('/api/no-such-route');
+  expect(api?.status()).toBe(404);
+  expect(api?.headers()['content-type']).toContain('application/json');
+  const home = await page.goto('/');
+  expect(home?.status()).toBe(200);
+  expect(home?.headers()['content-type']).toContain('text/html');
+});
+```
+
+Create `playwright.mcp.config.js` so this gate cannot start `npm run dev` with the production resource var or remote AI binding from the repository's general integration config:
+
+```js
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  testMatch: ['**/mcpOAuthRouting.integration.spec.js'],
+  fullyParallel: false,
+  workers: 1,
+  retries: 0,
+  reporter: 'list',
+  use: { baseURL: 'http://localhost:8787' },
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }]
+  // No webServer: Task 17 starts Wrangler with the local config and migration.
+});
+```
+
+Task 14 runs `node --test tests/mcpOAuth.test.mjs` after migration 0031 exists, plus the dry-run bundle check above. Task 17 runs the browser gate after building assets, creating the local Wrangler config with `MCP_RESOURCE_URL=http://localhost:8787/mcp`, applying migration 0031 locally, and starting Wrangler on port 8787. A browser `GET /oauth/authorize` must show the signed-out consent page, not the SPA shell. The test also verifies ordinary `/api/*` navigation stays on the Worker and `/` uses the asset handler.
+
 - [ ] **Step 12: Commit**
 
 ```bash
-git add functions/lib/mcp/redirectUris.js functions/lib/mcp/registrationLimit.js functions/lib/mcp/consent.js functions/lib/mcp/mcpHandler.js functions/lib/mcp/oauthProvider.js tests/helpers/cloudflareWorkersStub.mjs tests/helpers/cloudflareWorkersHooks.mjs tests/helpers/memoryKv.mjs tests/mcpOAuth.test.mjs src/worker/index.js wrangler.jsonc
-git commit -m "feat: serve the Tableu MCP endpoint behind Tableu-issued OAuth 2.1" -m "Consent page with owner allowlist and CSRF protection; scope, allowlist and active-account checks on /mcp; non-expiring DCR clients limited to ChatGPT/loopback redirect URIs and rate-limited." -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git add migrations/0031_add_oauth_registration_counters.sql functions/lib/mcp/redirectUris.js functions/lib/mcp/registrationLimit.js functions/lib/mcp/consent.js functions/lib/mcp/mcpHandler.js functions/lib/mcp/oauthProvider.js tests/helpers/cloudflareWorkersStub.mjs tests/helpers/cloudflareWorkersHooks.mjs tests/helpers/memoryKv.mjs tests/mcpOAuth.test.mjs e2e/mcpOAuthRouting.integration.spec.js playwright.mcp.config.js src/worker/index.js wrangler.jsonc
+git commit -m "feat: serve the Tableu MCP endpoint behind Tableu-issued OAuth 2.1" -m "Consent page with owner allowlist and CSRF protection; scope, allowlist and active-account checks on /mcp; atomic D1 registration limits and browser-first OAuth routing." -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
@@ -6928,7 +7235,7 @@ git commit -m "feat: serve the Tableu MCP endpoint behind Tableu-issued OAuth 2.
 
 **Files:**
 - Delete: `mcp/tableau-adapter/` (whole directory)
-- Modify: `package.json` (three scripts)
+- Modify: `package.json` (three scripts and explicit `js-yaml` devDependency), `package-lock.json`
 - Modify: `tarot-journal-actions.yaml`
 
 **Interfaces:** none. This task removes code and updates a contract document.
@@ -6985,9 +7292,17 @@ with:
 ```
 
 4. In the reflection operation's `"400"` description, replace `Blank or over-long text, an unknown `scope`/`mode`, or a card that` with `Blank or over-long text, an unknown `scope`, a `mode` field (reflections are append-only), or a card that`.
-5. In the reflection operation, replace `description: Not entitled to the cloud journal, or the entry belongs to another account.` with `description: Not entitled to the cloud journal, or authenticated as the shared GPT service account (`code: service_account_journal_forbidden`).`
+5. In the reflection operation, replace `description: Not entitled to the cloud journal, or the entry belongs to another account.` with the following quoted scalar. Backticks are ordinary YAML characters; the surrounding double quotes protect the colon in `code: ...`:
+
+```yaml
+          description: "Not entitled to the cloud journal, or authenticated as the shared GPT service account (`code: service_account_journal_forbidden`)."
+```
 6. Replace `description: No entry with that id.` with `description: No entry with that id for this account. Another account's entry gets the same 404.`
-7. In the save operation, replace `description: The account is not entitled to the cloud journal (Plus or Pro required).` with `description: The account is not entitled to the cloud journal (Plus or Pro required), or it is the shared GPT service account (`code: service_account_journal_forbidden`).`
+7. In the save operation, replace `description: The account is not entitled to the cloud journal (Plus or Pro required).` with:
+
+```yaml
+          description: "The account is not entitled to the cloud journal (Plus or Pro required), or it is the shared GPT service account (`code: service_account_journal_forbidden`)."
+```
 8. Replace the `bearerAuth` description:
 
 ```yaml
@@ -7074,8 +7389,34 @@ with:
 
 - [ ] **Step 3: Validate the YAML**
 
-Run: `node -e "const y=require('fs').readFileSync('tarot-journal-actions.yaml','utf8'); if(/mode:|maxLength: 500|saveJournalEntry|operationId: addJournalReflection/.test(y)) throw new Error('stale contract text'); console.log('ok')"`
-Expected: prints `ok`.
+Make the parser an explicit development dependency, then parse and check the contract:
+
+```bash
+npm install --save-dev js-yaml@^4.1.1
+node --input-type=module <<'NODE'
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { load } from 'js-yaml';
+
+const source = readFileSync('tarot-journal-actions.yaml', 'utf8');
+const document = load(source); // Throws on malformed YAML, including an unquoted colon.
+assert.equal(typeof document.openapi, 'string');
+const operations = Object.values(document.paths).flatMap((path) => Object.values(path));
+for (const name of ['saveReadingToJournal', 'addReflectionToJournalEntry']) {
+  assert.ok(operations.some((operation) => operation?.operationId === name), `${name} is present`);
+}
+const schemas = document.components.schemas;
+assert.equal(schemas.AddJournalReflectionRequest.properties.text.maxLength, 2000);
+assert.equal(Object.hasOwn(schemas.AddJournalReflectionRequest.properties, 'mode'), false);
+assert.ok(schemas.AddJournalReflectionResponse.required.includes('entryId'));
+assert.ok(schemas.AddJournalReflectionResponse.required.includes('key'));
+assert.doesNotMatch(source, /mode:|maxLength: 500|saveJournalEntry|operationId: addJournalReflection/);
+console.log('Actions YAML parses and matches the updated contract');
+NODE
+```
+
+Expected: exit code 0 and `Actions YAML parses and matches the updated contract`.
+These checks validate YAML syntax and the edited fields; they do not replace a full OpenAPI validator.
 
 - [ ] **Step 4: Run the full test suite**
 
@@ -7085,7 +7426,7 @@ Expected: PASS, with 0 failures.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add -A mcp/tableau-adapter package.json tarot-journal-actions.yaml
+git add -A mcp/tableau-adapter package.json package-lock.json tarot-journal-actions.yaml
 git commit -m "chore: retire the Node MCP adapter and align the journal Actions contract" -m "The adapter's four reading-job tools now live in the Worker's /mcp endpoint." -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
 
@@ -7160,6 +7501,7 @@ Design: `docs/superpowers/specs/2026-09-22-chatgpt-mcp-journal-design.md`.
 | `MCP_RESOURCE_URL` | var | `https://tarot.lakefrontdev.com/mcp`. Tokens are bound to exactly this resource. |
 | `MCP_ALLOWED_USER_IDS` | secret | Comma-separated Tableu user ids allowed to link. Unset means nobody can link. |
 | Migration `0030` | D1 | `journal_entries.idempotency_key` plus its partial unique index. Applied by the deploy script. |
+| Migration `0031` | D1 | `oauth_registration_counters` for atomic per-address hourly DCR admission on `DB`. Applied by the deploy script; missing storage makes registration return 503. |
 
 ## First deployment
 
@@ -7172,7 +7514,10 @@ Design: `docs/superpowers/specs/2026-09-22-chatgpt-mcp-journal-design.md`.
 
 ### Merge
 
-CI deploys with `scripts/deploy.js`, which applies migrations first. While
+CI deploys with `scripts/deploy.js`, which applies migrations `0030` and `0031`
+before the new Worker. OAuth grants and clients use `OAUTH_KV`; registration
+admission uses D1. Counters retain the current and previous hourly buckets,
+with older buckets removed on the next registration attempt. While
 `MCP_ALLOWED_USER_IDS` is unset, the endpoint is live but nobody can link.
 Never deploy from a working tree with uncommitted `wrangler.jsonc` changes.
 
@@ -7219,21 +7564,62 @@ Never deploy from a working tree with uncommitted `wrangler.jsonc` changes.
 
 - `npx wrangler secret delete MCP_ALLOWED_USER_IDS` stops all linking and
   rejects existing tokens on the next request.
-- To roll back the code, revert the PR. Migration 0030 is additive; leave it
-  in place.
+- To roll back the code, revert the PR. Migrations 0030 and 0031 are additive;
+  leave them in place.
 
 ## Local development
 
 1. `npm run build`, so the assets directory exists.
-2. Create a config copy without the remote-only `ai` binding:
-   `node -e "const fs=require('fs');const s=fs.readFileSync('wrangler.jsonc','utf8');const o=s.replace(/\n\s*\"ai\": \{\s*\"binding\": \"AI\"\s*\},?/,'');if(o===s)throw new Error('ai block not found');fs.writeFileSync('wrangler.dev-local.jsonc',o)"`
+2. Create a config copy without the remote-only `ai` binding and with a local
+   OAuth resource. Keep the `assets.run_worker_first` routes from Task 14.
+   The command refuses to overwrite an existing local config:
+
+   ```bash
+   node --input-type=module <<'NODE'
+   import { readFileSync, writeFileSync } from 'node:fs';
+
+   let config = readFileSync('wrangler.jsonc', 'utf8');
+   const edits = [
+     [/\r?\n\s*"ai": \{\s*"binding": "AI"\s*\},?/, ''],
+     [/("MCP_RESOURCE_URL":\s*)"[^"]*"/, '$1"http://localhost:8787/mcp"']
+   ];
+   for (const [pattern, replacement] of edits) {
+     if (!pattern.test(config)) throw new Error(`Expected config field missing: ${pattern}`);
+     config = config.replace(pattern, replacement);
+   }
+   writeFileSync('wrangler.dev-local.jsonc', config, { flag: 'wx' });
+   console.log('Local OAuth resource: http://localhost:8787/mcp');
+   NODE
+   ```
+
+   If a local config already exists, inspect and update those two fields in
+   that file instead. If `.dev.vars` or the shell already overrides
+   `MCP_RESOURCE_URL`, set that override to the same localhost URL as well.
 3. Apply the migrations locally:
    `npx wrangler d1 migrations apply mystic-tarot-db --local --config wrangler.dev-local.jsonc`.
 4. Start the server: `npx wrangler dev --config wrangler.dev-local.jsonc --port 8787`.
    Register or sign in at `http://localhost:8787`.
-5. Find your local user id, the same way as in production. Put it in
-   `.dev.vars` as `MCP_ALLOWED_USER_IDS=<id>` and restart.
-6. Run MCP Inspector against `http://localhost:8787/mcp`.
+5. Run MCP Inspector against `http://localhost:8787/mcp` and start OAuth.
+   Confirm discovery advertises `resource: http://localhost:8787/mcp` and
+   localhost authorization/token endpoints. The browser's consent navigation
+   must show the Tableu consent or account-refusal page, not the React app shell.
+   Find your local account id on the refusal page. Add or update only
+   `MCP_ALLOWED_USER_IDS=<id>` in `.dev.vars`, preserving other local values,
+   and restart Wrangler.
+6. Give this test account an active Plus subscription **in local D1 only**.
+   Registration defaults to Free, which cannot save to the cloud journal.
+   Substitute the account id from the local consent page:
+
+   ```bash
+   npx wrangler d1 execute mystic-tarot-db --local --config wrangler.dev-local.jsonc --command "UPDATE users SET subscription_tier = 'plus', subscription_status = 'active' WHERE id = '<LOCAL_USER_ID>' RETURNING id, subscription_tier, subscription_status;"
+   ```
+
+   Expected: exactly that account id, `plus`, and `active`. Never change this
+   fixture command to `--remote`. Refresh the app's session view by signing out
+   and in again before checking journal rendering.
+7. Reconnect Inspector, approve consent, and call `get_profile`; the id must
+   match the local account. Exercise draw, wait, save and reflection against
+   localhost. Local tokens and account ids must not be used against production.
 
 When you're done, delete `wrangler.dev-local.jsonc`, and never commit it or
 `.dev.vars`.
@@ -7247,6 +7633,7 @@ When you're done, delete `wrangler.dev-local.jsonc`, and never commit it or
 | ChatGPT keeps asking to link again | Allowlist changed, account deactivated, or token lacks `tableu` | Check the allowlist and account, then link again |
 | `invalid_redirect_uri` on registration | Redirect URI isn't a ChatGPT callback or loopback | Register from ChatGPT or a local tool |
 | 429 on `/oauth/register` | More than 10 registrations an hour from one address | Wait for the next hour |
+| 503 on `/oauth/register` | D1 admission unavailable, including a missing migration 0031 | Check the DB binding and migration status; restore admission storage before retrying |
 | "Reading job not found." | Wrong jobId/jobToken, or another account's job | Start a new reading |
 | "…job has expired…" when saving | MCP jobs are kept for 24 h | Save with the reading fields, as the tool describes |
 | Journal routes answer 403 `service_account_journal_forbidden` | Called with the shared GPT service token | Use a personal credential |
@@ -7405,6 +7792,10 @@ connection acts as. The connection is private to that one account.
   the user.
 - **Waiting.** Wait again if a reading is still running, and never start a
   second reading for the same request.
+- **Replay.** Reuse the returned decimal `seed` unchanged with the same spread,
+  deck and reversal setting to reproduce the draw. MCP treats decimal seed
+  strings as unsigned 32-bit values; nonnumeric words or phrases are hashed.
+  The existing HTTP draw API retains its original string-hashing behavior.
 - **Timing.** Every tool returns within about 45 seconds.
 
 ## Saving: `save_reading_to_journal`
@@ -7450,6 +7841,10 @@ offer.
 - **Card scope:** send `card` as the reading showed it, plus `position` when
   that card appears twice. A card that isn't in the entry is rejected, and the
   error lists the entry's cards.
+- **Returned target:** `target.card` is also the entry deck's label, so it can
+  be reused with `target.position` for another note. Stored journal cards keep
+  their canonical names; a Thoth Prince target remains "Prince of Wands" in
+  reflection results even though its stored canonical name is "Knight of Wands".
 - **Appending:** notes are appended, never replaced. The same note on the same
   target is never added twice; the outcome is then `already_present`.
 - **Other errors:** "Not added: no saved entry with that id…" means the entry
@@ -7611,21 +8006,42 @@ Expected:
 
 - [ ] **Step 2: Walk through the flow locally with MCP Inspector**
 
-1. Create `wrangler.dev-local.jsonc` without the `ai` block, using the command in `docs/integrations/openai/chatgpt-mcp.md` under Local development.
+1. Create `wrangler.dev-local.jsonc` using the command in `docs/integrations/openai/chatgpt-mcp.md` under Local development. It removes the `ai` block, sets `MCP_RESOURCE_URL` to `http://localhost:8787/mcp`, and preserves the Worker-first asset routes. Check that no `.dev.vars` or shell override resets the resource to production.
 2. Run `npx wrangler d1 migrations apply mystic-tarot-db --local --config wrangler.dev-local.jsonc`.
 3. Start the server: `npx wrangler dev --config wrangler.dev-local.jsonc --port 8787`.
 4. Open `http://localhost:8787` in the browser and register a test account.
-5. Run `npx @modelcontextprotocol/inspector`. Connect with **Streamable HTTP** to `http://localhost:8787/mcp`, and start OAuth. The consent page refuses you and shows your account id.
-6. Create `.dev.vars` containing `MCP_ALLOWED_USER_IDS=<that id>`, then restart `wrangler dev`.
-7. Connect again and choose **Allow**. Then check each of these:
+5. Run `npx @modelcontextprotocol/inspector`. Connect with **Streamable HTTP** to `http://localhost:8787/mcp`, and start OAuth. Verify the discovered resource and authorization/token endpoints all use localhost. Verify the browser navigation reaches the OAuth account-refusal page, not the React app shell; it shows your local account id.
+6. Add or update `MCP_ALLOWED_USER_IDS=<that id>` in `.dev.vars`, preserving other values, then restart `wrangler dev`.
+7. Set the new test account's entitlement in **local D1 only**:
+
+   ```bash
+   npx wrangler d1 execute mystic-tarot-db --local --config wrangler.dev-local.jsonc --command "UPDATE users SET subscription_tier = 'plus', subscription_status = 'active' WHERE id = '<LOCAL_USER_ID>' RETURNING id, subscription_tier, subscription_status;"
+   ```
+
+   Substitute the id from step 5. Verify the returned row is that id with `plus`/`active`. The registered account otherwise defaults to Free and must be denied a cloud-journal save. Sign out and in again in the app to refresh its entitlement view. This fixture change must never use `--remote`.
+8. Connect Inspector again and choose **Allow**. Then check each of these:
    - tools/list shows 8 tools;
-   - `get_profile` returns your id;
+   - `get_profile` returns the same local id from steps 5 and 7, proving an authenticated MCP call succeeds with the local resource;
    - `draw_tarot_reading` with `{ "spreadInfo": { "name": "Three-Card Story (Past · Present · Future)", "key": "threeCard" } }` returns three cards;
    - `wait_for_tarot_reading` eventually returns `complete`. Without provider keys, the local composer writes the narrative.
    - `save_reading_to_journal` with the job reference returns `saved`, and repeating it returns `already_saved`;
    - `add_reflection_to_journal_entry` with scope `card` (a drawn card's name) and with scope `reading` both return `added`, and repeating one returns `already_present`.
 
 Expected: every call behaves as listed. If a call fails, capture the tool result and the `wrangler dev` log, and fix the task that owns that code.
+
+With that same local Worker still running, run the browser routing regression
+created in Task 14 from a second terminal:
+
+```bash
+npx playwright test --config playwright.mcp.config.js
+```
+
+Expected: the routing test passes using real `page.goto()` navigation through
+Wrangler. It verifies localhost discovery, the signed-out OAuth page, an API
+404 and the frontend home page. The dedicated config does not start a server,
+so it cannot silently fall back to the production resource configuration.
+Record this result separately from the frontend-only Playwright CI suite,
+which excludes `*.integration.spec.js` files.
 
 - [ ] **Step 3: Check that the entry renders in the app**
 
