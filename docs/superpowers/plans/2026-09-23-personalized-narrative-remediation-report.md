@@ -1,6 +1,6 @@
 # Personalized Narrative remediation — implementation evidence
 
-Implemented from [the specification](../specs/2026-09-23-personalized-narrative-remediation.md) on `codex/narrative-remediation`, based on `7e9170fb2b64184a6225940f4cbef7b9e92caced`. The worktree is `C:/Users/htper/.codex/worktrees/narrative-remediation/tarot`; the original checkout's unrelated work is preserved. Changes are local and uncommitted.
+Implemented from [the specification](../specs/2026-09-23-personalized-narrative-remediation.md) on `codex/narrative-remediation`, based on `7e9170fb2b64184a6225940f4cbef7b9e92caced`. The worktree is `C:/Users/htper/.codex/worktrees/narrative-remediation/tarot`; the original checkout's unrelated work is preserved. This paragraph and the original tables below are the historical pre-integration record. See the current integration checkpoint at the end for committed candidates and release blockers.
 
 ## Result
 
@@ -74,3 +74,45 @@ Rendered badge text contrast is 5.785–11.589:1 in light mode and 4.750–10.25
 Browser evidence comes from local Chromium and emulated iPhone WebKit using synthetic jobs/SSE, authentication, journal, and feedback services. Keyboard height is simulated with VisualViewport; no physical handset or spoken screen-reader pass was available. DOM/axe/keyboard assertions do not substitute for those checks. Live TTS, journal persistence, production AI integration, deployment, and publication are not established by this work.
 
 The [original v2 mockup package](../../../output/imagegen/narrative-remediation/README.md) and specification are included together in this worktree so their relative links remain usable. The generated evaluation files were copied into evidence where useful and restored in `data/evaluations`; they are not application changes.
+
+## Current integration checkpoint — 2026-09-23
+
+Source candidate: `051064c59cb0891ee47d6543c37fdf7a02650060`, after merging
+master `3946e1ada5fda13d93d82c34719ce267881f9825`. The preservation commit
+`2a855b8` retains the original 115-path work. The integration found a real WebKit
+200%-text issue: suggested-question `transition-all` animated font-size and moved
+the focused textarea beneath the simulated keyboard. Limiting that transition
+to colors fixed it; all four keyboard regressions passed, followed by the entire
+focused browser suite. No other new interface redesign was added.
+
+| Current check | Result |
+| --- | --- |
+| Root unit tests on `051064c` | 2,017 passed, no failures/skips. |
+| Narrative/follow-up/Saved Intentions browser suite | 42 passed across Chromium and handset WebKit, normal/reduced motion, 320/390/1440px, short/enlarged text and simulated keyboard. |
+| Rendered accessibility | 15 passed on `051064c`. |
+| Build and design gate | Passed again on `051064c`. |
+| Unchanged adapter/deploy/journal gates after master merge | Adapter 17 pass / one Windows SIGTERM skip, deploy 11 pass, journal browser four pass. |
+| Cloudflare lint and static accessibility | Passed; static advisory output remains distinct from rendered proof. |
+| Full lint | 146 errors / 37 warnings, matching clean master. Only message difference is line numbering in an unchanged FollowUpChat hydration effect. |
+| Full frontend suite | Not passing/completed. Journal-filter assertions failed; the first failure also reproduces on clean master. Stopped after confirmed failures; no unrelated journal remediation added. |
+| Narrative quality gate | Local-composer fails on the Spanish sample, identically on clean master. No live provider was used or thresholds lowered in this integration pass. |
+| Vision quality gate | No completed result yet; retained as a release gate, not inferred from unchanged source. |
+
+Fresh capture ran successfully on the exact source candidate, against its owned
+verification server: eight rendered states plus one continuous interaction trace.
+Desktop light, 390px dark chat and the 200%-text simulated keyboard capture were
+visually inspected. The images show the implemented app using synthetic services;
+physical keyboard/device and spoken screen-reader validation remain unavailable.
+
+Current local evidence is under
+`C:/Users/htper/AppData/Local/Temp/tarot-integration-b3d08059115b417aa797f86583e7d874`:
+`narrative-unit-final.txt`, `narrative-browser-final.txt`,
+`rendered-accessibility.txt`, `narrative-frontend-full.txt`,
+`master-journal-filter-baseline.txt`, `lint-comparison.json`, and
+`narrative-current-captures/` (images, capture metadata and interaction trace).
+Earlier image links and provider-quality claims above remain historical evidence;
+they are not substituted for this candidate's incomplete full gates.
+
+Fresh source review found no Critical narrative issue. This checkpoint is local:
+no push, PR, merge to master, production migration or deployment occurred. Refresh
+and verify the eventual combination of candidate branches before publication.
