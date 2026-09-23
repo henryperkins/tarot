@@ -7,8 +7,8 @@ export function NarrativePanelHeader({
 }) {
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <h3 className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight">
-        <Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
+      <h3 tabIndex={-1} data-reading-focus-target className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight">
+        <Sparkle aria-hidden="true" className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
         Your Personalized Narrative
       </h3>
       {focusToggleAvailable ? (

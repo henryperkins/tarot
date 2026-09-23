@@ -79,7 +79,7 @@
     // ---------------------------------------------------------------------
     "OPENAI_BASE_URL": "https://api.openai.com",
     "OPENAI_MODEL": "gpt-5.6-sol",
-    "OPENAI_REASONING_EFFORT": "high",
+    "OPENAI_REASONING_EFFORT": "xhigh",
     "ALLOW_STREAMING_WITH_EVAL_GATE": "true",
     "STREAMING_QUALITY_GATE_ENABLED": "false",
     "STREAMING_SAFETY_SCAN_ENABLED": "false",
@@ -118,7 +118,7 @@
     // that may be published, so any user of that GPT can induce it to request
     // promptDebug. GPT_OWNER_TOKEN is never shared, so ownership fails closed
     // when it is unset — which is the default.
-    "PROMPT_DEBUG_ENABLED": "false",
+    "PROMPT_DEBUG_ENABLED": "true",
     "ENABLE_TTS_DEBUG_LOGGING": "false",
     "ENABLE_SPEECH_TOKEN_DEBUG": "false",
     // -------------------------------------------------------------------------

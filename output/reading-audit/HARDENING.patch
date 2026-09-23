@@ -1,0 +1,1333 @@
+diff --git a/src/components/AnimatedRoutes.jsx b/src/components/AnimatedRoutes.jsx
+index a8baba6..d0c9416 100644
+--- a/src/components/AnimatedRoutes.jsx
++++ b/src/components/AnimatedRoutes.jsx
+@@ -1,9 +1,7 @@
+-import { useCallback, useEffect, useLayoutEffect, useRef, useState, lazy, Suspense } from 'react';
++import { useEffect, lazy, Suspense } from 'react';
+ import { Routes, Route, useLocation } from 'react-router-dom';
+-import { animate, set } from '../lib/motionAdapter';
+ import TarotReading from '../TarotReading.jsx';
+ import { PageTransition } from './PageTransition.jsx';
+-import { useReducedMotion } from '../hooks/useReducedMotion';
+ 
+ // Lazy load non-critical routes to reduce initial bundle size
+ const Journal = lazy(() => import('./Journal.jsx'));
+@@ -51,137 +49,6 @@ function isTarotRoutePath(pathname) {
+ 
+ export function AnimatedRoutes() {
+   const location = useLocation();
+-  const prefersReducedMotion = useReducedMotion();
+-  const [displayLocation, setDisplayLocation] = useState(location);
+-  const [isTransitioning, setIsTransitioning] = useState(false);
+-  const containerRef = useRef(null);
+-  const nextLocationRef = useRef(location);
+-  const exitAnimRef = useRef(null);
+-  const enterAnimRef = useRef(null);
+-
+-  const startExit = useCallback(() => {
+-    if (prefersReducedMotion) {
+-      setDisplayLocation(nextLocationRef.current);
+-      return;
+-    }
+-
+-    const node = containerRef.current;
+-    if (!node) {
+-      setDisplayLocation(nextLocationRef.current);
+-      return;
+-    }
+-
+-    enterAnimRef.current?.pause?.();
+-    exitAnimRef.current?.pause?.();
+-    setIsTransitioning(true);
+-    const exitAnim = animate(node, {
+-      opacity: [1, 0],
+-      duration: 220,
+-      ease: 'inOutQuad'
+-    });
+-    exitAnimRef.current = exitAnim;
+-
+-    exitAnim
+-      .then(() => {
+-        if (exitAnimRef.current === exitAnim) {
+-          exitAnimRef.current = null;
+-        }
+-        setDisplayLocation(nextLocationRef.current);
+-      })
+-      .catch(() => {
+-        if (exitAnimRef.current === exitAnim) {
+-          exitAnimRef.current = null;
+-        }
+-        setDisplayLocation(nextLocationRef.current);
+-      });
+-  }, [prefersReducedMotion]);
+-
+-  // Synchronize location changes - useLayoutEffect for synchronous DOM updates
+-  useLayoutEffect(() => {
+-    const isSamePath = location.pathname === displayLocation.pathname;
+-    const isSameSearch = location.search === displayLocation.search;
+-    const isSameHash = location.hash === displayLocation.hash;
+-    const isSameKey = location.key === displayLocation.key;
+-
+-    if (isSamePath && isSameSearch && isSameHash && isSameKey) return;
+-    nextLocationRef.current = location;
+-
+-    if (isSamePath) {
+-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync location update for animation coordination
+-      setDisplayLocation(location);
+-      return;
+-    }
+-
+-    if (prefersReducedMotion) {
+-      setDisplayLocation(location);
+-      return;
+-    }
+-
+-    if (!isTransitioning) {
+-      startExit();
+-    }
+-  }, [
+-    location,
+-    displayLocation.pathname,
+-    displayLocation.search,
+-    displayLocation.hash,
+-    displayLocation.key,
+-    prefersReducedMotion,
+-    isTransitioning,
+-    startExit
+-  ]);
+-
+-  // Handle enter animation after display location changes
+-  useLayoutEffect(() => {
+-    if (!isTransitioning || prefersReducedMotion) {
+-      if (isTransitioning && prefersReducedMotion) {
+-        // eslint-disable-next-line react-hooks/set-state-in-effect -- sync state reset when animations disabled
+-        setIsTransitioning(false);
+-      }
+-      return;
+-    }
+-
+-    const node = containerRef.current;
+-    if (!node) {
+-      setIsTransitioning(false);
+-      return;
+-    }
+-
+-    exitAnimRef.current?.pause?.();
+-    enterAnimRef.current?.pause?.();
+-    set(node, { opacity: 0 });
+-    const enterAnim = animate(node, {
+-      opacity: [0, 1],
+-      duration: 220,
+-      ease: 'inOutQuad'
+-    });
+-    enterAnimRef.current = enterAnim;
+-
+-    enterAnim
+-      .then(() => {
+-        if (enterAnimRef.current === enterAnim) {
+-          enterAnimRef.current = null;
+-        }
+-        setIsTransitioning(false);
+-        if (nextLocationRef.current.pathname !== displayLocation.pathname) {
+-          startExit();
+-        }
+-      })
+-      .catch(() => {
+-        if (enterAnimRef.current === enterAnim) {
+-          enterAnimRef.current = null;
+-        }
+-        setIsTransitioning(false);
+-      });
+-  }, [displayLocation.pathname, isTransitioning, prefersReducedMotion, startExit]);
+-
+-  useEffect(() => () => {
+-    exitAnimRef.current?.pause?.();
+-    enterAnimRef.current?.pause?.();
+-    exitAnimRef.current = null;
+-    enterAnimRef.current = null;
+-  }, []);
+-
+   useEffect(() => {
+     if (typeof window === 'undefined') return;
+     window.dispatchEvent(new CustomEvent('tableau:route-change', {
+@@ -195,9 +62,9 @@ export function AnimatedRoutes() {
+   }, [location.pathname, location.search, location.hash]);
+ 
+   return (
+-    <div ref={containerRef}>
++    <div>
+       <Suspense fallback={<RouteLoader />}>
+-        <Routes location={displayLocation} key={displayLocation.pathname}>
++        <Routes location={location} key={location.pathname}>
+           <Route path="/" element={<PageTransition><TarotReading /></PageTransition>} />
+           <Route path="/journal/gallery" element={<PageTransition><CardGalleryPage /></PageTransition>} />
+           <Route path="/journal" element={<PageTransition><Journal /></PageTransition>} />
+diff --git a/src/components/NarrativePanel.jsx b/src/components/NarrativePanel.jsx
+index 734db4e..513ca67 100644
+--- a/src/components/NarrativePanel.jsx
++++ b/src/components/NarrativePanel.jsx
+@@ -1,4 +1,5 @@
+ import PropTypes from 'prop-types';
++import { NarrativeQuestionAnchor } from './reading/narrative/NarrativeQuestionAnchor';
+ import {
+   NarrativePanelHeader,
+   NarrativeBody,
+@@ -19,6 +20,7 @@ export function NarrativePanel({
+     narrativeText,
+     personalReading,
+     shouldStreamNarrative,
++    isReadingStreaming,
+     canAutoNarrate,
+     displayName,
+     narrativeHighlightPhrases,
+@@ -45,9 +47,34 @@ export function NarrativePanel({
+     onDismissNudge,
+     onOpenJournal,
+     onSaveReading,
++    onRetryNarrative,
+     onUpgradeTier
+   } = callbacks;
+ 
++  if (personalReading?.isError) {
++    return (
++      <div className={panelClassName}>
++        <h3 tabIndex={-1} data-reading-focus-target className="text-lg sm:text-2xl font-serif text-accent">
++          Your reading could not be completed
++        </h3>
++        <p role="alert" className="mt-4 text-main leading-relaxed [overflow-wrap:anywhere]">
++          {narrativeText || 'The connection was interrupted. Please try again.'}
++        </p>
++        <p className="mt-3 text-sm text-muted">Your cards and question are still here. You can retry this reading.</p>
++        <NarrativeQuestionAnchor question={question} compact={isHandset} />
++        {onRetryNarrative && !isHandset && (
++          <button
++            type="button"
++            onClick={onRetryNarrative}
++            className="mt-5 inline-flex min-h-touch items-center justify-center rounded-full border border-secondary/50 px-5 py-2 text-sm font-semibold text-main hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
++          >
++            Retry narrative
++          </button>
++        )}
++      </div>
++    );
++  }
++
+   return (
+     <div className={panelClassName}>
+       <div className="space-y-3 sm:space-y-4">
+@@ -63,6 +90,7 @@ export function NarrativePanel({
+           narrativeText={narrativeText}
+           personalReading={personalReading}
+           shouldStreamNarrative={shouldStreamNarrative}
++          isReadingStreaming={isReadingStreaming}
+           canAutoNarrate={canAutoNarrate}
+           onNarrationStart={onNarrationStart}
+           onNarrativeComplete={onNarrativeComplete}
+@@ -113,6 +141,7 @@ NarrativePanel.propTypes = {
+     narrativeText: PropTypes.string,
+     personalReading: PropTypes.oneOfType([PropTypes.object, PropTypes.string]),
+     shouldStreamNarrative: PropTypes.bool,
++    isReadingStreaming: PropTypes.bool,
+     canAutoNarrate: PropTypes.bool,
+     displayName: PropTypes.string,
+     narrativeHighlightPhrases: PropTypes.array,
+@@ -139,6 +168,7 @@ NarrativePanel.propTypes = {
+     onDismissNudge: PropTypes.func,
+     onOpenJournal: PropTypes.func,
+     onSaveReading: PropTypes.func,
++    onRetryNarrative: PropTypes.func,
+     onUpgradeTier: PropTypes.func
+   })
+ };
+diff --git a/src/components/NarrativeSkeleton.jsx b/src/components/NarrativeSkeleton.jsx
+index 38fe46a..94c4e7f 100644
+--- a/src/components/NarrativeSkeleton.jsx
++++ b/src/components/NarrativeSkeleton.jsx
+@@ -2,28 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
+ import { useReducedMotion } from '../hooks/useReducedMotion';
+ import { useLandscape } from '../hooks/useLandscape';
+ 
+-/**
+- * Generation phase messages that rotate during loading.
+- * Phases progress from initial to extended wait states.
+- */
+-const PHASE_MESSAGES = {
+-  initial: [
+-    'Weaving your personalized narrative...',
+-    'Drawing connections between the cards...',
+-    'Interpreting the spread positions...',
+-  ],
+-  extended: [
+-    'Taking a bit longer than usual...',
+-    'Crafting a thoughtful interpretation...',
+-    'Almost there, adding final touches...',
+-  ],
+-};
+-
+-/** Thresholds for phase transitions (in milliseconds) */
+-const PHASE_TIMING = {
+-  messageRotation: 3500,  // Rotate messages every 3.5s
+-  extendedWait: 12000,    // Show extended messages after 12s
+-};
++const EXTENDED_WAIT_MS = 12000;
+ 
+ /**
+  * Line configurations for different spread complexities.
+@@ -68,15 +47,6 @@ const LINE_CONFIGS = {
+   ],
+ };
+ 
+-/**
+- * Narrative generation step labels for visual progress.
+- */
+-const STEP_LABELS = [
+-  'Reading the spread',
+-  'Finding the connections',
+-  'Weaving the narrative',
+-];
+-
+ /**
+  * Select line configuration based on card count.
+  * @param {number} cardCount - Number of cards in the spread
+@@ -113,7 +83,6 @@ function getLineConfig(cardCount, isLandscape) {
+  * @param {number} [props.cardCount=3] - Number of cards in the spread
+  * @param {string} [props.reasoningSummary] - AI reasoning summary to display during generation
+  * @param {Object} [props.reasoning] - Reasoning metadata (narrative arc preview)
+- * @param {string} [props.narrativePhase] - Current narrative generation phase ('analyzing'|'drafting'|'polishing')
+  * @param {string} [props.atmosphereClassName] - Atmosphere modifier classes
+  */
+ export function NarrativeSkeleton({
+@@ -124,58 +93,20 @@ export function NarrativeSkeleton({
+   cardCount = 3,
+   reasoningSummary = '',
+   reasoning = null,
+-  narrativePhase = '',
+   atmosphereClassName = '',
+ }) {
+   const prefersReducedMotion = useReducedMotion();
+   const isLandscape = useLandscape();
+ 
+-  // Track elapsed time for phase transitions and message rotation
+-  const [elapsedMs, setElapsedMs] = useState(0);
+-
+-  // Single interval for elapsed time - message rotation derived from this
++  const [isExtendedWait, setIsExtendedWait] = useState(false);
+   useEffect(() => {
+-    const interval = setInterval(() => {
+-      setElapsedMs(prev => prev + 1000);
+-    }, 1000);
+-    return () => clearInterval(interval);
++    const timeout = setTimeout(() => setIsExtendedWait(true), EXTENDED_WAIT_MS);
++    return () => clearTimeout(timeout);
+   }, []);
+ 
+-  // Derive message index from elapsed time (changes every messageRotation ms)
+-  const messageIndex = prefersReducedMotion
+-    ? 0
+-    : Math.floor(elapsedMs / PHASE_TIMING.messageRotation);
+-
+-  // Determine current phase and message
+-  const isExtendedWait = elapsedMs >= PHASE_TIMING.extendedWait;
+-  const messages = isExtendedWait ? PHASE_MESSAGES.extended : PHASE_MESSAGES.initial;
+-  const currentMessage = messages[messageIndex % messages.length];
+-
+-  // Determine step index from narrative phase (SSE-driven) with time-based fallback
+-  const stepIndex = useMemo(() => {
+-    // Use actual narrative phase when available
+-    if (narrativePhase === 'polishing') return 2;
+-    if (narrativePhase === 'drafting') return 1;
+-    if (narrativePhase === 'analyzing') return 0;
+-    // Fallback to time-based progression if phase not provided
+-    if (elapsedMs >= 9000) return 2;
+-    if (elapsedMs >= 4500) return 1;
+-    return 0;
+-  }, [narrativePhase, elapsedMs]);
+-
+-  // Build personalized status message
+-  const statusMessage = useMemo(() => {
+-    if (displayName && spreadName) {
+-      return `${displayName}, your ${spreadName} reading is being crafted...`;
+-    }
+-    if (displayName) {
+-      return `${displayName}, ${currentMessage.charAt(0).toLowerCase()}${currentMessage.slice(1)}`;
+-    }
+-    if (spreadName) {
+-      return `Interpreting your ${spreadName}...`;
+-    }
+-    return currentMessage;
+-  }, [displayName, spreadName, currentMessage]);
++  const statusMessage = isExtendedWait
++    ? 'This is taking longer than usual. Your reading is still being prepared.'
++    : `${displayName ? `${displayName}, your` : 'Your'} ${spreadName || 'personalized'} reading is being prepared.`;
+ 
+   const cardSlots = useMemo(() => {
+     if (isLandscape) return Array.from({ length: 3 }, (_, index) => index);
+@@ -190,44 +121,20 @@ export function NarrativeSkeleton({
+     [cardCount, isLandscape]
+   );
+ 
+-  // Screen reader message adapts to wait time
+-  const srMessage = isExtendedWait
+-    ? `Still generating your personalized tarot reading. This is taking longer than usual but should complete soon.`
+-    : `Please wait while we generate your personalized tarot reading. This typically takes a few seconds.`;
+-
+-  const arcPreview = useMemo(() => {
+-    if (!reasoning?.narrativeArc) return null;
+-    return {
+-      name: reasoning.narrativeArc?.name || '',
+-      description: reasoning.narrativeArc?.description || ''
+-    };
+-  }, [reasoning?.narrativeArc]);
++  const arcPreview = reasoning?.narrativeArc || null;
+ 
+   return (
+     <div
+       className={`narrative-skeleton ${className}`}
+-      role="status"
++      role="region"
+       aria-label="Generating your personalized narrative"
+-      aria-live="polite"
+-      aria-busy="true"
+     >
+-      {/* Header skeleton */}
+-      <div className="flex items-center gap-2 mb-4">
+-        <div
+-          className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-secondary/30 ${
+-            prefersReducedMotion ? '' : 'animate-pulse'
+-          }`}
+-          style={{ animationDelay: '0ms' }}
+-          aria-hidden="true"
+-        />
+-        <div
+-          className={`h-6 sm:h-7 w-48 sm:w-64 rounded-lg bg-secondary/20 ${
+-            prefersReducedMotion ? '' : 'animate-pulse'
+-          }`}
+-          style={{ animationDelay: '100ms' }}
+-          aria-hidden="true"
+-        />
+-      </div>
++      <h3 tabIndex={-1} data-reading-focus-target className="text-lg sm:text-2xl font-serif text-accent">
++        Preparing your reading
++      </h3>
++      <p role="status" aria-live="polite" aria-atomic="true" className="mt-3 mb-4 text-sm text-muted [overflow-wrap:anywhere]">
++        {statusMessage}
++      </p>
+ 
+       {/* Ritual stage */}
+       <div className={`narrative-skeleton__ritual narrative-atmosphere ${atmosphereClassName}`}>
+@@ -236,23 +143,6 @@ export function NarrativeSkeleton({
+             <div key={slot} className="narrative-skeleton__card" />
+           ))}
+         </div>
+-        <div className="narrative-skeleton__steps" role="list" aria-label="Narrative generation progress">
+-          {STEP_LABELS.map((label, index) => {
+-            const isCurrent = index === stepIndex;
+-            const isActive = index <= stepIndex;
+-            return (
+-              <div
+-                key={label}
+-                role="listitem"
+-                className={`narrative-skeleton__step ${isActive ? 'is-active' : ''} ${isCurrent ? 'is-current' : ''}`}
+-                aria-current={isCurrent ? 'step' : undefined}
+-              >
+-                <span className="narrative-skeleton__step-dot" aria-hidden="true" />
+-                <span className="narrative-skeleton__step-label">{label}</span>
+-              </div>
+-            );
+-          })}
+-        </div>
+         {arcPreview && (arcPreview.name || arcPreview.description) && (
+           <div className="narrative-skeleton__arc mt-4 px-4 py-3 rounded-xl bg-surface/70">
+             {arcPreview.name && (
+@@ -273,7 +163,7 @@ export function NarrativeSkeleton({
+           </div>
+         )}
+         <p className="narrative-skeleton__hint text-xs text-muted text-center mt-2">
+-          Let your attention rest on the card that feels loudest.
++          Take a quiet moment to reflect on your question.
+         </p>
+ 
+         {/* AI Reasoning Summary - shown while generating */}
+@@ -332,45 +222,8 @@ export function NarrativeSkeleton({
+           })}
+         </div>
+ 
+-        {/* Weaving indicator */}
+-        <div className="mt-6 pt-4 flex flex-col items-center gap-3">
+-          <div className="flex items-center gap-3">
+-            <div className="flex gap-1.5">
+-              {[0, 1, 2].map((i) => (
+-                <div
+-                  key={i}
+-                  className={`w-2 h-2 rounded-full ${
+-                    isExtendedWait ? 'bg-primary/60' : 'bg-accent/60'
+-                  } ${prefersReducedMotion ? '' : 'animate-bounce'}`}
+-                  style={{
+-                    animationDelay: prefersReducedMotion ? '0ms' : `${i * 150}ms`,
+-                    animationDuration: '1s',
+-                  }}
+-                  aria-hidden="true"
+-                />
+-              ))}
+-            </div>
+-            <span
+-              className={`text-sm transition-colors duration-300 ${
+-                isExtendedWait ? 'text-primary/80' : 'text-muted'
+-              }`}
+-              aria-hidden="true"
+-            >
+-              {statusMessage}
+-            </span>
+-          </div>
+-
+-          {/* Extended wait reassurance */}
+-          {isExtendedWait && (
+-            <p className="text-xs text-muted/70 text-center max-w-xs animate-fade-in">
+-              Complex spreads take a moment to interpret thoughtfully.
+-            </p>
+-          )}
+-        </div>
+       </div>
+ 
+-      {/* Screen reader announcement */}
+-      <span className="sr-only">{srMessage}</span>
+     </div>
+   );
+ }
+diff --git a/src/components/PageTransition.jsx b/src/components/PageTransition.jsx
+index 852e19c..4651220 100644
+--- a/src/components/PageTransition.jsx
++++ b/src/components/PageTransition.jsx
+@@ -1,40 +1,7 @@
+-import { useLayoutEffect, useRef } from 'react';
+-import { animate, set } from '../lib/motionAdapter';
+-import { useReducedMotion } from '../hooks/useReducedMotion';
+-
+-/**
+- * PageTransition - Wraps page content with smooth enter/exit animations
+- * Respects prefers-reduced-motion by using simpler fade transitions
+- * 
+- * @param {Object} props
+- * @param {React.ReactNode} props.children - Page content
+- * @param {string} props.className - Optional className for the wrapper
+- */
++/** Keep page content visible even when motion is interrupted or unavailable. */
+ export function PageTransition({ children, className = '' }) {
+-  const prefersReducedMotion = useReducedMotion();
+-  const rootRef = useRef(null);
+-
+-  useLayoutEffect(() => {
+-    const node = rootRef.current;
+-    if (!node) return undefined;
+-
+-    if (prefersReducedMotion) {
+-      set(node, { opacity: 1 });
+-      return undefined;
+-    }
+-
+-    set(node, { opacity: 0 });
+-    const anim = animate(node, {
+-      opacity: [0, 1],
+-      duration: 280,
+-      ease: 'inOutQuad'
+-    });
+-
+-    return () => anim?.pause?.();
+-  }, [prefersReducedMotion]);
+-
+   return (
+-    <div ref={rootRef} className={className}>
++    <div className={`page-transition ${className}`}>
+       {children}
+     </div>
+   );
+diff --git a/src/components/ReadingDisplay.jsx b/src/components/ReadingDisplay.jsx
+index ab039f4..d136c85 100644
+--- a/src/components/ReadingDisplay.jsx
++++ b/src/components/ReadingDisplay.jsx
+@@ -148,6 +148,14 @@ export function ReadingDisplay({
+         reading
+     });
+ 
++    useEffect(() => {
++        // Restore focus only when the previous control disappeared or was disabled.
++        // A user who moved elsewhere while waiting keeps their chosen focus.
++        const activeElement = document.activeElement;
++        if (activeElement && activeElement !== document.body && !activeElement.disabled) return;
++        sectionRef.current?.querySelector('[data-reading-focus-target]')?.focus({ preventScroll: true });
++    }, [sceneOrchestrator.activeScene, personalReading?.isError, sectionRef]);
++
+     useEffect(() => {
+         const isNarrativeDeliveryActive = Boolean(isReadingStreamActive || personalReading?.isStreaming);
+         const shouldClearBeat = sceneOrchestrator.activeScene === 'idle'
+@@ -351,6 +359,7 @@ export function ReadingDisplay({
+         shouldShowJournalNudge,
+         markJournalNudgeSeen,
+         saveReading,
++        onRetryNarrative: generatePersonalReading,
+         isSaving,
+         hasHeroStoryArt,
+         handleNarrationStop,
+diff --git a/src/components/StreamingNarrative.jsx b/src/components/StreamingNarrative.jsx
+index c04723d..43ab615 100644
+--- a/src/components/StreamingNarrative.jsx
++++ b/src/components/StreamingNarrative.jsx
+@@ -160,6 +160,7 @@ export function StreamingNarrative({
+   useMarkdown = false,
+   className = '',
+   isStreamingEnabled = true,
++  isReadingStreaming = false,
+   onDone,
+   autoNarrate = false,
+   onNarrationStart,
+@@ -246,7 +247,7 @@ export function StreamingNarrative({
+   );
+ 
+   // Derive isComplete from visibleCount (no need for separate state)
+-  const isComplete = units.length > 0 && visibleCount >= units.length;
++  const isComplete = !isReadingStreaming && units.length > 0 && visibleCount >= units.length;
+ 
+   useEffect(() => {
+     if (prevNarrativeTextRef.current === narrativeText) {
+@@ -438,6 +439,7 @@ export function StreamingNarrative({
+     : 'pb-6 sm:pb-6 short:pb-4';
+   const stickyActionClass = 'bottom-safe-action';
+   const narrationStatusMessage = useMemo(() => {
++    if (isReadingStreaming) return 'Your reading is still being prepared.';
+     if (!narrativeText) return '';
+     if (streamingActive && !isComplete) {
+       return showSkipButton
+@@ -445,7 +447,7 @@ export function StreamingNarrative({
+         : 'Narrative is revealing.';
+     }
+     return 'Narrative ready.';
+-  }, [narrativeText, streamingActive, isComplete, showSkipButton]);
++  }, [isReadingStreaming, narrativeText, streamingActive, isComplete, showSkipButton]);
+ 
+   const tokenMeta = useMemo(() => {
+     if (useMarkdown) return [];
+diff --git a/src/components/reading/NarrativeStageLayout.jsx b/src/components/reading/NarrativeStageLayout.jsx
+index 73de33c..d1fde29 100644
+--- a/src/components/reading/NarrativeStageLayout.jsx
++++ b/src/components/reading/NarrativeStageLayout.jsx
+@@ -25,7 +25,7 @@ export function NarrativeStageLayout({
+   return (
+     <section
+       className={joinClasses(
+-        'scene-stage relative px-3 xs:px-4 sm:px-6 py-6 sm:py-8',
++        'scene-stage relative px-0 sm:px-6 py-6 sm:py-8',
+         `scene-stage--${panelVariant}`,
+         className
+       )}
+@@ -33,7 +33,7 @@ export function NarrativeStageLayout({
+     >
+       <div
+         className={joinClasses(
+-          'scene-stage__panel relative z-[2] max-w-5xl mx-auto p-4 sm:p-6',
++          'scene-stage__panel relative z-[2] min-w-0 max-w-5xl mx-auto p-0 sm:p-6',
+           `scene-stage__panel--${panelVariant}`,
+           panelClassName
+         )}
+diff --git a/src/components/reading/complete/ReadingFeedbackSection.jsx b/src/components/reading/complete/ReadingFeedbackSection.jsx
+index 3ebc4ef..01a9bda 100644
+--- a/src/components/reading/complete/ReadingFeedbackSection.jsx
++++ b/src/components/reading/complete/ReadingFeedbackSection.jsx
+@@ -10,7 +10,7 @@ export function ReadingFeedbackSection({
+     lastCardsForFeedback,
+     feedbackVisionSummary
+ }) {
+-    if (!personalReading) return null;
++    if (!personalReading || personalReading.isError || personalReading.isStreaming) return null;
+ 
+     return (
+         <div className="w-full max-w-2xl mx-auto mt-6 sm:mt-8">
+diff --git a/src/components/reading/narrative/NarrativeBody.jsx b/src/components/reading/narrative/NarrativeBody.jsx
+index 50b76b0..5e0f56f 100644
+--- a/src/components/reading/narrative/NarrativeBody.jsx
++++ b/src/components/reading/narrative/NarrativeBody.jsx
+@@ -8,6 +8,7 @@ export function NarrativeBody({
+   narrativeText,
+   personalReading,
+   shouldStreamNarrative,
++  isReadingStreaming,
+   canAutoNarrate,
+   onNarrationStart,
+   onNarrativeComplete,
+@@ -35,6 +36,7 @@ export function NarrativeBody({
+         text={narrativeText}
+         useMarkdown={Boolean(personalReading?.hasMarkdown)}
+         isStreamingEnabled={shouldStreamNarrative}
++        isReadingStreaming={isReadingStreaming}
+         autoNarrate={canAutoNarrate}
+         onNarrationStart={onNarrationStart}
+         onDone={onNarrativeComplete}
+diff --git a/src/components/reading/narrative/NarrativePanelHeader.jsx b/src/components/reading/narrative/NarrativePanelHeader.jsx
+index e45dc18..40474fd 100644
+--- a/src/components/reading/narrative/NarrativePanelHeader.jsx
++++ b/src/components/reading/narrative/NarrativePanelHeader.jsx
+@@ -7,8 +7,8 @@ export function NarrativePanelHeader({
+ }) {
+   return (
+     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+-      <h3 className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight">
+-        <Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
++      <h3 tabIndex={-1} data-reading-focus-target className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight">
++        <Sparkle aria-hidden="true" className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
+         Your Personalized Narrative
+       </h3>
+       {focusToggleAvailable ? (
+diff --git a/src/components/reading/narrative/NarrativeQuestionAnchor.jsx b/src/components/reading/narrative/NarrativeQuestionAnchor.jsx
+index c5d95f0..66d5a43 100644
+--- a/src/components/reading/narrative/NarrativeQuestionAnchor.jsx
++++ b/src/components/reading/narrative/NarrativeQuestionAnchor.jsx
+@@ -8,14 +8,14 @@ export function NarrativeQuestionAnchor({
+     return (
+       <div className="max-w-3xl mx-auto mt-3 rounded-lg border border-secondary/35 bg-surface/65 px-3 py-2">
+         <p className="text-2xs uppercase tracking-[0.12em] text-muted/80">Anchor</p>
+-        <p className="text-xs text-accent/85 mt-1 leading-relaxed">{question}</p>
++        <p dir="auto" className="text-xs text-accent/85 mt-1 leading-relaxed [overflow-wrap:anywhere]">{question}</p>
+       </div>
+     );
+   }
+ 
+   return (
+     <div className="bg-surface/85 rounded-lg px-3 xxs:px-4 py-3 border border-secondary/40">
+-      <p className="text-accent/85 text-xs sm:text-sm italic">Anchor: {question}</p>
++      <p className="text-accent/85 text-xs sm:text-sm italic [overflow-wrap:anywhere]">Anchor: <bdi>{question}</bdi></p>
+     </div>
+   );
+ }
+diff --git a/src/components/scenes/InterludeScene.jsx b/src/components/scenes/InterludeScene.jsx
+index 3b76f04..30ff8e6 100644
+--- a/src/components/scenes/InterludeScene.jsx
++++ b/src/components/scenes/InterludeScene.jsx
+@@ -1,5 +1,4 @@
+ import { NarrativeSkeleton } from '../NarrativeSkeleton';
+-import { useReducedMotion } from '../../hooks/useReducedMotion';
+ import { useLandscape } from '../../hooks/useLandscape';
+ import { getSceneModel } from './sceneModelUtils';
+ 
+@@ -10,14 +9,12 @@ export function InterludeScene({
+   className = '',
+   sceneModels = {}
+ }) {
+-  const prefersReducedMotion = useReducedMotion();
+   const isLandscape = useLandscape();
+   const interludeModel = getSceneModel(sceneModels, 'interludeModel');
+   const {
+     isGenerating,
+     personalReading,
+     reasoningSummary,
+-    narrativePhase,
+     narrativeAtmosphereClasses,
+     spreadName,
+     displayName,
+@@ -54,14 +51,13 @@ export function InterludeScene({
+         <NarrativeSkeleton
+           className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${
+             isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'
+-          } ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
++          }`}
+           hasQuestion={Boolean(userQuestion)}
+           displayName={displayName}
+           spreadName={spreadName}
+           cardCount={readingCount || 3}
+           reasoningSummary={reasoningSummary}
+           reasoning={reasoning}
+-          narrativePhase={narrativePhase}
+           atmosphereClassName={narrativeAtmosphereClasses}
+         />
+       </div>
+diff --git a/src/components/scenes/SceneShell.jsx b/src/components/scenes/SceneShell.jsx
+index c10862d..f871a80 100644
+--- a/src/components/scenes/SceneShell.jsx
++++ b/src/components/scenes/SceneShell.jsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useMemo, useRef } from 'react';
+-import { animate, set } from '../../lib/motionAdapter';
++import { animate } from '../../lib/motionAdapter';
+ import { useReducedMotion } from '../../hooks/useReducedMotion';
+ import { useSounds } from '../../hooks/useSounds';
+ import { applyColorScript, resetColorScript } from '../../lib/colorScript';
+@@ -88,10 +88,8 @@ export function SceneShell({
+   const activeScene = orchestrator?.activeScene || 'idle';
+   const transitionMeta = orchestrator?.transitionMeta || null;
+   const overlayRef = useRef(null);
+-  const contentRef = useRef(null);
+   const transitionPrevSceneRef = useRef(activeScene);
+   const soundPrevSceneRef = useRef(activeScene);
+-  const transitionAnimRef = useRef(null);
+ 
+   const backdrop = SCENE_BACKDROP[activeScene] || SCENE_BACKDROP.idle;
+ 
+@@ -110,88 +108,25 @@ export function SceneShell({
+   useEffect(() => {
+     const overlay = overlayRef.current;
+     if (!overlay) return undefined;
+-    const content = contentRef.current;
+     const previousScene = transitionPrevSceneRef.current;
+-    const key = `${previousScene}->${activeScene}`;
+-    const profile = TRANSITION_PROFILES[key] || null;
+-    const duration = Number.isFinite(transitionMeta?.duration)
+-      ? transitionMeta.duration
+-      : profile?.duration || 560;
+-
+-    if (transitionAnimRef.current?.pause) {
+-      transitionAnimRef.current.pause();
+-      transitionAnimRef.current = null;
+-    }
+-
+-    if (previousScene === activeScene) {
+-      return undefined;
+-    }
+-
+     transitionPrevSceneRef.current = activeScene;
++    if (previousScene === activeScene || prefersReducedMotion) return undefined;
+ 
++    const profile = TRANSITION_PROFILES[`${previousScene}->${activeScene}`];
+     overlay.style.background = profile?.overlay
+       || 'radial-gradient(circle at 50% 50%, rgba(6, 4, 12, 0.75), rgba(2, 1, 6, 0.94))';
+ 
+-    if (prefersReducedMotion) {
+-      set(overlay, { opacity: 0 });
+-      if (content) {
+-        set(content, { opacity: 1, scale: 1 });
+-      }
+-      const fade = animate(overlay, {
+-        opacity: [0, 0.55, 0],
+-        duration: 200,
+-        ease: 'inOutQuad'
+-      });
+-      if (content) {
+-        animate(content, {
+-          opacity: [0.95, 1],
+-          duration: 200,
+-          ease: 'outQuad'
+-        });
+-      }
+-      transitionAnimRef.current = fade;
+-      return () => fade?.pause?.();
+-    }
+-
+-    set(overlay, { opacity: 0 });
+-    if (content) {
+-      set(content, { opacity: 0.88, scale: 0.988 });
+-    }
+-    const fadeInDuration = Math.round(duration * 0.45);
+-    const fadeOutDuration = Math.max(120, duration - fadeInDuration);
+-    let cancelled = false;
+-    const enter = animate(overlay, {
+-      opacity: [0, 1],
+-      duration: fadeInDuration,
+-      ease: 'outQuad'
++    // Animate the backdrop only; reading content stays fully painted throughout.
++    const transition = animate(overlay, {
++      opacity: [0, 1, 0],
++      duration: Number.isFinite(transitionMeta?.duration)
++        ? transitionMeta.duration
++        : profile?.duration || 560,
++      ease: 'inOutQuad'
+     });
+-    transitionAnimRef.current = enter;
+-
+-    enter.then(() => {
+-      if (cancelled) return;
+-      const chainedContent = content ? animate(content, {
+-        opacity: [0.88, 1],
+-        scale: [0.988, 1],
+-        duration: fadeOutDuration,
+-        ease: 'outQuad'
+-      }) : null;
+-      const chainedOverlay = animate(overlay, {
+-        opacity: [1, 0],
+-        duration: fadeOutDuration,
+-        ease: 'inOutQuad'
+-      });
+-      transitionAnimRef.current = {
+-        pause() {
+-          chainedContent?.pause?.();
+-          chainedOverlay?.pause?.();
+-        }
+-      };
+-    });
+-
+     return () => {
+-      cancelled = true;
+-      enter?.pause?.();
+-      transitionAnimRef.current?.pause?.();
++      transition.cancel();
++      overlay.style.opacity = '0';
+     };
+   }, [activeScene, prefersReducedMotion, transitionMeta?.duration]);
+ 
+@@ -235,10 +170,6 @@ export function SceneShell({
+   useEffect(() => {
+     return () => {
+       sounds.stop('narrative-ambient');
+-      if (transitionAnimRef.current?.pause) {
+-        transitionAnimRef.current.pause();
+-        transitionAnimRef.current = null;
+-      }
+     };
+   }, [sounds]);
+ 
+@@ -297,7 +228,7 @@ export function SceneShell({
+           }}
+           aria-hidden="true"
+         />
+-        <div ref={contentRef} className="relative z-[3]">
++        <div className="relative z-[3]">
+           {ActiveScene ? <ActiveScene sceneModels={sceneModels}>{children}</ActiveScene> : children}
+         </div>
+       </div>
+diff --git a/src/hooks/narrativeReadingModelUtils.js b/src/hooks/narrativeReadingModelUtils.js
+index 2ec8b00..65db542 100644
+--- a/src/hooks/narrativeReadingModelUtils.js
++++ b/src/hooks/narrativeReadingModelUtils.js
+@@ -111,6 +111,10 @@ export function deriveNarrativeVisibility({
+     && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
+   const canAutoGenerateVisuals = effectiveTier === 'plus' || effectiveTier === 'pro';
+   const canUseMediaGallery = Boolean(isAuthenticated && canAutoGenerateVisuals);
++  const isReadingComplete = Boolean(
++    personalReading && !isPersonalReadingError
++    && narrativePhase === 'complete' && !isReadingStreaming && !isGenerating
++  );
+   const autoGenerateVisuals = Boolean(
+     autoGenerateVisualsEnabled
+     && canAutoGenerateVisuals
+@@ -121,14 +125,12 @@ export function deriveNarrativeVisibility({
+     && !isGenerating
+   );
+   const shouldShowStoryIllustration = Boolean(
+-    personalReading
+-    && !isPersonalReadingError
++    isReadingComplete
+     && storyArtCards.length > 0
+   );
+   const shouldShowCinematicReveal = Boolean(
+     cinematicCard
+-    && personalReading
+-    && !isPersonalReadingError
++    && isReadingComplete
+     && canAutoGenerateVisuals
+   );
+   const shouldShowVisualCompanion = shouldShowStoryIllustration || shouldShowCinematicReveal;
+@@ -161,6 +163,7 @@ export function deriveNarrativeVisibility({
+ export function buildNarrativePanelModel({
+   personalReading,
+   isPersonalReadingError,
++  isReadingStreaming,
+   narrativePhase,
+   narrativeText,
+   fullReadingText,
+@@ -210,6 +213,7 @@ export function buildNarrativePanelModel({
+     isHandset,
+     personalReading,
+     shouldStreamNarrative,
++    isReadingStreaming,
+     narrativeText,
+     canAutoNarrate,
+     displayName,
+diff --git a/src/hooks/useNarrativeReadingController.js b/src/hooks/useNarrativeReadingController.js
+index dd7220c..8fc8119 100644
+--- a/src/hooks/useNarrativeReadingController.js
++++ b/src/hooks/useNarrativeReadingController.js
+@@ -51,6 +51,7 @@ export function useNarrativeReadingController({
+   shouldShowJournalNudge,
+   markJournalNudgeSeen,
+   saveReading,
++  onRetryNarrative,
+   isSaving,
+   hasHeroStoryArt,
+   handleNarrationStop,
+@@ -234,6 +235,7 @@ export function useNarrativeReadingController({
+   const panelModel = useMemo(() => buildNarrativePanelModel({
+     personalReading,
+     isPersonalReadingError,
++    isReadingStreaming,
+     narrativePhase,
+     narrativeText,
+     fullReadingText,
+@@ -270,6 +272,7 @@ export function useNarrativeReadingController({
+     isNarrativeFocus,
+     isPersonalReadingError,
+     isSaving,
++    isReadingStreaming,
+     journalStatus,
+     narrativeAtmosphereClassName,
+     narrativeHighlightPhrases,
+@@ -328,6 +331,7 @@ export function useNarrativeReadingController({
+   ]);
+ 
+   const panelCallbacks = useMemo(() => ({
++    onRetryNarrative,
+     onToggleNarrativeFocus: handleToggleNarrativeFocus,
+     onNarrationStart: handleNarration,
+     onStopNarration: handleNarrationStop,
+@@ -357,6 +361,7 @@ export function useNarrativeReadingController({
+     markJournalNudgeSeen,
+     notifyCompletion,
+     notifySectionEnter,
++    onRetryNarrative,
+     saveReading,
+     setShowVoicePrompt
+   ]);
+diff --git a/src/styles/tailwind.css b/src/styles/tailwind.css
+index 1885a01..bd07814 100644
+--- a/src/styles/tailwind.css
++++ b/src/styles/tailwind.css
+@@ -45,8 +45,22 @@
+ @tailwind components;
+ @tailwind utilities;
+ 
++.page-transition {
++  opacity: 1;
++}
++
++/* Decorative entrance only: route visibility never depends on animation. */
++@keyframes page-enter {
++  from { transform: translateY(4px); }
++  to { transform: translateY(0); }
++}
++
+ /* Smooth scroll behavior - disabled for users who prefer reduced motion */
+ @media (prefers-reduced-motion: no-preference) {
++  .page-transition {
++    animation: page-enter 280ms ease-out;
++  }
++
+   html {
+     scroll-behavior: smooth;
+   }
+diff --git a/src/styles/tarot.css b/src/styles/tarot.css
+index 0a9e145..1f59b79 100644
+--- a/src/styles/tarot.css
++++ b/src/styles/tarot.css
+@@ -3496,6 +3496,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
+   line-height: 1.75;
+   letter-spacing: 0.01em;
+   text-wrap: pretty;
++  overflow-wrap: anywhere;
+   hyphens: auto;
+   max-width: min(65ch, 100%);
+   margin-left: auto;
+@@ -3508,6 +3509,10 @@ input[type="range"]:focus::-webkit-slider-thumb {
+   text-align: left;
+ }
+ 
++.narrative-stream__text--plain > span {
++  max-width: 100%;
++}
++
+ .narrative-stream__text p + p {
+   margin-top: 1.2em;
+ }
+@@ -3972,9 +3977,16 @@ input[type="range"]:focus::-webkit-slider-thumb {
+ 
+ /* Mobile (<= 639px): tighten narrative padding */
+ @media (max-width: 639px) {
+-  .narrative-stream__text {
+-    padding-left: clamp(0.75rem, 4vw, 1.5rem);
+-    padding-right: clamp(0.75rem, 4vw, 1.5rem);
++  .narrative-stream {
++    padding-inline: 0;
++  }
++
++  .narrative-stream .narrative-stream__text {
++    padding-inline: 0;
++    border: 0;
++    box-shadow: none;
++    background: transparent;
++    scrollbar-gutter: auto;
+     line-height: 1.85;
+   }
+ }
+--- a/src/contexts/ReadingContext.jsx
++++ b/src/contexts/ReadingContext.jsx
+@@ -622,7 +622,7 @@
+                     }
+ 
+                     setNarrativePhase('polishing');
+-                    setSrAnnouncement('Step 3 of 3: Final polishing and assembling your narrative.');
++                    setSrAnnouncement('Your reading is ready.');
+ 
+                     const formatted = formatReading(finalText);
+                     formatted.isError = false;
+@@ -923,7 +923,7 @@
+         setReasoning(null);
+         setJournalStatus(null);
+         setNarrativePhase('analyzing');
+-        setSrAnnouncement('Step 1 of 3: Analyzing your spread, positions, and reflections.');
++        setSrAnnouncement('Preparing your personalized reading.');
+         setReadingMeta((prev) => ({ ...prev, requestId: null, ephemeris: null, sourceUsage: null }));
+         setLastCardsForFeedback([]);
+ 
+@@ -962,7 +962,7 @@
+                 .join('\n');
+ 
+             setNarrativePhase('analyzing');
+-            setSrAnnouncement('Step 1 of 3: Analyzing spread for your narrative.');
++            setSrAnnouncement('Preparing your personalized reading.');
+ 
+             const shouldAttachVisionProof = visionResearchEnabled && visionResults.length > 0;
+             if (shouldAttachVisionProof) {
+@@ -1033,7 +1033,7 @@
+             }
+ 
+             setNarrativePhase('drafting');
+-            setSrAnnouncement('Step 2 of 3: Drafting narrative insights.');
++            setSrAnnouncement('Your reading is being prepared.');
+ 
+             const startResponse = await fetch('/api/tarot-reading/jobs', {
+                 method: 'POST',
+--- /dev/null
++++ b/e2e/reading-hardening.spec.js
+@@ -0,0 +1,247 @@
++import http from 'node:http';
++import { test, expect } from '@playwright/test';
++
++const FINAL_TEXT = '## A grounded next step\n\nKeep one small commitment to yourself this week. Your choices remain your own.';
++
++// Hold a real SSE connection open so partial text cannot be mistaken for done.
++async function mockReadingJobs(page, firstStatus = 200) {
++  const clients = new Set();
++  const requests = [];
++  let eventId = 0;
++  const send = (response, event, data) => response.write(
++    `event: ${event}\ndata: ${JSON.stringify({ ...data, eventId: ++eventId })}\n\n`
++  );
++  const server = http.createServer((request, response) => {
++    response.setHeader('Access-Control-Allow-Origin', '*');
++    response.setHeader('Access-Control-Allow-Headers', 'X-Job-Token, Accept');
++    if (request.method === 'OPTIONS') {
++      response.writeHead(204);
++      response.end();
++      return;
++    }
++    response.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
++    clients.add(response);
++    response.on('close', () => clients.delete(response));
++    send(response, 'meta', { provider: 'fixture', requestId: 'hardening-reading' });
++  });
++  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
++  const streamUrl = `http://127.0.0.1:${server.address().port}/stream`;
++  await page.route('**/api/**', async route => {
++    const pathname = new URL(route.request().url()).pathname;
++    if (pathname === '/api/tarot-reading/jobs') {
++      requests.push(route.request().postDataJSON());
++      const status = requests.length === 1 ? firstStatus : 200;
++      return route.fulfill({ status, json: status === 200
++        ? { jobId: `hardening-${requests.length}`, jobToken: 'local-fixture-token' }
++        : { error: `Reading service returned ${status}. Please try again.` } });
++    }
++    if (pathname.endsWith('/stream')) return route.continue({ url: streamUrl });
++    if (pathname.endsWith('/cancel')) return route.fulfill({ json: { status: 'cancelled' } });
++    return route.fulfill({ status: pathname === '/api/auth/me' ? 401 : 404, json: { user: null } });
++  });
++  return {
++    requests,
++    async emit(event, data) {
++      await expect.poll(() => clients.size).toBeGreaterThan(0);
++      for (const response of clients) {
++        send(response, event, data);
++        if (event === 'done' || event === 'error') response.end();
++      }
++    },
++    async close() {
++      for (const response of clients) response.end();
++      server.closeAllConnections();
++      await new Promise(resolve => server.close(resolve));
++    }
++  };
++}
++
++async function openReading(page) {
++  await page.addInitScript(() => {
++    localStorage.setItem('tarot-onboarding-complete', 'true');
++    localStorage.setItem('tarot-nudge-state', JSON.stringify({
++      readingCount: 2, hasSeenRitualNudge: true, hasSeenGestureCoach: true,
++      hasSeenJournalNudge: true, journalSaveCount: 1
++    }));
++  });
++  await page.goto('/');
++  await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
++}
++
++async function prepareNarrative(page) {
++  await openReading(page);
++  const question = page.locator('#question-input, #quick-intention').filter({ visible: true }).first();
++  await question.fill('How can I find balance? 🌿 ما الذي يدعمني؟ 自分を大切にする');
++  await page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw/ }).click();
++  await page.getByRole('button', { name: /^Deal the cards/ }).click();
++  await page.getByRole('button', { name: /^Reveal all cards/ }).click();
++  await expect(page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ })).toBeEnabled();
++}
++
++async function generate(page) {
++  await page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ }).press('Enter');
++}
++
++async function effectiveOpacity(locator) {
++  return locator.evaluate(element => {
++    let opacity = 1;
++    for (let node = element; node; node = node.parentElement) opacity *= Number(getComputedStyle(node).opacity);
++    return opacity;
++  });
++}
++
++test('page remains painted when motion preference changes or its animation is paused', async ({ page }) => {
++  const jobs = await mockReadingJobs(page);
++  try {
++    await page.emulateMedia({ reducedMotion: 'no-preference' });
++    await openReading(page);
++    await page.evaluate(() => {
++      const wrapper = document.querySelector('.app-shell').parentElement;
++      for (const animation of wrapper.getAnimations()) {
++        animation.pause();
++        animation.currentTime = 0;
++      }
++    });
++    await page.emulateMedia({ reducedMotion: 'reduce' });
++    await expect.poll(() => effectiveOpacity(page.locator('#main-content'))).toBe(1);
++    await page.getByRole('button', { name: 'Journal', exact: true }).click();
++    await expect(page).toHaveURL(/\/journal$/);
++    await page.goBack();
++    await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
++    await expect.poll(() => effectiveOpacity(page.locator('#main-content'))).toBe(1);
++  } finally {
++    await jobs.close();
++  }
++});
++
++for (const width of [320, 390, 1440]) {
++  test(`partial server text never announces completion at ${width}px`, async ({ page }) => {
++    await page.setViewportSize({ width, height: 900 });
++    const jobs = await mockReadingJobs(page);
++    try {
++      await prepareNarrative(page);
++      await generate(page);
++      await expect(page.getByLabel('Generating your personalized narrative')).toBeVisible();
++      await jobs.emit('delta', { text: '## Opening\n\nA pause can help you notice what matters.' });
++      await expect(page.locator('.narrative-stream')).toContainText('A pause can help');
++      await expect(page.locator('.narrative-stream [role="status"]')).not.toContainText('Narrative ready');
++      await expect(page.locator('.narrative-stream [role="status"]')).toContainText(/still|preparing|progress/i);
++      await expect(page.getByRole('button', { name: 'Open visual studio' })).toHaveCount(0);
++      await jobs.emit('done', { fullText: FINAL_TEXT, requestId: 'hardening-reading', provider: 'fixture' });
++      await expect(page.locator('.narrative-stream')).toContainText('Keep one small commitment');
++      await expect(page.locator('.narrative-stream [role="status"]')).toHaveText('Narrative ready.');
++      await expect(page.getByRole('heading', { name: 'Your Personalized Narrative' })).toBeFocused();
++      await expect.poll(() => effectiveOpacity(page.locator('.narrative-stream'))).toBe(1);
++    } finally {
++      await jobs.close();
++    }
++  });
++}
++
++for (const status of [401, 403, 429, 500]) {
++  test(`desktop can retry a ${status} response without changing cards or the question`, async ({ page }) => {
++    await page.setViewportSize({ width: 1440, height: 1000 });
++    const jobs = await mockReadingJobs(page, status);
++    try {
++      await prepareNarrative(page);
++      await generate(page);
++      await expect(page.getByRole('alert')).toContainText(`Reading service returned ${status}`);
++      await expect(page.getByText('Narrative ready.', { exact: true })).toHaveCount(0);
++      await expect(page.getByRole('button', { name: /How did this reading land/ })).toHaveCount(0);
++      const retry = page.getByRole('button', { name: 'Retry narrative', exact: true });
++      await expect(retry).toBeVisible();
++      await retry.press('Enter');
++      await jobs.emit('done', { fullText: FINAL_TEXT, provider: 'fixture', requestId: 'hardening-retry' });
++      await expect(page.locator('.narrative-stream')).toContainText('Keep one small commitment');
++      expect(jobs.requests).toHaveLength(2);
++      expect(jobs.requests[1]).toEqual(jobs.requests[0]);
++    } finally {
++      await jobs.close();
++    }
++  });
++}
++
++test('a mid-stream failure is an error, not a finished reading', async ({ page }) => {
++  const jobs = await mockReadingJobs(page);
++  try {
++    await prepareNarrative(page);
++    await generate(page);
++    await jobs.emit('delta', { text: 'Partial reading that is not complete.' });
++    await expect(page.locator('.narrative-stream')).toContainText('Partial reading');
++    await jobs.emit('error', { message: 'Connection interrupted. Please retry your reading.' });
++    await expect(page.getByRole('alert')).toContainText('Connection interrupted');
++    await expect(page.getByText('Narrative ready.', { exact: true })).toHaveCount(0);
++    await expect(page.getByRole('heading', { name: 'Your reading could not be completed' })).toBeFocused();
++    await expect(page.getByRole('button', { name: /How did this reading land/ })).toHaveCount(0);
++  } finally {
++    await jobs.close();
++  }
++});
++
++test('narrow readings keep usable text width and contain long mixed-script content', async ({ page }) => {
++  await page.setViewportSize({ width: 320, height: 740 });
++  const jobs = await mockReadingJobs(page);
++  try {
++    await prepareNarrative(page);
++    await generate(page);
++    const longText = `## Reflection 🌿\n\n${'LongUnbrokenReflection'.repeat(15)}\n\nما الذي يدعمني؟ 自分を大切にする\n\n${FINAL_TEXT}`;
++    await jobs.emit('done', { fullText: longText, provider: 'fixture' });
++    const paragraph = page.locator('[data-scene="complete"] .narrative-stream__text p').last();
++    await expect(paragraph).toContainText('Keep one small commitment');
++    await expect.poll(async () => (await paragraph.boundingBox())?.width || 0).toBeGreaterThanOrEqual(200);
++    const overflow = await page.locator('.narrative-stream__text').evaluate(node => ({
++      // The decorative atmosphere intentionally extends beyond its clipping box.
++      // Check the text itself, so clipped words cannot pass as contained content.
++      text: [...node.querySelectorAll('p, h2, h3')].map(element => ({
++        scroll: element.scrollWidth, client: element.clientWidth
++      })),
++      page: document.documentElement.scrollWidth, viewport: window.innerWidth
++    }));
++    for (const element of overflow.text) expect(element.scroll).toBeLessThanOrEqual(element.client + 1);
++    expect(overflow.page).toBeLessThanOrEqual(overflow.viewport + 1);
++  } finally {
++    await jobs.close();
++  }
++});
++
++test('a delayed request stays truthful and completion preserves focus chosen elsewhere', async ({ page }) => {
++  test.setTimeout(45000);
++  const jobs = await mockReadingJobs(page);
++  try {
++    await prepareNarrative(page);
++    await generate(page);
++    await expect(page.getByRole('heading', { name: 'Preparing your reading' })).toBeFocused();
++    await expect(page.locator('.narrative-skeleton [role="status"]')).toContainText('taking longer than usual', { timeout: 16000 });
++    await expect(page.getByText(/Almost there|Step [123] of 3/)).toHaveCount(0);
++    const readingStep = page.getByRole('button', { name: 'Step 4: Reading', exact: true });
++    await readingStep.focus();
++    await jobs.emit('done', { fullText: FINAL_TEXT, provider: 'fixture' });
++    await expect(page.locator('.narrative-stream')).toContainText('Keep one small commitment');
++    await expect(readingStep).toBeFocused();
++  } finally {
++    await jobs.close();
++  }
++});
++
++test('mobile retry and motion changes remain usable through generation and failure', async ({ page }) => {
++  await page.setViewportSize({ width: 390, height: 844 });
++  const jobs = await mockReadingJobs(page);
++  try {
++    await page.emulateMedia({ reducedMotion: 'no-preference' });
++    await prepareNarrative(page);
++    await generate(page);
++    await page.emulateMedia({ reducedMotion: 'reduce' });
++    await expect.poll(() => effectiveOpacity(page.locator('.narrative-skeleton'))).toBe(1);
++    await jobs.emit('error', { message: 'The connection was interrupted.' });
++    await expect(page.getByRole('alert')).toContainText('connection was interrupted');
++    await page.getByRole('button', { name: /Retry narrative generation/ }).press('Enter');
++    await page.emulateMedia({ reducedMotion: 'no-preference' });
++    await jobs.emit('done', { fullText: FINAL_TEXT, provider: 'fixture' });
++    await expect(page.locator('.narrative-stream')).toContainText('Keep one small commitment');
++    await expect.poll(() => effectiveOpacity(page.locator('.narrative-stream'))).toBe(1);
++    expect(jobs.requests).toHaveLength(2);
++    expect(jobs.requests[1]).toEqual(jobs.requests[0]);
++  } finally {
++    await jobs.close();
++  }
++});

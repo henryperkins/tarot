@@ -516,6 +516,109 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
 
 });
 
+test.describe('Reading stream recovery @desktop', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+  const runtimeErrors = new WeakMap();
+
+  test.beforeEach(async ({ page }) => {
+    const errors = [];
+    runtimeErrors.set(page, errors);
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.addInitScript(getTestSetupScript());
+    await page.route('**/api/**', (route) => route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ user: null, configured: true, provider: 'mock' })
+    }));
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await waitForAppReady(page);
+    await selectSpread(page, 'One-Card');
+    await page.locator('textarea').first().fill('What should I notice this week?');
+    await skipRitual(page);
+    await page.getByRole('button', { name: /^Deal the cards/ }).click();
+    await expect(page.getByRole('button', { name: 'Create Personal Narrative' })).toBeVisible();
+  });
+
+  test.afterEach(async ({ page }, testInfo) => {
+    expect(runtimeErrors.get(page)).toEqual([]);
+    await expect(page.locator('vite-error-overlay')).toHaveCount(0);
+    if (testInfo.status === testInfo.expectedStatus) {
+      await page.screenshot({ path: testInfo.outputPath('recovery.png') });
+    }
+  });
+
+  for (const partial of [false, true]) {
+    test(`interrupted job stream reconnects ${partial ? 'after partial text' : 'before any output'}`, async ({ page }) => {
+      let starts = 0;
+      await mockTarotReading(page, {}, { onJobStart: () => { starts += 1; } });
+      const cursors = [];
+      await page.route(/\/api\/tarot-reading\/jobs\/[^/?]+\/stream(?:\?.*)?$/, async (route) => {
+        cursors.push(new URL(route.request().url()).searchParams.get('cursor'));
+        const first = cursors.length === 1;
+        await route.fulfill({
+          contentType: 'text/event-stream',
+          body: first
+            ? (partial ? 'event: delta\ndata: {"text":"A recovered ","eventId":1}\n\n' : ': connected\n\n')
+            : 'event: delta\ndata: {"text":"narrative.","eventId":2}\n\n' +
+              'event: done\ndata: {"fullText":"A recovered narrative.","eventId":3,"provider":"mock"}\n\n'
+        });
+      });
+      await generateNarrative(page);
+      await expect(page.getByText('A recovered narrative.', { exact: true })).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('.narrative-stream').first().locator('p.sr-only[role="status"]')).toHaveText(/narrative ready/i);
+      expect(cursors).toEqual(['0', partial ? '1' : '0']);
+      expect(starts).toBe(1);
+      expect(await page.evaluate(() => sessionStorage.getItem('tarot:reading-job'))).toBeNull();
+    });
+  }
+
+  test('exhausted job reconnects release generation and allow a new reading', async ({ page }) => {
+    let starts = 0;
+    let streams = 0;
+    await mockTarotReading(page, {}, { onJobStart: () => { starts += 1; } });
+    await page.route(/\/api\/tarot-reading\/jobs\/[^/?]+\/stream(?:\?.*)?$/, async (route) => {
+      streams += 1;
+      await route.fulfill({
+        contentType: 'text/event-stream',
+        body: starts === 1 ? ': connected\n\n' :
+          'event: done\ndata: {"fullText":"The next attempt completed.","eventId":1,"provider":"mock"}\n\n'
+      });
+    });
+    // Unit tests verify exact backoff delays; shorten only those waits here.
+    // Replacing the whole browser clock interferes with the animated UI.
+    await page.evaluate(() => {
+      const original = window.setTimeout;
+      window.setTimeout = (callback, delay, ...args) => original(
+        callback, [1000, 2000, 4000, 8000, 16000].includes(delay) ? 10 : delay, ...args
+      );
+    });
+    await generateNarrative(page);
+    await expect(page.getByText('The reading connection was interrupted. Please try again in a moment.', { exact: true }).first()).toBeVisible();
+    expect(streams).toBe(6);
+    expect(starts).toBe(1);
+    expect(await page.evaluate(() => sessionStorage.getItem('tarot:reading-job'))).toBeNull();
+    await startNewReading(page);
+    await page.getByRole('button', { name: /^Deal the cards/ }).click();
+    await generateNarrative(page);
+    await expect(page.getByText('The next attempt completed.', { exact: true })).toBeVisible();
+    expect(starts).toBe(2);
+  });
+
+  test('restored job survives StrictMode effect cleanup and completes', async ({ page }) => {
+    await mockTarotReading(page, { reading: 'The restored reading completed.' });
+    await page.addInitScript(() => {
+      sessionStorage.setItem('tarot:reading-job', JSON.stringify({
+        jobId: 'mock-reading-job', jobToken: 'mock-reading-token', cursor: 0
+      }));
+    });
+    await page.reload();
+    // Cards are not persisted across reloads, so the narrative panel is hidden.
+    // The completion announcement and cleared job prove the resumed reader ran.
+    await expect(page.getByRole('status').first()).toHaveText('Your reading is ready.');
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem('tarot:reading-job'))).toBeNull();
+  });
+
+});
+
 // ============================================================================
 // MOBILE TESTS
 // ============================================================================

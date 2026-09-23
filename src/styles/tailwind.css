@@ -45,8 +45,22 @@
 @tailwind components;
 @tailwind utilities;
 
+.page-transition {
+  opacity: 1;
+}
+
+/* Decorative entrance only: route visibility never depends on animation. */
+@keyframes page-enter {
+  from { transform: translateY(4px); }
+  to { transform: translateY(0); }
+}
+
 /* Smooth scroll behavior - disabled for users who prefer reduced motion */
 @media (prefers-reduced-motion: no-preference) {
+  .page-transition {
+    animation: page-enter 280ms ease-out;
+  }
+
   html {
     scroll-behavior: smooth;
   }

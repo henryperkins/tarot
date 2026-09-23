@@ -1,0 +1,1108 @@
+[
+  {
+    "label": "desktop-1440",
+    "anchor": {
+      "height": 20,
+      "width": 876,
+      "x": 274.3333435058594,
+      "y": 219.8541717529297
+    },
+    "heading": {
+      "height": 32,
+      "width": 360,
+      "x": 257.66668701171875,
+      "y": 153.1875
+    },
+    "insets": [
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 3507.78125,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "selector": "main",
+        "width": 1280,
+        "x": 72.33333587646484,
+        "y": -99.33333587646484
+      },
+      {
+        "borderLeft": "0.666667px",
+        "borderRight": "0.666667px",
+        "height": 3311.260498046875,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".scene-shell--reading",
+        "width": 1232,
+        "x": 96.33333587646484,
+        "y": 57.1875
+      },
+      {
+        "borderLeft": "0.666667px",
+        "borderRight": "0.666667px",
+        "height": 3245.92724609375,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "selector": ".scene-stage__panel",
+        "width": 1024,
+        "x": 200.33334350585935,
+        "y": 89.85417175292969
+      },
+      {
+        "borderLeft": "0.666667px",
+        "borderRight": "0.666667px",
+        "height": 2469.55224609375,
+        "paddingLeft": "32px",
+        "paddingRight": "32px",
+        "selector": ".narrative-panel",
+        "width": 974.6666870117188,
+        "x": 225,
+        "y": 114.52083587646484
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2093.30224609375,
+        "paddingLeft": "4px",
+        "paddingRight": "4px",
+        "selector": ".narrative-stream",
+        "width": 768,
+        "x": 328.3333435058594,
+        "y": 398.1041870117187
+      },
+      {
+        "borderLeft": "0.666667px",
+        "borderRight": "0.666667px",
+        "height": 2053.30224609375,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream__text",
+        "width": 670.9791870117188,
+        "x": 376.84375,
+        "y": 398.1041870117187
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2003.96875,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "selector": ".narrative-stream__markdown",
+        "width": 638.9791870117188,
+        "x": 392.84375,
+        "y": 422.7708435058594
+      }
+    ],
+    "prose": {
+      "height": 108,
+      "width": 590.9791870117188,
+      "x": 416.84375,
+      "y": 466.7708435058594
+    },
+    "questionAboveProse": true,
+    "questionCount": 1,
+    "targets": [
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Focus on narrative",
+        "width": 158.8125,
+        "x": 1008.1875,
+        "y": 147.1875
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Read this aloudPlay",
+        "width": 134.8854217529297,
+        "x": 498.1770935058594,
+        "y": 2507.40625
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Save to Journal",
+        "width": 150.05209350585938,
+        "x": 645.0625,
+        "y": 2507.40625
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "View Journal",
+        "width": 119.36458587646484,
+        "x": 807.1146240234375,
+        "y": 2507.40625
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Open visual studio",
+        "width": 182.70834350585935,
+        "x": 990.6979370117188,
+        "y": 2642.33349609375
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Open chat",
+        "width": 126.91667175292967,
+        "x": 895.15625,
+        "y": 3014.1875
+      },
+      {
+        "disabled": false,
+        "height": 60,
+        "name": "Start a new reading and reset this spread",
+        "width": 250.875,
+        "x": 586.8958740234375,
+        "y": 3116.447998046875
+      },
+      {
+        "disabled": false,
+        "height": 61.33333587646485,
+        "name": "How did this reading land?Share quick ratings to tune quality.",
+        "width": 630.6666870117188,
+        "x": 397,
+        "y": 3229.11474609375
+      }
+    ],
+    "viewport": {
+      "clientWidth": 1425,
+      "height": 1000,
+      "scrollWidth": 1433,
+      "width": 1440
+    }
+  },
+  {
+    "label": "phone-390",
+    "anchor": {
+      "height": 45.5,
+      "width": 342.66668701171875,
+      "x": 16,
+      "y": 108.78125
+    },
+    "heading": {
+      "height": 28,
+      "width": 342.66668701171875,
+      "x": 16,
+      "y": 68.78125
+    },
+    "insets": [
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 3236.541748046875,
+        "paddingLeft": "16px",
+        "paddingRight": "16px",
+        "selector": "main",
+        "width": 374.6666870117187,
+        "x": 0,
+        "y": -99.33333587646484
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 3052.42724609375,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".scene-shell--reading",
+        "width": 342.66668701171875,
+        "x": 16,
+        "y": 28.78125
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 3004.42724609375,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".scene-stage__panel",
+        "width": 342.66668701171875,
+        "x": 16,
+        "y": 52.78125
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2566.36474609375,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-panel",
+        "width": 342.66668701171875,
+        "x": 16,
+        "y": 52.78125
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2234.03125,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream",
+        "width": 342.66668701171875,
+        "x": 16,
+        "y": 309.1145935058594
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2214.03125,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream__text",
+        "width": 342.66668701171875,
+        "x": 16,
+        "y": 309.1145935058594
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2166.03125,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream__markdown",
+        "width": 342.66668701171875,
+        "x": 16,
+        "y": 333.1145935058594
+      }
+    ],
+    "prose": {
+      "height": 102.375,
+      "width": 342.66668701171875,
+      "x": 16,
+      "y": 381.1145935058594
+    },
+    "questionAboveProse": true,
+    "questionCount": 1,
+    "targets": [
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Read this aloudPlay",
+        "width": 112.375,
+        "x": 77.60417175292969,
+        "y": 2559.14599609375
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "View Journal",
+        "width": 99.08333587646484,
+        "x": 197.9791717529297,
+        "y": 2559.14599609375
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Open visual studio",
+        "width": 182.70834350585935,
+        "x": 32.66666793823242,
+        "y": 2768.541748046875
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Spread Insights(3)",
+        "width": 309.3333435058594,
+        "x": 32.66666793823242,
+        "y": 2877.875
+      },
+      {
+        "disabled": false,
+        "height": 61.33333587646485,
+        "name": "How did this reading land?Share quick ratings to tune quality.",
+        "width": 309.3333435058594,
+        "x": 32.66666793823242,
+        "y": 2979.20849609375
+      }
+    ],
+    "viewport": {
+      "clientWidth": 375,
+      "height": 844,
+      "scrollWidth": 383,
+      "width": 390
+    }
+  },
+  {
+    "label": "phone-320",
+    "anchor": {
+      "height": 68.25,
+      "width": 272.66668701171875,
+      "x": 16,
+      "y": 136.78125
+    },
+    "heading": {
+      "height": 56,
+      "width": 272.66668701171875,
+      "x": 16,
+      "y": 68.78125
+    },
+    "insets": [
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 4093.291748046875,
+        "paddingLeft": "16px",
+        "paddingRight": "16px",
+        "selector": "main",
+        "width": 304.66668701171875,
+        "x": 0,
+        "y": -99.33333587646484
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 3909.17724609375,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".scene-shell--reading",
+        "width": 272.66668701171875,
+        "x": 16,
+        "y": 28.78125
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 3861.17724609375,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".scene-stage__panel",
+        "width": 272.66668701171875,
+        "x": 16,
+        "y": 52.78125
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 3395.11474609375,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-panel",
+        "width": 272.66668701171875,
+        "x": 16,
+        "y": 52.78125
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2953.53125,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream",
+        "width": 272.66668701171875,
+        "x": 16,
+        "y": 418.3645935058594
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2933.53125,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream__text",
+        "width": 272.66668701171875,
+        "x": 16,
+        "y": 418.3645935058594
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2909.53125,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream__markdown",
+        "width": 272.66668701171875,
+        "x": 16,
+        "y": 418.3645935058594
+      }
+    ],
+    "prose": {
+      "height": 127.96875,
+      "width": 272.66668701171875,
+      "x": 16,
+      "y": 530.3646240234375
+    },
+    "questionAboveProse": true,
+    "questionCount": 1,
+    "targets": [
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Read this aloudPlay",
+        "width": 49.21875,
+        "x": 74.17708587646484,
+        "y": 3387.89599609375
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "View Journal",
+        "width": 99.08333587646484,
+        "x": 131.39584350585938,
+        "y": 3387.89599609375
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Open visual studio",
+        "width": 182.70834350585935,
+        "x": 32.66666793823242,
+        "y": 3597.291748046875
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Spread Insights(3)",
+        "width": 239.33334350585935,
+        "x": 32.66666793823242,
+        "y": 3706.625
+      },
+      {
+        "disabled": false,
+        "height": 97.33333587646484,
+        "name": "How did this reading land?Share quick ratings to tune quality.",
+        "width": 247.33334350585935,
+        "x": 28.666667938232425,
+        "y": 3803.95849609375
+      }
+    ],
+    "viewport": {
+      "clientWidth": 305,
+      "height": 740,
+      "scrollWidth": 313,
+      "width": 320
+    }
+  },
+  {
+    "label": "tablet-768",
+    "anchor": {
+      "height": 22.75,
+      "width": 540.6666870117188,
+      "x": 106,
+      "y": -2558.14599609375
+    },
+    "heading": {
+      "height": 32,
+      "width": 360,
+      "x": 106,
+      "y": -2606.14599609375
+    },
+    "insets": [
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 3882.14599609375,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "selector": "main",
+        "width": 752.6666870117188,
+        "x": 0,
+        "y": -2844.666748046875
+      },
+      {
+        "borderLeft": "0.666667px",
+        "borderRight": "0.666667px",
+        "height": 3701.625,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".scene-shell--reading",
+        "width": 704.6666870117188,
+        "x": 24,
+        "y": -2696.14599609375
+      },
+      {
+        "borderLeft": "0.666667px",
+        "borderRight": "0.666667px",
+        "height": 3636.291748046875,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "selector": ".scene-stage__panel",
+        "width": 655.3333740234375,
+        "x": 48.66666793823242,
+        "y": -2663.479248046875
+      },
+      {
+        "borderLeft": "0.666667px",
+        "borderRight": "0.666667px",
+        "height": 2903.4375,
+        "paddingLeft": "32px",
+        "paddingRight": "32px",
+        "selector": ".narrative-panel",
+        "width": 606,
+        "x": 73.33333587646484,
+        "y": -2638.8125
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2564.02099609375,
+        "paddingLeft": "4px",
+        "paddingRight": "4px",
+        "selector": ".narrative-stream",
+        "width": 540.6666870117188,
+        "x": 106,
+        "y": -2392.0625
+      },
+      {
+        "borderLeft": "0.666667px",
+        "borderRight": "0.666667px",
+        "height": 2533.30224609375,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream__text",
+        "width": 532.6666870117188,
+        "x": 110,
+        "y": -2392.0625
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2483.96875,
+        "paddingLeft": "16px",
+        "paddingRight": "16px",
+        "selector": ".narrative-stream__markdown",
+        "width": 500.6666870117187,
+        "x": 126,
+        "y": -2367.39599609375
+      }
+    ],
+    "prose": {
+      "height": 144,
+      "width": 468.6666870117187,
+      "x": 142,
+      "y": -2323.39599609375
+    },
+    "questionAboveProse": true,
+    "questionCount": 1,
+    "targets": [
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Read this aloudPlay",
+        "width": 134.8854217529297,
+        "x": 243.20834350585935,
+        "y": 187.95834350585935
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "View Journal",
+        "width": 119.36458587646484,
+        "x": 390.09375,
+        "y": 187.95834350585935
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Open visual studio",
+        "width": 182.70834350585935,
+        "x": 474.3645935058594,
+        "y": 342.88543701171875
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Spread Insights(3)",
+        "width": 556.6666870117188,
+        "x": 98,
+        "y": 489.8125
+      },
+      {
+        "disabled": false,
+        "height": 60,
+        "name": "Start a new reading and reset this spread",
+        "width": 250.875,
+        "x": 250.89584350585935,
+        "y": 753.4791870117188
+      },
+      {
+        "disabled": false,
+        "height": 61.33333587646485,
+        "name": "How did this reading land?Share quick ratings to tune quality.",
+        "width": 564.6666870117188,
+        "x": 94,
+        "y": 866.1458740234375
+      }
+    ],
+    "viewport": {
+      "clientWidth": 753,
+      "height": 1024,
+      "scrollWidth": 761,
+      "width": 768
+    }
+  },
+  {
+    "label": "phone-390-text-size-200-percent",
+    "anchor": {
+      "height": 182,
+      "width": 310.66668701171875,
+      "x": 32,
+      "y": 500.2604370117187
+    },
+    "heading": {
+      "height": 168,
+      "width": 310.66668701171875,
+      "x": 32,
+      "y": 308.26043701171875
+    },
+    "insets": [
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 12743.0732421875,
+        "paddingLeft": "32px",
+        "paddingRight": "32px",
+        "selector": "main",
+        "width": 374.6666870117187,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 12402.8125,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".scene-shell--reading",
+        "width": 310.66668701171875,
+        "x": 32,
+        "y": 228.2604217529297
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 12306.8125,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".scene-stage__panel",
+        "width": 310.66668701171875,
+        "x": 32,
+        "y": 276.26043701171875
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 9794.1357421875,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-panel",
+        "width": 310.66668701171875,
+        "x": 32,
+        "y": 276.26043701171875
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 8518.1357421875,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream",
+        "width": 310.66668701171875,
+        "x": 32,
+        "y": 1341.59375
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 8478.1357421875,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream__text",
+        "width": 310.66668701171875,
+        "x": 32,
+        "y": 1341.59375
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 8382.1357421875,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream__markdown",
+        "width": 310.66668701171875,
+        "x": 32,
+        "y": 1389.59375
+      }
+    ],
+    "prose": {
+      "height": 460.78125,
+      "width": 310.66668701171875,
+      "x": 32,
+      "y": 1549.59375
+    },
+    "questionAboveProse": true,
+    "questionCount": 1,
+    "targets": [
+      {
+        "disabled": false,
+        "height": 65.33333587646484,
+        "name": "Read this aloudPlay",
+        "width": 215.5,
+        "x": 79.58333587646484,
+        "y": 9891.7294921875
+      },
+      {
+        "disabled": false,
+        "height": 65.33333587646484,
+        "name": "View Journal",
+        "width": 189.5729217529297,
+        "x": 92.54167175292967,
+        "y": 9973.0625
+      },
+      {
+        "disabled": false,
+        "height": 150.92709350585938,
+        "name": "Open visual studio",
+        "width": 245.33334350585935,
+        "x": 64.66667175292969,
+        "y": 10541.9794921875
+      },
+      {
+        "disabled": false,
+        "height": 200,
+        "name": "Spread Insights(3)",
+        "width": 245.33334350585935,
+        "x": 64.66667175292969,
+        "y": 10822.240234375
+      },
+      {
+        "disabled": false,
+        "height": 409.3333435058594,
+        "name": "How did this reading land?Share quick ratings to tune quality.",
+        "width": 245.33334350585935,
+        "x": 64.66667175292969,
+        "y": 12141.0732421875
+      }
+    ],
+    "viewport": {
+      "clientWidth": 375,
+      "height": 844,
+      "scrollWidth": 383,
+      "width": 390
+    }
+  },
+  {
+    "label": "phone-390-simulated-safe-area-44",
+    "anchor": {
+      "height": 45.5,
+      "width": 286.66668701171875,
+      "x": 44,
+      "y": 226.52084350585935
+    },
+    "heading": {
+      "height": 56,
+      "width": 286.66668701171875,
+      "x": 44,
+      "y": 158.52084350585938
+    },
+    "insets": [
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 3863.979248046875,
+        "paddingLeft": "16px",
+        "paddingRight": "16px",
+        "selector": "main",
+        "width": 374.6666870117187,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 3689.45849609375,
+        "paddingLeft": "28px",
+        "paddingRight": "28px",
+        "selector": ".scene-shell--reading",
+        "width": 342.66668701171875,
+        "x": 16,
+        "y": 118.52083587646484
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 3641.45849609375,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".scene-stage__panel",
+        "width": 286.66668701171875,
+        "x": 44,
+        "y": 142.52084350585938
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2914.89599609375,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-panel",
+        "width": 286.66668701171875,
+        "x": 44,
+        "y": 142.52084350585938
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2515.5625,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream",
+        "width": 286.66668701171875,
+        "x": 44,
+        "y": 465.8541870117187
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2495.5625,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream__text",
+        "width": 286.66668701171875,
+        "x": 44,
+        "y": 465.8541870117187
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2447.5625,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream__markdown",
+        "width": 286.66668701171875,
+        "x": 44,
+        "y": 489.8541870117187
+      }
+    ],
+    "prose": {
+      "height": 127.96875,
+      "width": 286.66668701171875,
+      "x": 44,
+      "y": 537.8541870117188
+    },
+    "questionAboveProse": true,
+    "questionCount": 1,
+    "targets": [
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Read this aloudPlay",
+        "width": 112.375,
+        "x": 77.60417175292969,
+        "y": 2997.416748046875
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "View Journal",
+        "width": 99.08333587646484,
+        "x": 197.9791717529297,
+        "y": 2997.416748046875
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Open visual studio",
+        "width": 182.70834350585935,
+        "x": 60.66666793823242,
+        "y": 3206.8125
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Spread Insights(3)",
+        "width": 253.33334350585935,
+        "x": 60.66666793823242,
+        "y": 3316.14599609375
+      },
+      {
+        "disabled": false,
+        "height": 97.33333587646484,
+        "name": "How did this reading land?Share quick ratings to tune quality.",
+        "width": 253.33334350585935,
+        "x": 60.66666793823242,
+        "y": 3669.979248046875
+      }
+    ],
+    "viewport": {
+      "clientWidth": 375,
+      "height": 844,
+      "scrollWidth": 383,
+      "width": 390
+    }
+  },
+  {
+    "label": "landscape-844x390",
+    "anchor": {
+      "height": 20,
+      "width": 583.3333740234375,
+      "x": 122.66667175292967,
+      "y": 304
+    },
+    "heading": {
+      "height": 32,
+      "width": 360,
+      "x": 106,
+      "y": 237.33334350585935
+    },
+    "insets": [
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 3694.09375,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "selector": "main",
+        "width": 828.6666870117188,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "borderLeft": "0.666667px",
+        "borderRight": "0.666667px",
+        "height": 3520.760498046875,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".scene-shell--reading",
+        "width": 780.6666870117188,
+        "x": 24,
+        "y": 141.33334350585938
+      },
+      {
+        "borderLeft": "0.666667px",
+        "borderRight": "0.666667px",
+        "height": 3455.42724609375,
+        "paddingLeft": "24px",
+        "paddingRight": "24px",
+        "selector": ".scene-stage__panel",
+        "width": 731.3333740234375,
+        "x": 48.66666793823242,
+        "y": 174
+      },
+      {
+        "borderLeft": "0.666667px",
+        "borderRight": "0.666667px",
+        "height": 2658.05224609375,
+        "paddingLeft": "32px",
+        "paddingRight": "32px",
+        "selector": ".narrative-panel",
+        "width": 682,
+        "x": 73.33333587646484,
+        "y": 198.6666717529297
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2259.05224609375,
+        "paddingLeft": "4px",
+        "paddingRight": "4px",
+        "selector": ".narrative-stream",
+        "width": 616.6666870117188,
+        "x": 106,
+        "y": 505
+      },
+      {
+        "borderLeft": "0.666667px",
+        "borderRight": "0.666667px",
+        "height": 2225.30224609375,
+        "paddingLeft": "0px",
+        "paddingRight": "0px",
+        "selector": ".narrative-stream__text",
+        "width": 608.6666870117188,
+        "x": 110,
+        "y": 505
+      },
+      {
+        "borderLeft": "0px",
+        "borderRight": "0px",
+        "height": 2183.96875,
+        "paddingLeft": "16px",
+        "paddingRight": "16px",
+        "selector": ".narrative-stream__markdown",
+        "width": 576.6666870117188,
+        "x": 126,
+        "y": 529.6666870117188
+      }
+    ],
+    "prose": {
+      "height": 108,
+      "width": 544.6666870117188,
+      "x": 142,
+      "y": 573.6666870117188
+    },
+    "questionAboveProse": true,
+    "questionCount": 1,
+    "targets": [
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Focus on narrative",
+        "width": 158.8125,
+        "x": 563.8541870117188,
+        "y": 231.33334350585935
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Read this aloudPlay",
+        "width": 134.8854217529297,
+        "x": 200.17709350585935,
+        "y": 2780.05224609375
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Save to Journal",
+        "width": 150.05209350585938,
+        "x": 347.0625,
+        "y": 2780.05224609375
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "View Journal",
+        "width": 119.36458587646484,
+        "x": 509.1145935058594,
+        "y": 2780.05224609375
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Open visual studio",
+        "width": 182.70834350585935,
+        "x": 550.3646240234375,
+        "y": 2916.979248046875
+      },
+      {
+        "disabled": false,
+        "height": 44,
+        "name": "Open chat",
+        "width": 126.91667175292967,
+        "x": 601.15625,
+        "y": 3311.83349609375
+      },
+      {
+        "disabled": false,
+        "height": 60,
+        "name": "Start a new reading and reset this spread",
+        "width": 250.875,
+        "x": 288.8958435058594,
+        "y": 3410.09375
+      },
+      {
+        "disabled": false,
+        "height": 61.33333587646485,
+        "name": "How did this reading land?Share quick ratings to tune quality.",
+        "width": 630.6666870117188,
+        "x": 99,
+        "y": 3522.760498046875
+      }
+    ],
+    "viewport": {
+      "clientWidth": 829,
+      "height": 390,
+      "scrollWidth": 837,
+      "width": 844
+    }
+  }
+]

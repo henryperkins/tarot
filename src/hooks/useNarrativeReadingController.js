@@ -51,6 +51,7 @@ export function useNarrativeReadingController({
   shouldShowJournalNudge,
   markJournalNudgeSeen,
   saveReading,
+  onRetryNarrative,
   isSaving,
   hasHeroStoryArt,
   handleNarrationStop,
@@ -234,6 +235,7 @@ export function useNarrativeReadingController({
   const panelModel = useMemo(() => buildNarrativePanelModel({
     personalReading,
     isPersonalReadingError,
+    isReadingStreaming,
     narrativePhase,
     narrativeText,
     fullReadingText,
@@ -270,6 +272,7 @@ export function useNarrativeReadingController({
     isNarrativeFocus,
     isPersonalReadingError,
     isSaving,
+    isReadingStreaming,
     journalStatus,
     narrativeAtmosphereClassName,
     narrativeHighlightPhrases,
@@ -328,6 +331,7 @@ export function useNarrativeReadingController({
   ]);
 
   const panelCallbacks = useMemo(() => ({
+    onRetryNarrative,
     onToggleNarrativeFocus: handleToggleNarrativeFocus,
     onNarrationStart: handleNarration,
     onStopNarration: handleNarrationStop,
@@ -357,6 +361,7 @@ export function useNarrativeReadingController({
     markJournalNudgeSeen,
     notifyCompletion,
     notifySectionEnter,
+    onRetryNarrative,
     saveReading,
     setShowVoicePrompt
   ]);
