@@ -167,6 +167,15 @@ export function mergePersonalizationSources(...sources) {
   return merged;
 }
 
+// Column DEFAULTs from migrations/0020_add_user_preferences.sql. Nothing writes
+// these columns, so a default is indistinguishable from "never chosen" and must
+// not override the preferences saved with the latest journal entry.
+const USERS_PREFERENCE_COLUMN_DEFAULTS = Object.freeze({
+  readingTone: 'balanced',
+  spiritualFrame: 'mixed',
+  preferredSpreadDepth: 'standard'
+});
+
 async function loadUserPreferencesRow(db, userId) {
   if (!db || !userId) return null;
 
@@ -177,12 +186,17 @@ async function loadUserPreferencesRow(db, userId) {
 
   if (!result) return null;
 
-  return sanitizePersonalizationInput({
+  const preferences = sanitizePersonalizationInput({
     displayName: result.display_name,
     readingTone: result.reading_tone,
     spiritualFrame: result.spiritual_frame,
     preferredSpreadDepth: result.preferred_spread_depth
   });
+  for (const [field, columnDefault] of Object.entries(USERS_PREFERENCE_COLUMN_DEFAULTS)) {
+    if (preferences[field] === columnDefault) delete preferences[field];
+  }
+  if (preferences.displayName === '') delete preferences.displayName;
+  return preferences;
 }
 
 async function loadLatestJournalPreferences(db, userId) {

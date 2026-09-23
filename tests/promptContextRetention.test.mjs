@@ -118,3 +118,30 @@ it('reports partial effective retention when a deduplicated global reflection sh
   assert.equal(fields.reflections.representationTruncated, true);
   assert.equal(fields.reflections.representedLength, fields['card-0'].includedLength);
 });
+
+it('sends each reflection once when the global reflections repeat the per-card notes as "Position: text" lines', () => {
+  const cardsInfo = [
+    { ...card, position: 'Past — influences that led here', userReflection: 'I miss the house on Elm Street.' },
+    { ...card, card: 'The Moon', number: 18, position: 'Present — where you stand now', userReflection: '' },
+    { ...card, card: 'The Star', number: 17, position: 'Future — trajectory if nothing shifts', userReflection: 'Hope feels fragile but real.' }
+  ];
+  const reflectionsText = [
+    'Past — influences that led here: I miss the house on Elm Street.',
+    'Future — trajectory if nothing shifts: Hope feels fragile but real.'
+  ].join('\n');
+  const built = buildEnhancedClaudePrompt(fixture({ cardsInfo, reflectionsText, spreadInfo: { name: 'Three-Card Story', key: 'threeCard' } }));
+  assert.equal(built.userPrompt.split('Elm Street').length - 1, 1);
+  assert.equal(built.userPrompt.split('fragile but real').length - 1, 1);
+  const fields = built.promptMeta.sourceUsage.userContext.fields;
+  assert.equal(fields.reflections.reason, 'deduplicated');
+  assert.equal(fields.reflections.representedByDuplicate, true);
+  assert.equal(fields.reflections.representationTruncated, false);
+});
+
+it('keeps global reflections that add anything beyond the per-card notes', () => {
+  const cardsInfo = [{ ...card, position: 'Theme', userReflection: 'I miss the house on Elm Street.' }];
+  const reflectionsText = 'Theme: I miss the house on Elm Street.\nI am also caring for my father.';
+  const { userPrompt } = buildEnhancedClaudePrompt(fixture({ cardsInfo, reflectionsText }));
+  assert.match(userPrompt, /caring for my father/);
+  assert.match(userPrompt, /Elm Street/);
+});

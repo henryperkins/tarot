@@ -84,7 +84,7 @@ describe('resolveReadingPersonalizationContext', () => {
       userRow: {
         display_name: 'Sam',
         reading_tone: 'gentle',
-        spiritual_frame: 'mixed',
+        spiritual_frame: 'psychological',
         preferred_spread_depth: 'deep'
       },
       journalPreferences: {
@@ -114,7 +114,7 @@ describe('resolveReadingPersonalizationContext', () => {
     assert.deepEqual(result.storedPersonalization, {
       displayName: 'Sam',
       readingTone: 'gentle',
-      spiritualFrame: 'mixed',
+      spiritualFrame: 'psychological',
       tarotExperience: 'experienced',
       preferredSpreadDepth: 'deep',
       focusAreas: ['grief support']
@@ -122,7 +122,7 @@ describe('resolveReadingPersonalizationContext', () => {
     assert.deepEqual(result.personalization, {
       displayName: 'Sam',
       readingTone: 'blunt',
-      spiritualFrame: 'mixed',
+      spiritualFrame: 'psychological',
       tarotExperience: 'experienced',
       preferredSpreadDepth: 'deep',
       focusAreas: ['career clarity']
@@ -171,6 +171,43 @@ describe('resolveReadingPersonalizationContext', () => {
       tarotExperience: 'experienced',
       preferredSpreadDepth: 'deep',
       focusAreas: ['career clarity']
+    });
+  });
+
+  test('keeps journal preferences when the users row only holds column defaults', async () => {
+    const db = createDb({
+      userRow: {
+        display_name: null,
+        reading_tone: 'balanced',
+        spiritual_frame: 'mixed',
+        preferred_spread_depth: 'standard'
+      },
+      journalPreferences: {
+        displayName: 'Rowan',
+        readingTone: 'gentle',
+        spiritualFrame: 'spiritual',
+        preferredSpreadDepth: 'deep',
+        tarotExperience: 'experienced'
+      }
+    });
+
+    const result = await resolveReadingPersonalizationContext(
+      db,
+      'user-1',
+      {
+        readingTone: 'balanced',
+        spiritualFrame: 'mixed',
+        preferredSpreadDepth: 'standard'
+      },
+      { loadMemories: async () => [] }
+    );
+
+    assert.deepEqual(result.personalization, {
+      displayName: 'Rowan',
+      readingTone: 'gentle',
+      spiritualFrame: 'spiritual',
+      preferredSpreadDepth: 'deep',
+      tarotExperience: 'experienced'
     });
   });
 
