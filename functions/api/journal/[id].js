@@ -5,7 +5,7 @@
  */
 
 import { getUserFromRequest } from '../../lib/auth.js';
-import { buildTierLimitedPayload, isEntitled } from '../../lib/entitlements.js';
+import { journalAccessDenied } from '../../lib/journalAccess.js';
 import { safeJsonParse } from '../../lib/utils.js';
 import { deleteFollowUpsByEntry, loadFollowUpsByEntry } from '../../lib/journalFollowups.js';
 
@@ -25,25 +25,8 @@ export async function onRequestGet(context) {
   try {
     const user = await getUserFromRequest(request, env);
 
-    if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'Not authenticated' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!isEntitled(user, 'plus')) {
-      return new Response(
-        JSON.stringify(
-          buildTierLimitedPayload({
-            message: 'Cloud journal sync requires an active Plus or Pro subscription',
-            user,
-            requiredTier: 'plus'
-          })
-        ),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    const denied = journalAccessDenied(user);
+    if (denied) return denied;
 
     const entryId = params.id;
     if (!entryId) {
@@ -204,25 +187,8 @@ export async function onRequestDelete(context) {
     // Authenticate user
     const user = await getUserFromRequest(request, env);
 
-    if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'Not authenticated' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!isEntitled(user, 'plus')) {
-      return new Response(
-        JSON.stringify(
-          buildTierLimitedPayload({
-            message: 'Cloud journal sync requires an active Plus or Pro subscription',
-            user,
-            requiredTier: 'plus'
-          })
-        ),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    const denied = journalAccessDenied(user);
+    if (denied) return denied;
 
     const entryId = params.id;
 

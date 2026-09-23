@@ -5,7 +5,7 @@
  */
 
 import { getUserFromRequest } from '../lib/auth.js';
-import { buildTierLimitedPayload, isEntitled } from '../lib/entitlements.js';
+import { journalAccessDenied } from '../lib/journalAccess.js';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
 import { safeJsonParse } from '../lib/utils.js';
 import { loadFollowUpsByEntry } from '../lib/journalFollowups.js';
@@ -35,25 +35,8 @@ export async function onRequestGet(context) {
     // Authenticate user
     const user = await getUserFromRequest(request, env);
 
-    if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'Not authenticated' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!isEntitled(user, 'plus')) {
-      return new Response(
-        JSON.stringify(
-          buildTierLimitedPayload({
-            message: 'Cloud journal sync requires an active Plus or Pro subscription',
-            user,
-            requiredTier: 'plus'
-          })
-        ),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    const denied = journalAccessDenied(user);
+    if (denied) return denied;
 
     // Parse pagination params
     const url = new URL(request.url);
@@ -326,25 +309,8 @@ export async function onRequestPost(context) {
     // Authenticate user
     const user = await getUserFromRequest(request, env);
 
-    if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'Not authenticated' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!isEntitled(user, 'plus')) {
-      return new Response(
-        JSON.stringify(
-          buildTierLimitedPayload({
-            message: 'Cloud journal sync requires an active Plus or Pro subscription',
-            user,
-            requiredTier: 'plus'
-          })
-        ),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    const denied = journalAccessDenied(user);
+    if (denied) return denied;
 
     const body = await request.json();
     const result = await saveAppJournalEntry({ env, user, body, waitUntil });

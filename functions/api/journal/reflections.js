@@ -21,7 +21,7 @@
  */
 
 import { getUserFromRequest } from '../../lib/auth.js';
-import { buildTierLimitedPayload, isEntitled } from '../../lib/entitlements.js';
+import { journalAccessDenied } from '../../lib/journalAccess.js';
 import { safeJsonParse } from '../../lib/utils.js';
 
 // Matches the app's own reflection inputs (Card.jsx / ReadingBoard.jsx maxLength).
@@ -125,20 +125,8 @@ export async function onRequestPost(context) {
 
   try {
     const user = await getUserFromRequest(request, env);
-    if (!user) {
-      return json({ error: 'Not authenticated' }, 401);
-    }
-
-    if (!isEntitled(user, 'plus')) {
-      return json(
-        buildTierLimitedPayload({
-          message: 'Cloud journal sync requires an active Plus or Pro subscription',
-          user,
-          requiredTier: 'plus'
-        }),
-        403
-      );
-    }
+    const denied = journalAccessDenied(user);
+    if (denied) return denied;
 
     const entryId = params?.id;
     if (!entryId) {
