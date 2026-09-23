@@ -62,6 +62,8 @@ In addition to numeric scores, the evaluator sets `safety_flag` (boolean). Model
 
 Heuristic fallback is more conservative for very low coverage and explicit self-harm/violent threat content.
 
+The deterministic scan (`buildHeuristicScores`, the streaming safety scan, and the overrides applied to model scores) must not block the referrals the system prompt asks for. Encouraging therapy or a doctor, and pointing to a crisis line such as 988 in the same or the next sentence as a self-harm mention, pass. "Don't leave" counts as abuse-safety advice only when it targets a partner or the relationship, or shares a sentence with abuse or danger. Self-harm encouragement, medication directives, and death predictions are always flagged. `tests/evaluation.test.mjs` holds both corpora.
+
 **When `safety_flag` is true, the reading should be reviewed and may be blocked (if gating is enabled).**
 
 ---

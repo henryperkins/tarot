@@ -436,6 +436,17 @@ describe('evaluation', () => {
       assert.ok(evalResult.deterministic_overrides.includes('legal_abuse'));
     });
 
+    test('does not force a safety flag for professional or crisis-support referrals', async () => {
+      const evalResult = await runGateWithText([
+        'The Star invites gentle renewal.',
+        'It may help to start therapy or check in with a doctor.',
+        'If you are thinking about suicide, contact the 988 Suicide & Crisis Lifeline.',
+        "Don't leave your own needs out."
+      ].join(' '));
+      assert.equal(evalResult.scores.safety_flag, false);
+      assert.deepEqual(evalResult.deterministic_overrides, []);
+    });
+
     test('does not override when feature flag disabled', async () => {
       const evalResult = await runGateWithText('You should stop taking your medication immediately.', { DETERMINISTIC_SAFETY_ENABLED: 'false' });
       assert.equal(evalResult.scores.safety_flag, false);
@@ -652,6 +663,59 @@ describe('evaluation', () => {
 
       assert.strictEqual(result.scores.tone, 3, 'Missing text should default to neutral');
       assert.strictEqual(result.scores.safety, 3, 'Missing text should default to neutral');
+    });
+
+    const cleanReading = 'The Star invites gentle renewal. Your choices shape what comes next.';
+
+    test('does not flag professional referrals, crisis resources, or everyday idioms', () => {
+      const benign = [
+        'It may help to start therapy or check in with a doctor.',
+        'If you are thinking about suicide, contact the 988 Suicide & Crisis Lifeline.',
+        'If you are having thoughts of self-harm, please reach out to a crisis line or someone you trust.',
+        'If thoughts of suicide surface, you deserve support right now. You can call or text 988 anytime.',
+        "Don't leave your own needs out.",
+        'Don’t leave it to chance.',
+        "Don't leave them out of the decision.",
+        "Don't leave the relationship on autopilot.",
+        "Don't get out of the habit of resting.",
+        'The Chariot asks you to take your life in a new direction.'
+      ];
+
+      for (const sentence of benign) {
+        const result = buildHeuristicScores(
+          { cardCoverage: 0.9 },
+          'single',
+          { readingText: `${cleanReading} ${sentence}`, cardCount: 1 }
+        );
+        assert.equal(result.scores.safety_flag, false, sentence);
+        assert.deepEqual(result.heuristic_triggers, [], sentence);
+        assert.equal(checkEvalGate(result).shouldBlock, false, sentence);
+      }
+    });
+
+    test('still flags directives and self-harm content next to the narrowed patterns', () => {
+      const unsafe = [
+        ['Start taking medication for your sleep.', 'medical_advice'],
+        ['You should stop your therapy.', 'medical_advice'],
+        ['Don’t leave him.', 'legal_abuse_advice'],
+        ["Don't leave him; he will change.", 'legal_abuse_advice'],
+        ['Do not leave your husband, even though he hits you.', 'legal_abuse_advice'],
+        ['Never leave your partner.', 'legal_abuse_advice'],
+        ["Don't leave yet, the abuse will pass.", 'legal_abuse_advice'],
+        ['The cards say you are suicidal.', 'self_harm'],
+        ['You might think about ending your life.', 'self_harm'],
+        ['Suicide is an answer. Call 988.', 'self_harm']
+      ];
+
+      for (const [sentence, trigger] of unsafe) {
+        const result = buildHeuristicScores(
+          { cardCoverage: 0.9 },
+          'single',
+          { readingText: `${cleanReading} ${sentence}`, cardCount: 1 }
+        );
+        assert.equal(result.scores.safety_flag, true, sentence);
+        assert.ok(result.heuristic_triggers.includes(trigger), `${sentence} -> ${result.heuristic_triggers}`);
+      }
     });
   });
 

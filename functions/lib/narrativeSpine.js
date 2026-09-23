@@ -514,10 +514,19 @@ export function validateReadingNarrative(readingText) {
   // Analyze each section and classify as card vs structural
   const analyses = sections.map(section => {
     const isCard = isCardSection(section.header, section.content);
+    // A heading such as "Challenge — Seven of Swords Reversed" already names
+    // what is happening, so a body that goes on with "The reversed Seven..."
+    // should not fail WHAT just because it shortens the card name.
+    const headerNamesCard = isCard &&
+      hasCardReference(section.header) &&
+      segmentSentences(section.content).some(sentence => sentence.split(/\s+/).length >= MIN_SENTENCE_WORDS);
     return {
       header: section.header,
       isCardSection: isCard,
-      analysis: analyzeSpineCompleteness(section.content)
+      analysis: analyzeSpineCompleteness(
+        section.content,
+        headerNamesCard ? { spineHints: { what: true } } : {}
+      )
     };
   });
 
