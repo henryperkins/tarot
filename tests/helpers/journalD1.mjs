@@ -9,9 +9,20 @@ export async function journalFixture() {
   const mf = new Miniflare({
     modules: true,
     script: 'export default { fetch() { return new Response("fixture"); } };',
-    compatibilityDate: '2026-09-01',
+    // Production's date (wrangler.jsonc). Newer runtimes reject future dates.
+    compatibilityDate: '2025-11-24',
     d1Databases: ['DB']
   });
+  // A failed setup must still stop workerd, or the test process never exits.
+  try {
+    return await seedJournalDb(mf);
+  } catch (error) {
+    await mf.dispose().catch(() => {});
+    throw error;
+  }
+}
+
+async function seedJournalDb(mf) {
   const db = await mf.getD1Database('DB');
   await db.exec(`CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT, username TEXT, is_active INTEGER, subscription_tier TEXT, subscription_status TEXT, subscription_provider TEXT, stripe_customer_id TEXT, email_verified INTEGER, auth_provider TEXT, auth_subject TEXT, full_name TEXT, avatar_url TEXT);
 CREATE TABLE sessions (id TEXT PRIMARY KEY, user_id TEXT, expires_at INTEGER, last_used_at INTEGER);
