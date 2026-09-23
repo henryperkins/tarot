@@ -1,7 +1,7 @@
 # ChatGPT MCP: readings, journal saves, and reflections (owner-only)
 
 Type: design spec
-Status: design revised after review round 1 (see §13); pending owner review
+Status: approved by owner after review round 1 (see §13)
 Date: 2026-09-22
 Branch: `feat/chatgpt-mcp-journal` (based on local `master` at `4f0e125`)
 
@@ -98,7 +98,7 @@ Worker fetch (src/worker/index.js)
   └─ everything else ──► existing router, unchanged
 
 MCP handler
-  allowlist check → loadActiveUserById → McpServer(tools bound to user)
+  token scope check (tableu) → allowlist check → loadActiveUserById → McpServer(tools bound to user)
   → WebStandardStreamableHTTPServerTransport (stateless, JSON responses)
 
 Tools ──► service functions (explicit user)
@@ -878,7 +878,7 @@ rollback, revert the PR.
   canonical identity (D11), a ChatGPT-saved Thoth or Marseille entry renders
   exactly like an app-saved one. Showing deck art only in the journal would be
   a new app-wide behaviour that diverges from the reading screen, so it is
-  listed here pending the owner's decision.
+  deferred to a follow-up by the owner (review round 1).
 
 ## 12. Risks and assumptions
 
@@ -918,6 +918,6 @@ was checked against the code and the library source before any change.
 | 2 | Public `/status`, `/stream` and `/cancel` bypass owner checks for MCP jobs | Accepted. D10: the public paths return 404 for principal jobs; MCP uses `/mcp/snapshot` and `/mcp/cancel`, which need the token and the principal (§7.4) |
 | 3 | An expired-job fallback can report the wrong reading, or duplicate a save | Accepted. Both MCP modes share `reading:<requestId>`, with a card-fingerprint identity check; a seed never selects an entry on MCP paths (§6.4, §7.2) |
 | 4 | Reflection retries are idempotent only while the note is last | Accepted. Operation identity is the entry, the target and the exact text, checked against every note on the target (§7.3) |
-| 5 | Card mapping drops canonical identity; deck-unaware image lookup | Identity accepted. D11: saves resolve cards with `resolveReadingCards`; payload mode requires catalog metadata (§6.2, §6.4). Deck-specific journal art is deferred as a separate product decision (§11) |
+| 5 | Card mapping drops canonical identity; deck-unaware image lookup | Identity accepted. D11: saves resolve cards with `resolveReadingCards`; payload mode requires catalog metadata (§6.2, §6.4). Deck-specific journal art deferred to a follow-up by the owner (§11) |
 | 6 | Declared scopes are never enforced | Accepted. D12: `unwrapToken` scope check, with 403 `insufficient_scope` (§5.3) |
 | 7 | The 90-day DCR client expiry breaks connections | Accepted. D13: clients never expire; registration is limited to ChatGPT callback and loopback redirect URIs and rate-limited (§5.1) |
