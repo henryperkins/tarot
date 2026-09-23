@@ -144,11 +144,11 @@ test('real Thoth card contract and numeric draw seed produce a lossless usable s
   const response = await client.callTool({ name: 'saveReadingToJournal', arguments: result.structuredContent.savePayload });
   assert.equal(response.isError, undefined);
   assert.equal(saved.personalReading, reading.personalReading);
-  assert.equal(saved.sessionSeed, '123456');
+  assert.equal(saved.sessionSeed, '123456:real-shape');
   assert.equal(saved.deckId, 'thoth-a1');
   assert.equal(saved.question, 'What can I learn?');
   assert.equal(saved.context, 'career');
-  assert.deepEqual(saved.cards.map(c => [c.name, c.canonicalName]), [['Prince of Cups', 'Knight of Cups'], ['Knight of Cups', 'King of Cups']]);
+  assert.deepEqual(saved.cards.map(c => [c.name, c.displayName]), [['Knight of Cups', 'Prince of Cups'], ['King of Cups', 'Knight of Cups']]);
   assert.ok(saved.cards.every(c => c.number === undefined && c.meaning === undefined));
   const rawMapped = cardsInfo.map(({ card, position, orientation, number, suit, rank, rankValue, canonicalName, canonicalKey }) => ({ name: card, position, orientation, number, suit, rank, rankValue, canonicalName, canonicalKey }));
   const numeric = await client.callTool({ name: 'saveReadingToJournal', arguments: { ...reading, cards: rawMapped, sessionSeed: 123456 } });
@@ -158,4 +158,67 @@ test('real Thoth card contract and numeric draw seed produce a lossless usable s
     const invalidContext = await client.callTool({ name: 'drawTarotReading', arguments: { spreadInfo: { name: 'Three Card', key: 'threeCard' } } });
     assert.equal(invalidContext.structuredContent.savePayload.context, undefined);
   }
+});
+
+test('the same caller seed never dedupes a later, different draw into an earlier entry', async t => {
+  let draws = 0;
+  const client = await connect(t, async url => url.endsWith('/api/auth/me') ? owner() : json({
+    reading: `Narrative ${draws += 1}`, provider: 'local-composer', requestId: `draw-${draws}`, seed: 123,
+    cardsInfo: [{ card: 'The Star', position: 'Focus', orientation: 'Upright' }]
+  }));
+  const args = { spreadInfo: { name: 'Single Card', key: 'single' }, seed: 'lucky 7' };
+  const first = (await client.callTool({ name: 'drawTarotReading', arguments: args })).structuredContent.savePayload;
+  const second = (await client.callTool({ name: 'drawTarotReading', arguments: args })).structuredContent.savePayload;
+  assert.equal(first.sessionSeed, '123:draw-1');
+  assert.equal(second.sessionSeed, '123:draw-2');
+});
+
+test('a crisis-gated draw returns only support, with no cards or save payload', async t => {
+  const client = await connect(t, async url => url.endsWith('/api/auth/me') ? owner() : json({
+    reading: 'Please reach out: 988', provider: 'safety-gate', requestId: 'crisis-1', gateBlocked: true, gateReason: 'crisis_gate',
+    // An older backend still attached cards; the adapter must not pass them on.
+    cardsInfo: [{ card: 'The Tower', position: 'Focus', orientation: 'Upright' }], seed: 9
+  }));
+  const draw = await client.callTool({ name: 'drawTarotReading', arguments: { spreadInfo: { name: 'Single Card', key: 'single' }, userQuestion: 'I feel suicidal' } });
+  assert.equal(draw.isError, undefined);
+  assert.equal(draw.structuredContent.gateReason, 'crisis_gate');
+  assert.equal(draw.structuredContent.reading, 'Please reach out: 988');
+  assert.equal(draw.structuredContent.savePayload, null);
+  assert.equal(draw.structuredContent.cardsInfo, undefined);
+  assert.match(draw.structuredContent.guidance, /do not save/i);
+});
+
+test('a draw records the default deck and keeps location only with explicit consent', async t => {
+  const client = await connect(t, async url => url.endsWith('/api/auth/me') ? owner() : json({
+    reading: 'Narrative', provider: 'local-composer', requestId: 'draw-loc', seed: 5,
+    cardsInfo: [{ card: 'The Star', position: 'Focus', orientation: 'Upright' }]
+  }));
+  const location = { latitude: 41.88, longitude: -87.63, timezone: 'America/Chicago', accuracy: 20 };
+  const draw = spec => client.callTool({ name: 'drawTarotReading', arguments: { spreadInfo: { name: 'Single Card', key: 'single' }, ...spec } });
+  const kept = (await draw({ location, persistLocationToJournal: true })).structuredContent.savePayload;
+  assert.equal(kept.deckId, 'rws-1909');
+  assert.deepEqual(kept.location, { latitude: 41.88, longitude: -87.63, timezone: 'America/Chicago' });
+  assert.equal(kept.persistLocationConsent, true);
+  const withheld = (await draw({ location, deckStyle: 'thoth-a1' })).structuredContent.savePayload;
+  assert.equal(withheld.deckId, 'thoth-a1');
+  assert.equal(withheld.location, undefined);
+  assert.equal(withheld.persistLocationConsent, undefined);
+  const unconsented = await client.callTool({ name: 'saveReadingToJournal', arguments: { ...reading, location: { latitude: 1, longitude: 2 } } });
+  assert.equal(unconsented.isError, true);
+});
+
+test('failed reads are safe to repeat and keep the backend reason; refusals are never uncertain', async () => {
+  let response;
+  const backend = createBackendClient({ baseUrl: 'https://tableu.example', apiKey: 'private-test-key', ownerUserId: 'owner',
+    fetchImpl: async url => url.endsWith('/api/auth/me') ? owner() : response() });
+  response = () => json({ error: 'Reading job expired.' }, 503);
+  await assert.rejects(backend.call('/api/tarot-reading/jobs/job-1', { method: 'GET' }), error =>
+    error.outcome === 'not_started' && /Reading job expired\./.test(error.message) && /safe to try again/.test(error.message));
+  response = () => json({ error: 'Reading job expired.' }, 410);
+  await assert.rejects(backend.call('/api/tarot-reading/jobs/job-1', { method: 'GET' }), { outcome: 'rejected', status: 410 });
+  response = () => new Response('<html>Forbidden</html>', { status: 403 });
+  await assert.rejects(backend.call('/api/journal', { method: 'POST', body: '{}' }), { outcome: 'rejected', status: 403 });
+  response = () => json({ error: 'Upstream failed' }, 502);
+  await assert.rejects(backend.call('/api/journal', { method: 'POST', body: '{}' }), error =>
+    error.outcome === 'unknown' && /Do not retry/.test(error.message));
 });

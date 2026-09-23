@@ -12,6 +12,7 @@ const personalization = z.strictObject({
   preferredSpreadDepth: z.enum(['short', 'standard', 'deep']).optional(),
   focusAreas: z.array(z.string()).optional()
 });
+const coordinates = { latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) };
 const drawSchema = z.strictObject({
   spreadInfo: z.strictObject({ name: z.string().min(1), key: spreadKey }),
   userQuestion: z.string().optional(), reflectionsText: z.string().optional(),
@@ -19,7 +20,7 @@ const drawSchema = z.strictObject({
   allowReversals: z.boolean().optional(), seed: seedSchema.optional(),
   personalization: personalization.optional(),
   location: z.strictObject({
-    latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180),
+    ...coordinates,
     timezone: z.string().optional(), accuracy: z.number().optional(),
     source: z.enum(['browser', 'manual']).optional()
   }).optional(),
@@ -29,20 +30,25 @@ const saveSchema = z.strictObject({
   spread: z.string().min(1).describe('spreadInfo.name from the completed reading.'), spreadKey,
   question: z.string().optional().describe('Original userQuestion.'),
   cards: z.array(z.strictObject({
-    position: z.string().min(1), name: z.string().min(1).describe('CardInfo.card, renamed to name; omit meaning.'),
+    position: z.string().min(1),
+    name: z.string().min(1).describe('The canonical card: CardInfo.canonicalName when present, else CardInfo.card. Omit meaning.'),
+    displayName: z.string().min(1).optional().describe('CardInfo.card when the deck labels the card differently from name.'),
     orientation: z.enum(['Upright', 'Reversed']), number: z.number().int().nullish(),
     suit: z.string().nullish(), rank: z.string().nullish(), rankValue: z.number().int().nullish(),
-    canonicalName: z.string().optional().describe('Preserve the returned canonical card identity when the deck uses a different display name.'),
+    canonicalName: z.string().optional().describe('Preserve the returned canonical card identity.'),
     canonicalKey: z.string().optional()
   })).min(1),
   personalReading: z.string().min(1).describe('The complete backend reading, verbatim. Never omit, summarize or rewrite.'),
   themes: z.record(z.string(), z.unknown()).nullable().optional(),
   context: contextSchema.optional(),
   provider: z.string().optional(), requestId: z.string().optional(),
-  sessionSeed: seedSchema.optional().describe('Only the seed returned by this draw; numeric seeds are stored as strings. Omit for supplied-card jobs. requestId is not a seed.'),
-  deckId: z.string().optional().describe('Original deckStyle.'),
-  userPreferences: z.record(z.string(), z.unknown()).nullable().optional().describe('Original personalization.')
-});
+  sessionSeed: seedSchema.optional().describe('Only as prepared in a draw\'s savePayload; numeric seeds are stored as strings. Omit for supplied-card jobs.'),
+  deckId: z.string().optional().describe('Original deckStyle, or rws-1909 when none was chosen.'),
+  userPreferences: z.record(z.string(), z.unknown()).nullable().optional().describe('Original personalization.'),
+  location: z.strictObject({ ...coordinates, timezone: z.string().nullable().optional() }).optional()
+    .describe('Only when the user explicitly asked to keep their location with this reading.'),
+  persistLocationConsent: z.literal(true).optional().describe('Required with location.')
+}).refine(input => !input.location || input.persistLocationConsent === true, 'location requires persistLocationConsent: true');
 
 function normalizeSavePayload(input) {
   return {
@@ -55,9 +61,13 @@ function normalizeSavePayload(input) {
 function drawSavePayload(result, input) {
   const spread = result.spreadInfo || input.spreadInfo;
   const cards = result.cardsInfo.map(card => {
-    const mapped = { name: card.card, position: card.position,
+    // Journal `name` is the canonical card, as in app saves: analytics, shared
+    // views and stats all key on it. The deck's own label is kept for display.
+    const name = card.canonicalName || card.card;
+    const mapped = { name, position: card.position,
       orientation: card.orientation?.toLowerCase() === 'upright' ? 'Upright'
         : card.orientation?.toLowerCase() === 'reversed' ? 'Reversed' : card.orientation };
+    if (card.card && card.card !== name) mapped.displayName = card.card;
     for (const field of ['number', 'suit', 'rank', 'rankValue', 'canonicalName', 'canonicalKey']) {
       if (card[field] != null) mapped[field] = card[field];
     }
@@ -65,9 +75,18 @@ function drawSavePayload(result, input) {
   });
   const payload = saveSchema.safeParse({
     spread: spread.name, spreadKey: spread.key, cards, personalReading: result.reading,
-    question: input.userQuestion, deckId: input.deckStyle, userPreferences: input.personalization,
+    question: input.userQuestion, userPreferences: input.personalization,
+    // The backend draws with rws-1909 unless asked otherwise; record that deck.
+    deckId: input.deckStyle?.trim() || 'rws-1909',
     context: contextSchema.safeParse(result.context).data,
-    themes: result.themes, provider: result.provider, requestId: result.requestId, sessionSeed: result.seed
+    themes: result.themes, provider: result.provider, requestId: result.requestId,
+    // A caller's seed hashes to the same value on every draw, so key dedupe on
+    // this draw: repeated saves of it match, and a later draw never does.
+    sessionSeed: result.seed == null ? undefined : `${result.seed}:${result.requestId}`,
+    ...(input.persistLocationToJournal === true && input.location ? {
+      location: { latitude: input.location.latitude, longitude: input.location.longitude, timezone: input.location.timezone ?? null },
+      persistLocationConsent: true
+    } : {})
   });
   if (!payload.success) throw new BackendError('The draw returned an invalid journal contract. Do not repeat the draw; check the Tableu app.', { outcome: 'unknown' });
   return normalizeSavePayload(payload.data);
@@ -93,9 +112,15 @@ export function registerJournalTools(server, backend) {
   });
 
   register('drawTarotReading',
-    'Draw real cards and generate one backend reading. May consume quota. Do not invent cards or retry an uncertain draw. After explicit consent, pass the returned savePayload unchanged to saveReadingToJournal; it preserves the narrative, cards, canonical deck identities, seed and metadata.',
+    'Draw real cards and generate one backend reading. May consume quota. Do not invent cards or retry an uncertain draw. After explicit consent, pass the returned savePayload unchanged to saveReadingToJournal; it preserves the narrative, cards, canonical deck identities, seed and metadata. If gateReason is crisis_gate, share only its support message.',
     drawSchema, async input => {
       const result = await backend.call('/api/tarot-reading/draw', { method: 'POST', body: JSON.stringify(input) });
+      // Crisis support replaces the reading: never show, interpret or save cards for it.
+      if (result?.gateReason === 'crisis_gate' || result?.provider === 'safety-gate') {
+        return { gateBlocked: true, gateReason: 'crisis_gate', reading: result.reading, provider: result.provider,
+          requestId: result.requestId, savePayload: null,
+          guidance: 'Share this support message with care. Do not draw, show or interpret cards, and do not save it as a reading.' };
+      }
       if (!result?.reading || !Array.isArray(result.cardsInfo) || !result.cardsInfo.length || !result.provider || !result.requestId) {
         throw new BackendError('The draw result could not be confirmed. Do not retry; check the Tableu app.', { outcome: 'unknown' });
       }
@@ -110,7 +135,7 @@ export function registerJournalTools(server, backend) {
     });
 
   register('saveReadingToJournal',
-    'Save only with explicit user consent. For a draw pass its savePayload unchanged. Otherwise preserve the complete narrative and all cards in order: card -> name, capitalize orientation, omit meaning/null metadata and preserve canonicalName/canonicalKey when provided. Carry spreadInfo.name/key, userQuestion, deckStyle, personalization, themes, provider and requestId into journal fields. Use only a returned draw seed; omit sessionSeed for supplied-card readings. A deduplicated result preserves the original entry unchanged. Reuse its entry.id. Never retry an uncertain save; check the app.',
+    'Save only with explicit user consent. For a draw pass its savePayload unchanged. Otherwise preserve the complete narrative and all cards in order: use canonicalName (else card) as name and a different card label as displayName, capitalize orientation, omit meaning/null metadata and preserve canonicalName/canonicalKey when provided. Carry spreadInfo.name/key, userQuestion, deckStyle, personalization, themes, provider and requestId into journal fields. Use only a returned draw seed; omit sessionSeed for supplied-card readings. A deduplicated result preserves the original entry unchanged. Reuse its entry.id. Never retry an uncertain save; check the app.',
     saveSchema, async input => {
       const result = await backend.call('/api/journal', { method: 'POST', body: JSON.stringify(normalizeSavePayload(input)) });
       if (result?.success !== true || typeof result.entry?.id !== 'string' || !result.entry.id) {

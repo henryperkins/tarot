@@ -22,14 +22,24 @@ the actual request cards and completed result; never start another job to save i
 
 Compatibility extensions to the v0.27.3 audited contract: `personalReading` is
 required; numeric backend seeds are accepted and stored as strings; null optional
-card metadata is omitted; optional `canonicalName`/`canonicalKey` are preserved
-alongside the display name. These fields prevent Thoth court aliases from
-resolving to the wrong canonical card. Only a returned draw seed is used for
-deduplication. Omit it for supplied-card jobs; `requestId` is tracing only.
-A deduplicated save returns the original entry without overwriting it.
+card metadata is omitted. As in app saves, each card's `name` is its canonical
+card, which every journal view and statistic keys on. A deck label that differs,
+such as Thoth's Prince of Cups for the canonical Knight, is kept as `displayName`
+for display, and `canonicalName`/`canonicalKey` are preserved. A draw's
+`savePayload` records `rws-1909` when no deck was chosen, and keeps the location
+only when the draw set `persistLocationToJournal`.
 
-Reflections preserve 1–2,000 characters verbatim and append. Use the exact saved
-card name and its position when repeated. The adapter accepts only an entry id
+Deduplication uses the draw's seed paired with its `requestId`, so saving the same
+draw twice returns the original entry, while a later draw with the same caller
+seed is saved separately. Omit `sessionSeed` for supplied-card jobs. A
+deduplicated save returns the original entry without overwriting it.
+
+A crisis-gated draw (`gateReason: crisis_gate`) returns only the support message,
+with no cards and no `savePayload`. Share it; never present or save a reading.
+
+Reflections preserve 1–2,000 characters verbatim and append. Name the card as it
+was saved or as the reading showed it, with its position when that name is
+repeated. The adapter accepts only an entry id
 returned by a successful save in the same MCP transport session. After session
 loss, check the app; do not guess an id or repeat an unseeded save to recover it.
 No history or archetype-tracking tools are exposed.
@@ -38,7 +48,8 @@ Write tools declare `readOnlyHint: false` and `idempotentHint: false`. No networ
 write is retried automatically. Lost responses, malformed successes and server
 failures return `isError: true`, `outcome: unknown`, and instructions to check the
 app. Explicit rejections return `outcome: rejected`. An identity mismatch blocks
-dispatch with `outcome: not_started`.
+dispatch with `outcome: not_started`. A failed read, such as a job status poll,
+also reports `not_started` with the backend's reason and is safe to repeat.
 
 ## Setup and identity proof
 
@@ -86,7 +97,9 @@ Keep the Tableu plugin private.
 
 ## Hosting and checks
 
-`npm start` defaults to `127.0.0.1:3334`. Public/container binding requires
+`npm start` defaults to `127.0.0.1:3334`, which accepts only localhost `Host`
+headers. Behind a reverse proxy or tunnel that forwards the public hostname, set
+`ADAPTER_ALLOWED_HOSTS` to that hostname. Public/container binding requires
 `ADAPTER_BIND_HOST=0.0.0.0` and explicit `ADAPTER_ALLOWED_HOSTS`. Terminate
 HTTPS at the host proxy, preserve Authorization/MCP headers, and support SSE
 without buffering. Use one replica or sticky sessions; state is in memory.

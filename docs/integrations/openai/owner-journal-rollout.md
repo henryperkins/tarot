@@ -113,8 +113,13 @@ must be configured privately by the owner when unavailable in the workspace.
 
 The actual draw API returns numeric seeds and nullable card metadata. The adapter
 accepts those values, stringifies only journal seeds and omits null card fields.
-Its prepared save payload preserves optional canonicalName/canonicalKey alongside
-display names so Thoth court aliases retain their identity. These are additive
+Its prepared save payload stores the canonical card as `name`, as app saves do,
+and keeps a differing deck label such as Thoth's Prince of Cups as `displayName`,
+with canonicalName/canonicalKey preserved. Journal cards and reflection labels
+show the deck label; statistics, shared views and thumbnails use the canonical
+card. The dedupe key pairs the draw seed with its requestId, so a later draw with
+the same caller seed is never merged into an earlier entry. A crisis-gated draw
+returns only support resources, with no cards or save payload. These are additive
 compatibility extensions to the earlier audited save schema; live tool schemas
 govern. App thumbnails continue to use the existing canonical RWS artwork.
 

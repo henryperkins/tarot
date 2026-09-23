@@ -20,8 +20,12 @@ export function createBackendClient({ baseUrl, apiKey, ownerUserId, fetchImpl = 
 
   async function call(path, init = {}) {
     const writing = init.method && init.method !== 'GET';
+    // Reads change nothing, so every failed read is safe to repeat.
+    const failure = (status, detail = '') => new BackendError(writing
+      ? 'The operation could not be confirmed. Do not retry; check the Tableu app.'
+      : `Tableu could not complete the request${status ? ` (${status})` : ''}.${detail} Nothing was changed; it is safe to try again.`,
+    { status, outcome: writing ? 'unknown' : 'not_started' });
     let response;
-    let payload;
     try {
       response = await fetchImpl(`${url.origin}${path}`, {
         ...init,
@@ -29,21 +33,25 @@ export function createBackendClient({ baseUrl, apiKey, ownerUserId, fetchImpl = 
         signal: AbortSignal.timeout(timeoutMs),
         headers: { 'Content-Type': 'application/json', ...(init.headers || {}), Authorization: `Bearer ${apiKey}` }
       });
+    } catch {
+      throw failure();
+    }
+    let payload = null;
+    try {
       payload = await response.json();
     } catch {
-      throw new BackendError(writing
-        ? 'The operation could not be confirmed. Do not retry; check the Tableu app.'
-        : 'The backend response could not be verified.', { outcome: writing ? 'unknown' : 'not_started' });
+      // Edge and proxy error pages are not JSON; classify them by status.
     }
     if (!response.ok) {
+      const detail = typeof payload?.error === 'string' ? ` ${payload.error}` : '';
       // Timeouts (including proxy 408/499 responses) cannot prove that a
       // dispatched append was not committed. Only known refusals are rejected.
-      const rejected = [400, 401, 403, 404, 405, 409, 413, 415, 422, 429].includes(response.status);
-      throw new BackendError(rejected
-        ? `Tableu rejected the request (${response.status}). ${typeof payload?.error === 'string' ? payload.error : ''}`
-        : 'The operation could not be confirmed. Do not retry; check the Tableu app.',
-      { status: response.status, outcome: rejected ? 'rejected' : (writing ? 'unknown' : 'not_started') });
+      if ([400, 401, 403, 404, 405, 409, 410, 413, 415, 422, 429].includes(response.status)) {
+        throw new BackendError(`Tableu rejected the request (${response.status}).${detail}`, { status: response.status, outcome: 'rejected' });
+      }
+      throw failure(response.status, detail);
     }
+    if (payload === null) throw failure();
     return payload;
   }
 
