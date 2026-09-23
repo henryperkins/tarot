@@ -99,7 +99,14 @@ export function registerJournalTools(server, backend) {
       if (!result?.reading || !Array.isArray(result.cardsInfo) || !result.cardsInfo.length || !result.provider || !result.requestId) {
         throw new BackendError('The draw result could not be confirmed. Do not retry; check the Tableu app.', { outcome: 'unknown' });
       }
-      return { ...result, savePayload: drawSavePayload(result, input) };
+      // The draw already consumed quota and is not in the journal yet: never
+      // lose the reading because its journal payload could not be prepared.
+      try {
+        return { ...result, savePayload: drawSavePayload(result, input) };
+      } catch {
+        return { ...result, savePayload: null,
+          savePayloadError: 'This reading could not be prepared for the journal. Show it to the user; do not repeat the draw.' };
+      }
     });
 
   register('saveReadingToJournal',

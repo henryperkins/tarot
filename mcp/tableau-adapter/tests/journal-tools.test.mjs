@@ -44,6 +44,7 @@ test('draw/save/reflection tools preserve payloads, require narrative and use on
   for (const tool of tools) assert.equal(tool.annotations.readOnlyHint, false);
   const refused = await client.callTool({ name: 'addReflectionToJournalEntry', arguments: { id: 'guessed', scope: 'reading', text: 'note' } });
   assert.equal(refused.isError, true);
+  assert.equal(refused.structuredContent.outcome, 'not_started');
   assert.equal(requests.length, 0);
   const draw = await client.callTool({ name: 'drawTarotReading', arguments: { spreadInfo: { name: 'Single Card', key: 'single' }, seed: 'ritual-input' } });
   assert.equal(draw.structuredContent.seed, 'returned-seed');
@@ -60,6 +61,18 @@ test('draw/save/reflection tools preserve payloads, require narrative and use on
   assert.deepEqual(requests[2], { url: 'https://tableu.example/api/journal/saved-id/reflections', body: { scope: 'card', card: 'The Star', position: 'Focus', text } });
   assert.equal((await client.callTool({ name: 'saveReadingToJournal', arguments: { ...reading, context: { inferred: 'self' } } })).isError, true);
   assert.equal((await client.callTool({ name: 'saveReadingToJournal', arguments: { ...reading, cards: [{ ...reading.cards[0], meaning: 'excluded' }] } })).isError, true);
+});
+
+test('a completed draw is still returned when its journal payload cannot be prepared', async t => {
+  const client = await connect(t, async url => url.endsWith('/api/auth/me') ? owner() : json({
+    reading: 'Backend narrative', provider: 'local-composer', requestId: 'draw-2', seed: 7,
+    cardsInfo: [{ card: 'The Star', position: 'Focus', orientation: 'sideways' }]
+  }));
+  const draw = await client.callTool({ name: 'drawTarotReading', arguments: { spreadInfo: { name: 'Single Card', key: 'single' } } });
+  assert.equal(draw.isError, undefined);
+  assert.equal(draw.structuredContent.reading, 'Backend narrative');
+  assert.equal(draw.structuredContent.savePayload, null);
+  assert.match(draw.structuredContent.savePayloadError, /do not repeat the draw/);
 });
 
 test('deduplicated saves keep returned id; uncertain writes never retry or claim success', async t => {
