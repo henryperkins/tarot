@@ -28,38 +28,9 @@ export function prepareUserContext(userQuestion, reflectionsText, cardsInfo, inp
   add('reflections', reflectionsText, REFLECTIONS_TEXT_MAX_LENGTH);
   cardsInfo.forEach((card, index) => add(`card-${index}`, card?.userReflection, CARD_REFLECTION_MAX_LENGTH, true));
   const dedupKey = (text) => text.trim().toLowerCase().replace(/\s+/g, ' ');
-  const globalKey = fields.reflections.text ? dedupKey(fields.reflections.text) : '';
-  const cardKeys = Object.keys(fields).filter((key) => key.startsWith('card-') && fields[key].text);
-  const duplicate = globalKey && cardKeys.find((key) => dedupKey(fields[key].text) === globalKey);
-  // The reading client also sends every card reflection joined as "Position: text"
-  // lines. That aggregate repeats the per-card fields, so it is a duplicate too.
-  const aggregate = cardKeys.map((key) => {
-    const index = Number(key.slice(5));
-    return `${cardsInfo[index]?.position || `Position ${index + 1}`}: ${fields[key].text}`;
-  }).join('\n');
-  if (duplicate) {
-    fields.reflections.duplicateOf = duplicate;
-  } else if (globalKey && cardKeys.length > 0 && dedupKey(aggregate) === globalKey) {
-    fields.reflections.duplicateOf = cardKeys[0];
-    fields.reflections.duplicateSources = cardKeys;
-  }
+  const duplicate = Object.keys(fields).find((key) => key.startsWith('card-') && fields.reflections.text && dedupKey(fields[key].text) === dedupKey(fields.reflections.text));
+  if (duplicate) fields.reflections.duplicateOf = duplicate;
   return fields;
-}
-
-function representedDuplicateLength(field, included) {
-  const sources = field.duplicateSources || [field.duplicateOf];
-  let represented = 0;
-  let complete = true;
-  for (const source of sources) {
-    const value = included.get(source);
-    if (typeof value === 'string') {
-      represented += value.length;
-    } else {
-      complete = false;
-      if (value) represented += value.head.length + value.tail.length;
-    }
-  }
-  return complete ? field.text.length : Math.min(field.text.length, represented);
 }
 
 export function renderUserContext(source, value) {
@@ -83,8 +54,9 @@ export function summarizeUserContext(fields, finalPrompt) {
   return Object.fromEntries(Object.entries(fields).map(([key, field]) => {
     const value = included.get(key);
     const includedLength = typeof value === 'string' ? value.length : value ? value.head.length + value.tail.length : 0;
+    const duplicate = field.duplicateOf ? included.get(field.duplicateOf) : null;
     const representedLength = field.duplicateOf
-      ? representedDuplicateLength(field, included)
+      ? (typeof duplicate === 'string' ? field.text.length : duplicate ? Math.min(field.text.length, duplicate.head.length + duplicate.tail.length) : 0)
       : includedLength;
     const representationTruncated = Boolean(field.text && representedLength < field.text.length);
     const budgetTruncated = representationTruncated;
@@ -100,10 +72,7 @@ export function summarizeUserContext(fields, finalPrompt) {
       budgetTruncated,
       omitted: Boolean(field.originalLength && !includedLength),
       reason: field.duplicateOf ? 'deduplicated' : !field.text && field.originalLength ? 'sanitized_empty' : budgetTruncated ? 'removed_for_budget' : field.limitApplied ? 'input_limit' : null,
-      ...(field.duplicateOf ? {
-        duplicateOf: field.duplicateOf,
-        representedByDuplicate: (field.duplicateSources || [field.duplicateOf]).every((source) => included.has(source))
-      } : {})
+      ...(field.duplicateOf ? { duplicateOf: field.duplicateOf, representedByDuplicate: included.has(field.duplicateOf) } : {})
     }];
   }));
 }

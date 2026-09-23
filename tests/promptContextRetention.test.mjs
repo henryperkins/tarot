@@ -5,6 +5,7 @@ import { truncateUserPromptSafely } from '../functions/lib/narrative/prompts/tru
 import { estimateTokenCount } from '../functions/lib/narrative/prompts/budgeting.js';
 import { stripUserPromptContent, stripResponseEchoContent } from '../functions/lib/promptEngineering.js';
 import { onRequestPost } from '../functions/api/tarot-reading.js';
+import { collectQuerentReflections } from '../functions/lib/querentReflections.js';
 
 const question = 'I am preparing for a job interview. ' + 'I have been considering the details carefully. '.repeat(13) + 'Please keep the answer focused on the interview, without advice about quitting.';
 const reflections = 'I am considering the sunlit path in the picture. '.repeat(15) + 'I cannot travel because I am caring for my father.';
@@ -119,23 +120,62 @@ it('reports partial effective retention when a deduplicated global reflection sh
   assert.equal(fields.reflections.representedLength, fields['card-0'].includedLength);
 });
 
-it('sends each reflection once when the global reflections repeat the per-card notes as "Position: text" lines', () => {
+it('sends each card reflection once when the client keeps card notes out of reflectionsText', () => {
   const cardsInfo = [
     { ...card, position: 'Past — influences that led here', userReflection: 'I miss the house on Elm Street.' },
     { ...card, card: 'The Moon', number: 18, position: 'Present — where you stand now', userReflection: '' },
     { ...card, card: 'The Star', number: 17, position: 'Future — trajectory if nothing shifts', userReflection: 'Hope feels fragile but real.' }
   ];
-  const reflectionsText = [
-    'Past — influences that led here: I miss the house on Elm Street.',
-    'Future — trajectory if nothing shifts: Hope feels fragile but real.'
-  ].join('\n');
-  const built = buildEnhancedClaudePrompt(fixture({ cardsInfo, reflectionsText, spreadInfo: { name: 'Three-Card Story', key: 'threeCard' } }));
+  const built = buildEnhancedClaudePrompt(fixture({ cardsInfo, reflectionsText: '', spreadInfo: { name: 'Three-Card Story', key: 'threeCard' } }));
   assert.equal(built.userPrompt.split('Elm Street').length - 1, 1);
   assert.equal(built.userPrompt.split('fragile but real').length - 1, 1);
   const fields = built.promptMeta.sourceUsage.userContext.fields;
-  assert.equal(fields.reflections.reason, 'deduplicated');
-  assert.equal(fields.reflections.representedByDuplicate, true);
-  assert.equal(fields.reflections.representationTruncated, false);
+  assert.equal(fields.reflections.originalLength, 0);
+  assert.equal(fields['card-0'].representationTruncated, false);
+});
+
+it('combines general notes with each card reflection for checks that need everything the querent wrote', () => {
+  const cardsInfo = [
+    { position: 'Past', userReflection: 'I miss the house on Elm Street.' },
+    { position: 'Present', userReflection: null },
+    { position: 'Future', userReflection: '  Hope feels fragile but real. ' }
+  ];
+  assert.equal(
+    collectQuerentReflections('I am also caring for my father.', cardsInfo),
+    'I am also caring for my father.\nPast: I miss the house on Elm Street.\nFuture: Hope feels fragile but real.'
+  );
+  assert.equal(collectQuerentReflections('', [{ userReflection: 'Only this.' }]), 'Position 1: Only this.');
+  assert.equal(collectQuerentReflections(undefined, []), '');
+  // Older clients also copied card notes into reflectionsText; they are not repeated.
+  assert.equal(
+    collectQuerentReflections('Past: I miss the house on Elm Street.\nFuture: Hope feels fragile but real.', cardsInfo),
+    'Past: I miss the house on Elm Street.\nFuture: Hope feels fragile but real.'
+  );
+});
+
+it('routes a crisis disclosed only in a card reflection to crisis support', async (t) => {
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'warn', () => {});
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
+    throw new Error('A crisis response must not call a narrative provider');
+  });
+  const response = await onRequestPost({
+    request: new Request('https://tableau.test/api/tarot-reading', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        spreadInfo: { name: 'One-Card Insight', key: 'single' },
+        cardsInfo: [{ card: 'The Moon', position: 'Theme', orientation: 'Upright', meaning: 'Intuition.', userReflection: 'I have been feeling suicidal lately.' }],
+        userQuestion: 'What should I focus on this week?',
+        reflectionsText: ''
+      })
+    }),
+    env: { GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' },
+    waitUntil: (promise) => promise.catch(() => {})
+  });
+  const body = await response.json();
+  assert.equal(body.gateReason, 'crisis_gate');
+  assert.equal(fetchMock.mock.callCount(), 0);
 });
 
 it('keeps global reflections that add anything beyond the per-card notes', () => {

@@ -82,12 +82,12 @@ describe('resolveReadingPersonalizationContext', () => {
   test('merges journal, user-row, and request personalization with request precedence and loads global memories', async () => {
     const db = createDb({
       userRow: {
-        display_name: 'Sam',
-        reading_tone: 'gentle',
-        spiritual_frame: 'psychological',
-        preferred_spread_depth: 'deep'
+        display_name: 'Sam'
       },
       journalPreferences: {
+        readingTone: 'gentle',
+        spiritualFrame: 'psychological',
+        preferredSpreadDepth: 'deep',
         tarotExperience: 'experienced',
         focusAreas: ['grief support']
       }
@@ -140,12 +140,12 @@ describe('resolveReadingPersonalizationContext', () => {
   test('does not let implicit client defaults override stored personalization', async () => {
     const db = createDb({
       userRow: {
-        display_name: 'Sam',
-        reading_tone: 'gentle',
-        spiritual_frame: 'spiritual',
-        preferred_spread_depth: 'deep'
+        display_name: 'Sam'
       },
       journalPreferences: {
+        readingTone: 'gentle',
+        spiritualFrame: 'spiritual',
+        preferredSpreadDepth: 'deep',
         tarotExperience: 'experienced',
         focusAreas: ['grief support']
       }
@@ -174,13 +174,15 @@ describe('resolveReadingPersonalizationContext', () => {
     });
   });
 
-  test('keeps journal preferences when the users row only holds column defaults', async () => {
+  test('takes tone, frame, and depth from the journal snapshot, not the users row columns', async () => {
     const db = createDb({
+      // Migration 0020 gives these columns DEFAULTs and nothing writes them, so
+      // whatever they hold must not override the journal snapshot.
       userRow: {
         display_name: null,
-        reading_tone: 'balanced',
+        reading_tone: 'blunt',
         spiritual_frame: 'mixed',
-        preferred_spread_depth: 'standard'
+        preferred_spread_depth: 'short'
       },
       journalPreferences: {
         displayName: 'Rowan',
@@ -214,12 +216,12 @@ describe('resolveReadingPersonalizationContext', () => {
   test('lets explicit default request fields override stored personalization', async () => {
     const db = createDb({
       userRow: {
-        display_name: 'Sam',
-        reading_tone: 'gentle',
-        spiritual_frame: 'spiritual',
-        preferred_spread_depth: 'deep'
+        display_name: 'Sam'
       },
       journalPreferences: {
+        readingTone: 'gentle',
+        spiritualFrame: 'spiritual',
+        preferredSpreadDepth: 'deep',
         tarotExperience: 'experienced',
         focusAreas: ['grief support']
       }

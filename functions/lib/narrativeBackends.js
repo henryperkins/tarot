@@ -56,6 +56,7 @@ import {
 } from './readingTelemetry.js';
 import { withSpan } from './tracingSpans.js';
 import { resolveContextSelection } from './contextDetection.js';
+import { collectQuerentReflections } from './querentReflections.js';
 
 // ============================================================================
 // Backend Registry
@@ -488,7 +489,7 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
   const analysis = payload?.analysis || {};
   const personalization = payload?.personalization || {};
   const rawUserQuestion = typeof payload?.userQuestion === 'string' ? payload.userQuestion : '';
-  const rawReflections = typeof payload?.reflectionsText === 'string' ? payload.reflectionsText : '';
+  const rawReflections = collectQuerentReflections(payload?.reflectionsText, payload?.cardsInfo);
   const rawFocusAreas = Array.isArray(personalization?.focusAreas)
     ? personalization.focusAreas.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
     : [];
@@ -708,10 +709,12 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown', optio
     payload.contextDiagnostics = Array.from(new Set([...(payload.contextDiagnostics || []), ...promptDiagnostics]));
   }
 
+  // Card reflections can name people too, so redaction hints read every reflection.
+  const querentReflections = collectQuerentReflections(reflectionsText, cardsInfo);
   const promptRedactionOptions = buildPromptRedactionOptions({
     personalization: payload.personalization,
     userQuestion,
-    reflectionsText,
+    reflectionsText: querentReflections,
     additionalTextSources: Array.isArray(payload.memories)
       ? payload.memories.map((memory) => memory?.text).filter(Boolean)
       : []
@@ -728,7 +731,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown', optio
     {
       personalization: payload.personalization,
       userQuestion,
-      reflectionsText,
+      reflectionsText: querentReflections,
       redactionOptions: promptRedactionOptions
     }
   );
@@ -931,10 +934,12 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
     payload.contextDiagnostics = Array.from(new Set([...(payload.contextDiagnostics || []), ...promptDiagnostics]));
   }
 
+  // Card reflections can name people too, so redaction hints read every reflection.
+  const querentReflections = collectQuerentReflections(reflectionsText, cardsInfo);
   const promptRedactionOptions = buildPromptRedactionOptions({
     personalization: payload.personalization,
     userQuestion,
-    reflectionsText,
+    reflectionsText: querentReflections,
     additionalTextSources: Array.isArray(payload.memories)
       ? payload.memories.map((memory) => memory?.text).filter(Boolean)
       : []
@@ -950,7 +955,7 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
     {
       personalization: payload.personalization,
       userQuestion,
-      reflectionsText,
+      reflectionsText: querentReflections,
       redactionOptions: promptRedactionOptions
     }
   );
@@ -1348,12 +1353,14 @@ export async function composeReadingEnhanced(payload, env = null) {
     spreadInfo,
     cardsInfo,
     userQuestion,
-    reflectionsText,
     analysis,
     context,
     personalization = null,
     visionInsights = []
   } = payload;
+  // The composer has no per-card reflection slot, so its reflections section
+  // carries the general notes and every card's reflection together.
+  const reflectionsText = collectQuerentReflections(payload.reflectionsText, cardsInfo);
   const languageSupport = getLocalComposerLanguageSupport({
     userQuestion,
     reflectionsText

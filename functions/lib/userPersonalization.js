@@ -167,34 +167,23 @@ export function mergePersonalizationSources(...sources) {
   return merged;
 }
 
-// Column DEFAULTs from migrations/0020_add_user_preferences.sql. Nothing writes
-// these columns, so a default is indistinguishable from "never chosen" and must
-// not override the preferences saved with the latest journal entry.
-const USERS_PREFERENCE_COLUMN_DEFAULTS = Object.freeze({
-  readingTone: 'balanced',
-  spiritualFrame: 'mixed',
-  preferredSpreadDepth: 'standard'
-});
-
+// Only display_name is read from the users row. reading_tone, spiritual_frame
+// and preferred_spread_depth carry DEFAULTs from migration 0020 and nothing
+// writes them, so a stored value cannot tell a choice from "never set"; the
+// preferences saved with the latest journal entry are the source for those.
+// If a settings endpoint starts writing them, give the columns NULL defaults
+// and read them here again.
 async function loadUserPreferencesRow(db, userId) {
   if (!db || !userId) return null;
 
   const result = await db.prepare(`
-    SELECT display_name, reading_tone, spiritual_frame, preferred_spread_depth
+    SELECT display_name
     FROM users WHERE id = ?
   `).bind(userId).first();
 
   if (!result) return null;
 
-  const preferences = sanitizePersonalizationInput({
-    displayName: result.display_name,
-    readingTone: result.reading_tone,
-    spiritualFrame: result.spiritual_frame,
-    preferredSpreadDepth: result.preferred_spread_depth
-  });
-  for (const [field, columnDefault] of Object.entries(USERS_PREFERENCE_COLUMN_DEFAULTS)) {
-    if (preferences[field] === columnDefault) delete preferences[field];
-  }
+  const preferences = sanitizePersonalizationInput({ displayName: result.display_name });
   if (preferences.displayName === '') delete preferences.displayName;
   return preferences;
 }
