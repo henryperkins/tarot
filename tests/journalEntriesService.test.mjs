@@ -250,7 +250,7 @@ describe('saveReadingJournalEntry (MCP)', () => {
   });
 
   it('answers saved when the insert landed but its response was lost', async () => {
-    const { d1, env } = await setup();
+    const { d1 } = await setup();
     const result = await saveReadingJournalEntry({
       env: { DB: failingInsertDb(d1, { landThenThrow: true }) },
       user: USER,
@@ -262,7 +262,7 @@ describe('saveReadingJournalEntry (MCP)', () => {
   });
 
   it('answers not_saved when the insert failed and nothing landed', async () => {
-    const { d1, env } = await setup();
+    const { d1 } = await setup();
     const result = await saveReadingJournalEntry({ env: { DB: failingInsertDb(d1) }, user: USER, entry: READING_ENTRY });
 
     assert.deepEqual(result, { outcome: 'not_saved' });

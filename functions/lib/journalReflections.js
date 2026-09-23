@@ -12,7 +12,7 @@
  * - HTTP supports append/replace; MCP supports idempotent append only;
  * - a missing entry and another user's entry get the same 404.
  *
- * Retries are idempotent by the operation's identity (entry, target key,
+ * MCP retries are idempotent by the operation's identity (entry, target key,
  * exact text): a note already present anywhere on the target is not added
  * again. Writes use compare-and-swap on the previous JSON, so concurrent
  * appends can't lose each other.
