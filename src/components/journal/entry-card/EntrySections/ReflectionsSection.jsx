@@ -1,6 +1,6 @@
 /**
  * ReflectionsSection.jsx
- * Displays user reflections/notes for each card position.
+ * Displays reflections labelled by card ("Past · The Hermit") or "Whole reading".
  */
 import { memo } from 'react';
 import { styles, cn } from '../EntryCard.primitives';
@@ -17,15 +17,15 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
 
       <div className={styles.sectionBody}>
         <ul className="space-y-2">
-          {reflections.map(([position, note], index) => (
+          {reflections.map(([label, note], index) => (
             <li
-              key={`${position || 'reflection'}-${index}`}
+              key={`${label || 'reflection'}-${index}`}
               className="flex items-start gap-2 text-sm leading-relaxed"
             >
               <span className="font-semibold text-main">
-                {position || `Note ${index + 1}`}
+                {label || `Note ${index + 1}`}
               </span>
-              <span className="text-muted">{note}</span>
+              <span className="text-muted whitespace-pre-line">{note}</span>
             </li>
           ))}
         </ul>
