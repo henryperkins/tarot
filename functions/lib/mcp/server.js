@@ -8,6 +8,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CfWorkerJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/cfworker-provider.js';
 
 import { registerProfileTool } from './tools/profile.js';
+import { registerReadingTools } from './tools/readings.js';
 
 export const MCP_SERVER_INFO = Object.freeze({ name: 'tableu', version: '1.0.0' });
 
@@ -35,5 +36,6 @@ export function createTableuMcpServer({ env, user, waitUntil, sleep, now } = {})
     jsonSchemaValidator: new CfWorkerJsonSchemaValidator()
   });
   registerProfileTool(server, { user });
+  registerReadingTools(server, { env, user, sleep, now });
   return server;
 }
