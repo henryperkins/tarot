@@ -1,0 +1,19 @@
+
+Running 7 tests using 1 worker
+
+
+
+(node:29860) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[1/7] [chromium] › e2e\narrative-remediation.spec.js:64:5 › A01 A02 A08 foreground, targets, and three close cycles at 1440px no-preference
+[2/7] [chromium] › e2e\narrative-remediation.spec.js:441:3 › A07 heading outline preserves all narrative sections, focus mode and chat levels
+[3/7] [chromium] › e2e\narrative-remediation.spec.js:507:3 › A09 skip links focus only mounted destinations across setup, stream, completed and focus modes
+(node:22820) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[4/7] [mobile] › e2e\narrative-remediation.spec.js:64:5 › A01 A02 A08 foreground, targets, and three close cycles at 320px no-preference @mobile
+[5/7] [mobile] › e2e\narrative-remediation.spec.js:64:5 › A01 A02 A08 foreground, targets, and three close cycles at 390px no-preference @mobile
+[6/7] [mobile] › e2e\narrative-remediation.spec.js:441:3 › A07 heading outline preserves all narrative sections, focus mode and chat levels @mobile
+[7/7] [mobile] › e2e\narrative-remediation.spec.js:507:3 › A09 skip links focus only mounted destinations across setup, stream, completed and focus modes @mobile
+  7 passed (3.3m)

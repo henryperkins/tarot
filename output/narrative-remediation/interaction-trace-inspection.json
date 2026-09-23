@@ -1,0 +1,118 @@
+{
+  "trace": "interaction-trace.zip",
+  "capturedAtUtc": "2026-09-23T16:34:56.692230+00:00",
+  "capturePurpose": "Final trace refreshed after the serialized, cancellable ParticleLayer canvas-loading fix. Existing eight font-verified image states were preserved.",
+  "requests": [
+    {
+      "method": "POST",
+      "url": "http://localhost:5173/api/tarot-reading/jobs"
+    },
+    {
+      "method": "POST",
+      "url": "http://localhost:5173/api/reading-followup"
+    }
+  ],
+  "errors": [],
+  "actions": [
+    {
+      "method": "click",
+      "durationMs": 1729.2,
+      "params": {
+        "selector": "internal:role=button[name=/^Draw cards$|^Shuffle & draw/] >> visible=true >> nth=0",
+        "strict": true,
+        "timeout": 20000
+      }
+    },
+    {
+      "method": "click",
+      "durationMs": 1376.4,
+      "params": {
+        "selector": "internal:role=button[name=/^Deal the cards/] >> visible=true >> nth=0",
+        "strict": true,
+        "timeout": 20000
+      }
+    },
+    {
+      "method": "click",
+      "durationMs": 1058.3,
+      "params": {
+        "selector": "internal:role=button[name=/^Reveal all cards/] >> visible=true >> nth=0",
+        "strict": true,
+        "timeout": 20000
+      }
+    },
+    {
+      "method": "click",
+      "durationMs": 1216.3,
+      "params": {
+        "selector": "internal:role=button[name=/^Open chat$|^Open follow-up chat$|^Ask follow-up question$|^Ask a follow-up$|^Ask$/] >> visible=true >> nth=0",
+        "strict": true,
+        "timeout": 20000
+      }
+    },
+    {
+      "method": "click",
+      "durationMs": 82.9,
+      "params": {
+        "selector": "internal:role=dialog[name=\"Follow-up chat\"i] >> internal:role=button[name=\"Send question\"i]",
+        "strict": true,
+        "timeout": 20000
+      }
+    },
+    {
+      "method": "click",
+      "durationMs": 116.6,
+      "params": {
+        "selector": "internal:role=dialog[name=\"Follow-up chat\"i] >> internal:role=button[name=\"Close follow-up chat\"i]",
+        "strict": true,
+        "timeout": 20000
+      }
+    },
+    {
+      "method": "click",
+      "durationMs": 150.7,
+      "params": {
+        "selector": "internal:role=button[name=/^Open chat$|^Open follow-up chat$|^Ask follow-up question$|^Ask a follow-up$|^Ask$/] >> visible=true >> nth=0",
+        "strict": true,
+        "timeout": 20000
+      }
+    },
+    {
+      "method": "mouseWheel",
+      "durationMs": 41.0,
+      "params": {
+        "deltaX": 0,
+        "deltaY": -1000
+      }
+    },
+    {
+      "method": "mouseWheel",
+      "durationMs": 17.1,
+      "params": {
+        "deltaX": 0,
+        "deltaY": 1000
+      }
+    },
+    {
+      "method": "setViewportSize",
+      "durationMs": 183.6,
+      "params": {
+        "viewportSize": {
+          "width": 390,
+          "height": 844
+        }
+      }
+    },
+    {
+      "method": "setViewportSize",
+      "durationMs": 25.1,
+      "params": {
+        "viewportSize": {
+          "width": 1440,
+          "height": 500
+        }
+      }
+    }
+  ],
+  "note": "Automation timings include Playwright waits; this is not a performance benchmark or a listener/heap audit."
+}

@@ -1,0 +1,124 @@
+
+> tableau@1.0.0 build
+> vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 7651 modules transformed.
+../../../../tarot/node_modules/onnxruntime-web/dist/ort-web.min.js (6:62546): Use of eval in "../../../../tarot/node_modules/onnxruntime-web/dist/ort-web.min.js" is strongly discouraged as it poses security risks and may cause issues with minification.
+rendering chunks...
+computing gzip size...
+dist/assets/onecard-640-QKvOyFW8.avif                               10.95 kB
+dist/assets/relationshipsnapshot-640-DwslqEsX.avif                  11.26 kB
+dist/index.html                                                     12.03 kB │ gzip:   2.73 kB
+dist/assets/5card-640-gvYk8Zzy.avif                                 12.23 kB
+dist/assets/decision-640-kKZnaN1c.avif                              14.41 kB
+dist/assets/3card-640-DTC5hYJh.avif                                 14.97 kB
+dist/assets/celticcross-640-CjccFtx3.avif                           18.64 kB
+dist/assets/onecard-1280-D0465NJm.avif                              21.22 kB
+dist/assets/relationshipsnapshot-1280-DLRa8I8u.avif                 21.71 kB
+dist/assets/relationshipsnapshot-640-CbjsvDZB.webp                  23.27 kB
+dist/assets/5card-1280-Sa7mF1Eh.avif                                24.27 kB
+dist/assets/onecard-640-DB3FfsW5.webp                               24.70 kB
+dist/assets/5card-640-C2gkAnYO.webp                                 24.73 kB
+dist/assets/3card-640-BUC2esKp.webp                                 28.25 kB
+dist/assets/decision-640-Ddtk-S5Q.webp                              28.34 kB
+dist/assets/decision-1280-0d1sxUeE.avif                             30.32 kB
+dist/assets/3card-1280-BqU8v46J.avif                                31.46 kB
+dist/assets/celticcross-640-CDxTXwY_.webp                           36.87 kB
+dist/assets/celticcross-1280-eiPqTZM5.avif                          38.75 kB
+dist/assets/relationshipsnapshot-1280-ztBPHlqP.webp                 51.68 kB
+dist/assets/onecard-1280-T5TONMJZ.webp                              54.61 kB
+dist/assets/5card-1280-Ca8QjNZi.webp                                56.04 kB
+dist/assets/decision-1280-BDbkDqmX.webp                             65.95 kB
+dist/assets/3card-1280-BgywvE3T.webp                                66.33 kB
+dist/assets/inter-latin-opsz-normal-BwkfbSeq.woff2                  72.92 kB
+dist/assets/inter-latin-opsz-italic-BbqH_2Ar.woff2                  79.72 kB
+dist/assets/celticcross-1280-CIR4h0sl.webp                          86.25 kB
+dist/assets/source-serif-4-latin-opsz-normal-BpEBLj1O.woff2        122.36 kB
+dist/assets/source-serif-4-latin-opsz-italic-BOLXpvkj.woff2        130.19 kB
+dist/assets/Thoth-CwagPGT3.jpeg                                    266.11 kB
+dist/assets/rider-wLyZcP-d.jpeg                                    272.01 kB
+dist/assets/marseille-CCvTHGQy.jpeg                                324.47 kB
+dist/assets/relationshipsnapshot-DpX22fyV.png                   17,638.00 kB
+dist/assets/5card-raIwFfLi.png                                  17,654.06 kB
+dist/assets/onecard-Bqi-2__-.png                                18,115.59 kB
+dist/assets/3card-Drru1Dva.png                                  18,300.75 kB
+dist/assets/decision-DsbAcWgX.png                               18,358.15 kB
+dist/assets/celticcross-DPrjiSuf.png                            18,528.49 kB
+dist/assets/GovernanceCritiquePage-FzYvoiDM.css                      6.14 kB │ gzip:   1.58 kB
+dist/assets/index-BX2a6U92.css                                     290.88 kB │ gzip:  44.60 kB
+dist/assets/3card-B1Ws8GUG.js                                        0.06 kB │ gzip:   0.08 kB
+dist/assets/5card-BkMIXuZj.js                                        0.06 kB │ gzip:   0.08 kB
+dist/assets/onecard-4qB-r1W2.js                                      0.06 kB │ gzip:   0.08 kB
+dist/assets/decision-foM1E3yn.js                                     0.06 kB │ gzip:   0.08 kB
+dist/assets/3card-640-DOLdt4n1.js                                    0.06 kB │ gzip:   0.08 kB
+dist/assets/3card-640-Dz6aTa4Z.js                                    0.06 kB │ gzip:   0.08 kB
+dist/assets/5card-640-sp1dFUXD.js                                    0.06 kB │ gzip:   0.08 kB
+dist/assets/5card-640-tbFL1qfw.js                                    0.06 kB │ gzip:   0.08 kB
+dist/assets/3card-1280-C9xQgEdb.js                                   0.07 kB │ gzip:   0.09 kB
+dist/assets/3card-1280-Bw7awQcp.js                                   0.07 kB │ gzip:   0.09 kB
+dist/assets/5card-1280-BneZhvpo.js                                   0.07 kB │ gzip:   0.09 kB
+dist/assets/5card-1280-CB6CZ171.js                                   0.07 kB │ gzip:   0.09 kB
+dist/assets/celticcross-CbnUIPXf.js                                  0.07 kB │ gzip:   0.09 kB
+dist/assets/onecard-640-QD27aN3O.js                                  0.07 kB │ gzip:   0.09 kB
+dist/assets/onecard-640-Cd_Nsgvy.js                                  0.07 kB │ gzip:   0.09 kB
+dist/assets/decision-640-DO6qbfQ2.js                                 0.07 kB │ gzip:   0.09 kB
+dist/assets/decision-640-BPk6j3jr.js                                 0.07 kB │ gzip:   0.09 kB
+dist/assets/onecard-1280-CZiLAugO.js                                 0.07 kB │ gzip:   0.09 kB
+dist/assets/onecard-1280-BxVyT41i.js                                 0.07 kB │ gzip:   0.09 kB
+dist/assets/decision-1280-C5IJpCai.js                                0.07 kB │ gzip:   0.09 kB
+dist/assets/decision-1280-G5m-oznk.js                                0.07 kB │ gzip:   0.09 kB
+dist/assets/celticcross-640-XVvHzqvk.js                              0.07 kB │ gzip:   0.09 kB
+dist/assets/celticcross-640-oyEdNSox.js                              0.07 kB │ gzip:   0.09 kB
+dist/assets/celticcross-1280-XEEruoBd.js                             0.07 kB │ gzip:   0.09 kB
+dist/assets/celticcross-1280-CmyJghX3.js                             0.07 kB │ gzip:   0.09 kB
+dist/assets/relationshipsnapshot-B4DJanSe.js                         0.07 kB │ gzip:   0.09 kB
+dist/assets/relationshipsnapshot-640-zfR7aT0C.js                     0.08 kB │ gzip:   0.10 kB
+dist/assets/relationshipsnapshot-640-D6bzDYTO.js                     0.08 kB │ gzip:   0.10 kB
+dist/assets/relationshipsnapshot-1280-DkN4x6ku.js                    0.08 kB │ gzip:   0.10 kB
+dist/assets/relationshipsnapshot-1280-m8igCV49.js                    0.08 kB │ gzip:   0.10 kB
+dist/assets/deckProfiles-B038JC4L.js                                 0.84 kB │ gzip:   0.39 kB
+dist/assets/media-DWuYPvVM.js                                        1.53 kB │ gzip:   0.70 kB
+dist/assets/Cards.es-BY-BqRgW.js                                     2.02 kB │ gzip:   0.69 kB
+dist/assets/ArrowClockwise.es-DGk3Brpb.js                            2.03 kB │ gzip:   0.78 kB
+dist/assets/visionBackends-CYxGW4rX.js                               2.03 kB │ gzip:   0.88 kB
+dist/assets/CalendarBlank.es-CsxVNVcp.js                             2.23 kB │ gzip:   0.70 kB
+dist/assets/OAuthCallbackPage-B-AxLtCL.js                            2.24 kB │ gzip:   1.13 kB
+dist/assets/LockKey.es--K4gYEKL.js                                   2.61 kB │ gzip:   0.89 kB
+dist/assets/ClipboardText.es-CLsouaf5.js                             3.11 kB │ gzip:   1.03 kB
+dist/assets/ShieldCheck.es-CgLuufTB.js                               3.39 kB │ gzip:   1.18 kB
+dist/assets/hybridVisionPipeline-Dt4uBALr.js                         4.28 kB │ gzip:   1.63 kB
+dist/assets/ResetPasswordPage-CvUac-th.js                            5.11 kB │ gzip:   1.91 kB
+dist/assets/Brain.es-B9fhzJNr.js                                     5.47 kB │ gzip:   1.67 kB
+dist/assets/VerifyEmailPage-ClVTr2rQ.js                              5.50 kB │ gzip:   2.14 kB
+dist/assets/llamaVisionPipeline-tXVlXPqo.js                          6.96 kB │ gzip:   2.89 kB
+dist/assets/StoryIllustration-CY9hc6hU.js                           15.48 kB │ gzip:   4.94 kB
+dist/assets/GovernanceCritiquePage-RKw7Nt0r.js                      15.81 kB │ gzip:   4.86 kB
+dist/assets/DesignSystemPage-V223TiZF.js                            16.33 kB │ gzip:   4.32 kB
+dist/assets/AnimatedReveal-fKOEUftN.js                              16.40 kB │ gzip:   5.53 kB
+dist/assets/CardGalleryPage-C8hpLq_W.js                             21.24 kB │ gzip:   6.66 kB
+dist/assets/purify.es-VaSPOPhr.js                                   28.72 kB │ gzip:  10.77 kB
+dist/assets/tarotVisionPipeline-DvHhIc54.js                         28.81 kB │ gzip:  10.68 kB
+dist/assets/ShareReading-CsLtK1zG.js                                32.12 kB │ gzip:   8.73 kB
+dist/assets/PricingPage-B12PjSTh.js                                 39.71 kB │ gzip:  10.47 kB
+dist/assets/react-BFq5i24g.js                                       49.87 kB │ gzip:  17.72 kB
+dist/assets/AdminDashboard-DjnR_q8F.js                              61.60 kB │ gzip:  15.78 kB
+dist/assets/AccountPage-DrcFAnDS.js                                 83.23 kB │ gzip:  20.51 kB
+dist/assets/JourneyContent-BvAvQjZx.js                             139.48 kB │ gzip:  36.12 kB
+dist/assets/markdown-Ej_guMN0.js                                   157.54 kB │ gzip:  47.80 kB
+dist/assets/index.es-BXRPHzUX.js                                   158.89 kB │ gzip:  53.07 kB
+dist/assets/Journal-DvFGml2z.js                                    186.18 kB │ gzip:  48.40 kB
+dist/assets/html2canvas.esm-DXEQVQnt.js                            201.04 kB │ gzip:  47.43 kB
+dist/assets/AreaChart-DGdCazAY.js                                  381.28 kB │ gzip: 110.65 kB
+dist/assets/microsoft.cognitiveservices.speech.sdk-J5OU72pe.js     387.15 kB │ gzip:  84.50 kB
+dist/assets/pdfExport-MA2aHKGE.js                                  389.97 kB │ gzip: 127.74 kB
+dist/assets/index-D_AMTgq1.js                                      482.61 kB │ gzip: 160.12 kB
+dist/assets/vision-BqT4NptE.js                                     810.56 kB │ gzip: 197.42 kB
+dist/assets/index-C57oVcUr.js                                    1,620.55 kB │ gzip: 459.66 kB
+
+(!) Some chunks are larger than 1000 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 22.87s

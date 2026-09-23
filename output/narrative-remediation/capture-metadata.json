@@ -1,0 +1,293 @@
+[
+  {
+    "name": "01-light-reading",
+    "theme": "light",
+    "width": 1440,
+    "height": 1000,
+    "reading": true,
+    "browser": "chromium",
+    "file": "01-light-reading.png",
+    "pageErrors": [],
+    "consoleMessages": [
+      {
+        "type": "warning",
+        "text": "Service Worker registration blocked by Playwright"
+      },
+      {
+        "type": "warning",
+        "text": "You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled"
+      },
+      {
+        "type": "warning",
+        "text": "[SoundManager] preload failed: EncodingError: Unable to decode audio data"
+      }
+    ],
+    "failedResources": [],
+    "readingRequests": 1,
+    "themeClass": "light",
+    "fonts": {
+      "inter": true,
+      "sourceSerif": true,
+      "loadedFaces": [
+        "Inter Variable",
+        "Inter Variable",
+        "Source Serif 4 Variable"
+      ]
+    }
+  },
+  {
+    "name": "01-dark-reading",
+    "theme": "dark",
+    "width": 1440,
+    "height": 1000,
+    "reading": true,
+    "browser": "chromium",
+    "file": "01-dark-reading.png",
+    "pageErrors": [],
+    "consoleMessages": [
+      {
+        "type": "warning",
+        "text": "Service Worker registration blocked by Playwright"
+      },
+      {
+        "type": "warning",
+        "text": "You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled"
+      },
+      {
+        "type": "warning",
+        "text": "[SoundManager] preload failed: EncodingError: Unable to decode audio data"
+      }
+    ],
+    "failedResources": [],
+    "readingRequests": 1,
+    "themeClass": null,
+    "fonts": {
+      "inter": true,
+      "sourceSerif": true,
+      "loadedFaces": [
+        "Inter Variable",
+        "Inter Variable",
+        "Source Serif 4 Variable"
+      ]
+    }
+  },
+  {
+    "name": "02-mobile-follow-up-light",
+    "theme": "light",
+    "width": 390,
+    "height": 844,
+    "mobile": true,
+    "browser": "webkit",
+    "file": "02-mobile-follow-up-light.png",
+    "pageErrors": [],
+    "consoleMessages": [
+      {
+        "type": "warning",
+        "text": "Service Worker registration blocked by Playwright"
+      },
+      {
+        "type": "warning",
+        "text": "You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled"
+      },
+      {
+        "type": "warning",
+        "text": "[Audio] Audio unlock failed - user interaction needed NotSupportedError: The operation is not supported."
+      }
+    ],
+    "failedResources": [],
+    "readingRequests": 1,
+    "themeClass": "light",
+    "fonts": {
+      "inter": true,
+      "sourceSerif": true,
+      "loadedFaces": [
+        "Inter Variable",
+        "\"Source Serif 4 Variable\""
+      ]
+    }
+  },
+  {
+    "name": "02-mobile-follow-up-dark",
+    "theme": "dark",
+    "width": 390,
+    "height": 844,
+    "mobile": true,
+    "browser": "webkit",
+    "file": "02-mobile-follow-up-dark.png",
+    "pageErrors": [],
+    "consoleMessages": [
+      {
+        "type": "warning",
+        "text": "Service Worker registration blocked by Playwright"
+      },
+      {
+        "type": "warning",
+        "text": "You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled"
+      },
+      {
+        "type": "warning",
+        "text": "[Audio] Audio unlock failed - user interaction needed NotSupportedError: The operation is not supported."
+      }
+    ],
+    "failedResources": [],
+    "readingRequests": 1,
+    "themeClass": null,
+    "fonts": {
+      "inter": true,
+      "sourceSerif": true,
+      "loadedFaces": [
+        "Inter Variable",
+        "\"Source Serif 4 Variable\""
+      ]
+    }
+  },
+  {
+    "name": "03-short-desktop-chat",
+    "theme": "light",
+    "width": 1440,
+    "height": 500,
+    "browser": "chromium",
+    "file": "03-short-desktop-chat.png",
+    "pageErrors": [],
+    "consoleMessages": [
+      {
+        "type": "warning",
+        "text": "Service Worker registration blocked by Playwright"
+      },
+      {
+        "type": "warning",
+        "text": "You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled"
+      },
+      {
+        "type": "warning",
+        "text": "[SoundManager] preload failed: EncodingError: Unable to decode audio data"
+      }
+    ],
+    "failedResources": [],
+    "readingRequests": 1,
+    "themeClass": "light",
+    "fonts": {
+      "inter": true,
+      "sourceSerif": true,
+      "loadedFaces": [
+        "Inter Variable",
+        "Inter Variable",
+        "Source Serif 4 Variable"
+      ]
+    }
+  },
+  {
+    "name": "04-narrow-focus",
+    "theme": "dark",
+    "width": 320,
+    "height": 740,
+    "mobile": true,
+    "draft": true,
+    "browser": "webkit",
+    "file": "04-narrow-focus.png",
+    "pageErrors": [],
+    "consoleMessages": [
+      {
+        "type": "warning",
+        "text": "Service Worker registration blocked by Playwright"
+      },
+      {
+        "type": "warning",
+        "text": "You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled"
+      },
+      {
+        "type": "warning",
+        "text": "[Audio] Audio unlock failed - user interaction needed NotSupportedError: The operation is not supported."
+      }
+    ],
+    "failedResources": [],
+    "readingRequests": 1,
+    "themeClass": null,
+    "fonts": {
+      "inter": true,
+      "sourceSerif": true,
+      "loadedFaces": [
+        "Inter Variable",
+        "\"Source Serif 4 Variable\""
+      ]
+    }
+  },
+  {
+    "name": "05-short-enlarged-text",
+    "theme": "light",
+    "width": 1440,
+    "height": 500,
+    "enlarged": true,
+    "browser": "chromium",
+    "file": "05-short-enlarged-text.png",
+    "pageErrors": [],
+    "consoleMessages": [
+      {
+        "type": "warning",
+        "text": "Service Worker registration blocked by Playwright"
+      },
+      {
+        "type": "warning",
+        "text": "You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled"
+      },
+      {
+        "type": "warning",
+        "text": "[SoundManager] preload failed: EncodingError: Unable to decode audio data"
+      }
+    ],
+    "failedResources": [],
+    "readingRequests": 1,
+    "themeClass": "light",
+    "fonts": {
+      "inter": true,
+      "sourceSerif": true,
+      "loadedFaces": [
+        "Inter Variable",
+        "Inter Variable",
+        "Source Serif 4 Variable"
+      ]
+    }
+  },
+  {
+    "name": "06-simulated-keyboard",
+    "theme": "light",
+    "width": 390,
+    "height": 844,
+    "mobile": true,
+    "keyboard": true,
+    "enlarged": true,
+    "browser": "webkit",
+    "file": "06-simulated-keyboard.png",
+    "pageErrors": [],
+    "consoleMessages": [
+      {
+        "type": "warning",
+        "text": "Service Worker registration blocked by Playwright"
+      },
+      {
+        "type": "warning",
+        "text": "You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled"
+      },
+      {
+        "type": "warning",
+        "text": "[Audio] Audio unlock failed - user interaction needed NotSupportedError: The operation is not supported."
+      }
+    ],
+    "failedResources": [],
+    "readingRequests": 1,
+    "themeClass": "light",
+    "fonts": {
+      "inter": true,
+      "sourceSerif": true,
+      "loadedFaces": [
+        "Inter Variable",
+        "\"Source Serif 4 Variable\""
+      ]
+    }
+  },
+  {
+    "name": "interaction-trace",
+    "readingRequests": 1,
+    "followupRequests": 1
+  }
+]

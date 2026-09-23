@@ -29,10 +29,10 @@ export function ReadingMediaSection({
             <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-4 sm:p-5">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="min-w-0 space-y-1">
-                        <p className="flex items-center gap-2 text-sm font-semibold text-main">
+                        <h2 className="flex items-center gap-2 text-base font-semibold text-main">
                             <ImagesSquare className="w-4 h-4 text-secondary" aria-hidden="true" />
                             Recent media
-                        </p>
+                        </h2>
                         {mediaError ? (
                             <p className="text-xs text-error">{mediaError}</p>
                         ) : (

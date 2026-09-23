@@ -1,0 +1,24 @@
+
+Running 16 tests using 1 worker
+
+
+
+(node:21452) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[1/16] [chromium] › e2e\reading-hardening.spec.js:93:1 › page remains painted when motion preference changes or its animation is paused
+[2/16] [chromium] › e2e\reading-hardening.spec.js:118:3 › partial server text never announces completion at 320px
+[3/16] [chromium] › e2e\reading-hardening.spec.js:118:3 › partial server text never announces completion at 390px
+[4/16] [chromium] › e2e\reading-hardening.spec.js:118:3 › partial server text never announces completion at 1440px
+[5/16] [chromium] › e2e\reading-hardening.spec.js:142:3 › desktop can retry a 401 response without changing cards or the question
+[6/16] [chromium] › e2e\reading-hardening.spec.js:142:3 › desktop can retry a 403 response without changing cards or the question
+[7/16] [chromium] › e2e\reading-hardening.spec.js:142:3 › desktop can retry a 429 response without changing cards or the question
+[8/16] [chromium] › e2e\reading-hardening.spec.js:142:3 › desktop can retry a 500 response without changing cards or the question
+[9/16] [chromium] › e2e\reading-hardening.spec.js:164:1 › a mid-stream failure is an error, not a finished reading
+[10/16] [chromium] › e2e\reading-hardening.spec.js:181:1 › narrow readings keep usable text width and contain long mixed-script content
+[11/16] [chromium] › e2e\reading-hardening.spec.js:207:1 › a delayed request stays truthful and completion preserves focus chosen elsewhere
+[12/16] [chromium] › e2e\reading-hardening.spec.js:226:1 › mobile retry and motion changes remain usable through generation and failure
+[13/16] [chromium] › e2e\reading-visual-modals.spec.js:214:3 › Reading visual modals @desktop › visual companion collapses to a trigger that opens a dialog
+[14/16] [chromium] › e2e\reading-visual-modals.spec.js:244:3 › Reading visual modals @desktop › studio keeps its focus trap after a nested prompt is dismissed
+[15/16] [chromium] › e2e\reading-visual-modals.spec.js:277:3 › Reading visual modals @desktop › recent media collapses to a trigger that opens a dialog
+[16/16] [chromium] › e2e\saved-intentions-modal.spec.js:6:3 › Saved intentions modal @desktop › confirms before using or deleting an intention
+  16 passed (1.8m)

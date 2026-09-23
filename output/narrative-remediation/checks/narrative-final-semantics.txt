@@ -1,0 +1,19 @@
+✔ narrative skip destination follows actual header mounts and unmounts (3.9087ms)
+✔ a detached narrative heading is never offered as a skip destination (0.2322ms)
+✔ shared Markdown keeps all six original heading levels for chat and journal (8158.2543ms)
+✔ contextual Markdown nests every source heading beneath the narrative panel (4.3513ms)
+✔ narrative heading base follows Markdown structure, including setext and fenced code (5.0088ms)
+✔ contextual heading rendering preserves voice word offsets, highlights, and HTML policy (7.3247ms)
+✔ narrative voice highlighting counts text beneath all six supported heading levels (3.3177ms)
+✔ narrative body opts into h3 sections without changing the shared renderer default (5.0443ms)
+✔ narrative title exposes the stable h2 focus destination (1.0846ms)
+✔ spread insights uses an h2 panel title with h3 immediate subsections (4.1803ms)
+✔ collapsed feedback disclosure controls a mounted, hidden panel (2.3864ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8778.4757

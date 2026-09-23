@@ -158,6 +158,7 @@ function buildTokenMeta(tokens, highlightRanges) {
 export function StreamingNarrative({
   text,
   useMarkdown = false,
+  headingBaseLevel = null,
   className = '',
   isStreamingEnabled = true,
   isReadingStreaming = false,
@@ -501,6 +502,7 @@ export function StreamingNarrative({
         content={visibleText}
         highlightPhrases={normalizedHighlightPhrases}
         wordBoundary={wordBoundary}
+        headingBaseLevel={headingBaseLevel}
       />
     </div>
   ) : (

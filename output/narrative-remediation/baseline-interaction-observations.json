@@ -1,0 +1,578 @@
+{
+  "baselineCommit": "7e9170fb2b64184a6225940f4cbef7b9e92caced",
+  "baselineURL": "http://localhost:5176",
+  "viewport": {
+    "width": 1440,
+    "height": 500
+  },
+  "reducedMotion": "no-preference",
+  "steps": [
+    {
+      "name": "Create the same jobs/SSE reading",
+      "status": "passed",
+      "durationMs": 14812
+    },
+    {
+      "name": "Open short desktop chat",
+      "status": "passed",
+      "durationMs": 2759
+    },
+    {
+      "name": "Fill and click Send",
+      "status": "passed",
+      "durationMs": 201
+    },
+    {
+      "name": "Receive partial response",
+      "status": "passed",
+      "durationMs": 94
+    },
+    {
+      "name": "Close while response is in flight",
+      "status": "passed",
+      "durationMs": 214
+    },
+    {
+      "name": "Closed dialog is genuinely inert",
+      "status": "failed",
+      "durationMs": 12,
+      "error": "expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false"
+    },
+    {
+      "name": "Close restores its opener",
+      "status": "passed",
+      "durationMs": 21
+    },
+    {
+      "name": "Reopen completed conversation",
+      "status": "passed",
+      "durationMs": 1872
+    },
+    {
+      "name": "Scroll older and newer messages",
+      "status": "passed",
+      "durationMs": 652
+    },
+    {
+      "name": "Resize retains one active chat",
+      "status": "passed",
+      "durationMs": 14
+    },
+    {
+      "name": "Resize retains the same completed message",
+      "status": "passed",
+      "durationMs": 8
+    },
+    {
+      "name": "No duplicate generation or follow-up request",
+      "status": "passed",
+      "durationMs": 0
+    }
+  ],
+  "states": [
+    {
+      "name": "initial-open",
+      "viewport": {
+        "width": 1440,
+        "height": 500
+      },
+      "activeDialogs": 1,
+      "readingRequests": 1,
+      "followupRequests": 0,
+      "previousDialogConnected": true,
+      "previousDialogInert": false,
+      "activeElement": {
+        "tag": "DIV",
+        "label": null,
+        "text": "Follow-up chatClarify symbols, positions, or next steps.0/10 usedHow does the Pr"
+      },
+      "dialog": {
+        "x": 368,
+        "y": 35.5,
+        "width": 704,
+        "height": 425,
+        "bottom": 460.5,
+        "overflowY": "hidden",
+        "scrollHeight": 496,
+        "clientHeight": 423,
+        "input": {
+          "x": 418.59375,
+          "y": 342.09375,
+          "width": 542.8125,
+          "height": 94,
+          "bottom": 436.09375,
+          "centerHits": true,
+          "fullyInsideDialog": true,
+          "fontSize": "16px"
+        },
+        "send": {
+          "x": 969.40625,
+          "y": 342.09375,
+          "width": 52,
+          "height": 40,
+          "bottom": 382.09375,
+          "centerHits": true,
+          "fullyInsideDialog": true,
+          "fontSize": "16px"
+        },
+        "close": {
+          "x": 987.40625,
+          "y": 86.09375,
+          "width": 34,
+          "height": 34,
+          "bottom": 120.09375,
+          "centerHits": true,
+          "fullyInsideDialog": true,
+          "fontSize": "16px"
+        },
+        "history": {
+          "x": 418.59375,
+          "y": 459.09375,
+          "width": 602.8125,
+          "height": 24,
+          "bottom": 483.09375,
+          "centerHits": false,
+          "fullyInsideDialog": false,
+          "fontSize": "12px"
+        },
+        "retainedFinalResponse": false,
+        "log": null
+      }
+    },
+    {
+      "name": "closed-during-completion",
+      "viewport": {
+        "width": 1440,
+        "height": 500
+      },
+      "activeDialogs": 0,
+      "readingRequests": 1,
+      "followupRequests": 1,
+      "previousDialogConnected": true,
+      "previousDialogInert": false,
+      "activeElement": {
+        "tag": "BUTTON",
+        "label": null,
+        "text": "Open chat"
+      }
+    },
+    {
+      "name": "response-reopened",
+      "viewport": {
+        "width": 1440,
+        "height": 500
+      },
+      "activeDialogs": 1,
+      "readingRequests": 1,
+      "followupRequests": 1,
+      "previousDialogConnected": true,
+      "previousDialogInert": false,
+      "activeElement": {
+        "tag": "DIV",
+        "label": null,
+        "text": "Follow-up chatClarify symbols, positions, or next steps.1/10 usedWhat can I do n"
+      },
+      "dialog": {
+        "x": 368,
+        "y": 35.5,
+        "width": 704,
+        "height": 425,
+        "bottom": 460.5,
+        "overflowY": "hidden",
+        "scrollHeight": 619,
+        "clientHeight": 423,
+        "input": {
+          "x": 418.59375,
+          "y": 433.09375,
+          "width": 542.8125,
+          "height": 94,
+          "bottom": 527.09375,
+          "centerHits": false,
+          "fullyInsideDialog": false,
+          "fontSize": "16px"
+        },
+        "send": {
+          "x": 969.40625,
+          "y": 433.09375,
+          "width": 52,
+          "height": 40,
+          "bottom": 473.09375,
+          "centerHits": true,
+          "fullyInsideDialog": false,
+          "fontSize": "16px"
+        },
+        "close": {
+          "x": 987.40625,
+          "y": 86.09375,
+          "width": 34,
+          "height": 34,
+          "bottom": 120.09375,
+          "centerHits": true,
+          "fullyInsideDialog": true,
+          "fontSize": "16px"
+        },
+        "history": {
+          "x": 418.59375,
+          "y": 582.09375,
+          "width": 602.8125,
+          "height": 24,
+          "bottom": 606.09375,
+          "centerHits": false,
+          "fullyInsideDialog": false,
+          "fontSize": "12px"
+        },
+        "retainedFinalResponse": true,
+        "log": {
+          "x": 418.59375,
+          "y": 146.09375,
+          "width": 602.8125,
+          "height": 225,
+          "bottom": 371.09375,
+          "scrollTop": 518,
+          "scrollHeight": 753,
+          "clientHeight": 223
+        }
+      }
+    },
+    {
+      "name": "older-messages",
+      "viewport": {
+        "width": 1440,
+        "height": 500
+      },
+      "activeDialogs": 1,
+      "readingRequests": 1,
+      "followupRequests": 1,
+      "previousDialogConnected": true,
+      "previousDialogInert": false,
+      "activeElement": {
+        "tag": "DIV",
+        "label": null,
+        "text": "Follow-up chatClarify symbols, positions, or next steps.1/10 usedWhat can I do n"
+      },
+      "dialog": {
+        "x": 368,
+        "y": 35.5,
+        "width": 704,
+        "height": 425,
+        "bottom": 460.5,
+        "overflowY": "hidden",
+        "scrollHeight": 619,
+        "clientHeight": 423,
+        "input": {
+          "x": 418.59375,
+          "y": 433.09375,
+          "width": 542.8125,
+          "height": 94,
+          "bottom": 527.09375,
+          "centerHits": false,
+          "fullyInsideDialog": false,
+          "fontSize": "16px"
+        },
+        "send": {
+          "x": 969.40625,
+          "y": 433.09375,
+          "width": 52,
+          "height": 40,
+          "bottom": 473.09375,
+          "centerHits": true,
+          "fullyInsideDialog": false,
+          "fontSize": "16px"
+        },
+        "close": {
+          "x": 987.40625,
+          "y": 86.09375,
+          "width": 34,
+          "height": 34,
+          "bottom": 120.09375,
+          "centerHits": true,
+          "fullyInsideDialog": true,
+          "fontSize": "16px"
+        },
+        "history": {
+          "x": 418.59375,
+          "y": 582.09375,
+          "width": 602.8125,
+          "height": 24,
+          "bottom": 606.09375,
+          "centerHits": false,
+          "fullyInsideDialog": false,
+          "fontSize": "12px"
+        },
+        "retainedFinalResponse": true,
+        "log": {
+          "x": 418.59375,
+          "y": 146.09375,
+          "width": 602.8125,
+          "height": 225,
+          "bottom": 371.09375,
+          "scrollTop": 0,
+          "scrollHeight": 753,
+          "clientHeight": 223
+        }
+      }
+    },
+    {
+      "name": "newer-messages",
+      "viewport": {
+        "width": 1440,
+        "height": 500
+      },
+      "activeDialogs": 1,
+      "readingRequests": 1,
+      "followupRequests": 1,
+      "previousDialogConnected": true,
+      "previousDialogInert": false,
+      "activeElement": {
+        "tag": "DIV",
+        "label": null,
+        "text": "Follow-up chatClarify symbols, positions, or next steps.1/10 usedWhat can I do n"
+      },
+      "dialog": {
+        "x": 368,
+        "y": 35.5,
+        "width": 704,
+        "height": 425,
+        "bottom": 460.5,
+        "overflowY": "hidden",
+        "scrollHeight": 619,
+        "clientHeight": 423,
+        "input": {
+          "x": 418.59375,
+          "y": 433.09375,
+          "width": 542.8125,
+          "height": 94,
+          "bottom": 527.09375,
+          "centerHits": false,
+          "fullyInsideDialog": false,
+          "fontSize": "16px"
+        },
+        "send": {
+          "x": 969.40625,
+          "y": 433.09375,
+          "width": 52,
+          "height": 40,
+          "bottom": 473.09375,
+          "centerHits": true,
+          "fullyInsideDialog": false,
+          "fontSize": "16px"
+        },
+        "close": {
+          "x": 987.40625,
+          "y": 86.09375,
+          "width": 34,
+          "height": 34,
+          "bottom": 120.09375,
+          "centerHits": true,
+          "fullyInsideDialog": true,
+          "fontSize": "16px"
+        },
+        "history": {
+          "x": 418.59375,
+          "y": 582.09375,
+          "width": 602.8125,
+          "height": 24,
+          "bottom": 606.09375,
+          "centerHits": false,
+          "fullyInsideDialog": false,
+          "fontSize": "12px"
+        },
+        "retainedFinalResponse": true,
+        "log": {
+          "x": 418.59375,
+          "y": 146.09375,
+          "width": 602.8125,
+          "height": 225,
+          "bottom": 371.09375,
+          "scrollTop": 524,
+          "scrollHeight": 753,
+          "clientHeight": 223
+        }
+      }
+    },
+    {
+      "name": "handset-resize",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "activeDialogs": 1,
+      "readingRequests": 1,
+      "followupRequests": 1,
+      "previousDialogConnected": false,
+      "previousDialogInert": false,
+      "activeElement": {
+        "tag": "BUTTON",
+        "label": "Close follow-up chat",
+        "text": ""
+      },
+      "dialog": {
+        "x": 0,
+        "y": 24,
+        "width": 390,
+        "height": 820,
+        "bottom": 844,
+        "overflowY": "hidden",
+        "scrollHeight": 818,
+        "clientHeight": 818,
+        "input": {
+          "x": 17,
+          "y": 654,
+          "width": 296,
+          "height": 94,
+          "bottom": 748,
+          "centerHits": false,
+          "fullyInsideDialog": true,
+          "fontSize": "16px"
+        },
+        "send": {
+          "x": 321,
+          "y": 654,
+          "width": 52,
+          "height": 40,
+          "bottom": 694,
+          "centerHits": false,
+          "fullyInsideDialog": true,
+          "fontSize": "16px"
+        },
+        "close": {
+          "x": 329,
+          "y": 58.21875,
+          "width": 44,
+          "height": 44,
+          "bottom": 102.21875,
+          "centerHits": false,
+          "fullyInsideDialog": true,
+          "fontSize": "16px"
+        },
+        "history": {
+          "x": 17,
+          "y": 803,
+          "width": 356,
+          "height": 24,
+          "bottom": 827,
+          "centerHits": false,
+          "fullyInsideDialog": true,
+          "fontSize": "12px"
+        },
+        "retainedFinalResponse": true,
+        "log": {
+          "x": 17,
+          "y": 170.609375,
+          "width": 356,
+          "height": 421.390625,
+          "bottom": 592,
+          "scrollTop": 771,
+          "scrollHeight": 1208,
+          "clientHeight": 419
+        }
+      }
+    },
+    {
+      "name": "return-short-desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 500
+      },
+      "activeDialogs": 1,
+      "readingRequests": 1,
+      "followupRequests": 1,
+      "previousDialogConnected": false,
+      "previousDialogInert": false,
+      "activeElement": {
+        "tag": "DIV",
+        "label": null,
+        "text": "Follow-up chatClarify symbols, positions, or next steps.1/10 usedWhat can I do n"
+      },
+      "dialog": {
+        "x": 368,
+        "y": 35.5,
+        "width": 704,
+        "height": 425,
+        "bottom": 460.5,
+        "overflowY": "hidden",
+        "scrollHeight": 619,
+        "clientHeight": 423,
+        "input": {
+          "x": 418.59375,
+          "y": 433.09375,
+          "width": 542.8125,
+          "height": 94,
+          "bottom": 527.09375,
+          "centerHits": false,
+          "fullyInsideDialog": false,
+          "fontSize": "16px"
+        },
+        "send": {
+          "x": 969.40625,
+          "y": 433.09375,
+          "width": 52,
+          "height": 40,
+          "bottom": 473.09375,
+          "centerHits": true,
+          "fullyInsideDialog": false,
+          "fontSize": "16px"
+        },
+        "close": {
+          "x": 987.40625,
+          "y": 86.09375,
+          "width": 34,
+          "height": 34,
+          "bottom": 120.09375,
+          "centerHits": true,
+          "fullyInsideDialog": true,
+          "fontSize": "16px"
+        },
+        "history": {
+          "x": 418.59375,
+          "y": 582.09375,
+          "width": 602.8125,
+          "height": 24,
+          "bottom": 606.09375,
+          "centerHits": false,
+          "fullyInsideDialog": false,
+          "fontSize": "12px"
+        },
+        "retainedFinalResponse": true,
+        "log": {
+          "x": 418.59375,
+          "y": 146.09375,
+          "width": 602.8125,
+          "height": 225,
+          "bottom": 371.09375,
+          "scrollTop": 518,
+          "scrollHeight": 753,
+          "clientHeight": 223
+        }
+      }
+    }
+  ],
+  "pageErrors": [],
+  "consoleWarnings": [
+    "Service Worker registration blocked by Playwright",
+    "[SoundManager] preload failed: EncodingError: Unable to decode audio data",
+    "Received an empty string for a boolean attribute `%s`. This will treat the attribute as if it were false. Either pass `false` to silence this warning, or pass `true` if you used an empty string in earlier versions of React to indicate this attribute is true. inert"
+  ],
+  "failedResources": [],
+  "fonts": {
+    "inter": true,
+    "sourceSerif": true,
+    "loadedFaces": [
+      "Inter Variable",
+      "Inter Variable",
+      "Source Serif 4 Variable"
+    ]
+  },
+  "requests": {
+    "reading": 1,
+    "followup": 1
+  },
+  "finalComparison": {
+    "finalTrace": "interaction-trace.zip",
+    "readingRequests": 1,
+    "followupRequests": 1,
+    "failedActions": 0,
+    "finalBehavior": "The same open/send/partial/close/complete/reopen/scroll/resize flow completed. One active dialog was asserted after handset resize. The final acceptance tests also verify retained draft/preferences/messages, real middle overflow, reachable footer, and inert closed content.",
+    "limits": "This is one local intercepted browser comparison, not a performance benchmark, physical-device test, or listener/heap audit. Baseline assertion failures are retained rather than bypassed."
+  }
+}

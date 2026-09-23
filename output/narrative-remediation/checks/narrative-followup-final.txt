@@ -1,0 +1,21 @@
+
+Running 9 tests using 1 worker
+
+
+
+(node:34268) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[1/9] [chromium] › e2e\follow-up-questions.spec.js:207:3 › Follow-up questions - Desktop @desktop › follow-up section appears after narrative completes
+[2/9] [chromium] › e2e\follow-up-questions.spec.js:215:3 › Follow-up questions - Desktop @desktop › suggested question submits and renders response
+[3/9] [chromium] › e2e\follow-up-questions.spec.js:234:3 › Follow-up questions - Desktop @desktop › free-form input submits and shows response
+[4/9] [chromium] › e2e\follow-up-questions.spec.js:248:3 › Follow-up questions - Desktop @desktop › free tier limit disables additional questions
+[5/9] [chromium] › e2e\follow-up-questions.spec.js:264:3 › Follow-up questions - Desktop @desktop › journal context toggle affects request payload for Plus users
+[6/9] [chromium] › e2e\follow-up-questions.spec.js:291:3 › Follow-up questions - Desktop @desktop › error states display when follow-up fails
+[7/9] [chromium] › e2e\follow-up-questions.spec.js:307:3 › Follow-up questions - Desktop @desktop › SSE error events display error message to user
+[8/9] [chromium] › e2e\follow-up-questions.spec.js:335:3 › Follow-up questions - Desktop @desktop › non-OK SSE response shows error from stream
+(node:368) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[9/9] [mobile] › e2e\follow-up-questions.spec.js:366:3 › Follow-up questions - Mobile @mobile › follow-up UI remains usable on mobile
+  9 passed (1.5m)

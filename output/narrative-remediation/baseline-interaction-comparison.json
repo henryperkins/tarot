@@ -1,0 +1,146 @@
+{
+  "baselineCommit": "7e9170fb2b64184a6225940f4cbef7b9e92caced",
+  "environment": {
+    "browser": "Chromium",
+    "initialViewport": {
+      "width": 1440,
+      "height": 500
+    },
+    "reducedMotion": "no-preference",
+    "baselinePort": 5176,
+    "finalPort": 5173,
+    "services": "Local intercepted Pro jobs/SSE fixtures"
+  },
+  "baselineTrace": "baseline-interaction-trace.zip",
+  "finalTrace": "interaction-trace.zip",
+  "baselineObservations": "baseline-interaction-observations.json",
+  "baselineTracePosts": [
+    {
+      "method": "POST",
+      "url": "http://localhost:5176/api/tarot-reading/jobs"
+    },
+    {
+      "method": "POST",
+      "url": "http://localhost:5176/api/reading-followup"
+    }
+  ],
+  "comparison": {
+    "requestCounts": {
+      "baseline": {
+        "reading": 1,
+        "followup": 1
+      },
+      "final": {
+        "reading": 1,
+        "followup": 1
+      }
+    },
+    "closedDialogInert": {
+      "baseline": false,
+      "final": true,
+      "finalEvidence": "A02 closed-state acceptance assertions"
+    },
+    "completedResponseRetained": {
+      "baselineAfterReopen": true,
+      "baselineAfterResize": true,
+      "final": true,
+      "finalEvidence": "Continuous trace reopen check and A02 responsive acceptance assertions"
+    },
+    "shortDesktopAfterReopen": {
+      "baseline": {
+        "height": 425,
+        "bottom": 460.5,
+        "overflowY": "hidden",
+        "scrollHeight": 619,
+        "clientHeight": 423,
+        "input": {
+          "x": 418.59375,
+          "y": 433.09375,
+          "width": 542.8125,
+          "height": 94,
+          "bottom": 527.09375,
+          "centerHits": false,
+          "fullyInsideDialog": false,
+          "fontSize": "16px"
+        },
+        "history": {
+          "x": 418.59375,
+          "y": 582.09375,
+          "width": 602.8125,
+          "height": 24,
+          "bottom": 606.09375,
+          "centerHits": false,
+          "fullyInsideDialog": false,
+          "fontSize": "12px"
+        }
+      },
+      "final": "Same continuous flow completed, with final textarea center hit true after returning to the short viewport. A05 also passed long-message footer/history reachability in both motion modes."
+    },
+    "messageScrolling": {
+      "baselineScrollTopOlder": 0,
+      "baselineScrollTopNewer": 524,
+      "final": "Both wheel actions completed; A05 verifies real middle overflow and reachable final content."
+    },
+    "handsetResize": {
+      "baselineActiveDialogs": 1,
+      "baselineRetainedResponse": true,
+      "baselineCenterHits": {
+        "close": false,
+        "input": false,
+        "send": false,
+        "history": false
+      },
+      "finalActiveDialogs": 1,
+      "finalControlHitTests": "A01 passes all checked control centers at 320px and 390px in normal and reduced motion."
+    },
+    "targets": {
+      "baselineClose": [
+        34,
+        34
+      ],
+      "baselineSend": [
+        52,
+        40
+      ],
+      "baselineHistoryHeight": 24,
+      "final": "Close/send at least 48x48; history label at least 44px high in A08."
+    }
+  },
+  "baselineFailedChecks": [
+    "Closed dialog is genuinely inert"
+  ],
+  "baselinePlaywrightActionErrors": [],
+  "baselinePageErrors": [],
+  "baselineFailedResources": [],
+  "baselineFonts": {
+    "inter": true,
+    "sourceSerif": true,
+    "loadedFaces": [
+      "Inter Variable",
+      "Inter Variable",
+      "Source Serif 4 Variable"
+    ]
+  },
+  "limits": "This is one local intercepted browser comparison, not a performance benchmark, physical-device test, or listener/heap audit. Baseline assertion failures are retained rather than bypassed.",
+  "provenance": "One capture against the exact clean baseline; no retries, alternate submits, forced clicks, baseline source edits, or final application edits. Baseline checkout remained clean and only the temporary server on port 5176 was stopped.",
+  "finalTraceRefresh": {
+    "capturedAtUtc": "2026-09-23T16:34:56.692230+00:00",
+    "inspection": "interaction-trace-inspection.json",
+    "afterChange": "Serialized, cancellable ParticleLayer canvas loading",
+    "requestCounts": {
+      "reading": 1,
+      "followup": 1
+    },
+    "failedActions": 0,
+    "openCloseReopenMs": [
+      1216.3,
+      116.6,
+      150.7
+    ],
+    "resizeCommandsMs": [
+      183.6,
+      25.1
+    ],
+    "note": "Automation timings include Playwright waits; this is not a performance benchmark or a listener/heap audit."
+  }
+}

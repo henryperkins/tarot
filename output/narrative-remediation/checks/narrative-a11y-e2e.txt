@@ -1,0 +1,41 @@
+
+> tableau@1.0.0 test:a11y:e2e
+> playwright test --config playwright.a11y.config.js --workers=1 --reporter=line --output=C:/Users/htper/.codex/tmp/narrative-a11y-e2e
+
+
+Running 15 tests using 1 worker
+
+
+
+(node:26132) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[1/15] [chromium] › e2e\accessibility.spec.js:111:3 › Accessibility - Core Pages › home page has no critical violations
+[2/15] [chromium] › e2e\accessibility.spec.js:122:3 › Accessibility - Core Pages › spread selector is accessible
+[3/15] [chromium] › e2e\accessibility.spec.js:147:3 › Accessibility - Core Pages › question input is properly labeled
+[4/15] [chromium] › e2e\accessibility.spec.js:169:3 › Accessibility - Core Pages › design system page has no critical violations in both themes
+[5/15] [chromium] › e2e\accessibility.spec.js:196:3 › Accessibility - Interactive Components › buttons have accessible names
+[6/15] [chromium] › e2e\accessibility.spec.js:231:3 › Accessibility - Interactive Components › focus indicators are visible
+[7/15] [chromium] › e2e\accessibility.spec.js:272:3 › Accessibility - Interactive Components › color contrast meets WCAG AA
+[8/15] [chromium] › e2e\accessibility.spec.js:310:3 › Accessibility - Keyboard Navigation › can navigate spread selector with keyboard
+[9/15] [chromium] › e2e\accessibility.spec.js:335:3 › Accessibility - Keyboard Navigation › escape key closes modals
+[10/15] [chromium] › e2e\accessibility.spec.js:359:3 › Accessibility - Keyboard Navigation › tab order is logical
+[11/15] [chromium] › e2e\accessibility.spec.js:410:3 › Accessibility - Live Regions › page has required landmarks
+[12/15] [chromium] › e2e\accessibility.spec.js:432:3 › Accessibility - Live Regions › heading hierarchy is correct
+[chromium] › e2e\accessibility.spec.js:432:3 › Accessibility - Live Regions › heading hierarchy is correct
+
+Heading level skipped: h1 -> h3 ("Ritual")
+[13/15] [chromium] › e2e\accessibility.spec.js:547:3 › Accessibility - Reduced Motion › animations respect prefers-reduced-motion
+[chromium] › e2e\accessibility.spec.js:547:3 › Accessibility - Reduced Motion › animations respect prefers-reduced-motion
+Elements with animations > 300ms (reduced-motion enabled):
+
+  - <html> class="" animation=0s transition=1.2s
+
+  - <span> class="w-1.5 h-1.5 rounded-full bg-gold-soft animate-puls" animation=2s transition=0s
+
+  - <svg> class="" animation=2s transition=0s
+
+  - <span> class="w-1.5 h-1.5 rounded-full bg-gold-soft animate-puls" animation=2s transition=0s
+
+[14/15] [chromium] › e2e\accessibility.spec.js:596:3 › Accessibility - Forms › form inputs have associated labels
+[15/15] [chromium] › e2e\accessibility.spec.js:617:3 › Accessibility - Forms › error messages are associated with inputs
+  15 passed (1.1m)
