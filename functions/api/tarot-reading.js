@@ -31,7 +31,7 @@ import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
 import { getPositionWeight } from '../lib/positionWeights.js';
 import { detectCrisisSignals } from '../lib/safetyChecks.js';
 import { applyGraphRAGAlerts } from '../lib/graphRAGAlerts.js';
-import { getUserFromRequest } from '../lib/auth.js';
+import { getUserFromRequest, loadActiveUserById } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { buildTierLimitedPayload, getSubscriptionContext } from '../lib/entitlements.js';
 import { resolveReadingPersonalizationContext } from '../lib/userPersonalization.js';
@@ -706,7 +706,26 @@ export const onRequestGet = async ({ env }) => {
   });
 };
 
-export const onRequestPost = async ({ request, env, waitUntil }) => {
+/**
+ * Resolve the caller for a reading.
+ *
+ * `principal` is set only by in-Worker callers: the ReadingJob Durable
+ * Object running a job started by the ChatGPT MCP tools. The router builds
+ * handler contexts from fixed fields, so a public request can never carry
+ * one. A principal that no longer resolves (deleted or deactivated account)
+ * is refused rather than treated as anonymous.
+ *
+ * @returns {Promise<{ user: object|null, unauthorized: boolean }>}
+ */
+export async function resolveReadingUser({ request, env, principal }) {
+  if (principal) {
+    const user = principal.userId ? await loadActiveUserById(env?.DB, principal.userId) : null;
+    return { user, unauthorized: !user };
+  }
+  return { user: await getUserFromRequest(request, env), unauthorized: false };
+}
+
+export const onRequestPost = async ({ request, env, waitUntil, principal = null }) => {
   const startTime = Date.now();
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   let readingReservation = null;
@@ -793,7 +812,10 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     }
     console.log(`[${requestId}] Payload validation passed`);
 
-    const user = await getUserFromRequest(request, env);
+    const { user, unauthorized } = await resolveReadingUser({ request, env, principal });
+    if (unauthorized) {
+      return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
+    }
     const subscription = getSubscriptionContext(user);
     const subscriptionTier = subscription.effectiveTier;
 
