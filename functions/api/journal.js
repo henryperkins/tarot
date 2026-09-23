@@ -7,10 +7,9 @@
 import { getUserFromRequest } from '../lib/auth.js';
 import { buildTierLimitedPayload, isEntitled } from '../lib/entitlements.js';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
-import { scheduleCoachExtraction } from '../lib/coachSuggestion.js';
 import { safeJsonParse } from '../lib/utils.js';
-import { insertFollowUps, loadFollowUpsByEntry, sanitizeFollowUps } from '../lib/journalFollowups.js';
-import { normalizeJournalContext } from '../lib/journalContext.js';
+import { loadFollowUpsByEntry } from '../lib/journalFollowups.js';
+import { saveAppJournalEntry } from '../lib/journalEntries.js';
 
 function isMissingColumnError(err) {
   const message = String(err?.message || err || '');
@@ -314,12 +313,13 @@ export async function onRequestGet(context) {
 
 /**
  * POST /api/journal
- * Save a new journal entry for the authenticated user
+ * Save a new journal entry for the authenticated user.
+ * Persistence and deduplication live in functions/lib/journalEntries.js.
  */
 export async function onRequestPost(context) {
   const { request, env, waitUntil } = context;
   // Log-correlation id. Named distinctly because the request body carries its
-  // own `requestId` (the reading's id), destructured inside the try block.
+  // own `requestId` (the reading's id).
   const logRequestId = crypto.randomUUID();
 
   try {
@@ -346,187 +346,12 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Parse request body
     const body = await request.json();
-    const {
-      spread,
-      spreadKey,
-      question,
-      cards,
-      personalReading,
-      themes,
-      reflections,
-      context,
-      provider,
-      sessionSeed,
-      // Optional: original timestamp in milliseconds (used for migrations)
-      timestampMs,
-      // User preferences snapshot at time of reading (Phase 5.2)
-      userPreferences,
-      // Deck style identifier (rws1909, marseille, thoth, etc.)
-      deckId,
-      // Request ID for API tracing/correlation
-      requestId,
-      // Optional: saved follow-up conversation (array of {question, answer, turnNumber, createdAt, journalContext})
-      followUps,
-      // Location data (only persisted if user explicitly consents)
-      location,
-      persistLocationConsent
-    } = body;
-
-    // Validate required fields
-    if (!spread || !spreadKey || !cards || !Array.isArray(cards)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid journal entry data' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    const sanitizedFollowUps = sanitizeFollowUps(followUps);
-
-    // Deduplicate by session_seed to prevent double-saves
-    if (sessionSeed) {
-      const existing = await env.DB.prepare(
-        `SELECT id, created_at FROM journal_entries WHERE user_id = ? AND session_seed = ?`
-      ).bind(user.id, sessionSeed).first();
-
-      if (existing) {
-        if (sanitizedFollowUps.length) {
-          await insertFollowUps(env.DB, user.id, existing.id, sanitizedFollowUps, {
-            readingRequestId: requestId,
-            requestId
-          });
-        }
-        // Return existing entry instead of creating duplicate
-        return new Response(
-          JSON.stringify({
-            success: true,
-            entry: {
-              id: existing.id,
-              ts: existing.created_at * 1000
-            },
-            deduplicated: true
-          }),
-          {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
-      }
-    }
-
-    // Create journal entry
-    const entryId = crypto.randomUUID();
-    const nowSeconds = Math.floor(Date.now() / 1000);
-
-    // Derive created_at/updated_at, allowing a **sanitized** client timestamp
-    // for trusted flows like local-to-cloud migration.
-    let createdAt = nowSeconds;
-
-    if (typeof timestampMs === 'number' && Number.isFinite(timestampMs)) {
-      const candidateSeconds = Math.floor(timestampMs / 1000);
-
-      // Basic sanity window: >= 2000-01-01 and not more than 24h in the future
-      const MIN_ALLOWED = 946684800; // 2000-01-01T00:00:00Z
-      const MAX_ALLOWED = nowSeconds + 60 * 60 * 24;
-
-      if (candidateSeconds >= MIN_ALLOWED && candidateSeconds <= MAX_ALLOWED) {
-        createdAt = candidateSeconds;
-      }
-    }
-
-    const updatedAt = createdAt;
-
-    // Keep older/unknown context values nullable without rejecting the reading.
-    const normalizedContext = normalizeJournalContext(context);
-
-    // Location persistence: only store if BOTH location provided AND user explicitly consents
-    const shouldPersistLocation = location?.latitude != null &&
-                                  location?.longitude != null &&
-                                  persistLocationConsent === true;
-    const locationLatitude = shouldPersistLocation ? location.latitude : null;
-    const locationLongitude = shouldPersistLocation ? location.longitude : null;
-    const locationTimezone = shouldPersistLocation ? (location.timezone || null) : null;
-    const locationConsent = shouldPersistLocation ? 1 : 0;
-
-    await env.DB.prepare(`
-      INSERT INTO journal_entries (
-        id,
-        user_id,
-        created_at,
-        updated_at,
-        spread_key,
-        spread_name,
-        question,
-        cards_json,
-        narrative,
-        themes_json,
-        reflections_json,
-        context,
-        provider,
-        session_seed,
-        user_preferences_json,
-        deck_id,
-        request_id,
-        location_latitude,
-        location_longitude,
-        location_timezone,
-        location_consent
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-      .bind(
-        entryId,
-        user.id,
-        createdAt,
-        updatedAt,
-        spreadKey,
-        spread,
-        question || null,
-        JSON.stringify(cards),
-        personalReading || null,
-        themes ? JSON.stringify(themes) : null,
-        reflections ? JSON.stringify(reflections) : null,
-        normalizedContext,
-        provider || null,
-        sessionSeed || null,
-        userPreferences ? JSON.stringify(userPreferences) : null,
-        deckId || null,
-        requestId || null,
-        locationLatitude,
-        locationLongitude,
-        locationTimezone,
-        locationConsent
-      )
-      .run();
-
-    if (sanitizedFollowUps.length) {
-      await insertFollowUps(env.DB, user.id, entryId, sanitizedFollowUps, {
-        readingRequestId: requestId,
-        requestId
-      });
-    }
-
-    // Schedule async extraction of coach suggestion data (steps + embeddings)
-    if (personalReading && waitUntil) {
-      scheduleCoachExtraction(env, entryId, personalReading, {
-        waitUntil,
-        requestId: requestId || entryId
-      });
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        entry: {
-          id: entryId,
-          ts: createdAt * 1000
-        }
-      }),
-      {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
+    const result = await saveAppJournalEntry({ env, user, body, waitUntil });
+    return new Response(JSON.stringify(result.body), {
+      status: result.status,
+      headers: { 'Content-Type': 'application/json' }
+    });
   } catch (error) {
     console.error(`[${logRequestId}] [journal] Save entry error:`, error);
     return new Response(
