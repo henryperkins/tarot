@@ -1,0 +1,6 @@
+{
+  "result": {
+    "type": "string",
+    "value": "{\"reduced\":true,\"ancestors\":[{\"tag\":\"DIV\",\"opacity\":\"0\",\"style\":\"opacity: 1;\"}],\"paused\":[{\"target\":\"pointer-events-none absolute inset-0 z-[2]\",\"current\":0,\"frames\":[{\"opacity\":\"0\",\"offset\":null},{\"opacity\":\"0.55\",\"offset\":null},{\"opacity\":\"0\",\"offset\":null}]},{\"target\":\"pointer-events-none absolute inset-0 z-[2]\",\"current\":0,\"frames\":[{\"opacity\":\"0\",\"offset\":null},{\"opacity\":\"0.55\",\"offset\":null},{\"opacity\":\"0\",\"offset\":null}]},{\"target\":\"pointer-events-none absolute inset-0 z-[2]\",\"current\":0,\"frames\":[{\"opacity\":\"0\",\"offset\":null},{\"opacity\":\"0.55\",\"offset\":null},{\"opacity\":\"0\",\"offset\":null}]},{\"target\":\"\",\"current\":0,\"frames\":[{\"opacity\":\"0\",\"offset\":null},{\"opacity\":\"1\",\"offset\":null}]}]}"
+  }
+}
