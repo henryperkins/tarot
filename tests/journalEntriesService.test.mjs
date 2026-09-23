@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { createD1 } from './helpers/d1Sqlite.mjs';
 import { seedUser, THREE_CARDS } from './helpers/journalFixtures.mjs';
-import { isUniqueViolation, saveAppJournalEntry } from '../functions/lib/journalEntries.js';
+import { isUniqueViolation, saveAppJournalEntry, saveReadingJournalEntry } from '../functions/lib/journalEntries.js';
 
 const USER = Object.freeze({
   id: 'user-1',
@@ -116,6 +116,174 @@ describe('saveAppJournalEntry', () => {
     const { d1, env } = await setup();
     const narrative = '  Line one — ✨ café\r\n\r\nLine two with trailing space  ';
     await saveAppJournalEntry({ env, user: USER, body: { ...APP_BODY, personalReading: narrative } });
+    assert.equal(d1.rows('SELECT narrative FROM journal_entries')[0].narrative, narrative);
+  });
+});
+
+const READING_ENTRY = Object.freeze({
+  spread: 'Three-Card Story (Past · Present · Future)',
+  spreadKey: 'threeCard',
+  question: 'What should I focus on?',
+  cards: THREE_CARDS,
+  personalReading: 'The Hermit asks for patience.',
+  themes: { dominantSuit: 'Cups' },
+  context: 'self',
+  provider: 'openai-native',
+  sessionSeed: null,
+  requestId: 'req-mcp-1',
+  deckId: 'rws-1909',
+  userPreferences: null
+});
+
+/**
+ * Wrap the SQLite D1 so the reading INSERT fails the way a lost D1 round
+ * trip does: optionally after the row landed, optionally with the
+ * verification lookup failing too.
+ */
+function failingInsertDb(d1, { landThenThrow = false, failVerify = false } = {}) {
+  return {
+    prepare(sql) {
+      const statement = d1.prepare(sql);
+      const isInsert = /INSERT INTO journal_entries/.test(sql);
+      const isVerify = /idempotency_key = \?/.test(sql);
+      return {
+        bind(...args) {
+          const bound = statement.bind(...args);
+          return {
+            first: (...rest) => (failVerify && isVerify
+              ? Promise.reject(new Error('D1_ERROR: Network connection lost.'))
+              : bound.first(...rest)),
+            all: () => bound.all(),
+            run: async () => {
+              if (!isInsert) return bound.run();
+              if (landThenThrow) await bound.run();
+              throw new Error('D1_ERROR: Network connection lost.');
+            }
+          };
+        }
+      };
+    },
+    batch: (statements) => d1.batch(statements)
+  };
+}
+
+describe('saveReadingJournalEntry (MCP)', () => {
+  it('saves a new reading under its reading identity', async () => {
+    const { d1, env } = await setup();
+    const result = await saveReadingJournalEntry({ env, user: USER, entry: READING_ENTRY });
+
+    assert.equal(result.outcome, 'saved');
+    const [row] = d1.rows('SELECT id, user_id, idempotency_key, context, narrative, cards_json FROM journal_entries');
+    assert.equal(row.id, result.entry.id);
+    assert.equal(row.user_id, 'user-1');
+    assert.equal(row.idempotency_key, 'reading:req-mcp-1');
+    assert.equal(row.context, 'self');
+    assert.equal(row.narrative, READING_ENTRY.personalReading);
+    assert.deepEqual(JSON.parse(row.cards_json), THREE_CARDS);
+  });
+
+  it('answers already_saved for a second save of the same reading', async () => {
+    const { d1, env } = await setup();
+    const first = await saveReadingJournalEntry({ env, user: USER, entry: READING_ENTRY });
+    const second = await saveReadingJournalEntry({ env, user: USER, entry: READING_ENTRY });
+
+    assert.equal(second.outcome, 'already_saved');
+    assert.equal(second.entry.id, first.entry.id);
+    assert.equal(countEntries(d1), 1);
+  });
+
+  it('keeps one row when two saves of a seedless reading race', async () => {
+    const { d1, env } = await setup();
+    const [a, b] = await Promise.all([
+      saveReadingJournalEntry({ env, user: USER, entry: READING_ENTRY }),
+      saveReadingJournalEntry({ env, user: USER, entry: READING_ENTRY })
+    ]);
+
+    assert.deepEqual([a.outcome, b.outcome].sort(), ['already_saved', 'saved']);
+    assert.equal(a.entry.id, b.entry.id);
+    assert.equal(countEntries(d1), 1);
+  });
+
+  it('keeps one row when two saves of a seeded reading race', async () => {
+    const { d1, env } = await setup();
+    const entry = { ...READING_ENTRY, sessionSeed: '4242' };
+    const [a, b] = await Promise.all([
+      saveReadingJournalEntry({ env, user: USER, entry }),
+      saveReadingJournalEntry({ env, user: USER, entry })
+    ]);
+
+    assert.equal(a.entry.id, b.entry.id);
+    assert.equal(countEntries(d1), 1);
+    assert.equal(d1.rows('SELECT session_seed FROM journal_entries')[0].session_seed, '4242');
+  });
+
+  it('refuses a request ID that already holds a different reading', async () => {
+    const { d1, env } = await setup();
+    await saveReadingJournalEntry({ env, user: USER, entry: READING_ENTRY });
+    const other = { ...READING_ENTRY, cards: [{ ...THREE_CARDS[0], orientation: 'Reversed' }, THREE_CARDS[1], THREE_CARDS[2]] };
+
+    const result = await saveReadingJournalEntry({ env, user: USER, entry: other });
+
+    assert.deepEqual(result, { outcome: 'conflict' });
+    assert.equal(countEntries(d1), 1);
+  });
+
+  it('stores a reading without its seed when another reading holds that seed', async () => {
+    const { d1, env } = await setup();
+    const first = await saveReadingJournalEntry({ env, user: USER, entry: { ...READING_ENTRY, sessionSeed: 'rose', requestId: 'req-a' } });
+    const secondEntry = { ...READING_ENTRY, sessionSeed: 'rose', requestId: 'req-b', personalReading: 'A different reading.' };
+
+    const second = await saveReadingJournalEntry({ env, user: USER, entry: secondEntry });
+
+    assert.equal(second.outcome, 'saved');
+    assert.equal(second.seedShared, true);
+    assert.notEqual(second.entry.id, first.entry.id);
+    const rows = d1.rows('SELECT idempotency_key, session_seed FROM journal_entries ORDER BY idempotency_key');
+    assert.deepEqual(rows, [
+      { idempotency_key: 'reading:req-a', session_seed: 'rose' },
+      { idempotency_key: 'reading:req-b', session_seed: null }
+    ]);
+
+    const retry = await saveReadingJournalEntry({ env, user: USER, entry: secondEntry });
+    assert.equal(retry.outcome, 'already_saved');
+    assert.equal(retry.entry.id, second.entry.id, 'a shared seed never returns the other reading');
+  });
+
+  it('answers saved when the insert landed but its response was lost', async () => {
+    const { d1, env } = await setup();
+    const result = await saveReadingJournalEntry({
+      env: { DB: failingInsertDb(d1, { landThenThrow: true }) },
+      user: USER,
+      entry: READING_ENTRY
+    });
+
+    assert.equal(result.outcome, 'saved');
+    assert.equal(result.entry.id, d1.rows('SELECT id FROM journal_entries')[0].id);
+  });
+
+  it('answers not_saved when the insert failed and nothing landed', async () => {
+    const { d1, env } = await setup();
+    const result = await saveReadingJournalEntry({ env: { DB: failingInsertDb(d1) }, user: USER, entry: READING_ENTRY });
+
+    assert.deepEqual(result, { outcome: 'not_saved' });
+    assert.equal(countEntries(d1), 0);
+  });
+
+  it('answers unconfirmed when the verification also fails', async () => {
+    const { d1 } = await setup();
+    const result = await saveReadingJournalEntry({
+      env: { DB: failingInsertDb(d1, { failVerify: true }) },
+      user: USER,
+      entry: READING_ENTRY
+    });
+
+    assert.deepEqual(result, { outcome: 'unconfirmed' });
+  });
+
+  it('stores the narrative byte for byte', async () => {
+    const { d1, env } = await setup();
+    const narrative = `  ${'Long passage ✨ café. '.repeat(1000)}\r\nEnd  `;
+    await saveReadingJournalEntry({ env, user: USER, entry: { ...READING_ENTRY, personalReading: narrative } });
     assert.equal(d1.rows('SELECT narrative FROM journal_entries')[0].narrative, narrative);
   });
 });
