@@ -17,7 +17,9 @@ import {
 } from '../../functions/lib/narrativeBackends.js';
 import { ensureAzureConfig, getReasoningEffort, getTextVerbosity } from '../../functions/lib/azureResponses.js';
 import { ensureModalConfig } from '../../functions/lib/modalChatCompletions.js';
-import { isGraphRAGEnabled } from '../../functions/lib/graphRAG.js';
+import { isGraphRAGEnabled, isSemanticScoringAvailable } from '../../functions/lib/graphRAG.js';
+import { resolveSemanticScoring } from '../../functions/lib/readingTelemetry.js';
+import { buildGraphRAGTelemetry } from '../../functions/lib/telemetrySchema.js';
 
 const CARD_LOOKUP = new Map([
   ...MAJOR_ARCANA.map((card) => [card.name, card]),
@@ -360,6 +362,8 @@ async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
     cardsInfo,
     deckStyle,
     reading,
+    // What retrieval did for this sample, not what the env asked for
+    semanticScoring: buildGraphRAGTelemetry(analysis.graphRAGPayload?.retrievalSummary)?.semanticScoring || null,
     themesSummary: {
       reversalFramework: analysis.themes?.reversalFramework,
       suitFocus: analysis.themes?.suitFocus || null,
@@ -415,7 +419,12 @@ async function main() {
       backend: backendId,
       ...describeBackendConfig(backendId, env),
       graphRAGEnabled: isGraphRAGEnabled(env),
-      semanticScoring: env.ENABLE_SEMANTIC_SCORING ?? null,
+      semanticScoring: {
+        // true/false from ENABLE_SEMANTIC_SCORING or GRAPHRAG_SEMANTIC_SCORING; null means auto-detect
+        requested: resolveSemanticScoring(env),
+        embeddingsAvailable: isSemanticScoringAvailable(env),
+        usedSampleCount: generated.filter((sample) => sample.semanticScoring?.used === true).length
+      },
       promptSlimming: env.ENABLE_PROMPT_SLIMMING ?? null,
       subscriptionTiers: [...new Set(selectedSamples.map((sample) => sample.subscriptionTier || 'pro'))],
       personalizedSampleCount: selectedSamples.filter((sample) => sample.personalization).length,

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { buildMinorSummary } from '../functions/lib/minorMeta.js';
+import { buildMinorSummary, PIP_NUMEROLOGY, SUIT_THEMES } from '../functions/lib/minorMeta.js';
+import { MINOR_PIP_IMAGERY } from '../functions/lib/imageryHooks.js';
 import { buildPositionCardText } from '../functions/lib/narrative/helpers.js';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts.js';
 import { analyzeSpreadThemes, selectReversalFramework } from '../functions/lib/spreadAnalysis.js';
@@ -32,6 +33,21 @@ describe('Minor Arcana rank themes', () => {
       assert.match(summary, /At this rank, it marks/, name);
       assert.doesNotMatch(summary, suitSpecificOutcomes, name);
     }
+  });
+
+  it('end each pip imagery sentence with the rank theme instead of splicing the suit into it', () => {
+    const pips = MINOR_ARCANA.filter((card) => card.rankValue <= 10);
+    assert.equal(pips.length, 40);
+    for (const card of pips) {
+      const { interpretation } = MINOR_PIP_IMAGERY[card.name];
+      assert.equal(
+        interpretation,
+        `Within ${SUIT_THEMES[card.suit]}, it highlights ${PIP_NUMEROLOGY[card.rankValue]}.`,
+        card.name
+      );
+    }
+    assert.doesNotMatch(MINOR_PIP_IMAGERY['Three of Cups'].interpretation, /show within/);
+    assert.doesNotMatch(MINOR_PIP_IMAGERY['Nine of Swords'].interpretation, /strain within/);
   });
 });
 
@@ -115,6 +131,10 @@ describe('reversal lens intent matching', () => {
     ['What is hidden from me?', 'shadow'],
     ['What fear keeps me from starting?', 'shadow'],
     ['Why do I feel ashamed about asking for help?', 'shadow'],
+    ['Is my avoidant attachment style hurting this relationship?', 'shadow'],
+    ['How do I stop being so avoidant with my partner?', 'shadow'],
+    ['Why is my family so repressive about feelings?', 'shadow'],
+    ['How do I stop shaming myself for resting?', 'shadow'],
     ['Why do I keep attracting the same patterns?', 'mirror'],
     ['What am I projecting onto my partner?', 'mirror'],
     ['What does my partner reflect back to me?', 'mirror'],

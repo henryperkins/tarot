@@ -515,14 +515,14 @@ export function selectReversalFramework(ratio, cardsInfo, options = {}) {
     // as fear, a "creative project" as projection, and "reflect on" as mirroring.
     const shadowPatterns = [
       /\bafraid\b/,
-      /\bavoid(?:s|ed|ing|ance)?\b/,
+      /\bavoid(?:s|ed|ing|ance|ant)?\b/,
       /\bfear(?:s|ed|ing|ful)?\b/,
       /\bshadows?\b/,
       // "Hidden potential" and similar phrases name a latent strength, not a shadow.
       /\bhidden\b(?!\s+(?:potential|talents?|gifts?|strengths?|abilit(?:y|ies)))/,
       /\bden(?:y|ies|ied|ying|ial)\b/,
-      /\brepress(?:es|ed|ing|ion)?\b/,
-      /\bsham(?:e|ed|eful)\b|\bashamed\b/,
+      /\brepress(?:es|ed|ing|ion|ive)?\b/,
+      /\bsham(?:e|es|ed|eful|ing)\b|\bashamed\b/,
       /\bguilt(?:y)?\b/,
       /\btrigger(?:s|ed|ing)?\b/
     ];
