@@ -6,6 +6,8 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import test from 'node:test';
 
+import { analyzeTemplateRepetition } from '../scripts/evaluation/lib/narrativeSignals.js';
+
 const execFileAsync = promisify(execFile);
 
 async function computeMetrics(samples) {
@@ -409,4 +411,33 @@ test('narrative metrics credit inflected question terms and distinct card sectio
   assert.equal(result.templateRepetition.templated, false);
   assert.ok(!result.issueFlags.includes('question-not-addressed'));
   assert.ok(!result.issueFlags.includes('templated-repetition'));
+});
+
+test('template repetition recognizes Thoth and Marseille card names', () => {
+  const section = (card) => [
+    `${card} is present here and asks for a steady look.`,
+    'This energy invites you to consider your choices with gentle curiosity.',
+    `Consider what ${card} invites you to do next with your week.`
+  ].join(' ');
+
+  for (const [deckStyle, cards] of [
+    ['rws-1909', ['Strength', 'Justice', 'Temperance']],
+    ['thoth-a1', ['Lust', 'Adjustment', 'Art']],
+    ['thoth-a1', ['Princess of Disks', 'The Magus', 'Fortune']],
+    ['marseille-classic', ['La Force', 'La Justice', 'Tempérance']],
+    ['marseille-classic', ['Valet of Coins', 'Le Bateleur', "L'Étoile"]]
+  ]) {
+    const result = analyzeTemplateRepetition(cards.map(section).join('\n\n'), { deckStyle });
+    assert.equal(result.repeatedSentenceCount, 9, `${deckStyle}: ${cards.join(', ')}`);
+    assert.equal(result.templated, true, `${deckStyle}: ${cards.join(', ')}`);
+  }
+});
+
+test('template repetition leaves lowercase words that double as Thoth titles alone', () => {
+  const reading = [
+    'You deserve peace after a long season of effort and worry today.',
+    'You deserve love after a long season of effort and worry today.',
+    'You deserve rest after a long season of effort and worry today.'
+  ].join(' ');
+  assert.equal(analyzeTemplateRepetition(reading, { deckStyle: 'thoth-a1' }).repeatedSentenceCount, 0);
 });

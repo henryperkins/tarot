@@ -85,8 +85,9 @@ const STRUCTURAL_HEADER_PREFIXES = [
  * @param {string} content - Section content
  * @returns {boolean} True if this is a card section
  */
-export function isCardSection(header, content) {
+export function isCardSection(header, content, options = {}) {
   if (!header || typeof header !== 'string') return false;
+  const { cardPattern = null } = options;
 
   const normalizedHeader = header.toLowerCase().trim();
 
@@ -102,15 +103,13 @@ export function isCardSection(header, content) {
   }
 
   // Check for card name in header
-  if (MAJOR_ARCANA_PATTERN.test(header) || MINOR_ARCANA_PATTERN.test(header)) {
+  if (hasCardReference(header, cardPattern)) {
     return true;
   }
 
   // Check for card name in content
-  if (content && typeof content === 'string') {
-    if (MAJOR_ARCANA_PATTERN.test(content) || MINOR_ARCANA_PATTERN.test(content)) {
-      return true;
-    }
+  if (content && typeof content === 'string' && hasCardReference(content, cardPattern)) {
+    return true;
   }
 
   // Default to structural (conservative - avoids false spine failures)
@@ -177,9 +176,51 @@ function segmentSentences(text) {
     .filter(Boolean);
 }
 
-function hasCardReference(text) {
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Build a matcher for deck-specific card names ("Princess of Disks", "Lust",
+ * "Valet of Coins") that the built-in RWS patterns do not know.
+ * Single-word names match only when capitalized as given, so "Lust" counts
+ * as the card but "lust" in running prose does not.
+ *
+ * @param {string[]} cardNames - Card names and aliases to recognize
+ * @returns {{ test: (text: string) => boolean }|null}
+ */
+function buildCardNamePattern(cardNames = []) {
+  const names = Array.from(new Set(
+    (Array.isArray(cardNames) ? cardNames : [])
+      .filter((name) => typeof name === 'string')
+      .map((name) => name.trim())
+      .filter(Boolean)
+  ));
+  if (names.length === 0) return null;
+
+  const toSource = (list) => list
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegex)
+    .join('|');
+  const phrases = names.filter((name) => /\s/.test(name));
+  const words = names.filter((name) => !/\s/.test(name));
+  const phrasePattern = phrases.length
+    ? new RegExp(`(?<![\\p{L}\\p{N}])(?:${toSource(phrases)})(?![\\p{L}\\p{N}])`, 'iu')
+    : null;
+  const wordPattern = words.length
+    ? new RegExp(`(?<![\\p{L}\\p{N}])(?:${toSource(words)})(?![\\p{L}\\p{N}])`, 'u')
+    : null;
+
+  return {
+    test: (text) => Boolean(phrasePattern?.test(text) || wordPattern?.test(text))
+  };
+}
+
+function hasCardReference(text, cardPattern = null) {
   if (!text) return false;
-  return MINOR_ARCANA_PATTERN.test(text) || MAJOR_ARCANA_PATTERN.test(text);
+  return MINOR_ARCANA_PATTERN.test(text) ||
+    MAJOR_ARCANA_PATTERN.test(text) ||
+    Boolean(cardPattern?.test(text));
 }
 
 function extractHeaderLabel(sentence = '') {
@@ -199,9 +240,9 @@ function isExplicitCardHeader(sentence) {
   return POSITION_KEYWORD_PATTERN.test(header);
 }
 
-function detectWhatClause(text, sentences) {
+function detectWhatClause(text, sentences, cardPattern = null) {
   if (!text) return false;
-  if (hasCardReference(text)) return true;
+  if (hasCardReference(text, cardPattern)) return true;
   if (sentences.some(sentence => isExplicitCardHeader(sentence))) {
     return true;
   }
@@ -231,11 +272,11 @@ function resolveHint(spineHints = {}, key, detector) {
   return detector();
 }
 
-function detectSpineElements(text, spineHints = {}) {
+function detectSpineElements(text, spineHints = {}, cardPattern = null) {
   const safeText = typeof text === 'string' ? text : '';
   const sentences = segmentSentences(safeText);
 
-  const what = resolveHint(spineHints, 'what', () => detectWhatClause(safeText, sentences));
+  const what = resolveHint(spineHints, 'what', () => detectWhatClause(safeText, sentences, cardPattern));
   const why = resolveHint(spineHints, 'why', () => detectWhyClause(safeText));
   const whatsNext = resolveHint(spineHints, 'whatsNext', () => detectWhatsNextClause(safeText));
 
@@ -248,6 +289,7 @@ function detectSpineElements(text, spineHints = {}) {
  * @param {string} text - Narrative paragraph to evaluate
  * @param {Object} [options] - Optional detection overrides
  * @param {Object} [options.spineHints] - Explicit hints { what, why, whatsNext }
+ * @param {{ test: Function }} [options.cardPattern] - Extra card-name matcher (see buildCardNamePattern)
  */
 export function analyzeSpineCompleteness(text, options = {}) {
   if (!text || typeof text !== 'string') {
@@ -261,8 +303,8 @@ export function analyzeSpineCompleteness(text, options = {}) {
     };
   }
 
-  const { spineHints } = options;
-  const present = detectSpineElements(text, spineHints);
+  const { spineHints, cardPattern = null } = options;
+  const present = detectSpineElements(text, spineHints, cardPattern);
   const missing = [];
   const missingRequired = [];
 
@@ -445,8 +487,13 @@ export function enhanceSection(section, metadata = {}) {
 /**
  * Validate complete reading narrative
  * Checks that all major sections follow spine principles
+ *
+ * @param {string} readingText - Reading to validate
+ * @param {Object} [options]
+ * @param {string[]} [options.cardNames] - Deck-specific names of the drawn cards
+ *   (for example "Princess of Disks" or "Lust") to recognize alongside RWS names
  */
-export function validateReadingNarrative(readingText) {
+export function validateReadingNarrative(readingText, options = {}) {
   if (!readingText || typeof readingText !== 'string') {
     return {
       isValid: false,
@@ -512,20 +559,21 @@ export function validateReadingNarrative(readingText) {
   }
 
   // Analyze each section and classify as card vs structural
+  const cardPattern = buildCardNamePattern(options.cardNames);
   const analyses = sections.map(section => {
-    const isCard = isCardSection(section.header, section.content);
+    const isCard = isCardSection(section.header, section.content, { cardPattern });
     // A heading such as "Challenge — Seven of Swords Reversed" already names
     // what is happening, so a body that goes on with "The reversed Seven..."
     // should not fail WHAT just because it shortens the card name.
     const headerNamesCard = isCard &&
-      hasCardReference(section.header) &&
+      hasCardReference(section.header, cardPattern) &&
       segmentSentences(section.content).some(sentence => sentence.split(/\s+/).length >= MIN_SENTENCE_WORDS);
     return {
       header: section.header,
       isCardSection: isCard,
       analysis: analyzeSpineCompleteness(
         section.content,
-        headerNamesCard ? { spineHints: { what: true } } : {}
+        headerNamesCard ? { spineHints: { what: true }, cardPattern } : { cardPattern }
       )
     };
   });

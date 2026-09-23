@@ -3,6 +3,7 @@
 // sentences with only the card names swapped.
 import { MAJOR_ARCANA } from '../../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../../src/data/minorArcana.js';
+import { buildCardAliases } from '../../../functions/lib/readingQuality.js';
 
 const STOPWORDS = new Set([
   // English function words and question scaffolding
@@ -88,22 +89,58 @@ export function analyzeQuestionEngagement(question, reading) {
   };
 }
 
-const CARD_NAME_PATTERN = new RegExp(
-  `\\b(?:${[...MAJOR_ARCANA, ...MINOR_ARCANA]
-    .map((card) => card.name.replace(/^The\s+/i, ''))
+function stripDiacritics(text) {
+  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '');
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildNamePattern(names, flags) {
+  if (names.length === 0) return null;
+  const source = [...new Set(names)]
     .sort((a, b) => b.length - a.length)
-    .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('|')})\\b`,
-  'giu'
-);
+    .map(escapeRegex)
+    .join('|');
+  return new RegExp(`(?<![\\p{L}\\p{N}])(?:${source})(?![\\p{L}\\p{N}])`, flags);
+}
+
+const deckNamePatternCache = new Map();
+
+/**
+ * Every name a card goes by in the given deck ("Six of Cups", "Lust",
+ * "Princess of Disks", "La Force"), without diacritics. Multi-word names match
+ * in any case; single-word deck names such as "Art" or "Peace" match only
+ * when capitalized, so ordinary words in running prose stay as they are.
+ */
+function getDeckNamePatterns(deckStyle = 'rws-1909') {
+  if (deckNamePatternCache.has(deckStyle)) return deckNamePatternCache.get(deckStyle);
+
+  const names = [...MAJOR_ARCANA, ...MINOR_ARCANA]
+    .flatMap((card) => buildCardAliases(card, deckStyle))
+    .filter((name) => typeof name === 'string' && name.trim())
+    .map((name) => stripDiacritics(name.trim()).replace(/^The\s+/i, ''));
+  const rwsNames = new Set([...MAJOR_ARCANA, ...MINOR_ARCANA].map((card) => card.name.replace(/^The\s+/i, '')));
+  const patterns = {
+    // RWS names keep matching in any case, as before ("the death of an old habit").
+    anyCase: buildNamePattern(names.filter((name) => /\s/.test(name) || rwsNames.has(name)), 'giu'),
+    capitalized: buildNamePattern(names.filter((name) => !/\s/.test(name) && !rwsNames.has(name)), 'gu')
+  };
+  deckNamePatternCache.set(deckStyle, patterns);
+  return patterns;
+}
+
 const DECK_ALIAS_MINOR_PATTERN = /\b(?:ace|two|three|four|five|six|seven|eight|nine|ten|page|knight|queen|king|princess|prince|valet|chevalier|reine|roi)\s+of\s+\p{L}+/giu;
 
-function templateKey(sentence) {
-  return sentence
-    .replace(DECK_ALIAS_MINOR_PATTERN, ' card ')
-    .replace(CARD_NAME_PATTERN, ' card ')
+function templateKey(sentence, deckStyle) {
+  const { anyCase, capitalized } = getDeckNamePatterns(deckStyle);
+  let key = stripDiacritics(sentence).replace(DECK_ALIAS_MINOR_PATTERN, ' card ');
+  if (anyCase) key = key.replace(anyCase, ' card ');
+  if (capitalized) key = key.replace(capitalized, ' card ');
+  return key
     .toLowerCase()
-    .replace(/\b(?:the\s+)?card\b/g, ' card ')
+    .replace(/\b(?:the|la|le|l)?\s*card\b/g, ' card ')
     .replace(/\b(?:upright|reversed)\b/g, ' ')
     .replace(/[^\p{L}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
@@ -115,12 +152,14 @@ function templateKey(sentence) {
  * with only the card name changed.
  *
  * @param {string} reading - Plain reading text
+ * @param {Object} [options]
+ * @param {string} [options.deckStyle] - Deck whose card names to recognize (Thoth "Lust", Marseille "La Force")
  * @returns {{ templated: boolean, sentenceCount: number, repeatedSentenceCount: number, repeatedShare: number, examples: string[] }}
  */
-export function analyzeTemplateRepetition(reading) {
+export function analyzeTemplateRepetition(reading, { deckStyle = 'rws-1909' } = {}) {
   const sentences = (typeof reading === 'string' ? reading : '')
     .split(/(?<=[.!?])\s+|\n+/)
-    .map(templateKey)
+    .map((sentence) => templateKey(sentence, deckStyle))
     .filter((key) => key.split(' ').length >= MIN_TEMPLATE_SENTENCE_WORDS);
 
   const counts = new Map();

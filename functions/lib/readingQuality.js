@@ -893,6 +893,31 @@ export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle =
 // ============================================================================
 
 /**
+ * Every name the drawn cards may go by in this deck ("Princess of Disks",
+ * "Lust", "Valet of Coins"), so deck-specific headings count as card names.
+ * Single-word Thoth epithets such as "Peace" are left out because they are
+ * ordinary vocabulary; the full "Peace (Two of Swords)" form still matches.
+ *
+ * @param {Array} cardsInfo - Drawn cards
+ * @param {string} deckStyle - Deck style identifier
+ * @returns {string[]} Card names and aliases
+ */
+function buildDrawnCardNames(cardsInfo = [], deckStyle = 'rws-1909') {
+  const names = new Set();
+  cardsInfo.forEach((cardInfo) => {
+    [cardInfo?.card, cardInfo?.canonicalName].forEach((name) => {
+      if (typeof name !== 'string' || !name.trim()) return;
+      names.add(name.trim());
+      const fullCard = lookupCardByName(name.trim());
+      if (fullCard) {
+        buildCardAliases(fullCard, deckStyle).forEach((alias) => names.add(alias));
+      }
+    });
+  });
+  return Array.from(names).filter((name) => !AMBIGUOUS_THOTH_EPITHETS.has(normalizeCardName(name)));
+}
+
+/**
  * Build comprehensive narrative quality metrics.
  *
  * Combines spine validation, card coverage, and hallucination detection
@@ -907,7 +932,9 @@ export function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1
   const text = typeof readingText === 'string' ? readingText : '';
   const metricsText = stripReflectionSections(text);
   const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
-  const spine = validateReadingNarrative(metricsText);
+  const spine = validateReadingNarrative(metricsText, {
+    cardNames: buildDrawnCardNames(safeCards, deckStyle)
+  });
   const coverage = analyzeCardCoverage(metricsText, safeCards, deckStyle);
   const hallucinatedCards = detectHallucinatedCards(metricsText, safeCards, deckStyle);
 

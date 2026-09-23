@@ -239,7 +239,7 @@ function summarizeSample(sample) {
   // A reading can cover every card and still ignore the querent: check that it
   // engages the question and is not one template repeated per card.
   const questionEngagement = analyzeQuestionEngagement(sample.userQuestion, plainReading);
-  const templateRepetition = analyzeTemplateRepetition(plainReading);
+  const templateRepetition = analyzeTemplateRepetition(plainReading, { deckStyle });
   const issueFlags = buildIssueFlags({
     spine,
     missingCards: cardCoverage.missingCards,
