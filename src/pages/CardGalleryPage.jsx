@@ -424,7 +424,7 @@ export default function CardGalleryPage() {
   }, [hasTotalEntries, isAuthenticated, loadMoreEntries, loadingFullHistory, loadingMore]);
 
   return (
-      <div className="min-h-screen bg-main text-main animate-fade-in">
+      <div className="min-h-screen bg-main text-main">
         {/* Sticky navigation header with safe-area padding */}
         <header
           className="sticky top-0 z-sticky-elevated bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
