@@ -132,3 +132,32 @@ for (const fixture of [
     assert.doesNotMatch(requests[0].messages[1].content, /King of Cups|Cups \(Water\) — King/);
   });
 }
+
+test('server draw returns crisis support without drawn cards or a seed', async (t) => {
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'warn', () => {});
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
+    throw new Error('A crisis response must not call a narrative provider');
+  });
+  const response = await drawTarotReading({
+    request: new Request('https://tableau.test/api/tarot-reading/draw', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        spreadInfo: { name: 'Three-Card Story', key: 'threeCard' },
+        userQuestion: 'I have been feeling suicidal. What do the cards say?'
+      })
+    }),
+    env: { GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' },
+    waitUntil: (promise) => promise.catch(() => {})
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.gateReason, 'crisis_gate');
+  assert.equal(body.provider, 'safety-gate');
+  assert.match(body.reading, /988/);
+  assert.equal(body.cardsInfo, undefined);
+  assert.equal(body.seed, undefined);
+  assert.equal(fetchMock.mock.callCount(), 0);
+});
