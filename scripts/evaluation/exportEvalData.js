@@ -6,6 +6,8 @@
  */
 
 import fs from 'node:fs/promises';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { executeD1Query } from '../lib/dataAccess.js';
 
 function parseArgs(rawArgs = []) {
@@ -77,45 +79,49 @@ async function exportEvalData(options) {
 
   const rows = await executeD1Query({ dbName: d1Name, sql, target });
 
-  const records = rows.map((row) => {
-    let payload = {};
-    try {
-      payload = JSON.parse(row.payload || '{}');
-    } catch {
-      // ignore parse errors
-    }
+  return rows.map(toEvalRecord);
+}
 
-      // Handle both v1 and v2 schema payloads
-      let cardCoverage, hallucinatedCardsCount;
-      if (payload.schemaVersion >= 2) {
-        cardCoverage = row.card_coverage ?? payload.narrative?.coverage?.percentage;
-        hallucinatedCardsCount = payload.narrative?.coverage?.hallucinatedCards?.length || 0;
-      } else {
-        cardCoverage = row.card_coverage ?? payload.narrative?.cardCoverage;
-        hallucinatedCardsCount = payload.narrative?.hallucinatedCards?.length || 0;
-      }
+/**
+ * Map an eval_metrics row to an export record. Prompt version, variant and
+ * card coverage are flattened to the top level for every payload schema.
+ */
+export function toEvalRecord(row) {
+  let payload = {};
+  try {
+    payload = JSON.parse(row.payload || '{}');
+  } catch {
+    // ignore parse errors
+  }
 
-      return {
-        requestId: row.request_id,
-        timestamp: row.created_at,
-        provider: row.provider,
-        spreadKey: row.spread_key,
-        eval: payload.eval || {
-          scores: {
-            overall: row.overall_score,
-            safety_flag: row.safety_flag === 1
-          },
-          mode: row.eval_mode
-        },
-        cardCoverage,
-        hallucinatedCards: hallucinatedCardsCount,
-        readingPromptVersion: row.reading_prompt_version,
-        variantId: row.variant_id,
-        schemaVersion: payload.schemaVersion || 1
-      };
-    });
+  // Handle both v1 and v2 schema payloads
+  let cardCoverage, hallucinatedCardsCount;
+  if (payload.schemaVersion >= 2) {
+    cardCoverage = row.card_coverage ?? payload.narrative?.coverage?.percentage;
+    hallucinatedCardsCount = payload.narrative?.coverage?.hallucinatedCards?.length || 0;
+  } else {
+    cardCoverage = row.card_coverage ?? payload.narrative?.cardCoverage;
+    hallucinatedCardsCount = payload.narrative?.hallucinatedCards?.length || 0;
+  }
 
-  return records;
+  return {
+    requestId: row.request_id,
+    timestamp: row.created_at,
+    provider: row.provider,
+    spreadKey: row.spread_key,
+    eval: payload.eval || {
+      scores: {
+        overall: row.overall_score,
+        safety_flag: row.safety_flag === 1
+      },
+      mode: row.eval_mode
+    },
+    cardCoverage,
+    hallucinatedCards: hallucinatedCardsCount,
+    readingPromptVersion: row.reading_prompt_version,
+    variantId: row.variant_id,
+    schemaVersion: payload.schemaVersion || 1
+  };
 }
 
 async function writeOutput(records, output, days) {
@@ -134,7 +140,13 @@ async function main() {
   await writeOutput(records, options.output, options.days);
 }
 
-main().catch((err) => {
-  console.error('Export failed:', err);
-  process.exit(1);
-});
+const isDirectExecution = process.argv[1]
+  ? import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+  : false;
+
+if (isDirectExecution) {
+  main().catch((err) => {
+    console.error('Export failed:', err);
+    process.exit(1);
+  });
+}

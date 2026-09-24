@@ -4,7 +4,7 @@ argument-hint: [spread: single|threeCard|celtic|...] [question]
 allowed-tools: Bash, Read, Grep
 ---
 
-Preview the complete prompt that would be sent to Claude/GPT for generating a tarot reading, without actually calling the LLM.
+Build and inspect a sample reading prompt locally without calling a model. The preview uses fixture cards and local analysis; it does not reproduce a user's saved memories, live ephemeris, semantic embeddings, or production provider configuration.
 
 ## Arguments
 
@@ -16,7 +16,7 @@ Example: `/tableu:prompt-preview threeCard What should I focus on this week?`
 
 ## Prompt Building Overview
 
-The prompt is built by `buildEnhancedClaudePrompt()` in `functions/lib/narrative/prompts.js`.
+The prompt is built by `buildEnhancedClaudePrompt()` in `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js`; `functions/lib/narrative/prompts.js` re-exports it.
 
 It assembles these sections:
 
@@ -57,77 +57,75 @@ From `user_memories` table:
 
 ## Generate Sample Prompt
 
-To see an actual prompt structure, read the spread-specific builder:
+Run this from the repository root with Node 24. Replace the two shell arguments with the requested spread and question using proper shell quoting; keep the quoted heredoc unchanged. The example draws the first cards from `MAJOR_ARCANA` as fixtures and uses the real spread positions and card meanings. Use supplied cards instead when the user provides them.
 
 ```bash
-# For three-card spread
-cat functions/lib/narrative/spreads/threeCard.js
+node --input-type=module - threeCard 'What should I focus on this week?' <<'NODE'
+import { SPREADS } from './src/data/spreads.js';
+import { MAJOR_ARCANA } from './src/data/majorArcana.js';
+import * as analysis from './functions/lib/spreadAnalysis.js';
+import { buildEnhancedClaudePrompt } from './functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
+import { estimateTokenCount } from './functions/lib/narrative/prompts/budgeting.js';
 
-# For Celtic Cross
-cat functions/lib/narrative/spreads/celtic.js
+const [spreadKey = 'threeCard', ...questionWords] = process.argv.slice(2);
+if (!Object.hasOwn(SPREADS, spreadKey)) {
+  throw new Error(`Unknown spread: ${spreadKey}`);
+}
+const spread = SPREADS[spreadKey];
+const userQuestion = questionWords.join(' ') || 'What should I focus on this week?';
+const spreadInfo = { key: spreadKey, name: spread.name };
+const cardsInfo = MAJOR_ARCANA.slice(0, spread.count).map((card, index) => ({
+  card: card.name,
+  number: card.number,
+  position: spread.positions[index],
+  roleKey: spread.roleKeys[index],
+  orientation: index % 3 === 2 ? 'Reversed' : 'Upright',
+  meaning: index % 3 === 2 ? card.reversed : card.upright
+}));
+const analyzers = {
+  single: analysis.analyzeSingleCard,
+  threeCard: analysis.analyzeThreeCard,
+  fiveCard: analysis.analyzeFiveCard,
+  celtic: analysis.analyzeCelticCross,
+  decision: analysis.analyzeDecision,
+  relationship: analysis.analyzeRelationship
+};
+const themes = await analysis.analyzeSpreadThemes(cardsInfo, {
+  deckStyle: 'rws-1909', userQuestion, env: {}
+});
+const { systemPrompt, userPrompt, promptMeta } = buildEnhancedClaudePrompt({
+  spreadInfo,
+  cardsInfo,
+  userQuestion,
+  themes,
+  spreadAnalysis: analyzers[spreadKey](cardsInfo),
+  context: 'general',
+  deckStyle: 'rws-1909',
+  budgetTarget: 'claude',
+  promptBudgetEnv: {},
+  enableSemanticScoring: false
+});
+const systemTokens = estimateTokenCount(systemPrompt);
+const userTokens = estimateTokenCount(userPrompt);
+const tokenEstimate = { system: systemTokens, user: userTokens, total: systemTokens + userTokens };
+console.log(JSON.stringify({ spreadInfo, cardsInfo, systemPrompt, userPrompt, promptMeta, tokenEstimate }, null, 2));
+NODE
 ```
 
-## Analyze Prompt Components
+This uses the prompt builder's default Claude budget and keyword-based GraphRAG retrieval. It does not load `.dev.vars` or `wrangler.jsonc`. For a particular provider, inspect its assembly in `functions/lib/narrativeBackends.js` and pass the applicable budget/context values before comparing outputs.
 
-### Check what would be included for a spread:
+## Analyze the Result
 
-1. **Spread definition:**
-```bash
-grep -A 20 "key: '$1'" src/data/spreads.js
-```
+- Read positions and role keys from the selected `SPREADS` entry in `src/data/spreads.js`.
+- Read reversal selection in `functions/lib/spreadAnalysis.js:selectReversalFramework()`.
+- Check `promptMeta.graphRAG.includedInPrompt` before claiming passages were injected. Also inspect `passagesProvided`, `passagesUsedInPrompt`, `truncatedPassages` and semantic-scoring metadata.
+- Use `tokenEstimate` for heuristic token counts, and `promptMeta.slimmingSteps`, `truncation` and `hardCap` for changes made during assembly. `promptMeta.estimatedTokens` can be null when no slimming or truncation ran. The estimator and provider budgets live in `functions/lib/narrative/prompts/budgeting.js`; these are estimates, not provider usage counts.
 
-2. **Position meanings:**
-```bash
-grep -A 30 "positions:" src/data/spreads.js | grep -A 30 "$1"
-```
+## Live Reading Tests
 
-3. **Reversal framework selection logic:**
-Read `functions/lib/spreadAnalysis.js:selectReversalFramework()`
+`POST /api/tarot-reading` generates a real reading and can call paid generation/evaluation services. It is not a prompt-only preview. For an explicitly requested integration test, use the complete `spreadInfo`, `userQuestion` and `cardsInfo` request in the evaluation skill's `references/troubleshooting.md`.
 
-4. **GraphRAG passage retrieval:**
-Read `functions/lib/graphRAG.js:retrievePassages()`
-
-## Estimate Token Count
-
-The prompt builder estimates tokens and may slim sections to fit budget:
-
-```javascript
-// From prompts.js
-estimateTokenCount(text) // ~4 chars per token estimate
-
-// Budget targets:
-// - claude: ~8000 tokens soft cap
-// - gpt: ~6000 tokens soft cap
-```
-
-Check current budget settings:
-```bash
-grep -E "PROMPT_BUDGET|TOKEN" wrangler.jsonc
-```
-
-## Live Preview (Requires Dev Server)
-
-If wrangler dev is running, you can trace prompt building:
-
-```bash
-# Start dev server with verbose logging
-VERBOSE_PROMPT=true npm run dev
-
-# Make a test request
-curl -X POST http://localhost:8787/api/tarot-reading \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "$2",
-    "spread": "$1",
-    "cardsInfo": [
-      {"card": "The Fool", "position": "Present", "orientation": "upright"},
-      {"card": "The Magician", "position": "Challenge", "orientation": "upright"},
-      {"card": "The High Priestess", "position": "Advice", "orientation": "reversed"}
-    ]
-  }'
-```
-
-The logs will show prompt construction details.
+Raw prompts are returned only when `includePromptDebug: true`, `PROMPT_DEBUG_ENABLED`, and service authentication with owner access are all present; see `resolvePromptDebugAccess()` in `functions/api/tarot-reading.js`. Ordinary local requests do not return prompts. `VERBOSE_PROMPT` is not a supported logging flag.
 
 ## Key Files to Examine
 
@@ -135,7 +133,10 @@ For understanding prompt structure:
 
 | File | Purpose |
 |------|---------|
-| `functions/lib/narrative/prompts.js` | Main prompt builder |
+| `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` | Prompt assembly and slimming |
+| `functions/lib/narrative/prompts/systemPrompt.js` | System instructions |
+| `functions/lib/narrative/prompts/userPrompt.js` | Cards and user context |
+| `functions/lib/narrative/prompts/budgeting.js` | Token estimates and budgets |
 | `functions/lib/narrative/spreads/*.js` | Spread-specific card formatting |
 | `functions/lib/spreadAnalysis.js` | Analysis and reversal framework |
 | `functions/lib/knowledgeGraph.js` | Pattern detection |

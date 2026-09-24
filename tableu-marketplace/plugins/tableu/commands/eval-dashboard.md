@@ -23,8 +23,8 @@ First, detect the environment:
 lsof -i :8787 >/dev/null 2>&1 && echo "ENV=local" || echo "ENV=production"
 ```
 
-- If local: Use `wrangler d1 execute mystic-tarot-db --local`
-- If production: Use `wrangler d1 execute mystic-tarot-db --remote`
+- If local: Use `npx wrangler d1 execute mystic-tarot-db --local`
+- If production: Use `npx wrangler d1 execute mystic-tarot-db --remote`
 
 ## Dashboard Sections
 
@@ -61,16 +61,24 @@ ORDER BY overall_score
 Query:
 ```sql
 SELECT
-  date_str,
+  created_at,
+  period_key,
   alert_type,
   severity,
-  metric,
-  json_extract(payload, '$.message') as message
+  metric_name,
+  observed_value,
+  threshold_value,
+  baseline_value,
+  delta,
+  reading_count,
+  notes
 FROM quality_alerts
-WHERE date_str > date('now', '-{days} days')
-ORDER BY date_str DESC
+WHERE created_at > datetime('now', '-{days} days')
+ORDER BY created_at DESC
 LIMIT 10
 ```
+
+Build each alert description from its metric, observed value and threshold, adding baseline/delta when present. `notes` is optional; alerts do not store a JSON message payload. `period_key` identifies the aggregate day, while `created_at` is the alert timestamp.
 
 ### 4. Low-Scoring Readings
 

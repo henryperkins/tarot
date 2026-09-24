@@ -108,8 +108,8 @@ async function fetchFromD1(dbName, count) {
       };
     });
   } catch (err) {
-    console.error(`Failed to fetch from D1: ${err.message}`);
-    return [];
+    // Fail loudly: an empty result here would read as "no readings yet"
+    throw new Error(`Failed to fetch from D1: ${err.message}`);
   }
 }
 

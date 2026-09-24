@@ -204,8 +204,10 @@ Required bindings in `wrangler.jsonc`:
 # EVAL_GATE_ENABLED="false"
 npm run deploy
 
-# Monitor evaluation logs
-wrangler tail --format=pretty | grep "\[eval\]"
+# Monitor evaluation logs. JSON output keeps logged objects such as the
+# Scores line intact; pretty output splits them across lines.
+npx wrangler tail --format=json \
+  | jq -c --unbuffered '.logs[]? | select((.message[0] // "" | tostring) | contains("[eval]")) | {t: (.timestamp / 1000 | floor | todate), level, msg: .message}'
 ```
 
 ---
@@ -410,7 +412,8 @@ The migration reduces payload size by ~50% by eliminating duplicate data.
   - `EVAL_GATE_ENABLED` stays `"false"`
 - Monitor logs:
   ```bash
-  wrangler tail --format=pretty | grep "\[eval\]"
+  npx wrangler tail --format=json \
+    | jq -c --unbuffered '.logs[]? | select((.message[0] // "" | tostring) | contains("[eval]")) | {t: (.timestamp / 1000 | floor | todate), level, msg: .message}'
   ```
 - Wait for sufficient data (recommend 100+ readings)
 
@@ -471,7 +474,8 @@ Checklist:
   ```
 - Scan for errors:
   ```bash
-  wrangler tail --format=pretty | grep -i error
+  npx wrangler tail --format=json \
+    | jq -c --unbuffered '(.exceptions[]? | {exception: "\(.name): \(.message)"}), (.logs[]? | select(.level == "error" or ((.message | tostring) | test("error"; "i"))) | {level, msg: .message})'
   ```
 
 ### All scores are null
@@ -483,11 +487,12 @@ Likely causes:
 Actions:
 - Look for JSON parse errors:
   ```bash
-  wrangler tail --format=pretty | grep "Failed to parse JSON"
+  npx wrangler tail --format=json \
+    | jq -c --unbuffered '.logs[]? | select((.message[0] // "" | tostring) | contains("Failed to parse JSON")) | .message[0]'
   ```
-- Increase timeout:
+- Increase timeout above the current `"10000"`:
   ```jsonc
-  "vars": { "EVAL_TIMEOUT_MS": "10000" }
+  "vars": { "EVAL_TIMEOUT_MS": "15000" }
   ```
 - Try a different Workers AI model:
   ```jsonc

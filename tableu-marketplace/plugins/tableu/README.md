@@ -38,8 +38,8 @@ Integration plugin for the Tableu tarot reading web app, providing evaluation mo
 
 The plugin automatically detects whether you're running locally (wrangler dev on :8787) or need to query production:
 
-- **Local**: Uses `wrangler d1 execute mystic-tarot-db --local`
-- **Production**: Uses `wrangler d1 execute mystic-tarot-db --remote`
+- **Local**: Uses `npx wrangler d1 execute mystic-tarot-db --local`
+- **Production**: Uses `npx wrangler d1 execute mystic-tarot-db --remote`
 
 ## Quick Start
 
@@ -106,7 +106,7 @@ Queries the `eval_metrics` and `quality_alerts` tables in D1:
 SELECT * FROM eval_metrics ORDER BY created_at DESC LIMIT 10;
 
 -- Quality alerts
-SELECT * FROM quality_alerts ORDER BY date_str DESC LIMIT 10;
+SELECT * FROM quality_alerts ORDER BY created_at DESC LIMIT 10;
 ```
 
 ## Related Documentation

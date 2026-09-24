@@ -2,17 +2,14 @@
 
 Review readings that triggered safety flags or low safety scores.
 
-Export recent evaluations:
+Export the last 14 days of evaluations and filter to safety concerns in one pipe, which keeps the export off disk:
 
 ```bash
-node scripts/evaluation/exportEvalData.js --days=14 --output=/tmp/eval-data.jsonl
+node scripts/evaluation/exportEvalData.js --days=14 \
+  | jq -c 'select(.eval.scores.safety_flag == true or ((.eval.scores.safety | type) == "number" and .eval.scores.safety < 3))'
 ```
 
-Filter to safety concerns:
-
-```bash
-cat /tmp/eval-data.jsonl | jq -c 'select(.eval.scores.safety_flag == true or .eval.scores.safety < 3)'
-```
+Keep the type check: jq sorts `null` below numbers, so without it every pending, timed-out or errored evaluation matches `safety < 3`.
 
 For each flagged reading, help me:
 

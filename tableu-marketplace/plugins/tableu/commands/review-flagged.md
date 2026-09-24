@@ -22,7 +22,7 @@ If argument provided, use: $ARGUMENTS
 lsof -i :8787 >/dev/null 2>&1 && echo "ENV=local" || echo "ENV=production"
 ```
 
-Use appropriate D1 flag based on environment.
+Run from the repository root with `npx wrangler d1 execute mystic-tarot-db` and the appropriate `--local` or `--remote` flag. Honor an explicitly requested environment over detection.
 
 ## Fetch Flagged Readings
 
@@ -33,10 +33,14 @@ SELECT
   spread_key,
   overall_score,
   card_coverage,
-  json_extract(payload, '$.narrativeMetrics.hallucinatedCards') as hallucinations,
-  json_extract(payload, '$.evalResult.safety') as safety_score,
-  json_extract(payload, '$.evalResult.notes') as notes,
-  json_extract(payload, '$.redactedReading') as reading_preview,
+  eval_mode,
+  safety_flag,
+  blocked,
+  block_reason,
+  hallucinated_cards as hallucinations,
+  json_extract(payload, '$.eval') as eval_result,
+  json_extract(payload, '$.eval.scores.notes') as notes,
+  substr(json_extract(payload, '$.readingText'), 1, 500) as reading_preview,
   created_at
 FROM eval_metrics
 WHERE safety_flag = 1
@@ -52,8 +56,14 @@ SELECT
   overall_score,
   card_coverage,
   eval_mode,
-  json_extract(payload, '$.evalResult.weaknesses_found') as weaknesses,
-  json_extract(payload, '$.evalResult.notes') as notes,
+  safety_flag,
+  blocked,
+  block_reason,
+  hallucinated_cards as hallucinations,
+  json_extract(payload, '$.eval') as eval_result,
+  json_extract(payload, '$.eval.weaknesses_found') as weaknesses,
+  json_extract(payload, '$.eval.scores.notes') as notes,
+  substr(json_extract(payload, '$.readingText'), 1, 500) as reading_preview,
   created_at
 FROM eval_metrics
 WHERE overall_score < 3
@@ -66,9 +76,17 @@ LIMIT 20
 SELECT
   request_id,
   spread_key,
+  overall_score,
+  safety_flag,
+  blocked,
   block_reason,
   card_coverage,
-  json_extract(payload, '$.evalResult') as eval_result,
+  eval_mode,
+  hallucinated_cards as hallucinations,
+  json_extract(payload, '$.eval') as eval_result,
+  json_extract(payload, '$.evalGate') as gate,
+  json_extract(payload, '$.eval.scores.notes') as notes,
+  substr(json_extract(payload, '$.readingText'), 1, 500) as reading_preview,
   created_at
 FROM eval_metrics
 WHERE blocked = 1
@@ -76,7 +94,13 @@ ORDER BY created_at DESC
 LIMIT 20
 ```
 
+### All Flagged Readings
+
+Use the Safety Flags query's columns with `WHERE safety_flag = 1 OR overall_score < 3 OR blocked = 1`, ordered by `created_at DESC` and limited to 20. This returns each request once even when multiple conditions match.
+
 ## Review Workflow
+
+Parse `eval_result` as the stored `eval` object and read the five dimensions from `eval_result.scores`. `eval_result.weaknesses_found` is optional: the current evaluator no longer requests it. Use `scores.notes`, `deterministic_overrides`, `deterministic_tone_overrides`, `heuristic_triggers` and `fallbackReason` as available evidence; mark absent text/scores as unavailable. A minimal stored payload may omit reading text entirely. Do not invent weaknesses to fill the template.
 
 For each flagged reading, present:
 
@@ -121,7 +145,7 @@ After reviewing flagged readings, provide analysis:
 
 ### Root Cause Analysis
 - If hallucinations: Check card detection patterns in `functions/lib/readingQuality.js`
-- If safety content: Review reading prompt in `functions/lib/narrative/prompts.js`
+- If safety content: Review `functions/lib/narrative/prompts/systemPrompt.js` and `functions/lib/narrative/prompts/userPrompt.js`
 - If low scores: Compare against calibration rubric
 
 ### Recommendations

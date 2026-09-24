@@ -2,17 +2,19 @@
 
 Step-by-step debugging procedures for common evaluation issues.
 
+Run these from the repo root. `wrangler` is not on PATH, so use `npx wrangler`. `--remote` reads production D1; use `--local` for the dev database.
+
 ## Diagnosing Low Scores
 
 ### Step 1: Retrieve the Evaluation Record
 
 ```bash
 # By request ID
-wrangler d1 execute mystic-tarot-db --remote --command \
+npx wrangler d1 execute mystic-tarot-db --remote --command \
   "SELECT * FROM eval_metrics WHERE request_id = 'abc123'"
 
 # Recent low scores
-wrangler d1 execute mystic-tarot-db --remote --command \
+npx wrangler d1 execute mystic-tarot-db --remote --command \
   "SELECT request_id, spread_key, overall_score, safety_flag, card_coverage, eval_mode
    FROM eval_metrics
    WHERE overall_score < 3
@@ -22,17 +24,18 @@ wrangler d1 execute mystic-tarot-db --remote --command \
 
 ### Step 2: Examine the Payload
 
-The `payload` JSON column contains:
-- `evalResult`: Scores and reasoning
-- `narrativeMetrics`: Spine, coverage, hallucinations
-- `redactedReading`: PII-filtered reading text
-- `cardsInfo`: Cards in the spread
+The `payload` JSON column (schema v2) contains:
+- `eval`: `scores` (five dimensions, `safety_flag`, `notes`), `mode`, `model`, and any `deterministic_overrides`, `deterministic_tone_overrides`, `heuristic_triggers` or `fallbackReason`
+- `narrative.coverage`: `percentage` (0-1), `missingCards`, `hallucinatedCards`
+- `narrative.spine`: `isValid`, section counts, `suggestions`
+- `readingText`, `userQuestion`: PII-redacted text
+- `cardsInfo`: position, card and orientation for each card
 
 ```bash
 # Extract payload for analysis
-wrangler d1 execute mystic-tarot-db --remote --command \
-  "SELECT json_extract(payload, '$.evalResult') as eval,
-          json_extract(payload, '$.narrativeMetrics') as metrics
+npx wrangler d1 execute mystic-tarot-db --remote --command \
+  "SELECT json_extract(payload, '$.eval') as eval,
+          json_extract(payload, '$.narrative') as narrative
    FROM eval_metrics
    WHERE request_id = 'abc123'"
 ```
@@ -40,33 +43,40 @@ wrangler d1 execute mystic-tarot-db --remote --command \
 ### Step 3: Check Specific Issues
 
 **Low tarot_coherence:**
-1. Check `cardCoverage` - Is it below 90%?
-2. Check `hallucinatedCards` - Any cards mentioned but not drawn?
-3. Check `spine.isValid` - Did reading follow structure?
-4. Review reasoning in `evalResult.reasoning`
+1. Check `narrative.coverage.percentage` against the spread's Min Coverage (80%, or 75% for celtic and 8+ card spreads); see `thresholds.md`
+2. Check `narrative.coverage.hallucinatedCards`: within the allowance caps coherence at 3, above it caps at 2
+3. Check `narrative.spine.isValid` - Did reading follow structure?
+4. Review the evaluator's evidence in `eval.scores.notes`
 
 **Safety flag:**
-1. Check `hallucinatedCards` - Auto-triggers safety_flag
-2. Review reading text for medical/financial advice
-3. Check for death/doom language
+1. Check `eval.deterministic_overrides` - a medical, death, self-harm, violence or legal/abuse pattern forces the flag
+2. Check `narrative.coverage.hallucinatedCards` - above the allowance sets the flag
+3. Review `readingText` for medical/financial advice or death/doom language
 4. Look for deterministic predictions
 
 **Low tone:**
-1. Look for "you will" instead of "you may"
-2. Check for deterministic language
+1. Check `eval.deterministic_tone_overrides` - deterministic phrasing caps tone at 3
+2. Look for "you will" instead of "you may", and unsoftened "you must" or "do this now"
 3. Look for disempowering framing
 
 ## Heuristic Mode Issues
 
-When `eval_mode = 'heuristic'`:
+When `eval_mode = 'heuristic'`, the model evaluation failed or returned incomplete scores, and heuristic scores were stored instead.
 
-### Step 1: Check AI Availability
+### Step 1: Find the Cause
 
 ```bash
-# Check Workers AI status
-curl -X GET "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/ai/models" \
-  -H "Authorization: Bearer $CF_API_TOKEN"
+npx wrangler d1 execute mystic-tarot-db --remote --command \
+  "SELECT request_id,
+          json_extract(payload, '$.eval.fallbackReason') as reason,
+          json_extract(payload, '$.eval.originalError') as error
+   FROM eval_metrics
+   WHERE eval_mode = 'heuristic'
+   ORDER BY created_at DESC
+   LIMIT 20"
 ```
+
+`eval_error_timeout` means the call exceeded `EVAL_TIMEOUT_MS`, `eval_error_invalid_json` means the model's reply wasn't parseable, and `incomplete_scores_*` names the missing dimensions.
 
 ### Step 2: Review Timeout Settings
 
@@ -79,20 +89,24 @@ Consider increasing if frequently timing out.
 
 ### Step 3: Check Error Logs
 
+Use `/eval-logs`, or tail for eval lines and errors directly:
+
 ```bash
-# Live tail for eval errors
-wrangler tail --format pretty | grep -E "\[eval\]|error"
+npx wrangler tail --format=json \
+  | jq -c --unbuffered '.logs[]? | select((.message | tostring) | test("\\[eval\\]|error"; "i")) | {level, msg: .message}'
 ```
+
+JSON output keeps each log entry whole; pretty output splits logged objects across lines, so line filters lose data.
 
 ## Alert Investigation
 
 ### Regression Alert
 
-A regression alert means scores dropped vs. 7-day baseline.
+A regression alert means the day's average overall score dropped against the 7-day baseline for the same prompt version, variant, spread and provider.
 
 ```bash
 # Compare current vs baseline
-wrangler d1 execute mystic-tarot-db --remote --command \
+npx wrangler d1 execute mystic-tarot-db --remote --command \
   "SELECT date(created_at) as day,
           AVG(overall_score) as avg_score,
           COUNT(*) as count
@@ -111,24 +125,24 @@ Investigate:
 
 ```bash
 # Recent safety flags
-wrangler d1 execute mystic-tarot-db --remote --command \
-  "SELECT request_id, spread_key,
-          json_extract(payload, '$.narrativeMetrics.hallucinatedCards') as hallucinations
+npx wrangler d1 execute mystic-tarot-db --remote --command \
+  "SELECT request_id, spread_key, hallucinated_cards,
+          json_extract(payload, '$.eval.deterministic_overrides') as overrides
    FROM eval_metrics
    WHERE safety_flag = 1
    AND created_at > datetime('now', '-24 hours')"
 ```
 
 Common causes:
-1. Hallucination detection triggering
-2. Prompt changes introducing risky language
-3. New card data with issues
+1. Hallucinated cards above the spread's allowance
+2. Deterministic safety patterns (`overrides`)
+3. Prompt changes introducing risky language
 
 ### Coverage Drop Alert
 
 ```bash
 # Coverage trend
-wrangler d1 execute mystic-tarot-db --remote --command \
+npx wrangler d1 execute mystic-tarot-db --remote --command \
   "SELECT date(created_at) as day,
           AVG(card_coverage) as avg_coverage,
           spread_key
@@ -152,49 +166,53 @@ Common causes:
 lsof -i :8787 2>/dev/null && echo "Local dev running" || echo "Not running locally"
 
 # Check which DB you're querying
-wrangler d1 list
+npx wrangler d1 list
 ```
 
 ### Switch Environments
 
 ```bash
 # Local
-wrangler d1 execute mystic-tarot-db --local --command "SELECT COUNT(*) FROM eval_metrics"
+npx wrangler d1 execute mystic-tarot-db --local --command "SELECT COUNT(*) FROM eval_metrics"
 
 # Production
-wrangler d1 execute mystic-tarot-db --remote --command "SELECT COUNT(*) FROM eval_metrics"
+npx wrangler d1 execute mystic-tarot-db --remote --command "SELECT COUNT(*) FROM eval_metrics"
 ```
 
 ## Common Fixes
 
 ### Fix 1: Increase Timeout
 
-If seeing frequent heuristic fallbacks:
+If `fallbackReason` is often `eval_error_timeout`:
 
 ```jsonc
 // wrangler.jsonc
 {
   "vars": {
-    "EVAL_TIMEOUT_MS": "8000"  // Increase from 5000
+    "EVAL_TIMEOUT_MS": "15000"  // Increase from 10000
   }
 }
 ```
 
-### Fix 2: Adjust Thresholds
+### Fix 2: Adjust Alert Thresholds
 
-If too many false positives:
+If alerts fire on noise, set these Worker vars in `wrangler.jsonc` rather than editing `DEFAULT_THRESHOLDS` in `functions/lib/qualityAnalysis.js`:
 
-```javascript
-// functions/lib/qualityAlerts.js
-const CUSTOM_THRESHOLDS = {
-  overall: { warning: -0.4, critical: -0.6 }  // More lenient
-};
+```jsonc
+{
+  "vars": {
+    "QUALITY_REGRESSION_THRESHOLD": "-0.4",   // Overall warning; default -0.3
+    "QUALITY_CRITICAL_THRESHOLD": "-0.6",     // Overall critical; default -0.5
+    "QUALITY_SAFETY_SPIKE_THRESHOLD": "0.03", // Safety-flag rate warning; default 0.02
+    "QUALITY_ALERT_MIN_READINGS": "40"        // Minimum group size; default 20
+  }
+}
 ```
 
 ### Fix 3: Improve Card Coverage
 
 If coverage consistently low:
-1. Check `buildEnhancedClaudePrompt()` in `functions/lib/narrative/prompts.js`
+1. Check `buildEnhancedClaudePrompt()` in `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js`
 2. Ensure cards section is prominent in prompt
 3. Review GraphRAG passage retrieval
 
@@ -209,29 +227,42 @@ If false positives in hallucination detection:
 
 ### Test Evaluation Locally
 
+`EVAL_ENABLED` is on in `wrangler.jsonc`, and the Workers AI binding is remote even in local dev, so each local reading is evaluated by (and billed to) Workers AI.
+
 ```bash
-# Start local dev
-npm run dev:workers
+# Start local dev (Worker on :8787)
+npm run dev
 
 # Make a reading request
 curl -X POST http://localhost:8787/api/tarot-reading \
   -H "Content-Type: application/json" \
-  -d '{"question": "Test question", "spread": "threeCard", ...}'
+  -d '{
+    "spreadInfo": { "name": "Three-Card Story (Past · Present · Future)", "key": "threeCard" },
+    "userQuestion": "What should I focus on this week?",
+    "cardsInfo": [
+      { "position": "Past — influences that led here", "card": "The Fool", "orientation": "Upright", "meaning": "New beginnings, innocence, spontaneity, free spirit" },
+      { "position": "Present — where you stand now", "card": "The Magician", "orientation": "Upright", "meaning": "Manifestation, resourcefulness, power, inspired action" },
+      { "position": "Future — trajectory if nothing shifts", "card": "The High Priestess", "orientation": "Reversed", "meaning": "Secrets, disconnected from intuition, withdrawal" }
+    ]
+  }'
 
 # Check local eval_metrics
-wrangler d1 execute mystic-tarot-db --local --command \
+npx wrangler d1 execute mystic-tarot-db --local --command \
   "SELECT * FROM eval_metrics ORDER BY created_at DESC LIMIT 1"
 ```
 
 ### Verify Gate Logic
 
 ```bash
-node scripts/evaluation/verifyNarrativeGate.js
+# Gate outcomes and score bounds on the synthetic failure corpus
+npm run test:eval:synthetic
+
+# Gate policy
+node --test tests/evalGatePolicy.test.mjs
 ```
 
 ### Run Calibration Analysis
 
 ```bash
-node scripts/evaluation/exportEvalData.js --days=7 --output=/tmp/eval.jsonl
-cat /tmp/eval.jsonl | node scripts/evaluation/calibrateEval.js
+node scripts/evaluation/exportEvalData.js --days=7 | node scripts/evaluation/calibrateEval.js
 ```

@@ -51,35 +51,44 @@ function parseArgs(argv) {
   return options;
 }
 
-// Helper to get prompt version from both v1 and v2 schema payloads
+// exportEvalData.js records carry readingPromptVersion, cardCoverage and
+// variantId at the top level for every schema version, so the helpers below
+// check those first and fall back to raw v1/v2 payload paths.
+
+// Helper to get prompt version from export records and v1/v2 schema payloads
 function getPromptVersion(payload) {
   if (!payload) return null;
-  if (payload.schemaVersion >= 2) {
-    return payload.experiment?.promptVersion;
+  if (payload.readingPromptVersion) {
+    return payload.readingPromptVersion;
   }
-  return payload.readingPromptVersion ||
-    payload.promptMeta?.readingPromptVersion ||
-    null;
+  if (payload.schemaVersion >= 2) {
+    return payload.experiment?.promptVersion || null;
+  }
+  return payload.promptMeta?.readingPromptVersion || null;
 }
 
-// Helper to get card coverage from both v1 and v2 schema payloads
+// Helper to get card coverage from export records and v1/v2 schema payloads
 function getCardCoverage(payload) {
   if (!payload) return null;
-  if (payload.schemaVersion >= 2) {
-    return payload.narrative?.coverage?.percentage;
+  if (payload.cardCoverage != null) {
+    return payload.cardCoverage;
   }
-  return payload.cardCoverage ??
-    payload.narrative?.cardCoverage ??
-    null;
+  if (payload.schemaVersion >= 2) {
+    return payload.narrative?.coverage?.percentage ?? null;
+  }
+  return payload.narrative?.cardCoverage ?? null;
 }
 
-// Helper to get variant ID from both v1 and v2 schema payloads
+// Helper to get variant ID from export records and v1/v2 schema payloads
 function getVariantId(payload) {
   if (!payload) return null;
-  if (payload.schemaVersion >= 2) {
-    return payload.experiment?.variantId;
+  if (payload.variantId) {
+    return payload.variantId;
   }
-  return payload.variantId || null;
+  if (payload.schemaVersion >= 2) {
+    return payload.experiment?.variantId || null;
+  }
+  return null;
 }
 
 function missingExpectedItems(actual = [], expected = []) {

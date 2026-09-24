@@ -156,7 +156,8 @@ Provide analysis in structured sections:
 **Key Source Files:**
 - `functions/lib/evaluation.js` - Evaluation engine and rubric
 - `functions/lib/readingQuality.js` - Narrative metrics computation
-- `functions/lib/qualityAlerts.js` - Alert thresholds
-- `functions/lib/narrative/prompts.js` - Reading prompt construction
+- `functions/lib/qualityAnalysis.js` - Alert thresholds and regression detection
+- `functions/lib/qualityAlerts.js` - Alert dispatch
+- `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` - Reading prompt construction
 
 Always provide evidence-based analysis with specific data points. Avoid speculation without supporting metrics.
