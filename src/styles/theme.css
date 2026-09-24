@@ -92,12 +92,14 @@
   /* Status */
   --status-success: var(--color-success);
   --status-success-rgb: 107 158 120;
+  --status-success-bg: #1B2C21;
   /* Muted green */
   --status-error: var(--color-error);
   --status-error-rgb: 201 118 118;
   /* Muted red */
   --status-warning: #F59E0B;
   --status-warning-rgb: 245 158 11;
+  --status-warning-bg: #392B17;
   /* Amber 500 - readable warning tone */
 
   /* Panels & Effects */
@@ -163,9 +165,13 @@
   --brand-secondary-rgb: 106 87 70;
   --color-gold-soft: #8A6B3B; /* 4.74:1 on #FAFAFA */
   --brand-accent-rgb: 138 107 59;
-  --status-warning: #B45309;
-  --status-warning-rgb: 180 83 9;
-  /* Amber 700 - stronger contrast on light backgrounds */
+  --status-success: #2F6A3B;
+  --status-success-rgb: 47 106 59;
+  --status-success-bg: #EDF4EE;
+  --status-warning: #854D0E;
+  --status-warning-rgb: 133 77 14;
+  --status-warning-bg: #FEF3C7;
+  /* Opaque semantic pairs keep normal light-mode status text readable. */
 
   /* Panels & Effects (light-friendly variants) */
   --panel-dark-1: #FFFFFF;

@@ -122,31 +122,33 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
 
   return (
     <div className="modern-surface spread-patterns-panel border border-secondary/40 p-4 sm:p-6 motion-safe:animate-fade-in">
-      {/* Mobile: Collapsible header */}
-      <button
-        type="button"
-        onClick={() => setIsExpanded(prev => !prev)}
-        className={`${isHandset ? 'flex' : 'hidden'} min-h-touch w-full items-center justify-between gap-2 mb-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 rounded`}
-        aria-expanded={isExpanded}
-        aria-controls="spread-patterns-content"
-      >
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+      {isHandset ? (
+        <h2>
+          <button
+            type="button"
+            onClick={() => setIsExpanded(prev => !prev)}
+            className="flex min-h-touch w-full items-center justify-between gap-2 mb-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 rounded"
+            aria-expanded={isExpanded}
+            aria-controls="spread-patterns-content"
+          >
+            <span className="flex min-w-0 flex-wrap items-center gap-2">
+              <Star className="w-5 h-5 text-accent" aria-hidden="true" />
+              <span className="text-accent text-base font-serif">Spread Insights</span>
+              <span className="text-xs text-muted">({totalCount})</span>
+            </span>
+            {isExpanded ? (
+              <CaretUp className="w-5 h-5 text-accent" aria-hidden="true" />
+            ) : (
+              <CaretDown className="w-5 h-5 text-accent" aria-hidden="true" />
+            )}
+          </button>
+        </h2>
+      ) : (
+        <h2 className="flex items-center gap-2 mb-4">
           <Star className="w-5 h-5 text-accent" aria-hidden="true" />
-          <span className="text-accent text-base font-serif">Spread Insights</span>
-          <span className="text-xs text-muted">({totalCount})</span>
-        </div>
-        {isExpanded ? (
-          <CaretUp className="w-5 h-5 text-accent" aria-hidden="true" />
-        ) : (
-          <CaretDown className="w-5 h-5 text-accent" aria-hidden="true" />
-        )}
-      </button>
-
-      {/* Desktop: Static header */}
-      <div className={`${isHandset ? 'hidden' : 'flex'} items-center gap-2 mb-4`}>
-        <Star className="w-5 h-5 text-accent" aria-hidden="true" />
-        <span className="text-accent text-lg font-serif">Spread Insights</span>
-      </div>
+          <span className="text-accent text-lg font-serif">Spread Insights</span>
+        </h2>
+      )}
 
       {/* Unified content: collapsed on mobile (unless expanded), always visible on desktop */}
       <div id="spread-patterns-content" className={`${shouldRenderContent ? '' : 'hidden'} ${isHandset ? 'mt-3' : 'mt-0'} space-y-4`}>
@@ -155,7 +157,7 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
         {/* Spread Highlights Section */}
         {hasSpreadHighlights && (
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-accent/90">Highlights</h4>
+            <h3 className="text-sm font-semibold text-accent/90">Highlights</h3>
             <ul className="space-y-2" role="list" aria-label="Spread highlights">
               {spreadHighlights.map((item, index) => (
                 <li key={generateHighlightKey(item, index, 'spread-')} className="flex items-start gap-3">
@@ -172,7 +174,7 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
         {/* Archetypal Patterns Section */}
         {hasArchetypes && (
           <div className={hasSpreadHighlights ? 'pt-3 sm:pt-4 border-t border-secondary/30' : ''}>
-            <h4 className="text-sm font-semibold text-accent/90 mb-3">Archetypal Patterns</h4>
+            <h3 className="text-sm font-semibold text-accent/90 mb-3">Archetypal Patterns</h3>
             <ul className="pattern-list space-y-2" role="list" aria-label="Detected archetypal patterns">
               {archetypeHighlights.map((highlight, index) => (
                 <li
@@ -204,7 +206,7 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
           <div className={(hasSpreadHighlights || hasArchetypes) ? 'pt-3 sm:pt-4 border-t border-secondary/30' : ''}>
             <div className="flex items-center gap-2 mb-3">
               <BookOpen className="w-4 h-4 text-accent flex-shrink-0" aria-hidden="true" />
-              <h4 className="text-sm font-semibold text-accent/90">Traditional Wisdom</h4>
+              <h3 className="text-sm font-semibold text-accent/90">Traditional Wisdom</h3>
             </div>
             <div className="space-y-3" role="list">
               {passages.map((passage, i) => (

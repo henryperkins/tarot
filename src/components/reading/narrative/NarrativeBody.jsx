@@ -33,6 +33,7 @@ export function NarrativeBody({
         className={streamClassName}
         text={narrativeText}
         useMarkdown={Boolean(personalReading?.hasMarkdown)}
+        headingBaseLevel={3}
         isStreamingEnabled={shouldStreamNarrative}
         isReadingStreaming={isReadingStreaming}
         autoNarrate={canAutoNarrate}

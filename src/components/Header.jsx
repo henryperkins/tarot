@@ -110,6 +110,7 @@ export function Header({
 
   return (
     <>
+      {minimalNav && <h1 id="tableau-heading" className="sr-only">Tableu</h1>}
       {/* Main Header */}
       {!minimalNav && (
         <header aria-labelledby="tableau-heading" className={isCompact ? 'header-condensed' : ''}>
