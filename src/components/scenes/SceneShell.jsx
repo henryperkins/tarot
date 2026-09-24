@@ -111,6 +111,7 @@ export function SceneShell({
     const previousScene = transitionPrevSceneRef.current;
     transitionPrevSceneRef.current = activeScene;
     if (previousScene === activeScene || prefersReducedMotion) return undefined;
+    if (['ritual', 'reveal'].includes(previousScene) && ['ritual', 'reveal'].includes(activeScene)) return undefined;
 
     const profile = TRANSITION_PROFILES[`${previousScene}->${activeScene}`];
     overlay.style.background = profile?.overlay
@@ -177,7 +178,8 @@ export function SceneShell({
   const particlePreset = transitionMeta?.particlePreset
     || SCENE_PARTICLE_FALLBACK[activeScene]
     || 'idle';
-  const shouldRenderSceneParticles = !(isMobileStableMode && (activeScene === 'narrative' || activeScene === 'complete'));
+  const shouldRenderSceneParticles = activeScene !== 'ritual' && activeScene !== 'reveal'
+    && !(isMobileStableMode && (activeScene === 'narrative' || activeScene === 'complete'));
 
   const sceneContext = useMemo(() => ({
     activeScene,

@@ -2,6 +2,7 @@ import { useMemo, useEffect, useRef } from 'react';
 import { Gear, Sparkle, ArrowsClockwise, ChatCircle } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
+import { getReadingTableAction } from './readingBoardUtils';
 import {
   MOBILE_SETTINGS_DIALOG_ID,
   MOBILE_COACH_DIALOG_ID,
@@ -47,6 +48,7 @@ function ActionButton({
   ariaExpanded,
   icon: Icon,
   className = '',
+  readingTableAction = false,
   isLandscape = false
 }) {
   const variantClass = {
@@ -65,7 +67,15 @@ function ActionButton({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={event => {
+        // The table reuses this button across deal, reveal, and narrative phases.
+        if (readingTableAction && event.detail > 1) return;
+        onClick?.(event);
+      }}
+      data-reading-primary={readingTableAction || undefined}
+      onKeyDown={event => {
+        if (readingTableAction && event.key === 'Enter' && event.repeat) event.preventDefault();
+      }}
       disabled={disabled}
       aria-label={ariaLabel}
       aria-controls={ariaControls}
@@ -91,6 +101,9 @@ function ActionButton({
 function MobileActionContents({
   isShuffling,
   reading,
+  isSpreadDealt,
+  spreadPositions,
+  onDealSpread,
   revealedCards,
   isGenerating,
   personalReading,
@@ -99,13 +112,11 @@ function MobileActionContents({
   isFollowUpOpen = false,
   stepIndicatorLabel,
   activeStep = 'spread',
-  revealFocus = 'action',
   onOpenSettings,
   onOpenCoach,
   onOpenFollowUp,
   onShuffle,
   onDealNext,
-  onRevealAll,
   onGenerateNarrative,
   onSaveReading,
   onNewReading,
@@ -135,6 +146,7 @@ function MobileActionContents({
     isGenerating,
     isError
   }), [isShuffling, reading, revealedCount, allRevealed, needsNarrative, hasNarrative, isGenerating, isError]);
+  const tableAction = getReadingTableAction({ isSpreadDealt, revealedCards: revealedCards || new Set(), totalCards: readingLength, positions: spreadPositions });
 
   const stepBadge = useMemo(() => {
     switch (mode) {
@@ -163,15 +175,12 @@ function MobileActionContents({
       {renderActions(mode, {
         variant,
         showUtilityButtons,
-        readingLength,
-        revealedCount,
         stepBadge,
         stepIndicatorLabel,
         hasNarrative,
         isLandscape,
         showFollowUp,
         isFollowUpOpen,
-        revealFocus,
         onOpenFollowUp,
         isSettingsOpen,
         isCoachOpen,
@@ -181,7 +190,8 @@ function MobileActionContents({
         onOpenCoach,
         onShuffle,
         onDealNext,
-        onRevealAll,
+        onDealSpread,
+        tableAction,
         onGenerateNarrative,
         onSaveReading,
         onNewReading
@@ -199,15 +209,12 @@ function renderActions(mode, options) {
   const {
     variant,
     showUtilityButtons,
-    readingLength,
-    revealedCount,
     stepBadge,
     stepIndicatorLabel,
     hasNarrative,
     isLandscape,
     showFollowUp,
     isFollowUpOpen,
-    revealFocus,
     onOpenFollowUp,
     isSettingsOpen,
     isCoachOpen,
@@ -217,7 +224,8 @@ function renderActions(mode, options) {
     onOpenCoach,
     onShuffle,
     onDealNext,
-    onRevealAll,
+    onDealSpread,
+    tableAction,
     onGenerateNarrative,
     onSaveReading,
     onNewReading
@@ -302,40 +310,17 @@ function renderActions(mode, options) {
     }
 
     case 'revealing': {
-      const nextCount = Math.min(revealedCount + 1, readingLength);
-      const isDeckPrimary = revealFocus === 'deck';
-      const nextLabel = isLandscape
-        ? (isDeckPrimary ? `Draw ${nextCount}/${readingLength}` : `Reveal ${nextCount}/${readingLength}`)
-        : isDeckPrimary
-          ? `Draw next (${nextCount}/${readingLength})`
-          : `Reveal next (${nextCount}/${readingLength})`;
-      const revealVariant = 'primary';
-      const revealAllLabel = isLandscape ? 'Reveal all' : 'Reveal instantly';
-      const showRevealAll = readingLength > 1 && !isDeckPrimary;
       return (
-        <>
           <ActionButton
-            variant={revealVariant}
-            onClick={onDealNext}
-            stepLabel={stepBadge}
-            ariaLabel={withStepContext(nextLabel, stepIndicatorLabel)}
+            readingTableAction
+            variant="primary"
+            onClick={tableAction?.phase === 'deal' ? onDealSpread : onDealNext}
+            ariaLabel={tableAction?.label}
             className={`${widthClasses.primary} ${px}`}
             isLandscape={isLandscape}
           >
-            {nextLabel}
+            {tableAction?.label}
           </ActionButton>
-          {showRevealAll && (
-            <ActionButton
-              variant="tertiary"
-              onClick={onRevealAll}
-              ariaLabel={withStepContext('Reveal all cards', stepIndicatorLabel)}
-              className={`${widthClasses.tertiary} ${px}`}
-              isLandscape={isLandscape}
-            >
-              {revealAllLabel}
-            </ActionButton>
-          )}
-        </>
       );
     }
 
@@ -397,27 +382,16 @@ function renderActions(mode, options) {
 
     case 'ready-for-narrative':
       return (
-        <>
           <ActionButton
+            readingTableAction
             variant="primary"
             onClick={onGenerateNarrative}
-            stepLabel={stepBadge}
-            ariaLabel={withStepContext('Create narrative', stepIndicatorLabel)}
+            ariaLabel="Create narrative"
             className={`${widthClasses.primary} ${px}`}
             isLandscape={isLandscape}
           >
-            {isLandscape ? 'Create story' : 'Create narrative'}
+            Create narrative
           </ActionButton>
-          <ActionButton
-            variant="secondary"
-            onClick={onNewReading}
-            ariaLabel="Start a new reading (resets the current spread)"
-            className={`${widthClasses.secondary} ${px}`}
-            isLandscape={isLandscape}
-          >
-            {isLandscape ? 'New read' : 'New reading'}
-          </ActionButton>
-        </>
       );
 
     case 'completed':

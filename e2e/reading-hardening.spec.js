@@ -73,7 +73,7 @@ async function prepareNarrative(page) {
   const question = page.locator('#question-input, #quick-intention').filter({ visible: true }).first();
   await question.fill('How can I find balance? 🌿 ما الذي يدعمني؟ 自分を大切にする');
   await page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw/ }).click();
-  await page.getByRole('button', { name: /^Deal the cards/ }).click();
+  await page.getByRole('button', { name: /^Deal spread/ }).click();
   await page.getByRole('button', { name: /^Reveal all cards/ }).click();
   await expect(page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ })).toBeEnabled();
 }

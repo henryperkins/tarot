@@ -225,11 +225,11 @@ function getDealtCards(page) {
 
 async function waitForCardsDealt(page, expectedCount) {
   // Drawing prepares the deck; the interlude has an explicit deal action.
-  const dealCardsButton = page.getByRole('button', { name: /^Deal the cards/ });
+  const dealCardsButton = page.getByRole('button', { name: /^Deal spread/ });
   await expect(dealCardsButton).toBeVisible();
   await dealCardsButton.click();
 
-  // Dealing can reveal the first card immediately, especially in a one-card spread.
+  // Every spread is dealt face-down before its first reveal.
   await expect(getDealtCards(page)).toHaveCount(expectedCount);
 }
 
@@ -239,12 +239,10 @@ async function waitForCardsDealt(page, expectedCount) {
 async function revealCard(page, index) {
   const cards = getDealtCards(page);
   const card = cards.nth(index);
-  if (await card.isVisible() && /(?:Tap|Click) to reveal/.test(await card.getAttribute('aria-label'))) {
-    // Use force:true to bypass actionability checks on animated elements
-    // reducedMotion is set in config but some CSS animations may still affect stability
-    await card.click({ force: true });
-    // Wait for flip animation (reduced motion makes this faster)
-    await page.waitForTimeout(300);
+  await expect(card).toBeVisible();
+  if (/(?:Tap|Click) to reveal/.test(await card.getAttribute('aria-label'))) {
+    await card.click();
+    await expect(card).toHaveAttribute('aria-label', /Click to view details/);
   }
 }
 
@@ -483,12 +481,14 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
     // Shuffle
     await skipRitual(page);
     await waitForCardsDealt(page, 1);
+    await revealCard(page, 0);
     await generateAndCompleteNarrative(page);
     await expect(page.locator('.scene-shell--reading bdi')).toHaveText(testQuestion);
 
     // Shuffle again
     await startNewReading(page);
     await waitForCardsDealt(page, 1);
+    await revealCard(page, 0);
 
     // The question remains in the next completed reading.
     await generateAndCompleteNarrative(page);
@@ -534,8 +534,9 @@ test.describe('Reading stream recovery @desktop', () => {
     await selectSpread(page, 'One-Card');
     await page.locator('textarea').first().fill('What should I notice this week?');
     await skipRitual(page);
-    await page.getByRole('button', { name: /^Deal the cards/ }).click();
-    await expect(page.getByRole('button', { name: 'Create Personal Narrative' })).toBeVisible();
+    await page.getByRole('button', { name: /^Deal spread/ }).click();
+    await page.getByRole('button', { name: /^Reveal next:/ }).click();
+    await expect(page.getByRole('button', { name: 'Create narrative', exact: true })).toBeVisible();
   });
 
   test.afterEach(async ({ page }, testInfo) => {
@@ -597,7 +598,8 @@ test.describe('Reading stream recovery @desktop', () => {
     expect(starts).toBe(1);
     expect(await page.evaluate(() => sessionStorage.getItem('tarot:reading-job'))).toBeNull();
     await startNewReading(page);
-    await page.getByRole('button', { name: /^Deal the cards/ }).click();
+    await page.getByRole('button', { name: /^Deal spread/ }).click();
+    await page.getByRole('button', { name: /^Reveal next:/ }).click();
     await generateNarrative(page);
     await expect(page.getByText('The next attempt completed.', { exact: true })).toBeVisible();
     expect(starts).toBe(2);

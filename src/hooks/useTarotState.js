@@ -27,6 +27,7 @@ export function useTarotState(speak) {
   const [reading, setReading] = useState(null);
   const [isShuffling, setIsShuffling] = useState(false);
   const [revealedCards, setRevealedCards] = useState(new Set());
+  const [isSpreadDealt, setIsSpreadDealt] = useState(false);
   const [dealIndex, setDealIndex] = useState(0);
 
   const [hasKnocked, setHasKnocked] = useState(false);
@@ -152,6 +153,7 @@ export function useTarotState(speak) {
   const resetReadingState = useCallback((resetQuestion = false) => {
     // Does NOT reset userQuestion unless specified, to preserve intention
     setReading(null);
+    setIsSpreadDealt(false);
     setRevealedCards(new Set());
     setDealIndex(0);
     setHasKnocked(false);
@@ -261,8 +263,23 @@ export function useTarotState(speak) {
     return `${position}: ${card.name} - ${first}.`;
   }, []);
 
+  const dealSpread = useCallback(() => {
+    if (!reading?.length || isShuffling || isSpreadDealt) return;
+    // Ritual choices made at the table are applied when its cards are committed.
+    const useSeed = Boolean(hasKnocked || hasCut || userQuestion.trim() || shouldSkipRitual);
+    const seed = computeSeed({ cutIndex, knockTimes: knockTimesRef.current, userQuestion });
+    setReading(drawSpread({ spreadKey: selectedSpread, useSeed, seed, includeMinors }));
+    setSessionSeed(useSeed ? seed : null);
+    setIsSpreadDealt(true);
+  }, [reading, isShuffling, isSpreadDealt, hasKnocked, hasCut, userQuestion, shouldSkipRitual, cutIndex, selectedSpread, includeMinors]);
+
+  const resetReveals = useCallback(() => {
+    setRevealedCards(new Set());
+    setDealIndex(0);
+  }, []);
+
   const dealNext = useCallback(() => {
-    if (!reading) return;
+    if (!reading || !isSpreadDealt) return;
     const spreadInfo = getSpreadInfo(selectedSpread);
     const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : reading.length;
     const next = reading.findIndex((_, index) => index < maxCards && !revealedCards.has(index));
@@ -282,10 +299,10 @@ export function useTarotState(speak) {
     if (speak) {
       void speak(shortLineForCard(reading[next], position), 'card-reveal');
     }
-  }, [reading, revealedCards, selectedSpread, speak, shortLineForCard]);
+  }, [reading, isSpreadDealt, revealedCards, selectedSpread, speak, shortLineForCard]);
 
   const revealCard = useCallback((index) => {
-    if (!reading || !reading[index]) return;
+    if (!reading || !isSpreadDealt || !reading[index]) return;
     if (revealedCards.has(index)) return;
     const spreadInfo = getSpreadInfo(selectedSpread);
     const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : reading.length;
@@ -305,17 +322,17 @@ export function useTarotState(speak) {
     if (speak) {
       void speak(shortLineForCard(reading[index], position), 'card-reveal');
     }
-  }, [reading, revealedCards, selectedSpread, speak, shortLineForCard]);
+  }, [reading, isSpreadDealt, revealedCards, selectedSpread, speak, shortLineForCard]);
 
   const revealAll = useCallback(() => {
-    if (!reading || reading.length === 0) return;
+    if (!reading || !isSpreadDealt || reading.length === 0) return;
     const spreadInfo = getSpreadInfo(selectedSpread);
     const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : reading.length;
     const visibleCount = Math.min(reading.length, maxCards);
     const allIndices = new Set(Array.from({ length: visibleCount }, (_, index) => index));
     setRevealedCards(allIndices);
     setDealIndex(visibleCount);
-  }, [reading, selectedSpread]);
+  }, [reading, isSpreadDealt, selectedSpread]);
 
   return {
     selectedSpread,
@@ -324,6 +341,10 @@ export function useTarotState(speak) {
     reading,
     setReading,
     isShuffling,
+    isSpreadDealt,
+    setIsSpreadDealt,
+    dealSpread,
+    resetReveals,
     revealedCards,
     setRevealedCards,
     dealIndex,

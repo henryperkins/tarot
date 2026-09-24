@@ -175,8 +175,9 @@ async function completeReading(page, question = 'What should I focus on?') {
   await questionInput.fill(question);
 
   await page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw/ }).click();
-  await page.getByRole('button', { name: /^Deal the cards/ }).click();
-  // The one-card flow reveals its card as it is dealt.
+  await page.getByRole('button', { name: /^Deal spread/ }).click();
+  await page.getByRole('button', { name: /^Reveal next:/ }).click();
+  // Dealing leaves the card face-down until the explicit reveal.
 
   const generateButton = page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ });
   await expect(generateButton).toBeVisible({ timeout: 8000 });
@@ -358,7 +359,8 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await expect.poll(() => page.evaluate(() => typeof window.__finishOldFollowup)).toBe('function');
     await page.getByRole('button', { name: 'Close follow-up chat' }).click();
     await page.getByRole('button', { name: 'Start a new reading and reset this spread' }).click();
-    await page.getByRole('button', { name: /^Deal the cards/ }).click();
+    await page.getByRole('button', { name: /^Deal spread/ }).click();
+    await page.getByRole('button', { name: /^Reveal next:/ }).click();
     await page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ }).click();
     await expect(page.locator('.narrative-stream')).toContainText(MOCK_READING_RESPONSE.reading);
     await expect.poll(() => page.evaluate(() => window.__oldFollowupSignal.aborted)).toBe(true);

@@ -7,6 +7,7 @@ export function ReadingChrome({
   readingMeta,
   isHandset,
   isLandscape,
+  isTableScene = false,
   reading,
   shuffle,
   isShuffling,
@@ -21,17 +22,21 @@ export function ReadingChrome({
 }) {
   return (
     <>
-      <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">
-            {displayName ? `Reading for ${displayName}` : 'Reading'}
-          </p>
-          <MoonPhaseIndicator
-            ephemeris={readingMeta?.ephemeris}
-            variant={isHandset ? 'icon' : 'compact'}
-          />
+      {(!isTableScene || displayName || readingMeta?.ephemeris) && (
+        <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
+          <div className="flex items-center justify-between gap-3">
+            {(!isTableScene || displayName) && (
+              <p className={isTableScene ? 'text-sm text-muted' : 'text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent'}>
+                {displayName ? `Reading for ${displayName}` : 'Reading'}
+              </p>
+            )}
+            <MoonPhaseIndicator
+              ephemeris={readingMeta?.ephemeris}
+              variant={isHandset ? 'icon' : 'compact'}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {!reading ? (
         <div className="hidden sm:block text-center mb-8 sm:mb-10">

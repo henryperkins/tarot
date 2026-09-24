@@ -48,6 +48,7 @@ export function ReadingProvider({ children }) {
         selectedSpread,
         userQuestion,
         revealedCards,
+        isSpreadDealt,
         shuffle,
         dealNext: baseDealNext,
         revealCard: baseRevealCard,
@@ -1299,7 +1300,7 @@ export function ReadingProvider({ children }) {
     }, [reading, selectedSpread]);
 
     const dealNext = useCallback(() => {
-        if (!reading) return;
+        if (!reading || !isSpreadDealt) return;
         const nextIndex = reading.findIndex((_, index) => !revealedCards.has(index));
         if (nextIndex < 0) return;
         const description = describeCardAtIndex(nextIndex);
@@ -1307,19 +1308,19 @@ export function ReadingProvider({ children }) {
             setSrAnnouncement(`Revealed ${description}.`);
         }
         baseDealNext();
-    }, [baseDealNext, describeCardAtIndex, reading, revealedCards]);
+    }, [baseDealNext, describeCardAtIndex, reading, revealedCards, isSpreadDealt]);
 
     const revealCard = useCallback((index) => {
-        if (!reading || !reading[index]) return;
+        if (!reading || !isSpreadDealt || !reading[index] || revealedCards.has(index)) return;
         const description = describeCardAtIndex(index);
         if (description) {
             setSrAnnouncement(`Revealed ${description}.`);
         }
         baseRevealCard(index);
-    }, [baseRevealCard, describeCardAtIndex, reading]);
+    }, [baseRevealCard, describeCardAtIndex, reading, isSpreadDealt, revealedCards]);
 
     const revealAll = useCallback(() => {
-        if (!reading || reading.length === 0) return;
+        if (!reading || !isSpreadDealt || reading.length === 0) return;
         const spreadInfo = getSpreadInfo(selectedSpread);
         const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
         const visibleReading = maxCards ? reading.slice(0, maxCards) : reading;
@@ -1339,7 +1340,7 @@ export function ReadingProvider({ children }) {
         }
 
         baseRevealAll();
-    }, [baseRevealAll, describeCardAtIndex, reading, revealedCards, selectedSpread]);
+    }, [baseRevealAll, describeCardAtIndex, reading, revealedCards, selectedSpread, isSpreadDealt]);
 
     const value = useMemo(() => ({
         ...audioController,

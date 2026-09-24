@@ -39,3 +39,14 @@ export function getNextUnrevealedIndex(reading, revealedCards) {
   if (!Array.isArray(reading)) return -1;
   return reading.findIndex((_, index) => !revealedCards.has(index));
 }
+
+// One action contract for the table and the mobile action dock.
+export function getReadingTableAction({ isSpreadDealt, revealedCards, totalCards, positions = [] }) {
+  if (!totalCards) return null;
+  if (!isSpreadDealt) return { phase: 'deal', label: 'Deal spread', nextIndex: -1 };
+  const nextIndex = Array.from({ length: totalCards }, (_, index) => index)
+    .find(index => !revealedCards.has(index));
+  if (nextIndex === undefined) return { phase: 'narrative', label: 'Create narrative', nextIndex: -1 };
+  const position = extractShortLabel(positions[nextIndex], 80) || `Position ${nextIndex + 1}`;
+  return { phase: 'reveal', label: `Reveal next: ${position}`, nextIndex };
+}

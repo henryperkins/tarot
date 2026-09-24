@@ -148,6 +148,7 @@ export function CardModal({
     canNavigateNext,
     navigationLabel,
 }) {
+    const dialogRef = useRef(null);
     const modalRef = useRef(null);
     const overlayRef = useRef(null);
     const closingRef = useRef(false);
@@ -188,7 +189,9 @@ export function CardModal({
     // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
     useModalA11y(isOpen, {
         onClose: handleClose,
-        containerRef: modalRef,
+        containerRef: dialogRef,
+        initialFocusRef: modalRef,
+        isolateBackground: true,
         scrollLockStrategy: 'fixed', // Prevents iOS bounce
     });
 
@@ -298,6 +301,7 @@ export function CardModal({
 
     return (
         <div
+            ref={dialogRef}
             className="fixed inset-0 z-toast flex items-center justify-center p-2 sm:p-4 px-safe pt-safe pb-safe"
             role="dialog"
             aria-modal="true"

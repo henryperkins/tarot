@@ -102,8 +102,12 @@ export function useModalA11y(isOpen, {
     // Keep the activation layer: React may detach a conditional dialog before
     // effect cleanup, when walking its former ancestors would return layer 0.
     const entry = { container, layer: modalLayer(container), isolateBackground: shouldIsolateBackground };
-    previousFocusRef.current = returnFocusRef?.current
-      || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    const focusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // StrictMode replays setup after focus has already moved into the dialog.
+    // Preserve the original opener until the deferred close actually completes.
+    if (returnFocusRef?.current || !previousFocusRef.current || !container.contains(focusedElement)) {
+      previousFocusRef.current = returnFocusRef?.current || focusedElement;
+    }
     activeModals.push(entry);
     restoreBackground();
 
@@ -169,9 +173,10 @@ export function useModalA11y(isOpen, {
             ? document.querySelector(optionsRef.current.fallbackFocusSelector) : null;
           const target = isAvailable(opener) ? opener : isAvailable(fallback) ? fallback : topModal()?.container;
           target?.focus({ preventScroll: true });
+          previousFocusRef.current = null;
         }, 0);
       }
-      previousFocusRef.current = null;
+      if (!restoreFocus || !wasTop) previousFocusRef.current = null;
       isolateBackground();
     };
   }, [isOpen, containerRef, initialFocusRef, returnFocusRef, restoreFocus, shouldIsolateBackground]);

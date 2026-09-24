@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import { useCallback, useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { useReading } from '../contexts/ReadingContext';
@@ -38,6 +38,7 @@ export function ReadingDisplay({
     onFollowUpOpenChange,
     followUpAutoFocus = true,
     suppressInterruptions = false,
+    onCardModalChange,
     isMobileStableMode = false
 }) {
     const { saveReading, isSaving } = useSaveReading();
@@ -61,10 +62,11 @@ export function ReadingDisplay({
         selectedSpread,
         reading,
         isShuffling,
+        isSpreadDealt,
+        dealSpread,
+        resetReveals,
         revealedCards,
-        setRevealedCards,
         dealIndex: _dealIndex,
-        setDealIndex,
         sessionSeed,
         userQuestion,
         shuffle,
@@ -197,6 +199,7 @@ export function ReadingDisplay({
         voiceOn,
         autoNarrate,
         deckStyleId,
+        deckSize,
         personalization,
         ttsProvider,
         // Nudge state (contextual discovery)
@@ -237,6 +240,7 @@ export function ReadingDisplay({
         handleCardClick,
         handleOpenModalFromPanel,
         handleCloseDetail,
+        handleCloseModal,
         navigationData,
         handleNavigateCard
     } = useReadingSelection({
@@ -248,6 +252,13 @@ export function ReadingDisplay({
         prefersReducedMotion,
         notifyCardMention
     });
+
+    const isCardModalOpen = Boolean(selectedCardData);
+    useLayoutEffect(() => {
+        // Suspend global shortcuts before the newly opened modal can take input.
+        onCardModalChange?.(isCardModalOpen);
+        return () => onCardModalChange?.(false);
+    }, [isCardModalOpen, onCardModalChange]);
 
     useEffect(() => {
         if (!Array.isArray(reading) || visibleCount === 0 || typeof document === 'undefined') return undefined;
@@ -389,9 +400,10 @@ export function ReadingDisplay({
     }, [revealAll, prefersReducedMotion, sectionRef]);
 
     const handleResetReveals = useCallback(() => {
-        setRevealedCards(new Set());
-        setDealIndex(0);
-    }, [setRevealedCards, setDealIndex]);
+        resetReveals();
+        // Reset removes its own button; continue keyboard navigation at reveal.
+        document.querySelector('[data-reading-primary]')?.focus({ preventScroll: true });
+    }, [resetReveals]);
 
     // Ghost card animation handlers for deck-to-slot fly effect
     const handleAnimatedDeal = useCallback(() => {
@@ -542,6 +554,7 @@ export function ReadingDisplay({
     };
 
     const ritualModel = {
+        deckSize,
         reading,
         revealedCards,
         visibleCount,
@@ -566,6 +579,11 @@ export function ReadingDisplay({
     };
 
     const revealModel = {
+        isSpreadDealt,
+        dealSpread,
+        dealNext,
+        userQuestion,
+        spreadPositions: spreadInfo?.positions || [],
         spreadName: spreadInfo?.name,
         visibleCount,
         revealedCards,
@@ -651,6 +669,7 @@ export function ReadingDisplay({
                 readingMeta={readingMeta}
                 isHandset={isHandset}
                 isLandscape={isLandscape}
+                isTableScene={sceneOrchestrator.activeScene === 'ritual' || sceneOrchestrator.activeScene === 'reveal'}
                 reading={reading}
                 shuffle={shuffle}
                 isShuffling={isShuffling}
@@ -678,7 +697,7 @@ export function ReadingDisplay({
                 selectedCardData={selectedCardData}
                 resolvedQuestion={resolvedQuestion}
                 effectiveTier={effectiveTier}
-                onCloseDetail={handleCloseDetail}
+                onCloseDetail={handleCloseModal}
                 onNavigateCard={handleNavigateCard}
                 navigationData={navigationData}
                 ghostAnimation={ghostAnimation}

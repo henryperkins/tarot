@@ -16,11 +16,32 @@ export function useReadingSelection({
     const [focusedCardData, setFocusedCardData] = useState(null);
     const [recentlyClosedIndex, setRecentlyClosedIndex] = useState(-1);
     const recentlyClosedTimeoutRef = useRef(null);
+    const previousRevealsRef = useRef({ reading, revealed: new Set() });
 
     const selectedCardData = selectionState.key === readingIdentity ? selectionState.value : null;
     const setSelectedCardData = useCallback((value) => {
         setSelectionState({ key: readingIdentity, value });
     }, [readingIdentity]);
+
+    useEffect(() => {
+        const previous = previousRevealsRef.current;
+        const added = [...revealedCards].filter(index => index < visibleCount &&
+            (previous.reading !== reading || !previous.revealed.has(index)));
+        previousRevealsRef.current = { reading, revealed: revealedCards };
+        if (!revealedCards.size) {
+            // External reveal/reset controls share this selection without moving focus.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setFocusedCardData(null);
+            setSelectedCardData(null);
+            return;
+        }
+        const index = added.at(-1);
+        if (index !== undefined && reading?.[index]) {
+            setFocusedCardData({ card: reading[index], position: spreadPositions[index], index, readingKey: readingIdentity });
+        }
+    }, [reading, readingIdentity, revealedCards, visibleCount, spreadPositions, setSelectedCardData]);
+
+    const handleCloseModal = useCallback(() => setSelectedCardData(null), [setSelectedCardData]);
 
     const narrativeMentionPulse = mentionPulseState.key === readingIdentity ? mentionPulseState.value : null;
     const setNarrativeMentionPulse = useCallback((value) => {
@@ -175,6 +196,7 @@ export function useReadingSelection({
         handleCardClick,
         handleOpenModalFromPanel,
         handleCloseDetail,
+        handleCloseModal,
         navigationData,
         handleNavigateCard
     };

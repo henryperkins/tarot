@@ -122,6 +122,9 @@ export default function TarotReading() {
     reading,
     setReading,
     isShuffling,
+    isSpreadDealt,
+    setIsSpreadDealt,
+    dealSpread,
     revealedCards,
     setRevealedCards,
     dealIndex,
@@ -177,6 +180,7 @@ export default function TarotReading() {
   const [coachRecommendationVersion, setCoachRecommendationVersion] = useState(0);
   const [isIntentionCoachOpen, setIsIntentionCoachOpen] = useState(false);
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [followUpIntent, setFollowUpIntent] = useState('continue');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
@@ -409,6 +413,7 @@ export default function TarotReading() {
       : [];
 
     setReading(normalizedCards);
+    setIsSpreadDealt(true);
     setRevealedCards(new Set(normalizedCards.map((_, index) => index)));
     setDealIndex(normalizedCards.length);
     setSessionSeed(entrySessionSeed || null);
@@ -450,6 +455,7 @@ export default function TarotReading() {
     setFollowUps,
     setHasConfirmedSpread,
     setIsGenerating,
+    setIsSpreadDealt,
     setNarrativePhase,
     setPersonalReading,
     setReading,
@@ -467,7 +473,7 @@ export default function TarotReading() {
   useEffect(() => {
     function handleCoachShortcut(event) {
       if (event.defaultPrevented) return;
-      if (isIntentionCoachOpen) return;
+      if (isIntentionCoachOpen || isCardModalOpen) return;
       const target = event.target;
       const tagName = target?.tagName;
       const isTypingTarget =
@@ -485,7 +491,7 @@ export default function TarotReading() {
     return () => {
       window.removeEventListener('keydown', handleCoachShortcut);
     };
-  }, [isIntentionCoachOpen, openIntentionCoach]);
+  }, [isIntentionCoachOpen, isCardModalOpen, openIntentionCoach]);
 
   // Clear Journal Status Timeout
   useEffect(() => {
@@ -773,7 +779,7 @@ export default function TarotReading() {
   const showFollowUpButton = isHandset && canShowFollowUp;
   const isFollowUpVisible = canShowFollowUp && isFollowUpOpen;
   // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
-  const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen || isFollowUpVisible;
+  const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen || isFollowUpVisible || isCardModalOpen;
   const isCinematicFocusMode = shouldFocusCinematicFlow && !showSetupInFocusMode;
   const revealFocus = isHandset && newDeckInterface && reading && revealedCards.size < visibleCount
     ? (revealedCards.size === 0 ? 'deck' : 'spread')
@@ -1077,6 +1083,7 @@ export default function TarotReading() {
         )}
 
         <ReadingDisplay
+          onCardModalChange={setIsCardModalOpen}
           sectionRef={readingSectionRef}
           onOpenFollowUp={showFollowUpButton ? handleOpenFollowUp : null}
           followUpOpen={isFollowUpOpen}
@@ -1106,6 +1113,9 @@ export default function TarotReading() {
               isFollowUpOpen={isFollowUpVisible}
               isShuffling={isShuffling}
               reading={reading}
+              isSpreadDealt={isSpreadDealt}
+              spreadPositions={spreadInfo?.positions}
+              onDealSpread={dealSpread}
               revealedCards={revealedCards}
               dealIndex={dealIndex}
               isGenerating={isGenerating}
@@ -1152,6 +1162,9 @@ export default function TarotReading() {
               <MobileActionGroup
                 isShuffling={isShuffling}
                 reading={reading}
+                isSpreadDealt={isSpreadDealt}
+                spreadPositions={spreadInfo?.positions}
+                onDealSpread={dealSpread}
                 revealedCards={revealedCards}
                 dealIndex={dealIndex}
                 isGenerating={isGenerating}

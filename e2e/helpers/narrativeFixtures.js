@@ -174,7 +174,7 @@ export async function startReading(page, fixture, { complete = true } = {}) {
   await openSetup(page);
   await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
   await page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw/ }).filter({ visible: true }).first().click();
-  await page.getByRole('button', { name: /^Deal the cards/ }).filter({ visible: true }).first().click();
+  await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
   await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
   await page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ }).filter({ visible: true }).first().press('Enter');
   if (complete) await fixture.completeReading();

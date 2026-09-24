@@ -261,10 +261,6 @@ function FlipCard({
     // Skip if this is the initial render (handled by useLayoutEffect)
     if (!hasInitializedRef.current) return undefined;
 
-    // Skip if revealed state hasn't actually changed
-    if (prevRevealedRef.current === isRevealed) return undefined;
-    prevRevealedRef.current = isRevealed;
-
     // Clean up any existing animation
     if (animRef.current?.pause) {
       animRef.current.pause();
@@ -272,9 +268,14 @@ function FlipCard({
     }
 
     if (prefersReducedMotion) {
+      prevRevealedRef.current = isRevealed;
       set(node, { rotateY: isRevealed ? 0 : 180, rotateX: isRevealed ? 0 : FLIP_TILT });
       return undefined;
     }
+
+    // A motion preference change must settle an interrupted flip before this guard.
+    if (prevRevealedRef.current === isRevealed) return undefined;
+    prevRevealedRef.current = isRevealed;
 
     animRef.current = animate(node, {
       rotateY: isRevealed ? 0 : 180,
@@ -325,6 +326,9 @@ function AnimatedCardButton({
   disabled,
   ariaDisabled,
   ariaLabel,
+  ariaPressed,
+  dealOriginRef,
+  dealOrder = 0,
   children
 }) {
   const [displayCard, setDisplayCard] = useState(card);
@@ -335,9 +339,54 @@ function AnimatedCardButton({
   const flipLockTimerRef = useRef(null);
   const lastCardRef = useRef(card);
   const displayCardRef = useRef(card);
+  const hasDealtRef = useRef(false);
 
   const resolvedCard = card || displayCard;
   const [shouldForceReveal, setShouldForceReveal] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!card) {
+      hasDealtRef.current = false;
+      return undefined;
+    }
+    const node = buttonRef.current;
+    const deck = dealOriginRef?.current;
+    if (!node || !deck || isHidden || hasDealtRef.current) return undefined;
+    hasDealtRef.current = true;
+    if (isRevealed || typeof node.animate !== 'function') return undefined;
+
+    const origin = deck.getBoundingClientRect();
+    const target = node.getBoundingClientRect();
+    if (!target.width || !target.height) return undefined;
+    const scale = positionScale || 1;
+    const frames = prefersReducedMotion ? [{ opacity: 0.65 }, { opacity: 1 }] : [
+      {
+        translate: `${origin.x + origin.width / 2 - target.x - target.width / 2}px ${origin.y + origin.height / 2 - target.y - target.height / 2}px`,
+        scale: origin.width / target.width * scale,
+        rotate: '0deg',
+        opacity: 0.75
+      },
+      { translate: '0px 0px', scale, rotate: `${positionRotate || 0}deg`, opacity: 1 }
+    ];
+    const animation = node.animate(frames, {
+      duration: prefersReducedMotion ? 140 : 420,
+      delay: prefersReducedMotion ? 0 : Math.min(dealOrder * 40, 180),
+      easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+      fill: 'backwards'
+    });
+    animation.id = 'reading-table-deal';
+    const stop = () => {
+      animation.cancel();
+      window.removeEventListener('resize', stop);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+    const handleVisibility = () => { if (document.hidden) stop(); };
+    animation.onfinish = stop;
+    window.addEventListener('resize', stop, { once: true });
+    document.addEventListener('visibilitychange', handleVisibility);
+    // Revealing during the deal settles the card immediately; reset never redeals.
+    return stop;
+  }, [card, isHidden, isRevealed, dealOriginRef, dealOrder, positionScale, positionRotate, prefersReducedMotion]);
 
   const releaseFlipLock = useCallback(() => {
     if (flipLockTimerRef.current) {
@@ -362,7 +411,6 @@ function AnimatedCardButton({
   useEffect(() => {
     // Detect when a card appears for the first time and is already revealed
     if (!lastCardRef.current && card && isRevealed) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync state for animation coordination
       setShouldForceReveal(true);
     } else {
       setShouldForceReveal(false);
@@ -450,6 +498,7 @@ function AnimatedCardButton({
       disabled={disabled || isFlipAnimating}
       aria-disabled={ariaDisabled || isFlipAnimating}
       aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
       className={className}
       style={{
         ...style,
@@ -485,6 +534,9 @@ export function SpreadTable({
   showProgress = true,
   showTactileLens = true,
   cardsOnly = false,
+  readingTable = false,
+  dealOriginRef,
+  selectedIndex = -1,
   isHandset = false
 }) {
   const prefersReducedMotion = useReducedMotion();
@@ -511,7 +563,6 @@ export function SpreadTable({
   const tableRef = useRef(null);
   const layoutRef = useRef(null);
   const [tableBounds, setTableBounds] = useState({ width: 0, height: 0 });
-  const revealHintDismissedRef = useRef(false);
   const prevRevealedRef = useRef(new Set());
   const hoverCloseTimerRef = useRef(null);
   const holdTimerRef = useRef(null);
@@ -657,7 +708,7 @@ export function SpreadTable({
   }, []);
 
   useLayoutEffect(() => {
-    if (prefersReducedMotion) {
+    if (prefersReducedMotion || readingTable) {
       if (layoutRef.current) {
         layoutRef.current.revert();
         layoutRef.current = null;
@@ -676,10 +727,10 @@ export function SpreadTable({
       layout.revert();
       layoutRef.current = null;
     };
-  }, [prefersReducedMotion]);
+  }, [prefersReducedMotion, readingTable]);
 
   useLayoutEffect(() => {
-    if (prefersReducedMotion) return undefined;
+    if (prefersReducedMotion || readingTable) return undefined;
     const layout = layoutRef.current;
     if (!layout) return undefined;
 
@@ -704,7 +755,7 @@ export function SpreadTable({
       timeline?.pause?.();
       layout.record();
     };
-  }, [cards, visibleLayout, tableBounds.width, tableBounds.height, prefersReducedMotion, layoutStagger]);
+  }, [cards, visibleLayout, tableBounds.width, tableBounds.height, prefersReducedMotion, layoutStagger, readingTable]);
 
   const maxCardWidth = useMemo(
     () => getMaxCardWidth(visibleLayout, tableBounds, allowOverlap),
@@ -723,14 +774,14 @@ export function SpreadTable({
   // four card rows, so it needs a square board rather than the landscape one.
   const aspectRatio = spreadKey === 'celtic'
     ? (usesCompactLayout ? '1/1' : '6/5')
-    : '3/2';
+    : readingTable && (spreadKey === 'single' || spreadKey === 'threeCard') ? '2/1' : '3/2';
   const containerPresentation = useMemo(() => getSpreadTableContainerPresentation({
     cardsOnly,
     compact,
     aspectRatio
   }), [cardsOnly, compact, aspectRatio]);
 
-  const sizeClass = compact
+  const sizeClass = readingTable ? 'reading-table__slot-card' : compact
     ? 'w-11 h-[60px] xs:w-12 xs:h-16 sm:w-14 sm:h-[76px]'
     : usesCompactLayout
       // Compact handset boards are sized by the fitter, not by this class, so
@@ -774,11 +825,7 @@ export function SpreadTable({
   useEffect(() => {
     if (!revealedIndices || !(revealedIndices instanceof Set)) return;
     if (revealedIndices.size === 0) {
-      revealHintDismissedRef.current = false;
       prevRevealedRef.current = new Set();
-    }
-    if (revealedIndices.size > 0) {
-      revealHintDismissedRef.current = true;
     }
     const newlyRevealed = [];
     revealedIndices.forEach((index) => {
@@ -796,7 +843,7 @@ export function SpreadTable({
         void sounds.play('deal', { essential: true });
       }, soundDelay);
     });
-    const burstTimers = newlyRevealed.map((slotIndex, sequenceIndex) => {
+    const burstTimers = readingTable ? [] : newlyRevealed.map((slotIndex, sequenceIndex) => {
       const burstDelay = prefersReducedMotion ? 0 : sequenceIndex * 90;
       return window.setTimeout(() => {
         revealBurstIdRef.current += 1;
@@ -819,10 +866,11 @@ export function SpreadTable({
         (timer) => !burstTimers.includes(timer)
       );
     };
-  }, [cards, revealedIndices, vibrate, prefersReducedMotion, sounds]);
+  }, [cards, revealedIndices, vibrate, prefersReducedMotion, sounds, readingTable]);
 
   // Clean up timers when spread changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear transient sparks when the external spread changes
     setRevealBursts([]);
     return () => {
       if (hoverCloseTimerRef.current) {
@@ -840,7 +888,7 @@ export function SpreadTable({
 
   // Keep next slot in view on mobile after deal/reveal
   useEffect(() => {
-    if (nextDealIndex == null || nextDealIndex < 0) return;
+    if (readingTable || nextDealIndex == null || nextDealIndex < 0) return;
     const el = tableRef.current?.querySelector?.(`[data-slot-index="${nextDealIndex}"]`);
     if (!el || typeof el.scrollIntoView !== 'function') return;
     const rect = el.getBoundingClientRect();
@@ -855,7 +903,7 @@ export function SpreadTable({
     if (!isVisible) {
       el.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center', inline: 'center' });
     }
-  }, [nextDealIndex, prefersReducedMotion]);
+  }, [nextDealIndex, prefersReducedMotion, readingTable]);
 
   return (
     <div
@@ -864,6 +912,7 @@ export function SpreadTable({
       style={containerPresentation.style}
       role="region"
       aria-label={`${spreadInfo?.name || 'Spread'} layout`}
+      data-reading-table={readingTable || undefined}
     >
       {/* Noise texture provided by .panel-mystic::after */}
 
@@ -878,16 +927,16 @@ export function SpreadTable({
         const shouldHighlightReturn = recentlyClosedIndex === i;
         const shouldMentionPulse = Boolean(mentionPulse && mentionPulse.index === i && isRevealed);
         const mentionPulseId = mentionPulse?.id ?? 0;
-        const showRevealPill = !disableReveal && !isRevealed && (isNext || (!revealHintDismissedRef.current && i === 0));
-        const showGlowHint = !disableReveal && !isRevealed && !showRevealPill;
+        const showRevealPill = !readingTable && !disableReveal && !isRevealed && (isNext || (revealedIndices.size === 0 && i === 0));
+        const showGlowHint = !readingTable && !disableReveal && !isRevealed && !showRevealPill;
         const canDeal = Boolean(onSlotDeal) && isNext;
-        const enableInfoPopover = Boolean(card && isRevealed);
+        const enableInfoPopover = Boolean(!readingTable && card && isRevealed);
         const numberBadge = (
           <div
             className={`
               absolute -top-2 -left-2 rounded-full border px-2 py-1
               text-2xs font-semibold tracking-wide shadow-lg
-              ${isRevealed ? 'bg-secondary/80 border-secondary/60 text-main' : 'bg-primary/80 border-primary/60 text-main'}
+              ${readingTable ? 'reading-table__position-number z-20' : isRevealed ? 'bg-secondary/80 border-secondary/60 text-main' : 'bg-primary/80 border-primary/60 text-main'}
             `}
             aria-hidden="true"
           >
@@ -931,14 +980,14 @@ export function SpreadTable({
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70
                   ${canDeal
                     ? 'border-primary/60 bg-primary/10 card-placeholder-next cursor-pointer hover:bg-primary/20 active:scale-95'
-                    : 'border-accent/30 bg-surface/30 cursor-not-allowed opacity-70'
+                    : readingTable ? 'border-accent/30 bg-surface/30 cursor-default' : 'border-accent/30 bg-surface/30 cursor-not-allowed opacity-70'
                   }
                 `}
                 style={{
                   ...(cardSizeStyle || {})
                 }}
                 aria-label={
-                  isNext
+                  readingTable ? `${positionLabel}: empty position` : isNext
                     ? MICROCOPY.revealPosition(shortLabel)
                     : i < nextDealIndex
                       ? `${positionLabel}: waiting for card`
@@ -961,7 +1010,7 @@ export function SpreadTable({
                   reducedOpacity={0.5}
                 />
                 <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-xs'} text-muted text-center px-1 leading-tight`}>
-                  {isNext ? MICROCOPY.revealPosition(shortLabel) : shortLabel}
+                  {isNext && !readingTable ? MICROCOPY.revealPosition(shortLabel) : shortLabel}
                 </span>
               </button>
             )}
@@ -1037,6 +1086,9 @@ export function SpreadTable({
               }}
               disabled={isRevealDisabled}
               ariaDisabled={isRevealDisabled}
+              ariaPressed={readingTable && isRevealed ? selectedIndex === i : undefined}
+              dealOriginRef={readingTable ? dealOriginRef : undefined}
+              dealOrder={i}
               ariaLabel={card
                 ? isRevealed
                   ? `${card.name}${card.isReversed ? ', reversed' : ''}, in ${positionLabel} position. Click to view details.`
@@ -1065,11 +1117,12 @@ export function SpreadTable({
                       style={{
                         transformStyle: 'preserve-3d',
                         WebkitTransformStyle: 'preserve-3d',
-                        willChange: prefersReducedMotion ? undefined : 'transform'
+                        willChange: prefersReducedMotion || readingTable ? undefined : 'transform'
                       }}
                     >
                       <div
                         className="absolute inset-0 rounded-[inherit] overflow-hidden bg-surface flex items-center justify-center"
+                        aria-hidden={!isRevealed}
                         style={{
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
@@ -1090,7 +1143,7 @@ export function SpreadTable({
                             e.target.src = FALLBACK_IMAGE;
                           }}
                         />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1 flex items-center gap-1">
+                        {!readingTable && <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1 flex items-center gap-1">
                           <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-2xs'} text-main font-semibold leading-tight min-w-0 truncate`}>
                             {displayCard.name.replace(/^The /, '')}
                           </span>
@@ -1102,7 +1155,7 @@ export function SpreadTable({
                               {compact ? '⟲' : 'Reversed'}
                             </span>
                           ) : null}
-                        </div>
+                        </div>}
                       </div>
                       <div
                         className="absolute inset-0 rounded-[inherit] overflow-hidden bg-surface-muted flex items-center justify-center"
@@ -1164,16 +1217,17 @@ export function SpreadTable({
                 </div>
               ))}
             </SlotPulseWrapper>
+            {readingTable && card && spreadKey !== 'celtic' ? <span className="reading-table__slot-label" aria-hidden="true">{shortLabel}</span> : null}
           </div>
         );
       })}
 
       {/* Spread name indicator */}
-      <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2">
+      {!readingTable && <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2">
         <span className={`${compact ? 'text-2xs px-2.5 py-1' : 'text-xs px-3 py-1'} text-muted/70 bg-surface/60 rounded-full border border-accent/10`}>
           {spreadInfo?.tag || spreadKey}
         </span>
-      </div>
+      </div>}
 
       {/* Legend for quick position reference */}
       {!compact && !hideLegend && (
