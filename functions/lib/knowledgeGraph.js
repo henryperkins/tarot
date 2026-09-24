@@ -787,6 +787,15 @@ export function detectAllPatterns(cards, options = {}) {
 export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
   if (!patterns) return [];
 
+  // FOOLS_JOURNEY keeps Campbell's act in `stage` (departure, initiation, return),
+  // but the app names the stages by key: Initiation 0-7, Integration 8-14,
+  // Culmination 15-21. Display the key so Death is never labeled "Initiation".
+  const journeyStageLabel = (journey) => journey.stageKey || journey.stage;
+  const journeyStageTitle = (journey) => {
+    const label = journeyStageLabel(journey);
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  };
+
   const narratives = [];
   const stageDisplay = {
     beginning: 'Beginning',
@@ -818,7 +827,7 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
     narratives.push({
       priority: 2,
       type: 'fools-journey',
-      text: `**Fool's Journey — ${journey.stage.charAt(0).toUpperCase() + journey.stage.slice(1)}** ${journey.cardCount} cards from this stage${journeyNames} suggest ${journey.readingSignificance.toLowerCase()}.`,
+      text: `**Fool's Journey — ${journeyStageTitle(journey)}** ${journey.cardCount} cards from this stage${journeyNames} suggest ${journey.readingSignificance.toLowerCase()}.`,
       cards: journey.cards.map((c) => c.number),
       stage: journey.stage
     });
@@ -833,7 +842,7 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
     narratives.push({
       priority: 4,
       type: 'fools-journey',
-      text: `**Fool's Journey — ${journey.stage.charAt(0).toUpperCase() + journey.stage.slice(1)}** ${journey.cardCount} card${journey.cardCount > 1 ? 's' : ''} from this stage${journeyNames} suggest ${journey.readingSignificance.toLowerCase()}.`,
+      text: `**Fool's Journey — ${journeyStageTitle(journey)}** ${journey.cardCount} card${journey.cardCount > 1 ? 's' : ''} from this stage${journeyNames} suggest ${journey.readingSignificance.toLowerCase()}.`,
       cards: journey.cards.map((c) => c.number),
       stage: journey.stage
     });
@@ -848,7 +857,7 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
     narratives.push({
       priority: 6,
       type: 'fools-journey-minimal',
-      text: `**${journeyNames}** appears in the ${journey.stage} stage of the Fool's Journey, touching on themes of ${journey.theme.toLowerCase()}.`,
+      text: `**${journeyNames}** appears in the ${journeyStageLabel(journey)} stage of the Fool's Journey, touching on themes of ${journey.theme.toLowerCase()}.`,
       cards: journey.cards.map((c) => c.number),
       stage: journey.stage
     });

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import Particles, { initParticlesEngine } from '@tsparticles/react';
+import { useEffect, useId, useMemo, useRef } from 'react';
+import { initParticlesEngine } from '@tsparticles/react';
 import { loadSlim } from '@tsparticles/slim';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { createParticleSession } from '../lib/particleLifecycle';
 
 const SUIT_COLOR_META = {
   wands: { cssVar: '--color-wands', fallback: 'rgb(201 168 118)' },
@@ -27,7 +28,21 @@ const PRESET_COUNTS = {
   'narrative-glow': 28
 };
 
-let particlesInitialized = false;
+let particlesEnginePromise;
+
+function getParticlesEngine() {
+  if (!particlesEnginePromise) {
+    let initializedEngine;
+    particlesEnginePromise = initParticlesEngine(async (engine) => {
+      await loadSlim(engine);
+      initializedEngine = engine;
+    }).then(() => initializedEngine).catch((error) => {
+      particlesEnginePromise = null;
+      throw error;
+    });
+  }
+  return particlesEnginePromise;
+}
 
 function resolveSuitColor(suitKey) {
   const meta = SUIT_COLOR_META[suitKey] || SUIT_COLOR_META.major;
@@ -125,22 +140,9 @@ export function ParticleLayer({
   id = 'scene-particles'
 }) {
   const prefersReducedMotion = useReducedMotion();
-  const [ready, setReady] = useState(particlesInitialized);
-
-  useEffect(() => {
-    if (particlesInitialized) return;
-    let mounted = true;
-    void initParticlesEngine(async (engine) => {
-      await loadSlim(engine);
-      particlesInitialized = true;
-      if (mounted) {
-        setReady(true);
-      }
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const instanceId = useId();
+  const canvasHostRef = useRef(null);
+  const session = useMemo(() => createParticleSession(getParticlesEngine), []);
 
   const color = useMemo(() => resolveColor({ suit, element }), [suit, element]);
   const options = useMemo(
@@ -148,7 +150,19 @@ export function ParticleLayer({
     [preset, color, prefersReducedMotion, intensity]
   );
 
-  if (!ready || !options) return null;
+  useEffect(() => {
+    if (!options || !canvasHostRef.current) return undefined;
+    const view = session.mount({
+      id: `${id}-${instanceId}`,
+      element: canvasHostRef.current,
+      options
+    });
+    // Particles are decorative; a load failure must not interrupt the reading.
+    void view.ready.catch(() => {});
+    return view.dispose;
+  }, [id, instanceId, options, session]);
+
+  if (!options) return null;
 
   return (
     <div
@@ -156,7 +170,7 @@ export function ParticleLayer({
       style={{ zIndex }}
       aria-hidden="true"
     >
-      <Particles id={id} options={options} />
+      <div id={id} ref={canvasHostRef} />
     </div>
   );
 }

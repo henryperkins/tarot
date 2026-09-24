@@ -3,17 +3,18 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
-import { SYMBOL_ANNOTATIONS } from '../shared/symbols/symbolAnnotations.js';
+import { SYMBOL_ANNOTATIONS, getMinorSymbolAnnotationIndex } from '../shared/symbols/symbolAnnotations.js';
 import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 
-const MINOR_INDEX_RULES = {
-  Wands: (rankValue) => (rankValue <= 10 ? 21 + rankValue : 63 + rankValue),
-  Cups: (rankValue) => 31 + rankValue,
-  Swords: (rankValue) => 45 + rankValue,
-  Pentacles: (rankValue) => 59 + rankValue
-};
+// Each annotation is authored as `NN: { // Card Name`; use those labels as ground truth.
+const ANNOTATION_LABELS = new Map(
+  [...readFileSync(new URL('../shared/symbols/symbolAnnotations.js', import.meta.url), 'utf8')
+    .matchAll(/^\s*(\d+): \{ \/\/ (.+?)\s*$/gm)]
+    .map(([, index, label]) => [Number(index), label])
+);
 
 describe('symbol annotations coverage', () => {
   it('covers all 78 cards with contiguous indices', () => {
@@ -46,9 +47,9 @@ describe('symbol annotations coverage', () => {
     const used = new Map();
 
     MINOR_ARCANA.forEach((card) => {
-      const resolver = MINOR_INDEX_RULES[card.suit];
-      assert.ok(resolver, `Missing index rule for suit ${card.suit}`);
-      const index = resolver(card.rankValue);
+      const index = getMinorSymbolAnnotationIndex(card);
+      assert.ok(Number.isInteger(index), `Missing index rule for ${card.name}`);
+      assert.equal(ANNOTATION_LABELS.get(index), card.name, `Annotation ${index} should describe ${card.name}`);
 
       if (used.has(index)) {
         collisions.push(`${index}: ${used.get(index)} & ${card.name}`);

@@ -37,6 +37,7 @@ import { buildTierLimitedPayload, getSubscriptionContext } from '../lib/entitlem
 import { resolveReadingPersonalizationContext } from '../lib/userPersonalization.js';
 import { canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
 import { ReadingCardResolutionError, resolveReadingCards } from '../lib/readingCardResolution.js';
+import { collectQuerentReflections } from '../lib/querentReflections.js';
 import {
   loadActiveExperiments,
   getABAssignment,
@@ -772,6 +773,9 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
       if (!(error instanceof ReadingCardResolutionError)) throw error;
       return jsonResponse({ error: error.message, code: error.code }, { status: 400 });
     }
+    // General notes plus each card's reflection, for the checks that need
+    // everything the querent wrote; the prompt renders the two separately.
+    const querentReflections = collectQuerentReflections(reflectionsText, cardsInfo);
 
     // Sanitize location: validate ranges, strip excess fields, keep only needed data
     let sanitizedLocation = null;
@@ -792,7 +796,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
       spreadName: spreadInfo?.name,
       cardCount: cardsInfo?.length,
       hasQuestion: !!userQuestion,
-      hasReflections: !!reflectionsText,
+      hasReflections: !!querentReflections,
       hasFocusAreas: Array.isArray(requestPersonalization?.focusAreas) && requestPersonalization.focusAreas.length > 0,
       reversalOverride: reversalFrameworkOverride,
       deckStyle,
@@ -839,7 +843,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
     const contextDiagnostics = [];
     const contextSources = {
       userQuestion,
-      reflectionsText,
+      reflectionsText: querentReflections,
       focusAreas: personalization?.focusAreas
     };
     const contextInputText = buildContextInferenceInput(contextSources);
@@ -861,7 +865,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
       contextInputLength: contextInputText.length
     });
 
-    const crisisCheck = detectCrisisSignals([userQuestion, reflectionsText].filter(Boolean).join(' '));
+    const crisisCheck = detectCrisisSignals([userQuestion, querentReflections].filter(Boolean).join(' '));
     if (crisisCheck.matched) {
       console.warn(`[${requestId}] Crisis signals detected: ${crisisCheck.categories.join(', ')}`, {
         userId: user?.id || null,
@@ -1092,14 +1096,14 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     );
     const localComposerLanguageSupport = getLocalComposerLanguageSupport({
       userQuestion,
-      reflectionsText
+      reflectionsText: querentReflections
     });
     const evalGatePolicy = buildSelectiveEvalGatePolicy({
       env,
       context,
       languageSupport: localComposerLanguageSupport,
       userQuestion,
-      reflectionsText
+      reflectionsText: querentReflections
     });
     const evalGateEnv = evalGatePolicy.effectiveEnv;
 
@@ -1332,7 +1336,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               contextDiagnostics,
               cardsInfo,
               userQuestion,
-              reflectionsText,
+              reflectionsText: querentReflections,
               context,
               visionMetrics,
               abAssignment: attemptAssignment,
@@ -1422,7 +1426,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 contextDiagnostics,
                 cardsInfo,
                 userQuestion,
-                reflectionsText,
+                reflectionsText: querentReflections,
                 context,
                 visionMetrics,
                 abAssignment: attemptAssignment,
@@ -1626,7 +1630,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       contextDiagnostics,
       cardsInfo,
       userQuestion,
-      reflectionsText,
+      reflectionsText: querentReflections,
       context,
       visionMetrics,
       abAssignment,

@@ -3,6 +3,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as weave from 'weave';
 
+import { parseJsoncConfig } from '../deploy.js';
+
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 import { SPREADS } from '../../src/data/spreads.js';
@@ -13,6 +15,11 @@ import {
   getAvailableNarrativeBackends,
   runNarrativeBackend
 } from '../../functions/lib/narrativeBackends.js';
+import { ensureAzureConfig, getReasoningEffort, getTextVerbosity } from '../../functions/lib/azureResponses.js';
+import { ensureModalConfig } from '../../functions/lib/modalChatCompletions.js';
+import { isGraphRAGEnabled, isSemanticScoringAvailable } from '../../functions/lib/graphRAG.js';
+import { resolveSemanticScoring } from '../../functions/lib/readingTelemetry.js';
+import { buildGraphRAGTelemetry } from '../../functions/lib/telemetrySchema.js';
 
 const CARD_LOOKUP = new Map([
   ...MAJOR_ARCANA.map((card) => [card.name, card]),
@@ -24,6 +31,11 @@ const DEFAULT_BACKEND = process.env.NARRATIVE_EVAL_BACKEND || 'auto';
 // Astrological context (moon phase, retrogrades, forecast) depends on this instant,
 // so a fixed default keeps runs comparable. Pass `--reference-time now` for live sky.
 const DEFAULT_REFERENCE_TIME = process.env.NARRATIVE_EVAL_REFERENCE_TIME || '2026-09-23T14:04:00Z';
+// "production" layers the shell environment over wrangler.jsonc vars, so flags
+// such as GRAPHRAG_ENABLED match the deployed Worker unless explicitly overridden.
+// "shell" uses only the shell environment.
+const ENV_PROFILES = new Set(['production', 'shell']);
+const DEFAULT_ENV_PROFILE = process.env.NARRATIVE_EVAL_ENV_PROFILE || 'production';
 
 const SAMPLE_DEFINITIONS = [
   {
@@ -141,9 +153,10 @@ const SAMPLE_DEFINITIONS = [
 ];
 
 function usage() {
-  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|local-composer|azure-gpt5|claude-opus45] [--reference-time ISO|now] [--trace]`);
+  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|local-composer|azure-gpt5|claude-opus45] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
   console.log(`\nOptions:`);
   console.log(`  --reference-time  Instant for astrological context (default ${DEFAULT_REFERENCE_TIME}; "now" for the live sky)`);
+  console.log(`  --env-profile      "production" (default) layers the shell env over wrangler.jsonc vars; "shell" uses the shell env only`);
   console.log(`  --trace    Enable W&B Weave tracing (requires WANDB_API_KEY)`);
 }
 
@@ -162,6 +175,7 @@ function parseArgs(rawArgs) {
     sampleIds: null,
     backend: DEFAULT_BACKEND,
     referenceTime: DEFAULT_REFERENCE_TIME,
+    envProfile: DEFAULT_ENV_PROFILE,
     trace: false
   };
   for (let i = 0; i < rawArgs.length; i += 1) {
@@ -187,6 +201,9 @@ function parseArgs(rawArgs) {
       }
       options.referenceTime = value;
       i += 1;
+    } else if (arg === '--env-profile') {
+      options.envProfile = rawArgs[i + 1] || DEFAULT_ENV_PROFILE;
+      i += 1;
     } else if (arg === '--trace') {
       options.trace = true;
     } else if (arg === '--help' || arg === '-h') {
@@ -194,7 +211,34 @@ function parseArgs(rawArgs) {
       process.exit(0);
     }
   }
+  if (!ENV_PROFILES.has(options.envProfile)) {
+    throw new Error(`Unknown --env-profile "${options.envProfile}" (expected production or shell)`);
+  }
   return options;
+}
+
+async function loadEvalEnv(envProfile) {
+  if (envProfile === 'shell') return { ...process.env };
+  const config = parseJsoncConfig(await fs.readFile(path.resolve(process.cwd(), 'wrangler.jsonc'), 'utf-8'));
+  return { ...(config.vars || {}), ...process.env };
+}
+
+// Record what actually generated the samples; the backend id alone does not
+// say which model, reasoning effort, or retrieval settings were in effect.
+function describeBackendConfig(backendId, env) {
+  if (backendId === 'azure-gpt5') {
+    const { model, provider } = ensureAzureConfig(env);
+    return { provider, model, reasoningEffort: getReasoningEffort(env, model), verbosity: getTextVerbosity(env, model) };
+  }
+  if (backendId === 'modal-qwen') {
+    const { model, reasoningEffort } = ensureModalConfig(env);
+    return { provider: 'modal', model, reasoningEffort, verbosity: null };
+  }
+  if (backendId === 'claude-opus45') {
+    // null means the backend's built-in default model.
+    return { provider: 'azure-anthropic', model: env.AZURE_ANTHROPIC_MODEL || null, reasoningEffort: null, verbosity: null };
+  }
+  return { provider: 'local', model: null, reasoningEffort: null, verbosity: null };
 }
 
 function normalizeOrientation(value) {
@@ -318,6 +362,8 @@ async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
     cardsInfo,
     deckStyle,
     reading,
+    // What retrieval did for this sample, not what the env asked for
+    semanticScoring: buildGraphRAGTelemetry(analysis.graphRAGPayload?.retrievalSummary)?.semanticScoring || null,
     themesSummary: {
       reversalFramework: analysis.themes?.reversalFramework,
       suitFocus: analysis.themes?.suitFocus || null,
@@ -328,7 +374,7 @@ async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const env = { ...process.env };
+  const env = await loadEvalEnv(options.envProfile);
   const backendId = resolveBackendId(options.backend, env);
   const referenceTime = resolveReferenceTime(options.referenceTime);
 
@@ -368,6 +414,24 @@ async function main() {
     referenceTime,
     model: backendId,
     backendLabel: NARRATIVE_BACKENDS[backendId]?.label || backendId,
+    config: {
+      envProfile: options.envProfile,
+      backend: backendId,
+      ...describeBackendConfig(backendId, env),
+      graphRAGEnabled: isGraphRAGEnabled(env),
+      semanticScoring: {
+        // true/false from ENABLE_SEMANTIC_SCORING or GRAPHRAG_SEMANTIC_SCORING; null means auto-detect
+        requested: resolveSemanticScoring(env),
+        embeddingsAvailable: isSemanticScoringAvailable(env),
+        usedSampleCount: generated.filter((sample) => sample.semanticScoring?.used === true).length
+      },
+      promptSlimming: env.ENABLE_PROMPT_SLIMMING ?? null,
+      subscriptionTiers: [...new Set(selectedSamples.map((sample) => sample.subscriptionTier || 'pro'))],
+      personalizedSampleCount: selectedSamples.filter((sample) => sample.personalization).length,
+      visionSampleCount: 0,
+      // Samples call one backend directly: no fallback chain, quality gate, or safety scan.
+      servingPath: 'direct-backend'
+    },
     sampleCount: generated.length,
     samples: generated
   };

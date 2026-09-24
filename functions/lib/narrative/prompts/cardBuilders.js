@@ -5,6 +5,7 @@ import {
   getCrossCheckReversalNote,
   buildCrossCheckSynthesis,
   getConnector,
+  usesRwsImagery,
   DEFAULT_WEIGHT_DETAIL_THRESHOLD
 } from '../helpers.js';
 import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../../src/data/knowledgeGraphData.js';
@@ -253,8 +254,12 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
   if (allowImagery && isMajorArcana(cardInfo)) {
     const hook = getImageryHook(cardInfo.number, cardInfo.orientation);
     if (hook) {
-      text += `*Canonical RWS imagery: ${hook.visual}*\n`;
-      text += `*Sensory: ${hook.sensory}*\n`;
+      // The hooks describe the 1909 RWS scenes; Thoth and Marseille art differs,
+      // so those decks rely on the deck-specific notes instead.
+      if (usesRwsImagery(safeOptions.deckStyle)) {
+        text += `*Canonical RWS imagery: ${hook.visual}*\n`;
+        text += `*Sensory: ${hook.sensory}*\n`;
+      }
 
       // NEW: Add vision-detected tone if available
       if (visualProfile?.tone?.length) {

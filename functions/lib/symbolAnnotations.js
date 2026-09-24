@@ -1,1 +1,1 @@
-export { SYMBOL_ANNOTATIONS } from '../../shared/symbols/symbolAnnotations.js';
+export { SYMBOL_ANNOTATIONS, getMinorSymbolAnnotationIndex } from '../../shared/symbols/symbolAnnotations.js';

@@ -127,72 +127,75 @@ export function FeedbackPanel({
       className="modern-surface border border-secondary/30 w-full px-3 py-3 xs:px-4 xs:py-4 sm:px-5 sm:py-5 animate-fade-in"
       aria-describedby={error ? errorId : undefined}
     >
-      <button
-        type="button"
-        onClick={() => setIsCollapsed((prev) => !prev)}
-        aria-expanded={!isCollapsed}
-        aria-controls={panelId}
-        className="w-full flex items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 hover:border-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-      >
-        <div className="min-w-0 text-left">
-          <p className="text-sm font-semibold text-main">How did this reading land?</p>
-          <p className="text-xs text-muted">
-            Share quick ratings to tune quality.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {hasSubmitted && (
-            <span
-              className="text-xs font-semibold text-secondary px-2 py-1 rounded-full bg-secondary/10"
-              role="status"
-              aria-live="polite"
-            >
-              Thank you
+      <h2>
+        <button
+          type="button"
+          onClick={() => setIsCollapsed((prev) => !prev)}
+          aria-expanded={!isCollapsed}
+          aria-controls={panelId}
+          className="w-full flex items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 hover:border-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+        >
+          <span className="min-w-0 text-left">
+            <span className="block text-sm font-semibold text-main">How did this reading land?</span>
+            <span className="block text-xs text-muted">
+              Share quick ratings to tune quality.
             </span>
-          )}
-          <span className={`w-8 h-8 rounded-full border flex items-center justify-center transition-transform ${isCollapsed ? '' : 'rotate-180'}`} aria-hidden="true">
-            <CaretDown className="w-4 h-4 text-muted" weight="bold" />
           </span>
-        </div>
-      </button>
+          <span className="flex items-center gap-2 shrink-0">
+            {hasSubmitted && (
+              <span
+                className="text-xs font-semibold text-secondary px-2 py-1 rounded-full bg-secondary/10"
+                role="status"
+                aria-live="polite"
+              >
+                Thank you
+              </span>
+            )}
+            <span className={`w-8 h-8 rounded-full border flex items-center justify-center transition-transform ${isCollapsed ? '' : 'rotate-180'}`} aria-hidden="true">
+              <CaretDown className="w-4 h-4 text-muted" weight="bold" />
+            </span>
+          </span>
+        </button>
+      </h2>
 
-      {!isCollapsed && (
-        <div id={panelId} className="mt-3 xs:mt-4 space-y-3 xs:space-y-4">
+      <div id={panelId} hidden={isCollapsed} className="mt-3 xs:mt-4 space-y-3 xs:space-y-4">
+        {!isCollapsed && (
+          <>
           {RATING_FIELDS.map((field) => {
-            const groupId = `rating-group-${field.key}`;
+            const groupId = `${panelId}-rating-group-${field.key}`;
             return (
               <fieldset key={field.key} className="border-none p-0 m-0">
-                <legend id={groupId} className="text-xs text-main/90 mb-2">
+                <legend id={groupId} className="text-sm text-main/90 mb-2">
                   <span className="font-medium">{field.label}</span>
                   <span className="text-muted"> · {field.helper}</span>
                 </legend>
-                <div
-                  role="radiogroup"
-                  aria-labelledby={groupId}
-                  className="flex flex-wrap gap-1.5 xs:gap-2"
-                >
+                <div className="flex flex-wrap gap-1.5 xs:gap-2">
                   {SCALE.map((value, index) => {
                     const isSelected = ratings[field.key] === value;
                     return (
-                      <button
-                        type="button"
+                      <label
                         key={`${field.key}-${value}`}
-                        role="radio"
-                        aria-checked={isSelected}
-                        aria-label={`${value} out of 5, ${SCALE_LABELS[index]}`}
-                        onClick={() => handleRating(field.key, value)}
-                        disabled={hasSubmitted}
-                        className={`min-h-touch min-w-touch px-2.5 xs:px-3 py-2 rounded-full border text-sm font-medium transition-colors touch-manipulation
-                          focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2
+                        className={`relative min-h-touch min-w-touch touch-manipulation ${hasSubmitted ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+                      >
+                        <input
+                          type="radio"
+                          name={field.key}
+                          value={value}
+                          checked={isSelected}
+                          onChange={() => handleRating(field.key, value)}
+                          disabled={hasSubmitted}
+                          className="peer sr-only"
+                        />
+                        <span className={`flex min-h-touch min-w-touch items-center justify-center px-2.5 xs:px-3 py-2 rounded-full border text-sm font-medium transition-colors
+                          peer-focus-visible:ring-2 peer-focus-visible:ring-secondary peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface
                           ${isSelected
                             ? 'border-secondary/70 bg-secondary/20 text-secondary'
                             : 'border-accent/30 bg-surface-muted/70 text-muted hover:border-accent/60 hover:bg-surface-muted active:bg-surface-muted/90'
                           }
-                          ${hasSubmitted ? 'cursor-not-allowed opacity-60' : ''}
-                        `}
-                      >
-                        {value}
-                      </button>
+                        `}>
+                          {value}<span className="sr-only"> {SCALE_LABELS[index]}</span>
+                        </span>
+                      </label>
                     );
                   })}
                 </div>
@@ -263,8 +266,9 @@ export function FeedbackPanel({
               </div>
             )}
           </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </form>
   );
 }

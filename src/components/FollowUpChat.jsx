@@ -31,7 +31,6 @@ export default function FollowUpChat({
   onClose,
   onMinimize,
   showHeader = true,
-  autoFocusInput = true,
   className = ''
 }) {
   const {
@@ -63,6 +62,7 @@ export default function FollowUpChat({
   const messagesEndRef = useRef(null);
   const conversationRef = useRef(null);
   const inputRef = useRef(null);
+  const activeRequestRef = useRef(null);
   const isDock = variant === 'dock';
   const isDrawer = variant === 'drawer';
 
@@ -151,6 +151,9 @@ export default function FollowUpChat({
   useEffect(() => {
     if (prevResetKeyRef.current !== resetKey && resetKey !== null) {
       // Reading changed - clear all chat state
+      activeRequestRef.current?.abort();
+      activeRequestRef.current = null;
+      setIsLoading(false);
       setMessages([]);
       setError(null);
       setInputValue('');
@@ -167,6 +170,8 @@ export default function FollowUpChat({
       prevResetKeyRef.current = resetKey;
     }
   }, [resetKey, followUps, setFollowUps]);
+
+  useEffect(() => () => activeRequestRef.current?.abort(), []);
 
   // Hydrate chat history from journal follow-ups when available.
   useEffect(() => {
@@ -206,8 +211,8 @@ export default function FollowUpChat({
   }, [followUps, messages.length]);
 
   const scrollToBottom = useCallback((behavior = prefersReducedMotion ? 'auto' : 'smooth') => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
+    if (conversationRef.current) {
+      conversationRef.current.scrollTo({ top: conversationRef.current.scrollHeight, behavior });
     }
   }, [prefersReducedMotion]);
 
@@ -218,20 +223,13 @@ export default function FollowUpChat({
 
   // Auto-scroll to latest message (only if user is at the bottom)
   useEffect(() => {
-    if (!isAtBottom || messages.length === 0) return;
+    if (!isActive || !isAtBottom || messages.length === 0) return;
     scrollToBottom(hasStreamingMessage || prefersReducedMotion ? 'auto' : 'smooth');
-  }, [messages, isAtBottom, hasStreamingMessage, prefersReducedMotion, scrollToBottom]);
-
-  // Focus input when panel becomes active
-  useEffect(() => {
-    if (!isActive || !autoFocusInput) return;
-    const timer = setTimeout(() => inputRef.current?.focus(), 120);
-    return () => clearTimeout(timer);
-  }, [isActive, autoFocusInput]);
+  }, [messages, isActive, isAtBottom, hasStreamingMessage, prefersReducedMotion, scrollToBottom]);
 
   const askFollowUp = useCallback(async (question) => {
     const trimmedQuestion = question?.trim();
-    if (!trimmedQuestion || isLoading || !canAskMore || !hasValidReading) return;
+    if (!trimmedQuestion || !isActive || activeRequestRef.current || isLoading || !canAskMore || !hasValidReading) return;
     if (!isAuthenticated) {
       setError('Please sign in to ask follow-up questions.');
       return;
@@ -244,6 +242,8 @@ export default function FollowUpChat({
       return;
     }
 
+    const request = new AbortController();
+    activeRequestRef.current = request;
     setError(null);
     setIsLoading(true);
     setInputValue('');
@@ -268,6 +268,7 @@ export default function FollowUpChat({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        signal: request.signal,
         body: JSON.stringify({
           requestId: readingMeta?.requestId,
           sessionSeed,
@@ -294,6 +295,7 @@ export default function FollowUpChat({
         })
       });
 
+      if (activeRequestRef.current !== request) return;
       // Check for non-streaming error responses
       const contentType = response.headers.get('content-type') || '';
       const isSSE = contentType.includes('text/event-stream');
@@ -301,6 +303,7 @@ export default function FollowUpChat({
       if (!response.ok && !isSSE) {
         // Non-SSE error response - parse as JSON
         const errorData = await response.json().catch(() => ({}));
+        if (activeRequestRef.current !== request || request.signal.aborted) return;
 
         if (response.status === 401) {
           throw new Error('Please sign in to ask follow-up questions.');
@@ -335,6 +338,7 @@ export default function FollowUpChat({
 
       while (true) {
         const { done, value } = await reader.read();
+        if (activeRequestRef.current !== request) return;
 
         if (done) break;
 
@@ -396,6 +400,7 @@ export default function FollowUpChat({
 
               // If empty response (tool-only), show a fallback message and don't count the turn
               if (isEmpty) {
+                setServerTurn(turnsUsed);
                 setMessages(prev => prev.map(msg =>
                   msg.id === assistantMessageId
                     ? {
@@ -458,16 +463,20 @@ export default function FollowUpChat({
       }
 
     } catch (err) {
+      if (activeRequestRef.current !== request || request.signal.aborted) return;
       console.error('Follow-up error:', err);
       setError(err.message || 'Something went wrong. Please try again.');
       // Remove both user message and incomplete assistant message on error
       setMessages(prev => prev.slice(0, -2));
       setInputValue(trimmedQuestion);
     } finally {
-      setIsLoading(false);
+      if (activeRequestRef.current === request) {
+        activeRequestRef.current = null;
+        setIsLoading(false);
+      }
     }
   }, [
-    isLoading, canAskMore, hasValidReading, readingMeta, messages, reading,
+    isActive, isLoading, canAskMore, hasValidReading, readingMeta, messages, reading,
     userQuestion, reflections, personalReading, themes, includeJournal, canUseJournal, isAuthenticated,
     selectedSpread, followUpLimit, upsertFollowUp, serverTurn, turnsUsed, sessionSeed
   ]);
@@ -498,11 +507,10 @@ export default function FollowUpChat({
     return null;
   }
 
-  const conversationHeight = isDock ? 'max-h-[38vh]' : isDrawer ? 'flex-1 min-h-0' : 'max-h-[45vh]';
   const chipText = isDock ? 'text-xs' : 'text-sm';
   const headerTitle = isDock ? 'text-sm' : 'text-base';
   const headerSubtitle = isDock ? 'text-xs' : 'text-sm';
-  const badgeText = isDock ? 'text-2xs' : 'text-xs';
+  const badgeText = 'text-sm';
 
   const handleConversationScroll = (event) => {
     const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
@@ -512,21 +520,21 @@ export default function FollowUpChat({
   };
 
   return (
-    <div className={clsx('flex flex-col gap-4', className)}>
+    <div className={clsx('follow-up-chat', className)}>
       {showHeader && (
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <ChatCircle className="w-5 h-5 text-accent" weight="fill" aria-hidden="true" />
+        <div className="follow-up-chat__header flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-2.5">
+            <ChatCircle className="w-5 h-5 shrink-0 mt-1 text-accent" weight="fill" aria-hidden="true" />
             <div>
-              <h2 id={titleId} className={clsx('font-semibold text-main', headerTitle)}>
+              <h2 id={titleId} className={clsx('font-serif text-main', isDrawer ? 'text-2xl' : headerTitle)}>
                 Follow-up chat
               </h2>
               <p className={clsx('text-muted', headerSubtitle)}>
-                Clarify symbols, positions, or next steps.
+                {isDrawer ? 'Ask deeper questions and stay anchored to this spread.' : 'Clarify symbols, positions, or next steps.'}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 flex-col-reverse items-end gap-2 sm:flex-row sm:items-center">
             <span className={clsx(
               'rounded-full bg-[color:var(--surface-92)] px-2 py-1 border border-[color:var(--border-warm-light)] text-muted',
               badgeText
@@ -537,7 +545,7 @@ export default function FollowUpChat({
               <button
                 type="button"
                 onClick={onMinimize}
-                className="rounded-full border border-[color:var(--border-warm-light)] p-2 text-muted hover:text-main hover:border-[color:var(--border-warm)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                className="follow-up-chat__icon-button rounded-full border p-2 text-muted hover:text-main transition"
                 aria-label="Minimize follow-up chat"
               >
                 <CaretDown className="w-4 h-4" aria-hidden="true" />
@@ -547,7 +555,7 @@ export default function FollowUpChat({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full border border-[color:var(--border-warm-light)] p-2 text-muted hover:text-main hover:border-[color:var(--border-warm)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                className="follow-up-chat__icon-button rounded-full border p-2 text-muted hover:text-main transition"
                 aria-label="Close follow-up chat"
               >
                 <X className="w-4 h-4" aria-hidden="true" />
@@ -557,40 +565,39 @@ export default function FollowUpChat({
         </div>
       )}
 
+      <div className="follow-up-chat__scroll" ref={conversationRef} onScroll={handleConversationScroll}>
       {/* Suggestions (initial or on-demand) */}
       {(messages.length === 0 || showSuggestions) && (
-        <div className="flex flex-wrap gap-2" role="list" aria-label="Suggested questions">
+        <ul className="follow-up-suggestions" aria-label="Suggested questions">
           {suggestions.map((suggestion, idx) => (
+            <li key={idx}>
             <button
-              key={idx}
+              type="button"
               onClick={() => handleSuggestionClick(suggestion)}
               disabled={isLoading || !canAskMore || !isAuthenticated}
               className={clsx(
-                'px-3 py-1.5 rounded-full border transition-all',
+                'px-3 py-1.5 rounded-full border transition-colors',
                 'border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.06)]',
                 'hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(212,184,150,0.12)]',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
                 chipText
               )}
-              role="listitem"
             >
               {suggestion.text}
             </button>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       {/* Conversation history */}
       {messages.length > 0 && (
         <div
           className={clsx(
-            'space-y-3 overflow-y-auto scroll-smooth rounded-2xl border border-[color:var(--border-warm-subtle)]',
-            'bg-[color:var(--surface-88)] p-3 pr-2',
-            conversationHeight
+            'space-y-3 rounded-2xl border border-[color:var(--border-warm-subtle)]',
+            'bg-[color:var(--surface-88)] p-3 pr-2'
           )}
-          ref={conversationRef}
-          onScroll={handleConversationScroll}
           role="log"
           aria-label="Conversation history"
           aria-live="polite"
@@ -669,7 +676,7 @@ export default function FollowUpChat({
               setSuggestionRotation((prev) => prev + 1);
             }}
             className={clsx(
-              'text-xs px-3 py-1.5 rounded-full border border-[color:var(--border-warm-light)] text-muted',
+              'min-h-touch min-w-touch text-sm px-3 py-2 rounded-full border border-[color:var(--border-warm-light)] text-muted',
               'bg-[color:rgba(232,218,195,0.05)] hover:border-[color:var(--border-warm)] hover:text-main',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]'
             )}
@@ -678,22 +685,29 @@ export default function FollowUpChat({
           </button>
         </div>
       )}
+      </div>
 
+      <div className="follow-up-chat__footer">
       {/* Input form */}
       {canAskMore ? (
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <div className="flex-1 relative">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+          <label htmlFor={`${titleId}-question`} className="text-sm font-semibold">Your follow-up</label>
+          <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0">
             <textarea
+              id={`${titleId}-question`}
               ref={inputRef}
               rows={3}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
               onKeyDown={handleKeyDown}
-              placeholder={isAuthenticated ? 'Ask a follow-up question... (Shift+Enter for a new line)' : 'Sign in to ask a follow-up'}
+              placeholder={isAuthenticated ? 'Ask a follow-up question...' : 'Sign in to ask a follow-up'}
               disabled={isLoading || !isAuthenticated}
               aria-label="Follow-up question"
+              aria-describedby={`${titleId}-hint ${titleId}-counter`}
+              maxLength={MAX_MESSAGE_LENGTH}
               className={clsx(
-                'w-full px-4 py-2.5 pr-16 rounded-xl border transition-all resize-none',
+                'w-full px-3 py-2.5 rounded-xl border transition-colors resize-none',
                 'border-[color:var(--border-warm-light)] bg-[color:var(--surface-92)]',
                 'focus:border-[color:var(--border-warm)] focus:ring-2 focus:ring-[color:rgba(232,218,195,0.35)] focus:outline-none',
                 'placeholder:text-[color:var(--color-gray-light)]',
@@ -701,8 +715,8 @@ export default function FollowUpChat({
               )}
             />
             <span
-              className="absolute right-3 top-3 text-xs text-muted pointer-events-none"
-              aria-hidden="true"
+              id={`${titleId}-counter`}
+              className="block mt-1 text-right text-sm text-muted tabular-nums"
             >
               {inputValue.length}/{MAX_MESSAGE_LENGTH}
             </span>
@@ -713,7 +727,7 @@ export default function FollowUpChat({
             disabled={!inputValue.trim() || isLoading || !isAuthenticated}
             aria-label="Send question"
             className={clsx(
-              'px-4 py-2.5 bg-accent text-surface rounded-xl transition-all h-full',
+              'follow-up-chat__icon-button bg-accent text-surface rounded-xl transition-colors',
               'hover:bg-accent/90 active:scale-95',
               'disabled:opacity-50 disabled:cursor-not-allowed',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50'
@@ -721,6 +735,8 @@ export default function FollowUpChat({
           >
             <PaperPlaneTilt className="w-5 h-5" weight="fill" aria-hidden="true" />
           </button>
+          </div>
+          <p id={`${titleId}-hint`} className="text-sm text-muted">Shift+Enter for a new line</p>
         </form>
       ) : (
         <div className="text-center text-muted text-sm py-2">
@@ -748,7 +764,7 @@ export default function FollowUpChat({
 
       {/* Journal toggle (Plus+ only) */}
       {canUseJournal && (
-        <label className="flex items-center gap-2 text-xs text-muted cursor-pointer select-none">
+        <label className="follow-up-chat__history-label flex items-center gap-2 text-muted cursor-pointer select-none">
           <input
             type="checkbox"
             checked={includeJournal}
@@ -783,6 +799,7 @@ export default function FollowUpChat({
           <span>Sign in to ask follow-up questions</span>
         </div>
       )}
+      </div>
     </div>
   );
 }

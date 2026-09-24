@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
 
+test.use({ serviceWorkers: 'block' });
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/**', route => route.fulfill({
+    status: new URL(route.request().url()).pathname === '/api/auth/me' ? 401 : 404,
+    json: { user: null }
+  }));
+});
+
 const MOCK_READING_RESPONSE = {
   reading: 'Mock narrative response for follow-up tests.',
   provider: 'mock',
@@ -11,14 +19,14 @@ const MOCK_READING_RESPONSE = {
 };
 
 async function mockTarotReading(page, overrides = {}) {
-  await page.route('**/api/tarot-reading', async (route) => {
-    const responseBody = { ...MOCK_READING_RESPONSE, ...overrides };
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(responseBody)
-    });
-  });
+  const responseBody = { ...MOCK_READING_RESPONSE, ...overrides };
+  await page.route('**/api/tarot-reading/jobs', route => route.fulfill({
+    json: { jobId: 'follow-up-reading-job', jobToken: 'fixture-token' }
+  }));
+  await page.route('**/api/tarot-reading/jobs/*/stream*', route => route.fulfill({
+    contentType: 'text/event-stream',
+    body: `event: done\ndata: ${JSON.stringify({ ...responseBody, fullText: responseBody.reading, eventId: 1 })}\n\n`
+  }));
 }
 
 async function mockFollowUp(page, options = {}) {
@@ -156,45 +164,6 @@ async function selectSpread(page, spreadName) {
   await expect(spreadButton).toHaveAttribute('aria-checked', 'true');
 }
 
-async function skipRitual(page) {
-  const ritualSkipButton = page.locator('button:has-text("Skip")').first();
-  if (await ritualSkipButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await ritualSkipButton.click();
-    const confirmButton = page.getByRole('button', { name: /skip.*draw|confirm|yes/i });
-    if (await confirmButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await confirmButton.click();
-      return;
-    }
-  }
-
-  const drawCardsButton = page.getByRole('button', { name: /draw cards/i });
-  if (await drawCardsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await drawCardsButton.click();
-    return;
-  }
-
-  const shuffleDrawButton = page.getByRole('button', { name: /shuffle\s*&\s*draw/i });
-  if (await shuffleDrawButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await shuffleDrawButton.click();
-  }
-}
-
-async function waitForCardsDealt(page) {
-  await expect(async () => {
-    const cards = page.locator('[aria-label*="Tap to reveal"], [aria-label*="Click to reveal"]');
-    const count = await cards.count();
-    expect(count).toBeGreaterThanOrEqual(1);
-  }).toPass({ timeout: 8000 });
-}
-
-async function revealCard(page, index) {
-  const cards = page.locator('[aria-label*="Tap to reveal"], [aria-label*="Click to reveal"]');
-  const card = cards.nth(index);
-  await expect(card).toBeVisible({ timeout: 8000 });
-  await card.click();
-  await page.waitForTimeout(600);
-}
-
 async function completeReading(page, question = 'What should I focus on?') {
   await seedOnboardingState(page);
   await page.goto('/');
@@ -202,17 +171,19 @@ async function completeReading(page, question = 'What should I focus on?') {
 
   await selectSpread(page, 'One-Card');
 
-  const questionInput = page.locator('textarea').first();
+  const questionInput = page.locator('#question-input, #quick-intention').filter({ visible: true }).first();
   await questionInput.fill(question);
 
-  await skipRitual(page);
-  await waitForCardsDealt(page);
-  await revealCard(page, 0);
+  await page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw/ }).click();
+  await page.getByRole('button', { name: /^Deal the cards/ }).click();
+  // The one-card flow reveals its card as it is dealt.
 
-  const generateButton = page.getByRole('button', { name: /generate|create.*narrative|get.*reading|receive.*reading/i }).first();
+  const generateButton = page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ });
   await expect(generateButton).toBeVisible({ timeout: 8000 });
   await generateButton.click();
 
+  await expect(page.getByRole('heading', { name: 'Your Personalized Narrative' })).toBeVisible();
+  await expect(page.locator('.narrative-stream')).toContainText(MOCK_READING_RESPONSE.reading);
   await expect(page.getByRole('button', { name: /open (follow-up )?chat/i })).toBeVisible({ timeout: 10000 });
 }
 
@@ -249,7 +220,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await openFollowUpModal(page);
 
     const suggestionList = page.getByRole('list', { name: /suggested questions/i });
-    const firstSuggestion = suggestionList.getByRole('listitem').first();
+    const firstSuggestion = suggestionList.getByRole('button').first();
     const suggestionText = (await firstSuggestion.textContent())?.trim();
 
     await firstSuggestion.click();
@@ -326,7 +297,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await openFollowUpModal(page);
 
     const suggestionList = page.getByRole('list', { name: /suggested questions/i });
-    await suggestionList.getByRole('listitem').first().click();
+    await suggestionList.getByRole('button').first().click();
 
     const alert = page.getByRole('alert');
     await expect(alert).toContainText('Please sign in to ask follow-up questions.');
@@ -359,6 +330,44 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
 
     const alert = page.getByRole('alert');
     await expect(alert).toContainText('Service temporarily unavailable');
+  });
+
+  test('a late limit-response body cannot lock a new reading', async ({ page }) => {
+    await mockAuth(page, 'pro');
+    await mockTarotReading(page);
+    await completeReading(page);
+    // Hold only the response body after headers resolve. An aborted JSON read
+    // also passes through the component's parsing fallback before this guard.
+    await page.evaluate(() => {
+      const originalFetch = window.fetch;
+      window.fetch = async (resource, options) => {
+        if (resource !== '/api/reading-followup') return originalFetch(resource, options);
+        window.__oldFollowupSignal = options.signal;
+        return {
+          ok: false,
+          status: 403,
+          headers: new Headers({ 'Content-Type': 'application/json' }),
+          json: () => new Promise(resolve => { window.__finishOldFollowup = resolve; })
+        };
+      };
+    });
+    await openFollowUpModal(page);
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    await input.fill('A question for the first reading');
+    await input.press('Enter');
+    await expect.poll(() => page.evaluate(() => typeof window.__finishOldFollowup)).toBe('function');
+    await page.getByRole('button', { name: 'Close follow-up chat' }).click();
+    await page.getByRole('button', { name: 'Start a new reading and reset this spread' }).click();
+    await page.getByRole('button', { name: /^Deal the cards/ }).click();
+    await page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ }).click();
+    await expect(page.locator('.narrative-stream')).toContainText(MOCK_READING_RESPONSE.reading);
+    await expect.poll(() => page.evaluate(() => window.__oldFollowupSignal.aborted)).toBe(true);
+    await page.evaluate(() => window.__finishOldFollowup({ message: 'The previous reading reached its limit.' }));
+    await openFollowUpModal(page);
+    await expect(input).toBeEnabled();
+    await expect(input).toHaveValue('');
+    await expect(page.getByText('0/10 used', { exact: true })).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
   });
 
   test('non-OK SSE response shows error from stream', async ({ page }) => {

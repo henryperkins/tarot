@@ -330,6 +330,27 @@
     0 24px 52px -42px rgba(0, 0, 0, 0.92);
 }
 
+.scene-shell--reading .scene-stage__panel {
+  background: linear-gradient(135deg, var(--panel-dark-1), var(--panel-dark-2));
+  box-shadow:
+    inset 0 1px 0 rgb(var(--text-main-rgb) / 0.05),
+    var(--ui-elevated-shadow);
+}
+
+:root.light .scene-shell--reading {
+  --scene-bg-start: var(--panel-dark-2);
+  --scene-bg-end: var(--panel-dark-3);
+}
+
+/* Stable reading stages expose focus rings; keep decorative blooms in bounds. */
+.mobile-stable-mode .scene-shell--reading .scene-stage::before {
+  left: 0;
+}
+
+.mobile-stable-mode .scene-shell--reading .scene-stage::after {
+  right: 0;
+}
+
 .scene-stage--ritual {
   --scene-bloom-a: rgba(212, 175, 55, 0.32);
   --scene-bloom-b: rgba(99, 102, 241, 0.22);
@@ -533,7 +554,9 @@ body {
 }
 
 .skip-links {
-  position: relative;
+  position: fixed;
+  top: 0;
+  inset-inline: 0;
   z-index: var(--z-skip-link, 80);
   display: flex;
   flex-direction: column;
@@ -555,8 +578,6 @@ body {
   color: var(--text-main);
   font-weight: 600;
   box-shadow: 0 12px 32px var(--accent-25, rgba(232, 218, 195, 0.25));
-  transition: transform var(--duration-fast, 180ms) ease,
-    opacity var(--duration-fast, 180ms) ease;
 }
 
 @supports (color: color-mix(in srgb, red 50%, blue)) {
@@ -567,7 +588,7 @@ body {
   }
 }
 
-.skip-link:focus-visible {
+.skip-link:focus {
   transform: translateY(0);
   opacity: 1;
 }

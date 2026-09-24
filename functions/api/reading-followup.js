@@ -23,6 +23,7 @@ import {
   createSSEErrorResponse
 } from '../lib/azureResponsesStream.js';
 import { getMemories, consolidateSessionMemories } from '../lib/userMemory.js';
+import { loadStoredPersonalization } from '../lib/userPersonalization.js';
 import { MEMORY_TOOL_AZURE_RESPONSES_FORMAT, handleMemoryToolCall } from '../lib/memoryTool.js';
 import { detectCrisisSignals } from '../lib/safetyChecks.js';
 import { checkFollowUpSafety, generateSafeFollowUpFallback } from '../lib/evaluation.js';
@@ -471,8 +472,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       console.log(`[${requestId}] Journal context: ${journalContext?.patterns?.length || 0} patterns found`);
     }
     
-    // Get user preferences for personalization
-    const personalization = await getUserPreferences(env.DB, user.id);
+    // Saved preferences: the latest journal snapshot plus any non-default users-row values
+    const personalization = await loadStoredPersonalization(env.DB, user.id);
 
     // Fetch persistent memories for personalization
     let memories = [];
@@ -1374,32 +1375,6 @@ async function buildJournalContext(env, userId, options) {
   } catch (error) {
     console.warn(`[${requestId}] buildJournalContext error: ${error.message}`);
     return { entriesSearched: 0, patterns: [], similarEntries: [], cardPatterns: [] };
-  }
-}
-
-/**
- * Get user preferences for personalization
- */
-async function getUserPreferences(db, userId) {
-  if (!db) return null;
-  
-  try {
-    const result = await db.prepare(`
-      SELECT display_name, reading_tone, spiritual_frame, preferred_spread_depth
-      FROM users WHERE id = ?
-    `).bind(userId).first();
-    
-    if (!result) return null;
-    
-    return {
-      displayName: result.display_name,
-      readingTone: result.reading_tone,
-      spiritualFrame: result.spiritual_frame,
-      preferredSpreadDepth: result.preferred_spread_depth
-    };
-  } catch (error) {
-    console.warn(`[getUserPreferences] Error: ${error.message}`);
-    return null;
   }
 }
 

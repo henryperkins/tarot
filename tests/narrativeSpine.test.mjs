@@ -7,6 +7,7 @@ import {
   validateReadingNarrative,
   isCardSection
 } from '../functions/lib/narrativeSpine.js';
+import { buildNarrativeMetrics } from '../functions/lib/readingQuality.js';
 
 // ──────────────────────────────────────────────────────────
 // isCardSection Tests
@@ -204,6 +205,92 @@ describe('narrative spine helper heuristics', () => {
     assert.equal(validation.totalSections, 2, 'Should capture colon-delimited sections');
     assert.strictEqual(validation.sectionAnalyses[0].header, 'Opening');
     assert.ok(validation.sectionAnalyses[0].analysis.present.what, 'Opening section should have WHAT clause');
+  });
+
+  it('credits WHAT from a card-naming heading when the body shortens the card name', () => {
+    const reading = [
+      '### Core of the Matter — **Ace of Wands Upright**',
+      '',
+      'At the center is genuine creative ignition. An Ace is raw potential, not a finished system.',
+      '',
+      '### Challenge — **Seven of Swords Reversed**',
+      '',
+      'The reversed Seven reflects questions of strategy back toward you. If your messaging feels evasive, simplify it.',
+      '',
+      '### Hidden Influence — **Queen of Cups Upright**',
+      '',
+      'Beneath the launch question sits a strong emotional investment in how it will be received.'
+    ].join('\n');
+
+    const validation = validateReadingNarrative(reading);
+
+    assert.equal(validation.cardSections, 3);
+    assert.equal(validation.cardComplete, 3);
+    assert.ok(validation.isValid);
+  });
+
+  describe('deck-specific card names', () => {
+    const bodies = [
+      'At the center is genuine creative ignition. This is raw potential, not a finished system.',
+      'Here the tension reflects questions of strategy back toward you. If your messaging feels evasive, simplify it.',
+      'Beneath the launch question sits a strong emotional investment in how it will be received.'
+    ];
+    const buildReading = (headings) => headings
+      .map((heading, index) => `### ${heading}\n\n${bodies[index]}`)
+      .join('\n\n');
+    const cardsFor = (names) => names.map((card, index) => ({
+      position: ['Core of the matter', 'Challenge or tension', 'Hidden / subconscious influence'][index],
+      card,
+      orientation: 'Upright'
+    }));
+
+    const decks = [
+      ['thoth-a1', ['Core of the Matter — **Princess of Disks Reversed**', 'Challenge — **Art**', 'Hidden Influence — **Fortune**'],
+        ['Page of Pentacles', 'Temperance', 'Wheel of Fortune']],
+      ['marseille-classic', ['Core of the Matter — **Valet of Coins**', 'Challenge — **Le Bateleur**', 'Hidden Influence — **La Roue de Fortune**'],
+        ['Page of Pentacles', 'The Magician', 'Wheel of Fortune']]
+    ];
+
+    for (const [deckStyle, headings, cards] of decks) {
+      it(`credits WHAT from ${deckStyle} headings through buildNarrativeMetrics`, () => {
+        const reading = buildReading(headings);
+        assert.equal(validateReadingNarrative(reading).cardComplete < 3, true, 'RWS-only names should not cover these headings');
+
+        const metrics = buildNarrativeMetrics(reading, cardsFor(cards), deckStyle);
+        assert.equal(metrics.spine.cardSections, 3);
+        assert.equal(metrics.spine.cardComplete, 3);
+        assert.equal(metrics.spine.isValid, true);
+      });
+    }
+
+    it('matches single-word deck names only when capitalized as a card name', () => {
+      const reading = [
+        '### Challenge',
+        '',
+        'Your art practice feels stuck, and good fortune seems far away.'
+      ].join('\n');
+      const validation = validateReadingNarrative(reading, { cardNames: ['Art', 'Fortune'] });
+      assert.equal(validation.cardSections, 1);
+      assert.equal(validation.sectionAnalyses[0].analysis.present.what, false);
+    });
+  });
+
+  it('does not credit a card-naming heading whose body has no interpretation', () => {
+    const reading = [
+      '### Challenge — **Seven of Swords Reversed**',
+      '',
+      'Pause here.',
+      '',
+      '### Synthesis',
+      '',
+      'The Seven of Swords asks for candor, so choose one honest sentence to lead with next.'
+    ].join('\n');
+
+    const validation = validateReadingNarrative(reading);
+
+    assert.equal(validation.cardSections, 1);
+    assert.equal(validation.cardComplete, 0);
+    assert.equal(validation.isValid, false);
   });
 
   it('falls back to paragraph sections when headings are missing', () => {

@@ -659,6 +659,110 @@ describe('streaming gate metadata', () => {
     }
   });
 
+  it('keeps readings that refer the querent to professional or crisis support', async (t) => {
+    const referralReading = VALID_MODAL_READING.replace(
+      'Choose a small action that preserves freedom.',
+      [
+        'It may help to start therapy or check in with a doctor.',
+        'If you are thinking about suicide, contact the 988 Suicide & Crisis Lifeline.',
+        "Don't leave your own needs out.",
+        'Choose a small action that preserves freedom.'
+      ].join(' ')
+    );
+    t.mock.method(globalThis, 'fetch', async () => Response.json({ output_text: referralReading }));
+
+    const response = await onRequestPost({
+      request: makeRequest(BASE_PAYLOAD),
+      env: {
+        AZURE_OPENAI_API_KEY: 'test-key',
+        AZURE_OPENAI_ENDPOINT: 'https://example.com',
+        AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
+        AZURE_OPENAI_STREAMING_ENABLED: 'false',
+        ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
+        EVAL_ENABLED: 'false',
+        EVAL_GATE_ENABLED: 'false',
+        // Production disables both flags; the handler then forces the safety scan on.
+        STREAMING_SAFETY_SCAN_ENABLED: 'false',
+        STREAMING_QUALITY_GATE_ENABLED: 'false',
+        GRAPHRAG_ENABLED: 'false'
+      }
+    });
+
+    assert.equal(response.status, 200);
+    const events = await collectSSEEvents(response);
+    const done = events.find((evt) => evt.event === 'done')?.data;
+    assert.equal(done?.gateBlocked, false);
+    assert.equal(done?.provider, 'azure-gpt5');
+    assert.equal(done?.fullText, referralReading);
+  });
+
+  it('accepts card sections that name the card only in the heading', async (t) => {
+    const fiveCardReading = [
+      '### Opening',
+      '',
+      'You feel momentum on the creative project, and the tone and timing keep taking turns as the thing to solve.',
+      '',
+      '### Core of the Matter — **Ace of Wands Upright**',
+      '',
+      'At the center is genuine creative ignition. An Ace is raw potential, not a finished system, so consider choosing one clear first expression of the project.',
+      '',
+      '### Challenge — **Seven of Swords Reversed**',
+      '',
+      'The reversed Seven reflects questions of strategy back toward you. If your messaging feels evasive even to you, simplify it.',
+      '',
+      '### Hidden Influence — **Queen of Cups Upright**',
+      '',
+      'Beneath the practical launch question sits a strong emotional investment. Name the feeling you want people to leave with before revising the copy again.',
+      '',
+      '### Support — **Three of Pentacles Upright**',
+      '',
+      'The available help is collaboration with structure. Give two or three trusted people narrow questions about tone and readiness.',
+      '',
+      '### Likely Direction — **Wheel of Fortune Reversed**',
+      '',
+      'On the current path, timing may keep feeling slippery. Set a launch window with review points so nerves and real issues stay distinct.',
+      '',
+      '### Synthesis',
+      '',
+      'Your choices shape the launch; these cards describe a trajectory, not a fixed fate.'
+    ].join('\n');
+    const cards = [
+      ['Core of the matter', 'Ace of Wands', 'Upright'],
+      ['Challenge or tension', 'Seven of Swords', 'Reversed'],
+      ['Hidden / subconscious influence', 'Queen of Cups', 'Upright'],
+      ['Support / helpful energy', 'Three of Pentacles', 'Upright'],
+      ['Likely direction on current path', 'Wheel of Fortune', 'Reversed']
+    ];
+    t.mock.method(globalThis, 'fetch', async () => Response.json({ output_text: fiveCardReading }));
+
+    const response = await onRequestPost({
+      request: makeRequest({
+        spreadInfo: { name: 'Five-Card Clarity', key: 'fiveCard' },
+        cardsInfo: cards.map(([position, card, orientation]) => ({ position, card, orientation, meaning: 'Test meaning' })),
+        userQuestion: 'What should I know about launching my creative project this quarter?',
+        reflectionsText: ''
+      }),
+      env: {
+        AZURE_OPENAI_API_KEY: 'test-key',
+        AZURE_OPENAI_ENDPOINT: 'https://example.com',
+        AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
+        AZURE_OPENAI_STREAMING_ENABLED: 'false',
+        ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
+        EVAL_ENABLED: 'false',
+        EVAL_GATE_ENABLED: 'false',
+        GRAPHRAG_ENABLED: 'false'
+      }
+    });
+
+    assert.equal(response.status, 200);
+    const events = await collectSSEEvents(response);
+    const meta = events.find((evt) => evt.event === 'meta')?.data;
+    const done = events.find((evt) => evt.event === 'done')?.data;
+    assert.equal(done?.provider, 'azure-gpt5');
+    assert.equal(done?.fullText, fiveCardReading);
+    assert.deepEqual(meta?.backendErrors || [], []);
+  });
+
   it('forces the model eval gate for non-English readings even when the global eval gate is off', async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async () => new Response(

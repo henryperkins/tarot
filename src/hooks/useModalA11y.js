@@ -1,59 +1,75 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useBodyScrollLock } from './useBodyScrollLock';
 
-/**
- * Focusable element selectors for focus trapping
- */
+const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 const FOCUSABLE_SELECTORS = [
-  'a[href]',
-  'button:not([disabled])',
-  'textarea:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-  '[contenteditable]',
-  'audio[controls]',
-  'video[controls]'
+  'a[href]', 'button', 'textarea', 'input', 'select', '[tabindex]',
+  '[contenteditable="true"]', 'audio[controls]', 'video[controls]'
 ].join(', ');
 
-/**
- * useModalA11y - Shared accessibility hook for modals and drawers
- *
- * Provides:
- * - Body scroll locking (prevents background scroll)
- * - Escape key to close
- * - Focus restoration on close
- * - Optional built-in focus trapping (if not using FocusTrap library)
- *
- * @param {boolean} isOpen - Whether the modal is open
- * @param {Object} options
- * @param {Function} options.onClose - Callback when modal should close
- * @param {React.RefObject} options.containerRef - Ref to the modal container element
- * @param {'simple' | 'fixed'} options.scrollLockStrategy - Scroll lock strategy (default: 'fixed')
- * @param {boolean} options.trapFocus - Whether to trap focus within the modal (default: true)
- * @param {boolean} options.closeOnEscape - Whether to close on Escape key (default: true)
- * @param {boolean} options.restoreFocus - Whether to restore focus on close (default: true)
- * @param {React.RefObject} options.initialFocusRef - Ref to element that should receive initial focus
- *
- * @returns {Object} - { previousFocusRef }
- *
- * @example
- * function MyModal({ isOpen, onClose }) {
- *   const modalRef = useRef(null);
- *   useModalA11y(isOpen, {
- *     onClose,
- *     containerRef: modalRef,
- *   });
- *
- *   if (!isOpen) return null;
- *
- *   return (
- *     <div ref={modalRef} role="dialog" aria-modal="true">
- *       ...
- *     </div>
- *   );
- * }
- */
+// Only the top open modal owns Escape/Tab, including nested confirmations.
+const activeModals = [];
+const isolatedElements = new Map();
+let modalRevision = 0;
+
+function modalLayer(container) {
+  let layer = 0;
+  for (let node = container; node && node !== document.body; node = node.parentElement) {
+    layer = Math.max(layer, Number.parseInt(getComputedStyle(node).zIndex, 10) || 0);
+  }
+  return layer;
+}
+
+function topModal() {
+  return activeModals.reduce((top, entry) => (
+    !top || entry.layer >= top.layer ? entry : top
+  ), null);
+}
+
+function restoreBackground() {
+  for (const [element, previous] of isolatedElements) {
+    element.inert = previous.inert;
+    if (previous.ariaHidden === null) element.removeAttribute('aria-hidden');
+    else element.setAttribute('aria-hidden', previous.ariaHidden);
+  }
+  isolatedElements.clear();
+}
+
+function isolateBackground() {
+  if (!activeModals.some(entry => entry.isolateBackground)) return;
+  // Isolate siblings along the active dialog's ancestor path, never its ancestor.
+  for (let node = topModal()?.container; node && node !== document.body; node = node.parentElement) {
+    for (const sibling of node.parentElement?.children || []) {
+      if (sibling === node || !(sibling instanceof HTMLElement)
+        || ['SCRIPT', 'STYLE', 'LINK'].includes(sibling.tagName)) continue;
+      isolatedElements.set(sibling, {
+        inert: sibling.inert,
+        ariaHidden: sibling.getAttribute('aria-hidden')
+      });
+      sibling.inert = true;
+      sibling.setAttribute('aria-hidden', 'true');
+    }
+  }
+}
+
+function isAvailable(element) {
+  return element instanceof HTMLElement && element.isConnected
+    && !element.matches(':disabled') && !element.closest('[inert], [hidden], [aria-hidden="true"]')
+    && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
+}
+
+function focusableElements(container) {
+  const candidates = [...container.querySelectorAll(FOCUSABLE_SELECTORS)]
+    .filter(element => element.tabIndex >= 0 && isAvailable(element));
+  return candidates.filter(element => {
+    if (!element.matches('input[type="radio"]') || !element.name) return true;
+    const group = candidates.filter(other => other.matches('input[type="radio"]')
+      && other.name === element.name && other.form === element.form);
+    return element === (group.find(other => other.checked) || group[0]);
+  });
+}
+
+/** Shared focus/scroll ownership; background isolation is opt-in. */
 export function useModalA11y(isOpen, {
   onClose,
   containerRef,
@@ -62,151 +78,109 @@ export function useModalA11y(isOpen, {
   closeOnEscape = true,
   restoreFocus = true,
   initialFocusRef = null,
+  returnFocusRef = null,
+  initialFocusSelector = null,
+  fallbackFocusSelector = null,
+  isolateBackground: shouldIsolateBackground = false
 } = {}) {
   const previousFocusRef = useRef(null);
-  const inertFallbackRef = useRef([]);
-  const supportsInert = typeof HTMLElement !== 'undefined' && 'inert' in HTMLElement.prototype;
+  const optionsRef = useRef({});
+  const restoreTimerRef = useRef(null);
 
-  // Body scroll lock
   useBodyScrollLock(isOpen, { strategy: scrollLockStrategy });
 
-  // Store previous focus when modal opens
-  useEffect(() => {
-    if (!isOpen) return;
+  useClientLayoutEffect(() => {
+    optionsRef.current = { onClose, trapFocus, closeOnEscape, initialFocusSelector, fallbackFocusSelector };
+  });
 
-    if (restoreFocus && document.activeElement instanceof HTMLElement) {
-      previousFocusRef.current = document.activeElement;
+  useClientLayoutEffect(() => {
+    const container = containerRef?.current;
+    if (!isOpen || !container) return undefined;
+    clearTimeout(restoreTimerRef.current);
+    modalRevision += 1;
+
+    // Keep the activation layer: React may detach a conditional dialog before
+    // effect cleanup, when walking its former ancestors would return layer 0.
+    const entry = { container, layer: modalLayer(container), isolateBackground: shouldIsolateBackground };
+    previousFocusRef.current = returnFocusRef?.current
+      || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    activeModals.push(entry);
+    restoreBackground();
+
+    // One owner and no timer that can steal focus after close. Focus the dialog
+    // before hiding the background so its opener is not left in aria-hidden DOM.
+    if (topModal() === entry) {
+      const selected = optionsRef.current.initialFocusSelector
+        ? container.querySelector(optionsRef.current.initialFocusSelector) : initialFocusRef?.current;
+      const hasRequestedFocus = optionsRef.current.initialFocusSelector || initialFocusRef;
+      const target = isAvailable(selected) ? selected
+        : hasRequestedFocus ? focusableElements(container)[0] || container : container;
+      target.focus({ preventScroll: true });
     }
-  }, [isOpen, restoreFocus]);
+    isolateBackground();
 
-  // Restore focus when modal closes
-  useEffect(() => {
-    if (isOpen) return;
-
-    if (!restoreFocus || !previousFocusRef.current || typeof previousFocusRef.current.focus !== 'function') {
-      return undefined;
-    }
-
-    // Use setTimeout to ensure focus restoration happens after animations
-    const timer = setTimeout(() => {
-      previousFocusRef.current?.focus();
-      previousFocusRef.current = null;
-    }, 0);
-
-    return () => clearTimeout(timer);
-  }, [isOpen, restoreFocus]);
-
-  // Set initial focus when modal opens
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const setInitialFocus = () => {
-      if (initialFocusRef?.current) {
-        initialFocusRef.current.focus();
-      } else if (containerRef?.current) {
-        // Focus the container if no specific element is specified
-        containerRef.current.focus({ preventScroll: true });
+    const handleKeyDown = event => {
+      if (topModal() !== entry || event.defaultPrevented) return;
+      const options = optionsRef.current;
+      if (event.key === 'Escape' && options.closeOnEscape) {
+        event.preventDefault();
+        event.stopPropagation();
+        options.onClose?.();
+        return;
+      }
+      if (event.key !== 'Tab' || !options.trapFocus) return;
+      const focusable = focusableElements(container);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first) {
+        event.preventDefault();
+        container.focus({ preventScroll: true });
+      } else if (!container.contains(document.activeElement) || document.activeElement === container
+        || (event.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
       }
     };
 
-    // Small delay to allow for animations
-    const timer = setTimeout(setInitialFocus, 50);
-    return () => clearTimeout(timer);
-  }, [isOpen, initialFocusRef, containerRef]);
-
-  // Fallback focus blocking when inert is unsupported
-  useEffect(() => {
-    if (supportsInert || !containerRef?.current) return;
-
-    if (isOpen) {
-      inertFallbackRef.current.forEach(({ element, tabIndex }) => {
-        if (!element?.isConnected) return;
-        if (tabIndex === null) {
-          element.removeAttribute('tabindex');
-        } else {
-          element.setAttribute('tabindex', tabIndex);
-        }
-      });
-      inertFallbackRef.current = [];
-      return;
-    }
-
-    const focusable = containerRef.current.querySelectorAll(FOCUSABLE_SELECTORS);
-    inertFallbackRef.current = Array.from(focusable).map(element => ({
-      element,
-      tabIndex: element.getAttribute('tabindex')
-    }));
-    inertFallbackRef.current.forEach(({ element }) => {
-      element.setAttribute('tabindex', '-1');
-    });
-  }, [isOpen, containerRef, supportsInert]);
-
-  // Keyboard handling (Escape + Tab focus trap)
-  const handleKeyDown = useCallback((event) => {
-    if (!isOpen) return;
-
-    // Escape to close
-    if (closeOnEscape && event.key === 'Escape') {
-      event.preventDefault();
-      onClose?.();
-      return;
-    }
-
-    // Focus trap on Tab
-    if (trapFocus && event.key === 'Tab' && containerRef?.current) {
-      const focusable = containerRef.current.querySelectorAll(FOCUSABLE_SELECTORS);
-
-      if (focusable.length === 0) {
-        event.preventDefault();
-        containerRef.current.focus();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-  }, [isOpen, closeOnEscape, trapFocus, onClose, containerRef]);
-
-  // Attach keyboard listener
-  useEffect(() => {
-    if (!isOpen) return undefined;
-
-    // Use capture phase to catch events before other handlers
+    const handleFocusIn = event => {
+      if (topModal() !== entry || !optionsRef.current.trapFocus || container.contains(event.target)) return;
+      (focusableElements(container)[0] || container).focus({ preventScroll: true });
+    };
     document.addEventListener('keydown', handleKeyDown, true);
+    document.addEventListener('focusin', handleFocusIn);
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown, true);
+      document.removeEventListener('focusin', handleFocusIn);
+      const wasTop = topModal() === entry;
+      const index = activeModals.indexOf(entry);
+      if (index >= 0) activeModals.splice(index, 1);
+      const closeRevision = ++modalRevision;
+      // Restore interactivity first, then return focus, then resume any parent.
+      restoreBackground();
+      if (restoreFocus && wasTop) {
+        const opener = previousFocusRef.current;
+        // Parent consumers may clear aria-hidden in an effect after a nested
+        // dialog closes. Wait one task for that commit; a newer overlay/open
+        // invalidates this restoration, so it cannot steal its focus.
+        restoreTimerRef.current = setTimeout(() => {
+          if (modalRevision !== closeRevision) return;
+          const fallback = optionsRef.current.fallbackFocusSelector
+            ? document.querySelector(optionsRef.current.fallbackFocusSelector) : null;
+          const target = isAvailable(opener) ? opener : isAvailable(fallback) ? fallback : topModal()?.container;
+          target?.focus({ preventScroll: true });
+        }, 0);
+      }
+      previousFocusRef.current = null;
+      isolateBackground();
     };
-  }, [isOpen, handleKeyDown]);
+  }, [isOpen, containerRef, initialFocusRef, returnFocusRef, restoreFocus, shouldIsolateBackground]);
 
   return { previousFocusRef };
 }
 
-/**
- * Helper to handle backdrop clicks (close when clicking outside modal content)
- *
- * @param {Function} onClose - Close callback
- * @returns {Function} - Click handler for the backdrop element
- *
- * @example
- * <div className="backdrop" onClick={createBackdropHandler(onClose)}>
- *   <div className="modal-content" onClick={e => e.stopPropagation()}>
- *     ...
- *   </div>
- * </div>
- */
 export function createBackdropHandler(onClose) {
-  return (event) => {
-    if (event.target === event.currentTarget) {
-      onClose?.();
-    }
+  return event => {
+    if (event.target === event.currentTarget) onClose?.();
   };
 }
