@@ -87,6 +87,8 @@ export default {
         main: 'rgb(var(--bg-main-rgb) / <alpha-value>)',
         surface: 'rgb(var(--bg-surface-rgb) / <alpha-value>)',
         'surface-muted': 'rgb(var(--bg-surface-muted-rgb) / <alpha-value>)',
+        'success-subtle': 'var(--status-success-bg)',
+        'warning-subtle': 'var(--status-warning-bg)',
       },
       textColor: {
         main: 'rgb(var(--text-main-rgb) / <alpha-value>)',
@@ -117,6 +119,8 @@ export default {
       zIndex: {
         'sticky-nav': 'var(--z-sticky-nav, 30)',
         'sticky-elevated': 'var(--z-sticky-elevated, 40)',
+        'modal-backdrop': 'var(--z-modal-backdrop, 60)',
+        'modal': 'var(--z-modal, 70)',
         'toast': 'var(--z-toast, 90)',
         'auth': 'var(--z-auth, 100)',
         'tooltip-portal': 'var(--z-tooltip-portal, 110)',

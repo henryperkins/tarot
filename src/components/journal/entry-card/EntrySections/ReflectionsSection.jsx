@@ -1,11 +1,11 @@
 /**
  * ReflectionsSection.jsx
- * Displays user reflections/notes for each card position.
+ * Displays reflections labelled by card ("Past · The Hermit") or "Whole reading".
  */
 import { memo } from 'react';
 import { styles, cn } from '../EntryCard.primitives';
 
-export const ReflectionsSection = memo(function ReflectionsSection({ reflections, cards = [] }) {
+export const ReflectionsSection = memo(function ReflectionsSection({ reflections }) {
   if (!reflections || reflections.length === 0) return null;
 
   return (
@@ -17,23 +17,17 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
 
       <div className={styles.sectionBody}>
         <ul className="space-y-2">
-          {reflections.map(([position, note], index) => {
-            const card = /^\d+$/.test(position) ? cards[Number(position)] : null;
-            const label = card
-              ? [card.position, card.displayName || card.name || card.card].filter(Boolean).join(' — ')
-              : position || `Note ${index + 1}`;
-            return (
-              <li
-                key={`${position || 'reflection'}-${index}`}
-                className="min-w-0 space-y-1 text-sm leading-relaxed"
-              >
-                <span className="block font-semibold text-main [overflow-wrap:anywhere]">
-                  {label}
-                </span>
-                <span className="block whitespace-pre-wrap text-muted [overflow-wrap:anywhere]">{note}</span>
-              </li>
-            );
-          })}
+          {reflections.map(([label, note], index) => (
+            <li
+              key={`${label || 'reflection'}-${index}`}
+              className="min-w-0 space-y-1 text-sm leading-relaxed"
+            >
+              <span className="block font-semibold text-main [overflow-wrap:anywhere]">
+                {label || `Note ${index + 1}`}
+              </span>
+              <span className="block whitespace-pre-wrap text-muted [overflow-wrap:anywhere]">{note}</span>
+            </li>
+          ))}
         </ul>
       </div>
     </section>

@@ -11,6 +11,7 @@ import { validateSession, getSessionFromCookie } from '../../lib/auth.js';
 import { jsonResponse, safeJsonParse } from '../../lib/utils.js';
 import { loadFollowUpsByEntry } from '../../lib/journalFollowups.js';
 import { buildTierLimitedPayload, isEntitled } from '../../lib/entitlements.js';
+import { buildReflectionEntries } from '../../../shared/journal/reflectionLabels.js';
 
 // PDF generation constants
 const PDF_PAGE_HEIGHT = 842; // A4 height in points
@@ -276,12 +277,11 @@ export function formatEntryAsText(entry) {
     }
   }
 
-  if (entry.reflections && Object.keys(entry.reflections).length > 0) {
+  const reflectionEntries = buildReflectionEntries(entry.reflections, entry.cards);
+  if (reflectionEntries.length > 0) {
     lines.push('## Personal Reflections');
-    for (const [position, reflection] of Object.entries(entry.reflections)) {
-      if (reflection) {
-        lines.push(`Position ${position}: ${reflection}`);
-      }
+    for (const [label, note] of reflectionEntries) {
+      lines.push(`${label}: ${note}`);
     }
     lines.push('');
   }

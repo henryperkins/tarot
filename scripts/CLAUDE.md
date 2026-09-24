@@ -16,6 +16,10 @@ browser and Worker modules must not depend on filesystem or `process` access.
 - `npm run deploy:dry-run` previews the release. `npm run deploy` and
   `npm run migrations:apply` affect production; local migrations use
   `npm run migrations:apply:local`. Keep publication and cleanup separate.
+- Cloudflare Workers Builds publishes every `master` push with plain
+  `npx wrangler deploy`, bypassing the migration script. Apply pending migrations
+  before merge, then verify the build's commit and active production version.
+  Complete that verification before merging the next release.
 - Use explicit staging allowlists in isolated worktrees. Keep unrelated dirty
   files, stashes, historical evidence, and local settings intact.
 

@@ -82,12 +82,12 @@ describe('resolveReadingPersonalizationContext', () => {
   test('merges journal, user-row, and request personalization with request precedence and loads global memories', async () => {
     const db = createDb({
       userRow: {
-        display_name: 'Sam',
-        reading_tone: 'gentle',
-        spiritual_frame: 'mixed',
-        preferred_spread_depth: 'deep'
+        display_name: 'Sam'
       },
       journalPreferences: {
+        readingTone: 'gentle',
+        spiritualFrame: 'psychological',
+        preferredSpreadDepth: 'deep',
         tarotExperience: 'experienced',
         focusAreas: ['grief support']
       }
@@ -114,7 +114,7 @@ describe('resolveReadingPersonalizationContext', () => {
     assert.deepEqual(result.storedPersonalization, {
       displayName: 'Sam',
       readingTone: 'gentle',
-      spiritualFrame: 'mixed',
+      spiritualFrame: 'psychological',
       tarotExperience: 'experienced',
       preferredSpreadDepth: 'deep',
       focusAreas: ['grief support']
@@ -122,7 +122,7 @@ describe('resolveReadingPersonalizationContext', () => {
     assert.deepEqual(result.personalization, {
       displayName: 'Sam',
       readingTone: 'blunt',
-      spiritualFrame: 'mixed',
+      spiritualFrame: 'psychological',
       tarotExperience: 'experienced',
       preferredSpreadDepth: 'deep',
       focusAreas: ['career clarity']
@@ -140,12 +140,12 @@ describe('resolveReadingPersonalizationContext', () => {
   test('does not let implicit client defaults override stored personalization', async () => {
     const db = createDb({
       userRow: {
-        display_name: 'Sam',
-        reading_tone: 'gentle',
-        spiritual_frame: 'spiritual',
-        preferred_spread_depth: 'deep'
+        display_name: 'Sam'
       },
       journalPreferences: {
+        readingTone: 'gentle',
+        spiritualFrame: 'spiritual',
+        preferredSpreadDepth: 'deep',
         tarotExperience: 'experienced',
         focusAreas: ['grief support']
       }
@@ -174,15 +174,54 @@ describe('resolveReadingPersonalizationContext', () => {
     });
   });
 
+  test('takes tone, frame, and depth from the journal snapshot, not the users row columns', async () => {
+    const db = createDb({
+      // Migration 0020 gives these columns DEFAULTs and nothing writes them, so
+      // whatever they hold must not override the journal snapshot.
+      userRow: {
+        display_name: null,
+        reading_tone: 'blunt',
+        spiritual_frame: 'mixed',
+        preferred_spread_depth: 'short'
+      },
+      journalPreferences: {
+        displayName: 'Rowan',
+        readingTone: 'gentle',
+        spiritualFrame: 'spiritual',
+        preferredSpreadDepth: 'deep',
+        tarotExperience: 'experienced'
+      }
+    });
+
+    const result = await resolveReadingPersonalizationContext(
+      db,
+      'user-1',
+      {
+        readingTone: 'balanced',
+        spiritualFrame: 'mixed',
+        preferredSpreadDepth: 'standard'
+      },
+      { loadMemories: async () => [] }
+    );
+
+    assert.deepEqual(result.personalization, {
+      displayName: 'Rowan',
+      readingTone: 'gentle',
+      spiritualFrame: 'spiritual',
+      preferredSpreadDepth: 'deep',
+      tarotExperience: 'experienced'
+    });
+  });
+
   test('lets explicit default request fields override stored personalization', async () => {
     const db = createDb({
       userRow: {
-        display_name: 'Sam',
-        reading_tone: 'gentle',
-        spiritual_frame: 'spiritual',
-        preferred_spread_depth: 'deep'
+        display_name: 'Sam'
       },
       journalPreferences: {
+        readingTone: 'gentle',
+        spiritualFrame: 'spiritual',
+        preferredSpreadDepth: 'deep',
         tarotExperience: 'experienced',
         focusAreas: ['grief support']
       }

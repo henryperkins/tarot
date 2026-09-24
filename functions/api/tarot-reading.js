@@ -31,12 +31,13 @@ import { deriveEmotionalTone } from '../../src/data/emotionMapping.js';
 import { getPositionWeight } from '../lib/positionWeights.js';
 import { detectCrisisSignals } from '../lib/safetyChecks.js';
 import { applyGraphRAGAlerts } from '../lib/graphRAGAlerts.js';
-import { getUserFromRequest } from '../lib/auth.js';
+import { getUserFromRequest, loadActiveUserById } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { buildTierLimitedPayload, getSubscriptionContext } from '../lib/entitlements.js';
 import { resolveReadingPersonalizationContext } from '../lib/userPersonalization.js';
 import { canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
 import { ReadingCardResolutionError, resolveReadingCards } from '../lib/readingCardResolution.js';
+import { collectQuerentReflections } from '../lib/querentReflections.js';
 import {
   loadActiveExperiments,
   getABAssignment,
@@ -706,7 +707,26 @@ export const onRequestGet = async ({ env }) => {
   });
 };
 
-export const onRequestPost = async ({ request, env, waitUntil }) => {
+/**
+ * Resolve the caller for a reading.
+ *
+ * `principal` is set only by in-Worker callers: the ReadingJob Durable
+ * Object running a job started by the ChatGPT MCP tools. The router builds
+ * handler contexts from fixed fields, so a public request can never carry
+ * one. A principal that no longer resolves (deleted or deactivated account)
+ * is refused rather than treated as anonymous.
+ *
+ * @returns {Promise<{ user: object|null, unauthorized: boolean }>}
+ */
+export async function resolveReadingUser({ request, env, principal }) {
+  if (principal) {
+    const user = principal.userId ? await loadActiveUserById(env?.DB, principal.userId) : null;
+    return { user, unauthorized: !user };
+  }
+  return { user: await getUserFromRequest(request, env), unauthorized: false };
+}
+
+export const onRequestPost = async ({ request, env, waitUntil, principal = null }) => {
   const startTime = Date.now();
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   let readingReservation = null;
@@ -753,6 +773,9 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       if (!(error instanceof ReadingCardResolutionError)) throw error;
       return jsonResponse({ error: error.message, code: error.code }, { status: 400 });
     }
+    // General notes plus each card's reflection, for the checks that need
+    // everything the querent wrote; the prompt renders the two separately.
+    const querentReflections = collectQuerentReflections(reflectionsText, cardsInfo);
 
     // Sanitize location: validate ranges, strip excess fields, keep only needed data
     let sanitizedLocation = null;
@@ -773,7 +796,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       spreadName: spreadInfo?.name,
       cardCount: cardsInfo?.length,
       hasQuestion: !!userQuestion,
-      hasReflections: !!reflectionsText,
+      hasReflections: !!querentReflections,
       hasFocusAreas: Array.isArray(requestPersonalization?.focusAreas) && requestPersonalization.focusAreas.length > 0,
       reversalOverride: reversalFrameworkOverride,
       deckStyle,
@@ -793,7 +816,10 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     }
     console.log(`[${requestId}] Payload validation passed`);
 
-    const user = await getUserFromRequest(request, env);
+    const { user, unauthorized } = await resolveReadingUser({ request, env, principal });
+    if (unauthorized) {
+      return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
+    }
     const subscription = getSubscriptionContext(user);
     const subscriptionTier = subscription.effectiveTier;
 
@@ -817,7 +843,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     const contextDiagnostics = [];
     const contextSources = {
       userQuestion,
-      reflectionsText,
+      reflectionsText: querentReflections,
       focusAreas: personalization?.focusAreas
     };
     const contextInputText = buildContextInferenceInput(contextSources);
@@ -839,7 +865,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
       contextInputLength: contextInputText.length
     });
 
-    const crisisCheck = detectCrisisSignals([userQuestion, reflectionsText].filter(Boolean).join(' '));
+    const crisisCheck = detectCrisisSignals([userQuestion, querentReflections].filter(Boolean).join(' '));
     if (crisisCheck.matched) {
       console.warn(`[${requestId}] Crisis signals detected: ${crisisCheck.categories.join(', ')}`, {
         userId: user?.id || null,
@@ -1070,14 +1096,14 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     );
     const localComposerLanguageSupport = getLocalComposerLanguageSupport({
       userQuestion,
-      reflectionsText
+      reflectionsText: querentReflections
     });
     const evalGatePolicy = buildSelectiveEvalGatePolicy({
       env,
       context,
       languageSupport: localComposerLanguageSupport,
       userQuestion,
-      reflectionsText
+      reflectionsText: querentReflections
     });
     const evalGateEnv = evalGatePolicy.effectiveEnv;
 
@@ -1310,7 +1336,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               contextDiagnostics,
               cardsInfo,
               userQuestion,
-              reflectionsText,
+              reflectionsText: querentReflections,
               context,
               visionMetrics,
               abAssignment: attemptAssignment,
@@ -1400,7 +1426,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 contextDiagnostics,
                 cardsInfo,
                 userQuestion,
-                reflectionsText,
+                reflectionsText: querentReflections,
                 context,
                 visionMetrics,
                 abAssignment: attemptAssignment,
@@ -1604,7 +1630,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       contextDiagnostics,
       cardsInfo,
       userQuestion,
-      reflectionsText,
+      reflectionsText: querentReflections,
       context,
       visionMetrics,
       abAssignment,

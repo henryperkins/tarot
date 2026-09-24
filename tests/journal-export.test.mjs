@@ -132,3 +132,18 @@ test('onRequestGet returns 403 when user is not entitled to cloud export', async
   assert.strictEqual(payload.tierLimited, true);
   assert.strictEqual(payload.requiredTier, 'plus');
 });
+
+test('formatEntryAsText labels reflections by card and whole reading', () => {
+  const text = formatEntryAsText({
+    ts: Date.UTC(2026, 8, 22),
+    spread: 'Three-Card Story (Past · Present · Future)',
+    cards: [
+      { position: 'Past', name: 'The Hermit', orientation: 'Upright' },
+      { position: 'Present', name: 'Three of Cups', orientation: 'Reversed' }
+    ],
+    reflections: { 1: 'friends around me', Overall: 'gentle overall' }
+  });
+
+  assert.match(text, /## Personal Reflections\nWhole reading: gentle overall\nPresent · Three of Cups: friends around me/);
+  assert.doesNotMatch(text, /Position 1:/);
+});

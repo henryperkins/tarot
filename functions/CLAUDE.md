@@ -5,11 +5,11 @@ service logic in `functions/lib/`. Pure cross-runtime contracts belong in `share
 Preserve ownership, entitlement checks, request cancellation, and `waitUntil()` work.
 Apply required D1 migrations before releasing code that uses new columns.
 
-## Journal integration target
+## Journal integration
 
-The local `feat/chatgpt-mcp-journal` candidate replaces the standalone adapter with
-Worker OAuth/MCP. Publish this guidance after that feature's review, keeping the
-MCP runbook authoritative. CI uses Node 24 and root tests cover Worker MCP.
+Worker OAuth/MCP replaces the standalone adapter. Keep
+`docs/integrations/openai/chatgpt-mcp.md` authoritative for linking and release
+steps. CI uses Node 24 and root tests cover Worker MCP.
 
 - OAuth binds `tableu` scope and the exact `MCP_RESOURCE_URL`; an unset owner
   allowlist denies linking. Check the allowlist and active user on every request.
@@ -20,7 +20,8 @@ MCP runbook authoritative. CI uses Node 24 and root tests cover Worker MCP.
   in the trusted caller, never from request JSON. Preserve raw text in both.
 - Keep canonical card identity for images and deck-specific display labels.
   Reusable Thoth labels must resolve to the same card when a tool call is retried.
-- The synthetic GPT service account cannot use personal journal routes.
+- Personal journal routes reject `GPT_SERVICE_TOKEN` and `GPT_OWNER_TOKEN` with
+  403 `service_account_journal_forbidden`.
 
 ## Secrets
 
@@ -35,8 +36,11 @@ for separately authorized remote configuration. Never log values or user data.
 - `ADMIN_API_KEY` — Admin endpoints
 - `GPT_SERVICE_TOKEN` — Bearer token for the Tableu Custom GPT / ChatGPT App; authenticates as a synthetic service user entitled at `GPT_SERVICE_TIER` (var, default `plus`). Must not use the `sk_` prefix. See `functions/lib/serviceAuth.js` and `docs/integrations/openai/`.
 - `GPT_OWNER_TOKEN` — Optional, never-shared owner token. Authenticates as the same synthetic user but additionally unlocks owner-gated diagnostics (`promptDebug`). Kept separate because `GPT_SERVICE_TOKEN` lives inside a GPT that may be published, so service auth proves "trusted integration", not "owner".
-- `MCP_ALLOWED_USER_IDS` — Owner allowlist for Worker MCP; unset denies access.
+- `MCP_ALLOWED_USER_IDS` — Comma-separated Tableu user ids allowed to link ChatGPT;
+  unset denies linking and existing-token access (kill switch). The var
+  `MCP_RESOURCE_URL` pins the exact OAuth resource.
 - `MODAL_PROXY_TOKEN` — Authentication for the configured Modal narrative provider.
 
-OAuth storage uses `OAUTH_KV`; resource creation and push/PR each retain the
-separate owner confirmations required by the MCP implementation plan.
+OAuth storage uses the dedicated `tableau-oauth` namespace bound as `OAUTH_KV`.
+Confirm authorization for resource or release changes; approval already granted
+for a rollout applies across its named steps.

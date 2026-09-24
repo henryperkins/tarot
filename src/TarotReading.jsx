@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, useSyncExternalStore } from 'react';
 import { EXAMPLE_QUESTIONS } from './data/exampleQuestions';
 import { SpreadSelector } from './components/SpreadSelector';
 import { ReadingPreparation } from './components/ReadingPreparation';
@@ -8,7 +8,7 @@ import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
 import { formatReading } from './lib/formatting';
-import FollowUpDrawer from './components/FollowUpDrawer';
+import FollowUpModal from './components/FollowUpModal';
 import { QuickIntentionCard } from './components/QuickIntentionCard';
 import { Header } from './components/Header';
 import { OnboardingWizard } from './components/onboarding';
@@ -30,6 +30,12 @@ import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
 import { shouldUseMobileStableMode } from './lib/mobileStableMode';
 import { getSpreadInfo, normalizeSpreadKey } from './data/spreads';
+import {
+  NARRATIVE_FOCUS_TARGET_ID,
+  getNarrativeFocusTarget,
+  getServerNarrativeFocusTarget,
+  subscribeNarrativeFocusTarget
+} from './lib/narrativeFocusTarget';
 
 const STEP_PROGRESS_STEPS = [
   { id: 'spread', label: 'Spread' },
@@ -37,6 +43,30 @@ const STEP_PROGRESS_STEPS = [
   { id: 'ritual', label: 'Ritual (optional)' },
   { id: 'reading', label: 'Reading' }
 ];
+
+function ReadingSkipLinks({ showSetupSection }) {
+  const narrativeTarget = useSyncExternalStore(
+    subscribeNarrativeFocusTarget,
+    getNarrativeFocusTarget,
+    getServerNarrativeFocusTarget
+  );
+
+  const handleSkip = (event) => {
+    event.preventDefault();
+    const target = document.getElementById(event.currentTarget.hash.slice(1));
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ behavior: 'instant', block: 'start' });
+  };
+
+  return (
+    <div className="skip-links">
+      {showSetupSection && <a href="#step-spread" onClick={handleSkip} className="skip-link">Skip to spreads</a>}
+      <a href="#step-reading" onClick={handleSkip} className="skip-link">Skip to reading</a>
+      {narrativeTarget && <a href={`#${NARRATIVE_FOCUS_TARGET_ID}`} onClick={handleSkip} className="skip-link">Skip to narrative</a>}
+    </div>
+  );
+}
 
 export default function TarotReading() {
   const { user } = useAuth();
@@ -173,6 +203,7 @@ export default function TarotReading() {
   const spreadSectionRef = useRef(null);
   const prepareSectionRef = useRef(null);
   const readingSectionRef = useRef(null);
+  const followUpOpenerRef = useRef(null);
   const quickIntentionCardRef = useRef(null);
   const quickIntentionInputRef = useRef(null);
   const quickIntentionHighlightTimeoutRef = useRef(null);
@@ -738,8 +769,9 @@ export default function TarotReading() {
   const narrativeInProgress = isGenerating && (!personalReading || personalReading.isStreaming);
   const needsNarrativeGeneration = allCardsRevealed && (!personalReading || personalReading.isError || personalReading.isStreaming);
   const _isPersonalReadingError = Boolean(personalReading?.isError);
-  const showFollowUpButton = isHandset && personalReading && !personalReading.isError && !personalReading.isStreaming && narrativePhase === 'complete';
-  const isFollowUpVisible = showFollowUpButton && isFollowUpOpen;
+  const canShowFollowUp = personalReading && !personalReading.isError && !personalReading.isStreaming && narrativePhase === 'complete';
+  const showFollowUpButton = isHandset && canShowFollowUp;
+  const isFollowUpVisible = canShowFollowUp && isFollowUpOpen;
   // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
   const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen || isFollowUpVisible;
   const isCinematicFocusMode = shouldFocusCinematicFlow && !showSetupInFocusMode;
@@ -766,11 +798,20 @@ export default function TarotReading() {
       ? 'pt-4 pb-14 sm:py-8 lg:py-10'
       : 'pt-6 pb-32 sm:py-8 lg:py-10';
 
-  const handleOpenFollowUp = useCallback(() => {
+  const handleOpenFollowUp = useCallback((event) => {
     if (!showFollowUpButton) return;
+    followUpOpenerRef.current = event?.currentTarget || document.activeElement;
     setFollowUpIntent('ask');
     setIsFollowUpOpen(true);
   }, [showFollowUpButton]);
+
+  const handleFollowUpOpenChange = useCallback((nextOpen, event) => {
+    if (nextOpen) {
+      followUpOpenerRef.current = event?.currentTarget || document.activeElement;
+      setFollowUpIntent('continue');
+    }
+    setIsFollowUpOpen(nextOpen);
+  }, []);
 
   const handleCloseFollowUp = useCallback(() => {
     setIsFollowUpOpen(false);
@@ -863,14 +904,11 @@ export default function TarotReading() {
     <div className={`app-shell relative isolate min-h-screen bg-main text-main ${shouldEnableMobileStableMode ? 'mobile-stable-mode' : ''}`}>
       <div id="app-bg" className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true" />
       <div className="relative z-[1]">
-      <div className="skip-links">
-        <a href="#step-spread" className="skip-link">Skip to spreads</a>
-        <a href="#step-reading" className="skip-link">Skip to reading</a>
-      </div>
+      <ReadingSkipLinks showSetupSection={showSetupSection} />
       <main
         id="main-content"
         tabIndex={-1}
-        className={`max-w-7xl mx-auto px-4 sm:px-5 md:px-6 ${mainContentSpacing}`}
+        className={`scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem] max-w-7xl mx-auto px-4 sm:px-5 md:px-6 ${mainContentSpacing}`}
         style={handsetPaddingBottom ? { paddingBottom: handsetPaddingBottom } : undefined}
       >
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
@@ -1042,12 +1080,20 @@ export default function TarotReading() {
           sectionRef={readingSectionRef}
           onOpenFollowUp={showFollowUpButton ? handleOpenFollowUp : null}
           followUpOpen={isFollowUpOpen}
-          onFollowUpOpenChange={setIsFollowUpOpen}
+          onFollowUpOpenChange={handleFollowUpOpenChange}
           followUpAutoFocus={followUpIntent === 'ask'}
           suppressInterruptions={suppressFocusInterruptions}
           isMobileStableMode={shouldEnableMobileStableMode}
         />
       </main>
+
+      <FollowUpModal
+        isOpen={Boolean(isFollowUpVisible)}
+        isHandset={isHandset}
+        onClose={handleCloseFollowUp}
+        returnFocusRef={followUpOpenerRef}
+        autoFocusInput={followUpIntent === 'ask'}
+      />
 
       {isHandset && (
         <>
@@ -1099,12 +1145,6 @@ export default function TarotReading() {
               </div>
             </div>
           )}
-          <FollowUpDrawer
-            isOpen={isFollowUpVisible}
-            onClose={handleCloseFollowUp}
-            autoFocusInput={followUpIntent === 'ask'}
-          />
-
           <MobileSettingsDrawer
             isOpen={isMobileSettingsOpen}
             onClose={() => setIsMobileSettingsOpen(false)}

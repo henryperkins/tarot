@@ -134,3 +134,6 @@ gha-creds-*.json
 # Playwright
 /playwright/.auth/
 /output/playwright/
+# Narrative capture helpers (e2e/helpers/captureNarrative*.mjs) and image generation
+/output/narrative-remediation/
+/output/imagegen/

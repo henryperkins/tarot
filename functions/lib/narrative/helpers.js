@@ -2,7 +2,7 @@
  * Shared narrative helpers for tarot spread builders.
  */
 import { getImageryHook, isMajorArcana, getElementalImagery, getMinorImageryHook } from '../imageryHooks.js';
-import { buildMinorSummary } from '../minorMeta.js';
+import { buildMinorSummary, getMinorContext } from '../minorMeta.js';
 import { getPositionWeight } from '../positionWeights.js';
 import { getToneStyle, buildNameClause, buildPersonalizationBridge } from './styleHelpers.js';
 import {
@@ -16,8 +16,7 @@ import { detectPromptInjection } from '../promptInjectionDetector.js';
 import { MAX_REFLECTION_TEXT_LENGTH, MAX_QUESTION_TEXT_LENGTH } from './prompts/constants.js';
 import { getDeckAlias } from '../../../shared/vision/deckAssets.js';
 import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/data/knowledgeGraphData.js';
-import { SYMBOL_ANNOTATIONS } from '../symbolAnnotations.js';
-import { getMinorSymbolAnnotation } from '../../../shared/vision/minorSymbolLexicon.js';
+import { SYMBOL_ANNOTATIONS, getMinorSymbolAnnotationIndex } from '../symbolAnnotations.js';
 
 // Prose mode flag - legacy test helper. Runtime callers should always pass
 // proseMode explicitly to avoid state bleed across requests.
@@ -241,7 +240,8 @@ function deckAwareCardName(cardInfo, deckStyle = 'rws-1909') {
   }
 
   if (fallback && alias) {
-    return `${alias} (RWS: ${fallback})`;
+    // Marseille and Thoth aliases may already name the RWS card ("Six of Coins (RWS: Six of Pentacles)").
+    return alias.includes(fallback) ? alias : `${alias} (RWS: ${fallback})`;
   }
 
   return alias || fallback;
@@ -320,29 +320,42 @@ function resolveSuitForContext(cardInfo = {}) {
 }
 
 /**
+ * Whether a deck's cards show the 1909 Rider–Waite–Smith scenes that the
+ * imagery hooks and symbol annotations describe. Thoth and Marseille art differs.
+ *
+ * @param {string} [deckStyle] - Deck style id
+ * @returns {boolean}
+ */
+export function usesRwsImagery(deckStyle) {
+  return !deckStyle || deckStyle === 'rws-1909';
+}
+
+/**
  * Get key symbol annotations for a card.
  * Returns archetype and top 2-3 symbols for prompt enrichment.
  * @param {Object} cardInfo - Card data with number (Major) or suit/rank (Minor)
+ * @param {string} [deckStyle] - Deck style; symbols are RWS-only, the archetype applies to every deck
  * @returns {Object|null} - { archetype, symbols: [{object, meaning}], composition }
  */
-function getKeySymbols(cardInfo) {
+function getKeySymbols(cardInfo, deckStyle = 'rws-1909') {
   if (!cardInfo) return null;
 
   let annotation = null;
 
-  // Major Arcana: use card number (0-21)
-  if (typeof cardInfo.number === 'number' && cardInfo.number >= 0 && cardInfo.number <= 21) {
+  if (isMajorArcana(cardInfo)) {
     annotation = SYMBOL_ANNOTATIONS[cardInfo.number];
-  }
-  // Minor Arcana: use suit and rank
-  else if (cardInfo.suit && cardInfo.rank) {
-    annotation = getMinorSymbolAnnotation(cardInfo);
+  } else {
+    // Card-specific annotations, not the generic rank/suit vision lexicon,
+    // which would describe the Nine of Swords with luxury and fruits of labor.
+    const minor = getMinorContext(cardInfo);
+    const index = minor ? getMinorSymbolAnnotationIndex(minor) : null;
+    annotation = index === null ? null : SYMBOL_ANNOTATIONS[index];
   }
 
   if (!annotation) return null;
 
   // Extract top 2-3 symbols (prioritize first ones which are usually most iconic)
-  const symbols = Array.isArray(annotation.symbols)
+  const symbols = usesRwsImagery(deckStyle) && Array.isArray(annotation.symbols)
     ? annotation.symbols.slice(0, 3).map(s => ({ object: s.object, meaning: s.meaning }))
     : [];
 
@@ -936,9 +949,9 @@ function buildPositionCardText(cardInfo, position, options = {}) {
   const esotericClause = allowEsoteric ? buildOccultFlavor(cardInfo) : '';
   const enrichedMeaning = [meaning, contextClause, esotericClause].filter(Boolean).join(' ');
 
-  // Add imagery hook for Major Arcana if enabled
+  // Add imagery hook for Major Arcana if enabled (the hooks describe RWS scenes)
   let imagery = '';
-  if (template.useImagery && isMajorArcana(cardInfo)) {
+  if (template.useImagery && isMajorArcana(cardInfo) && usesRwsImagery(options.deckStyle)) {
     const hook = getImageryHook(cardInfo.number, cardInfo.orientation);
     if (hook && hook.interpretation) {
       imagery = ` ${hook.interpretation}`;
@@ -965,7 +978,7 @@ function buildPositionCardText(cardInfo, position, options = {}) {
       rank: cardInfo.rank,
       orientation: cardInfo.orientation
     });
-    if (minorHook && minorHook.visual) {
+    if (minorHook && minorHook.visual && usesRwsImagery(options.deckStyle)) {
       minorContextText += ` Picture ${minorHook.visual}—this subtly colors how this suit's lesson shows up here.`;
     }
 
@@ -991,7 +1004,7 @@ function buildPositionCardText(cardInfo, position, options = {}) {
   // Add symbol annotations when enabled (provides archetype and key visual symbols)
   let symbolText = '';
   if (options.includeSymbols) {
-    const keySymbols = getKeySymbols(cardInfo);
+    const keySymbols = getKeySymbols(cardInfo, options.deckStyle);
     if (keySymbols) {
       const parts = [];
       if (keySymbols.archetype) {

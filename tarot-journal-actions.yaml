@@ -8,10 +8,11 @@ info:
     journal and adds reflections to a saved entry.
 
     Every write lands in the journal of the account the bearer token
-    authenticates as. With the shared service token (`GPT_SERVICE_TOKEN`) that
-    is one shared service account, so this Action is for the owner's own
-    private GPT. A published GPT needs per-user auth before these operations
-    are exposed.
+    authenticates as: a per-user API key (`sk_...`) or a bearer session token.
+    The shared GPT service token is refused with 403
+    `service_account_journal_forbidden`, because its synthetic account can
+    never sign in to the app. The ChatGPT plugin uses the MCP endpoint instead
+    (docs/integrations/openai/chatgpt-mcp.md).
   version: "1.0.0"
 servers:
   - url: https://tarot.lakefrontdev.com
@@ -21,7 +22,7 @@ security:
 paths:
   /api/journal:
     post:
-      operationId: saveJournalEntry
+      operationId: saveReadingToJournal
       summary: Save a completed reading to the journal
       description: >
         Persists a reading (spread, cards, narrative, optional question and
@@ -96,7 +97,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: The account is not entitled to the cloud journal (Plus or Pro required).
+          description: "The account is not entitled to the cloud journal (Plus or Pro required), or it is the shared GPT service account (`code: service_account_journal_forbidden`)."
           content:
             application/json:
               schema:
@@ -109,11 +110,11 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
   /api/journal/{id}/reflections:
     post:
-      operationId: addJournalReflection
+      operationId: addReflectionToJournalEntry
       summary: Add a reflection to a saved journal entry
       description: >
         Records what the user said about one card, or about the reading as a
-        whole, on an entry previously returned by saveJournalEntry. Name the
+        whole, on an entry previously returned by saveReadingToJournal. Name the
         card by `card` and/or `position` exactly as they were saved; the
         backend resolves which card is meant and rejects a card that is not in
         the entry, listing the entry's cards so you can correct the call once.
@@ -127,7 +128,7 @@ paths:
         - name: id
           in: path
           required: true
-          description: Journal entry id, as returned in `entry.id` by saveJournalEntry.
+          description: Journal entry id, as returned in `entry.id` by saveReadingToJournal.
           schema:
             type: string
       requestBody:
@@ -172,7 +173,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Not entitled to the cloud journal.
+          description: "Not entitled to the cloud journal, or authenticated as the shared GPT service account (`code: service_account_journal_forbidden`)."
           content:
             application/json:
               schema:
@@ -204,9 +205,9 @@ components:
       scheme: bearer
       bearerFormat: API Key
       description: >
-        Bearer token. Either a per-user API key (`sk_...`, Pro-only) or the
-        configured service token (`GPT_SERVICE_TOKEN`), which authenticates as a
-        Plus-or-higher service account. Send as `Authorization: Bearer <token>`.
+        Bearer token: a per-user API key (`sk_...`, Pro-only) or a session
+        token. The shared service token (`GPT_SERVICE_TOKEN`) is refused by
+        the journal routes. Send as `Authorization: Bearer <token>`.
   schemas:
     SaveJournalEntryRequest:
       type: object
@@ -255,7 +256,7 @@ components:
           description: >
             Reflections already gathered, as a flat map of note text keyed by
             the card's 0-based index as a string ("0", "1", ...) or "Overall"
-            for the reading as a whole. Prefer addJournalReflection for notes
+            for the reading as a whole. Prefer addReflectionToJournalEntry for notes
             given after the save.
           additionalProperties:
             type: string
@@ -369,7 +370,7 @@ components:
           properties:
             id:
               type: string
-              description: Journal entry id. Keep it for addJournalReflection.
+              description: Journal entry id. Keep it for addReflectionToJournalEntry.
             ts:
               type: integer
               description: Entry timestamp in milliseconds since the Unix epoch.

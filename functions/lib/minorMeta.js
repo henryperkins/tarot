@@ -13,17 +13,21 @@ export const SUIT_THEMES = {
     'earth, body, work, resources, and the material structures that support you'
 };
 
+// Rank themes describe what the number does in any suit. Outcome words that fit
+// only one suit (victory for the Six of Wands, self-sufficiency for the Nine of
+// Pentacles) would contradict the same rank elsewhere, such as the Six of Cups
+// or the Nine of Swords; each card's own meaning carries that detail instead.
 export const PIP_NUMEROLOGY = {
   1: 'a seed or new spark of this suit’s energy, raw potential and beginnings',
   2: 'duality, choices, early tension or balance within this suit’s themes',
-  3: 'growth, first stability, collaboration, and visible development',
+  3: 'first growth and expression, as this suit’s energy takes visible shape and its early results show',
   4: 'foundation, consolidation, stability that can comfort or confine',
   5: 'conflict, disruption, tests that stress the pattern and demand adjustment',
-  6: 'recognition, victory, and public acknowledgment',
+  6: 'adjustment after disruption: exchange, recovery, and how this suit’s energy is shared or carried forward',
   7: 'assessment, testing, deeper questions about direction and alignment',
-  8: 'dedication, focused work, sustained effort in this suit’s domain',
-  9: 'fruition, culmination near completion, self-sufficiency in this area',
-  10: 'peak expression, legacy, long-term consequence of the suit’s journey'
+  8: 'concentrated movement: this suit’s energy directed, redirected, or held in check',
+  9: 'near-completion and intensity: this suit’s energy at its fullest, felt as fulfillment or as strain',
+  10: 'completion and its consequences: the full weight of this suit’s cycle, to be carried, shared, or released'
 };
 
 export const COURT_ARCHETYPES = {

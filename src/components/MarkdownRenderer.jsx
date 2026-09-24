@@ -125,13 +125,13 @@ function pushParts(target, value) {
   }
 }
 
-function splitTextWithHighlights(text, phrases, cursorRef, ttsRange, nextKey) {
+function splitTextWithHighlights(text, phrases, textCursor, ttsRange, nextKey) {
   if (!text || typeof text !== 'string') return text;
 
-  const start = cursorRef ? cursorRef.current : 0;
+  const start = textCursor ? textCursor.current : 0;
   const end = start + text.length;
-  if (cursorRef) {
-    cursorRef.current = end;
+  if (textCursor) {
+    textCursor.current = end;
   }
 
   if (!ttsRange || ttsRange.start >= end || ttsRange.end <= start) {
@@ -165,12 +165,12 @@ function splitTextWithHighlights(text, phrases, cursorRef, ttsRange, nextKey) {
   return parts;
 }
 
-function highlightChildren(children, phrases, cursorRef, ttsRange, nextKey) {
+function highlightChildren(children, phrases, textCursor, ttsRange, nextKey) {
   const hasPhrases = Array.isArray(phrases) && phrases.length > 0;
   if (!hasPhrases && !ttsRange) return children;
   return Children.map(children, (child) => {
     if (typeof child === 'string') {
-      return splitTextWithHighlights(child, hasPhrases ? phrases : [], cursorRef, ttsRange, nextKey);
+      return splitTextWithHighlights(child, hasPhrases ? phrases : [], textCursor, ttsRange, nextKey);
     }
 
     if (!isValidElement(child)) {
@@ -196,7 +196,7 @@ function highlightChildren(children, phrases, cursorRef, ttsRange, nextKey) {
       return child;
     }
 
-    const nextChildren = highlightChildren(child.props?.children, hasPhrases ? phrases : [], cursorRef, ttsRange, nextKey);
+    const nextChildren = highlightChildren(child.props?.children, hasPhrases ? phrases : [], textCursor, ttsRange, nextKey);
     if (nextChildren === child.props?.children) {
       return child;
     }
@@ -209,6 +209,7 @@ export function MarkdownRenderer({
   highlightPhrases = [],
   wordBoundary = null,
   variant = 'default',
+  headingBaseLevel = null,
   className = ''
 }) {
   if (!content || typeof content !== 'string') {
@@ -217,16 +218,30 @@ export function MarkdownRenderer({
 
   const styles = getVariantStyles(variant);
   const normalizedPhrases = normalizeHighlightPhrases(highlightPhrases);
+  const hasHeadingContext = Number.isInteger(headingBaseLevel) && headingBaseLevel >= 1 && headingBaseLevel <= 6;
+  const headingContext = { sourceBaseLevel: 1 };
+
+  // Read the parsed structure so fenced code and setext headings are handled
+  // correctly. Only the rendered tags change; content and text offsets do not.
+  const readHeadingContext = () => (tree) => {
+    let minimumLevel = 6;
+    const visit = (node) => {
+      if (node.type === 'heading') minimumLevel = Math.min(minimumLevel, node.depth);
+      node.children?.forEach(visit);
+    };
+    visit(tree);
+    headingContext.sourceBaseLevel = minimumLevel;
+  };
 
   // Mutable counters for tracking position during a single render pass.
   // Plain objects (not useRef) since they reset each render.
-  const cursorRef = { current: 0 };
-  const blockCountRef = { current: 0 };
-  const keyCounterRef = { current: 0 };
+  const textCursor = { current: 0 };
+  const blockCounter = { current: 0 };
+  const keyCounter = { current: 0 };
 
   const nextKey = () => {
-    const key = keyCounterRef.current;
-    keyCounterRef.current += 1;
+    const key = keyCounter.current;
+    keyCounter.current += 1;
     return key;
   };
 
@@ -235,25 +250,39 @@ export function MarkdownRenderer({
     : null;
 
   const bumpBlockCursor = () => {
-    if (blockCountRef.current > 0) {
-      cursorRef.current += BLOCK_SEPARATOR.length;
+    if (blockCounter.current > 0) {
+      textCursor.current += BLOCK_SEPARATOR.length;
     }
-    blockCountRef.current += 1;
+    blockCounter.current += 1;
   };
 
-  const renderHeading = (Tag, props, className) => (
-    styles.showSectionDivider ? (
+  const renderHeading = (Tag, props, className, showDivider) => (
+    showDivider && styles.showSectionDivider ? (
       <div className="narrative-section animate-section-enter">
         <div className="narrative-section__divider animate-divider-enter" aria-hidden="true"><span>✦</span></div>
         <Tag {...props} className={className}>
-          {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+          {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
         </Tag>
       </div>
     ) : (
       <Tag {...props} className={className}>
-        {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+        {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
       </Tag>
     )
+  );
+
+  const headingComponents = Object.fromEntries(
+    (hasHeadingContext ? [1, 2, 3, 4, 5, 6] : [1, 2, 3]).map((level) => [
+      `h${level}`,
+      ({ node: _node, ...props }) => {
+        bumpBlockCursor();
+        const renderedLevel = hasHeadingContext
+          ? Math.min(6, headingBaseLevel + level - headingContext.sourceBaseLevel)
+          : level;
+        const size = styles.headingSizes[`h${level}`] || styles.headingSizes.h3;
+        return renderHeading(`h${renderedLevel}`, props, `${styles.heading} ${size}`, level === 2 || level === 3);
+      }
+    ])
   );
 
   const wrapperClassName = [styles.wrapper, className].filter(Boolean).join(' ');
@@ -264,58 +293,43 @@ export function MarkdownRenderer({
     <div className={wrapperClassName}>
       <div className={styles.inner}>
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={hasHeadingContext ? [remarkGfm, readHeadingContext] : [remarkGfm]}
           skipHtml
           components={{
-          h1: ({ node: _node, ...props }) => {
-            bumpBlockCursor();
-            return (
-              <h1 {...props} className={`${styles.heading} ${styles.headingSizes.h1}`}>
-                {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
-              </h1>
-            );
-          },
-          h2: ({ node: _node, ...props }) => {
-            bumpBlockCursor();
-            return renderHeading('h2', props, `${styles.heading} ${styles.headingSizes.h2}`);
-          },
-          h3: ({ node: _node, ...props }) => {
-            bumpBlockCursor();
-            return renderHeading('h3', props, `${styles.heading} ${styles.headingSizes.h3}`);
-          },
+          ...headingComponents,
           p: ({ node: _node, ...props }) => {
             bumpBlockCursor();
             return (
               <p {...props} className={styles.paragraph}>
-                {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+                {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
               </p>
             );
           },
           strong: ({ node: _node, ...props }) => (
             <strong {...props} className="text-main font-semibold">
-              {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+              {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
             </strong>
           ),
           em: ({ node: _node, ...props }) => (
             <em {...props} className="italic text-main/90">
-              {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+              {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
             </em>
           ),
           ul: ({ node: _node, ...props }) => (
             <ul {...props} className={`${styles.list} ${styles.paragraph}`}>
-              {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+              {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
             </ul>
           ),
           ol: ({ node: _node, ...props }) => (
             <ol {...props} className={`list-decimal pl-5 space-y-1.5 xs:space-y-2 ${styles.paragraph}`}>
-              {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+              {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
             </ol>
           ),
           li: ({ node: _node, ...props }) => {
             bumpBlockCursor();
             return (
               <li {...props} className="marker:text-secondary pl-1">
-                {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+                {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
               </li>
             );
           },
@@ -326,7 +340,7 @@ export function MarkdownRenderer({
                 {...props}
                 className={`${styles.paragraph} ${styles.blockquote}`}
               >
-                {highlightChildren(props.children, normalizedPhrases, cursorRef, ttsRange, nextKey)}
+                {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
               </blockquote>
             );
           },

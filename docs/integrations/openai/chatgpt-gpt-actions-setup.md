@@ -4,6 +4,12 @@ Type: guide
 Status: active reference
 Last reviewed: 2026-09-13
 
+> **Journal writes moved to MCP (2026-09-23).** The journal routes now refuse the
+> shared `GPT_SERVICE_TOKEN` (403 `service_account_journal_forbidden`): its synthetic
+> account can never sign in, so entries saved with it were invisible in the app. The
+> ChatGPT plugin saves through the OAuth-protected MCP endpoint instead; see
+> [chatgpt-mcp.md](chatgpt-mcp.md). The reading Actions below are unchanged.
+
 This setup uses GPT Actions with your existing Worker API.
 
 Companion file: upload `gpt-knowledge-base.md` (same directory) to the GPT's

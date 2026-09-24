@@ -1,8 +1,8 @@
 export const USAGE_BADGE_CLASSES = {
-    used: 'border-[color:rgb(var(--status-success-rgb)/0.45)] bg-[color:rgb(var(--status-success-rgb)/0.12)] text-[color:rgb(var(--status-success-rgb)/0.95)]',
-    requestedNotUsed: 'border-[color:rgb(var(--status-warning-rgb)/0.45)] bg-[color:rgb(var(--status-warning-rgb)/0.12)] text-[color:rgb(var(--status-warning-rgb)/0.95)]',
-    skipped: 'border-[color:rgb(var(--status-warning-rgb)/0.45)] bg-[color:rgb(var(--status-warning-rgb)/0.12)] text-[color:rgb(var(--status-warning-rgb)/0.95)]',
-    notRequested: 'border-secondary/35 bg-surface-muted/40 text-muted-high'
+    used: 'border-success bg-success-subtle text-success',
+    requestedNotUsed: 'border-warning bg-warning-subtle text-warning',
+    skipped: 'border-warning bg-warning-subtle text-warning',
+    notRequested: 'border-[color:var(--text-muted-high)] bg-surface-muted text-muted-high'
 };
 
 function toReadableLabel(value) {

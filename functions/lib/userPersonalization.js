@@ -167,22 +167,25 @@ export function mergePersonalizationSources(...sources) {
   return merged;
 }
 
+// Only display_name is read from the users row. reading_tone, spiritual_frame
+// and preferred_spread_depth carry DEFAULTs from migration 0020 and nothing
+// writes them, so a stored value cannot tell a choice from "never set"; the
+// preferences saved with the latest journal entry are the source for those.
+// If a settings endpoint starts writing them, give the columns NULL defaults
+// and read them here again.
 async function loadUserPreferencesRow(db, userId) {
   if (!db || !userId) return null;
 
   const result = await db.prepare(`
-    SELECT display_name, reading_tone, spiritual_frame, preferred_spread_depth
+    SELECT display_name
     FROM users WHERE id = ?
   `).bind(userId).first();
 
   if (!result) return null;
 
-  return sanitizePersonalizationInput({
-    displayName: result.display_name,
-    readingTone: result.reading_tone,
-    spiritualFrame: result.spiritual_frame,
-    preferredSpreadDepth: result.preferred_spread_depth
-  });
+  const preferences = sanitizePersonalizationInput({ displayName: result.display_name });
+  if (preferences.displayName === '') delete preferences.displayName;
+  return preferences;
 }
 
 async function loadLatestJournalPreferences(db, userId) {

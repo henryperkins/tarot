@@ -1,5 +1,11 @@
 # Private Tableu journal rollout
 
+> Historical adapter rollout record. Superseded on 2026-09-23 by the
+> [Worker MCP runbook](chatgpt-mcp.md). The adapter package and its installation
+> commands below are retired. Current journal browser coverage uses the Worker
+> MCP tools and the same database as the signed-in app; historical counts and
+> screenshots below are not verification of the integrated candidate.
+
 This PR contains source and local verification. It does not prove a deployed
 connection or the owner's actual account identity. Tableu v0.27.3 supplies the
 consent/mapping instructions but has no connected MCP server.

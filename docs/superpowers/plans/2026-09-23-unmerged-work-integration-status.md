@@ -1,5 +1,9 @@
 # Unmerged work — local integration status
 
+> Historical checkpoint from 2026-09-23. See the
+> [2026-09-24 MCP production release](2026-09-24-mcp-production-release.md) for
+> subsequent integration, migration and deployment evidence.
+
 This is the execution checkpoint for the [dated task list](2026-09-23-unmerged-work-integration.md).
 The user authorized resuming local integration, then asked to keep scope bounded.
 No branch was pushed, PR changed, cloud resource created, production migration
