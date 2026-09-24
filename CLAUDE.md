@@ -10,13 +10,16 @@ Guidance for Claude Code when working with this repository.
 |-------|------|----------|
 | Frontend | React + Vite | `src/` |
 | Backend | Cloudflare Workers | `functions/api/` |
-| AI | OpenAI GPT-5.6-sol (high reasoning) via Responses API (native or Azure; fallback: Claude/local composer) | `functions/api/tarot-reading.js` |
+| AI | Provider selection and fallback from current Worker configuration | `functions/api/tarot-reading.js`, `wrangler.jsonc` |
 | Database | Cloudflare D1 | `migrations/*.sql` |
 | Storage | Cloudflare KV + D1 archival | Metrics, feedback |
 
 **Deck**: 78 cards (22 Major + 56 Minor Arcana) with 1909 Rider-Waite public domain images.
 
 ## Commands
+
+Use Node 24, matching CI. The default branch is `master`. Review current package
+scripts before running commands; deploy and remote migrations publish changes.
 
 ```bash
 npm run dev           # Full-stack dev (Vite 5173/5174 + Worker 8787)
@@ -44,7 +47,8 @@ npm run gate:design   # Verify design contract compliance
 | `functions/lib/` | Cloudflare Workers | env, D1, KV, R2, AI binding | DOM, window, React |
 | `scripts/*/lib/` | Node.js | fs, process, node modules | DOM, Cloudflare bindings |
 
-**Never import browser code into Workers or vice versa.** Shared logic goes in `shared/`.
+**Never import DOM-dependent code into Workers or Worker bindings into the browser.**
+Shared logic goes in `shared/`; pure card/spread data in `src/data/` is also used by Workers.
 
 ### Key Files
 
@@ -57,7 +61,7 @@ npm run gate:design   # Verify design contract compliance
 - `lib/archetypeJourney.js` — Client-side archetype tracking utilities
 
 **Backend (`functions/`)**
-- `api/tarot-reading.js` — Main endpoint: validates payload, calls Claude or local composer
+- `api/tarot-reading.js` — Main endpoint: validates payload and selects configured narrative providers
 - `api/reading-followup.js` — Follow-up conversation with memory
 - `api/tts.js` — Azure TTS with rate limiting
 - `api/journal.js` — Reading history (dedup by `session_seed`)
@@ -117,7 +121,7 @@ npm run gate:design   # Verify design contract compliance
 2. **Ritual** — Knocks + cut position + question → `computeSeed()`
 3. **Draw** — `drawSpread()` uses seeded shuffle, assigns upright/reversed
 4. **Reveal** — Card flip animation, user reflections per card
-5. **Narrative** — OpenAI GPT-5.6-sol on high reasoning via Responses API (native `OPENAI_API_KEY`, or Azure; fallback: Claude/local composer)
+5. **Narrative** — Follow the configured provider order in `functions/api/tarot-reading.js` and `wrangler.jsonc`; do not assume a model from this dated guide.
 
 **Pipeline**: `spreadAnalysis.js` (dignities, reversals) + `knowledgeGraph.js` (patterns) → `graphContext.js` → `graphRAG.js` (passages) → `prompts.js` → AI → `evaluation.js` (async scoring)
 
@@ -242,6 +246,12 @@ Tables organized by migration (see `migrations/`):
 
 **IMPORTANT**: Always apply D1 migrations BEFORE deploying code using new columns.
 
+Cloudflare Workers Builds deploys every push to `master` with `npm run build`
+and `npx wrangler deploy`; it does not run the migration script below. Apply and
+verify pending remote migrations before merging. Wait for the merge's build and
+active Worker version before merging another release, since builds can finish
+out of commit order.
+
 ```bash
 npm run deploy              # Auto-applies migrations + deploys (recommended)
 npm run deploy:dry-run      # Preview
@@ -270,7 +280,8 @@ Configured in `wrangler.jsonc`:
 
 ## Evaluation System
 
-Every AI reading is scored async via Workers AI (Llama 3 8B) using `waitUntil()`:
+When evaluation is enabled, readings are scored asynchronously with the configured
+Workers AI `EVAL_MODEL` using `waitUntil()`:
 
 **Dimensions** (1-5 scale):
 - `personalization` — Addresses user's specific question?
@@ -318,7 +329,14 @@ npm run test:e2e:headed   # Visible browser
 npm run test:e2e:debug    # Step-through
 ```
 
-Integration tests require `.dev.vars` with API credentials.
+Provider-dependent integration tests require configured credentials. Deterministic
+fixtures and local MCP OAuth routing can run without live model credentials; see
+the applicable test config and runbook. Never copy production tokens into fixtures.
+
+The journal suite uses its separate config and port 5176 (`npm run test:e2e:journal`).
+Record unit, browser, static accessibility, QA gate, deployment, and live proof
+separately. For narrative/vision changes, also run the corresponding `ci:*` gate;
+do not lower thresholds or claim a local-composer result proves a live provider.
 
 Test files: `tarot-reading.spec.js`, `journal-filters.spec.js`, `*.integration.spec.js`
 
@@ -401,18 +419,7 @@ npm run test:wcag     # Static ARIA analysis
 
 **Vision**: `POST /api/vision-proof`
 
-## Secrets
+## Scoped guidance
 
-Via `wrangler secret put`:
-- `OPENAI_API_KEY` — OpenAI native Responses API key (preferred; when set, takes priority over Azure)
-- `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_GPT5_MODEL` — Azure fallback path
-- `AZURE_ANTHROPIC_ENDPOINT`, `AZURE_ANTHROPIC_API_KEY`, `AZURE_ANTHROPIC_MODEL`
-- `AZURE_OPENAI_TTS_ENDPOINT`, `AZURE_OPENAI_TTS_API_KEY`, `AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT`
-- `VISION_PROOF_SECRET`
-- `RESEND_API_KEY` — Email delivery (auth verification/reset)
-- `ADMIN_API_KEY` — Admin endpoints
-- `GPT_SERVICE_TOKEN` — Bearer token for the Tableu Custom GPT / ChatGPT App; authenticates as a synthetic service user entitled at `GPT_SERVICE_TIER` (var, default `plus`). Must not use the `sk_` prefix. See `functions/lib/serviceAuth.js` and `docs/integrations/openai/`.
-- `GPT_OWNER_TOKEN` — Optional, never-shared owner token. Authenticates as the same synthetic user but additionally unlocks owner-gated diagnostics (`promptDebug`). Kept separate because `GPT_SERVICE_TOKEN` lives inside a GPT that may be published, so service auth proves "trusted integration", not "owner".
-- `MCP_ALLOWED_USER_IDS` — Comma-separated Tableu user ids allowed to link ChatGPT to `/mcp`. Unset means nobody can link (kill switch). The var `MCP_RESOURCE_URL` pins the OAuth resource.
-
-The journal routes refuse `GPT_SERVICE_TOKEN` and `GPT_OWNER_TOKEN` (403 `service_account_journal_forbidden`).
+Read `functions/CLAUDE.md` for Worker authentication, journal contracts, and secrets.
+Read `scripts/CLAUDE.md` for evaluation, export, and release commands.

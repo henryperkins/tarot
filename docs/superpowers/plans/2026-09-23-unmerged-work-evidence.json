@@ -1,0 +1,1245 @@
+{
+  "capturedAt": "2026-09-23T20:11:31.352009+00:00",
+  "root": "C:\\Users\\htper\\tarot",
+  "target": "master",
+  "master": "3946e1ada5fda13d93d82c34719ce267881f9825",
+  "originMaster": "3946e1ada5fda13d93d82c34719ce267881f9825",
+  "liveRemote": "3946e1ada5fda13d93d82c34719ce267881f9825\trefs/heads/master",
+  "node": "v24.15.0",
+  "worktrees": [
+    {
+      "path": "C:/Users/htper/tarot",
+      "head": "3946e1ada5fda13d93d82c34719ce267881f9825",
+      "branch": "refs/heads/master",
+      "files": [
+        {
+          "path": ".claude/settings.local.json",
+          "status": " M",
+          "sha256": "dc2d6c35ce07f73f7a9b0b6955f3d354a73024753cef7185592f9d11df19eb99"
+        },
+        {
+          "path": "CLAUDE.md",
+          "status": " M",
+          "sha256": "da6ecd9f9ef5ebdd3de9a1423d9712d3c7d640be69b9d8afae1fae97119c6866"
+        },
+        {
+          "path": "docs/superpowers/specs/2026-09-23-personalized-narrative-remediation.md",
+          "status": "??",
+          "sha256": "8911193c58e211b3116a2197ba975521403dbe814d087cf7510b788a938f76fc"
+        },
+        {
+          "path": "functions/CLAUDE.md",
+          "status": "??",
+          "sha256": "f6fd67147d5b9c672686b5d609c9285c56f6fccab848ccf6df1c33cf58d696dd"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/01-light-reading-v2.png",
+          "status": "??",
+          "sha256": "79e026e3b54cb40670669e6b5bb64e7d48cfcda926372743e39375289eec23d4"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/01-light-reading.png",
+          "status": "??",
+          "sha256": "6255f6564abcea05c3b36cb06a38c4847646d0985ae93daadb4e04f3b4e508c5"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/02-mobile-follow-up-v2.png",
+          "status": "??",
+          "sha256": "73a526ebac8a523400ed8551f67337738a5df7c6b7da04a2674e7b97f6d187e4"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/02-mobile-follow-up.png",
+          "status": "??",
+          "sha256": "8e0fd731959a74220bef91e1005d0661a2dc67b727a91d197a8cdd50d8078afb"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/03-short-desktop-chat-v2.png",
+          "status": "??",
+          "sha256": "30d8db0e0a644230d6f4d14e5eae4fa746630b739372077f81425864679a795c"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/03-short-desktop-chat.png",
+          "status": "??",
+          "sha256": "41b28121a66485fe4be8e22fbdf643ea2e628f067d6fd6578b54463a17870980"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/README.md",
+          "status": "??",
+          "sha256": "18aadefbeae037a3e3493226a4c3cf930a4f88b117d9479beeb1237bf30d9daf"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/generation-v2.json",
+          "status": "??",
+          "sha256": "c929e9d7470a3e0e732d9e99bad7a9f7ecfb0dd78215752e2c7a82f64cc5d0d6"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/generation-v2.md",
+          "status": "??",
+          "sha256": "7cf3fedb9090bbde746f7d8bf1bc189374f71268d72e69d44a83d43cbb02eab2"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/prompt-review.md",
+          "status": "??",
+          "sha256": "ab7e90f9d8965820e37a844c68ec34f099f2c61caf944b20e0ab884a09d725d0"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/prompts.generated-v1.md",
+          "status": "??",
+          "sha256": "247e1e235b4af931aba9683743caa472e87cccf2fde32811b369cc4e064fa65e"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/prompts.md",
+          "status": "??",
+          "sha256": "bd3a5100c70ef8a2ed73c106de51c6fba443f4fcca5280d7ca53801c7fafd1ac"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/references/desktop-dark-chat.png",
+          "status": "??",
+          "sha256": "a4fc23f863829075acccac82ee1798431cbba06aab913af96cf9fd32c697e3d6"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/references/desktop-light-feedback.png",
+          "status": "??",
+          "sha256": "d4c7ac3d4a547b221691d3c12f028bd365c5ef644daeb6b9f0c1d6404cd81974"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/references/desktop-light-inputs.png",
+          "status": "??",
+          "sha256": "28079ea989224eea3d707f136cb27fb93b458c96123d4240a082927d5fba9075"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/references/desktop-light-narrative.png",
+          "status": "??",
+          "sha256": "708973ff0b9b866b1c604c525b059735d3807366b26daf65d60e2a27fc97c23f"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/references/mobile-dark-narrative.png",
+          "status": "??",
+          "sha256": "6605c1f968b3c4fd50616800e37a49386c31bc696f9a431eb6571310352c8faa"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/references/short-pro-chat.png",
+          "status": "??",
+          "sha256": "e898d37a3db93c962109b6456273248b5e05536997fae0a1e4d576843dad12e4"
+        },
+        {
+          "path": "scripts/CLAUDE.md",
+          "status": "??",
+          "sha256": "bf50315dd8ce17a2ee65d44e51b156a20229a2d25edb385dc2d50cfc5d62fbeb"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/htper/.codex/worktrees/narrative-remediation/tarot",
+      "head": "7e9170fb2b64184a6225940f4cbef7b9e92caced",
+      "branch": "refs/heads/codex/narrative-remediation",
+      "files": [
+        {
+          "path": "e2e/follow-up-questions.spec.js",
+          "status": " M",
+          "sha256": "14533083a26692ae1f2c1dd8a5d93208d2f6d6de69a195a1491148fd6ade76be"
+        },
+        {
+          "path": "e2e/saved-intentions-modal.spec.js",
+          "status": " M",
+          "sha256": "cf43919ce7c6d57b9cde821aad27235be7c3147ced229db09768f07217088099"
+        },
+        {
+          "path": "src/TarotReading.jsx",
+          "status": " M",
+          "sha256": "4da2815fd5843e9b7bb52cbfbdb0914ae7ad94a0fff7951c49b30e6146ca98e2"
+        },
+        {
+          "path": "src/components/FeedbackPanel.jsx",
+          "status": " M",
+          "sha256": "99d0ca8553fbd64af9fc155fe8127aa45bb633c7839170e4f8f304a8b65080a2"
+        },
+        {
+          "path": "src/components/FollowUpChat.jsx",
+          "status": " M",
+          "sha256": "b90be7b7e8f1a8ca6d66679e1ce637015dbfb493c301c15cf05518c93ec95d4f"
+        },
+        {
+          "path": "src/components/FollowUpDrawer.jsx",
+          "status": " M",
+          "sha256": "f70c94df9282e3a0fb0a2f417d5248589232ded5f0788ae59819ab0dda5753e5"
+        },
+        {
+          "path": "src/components/FollowUpModal.jsx",
+          "status": " M",
+          "sha256": "fee161de44fd0f09a2b0f060c398a71487de82ff1830cc484685543bee0b1bd3"
+        },
+        {
+          "path": "src/components/Header.jsx",
+          "status": " M",
+          "sha256": "1aa65f21359b8b3e964b8e607629cc84366a4fc1bc451edb51f61d5573f99688"
+        },
+        {
+          "path": "src/components/MarkdownRenderer.jsx",
+          "status": " M",
+          "sha256": "53d9d06acd59f2acd1cf7a57ecc784d0715322b937e6da29277b2965f2a3441f"
+        },
+        {
+          "path": "src/components/MobileActionBar.jsx",
+          "status": " M",
+          "sha256": "a3b43abf92316b6f89f6a0aa21b4023b61a34644fa5daf08bde456399f2c326b"
+        },
+        {
+          "path": "src/components/ParticleLayer.jsx",
+          "status": " M",
+          "sha256": "bb8a0d0403cd179ccbdeabc312f0eab8fb0c05593d164b06cb55ba2ebadfc33f"
+        },
+        {
+          "path": "src/components/SkipLink.jsx",
+          "status": " M",
+          "sha256": "9e0758a3cb83b6eb0775f6449169b7573edf6f7e1e8707ee1ce40b7885b1a04b"
+        },
+        {
+          "path": "src/components/SpreadPatterns.jsx",
+          "status": " M",
+          "sha256": "8bef85846a2d379afd2986955bd7789a5a5e025bcea9c0ddd65d05be810ed2f7"
+        },
+        {
+          "path": "src/components/StreamingNarrative.jsx",
+          "status": " M",
+          "sha256": "a1d956a5c3df72a2d4a9f04cbf430557c26c0a8a5ec0fbc4569f983d39dfadc1"
+        },
+        {
+          "path": "src/components/reading/complete/ContinueConversationSection.jsx",
+          "status": " M",
+          "sha256": "402ec5d32b61aa401c571debe273c514b83c53ec11d880ff45f81d95d3c36d1b"
+        },
+        {
+          "path": "src/components/reading/complete/ReadingInputUsageSection.jsx",
+          "status": " M",
+          "sha256": "4b2fd7544442f94d98d35a9dc77442802fe16b0ddd0eb0d33d51e7c44cf6ad9a"
+        },
+        {
+          "path": "src/components/reading/complete/ReadingMediaSection.jsx",
+          "status": " M",
+          "sha256": "bcc75a57b38c2ff7a19295217e4cf537c92e3d458c2f8b4453bf4f410164cd0d"
+        },
+        {
+          "path": "src/components/reading/complete/sourceUsageSummary.js",
+          "status": " M",
+          "sha256": "fb48b3e9abf3f97f51c23dbd32a103d91d2a03c361417e765a06f9bedfedde77"
+        },
+        {
+          "path": "src/components/reading/narrative/NarrativeBody.jsx",
+          "status": " M",
+          "sha256": "e5af1e8012d6e9d6318856dfbef6f61ac01559ebd70aa47ff003bdc3f1355589"
+        },
+        {
+          "path": "src/components/reading/narrative/NarrativePanelHeader.jsx",
+          "status": " M",
+          "sha256": "d8f74fc41d2a0d60a8a94f8d04bcf7c19fee931cfc77f00463a47079cbbd5192"
+        },
+        {
+          "path": "src/hooks/useKeyboardOffset.js",
+          "status": " M",
+          "sha256": "b44e235f3d099bab9e7cd4e28fc783928569910b3a89cb60b5a36379957ae03c"
+        },
+        {
+          "path": "src/hooks/useModalA11y.js",
+          "status": " M",
+          "sha256": "3b5d36d280675914499fb535a671971a0da9180299f8c4e52ba4279c4f72bdf8"
+        },
+        {
+          "path": "src/styles/tarot.css",
+          "status": " M",
+          "sha256": "cbd87cbb2d2e6b24be24104825cbc1d7d9796bb498e0098b89f3d5416c47b480"
+        },
+        {
+          "path": "src/styles/theme.css",
+          "status": " M",
+          "sha256": "6b9433ac4a23f3c8c58f825012b7a39c5d4b1bf052070f8078f25287407a3ed6"
+        },
+        {
+          "path": "tailwind.config.js",
+          "status": " M",
+          "sha256": "4fe4a9b9416597aa0c484c2a0621ef8d3217cb61d1e40501e2acbf043aebcdca"
+        },
+        {
+          "path": "tests/sourceUsageSummary.test.mjs",
+          "status": " M",
+          "sha256": "9574c933b2e5583abf4ac3fbeda5810f3c1bea832266e67d93555cb89a871724"
+        },
+        {
+          "path": "docs/superpowers/plans/2026-09-23-narrative-semantics-detector.json",
+          "status": "??",
+          "sha256": "6b32a8e3e38d4a032629f5cd80e2ffaeaf1426fb44f0db386f72257fc8753361"
+        },
+        {
+          "path": "docs/superpowers/plans/2026-09-23-narrative-semantics-report.md",
+          "status": "??",
+          "sha256": "e190743f6ef5268395a457d2d52d481f8346834544101cc70e8a8e055a1f92a1"
+        },
+        {
+          "path": "docs/superpowers/plans/2026-09-23-narrative-theme-report.md",
+          "status": "??",
+          "sha256": "6bf8163da2f68ceb1d3b5e8eae5d2c8e4eed20bec0e552cc7db495ce8d6d14e9"
+        },
+        {
+          "path": "docs/superpowers/plans/2026-09-23-personalized-narrative-remediation-report.md",
+          "status": "??",
+          "sha256": "dfd56dcf7504864261934d72831fe1fa1fb118d73f9e91e222d02b2573dbf5ae"
+        },
+        {
+          "path": "docs/superpowers/plans/2026-09-23-personalized-narrative-remediation.md",
+          "status": "??",
+          "sha256": "93bcb2eecfe781828a66bd7e8899ad597cf248e12e3b77fba7afa313ae3a3ff4"
+        },
+        {
+          "path": "docs/superpowers/specs/2026-09-23-personalized-narrative-remediation.md",
+          "status": "??",
+          "sha256": "8911193c58e211b3116a2197ba975521403dbe814d087cf7510b788a938f76fc"
+        },
+        {
+          "path": "e2e/helpers/captureNarrativeBaseline.mjs",
+          "status": "??",
+          "sha256": "eeeb2be1291a3302d0ca44214461af7e1a7b747fef48c406974906f0437f0a71"
+        },
+        {
+          "path": "e2e/helpers/captureNarrativeRemediation.mjs",
+          "status": "??",
+          "sha256": "f986329fc7e6d08b7a4ce58207b5a6421065b71ae275a0c299955423e3d10686"
+        },
+        {
+          "path": "e2e/helpers/narrativeFixtures.js",
+          "status": "??",
+          "sha256": "172900dce4ad6472fe6e4293cf25b96dc275a1dc6e40ed9e44c53607bacdba90"
+        },
+        {
+          "path": "e2e/narrative-remediation.spec.js",
+          "status": "??",
+          "sha256": "30134beb39d063e73e6155099fde5c6af4a1fbccae1b045cfc4ca8513a90b336"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/01-light-reading-v2.png",
+          "status": "??",
+          "sha256": "79e026e3b54cb40670669e6b5bb64e7d48cfcda926372743e39375289eec23d4"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/01-light-reading.png",
+          "status": "??",
+          "sha256": "6255f6564abcea05c3b36cb06a38c4847646d0985ae93daadb4e04f3b4e508c5"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/02-mobile-follow-up-v2.png",
+          "status": "??",
+          "sha256": "73a526ebac8a523400ed8551f67337738a5df7c6b7da04a2674e7b97f6d187e4"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/02-mobile-follow-up.png",
+          "status": "??",
+          "sha256": "8e0fd731959a74220bef91e1005d0661a2dc67b727a91d197a8cdd50d8078afb"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/03-short-desktop-chat-v2.png",
+          "status": "??",
+          "sha256": "30d8db0e0a644230d6f4d14e5eae4fa746630b739372077f81425864679a795c"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/03-short-desktop-chat.png",
+          "status": "??",
+          "sha256": "41b28121a66485fe4be8e22fbdf643ea2e628f067d6fd6578b54463a17870980"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/README.md",
+          "status": "??",
+          "sha256": "18aadefbeae037a3e3493226a4c3cf930a4f88b117d9479beeb1237bf30d9daf"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/generation-v2.json",
+          "status": "??",
+          "sha256": "c929e9d7470a3e0e732d9e99bad7a9f7ecfb0dd78215752e2c7a82f64cc5d0d6"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/generation-v2.md",
+          "status": "??",
+          "sha256": "7cf3fedb9090bbde746f7d8bf1bc189374f71268d72e69d44a83d43cbb02eab2"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/prompt-review.md",
+          "status": "??",
+          "sha256": "ab7e90f9d8965820e37a844c68ec34f099f2c61caf944b20e0ab884a09d725d0"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/prompts.generated-v1.md",
+          "status": "??",
+          "sha256": "247e1e235b4af931aba9683743caa472e87cccf2fde32811b369cc4e064fa65e"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/prompts.md",
+          "status": "??",
+          "sha256": "bd3a5100c70ef8a2ed73c106de51c6fba443f4fcca5280d7ca53801c7fafd1ac"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/references/desktop-dark-chat.png",
+          "status": "??",
+          "sha256": "a4fc23f863829075acccac82ee1798431cbba06aab913af96cf9fd32c697e3d6"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/references/desktop-light-feedback.png",
+          "status": "??",
+          "sha256": "d4c7ac3d4a547b221691d3c12f028bd365c5ef644daeb6b9f0c1d6404cd81974"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/references/desktop-light-inputs.png",
+          "status": "??",
+          "sha256": "28079ea989224eea3d707f136cb27fb93b458c96123d4240a082927d5fba9075"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/references/desktop-light-narrative.png",
+          "status": "??",
+          "sha256": "708973ff0b9b866b1c604c525b059735d3807366b26daf65d60e2a27fc97c23f"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/references/mobile-dark-narrative.png",
+          "status": "??",
+          "sha256": "6605c1f968b3c4fd50616800e37a49386c31bc696f9a431eb6571310352c8faa"
+        },
+        {
+          "path": "output/imagegen/narrative-remediation/references/short-pro-chat.png",
+          "status": "??",
+          "sha256": "e898d37a3db93c962109b6456273248b5e05536997fae0a1e4d576843dad12e4"
+        },
+        {
+          "path": "output/narrative-remediation/01-dark-reading.png",
+          "status": "??",
+          "sha256": "5e60c580c8623d49a8a965c746cac824cb9bf4674218a694622f6b0e6a3b034b"
+        },
+        {
+          "path": "output/narrative-remediation/01-light-reading.png",
+          "status": "??",
+          "sha256": "0763dae2ef3daa46ed936b89585e4d2cd970f24338dc422750d3c05641331a98"
+        },
+        {
+          "path": "output/narrative-remediation/02-mobile-follow-up-dark.png",
+          "status": "??",
+          "sha256": "45a785843c88ff860671cf2694789c12cb77f334668c2e077f6e0f636988a5bf"
+        },
+        {
+          "path": "output/narrative-remediation/02-mobile-follow-up-light.png",
+          "status": "??",
+          "sha256": "5738a2c989cda87e4672e6bc965687c43d33d42cb5f402ba9294f247c4a4dabb"
+        },
+        {
+          "path": "output/narrative-remediation/03-short-desktop-chat.png",
+          "status": "??",
+          "sha256": "4522588c4cd6e3b7db3ac52b594f3571606723aa558a177f8217ec724a7b4d47"
+        },
+        {
+          "path": "output/narrative-remediation/04-narrow-focus.png",
+          "status": "??",
+          "sha256": "005a618c69a448d41adcc3513694a01530351a9a030dcaaa516840fbbc7e732d"
+        },
+        {
+          "path": "output/narrative-remediation/05-short-enlarged-text-header.png",
+          "status": "??",
+          "sha256": "04f6e8c808bbdc844b0fdbe5c2a949c452a2875c2305282520006960d261c5c7"
+        },
+        {
+          "path": "output/narrative-remediation/05-short-enlarged-text.png",
+          "status": "??",
+          "sha256": "696efe99ab1206201577a26233073ca0590efb89e2b255343e3925eba091525e"
+        },
+        {
+          "path": "output/narrative-remediation/06-simulated-keyboard.png",
+          "status": "??",
+          "sha256": "5a1a29478b6735970de2c1a940898c9672d16d73baa9b6b2e93a34304a4a5ec6"
+        },
+        {
+          "path": "output/narrative-remediation/acceptance-report.md",
+          "status": "??",
+          "sha256": "07f789e832c4c0ae032b4e0f1b4b308f557a5128f526659ccaf097cd692c56c0"
+        },
+        {
+          "path": "output/narrative-remediation/baseline-handset-resize.png",
+          "status": "??",
+          "sha256": "efeff8edb5af5c4f60581b18882d18bd79183ba89e53e06ff11dfd2698804847"
+        },
+        {
+          "path": "output/narrative-remediation/baseline-interaction-comparison.json",
+          "status": "??",
+          "sha256": "c0617f1ed48cd02164bcd19f7e26589f076604c11f3490640d67cda3d1834e71"
+        },
+        {
+          "path": "output/narrative-remediation/baseline-interaction-observations.json",
+          "status": "??",
+          "sha256": "2096b73c38f1f5ec811dd4337d56bad5c48e55d508644328c0b58c8211e48944"
+        },
+        {
+          "path": "output/narrative-remediation/baseline-interaction-trace.zip",
+          "status": "??",
+          "sha256": "f39208eae3f4a8624506c7e1441356be0c2084208a2669a56fd300ff4ca42635"
+        },
+        {
+          "path": "output/narrative-remediation/baseline-short-desktop-open.png",
+          "status": "??",
+          "sha256": "decbe3af62b9ea7fa1d7ec8aeb36d1585219d1f3fc014181f755db8dad750517"
+        },
+        {
+          "path": "output/narrative-remediation/baseline-short-desktop-response.png",
+          "status": "??",
+          "sha256": "8c64bdb4a94bb25b993f4584b89e832a723d81b2b257bd5ac01571a74fe4e135"
+        },
+        {
+          "path": "output/narrative-remediation/capture-metadata.json",
+          "status": "??",
+          "sha256": "3cf8c5abdd8614c6e481a8189456812b33300d36d360469930cbe48c0d9edddf"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-a11y-e2e.txt",
+          "status": "??",
+          "sha256": "417d10b48c20c210f391b264298c421a29b3b214318bc3129490d0204218ffe9"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-a11y.txt",
+          "status": "??",
+          "sha256": "51a2870a2d8a080c548ba25dd23dad58497129f813900670683ab61b263cf843"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-design.txt",
+          "status": "??",
+          "sha256": "09c5d0c8565168304645721060e66ee1dc1823f9c63fab2a973bd0911c1e95fc"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-final-build.txt",
+          "status": "??",
+          "sha256": "132b385e7fc96d5ad99a6933c1f738a53ea6adccca5d940e8fd25c37fc6a4aa6"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-final-design.txt",
+          "status": "??",
+          "sha256": "09c5d0c8565168304645721060e66ee1dc1823f9c63fab2a973bd0911c1e95fc"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-final-lifecycle.txt",
+          "status": "??",
+          "sha256": "96ec9dc321147d8ac65fb42be31fee5bfa9ab6953f30eb2fcaff5578401badea"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-final-lint.txt",
+          "status": "??",
+          "sha256": "4d1494edfe37790df65dbfd1f661291aeca9cfef71aadf1dcf07903ef8753fc7"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-final-scoped-lint.txt",
+          "status": "??",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-final-semantics.txt",
+          "status": "??",
+          "sha256": "c79d915442b2ab97d751a14da65333ecc57fb7e91c5ed946aea0c901db998d31"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-final-unit.txt",
+          "status": "??",
+          "sha256": "840e348bccb6ea6c5b51ff02b13f7d2f20221f0b5e83f436d01c435cf371084b"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-final-whitespace.txt",
+          "status": "??",
+          "sha256": "dbe6599e4d9a5bbb1bab79508c6a1dde08b4e49073129cfb27d4da11d3da775b"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-followup-final.txt",
+          "status": "??",
+          "sha256": "536a6d377753ab1a4bee0fd491691c0ddfa4181b607ae0ad8ad21945f6d684d2"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-lint.txt",
+          "status": "??",
+          "sha256": "4d1494edfe37790df65dbfd1f661291aeca9cfef71aadf1dcf07903ef8753fc7"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-metrics.json",
+          "status": "??",
+          "sha256": "15e6e7acadcb3fb40de11433fea39866dab5d365b84652a500ab6c4a57761be9"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-particle-lint.txt",
+          "status": "??",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-particle-regression.txt",
+          "status": "??",
+          "sha256": "5c3d05a62a2b834ad508c61d7b52bf8462c8ba47539245db87822bcfd94862b9"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-particle-unit.txt",
+          "status": "??",
+          "sha256": "a2514fd82bb3854563f1703f43b41d2134b25932fc00a0f11e525a1f4ffc03ae"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-regression-closed.txt",
+          "status": "??",
+          "sha256": "2692efcdafa67b14f362988f925a3423ccfae6c206e6e535b1a287a7c58f7ec3"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-scoped-lint.txt",
+          "status": "??",
+          "sha256": "9df6c0f7c9efc32ff5efcf0cc50882760a4e01872f4bc3272d9730c12318f096"
+        },
+        {
+          "path": "output/narrative-remediation/checks/narrative-stale-response.txt",
+          "status": "??",
+          "sha256": "d67abd04e86563fad1e9d3b63ebead5bf0c47e5d91b44153ee4c34cfdd105084"
+        },
+        {
+          "path": "output/narrative-remediation/interaction-trace-inspection.json",
+          "status": "??",
+          "sha256": "f9027e59e1c26342530aa816f10391bf86cce92cdba6ee5ed32b10add31a69a9"
+        },
+        {
+          "path": "output/narrative-remediation/interaction-trace.zip",
+          "status": "??",
+          "sha256": "421692d8be2b49ec8846db18032e9f2ef1076867005708bbb8d147c5350a14a3"
+        },
+        {
+          "path": "output/narrative-remediation/theme/baseline-light-source-panel.json",
+          "status": "??",
+          "sha256": "d99d6c43f494478fd4ea8479f554feb7aa577801e149635547025584a4f40f3a"
+        },
+        {
+          "path": "output/narrative-remediation/theme/baseline-light-source-panel.png",
+          "status": "??",
+          "sha256": "fc22f90a7e148cd813854f67fe6c6e7e862fcd368284cffb972a521e76b87a98"
+        },
+        {
+          "path": "output/narrative-remediation/theme/dark-alternate-1440.png",
+          "status": "??",
+          "sha256": "108fcd249a40ffae72caff65afa93c00a9f11458cc41ce658d0496c73af9f92d"
+        },
+        {
+          "path": "output/narrative-remediation/theme/dark-caution-badge.png",
+          "status": "??",
+          "sha256": "1ba1dc31f34a1dfd4ff6014934878d0c2d1b8cc509df5bfe7e934ad900b864d7"
+        },
+        {
+          "path": "output/narrative-remediation/theme/dark-reference-1440.png",
+          "status": "??",
+          "sha256": "d4af5c087391fb066aa32e2dabc51872547cf6d4e5bc056054ed836a230800dd"
+        },
+        {
+          "path": "output/narrative-remediation/theme/dark-reference-390.png",
+          "status": "??",
+          "sha256": "aacc80d68a24e49deb22567720b39d349fb667a4861b57236f1e837ad482c19c"
+        },
+        {
+          "path": "output/narrative-remediation/theme/dark-used-badge.png",
+          "status": "??",
+          "sha256": "49ef5620ef0327b0813bb79746d224db9ffb7d142f7bffb7136b1078a3fcd868"
+        },
+        {
+          "path": "output/narrative-remediation/theme/light-alternate-1440.png",
+          "status": "??",
+          "sha256": "6b6d4524c371bc4258b40c779e1a955fa84c7e1484d0c01cd4bd576fcd412394"
+        },
+        {
+          "path": "output/narrative-remediation/theme/light-caution-badge.png",
+          "status": "??",
+          "sha256": "b080cb17fa210aeada617b82177dc516233975bc16741f02fd0a978ae502357d"
+        },
+        {
+          "path": "output/narrative-remediation/theme/light-reference-1440.png",
+          "status": "??",
+          "sha256": "877ecd628f658385a418d18140bd4e83ef80b07854480aa0d1e35324f3444777"
+        },
+        {
+          "path": "output/narrative-remediation/theme/light-reference-320-200percent.png",
+          "status": "??",
+          "sha256": "98344439e774090fd902a072542f6a68aa60a4e1716f34dd91603c7b5c7dbb60"
+        },
+        {
+          "path": "output/narrative-remediation/theme/light-reference-320.png",
+          "status": "??",
+          "sha256": "148a1c5a6d8a81cf349b12c24dc60f8ee1cf7220b3613d6518072ee8ee953d3c"
+        },
+        {
+          "path": "output/narrative-remediation/theme/light-used-badge.png",
+          "status": "??",
+          "sha256": "42da81417426b033dd1f8f44283f953b70264a2874f81cf361562abed3b33174"
+        },
+        {
+          "path": "output/narrative-remediation/theme/rendered-badge-pixels.json",
+          "status": "??",
+          "sha256": "96f56689ee1264671676ca0744403de7cf14a0b5ea1a9a7b16057b93dd1e19db"
+        },
+        {
+          "path": "output/narrative-remediation/theme/rendered-verification.json",
+          "status": "??",
+          "sha256": "637369aa0f4b6f069afd7c2855035b9b5354b981b06a3f9ca0add9842b293d35"
+        },
+        {
+          "path": "output/narrative-remediation/theme/verify.mjs",
+          "status": "??",
+          "sha256": "ff289bcb99e67e3187aa8b47f66acdc982b1c4f3b528f760eda54e08ed737385"
+        },
+        {
+          "path": "src/lib/narrativeFocusTarget.js",
+          "status": "??",
+          "sha256": "5546d14d45ac55c4bed34b6a23b7cd06145032a89e4af25d2a6ae6dc107552ac"
+        },
+        {
+          "path": "src/lib/particleLifecycle.js",
+          "status": "??",
+          "sha256": "756a06d7dc3234fbb7924db312c4e160ce677e69be1289c5ff55a59e7b9d3f57"
+        },
+        {
+          "path": "src/styles/follow-up.css",
+          "status": "??",
+          "sha256": "05291e4095c451041addd2100bb902e9018606ed9286a01202ef0271f5ad7f2a"
+        },
+        {
+          "path": "tests/narrativeFocusTarget.test.mjs",
+          "status": "??",
+          "sha256": "695125126a2dbcdc99bd2a737084bc543fc2a977e0f3f9074f2ed48f1fbc255f"
+        },
+        {
+          "path": "tests/narrativeSemantics.test.mjs",
+          "status": "??",
+          "sha256": "22fcf6859f11b5ac64fbc65577c68ba75db0faa83dcc10f648139f5add391a09"
+        },
+        {
+          "path": "tests/particleLifecycle.test.mjs",
+          "status": "??",
+          "sha256": "2bd5cd933ec3233cf4801b72d6e55dff7a3fe3d7f5dc99d2dd7c4b5a1422d71e"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/htper/.codex/worktrees/reading-layout-release/tarot",
+      "head": "19bb5ae0ece16d1735aa8830fab4a65ce8f1a4f0",
+      "branch": null,
+      "files": []
+    },
+    {
+      "path": "C:/Users/htper/.codex/worktrees/tableu-owner-journal/tarot",
+      "head": "312d058e6f15b4eaca213af1be3d195c222a5a8e",
+      "branch": "refs/heads/feat/tableu-owner-journal",
+      "files": []
+    },
+    {
+      "path": "C:/Users/htper/tarot-astro-review-baseline",
+      "head": "15047a45453c36108baf52b3752f4757cb2f02bf",
+      "branch": null,
+      "files": []
+    },
+    {
+      "path": "C:/Users/htper/tarot-astro-review-pr",
+      "head": "3946e1ada5fda13d93d82c34719ce267881f9825",
+      "branch": null,
+      "files": []
+    },
+    {
+      "path": "C:/Users/htper/tarot-chatgpt-mcp",
+      "head": "fdf3446b1de49a5b4f5c8cad6dcb514b5f57d768",
+      "branch": "refs/heads/feat/chatgpt-mcp-journal",
+      "files": [
+        {
+          "path": "docs/superpowers/plans/2026-09-23-chatgpt-mcp-journal.md",
+          "status": " M",
+          "sha256": "6b67ad75ead7824fb890f094ecab424890bf028b51436850651380c1f57c393f"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/htper/tarot-midnight-reading-room",
+      "head": "57a0a9444533208f3a2eceeacc8153a36b1f19d9",
+      "branch": "refs/heads/feat/midnight-reading-room",
+      "files": [
+        {
+          "path": ".impeccable/critique/2026-09-12T18-16-37Z__src-components-scenes-readingclothscene-jsx.md",
+          "status": "??",
+          "sha256": "3d8934a41f0ba0927c581e27423499bf7e83f58101ec7ca6e2833401ada34da5"
+        }
+      ]
+    }
+  ],
+  "refs": [
+    {
+      "ref": "refs/heads/codex/narrative-remediation",
+      "sha": "7e9170fb2b64184a6225940f4cbef7b9e92caced",
+      "ahead": 0,
+      "behind": 15
+    },
+    {
+      "ref": "refs/heads/feat/card-reveal-remediation",
+      "sha": "0ed85b8fbcabf0071fec6b70054e4349f2e18881",
+      "ahead": 0,
+      "behind": 31
+    },
+    {
+      "ref": "refs/heads/feat/chatgpt-mcp-journal",
+      "sha": "fdf3446b1de49a5b4f5c8cad6dcb514b5f57d768",
+      "ahead": 22,
+      "behind": 19
+    },
+    {
+      "ref": "refs/heads/feat/midnight-reading-room",
+      "sha": "57a0a9444533208f3a2eceeacc8153a36b1f19d9",
+      "ahead": 2,
+      "behind": 30
+    },
+    {
+      "ref": "refs/heads/feat/tableu-owner-journal",
+      "sha": "312d058e6f15b4eaca213af1be3d195c222a5a8e",
+      "ahead": 0,
+      "behind": 17
+    },
+    {
+      "ref": "refs/heads/fix/review-astro-reversal-retrieval",
+      "sha": "7e9170fb2b64184a6225940f4cbef7b9e92caced",
+      "ahead": 0,
+      "behind": 15
+    },
+    {
+      "ref": "refs/heads/fix/review-astro-reversal-retrieval-pr",
+      "sha": "b065f4636c9095bff787ce55954a09a3abeb365e",
+      "ahead": 0,
+      "behind": 1
+    },
+    {
+      "ref": "refs/heads/master",
+      "sha": "3946e1ada5fda13d93d82c34719ce267881f9825",
+      "ahead": 0,
+      "behind": 0
+    },
+    {
+      "ref": "refs/remotes/origin/HEAD",
+      "sha": "3946e1ada5fda13d93d82c34719ce267881f9825",
+      "ahead": 0,
+      "behind": 0
+    },
+    {
+      "ref": "refs/remotes/origin/claude/card-draw-reveal-ui-ipo3p8",
+      "sha": "2dcd4a86c7d216a45e0ccec4707cdec82f7ac035",
+      "ahead": 0,
+      "behind": 39
+    },
+    {
+      "ref": "refs/remotes/origin/claude/new-session-c0h8vs",
+      "sha": "9018b494bf7af617d9bf76aca1f7647905ad0754",
+      "ahead": 0,
+      "behind": 47
+    },
+    {
+      "ref": "refs/remotes/origin/claude/tableau-app-usage-guide-a1r7cq",
+      "sha": "179fa3bb1bc0b1bcc077e8b06dde373da295cc87",
+      "ahead": 0,
+      "behind": 40
+    },
+    {
+      "ref": "refs/remotes/origin/dependabot/npm_and_yarn/focus-trap-react-12.0.1",
+      "sha": "a56050a771364cb7ac340575dd3af0e7faeabffe",
+      "ahead": 1,
+      "behind": 55
+    },
+    {
+      "ref": "refs/remotes/origin/dependabot/npm_and_yarn/mcp/tableau-adapter/npm_and_yarn-41cb6d996b",
+      "sha": "c4b5a6944473e419cd09cea0c83b1a4437f79f61",
+      "ahead": 1,
+      "behind": 55
+    },
+    {
+      "ref": "refs/remotes/origin/dependabot/npm_and_yarn/npm_and_yarn-1b54fa3b3f",
+      "sha": "ab959ddb5101e61c474478ce76dcd7aab78ece89",
+      "ahead": 1,
+      "behind": 55
+    },
+    {
+      "ref": "refs/remotes/origin/dependabot/npm_and_yarn/playwright/test-1.59.1",
+      "sha": "e3f53441a1fb8be6d51fa7180e881946257b1764",
+      "ahead": 1,
+      "behind": 55
+    },
+    {
+      "ref": "refs/remotes/origin/dependabot/npm_and_yarn/react-router-dom-7.14.2",
+      "sha": "3823fc79fc2dc788e071e0de4ae3b3d87f044f6b",
+      "ahead": 1,
+      "behind": 55
+    },
+    {
+      "ref": "refs/remotes/origin/dependabot/npm_and_yarn/types/node-25.6.0",
+      "sha": "2e204022a4c5d0eae3f4b68a84347d018e177ff6",
+      "ahead": 1,
+      "behind": 55
+    },
+    {
+      "ref": "refs/remotes/origin/dependabot/npm_and_yarn/vite-8.0.10",
+      "sha": "528ecb6c223193f4422bc4226766dcc3c147ed55",
+      "ahead": 1,
+      "behind": 55
+    },
+    {
+      "ref": "refs/remotes/origin/feat/card-reveal-remediation",
+      "sha": "0ed85b8fbcabf0071fec6b70054e4349f2e18881",
+      "ahead": 0,
+      "behind": 31
+    },
+    {
+      "ref": "refs/remotes/origin/feat/midnight-reading-room",
+      "sha": "57a0a9444533208f3a2eceeacc8153a36b1f19d9",
+      "ahead": 2,
+      "behind": 30
+    },
+    {
+      "ref": "refs/remotes/origin/feat/reading-visual-modals",
+      "sha": "423b9f49936e9219827112e48ddc4a5f16110b37",
+      "ahead": 0,
+      "behind": 25
+    },
+    {
+      "ref": "refs/remotes/origin/feat/tableu-owner-journal",
+      "sha": "2aab868b042018146eb6e4e6e7ea5ef1c825b53c",
+      "ahead": 0,
+      "behind": 3
+    },
+    {
+      "ref": "refs/remotes/origin/fix/graphrag-pattern-coverage",
+      "sha": "784331d1d87dab0a4cfa092505c54c993c1277a2",
+      "ahead": 0,
+      "behind": 21
+    },
+    {
+      "ref": "refs/remotes/origin/master",
+      "sha": "3946e1ada5fda13d93d82c34719ce267881f9825",
+      "ahead": 0,
+      "behind": 0
+    }
+  ],
+  "stashes": [
+    {
+      "name": "stash@{0}",
+      "sha": "5626d981e30c3bb6016838de718fa203dbf7a853",
+      "subject": "On fix/review-astro-reversal-retrieval: safety: already-published astronomy edits before returning original checkout to master",
+      "files": [
+        {
+          "path": "functions/lib/ephemerisIntegration.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "functions/lib/ephemerisWorkers.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "functions/lib/graphRAG.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "functions/lib/graphRAGAlerts.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "functions/lib/narrative/prompts/graphRAGReferenceBlock.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "functions/lib/spreadAnalysis.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "functions/lib/spreadAnalysisOrchestrator.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "functions/lib/telemetrySchema.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "scripts/evaluation/runNarrativeSamples.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "shared/utils.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "src/components/MoonPhaseIndicator.jsx",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "src/components/journal/entry-card/hooks/useEntryMetadata.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "src/contexts/ReadingContext.jsx",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "src/lib/followUpSuggestions.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "src/lib/symbolElementBridge.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "src/lib/themeText.js",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "tests/graphRAG.test.mjs",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "tests/graphRAGAlerts.test.mjs",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "tests/telemetrySchema.test.mjs",
+          "kind": "tracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "tests/ephemerisForecastEvents.test.mjs",
+          "kind": "untracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "tests/ephemerisGeocentric.test.mjs",
+          "kind": "untracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "tests/graphRAGProvenance.test.mjs",
+          "kind": "untracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "tests/retrogradeGuidance.test.mjs",
+          "kind": "untracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "tests/reversalFrameworkAgency.test.mjs",
+          "kind": "untracked",
+          "sameBlobAsMaster": true
+        },
+        {
+          "path": "tests/themeDominanceTies.test.mjs",
+          "kind": "untracked",
+          "sameBlobAsMaster": true
+        }
+      ]
+    }
+  ],
+  "mergeSimulations": [
+    {
+      "branch": "feat/chatgpt-mcp-journal",
+      "exitCode": 1,
+      "conflicts": [
+        "functions/api/journal.js",
+        "functions/api/journal/reflections.js",
+        "mcp/tableau-adapter/.env.example",
+        "mcp/tableau-adapter/README.md",
+        "mcp/tableau-adapter/package-lock.json",
+        "mcp/tableau-adapter/package.json",
+        "mcp/tableau-adapter/server.js",
+        "package-lock.json",
+        "src/components/journal/entry-card/EntrySections/ReflectionsSection.jsx",
+        "tarot-journal-actions.yaml",
+        "tests/journalReflections.test.mjs"
+      ]
+    },
+    {
+      "branch": "feat/midnight-reading-room",
+      "exitCode": 1,
+      "conflicts": [
+        "src/components/AnimatedRoutes.jsx",
+        "src/components/PageTransition.jsx",
+        "src/components/reading/ReadingSceneRouter.jsx",
+        "src/components/scenes/SceneShell.jsx",
+        "src/styles/tailwind.css"
+      ]
+    }
+  ],
+  "proofRuns": [
+    {
+      "id": "narrative-unit",
+      "cwd": "C:/Users/htper/.codex/worktrees/narrative-remediation/tarot",
+      "command": "node --test tests/narrativeFocusTarget.test.mjs tests/narrativeSemantics.test.mjs tests/particleLifecycle.test.mjs tests/sourceUsageSummary.test.mjs",
+      "exitCode": 0,
+      "tests": 21,
+      "passed": 21
+    },
+    {
+      "id": "mcp-unit",
+      "cwd": "C:/Users/htper/tarot-chatgpt-mcp",
+      "command": "node --test tests/mcpOAuth.test.mjs tests/mcpJournalTools.test.mjs tests/readingJobPrincipal.test.mjs tests/journalEntriesService.test.mjs",
+      "exitCode": 0,
+      "tests": 68,
+      "passed": 68
+    },
+    {
+      "id": "master-journal-unit",
+      "cwd": "C:/Users/htper/tarot",
+      "command": "node --test tests/journalWrites.integration.test.mjs tests/journalCardIdentity.test.mjs tests/readingRequestCards.test.mjs",
+      "exitCode": 0,
+      "tests": 16,
+      "passed": 16
+    },
+    {
+      "id": "midnight-unit",
+      "cwd": "C:/Users/htper/tarot-midnight-reading-room",
+      "command": "node --test tests/mobileActionBarConstants.test.mjs tests/readingBoardUtils.test.mjs tests/sceneOrchestrator.test.mjs",
+      "exitCode": 0,
+      "tests": 21,
+      "passed": 21
+    },
+    {
+      "id": "narrative-collection",
+      "command": ".\\node_modules\\.bin\\playwright.cmd test e2e/narrative-remediation.spec.js e2e/follow-up-questions.spec.js e2e/saved-intentions-modal.spec.js --list --reporter=line",
+      "exitCode": 0,
+      "collected": 42
+    },
+    {
+      "id": "midnight-collection",
+      "command": ".\\node_modules\\.bin\\playwright.cmd test e2e/page-transitions.spec.js --list --reporter=line",
+      "exitCode": 0,
+      "collected": 14,
+      "note": "Mobile CDP suspension is runtime-skipped; collection is not execution."
+    },
+    {
+      "id": "mcp-collection",
+      "command": ".\\node_modules\\.bin\\playwright.cmd test --config playwright.mcp.config.js --list",
+      "exitCode": 0,
+      "collected": 1
+    },
+    {
+      "id": "narrative-patch",
+      "command": "git apply --check <temporary tracked narrative patch>",
+      "cwd": "C:/Users/htper/tarot-astro-review-pr",
+      "exitCode": 0,
+      "untrackedPathCollisions": 0,
+      "untrackedCount": 89
+    },
+    {
+      "id": "wrangler-cli",
+      "cwd": "C:/Users/htper/tarot-chatgpt-mcp",
+      "version": "4.71.0",
+      "commandsVerified": [
+        "kv namespace create --help",
+        "deploy --help"
+      ],
+      "flagsVerified": [
+        "--config",
+        "--dry-run",
+        "--outdir"
+      ]
+    },
+    {
+      "id": "mcp-contract-migration-red",
+      "command": "Task 5 JavaScript regression run from temporary file with absolute imports into the existing MCP branch",
+      "expectedExitCode": 1,
+      "actualExitCode": 1,
+      "tests": 3,
+      "passed": 0,
+      "failed": 3,
+      "note": "Expected red proof: verbatim reflection text, HTTP replacement compatibility, and eleven concurrent appends."
+    },
+    {
+      "id": "read-only-verifiers",
+      "baseline": "8 worktrees and 140 fingerprints matched",
+      "stash": "26 blobs equal origin/master",
+      "powershellBlocksParsed": 18,
+      "javascriptBlocksParsed": 1,
+      "note": "Final plan: 18 PowerShell blocks and one JavaScript block parse; local links resolve; native-command helpers tested for logging and failure propagation."
+    },
+    {
+      "id": "plan-command-helpers",
+      "exitCode": 0,
+      "verified": [
+        "Invoke-Checked successful exit",
+        "Invoke-Checked throws on exit 7",
+        "Invoke-Logged records success",
+        "Invoke-Logged allows and records expected exit 7",
+        "EOF newline normalization"
+      ]
+    }
+  ],
+  "limitations": [
+    "No integration commits, merges, cherry-picks, pushes, deployments, resource creation or cleanup performed.",
+    "Playwright collection only; no browser execution in this planning turn.",
+    "Full unit, lint, build, CI and live-provider gates must be run on each integrated candidate.",
+    "Git merge-tree wrote temporary Git objects without changing worktree files, index or refs.",
+    "Ignored runtime state and evidence are excluded from Git-visible file manifests."
+  ],
+  "preservationRehearsals": [
+    {
+      "branch": "refs/heads/codex/narrative-remediation",
+      "addExit": 0,
+      "stagedPaths": 115,
+      "allowlistMatches": true,
+      "whitespaceExit": 2,
+      "whitespaceOutput": "docs/superpowers/plans/2026-09-23-narrative-semantics-report.md:39: new blank line at EOF.\ndocs/superpowers/plans/2026-09-23-narrative-theme-report.md:69: new blank line at EOF.\ndocs/superpowers/specs/2026-09-23-personalized-narrative-remediation.md:5: trailing whitespace.\n+**Date:** September 23, 2026  \ndocs/superpowers/specs/2026-09-23-personalized-narrative-remediation.md:6: trailing whitespace.\n+**Product:** Tableu  \ndocs/superpowers/specs/2026-09-23-personalized-narrative-remediation.md:7: trailing whitespace.\n+**Baseline source:** `7e9170fb2b64184a6225940f4cbef7b9e92caced`  \ndocs/superpowers/specs/2026-09-23-personalized-narrative-remediation.md:8: trailing whitespace.\n+**Baseline audit:** 10/20; nine findings, comprising four P1 and five P2 issues.  \noutput/imagegen/narrative-remediation/generation-v2.md:30: new blank line at EOF.\noutput/imagegen/narrative-remediation/prompt-review.md:33: new blank line at EOF.\noutput/narrative-remediation/checks/narrative-a11y.txt:5213: new blank line at EOF.\noutput/narrative-remediation/checks/narrative-final-lint.txt:132: trailing whitespace.\n+  712 |   \noutput/narrative-remediation/checks/narrative-final-lint.txt:517: trailing whitespace.\n+  481 |   \noutput/narrative-remediation/checks/narrative-final-lint.txt:1282: new blank line at EOF.\noutput/narrative-remediation/checks/narrative-lint.txt:132: trailing whitespace.\n+  712 |   \noutput/narrative-remediation/checks/narrative-lint.txt:517: trailing whitespace.\n+  481 |   \noutput/narrative-remediation/checks/narrative-lint.txt:1282: new blank line at EOF.\noutput/narrative-remediation/checks/narrative-scoped-lint.txt:38: new blank line at EOF.\nsrc/styles/follow-up.css:173: new blank line at EOF.\n",
+      "nonOutputWhitespaceExit": 2,
+      "nonOutputWhitespace": "docs/superpowers/plans/2026-09-23-narrative-semantics-report.md:39: new blank line at EOF.\ndocs/superpowers/plans/2026-09-23-narrative-theme-report.md:69: new blank line at EOF.\ndocs/superpowers/specs/2026-09-23-personalized-narrative-remediation.md:5: trailing whitespace.\n+**Date:** September 23, 2026  \ndocs/superpowers/specs/2026-09-23-personalized-narrative-remediation.md:6: trailing whitespace.\n+**Product:** Tableu  \ndocs/superpowers/specs/2026-09-23-personalized-narrative-remediation.md:7: trailing whitespace.\n+**Baseline source:** `7e9170fb2b64184a6225940f4cbef7b9e92caced`  \ndocs/superpowers/specs/2026-09-23-personalized-narrative-remediation.md:8: trailing whitespace.\n+**Baseline audit:** 10/20; nine findings, comprising four P1 and five P2 issues.  \nsrc/styles/follow-up.css:173: new blank line at EOF.\n"
+    },
+    {
+      "branch": "refs/heads/feat/chatgpt-mcp-journal",
+      "addExit": 0,
+      "stagedPaths": 1,
+      "allowlistMatches": true,
+      "whitespaceExit": 0,
+      "whitespaceOutput": "",
+      "nonOutputWhitespaceExit": 0,
+      "nonOutputWhitespace": ""
+    },
+    {
+      "branch": "refs/heads/feat/midnight-reading-room",
+      "addExit": 0,
+      "stagedPaths": 1,
+      "allowlistMatches": true,
+      "whitespaceExit": 0,
+      "whitespaceOutput": "",
+      "nonOutputWhitespaceExit": 0,
+      "nonOutputWhitespace": ""
+    }
+  ],
+  "reflectionProbe": {
+    "appendStatus": 200,
+    "preservesExactWhitespace": false,
+    "replaceStatus": 400,
+    "concurrentAppendStatuses": [
+      200,
+      200,
+      200,
+      409,
+      409,
+      409,
+      409,
+      409,
+      409,
+      409,
+      409
+    ]
+  }
+}
