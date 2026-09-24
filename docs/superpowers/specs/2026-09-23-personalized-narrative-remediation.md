@@ -30,29 +30,29 @@ This work does not change narrative generation prompts, retrieval, card interpre
 
 ## 2. V2 visual guidance
 
-The [mockup package](../../../output/imagegen/narrative-remediation/README.md), [corrected prompts](../../../output/imagegen/narrative-remediation/prompts.md), [prompt review](../../../output/imagegen/narrative-remediation/prompt-review.md), and [generation notes](../../../output/imagegen/narrative-remediation/generation-v2.md) provide provenance. Use the final files with the `-v2` suffix; retain v1 only as history.
+The [mockup package](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/imagegen/narrative-remediation/README.md), [corrected prompts](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/imagegen/narrative-remediation/prompts.md), [prompt review](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/imagegen/narrative-remediation/prompt-review.md), and [generation notes](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/imagegen/narrative-remediation/generation-v2.md) provide provenance. Use the final files with the `-v2` suffix; retain v1 only as history.
 
 ### Figure 1 — Complete light-theme reading
 
-![V2 light reading: complete narrative, source status badges, supporting actions, and stacked feedback ratings.](../../../output/imagegen/narrative-remediation/01-light-reading-v2.png)
+![V2 light reading: complete narrative, source status badges, supporting actions, and stacked feedback ratings.](https://github.com/henryperkins/tarot/raw/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/imagegen/narrative-remediation/01-light-reading-v2.png)
 
-[Open full-size light reading](../../../output/imagegen/narrative-remediation/01-light-reading-v2.png).
+[Open full-size light reading](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/imagegen/narrative-remediation/01-light-reading-v2.png).
 
 Adopt the quiet daytime surfaces, clear narrative hierarchy, readable status labels, complete action set, and vertically stacked feedback groups. The image is a full-page composition, not a single desktop viewport. Preserve the actual reading's complete text and section structure. Its five sections and selected rating of 4 are sample content, not new application defaults.
 
 ### Figure 2 — Mobile follow-up conversation
 
-![V2 mobile follow-up: opaque sheet above the reading, wrapped question buttons, empty composer, disabled Send, and visible journal-history option.](../../../output/imagegen/narrative-remediation/02-mobile-follow-up-v2.png)
+![V2 mobile follow-up: opaque sheet above the reading, wrapped question buttons, empty composer, disabled Send, and visible journal-history option.](https://github.com/henryperkins/tarot/raw/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/imagegen/narrative-remediation/02-mobile-follow-up-v2.png)
 
-[Open full-size mobile follow-up](../../../output/imagegen/narrative-remediation/02-mobile-follow-up-v2.png).
+[Open full-size mobile follow-up](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/imagegen/narrative-remediation/02-mobile-follow-up-v2.png).
 
 Use **390 × 844 CSS pixels** as the reference viewport. Adopt the foreground sheet, subdued and noninteractive background, natural label wrapping, clear composer, and complete journal-history row. The keyboard-closed state does not prescribe initial focus: opening explicitly to ask a question still focuses the enabled textarea. The highlighted question illustrates a later focus state. Rendered close/send hit areas must be 48 × 48 CSS pixels, regardless of the raster's proportions.
 
 ### Figure 3 — Follow-up in a short desktop window
 
-![V2 short desktop follow-up: a constrained dialog with an independently scrolling question area and a fully reachable composer and journal-history control.](../../../output/imagegen/narrative-remediation/03-short-desktop-chat-v2.png)
+![V2 short desktop follow-up: a constrained dialog with an independently scrolling question area and a fully reachable composer and journal-history control.](https://github.com/henryperkins/tarot/raw/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/imagegen/narrative-remediation/03-short-desktop-chat-v2.png)
 
-[Open full-size short desktop chat](../../../output/imagegen/narrative-remediation/03-short-desktop-chat-v2.png).
+[Open full-size short desktop chat](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/imagegen/narrative-remediation/03-short-desktop-chat-v2.png).
 
 Use **1440 × 500 CSS pixels** as the reference viewport. The middle area visibly overflows while the composer and history option remain reachable. A roughly 740px-wide dialog with 24px outer margins is guidance, not a fixed-height template. The generated close control is oversized; use the specified 48px hit area. A partial third suggestion must result from real overflow and scrolling, not a decorative scrollbar or deliberate text crop.
 

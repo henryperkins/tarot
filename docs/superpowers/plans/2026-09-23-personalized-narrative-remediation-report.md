@@ -30,7 +30,7 @@ Feedback uses initially empty native radio groups while preserving its payload, 
 | `git diff --check` | Passed; line-ending notices only. |
 | Independent code review | No unresolved actionable findings after fixing the stale limit-response race and cleaning up a particle container whose startup rejects after allocation. Also exercised long streamed answers at 200% text in Chromium and WebKit. |
 
-All 31 distinct acceptance cases have passing final executions. The first full run passed 26; targeted reruns passed the five remaining cases after correcting fixture selection, awaiting the real opening animation, using native scrolling followed by the same center hit tests, and allowing 90 seconds for the repeated WebKit lifecycle case. No force clicks or reduced assertions were used. See the [exact run history and matrix](../../../output/narrative-remediation/acceptance-report.md).
+All 31 distinct acceptance cases have passing final executions. The first full run passed 26; targeted reruns passed the five remaining cases after correcting fixture selection, awaiting the real opening animation, using native scrolling followed by the same center hit tests, and allowing 90 seconds for the repeated WebKit lifecycle case. No force clicks or reduced assertions were used. See the [exact run history and matrix](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/acceptance-report.md).
 
 | Case | Final automated result | Affected implementation and proof |
 | --- | --- | --- |
@@ -60,11 +60,11 @@ All nine specified findings are closed by the linked local automated and rendere
 | **Total** | **10/20** | **18/20** | **All A01–A09 passed; physical-device and spoken assistive-technology checks remain limitations.** |
 ## Rendered proof
 
-- [Complete light reading](../../../output/narrative-remediation/01-light-reading.png) and [complete dark reading](../../../output/narrative-remediation/01-dark-reading.png).
-- [390px light chat](../../../output/narrative-remediation/02-mobile-follow-up-light.png), [390px dark chat](../../../output/narrative-remediation/02-mobile-follow-up-dark.png), and [320px focus state](../../../output/narrative-remediation/04-narrow-focus.png).
-- [1440×500 chat](../../../output/narrative-remediation/03-short-desktop-chat.png), [200% text header](../../../output/narrative-remediation/05-short-enlarged-text-header.png), and [200% text footer](../../../output/narrative-remediation/05-short-enlarged-text.png).
-- [Simulated keyboard viewport at 200% text](../../../output/narrative-remediation/06-simulated-keyboard.png).
-- [Capture metadata](../../../output/narrative-remediation/capture-metadata.json), [interaction trace](../../../output/narrative-remediation/interaction-trace.zip), [baseline interaction comparison](../../../output/narrative-remediation/baseline-interaction-comparison.json), and [test logs/metrics](../../../output/narrative-remediation/checks).
+- [Complete light reading](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/01-light-reading.png) and [complete dark reading](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/01-dark-reading.png).
+- [390px light chat](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/02-mobile-follow-up-light.png), [390px dark chat](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/02-mobile-follow-up-dark.png), and [320px focus state](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/04-narrow-focus.png).
+- [1440×500 chat](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/03-short-desktop-chat.png), [200% text header](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/05-short-enlarged-text-header.png), and [200% text footer](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/05-short-enlarged-text.png).
+- [Simulated keyboard viewport at 200% text](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/06-simulated-keyboard.png).
+- [Capture metadata](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/capture-metadata.json), [interaction trace](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/interaction-trace.zip), [baseline interaction comparison](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/baseline-interaction-comparison.json), and [test logs/metrics](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/checks).
 - [Theme measurements and two-fixture proof](2026-09-23-narrative-theme-report.md), [semantics and shared-modal evidence](2026-09-23-narrative-semantics-report.md).
 
 Rendered badge text contrast is 5.785–11.589:1 in light mode and 4.750–10.253:1 in dark mode. Icons/borders share those foregrounds and exceed 3:1. The theme matrix includes 320px at 200% text without horizontal overflow. The real Inter and Source Serif 4 fonts were loaded in the final captures.
@@ -73,7 +73,7 @@ Rendered badge text contrast is 5.785–11.589:1 in light mode and 4.750–10.25
 
 Browser evidence comes from local Chromium and emulated iPhone WebKit using synthetic jobs/SSE, authentication, journal, and feedback services. Keyboard height is simulated with VisualViewport; no physical handset or spoken screen-reader pass was available. DOM/axe/keyboard assertions do not substitute for those checks. Live TTS, journal persistence, production AI integration, deployment, and publication are not established by this work.
 
-The [original v2 mockup package](../../../output/imagegen/narrative-remediation/README.md) and specification are included together in this worktree so their relative links remain usable. The generated evaluation files were copied into evidence where useful and restored in `data/evaluations`; they are not application changes.
+The [original v2 mockup package](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/imagegen/narrative-remediation/README.md) and specification are included together in this worktree so their relative links remain usable. The generated evaluation files were copied into evidence where useful and restored in `data/evaluations`; they are not application changes.
 
 ## Current integration checkpoint — 2026-09-23
 

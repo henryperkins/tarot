@@ -13,7 +13,7 @@ Task 3 implementation is complete in the isolated `codex/narrative-remediation` 
 
 ## Reproduced defects
 
-The acceptance agent measured the baseline light “3 used” badge at **2.507:1**. The local baseline capture also recorded 11px status labels and the dark reading-frame gradient in light mode: [baseline styles](../../../output/narrative-remediation/theme/baseline-light-source-panel.json), [baseline image](../../../output/narrative-remediation/theme/baseline-light-source-panel.png).
+The acceptance agent measured the baseline light “3 used” badge at **2.507:1**. The local baseline capture also recorded 11px status labels and the dark reading-frame gradient in light mode: [baseline styles](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/theme/baseline-light-source-panel.json), [baseline image](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/theme/baseline-light-source-panel.png).
 
 At 320px, the completed reading originally had a 333px document width. The stable-mode rule exposed an out-of-bounds decorative pseudo-element: disabling pseudo-elements reduced the width to 320px. Moving only the reading-stage bloom anchors inside their stage fixes that cause without clipping content. Enlarged-text checks also exposed the badges' flex min-content width; native inline wrapping now gives subsequent text lines their full available width.
 
@@ -30,7 +30,7 @@ The final run uses local Chromium, `http://localhost:5173`, real jobs/SSE fixtur
 | Dark requested-unused / skipped | `#F59E0B` | `#392B17` | 6.383:1 |
 | Dark not-requested | `#DDD7CD` | `#2A2730` | 10.253:1 |
 
-Badge opacity is 1 through its ancestors; backgrounds are opaque. Borders and icons use their badge foreground, meeting the 3:1 nontext target. Pixel sampling of the four colored badge screenshots confirms exact foreground and background RGB pixels after painting: [pixel evidence](../../../output/narrative-remediation/theme/rendered-badge-pixels.json).
+Badge opacity is 1 through its ancestors; backgrounds are opaque. Borders and icons use their badge foreground, meeting the 3:1 nontext target. Pixel sampling of the four colored badge screenshots confirms exact foreground and background RGB pixels after painting: [pixel evidence](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/theme/rendered-badge-pixels.json).
 
 **Seven rendered cases pass:** light/dark at 1440×1000 with each of two fixtures; light 320×740; dark 390×844; and light 320×740 at 200% root text size. The reference fixture renders 3 used / 2 requested not used; the alternate renders 2 used / 1 requested not used. Every case verifies:
 
@@ -42,7 +42,7 @@ Badge opacity is 1 through its ancestors; backgrounds are opaque. Borders and ic
 
 The desktop frame resolves to `#FFFFFF → #F5F2EE` in light mode and `#0D0A14 → #151020` in dark mode. The existing transparent mobile-frame override remains active.
 
-Full values and reproducible local verification are in [rendered verification JSON](../../../output/narrative-remediation/theme/rendered-verification.json) and [verification script](../../../output/narrative-remediation/theme/verify.mjs).
+Full values and reproducible local verification are in [rendered verification JSON](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/theme/rendered-verification.json) and [verification script](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/theme/verify.mjs).
 
 ## Commands and limits
 
@@ -57,12 +57,12 @@ No full suite or build was run by this agent concurrently with integration. The 
 
 ## Rendered artifacts
 
-- [Light reference, 1440px](../../../output/narrative-remediation/theme/light-reference-1440.png)
-- [Dark reference, 1440px](../../../output/narrative-remediation/theme/dark-reference-1440.png)
-- [Light alternate fixture](../../../output/narrative-remediation/theme/light-alternate-1440.png)
-- [Dark alternate fixture](../../../output/narrative-remediation/theme/dark-alternate-1440.png)
-- [Light 320px](../../../output/narrative-remediation/theme/light-reference-320.png)
-- [Dark 390px](../../../output/narrative-remediation/theme/dark-reference-390.png)
-- [Light 320px, 200% text](../../../output/narrative-remediation/theme/light-reference-320-200percent.png)
+- [Light reference, 1440px](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/theme/light-reference-1440.png)
+- [Dark reference, 1440px](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/theme/dark-reference-1440.png)
+- [Light alternate fixture](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/theme/light-alternate-1440.png)
+- [Dark alternate fixture](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/theme/dark-alternate-1440.png)
+- [Light 320px](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/theme/light-reference-320.png)
+- [Dark 390px](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/theme/dark-reference-390.png)
+- [Light 320px, 200% text](https://github.com/henryperkins/tarot/blob/f18b26d9f8465e49fc86f78a785fbc7a95257aa1/output/narrative-remediation/theme/light-reference-320-200percent.png)
 
 The narrow component captures retain the application's fixed navigation/action bars. Their overlap in a tall element screenshot is not used as evidence that every row fits simultaneously in the viewport; the reading remains vertically scrollable.
