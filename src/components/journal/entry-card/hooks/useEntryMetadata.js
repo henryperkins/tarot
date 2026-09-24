@@ -4,6 +4,7 @@
  */
 import { useMemo } from 'react';
 import { normalizeTimestamp, getTimestamp } from '../../../../../shared/journal/utils.js';
+import { buildReflectionEntries } from '../../../../../shared/journal/reflectionLabels.js';
 import { formatContextName } from '../../../../lib/journalInsights';
 import { DECK_OPTIONS } from '../../../deckOptions';
 import {
@@ -137,12 +138,10 @@ export function useEntryMetadata(entry, { effectiveTier = 'free', isSmallScreen 
     [entry]
   );
 
-  const reflections = useMemo(() => {
-    if (!entry?.reflections || typeof entry.reflections !== 'object') return [];
-    return Object.entries(entry.reflections).filter(
-      ([, note]) => typeof note === 'string' && note.trim()
-    );
-  }, [entry]);
+  const reflections = useMemo(
+    () => buildReflectionEntries(entry?.reflections, cards),
+    [entry?.reflections, cards]
+  );
 
   const followUps = useMemo(
     () => (Array.isArray(entry?.followUps) ? entry.followUps : []),

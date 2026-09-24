@@ -1,53 +1,72 @@
 import { test, expect } from '@playwright/test';
-import { journalFixture, OWNER_KEY, SAVED_READING } from '../tests/helpers/journalD1.mjs';
-import { journalClient } from '../mcp/tableau-adapter/tests/in-memory-client.js';
+import { SAVED_READING } from '../tests/helpers/journalD1.mjs';
+import { createD1 } from '../tests/helpers/d1Sqlite.mjs';
+import { seedUser, seedSession } from '../tests/helpers/journalFixtures.mjs';
+import { connectMcpClient } from '../tests/helpers/mcpClient.mjs';
+import { createFakeReadingJobs, readingRunner } from '../tests/helpers/fakeReadingJobs.mjs';
 import * as journal from '../functions/api/journal.js';
-import * as reflections from '../functions/api/journal/reflections.js';
 import * as me from '../functions/api/auth/me.js';
-import { buildReadingRequestCard } from '../shared/contracts/readingRequestCards.js';
-import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
-import { MINOR_ARCANA } from '../src/data/minorArcana.js';
+
+const OWNER = { id: 'owner', username: 'owner', subscription_tier: 'plus', subscription_status: 'active', auth_provider: 'session' };
+const POSITIONS = ['Past — influences that led here', 'Present — where you stand now', 'Future — trajectory if nothing shifts'];
 
 // Real MCP tool dispatch -> production handlers -> local D1 -> app GET/render.
 // Only the expensive narrative provider and unrelated app endpoints are fixtures.
 for (const [width, deckStyle] of [[1440, 'rws-1909'], [390, 'rws-1909'], [320, 'rws-1909'], [390, 'thoth-a1']]) {
   test(`owner MCP save and appended reflections render at ${width}px with ${deckStyle}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 1000 });
-    const fixture = await journalFixture();
-    const env = { DB: fixture.db };
-    const cardsInfo = SAVED_READING.cards.map((card, index) => buildReadingRequestCard(
-      [...MAJOR_ARCANA, ...MINOR_ARCANA].find(candidate => candidate.name === (deckStyle === 'thoth-a1' && index === 1 ? 'King of Cups' : card.name)),
-      { deckStyle, position: card.position, isReversed: card.orientation === 'Reversed' }
-    ));
+    const db = await createD1();
+    const jobs = createFakeReadingJobs({ runReading: readingRunner({
+      reading: SAVED_READING.personalReading, requestId: 'fixture-reading', themes: SAVED_READING.themes
+    }) });
+    const env = { DB: db, READING_JOBS: jobs.namespace };
+    const labels = deckStyle === 'thoth-a1'
+      ? ['Success (Six of Disks)', 'Prince of Wands', 'Knight of Cups']
+      : ['Six of Pentacles', 'Knight of Wands', 'King of Cups'];
+    const cardsInfo = labels.map((card, index) => ({ card, position: POSITIONS[index], orientation: index === 0 ? 'Upright' : 'Reversed' }));
     const fetchBackend = async (url, init = {}) => {
       const request = new Request(url, init);
       const path = new URL(url).pathname;
       if (path === '/api/auth/me') return me.onRequestGet({ request, env });
-      if (path === '/api/journal') return journal[request.method === 'POST' ? 'onRequestPost' : 'onRequestGet']({ request, env });
-      const match = path.match(/^\/api\/journal\/([^/]+)\/reflections$/);
-      if (match) return reflections.onRequestPost({ request, env, params: { id: match[1] } });
-      if (path === '/api/tarot-reading/draw') return Response.json({
-        reading: SAVED_READING.personalReading, provider: 'local-composer', requestId: 'fixture-reading', seed: 987654,
-        themes: SAVED_READING.themes,
-        cardsInfo
-      });
+      if (path === '/api/journal') return journal.onRequestGet({ request, env });
       throw new Error(`Unexpected journal API route: ${path}`);
     };
-    const mcp = await journalClient(fetchBackend, OWNER_KEY);
+    let mcp;
     try {
-      const drawn = await mcp.client.callTool({ name: 'drawTarotReading', arguments: {
+      await seedUser(db, { id: OWNER.id, username: OWNER.username });
+      await seedSession(db, { id: 'session-owner', userId: OWNER.id });
+      mcp = await connectMcpClient({ env, user: OWNER, waitUntil: () => {} });
+      const call = (name, args) => mcp.client.callTool({ name, arguments: args });
+      const inventory = await mcp.client.listTools();
+      expect(inventory.tools).toHaveLength(8);
+      const drawn = await call('draw_tarot_reading', {
         spreadInfo: { name: SAVED_READING.spread, key: SAVED_READING.spreadKey },
-        userQuestion: SAVED_READING.question, deckStyle, personalization: SAVED_READING.userPreferences
-      } });
+        userQuestion: SAVED_READING.question, deckStyle, personalization: SAVED_READING.userPreferences, seed: '5'
+      });
       expect(drawn.isError).toBeUndefined();
-      const saved = await mcp.client.callTool({ name: 'saveReadingToJournal', arguments: drawn.structuredContent.savePayload });
+      expect(drawn.structuredContent.cardsInfo.map(({ card, position, orientation }) => ({ card, position, orientation }))).toEqual(cardsInfo);
+      await jobs.settle();
+      const job = { jobId: drawn.structuredContent.jobId, jobToken: drawn.structuredContent.jobToken };
+      const finished = await call('get_tarot_reading_status', job);
+      expect(finished.structuredContent.status).toBe('complete');
+      const saved = await call('save_reading_to_journal', job);
       expect(saved.isError).toBeUndefined();
+      expect(saved.structuredContent.outcome).toBe('saved');
       const id = saved.structuredContent.entry.id;
+      const retried = await call('save_reading_to_journal', job);
+      expect(retried.structuredContent.outcome).toBe('already_saved');
+      expect(retried.structuredContent.entry.id).toBe(id);
+      expect(db.rows('SELECT user_id, narrative FROM journal_entries')).toEqual([{ user_id: OWNER.id, narrative: SAVED_READING.personalReading }]);
       for (const text of ['  The quiet feels familiar.\nI can choose my pace.  ', 'A second thought, kept intact.']) {
-        const result = await mcp.client.callTool({ name: 'addReflectionToJournalEntry', arguments: { id, scope: 'card', card: 'The Hermit', position: 'Future', text } });
+        const args = { entryId: id, scope: 'card', card: labels[2], position: POSITIONS[2], text };
+        const result = await call('add_reflection_to_journal_entry', args);
         expect(result.isError).toBeUndefined();
+        expect(result.structuredContent.outcome).toBe('added');
+        expect((await call('add_reflection_to_journal_entry', args)).structuredContent.outcome).toBe('already_present');
       }
-      await mcp.client.callTool({ name: 'addReflectionToJournalEntry', arguments: { id, scope: 'reading', text: `Whole reading: ${'longword'.repeat(35)}` } });
+      const overall = { entryId: id, scope: 'reading', text: `Whole reading: ${'longword'.repeat(35)}` };
+      expect((await call('add_reflection_to_journal_entry', overall)).structuredContent.outcome).toBe('added');
+      expect((await call('add_reflection_to_journal_entry', overall)).structuredContent.outcome).toBe('already_present');
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.addInitScript(() => { localStorage.setItem('tarot-onboarding-complete', 'true'); });
@@ -84,7 +103,8 @@ for (const [width, deckStyle] of [[1440, 'rws-1909'], [390, 'rws-1909'], [320, '
       const notes = page.locator('section').filter({ has: page.getByText('Reflections', { exact: true }) }).last();
       await expect(notes).toContainText('A second thought, kept intact.');
       await notes.scrollIntoViewIfNeeded();
-      await expect(notes.getByText('Future — The Hermit', { exact: true })).toBeVisible();
+      await expect(notes.getByText(`${POSITIONS[2]} · ${labels[2]}`, { exact: true })).toBeVisible();
+      await expect(notes.getByText('Whole reading', { exact: true })).toBeVisible();
       const note = notes.locator('li').filter({ hasText: 'A second thought' }).locator('span').last();
       await expect(note).toHaveCSS('white-space', 'pre-wrap');
       expect(await note.textContent()).toBe('  The quiet feels familiar.\nI can choose my pace.  \n\nA second thought, kept intact.');
@@ -94,8 +114,7 @@ for (const [width, deckStyle] of [[1440, 'rws-1909'], [390, 'rws-1909'], [320, '
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       await page.screenshot({ path: testInfo.outputPath(`journal-${width}-${deckStyle}.png`), fullPage: false });
     } finally {
-      await mcp.close();
-      await fixture.close();
+      try { await mcp?.close(); } finally { db.sqlite.close(); }
     }
   });
 }

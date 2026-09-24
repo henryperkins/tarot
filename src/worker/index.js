@@ -91,6 +91,8 @@ import * as adminQualityStats from '../../functions/api/admin/quality-stats.js';
 // Utility functions
 import { jsonResponse } from '../../functions/lib/utils.js';
 import { handleDebugSentryRoute } from './debugSentryRoute.js';
+// ChatGPT MCP endpoint and its OAuth 2.1 authorization server
+import { handleMcpOrOAuthRequest, isMcpOrOAuthPath } from '../../functions/lib/mcp/oauthProvider.js';
 
 // Share page OG meta tag injection
 import { loadShareRecord, loadShareEntries } from '../../functions/lib/shareData.js';
@@ -435,6 +437,12 @@ const sentryHandler = Sentry.withSentry(
       const url = new URL(request.url);
       const pathname = url.pathname;
       const method = request.method;
+
+      // Check these paths before app CORS handling so the provider owns its
+      // preflights and never inherits the app's permissive Origin echo.
+      if (isMcpOrOAuthPath(pathname)) {
+        return handleMcpOrOAuthRequest(request, env, ctx);
+      }
 
       // Handle CORS preflight
       if (method === 'OPTIONS') {

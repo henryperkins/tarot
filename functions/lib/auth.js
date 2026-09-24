@@ -269,6 +269,60 @@ export async function validateSession(db, token) {
 }
 
 /**
+ * Load an active user by id, shaped like validateSession's result (session
+ * fields are null). For in-Worker principals only: the ChatGPT MCP handler
+ * and the ReadingJob Durable Object, which never carry a cookie or bearer
+ * token. Never call this with an id taken from request input.
+ *
+ * @param {D1Database} db - D1 database binding
+ * @param {string} userId
+ * @returns {Promise<object|null>}
+ */
+export async function loadActiveUserById(db, userId) {
+  if (!db || typeof userId !== 'string' || !userId) return null;
+
+  const row = await db
+    .prepare(`
+      SELECT
+        id,
+        email,
+        username,
+        is_active,
+        subscription_tier,
+        subscription_status,
+        subscription_provider,
+        stripe_customer_id,
+        email_verified,
+        auth_provider,
+        auth_subject,
+        full_name,
+        avatar_url
+      FROM users
+      WHERE id = ? AND is_active = 1
+    `)
+    .bind(userId)
+    .first();
+
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    email: row.email,
+    username: row.username,
+    sessionId: null,
+    subscription_tier: row.subscription_tier || 'free',
+    subscription_status: row.subscription_status || 'inactive',
+    subscription_provider: row.subscription_provider || null,
+    stripe_customer_id: row.stripe_customer_id || null,
+    email_verified: Boolean(row.email_verified),
+    auth_provider: row.auth_provider || 'session',
+    auth_subject: row.auth_subject || null,
+    full_name: row.full_name || null,
+    avatar_url: row.avatar_url || null
+  };
+}
+
+/**
  * Delete a session (logout)
  * @param {D1Database} db - D1 database binding
  * @param {string} token - Session token

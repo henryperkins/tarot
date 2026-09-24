@@ -73,6 +73,8 @@ npm run gate:design   # Verify design contract compliance
 - `lib/knowledgeBase.js` — Curated passages for GraphRAG retrieval
 - `lib/evaluation.js` — Automated reading quality evaluation (Workers AI)
 - `lib/scheduled.js` — Cron tasks: KV→R2 archival, session cleanup
+- `lib/mcp/` — ChatGPT MCP endpoint: OAuth provider wiring (`oauthProvider.js`), consent page (`consent.js`), `/mcp` handler, tools (`tools/`), journal mapping
+- `lib/journalEntries.js`, `lib/journalReflections.js`, `lib/readingJobs.js` — Journal save/reflection and reading-job services shared by the app routes and the MCP tools
 
 **Scripts (`scripts/`)**
 - `lib/dataAccess.js` — Shared R2/KV/D1 access helpers (Node.js)
@@ -260,6 +262,7 @@ Configured in `wrangler.jsonc`:
 | `FEEDBACK_KV` | KV | User feedback (→ R2 daily) |
 | `R2_LOGS` | R2 | Archives, exports, logs |
 | `ASSETS` | Assets | Static frontend files |
+| `OAUTH_KV` | KV | OAuth clients, grants and tokens for the ChatGPT MCP endpoint |
 
 **R2 Structure**: `archives/metrics/{date}/`, `archives/feedback/{date}/`, `exports/readings/`, `exports/journals/`
 
@@ -300,7 +303,7 @@ See `docs/evaluation-system.md` for full details.
 ```bash
 npm test  # Runs tests/*.test.mjs
 ```
-Key files: `deck.test.mjs`, `narrativeBuilder.*.test.mjs`, `narrativeSpine.test.mjs`, `evaluation.test.mjs`
+Key files: `deck.test.mjs`, `narrativeBuilder.*.test.mjs`, `narrativeSpine.test.mjs`, `evaluation.test.mjs`. Journal and MCP tests run against real SQLite via `tests/helpers/d1Sqlite.mjs` (`sql.js`, every migration applied); OAuth tests stub `cloudflare:workers` with `tests/helpers/cloudflareWorkersHooks.mjs`.
 
 ### E2E Tests (Playwright)
 
@@ -352,6 +355,7 @@ npm run test:wcag     # Static ARIA analysis
 **Journal**:
 - `GET|POST /api/journal` — List/save entries
 - `GET|DELETE /api/journal/:id` — Single entry
+- `POST /api/journal/:id/reflections` — Append a reflection (append-only, idempotent)
 - `GET /api/journal-export`, `GET /api/journal-export/:id` — Export
 - `POST /api/journal-summary` — AI summary
 - `GET /api/journal/pattern-alerts` — Recurring patterns (90 days)
@@ -387,6 +391,12 @@ npm run test:wcag     # Static ARIA analysis
 - `GET|POST /api/admin/quality-stats`
 - `GET|POST /api/coach-extraction-backfill`
 
+**ChatGPT MCP** (OAuth 2.1 issued by Tableu, owner allowlist; see `docs/integrations/openai/chatgpt-mcp.md`):
+- `POST /mcp` — MCP endpoint (stateless Streamable HTTP)
+- `GET|POST /oauth/authorize` — Consent page
+- `POST /oauth/token`, `POST /oauth/register` — Token exchange and dynamic client registration
+- `GET /.well-known/oauth-authorization-server`, `GET /.well-known/oauth-protected-resource[/mcp]` — Discovery
+
 **Health**: `GET /api/health/tarot-reading`, `GET /api/health/tts`
 
 **Vision**: `POST /api/vision-proof`
@@ -403,3 +413,6 @@ Via `wrangler secret put`:
 - `ADMIN_API_KEY` — Admin endpoints
 - `GPT_SERVICE_TOKEN` — Bearer token for the Tableu Custom GPT / ChatGPT App; authenticates as a synthetic service user entitled at `GPT_SERVICE_TIER` (var, default `plus`). Must not use the `sk_` prefix. See `functions/lib/serviceAuth.js` and `docs/integrations/openai/`.
 - `GPT_OWNER_TOKEN` — Optional, never-shared owner token. Authenticates as the same synthetic user but additionally unlocks owner-gated diagnostics (`promptDebug`). Kept separate because `GPT_SERVICE_TOKEN` lives inside a GPT that may be published, so service auth proves "trusted integration", not "owner".
+- `MCP_ALLOWED_USER_IDS` — Comma-separated Tableu user ids allowed to link ChatGPT to `/mcp`. Unset means nobody can link (kill switch). The var `MCP_RESOURCE_URL` pins the OAuth resource.
+
+The journal routes refuse `GPT_SERVICE_TOKEN` and `GPT_OWNER_TOKEN` (403 `service_account_journal_forbidden`).

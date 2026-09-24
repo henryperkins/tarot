@@ -313,7 +313,7 @@ describe('POST /api/journal/:id/reflections', () => {
     assert.deepEqual(storedReflections(db), { 2: 'fresh start' });
   });
 
-  it('accepts the GPT service bearer token and writes as the service user', async () => {
+  it('refuses the GPT service bearer token without writing a journal reflection', async () => {
     const serviceUserId = 'service:reflections-test';
     const db = new MockDB({ entryRow: entryFixture({ user_id: serviceUserId }) });
     const { response, payload } = await post(
@@ -325,9 +325,9 @@ describe('POST /api/journal/:id/reflections', () => {
       }
     );
 
-    assert.equal(response.status, 200);
-    assert.equal(payload.reflection.key, '0');
-    assert.equal(db.updates[0][3], serviceUserId, 'UPDATE must be scoped to the service user');
+    assert.equal(response.status, 403);
+    assert.equal(payload.code, 'service_account_journal_forbidden');
+    assert.equal(db.updates.length, 0);
   });
 
   it('writes a shape the journal UI renders (string map, not an entries array)', async () => {
