@@ -949,18 +949,6 @@ export function ReadingProvider({ children }) {
                 });
             });
 
-            const reflectionsText = Object.entries(reflections)
-                .sort((a, b) => Number(a[0]) - Number(b[0]))
-                .map(([index, text]) => {
-                    if (typeof text !== 'string' || !text.trim()) return '';
-                    const idx = Number(index);
-                    if (maxCards && idx >= maxCards) return '';
-                    const position = cardsInfo[idx]?.position || `Position ${idx + 1}`;
-                    return `${position}: ${text.trim()}`;
-                })
-                .filter(Boolean)
-                .join('\n');
-
             setNarrativePhase('analyzing');
             setSrAnnouncement('Preparing your personalized reading.');
 
@@ -998,7 +986,9 @@ export function ReadingProvider({ children }) {
                 },
                 cardsInfo,
                 userQuestion,
-                reflectionsText,
+                // Card reflections travel on cardsInfo[].userReflection; this field is
+                // for notes not tied to a card, which this flow does not collect.
+                reflectionsText: '',
                 reversalFrameworkOverride: reversalFramework,
                 deckStyle: deckStyleId
             };

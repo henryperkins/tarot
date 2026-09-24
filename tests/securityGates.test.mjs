@@ -67,6 +67,34 @@ describe('checkFollowUpSafety', () => {
       assert.equal(result.safe, true);
       assert.ok(result.issues.includes('doom-language'));
     });
+
+    it('blocks imperative self-harm encouragement', () => {
+      for (const text of ['Just kill yourself.', 'Kill yourself; nothing will change.', "It's time to kill yourself."]) {
+        const result = checkFollowUpSafety(text);
+        assert.equal(result.safe, false, text);
+        assert.ok(result.issues.includes('self-harm-encouragement'), text);
+      }
+    });
+
+    it('warns on partner-targeted "don\'t leave" directives', () => {
+      for (const text of ["Don't leave him yet.", 'Do not leave your controlling husband.', "Don't leave your toxic partner."]) {
+        const result = checkFollowUpSafety(text);
+        assert.ok(result.issues.includes('legal-abuse-advice'), text);
+      }
+    });
+  });
+
+  describe('referrals and idioms', () => {
+    it('does not warn on see-your-doctor disclaimers or "leave someone guessing" idioms', () => {
+      for (const text of [
+        "Please don't stop taking your medication without talking to your doctor first.",
+        'Talk with your doctor before you change your treatment plan.',
+        'Don’t leave your partner guessing about what you need.',
+        'Try cutting yourself some slack this week.'
+      ]) {
+        assert.deepEqual(checkFollowUpSafety(text).issues, [], text);
+      }
+    });
   });
 
   describe('safe content', () => {

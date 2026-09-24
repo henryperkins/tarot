@@ -511,30 +511,37 @@ export function selectReversalFramework(ratio, cardsInfo, options = {}) {
 
   if (userQuestion) {
     const q = userQuestion.toLowerCase();
-    const shadowKeywords = [
-      'afraid',
-      'avoid',
-      'fear',
-      'shadow',
-      'hidden',
-      'deny',
-      'repress',
-      'shame',
-      'guilt',
-      'trigger'
+    // Whole words with explicit inflections: substrings would read "fearless"
+    // as fear, a "creative project" as projection, and "reflect on" as mirroring.
+    const shadowPatterns = [
+      /\bafraid\b/,
+      /\bavoid(?:s|ed|ing|ance|ant)?\b/,
+      /\bfear(?:s|ed|ing|ful)?\b/,
+      /\bshadows?\b/,
+      // "Hidden potential" and similar phrases name a latent strength, not a shadow.
+      /\bhidden\b(?!\s+(?:potential|talents?|gifts?|strengths?|abilit(?:y|ies)))/,
+      /\bden(?:y|ies|ied|ying|ial)\b/,
+      /\brepress(?:es|ed|ing|ion|ive)?\b/,
+      /\bsham(?:e|es|ed|eful|ing)\b|\bashamed\b/,
+      /\bguilt(?:y)?\b/,
+      /\btrigger(?:s|ed|ing)?\b/
     ];
-    const mirrorKeywords = [
-      'reflect',
-      'mirror',
-      'project',
-      'attract',
-      'pattern',
-      'repeat',
-      'always'
+    const mirrorPatterns = [
+      /\bmirror(?:s|ed|ing)?\b/,
+      /\bproject(?:ing|ion|ions)\b/,
+      /\bproject(?:s|ed)?\s+(?:onto|on\s+to)\b/,
+      /\breflect(?:s|ed|ing)?\s+back\b/,
+      /\breflection\s+of\s+(?:me|myself|my)\b/,
+      /\battract(?:s|ed|ing)?\b/,
+      /\bpatterns?\b/,
+      /\brepeat(?:s|ed|ing)?\b/,
+      /\bwhy\s+(?:do|does|am|is|are)\s+(?:i|we|they|he|she)\s+always\b/,
+      /\balways\s+end(?:s|ing)?\s+up\b/
     ];
     const potentialPatterns = [
       /\bpotential\b/,
-      /\btalent\b/,
+      /\btalents?\b/,
+      /\bhidden\s+(?:strengths?|abilit(?:y|ies))\b/,
       /\bgift(?:s)?\b/,
       /\bdormant\b/,
       /\buntapped\b/,
@@ -543,10 +550,10 @@ export function selectReversalFramework(ratio, cardsInfo, options = {}) {
       /\bunderused\b/
     ];
 
-    if (shadowKeywords.some(kw => q.includes(kw))) {
+    if (shadowPatterns.some((pattern) => pattern.test(q))) {
       return 'shadow';
     }
-    if (mirrorKeywords.some(kw => q.includes(kw))) {
+    if (mirrorPatterns.some((pattern) => pattern.test(q))) {
       return 'mirror';
     }
     if (potentialPatterns.some((pattern) => pattern.test(q))) {

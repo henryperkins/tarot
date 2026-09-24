@@ -147,7 +147,9 @@ function buildPipInterpretation(suit, rank) {
   if (!numerology) {
     return `It deepens the ${suit} story through lived experience.`;
   }
-  return `It highlights ${numerology} within ${suitTheme}.`;
+  // Lead with the suit so rank themes written as clauses ("…as this suit’s
+  // energy takes visible shape") still end the sentence cleanly.
+  return `Within ${suitTheme}, it highlights ${numerology}.`;
 }
 
 export const MINOR_PIP_IMAGERY = {

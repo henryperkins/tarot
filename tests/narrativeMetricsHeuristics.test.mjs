@@ -6,6 +6,8 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import test from 'node:test';
 
+import { analyzeTemplateRepetition } from '../scripts/evaluation/lib/narrativeSignals.js';
+
 const execFileAsync = promisify(execFile);
 
 async function computeMetrics(samples) {
@@ -337,4 +339,105 @@ test('narrative gate retains Markdown card context when checking undrawn misspel
     assert.match(error.stderr, /Hallucinated card issues/);
     return true;
   });
+});
+
+test('narrative gate rejects a templated reading that covers every card but ignores the question', async () => {
+  const section = (heading, card) => [
+    `### ${heading}`,
+    `**${card}** is present here. This energy invites you to consider your choices with gentle curiosity, because it shows what is happening now. Consider what this invites you to do next.`
+  ].join('\n\n');
+  const metrics = await computeMetrics([
+    {
+      id: 'templated-no-question',
+      spreadKey: 'threeCard',
+      spreadName: 'Three-Card Story',
+      userQuestion: 'How can I navigate the transition after leaving my hometown?',
+      cardsInfo: [
+        { position: 'Past — influences that led here', card: 'Six of Cups', orientation: 'Reversed' },
+        { position: 'Present — where you stand now', card: 'The Tower', orientation: 'Upright' },
+        { position: 'Future — trajectory if nothing shifts', card: 'The Star', orientation: 'Upright' }
+      ],
+      reading: [
+        '### Opening',
+        'This reading invites you to consider your choices with gentle curiosity and to ground yourself in what matters.',
+        section('Past — influences that led here', 'Six of Cups Reversed'),
+        section('Present — where you stand now', 'The Tower Upright'),
+        section('Future — trajectory if nothing shifts', 'The Star Upright'),
+        '### Closing',
+        'Your choices shape what unfolds; nothing here is fixed.'
+      ].join('\n\n')
+    }
+  ]);
+
+  const [result] = metrics.perSample;
+  assert.deepEqual(result.rubric, { accuracy: 1, coherence: 1, agency: 1, compassion: 1 });
+  assert.deepEqual(result.issueFlags, ['question-not-addressed', 'templated-repetition']);
+  assert.equal(metrics.questionNotAddressedCount, 1);
+  assert.equal(metrics.templatedRepetitionCount, 1);
+  await assert.rejects(verifyGate(metrics), (error) => {
+    assert.equal(error.code, 1);
+    assert.match(error.stderr, /Readings not engaging the question 1/);
+    assert.match(error.stderr, /Templated card sections 1/);
+    return true;
+  });
+});
+
+test('narrative metrics credit inflected question terms and distinct card sections', async () => {
+  const metrics = await computeMetrics([
+    {
+      id: 'engaged-reading',
+      spreadKey: 'threeCard',
+      spreadName: 'Three-Card Story',
+      userQuestion: 'How can I navigate the transition after leaving my hometown?',
+      cardsInfo: [
+        { position: 'Past', card: 'Six of Cups', orientation: 'Reversed' },
+        { position: 'Present', card: 'The Tower', orientation: 'Upright' },
+        { position: 'Future', card: 'The Star', orientation: 'Upright' }
+      ],
+      reading: [
+        '### Past — **Six of Cups Reversed**',
+        'Leaving the town you grew up in can make memory feel sharper than the present, because the old streets still hold your sense of home.',
+        '### Present — **The Tower Upright**',
+        'The move has shaken familiar structures, so this transitional season asks for gentleness rather than a perfect plan.',
+        '### Future — **The Star Upright**',
+        'Hope returns as you choose small rituals that make the new place yours, one grounded step at a time.'
+      ].join('\n\n')
+    }
+  ]);
+
+  const [result] = metrics.perSample;
+  assert.equal(result.questionEngagement.applicable, true);
+  assert.equal(result.questionEngagement.addressed, true);
+  assert.equal(result.templateRepetition.templated, false);
+  assert.ok(!result.issueFlags.includes('question-not-addressed'));
+  assert.ok(!result.issueFlags.includes('templated-repetition'));
+});
+
+test('template repetition recognizes Thoth and Marseille card names', () => {
+  const section = (card) => [
+    `${card} is present here and asks for a steady look.`,
+    'This energy invites you to consider your choices with gentle curiosity.',
+    `Consider what ${card} invites you to do next with your week.`
+  ].join(' ');
+
+  for (const [deckStyle, cards] of [
+    ['rws-1909', ['Strength', 'Justice', 'Temperance']],
+    ['thoth-a1', ['Lust', 'Adjustment', 'Art']],
+    ['thoth-a1', ['Princess of Disks', 'The Magus', 'Fortune']],
+    ['marseille-classic', ['La Force', 'La Justice', 'Tempérance']],
+    ['marseille-classic', ['Valet of Coins', 'Le Bateleur', "L'Étoile"]]
+  ]) {
+    const result = analyzeTemplateRepetition(cards.map(section).join('\n\n'), { deckStyle });
+    assert.equal(result.repeatedSentenceCount, 9, `${deckStyle}: ${cards.join(', ')}`);
+    assert.equal(result.templated, true, `${deckStyle}: ${cards.join(', ')}`);
+  }
+});
+
+test('template repetition leaves lowercase words that double as Thoth titles alone', () => {
+  const reading = [
+    'You deserve peace after a long season of effort and worry today.',
+    'You deserve love after a long season of effort and worry today.',
+    'You deserve rest after a long season of effort and worry today.'
+  ].join(' ');
+  assert.equal(analyzeTemplateRepetition(reading, { deckStyle: 'thoth-a1' }).repeatedSentenceCount, 0);
 });

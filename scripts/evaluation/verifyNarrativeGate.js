@@ -11,6 +11,8 @@ const MAX_FLAGGED = parseInt(process.env.NARRATIVE_MAX_FLAGGED_SAMPLES || '0', 1
 const MAX_HALLUCINATIONS = parseInt(process.env.NARRATIVE_MAX_HALLUCINATIONS || '0', 10);
 const MAX_HARSH_TONE = parseInt(process.env.NARRATIVE_MAX_HARSH_TONE || '0', 10);
 const MAX_MISSING_SUPPORTIVE = parseInt(process.env.NARRATIVE_MAX_MISSING_SUPPORTIVE || '0', 10);
+const MAX_QUESTION_UNADDRESSED = parseInt(process.env.NARRATIVE_MAX_QUESTION_UNADDRESSED || '0', 10);
+const MAX_TEMPLATED_REPETITION = parseInt(process.env.NARRATIVE_MAX_TEMPLATED_REPETITION || '0', 10);
 const MIN_RUBRIC_ACCURACY = parseFloat(process.env.NARRATIVE_MIN_RUBRIC_ACCURACY || '0.85');
 const MIN_RUBRIC_COHERENCE = parseFloat(process.env.NARRATIVE_MIN_RUBRIC_COHERENCE || '0.85');
 const MIN_RUBRIC_AGENCY = parseFloat(process.env.NARRATIVE_MIN_RUBRIC_AGENCY || '0.8');
@@ -39,6 +41,8 @@ async function main() {
   const hallucinations = metrics?.hallucinationCount ?? 0;
   const harshTone = metrics?.harshToneCount ?? 0;
   const missingSupportive = metrics?.missingSupportiveToneCount ?? 0;
+  const questionUnaddressed = metrics?.questionNotAddressedCount ?? 0;
+  const templatedRepetition = metrics?.templatedRepetitionCount ?? 0;
   const rubric = metrics?.avgRubricScores || {};
 
   if (spineRate < MIN_SPINE_RATE) {
@@ -64,6 +68,12 @@ async function main() {
   }
   if (missingSupportive > MAX_MISSING_SUPPORTIVE) {
     failures.push(`Missing supportive tone issues ${missingSupportive} > limit ${MAX_MISSING_SUPPORTIVE}`);
+  }
+  if (questionUnaddressed > MAX_QUESTION_UNADDRESSED) {
+    failures.push(`Readings not engaging the question ${questionUnaddressed} > limit ${MAX_QUESTION_UNADDRESSED}`);
+  }
+  if (templatedRepetition > MAX_TEMPLATED_REPETITION) {
+    failures.push(`Templated card sections ${templatedRepetition} > limit ${MAX_TEMPLATED_REPETITION}`);
   }
   if ((rubric.accuracy ?? 0) < MIN_RUBRIC_ACCURACY) {
     failures.push(`Rubric accuracy ${(rubric.accuracy * 100).toFixed(1)}% < minimum ${(MIN_RUBRIC_ACCURACY * 100).toFixed(1)}%`);
@@ -92,6 +102,8 @@ async function main() {
     hallucinationCount: hallucinations,
     harshToneCount: harshTone,
     missingSupportiveToneCount: missingSupportive,
+    questionNotAddressedCount: questionUnaddressed,
+    templatedRepetitionCount: templatedRepetition,
     flaggedSamples: flagged,
     avgRubric: {
       accuracy: pct(rubric.accuracy ?? 0),

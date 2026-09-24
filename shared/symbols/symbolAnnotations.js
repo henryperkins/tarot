@@ -1259,3 +1259,24 @@ export const SYMBOL_ANNOTATIONS = {
 export function getSymbolAnnotation(cardNumber) {
   return SYMBOL_ANNOTATIONS[cardNumber] || null;
 }
+
+// Minor indices follow the authored order above: Wands pips 22-31, then Cups,
+// Swords, and Pentacles as full suits (32-73), then the Wands courts (74-77).
+const MINOR_SUIT_INDEX_OFFSETS = {
+  Cups: 31,
+  Swords: 45,
+  Pentacles: 59
+};
+
+/**
+ * Resolve the SYMBOL_ANNOTATIONS index for a Minor Arcana card.
+ *
+ * @param {Object} card - Canonical RWS suit (Wands|Cups|Swords|Pentacles) and rankValue (1-14)
+ * @returns {number|null} Annotation index, or null when the card is not a known Minor
+ */
+export function getMinorSymbolAnnotationIndex({ suit, rankValue } = {}) {
+  if (!Number.isInteger(rankValue) || rankValue < 1 || rankValue > 14) return null;
+  if (suit === 'Wands') return rankValue <= 10 ? 21 + rankValue : 63 + rankValue;
+  const offset = MINOR_SUIT_INDEX_OFFSETS[suit];
+  return offset === undefined ? null : offset + rankValue;
+}

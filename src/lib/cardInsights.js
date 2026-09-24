@@ -1,5 +1,4 @@
-import { SYMBOL_ANNOTATIONS } from '../../shared/symbols/symbolAnnotations.js';
-import { getMinorSymbolAnnotation } from '../../shared/vision/minorSymbolLexicon.js';
+import { SYMBOL_ANNOTATIONS, getMinorSymbolAnnotationIndex } from '../../shared/symbols/symbolAnnotations.js';
 import { MAJOR_ARCANA } from '../data/majorArcana.js';
 import { MINOR_ARCANA } from '../data/minorArcana.js';
 
@@ -23,10 +22,10 @@ function getAnnotation(card) {
   if (typeof card.number === 'number' && SYMBOL_ANNOTATIONS[card.number]) {
     return SYMBOL_ANNOTATIONS[card.number];
   }
-  if (card.suit && card.rank) {
-    return getMinorSymbolAnnotation(card);
-  }
-  return null;
+  // Card-specific annotations; the vision lexicon's rank/suit templates would
+  // show the Nine of Swords with luxury and fruits of labor.
+  const minorIndex = getMinorSymbolAnnotationIndex(card);
+  return minorIndex === null ? null : SYMBOL_ANNOTATIONS[minorIndex] || null;
 }
 
 function splitKeywords(text) {
