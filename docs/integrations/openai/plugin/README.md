@@ -18,9 +18,17 @@ reference guides and assets, is not stored in this public repository.
    - reference the app mapping: `"apps": "./.app.json"` under
      `extensions.com.openai` in `plugin.json`, and top-level `"apps": "./.app.json"`
      in `.codex-plugin/plugin.json`;
-   - set `description` and `interface.longDescription` to "Tarot readings drawn
+   - set each manifest's root `description` to "Tarot readings drawn
      and interpreted by Tableu, saved to your Tableu journal with your
      reflections.";
-   - set `interface.capabilities` to `["Read", "Write"]`.
+   - in `plugin.json`, put `interface` under `extensions.com.openai`; set
+     `interface.longDescription` to the same description and
+     `interface.capabilities` to `["Read", "Write"]`;
+   - in `.codex-plugin/plugin.json`, set the same fields under its top-level
+     `interface` object.
+   When `extensions.com.openai` is an object, it supplies all OpenAI settings:
+   `.codex-plugin/plugin.json` is ignored, not merged. Keep any required
+   presentation fields and app mappings in that inline object. See
+   [OpenAI's packaging guidance](https://developers.openai.com/plugins/build/plugins#add-openai-specific-metadata).
 6. Zip the package and upload it in ChatGPT Plugins (developer mode). Start a
    new chat to test.

@@ -2,7 +2,7 @@
 
 Type: runbook
 Status: active
-Last reviewed: 2026-09-23
+Last reviewed: 2026-09-24
 
 The Tableu ChatGPT plugin reaches the backend through an MCP endpoint on the
 main Worker, `https://tarot.lakefrontdev.com/mcp`, protected by OAuth 2.1 that
@@ -65,15 +65,26 @@ Design: `docs/superpowers/specs/2026-09-22-chatgpt-mcp-journal-design.md`.
 Resource creation and GitHub publication each require the owner's separate yes
 under Task 18 of the implementation plan. Local checks do not authorize either.
 
-1. Create the KV namespace:
-   `npx wrangler kv namespace create OAUTH_KV`. Replace the zeros in the
-   `OAUTH_KV` entry of `wrangler.jsonc` with the printed id, and commit.
-2. Open the PR. CI runs the unit tests and Playwright.
+1. Provision a dedicated KV namespace and commit its id in the `OAUTH_KV`
+   binding before publication. Production uses the `tableau-oauth` namespace;
+   its id is recorded in `wrangler.jsonc`.
+2. Run `npm run migrations:status`, then `npm run migrations:apply` to apply
+   migrations `0030` and `0031` to production before merging. Verify that no
+   migrations remain pending.
+3. Open the PR. CI runs the unit tests and Playwright.
 
 ### Merge
 
-CI deploys with `scripts/deploy.js`, which applies migrations `0030` and `0031`
-before the new Worker. OAuth grants and clients use `OAUTH_KV`; registration
+Cloudflare Workers Builds deploys every push to `master` with `npm run build`
+and `npx wrangler deploy`. This path does **not** run `scripts/deploy.js` or
+apply D1 migrations, so the pre-merge migration step is required. The manual
+`npm run deploy` command does apply migrations before deployment.
+
+Wait for the build for the merge commit to succeed and verify the active Worker
+version before merging another PR. Builds can finish out of commit order;
+a successful newer build alone does not prove it is the version serving traffic.
+
+OAuth grants and clients use `OAUTH_KV`; registration
 admission uses D1. Counters retain the current and previous hourly buckets,
 with older buckets removed on the next registration attempt. While
 `MCP_ALLOWED_USER_IDS` is unset, the endpoint is live but nobody can link.

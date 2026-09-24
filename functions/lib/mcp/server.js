@@ -15,12 +15,13 @@ export const MCP_SERVER_INFO = Object.freeze({ name: 'tableu', version: '1.0.0' 
 
 export const MCP_INSTRUCTIONS = [
   "Tableu draws and interprets tarot readings and keeps them in the user's Tableu journal.",
+  'Call save_reading_to_journal only when the user explicitly asks to save, journal, keep or remember the reading, or says yes right after you offer. Keep the returned entry id.',
+  'Call add_reflection_to_journal_entry only when the user explicitly asks to save or attach something they said, or says yes right after you offer. Send their exact words.',
+  'Never say something was saved unless the tool returned success.',
   '1. Start a reading with draw_tarot_reading when Tableu should draw the cards, or with start_tarot_reading when the user supplies cards (keep their cards, positions and orientations exactly).',
   '2. Call wait_for_tarot_reading with the returned jobId and jobToken until the status is complete or error. If it is still running, call it again; never start a second job for the same request.',
   '3. Present each card as "Position — Card (orientation)" and make the returned narrative the centerpiece.',
-  '4. Call save_reading_to_journal only when the user explicitly asks to save, journal, keep or remember the reading, or says yes right after you offer. Keep the returned entry id.',
-  '5. Call add_reflection_to_journal_entry only when the user explicitly asks to save or attach something they said, or says yes right after you offer. Send their exact words.',
-  'Never say something was saved unless the tool returned success. get_profile shows which Tableu account these tools act as.'
+  'get_profile shows which Tableu account these tools act as.'
 ].join('\n');
 
 /**
