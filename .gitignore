@@ -62,7 +62,8 @@ wrangler.toml.local
 .mcp.json
 
 # Claude Code local overrides (personal, not shared)
-.claude.local.md
+CLAUDE.local.md
+.claude/settings.local.json
 
 # Logs
 logs
