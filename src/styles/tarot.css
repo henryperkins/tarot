@@ -940,7 +940,8 @@ body {
 }
 
 .mobile-stable-mode .mobile-action-bar {
-  background: var(--surface-92, rgba(18, 16, 25, 0.96));
+  /* Without the blur, any translucency lets the reading show through. */
+  background: var(--bg-surface);
   box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.32);
   transition: none;
 }
@@ -3584,12 +3585,11 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
-/* Narrative streaming container refinements */
+/* Narrative streaming container refinements. The panel's reading column sets
+   the measure and gutters; the prose fills it, aligned with the question. */
 .narrative-stream {
   width: 100%;
   padding-bottom: clamp(1.25rem, 4vw, 2.5rem);
-  padding-left: max(0.25rem, var(--safe-pad-left, 0px));
-  padding-right: max(0.25rem, var(--safe-pad-right, 0px));
 }
 
 .narrative-stream__text {
@@ -3599,11 +3599,13 @@ input[type="range"]:focus::-webkit-slider-thumb {
   text-wrap: pretty;
   overflow-wrap: anywhere;
   hyphens: auto;
-  max-width: min(65ch, 100%);
-  margin-left: auto;
-  margin-right: auto;
+  max-width: 100%;
   color: var(--text-main);
-  scrollbar-gutter: stable both-edges;
+}
+
+.narrative-stream .narrative-stream__markdown {
+  max-width: 100%;
+  padding-inline: 0;
 }
 
 .narrative-stream__text--plain {
@@ -3870,6 +3872,13 @@ input[type="range"]:focus::-webkit-slider-thumb {
   --narrative-suit-tint: rgba(0, 0, 0, 0);
 }
 
+/* The prose has no card around it, so fade its wash out before the edges
+   rather than letting the tint end in a faint rectangle. */
+.narrative-stream__text.narrative-atmosphere::after {
+  -webkit-mask-image: radial-gradient(closest-side, black 70%, transparent);
+  mask-image: radial-gradient(closest-side, black 70%, transparent);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .narrative-atmosphere::before {
     animation: narrativeDustDrift 12s ease-in-out infinite alternate;
@@ -3890,6 +3899,15 @@ input[type="range"]:focus::-webkit-slider-thumb {
 /* Section divider used by MarkdownRenderer headings */
 .narrative-section {
   position: relative;
+}
+
+/* Nothing precedes the opening section, so it starts without a divider. */
+.narrative-stream__markdown .narrative-section:first-child > .narrative-section__divider {
+  display: none;
+}
+
+.narrative-stream__markdown .narrative-section:first-child > :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 0;
 }
 
 .narrative-section__divider {
@@ -4086,14 +4104,25 @@ input[type="range"]:focus::-webkit-slider-thumb {
     box-shadow: none;
   }
 
+  /* Bleed the reading surface past the page gutter and pad the text back onto
+     it. An inset backdrop read as a box with the text flush against its edges;
+     an opaque page surface also keeps hero art from showing behind the text. */
   .scene-shell--reading {
-    /* Add only the safe-area space not already covered by the page gutter. */
-    padding-left: max(0px, calc(var(--safe-pad-left, 0px) - 1rem));
-    padding-right: max(0px, calc(var(--safe-pad-right, 0px) - 1rem));
+    margin-inline: -1rem;
+    padding-left: max(1rem, var(--safe-pad-left, 0px));
+    padding-right: max(1rem, var(--safe-pad-right, 0px));
+    background: var(--bg-main);
+  }
+
+  .scene-shell--reading > [aria-hidden='true'],
+  .scene-shell--reading .scene-stage::before,
+  .scene-shell--reading .scene-stage::after {
+    display: none;
   }
 
   .scene-shell--reading .scene-stage {
     padding-inline: 0;
+    padding-top: 0;
   }
 
   .scene-shell--reading .scene-stage__panel,
@@ -4105,23 +4134,19 @@ input[type="range"]:focus::-webkit-slider-thumb {
     -webkit-backdrop-filter: none;
   }
 
-  .narrative-stream {
+  /* That surface already keeps hero art from behind the prose, so the art's
+     frosted panel would only box the text in. */
+  .scene-shell--reading .narrative-stream.glass-panel {
     padding-inline: 0;
-  }
-
-  .narrative-stream .narrative-stream__markdown {
-    padding-inline: 0;
-    max-width: 100%;
+    padding-top: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .narrative-stream .narrative-stream__text {
-    padding-inline: 0;
-    width: 100%;
-    max-width: 100%;
-    border: 0;
-    box-shadow: none;
-    background: transparent;
-    scrollbar-gutter: auto;
     line-height: 1.85;
   }
 }
@@ -4147,8 +4172,10 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
+/* Balance headings only; balanced paragraphs break lines early and leave a
+   ragged column, so body copy keeps the base rule's pretty wrapping. */
 @supports (text-wrap: balance) {
-  .narrative-stream__text {
+  .narrative-stream__text :is(h1, h2, h3, h4, h5, h6) {
     text-wrap: balance;
   }
 }

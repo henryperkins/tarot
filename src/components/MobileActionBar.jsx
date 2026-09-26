@@ -157,11 +157,12 @@ function MobileActionContents({
       case 'error':
         return 'Narrate';
       case 'completed':
-        return hasNarrative ? 'Save' : null;
+        // "Save reading" already names the step; a badge would only repeat it.
+        return null;
       default:
         return STEP_BADGES[activeStep] || null;
     }
-  }, [mode, hasNarrative, activeStep]);
+  }, [mode, activeStep]);
 
   // In landscape: tighter layout with smaller gaps
   const layoutClass = variant === 'inline'
