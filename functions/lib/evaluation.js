@@ -198,11 +198,20 @@ const DECLARATIVE_FUTURE_PATTERNS = [
   /\b(?:is|are)\s+going\s+to\b/gi
 ];
 
+// "you need to" only reads as a directive when it opens a clause. After another
+// word it is a relative clause ("what you need to let go of", "the time you
+// need to heal"), a comparison ("harder than you need to"), a reported feeling
+// ("feeling like you need to") or an inversion ("neither do you need to").
+const CLAUSE_START = String.raw`(?<=(?:^|[.!?;:,()—–-]|\b(?:and|but|so|then|now|yet|today|first))[\s*_"“'‘>#-]*)`;
+
 const HARD_IMPERATIVE_PATTERNS = [
-  /\byou\s+(?:must|need\s+to|have\s+to|ought\s+to)\b/gi,
+  new RegExp(String.raw`${CLAUSE_START}\byou\s+(?:must|need\s+to|have\s+to|ought\s+to)\b`, 'gim'),
   /\b(?:do|stop|start|leave|quit|drop)\s+(?:it|this|that)\s+(?:now|immediately|today)\b/gi,
   /\b(?:act|decide|leave)\s+now\b/gi
 ];
+
+// One directive in a full reading is not "frequently prescriptive".
+const HARD_IMPERATIVE_MIN_MATCHES = 2;
 
 const CONDITIONAL_LANGUAGE_PATTERNS = [
   /\b(?:may|might|could|can|perhaps|possibly)\b/gi,
@@ -211,9 +220,12 @@ const CONDITIONAL_LANGUAGE_PATTERNS = [
 ];
 
 const SOFTENING_LANGUAGE_PATTERNS = [
-  /\byou\s+might\s+(?:consider|want\s+to|try)\b/gi,
+  /\byou\s+(?:might|may)\s+(?:consider|want\s+to|try)\b/gi,
   /\byou\s+could\s+(?:consider|try|explore)\b/gi,
-  /\bconsider\s+(?:whether|trying|exploring)\b/gi
+  /\bconsider\s+(?:whether|trying|exploring)\b/gi,
+  // Permission-giving negations are the opposite of a directive.
+  /\byou\s+(?:don['’]t|do\s+not|never)\s+(?:need(?:\s+to)?|have\s+to)\b/gi,
+  /\bthere(?:['’]s|\s+is)\s+no\s+(?:need|rush)\b/gi
 ];
 
 // Every safety pattern is global, so each test resets lastIndex before and
@@ -984,12 +996,22 @@ function parseEvaluationResponse(responseText) {
   return firstParsed && hasEvaluationScoreShape(firstParsed) ? firstParsed : null;
 }
 
-export function getEvaluationTimeoutMs(env) {
-  const raw = parseInt(env?.EVAL_TIMEOUT_MS, 10);
+function parseTimeoutMs(value) {
+  const raw = parseInt(value, 10);
   if (!Number.isFinite(raw) || raw <= 0) {
-    return DEFAULT_TIMEOUT_MS;
+    return null;
   }
   return Math.min(raw, MAX_SAFE_TIMEOUT_MS);
+}
+
+export function getEvaluationTimeoutMs(env) {
+  return parseTimeoutMs(env?.EVAL_TIMEOUT_MS) ?? DEFAULT_TIMEOUT_MS;
+}
+
+// The sync gate holds the reading response, so it gets its own (usually
+// shorter) timeout; async evaluation runs in waitUntil() and can wait longer.
+export function getEvaluationGateTimeoutMs(env) {
+  return parseTimeoutMs(env?.EVAL_GATE_TIMEOUT_MS) ?? getEvaluationTimeoutMs(env);
 }
 
 function buildCardsList(cardsInfo = [], maxLength = MAX_CARDS_INFO_LENGTH) {
@@ -1364,10 +1386,11 @@ function extractEvalResponseText(response) {
  * @param {Array} params.cardsInfo - Cards in the spread
  * @param {string} params.spreadKey - Spread type identifier
  * @param {string} params.requestId - Request ID for logging
+ * @param {number} [params.timeoutMs] - Overrides EVAL_TIMEOUT_MS (the sync gate passes EVAL_GATE_TIMEOUT_MS)
  * @returns {Promise<Object|null>} Evaluation results or null on skip
  */
 export async function runEvaluation(env, params = {}) {
-  const { reading = '', userQuestion, cardsInfo, spreadKey, narrativeMetrics = {}, requestId = 'unknown' } = params;
+  const { reading = '', userQuestion, cardsInfo, spreadKey, narrativeMetrics = {}, requestId = 'unknown', timeoutMs: timeoutOverrideMs } = params;
 
   if (!env?.AI) {
     console.log(`[${requestId}] [eval] Skipped: AI binding not available`);
@@ -1381,7 +1404,7 @@ export async function runEvaluation(env, params = {}) {
 
   const startTime = Date.now();
   const model = env.EVAL_MODEL || DEFAULT_MODEL;
-  const timeoutMs = getEvaluationTimeoutMs(env);
+  const timeoutMs = parseTimeoutMs(timeoutOverrideMs) ?? getEvaluationTimeoutMs(env);
   const gatewayId = env.EVAL_GATEWAY_ID || null;
 
   try {
@@ -1548,7 +1571,7 @@ function analyzeDeterministicToneSignals(readingText) {
   if (declarativeFuture > 0 && conditionalLanguage === 0) {
     triggers.push('unhedged_future');
   }
-  if (hardImperative > 0 && hardImperative > softeningLanguage) {
+  if (hardImperative >= HARD_IMPERATIVE_MIN_MATCHES && hardImperative > softeningLanguage) {
     triggers.push('hard_imperative');
   }
   if (declarativeFuture >= 2 && futureDominanceRatio >= 1.25) {
@@ -1627,10 +1650,9 @@ function applyDeterministicToneOverrides(evalResult, readingText, env) {
     };
   }
 
+  // Caps tone only; overall stays the evaluator's own judgment.
   const existingTone = Number.isFinite(evalResult.scores.tone) ? evalResult.scores.tone : 3;
-  const existingOverall = Number.isFinite(evalResult.scores.overall) ? evalResult.scores.overall : 3;
   const nextTone = Math.min(existingTone, 3);
-  const nextOverall = Math.min(existingOverall, nextTone);
 
   const notePrefix = typeof evalResult.scores.notes === 'string' && evalResult.scores.notes.trim().length > 0
     ? `${evalResult.scores.notes}; `
@@ -1644,9 +1666,11 @@ function applyDeterministicToneOverrides(evalResult, readingText, env) {
       scores: {
         ...evalResult.scores,
         tone: nextTone,
-        overall: nextOverall,
         notes
       },
+      // The sync gate and the async pass both apply overrides, so keep the
+      // first pre-cap value for calibration.
+      tone_before_cap: evalResult.tone_before_cap ?? existingTone,
       deterministic_tone_overrides: toneSignals.triggers,
       tone_signal_counts: toneSignals.counts
     },
@@ -1962,7 +1986,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
     const startTime = Date.now();
 
     // Try AI evaluation first
-    let evalResult = await runEvaluation(env, enrichedParams);
+    let evalResult = await runEvaluation(env, { ...enrichedParams, timeoutMs: getEvaluationGateTimeoutMs(env) });
     let evalSource = evalResult && !evalResult.error ? 'ai' : null;
 
     if (evalResult && evalResult.scores) {

@@ -401,7 +401,8 @@ function addCorsHeaders(response, request) {
  * @property {string} ENABLE_DEBUG_ROUTES - Enables debug endpoints when set to "true"
  * @property {string} EVAL_ENABLED - Enable evaluation (string flag)
  * @property {string} EVAL_MODEL - Workers AI model id for evaluation
- * @property {string} EVAL_TIMEOUT_MS - Evaluation timeout in milliseconds
+ * @property {string} EVAL_TIMEOUT_MS - Async evaluation timeout in milliseconds
+ * @property {string} EVAL_GATE_TIMEOUT_MS - Sync evaluation gate timeout in milliseconds (defaults to EVAL_TIMEOUT_MS)
  * @property {string} EVAL_GATE_ENABLED - Enable gating on eval results
  * @property {string} EVAL_GATEWAY_ID - AI Gateway id for routing eval calls
  */

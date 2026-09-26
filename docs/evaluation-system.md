@@ -174,7 +174,8 @@ Set in `wrangler.jsonc` under `vars` (all values are strings at runtime):
 |---|---:|---:|---|
 | `EVAL_ENABLED` | `"true"` | `false` | Master switch for evaluation system |
 | `EVAL_MODEL` | `"@cf/qwen/qwen3-30b-a3b-fp8"` | same model | Workers AI model for scoring |
-| `EVAL_TIMEOUT_MS` | `"10000"` | `15000` | Timeout for eval API call (ms) |
+| `EVAL_TIMEOUT_MS` | `"20000"` | `15000` | Timeout for the async eval call (ms); it runs in `waitUntil()`, which allows 30 s after the response |
+| `EVAL_GATE_TIMEOUT_MS` | `"15000"` | `EVAL_TIMEOUT_MS` | Timeout for the sync gate's eval call (ms), which holds the reading response |
 | `EVAL_GATE_ENABLED` | `"false"` | `false` | Whether to block readings on low scores |
 | `EVAL_GATE_FAILURE_MODE` | `"closed"` | `"open"` in non-prod, `"closed"` in prod | When eval fails: `open` allows if heuristic passes, `closed` blocks |
 | `EVAL_GATEWAY_ID` | `""` | `""` | Optional AI Gateway id for eval calls |
@@ -369,6 +370,8 @@ Script: `scripts/evaluation/calibrateEval.js`
 cat eval-data.jsonl | node scripts/evaluation/calibrateEval.js
 ```
 
+The report counts model-scored, heuristic-fallback and failed evaluations and lists fallback reasons. Distributions and suggestions use model-scored records only, because heuristic fallbacks hard-code personalization, tone and safety at 3 and derive coherence from card coverage. Coherence leaves out single-card readings and personalization leaves out readings without a question, since structure sets those scores. The report also shows tone before and after the deterministic tone cap (`eval.tone_before_cap`) and groups scores by evaluator prompt version and model as well as by reading prompt version.
+
 ---
 
 ## Metrics Schema
@@ -528,10 +531,11 @@ Actions:
   npx wrangler tail --format=json \
     | jq -c --unbuffered '.logs[]? | select((.message[0] // "" | tostring) | contains("Failed to parse JSON")) | .message[0]'
   ```
-- Increase timeout above the current `"10000"`:
+- Compare successful eval `latencyMs` with the timeouts. The async call uses `EVAL_TIMEOUT_MS` (currently `"20000"`); the sync gate uses `EVAL_GATE_TIMEOUT_MS` (currently `"15000"`). Keep `EVAL_TIMEOUT_MS` well under the 30 s `waitUntil()` budget:
   ```jsonc
-  "vars": { "EVAL_TIMEOUT_MS": "15000" }
+  "vars": { "EVAL_TIMEOUT_MS": "20000", "EVAL_GATE_TIMEOUT_MS": "15000" }
   ```
+- Don't disable Qwen3 thinking to save time. In a September 2026 test on the committed narrative samples, `/no_think` cut median latency from 4.6 s to 0.9 s, but every sample then got the same scores (single-card readings included), and `chat_template_kwargs.enable_thinking=false` returned invalid JSON every time.
 - Try a different Workers AI model:
   ```jsonc
   "vars": { "EVAL_MODEL": "<workers-ai-model-id>" }

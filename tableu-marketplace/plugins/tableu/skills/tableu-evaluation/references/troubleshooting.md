@@ -55,8 +55,8 @@ npx wrangler d1 execute mystic-tarot-db --remote --command \
 4. Look for deterministic predictions
 
 **Low tone:**
-1. Check `eval.deterministic_tone_overrides` - deterministic phrasing caps tone at 3
-2. Look for "you will" instead of "you may", and unsoftened "you must" or "do this now"
+1. Check `eval.deterministic_tone_overrides` - deterministic phrasing caps tone at 3; `eval.tone_before_cap` keeps the evaluator's own score
+2. Look for "you will" instead of "you may", and two or more clause-opening "You must…" / "You need to…" directives that outnumber softening
 3. Look for disempowering framing
 
 ## Heuristic Mode Issues
@@ -76,16 +76,16 @@ npx wrangler d1 execute mystic-tarot-db --remote --command \
    LIMIT 20"
 ```
 
-`eval_error_timeout` means the call exceeded `EVAL_TIMEOUT_MS`, `eval_error_invalid_json` means the model's reply wasn't parseable, and `incomplete_scores_*` names the missing dimensions.
+`eval_error_timeout` means the call exceeded `EVAL_TIMEOUT_MS` (async) or `EVAL_GATE_TIMEOUT_MS` (sync gate), `eval_error_invalid_json` means the model's reply wasn't parseable, and `incomplete_scores_*` names the missing dimensions.
 
 ### Step 2: Review Timeout Settings
 
 ```bash
-# Current timeout
-grep EVAL_TIMEOUT_MS wrangler.jsonc
+# Current timeouts (async eval and sync gate)
+grep -E 'EVAL_(GATE_)?TIMEOUT_MS' wrangler.jsonc
 ```
 
-Consider increasing if frequently timing out.
+Consider increasing if frequently timing out. Keep `EVAL_TIMEOUT_MS` well under the 30 s `waitUntil()` budget.
 
 ### Step 3: Check Error Logs
 
@@ -191,7 +191,8 @@ If `fallbackReason` is often `eval_error_timeout`:
 // wrangler.jsonc
 {
   "vars": {
-    "EVAL_TIMEOUT_MS": "15000"  // Increase from 10000
+    "EVAL_TIMEOUT_MS": "25000",  // async eval; increase from 20000, stay under 30000
+    "EVAL_GATE_TIMEOUT_MS": "15000"  // sync gate; raising it delays gated readings
   }
 }
 ```

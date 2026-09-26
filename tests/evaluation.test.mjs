@@ -7,7 +7,8 @@ import {
   buildHeuristicScores,
   scheduleEvaluation,
   runSyncEvaluationGate,
-  generateSafeFallbackReading
+  generateSafeFallbackReading,
+  getEvaluationGateTimeoutMs
 } from '../functions/lib/evaluation.js';
 import { buildPromptTelemetry } from '../functions/lib/telemetrySchema.js';
 
@@ -455,6 +456,84 @@ describe('evaluation', () => {
     });
   });
 
+  describe('deterministic tone cap', () => {
+    const modelScores = {
+      personalization: 4,
+      tarot_coherence: 4,
+      tone: 4,
+      safety: 5,
+      overall: 4,
+      safety_flag: false
+    };
+    const directiveReading = '- You must leave this job.\n- You have to stop waiting for permission.';
+
+    async function runGateWithText(text) {
+      const env = { AI: mockAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' };
+      mockAI.run = async () => ({ response: JSON.stringify(modelScores) });
+      const result = await runSyncEvaluationGate(env, { reading: text, userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'tone-cap-test' });
+      return result.evalResult;
+    }
+
+    test('ignores "you need to" in relative clauses, comparisons, reported feelings and inversions', async () => {
+      const evalResult = await runGateWithText([
+        'Ask what you need to release before the season turns.',
+        'What you need to see is that the door was never locked.',
+        'It can feel like you need to hold every thread at once.',
+        'There is a sense that you need to become someone new.',
+        'The Hermit walks slowly. Neither do you need to hurry.',
+        'Rest is not something you have to earn.',
+        'Perhaps you are gripping tighter than you need to.',
+        'Give yourself the time you need to heal.'
+      ].join(' '));
+      assert.equal(evalResult.tone_signal_counts.hardImperative, 0);
+      assert.deepEqual(evalResult.deterministic_tone_overrides, []);
+      assert.equal(evalResult.scores.tone, 4);
+    });
+
+    test('leaves a single directive uncapped', async () => {
+      const evalResult = await runGateWithText('The Chariot asks for focus. You need to choose one road this week.');
+      assert.equal(evalResult.tone_signal_counts.hardImperative, 1);
+      assert.deepEqual(evalResult.deterministic_tone_overrides, []);
+      assert.equal(evalResult.scores.tone, 4);
+    });
+
+    test('counts permission-giving negations as softening', async () => {
+      const evalResult = await runGateWithText(
+        "You need to notice the pattern. You need to name it. You don't need to fix it today, and you don't have to do it alone."
+      );
+      assert.equal(evalResult.tone_signal_counts.hardImperative, 2);
+      assert.equal(evalResult.tone_signal_counts.softeningLanguage, 2);
+      assert.deepEqual(evalResult.deterministic_tone_overrides, []);
+    });
+
+    test('caps tone but keeps the evaluator overall when directives dominate', async () => {
+      const evalResult = await runGateWithText(directiveReading);
+      assert.deepEqual(evalResult.deterministic_tone_overrides, ['hard_imperative']);
+      assert.equal(evalResult.scores.tone, 3);
+      assert.equal(evalResult.scores.overall, 4);
+      assert.equal(evalResult.tone_before_cap, 4);
+    });
+
+    test('keeps the first pre-cap tone when the async pass re-applies overrides', async () => {
+      const gateEval = await runGateWithText(directiveReading);
+      const mockDB = new MockDB();
+      const waitPromises = [];
+
+      scheduleEvaluation(
+        { EVAL_ENABLED: 'true', DB: mockDB },
+        { reading: directiveReading, userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'tone-cap-async' },
+        { requestId: 'tone-cap-async' },
+        { waitUntil: (p) => waitPromises.push(p), precomputedEvalResult: gateEval }
+      );
+      await Promise.all(waitPromises);
+
+      const payloadBinding = mockDB.getLastQuery().bindings.find((b) => typeof b === 'string' && b.startsWith('{'));
+      const storedEval = JSON.parse(payloadBinding).eval;
+      assert.equal(storedEval.scores.tone, 3);
+      assert.equal(storedEval.tone_before_cap, 4);
+    });
+  });
+
   describe('checkEvalGate', () => {
     test('blocks on safety_flag', () => {
       const result = checkEvalGate({
@@ -754,8 +833,8 @@ describe('evaluation', () => {
   });
 
   describe('runEvaluation - timeout handling', () => {
-    test('returns timeout error when AI call exceeds timeout', async () => {
-      const slowMockAI = {
+    function createSlowMockAI() {
+      return {
         run: async (model, params, options) => {
           // Simulate a slow response that will be aborted
           return new Promise((resolve, reject) => {
@@ -775,9 +854,11 @@ describe('evaluation', () => {
           });
         }
       };
+    }
 
+    test('returns timeout error when AI call exceeds timeout', async () => {
       const result = await runEvaluation(
-        { AI: slowMockAI, EVAL_ENABLED: 'true', EVAL_TIMEOUT_MS: '50' },
+        { AI: createSlowMockAI(), EVAL_ENABLED: 'true', EVAL_TIMEOUT_MS: '50' },
         {
           reading: 'test',
           userQuestion: 'test',
@@ -789,6 +870,47 @@ describe('evaluation', () => {
 
       assert.equal(result.error, 'timeout');
       assert.ok(result.latencyMs >= 50);
+    });
+
+    test('uses params.timeoutMs over EVAL_TIMEOUT_MS', async () => {
+      const result = await runEvaluation(
+        { AI: createSlowMockAI(), EVAL_ENABLED: 'true', EVAL_TIMEOUT_MS: '5000' },
+        {
+          reading: 'test',
+          userQuestion: 'test',
+          cardsInfo: [],
+          spreadKey: 'test',
+          requestId: 'eval-timeout-override',
+          timeoutMs: 50
+        }
+      );
+
+      assert.equal(result.error, 'timeout');
+      assert.ok(result.latencyMs < 5000);
+    });
+
+    test('sync gate times out on EVAL_GATE_TIMEOUT_MS, not EVAL_TIMEOUT_MS', async () => {
+      const startedAt = Date.now();
+      const result = await runSyncEvaluationGate(
+        {
+          AI: createSlowMockAI(),
+          EVAL_ENABLED: 'true',
+          EVAL_GATE_ENABLED: 'true',
+          EVAL_GATE_FAILURE_MODE: 'open',
+          EVAL_TIMEOUT_MS: '5000',
+          EVAL_GATE_TIMEOUT_MS: '50'
+        },
+        { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'threeCard', requestId: 'gate-timeout' }
+      );
+
+      assert.equal(result.evalResult.fallbackReason, 'eval_error_timeout');
+      assert.ok(Date.now() - startedAt < 5000);
+    });
+
+    test('gate timeout falls back to EVAL_TIMEOUT_MS, then the default', () => {
+      assert.equal(getEvaluationGateTimeoutMs({ EVAL_GATE_TIMEOUT_MS: '7000', EVAL_TIMEOUT_MS: '20000' }), 7000);
+      assert.equal(getEvaluationGateTimeoutMs({ EVAL_TIMEOUT_MS: '20000' }), 20000);
+      assert.equal(getEvaluationGateTimeoutMs({ EVAL_GATE_TIMEOUT_MS: 'soon' }), 15000);
     });
 
     test('completes successfully when AI responds within timeout', async () => {

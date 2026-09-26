@@ -11,6 +11,11 @@ import * as readline from 'node:readline';
 import { runSyncEvaluationGate } from '../../functions/lib/evaluation.js';
 
 const DEFAULT_SYNTHETIC_FIXTURE = 'data/evaluations/synthetic-failure-readings.json';
+const DIMENSIONS = ['personalization', 'tarot_coherence', 'tone', 'safety', 'overall'];
+// Shadow-mode success criterion from docs/evaluation-system.md.
+const MAX_FALLBACK_RATE = 0.05;
+const COMPRESSION_SHARE = 0.6;
+const MIN_COMPRESSION_SAMPLE = 5;
 
 function printUsage() {
   console.log('Usage: cat eval-data.jsonl | node scripts/evaluation/calibrateEval.js [options]');
@@ -51,9 +56,9 @@ function parseArgs(argv) {
   return options;
 }
 
-// exportEvalData.js records carry readingPromptVersion, cardCoverage and
-// variantId at the top level for every schema version, so the helpers below
-// check those first and fall back to raw v1/v2 payload paths.
+// exportEvalData.js records carry readingPromptVersion, cardCoverage, variantId,
+// cardCount and questionLength at the top level for every schema version, so the
+// helpers below check those first and fall back to raw v1/v2 payload paths.
 
 // Helper to get prompt version from export records and v1/v2 schema payloads
 function getPromptVersion(payload) {
@@ -89,6 +94,106 @@ function getVariantId(payload) {
     return payload.experiment?.variantId || null;
   }
   return null;
+}
+
+// Helper to get the drawn card count from export records and stored payloads
+function getCardCount(payload) {
+  if (!payload) return null;
+  if (Number.isFinite(payload.cardCount) && payload.cardCount > 0) {
+    return payload.cardCount;
+  }
+  if (Array.isArray(payload.cardsInfo) && payload.cardsInfo.length > 0) {
+    return payload.cardsInfo.length;
+  }
+  const narrativeCount = payload.narrative?.coverage?.cardCount ?? payload.narrative?.cardCount;
+  return Number.isFinite(narrativeCount) && narrativeCount > 0 ? narrativeCount : null;
+}
+
+// Helper to get the question length from export records and stored payloads
+function getQuestionLength(payload) {
+  if (!payload) return null;
+  if (Number.isFinite(payload.questionLength)) {
+    return payload.questionLength;
+  }
+  if (typeof payload.userQuestion === 'string') {
+    return payload.userQuestion.trim().length;
+  }
+  return null;
+}
+
+// Only model scores measure the rubric: heuristic fallbacks hard-code
+// personalization, tone and safety at 3 and derive coherence from card coverage.
+function getEvalMode(record) {
+  const evalData = record?.eval;
+  if (!evalData) return 'none';
+  if (evalData.mode === 'heuristic') return 'heuristic';
+  if (evalData.mode === 'error' || evalData.error) return 'error';
+  return evalData.scores ? 'model' : 'none';
+}
+
+// A single card cannot make the cross-card link a coherence 4 requires, and a
+// reading without a question cannot reuse its phrasing, so those scores are set
+// by structure rather than quality.
+function isStructurallyCapped(record, dim) {
+  if (dim === 'tarot_coherence') {
+    return record.spreadKey === 'single' || getCardCount(record) === 1;
+  }
+  if (dim === 'personalization') {
+    return getQuestionLength(record) === 0;
+  }
+  return false;
+}
+
+const STRUCTURAL_CAP_LABELS = {
+  tarot_coherence: 'single-card',
+  personalization: 'no-question'
+};
+
+function dimensionValues(records, dim) {
+  return records
+    .filter((r) => r.eval?.scores?.[dim] != null && !isStructurallyCapped(r, dim))
+    .map((r) => r.eval.scores[dim]);
+}
+
+function histogram(values) {
+  const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  values.forEach((value) => {
+    if (counts[value] !== undefined) counts[value] += 1;
+  });
+  return counts;
+}
+
+function formatHistogram(counts) {
+  return [1, 2, 3, 4, 5].map((score) => `${score}=${counts[score]}`).join(' ');
+}
+
+function mean(values) {
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+function percent(count, total) {
+  return total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+}
+
+function tally(values) {
+  const counts = new Map();
+  values.forEach((value) => counts.set(value, (counts.get(value) || 0) + 1));
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([value, count]) => `${value}×${count}`)
+    .join(', ');
+}
+
+function groupBy(records, keyFn) {
+  const groups = {};
+  records.forEach((r) => {
+    const key = keyFn(r);
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(r);
+  });
+  return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
 }
 
 function missingExpectedItems(actual = [], expected = []) {
@@ -168,6 +273,7 @@ async function runSyntheticCalibration(options) {
   console.log('\n=== Synthetic Failure Calibration ===\n');
   console.log(`Fixture: ${path.relative(process.cwd(), fixturePath)}`);
   console.log(`Synthetic cases: ${cases.length}`);
+  console.log('Runs with EVAL_ENABLED=false, so it checks the heuristic and deterministic layers, not the model evaluator.');
 
   if (cases.length === 0) {
     console.log('No synthetic cases found.');
@@ -233,63 +339,100 @@ async function runSyntheticCalibration(options) {
   return { total: results.length, passed, failed };
 }
 
-function runPrimaryCalibration(records) {
-  if (records.length === 0) {
-    console.log('No records to analyze');
-    return;
-  }
-
-  const dims = ['personalization', 'tarot_coherence', 'tone', 'safety', 'overall'];
-  const distributions = {};
-
-  dims.forEach((dim) => {
-    const values = records
-      .filter((r) => r.eval?.scores?.[dim] != null)
-      .map((r) => r.eval.scores[dim]);
-
-    if (values.length === 0) return;
-
-    distributions[dim] = {
-      count: values.length,
-      mean: (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2),
-      min: Math.min(...values),
-      max: Math.max(...values),
-      distribution: {
-        1: values.filter((v) => v === 1).length,
-        2: values.filter((v) => v === 2).length,
-        3: values.filter((v) => v === 3).length,
-        4: values.filter((v) => v === 4).length,
-        5: values.filter((v) => v === 5).length
-      }
-    };
+function printModeSummary(records) {
+  const counts = { model: 0, heuristic: 0, error: 0, none: 0 };
+  const fallbackReasons = [];
+  records.forEach((r) => {
+    const mode = getEvalMode(r);
+    counts[mode] += 1;
+    if (mode === 'heuristic' || mode === 'error') {
+      fallbackReasons.push(r.eval?.fallbackReason || r.eval?.error || 'unknown');
+    }
   });
-
-  const safetyFlags = records.filter((r) => r.eval?.scores?.safety_flag === true);
-
-  const coherenceVsCoverage = records
-    .filter((r) => r.eval?.scores?.tarot_coherence != null && getCardCoverage(r) != null)
-    .map((r) => ({
-      coherence: r.eval.scores.tarot_coherence,
-      coverage: getCardCoverage(r)
-    }));
 
   console.log('=== Evaluation Score Analysis ===\n');
   console.log(`Total records: ${records.length}`);
-  console.log(`With eval scores: ${records.filter((r) => r.eval?.scores).length}`);
-  console.log(`With errors: ${records.filter((r) => r.eval?.error).length}\n`);
+  console.log(`Model-scored: ${counts.model} (${percent(counts.model, records.length)}%)`);
+  console.log(`Heuristic fallback: ${counts.heuristic} (${percent(counts.heuristic, records.length)}%)`);
+  console.log(`Errors: ${counts.error}`);
+  console.log(`No evaluation: ${counts.none}`);
+  if (fallbackReasons.length > 0) {
+    console.log(`Fallback reasons: ${tally(fallbackReasons)}`);
+  }
+  console.log('\nDistributions and suggestions below use model-scored records only.\n');
 
-  console.log('=== Score Distributions ===\n');
-  dims.forEach((dim) => {
-    if (!distributions[dim]) return;
-    const d = distributions[dim];
-    console.log(`${dim}:`);
-    console.log(`  Mean: ${d.mean}, Range: [${d.min}, ${d.max}]`);
-    console.log(`  Distribution: 1=${d.distribution[1]} 2=${d.distribution[2]} 3=${d.distribution[3]} 4=${d.distribution[4]} 5=${d.distribution[5]}`);
-    console.log('');
+  return counts;
+}
+
+function computeDistributions(modelRecords) {
+  const distributions = {};
+
+  DIMENSIONS.forEach((dim) => {
+    const values = dimensionValues(modelRecords, dim);
+    const capped = modelRecords
+      .filter((r) => r.eval?.scores?.[dim] != null && isStructurallyCapped(r, dim))
+      .map((r) => r.eval.scores[dim]);
+    if (values.length === 0 && capped.length === 0) return;
+
+    distributions[dim] = {
+      count: values.length,
+      mean: values.length > 0 ? mean(values) : null,
+      min: values.length > 0 ? Math.min(...values) : null,
+      max: values.length > 0 ? Math.max(...values) : null,
+      distribution: histogram(values),
+      capped
+    };
   });
 
-  console.log('=== Safety Analysis ===\n');
-  console.log(`Safety flags triggered: ${safetyFlags.length} (${((safetyFlags.length / records.length) * 100).toFixed(1)}%)`);
+  return distributions;
+}
+
+function printDistributions(distributions) {
+  console.log('=== Score Distributions ===\n');
+  DIMENSIONS.forEach((dim) => {
+    const d = distributions[dim];
+    if (!d) return;
+    console.log(`${dim}:`);
+    if (d.count > 0) {
+      console.log(`  Mean: ${d.mean.toFixed(2)}, Range: [${d.min}, ${d.max}]`);
+      console.log(`  Distribution: ${formatHistogram(d.distribution)}`);
+    }
+    if (d.capped.length > 0) {
+      const noun = d.capped.length === 1 ? 'reading' : 'readings';
+      console.log(`  Excluded ${d.capped.length} ${STRUCTURAL_CAP_LABELS[dim]} ${noun} (structurally capped): ${formatHistogram(histogram(d.capped))}`);
+    }
+    console.log('');
+  });
+}
+
+function printToneCap(modelRecords) {
+  const toneRecords = modelRecords.filter((r) => r.eval?.scores?.tone != null);
+  const capped = toneRecords.filter((r) => (r.eval.deterministic_tone_overrides || []).length > 0);
+
+  console.log('=== Deterministic Tone Cap ===\n');
+  if (capped.length === 0) {
+    console.log(`No model-scored tone was capped (${toneRecords.length} records)`);
+    return;
+  }
+
+  const before = toneRecords
+    .map((r) => (capped.includes(r) ? r.eval.tone_before_cap : r.eval.scores.tone))
+    .filter(Number.isFinite);
+  const legacyCapped = capped.filter((r) => !Number.isFinite(r.eval.tone_before_cap)).length;
+
+  console.log(`Capped: ${capped.length} of ${toneRecords.length} (${percent(capped.length, toneRecords.length)}%) - ${tally(capped.flatMap((r) => r.eval.deterministic_tone_overrides))}`);
+  console.log(`Tone before cap: ${formatHistogram(histogram(before))}${legacyCapped > 0 ? ` (+${legacyCapped} unknown)` : ''}`);
+  console.log(`Tone after cap:  ${formatHistogram(histogram(toneRecords.map((r) => r.eval.scores.tone)))}`);
+  if (legacyCapped > 0) {
+    console.log(`  ${legacyCapped} capped record(s) predate tone_before_cap; the cap also lowered their overall score.`);
+  }
+}
+
+function printSafety(records) {
+  const safetyFlags = records.filter((r) => r.eval?.scores?.safety_flag === true);
+
+  console.log('\n=== Safety Analysis ===\n');
+  console.log(`Safety flags triggered: ${safetyFlags.length} (${percent(safetyFlags.length, records.length)}%)${safetyFlags.length > 0 ? ` - ${tally(safetyFlags.map(getEvalMode))}` : ''}`);
 
   if (safetyFlags.length > 0) {
     console.log('Sample flagged readings:');
@@ -297,29 +440,49 @@ function runPrimaryCalibration(records) {
       console.log(`  - ${r.requestId}: ${r.eval.scores.notes || 'no notes'}`);
     });
   }
+}
 
+function printSuggestions(records, modeCounts, distributions, modelRecords) {
   console.log('\n=== Calibration Suggestions ===\n');
+
+  const fallbackCount = modeCounts.heuristic + modeCounts.error;
+  if (records.length > 0 && fallbackCount / records.length > MAX_FALLBACK_RATE) {
+    console.log(`WARNING: ${percent(fallbackCount, records.length)}% of evaluations fell back or failed (target < ${MAX_FALLBACK_RATE * 100}%)`);
+    console.log('  Consider: comparing eval latency with EVAL_TIMEOUT_MS and EVAL_GATE_TIMEOUT_MS\n');
+  }
 
   if (distributions.overall?.mean > 4.5) {
     console.log('WARNING: Scores may be inflated (overall mean > 4.5)');
     console.log('  Consider: Adjusting prompt rubric to be more critical\n');
   }
 
-  if (distributions.overall?.distribution[3] > records.length * 0.6) {
-    console.log('WARNING: Scores compressed around 3 (>60% at score 3)');
-    console.log('  Consider: Adding more specific scoring criteria\n');
-  }
+  DIMENSIONS.forEach((dim) => {
+    const d = distributions[dim];
+    if (!d || d.count < MIN_COMPRESSION_SAMPLE) return;
+    const [topScore, topCount] = Object.entries(d.distribution).sort((a, b) => b[1] - a[1])[0];
+    if (topCount / d.count > COMPRESSION_SHARE) {
+      console.log(`WARNING: ${dim} is compressed (${percent(topCount, d.count)}% of scores are ${topScore})`);
+      console.log('  Consider: Adding more specific scoring criteria\n');
+    }
+  });
 
   const lowEndDims = ['personalization', 'tarot_coherence', 'tone', 'safety'];
   lowEndDims.forEach((dim) => {
     const d = distributions[dim];
-    if (!d) return;
-    const lowEndCount = (d.distribution[1] || 0) + (d.distribution[2] || 0);
+    if (!d || d.count === 0) return;
+    const lowEndCount = d.distribution[1] + d.distribution[2];
     if (lowEndCount === 0) {
       console.log(`WARNING: ${dim} has no scores in 1-2 range`);
-      console.log(`  Consider: validating with synthetic failures and reviewing rubric anchors\n`);
+      console.log('  Consider: validating with synthetic failures and reviewing rubric anchors\n');
     }
   });
+
+  const coherenceVsCoverage = modelRecords
+    .filter((r) => r.eval?.scores?.tarot_coherence != null && getCardCoverage(r) != null && !isStructurallyCapped(r, 'tarot_coherence'))
+    .map((r) => ({
+      coherence: r.eval.scores.tarot_coherence,
+      coverage: getCardCoverage(r)
+    }));
 
   if (coherenceVsCoverage.length > 10) {
     const highCovLowScore = coherenceVsCoverage.filter(
@@ -330,134 +493,146 @@ function runPrimaryCalibration(records) {
       console.log('  Consider: Reviewing coherence scoring criteria\n');
     }
   }
+}
 
-  // === Version-Stratified Analysis ===
-  console.log('\n=== Version Analysis ===\n');
+function printEvaluatorVersions(modelRecords) {
+  console.log('\n=== Evaluator Version Analysis ===\n');
 
-  // Group by reading prompt version
-  const versionGroups = {};
-  records.forEach((r) => {
-    const version = getPromptVersion(r) || 'unknown';
-    if (!versionGroups[version]) {
-      versionGroups[version] = [];
-    }
-    versionGroups[version].push(r);
-  });
-
-  const versionCount = Object.keys(versionGroups).length;
-  if (versionCount > 1) {
-    console.log(`Found ${versionCount} reading prompt versions:\n`);
-
-    Object.entries(versionGroups)
-      .sort((a, b) => b[1].length - a[1].length) // Sort by count descending
-      .forEach(([version, recs]) => {
-        const withScores = recs.filter((r) => r.eval?.scores?.overall != null);
-        if (withScores.length === 0) {
-          console.log(`  ${version}: n=${recs.length}, no eval scores`);
-          return;
-        }
-
-        const mean = withScores.reduce((a, r) => a + r.eval.scores.overall, 0) / withScores.length;
-        const safetyCount = recs.filter((r) => r.eval?.scores?.safety_flag).length;
-        const safetyRate = ((safetyCount / recs.length) * 100).toFixed(1);
-
-        console.log(`  ${version}:`);
-        console.log(`    Readings: ${recs.length}, Evaluated: ${withScores.length}`);
-        console.log(`    Mean overall: ${mean.toFixed(2)}, Safety flags: ${safetyCount} (${safetyRate}%)`);
-      });
-  } else {
-    console.log('Single version detected (or no version tracking)');
-    const version = Object.keys(versionGroups)[0] || 'unknown';
-    console.log(`  Version: ${version}`);
+  const groups = groupBy(modelRecords, (r) => `${r.eval?.promptVersion || 'unknown'} (${r.eval?.model || 'unknown model'})`);
+  if (groups.length <= 1) {
+    console.log('Single evaluator version detected');
+    console.log(`  Eval prompt version: ${groups[0]?.[0] || 'unknown'}`);
+    return;
   }
 
-  // === A/B Testing Analysis ===
-  console.log('\n=== A/B Testing Analysis ===\n');
-
-  // Group by variant
-  const variantGroups = {};
-  records.forEach((r) => {
-    const variant = getVariantId(r) || 'control';
-    if (!variantGroups[variant]) {
-      variantGroups[variant] = [];
-    }
-    variantGroups[variant].push(r);
+  console.log(`Found ${groups.length} evaluator versions:\n`);
+  groups.forEach(([version, recs]) => {
+    const means = DIMENSIONS.map((dim) => {
+      const values = dimensionValues(recs, dim);
+      return `${dim}=${values.length > 0 ? mean(values).toFixed(2) : '-'}`;
+    });
+    console.log(`  ${version}: n=${recs.length}`);
+    console.log(`    ${means.join(' ')}`);
   });
+}
 
-  const variantCount = Object.keys(variantGroups).length;
-  if (variantCount > 1) {
-    console.log(`Found ${variantCount} variants:\n`);
+function modelOverallScores(records) {
+  return records.filter((r) => getEvalMode(r) === 'model' && r.eval?.scores?.overall != null);
+}
 
-    Object.entries(variantGroups)
-      .sort((a, b) => b[1].length - a[1].length)
-      .forEach(([variant, recs]) => {
-        const withScores = recs.filter((r) => r.eval?.scores?.overall != null);
-        if (withScores.length === 0) {
-          console.log(`  ${variant}: n=${recs.length}, no eval scores`);
-          return;
-        }
+function printReadingPromptVersions(records) {
+  console.log('\n=== Reading Prompt Version Analysis ===\n');
 
-        const mean = withScores.reduce((a, r) => a + r.eval.scores.overall, 0) / withScores.length;
-        const toneScores = withScores.filter((r) => r.eval?.scores?.tone != null);
-        const meanTone = toneScores.length > 0
-          ? toneScores.reduce((a, r) => a + r.eval.scores.tone, 0) / toneScores.length
-          : null;
+  const groups = groupBy(records, (r) => getPromptVersion(r) || 'unknown');
+  if (groups.length > 1) {
+    console.log(`Found ${groups.length} reading prompt versions:\n`);
 
-        console.log(`  ${variant}:`);
-        console.log(`    Readings: ${recs.length}, Evaluated: ${withScores.length}`);
-        console.log(`    Mean overall: ${mean.toFixed(2)}${meanTone ? `, Mean tone: ${meanTone.toFixed(2)}` : ''}`);
-      });
-
-    // Statistical comparison hint
-    if (variantCount === 2) {
-      const variants = Object.keys(variantGroups);
-      const group1 = variantGroups[variants[0]].filter((r) => r.eval?.scores?.overall != null);
-      const group2 = variantGroups[variants[1]].filter((r) => r.eval?.scores?.overall != null);
-
-      if (group1.length >= 10 && group2.length >= 10) {
-        const mean1 = group1.reduce((a, r) => a + r.eval.scores.overall, 0) / group1.length;
-        const mean2 = group2.reduce((a, r) => a + r.eval.scores.overall, 0) / group2.length;
-        const diff = Math.abs(mean1 - mean2);
-
-        console.log('\n  Comparison:');
-        console.log(`    Δ overall: ${diff.toFixed(2)} (${variants[0]} vs ${variants[1]})`);
-        if (diff >= 0.3) {
-          console.log('    ⚠️  Significant difference detected (Δ ≥ 0.3)');
-        } else if (diff >= 0.15) {
-          console.log('    📊 Moderate difference (0.15 ≤ Δ < 0.3) - may need more data');
-        } else {
-          console.log('    ✓ Small difference (Δ < 0.15) - variants performing similarly');
-        }
-      }
-    }
-  } else {
-    console.log('No A/B testing variants detected (all readings in control)');
-  }
-
-  // === Spread Analysis ===
-  console.log('\n=== Spread Analysis ===\n');
-
-  const spreadGroups = {};
-  records.forEach((r) => {
-    const spread = r.spreadKey || 'unknown';
-    if (!spreadGroups[spread]) {
-      spreadGroups[spread] = [];
-    }
-    spreadGroups[spread].push(r);
-  });
-
-  Object.entries(spreadGroups)
-    .sort((a, b) => b[1].length - a[1].length)
-    .forEach(([spread, recs]) => {
-      const withScores = recs.filter((r) => r.eval?.scores?.overall != null);
+    groups.forEach(([version, recs]) => {
+      const withScores = modelOverallScores(recs);
       if (withScores.length === 0) {
-        console.log(`  ${spread}: n=${recs.length}, no eval scores`);
+        console.log(`  ${version}: n=${recs.length}, no model scores`);
         return;
       }
 
-      const mean = withScores.reduce((a, r) => a + r.eval.scores.overall, 0) / withScores.length;
-      console.log(`  ${spread}: n=${recs.length}, mean_overall=${mean.toFixed(2)}`);
+      const overallMean = mean(withScores.map((r) => r.eval.scores.overall));
+      const safetyCount = recs.filter((r) => r.eval?.scores?.safety_flag).length;
+
+      console.log(`  ${version}:`);
+      console.log(`    Readings: ${recs.length}, Model-scored: ${withScores.length}`);
+      console.log(`    Mean overall: ${overallMean.toFixed(2)}, Safety flags: ${safetyCount} (${percent(safetyCount, recs.length)}%)`);
     });
+  } else {
+    console.log('Single reading prompt version detected (or no version tracking)');
+    console.log(`  Reading prompt version: ${groups[0]?.[0] || 'unknown'}`);
+  }
+}
+
+function printVariants(records) {
+  console.log('\n=== A/B Testing Analysis ===\n');
+
+  const groups = groupBy(records, (r) => getVariantId(r) || 'control');
+  if (groups.length <= 1) {
+    console.log('No A/B testing variants detected (all readings in control)');
+    return;
+  }
+
+  console.log(`Found ${groups.length} variants:\n`);
+
+  groups.forEach(([variant, recs]) => {
+    const withScores = modelOverallScores(recs);
+    if (withScores.length === 0) {
+      console.log(`  ${variant}: n=${recs.length}, no model scores`);
+      return;
+    }
+
+    const overallMean = mean(withScores.map((r) => r.eval.scores.overall));
+    const toneScores = withScores.filter((r) => r.eval?.scores?.tone != null);
+    const meanTone = toneScores.length > 0
+      ? mean(toneScores.map((r) => r.eval.scores.tone))
+      : null;
+
+    console.log(`  ${variant}:`);
+    console.log(`    Readings: ${recs.length}, Model-scored: ${withScores.length}`);
+    console.log(`    Mean overall: ${overallMean.toFixed(2)}${meanTone ? `, Mean tone: ${meanTone.toFixed(2)}` : ''}`);
+  });
+
+  // Statistical comparison hint
+  if (groups.length === 2) {
+    const [[name1, recs1], [name2, recs2]] = groups;
+    const group1 = modelOverallScores(recs1);
+    const group2 = modelOverallScores(recs2);
+
+    if (group1.length >= 10 && group2.length >= 10) {
+      const mean1 = mean(group1.map((r) => r.eval.scores.overall));
+      const mean2 = mean(group2.map((r) => r.eval.scores.overall));
+      const diff = Math.abs(mean1 - mean2);
+
+      console.log('\n  Comparison:');
+      console.log(`    Δ overall: ${diff.toFixed(2)} (${name1} vs ${name2})`);
+      if (diff >= 0.3) {
+        console.log('    ⚠️  Significant difference detected (Δ ≥ 0.3)');
+      } else if (diff >= 0.15) {
+        console.log('    📊 Moderate difference (0.15 ≤ Δ < 0.3) - may need more data');
+      } else {
+        console.log('    ✓ Small difference (Δ < 0.15) - variants performing similarly');
+      }
+    }
+  }
+}
+
+function printSpreads(records) {
+  console.log('\n=== Spread Analysis ===\n');
+
+  groupBy(records, (r) => r.spreadKey || 'unknown').forEach(([spread, recs]) => {
+    const withScores = modelOverallScores(recs);
+    if (withScores.length === 0) {
+      console.log(`  ${spread}: n=${recs.length}, no model scores`);
+      return;
+    }
+
+    const overallMean = mean(withScores.map((r) => r.eval.scores.overall));
+    console.log(`  ${spread}: n=${recs.length}, model-scored=${withScores.length}, mean_overall=${overallMean.toFixed(2)}`);
+  });
+}
+
+function runPrimaryCalibration(records) {
+  if (records.length === 0) {
+    console.log('No records to analyze');
+    return;
+  }
+
+  const modeCounts = printModeSummary(records);
+  const modelRecords = records.filter((r) => getEvalMode(r) === 'model');
+  const distributions = computeDistributions(modelRecords);
+
+  printDistributions(distributions);
+  printToneCap(modelRecords);
+  printSafety(records);
+  printSuggestions(records, modeCounts, distributions, modelRecords);
+  printEvaluatorVersions(modelRecords);
+  printReadingPromptVersions(records);
+  printVariants(records);
+  printSpreads(records);
 }
 
 const options = parseArgs(process.argv.slice(2));
