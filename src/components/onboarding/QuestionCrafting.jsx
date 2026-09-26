@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight, Sparkle, Lightning, Check, X, Info } from '@phosphor-icons/react';
 import { EXAMPLE_QUESTIONS } from '../../data/exampleQuestions';
 import { scoreQuestion, getQualityLevel } from '../../lib/questionQuality';
+import { QualityLevelIcon } from '../QualityLevelIcon';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
 import { usePreferences } from '../../contexts/PreferencesContext';
@@ -154,7 +155,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
               </div>
               <span className="flex items-center gap-1 text-sm font-medium">
                 <span className="relative inline-flex items-center">
-                  <span>{qualityLevel.emoji}</span>
+                  <QualityLevelIcon level={qualityLevel} className="h-4 w-4" />
                   {showExcellentBurst && (
                     <Sparkle
                       className="absolute -top-2 -right-2 w-3.5 h-3.5 text-accent motion-safe:animate-ping"

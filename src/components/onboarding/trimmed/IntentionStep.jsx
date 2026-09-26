@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Sparkle } from '@phosphor-icons/react';
 import { scoreQuestion, getQualityLevel } from '../../../lib/questionQuality';
+import { QualityLevelIcon } from '../../QualityLevelIcon';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { useLandscape } from '../../../hooks/useLandscape';
 
@@ -89,7 +90,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
               <span className="text-xs text-muted">Clarity check</span>
               <span className="flex items-center gap-1 text-sm font-medium">
                 <span className="relative inline-flex items-center" aria-hidden="true">
-                  <span>{qualityLevel.emoji}</span>
+                  <QualityLevelIcon level={qualityLevel} className="h-4 w-4" />
                   {showExcellentBurst && (
                     <Sparkle
                       className="absolute -top-2 -right-2 h-3.5 w-3.5 text-accent motion-safe:animate-ping"

@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, useId } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, useId } from 'react';
 import FocusTrap from 'focus-trap-react';
 import {
   ChartLine,
@@ -28,8 +28,9 @@ import {
 } from '../../lib/intentionCoach';
 import { MAX_TEMPLATES } from '../../lib/coachStorage';
 import { MOBILE_COACH_DIALOG_ID } from '../mobileActionBarConstants';
-import { STEPS, SPREAD_NAMES, SPREAD_TO_TOPIC_MAP } from '../../lib/coachConstants';
+import { CUSTOM_FOCUS_MAX_LENGTH, STEPS, SPREAD_NAMES, SPREAD_TO_TOPIC_MAP } from '../../lib/coachConstants';
 import { useGuidedIntentionCoach } from '../../contexts/GuidedIntentionCoachContext';
+import { QualityLevelIcon } from '../QualityLevelIcon';
 import { CoachSuggestionsPanel } from './CoachSuggestionsPanel';
 import { CoachTemplatePanel } from './CoachTemplatePanel';
 
@@ -37,6 +38,15 @@ const baseOptionClass =
   'text-left rounded-2xl border bg-surface-muted/50 px-4 py-4 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
 const infoButtonClass =
   'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-secondary/70 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60';
+// Footer actions follow the mobile action bar's docked pair: a candlelight
+// primary and a quiet bordered secondary. Focus is left to the global outline,
+// which carries the offset the design system asks for.
+const footerButtonBase =
+  'inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition touch-manipulation';
+const footerPrimaryClass =
+  `${footerButtonBase} bg-accent text-surface hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed`;
+const footerSecondaryClass =
+  `${footerButtonBase} border border-accent/30 bg-surface-muted text-accent hover:bg-surface aria-disabled:opacity-40 aria-disabled:cursor-not-allowed aria-disabled:hover:bg-surface-muted`;
 
 function getTopicLabel(value) {
   return INTENTION_TOPIC_OPTIONS.find(option => option.value === value)?.label || null;
@@ -66,7 +76,7 @@ export function GuidedIntentionCoachView() {
     questionText,
     questionLoading,
     questionError,
-    historyStatus,
+    announcement,
     prefillSource,
     templates,
     newTemplateLabel,
@@ -77,6 +87,7 @@ export function GuidedIntentionCoachView() {
     suggestionsPage,
     isSuggestionsExpanded,
     isTemplatePanelOpen,
+    templatePanelIntent,
     astroHighlights,
     astroWindowDays,
     astroSource,
@@ -99,14 +110,12 @@ export function GuidedIntentionCoachView() {
     setTopic,
     setDepth,
     setCustomFocus,
-    setUseCreative,
-    setAutoQuestionEnabled,
-    setQuestionError,
-    setPrefillSource,
     setSuggestionsPage,
     setSuggestionsExpanded,
-    setTemplatePanelOpen,
-    setRemixCount,
+    remixQuestion,
+    setCreativeMode,
+    openTemplatePanel,
+    closeTemplatePanel,
     releasePrefill,
     handleSaveTemplate,
     handleApplyTemplate,
@@ -131,6 +140,9 @@ export function GuidedIntentionCoachView() {
   const customFocusRef = useRef(null);
   const stepButtonRefs = useRef([]);
   const titleId = useId();
+  const topicPromptId = useId();
+  const timeframePromptId = useId();
+  const depthPromptId = useId();
 
   useModalA11y(isOpen, {
     onClose,
@@ -139,7 +151,7 @@ export function GuidedIntentionCoachView() {
     initialFocusRef: closeButtonRef,
   });
 
-  const { handlers: swipeDismissHandlers, style: swipeDismissStyle, isDragging } = useSwipeDismiss({
+  const { handlers: swipeDismissHandlers, style: swipeDismissStyle } = useSwipeDismiss({
     onDismiss: onClose,
     threshold: 120,
     resistance: 0.5
@@ -150,14 +162,11 @@ export function GuidedIntentionCoachView() {
     setSuggestionsExpanded(!isSmallScreen);
   }, [isOpen, isSmallScreen, setSuggestionsExpanded]);
 
+  // Back closes the innermost layer first, like Escape.
   useAndroidBackGuard(isOpen, {
-    onBack: onClose,
+    onBack: () => (isTemplatePanelOpen ? closeTemplatePanel() : onClose()),
     enabled: isSmallScreen,
     guardId: 'intentionCoach'
-  });
-
-  useLayoutEffect(() => {
-    stepButtonRefs.current = [];
   });
 
   const [showExcellentBurst, setShowExcellentBurst] = useState(false);
@@ -229,21 +238,121 @@ export function GuidedIntentionCoachView() {
 
     if (nextIndex !== null) {
       setStep(nextIndex);
-      requestAnimationFrame(() => {
-        stepButtonRefs.current[nextIndex]?.focus();
-      });
+      // Focus in the same keystroke: deferring it let a quick second press
+      // act on the tab the first press had just left.
+      stepButtonRefs.current[nextIndex]?.focus();
     }
+  };
+
+  // A chip or step change can hide the control that had focus along with its
+  // panel; hand focus to the choice the user is about to change instead.
+  const focusCheckedOption = (stepIndex, focusOptions) => {
+    requestAnimationFrame(() => {
+      const panel = modalRef.current?.querySelector(`#step-panel-${STEPS[stepIndex]?.id}`);
+      const target = panel?.querySelector('[role="radio"][aria-checked="true"]') || stepButtonRefs.current[stepIndex];
+      target?.focus(focusOptions);
+    });
+  };
+
+  const handleChipClick = (chip) => {
+    if (typeof chip.step === 'number') {
+      const isSameStep = chip.step === step;
+      setStep(chip.step);
+      if (isSameStep && chip.type === 'Depth') {
+        depthSectionRef.current?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+      }
+      focusCheckedOption(chip.step, isSameStep ? { preventScroll: true } : undefined);
+    }
+    if (chip.action === 'focus') {
+      customFocusRef.current?.focus();
+    }
+  };
+
+  // Single-choice cards behave like the spread selector: arrows move focus and
+  // Space or Enter selects. Selecting on arrow would discard a prefilled
+  // question while the user was only passing over the other options.
+  const handleOptionKeyDown = (event, index, count, select) => {
+    let nextIndex = null;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (index + 1) % count;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (index - 1 + count) % count;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = count - 1;
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      select();
+      return;
+    }
+
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const radios = event.currentTarget.closest('[role="radiogroup"]')?.querySelectorAll('[role="radio"]');
+    radios?.[nextIndex]?.focus();
+  };
+
+  const renderOptionGroup = ({ options, selectedValue, onSelect, labelledBy, gridClassName, renderExtra }) => {
+    const hasSelection = options.some(option => option.value === selectedValue);
+    return (
+      <div role="radiogroup" aria-labelledby={labelledBy} className={`grid gap-3 ${gridClassName}`}>
+        {options.map((option, index) => {
+          const isSelected = option.value === selectedValue;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={isSelected}
+              tabIndex={isSelected || (!hasSelection && index === 0) ? 0 : -1}
+              className={`${baseOptionClass} relative ${isSelected ? 'border-accent bg-accent/10 shadow-lg shadow-accent/20' : 'border-secondary/30 hover:border-accent/50 hover:bg-accent/5'}`}
+              onClick={() => onSelect(option.value)}
+              onKeyDown={event => handleOptionKeyDown(event, index, options.length, () => onSelect(option.value))}
+            >
+              {/* Selection must survive forced colors and not rest on border colour alone. */}
+              {isSelected && (
+                <span
+                  className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent text-surface"
+                  aria-hidden="true"
+                >
+                  <Check className="h-3.5 w-3.5" weight="bold" />
+                </span>
+              )}
+              <span className="block pr-8 font-medium text-main">{option.label}</span>
+              <span className="block text-sm text-muted">{option.description}</span>
+              {renderExtra?.(option)}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const selectTopic = (value) => {
+    if (value !== topic) releasePrefill();
+    setTopic(value);
+  };
+
+  const selectTimeframe = (value) => {
+    if (value !== timeframe) releasePrefill();
+    setTimeframe(value);
+  };
+
+  const selectDepth = (value) => {
+    if (value !== depth) releasePrefill();
+    setDepth(value);
   };
 
   const renderStepPanelContent = (panelId) => {
     if (panelId === 'topic') {
       return (
         <div className="space-y-4">
-          <p className="text-sm text-muted">What area do you want to explore?</p>
+          <p id={topicPromptId} className="text-sm text-muted">What area do you want to explore?</p>
           {SPREAD_TO_TOPIC_MAP[selectedSpread] && (
             <div className="rounded-lg bg-accent/10 border border-accent/30 px-3 py-2">
               <div className="flex items-center gap-2 mb-1">
-                <Sparkle className="h-3 w-3 text-accent" />
+                <Sparkle className="h-3 w-3 text-accent" aria-hidden="true" />
                 <span className="text-xs font-bold uppercase tracking-wider text-accent">Suggested Focus</span>
               </div>
               <p className="text-xs text-secondary">
@@ -255,29 +364,18 @@ export function GuidedIntentionCoachView() {
               </p>
             </div>
           )}
-          <div className="grid gap-3 md:grid-cols-2">
-            {INTENTION_TOPIC_OPTIONS.map(option => (
-              <button
-                key={option.value}
-                type="button"
-                className={`${baseOptionClass} ${option.value === topic ? 'border-accent bg-accent/10 shadow-lg shadow-accent/20' : 'border-secondary/30 hover:border-accent/50 hover:bg-accent/5'}`}
-                onClick={() => {
-                  if (option.value !== topic) {
-                    releasePrefill();
-                  }
-                  setTopic(option.value);
-                }}
-              >
-                <p className="font-medium text-main">{option.label}</p>
-                <p className="text-sm text-muted">{option.description}</p>
-                {focusAreaSuggestedTopic && option.value === focusAreaSuggestedTopic && (
-                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-accent/15 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.2em] text-accent">
-                    Based on your interests
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+          {renderOptionGroup({
+            options: INTENTION_TOPIC_OPTIONS,
+            selectedValue: topic,
+            onSelect: selectTopic,
+            labelledBy: topicPromptId,
+            gridClassName: 'md:grid-cols-2',
+            renderExtra: option => (focusAreaSuggestedTopic && option.value === focusAreaSuggestedTopic ? (
+              <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-accent/15 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.2em] text-accent">
+                Based on your interests
+              </span>
+            ) : null)
+          })}
         </div>
       );
     }
@@ -285,25 +383,14 @@ export function GuidedIntentionCoachView() {
     if (panelId === 'timeframe') {
       return (
         <div className="space-y-4">
-          <p className="text-sm text-muted">When do you need guidance for?</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {INTENTION_TIMEFRAME_OPTIONS.map(option => (
-              <button
-                key={option.value}
-                type="button"
-                className={`${baseOptionClass} ${option.value === timeframe ? 'border-accent bg-accent/10 shadow-lg shadow-accent/20' : 'border-secondary/30 hover:border-accent/50 hover:bg-accent/5'}`}
-                onClick={() => {
-                  if (option.value !== timeframe) {
-                    releasePrefill();
-                  }
-                  setTimeframe(option.value);
-                }}
-              >
-                <p className="font-medium text-main">{option.label}</p>
-                <p className="text-sm text-muted">{option.description}</p>
-              </button>
-            ))}
-          </div>
+          <p id={timeframePromptId} className="text-sm text-muted">When do you need guidance for?</p>
+          {renderOptionGroup({
+            options: INTENTION_TIMEFRAME_OPTIONS,
+            selectedValue: timeframe,
+            onSelect: selectTimeframe,
+            labelledBy: timeframePromptId,
+            gridClassName: 'sm:grid-cols-2'
+          })}
         </div>
       );
     }
@@ -312,25 +399,14 @@ export function GuidedIntentionCoachView() {
       return (
         <div className="space-y-6">
           <div ref={depthSectionRef} className="space-y-4">
-            <p className="text-sm text-muted">How deep do you want to go?</p>
-            <div className="grid gap-3 md:grid-cols-2">
-              {INTENTION_DEPTH_OPTIONS.map(option => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={`${baseOptionClass} ${option.value === depth ? 'border-accent bg-accent/10 shadow-lg shadow-accent/20' : 'border-secondary/30 hover:border-accent/50 hover:bg-accent/5'}`}
-                  onClick={() => {
-                    if (option.value !== depth) {
-                      releasePrefill();
-                    }
-                    setDepth(option.value);
-                  }}
-                >
-                  <p className="font-medium text-main">{option.label}</p>
-                  <p className="text-sm text-muted">{option.description}</p>
-                </button>
-              ))}
-            </div>
+            <p id={depthPromptId} className="text-sm text-muted">How deep do you want to go?</p>
+            {renderOptionGroup({
+              options: INTENTION_DEPTH_OPTIONS,
+              selectedValue: depth,
+              onSelect: selectDepth,
+              labelledBy: depthPromptId,
+              gridClassName: 'md:grid-cols-2'
+            })}
           </div>
 
           <div className="space-y-2">
@@ -342,12 +418,15 @@ export function GuidedIntentionCoachView() {
               id="custom-focus"
               type="text"
               value={customFocus}
+              maxLength={CUSTOM_FOCUS_MAX_LENGTH}
+              autoComplete="off"
+              enterKeyHint="done"
               onChange={event => {
                 releasePrefill();
                 setCustomFocus(event.target.value);
               }}
               placeholder="e.g. a potential move, a creative launch, a new relationship"
-              className="w-full rounded-xl border border-secondary/40 bg-surface/80 px-4 py-3 text-main placeholder:text-secondary/40 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/60"
+              className="w-full rounded-xl border border-secondary/40 bg-surface/80 px-4 py-3 text-main caret-accent placeholder:text-secondary/40 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/60"
             />
           </div>
 
@@ -365,26 +444,34 @@ export function GuidedIntentionCoachView() {
 
               {questionContextChips.length > 0 && (
                 <div className="flex flex-wrap gap-2 py-2">
-                  {questionContextChips.map((chip, idx) => (
-                    <button
-                      key={`${chip.label}-${idx}`}
-                      onClick={() => {
-                        if (typeof chip.step === 'number') {
-                          setStep(chip.step);
-                          if (chip.step === step && chip.type === 'Depth') {
-                            depthSectionRef.current?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
-                          }
-                        }
-                        if (chip.action === 'focus') {
-                          customFocusRef.current?.focus();
-                        }
-                      }}
-                      className="rounded-full border border-secondary/40 bg-surface/50 px-3 py-1 text-2xs uppercase tracking-[0.2em] text-secondary/80 hover:bg-secondary/10 hover:border-secondary transition"
-                    >
-                      <span className="font-bold opacity-50 mr-1">{chip.type}:</span>
-                      {chip.label}
-                    </button>
-                  ))}
+                  {questionContextChips.map((chip, idx) => {
+                    const chipClassName = 'inline-flex max-w-full items-center rounded-full border border-secondary/40 bg-surface/50 px-3 py-1 text-2xs uppercase tracking-[0.2em] text-secondary/80';
+                    const chipContent = (
+                      <>
+                        <span className="font-bold opacity-50 mr-1 shrink-0">{chip.type}:</span>
+                        <span className="truncate">{chip.label}</span>
+                      </>
+                    );
+                    // A chip with nowhere to go (the custom-question mode) is a
+                    // label, not a button that silently does nothing.
+                    if (typeof chip.step !== 'number' && chip.action !== 'focus') {
+                      return (
+                        <span key={`${chip.label}-${idx}`} className={chipClassName}>
+                          {chipContent}
+                        </span>
+                      );
+                    }
+                    return (
+                      <button
+                        key={`${chip.label}-${idx}`}
+                        type="button"
+                        onClick={() => handleChipClick(chip)}
+                        className={`${chipClassName} hover:bg-secondary/10 hover:border-secondary transition`}
+                      >
+                        {chipContent}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
@@ -395,11 +482,7 @@ export function GuidedIntentionCoachView() {
                       type="checkbox"
                       className="h-4 w-4 rounded border-secondary/60 bg-transparent text-secondary focus:ring-secondary"
                       checked={useCreative}
-                      onChange={event => {
-                        releasePrefill();
-                        setUseCreative(event.target.checked);
-                        setAutoQuestionEnabled(true);
-                      }}
+                      onChange={event => setCreativeMode(event.target.checked)}
                     />
                     <span className="inline-flex items-center gap-1 font-medium">
                       <MagicWand className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
@@ -411,16 +494,13 @@ export function GuidedIntentionCoachView() {
                     <MagicWand className="h-3.5 w-3.5 opacity-50" aria-hidden="true" />
                     <span className="font-medium">AI Personalization</span>
                     <span className="rounded bg-accent/20 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wider text-accent">Plus</span>
+                    {/* The title tooltip never reaches touch or screen reader users. */}
+                    <span className="sr-only">: available on the Plus and Pro plans</span>
                   </span>
                 )}
                 <button
                   type="button"
-                  onClick={() => {
-                    setPrefillSource(null);
-                    setAutoQuestionEnabled(true);
-                    setQuestionError('');
-                    setRemixCount(c => c + 1);
-                  }}
+                  onClick={remixQuestion}
                   className="inline-flex items-center gap-1 rounded-full border border-secondary/60 bg-transparent px-3 py-1.5 text-2xs font-semibold text-secondary hover:bg-secondary/10 transition"
                 >
                   <ArrowsClockwise className="h-3.5 w-3.5" aria-hidden="true" />
@@ -433,7 +513,7 @@ export function GuidedIntentionCoachView() {
             </div>
 
             {prefillSource && prefillSourceDescription && (
-              <p className="text-xs text-secondary/80">
+              <p className="text-xs text-secondary/80 break-words">
                 <span className="font-semibold text-secondary">Auto-filled</span> from {prefillSourceDescription}.
               </p>
             )}
@@ -444,34 +524,25 @@ export function GuidedIntentionCoachView() {
               <p className="text-xs text-accent/80">{questionError}</p>
             )}
 
-            <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-5 space-y-3 text-center">
+            <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-5 space-y-3 text-center" aria-busy={questionLoading}>
               <div className="flex items-center justify-center gap-2 text-2xs uppercase tracking-[0.3em] text-secondary/80">
                 <Sparkle className="h-4 w-4 text-secondary" aria-hidden="true" />
                 Your Question
               </div>
-              <p className="font-serif text-xl sm:text-2xl text-main leading-relaxed">
+              <p className="font-serif text-xl sm:text-2xl text-main leading-relaxed break-words">
                 {questionText || guidedQuestion}
               </p>
             </div>
+            {/* Using the question lives in the footer, which is always on screen. */}
             <div className="flex justify-center">
-              <div className="flex flex-col items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleApply}
-                  disabled={(!questionText && !guidedQuestion) || questionLoading}
-                  className="mt-2 inline-flex items-center justify-center gap-2 rounded-full border border-secondary/50 bg-secondary/20 px-4 py-2 text-sm font-semibold text-secondary hover:bg-secondary/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Sparkle className="h-4 w-4" />
-                  Use this question
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTemplatePanelOpen(true)}
-                  className="text-2xs text-secondary/80 underline decoration-secondary/40 underline-offset-4 transition hover:text-secondary"
-                >
-                  Save as template
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => openTemplatePanel('save')}
+                aria-haspopup="dialog"
+                className="text-2xs text-secondary/80 underline decoration-secondary/40 underline-offset-4 transition hover:text-secondary"
+              >
+                Save as template
+              </button>
             </div>
 
             {astroHighlights.length > 0 && (
@@ -508,12 +579,12 @@ export function GuidedIntentionCoachView() {
                     triggerClassName={infoButtonClass}
                     ariaLabel="About question quality"
                   >
-                    <Info className="h-3.5 w-3.5" />
+                    <Info className="h-3.5 w-3.5" aria-hidden="true" />
                   </Tooltip>
                 </span>
                 <span className="text-xs font-semibold text-secondary">
                   <span className="relative inline-flex items-center">
-                    <span aria-hidden="true">{qualityLevel.emoji}</span>
+                    <QualityLevelIcon level={qualityLevel} />
                     {showExcellentBurst && (
                       <Sparkle
                         className="absolute -top-2 -right-2 h-3.5 w-3.5 text-accent motion-safe:animate-ping"
@@ -525,7 +596,8 @@ export function GuidedIntentionCoachView() {
                   <span className="ml-1">{qualityLevel.label}</span>
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-surface-muted/80 overflow-hidden">
+              {/* The level label above already carries the score for assistive tech. */}
+              <div className="h-2 w-full rounded-full bg-surface-muted/80 overflow-hidden" aria-hidden="true">
                 <div
                   className={`h-full ${prefersReducedMotion ? '' : 'transition-all duration-500'} ${
                     normalizedQualityScore >= 85
@@ -582,10 +654,13 @@ export function GuidedIntentionCoachView() {
         aria-hidden="true"
       />
 
+      {/* useModalA11y owns initial focus. Without an initialFocus of its own,
+          the trap's deferred activation focus keeps whatever is already
+          focused inside the dialog instead of pulling it back to Close when
+          the timer runs late. */}
       <FocusTrap
         active={isOpen}
         focusTrapOptions={{
-          initialFocus: () => closeButtonRef.current,
           escapeDeactivates: false,
           clickOutsideDeactivates: false,
           returnFocusOnDeactivate: false,
@@ -598,31 +673,37 @@ export function GuidedIntentionCoachView() {
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className={`relative w-full flex flex-col focus:outline-none ${
+          className={`relative w-full flex flex-col focus:outline-none selection:bg-accent selection:text-surface ${
             isSmallScreen
               ? `mobile-drawer ${prefersReducedMotion ? '' : 'animate-slide-up'}`
-              : `h-auto ${isLandscape ? 'max-h-[98vh]' : 'max-h-[90vh]'} max-w-3xl mx-4 rounded-3xl border border-secondary/30 bg-surface shadow-2xl ${prefersReducedMotion ? '' : 'animate-pop-in'}`
+              : `h-auto ${isLandscape ? 'max-h-[98vh]' : 'max-h-[90vh]'} max-w-3xl mx-4 rounded-3xl border border-secondary/30 bg-surface shadow-[var(--ui-elevated-shadow)] ${prefersReducedMotion ? '' : 'animate-pop-in'}`
           }`}
           style={{
             ...(isSmallScreen ? {
               maxHeight: 'calc(100% - 8px)',
-              transform: isDragging && swipeDismissStyle?.transform ? swipeDismissStyle.transform : undefined,
-              transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+              // Present only while dragging or sliding out, so the entrance
+              // animation keeps control of transform at rest.
+              transform: swipeDismissStyle.transform,
+              transition: prefersReducedMotion ? 'none' : swipeDismissStyle.transition
             } : undefined)
           }}
-          {...(isSmallScreen ? swipeDismissHandlers : {})}
+          // The template library is its own layer; dragging in it must not
+          // dismiss the coach underneath.
+          {...(isSmallScreen && !isTemplatePanelOpen ? swipeDismissHandlers : {})}
         >
           {isSmallScreen && (
             <div className="mobile-drawer__handle" aria-hidden="true" />
           )}
 
-          <div className={isSmallScreen ? 'mobile-drawer__header px-4 pt-3 pb-3' : 'relative'}>
-            <div className={`flex items-start justify-between gap-3 ${isSmallScreen ? '' : 'px-4 pt-8 sm:px-10 sm:pt-6'}`}>
+          <p className="sr-only" role="status" aria-live="polite">
+            {announcement}
+          </p>
+
+          {/* Hairlines above and below the scroll body, as on the phone sheet,
+              so content scrolling past the header and footer has an edge. */}
+          <div className={isSmallScreen ? 'mobile-drawer__header px-4 pt-3 pb-3' : 'relative border-b border-accent/15'}>
+            <div className={`flex items-start justify-between gap-3 ${isSmallScreen ? '' : `px-4 pt-8 sm:px-10 sm:pt-6 ${isLandscape ? 'pb-3' : 'pb-4 sm:pb-5'}`}`}>
               <div className="space-y-1">
-                <p className={isSmallScreen ? 'mobile-drawer__eyebrow' : 'flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary'}>
-                  <Sparkle className="w-3.5 h-3.5" aria-hidden="true" />
-                  Guided Intention Coach
-                </p>
                 <h2 id={titleId} className={`font-serif ${isSmallScreen ? 'text-lg text-accent' : `text-main ${isLandscape ? 'text-xl' : 'text-2xl'}`}`}>
                   Shape a question with clarity
                 </h2>
@@ -641,12 +722,12 @@ export function GuidedIntentionCoachView() {
                 className={isSmallScreen ? 'mobile-drawer__close' : 'absolute top-4 right-4 sm:top-6 sm:right-6 min-h-touch min-w-touch flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-muted/50 z-10 touch-manipulation transition-colors'}
                 aria-label="Close intention coach"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
           </div>
 
-          <div className={`flex-1 overflow-y-auto overscroll-contain min-h-0 ${isSmallScreen ? 'mobile-drawer__body' : ''}`}>
+          <div className={`flex-1 overflow-y-auto overscroll-contain min-h-0 scrollbar-themed ${isSmallScreen ? 'mobile-drawer__body' : ''}`}>
             <div
               className={`flex flex-col gap-6 px-4 pb-6 sm:px-10 sm:pb-6 ${isLandscape ? 'pt-4 gap-4' : 'pt-4 sm:pt-6'} ${safeAreaXClass}`}
             >
@@ -678,7 +759,7 @@ export function GuidedIntentionCoachView() {
                       <Fragment key={entry.id}>
                         <button
                           ref={el => {
-                            if (el) stepButtonRefs.current[index] = el;
+                            stepButtonRefs.current[index] = el;
                           }}
                           type="button"
                           id={`step-tab-${entry.id}`}
@@ -688,14 +769,18 @@ export function GuidedIntentionCoachView() {
                           tabIndex={index === step ? 0 : -1}
                           className={`rounded-full px-3 py-1 min-h-touch min-w-touch touch-manipulation transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
                             index === step
-                              ? 'bg-accent text-surface shadow-lg shadow-accent/20'
+                              ? 'bg-accent text-surface shadow-lg shadow-accent/20 forced-colors:underline forced-colors:underline-offset-4'
                               : 'bg-surface-muted text-muted hover:bg-surface-muted/80 hover:text-accent'
                           }`}
                           onClick={() => setStep(index)}
                           onKeyDown={(e) => handleStepKeyDown(e, index)}
                         >
-                          <span className="hidden sm:inline">{entry.label}</span>
+                          {/* Phones show the number; the name stays in the
+                              accessible label ("1 Topic") so voice control
+                              and screen readers both get it. */}
                           <span className="sm:hidden">{index + 1}</span>
+                          {' '}
+                          <span className="sr-only sm:not-sr-only">{entry.label}</span>
                         </button>
                         {index < STEPS.length - 1 && <span className="text-accent/30" aria-hidden="true">·</span>}
                       </Fragment>
@@ -707,7 +792,8 @@ export function GuidedIntentionCoachView() {
                     </p>
                     <button
                       type="button"
-                      onClick={() => setTemplatePanelOpen(true)}
+                      onClick={() => openTemplatePanel('browse')}
+                      aria-haspopup="dialog"
                       className="inline-flex items-center justify-center gap-1 rounded-full border border-secondary/40 px-3 py-1.5 text-2xs uppercase tracking-[0.2em] text-secondary hover:bg-secondary/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
                     >
                       <BookmarkSimple className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
@@ -736,14 +822,9 @@ export function GuidedIntentionCoachView() {
           </div>
 
           <div
-            className={`flex-shrink-0 ${isSmallScreen ? 'mobile-drawer__footer' : 'bg-surface border-t border-accent/20 sm:border-t-0 px-4 sm:px-10 pb-safe sm:pb-6'} ${isLandscape ? 'pt-2' : isSmallScreen ? '' : 'pt-4 sm:pt-0'} ${safeAreaXClass}`}
+            className={`flex-shrink-0 ${isSmallScreen ? 'mobile-drawer__footer' : 'bg-surface border-t border-accent/20 px-4 sm:px-10 pb-safe sm:pb-6'} ${isLandscape ? 'pt-2' : isSmallScreen ? '' : 'pt-4'} ${safeAreaXClass}`}
             style={!isSmallScreen ? footerPaddingStyle : undefined}
           >
-            {historyStatus && (
-              <p className="text-xs text-error text-center sm:text-left mb-2">
-                {historyStatus}
-              </p>
-            )}
             <div className={`flex sm:flex-row sm:items-center sm:justify-between ${isLandscape ? 'flex-row items-center gap-2' : 'flex-col gap-3'}`}>
               <div className={`text-xs text-muted ${isLandscape ? 'block' : 'hidden sm:block'}`}>
                 <p>
@@ -751,13 +832,16 @@ export function GuidedIntentionCoachView() {
                 </p>
               </div>
               <div className={`flex items-center w-full sm:w-auto ${isLandscape ? 'gap-2 flex-1 justify-end' : 'gap-3'}`}>
+                {/* aria-disabled, not disabled: disabling the focused button on
+                    the first step would drop keyboard focus to the page. */}
                 <button
                   type="button"
                   onClick={goBack}
-                  disabled={step === 0}
-                  className={`inline-flex items-center justify-center gap-1 rounded-full border border-accent/20 text-sm text-main transition disabled:opacity-40 min-h-touch sm:min-h-0 touch-manipulation ${isLandscape ? 'px-3 py-2 flex-none' : 'px-4 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
+                  aria-disabled={step === 0 || undefined}
+                  aria-label={isLandscape ? 'Back' : undefined}
+                  className={`${footerSecondaryClass} ${isLandscape ? 'min-h-touch px-3 flex-none' : 'min-h-cta px-5 flex-1 sm:flex-none'}`}
                 >
-                  <ArrowLeft className="h-4 w-4" />
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                   {!isLandscape && <span>Back</span>}
                 </button>
                 {step < STEPS.length - 1 ? (
@@ -765,20 +849,23 @@ export function GuidedIntentionCoachView() {
                     type="button"
                     onClick={goNext}
                     disabled={!canGoNext()}
-                    className={`inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/20 text-sm font-medium text-secondary transition disabled:opacity-50 min-h-touch sm:min-h-0 touch-manipulation ${isLandscape ? 'px-4 py-2 flex-none' : 'px-5 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
+                    className={`${footerPrimaryClass} ${isLandscape ? 'min-h-touch px-4 flex-none' : 'min-h-cta px-6 flex-1 sm:flex-none'}`}
                   >
                     <span>Next</span>
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={handleApply}
                     disabled={(!questionText && !guidedQuestion) || questionLoading}
-                    className={`inline-flex items-center justify-center gap-2 rounded-full border border-secondary/60 bg-secondary/80 text-sm font-semibold text-surface transition disabled:opacity-50 min-h-touch sm:min-h-0 touch-manipulation ${isLandscape ? 'px-4 py-2 flex-none' : 'px-5 py-2.5 sm:py-2 flex-1 sm:flex-none'}`}
+                    aria-label={isLandscape && !questionLoading ? 'Use question' : undefined}
+                    className={`${footerPrimaryClass} ${isLandscape ? 'min-h-touch px-4 flex-none' : 'min-h-cta px-6 flex-1 sm:flex-none'}`}
                   >
-                    <span>{isLandscape ? 'Use' : 'Use question'}</span>
-                    <Sparkle className="h-4 w-4" />
+                    {/* Say why the button is unavailable while a personalized
+                        question is still being written. */}
+                    <span>{questionLoading ? 'Weaving…' : isLandscape ? 'Use' : 'Use question'}</span>
+                    <Sparkle className="h-4 w-4" aria-hidden="true" />
                   </button>
                 )}
               </div>
@@ -787,7 +874,8 @@ export function GuidedIntentionCoachView() {
 
           <CoachTemplatePanel
             isOpen={isTemplatePanelOpen}
-            onClose={() => setTemplatePanelOpen(false)}
+            intent={templatePanelIntent}
+            onClose={closeTemplatePanel}
             prefersReducedMotion={prefersReducedMotion}
             templates={templates}
             newTemplateLabel={newTemplateLabel}

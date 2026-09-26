@@ -1,5 +1,5 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
-import { Sparkle, X } from '@phosphor-icons/react';
+import { X } from '@phosphor-icons/react';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -165,10 +165,6 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
         <div className="mobile-drawer__header px-4 pt-3 pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
-              <p className="mobile-drawer__eyebrow">
-                <Sparkle className="w-3.5 h-3.5" aria-hidden="true" />
-                Guided setup
-              </p>
               <h2 id="mobile-drawer-title" className="text-lg font-serif text-accent">Prepare Reading</h2>
               <p className="text-[0.78rem] text-muted/90 leading-snug max-w-[22rem]">
                 Align your spread, deck, and ritual steps before you draw cards.

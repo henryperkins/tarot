@@ -90,6 +90,19 @@ export default {
         'success-subtle': 'var(--status-success-bg)',
         'warning-subtle': 'var(--status-warning-bg)',
       },
+      // Surface names used by ring-offset-* and shadow-* classes. They resolve to
+      // the backgrounds, so an offset gap blends into the surface it sits on
+      // instead of falling back to Tailwind's white.
+      ringOffsetColor: {
+        main: 'rgb(var(--bg-main-rgb) / <alpha-value>)',
+        surface: 'rgb(var(--bg-surface-rgb) / <alpha-value>)',
+        'surface-muted': 'rgb(var(--bg-surface-muted-rgb) / <alpha-value>)',
+      },
+      boxShadowColor: {
+        main: 'rgb(var(--bg-main-rgb) / <alpha-value>)',
+        surface: 'rgb(var(--bg-surface-rgb) / <alpha-value>)',
+        'surface-muted': 'rgb(var(--bg-surface-muted-rgb) / <alpha-value>)',
+      },
       textColor: {
         main: 'rgb(var(--text-main-rgb) / <alpha-value>)',
         muted: 'rgb(var(--text-muted-rgb) / <alpha-value>)',
