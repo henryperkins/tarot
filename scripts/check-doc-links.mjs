@@ -49,18 +49,20 @@ function collectMarkdownFiles(directory) {
 }
 
 // Blank fenced lines instead of dropping them so array indexes stay aligned
-// with source line numbers in failure reports.
+// with source line numbers in failure reports. A fence closes only on its own
+// character, at least as long and with nothing after it, and a backtick line
+// that carries more backticks is inline code rather than an opening fence.
 function blankFencedCode(lines) {
   let fence = null;
   return lines.map((line) => {
-    const match = line.match(/^\s*(`{3,}|~{3,})/);
+    const match = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
     if (match) {
-      const marker = match[1][0];
-      if (!fence) {
+      const [, marker, rest] = match;
+      if (!fence && !(marker[0] === '`' && rest.includes('`'))) {
         fence = marker;
         return '';
       }
-      if (fence === marker) {
+      if (fence && marker[0] === fence[0] && marker.length >= fence.length && !rest.trim()) {
         fence = null;
         return '';
       }
@@ -71,13 +73,17 @@ function blankFencedCode(lines) {
 
 function extractTargets(line) {
   const targets = [];
+  // Link syntax inside a code span is an example, not a link. A span closes on
+  // a backtick run of exactly its opening length.
+  const text = line.replace(/(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)/g, '');
   const inlinePattern = /!?\[[^\]]*\]\(([^)]+)\)/g;
   let match;
-  while ((match = inlinePattern.exec(line))) {
+  while ((match = inlinePattern.exec(text))) {
     targets.push(match[1].trim());
   }
-  const referencePattern = /^\s*\[[^\]]+\]:\s*(\S+)/;
-  const referenceMatch = line.match(referencePattern);
+  // Footnote definitions ([^1]: text) are not link references.
+  const referencePattern = /^\s*\[(?!\^)[^\]]+\]:\s*(\S+)/;
+  const referenceMatch = text.match(referencePattern);
   if (referenceMatch) targets.push(referenceMatch[1]);
   return targets;
 }
@@ -94,8 +100,8 @@ function normalizeTarget(rawTarget) {
   target = target.replace(/^['"]|['"]$/g, '');
   if (!target || target.startsWith('#')) return null;
   if (/^[a-z][a-z\d+.-]*:/i.test(target) && !isHostPath(target)) return null;
-  const hashIndex = target.indexOf('#');
-  const pathPart = hashIndex === -1 ? target : target.slice(0, hashIndex);
+  // Only the path has to exist; drop any query (?plain=1) and fragment.
+  const pathPart = target.replace(/[?#].*$/, '');
   if (!pathPart) return null;
   try {
     return decodeURIComponent(pathPart);
