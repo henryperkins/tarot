@@ -83,8 +83,9 @@ async function exportEvalData(options) {
 }
 
 /**
- * Map an eval_metrics row to an export record. Prompt version, variant and
- * card coverage are flattened to the top level for every payload schema.
+ * Map an eval_metrics row to an export record. Prompt version, variant, card
+ * coverage, card count and question length are flattened to the top level for
+ * every payload schema. Only the question's length is exported, never its text.
  */
 export function toEvalRecord(row) {
   let payload = {};
@@ -104,6 +105,15 @@ export function toEvalRecord(row) {
     hallucinatedCardsCount = payload.narrative?.hallucinatedCards?.length || 0;
   }
 
+  const cardCount = (Array.isArray(payload.cardsInfo) && payload.cardsInfo.length) ||
+    payload.narrative?.coverage?.cardCount ||
+    payload.narrative?.cardCount ||
+    payload.cardCount ||
+    null;
+  const questionLength = typeof payload.userQuestion === 'string'
+    ? payload.userQuestion.trim().length
+    : (Number.isFinite(payload.questionLength) ? payload.questionLength : null);
+
   return {
     requestId: row.request_id,
     timestamp: row.created_at,
@@ -117,6 +127,8 @@ export function toEvalRecord(row) {
       mode: row.eval_mode
     },
     cardCoverage,
+    cardCount,
+    questionLength,
     hallucinatedCards: hallucinatedCardsCount,
     readingPromptVersion: row.reading_prompt_version,
     variantId: row.variant_id,

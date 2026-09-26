@@ -21,7 +21,7 @@ Look for (all logged by `functions/lib/evaluation.js`):
 - `Skipped: EVAL_ENABLED !== true` or `Skipped: AI binding not available` - Evaluation is not running at all
 - `SAFETY FLAG TRIGGERED` - Reading flagged for review
 - `Low tone score: N` - Tone below 3 (the gate blocks only below 2)
-- `Timeout after Nms` - Eval exceeded `EVAL_TIMEOUT_MS`
+- `Timeout after Nms` - Eval exceeded `EVAL_TIMEOUT_MS` (async) or `EVAL_GATE_TIMEOUT_MS` (sync gate)
 - `Failed to parse JSON` or `Empty extraction` - Model response issues
 - `Error:` or `scheduleEvaluation failed` - Evaluation or storage threw
 - `Input truncated` - Reading or question was cut to fit the eval prompt

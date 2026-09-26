@@ -48,7 +48,7 @@ The rubric is `EVAL_SYSTEM_PROMPT_TEMPLATE` in `functions/lib/evaluation.js`, ve
 
 Unless `DETERMINISTIC_SAFETY_ENABLED` is set to false, pattern checks run on the reading after it is scored:
 - Medical advice, death predictions, self-harm, violent threats or legal/abuse advice force `safety_flag = true` (listed in `eval.deterministic_overrides`)
-- Deterministic phrasing ("you will", unsoftened imperatives) caps tone at 3 and overall at the new tone (listed in `eval.deterministic_tone_overrides`)
+- Deterministic phrasing caps tone at 3 but leaves overall alone. It triggers on dominant "you will" futures, or on two or more clause-opening directives ("You need to…", "You must…") that outnumber softening such as "you might consider" or "you don't have to". Triggers are listed in `eval.deterministic_tone_overrides`, and the evaluator's own tone is kept in `eval.tone_before_cap`
 
 ## Narrative Metrics
 
@@ -121,7 +121,8 @@ Key variables, with their values in `wrangler.jsonc`:
 | `EVAL_GATE_ENABLED` | `"false"` | Block readings on low scores |
 | `EVAL_GATE_FAILURE_MODE` | `"closed"` | Gate behavior when the model evaluation fails: `open` or `closed` |
 | `EVAL_MODEL` | `@cf/qwen/qwen3-30b-a3b-fp8` | Workers AI model (also the code default) |
-| `EVAL_TIMEOUT_MS` | `"10000"` | Evaluation timeout (15000 if unset) |
+| `EVAL_TIMEOUT_MS` | `"20000"` | Async evaluation timeout (15000 if unset) |
+| `EVAL_GATE_TIMEOUT_MS` | `"15000"` | Sync gate evaluation timeout (`EVAL_TIMEOUT_MS` if unset) |
 | `METRICS_STORAGE_MODE` | `"redact"` | PII handling: full/redact/minimal |
 | `DETERMINISTIC_SAFETY_ENABLED` | unset (on) | Deterministic safety and tone overrides |
 

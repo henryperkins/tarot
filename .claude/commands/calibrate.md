@@ -11,7 +11,8 @@ node scripts/evaluation/exportEvalData.js --days=7 | node scripts/evaluation/cal
 - The export reads production D1 through `npx wrangler` (read-only). Add `--local` to the export to read the local dev database instead.
 - The pipe keeps the export off disk, since evaluator notes can quote reading text.
 - Stderr should show `Exported N evaluation records`. `Export failed` means the analysis ran on no data; check `npx wrangler whoami`.
-- The script also runs an offline synthetic-failure check. To run only that check, with no credentials: `node scripts/evaluation/calibrateEval.js < /dev/null`.
+- Distributions use model-scored records only. Heuristic fallbacks (with their reasons), single-card coherence, no-question personalization and deterministic tone caps are reported separately.
+- The script also runs an offline synthetic-failure check. It covers only the heuristic and deterministic layers, not the model. To run only that check, with no credentials: `node scripts/evaluation/calibrateEval.js < /dev/null`.
 
 Based on the output, help me:
 

@@ -96,7 +96,12 @@
     "STREAMING_SAFETY_SCAN_ENABLED": "false",
     "EVAL_ENABLED": "true",
     "EVAL_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
-    "EVAL_TIMEOUT_MS": "10000",
+    // EVAL_TIMEOUT_MS bounds the async evaluation, which runs in waitUntil()
+    // (30s budget after the response, shared with other background work).
+    // EVAL_GATE_TIMEOUT_MS bounds the sync gate, which holds the reading
+    // response; it falls back to EVAL_TIMEOUT_MS when unset.
+    "EVAL_TIMEOUT_MS": "20000",
+    "EVAL_GATE_TIMEOUT_MS": "15000",
     // EVAL_GATE_ENABLED: When "true", readings that fail quality evaluation are
     // replaced with a safe fallback. CAUTION: If eval model is unavailable,
     // ALL readings will show fallback. Set to "false" for production safety.
