@@ -21,7 +21,7 @@
  *   - STRIPE_PRICE_ID_PRO: Price ID for Pro monthly (price_...)
  *   - STRIPE_PRICE_ID_PLUS_ANNUAL: Price ID for Plus annual (price_...)
  *   - STRIPE_PRICE_ID_PRO_ANNUAL: Price ID for Pro annual (price_...)
- *   - APP_URL: Base URL of the application (e.g., https://tableu.app)
+ *   - APP_URL: Base URL of the application (e.g., https://tarot.lakefrontdev.com)
  */
 
 import { getUserFromRequest } from '../lib/auth.js';

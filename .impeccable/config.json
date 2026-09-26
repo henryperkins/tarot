@@ -1,3 +1,18 @@
 {
-  "buildPath": "comp"
+  "buildPath": "comp",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          "functions/api/webhooks/stripe.js"
+        ],
+        "createdAt": "2026-09-26T11:24:52.258Z",
+        "reason": "Transactional email HTML needs a system font stack (email clients can't load the app's web fonts); DESIGN.md's type system describes the web app"
+      }
+    ]
+  }
 }

@@ -1,6 +1,9 @@
+// The Worker's live custom domain; used only when APP_URL is unset.
+const DEFAULT_APP_URL = 'https://tarot.lakefrontdev.com';
+
 export function resolveAppUrl(env) {
   const value = typeof env?.APP_URL === 'string' ? env.APP_URL.trim() : '';
-  return value || 'https://tableu.app';
+  return value || DEFAULT_APP_URL;
 }
 
 function isRelativePath(value) {
@@ -58,7 +61,7 @@ function resolvePrimaryOrigin(request, env) {
   const requestOrigin = tryParseOrigin(request?.url);
   if (requestOrigin && allowed.includes(requestOrigin)) return requestOrigin;
 
-  return 'https://tableu.app';
+  return DEFAULT_APP_URL;
 }
 
 export function sanitizeRedirectUrl(value, request, env, fallbackPath = '/account') {
