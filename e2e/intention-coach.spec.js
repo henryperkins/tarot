@@ -171,6 +171,21 @@ test.describe('Guided intention coach keyboard and layers', () => {
     await expect(coach).toBeVisible();
   });
 
+  test('a tooltip left open behind the coach does not swallow its Escape', async ({ page }) => {
+    await seedApp(page);
+    await gotoReading(page);
+
+    // Hovered, then the coach opened from the keyboard: no pointerdown hides
+    // the page's tooltip, and the coach now covers it.
+    await page.getByRole('button', { name: /^Ritual \(optional\)/ }).click();
+    await page.getByRole('button', { name: 'About clearing the deck ritual' }).hover();
+    await expect(page.getByRole('tooltip')).toBeVisible();
+    const coach = await openCoachWithShortcut(page);
+
+    await page.keyboard.press('Escape');
+    await expect(coach).toHaveCount(0);
+  });
+
   test('the template library is a layer of its own', async ({ page }) => {
     await seedApp(page, { templates: [TEMPLATE] });
     await gotoReading(page);
@@ -233,6 +248,39 @@ test.describe('Guided intention coach keyboard and layers', () => {
 
     await coach.getByRole('tab', { name: 'Depth' }).click();
     await expect(coach.getByText(question, { exact: true })).toBeVisible();
+  });
+
+  test('signing in while the coach is open starts over for the new account', async ({ page }) => {
+    await seedApp(page);
+    // Registered after seedApp, so it wins: hold the session check until the
+    // anonymous session has something in it.
+    let signIn;
+    const signedIn = new Promise(resolve => { signIn = resolve; });
+    await page.route('**/api/auth/me', async (route) => {
+      await signedIn;
+      await route.fulfill({
+        status: 200,
+        json: { user: { id: 'user-e2e', email: 'reader@example.com', username: 'reader' } }
+      });
+    });
+    await gotoReading(page);
+    let coach = await openCoachWithShortcut(page);
+
+    await coach.getByRole('radiogroup', { name: TOPIC_PROMPT })
+      .getByRole('radio', { name: /^Career & Purpose/ })
+      .click();
+    await coach.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(coach.getByRole('tab', { name: 'Timeframe' })).toHaveAttribute('aria-selected', 'true');
+
+    signIn();
+    await expect(page.getByRole('button', { name: 'Sign In' })).toHaveCount(0);
+    await expect(coach.getByRole('tab', { name: 'Topic' })).toHaveAttribute('aria-selected', 'true');
+
+    // The anonymous session was not filed under the new account.
+    await page.keyboard.press('Escape');
+    await expect(coach).toHaveCount(0);
+    coach = await openCoachWithShortcut(page);
+    await expect(coach.getByRole('tab', { name: 'Topic' })).toHaveAttribute('aria-selected', 'true');
   });
 
   test('an untouched session is not kept as a draft', async ({ page }) => {

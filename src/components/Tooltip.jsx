@@ -60,11 +60,14 @@ export function Tooltip({
     // document-level modal handlers, so an open tooltip consumes the key
     // instead of the dialog around it closing and discarding its state.
     const handleKeyDown = event => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        setIsVisible(false);
-      }
+      if (event.key !== 'Escape') return;
+      setIsVisible(false);
+      // A tooltip left open behind a dialog (hovered, then the dialog opened
+      // from the keyboard) is out of sight; the key belongs to that dialog.
+      const activeLayer = document.activeElement?.closest?.('[role="dialog"], [role="alertdialog"]');
+      if (activeLayer && !activeLayer.contains(rootRef.current)) return;
+      event.preventDefault();
+      event.stopPropagation();
     };
 
     const handlePointerDown = event => {

@@ -172,6 +172,7 @@ export function GuidedIntentionCoachProvider({
   const [astroSource, setAstroSource] = useState(null);
   const timeoutRefs = useRef([]);
   const hasInitializedRef = useRef(Boolean(openingState));
+  const sessionUserIdRef = useRef(userId);
   // Prefix for announcing the next generated question, set by explicit
   // actions (Remix, the AI toggle) and consumed once generation settles.
   const pendingQuestionAnnouncementRef = useRef(null);
@@ -615,24 +616,51 @@ export function GuidedIntentionCoachProvider({
     onClose
   ]);
 
+  // Latest committed session, kept as a draft when the coach closes without
+  // applying a question (swipe, Escape, backdrop, close button). Declared
+  // before the opening effect below so that effect can clear it: in the commit
+  // that starts a new session, these values still belong to the old one.
+  useEffect(() => {
+    if (!isOpen) return;
+    draftSnapshotRef.current = {
+      step,
+      topic,
+      timeframe,
+      depth,
+      customFocus,
+      useCreative,
+      remixCount,
+      questionText,
+      autoQuestionEnabled,
+      prefillSource
+    };
+  });
+
   useEffect(() => {
     if (!isOpen) {
       hasInitializedRef.current = false;
       return;
     }
 
-    if (hasInitializedRef.current) {
+    // A session belongs to the account that opened it. If the account changes
+    // while the coach is open, the draft cleanup below has already kept the
+    // old session for the old account; start over as the new one.
+    if (hasInitializedRef.current && sessionUserIdRef.current === userId) {
       return;
     }
 
-    // Reopened without remounting. The generator's run in this same commit
-    // still sees the previous session and would overwrite the opening
-    // question queued here, so it sits that one run out.
+    // Reopened without remounting, or the account changed. The generator's
+    // run in this same commit still sees the previous session and would
+    // overwrite the opening question queued here, so it sits that one run out.
     hasInitializedRef.current = true;
+    sessionUserIdRef.current = userId;
     skipNextGenerationRef.current = true;
 
     const opening = resolveOpeningState({ userId, suggestedTopic, prefillRecommendation });
     openingSnapshotRef.current = opening;
+    // Nothing of the new session has rendered yet, so nothing to keep if the
+    // coach closes before it does.
+    draftSnapshotRef.current = null;
     setStep(opening.step);
     setTopic(opening.topic);
     setTimeframe(opening.timeframe);
@@ -652,24 +680,6 @@ export function GuidedIntentionCoachProvider({
       announce(RESUMED_MESSAGE);
     }
   }, [isOpen, suggestedTopic, prefillRecommendation, userId, clearAstroForecast, announce]);
-
-  // Latest committed session, kept as a draft when the coach closes without
-  // applying a question (swipe, Escape, backdrop, close button).
-  useEffect(() => {
-    if (!isOpen) return;
-    draftSnapshotRef.current = {
-      step,
-      topic,
-      timeframe,
-      depth,
-      customFocus,
-      useCreative,
-      remixCount,
-      questionText,
-      autoQuestionEnabled,
-      prefillSource
-    };
-  });
 
   useEffect(() => {
     if (!isOpen) return undefined;
