@@ -1,12 +1,14 @@
 # Symbolism Reference MCP Server
 
-Comprehensive symbolism database for tarot card interpretation. Provides meanings for animals, colors, numbers, elements, plants, and celestial symbols.
+Local symbolism reference data for Claude Code conversations about tarot. Provides meanings for animals, colors, numbers, elements, plants, and celestial symbols.
+
+This is an optional Claude Code MCP server. It is not imported by the Tableu Worker, browser bundle, or reading pipeline, and it does not automatically modify an application reading.
 
 ## Features
 
 - **6 Symbol Categories**: Animals, colors, numbers, elements, plants, celestial bodies
 - **Rich Meanings**: General, tarot-specific, spiritual, and psychological interpretations
-- **Keyword Search**: Find symbols by name or associated keywords
+- **Linear Keyword Search**: Scan symbols by name or associated keywords without a search index
 - **Theme Exploration**: Discover symbols related to specific themes or archetypes
 - **Contextual Interpretation**: Synthesize multiple symbols for coherent readings
 - **Cross-References**: Discover relationships between symbols
@@ -14,13 +16,25 @@ Comprehensive symbolism database for tarot card interpretation. Provides meaning
 ## Installation
 
 ```bash
-cd symbolism-server
+cd plugins/tarot-astro-plugins/symbolism-server
 npm install
 ```
 
 ## Usage
 
-This MCP server is automatically configured when the plugin is installed. Claude Code will have access to these tools:
+When the plugin is installed in Claude Code, its `.mcp.json` exposes these tools through a local stdio process. A tool is called only when Claude Code invokes it:
+
+```json
+{
+  "mcpServers": {
+    "symbolism": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.js"]
+    }
+  }
+}
+```
 
 ### Available Tools
 
@@ -268,66 +282,25 @@ Heavenly bodies and cosmic forces:
 - **Stars**: Hope, guidance, higher self
 - **Lightning**: Revelation, breakthrough, divine fire
 
-## Integration with Tarot Readings
+## Optional Claude Code Usage
 
-### Enhance Card Interpretation
+### User-Requested Symbol Analysis
 
-```javascript
-// When interpreting The Moon card
-const moonSymbols = await interpret_card_symbols("The Moon", [
-  "moon", "wolf", "dog", "crayfish", "silver", "blue"
-]);
+The server does not enrich every application reading. When a user explicitly asks Claude Code to interpret a card or symbol, Claude can use the tools in that conversation. The examples below are standalone tool-use sketches, not code imported by the Tableu application.
 
-// Get deeper context
-const lunarThemes = await get_related_symbols("lunar mysteries");
+Call `interpret_card_symbols` with `cardName: "The Moon"` and the symbols the user names, such as `moon`, `wolf`, `dog`, `crayfish`, `silver`, and `blue`. Claude can then present the returned synthesis.
 
-// Combine for rich interpretation
-const reading = `
-The Moon card presents a landscape of lunar symbolism:
+### Color Analysis in a Claude Code Conversation
 
-${moonSymbols.synthesis.interpretation}
+Call `get_color_meanings` with `colors: ["blue", "red", "gold"]`, then ask Claude to explain how those meanings interact in the user's context.
 
-The ${moonSymbols.symbols.find(s => s.symbol === 'wolf').data.meanings.tarot}
-The ${moonSymbols.symbols.find(s => s.symbol === 'dog').data.meanings.tarot}
+### Numerological Context in a Claude Code Conversation
 
-The crayfish emerging from the water represents ${moonSymbols.symbols.find(s => s.symbol === 'crayfish').data.meanings.general}
-`;
-```
-
-### Color Analysis in Readings
-
-```javascript
-// Analyze dominant colors in a reading
-const colors = await get_color_meanings(["blue", "red", "gold"]);
-
-// Understanding the energetic mix
-const interpretation = `
-The color palette of this reading combines:
-- Blue: ${colors[0].meanings.spiritual}
-- Red: ${colors[1].meanings.spiritual}
-- Gold: ${colors[2].meanings.spiritual}
-
-This suggests a journey from emotional depth (blue) through passionate action (red) to spiritual enlightenment (gold).
-`;
-```
-
-### Numerological Context
-
-```javascript
-// For a 7-card spread in position 3
-const numberMeaning = await get_numerological_insight("7");
-const positionMeaning = await get_numerological_insight("3");
-
-// Rich numerological context
-const context = `
-Seven-card spread: ${numberMeaning.meanings.spiritual}
-Third position: ${positionMeaning.meanings.tarot}
-`;
-```
+Call `get_numerological_insight` separately for the spread size and card position, such as `"7"` and `"3"`, and ask Claude to combine the returned interpretations.
 
 ## Extending the Database
 
-To add new symbols, edit `/data/symbols.json`:
+From the repository root, edit `plugins/tarot-astro-plugins/symbolism-server/data/symbols.json`:
 
 ```json
 {
@@ -356,17 +329,16 @@ To add new symbols, edit `/data/symbols.json`:
 ## Technical Details
 
 ### Database Structure
-- JSON-based symbol database
+- JSON-based symbol database loaded into memory
 - Hierarchical category organization
 - Multiple meaning contexts per symbol
-- Keyword indexing for fast search
-- Fuzzy matching for flexible queries
+- Linear, case-insensitive substring scans over names, keywords, and meanings
+- Exact then partial-name scans; no search index or edit-distance fuzzy matcher
 
 ### Performance
-- In-memory database for fast lookups
-- Efficient keyword indexing
-- Sub-millisecond response times
+- Lookup cost grows with the number of loaded symbols
+- Response time depends on the local Claude Code process and is not an application-runtime guarantee
 
 ## License
 
-MIT
+The symbolism server plugin is MIT licensed, as declared in its package metadata. The optional ephemeris server has separate Swiss Ephemeris licensing; see `plugins/tarot-astro-plugins/ephemeris-server/LICENSE` for that distinction.

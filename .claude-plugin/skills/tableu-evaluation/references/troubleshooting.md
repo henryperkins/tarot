@@ -89,14 +89,16 @@ Consider increasing if frequently timing out.
 
 ### Step 3: Check Error Logs
 
-Use `/eval-logs`, or tail for eval lines and errors directly:
+The repository command is `.claude/commands/eval-logs.md`. When Claude Code is started from the repository root, run `/eval-logs`; it is not a command supplied by this plugin. If it is unavailable, run the equivalent command directly:
 
 ```bash
-npx wrangler tail --format=json \
-  | jq -c --unbuffered '.logs[]? | select((.message | tostring) | test("\\[eval\\]|error"; "i")) | {level, msg: .message}'
+timeout 300 npx wrangler tail --format=json \
+  | jq -c --unbuffered '.logs[]? | select((.message[0] // "" | tostring) | test("\\[eval\\]|error"; "i")) | {t: (.timestamp / 1000 | floor | todate), level, msg: .message}'
 ```
 
-JSON output keeps each log entry whole; pretty output splits logged objects across lines, so line filters lose data.
+Keep `--format=json` so each log entry remains intact. Do not redirect Wrangler's stderr into the filter; use `npx wrangler whoami` if the tail cannot connect.
+
+`timeout` is GNU coreutils and is not on stock macOS. There, install coreutils (`brew install coreutils`) and use `gtimeout 300`, or drop the prefix and stop the tail with Ctrl-C.
 
 ## Alert Investigation
 

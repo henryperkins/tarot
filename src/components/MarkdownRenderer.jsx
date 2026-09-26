@@ -36,18 +36,19 @@ const STYLE_VARIANTS = {
     td: 'border border-secondary/30 px-2 xs:px-3 py-1.5 xs:py-2',
     showSectionDivider: true
   },
+  // Follow-up answers: reading copy, so body size (16px) rather than caption size.
   compact: {
     wrapper: 'text-main text-left',
-    inner: 'space-y-2',
-    paragraph: 'text-sm leading-relaxed',
-    heading: 'font-serif text-sm text-main mt-3 mb-2',
+    inner: 'space-y-3',
+    paragraph: 'text-base leading-relaxed',
+    heading: 'font-serif text-main mt-4 mb-2',
     headingSizes: {
-      h1: 'text-base',
-      h2: 'text-sm',
-      h3: 'text-sm'
+      h1: 'text-xl',
+      h2: 'text-lg',
+      h3: 'text-base'
     },
-    list: 'list-disc pl-4 space-y-1 text-sm',
-    blockquote: 'border-l-2 border-secondary/40 pl-3 italic text-accent/85 my-2 text-sm',
+    list: 'list-disc pl-5 space-y-1.5 text-base leading-relaxed',
+    blockquote: 'border-l-2 border-secondary/40 pl-3 italic text-accent/85 my-3 text-base',
     inlineCode:
       'bg-surface-muted/70 text-accent px-1.5 py-0.5 rounded text-xs font-mono break-words',
     codeBlock: 'block p-2 text-xs font-mono whitespace-pre-wrap break-words',

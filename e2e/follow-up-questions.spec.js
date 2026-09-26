@@ -258,8 +258,233 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await input.press('Enter');
 
     await expect(page.getByText('First follow-up response.')).toBeVisible();
-    await expect(page.getByText(/used all 1 follow-up question/i)).toBeVisible();
+    await expect(page.getByText(/used your follow-up question for this reading/i)).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Follow-up question' })).toHaveCount(0);
+  });
+
+  test('composer keeps focus and stays until the answer lands', async ({ page }) => {
+    await mockAuth(page);
+    await mockTarotReading(page);
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/reading-followup', async (route) => {
+      await held;
+      await route.fulfill({
+        contentType: 'text/event-stream',
+        body: 'event: meta\ndata: {"turn":1}\n\nevent: delta\ndata: {"text":"Held answer."}\n\nevent: done\ndata: {"fullText":"Held answer."}\n\n'
+      });
+    });
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    await input.fill('Where should my attention go?');
+    await input.press('Enter');
+
+    // Free tier: the only turn is not spent until the answer arrives.
+    await expect(input).toBeDisabled();
+    await expect(input).toBeFocused();
+    await expect(page.getByText('Reflecting on your question…')).toBeVisible();
+    await expect(page.getByText('0/1 used', { exact: true })).toBeVisible();
+
+    release();
+    await expect(page.getByText('Held answer.')).toBeVisible();
+    await expect(input).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => document.activeElement?.textContent || ''))
+      .toContain('used your follow-up question for this reading');
+  });
+
+  test('suggestions move focus to the conversation, never to the page body', async ({ page }) => {
+    await mockAuth(page, 'plus');
+    await mockTarotReading(page);
+    await mockFollowUp(page, { responseText: 'Suggestion answer.' });
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const suggestionList = page.getByRole('list', { name: /suggested questions/i });
+    await suggestionList.getByRole('button').first().press('Enter');
+    await expect(page.getByText('Suggestion answer.')).toBeVisible();
+    await expect(page.getByRole('log', { name: /conversation history/i })).toBeFocused();
+
+    await page.getByRole('button', { name: /show suggestions/i }).press('Enter');
+    await expect(suggestionList.getByRole('button').first()).toBeFocused();
+  });
+
+  test('safety-gate JSON answer shows support resources without spending a turn', async ({ page }) => {
+    await mockAuth(page);
+    await mockTarotReading(page);
+    // The server answers crisis language with JSON even when a stream was requested.
+    await page.route('**/api/reading-followup', route => route.fulfill({
+      json: {
+        response: 'Please reach out to someone who can be there for you: call or text **988** (US).',
+        meta: { provider: 'safety-gate', crisisCategories: ['self_harm'] }
+      }
+    }));
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    await input.fill('A question that trips the safety gate');
+    await input.press('Enter');
+
+    await expect(page.getByRole('log', { name: /conversation history/i })).toContainText('988');
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await expect(page.getByText('0/1 used', { exact: true })).toBeVisible();
+    await expect(input).toBeEnabled();
+  });
+
+  test('network failure keeps the question and names the recovery', async ({ page }) => {
+    await mockAuth(page);
+    await mockTarotReading(page);
+    await page.route('**/api/reading-followup', route => route.abort('internetdisconnected'));
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    await input.fill('Will this survive a dropped connection?');
+    await input.press('Enter');
+
+    await expect(page.getByRole('alert')).toContainText("Couldn't reach the reader");
+    await expect(input).toHaveValue('Will this survive a dropped connection?');
+    await expect(input).toBeFocused();
+  });
+
+  test('a stream that closes before any answer restores the question', async ({ page }) => {
+    await mockAuth(page);
+    await mockTarotReading(page);
+    await page.route('**/api/reading-followup', route => route.fulfill({
+      contentType: 'text/event-stream',
+      body: 'event: meta\ndata: {"turn":1}\n\n'
+    }));
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    await input.fill('Is anyone there?');
+    await input.press('Enter');
+
+    await expect(page.getByRole('alert')).toContainText('closed before the reader answered');
+    await expect(input).toHaveValue('Is anyone there?');
+    await expect(page.getByRole('log', { name: /conversation history/i })).toHaveCount(0);
+  });
+
+  test('a slow answer is not abandoned while the reader composes it', async ({ page }) => {
+    // The server sends nothing until it has composed, checked and recorded the answer.
+    await page.clock.install();
+    await mockAuth(page, 'plus');
+    await mockTarotReading(page);
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/reading-followup', async (route) => {
+      await held;
+      await route.fulfill({
+        contentType: 'text/event-stream',
+        body: 'event: meta\ndata: {"turn":1}\n\nevent: delta\ndata: {"text":"Worth the wait."}\n\nevent: done\ndata: {"fullText":"Worth the wait."}\n\n'
+      });
+    });
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    await input.fill('What needs more patience from me?');
+    await input.press('Enter');
+    await expect(page.getByText('Reflecting on your question…')).toBeVisible();
+
+    await page.clock.fastForward('03:00');
+    const log = page.getByRole('log', { name: /conversation history/i });
+    await expect(log).toContainText('Still reflecting. Some answers take a little longer.');
+    await expect(page.getByRole('alert')).toHaveCount(0);
+
+    release();
+    await expect(page.getByText('Worth the wait.')).toBeVisible();
+    await expect(page.getByText('1/3 used', { exact: true })).toBeVisible();
+  });
+
+  test('focus stays where the person left it when an answer lands', async ({ page }) => {
+    await mockAuth(page, 'plus');
+    await mockTarotReading(page);
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/reading-followup', async (route) => {
+      await held;
+      await route.fulfill({
+        contentType: 'text/event-stream',
+        body: 'event: meta\ndata: {"turn":1}\n\nevent: delta\ndata: {"text":"Answer after a blur."}\n\nevent: done\ndata: {"fullText":"Answer after a blur."}\n\n'
+      });
+    });
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    await input.fill('Where is my attention going?');
+    await input.press('Enter');
+    // Dismissing a phone keyboard blurs the composer without focusing anything else.
+    await input.evaluate(el => el.blur());
+
+    release();
+    await expect(page.getByText('Answer after a blur.')).toBeVisible();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('BODY');
+  });
+
+  test('the composer refits its draft when the width changes', async ({ page }) => {
+    await mockAuth(page, 'plus');
+    await mockTarotReading(page);
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    await input.fill('How can I keep steady attention on the work that matters most while other commitments pull me in different directions?');
+    await page.setViewportSize({ width: 390, height: 844 });
+    // No keystroke after the resize: the resize observer alone has to refit the draft.
+    await expect.poll(() => input.evaluate(el => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(0);
+  });
+
+  test('an interrupted answer still counts its turn', async ({ page }) => {
+    await mockAuth(page, 'plus');
+    await mockTarotReading(page);
+    let turn = 0;
+    await page.route('**/api/reading-followup', route => {
+      turn += 1;
+      let body = `event: meta\ndata: {"turn":${turn}}\n\nevent: delta\ndata: {"text":"Answer ${turn}."}\n\n`;
+      // The second answer's connection drops before its done event.
+      if (turn === 1) body += 'event: done\ndata: {"fullText":"Answer 1."}\n\n';
+      return route.fulfill({ contentType: 'text/event-stream', body });
+    });
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    await input.fill('First question');
+    await input.press('Enter');
+    await expect(page.getByText('1/3 used', { exact: true })).toBeVisible();
+
+    await input.fill('Second question');
+    await input.press('Enter');
+    const log = page.getByRole('log', { name: /conversation history/i });
+    await expect(log).toContainText('this answer may be incomplete');
+    await expect(page.getByText('2/3 used', { exact: true })).toBeVisible();
+  });
+
+  test('a final event without a trailing blank line still completes the answer', async ({ page }) => {
+    await mockAuth(page, 'plus');
+    await mockTarotReading(page);
+    // CRLF separators, and nothing after the final done event.
+    await page.route('**/api/reading-followup', route => route.fulfill({
+      contentType: 'text/event-stream',
+      body: 'event: meta\r\ndata: {"turn":1}\r\n\r\nevent: delta\r\ndata: {"text":"Whole answer."}\r\n\r\nevent: done\r\ndata: {"fullText":"Whole answer."}'
+    }));
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    await input.fill('Does the last event count?');
+    await input.press('Enter');
+
+    const log = page.getByRole('log', { name: /conversation history/i });
+    await expect(log).toContainText('Whole answer.');
+    await expect(page.getByText('1/3 used', { exact: true })).toBeVisible();
+    await expect(log).not.toContainText('may be incomplete');
   });
 
   test('journal context toggle affects request payload for Plus users', async ({ page }) => {

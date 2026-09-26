@@ -1,6 +1,6 @@
 Type: plan
 Status: active background document
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 **Phase 1 Implementation Complete ✅**
 
@@ -13,7 +13,7 @@ Summary of Changes
 | functions/api/keys/index.js                 | Modified - Added Pro tier gate for GET and POST          |
 | functions/api/keys/[id].js                  | Modified - Allow any authed user to revoke a key         |
 | functions/api/tarot-reading.js              | Modified - Added reading limit enforcement               |
-| functions/api/webhooks/stripe.js            | Modified - Added idempotency check and event recording   |
+| functions/api/webhooks/stripe.js            | Modified - Added claim-first webhook idempotency              |
 | functions/lib/scheduled.js                  | Modified - Added webhook event cleanup (7-day retention) |
 
 ---
@@ -31,16 +31,16 @@ Implementation Details
 
 - Free: 5/month, Plus: 50/month, Pro: Unlimited
 - Uses D1 `usage_tracking` table with calendar month (UTC)
-- Fails open on DB error (doesn't block users)
+- D1 tracking errors fail open for interactive users; API keys and service tokens fail closed so machine traffic cannot become unmetered
 - Anonymous users: enforced via KV per IP (best-effort), when `RATELIMIT` is bound
 - Returns 429 with `tierLimited`, `limit`, `used`, `resetAt`
 
 3. Webhook Idempotency
 
-- Checks `processed_webhook_events` before processing
-- Records `event.id` after successful processing
-- Returns `{ received: true, duplicate: true }` for duplicates
-- Fails gracefully (continues if DB check fails)
+- Atomically claims `(provider='stripe', event_id=event.id)` with `INSERT OR IGNORE` before handling the event
+- Returns `{ received: true, duplicate: true }` for an already-claimed event
+- Removes the claim and returns 500 when processing fails, allowing Stripe to retry
+- Logs and continues if the claim operation itself fails, rather than silently dropping the event
 
 4. Scheduled Cleanup
 
@@ -53,9 +53,8 @@ Implementation Details
 Deployment Steps
 
 ```bash
-# 1. Apply migrations FIRST (before code deployment)
-wrangler d1 execute tarot-db --remote --file=migrations/0011_add_usage_tracking.sql
-wrangler d1 execute tarot-db --remote --file=migrations/0012_add_webhook_idempotency.sql
+npm run migrations:status
+npm run migrations:apply
 
 # 2. Deploy code
 npm run deploy
@@ -77,17 +76,18 @@ Testing Checklist
 | Free user makes 6th reading        | 429 with limit: 5, used: 5     |
 | Plus user makes 51st reading       | 429 with limit: 50, used: 50   |
 | Pro user makes unlimited readings  | Always 200                     |
+| Machine credential hits a D1 tracking error | Denied with retry response |
 | Same Stripe webhook sent twice     | Second returns duplicate: true |
 
 ---
 
-What's NOT in Phase 1 (Future Work)
+### Phase 1 Status and Follow-up
 
 - API key tier derivation - ✅ Phase 2 (API key auth now derives entitlements from the owning user)
 - Cloud journal gating - ✅ Implemented (Phase 4)
 - Spread access enforcement - ✅ Implemented (Phase 4)
 - Customer Portal - ✅ Phase 3 (Stripe Billing Portal)
-- Usage dashboard - ✅ Phase 3/4 (readings + TTS + API calls)
+- Usage dashboard - ✅ Shipped (readings + authenticated TTS + API calls; historical charts remain optional)
 
 ---
 
@@ -132,11 +132,12 @@ Implementation Details
 
 - Added `POST /api/create-portal-session` to create a Billing Portal session
 - Account page now shows a “Manage Billing” button for paid users
+- Checkout accepts monthly or annual Plus/Pro prices and routes an already-active subscription to the portal
 - Redirects to Stripe-hosted portal; returns to `/account` after completion
 
 2. Usage Dashboard (Account)
 
-- Added `GET /api/usage` to fetch monthly usage from D1 `usage_tracking` (readings + TTS + API calls)
+- Added `GET /api/usage` to fetch monthly usage from D1 `usage_tracking` (readings + authenticated TTS + API calls)
 - Account page shows usage meters and reset date (rendered in UTC)
 - Handles missing table gracefully (pre-migration)
 
@@ -159,6 +160,7 @@ Summary of Changes
 | functions/api/journal.js            | Gated cloud journal endpoints to Plus/Pro                |
 | functions/api/journal/[id].js       | Gated journal deletion to Plus/Pro                       |
 | functions/api/journal-summary.js    | Gated journal summaries to Plus/Pro                      |
+| functions/api/journal-export/index.js | Gated server export to Plus/Pro; local export remains for Free users |
 | functions/api/generate-question.js  | Uses effective tier/status + enforces API key call limits |
 | functions/api/tts.js                | Uses effective tier/status + D1 metering for authed users + API key call limits |
 | functions/api/usage.js              | Returns readings/TTS/API call usage; API key calls are metered |
@@ -184,14 +186,16 @@ Implementation Details
 
 2. Spread + quota enforcement (backend)
 
-- `tarot-reading` enforces spread availability by tier (Free: 3 core spreads; Plus/Pro: all 6)
+- `tarot-reading` enforces the six built-in spreads by tier (Free: 3 core spreads; Plus/Pro: all 6)
+- The backend retains a `custom` compatibility path, but custom spread creation is not a shipped user feature
 - Anonymous users are limited via `RATELIMIT` KV per IP/month (best-effort)
 - Authenticated users use D1 `usage_tracking` with an atomic upsert to avoid race conditions
 
 3. Cloud journal gating
 
 - Journal list/save/delete/summary endpoints require Plus/Pro entitlements
-- Free users (even when logged in) use local journal storage and can migrate after upgrading
+- Server journal export is also Plus/Pro-gated
+- Free users (even when logged in) use local journal storage, retain local exports, and can migrate after upgrading
 
 4. Pro API access
 
@@ -200,9 +204,8 @@ Implementation Details
 Deployment Steps
 
 ```bash
-# Apply migrations (if not already applied)
-wrangler d1 execute tarot-db --remote --file=migrations/0011_add_usage_tracking.sql
-wrangler d1 execute tarot-db --remote --file=migrations/0012_add_webhook_idempotency.sql
+npm run migrations:status
+npm run migrations:apply
 
 # Deploy
 npm run deploy
@@ -215,6 +218,8 @@ npm run deploy
 
 - **Prompt tier differentiation is a placeholder** — no tier-based prompt depth/advanced layers (see `./monetization-logic.md` §7).
 - **Google Play Billing is documentation-only** — no purchase verification + RTDN handling (see `./monetization-logic.md` §7).
+- **Custom spread creation is not a shipped user feature** — the backend retains a compatibility path for an explicit `custom` key.
+- **Usage meters are shipped** for readings, authenticated TTS, and Pro API calls; historical charts are optional.
 
 ---
 
@@ -224,31 +229,32 @@ npm run deploy
 - Define “active” entitlement rules: ✅ `active`/`trialing`/`past_due` are treated as active across frontend + backend.
 - Define what “monthly” means: ✅ calendar month in UTC (D1 `usage_tracking.month`).
 - Decide whether **free users must be authenticated** for quota: ✅ no; guest quota is enforced via KV per IP/month.
-- Decide whether “AI Question Suggestions” is quality-gated or access-gated: ✅ quality-gated (free gets local fallback; paid gets Azure when configured).
-- Decide how to handle existing free users’ cloud journal data: still a product decision (today: journal endpoints are gated to Plus/Pro; export remains available).
+- Classify “AI Question Suggestions”: ✅ access-gated by subscription entitlement; Free gets a local template, while Plus/Pro attempt a configured provider and may use local fallback.
+- Decide how to handle existing free users’ cloud journal data: still a product decision (today: cloud endpoints and server export require Plus/Pro; local Free export remains available).
 
 2) **Centralize entitlements (avoid drift)**
 - ✅ Shared tier config now lives in `shared/monetization/subscription.js` and is used by both frontend + backend.
 - ✅ Backend helpers in `functions/lib/entitlements.js` normalize tier/status and compute **effective tier**.
 
 3) **Data layer (D1 migrations + minimal APIs)**
-- Add `usage_tracking` and `processed_webhook_events` tables (✅ Phase 1).
+- Add `usage_tracking` and `processed_webhook_events` tables (✅ Shipped in Phase 1).
 - (If doing Google Play) add tables for purchase tokens / subscriptions mapping (provider, productId, expiry, status, user_id).
 
 4) **Backend enforcement (MVP = cannot bypass via API)**
 - **Reading quota**: ✅ enforced early with atomic D1 upsert + guest KV fallback.
 - **Spread access**: ✅ enforced server-side by tier in `functions/api/tarot-reading.js`.
-- **Cloud journal**: ✅ `journal.js`, `journal/[id].js`, and `journal-summary.js` require Plus/Pro entitlements (export remains auth-only).
+- **Cloud journal**: ✅ `journal.js`, `journal/[id].js`, `journal-summary.js`, and the server export require Plus/Pro entitlements; Free users retain local export.
 - **API keys**:
-  - Gate `/api/keys/*` to Pro (and active/trialing/past_due) (✅ Phase 1).
+  - Gate `GET /api/keys` and `POST /api/keys` to Pro with `active`/`trialing`/`past_due` status (✅ Phase 1).
+  - Allow `DELETE /api/keys/:id` for any authenticated owner so downgraded users can revoke keys (✅ Phase 1).
   - Fix API-key auth so entitlements derive from the owning user’s current subscription (✅ Phase 2), or enforce revocation when subscription downgrades (optional hardening).
-- **API call limits**: meter per month (per user or per key, pick one), enforce `apiCallsPerMonth` for Pro, and expose a “usage status” endpoint for the UI.
 - **API call limits**: ✅ enforced for API-key requests at 1,000/mo (per user) via D1 `usage_tracking.api_calls_count`.
 - **TTS alignment (optional hardening)**: ✅ authenticated users are metered in D1; anonymous users still use IP-based KV.
 
 5) **Stripe completeness**
 - Add `/api/create-portal-session` and wire AccountPage to it (✅ Phase 3).
-- Implement webhook idempotency using `processed_webhook_events` (✅ Phase 1).
+- Support Plus/Pro monthly and annual price IDs, validate the interval, and route active subscriptions to the portal (✅ Shipped).
+- Implement claim-first webhook idempotency using `processed_webhook_events` (✅ Phase 1).
 - Expand webhook handling as needed (e.g., ensure downgrades/cancellations always converge to the correct internal state); add monitoring logs/alerts for unknown tiers/statuses.
 
 6) **Google Play (optional phase, if shipping Android billing)**
@@ -256,12 +262,12 @@ npm run deploy
 - Add secure Pub/Sub push auth and environment configuration.
 
 7) **Frontend UX & surfaces**
-- Add usage meters and “reset date” to Account (✅ Phase 3 for readings; expand later for TTS/API calls).
+- Add usage meters and “reset date” to Account (✅ Shipped for readings, authenticated TTS, and API calls; historical charts remain optional).
 - Handle 403/429 tier-limit errors globally with UpgradeNudge + deep link to pricing/checkout.
 - Add Customer Portal button for paid users (✅ Phase 3).
 - (If offering API access) build Pro-only API key management UI.
 
 8) **Testing, rollout, and ops**
 - Add unit tests for entitlement logic + usage tracking increments + webhook idempotency.
-- Add API tests for: reading limit reached, spread blocked, journal blocked, API key blocked, API call limit reached.
+- Add API tests for: reading limit reached, spread blocked, journal blocked, API-key list/create blocked, API call limit reached.
 - Roll out behind a feature flag if needed; run migrations; monitor quota errors, upgrade conversions, and webhook failure rates.

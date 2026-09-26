@@ -2,7 +2,7 @@
 
 Type: guide
 Status: active reference
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 This guide is the current starting point for engineers working in the Tableu repository.
 
@@ -14,22 +14,23 @@ This guide is the current starting point for engineers working in the Tableu rep
 
 Common local variables include:
 
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL` (defaults to `gpt-5.6-sol` when omitted)
-- `OPENAI_STREAMING_ENABLED`
-- Azure OpenAI fallback variables, if not using native OpenAI for readings:
+- `MODAL_PROXY_TOKEN`, `MODAL_ENDPOINT_URL`, `MODAL_MODEL`, `MODAL_REASONING_EFFORT`, and `MODAL_TIMEOUT_MS` — primary `modal-qwen` narrative provider
+- `OPENAI_API_KEY` — enables the native OpenAI Responses path in the `azure-gpt5` backend
+- `OPENAI_MODEL` (defaults to `gpt-5.6-sol` in `wrangler.jsonc`) and `OPENAI_STREAMING_ENABLED`
+- Azure OpenAI Responses fallback variables, if the native OpenAI path is not configured:
   - `AZURE_OPENAI_ENDPOINT`
   - `AZURE_OPENAI_API_KEY`
   - `AZURE_OPENAI_GPT5_MODEL`
+- `AZURE_ANTHROPIC_ENDPOINT`, `AZURE_ANTHROPIC_API_KEY`, and `AZURE_ANTHROPIC_MODEL` — `claude-opus45` fallback (default deployment `claude-opus-4-5`)
 - Azure OpenAI TTS variables:
   - `AZURE_OPENAI_TTS_ENDPOINT`
   - `AZURE_OPENAI_TTS_API_KEY`
   - `AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT`
-- `AZURE_ANTHROPIC_ENDPOINT`
-- `AZURE_ANTHROPIC_API_KEY`
-- `AZURE_ANTHROPIC_MODEL`
-- `VISION_PROOF_SECRET` when using vision research mode
+- `VISION_PROOF_SECRET` when using the opt-in vision research flow
+- `VITE_ENABLE_VISION_RESEARCH` — set to `true` only to expose the research UI; the default is `false`
 - Auth variables such as `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_AUDIENCE`, `AUTH0_USERINFO_URL`, and `APP_URL` when testing auth flows
+
+`npm run config:check` validates selected provider and authentication variables; it is not a complete feature-secret audit. Set optional Stripe, Hume, Azure Speech, MCP/OAuth, email, media, and admin secrets only for the environments and routes that use them.
 
 ## Repo Shape
 
@@ -56,6 +57,10 @@ Do not cross-import browser code into Worker code or Worker code into browser co
 - Frontend: React 19, Vite, Tailwind CSS
 - Backend: Cloudflare Workers with route handlers in `functions/api/`
 - Data: Cloudflare D1, KV, R2
+
+Narrative backends are attempted in this order: `modal-qwen` → `azure-gpt5` (native OpenAI Responses when `OPENAI_API_KEY` is set, otherwise Azure OpenAI Responses) → `claude-opus45` → `local-composer`.
+
+Runtime reading metrics and evaluation payloads are written to D1 `eval_metrics`. `METRICS_DB` is also active operational KV for media telemetry, daily media-usage counters, and card-video job metadata, with ongoing legacy `reading:*` compatibility archival. `R2_LOGS` stores generated/user media, journal-export caches, archives, and exports. GraphRAG passages are internally authored `Tableu Tarot Canon` content from `functions/lib/knowledgeBase.js`.
 
 ## App Entry And Routing
 
@@ -100,18 +105,45 @@ Data fetching is primarily custom-hook based using `fetch`, local component stat
 npm run dev
 ```
 
-(`npm run dev:vite` is an alias.)
+(`npm run dev:vite` is the same full-stack script.)
+
+## Reading Jobs
+
+The Worker binds the `READING_JOBS` Durable Object namespace to `ReadingJob` in
+`src/worker/readingJob.js`. The public routes are:
+
+- `POST /api/tarot-reading/jobs` — validate the request, create a job, and return `jobId` plus `jobToken`
+- `GET /api/tarot-reading/jobs/:id` — read status and terminal result
+- `GET /api/tarot-reading/jobs/:id/stream` — consume SSE events; send `X-Job-Token` (or the `token` query parameter) and an optional `cursor`
+- `POST /api/tarot-reading/jobs/:id/cancel` — cancel a running job
+
+The start route issues `jobToken`. The status, stream, and cancel routes require it as the
+`X-Job-Token` header; the SSE route also accepts it as the `token` query parameter and
+supports an optional `cursor` for replay.
+
+The Durable Object persists job state and a bounded event history, forwards the
+caller's credentials for app jobs, and owns the public SSE stream. MCP-originated
+principal jobs use separate `/mcp/snapshot` and `/mcp/cancel` paths.
 
 ## Validation Commands
 
 ```bash
+npm run config:check
 npm test
 npm run test:e2e
+npm run test:e2e:integration
 npm run test:a11y
+npm run docs:check
 npm run gate:narrative
 npm run gate:vision
 npm run lint
 ```
+
+`npm test` runs the root `tests/*.test.mjs` suite only. It does not run every
+`functions/__tests__` file, Playwright, accessibility checks, or the full
+narrative/vision gates; run the matching command for the area being changed.
+Vision and narrative CI checks are assembled by `npm run ci:vision-check` and
+`npm run ci:narrative-check` and write evaluation artifacts under `data/evaluations`.
 
 ## Suggested First Reads
 
@@ -126,5 +158,5 @@ npm run lint
 
 1. Boot `npm run dev:vite` and verify the web app loads.
 2. Read `src/main.jsx` and `src/components/AnimatedRoutes.jsx` for app composition.
-3. Trace the main reading flow from `src/TarotReading.jsx` into `functions/api/tarot-reading.js`.
+3. Trace the main reading flow from `src/TarotReading.jsx` and `ReadingContext` to the `/api/tarot-reading/jobs` routes, the `READING_JOBS` Durable Object, and its internal handoff to `functions/api/tarot-reading.js`.
 4. Check the active tests around the area you plan to modify before making changes.

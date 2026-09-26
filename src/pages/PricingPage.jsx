@@ -176,11 +176,9 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled, b
         <li className="flex items-center gap-2">
           <Stack className="h-4 w-4 text-accent" weight="fill" />
           <span className="text-secondary">
-            {config.spreads === 'all+custom'
-              ? 'All spreads + custom'
-              : config.spreads === 'all'
-                ? 'All spread layouts'
-                : '3 core spreads'}
+            {config.spreads === 'all' || config.spreads === 'all+custom'
+              ? 'All spread layouts'
+              : '3 core spreads'}
           </span>
         </li>
 
@@ -328,7 +326,7 @@ const comparisonFeatures = [
 const mobileTopDifferences = [
   { title: 'Readings per month', detail: 'Seeker 5 · Plus 50 · Pro unlimited' },
   { title: 'Voice narration', detail: 'Seeker 3 · Plus 50 · Pro unlimited' },
-  { title: 'Spread layouts', detail: 'Seeker 3 core · Plus all · Pro all + custom' },
+  { title: 'Spread layouts', detail: 'Seeker 3 core · Plus all · Pro all' },
   { title: 'Context memory', detail: 'Essential on Seeker · Deep on Plus/Pro' },
   { title: 'Developer access', detail: 'Pro includes developer tools' }
 ];
@@ -344,8 +342,7 @@ function ComparisonModal({ isOpen, onClose }) {
       case 'count':
         return formatCount(config[feature.key]);
       case 'spreads':
-        if (config.spreads === 'all+custom') return 'All + custom';
-        if (config.spreads === 'all') return 'All 6 spreads';
+        if (config.spreads === 'all' || config.spreads === 'all+custom') return 'All 6 spreads';
         return '3 core spreads';
       case 'graphRAG':
         return config.graphRAGDepth === 'full' ? 'Full depth' : 'Limited';

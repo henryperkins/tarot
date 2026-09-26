@@ -15,13 +15,13 @@ applyTo: "functions/**/*.js"
 - Rate limit sensitive endpoints using Cloudflare KV
 
 ## API Endpoints
-- Return consistent response shapes: `{ reading, provider, themes, context, spreadAnalysis }`
+- The tarot-reading endpoint returns `{ reading, provider, themes, context, spreadAnalysis }`; other handlers keep their own contract-specific response shapes.
 - Include proper CORS headers when needed
 - Handle errors gracefully with informative (but not revealing) messages
 
 ## Tarot Reading Pipeline
 - Use `performSpreadAnalysis()` as the canonical analyzer
-- Narrative generation order: Azure GPT → Claude → local fallback
+- Narrative generation order: `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `claude-opus45` → `local-composer`
 - Never invent cards or add cards not in `cardsInfo[]`
 - Follow ethics guidelines from `CLAUDE.md`: no absolute predictions, no medical/legal/financial advice
 

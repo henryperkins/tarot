@@ -1,6 +1,8 @@
 # Ephemeris MCP Server
 
-Real-time astronomical data for tarot readings. Provides planetary positions, moon phases, aspects, and astrological context.
+Real-time astronomical data for Claude Code conversations about tarot. Provides planetary positions, moon phases, aspects, and astrological context.
+
+This is an optional Claude Code MCP server. It is not imported by the Tableu Worker, browser bundle, or reading pipeline, and it does not automatically modify an application reading.
 
 ## Features
 
@@ -14,13 +16,25 @@ Real-time astronomical data for tarot readings. Provides planetary positions, mo
 ## Installation
 
 ```bash
-cd ephemeris-server
+cd plugins/tarot-astro-plugins/ephemeris-server
 npm install
 ```
 
 ## Usage
 
-This MCP server is automatically configured when the plugin is installed. Claude Code will have access to these tools:
+When the plugin is installed in Claude Code, its `.mcp.json` exposes these tools through a local stdio process. A tool is called only when Claude Code invokes it:
+
+```json
+{
+  "mcpServers": {
+    "ephemeris": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.js"]
+    }
+  }
+}
+```
 
 ### Available Tools
 
@@ -144,36 +158,17 @@ Overview of daily astrological themes.
 }
 ```
 
-## Integration with Tarot Readings
+## Optional Claude Code Usage
 
-### Automatic Context
-When enabled, this plugin adds astrological context to every reading:
+### User-Requested Context
+
+The server does not add context to every application reading. If a user asks Claude Code to use the ephemeris tools, Claude can present the returned data as part of that conversation:
 
 ```javascript
-// In your reading function
-const astroContext = await getEphemerisForReading(readingTimestamp);
-
-// Include in narrative generation
-const prompt = `
-Reading performed at: ${astroContext.readingContext}
-
-Moon phase: ${astroContext.moon.phaseName} in ${astroContext.moon.sign}
-- ${astroContext.moon.interpretation}
-
-Active planetary energies:
-${astroContext.aspects.slice(0, 3).map(a => `- ${a.interpretation}`).join('\n')}
-
-Consider these cosmic influences when interpreting the cards...
-`;
+const astroContext = getEphemerisForReading(readingTimestamp);
 ```
 
-### Example Reading Enhancement
-
-**Without astrological context:**
-> "The Tower suggests sudden change and breakthrough."
-
-**With astrological context:**
-> "The Tower suggests sudden change and breakthrough. With Mars square Uranus active today (exact within 1°), this energy of sudden shifts and liberation is amplified in the collective field. The Waning Moon in Scorpio supports the release of what no longer serves."
+The example is a tool-use sketch, not a hook in `functions/api/tarot-reading.js`; an application would need a separate, explicit integration to call this server.
 
 ## Astrological Interpretation Guide
 
@@ -211,12 +206,15 @@ Retrograde periods invite internal processing and review in the planet's domain:
 - `sweph`: Swiss Ephemeris Node.js bindings for astronomical calculations
 - `@modelcontextprotocol/sdk`: MCP server framework
 
+The required data files and `SE_EPHE_PATH` override are documented in `plugins/tarot-astro-plugins/docs/SWISS_EPHEMERIS_DATA.md`.
+
 ### Accuracy
-Uses Swiss Ephemeris data via `sweph` for accurate planetary positions.
+
+Uses Swiss Ephemeris data through the `sweph` bindings. The server rounds returned ecliptic longitude and latitude to two decimal places, so the MCP response exposes roughly 0.01° precision rather than a guaranteed arcsecond-level accuracy. Actual accuracy also depends on the installed `sweph` version, data files, and requested date.
 
 ### Performance
-All calculations are performed in real-time with minimal latency (<10ms per query).
+Calculations run locally in the optional stdio process. Treat latency as environment-dependent; it is not a guarantee for Claude Code or the Tableu application.
 
 ## License
 
-MIT
+The plugin code is MIT except for the Swiss Ephemeris components. The `sweph` dependency and its data have separate AGPL-3.0 and professional-license terms; see `plugins/tarot-astro-plugins/ephemeris-server/LICENSE` before redistribution or use in proprietary software.

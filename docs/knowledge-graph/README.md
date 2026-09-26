@@ -2,11 +2,13 @@
 
 Type: index
 Status: active reference
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 ## Purpose
 
 These documents define the data structures and detection logic for the Tableu knowledge graph system. This system detects multi-card archetypal patterns that create synergistic meaning beyond individual card interpretations.
+
+The pattern files are research and implementation references, not the provenance of runtime GraphRAG passages. Runtime passages come from the internally authored `Tableu Tarot Canon` in `functions/lib/knowledgeBase.js`; book and author citations in these documents are background reading only.
 
 ## Documentation Files
 

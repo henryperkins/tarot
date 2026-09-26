@@ -2,7 +2,7 @@
 
 Type: review
 Status: active background document
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 This document captures findings and key behaviors for evaluation, redaction,
 quality checks, and gating mechanisms in the Tarot codebase. It complements
@@ -19,9 +19,9 @@ quality checks, and gating mechanisms in the Tarot codebase. It complements
 - Async evaluation:
   - `scheduleEvaluation()` runs after responses via `waitUntil()` to avoid blocking.
   - Uses Workers AI (`EVAL_MODEL`, default Qwen) with JSON output enforcement where supported.
-  - Stores results in D1 `eval_metrics` with `eval_mode` (model/heuristic/error).
+  - Stores results in D1 `eval_metrics` with `eval_mode` (model/heuristic/error); the evaluator prompt version is `2.4.0`.
 - Sync evaluation gate:
-  - `runSyncEvaluationGate()` runs before responding when `EVAL_GATE_ENABLED=true`.
+  - `runSyncEvaluationGate()` runs before responding when `EVAL_GATE_ENABLED=true` or a selective safety/language policy forces it.
   - Failure mode defaults to `open` in non-prod and `closed` in prod; set via `EVAL_GATE_FAILURE_MODE`.
   - On block, a safe fallback reading is returned (`generateSafeFallbackReading()`).
 - Heuristic fallback:
@@ -29,14 +29,14 @@ quality checks, and gating mechanisms in the Tarot codebase. It complements
   - Used when model eval fails or returns incomplete scores.
 
 ## Narrative Quality Gate
-- Implemented in `functions/api/tarot-reading.js` via `evaluateQualityGate()`.
+- Implemented in `functions/api/tarot-reading.js` via `evaluateQualityGate()`; `functions/lib/readingQuality.js` supplies the metrics and thresholds.
 - Inputs: `buildNarrativeMetrics()` from `functions/lib/readingQuality.js`:
   - Card coverage, missing cards, hallucinations.
   - Narrative spine completeness (`functions/lib/narrativeSpine.js`).
 - Thresholds: `getQualityGateThresholds()` in `functions/lib/readingQuality.js`.
   - Spread-aware minimum coverage and hallucination allowances.
   - Checks for missing high-weight positions (position weighting logic in `tarot-reading.js`).
-  - Enforces a minimum narrative spine completion ratio (50% of card sections).
+  - Enforces a spread-aware minimum narrative spine completion ratio (currently 60–75% depending on spread and card count).
 - Applied:
   - Streaming path: buffered stream is gated before SSE is emitted.
   - Non-streaming path: each backend attempt must pass the quality gate before acceptance.
@@ -46,12 +46,12 @@ quality checks, and gating mechanisms in the Tarot codebase. It complements
   - `detectCrisisSignals()` in `functions/lib/safetyChecks.js`.
   - If matched, returns a safety response and logs minimal metrics (`provider: safety-gate`).
 - Eval gate:
-  - `checkEvalGate()` blocks on `safety_flag`, safety score < 2, or tone score < 2.
-- Streaming safety scan (when eval gate is disabled):
+  - `checkEvalGate()` reports `safety_flag_true`, `safety_lt_2`, or `tone_lt_2`; synchronous fallback can additionally report `eval_unavailable` or `eval_incomplete_scores`.
+- Streaming safety scan:
   - Uses heuristic scores on buffered output before streaming.
-  - Controlled by `STREAMING_SAFETY_SCAN_ENABLED` (default true).
+  - `STREAMING_SAFETY_SCAN_ENABLED` is currently `false` in `wrangler.jsonc`; the code defaults it to enabled when the variable is omitted.
 - Streaming quality buffer:
-  - Controlled by `STREAMING_QUALITY_GATE_ENABLED` (default true).
+  - Controlled by `STREAMING_QUALITY_GATE_ENABLED` (currently `false` in `wrangler.jsonc`; the code defaults it to enabled when omitted and may enforce it for buffered provider streams).
   - Can run with or without eval gate.
 - Follow-up safety check:
   - `checkFollowUpSafety()` in `functions/lib/evaluation.js` scans follow-up text.
@@ -69,7 +69,8 @@ quality checks, and gating mechanisms in the Tarot codebase. It complements
 - Evaluation metrics storage:
   - `sanitizeMetricsPayload()` + `buildStoragePayload()` in `functions/lib/evaluation.js`.
   - Modes: `full`, `redact` (default), `minimal`.
-  - Redacts user question/reading text; strips user-added card notes; removes location coordinates.
+  - In the default `redact` mode, redacts user question/reading text; strips user-added card notes; removes location coordinates while retaining timezone/location-used metadata. `full` mode bypasses these redactions, and `minimal` mode has separate retention behavior. This does not mean the app never collects location: the web client can request it when enabled, and journal persistence requires explicit consent.
+  - Runtime `eval_metrics` are written to D1; `METRICS_DB` is operational KV for media telemetry, media-usage counters, and card-video job metadata, plus ongoing legacy archival input.
 - Input sanitization:
   - `sanitizeText()` in `functions/lib/utils.js` strips markdown/control chars and filters instruction patterns.
   - `sanitizePromptValue()` in `functions/lib/narrative/helpers.js` removes template syntax and injection tokens.

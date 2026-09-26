@@ -10,9 +10,9 @@ Guidance for Claude Code when working with this repository.
 |-------|------|----------|
 | Frontend | React + Vite | `src/` |
 | Backend | Cloudflare Workers | `functions/api/` |
-| AI | Provider selection and fallback from current Worker configuration | `functions/api/tarot-reading.js`, `wrangler.jsonc` |
+| AI | `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `claude-opus45` → `local-composer` | `functions/api/tarot-reading.js`, `functions/lib/narrativeBackends.js`, `wrangler.jsonc` |
 | Database | Cloudflare D1 | `migrations/*.sql` |
-| Storage | Cloudflare KV + D1 archival | Metrics, feedback |
+| Storage | Cloudflare D1 + KV + R2 | `eval_metrics` in D1 is the primary reading/evaluation store; `METRICS_DB` KV carries media telemetry, media-usage counters, card-video job metadata, and ongoing legacy archival input; R2 stores generated/user media, exports, archives, and logs |
 
 **Deck**: 78 cards (22 Major + 56 Minor Arcana) with 1909 Rider-Waite public domain images.
 
@@ -28,11 +28,12 @@ npm run dev:frontend  # Vite-only for UI work
 npm run dev:workers   # Worker dev server with live reload
 npm run build         # Production build to dist/
 npm run deploy        # Deploy to Cloudflare Workers (auto-applies migrations)
-npm test              # Unit tests (tests/*.test.mjs)
+npm test              # Root tests/*.test.mjs only
 npm run test:deploy   # Deploy script tests
 npm run test:e2e      # Playwright E2E
 npm run test:a11y     # Accessibility checks (contrast + WCAG)
 npm run lint          # ESLint
+npm run docs:check    # Maintained Markdown link check
 npm run lint:fix      # Auto-fix lint issues
 npm run gate:design   # Verify design contract compliance
 ```
@@ -45,73 +46,12 @@ npm run gate:design   # Verify design contract compliance
 |------|-------------|------------|---------------|
 | `src/lib/` | Browser | DOM, window, localStorage, React | env, D1, KV, R2, secrets |
 | `functions/lib/` | Cloudflare Workers | env, D1, KV, R2, AI binding | DOM, window, React |
-| `scripts/*/lib/` | Node.js | fs, process, node modules | DOM, Cloudflare bindings |
+| `scripts/lib/` and `scripts/*/lib/` | Node.js | fs, process, node modules | DOM, Cloudflare bindings |
 
 **Never import DOM-dependent code into Workers or Worker bindings into the browser.**
 Shared logic goes in `shared/`; pure card/spread data in `src/data/` is also used by Workers.
 
-### Key Files
-
-**Frontend (`src/`)**
-- `TarotReading.jsx` — Main orchestration (ritual → spread → draw → reading)
-- `data/spreads.js` — Spread definitions (source of truth for positions and roleKeys)
-- `data/majorArcana.js`, `data/minorArcana.js` — Card data with meanings
-- `data/knowledgeGraphData.js` — Archetypal patterns (triads, dyads, Fool's Journey, progressions)
-- `lib/deck.js` — Seeded shuffle, `drawSpread()`, `computeSeed()`
-- `lib/archetypeJourney.js` — Client-side archetype tracking utilities
-
-**Backend (`functions/`)**
-- `api/tarot-reading.js` — Main endpoint: validates payload and selects configured narrative providers
-- `api/reading-followup.js` — Follow-up conversation with memory
-- `api/tts.js` — Azure TTS with rate limiting
-- `api/journal.js` — Reading history (dedup by `session_seed`)
-- `api/journal-export/index.js` — PDF/text export (stores in R2)
-- `api/feedback.js` — User feedback (stored in KV)
-- `lib/narrative/prompts/` — Modular prompt assembly (`buildEnhancedClaudePrompt.js`, `systemPrompt.js`, `userPrompt.js`, `budgeting.js`, `graphRAGReferenceBlock.js`, etc.). Top-level `prompts.js` is a re-export shim.
-- `lib/narrative/spreads/` — Per-spread narrative builders (`singleCard.js`, `threeCard.js`, `fiveCard.js`, `decision.js`, `relationship.js`, `celticCross.js`, `base.js`)
-- `lib/spreadAnalysis.js` — Elemental dignities, theme analysis, reversal framework selection
-- `lib/spreadAnalysisOrchestrator.js` — Pipeline orchestration (extracted from tarot-reading.js)
-- `lib/knowledgeGraph.js` — Pattern detection: triads, dyads, Fool's Journey, suit progressions
-- `lib/graphContext.js` — Builds graph context for prompt injection
-- `lib/graphRAG.js` — Retrieval-augmented generation from knowledge base
-- `lib/knowledgeBase.js` — Curated passages for GraphRAG retrieval
-- `lib/evaluation.js` — Automated reading quality evaluation (Workers AI)
-- `lib/scheduled.js` — Cron tasks: KV→R2 archival, session cleanup
-- `lib/mcp/` — ChatGPT MCP endpoint: OAuth provider wiring (`oauthProvider.js`), consent page (`consent.js`), `/mcp` handler, tools (`tools/`), journal mapping
-- `lib/journalEntries.js`, `lib/journalReflections.js`, `lib/readingJobs.js` — Journal save/reflection and reading-job services shared by the app routes and the MCP tools
-
-**Scripts (`scripts/`)**
-- `lib/dataAccess.js` — Shared R2/KV/D1 access helpers (Node.js)
-- `training/exportReadings.js` — Export training data
-- `evaluation/exportEvalData.js` — Export eval data for calibration
-- `evaluation/calibrateEval.js` — Analyze score distributions
-
-**Shared (`shared/`)**
-- `contracts/` — Shared type contracts (spreads, readings) used by both frontend and Workers
-- `vision/` — Physical deck recognition pipeline
-- `vision/deckAssets.js` — Deck-specific asset mappings
-- `symbols/symbolAnnotations.js` — Symbol meanings database
-- `journal/summary.js` — Shared journal summary logic
-- `monetization/` — Subscription tier logic shared across layers
-
-**Components (`src/components/`)**
-- Core: `Card.jsx`, `ReadingGrid.jsx`, `SpreadSelector.jsx`, `RitualControls.jsx`, `QuestionInput.jsx`
-- Settings: `AudioControls.jsx`, `ExperienceSettings.jsx`
-- Journal: `Journal.jsx`, `JournalEntryCard.jsx`, `JournalFilters.jsx`
-- Vision: `PhotoInputModal.jsx`, `VisionValidationPanel.jsx`, `CameraCapture.jsx`
-- Auth: `AuthModal.jsx`, `GlobalNav.jsx`, `UserMenu.jsx`
-- Charts: `charts/CardRelationshipGraph.jsx`, `charts/TrendSparkline.jsx`
-
 ## Spreads (from `src/data/spreads.js`)
-
-| Key | Name | Cards | Positions |
-|-----|------|-------|-----------|
-| `single` | One-Card Insight | 1 | Theme/Guidance |
-| `threeCard` | Three-Card Story | 3 | Past → Present → Future |
-| `fiveCard` | Five-Card Clarity | 5 | Core, Challenge, Hidden, Support, Direction |
-| `decision` | Decision/Two-Path | 5 | Heart, Path A, Path B, Clarity, Free Will |
-| `relationship` | Relationship Snapshot | 3 | You, Them, Connection |
-| `celtic` | Celtic Cross | 10 | Present, Challenge, Past, Near Future, Conscious, Subconscious, Self/Advice, External, Hopes/Fears, Outcome |
 
 **Constraint**: Position meanings used by `buildCardsSection` and frontend text. Don't change casually.
 
@@ -121,97 +61,37 @@ Shared logic goes in `shared/`; pure card/spread data in `src/data/` is also use
 2. **Ritual** — Knocks + cut position + question → `computeSeed()`
 3. **Draw** — `drawSpread()` uses seeded shuffle, assigns upright/reversed
 4. **Reveal** — Card flip animation, user reflections per card
-5. **Narrative** — Follow the configured provider order in `functions/api/tarot-reading.js` and `wrangler.jsonc`; do not assume a model from this dated guide.
+5. **Narrative** — Use `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `claude-opus45` → `local-composer` in `functions/lib/narrativeBackends.js`; do not assume a model from an older guide.
 
-**Pipeline**: `spreadAnalysis.js` (dignities, reversals) + `knowledgeGraph.js` (patterns) → `graphContext.js` → `graphRAG.js` (passages) → `prompts.js` → AI → `evaluation.js` (async scoring)
+**Pipeline**: `spreadAnalysis.js` (dignities, reversals) + `knowledgeGraph.js` (patterns) → `graphContext.js` → `graphRAG.js` (passages) → `prompts.js` → AI → structural quality gate (`tarot-reading.js` + `readingQuality.js`) → `evaluation.js` (async scoring). The same analysis invokes `buildReadingReasoning()`; the local composer wraps its builders with `buildReadingWithReasoning()`.
 
 ## Interpretation Rules
 
 - **Position-first**: Same card reads differently in "Challenge" vs "Advice" vs "Outcome"
-- **Reversals** (pick ONE model per reading): blocked/delayed, excess/deficiency, internalized, opposite
+- **Reversals** (pick ONE model per reading): blocked, delayed, internalized, contextual, shadow, mirror, or potentialBlocked; `none` applies to all-upright spreads
 - **Synthesis**: Identify tension → map causes → offer practical steps
 
 ## Knowledge Graph & Pattern Detection
 
 Pattern detection in `functions/lib/knowledgeGraph.js`, data in `src/data/knowledgeGraphData.js`.
 
-**Fool's Journey** (`FOOLS_JOURNEY`):
-| Stage | Cards | Theme |
-|-------|-------|-------|
-| Initiation | 0-7 | Building ego, learning identity, establishing in the world |
-| Integration | 8-14 | Shadow work, surrender, necessary endings, finding balance |
-| Culmination | 15-21 | Shadow confrontation, revelation, cosmic consciousness |
-
-**Archetypal Triads** (`ARCHETYPAL_TRIADS`):
-- `death-temperance-star` — Healing Arc (ending → integration → hope)
-- `devil-tower-sun` — Liberation Arc (bondage → rupture → freedom)
-- `hermit-hangedman-moon` — Inner Work Arc (solitude → surrender → mystery)
-- `magician-chariot-world` — Mastery Arc (skill → action → achievement)
-- `fool-magician-world` — Complete Manifestation Cycle
-
-**Archetypal Dyads** (`ARCHETYPAL_DYADS`):
-Powerful 2-card synergies with significance levels (`high`, `medium-high`, `medium`):
-- Death + Star — Transformation clearing into hope
-- Tower + Sun — Upheaval revealing clarity
-- Devil + Lovers — Attachment patterns affecting choice
-- Hermit + High Priestess — Solitary wisdom accessing intuition
-
-**Suit Progressions** (`SUIT_PROGRESSIONS`):
-| Stage | Ranks | Theme |
-|-------|-------|-------|
-| Beginning | 1-3 | Ignition, opening, foundation |
-| Challenge | 4-7 | Testing, complexity, management |
-| Mastery | 8-10 | Culmination, crisis, completion |
-
-**Court Family Patterns**: When 2+ court cards from same suit appear, indicating lineage dynamics.
-
 ## GraphRAG (Retrieval-Augmented Generation)
 
 `functions/lib/graphRAG.js` retrieves passages from curated knowledge base based on detected patterns.
-
-**Retrieval Priority**:
-1. Complete triads (highest narrative value)
-2. Fool's Journey stage (developmental context)
-3. High-significance dyads
-4. Strong suit progressions
-
-**Quality Filtering** (enabled by default):
-- Keyword overlap scoring
-- Optional semantic similarity via embeddings
-- Deduplication of similar passages
-- Relevance threshold: 30% minimum
 
 ## Reversal Frameworks
 
 Selected per-reading based on spread size, reversal ratio, and question keywords. Defined in `functions/lib/spreadAnalysis.js:REVERSAL_FRAMEWORKS`.
 
-| Framework | When Selected | Interpretation Model |
-|-----------|---------------|---------------------|
-| `none` | All cards upright | N/A |
-| `blocked` | ≥60% reversed or 2+ reversed Majors | Energy meeting resistance |
-| `delayed` | ≥40% reversed | Timing not ripe |
-| `contextual` | Default | Position-specific |
-| `shadow` | Question contains fear/avoid/hidden | Disowned emotions surfacing |
-| `mirror` | Question contains pattern/repeat | Projection/unconscious behavior |
-| `potentialBlocked` | Question contains talent/gift | Latent strengths awaiting activation |
-
-**Spread-Size Adjustments**: Small spreads (≤5 cards) use adjusted thresholds.
-
 ## Deck Variations
 
 The `deckStyle` parameter affects card names, court titles, and features. Config in `src/data/knowledgeGraphData.js:DECK_STYLE_OVERRIDES`.
-
-| Style | Court Titles | Features |
-|-------|--------------|----------|
-| `rws-1909` | Page, Knight, Queen, King | Default; standard meanings |
-| `thoth-a1` | Princess, Prince, Queen, Knight | Epithets (e.g., "Dominion"), decan astrology |
-| `marseille-classic` | Valet, Chevalier, Reine, Roi | Numerology themes, pip geometry |
 
 ## Ethics (Non-Negotiable)
 
 - Tarot = guidance, NOT replacement for medical/legal/financial/mental health professionals
 - Emphasize agency: "likely path if unchanged", not determinism
-- **No hallucinated cards** — only reference actual `cardsInfo`
+- **Card grounding** — prompts and structural quality gates require references to actual `cardsInfo`; out-of-set references are measured and may be rejected when they exceed configured allowances, not treated as impossible
 - Trauma-informed, empowering language
 - Include disclaimers for sensitive topics
 
@@ -224,33 +104,13 @@ The `deckStyle` parameter affects card names, court titles, and features. Config
 
 ## Database Schema
 
-Tables organized by migration (see `migrations/`):
-
-**Auth & Content**: `users` (subscription info: tier, status, stripe_customer_id), `sessions`, `user_tokens`, `journal_entries` (dedup on `user_id, session_seed`)
-
-**Sharing**: `share_tokens`, `share_token_entries`, `share_notes`
-
-**Analytics & Journey**: `card_appearances`, `archetype_badges`, `user_analytics_prefs`, `pattern_occurrences`
-
-**Personalization**: `user_memories` (AI insights for follow-up: theme, card_affinity, communication, life_context)
-
-**Subscriptions & Usage**: `api_keys`, `usage_tracking`, `processed_webhook_events`
-
-**Quality & Evaluation**: `quality_stats`, `quality_alerts`, `ab_experiments`
-
-**Archival**: `metrics_archive`, `feedback_archive`, `archival_summaries`
-
-**Legacy**: `readings`, `cards`, `reading_stats`, `_migrations`
+Tables are defined by the migrations in `migrations/`.
 
 ### Migration Deploy Order
 
 **IMPORTANT**: Always apply D1 migrations BEFORE deploying code using new columns.
 
-Cloudflare Workers Builds deploys every push to `master` with `npm run build`
-and `npx wrangler deploy`; it does not run the migration script below. Apply and
-verify pending remote migrations before merging. Wait for the merge's build and
-active Worker version before merging another release, since builds can finish
-out of commit order.
+The checked-in deployment workflow (`.github/workflows/deploy.yml`) runs `node scripts/deploy.js`, which applies pending migrations and deploys the Worker. If an external Cloudflare Workers Build is also configured, verify its migration behavior separately; do not assume it matches the checked-in workflow. Apply and verify pending remote migrations before merging, then confirm the active Worker version before another release.
 
 ```bash
 npm run deploy              # Auto-applies migrations + deploys (recommended)
@@ -259,52 +119,14 @@ npm run migrations:status   # Check pending
 npm run migrations:apply    # Apply only
 ```
 
-## Cloudflare Bindings
-
-Configured in `wrangler.jsonc`:
-
-| Binding | Type | Purpose |
-|---------|------|---------|
-| `DB` | D1 | Main database (users, sessions, journal) |
-| `AI` | Workers AI | Evaluation (Qwen 30B) |
-| `RATELIMIT` | KV | Rate limiting (auto-expires) |
-| `METRICS_DB` | KV | Metrics + eval scores (→ R2 daily) |
-| `FEEDBACK_KV` | KV | User feedback (→ R2 daily) |
-| `R2_LOGS` | R2 | Archives, exports, logs |
-| `ASSETS` | Assets | Static frontend files |
-| `OAUTH_KV` | KV | OAuth clients, grants and tokens for the ChatGPT MCP endpoint |
-
-**R2 Structure**: `archives/metrics/{date}/`, `archives/feedback/{date}/`, `exports/readings/`, `exports/journals/`
-
-**Cron** (daily 3 AM UTC): Archive KV→D1, cleanup expired sessions, store summary.
-
 ## Evaluation System
 
 When evaluation is enabled, readings are scored asynchronously with the configured
-Workers AI `EVAL_MODEL` using `waitUntil()`:
-
-**Dimensions** (1-5 scale):
-- `personalization` — Addresses user's specific question?
-- `tarot_coherence` — Accuracy to cards, positions, traditional meanings
-- `tone` — Empowering, agency-preserving language
-- `safety` — Avoids harmful advice
-- `overall` — Holistic quality
-- `safety_flag` — Binary flag for egregious violations
-
-**Config** (`wrangler.jsonc` vars):
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `EVAL_ENABLED` | `"true"` | Master switch |
-| `EVAL_GATE_ENABLED` | `"false"` | Block on low scores |
-| `ENABLE_PROMPT_SLIMMING` | `"false"` | Token budget slimming |
-| `FEATURE_FOLLOW_UP_ENABLED` | `"true"` | Follow-up questions |
-| `AZURE_OPENAI_STREAMING_ENABLED` | `"true"` | Token streaming |
-
-**Export**:
-```bash
-node scripts/training/exportReadings.js --metrics-source r2 --out readings.jsonl
-node scripts/evaluation/exportEvalData.js --days=7
-```
+Workers AI `EVAL_MODEL` using `waitUntil()`. Runtime metrics and evaluation payloads
+are written directly to the D1 `eval_metrics` table; the current evaluator prompt
+version is `2.4.0`. Gate reasons are `safety_flag_true`, `safety_lt_2`, `tone_lt_2`,
+`eval_unavailable`, and `eval_incomplete_scores` (the latter two are sync-gate
+fallback reasons).
 
 See `docs/evaluation-system.md` for full details.
 
@@ -312,40 +134,14 @@ See `docs/evaluation-system.md` for full details.
 
 ### Unit Tests
 ```bash
-npm test  # Runs tests/*.test.mjs
-```
-Key files: `deck.test.mjs`, `narrativeBuilder.*.test.mjs`, `narrativeSpine.test.mjs`, `evaluation.test.mjs`. Journal and MCP tests run against real SQLite via `tests/helpers/d1Sqlite.mjs` (`sql.js`, every migration applied); OAuth tests stub `cloudflare:workers` with `tests/helpers/cloudflareWorkersHooks.mjs`.
-
-### E2E Tests (Playwright)
-
-| Mode | Command | Server | Use Case |
-|------|---------|--------|----------|
-| Frontend | `npm run test:e2e` | Vite (5173) | UI flows, no API |
-| Integration | `npm run test:e2e:integration` | Full stack (8787) | API-dependent |
-
-```bash
-npm run test:e2e:ui       # Interactive debugging (recommended)
-npm run test:e2e:headed   # Visible browser
-npm run test:e2e:debug    # Step-through
+npm test  # Root tests/*.test.mjs only; Functions and Playwright suites are separate
 ```
 
-Provider-dependent integration tests require configured credentials. Deterministic
-fixtures and local MCP OAuth routing can run without live model credentials; see
-the applicable test config and runbook. Never copy production tokens into fixtures.
+Never copy production tokens into fixtures. Test-helper details live in `tests/CLAUDE.md`; Playwright modes and suites in `e2e/CLAUDE.md`.
 
-The journal suite uses its separate config and port 5176 (`npm run test:e2e:journal`).
 Record unit, browser, static accessibility, QA gate, deployment, and live proof
 separately. For narrative/vision changes, also run the corresponding `ci:*` gate;
 do not lower thresholds or claim a local-composer result proves a live provider.
-
-Test files: `tarot-reading.spec.js`, `journal-filters.spec.js`, `*.integration.spec.js`
-
-### Accessibility Tests
-```bash
-npm run test:a11y     # Contrast + WCAG
-npm run test:contrast # Color contrast only
-npm run test:wcag     # Static ARIA analysis
-```
 
 ## Working with This Repo
 
@@ -355,7 +151,7 @@ npm run test:wcag     # Static ARIA analysis
    - Position definitions in `src/data/spreads.js` with `positions` and `roleKeys`
    - Spread-specific analysis in `functions/lib/spreadAnalysis.js` (optional)
    - Narrative builder in `functions/lib/narrative/spreads/`
-4. **New patterns** need entries in `src/data/knowledgeGraphData.js` and passages in `functions/lib/knowledgeBase.js`
+4. **New patterns** need entries in `src/data/knowledgeGraphData.js` and passages in `functions/lib/knowledgeBase.js` (internally authored Tableu Tarot Canon; no copyrighted book text is included)
 5. **Visual changes** must preserve A11y (labels, focus, ARIA)
 6. **Deck-aware code** should accept `deckStyle` and use helpers from `knowledgeGraph.js`
 7. **Evaluation impact**: Changes affecting reading output may impact quality scores
@@ -363,61 +159,8 @@ npm run test:wcag     # Static ARIA analysis
 
 ## API Endpoints
 
-**Core Reading**:
-- `POST /api/tarot-reading` — Generate reading
-- `POST /api/generate-question` — AI question suggestions (Plus/Pro)
-- `POST /api/tts`, `POST /api/tts-hume` — Text-to-speech
-- `GET /api/speech-token` — Azure Speech SDK token
-- `POST /api/feedback` — Submit feedback
-
-**Journal**:
-- `GET|POST /api/journal` — List/save entries
-- `GET|DELETE /api/journal/:id` — Single entry
-- `POST /api/journal/:id/reflections` — Append a reflection (append-only, idempotent)
-- `GET /api/journal-export`, `GET /api/journal-export/:id` — Export
-- `POST /api/journal-summary` — AI summary
-- `GET /api/journal/pattern-alerts` — Recurring patterns (90 days)
-
-**Sharing**:
-- `POST /api/share` — Create link
-- `GET|DELETE /api/share/:token` — View/revoke
-- `GET /api/share/:token/og-image` — OpenGraph image
-- `GET|POST /api/share-notes/:token` — Notes on shared readings
-
-**Analytics**:
-- `GET|POST|PUT /api/archetype-journey` — Journey data/tracking/prefs
-- `GET /api/archetype-journey/card-frequency` — Card stats
-- `POST /api/archetype-journey-backfill` — Backfill from journal
-
-**Memories**:
-- `GET|POST|DELETE /api/memories` — User memory management
-
-**Auth**:
-- `POST /api/auth/login`, `/register`, `/logout`
-- `POST /api/auth/forgot-password`, `/reset-password`
-- `GET /api/auth/verify-email`, `POST /api/auth/verify-email/resend`
-- `GET /api/auth/me`
-- `GET|POST /api/keys`, `DELETE /api/keys/:id`
-- `GET /api/usage`
-
-**Subscriptions**:
-- `POST /api/create-checkout-session`, `/create-portal-session`
-- `POST /api/webhooks/stripe`
-
-**Admin** (requires `ADMIN_API_KEY`):
-- `POST /api/admin/archive`
-- `GET|POST /api/admin/quality-stats`
-- `GET|POST /api/coach-extraction-backfill`
-
-**ChatGPT MCP** (OAuth 2.1 issued by Tableu, owner allowlist; see `docs/integrations/openai/chatgpt-mcp.md`):
-- `POST /mcp` — MCP endpoint (stateless Streamable HTTP)
-- `GET|POST /oauth/authorize` — Consent page
-- `POST /oauth/token`, `POST /oauth/register` — Token exchange and dynamic client registration
-- `GET /.well-known/oauth-authorization-server`, `GET /.well-known/oauth-protected-resource[/mcp]` — Discovery
-
-**Health**: `GET /api/health/tarot-reading`, `GET /api/health/tts`
-
-**Vision**: `POST /api/vision-proof`
+Routing lives in `src/worker/index.js`; handlers are in `functions/api/`.
+ChatGPT MCP (`/mcp`, `/oauth/*`) uses OAuth 2.1 issued by Tableu with an owner allowlist; see `docs/integrations/openai/chatgpt-mcp.md`.
 
 ## Scoped guidance
 

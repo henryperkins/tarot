@@ -171,6 +171,8 @@
   --status-warning: #854D0E;
   --status-warning-rgb: 133 77 14;
   --status-warning-bg: #FEF3C7;
+  --status-error: #A13F3F; /* 6.1:1 on #FAFAFA; 5:1 on its own 10-15% tint */
+  --status-error-rgb: 161 63 63;
   /* Opaque semantic pairs keep normal light-mode status text readable. */
 
   /* Panels & Effects (light-friendly variants) */

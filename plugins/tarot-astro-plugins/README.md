@@ -2,19 +2,21 @@
 
 Type: guide
 Status: active
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
-Enhance your tarot readings with real-time astrological context and comprehensive symbolism analysis.
+Optional Claude Code tools for adding astrological context and symbolism reference to a conversation about tarot.
+
+These plugins are local MCP servers for Claude Code. They are not dependencies of the Tableu Worker, browser bundle, or reading pipeline, and installing them does not automatically enrich application readings.
 
 ## Overview
 
-This marketplace provides two powerful MCP server plugins that bring depth and cosmic context to your tarot practice:
+This marketplace provides two optional MCP server plugins that can give Claude Code useful reference material during a user-requested interpretation:
 
 ### 📡 Ephemeris Server
-Real-time astronomical data including planetary positions, moon phases, aspects, and retrograde tracking. Adds astrological context to readings with accurate celestial information.
+Swiss Ephemeris-backed planetary positions, moon phases, aspects, and retrograde tracking. Claude Code can use these results when a user explicitly asks for astrological context.
 
 ### 🔮 Symbolism Reference Database
-Comprehensive symbolism database covering animals, colors, numbers, elements, plants, and celestial bodies. Provides multi-layered interpretations for tarot card imagery.
+A local symbolism database covering animals, colors, numbers, elements, plants, and celestial bodies. Claude Code can use it to look up interpretations for symbols a user names.
 
 ## Quick Start
 
@@ -66,7 +68,7 @@ Once installed, you should see:
 ✨ **Current Planetary Positions**
 - All planets by sign and degree
 - Longitudinal and latitudinal coordinates
-- Real-time astronomical accuracy
+- Swiss Ephemeris-backed positions computed locally
 
 🌙 **Moon Phase Tracking**
 - Current phase name and angle
@@ -92,7 +94,7 @@ Once installed, you should see:
 ### Symbolism Server Features
 
 🦁 **Animal Symbolism**
-- 12+ animals with rich meanings
+- 12 animals with curated meanings
 - Tarot-specific interpretations
 - Archetypal associations
 
@@ -122,15 +124,14 @@ Once installed, you should see:
 
 ## Usage Examples
 
-### Adding Astrological Context to a Reading
+### Adding Astrological Context in Claude Code
 
 ```bash
 # Get current cosmic context
 /astro-reading
 
-# Then proceed with your reading
-# Claude will have access to current planetary positions,
-# moon phase, aspects, and retrograde information
+# Then ask Claude to use that context in a tarot interpretation
+# The ephemeris tools are used only when Claude Code invokes them
 ```
 
 **Example output:**
@@ -146,7 +147,7 @@ Pisces, suggesting a time of refinement and emotional deepening.
 - Venus trine Jupiter (orb: 2.3°) - Expansive love energy, optimism
 - Mercury in Capricorn - Practical, grounded communication
 
-**Integration with Your Cards:**
+**How Claude might use this context:**
 With Mars and the Sun in dynamic square, themes of action, courage,
 or constructive conflict in your cards may be especially relevant.
 ```
@@ -184,9 +185,9 @@ by pomegranates (hidden wisdom), with the moon at her feet
 through intuition and inner knowing.
 ```
 
-### Integration During Readings
+### Optional Claude Code Usage
 
-The plugins work automatically during readings. Claude can:
+The plugins do not run as part of a Tableu reading request. When a user explicitly asks Claude to use an MCP tool, Claude can:
 
 ```bash
 # Reference current planetary energies
@@ -245,43 +246,47 @@ Deep symbolic analysis of tarot card imagery:
 - Symbolic synthesis
 - Interpretive guidance
 
-## Integration with Tarot Readings
+## Optional Claude Code Workflows
 
-### Automatic Context Enhancement
+### User-Requested Context
 
-The plugins seamlessly integrate with your tarot reading workflow:
+These examples show a Claude Code conversation in which the user asks Claude to combine tool results. They do not describe a hook or runtime integration in the Tableu application:
 
-**Before the plugins:**
+**Before requesting tool context:**
 > "The Tower suggests sudden change and breakthrough."
 
-**With astrological context:**
+**After requesting astrological context:**
 > "The Tower suggests sudden change and breakthrough. With Mars square
 > Uranus active today (exact within 1°), this energy of sudden shifts
 > and liberation is amplified in the collective field. The Waning Moon
 > in Scorpio supports the release of what no longer serves."
 
-**With symbol analysis:**
+**After requesting symbol analysis:**
 > "The lightning striking the crown represents divine intervention
 > (sudden revelation, breakthrough, awakening). The falling figures
 > symbolize the destruction of false structures and ego constructs.
 > The cosmic background suggests this is a fated event aligned with
 > higher purpose."
 
-### Example Reading Workflow
+### Example Claude Code Workflow
 
 1. **Set intention** for the reading
-2. **Check astrological context**: `/astro-reading`
-3. **Draw cards** using your chosen spread
-4. **Analyze symbols** as needed: `/symbol-analysis [Card Name]`
-5. **Synthesize** card meanings with cosmic context
-6. **Record** the reading with timestamp for future reference
+2. **Ask for astrological context**: `/astro-reading`
+3. **Draw or name cards** in the conversation
+4. **Ask for symbol analysis**: `/symbol-analysis [Card Name]`
+5. **Ask Claude to synthesize** the results as part of the conversation
+6. **Record** the result if the user wants to keep it
+
+No step in this workflow is performed by the Tableu application unless the application is separately changed to call an MCP client.
 
 ## Technical Details
 
 ### Requirements
 - Claude Code installed
-- Node.js (for running MCP servers)
-- npm (for dependency installation)
+- Node.js and npm for the optional local MCP processes
+- Swiss Ephemeris data files for the ephemeris server
+
+These requirements apply to the optional tools, not to running the Tableu application.
 
 ### Dependencies
 - **Ephemeris Server**: `sweph`, `@modelcontextprotocol/sdk`
@@ -289,32 +294,46 @@ The plugins seamlessly integrate with your tarot reading workflow:
 
 ### MCP Server Configuration
 
-Both plugins are configured to run as stdio MCP servers:
+Each plugin loads its own adjacent `.mcp.json` file. The configuration uses stdio and resolves the server entry point relative to the installed plugin root; it is not a Tableu application configuration.
+
+`plugins/tarot-astro-plugins/ephemeris-server/.mcp.json` is equivalent to:
 
 ```json
 {
   "mcpServers": {
     "ephemeris": {
+      "type": "stdio",
       "command": "node",
-      "args": ["server/index.js"]
-    },
-    "symbolism": {
-      "command": "node",
-      "args": ["server/index.js"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.js"]
     }
   }
 }
 ```
 
+`plugins/tarot-astro-plugins/symbolism-server/.mcp.json` is equivalent to:
+
+```json
+{
+  "mcpServers": {
+    "symbolism": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.js"]
+    }
+  }
+}
+```
+
+The current ephemeris `.mcp.json` also contains an `EPHEMERIS_API_KEY` environment placeholder, but this local server does not read that variable. Use the ephemeris data-file guidance for `SE_EPHE_PATH`.
+
 ### Data Sources
 
 **Ephemeris Server:**
-- **Uses genuine Swiss Ephemeris library** (via `sweph` Node.js bindings)
-- **Accuracy:** Research-grade precision matching NASA JPL data
-- **Precision:** 0.001 arcsecond accuracy for major planets
-- Based on JPL DE431 planetary ephemeris data
-- Real-time calculations with minimal latency
-- Requires ephemeris data files (see `docs/SWISS_EPHEMERIS_DATA.md`)
+- Uses the `sweph` Node.js bindings with Swiss Ephemeris data files
+- Calculates positions locally through the MCP stdio process
+- Reports ecliptic longitude and latitude rounded to two decimal places by the server
+- Does not advertise a guaranteed arcsecond-level precision; accuracy depends on the Swiss Ephemeris version, data files, and date
+- Requires the data files described in `plugins/tarot-astro-plugins/docs/SWISS_EPHEMERIS_DATA.md`
 
 **Symbolism Server:**
 - Curated database of traditional tarot symbolism
@@ -325,7 +344,7 @@ Both plugins are configured to run as stdio MCP servers:
 
 ### Adding Custom Symbols
 
-Edit `symbolism-server/data/symbols.json`:
+Edit `plugins/tarot-astro-plugins/symbolism-server/data/symbols.json` from the repository root:
 
 ```json
 {
@@ -392,9 +411,9 @@ npm install
 
 The ephemeris server uses well-tested astronomical algorithms. If you encounter discrepancies:
 
-1. Check that `sweph` and the Swiss Ephemeris data files are installed correctly
+1. Check that `sweph` and the Swiss Ephemeris data files are installed correctly; see `plugins/tarot-astro-plugins/docs/SWISS_EPHEMERIS_DATA.md`
 2. Verify your system time is correct
-3. Compare with https://www.astro.com/swisseph/ for validation
+3. Compare with a trusted ephemeris source for the date and data-file range
 
 ### Symbol Not Found
 
@@ -429,13 +448,13 @@ To contribute to these plugins:
 
 ## License
 
-MIT License - See LICENSE file for details
+The symbolism server is MIT licensed. The ephemeris plugin's own code is MIT except for the Swiss Ephemeris components described in `plugins/tarot-astro-plugins/ephemeris-server/LICENSE`; the `sweph` dependency and its data have separate AGPL-3.0 or professional-license terms. Review that file before redistributing or combining the ephemeris server with proprietary software.
 
 ## Credits
 
 **Astronomical Calculations:**
 - Swiss Ephemeris via `sweph`
-- JPL Planetary Ephemeris data
+- Swiss Ephemeris data files; consult their license and data-range documentation
 
 **Symbolism Database:**
 - Curated from traditional tarot sources

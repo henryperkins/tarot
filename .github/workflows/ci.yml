@@ -37,6 +37,9 @@ jobs:
       - name: Validate Cloudflare script/docs commands
         run: npm run lint:cloudflare
 
+      - name: Validate maintained documentation links
+        run: npm run docs:check
+
       - name: Vision QA gate
         run: npm run ci:vision-check
 

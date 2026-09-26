@@ -4,8 +4,8 @@
  * Reusable chat body for follow-up questions about a tarot reading.
  */
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { ChatCircle, PaperPlaneTilt, SpinnerGap, Lightning, Lock, CaretDown, X } from '@phosphor-icons/react';
+import { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
+import { ChatCircle, PaperPlaneTilt, SpinnerGap, Lightning, Lock, X } from '@phosphor-icons/react';
 import { useReading } from '../contexts/ReadingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -16,6 +16,9 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import clsx from 'clsx';
 
 const MAX_MESSAGE_LENGTH = 500;
+// Once the response has started, this long without a byte means the stream is stuck.
+const STALL_TIMEOUT_MS = 120000;
+const SLOW_RESPONSE_MS = 15000;
 
 // Tier-based follow-up limits (matches backend)
 const FOLLOW_UP_LIMITS = {
@@ -24,12 +27,19 @@ const FOLLOW_UP_LIMITS = {
   pro: 10
 };
 
+const RETRY_HINT = 'Your question is still in the box, so you can send it again.';
+const ERROR_COPY = {
+  network: `Couldn't reach the reader. Check your connection. ${RETRY_HINT}`,
+  timeout: `The reader is taking too long to answer. ${RETRY_HINT}`,
+  dropped: `The connection closed before the reader answered. ${RETRY_HINT}`,
+  generic: `The reader couldn't answer just now. ${RETRY_HINT}`
+};
+
 export default function FollowUpChat({
-  variant = 'panel',
+  variant = 'modal',
   isActive = true,
   titleId = 'follow-up-chat-title',
   onClose,
-  onMinimize,
   showHeader = true,
   className = ''
 }) {
@@ -57,13 +67,20 @@ export default function FollowUpChat({
   const [suggestionRotation, setSuggestionRotation] = useState(0);
   const [serverTurn, setServerTurn] = useState(null); // Synced from meta.turn
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [isSlow, setIsSlow] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
   const prefersReducedMotion = useReducedMotion();
 
-  const messagesEndRef = useRef(null);
   const conversationRef = useRef(null);
   const inputRef = useRef(null);
   const activeRequestRef = useRef(null);
-  const isDock = variant === 'dock';
+  const logRef = useRef(null);
+  const suggestionsRef = useRef(null);
+  const errorRef = useRef(null);
+  const limitRef = useRef(null);
+  const hadFocusRef = useRef(false);
+  const lastFocusRef = useRef(null);
+  const focusIntentRef = useRef(null);
   const isDrawer = variant === 'drawer';
 
   useEffect(() => {
@@ -93,8 +110,9 @@ export default function FollowUpChat({
     return FOLLOW_UP_LIMITS[effectiveTier] || FOLLOW_UP_LIMITS.free;
   }, [effectiveTier]);
 
-  // Use server turn count when available, fall back to local message count
-  const localTurns = messages.filter(m => m.role === 'user').length;
+  // Use server turn count when available, fall back to answered turns. A pending
+  // question must not swap the composer for the limit notice before its answer lands.
+  const localTurns = messages.filter(m => m.role === 'assistant' && !m.isStreaming && !m.isSystemMessage).length;
   const turnsUsed = serverTurn !== null ? serverTurn : localTurns;
   const canAskMore = turnsUsed < followUpLimit;
   const hasValidReading = Boolean(personalReading) && !personalReading.isError && !personalReading.isStreaming;
@@ -160,6 +178,8 @@ export default function FollowUpChat({
       setShowSuggestions(false);
       setServerTurn(null); // Reset server turn on new reading
       setIsAtBottom(true);
+      setIsSlow(false);
+      setAnnouncement('');
       const preserveFollowUps =
         Array.isArray(followUps) &&
         followUps.length > 0 &&
@@ -227,6 +247,61 @@ export default function FollowUpChat({
     scrollToBottom(hasStreamingMessage || prefersReducedMotion ? 'auto' : 'smooth');
   }, [messages, isActive, isAtBottom, hasStreamingMessage, prefersReducedMotion, scrollToBottom]);
 
+  // A tapped suggestion, a failed first turn, or the composer giving way to the
+  // limit notice removes the focused control. Land focus somewhere meaningful
+  // instead of letting it fall to <body>. The log is preferred over the textarea
+  // so a phone keyboard doesn't rise over the answer.
+  useEffect(() => {
+    const intent = focusIntentRef.current;
+    focusIntentRef.current = null;
+    if (!isActive || !hadFocusRef.current) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
+    // Focus also falls to <body> when the person moves it away on purpose, such
+    // as dismissing the phone keyboard. Unless they asked for the suggestions,
+    // only rescue focus from a control that was removed or disabled.
+    const lastFocused = lastFocusRef.current;
+    if (!intent && lastFocused?.isConnected && !lastFocused.disabled) return;
+    const firstSuggestion = intent === 'suggestions'
+      ? suggestionsRef.current?.querySelector('button:not(:disabled)')
+      : null;
+    const input = inputRef.current && !inputRef.current.disabled ? inputRef.current : null;
+    const target = firstSuggestion || errorRef.current || limitRef.current || logRef.current || input;
+    target?.focus({ preventScroll: target === logRef.current });
+  });
+
+  // The composer starts one line tall and grows with the question up to its CSS
+  // max-height, so short phones keep room for the conversation.
+  const fitComposer = useCallback(() => {
+    const input = inputRef.current;
+    if (!input || !input.isConnected || input.offsetParent === null) return;
+    input.style.height = 'auto';
+    input.style.height = `${input.scrollHeight + input.offsetHeight - input.clientHeight}px`;
+  }, []);
+
+  useLayoutEffect(() => {
+    fitComposer();
+  }, [inputValue, isActive, canAskMore, fitComposer]);
+
+  // Rewrap on width or text-size changes (rotation, breakpoint, 200% zoom). The
+  // textarea exists only with a finished reading and while turns remain, so
+  // reattach whenever either changes.
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input || typeof ResizeObserver === 'undefined') return undefined;
+    let frame = 0;
+    // Deferred so resizing inside the callback can't trip the observer-loop error.
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(fitComposer);
+    });
+    observer.observe(input);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [canAskMore, hasValidReading, fitComposer]);
+
   const askFollowUp = useCallback(async (question) => {
     const trimmedQuestion = question?.trim();
     if (!trimmedQuestion || !isActive || activeRequestRef.current || isLoading || !canAskMore || !hasValidReading) return;
@@ -246,9 +321,30 @@ export default function FollowUpChat({
     activeRequestRef.current = request;
     setError(null);
     setIsLoading(true);
+    setIsSlow(false);
     setInputValue('');
     setShowSuggestions(false);
     setIsAtBottom(true);
+    setAnnouncement('Question sent. The reader is reflecting.');
+
+    // The server sends nothing until it has composed, checked and recorded the
+    // answer, so the wait for the response has no deadline; the slow notice
+    // covers it. The timer starts with the response and rearms on every chunk,
+    // so it fires only when the connection goes silent.
+    let timedOut = false;
+    let stallTimer = null;
+    const armStallTimer = () => {
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        timedOut = true;
+        request.abort();
+      }, STALL_TIMEOUT_MS);
+    };
+    const slowTimer = setTimeout(() => {
+      if (activeRequestRef.current !== request) return;
+      setIsSlow(true);
+      setAnnouncement('Still reflecting. Some answers take a little longer.');
+    }, SLOW_RESPONSE_MS);
 
     // Add user message immediately
     const userMessage = { role: 'user', content: trimmedQuestion };
@@ -296,6 +392,7 @@ export default function FollowUpChat({
       });
 
       if (activeRequestRef.current !== request) return;
+      armStallTimer();
       // Check for non-streaming error responses
       const contentType = response.headers.get('content-type') || '';
       const isSSE = contentType.includes('text/event-stream');
@@ -303,7 +400,7 @@ export default function FollowUpChat({
       if (!response.ok && !isSSE) {
         // Non-SSE error response - parse as JSON
         const errorData = await response.json().catch(() => ({}));
-        if (activeRequestRef.current !== request || request.signal.aborted) return;
+        if (activeRequestRef.current !== request || (request.signal.aborted && !timedOut)) return;
 
         if (response.status === 401) {
           throw new Error('Please sign in to ask follow-up questions.');
@@ -319,12 +416,30 @@ export default function FollowUpChat({
           throw new Error(errorData.message || 'Daily follow-up limit reached. Try again tomorrow.');
         }
 
-        throw new Error(errorData.message || errorData.error || 'Failed to get response');
+        throw new Error(errorData.message || errorData.error || ERROR_COPY.generic);
       }
 
       if (!isSSE) {
-        // Not SSE content-type - unexpected format
-        throw new Error('Unexpected response format');
+        // The server's safety gate answers crisis language with JSON even when a
+        // stream was requested. Those support resources must reach the person.
+        const data = await response.json().catch(() => null);
+        if (activeRequestRef.current !== request) return;
+        const answer = typeof data?.response === 'string' ? data.response.trim() : '';
+        if (!answer) throw new Error(ERROR_COPY.generic);
+        const turn = Number.isFinite(data?.turn) ? Number(data.turn) : null;
+        const journalContext = data?.journalContext || null;
+        setMessages(prev => prev.map(msg =>
+          msg.id === assistantMessageId
+            ? { ...msg, content: answer, isStreaming: false, isSystemMessage: turn === null, journalContext }
+            : msg
+        ));
+        // A safety response carries no turn: it neither spends the allowance nor enters the journal.
+        if (turn !== null) {
+          setServerTurn(turn);
+          upsertFollowUp({ question: trimmedQuestion, answer, turnNumber: turn, journalContext, createdAt: Date.now() });
+        }
+        setAnnouncement(turn === null ? 'The reader shared support resources.' : 'The reader has answered.');
+        return;
       }
 
       // Process SSE stream
@@ -335,23 +450,25 @@ export default function FollowUpChat({
       let journalContext = null;
       let resolvedTurn = null;
       let followUpPersisted = false;
+      let streamCompleted = false;
 
       while (true) {
         const { done, value } = await reader.read();
         if (activeRequestRef.current !== request) return;
+        if (!done) armStallTimer();
 
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
+        // At the end, flush the decoder and close the last block so a final event
+        // without its trailing blank line still counts.
+        buffer += done ? `${decoder.decode()}\n\n` : decoder.decode(value, { stream: true });
 
         // Process complete SSE events
-        const events = buffer.split('\n\n');
+        const events = buffer.split(/\r?\n\r?\n/);
         buffer = events.pop() || '';
 
         for (const eventBlock of events) {
           if (!eventBlock.trim()) continue;
 
-          const lines = eventBlock.split('\n');
+          const lines = eventBlock.split(/\r?\n/);
           let eventType = '';
           let eventData = '';
 
@@ -388,6 +505,7 @@ export default function FollowUpChat({
               ));
             } else if (eventType === 'done') {
               // Stream complete - finalize the message
+              streamCompleted = true;
               const finalText = data.fullText || streamedText;
               const isEmpty = data.isEmpty || (!finalText || !finalText.trim());
 
@@ -400,17 +518,19 @@ export default function FollowUpChat({
 
               // If empty response (tool-only), show a fallback message and don't count the turn
               if (isEmpty) {
+                const emptyNotice = '*The reader noted something about your question but didn\'t have more to add. Feel free to ask another question.*';
                 setServerTurn(turnsUsed);
                 setMessages(prev => prev.map(msg =>
                   msg.id === assistantMessageId
                     ? {
                       ...msg,
-                      content: '*The reader noted something about your question but didn\'t have more to add. Feel free to ask another question.*',
+                      content: emptyNotice,
                       isStreaming: false,
                       isSystemMessage: true
                     }
                     : msg
                 ));
+                setAnnouncement('The reader had nothing more to add.');
                 // Don't persist empty responses or count the turn
               } else {
                 setMessages(prev => prev.map(msg =>
@@ -431,9 +551,10 @@ export default function FollowUpChat({
                   createdAt: Date.now()
                 });
                 followUpPersisted = true;
+                setAnnouncement('The reader has answered.');
               }
             } else if (eventType === 'error') {
-              throw new Error(data.message || 'Streaming error occurred');
+              throw new Error(data.message || ERROR_COPY.generic);
             }
           } catch (parseError) {
             if (parseError.message && !parseError.message.includes('JSON')) {
@@ -442,17 +563,26 @@ export default function FollowUpChat({
             console.warn('Failed to parse SSE event:', eventData);
           }
         }
+        if (done) break;
+      }
+
+      // The stream closed without a `done` event. With nothing said, treat it as a
+      // failure so the question comes back; with partial text, keep it but say so.
+      if (!streamCompleted && !streamedText) {
+        throw new Error(ERROR_COPY.dropped);
       }
 
       // Finalize if not already done
       setMessages(prev => prev.map(msg =>
         msg.id === assistantMessageId && msg.isStreaming
-          ? { ...msg, isStreaming: false, journalContext }
+          ? { ...msg, isStreaming: false, isInterrupted: !streamCompleted, journalContext }
           : msg
       ));
 
       if (!followUpPersisted && streamedText) {
         const turnNumberForSave = resolvedTurn || serverTurn || (turnsUsed + 1);
+        // The server records the turn before it streams, so a partial answer used it.
+        setServerTurn(turnNumberForSave);
         upsertFollowUp({
           question: trimmedQuestion,
           answer: streamedText,
@@ -460,19 +590,32 @@ export default function FollowUpChat({
           journalContext,
           createdAt: Date.now()
         });
+        setAnnouncement('The connection dropped, so this answer may be incomplete.');
       }
 
     } catch (err) {
-      if (activeRequestRef.current !== request || request.signal.aborted) return;
+      if (activeRequestRef.current !== request) return;
+      if (request.signal.aborted && !timedOut) return;
       console.error('Follow-up error:', err);
-      setError(err.message || 'Something went wrong. Please try again.');
+      const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      // fetch() and stream reads reject with TypeError when the network fails.
+      const message = timedOut
+        ? ERROR_COPY.timeout
+        : (isOffline || err?.name === 'TypeError')
+          ? ERROR_COPY.network
+          : (err?.message || ERROR_COPY.generic);
+      setError(message);
+      setAnnouncement('');
       // Remove both user message and incomplete assistant message on error
       setMessages(prev => prev.slice(0, -2));
       setInputValue(trimmedQuestion);
     } finally {
+      clearTimeout(stallTimer);
+      clearTimeout(slowTimer);
       if (activeRequestRef.current === request) {
         activeRequestRef.current = null;
         setIsLoading(false);
+        setIsSlow(false);
       }
     }
   }, [
@@ -507,11 +650,6 @@ export default function FollowUpChat({
     return null;
   }
 
-  const chipText = isDock ? 'text-xs' : 'text-sm';
-  const headerTitle = isDock ? 'text-sm' : 'text-base';
-  const headerSubtitle = isDock ? 'text-xs' : 'text-sm';
-  const badgeText = 'text-sm';
-
   const handleConversationScroll = (event) => {
     const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
     const threshold = 24;
@@ -519,70 +657,60 @@ export default function FollowUpChat({
     setIsAtBottom(atBottom);
   };
 
+  const canSend = isAuthenticated && !isLoading && Boolean(inputValue.trim());
+  const showSuggestionsToggle = messages.length > 0 && suggestions.length > 0 && !showSuggestions
+    && canAskMore && !isLoading && isAuthenticated;
+  const patternCount = (msg) => msg.journalContext?.patternsFound?.length || 0;
+
   return (
-    <div className={clsx('follow-up-chat', className)}>
+    <div
+      className={clsx('follow-up-chat', className)}
+      onFocus={(event) => {
+        hadFocusRef.current = true;
+        lastFocusRef.current = event.target;
+      }}
+      onBlur={(event) => {
+        // Removed nodes blur with no relatedTarget; only a real move elsewhere counts.
+        if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) {
+          hadFocusRef.current = false;
+        }
+      }}
+    >
+      <p className="sr-only" role="status">{announcement}</p>
       {showHeader && (
-        <div className="follow-up-chat__header flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-2.5">
-            <ChatCircle className="w-5 h-5 shrink-0 mt-1 text-accent" weight="fill" aria-hidden="true" />
-            <div>
-              <h2 id={titleId} className={clsx('font-serif text-main', isDrawer ? 'text-2xl' : headerTitle)}>
-                Follow-up chat
-              </h2>
-              <p className={clsx('text-muted', headerSubtitle)}>
-                {isDrawer ? 'Ask deeper questions and stay anchored to this spread.' : 'Clarify symbols, positions, or next steps.'}
-              </p>
-            </div>
+        <div className="follow-up-chat__header">
+          <ChatCircle className="w-5 h-5 shrink-0 mt-2 text-accent" weight="fill" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <h2 id={titleId} className="font-serif text-2xl text-main">
+              Follow-up chat
+            </h2>
+            <p className="follow-up-chat__subtitle text-sm text-muted">
+              {isDrawer ? 'Ask deeper questions and stay anchored to this spread.' : 'Clarify symbols, positions, or next steps.'}
+            </p>
           </div>
-          <div className="flex shrink-0 flex-col-reverse items-end gap-2 sm:flex-row sm:items-center">
-            <span className={clsx(
-              'rounded-full bg-[color:var(--surface-92)] px-2 py-1 border border-[color:var(--border-warm-light)] text-muted',
-              badgeText
-            )}>
-              {turnsUsed}/{followUpLimit} used
-            </span>
-            {onMinimize && (
-              <button
-                type="button"
-                onClick={onMinimize}
-                className="follow-up-chat__icon-button rounded-full border p-2 text-muted hover:text-main transition"
-                aria-label="Minimize follow-up chat"
-              >
-                <CaretDown className="w-4 h-4" aria-hidden="true" />
-              </button>
-            )}
-            {onClose && (
-              <button
-                type="button"
-                onClick={onClose}
-                className="follow-up-chat__icon-button rounded-full border p-2 text-muted hover:text-main transition"
-                aria-label="Close follow-up chat"
-              >
-                <X className="w-4 h-4" aria-hidden="true" />
-              </button>
-            )}
-          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="follow-up-chat__icon-button follow-up-chat__close"
+              aria-label="Close follow-up chat"
+            >
+              <X className="w-4 h-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
       )}
 
       <div className="follow-up-chat__scroll" ref={conversationRef} onScroll={handleConversationScroll}>
       {/* Suggestions (initial or on-demand) */}
       {(messages.length === 0 || showSuggestions) && (
-        <ul className="follow-up-suggestions" aria-label="Suggested questions">
+        <ul ref={suggestionsRef} className="follow-up-suggestions" aria-label="Suggested questions">
           {suggestions.map((suggestion, idx) => (
             <li key={idx}>
             <button
               type="button"
               onClick={() => handleSuggestionClick(suggestion)}
               disabled={isLoading || !canAskMore || !isAuthenticated}
-              className={clsx(
-                'px-3 py-1.5 rounded-full border transition-colors',
-                'border-[color:var(--border-warm-light)] bg-[color:rgba(232,218,195,0.06)]',
-                'hover:border-[color:var(--border-warm)] hover:bg-[color:rgba(212,184,150,0.12)]',
-                'disabled:opacity-50 disabled:cursor-not-allowed',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
-                chipText
-              )}
             >
               {suggestion.text}
             </button>
@@ -594,71 +722,58 @@ export default function FollowUpChat({
       {/* Conversation history */}
       {messages.length > 0 && (
         <div
-          className={clsx(
-            'space-y-3 rounded-2xl border border-[color:var(--border-warm-subtle)]',
-            'bg-[color:var(--surface-88)] p-3 pr-2'
-          )}
+          ref={logRef}
+          tabIndex={-1}
+          className="follow-up-log"
           role="log"
           aria-label="Conversation history"
-          aria-live="polite"
+          // Token-by-token streaming would make a live log chatter; the status
+          // region above announces each question and finished answer once.
+          aria-live="off"
         >
           {messages.map((msg, idx) => (
-            <div
-              key={msg.id || idx}
-              className={clsx(
-                'flex',
-                msg.role === 'user' ? 'justify-end' : 'justify-start'
-              )}
-            >
-              <div className={clsx(
-                'max-w-[85%] px-4 py-2.5 rounded-2xl border',
-                msg.role === 'user'
-                  ? 'bg-primary/20 text-main rounded-br-md border-primary/30'
-                  : 'bg-[color:var(--surface-92)] text-main rounded-bl-md border-[color:var(--border-warm-subtle)]'
-              )}>
-                {msg.role === 'assistant' ? (
-                  <>
-                    {msg.content ? (
-                      <MarkdownRenderer content={msg.content} variant="compact" />
-                    ) : msg.isStreaming ? (
-                      <span className="inline-flex items-center gap-1 text-sm text-muted">
-                        <span className="animate-pulse">...</span>
-                      </span>
-                    ) : null}
-                    {/* Streaming cursor indicator */}
-                    {msg.isStreaming && msg.content && (
-                      <span className="inline-block w-1.5 h-4 bg-accent/60 animate-pulse ml-0.5 align-text-bottom" aria-hidden="true" />
-                    )}
-                  </>
-                ) : (
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+            msg.role === 'user' ? (
+              <div key={msg.id || idx} className="follow-up-log__question">
+                <p className="whitespace-pre-wrap" dir="auto">{msg.content}</p>
+              </div>
+            ) : (
+              // The reader's answer reads as prose on the page, not a boxed bubble.
+              <div key={msg.id || idx} className="follow-up-log__answer">
+                {msg.content ? (
+                  <MarkdownRenderer content={msg.content} variant="compact" />
+                ) : msg.isStreaming ? (
+                  <span className="inline-flex items-center gap-2 text-sm text-muted">
+                    <SpinnerGap className="w-4 h-4 shrink-0 animate-spin" aria-hidden="true" />
+                    {isSlow ? 'Still reflecting. Some answers take a little longer.' : 'Reflecting on your question…'}
+                  </span>
+                ) : null}
+                {/* Streaming cursor indicator */}
+                {msg.isStreaming && msg.content && (
+                  <span className="inline-block w-1.5 h-4 bg-accent/60 animate-pulse ms-0.5 align-text-bottom" aria-hidden="true" />
                 )}
-
+                {msg.isInterrupted && (
+                  <p className="mt-2 text-xs text-muted">The connection dropped, so this answer may be incomplete.</p>
+                )}
                 {/* Journal context indicator */}
-                {!msg.isStreaming && msg.journalContext?.patternsFound?.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-[color:var(--border-warm-subtle)] text-xs text-muted flex items-center gap-1">
-                    <Lightning className="w-3 h-3" weight="fill" aria-hidden="true" />
-                    <span>Informed by {msg.journalContext.patternsFound.length} journal pattern(s)</span>
-                  </div>
+                {!msg.isStreaming && patternCount(msg) > 0 && (
+                  <p className="mt-2 flex items-center gap-1 text-xs text-muted">
+                    <Lightning className="w-3 h-3 shrink-0" weight="fill" aria-hidden="true" />
+                    <span>
+                      Informed by {patternCount(msg)} journal {patternCount(msg) === 1 ? 'pattern' : 'patterns'}
+                    </span>
+                  </p>
                 )}
               </div>
-            </div>
+            )
           ))}
-          <div ref={messagesEndRef} />
-        </div>
-      )}
-
-      {/* Loading indicator - only show when loading but not streaming */}
-      {isLoading && !messages.some(m => m.isStreaming) && (
-        <div className="flex items-center gap-2 text-muted text-sm" aria-live="polite">
-          <SpinnerGap className="w-4 h-4 animate-spin" aria-hidden="true" />
-          <span>Reflecting on your question...</span>
         </div>
       )}
 
       {/* Error message */}
       {error && (
         <div
+          ref={errorRef}
+          tabIndex={-1}
           className="text-error text-sm bg-error/10 px-3 py-2 rounded-lg"
           role="alert"
         >
@@ -667,19 +782,16 @@ export default function FollowUpChat({
       )}
 
       {/* Suggestions re-entry CTA */}
-      {messages.length > 0 && suggestions.length > 0 && !showSuggestions && (
+      {showSuggestionsToggle && (
         <div className="flex justify-start">
           <button
             type="button"
             onClick={() => {
+              focusIntentRef.current = 'suggestions';
               setShowSuggestions(true);
               setSuggestionRotation((prev) => prev + 1);
             }}
-            className={clsx(
-              'min-h-touch min-w-touch text-sm px-3 py-2 rounded-full border border-[color:var(--border-warm-light)] text-muted',
-              'bg-[color:rgba(232,218,195,0.05)] hover:border-[color:var(--border-warm)] hover:text-main',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]'
-            )}
+            className="follow-up-chat__ghost-button"
           >
             Need ideas? Show suggestions
           </button>
@@ -690,75 +802,63 @@ export default function FollowUpChat({
       <div className="follow-up-chat__footer">
       {/* Input form */}
       {canAskMore ? (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-          <label htmlFor={`${titleId}-question`} className="text-sm font-semibold">Your follow-up</label>
-          <div className="flex items-start gap-2">
-          <div className="flex-1 min-w-0">
+        <form onSubmit={handleSubmit} className="follow-up-composer">
+          <div className="follow-up-composer__label-row">
+            <label htmlFor={`${titleId}-question`} className="text-sm font-semibold">Your follow-up question</label>
+            <span className="follow-up-chat__usage">{turnsUsed}/{followUpLimit} used</span>
+          </div>
+          <div className="follow-up-composer__input-row">
+            {/* Read-only (not disabled) while the reader answers, so focus stays put. */}
             <textarea
               id={`${titleId}-question`}
               ref={inputRef}
-              rows={3}
+              rows={1}
+              dir="auto"
+              enterKeyHint="send"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
               onKeyDown={handleKeyDown}
-              placeholder={isAuthenticated ? 'Ask a follow-up question...' : 'Sign in to ask a follow-up'}
-              disabled={isLoading || !isAuthenticated}
-              aria-label="Follow-up question"
+              placeholder={!isAuthenticated
+                ? 'Sign in to ask a follow-up'
+                : isLoading ? 'The reader is answering…' : 'Ask a follow-up question...'}
+              disabled={!isAuthenticated}
+              readOnly={isLoading}
+              aria-disabled={isLoading || undefined}
               aria-describedby={`${titleId}-hint ${titleId}-counter`}
               maxLength={MAX_MESSAGE_LENGTH}
-              className={clsx(
-                'w-full px-3 py-2.5 rounded-xl border transition-colors resize-none',
-                'border-[color:var(--border-warm-light)] bg-[color:var(--surface-92)]',
-                'focus:border-[color:var(--border-warm)] focus:ring-2 focus:ring-[color:rgba(232,218,195,0.35)] focus:outline-none',
-                'placeholder:text-[color:var(--color-gray-light)]',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
             />
-            <span
-              id={`${titleId}-counter`}
-              className="block mt-1 text-right text-sm text-muted tabular-nums"
+
+            {/* aria-disabled keeps the button focusable after a click-to-send. */}
+            <button
+              type="submit"
+              disabled={!isAuthenticated}
+              aria-disabled={!canSend}
+              aria-label="Send question"
+              className="follow-up-chat__icon-button follow-up-chat__send"
             >
+              <PaperPlaneTilt className="w-5 h-5" weight="fill" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="follow-up-composer__meta">
+            <p id={`${titleId}-hint`}>Shift+Enter for a new line</p>
+            <span id={`${titleId}-counter`} className="tabular-nums">
               {inputValue.length}/{MAX_MESSAGE_LENGTH}
             </span>
           </div>
-
-          <button
-            type="submit"
-            disabled={!inputValue.trim() || isLoading || !isAuthenticated}
-            aria-label="Send question"
-            className={clsx(
-              'follow-up-chat__icon-button bg-accent text-surface rounded-xl transition-colors',
-              'hover:bg-accent/90 active:scale-95',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50'
-            )}
-          >
-            <PaperPlaneTilt className="w-5 h-5" weight="fill" aria-hidden="true" />
-          </button>
-          </div>
-          <p id={`${titleId}-hint`} className="text-sm text-muted">Shift+Enter for a new line</p>
         </form>
       ) : (
-        <div className="text-center text-muted text-sm py-2">
+        <div ref={limitRef} tabIndex={-1} className="text-center text-muted text-sm py-2">
           <div>
-            You&apos;ve used all {followUpLimit} follow-up question{followUpLimit > 1 ? 's' : ''} for this reading.
+            {followUpLimit === 1
+              ? "You've used your follow-up question for this reading."
+              : `You've used all ${followUpLimit} follow-up questions for this reading.`}
           </div>
-          <div className="mt-1 text-xs text-muted/80">Limits reset per reading.</div>
+          <div className="mt-1 text-xs text-muted">Limits reset per reading.</div>
           {effectiveTier !== 'pro' && (
-            <a
-              href="/pricing"
-              className="mt-2 inline-flex text-xs text-accent hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded"
-            >
+            <a href="/pricing" className="mt-1 text-xs text-accent hover:underline">
               {isFreeTier ? 'Upgrade to Plus for 3 follow-ups' : isPlusTier ? 'Upgrade to Pro for 10 follow-ups' : 'Upgrade for more'}
             </a>
           )}
-        </div>
-      )}
-
-      {/* Usage indicator */}
-      {canAskMore && turnsUsed > 0 && (
-        <div className="text-xs text-muted text-center">
-          {turnsUsed}/{followUpLimit} follow-up{followUpLimit > 1 ? 's' : ''} used for this reading
         </div>
       )}
 
@@ -769,7 +869,6 @@ export default function FollowUpChat({
             type="checkbox"
             checked={includeJournal}
             onChange={(e) => setIncludeJournal(e.target.checked)}
-            className="rounded border-[color:var(--border-warm-light)] text-accent focus:ring-[color:rgba(232,218,195,0.50)] focus:ring-offset-0"
           />
           <Lightning className="w-3 h-3" weight="fill" aria-hidden="true" />
           <span>Include insights from my journal history</span>
@@ -781,10 +880,7 @@ export default function FollowUpChat({
         <div className="flex items-center gap-2 text-xs text-muted">
           <Lock className="w-3 h-3" aria-hidden="true" />
           <span>
-            <a
-              href="/pricing"
-              className="text-accent hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded"
-            >
+            <a href="/pricing" className="text-accent hover:underline">
               Upgrade to Plus
             </a>
             {' '}for journal-powered insights

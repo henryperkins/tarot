@@ -12,8 +12,10 @@
   - `data/` — Static frontend data
   - `styles/tailwind.css` — Tailwind setup
 - **Cloudflare Worker** entrypoint is `src/worker/index.js`; route handlers live in `functions/api/`, shared logic in `functions/lib/`.
+- **Narrative providers** are tried in `functions/lib/narrativeBackends.js` order: `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `claude-opus45` → `local-composer`.
+- **Reading jobs** use the `READING_JOBS` Durable Object and public start/status/SSE/cancel routes under `/api/tarot-reading/jobs`.
 - **Shared code** between frontend and worker lives in `shared/`: `contracts/`, `journal/`, `monetization/`, `symbols/`, `vision/`.
-- **Scripts** live in `scripts/`: `evaluation/` for quality gates, `training/` for ML workflows, `vision/` for vision pipeline tools, `lib/` for shared script utilities.
+- **Scripts** live in `scripts/`: `evaluation/` for quality gates, `training/` for ML workflows, `vision/` for vision pipeline tools, and `lib/` plus category-specific `lib/` folders for shared utilities.
 - **Tests** are organized as:
   - Unit tests: `tests/*.test.mjs` and `functions/__tests__/`
   - E2E tests: `e2e/*.spec.js` (Playwright)
@@ -24,8 +26,8 @@
 ## Build, Test, and Development Commands
 
 ### Development
-- `npm run dev:vite` — starts Vite HMR (5173/5174), builds `dist/`, and runs Wrangler Workers dev on 8787 (cross-platform).
-- `npm run dev` — builds `dist/` and serves it via the Express server (no HMR) on `PORT` (default 5000).
+- `npm run dev:vite` — starts Vite HMR, builds `dist/`, and runs Wrangler Workers dev on 8787 via `scripts/dev.mjs`.
+- `npm run dev` — runs the same Vite + Wrangler development stack.
 - `npm run dev:frontend` — Vite-only for UI work.
 - `npm run dev:workers` — Worker dev server with live reload.
 - `npm run dev:wrangler` — Worker dev server.
@@ -43,7 +45,7 @@
 - `npm run migrations:apply:local` — apply migrations locally.
 
 ### Testing
-- `npm test` — runs Node unit tests (`tests/*.test.mjs`).
+- `npm test` — runs the root Node suite (`tests/*.test.mjs`); it does not include every `functions/__tests__` file or the Playwright suites.
 - `npm run test:e2e` — runs Playwright E2E tests.
 - `npm run test:e2e:ui` — interactive Playwright UI mode.
 - `npm run test:e2e:headed` — headed browser E2E tests.
@@ -79,6 +81,7 @@
 ### Linting
 - `npm run lint` — run ESLint.
 - `npm run lint:fix` — auto-fix linting issues.
+- `npm run docs:check` — validate local links in maintained Markdown.
 
 ## Coding Style & Naming Conventions
 

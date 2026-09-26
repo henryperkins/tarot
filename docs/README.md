@@ -2,7 +2,7 @@
 
 Type: index
 Status: active reference
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 This directory mixes active references, design and product notes, audits, and archived plans. Start here when you need the current source of truth.
 
@@ -10,6 +10,8 @@ This directory mixes active references, design and product notes, audits, and ar
 
 - `DEVELOPER_ONBOARDING.md` - local setup, runtime boundaries, and daily workflows
 - `../README.md` - project overview, scripts, and deployment basics
+- `../PRODUCT.md` - product purpose, operating context, and product constraints
+- `../DESIGN.md` - current visual system and interaction contract
 - `../CLAUDE.md` - repository-specific implementation guidance
 
 ## Canonical References
@@ -19,7 +21,6 @@ This directory mixes active references, design and product notes, audits, and ar
 - `architecture/narrative-architecture.md` - narrative-generation architecture
 - `design-contract.md` - current design-system contract
 - `monetization/monetization-logic.md` - implemented monetization behavior
-- `native/react-native-migration-plan.md` - current native migration background and status
 - `vision-pipeline.md` - current vision pipeline and evaluation flow
 
 ## Integrations
@@ -46,5 +47,6 @@ This directory mixes active references, design and product notes, audits, and ar
 ## Conventions
 
 - Prefer relative links over workstation-specific absolute paths.
+- Run `npm run docs:check` after changing maintained Markdown; it checks local links while excluding archived plans, reviews, generated output, dependencies, and build artifacts.
 - Mark active docs with a small metadata block (`Type`, `Status`, `Last reviewed`).
 - Keep completed plans in `plans/archived/` so active references stay readable.

@@ -1,14 +1,14 @@
-# Tarot Astro Plugins - Architecture Overview
+# Tarot Astro Plugins - Optional Claude Code Architecture
 
 ## System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Claude Code (Main)                           │
+│                 Claude Code (optional tool host)               │
 │                                                                   │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │ /astro-      │  │ /symbol-     │  │ Tarot        │          │
-│  │  reading     │  │  analysis    │  │ Reading UI   │          │
+│  │ /astro-      │  │ /symbol-     │  │ User request  │          │
+│  │  reading     │  │  analysis    │  │ in Claude    │          │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
 │         │                  │                  │                   │
 │         └──────────┬───────┴──────────────────┘                  │
@@ -37,6 +37,8 @@
 │ + ephemeris data │    │ (Database)       │
 └──────────────────┘    └──────────────────┘
 ```
+
+These plugins are optional Claude Code tools. They are not imported by the Tableu Worker, browser bundle, or reading pipeline, and an installed plugin does not automatically modify an application reading. A tool is used only after Claude Code receives a user request and invokes the corresponding MCP server.
 
 ## Plugin Structure
 
@@ -77,7 +79,9 @@ tarot-astro-plugins/
 └── ARCHITECTURE.md                ← This file
 ```
 
-## Data Flow: Astrological Reading
+## Data Flow: User-Requested Astrological Reading
+
+The following flow begins when a user invokes the command in Claude Code. It is not a hook in the Tableu application.
 
 ```
 User Request
@@ -133,7 +137,9 @@ User Request
 └───────────────────────────────────────────┘
 ```
 
-## Data Flow: Symbol Analysis
+## Data Flow: User-Requested Symbol Analysis
+
+This flow is an optional Claude Code tool call; the application does not invoke it automatically.
 
 ```
 User Request: "/symbol-analysis The Fool"
@@ -204,26 +210,26 @@ User Request: "/symbol-analysis The Fool"
 
 ### Ephemeris Server Tools (6 total)
 
-| Tool | Input | Output | Latency |
-|------|-------|--------|---------|
-| `get_current_positions` | none | All planetary positions | <10ms |
-| `get_moon_phase` | date? | Moon phase, sign, illumination | <5ms |
-| `get_planetary_aspects` | date?, orb? | Array of aspects | <15ms |
-| `get_retrograde_planets` | date? | Array of retrograde planets | <10ms |
-| `get_ephemeris_for_reading` | timestamp | Complete snapshot | <20ms |
-| `get_daily_astrological_weather` | date? | Daily overview + theme | <25ms |
+| Tool | Input | Output |
+|------|-------|--------|
+| `get_current_positions` | none | All planetary positions |
+| `get_moon_phase` | date? | Moon phase, sign, illumination |
+| `get_planetary_aspects` | date?, orb? | Array of aspects |
+| `get_retrograde_planets` | date? | Array of retrograde planets |
+| `get_ephemeris_for_reading` | timestamp | Complete snapshot |
+| `get_daily_astrological_weather` | date? | Daily overview + theme |
 
 ### Symbolism Server Tools (7 total)
 
-| Tool | Input | Output | Latency |
-|------|-------|--------|---------|
-| `search_symbols` | query, category?, limit? | Matching symbols | <5ms |
-| `get_symbol` | category, name | Single symbol details | <2ms |
-| `get_category` | category | All symbols in category | <5ms |
-| `get_related_symbols` | theme, limit? | Related symbols | <10ms |
-| `interpret_card_symbols` | cardName, symbols[] | Multi-symbol synthesis | <15ms |
-| `get_color_meanings` | colors[] | Color symbolism | <5ms |
-| `get_numerological_insight` | number | Number meanings | <2ms |
+| Tool | Input | Output |
+|------|-------|--------|
+| `search_symbols` | query, category?, limit? | Matching symbols |
+| `get_symbol` | category, name | Single symbol details |
+| `get_category` | category | All symbols in category |
+| `get_related_symbols` | theme, limit? | Related symbols |
+| `interpret_card_symbols` | cardName, symbols[] | Multi-symbol synthesis |
+| `get_color_meanings` | colors[] | Color symbolism |
+| `get_numerological_insight` | number | Number meanings |
 
 ## Symbol Database Schema
 
@@ -246,14 +252,14 @@ User Request: "/symbol-analysis The Fool"
 ```
 
 **Categories:**
-- `animals` (13 symbols): dog, wolf, lion, serpent, eagle, etc.
+- `animals` (12 symbols): dog, wolf, lion, serpent, eagle, etc.
 - `colors` (9 symbols): red, blue, yellow, green, purple, white, black, gold, silver
 - `numbers` (11 symbols): 0-10, each with tarot + archetypal meanings
 - `elements` (5 symbols): fire, water, air, earth, spirit
 - `plants` (10 symbols): rose, lily, pomegranate, wheat, lotus, etc.
 - `celestial` (4 symbols): sun, moon, stars, lightning
 
-**Total:** 52 curated symbols with rich, multi-layered meanings
+**Total:** 51 curated symbols with rich, multi-layered meanings
 
 ## Technical Stack
 
@@ -263,96 +269,60 @@ User Request: "/symbol-analysis The Fool"
 - **Astronomy**: `sweph` Node bindings + Swiss Ephemeris data files
 - **Transport**: stdio (local process)
 - **Data Format**: JSON responses
-- **Accuracy**: ±0.1° for planetary positions
+- **Precision**: The server rounds returned ecliptic longitude and latitude to two decimal places; no arcsecond-level guarantee is exposed
 
 ### Symbolism Server
 - **Runtime**: Node.js
 - **Framework**: MCP SDK
-- **Database**: JSON file-based (in-memory during runtime)
-- **Search**: Keyword indexing + fuzzy matching
+- **Database**: JSON file loaded into memory at runtime
+- **Search**: Linear, case-insensitive substring scans over names, keywords, and meanings; exact then partial-name matching; no search index or edit-distance fuzzy matcher
 - **Transport**: stdio (local process)
 - **Data Format**: Structured JSON
 
-## Integration Points
+Each plugin's adjacent `.mcp.json` launches `node` with `${CLAUDE_PLUGIN_ROOT}/server/index.js`. The variable is resolved by Claude Code; a relative `server/index.js` path is not sufficient for an installed plugin.
 
-### With Tarot Reading App
+## Optional Integration Points
 
-```javascript
-// In functions/api/tarot-reading.js
+### With Claude Code
 
-// 1. Fetch astrological context
-const astroContext = await ephemerisTools.get_ephemeris_for_reading(timestamp);
+The supported integration is a user-requested conversation with Claude Code:
 
-// 2. Analyze card symbols
-const symbolAnalysis = await symbolismTools.interpret_card_symbols(
-  cardName,
-  identifiedSymbols
-);
-
-// 3. Enhance narrative
-const enrichedNarrative = `
-  ${baseReading}
-
-  **Cosmic Context:**
-  ${astroContext.readingContext}
-
-  **Symbol Insights:**
-  ${symbolAnalysis.synthesis.interpretation}
-`;
+```text
+1. User asks for astrological context.
+2. Claude invokes the ephemeris MCP tools.
+3. User asks about a card or symbol.
+4. Claude invokes the symbolism MCP tools.
+5. Claude presents the combined response.
 ```
 
-### With Claude Code Workflows
-
-```
-User Workflow:
-1. Ask for reading
-2. Claude automatically checks /astro-reading
-3. Claude draws cards (existing logic)
-4. Claude analyzes symbols via /symbol-analysis
-5. Claude synthesizes everything into narrative
-6. User receives enriched reading
-```
+There is no automatic call from `src/worker/index.js`, `functions/api/tarot-reading.js`, or the browser bundle. An application would need a separate, explicit MCP client integration.
 
 ## Performance Characteristics
 
-### Ephemeris Server
-- **Startup Time**: ~500ms (load `sweph` and ephemeris metadata)
-- **Query Response**: <25ms per tool call
-- **Memory Usage**: ~50MB (astronomy data tables)
-- **CPU Usage**: Minimal (mathematical calculations)
+The servers are optional local processes. Startup, query latency, and memory use depend on the installed Node version, data files, and host; the following are not Tableu application performance guarantees:
 
-### Symbolism Server
-- **Startup Time**: ~100ms (load symbols.json)
-- **Query Response**: <15ms per tool call
-- **Memory Usage**: ~5MB (symbol database)
-- **CPU Usage**: Minimal (JSON search)
-
-### Combined Impact
-- **Total Startup**: ~600ms
-- **Reading Enhancement**: +50-100ms
-- **Memory Footprint**: ~55MB total
-- **Negligible** impact on tarot app performance
+- The ephemeris process loads `sweph` and its configured data files.
+- The symbolism process loads `symbols.json` into memory.
+- No plugin process runs for a normal Tableu request unless a separate client invokes it.
 
 ## Security Considerations
 
 ### Data Privacy
-- ✅ No external API calls (fully local)
-- ✅ No data transmission outside localhost
-- ✅ No personal data storage
-- ✅ Astronomical data is public domain
+- The tools calculate or read local reference data and do not require a Tableu application API key.
+- The symbolism server does not store user data.
+- The ephemeris server reads local Swiss Ephemeris files; review their separate license and data provenance.
 
 ### MCP Security
-- ✅ stdio transport (local process only)
-- ✅ No network exposure
-- ✅ Sandboxed execution
-- ✅ No file system access beyond plugin directory
+- stdio avoids opening a network listener for these servers.
+- The local Node process still has the filesystem permissions of the user running Claude Code and can read the configured plugin data files.
+- This repository does not provide a sandbox; do not describe the process as sandboxed or restricted beyond the operating-system permissions in effect.
 
 ## Extensibility
 
 ### Adding New Symbols
 
 ```javascript
-// Edit symbolism-server/data/symbols.json
+// Edit plugins/tarot-astro-plugins/symbolism-server/data/symbols.json
 {
   "animals": {
     "new-symbol": {
@@ -366,12 +336,12 @@ User Workflow:
 ### Adding New Astrological Features
 
 ```javascript
-// Add to ephemeris-server/server/ephemeris.js
+// Add to plugins/tarot-astro-plugins/ephemeris-server/server/ephemeris.js
 export function getChironPosition(date) {
   // Implement Chiron ephemeris
 }
 
-// Expose via MCP in server/index.js
+// Expose via MCP in plugins/tarot-astro-plugins/ephemeris-server/server/index.js
 {
   name: 'get_chiron_position',
   description: 'Get Chiron position for healing themes',
@@ -393,6 +363,8 @@ Instructions for Claude to execute...
 ```
 
 ## Future Architecture Enhancements
+
+These are future optional integrations, not current Tableu runtime behavior.
 
 ### Planned Features
 
@@ -418,4 +390,4 @@ Instructions for Claude to execute...
 
 ---
 
-**Architecture designed for:** Performance, extensibility, and seamless integration with the Tableu application.
+**Architecture designed for:** Optional, inspectable Claude Code tools; it is not an integrated Tableu application runtime.

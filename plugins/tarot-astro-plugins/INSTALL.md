@@ -2,7 +2,7 @@
 
 Type: guide
 Status: active
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 Quick installation guide for the Tarot Astro Plugins marketplace.
 
