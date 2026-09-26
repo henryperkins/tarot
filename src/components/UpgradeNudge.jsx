@@ -206,7 +206,7 @@ export function UpgradeNudge({
                     </li>
                     <li className="flex items-center gap-2">
                       <Sparkle className="h-3 w-3 text-accent shrink-0" />
-                      Custom spread builder
+                      Unlimited voice narrations
                     </li>
                     <li className="flex items-center gap-2">
                       <Sparkle className="h-3 w-3 text-accent shrink-0" />
