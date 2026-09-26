@@ -2,6 +2,7 @@ import { timingSafeEqual } from '../../lib/crypto.js';
 import { isProductionEnvironment } from '../../lib/environment.js';
 import { mapStripeStatus, extractTierFromSubscription } from '../../lib/stripe.js';
 import { sendEmail } from '../../lib/emailService.js';
+import { resolveAppUrl } from '../../lib/urlSafety.js';
 
 /**
  * Stripe Webhook Handler
@@ -267,7 +268,7 @@ async function sendPaymentFailureEmail(env, user, invoice, requestId) {
 
   const amount = (invoice.amount_due / 100).toFixed(2);
   const tierName = user.subscription_tier === 'pro' ? 'Mystic (Pro)' : 'Enlightened (Plus)';
-  const appUrl = env.APP_URL || 'https://tableu.app';
+  const appUrl = resolveAppUrl(env);
 
   const html = `
 <!DOCTYPE html>
