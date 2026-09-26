@@ -420,7 +420,7 @@ function renderActions(mode, options) {
               className={`${widthClasses.tertiary} ${px}`}
               isLandscape={isLandscape}
             >
-              {isLandscape ? 'Chat' : 'Chat'}
+              Chat
             </ActionButton>
           )}
           <ActionButton
