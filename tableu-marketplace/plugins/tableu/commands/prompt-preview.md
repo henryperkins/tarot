@@ -1,6 +1,6 @@
 ---
 description: Preview the prompt that would be sent to the LLM for a reading
-argument-hint: [spread: single|threeCard|celtic|...] [question]
+argument-hint: "[spread: single|threeCard|celtic|...] [question]"
 allowed-tools: Bash, Read, Grep
 ---
 
@@ -38,11 +38,13 @@ From `functions/lib/spreadAnalysis.js`:
 - Suit patterns and court card presence
 - Reversal ratio and recommended framework
 
-### 4. Knowledge Graph Context
-From `functions/lib/knowledgeGraph.js` + `graphRAG.js`:
+### 4. Optional Knowledge Graph Context
+From `functions/lib/knowledgeGraph.js` and `functions/lib/graphRAG.js` when graph context is supplied:
 - Detected patterns (triads, dyads, Fool's Journey stage)
-- Retrieved passages from knowledge base
+- Retrieved passages from the knowledge base
 - Archetypal narratives
+
+This section is optional. Local analysis uses deterministic keyword and regular-expression matching; it does not generate semantic embeddings or a precomputed semantic/GraphRAG passage payload. If no GraphRAG payload is supplied, the preview has no precomputed semantic retrieval result, and absent metadata is not evidence that semantic retrieval ran.
 
 ### 5. User Question & Reflections
 - Original question
@@ -112,13 +114,14 @@ console.log(JSON.stringify({ spreadInfo, cardsInfo, systemPrompt, userPrompt, pr
 NODE
 ```
 
-This uses the prompt builder's default Claude budget and keyword-based GraphRAG retrieval. It does not load `.dev.vars` or `wrangler.jsonc`. For a particular provider, inspect its assembly in `functions/lib/narrativeBackends.js` and pass the applicable budget/context values before comparing outputs.
+The local sample's analysis uses deterministic keyword and regular-expression rules. With `env: {}` and semantic scoring disabled, it does not load provider configuration, generate embeddings, or supply a precomputed semantic/GraphRAG passage payload. If a caller supplies `themes.knowledgeGraph` with retrieved passages, the builder can consume that separate payload; local keyword matches alone are not semantic retrieval. For a particular provider, inspect its assembly in `functions/lib/narrativeBackends.js` and pass the applicable budget/context values before comparing outputs.
 
 ## Analyze the Result
 
 - Read positions and role keys from the selected `SPREADS` entry in `src/data/spreads.js`.
 - Read reversal selection in `functions/lib/spreadAnalysis.js:selectReversalFramework()`.
-- Check `promptMeta.graphRAG.includedInPrompt` before claiming passages were injected. Also inspect `passagesProvided`, `passagesUsedInPrompt`, `truncatedPassages` and semantic-scoring metadata.
+- Read `promptMeta.sourceUsage?.graphRAG` for whether GraphRAG was requested, used, or skipped. Read `promptMeta.graphRAG?.includedInPrompt` only when GraphRAG metadata is present; that field is authoritative for full or summary injection. An absent value means no GraphRAG metadata was produced, not that passages were injected.
+- When GraphRAG metadata exists, inspect `passagesProvided`, `passagesUsedInPrompt`, `truncatedPassages`, and semantic-scoring metadata.
 - Use `tokenEstimate` for heuristic token counts, and `promptMeta.slimmingSteps`, `truncation` and `hardCap` for changes made during assembly. `promptMeta.estimatedTokens` can be null when no slimming or truncation ran. The estimator and provider budgets live in `functions/lib/narrative/prompts/budgeting.js`; these are estimates, not provider usage counts.
 
 ## Live Reading Tests
@@ -150,7 +153,7 @@ For understanding prompt structure:
 Display:
 1. Spread structure and positions
 2. What analysis sections would be included
-3. Whether GraphRAG passages would be retrieved
+3. GraphRAG status and provenance when metadata is available; otherwise report `metadata_absent` rather than claiming retrieval or `not_requested` semantics
 4. Estimated token count range
 5. Any slimming that might occur
 

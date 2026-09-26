@@ -2,58 +2,76 @@
 
 Type: reference
 Status: active reference
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 This document contains comprehensive Mermaid diagrams covering the current application architecture.
 
-These diagrams are maintained as high-level references, not exact schema dumps. Validate auth endpoints, route ownership, and database fields against `src/worker/index.js`, `server/`, and `migrations/` when making implementation changes.
+These diagrams are maintained as high-level references, not exact schema dumps. Validate route ownership, bindings, and database fields against `src/worker/index.js`, `wrangler.jsonc`, `functions/`, and `migrations/` when making implementation changes.
 
 ## 1. High-Level System Architecture
 
 ```mermaid
 graph TB
     subgraph External["External Services"]
-        Stripe["🔒 Stripe<br>Payment Processing"]
-        AzureOpenAI["🤖 Azure OpenAI<br>GPT-5 Narrative"]
-        AzureAnthropic["🤖 Azure Anthropic<br>Claude Fallback"]
-        AzureTTS["🔊 Azure TTS<br>Text-to-Speech"]
-        AzureSpeech["🎙️ Azure Speech SDK<br>Client Tokens"]
-        HumeAI["🔊 Hume AI<br>Alternative TTS"]
-        EmailService["📧 Email Service<br>Quality Alerts"]
+        ModalQwen["Modal Qwen<br/>Chat Completions"]
+        OpenAI["OpenAI native Responses<br/>azure-gpt5"]
+        AzureOpenAI["Azure OpenAI Responses<br/>azure-gpt5 fallback"]
+        Claude["Azure AI Foundry<br/>Claude Opus 4.5"]
+        AzureTTS["Azure OpenAI<br/>Text-to-Speech"]
+        AzureSpeech["Azure Speech<br/>Client Tokens"]
+        HumeAI["Hume AI<br/>Alternative TTS"]
+        Stripe["Stripe<br/>Checkout, Portal, Webhooks"]
+        EmailService["Email Service<br/>Quality Alerts"]
+        Sentry["Sentry<br/>Errors and sampled replay"]
     end
 
     subgraph Cloudflare["Cloudflare Infrastructure"]
-        WorkersAI["⚡ Workers AI<br>Qwen Evaluation"]
-        D1["🗄️ D1 Database<br>Primary Storage"]
-        KV_Rate["📊 KV RATELIMIT<br>Rate Limiting"]
-        KV_Feedback["📊 KV FEEDBACK_KV<br>User Feedback"]
-        KV_Metrics["📊 KV METRICS_DB<br>Quality Metrics"]
-        Assets["📦 Assets Binding<br>Static Files"]
-        Logpush["📝 Logpush<br>Log Export"]
+        Worker["Cloudflare Worker<br/>src/worker/index.js"]
+        ReadingJob["READING_JOBS Durable Object<br/>ReadingJob"]
+        WorkersAI["Workers AI<br/>Qwen evaluation; optional Llama vision"]
+        D1["D1 (DB)<br/>App data, eval_metrics, quality, usage, media metadata"]
+        KV_Rate["KV RATELIMIT<br/>Rate limiting"]
+        KV_Feedback["KV FEEDBACK_KV<br/>Feedback cache"]
+        KV_Metrics["KV METRICS_DB<br/>Media telemetry, media usage, card-video job metadata,<br/>ongoing compatibility archive input"]
+        R2["R2 (R2_LOGS)<br/>Generated/user media, journal exports, archives"]
+        Assets["ASSETS binding<br/>Static files"]
+        Logpush["Logpush and observability"]
+        CronVideo["Cron */10 * * * *<br/>Card-video usage reconciliation"]
+        CronDaily["Cron 0 3 * * *<br/>Quality analysis, ongoing KV compatibility archival, cleanup"]
     end
 
     subgraph App["Tarot Application"]
-        Frontend["🖥️ Frontend<br>React + Vite"]
-        Worker["⚙️ Worker<br>src/worker/index.js"]
-        Shared["📚 Shared<br>Isomorphic Modules"]
+        Frontend["Frontend<br/>React + Vite"]
+        Shared["Shared<br/>Isomorphic modules"]
+        LocalComposer["Local composer<br/>Deterministic fallback"]
     end
 
-    Frontend <-->|"API Calls"| Worker
+    Frontend <-->|"API calls and SSE"| Worker
     Worker --> WorkersAI
     Worker --> D1
     Worker --> KV_Rate
     Worker --> KV_Feedback
     Worker --> KV_Metrics
+    Worker --> R2
     Worker --> Assets
     Worker --> Logpush
-    Worker -->|"Narratives"| AzureOpenAI
-    Worker -->|"Fallback"| AzureAnthropic
-    Worker -->|"Audio"| AzureTTS
-    Worker -->|"Tokens"| AzureSpeech
-    Worker -->|"Audio Alt"| HumeAI
-    Worker -->|"Alerts"| EmailService
-    Worker -->|"Payments"| Stripe
+    Worker -->|"/api/tarot-reading/jobs/*"| ReadingJob
+    Worker -->|1. narrative| ModalQwen
+    Worker -->|2. azure-gpt5: native| OpenAI
+    Worker -->|2. azure-gpt5: Azure fallback| AzureOpenAI
+    Worker -->|3. fallback| Claude
+    Worker -->|4. deterministic fallback| LocalComposer
+    Worker -->|TTS| AzureTTS
+    Worker -->|TTS alternative| HumeAI
+    Worker -->|Payments| Stripe
+    Worker -->|Alerts| EmailService
+    Worker -->|Diagnostics and replay| Sentry
     Frontend --> AzureSpeech
+    Worker --> CronVideo
+    Worker --> CronDaily
+    CronVideo --> KV_Metrics
+    CronDaily --> D1
+    CronDaily --> KV_Metrics
     Shared -.->|"Used by"| Frontend
     Shared -.->|"Used by"| Worker
 ```
@@ -167,20 +185,26 @@ graph TB
 ```mermaid
 graph TB
     subgraph Router["Worker Router<br>src/worker/index.js"]
-        Fetch["fetch() Handler"]
-        Scheduled["scheduled() Handler<br>Cron: 0 3 * * *"]
-        ShareOG["Share Page OG Injector"]
+        Fetch["fetch() handler"]
+        CronVideo["scheduled(): */10 * * * *<br/>card-video usage reconciliation"]
+        CronDaily["scheduled(): 0 3 * * *<br/>quality, compatibility archival, cleanup"]
+        ShareOG["Share page OG injector"]
     end
 
     subgraph CoreAPIs["Core Reading APIs"]
-        TarotAPI["POST /api/tarot-reading<br>Main Reading Generation"]
-        TarotJobsStart["POST /api/tarot-reading/jobs<br>Start Job"]
-        TarotJobsStream["GET /api/tarot-reading/jobs/[id]/stream<br>Stream Job"]
-        TarotJobsCancel["POST /api/tarot-reading/jobs/[id]/cancel<br>Cancel Job"]
-        TarotJobsStatus["GET /api/tarot-reading/jobs/[id]<br>Job Status"]
-        FollowUpAPI["POST /api/reading-followup<br>Follow-up Questions"]
-        GenerateQ["POST /api/generate-question<br>AI Question Generation"]
-        VisionAPI["POST /api/vision-proof<br>Card Vision Analysis"]
+        TarotAPI["POST /api/tarot-reading<br/>Main reading generation"]
+        TarotDraw["POST /api/tarot-reading/draw<br/>Seeded draw"]
+        TarotJobsStart["POST /api/tarot-reading/jobs<br/>Start job"]
+        TarotJobsStream["GET /api/tarot-reading/jobs/:id/stream<br/>SSE stream"]
+        TarotJobsCancel["POST /api/tarot-reading/jobs/:id/cancel<br/>Cancel job"]
+        TarotJobsStatus["GET /api/tarot-reading/jobs/:id<br/>Job status"]
+        FollowUpAPI["POST /api/reading-followup<br/>Follow-up questions"]
+        GenerateQ["POST /api/generate-question<br/>AI question generation"]
+        VisionAPI["POST /api/vision-proof<br/>Signed vision evidence"]
+    end
+
+    subgraph ReadingJobs["Configured Durable Object"]
+        ReadingJob["READING_JOBS / ReadingJob<br/>Job state, bounded event replay, public SSE"]
     end
 
     subgraph AudioAPIs["Audio APIs"]
@@ -235,10 +259,13 @@ graph TB
     end
 
     subgraph JourneyAPIs["Archetype Journey APIs"]
-        JourneyGet["GET /api/archetype-journey<br>Journey Data"]
-        JourneyPath["GET /api/archetype-journey/[[path]]<br>Dynamic Routes"]
-        CardFreq["GET /api/archetype-journey/card-frequency<br>Card Stats"]
-        Backfill["POST /api/archetype-journey-backfill<br>Data Migration"]
+        JourneyGet["GET /api/archetype-journey<br/>Journey Data"]
+        JourneyTrack["POST /api/archetype-journey/track<br/>Track card appearances"]
+        JourneyPrefsGet["GET /api/archetype-journey/preferences"]
+        JourneyPrefsPut["PUT /api/archetype-journey/preferences"]
+        JourneyReset["POST /api/archetype-journey/reset"]
+        CardFreq["GET /api/archetype-journey/card-frequency<br/>Card Stats"]
+        Backfill["POST /api/archetype-journey-backfill<br/>Data Migration"]
     end
 
     subgraph AdminAPIs["Admin APIs"]
@@ -253,11 +280,15 @@ graph TB
         Feedback["POST /api/feedback"]
         Usage["GET /api/usage"]
         Memories["GET/POST/DELETE /api/memories"]
+        Media["GET/POST/DELETE /api/media"]
+        CardVideo["POST/GET /api/generate-card-video"]
+        StoryArt["POST /api/generate-story-art"]
         KeysIndex["GET/POST /api/keys"]
-        KeysID["GET/DELETE /api/keys/[id]"]
+        KeysID["GET/DELETE /api/keys/:id"]
     end
 
     Fetch --> CoreAPIs
+    Fetch --> ReadingJobs
     Fetch --> AudioAPIs
     Fetch --> JournalAPIs
     Fetch --> ShareAPIs
@@ -275,12 +306,12 @@ graph TB
 ```mermaid
 graph TB
     subgraph GraphRAG["GraphRAG System"]
-        graphRAG["graphRAG.js<br>Semantic Retrieval"]
+         graphRAG["graphRAG.js<br>Graph-key retrieval + relevance filtering"]
         graphRAGAlerts["graphRAGAlerts.js<br>Quality Alerts"]
         graphContext["graphContext.js<br>Context Building"]
         knowledgeGraph["knowledgeGraph.js<br>Graph Traversal"]
         knowledgeBase["knowledgeBase.js<br>Base Queries"]
-        embeddings["embeddings.js<br>Vector Embeddings"]
+         embeddings["embeddings.js<br>Optional semantic scoring"]
     end
 
     subgraph Narrative["Narrative Generation"]
@@ -308,16 +339,17 @@ graph TB
         end
     end
 
-    subgraph Evaluation["Quality Evaluation"]
-        evaluation["evaluation.js<br>Narrative Eval"]
-        qualityAnalysis["qualityAnalysis.js<br>Metrics Analysis"]
-        qualityAlerts["qualityAlerts.js<br>Alert Dispatch"]
-        safetyChecks["safetyChecks.js<br>Content Safety"]
+    subgraph Quality["Quality and Evaluation"]
+        readingQuality["readingQuality.js<br/>Narrative metrics and structural gate"]
+        evaluation["evaluation.js<br/>Workers AI evaluation and eval gate"]
+        qualityAnalysis["qualityAnalysis.js<br/>D1 metrics analysis"]
+        qualityAlerts["qualityAlerts.js<br/>D1 alert dispatch"]
+        safetyChecks["safetyChecks.js<br/>Content safety"]
     end
 
     subgraph ABTesting["A/B Testing"]
         abTesting["abTesting.js<br>Variant Assignment"]
-        clientId["clientId.js<br>Client Identity"]
+         clientId["clientId.js<br/>Client/rate-limit identifiers (not A/B assignment)"]
     end
 
     subgraph CardAnalysis["Card/Spread Analysis"]
@@ -326,7 +358,7 @@ graph TB
         contextDetect["contextDetection.js<br>General Context"]
         imageryHooks["imageryHooks.js<br>Visual Imagery"]
         positionWeights["positionWeights.js<br>Position Weight"]
-        symbolAnnot["symbolAnnotations.js<br>Symbols"]
+        symbolAnnot["shared/symbols/symbolAnnotations.js<br>Symbols"]
     end
 
     subgraph Esoteric["Esoteric/Astro Metadata"]
@@ -378,8 +410,10 @@ graph TB
     narrativeBuilder --> SpreadNarratives
     narrativeBuilder --> CardAnalysis
     narrativeBuilder --> Esoteric
+    readingQuality --> narrativeBuilder
     evaluation --> narrativeBuilder
-    qualityAlerts --> evaluation
+    qualityAnalysis --> evaluation
+    qualityAlerts --> qualityAnalysis
     qualityAlerts --> emailService
     abTesting --> promptVer
     graphRAG --> embeddings
@@ -494,32 +528,30 @@ sequenceDiagram
 sequenceDiagram
     participant Frontend
     participant ReadingAPI as tarot-reading.js
+    participant Analysis as spreadAnalysis.js
+    participant Memory as userMemory.js
     participant GraphRAG as graphRAG.js
-    participant Embeddings as embeddings.js
-    participant KnowledgeGraph as knowledgeGraph.js
-    participant NarrativeBuilder as narrativeBuilder.js
-    participant AzureOpenAI
+    participant Provider as configured narrative providers
+    participant Gate as tarot-reading.js + readingQuality.js
     participant Evaluation as evaluation.js
     participant WorkersAI
-    participant D1
+    participant D1 as D1 eval_metrics
 
     Frontend->>ReadingAPI: POST /api/tarot-reading
-    ReadingAPI->>GraphRAG: getRelevantPassages(cards, question)
-    GraphRAG->>Embeddings: generateEmbedding(query)
-    Embeddings-->>GraphRAG: Query vector
-    GraphRAG->>KnowledgeGraph: searchSimilar(vector)
-    KnowledgeGraph-->>GraphRAG: Related passages
-    GraphRAG-->>ReadingAPI: Contextual passages
-    ReadingAPI->>NarrativeBuilder: buildNarrative(cards, passages, question)
-    NarrativeBuilder->>AzureOpenAI: Generate narrative
-    AzureOpenAI-->>NarrativeBuilder: Raw narrative
-    NarrativeBuilder-->>ReadingAPI: Formatted narrative
-    ReadingAPI->>Evaluation: evaluateNarrative(narrative)
-    Evaluation->>WorkersAI: Qwen evaluation
-    WorkersAI-->>Evaluation: Quality scores
-    Evaluation-->>ReadingAPI: Evaluation results
-    ReadingAPI->>D1: Store reading
-    ReadingAPI-->>Frontend: Reading + metadata
+    ReadingAPI->>Analysis: Analyze drawn cards, reversals, and context
+    ReadingAPI->>Memory: Load stored memory when available
+    Memory-->>ReadingAPI: Lower-precedence personalization context
+    ReadingAPI->>GraphRAG: Retrieve eligible pattern passages
+    GraphRAG-->>ReadingAPI: Optional passages and GraphRAG metadata
+    ReadingAPI->>Provider: Try modal-qwen → azure-gpt5 → claude-opus45 → local-composer
+    Provider-->>ReadingAPI: Accepted narrative and provider metadata
+    ReadingAPI->>Gate: Check coverage, hallucinations, spine, high-weight positions
+    Gate-->>ReadingAPI: Pass or retry/fallback
+    ReadingAPI-->>Frontend: Reading and metadata
+    ReadingAPI->>Evaluation: Schedule async evaluation
+    Evaluation->>WorkersAI: Score reading
+    WorkersAI-->>Evaluation: Scores and safety flag
+    Evaluation->>D1: Upsert eval_metrics payload
 ```
 
 ### 7.4 Vision Pipeline Flow
@@ -529,25 +561,27 @@ sequenceDiagram
     participant User
     participant CameraCapture
     participant VisionAPI as vision-proof.js
-    participant VisionPipeline as tarotVisionPipeline.js
     participant VisionBackends as visionBackends.js
+    participant CLIP as tarotVisionPipeline.js
+    participant Llama as llamaVisionPipeline.js
     participant SymbolDetector as symbolDetector.js
-    participant WorkersAI
     participant VisionPanel as VisionValidationPanel
 
     User->>CameraCapture: Capture card image
     CameraCapture->>VisionAPI: POST /api/vision-proof
-    VisionAPI->>VisionPipeline: processImage(image)
-    VisionPipeline->>VisionBackends: selectBackend(deckId)
-    VisionBackends-->>VisionPipeline: Backend config
-    VisionPipeline->>WorkersAI: Identify card
-    WorkersAI-->>VisionPipeline: Card candidates
-    VisionPipeline->>SymbolDetector: detectSymbols(image)
-    SymbolDetector-->>VisionPipeline: Symbol annotations
-    VisionPipeline-->>VisionAPI: Card + confidence + symbols
-    VisionAPI-->>CameraCapture: Vision results
+    VisionAPI->>VisionBackends: Resolve backend (default clip-default)
+    VisionBackends->>CLIP: Analyze card match and symbols
+    CLIP-->>VisionAPI: Matches, confidence, symbol evidence
+    opt server-side llama-vision or hybrid backend
+        VisionBackends->>Llama: Analyze image
+        Llama-->>VisionBackends: Optional orientation, reasoning, visible details
+        VisionBackends-->>VisionAPI: Optional server-side evidence
+    end
+    VisionAPI->>SymbolDetector: Verify symbols when enabled
+    SymbolDetector-->>VisionAPI: Symbol annotations
+    VisionAPI-->>CameraCapture: Sanitized results
     CameraCapture->>VisionPanel: Show validation
-    VisionPanel-->>User: Confirm/correct card
+    VisionPanel-->>User: Confirm or correct card
 ```
 
 ### 7.5 Quality Evaluation & Alerting Flow
@@ -557,60 +591,48 @@ sequenceDiagram
     participant ReadingAPI as tarot-reading.js
     participant Evaluation as evaluation.js
     participant WorkersAI
+    participant D1 as D1
+    participant Scheduled as scheduled.js
     participant QualityAnalysis as qualityAnalysis.js
-    participant KV_Metrics as METRICS_DB
     participant QualityAlerts as qualityAlerts.js
     participant EmailService as emailService.js
     participant Email as External Email
     participant AdminDash as AdminDashboard
 
-    ReadingAPI->>Evaluation: evaluateNarrative()
-    Evaluation->>WorkersAI: Qwen quality check
-    WorkersAI-->>Evaluation: Scores
-    Evaluation->>QualityAnalysis: analyzeScores(scores)
-    QualityAnalysis->>KV_Metrics: Store metrics
-    QualityAnalysis->>QualityAlerts: checkThresholds(metrics)
-
-    alt Score below threshold
-        QualityAlerts->>EmailService: sendAlertEmail()
-        EmailService->>Email: Dispatch alert
-    end
-
-    QualityAnalysis-->>ReadingAPI: Analysis complete
-
+    ReadingAPI->>Evaluation: Schedule async evaluation
+    Evaluation->>WorkersAI: Score reading
+    WorkersAI-->>Evaluation: Scores and safety flag
+    Evaluation->>D1: Upsert eval_metrics
+    Scheduled->>QualityAnalysis: Daily analysis of eval_metrics
+    QualityAnalysis->>D1: Write quality_stats and quality_alerts
+    QualityAnalysis->>QualityAlerts: Check regression and safety thresholds
+    QualityAlerts->>D1: Store alert status
+    QualityAlerts->>EmailService: Send configured alert
+    EmailService->>Email: Dispatch alert
     AdminDash->>QualityAnalysis: GET /api/admin/quality-stats
-    QualityAnalysis->>KV_Metrics: Read metrics
-    KV_Metrics-->>QualityAnalysis: Historical data
-    QualityAnalysis-->>AdminDash: Render charts
+    QualityAnalysis->>D1: Read eval_metrics and quality tables
+    QualityAnalysis-->>AdminDash: Render quality history
 ```
 
-### 7.6 A/B Testing Flow
+### 7.6 A/B Testing Flow (when enabled)
 
 ```mermaid
 sequenceDiagram
     participant Frontend
     participant ReadingAPI as tarot-reading.js
     participant ABTesting as abTesting.js
-    participant ClientId as clientId.js
-    participant PromptVersioning as promptVersioning.js
-    participant NarrativeBuilder as narrativeBuilder.js
-    participant Evaluation as evaluation.js
-    participant KV_Metrics as METRICS_DB
+    participant D1 as D1 eval_metrics
 
     Frontend->>ReadingAPI: POST /api/tarot-reading
-    ReadingAPI->>ABTesting: getVariant(request)
-    ABTesting->>ClientId: getClientId(request)
-    ClientId-->>ABTesting: Client identifier
-    ABTesting->>ABTesting: assignVariant(clientId)
-    ABTesting-->>ReadingAPI: Variant assignment
-    ReadingAPI->>PromptVersioning: getPromptForVariant(variant)
-    PromptVersioning-->>ReadingAPI: Variant-specific prompt
-    ReadingAPI->>NarrativeBuilder: buildNarrative(prompt)
-    NarrativeBuilder-->>ReadingAPI: Narrative
-    ReadingAPI->>Evaluation: evaluate(narrative, variant)
-    Evaluation->>KV_Metrics: Store per-variant metrics
-    Evaluation-->>ReadingAPI: Evaluation with variant tag
-    ReadingAPI-->>Frontend: Reading + variant info
+    Note over ReadingAPI: A/B testing is disabled unless AB_TESTING_ENABLED=true
+    ReadingAPI->>ABTesting: Load active experiments from D1
+    ABTesting-->>ReadingAPI: Matching experiments
+    ReadingAPI->>ABTesting: getABAssignment(requestId, experiments, spread/provider)
+    ABTesting-->>ReadingAPI: Deterministic request-id variant
+    ReadingAPI->>ReadingAPI: Apply getVariantPromptOverrides(variantId)
+    ReadingAPI->>D1: Persist variant-tagged reading telemetry
+    D1-->>ReadingAPI: Telemetry stored
+    ReadingAPI-->>Frontend: Reading and metadata
 ```
 
 ### 7.7 Journal Pattern Detection Flow
@@ -620,20 +642,21 @@ sequenceDiagram
     participant User
     participant JournalComp as Journal Component
     participant JournalAPI as journal.js API
+    participant JourneyAPI as archetype-journey.js
     participant PatternTracking as patternTracking.js
-    participant D1
+    participant D1 as D1
     participant PatternAlerts as journal/pattern-alerts.js
-    participant QualityAlerts as qualityAlerts.js
     participant PatternBanner as PatternAlertBanner
 
     User->>JournalComp: Save journal entry
     JournalComp->>JournalAPI: POST /api/journal
-    JournalAPI->>D1: INSERT journal entry
-    JournalAPI->>PatternTracking: detectPatterns(entry, history)
-    PatternTracking->>D1: Query pattern_tracking
-    PatternTracking->>D1: UPDATE pattern_tracking
-    PatternTracking-->>JournalAPI: Pattern results
+    JournalAPI->>D1: INSERT journal_entries
     JournalAPI-->>JournalComp: Entry saved
+    JournalComp->>JourneyAPI: Best-effort POST /api/archetype-journey/track
+    JourneyAPI->>D1: INSERT card_appearances
+    JourneyAPI->>PatternTracking: Track eligible graph patterns
+    PatternTracking->>D1: INSERT pattern_occurrences
+    JourneyAPI-->>JournalComp: Tracking result
 
     JournalComp->>PatternAlerts: GET /api/journal/pattern-alerts
     PatternAlerts->>D1: Query recent patterns
@@ -642,35 +665,29 @@ sequenceDiagram
     PatternBanner-->>User: Show pattern insights
 ```
 
-### 7.8 Coach/Follow-up Flow
+### 7.8 Follow-up Flow
 
 ```mermaid
 sequenceDiagram
     participant User
     participant FollowUpSection
     participant FollowUpAPI as reading-followup.js
-    participant FollowUpPrompt as followUpPrompt.js
-    participant CoachSuggestion as coachSuggestion.js
     participant JournalSearch as journalSearch.js
+    participant FollowUpPrompt as followUpPrompt.js
     participant D1
-    participant AzureOpenAI
-    participant CoachComp as CoachSuggestion Component
+    participant Provider as Azure Responses follow-up provider
 
     User->>FollowUpSection: Request follow-up
     FollowUpSection->>FollowUpAPI: POST /api/reading-followup
-    FollowUpAPI->>JournalSearch: searchRelevantEntries(query)
-    JournalSearch->>D1: Query journals
+    FollowUpAPI->>JournalSearch: Find related journal entries and patterns
+    JournalSearch->>D1: Query journal_entries when entitled
     D1-->>JournalSearch: Related entries
-    JournalSearch-->>FollowUpAPI: Context from journal
-    FollowUpAPI->>FollowUpPrompt: buildFollowUpPrompt(reading, context)
-    FollowUpPrompt->>CoachSuggestion: generateSuggestions()
-    CoachSuggestion-->>FollowUpPrompt: Suggestions
-    FollowUpPrompt-->>FollowUpAPI: Enhanced prompt
-    FollowUpAPI->>AzureOpenAI: Generate response
-    AzureOpenAI-->>FollowUpAPI: Follow-up narrative
-    FollowUpAPI-->>FollowUpSection: Response + suggestions
-    FollowUpSection->>CoachComp: Display suggestions
-    CoachComp-->>User: Show coaching options
+    JournalSearch-->>FollowUpAPI: Optional journal context
+    FollowUpAPI->>FollowUpPrompt: buildFollowUpPrompt(reading, context, history)
+    FollowUpPrompt-->>FollowUpAPI: Bounded follow-up prompt
+    FollowUpAPI->>Provider: Generate response
+    Provider-->>FollowUpAPI: Follow-up narrative
+    FollowUpAPI-->>FollowUpSection: Response, turn, optional journal context, metadata
 ```
 
 ### 7.9 Archetype Journey Flow
@@ -680,314 +697,113 @@ sequenceDiagram
     participant User
     participant JourneyPage as ReadingJourney
     participant JourneyAPI as archetype-journey.js
-    participant JourneyLib as archetypeJourney.js (lib)
-    participant D1
+    participant D1 as D1
     participant JourneyHook as useArchetypeJourney
     participant JourneyStory as JourneyStorySection
 
     User->>JourneyPage: View journey
     JourneyPage->>JourneyHook: useArchetypeJourney()
     JourneyHook->>JourneyAPI: GET /api/archetype-journey
-    JourneyAPI->>JourneyLib: getJourneyData(userId)
-    JourneyLib->>D1: Query archetype_journey
-    D1-->>JourneyLib: Journey records
-    JourneyLib->>JourneyLib: computeArchetypeProgression()
-    JourneyLib-->>JourneyAPI: Processed journey
+    JourneyAPI->>D1: Query card_appearances, archetype_badges, user_analytics_prefs
+    D1-->>JourneyAPI: Journey records
     JourneyAPI-->>JourneyHook: Journey data
     JourneyHook-->>JourneyPage: State update
     JourneyPage->>JourneyStory: Render sections
     JourneyStory-->>User: Display journey visualization
 ```
 
-## 8. Database Schema Overview
+## 8. Database Schema Overview (Current)
 
-```mermaid
-erDiagram
-    users ||--o{ sessions : has
-    users ||--o{ journals : writes
-    users ||--o{ readings : performs
-    users ||--o{ api_keys : owns
-    users ||--o{ archetype_journey : tracks
-    users ||--o{ user_preferences : configures
+`migrations/*.sql` is authoritative for columns and constraints. The table-name map below replaces the obsolete schema diagram; it intentionally does not infer relationships that are not defined by the migrations.
 
-    readings ||--o{ reading_cards : contains
-    readings ||--o{ shares : generates
-    readings ||--o{ quality_tracking : measured_by
+| Area | Current tables |
+|---|---|
+| Accounts and auth | `users`, `sessions`, `user_tokens`, `api_keys` |
+| Journal and sharing | `journal_entries`, `journal_followups`, `share_tokens`, `share_token_entries`, `share_notes`, `share_note_reports` |
+| Journey and patterns | `card_appearances`, `archetype_badges`, `user_analytics_prefs`, `pattern_occurrences`, `pattern_tracking_failures` |
+| Personalization and follow-up | `user_memories`, `follow_up_usage` |
+| Media and usage | `user_media`, `usage_tracking`, `processed_webhook_events` |
+| Reading quality | `eval_metrics`, `quality_stats`, `quality_alerts`, `ab_experiments` |
+| Compatibility archives | `metrics_archive`, `feedback_archive`, `archival_summaries` |
+| OAuth operations | `oauth_registration_counters` |
+| Migration bookkeeping | `_migrations` |
+| Legacy reading tables | `readings`, `cards`, `reading_stats` |
 
-    journals ||--o{ journal_tags : tagged_with
+The legacy reading tables are retained for compatibility; the current reading path stores journal content in `journal_entries` and runtime reading/evaluation telemetry in `eval_metrics`.
 
-    shares ||--o{ share_notes : has
-
-    users {
-        int id PK
-        string email
-        string display_name
-        string subscription_tier
-        string subscription_provider
-        string subscription_status
-        string stripe_customer_id
-        string password_hash
-        timestamp created_at
-    }
-
-    sessions {
-        string token PK
-        int user_id FK
-        timestamp expires_at
-    }
-
-    journals {
-        int id PK
-        int user_id FK
-        string question
-        text reflection
-        json cards
-        string spread_type
-        float latitude
-        float longitude
-        timestamp created_at
-    }
-
-    readings {
-        string request_id PK
-        int user_id FK
-        json cards
-        string spread_type
-        text narrative
-        json evaluation
-        timestamp created_at
-    }
-
-    archetype_journey {
-        int id PK
-        int user_id FK
-        string card_name
-        int encounter_count
-        json journey_data
-        timestamp last_seen
-    }
-
-    quality_tracking {
-        int id PK
-        string reading_id FK
-        float coherence_score
-        float relevance_score
-        float safety_score
-        string prompt_version
-        timestamp created_at
-    }
-
-    pattern_tracking {
-        int id PK
-        int user_id FK
-        string pattern_type
-        json pattern_data
-        int occurrence_count
-        timestamp first_seen
-        timestamp last_seen
-    }
-
-    shares {
-        string token PK
-        int reading_id FK
-        int user_id FK
-        timestamp expires_at
-        timestamp created_at
-    }
-
-    api_keys {
-        int id PK
-        int user_id FK
-        string key_hash
-        string name
-        string tier
-        timestamp created_at
-        timestamp last_used
-    }
-```
 
 ## 9. External Service Integrations
 
 ```mermaid
 graph LR
-    subgraph AzureServices["Azure AI Services"]
-        AzureOpenAI["Azure OpenAI<br>GPT-5 Model<br>Narrative Generation"]
-        AzureAnthropic["Azure AI Foundry<br>Claude (Fallback)<br>Narrative Generation"]
-        AzureTTS["Azure TTS<br>gpt-4o-audio-mini<br>Text-to-Speech"]
-        AzureSpeech["Azure Speech SDK<br>Client Token Auth<br>Browser Speech"]
-    end
-
-    subgraph CloudflareServices["Cloudflare Services"]
-        WorkersAI["Workers AI<br>Llama 3 8B<br>Quality Evaluation"]
-        D1["D1 Database<br>SQLite<br>Primary Storage"]
-        KV["KV Namespaces<br>RATELIMIT, FEEDBACK_KV<br>METRICS_DB"]
-        Assets["Assets Binding<br>Static Files<br>SPA Fallback"]
-        Logpush["Logpush<br>Log Export"]
-    end
-
-    subgraph PaymentServices["Payment Services"]
-        Stripe["Stripe<br>Checkout<br>Customer Portal<br>Webhooks"]
-    end
-
-    subgraph AlternativeServices["Alternative Services"]
-        HumeAI["Hume AI<br>Expressive TTS<br>Alternative Audio"]
-        EmailProvider["Email Provider<br>Quality Alerts<br>Notifications"]
+    subgraph NarrativeProviders["Narrative Providers"]
+        Modal["Modal Qwen<br/>Chat Completions"]
+        OpenAI["OpenAI native Responses<br/>azure-gpt5 when configured"]
+        Azure["Azure OpenAI Responses<br/>azure-gpt5 fallback"]
+        Claude["Azure AI Foundry<br/>Claude Opus 4.5"]
+        Local["Local composer<br/>Deterministic fallback"]
     end
 
     subgraph Worker["Cloudflare Worker"]
-        API["API Layer"]
+        API["API and scheduled handlers"]
+        AI["Workers AI<br/>Qwen evaluation; optional Llama vision"]
+        D1["D1 (DB)<br/>App, eval_metrics, quality, usage, media metadata"]
+        KV["KV namespaces<br/>RATELIMIT, FEEDBACK_KV, METRICS_DB"]
+        R2["R2_LOGS<br/>Generated/user media, exports, archives"]
+        DO["READING_JOBS<br/>ReadingJob Durable Object"]
+        Assets["ASSETS<br/>Static files"]
+        Sentry["Sentry<br/>Errors and sampled replay"]
     end
 
-    API --> AzureOpenAI
-    API --> AzureAnthropic
-    API --> AzureTTS
-    API --> AzureSpeech
-    API --> WorkersAI
+    subgraph OtherServices["Other Services"]
+        Stripe["Stripe<br/>Checkout, Portal, Webhooks"]
+        AzureTTS["Azure OpenAI TTS"]
+        AzureSpeech["Azure Speech<br/>Client tokens"]
+        Hume["Hume AI<br/>Alternative TTS"]
+        Email["Email provider<br/>Quality alerts"]
+    end
+
+    API -->|1| Modal
+    API -->|2. native| OpenAI
+    API -->|2. Azure fallback| Azure
+    API -->|3| Claude
+    API -->|4| Local
+    API --> AI
     API --> D1
     API --> KV
+    API --> R2
+    API --> DO
     API --> Assets
+    API --> Sentry
     API --> Stripe
-    API --> HumeAI
-    API --> EmailProvider
+    API --> AzureTTS
+    API --> AzureSpeech
+    API --> Hume
+    API --> Email
 ```
 
 ## 10. Component Hierarchy Summary
 
+File and route counts are intentionally omitted because they change independently of the architecture. Use the repository tree and `src/worker/index.js` for an exact inventory.
+
 ```mermaid
 graph TB
-    subgraph Frontend["Frontend Layer"]
-        MainJSX["main.jsx"]
-        Contexts["5 Context Providers"]
-        Pages["9 Page Components"]
-        Components["143 UI Components"]
-        Hooks["27 Custom Hooks"]
-        FrontLibs["23 Frontend Libraries"]
-        Utils["4 Utility Modules"]
-        Data["8 Data Sources"]
-    end
+    Frontend["Frontend: React + Vite"]
+    Worker["Worker: src/worker/index.js + functions/api/"]
+    Backend["Worker services: functions/lib/ + shared/"]
+    Storage["Cloudflare storage: D1, KV, R2"]
+    Jobs["Configured ReadingJob Durable Object"]
+    Providers["Narrative, vision, TTS, payment, and observability providers"]
 
-    subgraph Worker["Worker Layer"]
-        WorkerEntry["src/worker/index.js"]
-        APIs["52 API Endpoints"]
-        BackendLibs["87 Backend Libraries"]
-    end
-
-    subgraph Shared["Shared Layer"]
-        SharedMods["23 Shared Modules"]
-    end
-
-    subgraph Infra["Infrastructure"]
-        Cloudflare["Cloudflare<br>Workers, D1, KV, AI"]
-        Azure["Azure<br>OpenAI, TTS, Speech"]
-        Stripe["Stripe<br>Payments"]
-        Hume["Hume AI<br>TTS Alternative"]
-    end
-
-    MainJSX --> Contexts
-    Contexts --> Pages
-    Pages --> Components
-    Components --> Hooks
-    Components --> FrontLibs
-    Components --> Utils
-    FrontLibs --> Data
-
-    WorkerEntry --> APIs
-    APIs --> BackendLibs
-
-    FrontLibs -.-> SharedMods
-    BackendLibs -.-> SharedMods
-
-    APIs --> Cloudflare
-    APIs --> Azure
-    APIs --> Stripe
-    APIs --> Hume
+    Frontend --> Worker
+    Worker --> Backend
+    Worker --> Storage
+    Worker --> Jobs
+    Worker --> Providers
 ```
 
 ---
 
-## Quick Reference: File Counts
+## 11. Historical CodeViz Export (Quarantined)
 
-| Layer | Category | Count |
-|-------|----------|-------|
-| Frontend | Context Providers | 5 |
-| Frontend | Pages | 8 |
-| Frontend | Components | 159 |
-| Frontend | Hooks | 27 |
-| Frontend | Libraries | 26 |
-| Frontend | Utils | 4 |
-| Frontend | Data Sources | 8 |
-| Worker | API Endpoints | 52 |
-| Worker | Backend Libraries | 87 |
-| Shared | Modules | 23 |
-| External | Services | 12 |
-## 11. CodeViz System Architecture Export
-
-```mermaid
-graph TD
-
-    base.cv::user["**End User**<br>[External]"]
-    base.cv::d1_db["**Cloudflare D1 Database**<br>wrangler.jsonc `d1_databases`, migrations/0001_initial_schema.sql"]
-    base.cv::kv_ratelimit["**Cloudflare KV: Ratelimit**<br>wrangler.jsonc `kv_namespaces` `RATELIMIT`"]
-    base.cv::kv_feedback["**Cloudflare KV: Feedback**<br>wrangler.jsonc `kv_namespaces` `FEEDBACK_KV`"]
-    base.cv::kv_metrics["**Cloudflare KV: Metrics**<br>wrangler.jsonc `kv_namespaces` `METRICS_DB`"]
-    base.cv::cloudflare_ai["**Cloudflare Workers AI**<br>wrangler.jsonc `ai`, package.json `@xenova/transformers`"]
-    base.cv::azure_openai["**Azure OpenAI Service**<br>wrangler.jsonc `AZURE_OPENAI_ENDPOINT`, wrangler.jsonc `AZURE_OPENAI_API_KEY`"]
-    base.cv::azure_anthropic["**Azure AI Foundry Anthropic**<br>wrangler.jsonc `AZURE_ANTHROPIC_ENDPOINT`"]
-    base.cv::azure_tts["**Azure Text-to-Speech**<br>wrangler.jsonc `AZURE_OPENAI_TTS_ENDPOINT`"]
-    base.cv::azure_speech_sdk["**Azure Speech SDK**<br>wrangler.jsonc `AZURE_SPEECH_KEY`, package.json `microsoft-cognitiveservices-speech-sdk`"]
-    base.cv::admin["**Administrator**<br>wrangler.jsonc `ADMIN_API_KEY`"]
-    base.cv::cloudflare_log_obs["**Cloudflare Logging & Observability**<br>wrangler.jsonc `logpush`, wrangler.jsonc `observability`"]
-    base.cv::email_service["**Email Service**<br>wrangler.jsonc `ALERT_EMAIL_TO`"]
-    subgraph base.cv::frontend_app["**Tarot Frontend**<br>package.json `react`, vite.config.js, src/main.jsx"]
-        base.cv::web_browser["**Web Browser**<br>src/main.jsx `ReactDOM.createRoot`, index.html"]
-        base.cv::service_worker["**Service Worker**<br>src/main.jsx `navigator.serviceWorker.register`, public/sw.js"]
-        %% Edges at this level (grouped by source)
-        base.cv::web_browser["**Web Browser**<br>src/main.jsx `ReactDOM.createRoot`, index.html"] -->|"Delegates network requests to"| base.cv::service_worker["**Service Worker**<br>src/main.jsx `navigator.serviceWorker.register`, public/sw.js"]
-    end
-    subgraph base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"]
-        base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"]
-    end
-    %% Edges at this level (grouped by source)
-    base.cv::user["**End User**<br>[External]"] -->|"Uses"| base.cv::frontend_app["**Tarot Frontend**<br>package.json `react`, vite.config.js, src/main.jsx"]
-    base.cv::user["**End User**<br>[External]"] -->|"Uses"| base.cv::web_browser["**Web Browser**<br>src/main.jsx `ReactDOM.createRoot`, index.html"]
-    base.cv::frontend_app["**Tarot Frontend**<br>package.json `react`, vite.config.js, src/main.jsx"] -->|"Makes API calls to"| base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Reads from and writes to"| base.cv::d1_db["**Cloudflare D1 Database**<br>wrangler.jsonc `d1_databases`, migrations/0001_initial_schema.sql"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Reads from and writes to"| base.cv::kv_ratelimit["**Cloudflare KV: Ratelimit**<br>wrangler.jsonc `kv_namespaces` `RATELIMIT`"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Writes feedback to"| base.cv::kv_feedback["**Cloudflare KV: Feedback**<br>wrangler.jsonc `kv_namespaces` `FEEDBACK_KV`"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Writes metrics to"| base.cv::kv_metrics["**Cloudflare KV: Metrics**<br>wrangler.jsonc `kv_namespaces` `METRICS_DB`"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Invokes AI models on"| base.cv::cloudflare_ai["**Cloudflare Workers AI**<br>wrangler.jsonc `ai`, package.json `@xenova/transformers`"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Generates narratives using"| base.cv::azure_openai["**Azure OpenAI Service**<br>wrangler.jsonc `AZURE_OPENAI_ENDPOINT`, wrangler.jsonc `AZURE_OPENAI_API_KEY`"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Generates narratives using (fallback)"| base.cv::azure_anthropic["**Azure AI Foundry Anthropic**<br>wrangler.jsonc `AZURE_ANTHROPIC_ENDPOINT`"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Generates audio for"| base.cv::azure_tts["**Azure Text-to-Speech**<br>wrangler.jsonc `AZURE_OPENAI_TTS_ENDPOINT`"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Uses for speech processing"| base.cv::azure_speech_sdk["**Azure Speech SDK**<br>wrangler.jsonc `AZURE_SPEECH_KEY`, package.json `microsoft-cognitiveservices-speech-sdk`"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Performs scheduled archiving and cleanup"| base.cv::d1_db["**Cloudflare D1 Database**<br>wrangler.jsonc `d1_databases`, migrations/0001_initial_schema.sql"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Performs scheduled cleanup"| base.cv::kv_ratelimit["**Cloudflare KV: Ratelimit**<br>wrangler.jsonc `kv_namespaces` `RATELIMIT`"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Performs scheduled archival"| base.cv::kv_feedback["**Cloudflare KV: Feedback**<br>wrangler.jsonc `kv_namespaces` `FEEDBACK_KV`"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Performs scheduled archival"| base.cv::kv_metrics["**Cloudflare KV: Metrics**<br>wrangler.jsonc `kv_namespaces` `METRICS_DB`"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Sends logs and metrics to"| base.cv::cloudflare_log_obs["**Cloudflare Logging & Observability**<br>wrangler.jsonc `logpush`, wrangler.jsonc `observability`"]
-    base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"] -->|"Sends alerts via"| base.cv::email_service["**Email Service**<br>wrangler.jsonc `ALERT_EMAIL_TO`"]
-    base.cv::admin["**Administrator**<br>wrangler.jsonc `ADMIN_API_KEY`"] -->|"Manages and monitors"| base.cv::cloudflare_worker["**Tarot Backend Worker**<br>package.json `wrangler`, wrangler.jsonc, src/worker/index.js, functions/api/"]
-    base.cv::admin["**Administrator**<br>wrangler.jsonc `ADMIN_API_KEY`"] -->|"Manages and monitors"| base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"]
-    base.cv::web_browser["**Web Browser**<br>src/main.jsx `ReactDOM.createRoot`, index.html"] -->|"Makes API calls to"| base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"]
-    base.cv::service_worker["**Service Worker**<br>src/main.jsx `navigator.serviceWorker.register`, public/sw.js"] -->|"Fetches assets and API data from"| base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Reads from and writes to"| base.cv::d1_db["**Cloudflare D1 Database**<br>wrangler.jsonc `d1_databases`, migrations/0001_initial_schema.sql"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Reads from and writes to"| base.cv::kv_ratelimit["**Cloudflare KV: Ratelimit**<br>wrangler.jsonc `kv_namespaces` `RATELIMIT`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Writes feedback to"| base.cv::kv_feedback["**Cloudflare KV: Feedback**<br>wrangler.jsonc `kv_namespaces` `FEEDBACK_KV`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Writes metrics to"| base.cv::kv_metrics["**Cloudflare KV: Metrics**<br>wrangler.jsonc `kv_namespaces` `METRICS_DB`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Invokes AI models on"| base.cv::cloudflare_ai["**Cloudflare Workers AI**<br>wrangler.jsonc `ai`, package.json `@xenova/transformers`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Generates narratives using"| base.cv::azure_openai["**Azure OpenAI Service**<br>wrangler.jsonc `AZURE_OPENAI_ENDPOINT`, wrangler.jsonc `AZURE_OPENAI_API_KEY`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Generates narratives using (fallback)"| base.cv::azure_anthropic["**Azure AI Foundry Anthropic**<br>wrangler.jsonc `AZURE_ANTHROPIC_ENDPOINT`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Generates audio for"| base.cv::azure_tts["**Azure Text-to-Speech**<br>wrangler.jsonc `AZURE_OPENAI_TTS_ENDPOINT`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Uses for speech processing"| base.cv::azure_speech_sdk["**Azure Speech SDK**<br>wrangler.jsonc `AZURE_SPEECH_KEY`, package.json `microsoft-cognitiveservices-speech-sdk`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Performs scheduled archiving and cleanup"| base.cv::d1_db["**Cloudflare D1 Database**<br>wrangler.jsonc `d1_databases`, migrations/0001_initial_schema.sql"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Performs scheduled cleanup"| base.cv::kv_ratelimit["**Cloudflare KV: Ratelimit**<br>wrangler.jsonc `kv_namespaces` `RATELIMIT`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Performs scheduled archival"| base.cv::kv_feedback["**Cloudflare KV: Feedback**<br>wrangler.jsonc `kv_namespaces` `FEEDBACK_KV`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Performs scheduled archival"| base.cv::kv_metrics["**Cloudflare KV: Metrics**<br>wrangler.jsonc `kv_namespaces` `METRICS_DB`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Sends logs and metrics to"| base.cv::cloudflare_log_obs["**Cloudflare Logging & Observability**<br>wrangler.jsonc `logpush`, wrangler.jsonc `observability`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Sends alerts via"| base.cv::email_service["**Email Service**<br>wrangler.jsonc `ALERT_EMAIL_TO`"]
-    base.cv::worker_runtime["**Cloudflare Worker Runtime**<br>wrangler.jsonc `main` `src/worker/index.js`, functions/api/"] -->|"Serves static assets and API responses"| base.cv::web_browser["**Web Browser**<br>src/main.jsx `ReactDOM.createRoot`, index.html"]
-
-```
-
----
-*Generated by [CodeViz.ai](https://codeviz.ai) on 1/14/2026, 3:19:18 PM*
+The previous generated CodeViz export was removed from this active reference because it contained obsolete paths, bindings, and schema assumptions. Do not use it for implementation. Any replacement export must be regenerated from `wrangler.jsonc`, `src/worker/index.js`, and `migrations/`.

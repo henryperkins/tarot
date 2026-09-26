@@ -5,11 +5,11 @@ description: Use when reviewing auth callbacks and edge API routes for state val
 
 # Auth Edge Security Review
 
-Use this skill for OAuth callback, session endpoints, and edge route hardening reviews.
+Use this skill for Worker OAuth callbacks, session endpoints, and edge route hardening reviews.
 
 ## Use This Skill When
 
-- PRs touch `functions/api/auth/*`, server auth integration, or auth/session user routes.
+- PRs touch `functions/api/auth/*`, Worker auth integration, or auth/session user routes.
 - Code scanning or bot reviews raise rate limit, randomness, injection, or callback-state issues.
 
 ## Workflow

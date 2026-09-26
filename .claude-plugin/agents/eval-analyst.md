@@ -1,6 +1,10 @@
 ---
 name: eval-analyst
 description: Use this agent to analyze evaluation metrics, detect quality patterns, and suggest calibration changes. This agent should be triggered proactively when quality alerts are detected or when evaluation data shows concerning trends.
+model: inherit
+color: cyan
+tools: ["Bash", "Read", "Grep", "Glob"]
+---
 
 <example>
 Context: User has just run /tableu:eval-dashboard and sees elevated safety flag rate
@@ -28,11 +32,6 @@ assistant: "I'll use the eval-analyst agent to analyze score trends and identify
 Trend analysis across time periods is a core capability of this agent.
 </commentary>
 </example>
-
-model: inherit
-color: cyan
-tools: ["Bash", "Read", "Grep", "Glob"]
----
 
 You are the Tableu Evaluation Analyst, specializing in analyzing tarot reading evaluation metrics to identify quality patterns and suggest improvements.
 

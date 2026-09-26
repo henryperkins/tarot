@@ -2,15 +2,15 @@
 
 Type: reference
 Status: active reference
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 ## Source Precedence Contract
 
 Spread understanding follows a strict precedence order so enrichment never overrides drawn-card truth:
 
-`spread/cards > validated matched vision > question/reflections/focus areas > GraphRAG > ephemeris`
+`spread/cards > validated matched vision > question/reflections/focus areas > stored memory > GraphRAG > ephemeris`
 
-Guardrail: Enrichment layers may add nuance, but they must not replace drawn card identity, card count, or position semantics.
+Guardrail: Enrichment layers may add nuance, but they must not replace drawn card identity, card count, or position semantics. Stored memory is a lower-precedence context source than the current question, reflections, and focus areas.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -42,33 +42,36 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
 │ SAFE FALLBACK               │      │ SPREAD ANALYSIS                        │
 │ • Gentle response           │      │ • Themes detection                     │
 │ • Resource links            │      │ • Reversal framework                   │
-│ • Early return              │      │ • GraphRAG retrieval                   │
+│ • Early return              │      │ • Stored memory                        │
+│ • Crisis resources          │      │ • GraphRAG retrieval                   │
 └─────────────────────────────┘      │ • Elemental dignities                  │
                                      │ • Ephemeris context                    │
                                      └──────────────────┬────────────────────┘
                                                         │
-                    ┌──────────────────────────────┴─────────────┐
-                    │              BACKEND SELECTION              │
-                    │  • Check available backends                 │
-                    │  • A/B experiment assignment                │
-                    │  • Provider preference order                │
-                    └──────────────────┬──────────────────────────┘
-                                       │
-            ┌──────────────────────────┼──────────────────────────┐
-            │                          │                          │
-            ▼                          ▼                          ▼
-    ┌───────────────┐        ┌──────────────┐        ┌──────────────────┐
-    │ AZURE GPT-5   │        │ CLAUDE 4.5   │        │ LOCAL COMPOSER   │
-    │ Primary       │   or   │ Fallback     │   or   │ Last Resort      │
-    └───────┬───────┘        └──────┬───────┘        └──────┬───────────┘
-            │                       │                       │
-            └───────────────────────┼───────────────────────┘
-                                    │
-                                    ▼
+                     ┌──────────────────────────────┴─────────────┐
+                     │              BACKEND SELECTION              │
+                     │  • availability and per-attempt A/B assignment      │
+                     │  NARRATIVE_BACKEND_ORDER:                    │
+                     │  modal-qwen → azure-gpt5 → claude-opus45 →   │
+                     │  local-composer                               │
+                     │  azure-gpt5 = native OpenAI Responses or      │
+                     │  Azure OpenAI Responses                       │
+                     └──────────────────┬──────────────────────────┘
+                                        │
+                                        ▼
+             ┌─────────────────────────────────────────────────┐
+             │           PROVIDER ATTEMPT LOOP                 │
+             │  1. modal-qwen (Qwen via Modal)                │
+             │  2. azure-gpt5 (native OpenAI or Azure)       │
+             │  3. claude-opus45 (Azure AI Foundry)           │
+             │  4. local-composer (deterministic fallback)   │
+             └──────────────────┬──────────────────────────┘
+                                        │
+                                        ▼
             ┌─────────────────────────────────────────────────┐
             │         PROMPT CONSTRUCTION LAYER               │
-            │   functions/lib/narrative/prompts/ (2429 LOC)   │
-            │   functions/lib/narrative/prompts.js (barrel)   │
+             │   functions/lib/narrative/prompts/                │
+             │   functions/lib/narrative/prompts.js (barrel)     │
             ├─────────────────────────────────────────────────┤
             │                                                 │
             │  ┌─────────────────────────────────────────┐   │
@@ -94,21 +97,22 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
             │  └──────────────────────────────────────────┘  │
             │                     │                           │
             │                     ▼                           │
-            │  ┌──────────────────────────────────────────┐  │
-            │  │ USER PROMPT                              │  │
-            │  │ • User question                          │  │
-            │  │ • Spread definition                      │  │
-            │  │ • Cards with positions                   │  │
-            │  │ • User reflections                       │  │
-            │  │ • Context signals                        │  │
-            │  └──────────────────────────────────────────┘  │
-            └─────────────────────────────────────────────────┘
+             │  ┌──────────────────────────────────────────┐  │
+             │  │ USER PROMPT                              │  │
+             │  │ • User question                          │  │
+             │  │ • Spread definition                      │  │
+             │  │ • Cards with positions                   │  │
+             │  │ • User reflections                       │  │
+             │  │ • Context signals                        │  │
+             │  │ • Stored memory (lower precedence)       │  │
+             │  └──────────────────────────────────────────┘  │
+             └─────────────────────────────────────────────────┘
                                     │
                                     ▼
             ┌─────────────────────────────────────────────────┐
             │    NARRATIVE HELPERS & SPREAD BUILDERS          │
-            │   functions/lib/narrative/helpers.js (1682 LOC) │
-            │   functions/lib/narrative/spreads/*.js          │
+             │   functions/lib/narrative/helpers.js                │
+             │   functions/lib/narrative/spreads/*.js             │
             ├─────────────────────────────────────────────────┤
             │                                                 │
             │  ┌─────────────────────────────────────────┐   │
@@ -120,59 +124,62 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
             │  └─────────────────────────────────────────┘   │
             │                     │                           │
             │                     ▼                           │
-            │  ┌─────────────────────────────────────────┐   │
-            │  │ Spread-Specific Builders                │   │
-            │  │ • CelticCross (467 LOC)                 │   │
-            │  │ • FiveCard (281 LOC)                    │   │
-            │  │ • ThreeCard (252 LOC)                   │   │
-            │  │ • Decision (296 LOC)                    │   │
-            │  │ • Relationship (377 LOC)                │   │
-            │  │ • SingleCard (125 LOC)                  │   │
-            │  └─────────────────────────────────────────┘   │
-            │         ⚠️ Code duplication: 30-40%             │
-            └─────────────────────────────────────────────────┘
+             │  ┌─────────────────────────────────────────┐   │
+             │  │ Spread-Specific Builders                │   │
+             │  │ • CelticCross (spread-specific)         │   │
+             │  │ • FiveCard (spread-specific)            │   │
+             │  │ • ThreeCard (spread-specific)           │   │
+             │  │ • Decision (spread-specific)            │   │
+             │  │ • Relationship (spread-specific)        │   │
+             │  │ • SingleCard (spread-specific)          │   │
+             │  └─────────────────────────────────────────┘   │
+             │  Spread-specific builders share common helpers  │
+             │  and preserve position semantics.              │
+             └─────────────────────────────────────────────────┘
                                     │
                                     ▼
-            ┌─────────────────────────────────────────────────┐
-            │           NARRATIVE GENERATION                  │
-            │  • LLM inference (Azure/Claude/Local)           │
-            │  • Token streaming (optional)                   │
-            │  • Response formatting                          │
-            └───────────────────────┬─────────────────────────┘
+             ┌─────────────────────────────────────────────────┐
+             │           NARRATIVE GENERATION                  │
+             │  • LLM inference or deterministic composition  │
+             │  • Token streaming (native OpenAI/Azure path)   │
+             │  • Response formatting                         │
+             └───────────────────────┬─────────────────────────┘
                                     │
                                     ▼
-            ┌─────────────────────────────────────────────────┐
-            │              QUALITY GATES LAYER                │
-            │   functions/lib/evaluation.js                   │
-            ├─────────────────────────────────────────────────┤
-            │                                                 │
-            │  ┌─────────────────────────────────────────┐   │
-            │  │ Narrative Validation                    │   │
-            │  │ • Card coverage check                   │   │
-            │  │ • Hallucination detection               │   │
-            │  │ • Spine completeness                    │   │
-            │  │ • Position weight validation            │   │
-            │  └─────────────────────────────────────────┘   │
-            │                     │                           │
-            │      ┌──────────────┴──────────────┐            │
-            │      │ PASS                  FAIL  │            │
-            │      ▼                             ▼            │
-            │  ┌─────────┐              ┌──────────────┐     │
-            │  │ Accept  │              │ Safe         │     │
-            │  │ Reading │              │ Fallback     │     │
-            │  └────┬────┘              └──────┬───────┘     │
-            │       │                          │             │
-            └───────┼──────────────────────────┼─────────────┘
-                    │                          │
-                    └──────────┬───────────────┘
-                               │
-                               ▼
-            ┌─────────────────────────────────────────────────┐
-            │         ASYNC EVALUATION (waitUntil)            │
-            │  • Quality scoring (Workers AI)                 │
-            │  • Metrics storage (KV)                         │
-            │  • Prompt persistence (optional)                │
-            └─────────────────────────────────────────────────┘
+             ┌─────────────────────────────────────────────────┐
+             │     STRUCTURAL QUALITY GATE (PER ATTEMPT)       │
+             │ functions/api/tarot-reading.js                 │
+             │ functions/lib/readingQuality.js                 │
+             ├─────────────────────────────────────────────────┤
+             │                                                 │
+             │  ┌─────────────────────────────────────────┐   │
+             │  │ Narrative Validation                    │   │
+             │  │ • Card coverage check                   │   │
+             │  │ • Hallucination allowance              │   │
+             │  │ • Spine completeness                    │   │
+             │  │ • Position weight validation            │   │
+             │  └─────────────────────────────────────────┘   │
+             │                     │                           │
+             │      ┌──────────────┴──────────────┐            │
+             │      │ PASS                  FAIL  │            │
+             │      ▼                             ▼            │
+             │  ┌─────────┐              ┌──────────────┐     │
+             │  │ Accept  │              │ Try next     │     │
+             │  │ reading │              │ backend      │     │
+             │  └────┬────┘              └──────┬───────┘     │
+             │       │                          │             │
+             └───────┼──────────────────────────┼─────────────┘
+                     │                          │
+                     └──────────┬───────────────┘
+                                │
+                                ▼
+             ┌─────────────────────────────────────────────────┐
+             │       OPTIONAL SYNC EVAL GATE / ASYNC EVAL      │
+             │ • EVAL_GATE_ENABLED or selective policy        │
+             │ • Safe fallback only for a blocked sync gate    │
+             │ • Async Workers AI scoring via waitUntil()      │
+             │ • D1 eval_metrics and optional prompt persistence│
+             └─────────────────────────────────────────────────┘
                                │
                                ▼
             ┌─────────────────────────────────────────────────┐
@@ -185,35 +192,46 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
             └───────────────────────┬─────────────────────────┘
                                     │
                                     ▼
-            ┌─────────────────────────────────────────────────┐
-            │              CLIENT RESPONSE                    │
-            │  {                                              │
-            │    reading: "Narrative text...",                │
-            │    provider: "azure-gpt5",                      │
-            │    themes: {...},                               │
-            │    context: "love",                             │
-            │    spreadAnalysis: {...},                       │
-            │    graphRAG: {...}                              │
-            │  }                                              │
-            └─────────────────────────────────────────────────┘
+             ┌─────────────────────────────────────────────────┐
+             │              CLIENT RESPONSE                    │
+             │  {                                              │
+             │    reading: "Narrative text...",                │
+             │    provider: "modal-qwen | openai-native |      │
+             │      azure-gpt5 | claude-opus45 | local-composer",│
+             │    themes: {...},                               │
+             │    context: "love",                             │
+             │    spreadAnalysis: {...},                       │
+             │    graphRAG: {...}                              │
+             │  }                                              │
+             └─────────────────────────────────────────────────┘
 ```
 
-## Key Components & File Sizes
+For `modal-qwen`, `azure-gpt5`, and `claude-opus45`, the prompt-construction layer
+assembles system and user prompts. `local-composer` bypasses LLM prompt assembly and
+uses the reasoning-aware spread builders directly.
 
-| Component | File | LOC | Status |
-|-----------|------|-----|--------|
-| **Orchestrator** | tarot-reading.js | 1200+ | ✅ Acceptable |
-| **Prompt Builder** | narrative/prompts/ (modules) | 2429 | ⚠️ Large (modular) |
-| **Prompt Barrel** | narrative/prompts.js | 4 | ✅ Barrel |
-| **Helpers** | narrative/helpers.js | 1682 | 🔴 Too large |
-| **Reasoning** | narrative/reasoning.js | 1205 | ⚠️ Large |
-| **Celtic Cross** | spreads/celticCross.js | 467 | ✅ Good |
-| **Relationship** | spreads/relationship.js | 377 | ✅ Good |
-| **Decision** | spreads/decision.js | 296 | ✅ Good |
-| **Five Card** | spreads/fiveCard.js | 281 | ✅ Good |
-| **Three Card** | spreads/threeCard.js | 252 | ✅ Good |
-| **Style Helpers** | narrative/styleHelpers.js | 238 | ✅ Excellent |
-| **Single Card** | spreads/singleCard.js | 125 | ✅ Excellent |
+## Production Reasoning Integration
+
+`tarot-reading.js` calls `buildReadingReasoning()` after `performSpreadAnalysis()` and
+returns the resulting `analysis.reasoning` metadata. The `local-composer` backend then
+calls `buildReadingWithReasoning()` around the selected spread builder; supported
+builders use the reasoning for intent-aware openings, connectors, emphasis, and
+synthesis. LLM backends continue to use the same spread analysis and prompt path,
+with the reasoning object available as metadata.
+
+## Key Components
+
+| Component | File | Status |
+|-----------|------|--------|
+| **Orchestrator** | `functions/api/tarot-reading.js` | Production request orchestration |
+| **Backend registry** | `functions/lib/narrativeBackends.js` | Current provider order and dispatch |
+| **Reasoning** | `functions/lib/narrative/reasoning.js` and `reasoningIntegration.js` | Integrated into analysis and local composition |
+| **Prompt builder** | `functions/lib/narrative/prompts/` and `prompts.js` | Modular prompt assembly and budgeting |
+| **Helpers** | `functions/lib/narrative/helpers.js` | Shared narrative helpers |
+| **Spread builders** | `functions/lib/narrative/spreads/` | Position-aware spread construction |
+| **GraphRAG** | `functions/lib/graphRAG.js` and `knowledgeBase.js` | Pattern retrieval and Tableu Tarot Canon passages |
+| **Structural quality gate** | `functions/api/tarot-reading.js` and `functions/lib/readingQuality.js` | Coverage, hallucination, spine, and high-weight-position checks before acceptance |
+| **Evaluation and metrics** | `functions/lib/evaluation.js` | Workers AI scoring, sync/async evaluation gates, and D1 `eval_metrics` |
 
 ## Critical Issues in Flow
 
@@ -249,21 +267,22 @@ No cross-request bleed in production.
 ## Data Flow Summary
 
 1. **Request enters** → Validation + Auth (1-5ms)
-2. **Vision proof** (if provided) verified (5-10ms)
+2. **Vision proof** (if provided) verified; default mismatches remain telemetry-only
 3. **Crisis check** performed (1-2ms)
 4. **Spread analysis** computed (50-100ms)
-5. **Backend selected** (A/B assignment, provider check)
-6. **Prompt constructed** (10-20ms):
-   - Token budgeting
-   - GraphRAG retrieval (sync, 10-50ms)
-   - Spread-specific sections
-   - System + user prompts
-7. **Narrative generated** (1000-3000ms depending on backend)
-8. **Quality gates** validated (5-10ms)
-9. **Async evaluation** scheduled (doesn't block response)
-10. **Response sent** to client
+5. **Reasoning chain** built from the actual spread and question
+6. **Backend selected** in order: `modal-qwen` → `azure-gpt5` → `claude-opus45` → `local-composer`
+7. **Prompt or local composition** constructed (10-20ms):
+   - Token budgeting and GraphRAG retrieval for LLM paths
+   - Spread-specific sections and reasoning-aware synthesis
+8. **Narrative generated** (1000-3000ms depending on backend)
+9. **Structural quality gate** validated by `tarot-reading.js` and `readingQuality.js` (5-10ms)
+10. **Async evaluation** scheduled by `evaluation.js` (doesn't block response)
+11. **Response sent** to client and metrics persisted to D1 `eval_metrics`
 
-**Total:** ~1100-3200ms end-to-end
+## Runtime Scheduling and Storage
+
+The Worker has two cron entries: `*/10 * * * *` reconciles pending card-video usage in `METRICS_DB`, and `0 3 * * *` runs D1 quality analysis, ongoing legacy KV compatibility archival, and cleanup. Runtime reading metrics and evaluation payloads are written directly to D1 `eval_metrics`; `METRICS_DB` also stores current media telemetry, media-usage counters, and card-video job metadata. `R2_LOGS` stores generated media, user-media objects, journal-export caches, and archives/exports.
 
 ## Optimization Opportunities
 
@@ -339,8 +358,4 @@ narrative/
 
 ---
 
-**Legend:**
-- ✅ Good: < 500 LOC, clear purpose
-- ⚠️ Acceptable: 500-1000 LOC, some concerns
-- 🔴 Needs refactoring: > 1000 LOC
-- ❌ Critical issue: Immediate attention required
+Status labels describe module responsibility and current integration; they are not size thresholds.

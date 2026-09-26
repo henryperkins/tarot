@@ -2,7 +2,7 @@
 
 Type: spec
 Status: active reference
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 Responsive, accessibility, and motion foundations.
 Audit date: 2026-02-05 | Covers `src/`, `src/styles/`, `tailwind.config.js`
@@ -228,7 +228,7 @@ All fixed bottom bars must use this formula (via `.pb-safe-action` or equivalent
 ```
 Plus 10 component-specific `prefers-reduced-motion` blocks.
 
-**JS:** `useReducedMotion()` hook in 15+ components. Framer-motion uses `duration: reduceMotion ? 0 : N`.
+**JS:** `useReducedMotion()` hook in 15+ components. The `motion` library is used through `src/lib/motionAdapter.js`, with reduced durations or static states when the preference is active.
 
 ---
 

@@ -2,7 +2,7 @@
 
 Type: reference
 Status: active reference
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 ## Automated Evaluation & Feedback System (Tarot Readings)
 
@@ -12,7 +12,7 @@ Tableu includes an automated quality assurance system that evaluates every AI-ge
 
 ## At a glance
 
-- **When it runs:** async after a reading via `waitUntil()`; sync gate runs when `EVAL_GATE_ENABLED=true`
+- **When it runs:** async after a reading via `waitUntil()`; a sync gate runs when `EVAL_GATE_ENABLED=true` or the selective policy forces it for a language or safety case
 - **Where scores live:** D1 table `eval_metrics` (runtime metrics + eval payload)
 - **Evaluator model:** Workers AI (default `@cf/qwen/qwen3-30b-a3b-fp8`)
 - **Outputs:** 1-5 scores + `safety_flag` + notes, used for analysis and optional gating
@@ -82,19 +82,20 @@ The deterministic scan (`buildHeuristicScores`, the streaming safety scan, and t
 ```mermaid
 flowchart TB
   subgraph R["RUNTIME (per request)"]
-    U["User request"] --> G["Generate reading (Claude/GPT-5)"]
-    G --> QG["Quality gate<br/>(coverage + hallucination + spine + high-weight positions)"]
-    QG --> EG["Sync eval gate<br/>(EVAL_GATE_ENABLED)"]
-    EG --> RESP["Return response to user<br/>(non-blocking)"]
-    RESP -->|waitUntil()| E["Workers AI evaluation<br/>(qwen3-30b-a3b-fp8)"]
+    U["User request"] --> G["Generate reading<br/>modal-qwen → azure-gpt5 → claude-opus45 → local-composer"]
+    G --> QG["Structural quality gate<br/>(tarot-reading.js + readingQuality.js)"]
+    QG --> EG["Sync evaluation gate<br/>(evaluation.js; enabled or selectively forced)"]
+    EG --> RESP["Return response to user"]
+    RESP -->|waitUntil()| E["Workers AI evaluation<br/>(@cf/qwen/qwen3-30b-a3b-fp8)"]
     E --> S["Scores + safety_flag + notes"]
     S --> D1["Upsert eval_metrics (D1)"]
   end
 
   subgraph M["MAINTENANCE (scheduled)"]
-    CRON["Daily cron (3 AM UTC)<br/>functions/lib/scheduled.js"] --> QA["Quality analysis<br/>(eval_metrics -> quality_stats/alerts)"]
-    CRON --> ARCH["Archive legacy KV -> D1<br/>(metrics_archive/feedback_archive)"]
-    CRON --> CLEAN["Cleanup expired sessions"]
+    V["*/10 * * * *<br/>card-video usage reconciliation"] --> VDB["METRICS_DB KV usage settlement"]
+    CRON["0 3 * * *<br/>functions/lib/scheduled.js"] --> QA["Quality analysis<br/>(eval_metrics → quality_stats/alerts)"]
+    CRON --> ARCH["Continue legacy KV compatibility archive → D1<br/>(metrics_archive/feedback_archive)"]
+    CRON --> CLEAN["Cleanup sessions, tokens, memories, and usage"]
   end
 
   subgraph A["ANALYSIS (offline)"]
@@ -112,10 +113,12 @@ flowchart TB
 | Component | Location | Purpose |
 |---|---|---|
 | Evaluation module | `functions/lib/evaluation.js` | Core scoring logic, Workers AI integration, gating decision |
-| Integration point | `functions/api/tarot-reading.js:403` | Calls `scheduleEvaluation()` after response |
+| Integration point | `functions/api/tarot-reading.js` | Calls `scheduleEvaluation()` after response |
 | Metrics storage | `eval_metrics` (D1) | Primary storage for runtime + eval payloads |
-| Legacy archives (optional) | `metrics_archive` / `feedback_archive` (D1) or `archives/metrics/*` (R2) | Pre-migration exports only |
+| Legacy KV compatibility archives (ongoing) | `metrics_archive` / `feedback_archive` (D1) or `archives/metrics/*` (R2) | Scheduled archival continues for old `reading:*` and `feedback:*` keys; runtime reading/eval metrics use D1 |
 | Shared data access | `scripts/lib/dataAccess.js` | R2/KV/D1 helpers for export scripts |
+| `METRICS_DB` | KV | Current media telemetry, daily media-usage counters, and card-video job metadata; also the source for ongoing legacy `reading:*` archival |
+| `R2_LOGS` | R2 | Generated media and user-media objects, journal-export cache, archives, and exports |
 
 ### File structure
 
@@ -125,7 +128,7 @@ functions/
   - tarot-reading.js      # Integration: scheduleEvaluation() call
 - lib/
   - evaluation.js         # Core evaluation module
-  - scheduled.js          # Cron: quality analysis + legacy KV archival
+  - scheduled.js          # Cron: video reconciliation, quality analysis, ongoing legacy KV compatibility archival, cleanup
 scripts/
 - lib/
   - dataAccess.js         # Shared R2/KV/D1 access helpers
@@ -155,7 +158,7 @@ Key features:
 - Uses Workers AI (`@cf/qwen/qwen3-30b-a3b-fp8`) for evaluation
 - Runs asynchronously via `waitUntil()` to avoid blocking user responses
 - Supports synchronous gating when `EVAL_GATE_ENABLED=true` (fail-open/closed via `EVAL_GATE_FAILURE_MODE`)
-- Includes prompt versioning (`EVAL_PROMPT_VERSION = '2.2.0'`)
+- Includes prompt versioning (`EVAL_PROMPT_VERSION = '2.4.0'`)
 - Falls back to heuristic scoring if AI evaluation fails
 - Logs safety flags and low-tone events for monitoring
 
@@ -167,16 +170,17 @@ Key features:
 
 Set in `wrangler.jsonc` under `vars` (all values are strings at runtime):
 
-| Variable | Default | Description |
-|---|---:|---|
-| `EVAL_ENABLED` | `"true"` | Master switch for evaluation system |
-| `EVAL_MODEL` | `"@cf/qwen/qwen3-30b-a3b-fp8"` | Workers AI model for scoring |
-| `EVAL_TIMEOUT_MS` | `"10000"` | Timeout for eval API call (ms) |
-| `EVAL_GATE_ENABLED` | `"false"` | Whether to block readings on low scores |
-| `EVAL_GATE_FAILURE_MODE` | `"closed"` (prod), `"open"` (non-prod) | When eval fails: `open` allows if heuristic passes, `closed` blocks |
-| `EVAL_GATEWAY_ID` | `""` | Optional AI Gateway id for eval calls |
-| `ALLOW_STREAMING_WITH_EVAL_GATE` | `"true"` | Allow token streaming when eval gate is enabled |
-| `STREAMING_QUALITY_GATE_ENABLED` | `"true"` | Buffer streaming output to enforce quality checks before emitting SSE |
+| Variable | Checked-in `wrangler.jsonc` | Code fallback when unset | Description |
+|---|---:|---:|---|
+| `EVAL_ENABLED` | `"true"` | `false` | Master switch for evaluation system |
+| `EVAL_MODEL` | `"@cf/qwen/qwen3-30b-a3b-fp8"` | same model | Workers AI model for scoring |
+| `EVAL_TIMEOUT_MS` | `"10000"` | `15000` | Timeout for eval API call (ms) |
+| `EVAL_GATE_ENABLED` | `"false"` | `false` | Whether to block readings on low scores |
+| `EVAL_GATE_FAILURE_MODE` | `"closed"` | `"open"` in non-prod, `"closed"` in prod | When eval fails: `open` allows if heuristic passes, `closed` blocks |
+| `EVAL_GATEWAY_ID` | `""` | `""` | Optional AI Gateway id for eval calls |
+| `ALLOW_STREAMING_WITH_EVAL_GATE` | `"true"` | `false` | Allow token streaming when eval gate is enabled |
+| `STREAMING_SAFETY_SCAN_ENABLED` | `"false"` | `true` when omitted | Buffered safety scan; provider streaming may be forced back through quality buffering |
+| `STREAMING_QUALITY_GATE_ENABLED` | `"false"` | `true` when omitted | Buffer streaming output to enforce quality checks before emitting SSE |
 
 ### Cloudflare bindings
 
@@ -218,9 +222,9 @@ npx wrangler tail --format=json \
 
 ```text
 POST /api/tarot-reading
-  -> generateReading() (Claude/GPT-5)
-  -> Quality Gate (coverage + hallucination + spine + high-weight positions)
-  -> (optional) runSyncEvaluationGate() if EVAL_GATE_ENABLED=true
+  -> generateReading() (modal-qwen → azure-gpt5 → claude-opus45 → local-composer)
+  -> Structural quality gate (tarot-reading.js + readingQuality.js: coverage + hallucination + spine + high-weight positions)
+  -> (optional) evaluation gate (evaluation.js) if enabled or selectively forced
   -> persistReadingMetrics() upsert to D1 (eval_metrics)
   -> return response to user
   -> waitUntil():
@@ -228,14 +232,12 @@ POST /api/tarot-reading
        update eval_metrics with eval payload
 ```
 
-### 2) Scheduled: daily quality analysis + legacy archival
+### 2) Scheduled: quality analysis, cleanup, and ongoing legacy KV archival
 
-The cron trigger (`0 3 * * *`) in `functions/lib/scheduled.js`:
+`wrangler.jsonc` configures two cron entries handled by `functions/lib/scheduled.js`:
 
-- Quality analysis on `eval_metrics` for the previous day
-  - Writes `quality_stats` and `quality_alerts` (when `QUALITY_ALERT_ENABLED=true`)
-- Optional: archive legacy KV data into D1 tables
-- Cleanup expired sessions from D1
+- `*/10 * * * *` — reconcile pending card-video usage settlements
+- `0 3 * * *` — analyze the previous day's `eval_metrics` into `quality_stats`/`quality_alerts`, continue legacy KV compatibility archival, and clean up expired sessions, tokens, memories, webhook events, and guest usage
 
 ### 3) Offline: export & analysis
 
@@ -264,7 +266,7 @@ Script: `scripts/training/exportReadings.js`
 Exports comprehensive training data by merging:
 - Journal entries (D1)
 - User feedback (KV or file)
-- Reading metrics + eval scores (D1 by default; legacy KV/R2/file also supported)
+- Reading metrics + eval scores (D1 by default; ongoing legacy KV/R2/file compatibility sources are also supported)
 
 ```bash
 node scripts/training/exportReadings.js --out training/readings.jsonl
@@ -297,14 +299,21 @@ Output schema (example):
   ],
   "readingText": "Your reading reveals...",
   "themes": ["transformation", "hope"],
-  "provider": "claude",
+  "provider": "modal-qwen",
   "feedback": {
     "ratings": { "accuracy": 5, "helpfulness": 4 },
     "averageScore": 4.5,
     "label": "positive"
   },
   "metrics": {
-    "narrative": { "cardCoverage": 0.95, "hallucinatedCards": [] },
+    "narrative": {
+      "coverage": {
+        "cardCount": 3,
+        "percentage": 0.95,
+        "missingCards": [],
+        "hallucinatedCards": []
+      }
+    },
     "eval": {
       "scores": {
         "personalization": 4,
@@ -317,7 +326,7 @@ Output schema (example):
       },
       "model": "@cf/qwen/qwen3-30b-a3b-fp8",
       "latencyMs": 142,
-      "promptVersion": "2.2.0"
+      "promptVersion": "2.4.0"
     }
   },
   "evalScores": { "personalization": 4, "tarot_coherence": 5, "tone": 4, "safety": 5, "overall": 4 },
@@ -337,9 +346,10 @@ Output schema (example):
 
 ```jsonc
 {
+  "schemaVersion": 2,
   "requestId": "abc-123",
   "timestamp": "2025-12-06T12:00:00.000Z",
-  "provider": "claude",
+  "provider": "modal-qwen",
   "spreadKey": "threeCard",
   "eval": {
     "scores": { "...": "..." },
@@ -365,7 +375,7 @@ cat eval-data.jsonl | node scripts/evaluation/calibrateEval.js
 
 ### Schema version 2 (current)
 
-As of January 2025, metrics payloads use **schema version 2**, which eliminates data duplication from the original schema. Key changes:
+Current metrics payloads use **schema version 2**, which eliminates data duplication from the original schema. Key changes:
 
 | v1 Field | v2 Field | Notes |
 |----------|----------|-------|
@@ -376,7 +386,7 @@ As of January 2025, metrics payloads use **schema version 2**, which eliminates 
 | `narrative.promptSlimming` | `prompt.slimming.steps` | Deduplicated |
 | `variantId`, `experimentId` | `experiment.variantId`, `experiment.experimentId` | Grouped |
 
-**Backward compatibility:** All consumer scripts and SQL queries use `COALESCE()` to read from both v1 and v2 paths. The helper functions in `functions/lib/telemetrySchema.js` handle both schemas:
+**Backward compatibility:** Consumers use schema-aware branching rather than assuming one universal `COALESCE()` layout. The helper functions in `functions/lib/telemetrySchema.js` select the v2 fields when `schemaVersion >= 2` and use explicit v1 fallback paths for legacy records:
 
 ```javascript
 import { getPromptVersion, getGraphRAGStats, getNarrativeCoverage } from '../lib/telemetrySchema.js';
@@ -386,6 +396,34 @@ const version = getPromptVersion(payload);
 const graphRAG = getGraphRAGStats(payload);
 const coverage = getNarrativeCoverage(payload);
 ```
+
+A current v2 narrative coverage payload is shaped like this:
+
+```json
+{
+  "schemaVersion": 2,
+  "experiment": {
+    "promptVersion": "1.2.0",
+    "variantId": null,
+    "experimentId": null
+  },
+  "narrative": {
+    "spine": {
+      "isValid": true,
+      "cardSections": 3,
+      "cardComplete": 3
+    },
+    "coverage": {
+      "cardCount": 3,
+      "percentage": 0.67,
+      "missingCards": ["The Star"],
+      "hallucinatedCards": []
+    }
+  }
+}
+```
+
+`functions/lib/telemetrySchema.js` uses `narrative.coverage` as the v2 source of truth; legacy v1 paths are read only through explicit schema-aware fallback branches. SQL consumers may use JSON extraction and `COALESCE()` where appropriate, but should not describe that as a universal compatibility strategy.
 
 ### Migration
 
@@ -439,7 +477,7 @@ The migration reduces payload size by ~50% by eliminating duplicate data.
   cat eval-data.jsonl | jq 'select(.eval.scores.overall <= 3)' | head -20
   ```
 - Compare evaluator notes to human judgment
-- Update rubric/prompt (`EVAL_SYSTEM_PROMPT` in `evaluation.js`) as needed
+- Update rubric/prompt (`EVAL_SYSTEM_PROMPT_TEMPLATE` in `functions/lib/evaluation.js`) as needed
 
 ### Optional: gating after calibration
 
@@ -528,7 +566,7 @@ Checklist:
   wrangler d1 list
   ```
 - Confirm migrations applied
-- If using legacy R2 archives:
+- If inspecting ongoing R2 compatibility archives:
   ```bash
   wrangler r2 bucket list
   wrangler r2 object list tarot-logs --prefix "archives/metrics/" | head
@@ -591,7 +629,8 @@ Returns:
 ```javascript
 {
   shouldBlock: boolean,
-  reason: string | null // 'safety_flag', 'safety_score_1', 'tone_score_1', null
+  reason: string | null // first current reason
+  reasons: string[]      // all current reasons
 }
 ```
 

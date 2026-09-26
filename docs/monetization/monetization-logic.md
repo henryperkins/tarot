@@ -2,7 +2,7 @@
 
 Type: reference
 Status: active reference
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 This document consolidates the monetization behavior implemented in the current Tableu codebase.
 
@@ -35,6 +35,8 @@ export const SUBSCRIPTION_TIERS = {
   free: {
     name: 'Seeker',
     label: 'Free',
+    trialDays: 0,
+    annual: null,
     monthlyReadings: 5,
     monthlyTTS: 3,
     spreads: ['single', 'threeCard', 'fiveCard'],
@@ -49,6 +51,8 @@ export const SUBSCRIPTION_TIERS = {
     name: 'Enlightened',
     label: 'Plus',
     price: 7.99,
+    trialDays: 0,
+    annual: 79.99,
     monthlyReadings: 50,
     monthlyTTS: 50,
     spreads: 'all',
@@ -63,6 +67,8 @@ export const SUBSCRIPTION_TIERS = {
     name: 'Mystic',
     label: 'Pro',
     price: 19.99,
+    trialDays: 0,
+    annual: 199.99,
     monthlyReadings: Infinity,
     monthlyTTS: Infinity,
     spreads: 'all+custom',
@@ -77,16 +83,19 @@ export const SUBSCRIPTION_TIERS = {
 };
 ```
 
+`all+custom` is retained as a runtime compatibility label. The shipped user catalog contains six built-in spreads; custom spread creation is not a shipped user feature.
+
 ### Feature Matrix
 
 | Feature | Free | Plus ($7.99/mo) | Pro ($19.99/mo) |
 |---------|------|-----------------|-----------------|
 | AI Readings/month | 5 | 50 | Unlimited |
 | Voice Narrations/month | 3 | 50 | Unlimited |
-| Spreads | 3 core | All 6 | All + custom |
+| Spreads | 3 core | All 6 built-in | All 6 built-in (custom not shipped) |
 | GraphRAG Context | Reduced (min 1; roughly half of base passages) | Full | Full |
 | AI Question Suggestions | ❌ | ✅ | ✅ |
-| Cloud Journal Sync | ❌ | ✅ | ✅ |
+| Cloud Journal Sync | ❌ (local journal) | ✅ | ✅ |
+| Server journal export | ❌ (local export available) | ✅ | ✅ |
 | Advanced Insights | ❌ | ✅ | ✅ |
 | Ad-Free | ❌ | ✅ | ✅ |
 | API Access | ❌ | ❌ | ✅ (1,000 calls/mo) |
@@ -116,7 +125,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_stripe_customer_id
 |--------|--------|-------|
 | `subscription_tier` | `'free'`, `'plus'`, `'pro'` | Defaults to `'free'` |
 | `subscription_provider` | `'stripe'`, `'google_play'`, `'api_key'`, `null` | Source of subscription |
-| `subscription_status` | `'active'`, `'canceled'`, `'past_due'`, `'incomplete'`, `'unpaid'`, `'paused'`, `'expired'`, `'inactive'` | Stripe status mapping |
+| `subscription_status` | `'active'`, `'trialing'`, `'canceled'`, `'past_due'`, `'incomplete'`, `'unpaid'`, `'paused'`, `'expired'`, `'inactive'` | Stored status mapping; `trialing` retains paid access |
 
 ### Usage Tracking ✅
 
@@ -124,7 +133,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_stripe_customer_id
 
 - Table: `usage_tracking` (primary key: `user_id`, `month`)
 - Month format: `YYYY-MM` (UTC calendar month)
-- Used for: monthly quota enforcement + usage meters (readings, authenticated TTS, Pro API calls)
+- Used for: monthly quota enforcement and the shipped Account usage meters (readings, authenticated TTS, Pro API calls)
 
 ### Processed Webhook Events ✅
 
@@ -195,7 +204,6 @@ const user = await getUserFromRequest(request, env);
 const subscription = getSubscriptionContext(user);
 const hasAIAccess = subscription.effectiveTier === 'plus' || subscription.effectiveTier === 'pro';
 
-// For free tier, skip Azure AI and use local template directly
 if (!hasAIAccess) {
   const question = craftQuestionFromPrompt(prompt, metadata);
   return new Response(JSON.stringify({
@@ -209,8 +217,9 @@ if (!hasAIAccess) {
 ```
 
 **Behavior:**
-- Free tier → Local deterministic template (`craftQuestionFromPrompt`)
-- Plus/Pro → Azure GPT-5 AI generation with ephemeris integration when configured; otherwise falls back to local template (`provider: 'local-fallback'`)
+- Free tier → deterministic local template (`craftQuestionFromPrompt`, `provider: 'local-template'`).
+- Plus/Pro → native OpenAI Responses when `OPENAI_API_KEY` is configured (`provider: 'openai-native'`), otherwise Azure Responses when the Azure configuration is present (`provider: 'azure-gpt5'`).
+- Paid generation falls back to the deterministic local generator when no provider is configured or the provider call fails (`provider: 'local-fallback'`).
 
 ---
 
@@ -297,7 +306,7 @@ if (token && token.startsWith('sk_')) {
 - Enforcement uses D1 `usage_tracking` with calendar month (UTC) keyed by `(user_id, YYYY-MM)`
 - Anonymous users are enforced via KV (`RATELIMIT`) per IP/month when available (best-effort)
 - On limit exceeded: returns 429 with `tierLimited`, `currentTier`, `limit`, `used`, `resetAt`
-- On D1 error: fails open (allows reading) and logs
+- On D1 tracking errors: interactive users fail open and the request is allowed; API keys and service tokens fail closed with a retry response so machine traffic cannot become unmetered.
 
 ```javascript
 const readingLimitResult = await enforceReadingLimit(env, request, user, subscription, requestId);
@@ -333,10 +342,10 @@ canUseSpread: (spreadKey) => {
 
 **Backend enforcement:** `functions/api/tarot-reading.js`
 
-- Requests are validated against a known spread catalog (unknown spread names are rejected).
-- Spread access is enforced server-side based on the user’s effective tier:
+- Requests for the six built-in spreads are validated against the known catalog and enforced server-side based on the user’s effective tier:
   - Free: `single`, `threeCard`, `fiveCard`
-  - Plus/Pro: all 6 spreads (adds `relationship`, `decision`, `celtic`)
+  - Plus/Pro: all 6 built-in spreads (adds `relationship`, `decision`, `celtic`)
+- An explicit `custom` key remains a backend compatibility path, but custom spread creation is not a shipped user-facing feature.
 
 ---
 
@@ -348,7 +357,8 @@ canUseSpread: (spreadKey) => {
 
 **Notes:**
 - Frontend (`src/hooks/useJournal.js`) uses local journal storage for Free users (even when authenticated) and supports local→cloud migration after upgrading.
-- Export (`functions/api/journal-export/index.js`) remains auth-only for data portability.
+- Server export (`functions/api/journal-export/index.js`) requires an effective Plus/Pro entitlement.
+- Free users retain client-side local journal exports (`src/lib/journalInsights.js` and `src/lib/pdfExport.js`); those exports do not use the server export endpoint.
 
 ---
 
@@ -361,7 +371,7 @@ canUseSpread: (spreadKey) => {
 - `DELETE /api/keys/:id` is allowed for any authenticated user (cleanup after downgrade).
 - API key usage is Pro-only and metered at 1,000 calls/month (D1 `usage_tracking.api_calls_count`).
 
-**Behavior (Phase 1):**
+**List/create behavior (Phase 1):**
 - Requires authenticated session
 - Requires `subscription_tier === 'pro'` and `subscription_status` in `['active', 'trialing', 'past_due']`
 - Unauthorized: 403 with `tierLimited: true` and `requiredTier: 'pro'`
@@ -441,6 +451,8 @@ export function useFeatureGate(feature) {
 }
 ```
 
+`customSpreads` remains a compatibility-only feature-gate entry in code; no user-facing custom spread builder is shipped.
+
 ### 4.3 UpgradeNudge Component ✅
 
 **File:** `src/components/UpgradeNudge.jsx`
@@ -479,117 +491,72 @@ Three variants: `inline`, `banner`, `modal`
 **File:** `functions/api/create-checkout-session.js`
 
 ```javascript
-export async function onRequestPost(context) {
-  const { request, env } = context;
+const body = await readJsonBody(request);
+const { tier, interval = 'monthly', successUrl, cancelUrl } = body;
+const priceIdEnvKey = interval === 'annual'
+  ? (tier === 'plus' ? 'STRIPE_PRICE_ID_PLUS_ANNUAL' : 'STRIPE_PRICE_ID_PRO_ANNUAL')
+  : (tier === 'plus' ? 'STRIPE_PRICE_ID_PLUS' : 'STRIPE_PRICE_ID_PRO');
 
-  // Authenticate user
-  const user = await getUserFromRequest(request, env);
-  if (!user) {
-    return new Response(JSON.stringify({ error: 'Authentication required' }), { status: 401 });
+if (user.stripe_customer_id) {
+  const subscription = await fetchLatestStripeSubscription(user.stripe_customer_id, env.STRIPE_SECRET_KEY);
+  if (subscription && isActive(mapStatus(subscription.status))) {
+    const portalSession = await callStripe('/billing_portal/sessions', 'POST', {
+      customer: user.stripe_customer_id,
+      return_url: sanitizeUrl(cancelUrl, request, env, '/account')
+    }, env.STRIPE_SECRET_KEY);
+    return toJson({ url: portalSession.url, flow: 'portal' });
   }
-
-  const { tier } = await request.json();
-
-  // Get or create Stripe customer
-  const customerId = await getOrCreateCustomer(env.DB, user, env.STRIPE_SECRET_KEY);
-
-  // Create Checkout Session
-  const session = await stripeRequest('/checkout/sessions', 'POST', {
-    'customer': customerId,
-    'mode': 'subscription',
-    'payment_method_types[0]': 'card',
-    'line_items[0][price]': env[`STRIPE_PRICE_ID_${tier.toUpperCase()}`],
-    'line_items[0][quantity]': '1',
-    'success_url': `${env.APP_URL}/account?session_id={CHECKOUT_SESSION_ID}`,
-    'cancel_url': `${env.APP_URL}/pricing`,
-    'subscription_data[metadata][user_id]': user.id,
-    'subscription_data[metadata][tier]': tier,
-    'allow_promotion_codes': 'true',
-    'billing_address_collection': 'auto',
-  }, env.STRIPE_SECRET_KEY);
-
-  return new Response(JSON.stringify({ sessionId: session.id, url: session.url }));
 }
+
+const priceId = env[priceIdEnvKey];
+const session = await callStripe('/checkout/sessions', 'POST', {
+  customer: await getOrCreateCustomer(env.DB, user, env.STRIPE_SECRET_KEY, callStripe),
+  mode: 'subscription',
+  'line_items[0][price]': priceId,
+  'line_items[0][quantity]': '1',
+  'success_url': sanitizeUrl(successUrl, request, env, '/account'),
+  'cancel_url': sanitizeUrl(cancelUrl, request, env, '/pricing')
+}, env.STRIPE_SECRET_KEY);
+
+return toJson({ sessionId: session.id, url: session.url });
 ```
+
+The endpoint accepts only `plus`/`pro` and `monthly`/`annual`; active Stripe customers are routed to the Billing Portal instead of receiving a second checkout session. Machine credentials cannot create checkout or portal sessions.
 
 ### 5.2 Webhook Handler ✅
 
 **File:** `functions/api/webhooks/stripe.js`
 
-**Idempotency (Phase 1):**
-- Checks D1 `processed_webhook_events` for `(provider='stripe', event_id=event.id)` before processing
-- On duplicate: returns `{ received: true, duplicate: true }`
-- After successful handling: records the event ID for future duplicate suppression
-- On D1 errors: logs warning and continues (fails open)
+**Idempotency (claim-first):**
+- The handler verifies the Stripe signature and parses the event before claiming it.
+- It atomically claims `(provider='stripe', event_id=event.id)` with `INSERT OR IGNORE` before handling the event.
+- A duplicate claim returns `{ received: true, duplicate: true }`.
+- If handling fails after a claim, the handler deletes the claim and returns 500 so Stripe can retry.
+- If the claim query itself fails, the handler logs the error and continues; this avoids silently dropping a webhook.
 
 ```javascript
-// Signature verification with replay attack prevention
-async function verifyStripeSignature(payload, signature, secret) {
-  // HMAC-SHA256 verification
-  // 5-minute timestamp window for replay prevention
-}
+const claim = await env.DB.prepare(`
+  INSERT OR IGNORE INTO processed_webhook_events
+  (provider, event_id, event_type, processed_at)
+  VALUES (?, ?, ?, ?)
+`).bind('stripe', event.id, event.type, Date.now()).run();
 
-// Status mapping
-function mapSubscriptionStatus(stripeStatus) {
-  const statusMap = {
-    'active': 'active',
-    'trialing': 'active',
-    'past_due': 'past_due',
-    'canceled': 'canceled',
-    'unpaid': 'unpaid',
-    'incomplete': 'incomplete',
-    'incomplete_expired': 'expired',
-    'paused': 'paused'
-  };
-  return statusMap[stripeStatus] || 'inactive';
-}
-
-// Tier extraction with fallback hierarchy
-function extractTierFromSubscription(subscription) {
-  // 1. Subscription metadata
-  if (subscription.metadata?.tier) return subscription.metadata.tier;
-
-  // 2. Price lookup_key
-  const item = subscription.items?.data?.[0];
-  const lookupKey = item?.price?.lookup_key;
-  if (lookupKey?.includes('pro')) return 'pro';
-  if (lookupKey?.includes('plus')) return 'plus';
-
-  // 3. Price metadata
-  if (item?.price?.metadata?.tier) return item.price.metadata.tier;
-
-  // 4. Amount-based fallback
-  const amount = item?.price?.unit_amount;
-  if (amount >= 1500) return 'pro';  // $15+
-  if (amount >= 500) return 'plus';   // $5+
-
-  return 'plus'; // Default
-}
-
-// Handled events
-switch (event.type) {
-  case 'customer.subscription.created':
-  case 'customer.subscription.updated':
-    await updateUserSubscription(env.DB, customerId, subscription);
-    break;
-  case 'customer.subscription.deleted':
-    await handleSubscriptionCanceled(env.DB, customerId);
-    break;
-  case 'invoice.payment_succeeded':
-  case 'invoice.payment_failed':
-  case 'customer.subscription.trial_will_end':
-    // Logged for analytics
-    break;
+if (claim.meta.changes === 0) {
+  return new Response(JSON.stringify({ received: true, duplicate: true }), { status: 200 });
 }
 ```
+
+`mapStripeStatus` preserves `trialing` as an active status. `extractTierFromSubscription` checks price lookup keys, price metadata, interval-aware amount thresholds, and only then legacy subscription metadata, so monthly/annual and portal changes converge correctly.
 
 ### 5.3 Required Secrets
 
 ```bash
-wrangler secret put STRIPE_SECRET_KEY        # sk_test_... or sk_live_...
-wrangler secret put STRIPE_WEBHOOK_SECRET    # whsec_...
-wrangler secret put STRIPE_PRICE_ID_PLUS     # price_...
-wrangler secret put STRIPE_PRICE_ID_PRO      # price_...
+wrangler secret put STRIPE_SECRET_KEY             # sk_test_... or sk_live_...
+wrangler secret put STRIPE_WEBHOOK_SECRET         # whsec_...
+wrangler secret put STRIPE_PRICE_ID_PLUS          # Plus monthly price_...
+wrangler secret put STRIPE_PRICE_ID_PLUS_ANNUAL   # Plus annual price_...
+wrangler secret put STRIPE_PRICE_ID_PRO           # Pro monthly price_...
+wrangler secret put STRIPE_PRICE_ID_PRO_ANNUAL    # Pro annual price_...
 ```
 
 ### 5.4 Customer Portal ✅
@@ -597,7 +564,8 @@ wrangler secret put STRIPE_PRICE_ID_PRO      # price_...
 **Backend:** `functions/api/create-portal-session.js`
 
 - `POST /api/create-portal-session` returns `{ url }` for a Stripe Billing Portal session
-- Requires authenticated user with `stripe_customer_id`
+- Requires an authenticated interactive user with `stripe_customer_id`
+- Checkout also routes an already-active Stripe subscription to the portal instead of creating another subscription
 
 **Frontend:** `src/pages/AccountPage.jsx`
 
@@ -656,7 +624,8 @@ if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Google Play Billing | ❌ Documented only | See `./enhanced-monetization.md` |
-| Usage dashboard | ⏳ Partial | Account shows readings + TTS + API calls; add historical charts if desired |
+| Usage dashboard | ✅ Shipped | Account shows readings, authenticated TTS, and API calls; historical charts remain optional |
+| Custom spread builder | ❌ Not shipped | The `custom` backend path is compatibility-only |
 | Prompt tier differentiation | ⏳ Placeholder | Different prompt depth per tier |
 
 ### Implemented D1 migrations ✅

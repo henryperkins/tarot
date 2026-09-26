@@ -216,7 +216,8 @@ integration, configure a **service token** instead:
 
 2. (Optional) Choose the entitlement tier — defaults to `plus`, clamped to
    Plus-or-higher. Set `GPT_SERVICE_TIER` to `pro` in `wrangler.jsonc` to also
-   unlock custom spreads and unlimited readings.
+   unlock unlimited readings. Custom layouts with caller-supplied cards already
+   work at `plus`.
 
 3. (Optional) For owner-gated diagnostics, mint a second, never-shared token:
 

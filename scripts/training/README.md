@@ -2,33 +2,40 @@
 
 Type: guide
 Status: active
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 This directory contains a mixed training and data-prep toolchain for the vision system. Python scripts handle LoRA training, FAISS indexing, and test harnesses, while Node scripts handle dataset/export utilities and legacy prototype generation.
+
+Run every command in this guide from the repository root. Paths in the examples are repository-root relative. Use `python3` in place of `python` on systems where `python` is not aliased.
 
 ## Prerequisites
 
 1. **Python 3.10+** for model training and FAISS tooling
-2. **Node.js 20+** for dataset/export scripts already wired into the repo workflow
+2. **Node.js 24+** for dataset/export scripts already wired into the repo workflow
 3. **CUDA-capable GPU** for practical training runs
 4. Install Python dependencies when using the Python scripts:
 
 ```bash
-pip install -r requirements.txt
+python3 -m pip install -r scripts/training/requirements.txt
 ```
+
+> **Production-data and external-transmission warning**
+> - `exportReadings.js` defaults to remote D1 and KV through Wrangler; R2-backed metrics are also remote. Exports can contain questions, readings, reflections, feedback, evaluation payloads, and other personal data. Confirm production-data authorization and use only approved source and destination paths.
+> - `logToWandB.js` transmits selected reading content and metadata to the external Weights & Biases/Weave service. Do not run it without approved credentials, project access, data-policy review, and any required redaction.
+> - Training and index commands write derived artifacts that may encode source data. Keep those artifacts in authorized locations, protect them like the source data, and do not commit them without review.
 
 ## Directory Structure
 
 - `trainLoRA.py` - fine-tunes the CLIP model using LoRA
 - `buildVectorIndex.py` - generates FAISS vector indices for deck retrieval
-- `testIndex.py` - local verification helper for generated indices
+- `testIndex.py` - optional local query diagnostic for generated indices; it is not a pass/fail verifier
 - `buildMultimodalDataset.js` - Node-based dataset assembly helper
 - `exportReadings.js` - exports reading data for downstream training and evaluation
 - `logToWandB.js` - WandB logging helper
 - `buildVisionPrototypes.js` - older Node prototype builder retained for comparison
 - `requirements.txt` - Python dependencies
-- `../../data/raw_images/{deck_name}/` - raw source scans
-- `../../data/indices/{deck_name}/` - generated FAISS indices and metadata
+- `data/raw_images/{deck_name}/` - raw source scans
+- `data/indices/{deck_name}/` - generated FAISS indices and metadata
 
 ## Workflow
 
@@ -40,7 +47,7 @@ Filenames should be descriptive (e.g., `01_magician.jpg`, `ace_of_cups.png`) as 
 Run the LoRA training script to adapt the CLIP model to your deck's art style.
 
 ```bash
-python trainLoRA.py --deck rws --epochs 10 --batch_size 4
+python3 scripts/training/trainLoRA.py --deck rws --epochs 10 --batch_size 4
 ```
 
 This will save the trained adapters to `models/adapters/rws`.
@@ -49,10 +56,30 @@ This will save the trained adapters to `models/adapters/rws`.
 Generate a FAISS index for the deck using the trained model.
 
 ```bash
-python buildVectorIndex.py --deck rws --adapter_path models/adapters/rws
+python3 scripts/training/buildVectorIndex.py --deck rws --adapter_path models/adapters/rws
 ```
 
 This will save `index.faiss` and `metadata.json` to `data/indices/rws`.
+
+Optionally run a local query diagnostic:
+
+```bash
+python3 scripts/training/testIndex.py --deck rws --query "a tarot card of the magician"
+```
+
+`testIndex.py` loads the index and prints nearby metadata. It does not assert result correctness, compare against a baseline, or produce a meaningful verification result when the index is missing; treat its output as inspection evidence, not a verification pass.
+
+### Reading Data Utilities
+
+Run the Node helpers from the repository root as well:
+
+```bash
+node scripts/training/buildMultimodalDataset.js --in training/readings.jsonl --out training/multimodal-dataset.jsonl
+node scripts/training/exportReadings.js --out training/readings.jsonl
+node scripts/training/logToWandB.js --input training/readings.jsonl
+```
+
+The export contains reading data; keep generated files in an authorized location and do not commit personal data.
 
 ### RWS Grounding Dataset
 

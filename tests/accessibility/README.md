@@ -1,6 +1,8 @@
 # Accessibility Testing Guide
 
-This directory contains automated and manual testing tools to validate WCAG 2.1 AA compliance for the Tableu Tarot application.
+This directory contains automated and manual testing tools to support WCAG 2.1 A/AA review of the Tableu Tarot application. The scripts are not a complete conformance audit: the contrast checker and error-level static findings are enforced, while several browser observations and manual checks are diagnostic.
+
+The current CI/toolchain uses Node 24; the lockfile currently resolves Playwright 1.62.1, `@axe-core/playwright` 4.12.1, and the `motion` package 12.43.0. The accessibility spec selects WCAG 2.0/2.1 A/AA axe tags; it does not claim WCAG 2.2 coverage.
 
 ## Automated Tests
 
@@ -15,21 +17,23 @@ npm run test:contrast
 node tests/accessibility/contrast-checker.mjs
 ```
 
-**What it checks:**
+**What it enforces and reports:**
+- Configured light and dark theme-token combinations
 - Text contrast (WCAG AA: 4.5:1, AAA: 7.0:1)
-- UI component contrast (WCAG AA: 3.0:1)
-- Focus ring visibility
-- Translucent surface contrast (with warnings)
+- UI component and focus-ring token contrast (WCAG AA: 3.0:1)
+- Simplified contrast calculations for translucent surfaces and their backdrops
+
+The command exits non-zero when a configured case fails. Its translucent-surface calculation is not a substitute for checking computed contrast in a rendered browser.
 
 **Expected output:**
-- Pass/fail status for each color combination
+- Pass/fail status for each configured color combination
 - Contrast ratios with required thresholds
-- Specific locations in code where issues occur
+- Token locations and the calculated foreground/background colors
 - Recommendations for fixes
 
 ### 2. WCAG Code Analyzer (`wcag-analyzer.mjs`)
 
-Static code analysis to detect common accessibility issues in JSX/CSS.
+Static analysis of `src/` JSX, JavaScript, TypeScript, and CSS for common accessibility issues.
 
 **Run:**
 ```bash
@@ -38,24 +42,24 @@ npm run test:wcag
 node tests/accessibility/wcag-analyzer.mjs
 ```
 
-**What it checks:**
-- Missing alt attributes on images
-- Icon-only buttons without aria-labels
-- Inputs without label associations
-- Positive tabIndex values
-- div elements used as buttons
-- Low opacity values that may affect contrast
-- Dynamic content without aria-live regions
+**What it reports:**
+- Missing or empty image alternative text
+- Icon-only buttons without accessible names
+- Inputs, selects, and textareas without a detected label association
+- Empty links, missing document language, and positive tab indices
+- Autoplaying video, low-opacity utility classes, and divs with click handlers that lack keyboard semantics
 
 **Expected output:**
 - Error/warning/info severity levels
 - File locations and line numbers
-- Code snippets showing issues
-- Fix suggestions for each issue
+- Code snippets showing findings
+- Fix suggestions for each finding
+
+The analyzer scans `src/` and exits non-zero only for `ERROR` findings. `WARNING` and `INFO` findings are diagnostics and do not fail `npm run test:wcag`.
 
 ### 3. Playwright axe-core Tests (`e2e/accessibility.spec.js`)
 
-Runtime accessibility testing using axe-core on actual rendered pages. Catches issues that static analysis misses.
+Runtime accessibility testing using axe-core on rendered pages. It catches issues that static analysis misses.
 
 **Run:**
 ```bash
@@ -64,38 +68,42 @@ npm run test:a11y:e2e
 npm run test:a11y:e2e:ui
 ```
 
-**What it checks:**
-- Actual computed color contrast
-- ARIA attributes and state on rendered DOM
-- Keyboard navigation and focus management
-- Heading hierarchy and landmarks
-- Form label associations
-- Touch target sizes (mobile)
-- Reduced motion respect
-- Live regions
+The `playwright.a11y.config.js` profile currently runs the desktop Chromium project and excludes `@mobile` tests. It also sets `reducedMotion: 'reduce'` for stability, so this suite is not a normal-motion behavior test. The main Playwright configuration is separate.
 
-**Test Suites:**
+**Enforced failures:**
+- Critical and serious axe violations for the selected WCAG tags
+- Explicit assertions such as desktop tab-order tolerance and the reduced-motion element count
+
+**Diagnostic observations:**
+- Button-name, focus-indicator, heading-skip, and error-association findings are logged for review
+- Lower-impact axe violations are reported but are not all turned into test failures
+- A reduced-motion run checks that fewer than ten elements exceed 300ms; it does not prove every animation is disabled
+- The `@mobile` suite is excluded from this profile, so it produces no automated touch-target or mobile horizontal-scroll result here
+
+**Test suites:**
 - Core Pages - Home page, spread selector, question input
 - Interactive Components - Buttons, focus indicators, contrast
-- Keyboard Navigation - Tab order, arrow key navigation, escape key
+- Keyboard Navigation - Desktop tab order, arrow key navigation, escape key
 - Live Regions - Landmarks, heading hierarchy
-- Mobile - Touch targets, horizontal scroll
+- Mobile - Defined but excluded; manual or separately configured mobile testing is required for touch targets and horizontal scroll
 - Reduced Motion - Animation duration checks
 - Forms - Labels, error associations
 
 ### 4. Run All Automated Tests
 
 ```bash
-npm run test:a11y:all   # Static + runtime tests
-npm run test:a11y       # Static tests only (faster)
-npm run test:a11y:e2e   # Runtime tests only
+npm run test:a11y:all   # Static checks + desktop Playwright accessibility tests
+npm run test:a11y       # Static checks only
+npm run test:a11y:e2e   # Desktop Playwright accessibility tests only
 ```
 
-This runs contrast checker, WCAG analyzer, and Playwright axe-core tests.
+`test:a11y:all` runs the contrast checker, the WCAG analyzer, and the desktop Playwright accessibility profile. It does not add the manual checks, Lighthouse, or the mobile project excluded by `playwright.a11y.config.js`. The current CI workflows do not invoke the accessibility commands automatically.
 
 ---
 
 ## Manual Testing Guides
+
+The browser extensions, Lighthouse audits, keyboard walkthroughs, screen-reader sessions, and reduced-motion walkthrough below are manual diagnostics and review targets. They are not pass/fail checks in `npm run test:a11y` or CI.
 
 ### Browser-Based Testing
 
@@ -286,8 +294,8 @@ This runs contrast checker, WCAG analyzer, and Playwright axe-core tests.
 ### Reduced Motion Testing
 
 **Enable:**
-- **macOS:** System Preferences → Accessibility → Display → Reduce motion
-- **Windows:** Settings → Ease of Access → Display → Show animations
+- **macOS:** System Settings → Accessibility → Display → Reduce motion
+- **Windows:** Settings → Accessibility → Visual effects → Animation effects
 - **Browser:** DevTools → Rendering → Emulate CSS media `prefers-reduced-motion`
 
 **Test:**
@@ -300,10 +308,10 @@ This runs contrast checker, WCAG analyzer, and Playwright axe-core tests.
 ```
 
 **Check Files:**
-- Card.jsx (flip animation)
+- `src/components/Card.jsx` (flip animation)
 - Modal components
 - Any CSS animations
-- Framer Motion components
+- Components using the `motion` package
 
 **Document:**
 - Animations that don't respect reduced motion
@@ -315,13 +323,14 @@ This runs contrast checker, WCAG analyzer, and Playwright axe-core tests.
 
 ### Priority 1: Critical Issues
 
-- [ ] Run `npm run test:contrast` - all tests pass
-- [ ] Run `npm run test:wcag` - no ERROR level issues
-- [ ] axe DevTools - no violations
-- [ ] Lighthouse accessibility score ≥ 95
+- [ ] Run `npm run test:contrast` - configured contrast cases pass
+- [ ] Run `npm run test:wcag` - no ERROR-level findings
+- [ ] Run `npm run test:a11y:e2e` - no critical or serious axe violations
+- [ ] Review axe DevTools diagnostics - no violations requiring action
+- [ ] Lighthouse accessibility score ≥ 95 (manual target, not a script gate)
 - [ ] Keyboard navigation - all elements reachable and focusable
 - [ ] Screen reader - all content announced correctly
-- [ ] Reduced motion - all animations respect preference
+- [ ] Reduced motion - animations respect the preference
 
 ### Priority 2: Important Issues
 
@@ -354,10 +363,10 @@ jobs:
   a11y:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - run: npm ci
       - run: npm run test:a11y
 ```
@@ -369,7 +378,7 @@ jobs:
 - [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
 - [axe DevTools Documentation](https://www.deque.com/axe/devtools/)
 - [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/)
-- [Keyboard Accessibility](https://webaim.org/articles/keyboard/)
+- [Keyboard Accessibility](https://webaim.org/techniques/keyboard/)
 - [ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/)
 - [NVDA User Guide](https://www.nvaccess.org/files/nvda/documentation/userGuide.html)
 - [VoiceOver User Guide](https://support.apple.com/guide/voiceover/welcome/mac)

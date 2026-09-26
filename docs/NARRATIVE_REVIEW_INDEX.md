@@ -57,7 +57,7 @@ This comprehensive review analyzes the narrative builder and prompt engineering 
 ---
 
 ### 3. Implementation Roadmap
-**File:** [NARRATIVE_IMPROVEMENTS_PLAN.md](./NARRATIVE_IMPROVEMENTS_PLAN.md)
+**File:** [NARRATIVE_IMPROVEMENTS_PLAN.md](./plans/archived/NARRATIVE_IMPROVEMENTS_PLAN.md)
 **Size:** 14KB
 **Audience:** Developers implementing the changes
 

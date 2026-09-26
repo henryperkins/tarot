@@ -16,6 +16,7 @@ node --test tests/checkoutSession.test.mjs tests/stripe.webhook.test.mjs
 
 ## Manual Spot Checks
 
-- OAuth callback with valid and invalid `state`.
-- Expired state rejection path.
-- Auth user route rate-limit behavior under repeated calls.
+- OAuth start with an HTTP-only state cookie, then a callback with valid and invalid `state`.
+- Expired-state rejection, successful session-cookie creation and state-cookie clearing, and return-URL sanitization before the response.
+- `POST /api/auth/login` limiter: after five 401 failures (unknown email or wrong password) in one 5-minute window, the next attempt returns 429 with `Retry-After` before the password check; successful and inactive-account logins do not count. Also probe the gaps in `examples.md`: a parallel burst of failures and a missing `RATELIMIT` binding.
+- Confirm route reachability through `src/worker/index.js`; do not assume a removed standalone auth server.

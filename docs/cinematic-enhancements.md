@@ -2,75 +2,63 @@
 
 Type: reference
 Status: active reference
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 ## Overview
 
-This document describes the cinematic enhancements added to the Tableu tarot reading application, focusing on atmospheric transitions, immersive loading states, and dynamic visual feedback.
+This document records the cinematic surfaces that are live in the reading flow and separates them from prototype components and future proposals.
 
 ## Core Features
 
 ### 1. Scene Orchestration (`useSceneOrchestrator`)
 
-A unified state machine that replaces fragmented boolean flags with explicit scene states.
+A unified state machine that exposes explicit scene states. The current canonical flow is:
 
-**Scene Flow:**
 ```
-IDLE → SHUFFLING → DRAWING → REVEALING → INTERLUDE → DELIVERY → COMPLETE
+IDLE → RITUAL → REVEAL → INTERLUDE → NARRATIVE → COMPLETE
 ```
+
+`currentScene` retains legacy values for compatibility; new scene-shell consumers should use `activeScene` and the canonical names above. The old `shuffling`, `drawing`, `revealing`, and `delivery` names are aliases, not the current scene-shell states.
 
 **Usage:**
 ```javascript
 import { useSceneOrchestrator } from '../hooks/useSceneOrchestrator';
 
-const { 
-  currentScene, 
-  scenes, 
-  shouldShowInterlude,
-  onSceneTransition 
+const {
+  activeScene,
+  scenes,
+  transitionMeta,
+  shouldPrefetchAssets,
+  shouldShowInterlude
 } = useSceneOrchestrator({
   isShuffling,
   hasConfirmedSpread,
   revealedCards,
   totalCards,
   isGenerating,
+  isReadingStreamActive,
   personalReading,
   reading
 });
-
-// React to scene transitions
-useEffect(() => {
-  const cleanup = onSceneTransition((prevScene, nextScene) => {
-    if (nextScene === scenes.REVEALING) {
-      // Prefetch assets
-    }
-  });
-  return cleanup;
-}, []);
 ```
 
-### 2. Atmospheric Interlude (`AtmosphericInterlude`)
+`shouldPrefetchAssets` is true for `REVEAL` and `NARRATIVE`; `transitionMeta.to` uses the canonical scene names.
 
-Replaces skeleton loading screens with an immersive "breathing" animation during narrative generation.
+### 2. Interlude Scene and `AtmosphericInterlude` (prototype; unused in the live flow)
 
-**Features:**
-- Breathing orb animation (4-second cycle)
-- Shimmer effects on mystical symbols
-- Progressive message evolution
-- Constellation of animated particles
-- Full reduced-motion support
+The live `interlude` state renders `InterludeScene` with `NarrativeSkeleton`. The separate `AtmosphericInterlude` component exists as a prototype, but no live reading route imports it; its breathing orb, shimmer, and constellation effects should not be described as shipped behavior.
 
-**Usage:**
-```javascript
-import { AtmosphericInterlude } from '../components/AtmosphericInterlude';
+The shipped interlude surface:
+- Shows a narrative-generation status and skeleton
+- Reports progress through the live scene state
+- Uses the scene shell's reduced-motion and particle behavior
+- Preserves an accessible status announcement
 
-{shouldShowInterlude && (
-  <AtmosphericInterlude 
-    message="Channeling your reading..."
-    theme="narrative-atmosphere--warm"
-  />
-)}
-```
+The prototype component includes:
+- A 4-second breathing-orb cycle
+- Shimmer symbols and a 12-symbol constellation
+- Progressive status messages
+- Reduced-motion branches
 
 ### 3. Hero's Journey Color Script (`colorScript`)
 
@@ -111,22 +99,16 @@ The color script system works through CSS custom properties:
 }
 ```
 
-### 4. Enhanced Text Streaming (`useEnhancedTextStreaming`)
+### 4. Enhanced Text Streaming (`useEnhancedTextStreaming`; prototype; unused)
 
-Locale-sensitive text segmentation with element-based atmosphere triggers.
+The live narrative path uses `StreamingNarrative`, which handles progressive rendering, TTS word-boundary highlighting, and CSS word-reveal effects. `useEnhancedTextStreaming` is a separate prototype hook: it is not imported by the live reading flow, and its `Intl.Segmenter` and element-trigger effects are not shipped behavior.
 
-**Features:**
-- Uses `Intl.Segmenter` API for proper word/sentence boundaries
-- Regex-based keyword detection for atmospheric elements
-- Cooldown system prevents trigger spam
+Prototype capabilities:
+- `Intl.Segmenter`-based word or sentence segmentation with a simple fallback
+- Regex-based fire/water/air/earth trigger detection
+- Configurable cooldown between element triggers
 
-**Element Mapping:**
-- **Fire**: passion, burn, desire → Red-amber palette
-- **Water**: emotion, flow, intuition → Blue palette
-- **Air**: thought, clarity, truth → Violet-sky palette
-- **Earth**: root, body, stability → Brown-green palette
-
-**Usage:**
+Prototype-only usage:
 ```javascript
 import { useEnhancedTextStreaming } from '../hooks/useEnhancedTextStreaming';
 
@@ -137,27 +119,29 @@ const {
   hasSegmenter
 } = useEnhancedTextStreaming({
   onElementDetected: (element, config) => {
-    // Apply visual/audio changes based on element
-    console.log(`Detected ${element}:`, config.palette);
+    handlePrototypeAtmosphere(element, config);
   },
   locale: 'en',
   granularity: 'word'
 });
 
-// Segment streaming text
 const segments = segmentText(narrativeChunk);
-
-// Detect atmospheric triggers
 detectElementTriggers(narrativeChunk);
 ```
 
+**Prototype element mapping:**
+- **Fire**: passion, burn, desire → Red-amber palette
+- **Water**: emotion, flow, intuition → Blue palette
+- **Air**: thought, clarity, truth → Violet-sky palette
+- **Earth**: root, body, stability → Brown-green palette
+
 ### 5. Enhanced Haptic Feedback
 
-Extended haptic patterns for cinematic tactile feedback.
+The centralized `useHaptic` hook provides typed patterns for semantic feedback. It is disabled when `prefers-reduced-motion` is active, as well as when the device has no Vibration API or the caller passes `disabled`. This guarantee applies to the hook; direct `navigator.vibrate` call sites are separate code paths.
 
-**New Patterns:**
-- `cardLanding`: 20ms - Brief pulse when card lands in spread
-- `majorArcana`: [50, 30, 50] - Complex pattern for Major Arcana emphasis
+**Current patterns:**
+- `cardLanding`: 20ms - Brief pulse when a card lands
+- `majorArcana`: [50, 30, 50] - Major Arcana emphasis
 - `readingComplete`: [100, 50, 100] - Success confirmation
 
 **Usage:**
@@ -195,10 +179,11 @@ Features that adapt to reduced motion:
 - Atmospheric orb breathing disabled
 - Color script filters removed
 - Particle animations hidden
-- Haptic feedback may still function (user device control)
+- Centralized haptic feedback is disabled when reduced motion is active
+- Device support is a silent no-op when the Vibration API is unavailable
 
 ### Screen Readers
-All visual enhancements include proper ARIA labels and live regions:
+Live status surfaces include appropriate labels and live regions:
 ```javascript
 <div
   role="status"
@@ -206,56 +191,35 @@ All visual enhancements include proper ARIA labels and live regions:
   aria-live="polite"
   aria-busy="true"
 >
-  <AtmosphericInterlude />
+  <InterludeScene sceneModels={sceneModels} />
 </div>
 ```
 
 ## Performance Considerations
 
-### CSS-First Approach
-All animations use CSS transforms and opacity for GPU acceleration:
-```css
-.breathing-element {
-  /* GPU-accelerated properties only */
-  transform: scale(1.15);
-  opacity: 0.8;
-  will-change: transform, opacity;
-}
-```
+### Mixed Motion Stack
 
-### Ref-Based Updates
-High-frequency updates bypass React rendering:
-```javascript
-// Direct DOM manipulation for 60fps animations
-const node = elementRef.current;
-if (node) {
-  node.style.transform = `translateY(${y}px)`;
-}
-```
+Motion is implemented as a mixed stack:
+- JS-driven card, deck, overlay, modal, gesture, and toast transitions go through `src/lib/motionAdapter.js`, which wraps the `motion` library.
+- CSS keyframes handle narrative word reveals and the card-slot reveal burst.
+- `@tsparticles/react` and `@tsparticles/slim` provide the shared scene-level `ParticleLayer`; the per-slot reveal burst is CSS-based.
+- Sora card video is a separate feature-flagged media path, not an animation primitive.
 
-### Predictive Loading
-Scene transitions trigger asset prefetching:
-```javascript
-onSceneTransition((prev, next) => {
-  if (next === scenes.REVEALING) {
-    // Prefetch heavy assets before they're needed
-    prefetchVideoAssets();
-    prefetchAudioLayers();
-  }
-});
-```
+### Reduced-Motion and Lifecycle Safeguards
+
+Scene transitions are skipped when reduced motion is active, particles receive a zero count, and the slot reveal burst collapses through the global reduced-motion rules. Particle sessions clean up their canvas when a scene unmounts, and media polling is bounded by the card-video client flow.
 
 ## Testing
 
 ### Unit Tests
 ```bash
-npm test tests/cinematicEnhancements.test.mjs
+node --test tests/cinematicEnhancements.test.mjs
 ```
 
 Tests cover:
 - Scene state derivation
-- Color script selection logic
-- Element trigger detection
+- Color-script selection behavior
+- Prototype element-trigger fixtures (not a live integration test)
 - Haptic pattern validation
 
 ### Integration Testing
@@ -268,20 +232,33 @@ npm run test:e2e
 
 | Feature | Support | Fallback |
 |---------|---------|----------|
-| Intl.Segmenter | Modern browsers | Simple word split |
-| CSS filter | All modern | Graceful degradation |
-| Vibration API | Mobile browsers | Silent no-op |
-| Framer Motion | All modern | CSS animations |
-| CSS custom properties | All modern | Static defaults |
+| `Intl.Segmenter` (prototype hook) | Modern browsers | Simple word split |
+| CSS filters and custom properties | All modern | Static defaults |
+| `motion` library via `motionAdapter` | Modern browsers | Reduced/static state |
+| Vibration API (centralized haptics) | Mobile browsers | Silent no-op; reduced motion disables it |
+| `@tsparticles` scene layer | Modern browsers | No particles |
+| Sora card video | Feature/config dependent | Static media fallback |
 
-## Future Enhancements
+## Implementation Status and Proposals
 
-The current implementation provides a foundation for:
+### Implemented
 
-1. **Video Integration**: Async Sora-2 generation with blob pre-loading
-2. **Audio Layers**: Ambient soundscapes responding to narrative arc
-3. **Particle Systems**: WebGL-based particle trails for card movements
-4. **Advanced Haptics**: Pattern composition based on card combinations
+- Canonical scene orchestration with `IDLE`, `RITUAL`, `REVEAL`, `INTERLUDE`, `NARRATIVE`, and `COMPLETE` states.
+- JS motion through the `motion` adapter, CSS narrative/slot-reveal effects, and shared `@tsparticles` scene particles.
+- Sora-backed card video generation through the feature-flagged `/api/generate-card-video` path for Plus/Pro media access.
+- Centralized haptics with reduced-motion disabling.
+
+### Prototype or unused
+
+- `AtmosphericInterlude` is a prototype component and is not used by the live reading route.
+- `useEnhancedTextStreaming` is a prototype hook and is not used by `StreamingNarrative`.
+
+### Proposals
+
+1. **Video expansion:** richer Sora usage across additional reading surfaces, if product scope and quotas are defined.
+2. **Audio layers:** narrative-driven ambient layers beyond the existing scene sounds.
+3. **Particle work:** WebGL-based trails or richer interaction presets.
+4. **Advanced haptics:** pattern composition based on card combinations.
 
 ## Troubleshooting
 
@@ -291,16 +268,18 @@ Check that the emotional tone is being provided:
 console.log({ narrativePhase, emotionalTone, reasoning });
 ```
 
-### Atmospheric Interlude Not Showing
-Verify the scene orchestrator state:
+### Interlude Scene Not Showing
+Verify the canonical active scene and its model:
 ```javascript
-console.log({ currentScene, shouldShowInterlude });
+console.log({ activeScene, shouldShowInterlude, sceneModels });
 ```
+
+The live component is `InterludeScene`; `AtmosphericInterlude` is only the unused prototype.
 
 ### Haptic Feedback Not Working
 - Check device support: `navigator.vibrate` must exist
-- Ensure user hasn't disabled reduced motion
-- Test on actual mobile device (desktop browsers may not support)
+- The centralized hook is disabled when reduced motion is active
+- Test on an actual mobile device (desktop browsers may not support haptics)
 
 ## Best Practices
 
@@ -314,7 +293,13 @@ console.log({ currentScene, shouldShowInterlude });
 ## References
 
 - [Scene Orchestrator Hook](../src/hooks/useSceneOrchestrator.js)
-- [Atmospheric Interlude Component](../src/components/AtmosphericInterlude.jsx)
+- [Scene Shell](../src/components/scenes/SceneShell.jsx)
+- [Interlude Scene](../src/components/scenes/InterludeScene.jsx)
+- [Atmospheric Interlude Prototype](../src/components/AtmosphericInterlude.jsx)
 - [Color Script Library](../src/lib/colorScript.js)
-- [Enhanced Text Streaming](../src/hooks/useEnhancedTextStreaming.js)
-- [Haptic Patterns](../src/hooks/useHaptic.js)
+- [Live Narrative Streaming](../src/components/StreamingNarrative.jsx)
+- [Enhanced Text Streaming Prototype](../src/hooks/useEnhancedTextStreaming.js)
+- [Particle Layer](../src/components/ParticleLayer.jsx)
+- [Motion Adapter](../src/lib/motionAdapter.js)
+- [Haptic Hook](../src/hooks/useHaptic.js)
+- [Sora Card Video UI](../src/components/AnimatedReveal.jsx)

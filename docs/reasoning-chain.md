@@ -1,15 +1,18 @@
-# Reasoning Chain for Local Composer
+# Reasoning Chain for Narrative Analysis and Local Composer
 
-Type: design note
-Status: active background document
-Last reviewed: 2026-04-23
+Type: reference
+Status: active reference
+Last reviewed: 2026-09-25
 
-> ⚠️ **STATUS: PROTOTYPE — NOT IN PRODUCTION**
+> **STATUS: ACTIVE — INTEGRATED**
 >
-> This feature is implemented but **not yet integrated into the production reading flow**. The code exists at the locations below, but the main [`functions/api/tarot-reading.js`](../functions/api/tarot-reading.js) endpoint does not currently invoke it.
+> The reasoning chain is part of production reading analysis and the local composer.
+> `functions/api/tarot-reading.js` builds `analysis.reasoning` after spread analysis;
+> the local composer wraps its spread builders with `buildReadingWithReasoning()` and
+> uses reasoning-aware openings, connectors, and synthesis.
 >
 > **Location:** `functions/lib/narrative/reasoning.js`, `functions/lib/narrative/reasoningIntegration.js`
-> **Purpose:** Add explicit "thinking" to the local composer fallback for more coherent, cross-card-aware readings without requiring an LLM.
+> **Purpose:** Add explicit, deterministic cross-card reasoning to production analysis and to the local composer without requiring an LLM.
 
 ## Overview
 
@@ -137,6 +140,12 @@ Determines how much narrative weight each position should receive.
 **Code Location:** `reasoning.js:buildEmphasisMap()`
 
 ## Integration Points
+
+In the production request path, spread analysis runs first and then
+`buildReadingReasoning()` populates `analysis.reasoning`. The local composer
+then calls `buildReadingWithReasoning()` around the selected spread builder.
+The reasoning-aware opening, connector selection, and synthesis helpers are
+therefore active production behavior, not a separate prototype path.
 
 ### With Existing Builders
 
@@ -460,7 +469,7 @@ All operations are deterministic (no LLM calls) and synchronous.
 Unit tests are located in `tests/reasoning.test.mjs`.
 
 ```bash
-npm test -- --grep "reasoning"
+node --test --test-name-pattern='reasoning' tests/reasoning.test.mjs
 ```
 
 Key test cases:

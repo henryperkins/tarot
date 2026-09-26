@@ -2,51 +2,41 @@
 
 Type: reference
 Status: active background document
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
-This document provides visual examples of the cinematic enhancements in action.
+This document provides visual examples of the current reading flow, with prototype visuals and future concepts labeled explicitly.
 
 ## Scene Flow Diagram
 
 ```
 ┌─────────────┐
-│  IDLE_DECK  │ ← User at homepage, no reading started
+│    IDLE     │ ← Reading surface is ready
 └──────┬──────┘
-       │ user clicks "Begin Reading"
+       │ user begins a reading
        ▼
 ┌─────────────┐
-│  SHUFFLING  │ ← Physics-based deck shuffle animation
+│   RITUAL    │ ← Shuffle, optional knock/cut, and card dealing
 └──────┬──────┘
-       │ animation complete
+       │ cards are dealt
        ▼
 ┌─────────────┐
-│   DRAWING   │ ← Cards being dealt to spread positions
-└──────┬──────┘   Ghost cards fly from deck to slots
-       │           (suit-colored particle trails)
-       │ all cards dealt
+│   REVEAL    │ ← User reveals cards; CSS reveal bloom/burst can run
+└──────┬──────┘
+       │ all cards revealed and narrative requested
        ▼
 ┌─────────────┐
-│  REVEALING  │ ← User taps/clicks to flip each card
-└──────┬──────┘   Haptic pulse on each reveal
-       │           (stronger pulse for Major Arcana)
-       │ all cards revealed, user clicks "Generate Reading"
+│  INTERLUDE  │ ← Live NarrativeSkeleton while generation is pending
+└──────┬──────┘
+       │ first narrative content arrives
        ▼
 ┌─────────────┐
-│  INTERLUDE  │ ← Atmospheric breathing orb replaces spinner
-└──────┬──────┘   "Channeling the cards..."
-       │           Shimmer symbols, constellation particles
-       │ AI response begins streaming
-       ▼
-┌─────────────┐
-│  DELIVERY   │ ← Narrative streams in with:
-└──────┬──────┘   - Color script shifts (struggle → revelation → resolution)
-       │           - Element detection (fire/water/air/earth)
-       │           - Locale-aware word segmentation
+│  NARRATIVE  │ ← Streaming narrative, color script, and scene particles
+└──────┬──────┘
        │ narrative complete
        ▼
 ┌─────────────┐
-│  COMPLETE   │ ← Reading complete, actions available
-└─────────────┘   (Save, Share, Follow-up)
+│  COMPLETE   │ ← Follow-up, save, share, media, and new-reading actions
+└─────────────┘
 ```
 
 ## Color Script Transitions
@@ -105,9 +95,11 @@ Visual Effect: Earthy browns, soft greens, balanced contrast
 Mood: Peaceful, integrated
 ```
 
-## Atmospheric Interlude States
+## Interlude Scene States
 
-### Initial Phase (0-3 seconds)
+The live `interlude` scene uses `InterludeScene` and `NarrativeSkeleton`. The following orb/star treatments are visual references for the unused `AtmosphericInterlude` prototype, not the shipped loading surface.
+
+### Prototype: Initial Phase (0-3 seconds)
 ```
 ┌───────────────────────────────────────────┐
 │                                           │
@@ -122,7 +114,7 @@ Mood: Peaceful, integrated
 └───────────────────────────────────────────┘
 ```
 
-### Progression Phase (3-6 seconds)
+### Prototype: Progression Phase (3-6 seconds)
 ```
 ┌───────────────────────────────────────────┐
 │                                           │
@@ -137,7 +129,7 @@ Mood: Peaceful, integrated
 └───────────────────────────────────────────┘
 ```
 
-### Extended Phase (6+ seconds)
+### Prototype: Extended Phase (6+ seconds)
 ```
 ┌───────────────────────────────────────────┐
 │                                           │
@@ -151,7 +143,9 @@ Mood: Peaceful, integrated
 └───────────────────────────────────────────┘
 ```
 
-## Element Detection Examples
+## Prototype Element Detection Examples
+
+`useEnhancedTextStreaming` is a prototype and is not used by the live `StreamingNarrative` path. The examples below illustrate its intended fire/water/air/earth mapping only.
 
 ### Fire Element Trigger
 ```
@@ -199,6 +193,8 @@ Response:
 
 ## Haptic Feedback Patterns
 
+The pattern values below correspond to `HAPTIC_PATTERNS` in the centralized `useHaptic` hook and apply to callers that use that hook. The hook suppresses vibration when `prefers-reduced-motion` is active and on unsupported devices. These examples do not imply that every haptics call site in the repository is centralized.
+
 ### Minor Arcana Card Reveal
 ```
 User taps card → Card flips → Landing complete
@@ -237,9 +233,11 @@ Haptic Pattern:
 Meaning: "Your reading is complete and ready"
 ```
 
-## Text Segmentation Comparison
+## Prototype Text Segmentation Comparison
 
-### Without Intl.Segmenter (Simple Split)
+The shipped narrative renderer has its own progressive text path. The `Intl.Segmenter` comparison below documents the unused `useEnhancedTextStreaming` prototype.
+
+### Without Intl.Segmenter (Prototype Fallback)
 ```
 Input: "The Fool's journey begins. Will you take the leap?"
 
@@ -270,83 +268,78 @@ Benefits:
 
 ## Practical Integration Example
 
-### Complete Reading Flow with Cinematic Enhancements
+### Current Reading Flow
 ```javascript
-function CinematicReading() {
-  const sceneOrchestrator = useSceneOrchestrator({ /* ... */ });
+function CinematicReading({ sceneModels, colorScript }) {
+  const orchestrator = useSceneOrchestrator({
+    isShuffling,
+    hasConfirmedSpread: Boolean(reading),
+    revealedCards,
+    totalCards: reading?.length || 0,
+    isGenerating,
+    isReadingStreamActive,
+    personalReading,
+    reading
+  });
+
+  const { activeScene, scenes } = orchestrator;
   const { vibrate } = useHaptic();
-  
-  // Phase 1: Scene Detection
+
   useEffect(() => {
-    console.log('Current scene:', sceneOrchestrator.currentScene);
-    // Output: "INTERLUDE" when generating
-  }, [sceneOrchestrator.currentScene]);
-  
-  // Phase 2: Show Atmospheric Interlude
-  {sceneOrchestrator.shouldShowInterlude && (
-    <AtmosphericInterlude message="Channeling your reading..." />
-  )}
-  
-  // Phase 3: Apply Color Script When Narrative Arrives
+    if (activeScene === scenes.NARRATIVE) {
+      setNarrativeFocus(true);
+    }
+  }, [activeScene, scenes.NARRATIVE]);
+
   useEffect(() => {
     if (personalReading && emotionalTone) {
-      const colorScript = determineColorScript(
-        narrativePhase, 
-        emotionalTone, 
-        reasoning
-      );
-      applyColorScript(colorScript);
+      const script = determineColorScript(narrativePhase, emotionalTone, reasoning);
+      applyColorScript(script);
     }
     return () => resetColorScript();
-  }, [personalReading, emotionalTone]);
-  
-  // Phase 4: Haptic Feedback on Card Reveals
+  }, [personalReading, emotionalTone, narrativePhase, reasoning]);
+
   const handleCardReveal = (card) => {
     const isMajor = card.arcana === 'major';
     vibrate(isMajor ? [50, 30, 50] : 20);
   };
-  
-  // Phase 5: Element Detection During Streaming
-  const { detectElementTriggers } = useEnhancedTextStreaming({
-    onElementDetected: (element, config) => {
-      console.log(`Element detected: ${element}`, config.palette);
-      // Apply visual changes based on element
-    }
-  });
-  
+
   return (
-    <div className="cinematic-reading">
-      {/* Components automatically use scene state */}
-    </div>
+    <ReadingSceneRouter
+      orchestrator={orchestrator}
+      sceneModels={sceneModels}
+      colorScript={colorScript}
+    />
   );
 }
 ```
 
-## Performance Metrics
+The live router selects `InterludeScene`, `NarrativeScene`, and `CompleteScene` by canonical scene key. `AtmosphericInterlude` and `useEnhancedTextStreaming` are not part of this integration.
+
+## Performance and Status
 
 ```
-Cinematic Feature          Impact           Measurement
-─────────────────────────────────────────────────────────
-Scene Orchestrator         < 1ms            State derivation time
-Atmospheric Interlude      60fps            Animation frame rate
-Color Script Transitions   Instant          CSS variable update
-Element Detection          < 5ms            Regex matching per chunk
-Haptic Feedback           0ms (async)       Non-blocking API call
-Text Segmentation         < 2ms            Per narrative chunk
-─────────────────────────────────────────────────────────
-Total Bundle Impact        +7KB gzipped     All features combined
+Feature                         Status                         Notes
+────────────────────────────────────────────────────────────────────────────
+Scene Orchestrator              Implemented                    Canonical IDLE → COMPLETE states
+Motion                          Implemented                    motion adapter plus CSS keyframes
+Scene particles                 Implemented                    Shared @tsparticles layer; mobile stable mode gates some scenes
+Slot reveal burst               Implemented                    CSS spark burst; no per-slot canvas
+Sora card video                 Implemented, feature-gated     Plus/Pro media path with polling and cache
+AtmosphericInterlude             Prototype, unused              Component exists but is not mounted by the live route
+Enhanced text streaming          Prototype, unused              Hook exists but is not used by StreamingNarrative
 ```
 
 ## Accessibility Matrix
 
 ```
 Feature                  Reduced Motion    Screen Reader    Keyboard Nav
-────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────
 Scene Orchestrator       ✓ Always works    ✓ State hints   ✓ Nav focus
-Atmospheric Interlude    ✓ Static orb      ✓ Status label  ✓ Focusable
-Color Script             ✓ No filters      ✓ Transparent   ✓ No impact
-Haptic Feedback          ✓ User control    ✓ Independent   ✓ No impact
-Element Detection        ✓ Visual only     ✓ Natural text  ✓ No impact
-Text Segmentation        ✓ Natural         ✓ Seamless      ✓ Natural
-────────────────────────────────────────────────────────────────────────
+Interlude Scene          ✓ Static skeleton ✓ Status       ✓ Focusable
+Color Script             ✓ No motion       ✓ Transparent  ✓ No impact
+Haptic Feedback          ✓ Disabled via useHaptic ✓ Independent  ✓ No impact
+Element Detection        Prototype only    Prototype only ✓ No impact
+Text Segmentation        Prototype only; live CSS path remains natural ✓ Seamless ✓ Natural
+────────────────────────────────────────────────────────────────────────────
 ```

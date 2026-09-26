@@ -12,11 +12,11 @@ Tableu is an AI-powered tarot reading application built around a React web clien
 ## Core Features
 
 - Multiple spread types, including One-Card Insight, Three-Card Story, Five-Card Clarity, Decision/Two-Path, Relationship Snapshot, and Celtic Cross
-- LLM-generated readings with Azure OpenAI as primary and Claude/local-composer fallback paths
+- LLM-generated readings with the configured provider order: `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `claude-opus45` → `local-composer`
 - Knowledge-graph and GraphRAG-assisted narrative context
 - Azure OpenAI TTS, Azure Speech SDK, and Hume-backed narration options
 - Journal, sharing, follow-ups, and subscription-aware feature gating
-- Optional vision research flow for card-photo proofing and telemetry
+- Optional, opt-in vision research flow for card-photo proofing and telemetry
 - PWA support, accessibility features, and reduced-motion support
 
 ## Tech Stack
@@ -25,7 +25,7 @@ Tableu is an AI-powered tarot reading application built around a React web clien
 | --- | --- |
 | Frontend | React 19, Vite, Tailwind CSS |
 | Backend | Cloudflare Workers |
-| AI | Azure OpenAI, Azure Anthropic Claude, local composer |
+| AI | Modal Qwen, OpenAI native Responses, Azure OpenAI Responses, Azure AI Foundry Claude, local composer |
 | Data | Cloudflare D1, KV, R2 |
 
 ## Project Structure
@@ -43,7 +43,7 @@ migrations/              Database migrations
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 24+ (matching CI)
 - npm
 - Cloudflare account for Worker deployment
 
@@ -83,11 +83,12 @@ Starts Vite on `http://localhost:5173` (or `5174`) and Wrangler Worker dev on `h
 | `npm run dev:frontend` | Vite only |
 | `npm run dev:workers` | Wrangler Worker dev |
 | `npm run build` | Production frontend build |
-| `npm test` | Unit tests |
+| `npm test` | Root Node test suite (`tests/*.test.mjs`) |
 | `npm run test:e2e` | Playwright E2E tests |
 | `npm run test:a11y` | Static accessibility checks |
 | `npm run gate:vision` | Vision quality gate |
 | `npm run gate:narrative` | Narrative quality gate |
+| `npm run docs:check` | Maintained Markdown link check |
 | `npm run lint` | ESLint |
 
 ## Deployment

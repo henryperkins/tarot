@@ -2,7 +2,7 @@
 
 Type: design note
 Status: active background document
-Last reviewed: 2026-04-23
+Last reviewed: 2026-09-25
 
 ## Summary
 
@@ -18,7 +18,8 @@ The vision validation system has been refactored from a **production requirement
 
 - Readings can be generated **without** vision proof
 - If vision proof is provided, it's verified and telemetry is collected
-- Vision mismatches no longer block readings - they're logged for research
+- Vision mismatches are logged for research and do not block readings by default
+- Strict deck or mismatch-rate policies can be enabled to return 409 instead
 - Vision metrics are set to `null` when no proof is provided
 
 **Key code changes:**
@@ -30,7 +31,7 @@ let visionMetrics = null;
 
 if (!visionProof) {
   console.log(
-    `[${requestId}] No vision proof provided (research mode disabled). Proceeding with standard reading.`
+    `[${requestId}] No vision proof provided; proceeding with standard reading.`
   );
 } else {
   // Research mode: Verify vision proof and collect telemetry
@@ -53,16 +54,19 @@ if (!visionProof) {
 
 **Key changes:**
 
-```javascript
-// Button no longer blocked by vision validation
-disabled = { isGenerating }; // Previously: disabled={isGenerating || !isVisionReady}
-
-// Show warning only when there are conflicts
-{
-  hasVisionData && !isVisionReady && (
-    <p className="mt-3 text-sm text-amber-100/80">
-      ⚠️ Vision data has conflicts - research telemetry may be incomplete.
-    </p>
+```jsx
+function ReadingActions({ isGenerating, hasVisionData, isVisionReady }) {
+  return (
+    <>
+      <button type="button" disabled={isGenerating}>
+        Create Personal Narrative
+      </button>
+      {hasVisionData && !isVisionReady && (
+        <p className="mt-3 text-sm text-amber-100/80">
+          Vision data has conflicts; research telemetry may be incomplete.
+        </p>
+      )}
+    </>
   );
 }
 ```
@@ -71,23 +75,26 @@ disabled = { isGenerating }; // Previously: disabled={isGenerating || !isVisionR
 
 #### VisionValidationPanel.jsx
 
-**Before:**
+Current copy includes:
 
-> "Upload up to five photos of your drawn cards so the deck can confirm what you pulled before unlocking the AI reading. **Validation is required to continue.**"
+> "Vision Research Console" and "Upload card photos to test vision model recognition. Compares uploads against the active deck’s embeddings."
 
-**After:**
+The panel is optional research UI; a normal reading does not require it. The deck selector itself is a general reading control and is not hidden by the vision flag.
 
-> "Help improve our AI by uploading photos of your drawn cards. This **optional feature** helps us train better card recognition models. **Your contribution is appreciated but not required.**"
+## Current Default and Strict Policies
 
-#### DeckSelector.jsx
+The client flag is `VITE_ENABLE_VISION_RESEARCH`; when omitted or `false`, the
+research UI and proof handshake are disabled, so physical-card research is not
+default-on. `VISION_PROOF_SECRET` is needed only when a signed proof is used.
 
-**Before:**
-
-> "Choose your physical deck" - "Select the deck you're using so the vision validation can accurately recognize your cards."
-
-**After:**
-
-> "Select deck style for vision research" - "**If you're participating in vision validation research**, select which deck style you're photographing to help our AI learn."
+With the default mismatch policies disabled, a mismatched proof is retained for
+telemetry and the reading proceeds. `VISION_STRICT_DECK_MATCH=true` rejects a
+wrong-deck proof with 409. `VISION_STRICT_MISMATCH_RATE=true` rejects a request
+with 409 when its mismatch rate exceeds `VISION_MAX_MISMATCH_RATE` (default 0.5).
+Expired proofs are also 409; other invalid proofs are 400. A missing proof is not a
+failure and does not return 400; when a proof is supplied, malformed, unsigned,
+tampered, or unsupported proofs fail verification rather than being treated as
+ordinary research mismatches.
 
 ## Purpose and Rationale
 
@@ -129,18 +136,18 @@ Make vision validation **opt-in** for research participants while allowing norma
 3. User reveals cards
 4. **Optional:** User photographs displayed cards and uploads
 5. Vision AI analyzes photos and collects telemetry
-6. User generates AI reading (regardless of vision results)
-7. Research data sent to telemetry for model improvement
+6. User generates AI reading; with default mismatch policy, vision conflicts do not block the reading
+7. Research data is sent to telemetry for model improvement
 
 ## Enabling / Disabling Research Mode
 
-The frontend now treats vision uploads as a build-time toggle. Set `VITE_ENABLE_VISION_RESEARCH=true` in your `.env` (or hosting dashboard) to show the deck selector and the `VisionValidationPanel`. When the flag is omitted or `false`:
+The frontend treats vision uploads as a build-time toggle. Set `VITE_ENABLE_VISION_RESEARCH=true` in your `.env` (or hosting dashboard) to expose the research panel and proof handshake for authenticated users. When the flag is omitted or `false`:
 
-- The client never calls `/api/vision-proof`, so local/dev builds no longer require `VISION_PROOF_SECRET`
-- The deck selector and research UI stay hidden, keeping the default experience streamlined
-- Readings still include telemetry fields, but `vision` stays `null`
+- The client does not call `/api/vision-proof`, so local/dev builds do not require `VISION_PROOF_SECRET` for the research flow.
+- The general deck selector remains available for normal reading setup; the research panel and proof handshake stay hidden.
+- Readings still include telemetry fields, but `vision` stays `null` when no proof is provided.
 
-When the flag is enabled and `VISION_PROOF_SECRET` is configured on the worker, the research UI appears (for authenticated users) and uploads will be signed before `/api/tarot-reading` receives them.
+When the flag is enabled and `VISION_PROOF_SECRET` is configured on the worker, the research UI appears for authenticated users and attempts to sign uploads before `/api/tarot-reading` receives them. If the proof request fails, the client proceeds without a proof; the server still requires the secret whenever `/api/vision-proof` is called.
 
 ## Testing
 
@@ -159,7 +166,7 @@ curl -X POST http://localhost:8787/api/tarot-reading \
   }'
 ```
 
-**Expected:** Reading generated successfully, no 400 error
+**Expected:** Reading generated successfully; absence of a proof is not a proof failure and does not return 400.
 
 ### Test 2: Reading With Vision Proof
 
@@ -176,15 +183,17 @@ curl -X POST http://localhost:8787/api/vision-proof \
 curl -X POST http://localhost:8787/api/tarot-reading \
   -H "Content-Type: application/json" \
   -d '{
-    "spreadInfo": {"name": "One-Card Insight"},
-    "cardsInfo": [{"card": {"name": "The Fool"}, "isReversed": false}],
-    "userQuestion": "Test question",
-    "visionProof": { ... },
-    "deckStyle": "rws-1909"
-  }'
+     "spreadInfo": {"name": "One-Card Insight"},
+     "cardsInfo": [{"card": {"name": "The Fool"}, "isReversed": false}],
+     "userQuestion": "Test question",
+     "visionProof": { ... },
+     "deckStyle": "rws-1909"
+   }'
 ```
 
-**Expected:** Reading generated with vision telemetry collected
+Replace the placeholder with the signed `proof` object returned by the first request; a literal `{ ... }` payload is not a valid proof.
+
+**Expected:** Reading generated with vision telemetry collected. A malformed, unsigned, tampered, or unsupported proof returns 400; an expired proof returns 409.
 
 ### Test 3: Frontend Button
 
@@ -210,7 +219,7 @@ Consider adding:
 ## Related Documentation
 
 - `./AI_Tarot_Master.md` - AI training research methodology and deck subtleties
-- `./vision-pipeline.md` - Technical implementation of CLIP-based vision validation
+- `./vision-pipeline.md` - Technical implementation of CLIP-based vision validation with optional server-side Llama/hybrid orientation
 - `wrangler.jsonc` - Deployment configuration and secrets management (see secrets section)
 
 ## Migration Notes
@@ -222,7 +231,7 @@ None - This is a backwards-compatible change that removes restrictions.
 ### Configuration Updates
 
 - `VITE_ENABLE_VISION_RESEARCH`: Controls whether the client exposes the research UI and attempts to create signed proofs. Defaults to `false`.
-- `VISION_PROOF_SECRET`: Required on the worker **only when** research mode is enabled. When absent, the API still serves readings without telemetry data.
+- `VISION_PROOF_SECRET`: Required on the worker **only when** research mode is enabled. When absent, no signed proof can be issued or accepted; readings without a proof still succeed, and vision telemetry remains `null`.
 
 ### Telemetry Impact
 
