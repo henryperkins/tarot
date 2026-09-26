@@ -7,12 +7,18 @@ export const STEPS = [
 export const COACH_PREFS_KEY = 'tarot-coach-preferences';
 export const SUGGESTIONS_PER_PAGE = 5;
 
+// The detail is woven into a generated question, which must stay well inside
+// the server's question limit; template names are labels, not prose.
+export const CUSTOM_FOCUS_MAX_LENGTH = 160;
+export const TEMPLATE_LABEL_MAX_LENGTH = 60;
+
 // Timing constants (milliseconds)
 export const TIMING = {
   CREATIVE_DEBOUNCE: 800,
   STATUS_DISPLAY_SHORT: 1800,
   STATUS_DISPLAY_MEDIUM: 2600,
-  STATUS_DISPLAY_LONG: 5000,
+  // Clearing the live region first lets a repeated message be read again.
+  ANNOUNCE_DELAY: 80,
   PREFS_EXPIRY: 7 * 24 * 60 * 60 * 1000 // 1 week
 };
 

@@ -74,6 +74,10 @@ export function useModalA11y(isOpen, {
   onClose,
   containerRef,
   scrollLockStrategy = 'fixed',
+  // A dialog nested inside another locked dialog must not lock again: the
+  // lock is not reentrant, and a child cleanup that runs after its parent's
+  // would re-apply the parent's locked body styles.
+  lockScroll = true,
   trapFocus = true,
   closeOnEscape = true,
   restoreFocus = true,
@@ -87,7 +91,7 @@ export function useModalA11y(isOpen, {
   const optionsRef = useRef({});
   const restoreTimerRef = useRef(null);
 
-  useBodyScrollLock(isOpen, { strategy: scrollLockStrategy });
+  useBodyScrollLock(isOpen && lockScroll, { strategy: scrollLockStrategy });
 
   useClientLayoutEffect(() => {
     optionsRef.current = { onClose, trapFocus, closeOnEscape, initialFocusSelector, fallbackFocusSelector };

@@ -56,10 +56,18 @@ export function Tooltip({
       return undefined;
     }
 
+    // Escape closes the innermost layer first. Window capture runs before the
+    // document-level modal handlers, so an open tooltip consumes the key
+    // instead of the dialog around it closing and discarding its state.
     const handleKeyDown = event => {
-      if (event.key === 'Escape') {
-        setIsVisible(false);
-      }
+      if (event.key !== 'Escape') return;
+      setIsVisible(false);
+      // A tooltip left open behind a dialog (hovered, then the dialog opened
+      // from the keyboard) is out of sight; the key belongs to that dialog.
+      const activeLayer = document.activeElement?.closest?.('[role="dialog"], [role="alertdialog"]');
+      if (activeLayer && !activeLayer.contains(rootRef.current)) return;
+      event.preventDefault();
+      event.stopPropagation();
     };
 
     const handlePointerDown = event => {
@@ -68,11 +76,11 @@ export function Tooltip({
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('pointerdown', handlePointerDown);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('pointerdown', handlePointerDown);
     };
   }, [isVisible]);

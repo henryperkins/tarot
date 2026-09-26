@@ -3,6 +3,7 @@ import { ArrowsClockwise, ChartLine, Sparkle } from '@phosphor-icons/react';
 import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions';
 import { recordCoachQuestion } from '../lib/coachStorage';
 import { getQualityLevel, scoreQuestion } from '../lib/questionQuality';
+import { QualityLevelIcon } from './QualityLevelIcon';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useAutoGrow } from '../hooks/useAutoGrow';
@@ -161,7 +162,7 @@ export function QuestionInput({
               Clarity check
             </span>
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-secondary">
-              <span aria-hidden="true">{qualityLevel.emoji}</span>
+              <QualityLevelIcon level={qualityLevel} />
               <span>{qualityLevel.label}</span>
             </span>
           </div>

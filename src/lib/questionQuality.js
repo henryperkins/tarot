@@ -177,29 +177,29 @@ export function scoreQuestion(question) {
 export function getQualityLevel(score) {
   if (score >= 85) {
     return {
+      id: 'excellent',
       label: 'Excellent',
-      color: 'emerald',
-      emoji: '✨'
+      color: 'emerald'
     };
   }
   if (score >= 65) {
     return {
+      id: 'good',
       label: 'Good',
-      color: 'green',
-      emoji: '👍'
+      color: 'green'
     };
   }
   if (score >= 40) {
     return {
+      id: 'fair',
       label: 'Fair',
-      color: 'amber',
-      emoji: '💡'
+      color: 'amber'
     };
   }
   return {
+    id: 'needs-clarity',
     label: 'Needs clarity',
-    color: 'orange',
-    emoji: '🔧'
+    color: 'orange'
   };
 }
 
