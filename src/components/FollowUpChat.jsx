@@ -16,7 +16,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import clsx from 'clsx';
 
 const MAX_MESSAGE_LENGTH = 500;
-// No bytes for this long means the request is stuck, not slow.
+// Once the response has started, this long without a byte means the stream is stuck.
 const STALL_TIMEOUT_MS = 120000;
 const SLOW_RESPONSE_MS = 15000;
 
@@ -79,6 +79,7 @@ export default function FollowUpChat({
   const errorRef = useRef(null);
   const limitRef = useRef(null);
   const hadFocusRef = useRef(false);
+  const lastFocusRef = useRef(null);
   const focusIntentRef = useRef(null);
   const isDrawer = variant === 'drawer';
 
@@ -256,6 +257,11 @@ export default function FollowUpChat({
     if (!isActive || !hadFocusRef.current) return;
     const active = document.activeElement;
     if (active && active !== document.body && active.isConnected) return;
+    // Focus also falls to <body> when the person moves it away on purpose, such
+    // as dismissing the phone keyboard. Unless they asked for the suggestions,
+    // only rescue focus from a control that was removed or disabled.
+    const lastFocused = lastFocusRef.current;
+    if (!intent && lastFocused?.isConnected && !lastFocused.disabled) return;
     const firstSuggestion = intent === 'suggestions'
       ? suggestionsRef.current?.querySelector('button:not(:disabled)')
       : null;
@@ -277,7 +283,9 @@ export default function FollowUpChat({
     fitComposer();
   }, [inputValue, isActive, canAskMore, fitComposer]);
 
-  // Rewrap on width or text-size changes (rotation, breakpoint, 200% zoom).
+  // Rewrap on width or text-size changes (rotation, breakpoint, 200% zoom). The
+  // textarea exists only with a finished reading and while turns remain, so
+  // reattach whenever either changes.
   useEffect(() => {
     const input = inputRef.current;
     if (!input || typeof ResizeObserver === 'undefined') return undefined;
@@ -292,7 +300,7 @@ export default function FollowUpChat({
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [canAskMore, fitComposer]);
+  }, [canAskMore, hasValidReading, fitComposer]);
 
   const askFollowUp = useCallback(async (question) => {
     const trimmedQuestion = question?.trim();
@@ -319,7 +327,10 @@ export default function FollowUpChat({
     setIsAtBottom(true);
     setAnnouncement('Question sent. The reader is reflecting.');
 
-    // Rearmed on every chunk, so it fires only when the connection goes silent.
+    // The server sends nothing until it has composed, checked and recorded the
+    // answer, so the wait for the response has no deadline; the slow notice
+    // covers it. The timer starts with the response and rearms on every chunk,
+    // so it fires only when the connection goes silent.
     let timedOut = false;
     let stallTimer = null;
     const armStallTimer = () => {
@@ -329,7 +340,6 @@ export default function FollowUpChat({
         request.abort();
       }, STALL_TIMEOUT_MS);
     };
-    armStallTimer();
     const slowTimer = setTimeout(() => {
       if (activeRequestRef.current !== request) return;
       setIsSlow(true);
@@ -445,20 +455,20 @@ export default function FollowUpChat({
       while (true) {
         const { done, value } = await reader.read();
         if (activeRequestRef.current !== request) return;
+        if (!done) armStallTimer();
 
-        if (done) break;
-        armStallTimer();
-
-        buffer += decoder.decode(value, { stream: true });
+        // At the end, flush the decoder and close the last block so a final event
+        // without its trailing blank line still counts.
+        buffer += done ? `${decoder.decode()}\n\n` : decoder.decode(value, { stream: true });
 
         // Process complete SSE events
-        const events = buffer.split('\n\n');
+        const events = buffer.split(/\r?\n\r?\n/);
         buffer = events.pop() || '';
 
         for (const eventBlock of events) {
           if (!eventBlock.trim()) continue;
 
-          const lines = eventBlock.split('\n');
+          const lines = eventBlock.split(/\r?\n/);
           let eventType = '';
           let eventData = '';
 
@@ -553,6 +563,7 @@ export default function FollowUpChat({
             console.warn('Failed to parse SSE event:', eventData);
           }
         }
+        if (done) break;
       }
 
       // The stream closed without a `done` event. With nothing said, treat it as a
@@ -570,6 +581,8 @@ export default function FollowUpChat({
 
       if (!followUpPersisted && streamedText) {
         const turnNumberForSave = resolvedTurn || serverTurn || (turnsUsed + 1);
+        // The server records the turn before it streams, so a partial answer used it.
+        setServerTurn(turnNumberForSave);
         upsertFollowUp({
           question: trimmedQuestion,
           answer: streamedText,
@@ -652,7 +665,10 @@ export default function FollowUpChat({
   return (
     <div
       className={clsx('follow-up-chat', className)}
-      onFocus={() => { hadFocusRef.current = true; }}
+      onFocus={(event) => {
+        hadFocusRef.current = true;
+        lastFocusRef.current = event.target;
+      }}
       onBlur={(event) => {
         // Removed nodes blur with no relatedTarget; only a real move elsewhere counts.
         if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) {
