@@ -4,6 +4,7 @@ import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { buildSpreadInsightSections } from '../lib/spreadInsights.js';
 import { getPassageSource } from '../../shared/passageSource.js';
 import { DECK_CATALOG } from '../../shared/vision/deckCatalog.js';
+import { READING_PANEL_CLASS, READING_PANEL_DISCLOSURE_CLASS, READING_PANEL_TITLE_CLASS } from '../styles/panelClasses';
 import { InsightText } from './reading/InsightText';
 
 const SUIT_ICONS = { Wands: Fire, Cups: Drop, Swords: Wind, Pentacles: Leaf };
@@ -43,11 +44,11 @@ function InsightSection({ title, children }) {
   const id = useId();
   const [isExpanded, setIsExpanded] = useState(false);
   return (
-    <section className="border-t border-secondary/30">
+    <section className="border-t border-[color:var(--border-warm-light)]">
       <h3>
         <button
           type="button"
-          className="flex min-h-touch w-full items-center justify-between gap-3 rounded py-3 text-left text-base font-semibold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className={`${READING_PANEL_DISCLOSURE_CLASS} py-3 text-base font-semibold text-accent`}
           onClick={() => setIsExpanded(expanded => !expanded)}
           aria-expanded={isExpanded}
           aria-controls={id}
@@ -65,6 +66,7 @@ function InsightSection({ title, children }) {
 
 /** A short reading summary with supporting patterns and reference passages. */
 export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighlights = [], passages = [], cards = [], onSelectCard }) {
+  const headingId = useId();
   const contentId = useId();
   const [isExpanded, setIsExpanded] = useState(false);
   const isHandset = useHandsetLayout();
@@ -82,32 +84,30 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
   if (!totalCount) return null;
 
   return (
-    <div className="modern-surface spread-patterns-panel border border-secondary/40 p-4 sm:p-6">
+    <section className={`${READING_PANEL_CLASS} spread-patterns-panel`} aria-labelledby={headingId}>
       {isHandset ? (
-        <h2>
+        <h2 id={headingId} className={READING_PANEL_TITLE_CLASS}>
           <button
             type="button"
             onClick={() => setIsExpanded(expanded => !expanded)}
-            className="flex min-h-touch w-full items-center justify-between gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className={READING_PANEL_DISCLOSURE_CLASS}
             aria-expanded={isExpanded}
             aria-controls={contentId}
           >
-            <span className="flex min-w-0 flex-wrap items-center gap-2">
-              <Star className="h-5 w-5 text-accent" aria-hidden="true" />
-              <span className="text-accent text-lg font-serif">Spread Insights</span>
-              <span className="text-sm text-muted">({totalCount})</span>
+            <span className="min-w-0 break-words">
+              Spread Insights <span className="text-sm font-normal text-muted">({totalCount})</span>
             </span>
-            <CaretDown className={`h-5 w-5 shrink-0 text-accent ${isExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+            <CaretDown className={`h-5 w-5 shrink-0 ${isExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>
         </h2>
       ) : (
-        <h2 className="mb-5 flex items-center gap-2 text-accent">
-          <Star className="h-5 w-5" aria-hidden="true" />
-          <span className="text-lg font-serif">Spread Insights</span>
+        // Keep the disclosure row height so this title lines up with Reading Inputs Used.
+        <h2 id={headingId} className={`${READING_PANEL_TITLE_CLASS} flex min-h-touch items-center`}>
+          Spread Insights
         </h2>
       )}
 
-      <div id={contentId} hidden={isHandset && !isExpanded} className={isHandset ? 'mt-4' : ''}>
+      <div id={contentId} hidden={isHandset && !isExpanded} className="mt-4">
         {highlights.length > 0 ? (
           <div className="pb-5 space-y-3">
             <h3 className="text-base font-semibold text-accent">Highlights</h3>
@@ -120,12 +120,12 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
           </InsightSection>
         ) : null}
         {archetypes.length > 0 ? (
-          <InsightSection title="Archetypal Patterns">
+          <InsightSection title="Archetypal patterns">
             <InsightList items={archetypes} label="Detected archetypal patterns" cards={cards} onSelectCard={onSelectCard} />
           </InsightSection>
         ) : null}
         {references.length > 0 ? (
-          <InsightSection title="Traditional Wisdom">
+          <InsightSection title="Traditional wisdom">
             {otherSources.length > 0 ? (
               <p className="max-w-prose break-words text-base leading-relaxed text-muted">
                 These references use {otherSources.join(' and ')} names and imagery. Your reading uses {selectedDeck.label}.
@@ -153,6 +153,6 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
           </InsightSection>
         ) : null}
       </div>
-    </div>
+    </section>
   );
 });

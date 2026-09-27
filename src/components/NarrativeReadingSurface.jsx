@@ -5,6 +5,7 @@ import { NarrativeSafetyNotice } from './NarrativeSafetyNotice';
 import { SpreadPatterns } from './SpreadPatterns';
 import { VisualCompanionModal } from './reading/VisualCompanionModal';
 import { OUTLINE_BUTTON_CLASS } from '../styles/buttonClasses';
+import { READING_PANEL_COLUMN_CLASS } from '../styles/panelClasses';
 
 const AnimatedReveal = lazy(() => import('./AnimatedReveal'));
 const StoryIllustration = lazy(() => import('./StoryIllustration'));
@@ -16,7 +17,7 @@ function VisualCompanionTrigger({
   onOpen
 }) {
   return (
-    <div className="w-full max-w-full sm:max-w-5xl mx-auto">
+    <div className={READING_PANEL_COLUMN_CLASS}>
       <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-4 sm:p-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="min-w-0 space-y-1">
@@ -219,13 +220,13 @@ export function NarrativeReadingSurface({
       ) : null}
 
       {shouldShowSafetyNotice ? (
-        <div className="bg-surface/95 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-secondary/40 max-w-full sm:max-w-5xl mx-auto">
+        <div className={`${READING_PANEL_COLUMN_CLASS} bg-surface/95 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-secondary/40`}>
           <NarrativeSafetyNotice className="max-w-3xl mx-auto" compact={isHandset} />
         </div>
       ) : null}
 
       {shouldShowSpreadInsights ? (
-        <div className="w-full max-w-5xl mx-auto">
+        <div className={READING_PANEL_COLUMN_CLASS}>
           <SpreadPatterns
             key={readingIdentity}
             themes={themes}

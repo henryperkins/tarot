@@ -46,7 +46,7 @@ async function withInsights(page, { deck = 'rws-1909', fallback = false } = {}, 
 }
 
 async function openSupportingSections(panel) {
-  for (const title of ['More spread details', 'Archetypal Patterns', 'Traditional Wisdom']) {
+  for (const title of ['More spread details', 'Archetypal patterns', 'Traditional wisdom']) {
     const button = panel.getByRole('button', { name: new RegExp(`^${title}`) });
     if (await button.count()) {
       await button.press('Enter');
@@ -75,7 +75,7 @@ for (const mobile of [false, true]) {
         const axe = await new AxeBuilder({ page }).include('.spread-patterns-panel')
           .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
         expect(axe.violations).toEqual([]);
-        for (const locator of [panel.locator('h2 .font-serif'), panel.locator('h3').first(), summary, passages.locator('blockquote').first()]) {
+        for (const locator of [panel.locator('h2'), panel.locator('h3').first(), summary, passages.locator('blockquote').first()]) {
           expect((await badgeContrast(locator)).ratio).toBeGreaterThanOrEqual(4.5);
         }
         await expectNoHorizontalOverflow(page, '.spread-patterns-panel');
@@ -109,6 +109,57 @@ test('insights remain recoverable when focus mode crosses the handset breakpoint
     await disclosure.press('Enter');
     await expect(page.getByRole('list', { name: 'Spread highlights' })).toBeVisible();
     await expectNoHorizontalOverflow(page, '.spread-patterns-panel');
+  });
+});
+
+test('insights and reading inputs share one column, order, surface, title and focus style', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await withInsights(page, {}, async panel => {
+    const inputs = page.getByRole('region', { name: 'Reading Inputs Used' }).locator('.panel-mystic');
+    await expect(inputs).toBeVisible();
+    // About the reading first (insights, inputs, feedback), then next steps.
+    const tops = [];
+    for (const locator of [
+      panel,
+      inputs,
+      page.getByRole('heading', { name: /How did this reading land/, level: 2 }),
+      page.getByRole('heading', { name: 'Continue the conversation', exact: true, level: 2 }),
+      page.getByRole('heading', { name: 'Recent media', exact: true, level: 2 }),
+      page.getByRole('button', { name: 'Start a new reading and reset this spread', exact: true })
+    ]) tops.push((await locator.boundingBox()).y);
+    expect(tops).toEqual([...tops].sort((a, b) => a - b));
+    const look = locator => locator.evaluate(element => {
+      const surface = getComputedStyle(element);
+      const title = getComputedStyle(element.querySelector('h2 button') || element.querySelector('h2'));
+      return {
+        surface: [surface.backgroundImage, surface.borderTopLeftRadius, surface.borderTopColor, surface.paddingLeft],
+        title: [title.fontFamily, title.fontSize, title.fontWeight, title.color]
+      };
+    });
+    expect(await look(panel)).toEqual(await look(inputs));
+    const focusRing = async button => {
+      await button.press('Enter');
+      return button.evaluate(async element => {
+        // The global focus rule transitions outline-offset; compare settled values.
+        await Promise.all(element.getAnimations().map(animation => animation.finished));
+        const { outlineStyle, outlineWidth, outlineColor, outlineOffset } = getComputedStyle(element);
+        return { focusVisible: element.matches(':focus-visible'), outlineStyle, outlineWidth, outlineColor, outlineOffset };
+      });
+    };
+    const insightsRing = await focusRing(panel.getByRole('button', { name: /^More spread details/ }));
+    expect(insightsRing.focusVisible).toBe(true);
+    expect(insightsRing).toEqual(await focusRing(page.getByRole('button', { name: 'Reading Inputs Used', exact: true })));
+    for (const width of [1440, 900, 390]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const columns = await page.locator('[data-scene="complete"] .panel-mystic').evaluateAll(nodes => nodes
+        .filter(node => node.getClientRects().length)
+        .map(node => {
+          const box = node.getBoundingClientRect();
+          return `${Math.round(box.x)}+${Math.round(box.width)}`;
+        }));
+      expect(columns.length).toBeGreaterThanOrEqual(2);
+      expect(new Set(columns).size, `${width}px panels: ${columns.join(', ')}`).toBe(1);
+    }
   });
 });
 
@@ -160,7 +211,7 @@ for (const { deck, mobile } of [
 test('local fallback keeps all highlights reachable without empty sections', async ({ page }) => {
   await withInsights(page, { fallback: true }, async panel => {
     await expect(panel.getByRole('list', { name: 'Spread highlights' }).getByRole('listitem')).toHaveCount(3);
-    await expect(panel.getByRole('button', { name: /^Archetypal Patterns|^Traditional Wisdom/ })).toHaveCount(0);
+    await expect(panel.getByRole('button', { name: /^Archetypal patterns|^Traditional wisdom/ })).toHaveCount(0);
     await panel.getByRole('button', { name: /^More spread details/ }).press('Enter');
     await expect(panel).toContainText('Deck scope:');
   });

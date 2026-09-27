@@ -1,6 +1,9 @@
 import { useId, useState } from 'react';
 import { CaretDown, CheckCircle, MinusCircle, WarningCircle } from '@phosphor-icons/react';
 import { formatUsageSummary, USAGE_BADGE_CLASSES } from './sourceUsageSummary';
+import {
+  READING_PANEL_CLASS, READING_PANEL_COLUMN_CLASS, READING_PANEL_DISCLOSURE_CLASS, READING_PANEL_TITLE_CLASS
+} from '../../../styles/panelClasses';
 
 const USAGE_ICONS = {
   used: CheckCircle,
@@ -32,9 +35,9 @@ export function ReadingInputUsageSection({ personalReading, sourceUsage, provide
     || provider === 'safe-fallback' || personalReading.provider === 'safe-fallback' || usage.rows.length === 0) return null;
 
   return (
-    <section className="w-full max-w-2xl mx-auto mt-6" aria-labelledby={headingId}>
-      <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-[min(1rem,16px)] sm:p-5">
-        <h2 className="text-base font-semibold text-main">
+    <section className={`${READING_PANEL_COLUMN_CLASS} mt-6`} aria-labelledby={headingId}>
+      <div className={READING_PANEL_CLASS}>
+        <h2 className={READING_PANEL_TITLE_CLASS}>
           <button
             id={headingId}
             type="button"
@@ -42,7 +45,7 @@ export function ReadingInputUsageSection({ personalReading, sourceUsage, provide
             aria-controls={contentId}
             aria-describedby={descriptionId}
             onClick={() => setIsExpanded((expanded) => !expanded)}
-            className="flex min-h-touch min-w-touch w-full items-center justify-between gap-3 rounded-md text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring-color)]"
+            className={READING_PANEL_DISCLOSURE_CLASS}
           >
             Reading Inputs Used
             <CaretDown className={`h-5 w-5 shrink-0 ${isExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />

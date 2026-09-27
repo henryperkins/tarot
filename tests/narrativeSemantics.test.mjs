@@ -140,9 +140,10 @@ test('spread insights uses an h2 panel title with h3 immediate subsections', () 
     { level: 2, text: 'Spread Insights' },
     { level: 3, text: 'Highlights' },
     { level: 3, text: 'More spread details' },
-    { level: 3, text: 'Archetypal Patterns' },
-    { level: 3, text: 'Traditional Wisdom' }
+    { level: 3, text: 'Archetypal patterns' },
+    { level: 3, text: 'Traditional wisdom' }
   ]);
+  assert.match(markup, /^<section[^>]*aria-labelledby="([^"]+)"[^>]*>\s*<h2[^>]*id="\1"/, 'The panel is a region named by its title');
 });
 
 test('collapsed feedback disclosure controls a mounted, hidden panel', () => {
