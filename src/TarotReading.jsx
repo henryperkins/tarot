@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo, useRef, useCallback, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback, useSyncExternalStore } from 'react';
 import { EXAMPLE_QUESTIONS } from './data/exampleQuestions';
 import { SpreadSelector } from './components/SpreadSelector';
 import { ReadingPreparation } from './components/ReadingPreparation';
-import { ReadingDisplay } from './components/ReadingDisplay';
 import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
@@ -44,6 +43,8 @@ const STEP_PROGRESS_STEPS = [
   { id: 'ritual', label: 'Ritual (optional)' },
   { id: 'reading', label: 'Reading' }
 ];
+
+const ReadingDisplay = lazy(() => import('./components/ReadingDisplay').then(module => ({ default: module.ReadingDisplay })));
 
 function ReadingSkipLinks({ showSetupSection }) {
   const narrativeTarget = useSyncExternalStore(
@@ -196,7 +197,7 @@ export default function TarotReading() {
     Boolean(personalReading)
   );
   const [showSetupInFocusMode, setShowSetupInFocusMode] = useState(false);
-  const showSetupSection = !shouldFocusCinematicFlow || showSetupInFocusMode;
+  const showSetupSection = !isOnboardingOpen && (!shouldFocusCinematicFlow || showSetupInFocusMode);
   const suppressFocusInterruptions = shouldFocusCinematicFlow;
   const shouldEnableMobileStableMode = useMemo(() => shouldUseMobileStableMode({
     isHandset,
@@ -988,11 +989,9 @@ export default function TarotReading() {
             </div>
 
             <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
-              <div aria-label="Choose your physical deck">
-                {!isHandset && (
-                  <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
-                )}
-              </div>
+              {!isHandset && (
+                <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
+              )}
 
               <div aria-label="Spread selection" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
                 <SpreadSelector
@@ -1071,16 +1070,24 @@ export default function TarotReading() {
           </section>
         )}
 
-        <ReadingDisplay
-          onCardModalChange={setIsCardModalOpen}
-          sectionRef={readingSectionRef}
-          onOpenFollowUp={showFollowUpButton ? handleOpenFollowUp : null}
-          followUpOpen={isFollowUpOpen}
-          onFollowUpOpenChange={handleFollowUpOpenChange}
-          followUpAutoFocus={followUpIntent === 'ask'}
-          suppressInterruptions={suppressFocusInterruptions}
-          isMobileStableMode={shouldEnableMobileStableMode}
-        />
+        {!isOnboardingOpen && (
+          <Suspense fallback={
+            <section id="step-reading" ref={readingSectionRef} tabIndex={-1} aria-label="Draw and explore your reading" className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
+              <p role="status" className="py-6 text-sm text-muted">Loading your reading space…</p>
+            </section>
+          }>
+            <ReadingDisplay
+              onCardModalChange={setIsCardModalOpen}
+              sectionRef={readingSectionRef}
+              onOpenFollowUp={showFollowUpButton ? handleOpenFollowUp : null}
+              followUpOpen={isFollowUpOpen}
+              onFollowUpOpenChange={handleFollowUpOpenChange}
+              followUpAutoFocus={followUpIntent === 'ask'}
+              suppressInterruptions={suppressFocusInterruptions}
+              isMobileStableMode={shouldEnableMobileStableMode}
+            />
+          </Suspense>
+        )}
       </main>
 
       <FollowUpModal

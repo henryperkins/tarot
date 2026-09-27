@@ -1,9 +1,9 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
-import TarotReading from '../TarotReading.jsx';
 import { PageTransition } from './PageTransition.jsx';
 
-// Lazy load non-critical routes to reduce initial bundle size
+// Load only the route the visitor needs, including on direct settings visits.
+const TarotReading = lazy(() => import('../TarotReading.jsx'));
 const Journal = lazy(() => import('./Journal.jsx'));
 const CardGalleryPage = lazy(() => import('../pages/CardGalleryPage.jsx'));
 const ShareReading = lazy(() => import('../pages/ShareReading.jsx'));
@@ -22,8 +22,8 @@ const SpreadLayoutFixture = import.meta.env.DEV
 // Minimal loading fallback for route transitions
 function RouteLoader() {
   return (
-    <div className="flex items-center justify-center min-h-[50vh]">
-      <div className="animate-pulse text-muted">Loading...</div>
+    <div role="status" className="flex items-center justify-center min-h-[50vh]">
+      <div className="motion-safe:animate-pulse text-muted">Loading…</div>
     </div>
   );
 }

@@ -1,6 +1,4 @@
 import { useEffect, useId, useMemo, useRef } from 'react';
-import { initParticlesEngine } from '@tsparticles/react';
-import { loadSlim } from '@tsparticles/slim';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { createParticleSession } from '../lib/particleLifecycle';
 
@@ -32,11 +30,17 @@ let particlesEnginePromise;
 
 function getParticlesEngine() {
   if (!particlesEnginePromise) {
-    let initializedEngine;
-    particlesEnginePromise = initParticlesEngine(async (engine) => {
-      await loadSlim(engine);
-      initializedEngine = engine;
-    }).then(() => initializedEngine).catch((error) => {
+    particlesEnginePromise = Promise.all([
+      import('@tsparticles/react'),
+      import('@tsparticles/slim')
+    ]).then(async ([{ initParticlesEngine }, { loadSlim }]) => {
+      let initializedEngine;
+      await initParticlesEngine(async (engine) => {
+        await loadSlim(engine);
+        initializedEngine = engine;
+      });
+      return initializedEngine;
+    }).catch((error) => {
       particlesEnginePromise = null;
       throw error;
     });

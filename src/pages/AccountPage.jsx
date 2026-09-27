@@ -1210,7 +1210,7 @@ export default function AccountPage() {
                   setAuthModalMode('register');
                   setShowAuthModal(true);
                 }}
-                className="min-h-touch min-w-touch flex-1 inline-flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-main hover:bg-accent/90 transition"
+                className="min-h-touch min-w-touch flex-1 inline-flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-surface hover:bg-primary transition"
               >
                 Create free account
               </button>
@@ -1244,7 +1244,7 @@ export default function AccountPage() {
                 <button
                   type="button"
                   onClick={handleResendEmailVerification}
-                  className="min-h-touch min-w-touch inline-flex items-center justify-center rounded-full bg-accent px-4 py-2 text-xs font-semibold text-main hover:bg-accent/90 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="min-h-touch min-w-touch inline-flex items-center justify-center rounded-full bg-accent px-4 py-2 text-xs font-semibold text-surface hover:bg-primary transition disabled:opacity-60 disabled:cursor-not-allowed"
                   disabled={verificationSending}
                 >
                   {verificationSending ? 'Sending...' : 'Resend verification'}
@@ -1810,8 +1810,8 @@ export default function AccountPage() {
                 to="/pricing"
                 className={`
                   min-h-touch min-w-touch flex-1 inline-flex items-center justify-center gap-2 rounded-full
-                  border border-accent bg-accent px-4 py-3 text-sm font-semibold text-main
-                  hover:bg-accent/90 transition
+                  border border-accent bg-accent px-4 py-3 text-sm font-semibold text-surface
+                  hover:bg-primary transition
                   ${prefersReducedMotion ? '' : 'hover:scale-[1.02]'}
                 `}
               >
@@ -1949,7 +1949,7 @@ export default function AccountPage() {
                   `}
                 >
                   <span className="block text-xs font-semibold">{engine.label}</span>
-                  <span className="block text-2xs opacity-75">{engine.desc}</span>
+                  <span className="block text-2xs text-muted">{engine.desc}</span>
                 </button>
               ))}
             </div>
@@ -2026,7 +2026,7 @@ export default function AccountPage() {
           <div className="mt-4 pt-4 border-t border-secondary/20">
             <div className="flex items-center gap-2 mb-3">
               <ArrowCounterClockwise className="h-4 w-4 text-accent" />
-              <span className="text-xs font-semibold text-muted uppercase tracking-wide">Reversal Lens</span>
+              <label htmlFor="reversal-framework-select" className="text-xs font-semibold text-muted uppercase tracking-wide">Reversal Lens</label>
             </div>
             <select
               id="reversal-framework-select"

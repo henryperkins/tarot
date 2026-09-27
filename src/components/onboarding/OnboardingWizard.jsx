@@ -499,7 +499,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
                     <button
                       type="button"
                       onClick={handleResumeRequest}
-                      className="min-h-touch rounded-full bg-gradient-to-r from-accent/80 to-primary/80 px-3 text-xs-plus font-semibold text-main shadow-md shadow-primary/30 hover:from-accent hover:to-primary transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                      className="min-h-touch rounded-full bg-gradient-to-r from-accent to-primary px-3 text-xs-plus font-semibold text-surface shadow-md shadow-primary/30 hover:from-primary hover:to-primary transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                     >
                       Save & resume later
                     </button>

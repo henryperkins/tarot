@@ -214,7 +214,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                   <span className={`
                     font-semibold truncate
                     ${condensed
-                      ? 'text-xs xs:text-xs-plus text-secondary'
+                      ? 'text-xs xs:text-xs-plus'
                       : 'text-xs xs:text-xs-plus sm:text-sm'
                     }
                     ${isActive ? 'text-main' : 'text-muted-high'}

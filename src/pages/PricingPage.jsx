@@ -882,7 +882,7 @@ export default function PricingPage() {
                 <CalendarBlank className="h-4 w-4" />
                 Annual
                 {plusAnnualPricing && (
-                  <span className="rounded-full bg-success/20 px-2 py-0.5 text-2xs font-semibold text-success">
+                  <span className="rounded-full bg-success-subtle px-2 py-0.5 text-2xs font-semibold text-success">
                     {annualDiscountLabel}
                   </span>
                 )}
