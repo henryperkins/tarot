@@ -1,6 +1,7 @@
 import { Children, cloneElement, isValidElement } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { findInsightCardMentions } from '../../lib/spreadInsights.js';
+import { READING_PANEL_FOCUS_CLASS } from '../../styles/panelClasses';
 
 export function InsightText({ text, cards = [], onSelectCard, sourceDeck }) {
   const linkChildren = children => Children.map(children, child => {
@@ -15,7 +16,7 @@ export function InsightText({ text, cards = [], onSelectCard, sourceDeck }) {
           <button
             key={`${start}-${index}`}
             type="button"
-            className="insight-card-link text-accent underline underline-offset-4 decoration-current rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            className={`insight-card-link text-accent underline underline-offset-4 decoration-current rounded-sm ${READING_PANEL_FOCUS_CLASS}`}
             aria-label={`View ${card.name}${card.position ? ` — ${card.position}` : ''}`}
             aria-haspopup="dialog"
             onClick={() => onSelectCard(index)}

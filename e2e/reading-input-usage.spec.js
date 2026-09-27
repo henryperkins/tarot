@@ -19,7 +19,7 @@ for (const width of [1440, 390, 320]) {
         await expect(trigger).toHaveAttribute('aria-expanded', 'false');
         expect((await region.boundingBox()).height).toBeLessThan(190);
         const feedback = page.getByRole('heading', { name: /How did this reading land/ });
-        expect((await feedback.boundingBox()).y).toBeLessThan((await region.boundingBox()).y);
+        expect((await region.boundingBox()).y).toBeLessThan((await feedback.boundingBox()).y);
         await region.screenshot({ path: testInfo.outputPath(`inputs-${width}-${theme}-collapsed.png`) });
         await trigger.focus();
         await trigger.press('Enter');

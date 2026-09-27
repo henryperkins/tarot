@@ -983,13 +983,9 @@ body {
 
 /* Light mode: Additional styles can be added here when implementing light mode support */
 
+/* The surface comes from .panel-mystic, matching the other reading panels. */
 .spread-patterns-panel {
   margin-top: 1.5rem;
-  background: var(--bg-surface);
-  border-radius: 1.25rem;
-  box-shadow: none;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
 }
 
 .spread-patterns-panel .insight-card-link {
