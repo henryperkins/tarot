@@ -473,7 +473,7 @@ export function StreamingNarrative({
 
   const personalizedIntro = displayName
     ? (
-      <p className="text-xs text-muted text-center mb-2">
+      <p className="text-xs text-muted mb-3">
         For you, {displayName}, this unfolds in stages:
       </p>
     )
@@ -496,7 +496,7 @@ export function StreamingNarrative({
 
   const EMPHASIS_POP_THRESHOLD = 8;
   const narrativeBody = useMarkdown ? (
-    <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[70ch] w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 mx-auto rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--md ${atmosphereClass} ${textBottomPaddingClass}`}>
+    <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-none w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] narrative-stream__text narrative-stream__text--md ${atmosphereClass} ${textBottomPaddingClass}`}>
       <MarkdownRenderer
         className="narrative-stream__markdown"
         content={visibleText}
@@ -506,7 +506,7 @@ export function StreamingNarrative({
       />
     </div>
   ) : (
-    <div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose max-w-[min(34rem,calc(100vw-2.75rem))] xxs:max-w-[40ch] sm:max-w-[68ch] mx-auto text-left min-h-[5.5rem] xxs:min-h-[7.5rem] md:min-h-[10rem] px-3 xxs:px-4 sm:px-1 rounded-2xl bg-surface/70 border border-secondary/30 shadow-md narrative-stream__text narrative-stream__text--plain ${atmosphereClass} ${textBottomPaddingClass}`}>
+    <div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose w-full text-left min-h-[5.5rem] xxs:min-h-[7.5rem] md:min-h-[10rem] narrative-stream__text narrative-stream__text--plain ${atmosphereClass} ${textBottomPaddingClass}`}>
       {visibleWords.map((word, idx) => {
         const meta = tokenMeta[idx] || { isWhitespace: /^\s+$/.test(word), isHighlighted: false };
 

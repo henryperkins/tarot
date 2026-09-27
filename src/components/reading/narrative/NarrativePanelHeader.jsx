@@ -8,7 +8,7 @@ export function NarrativePanelHeader({
 }) {
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <h2 id={NARRATIVE_FOCUS_TARGET_ID} ref={registerNarrativeFocusTarget} tabIndex={-1} data-reading-focus-target className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem] text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
+      <h2 id={NARRATIVE_FOCUS_TARGET_ID} ref={registerNarrativeFocusTarget} tabIndex={-1} data-reading-focus-target className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem] w-fit max-w-full text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
         <Sparkle aria-hidden="true" className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
         Your Personalized Narrative
       </h2>
