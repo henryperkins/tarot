@@ -253,6 +253,16 @@ export function ReadingDisplay({
         notifyCardMention
     });
 
+    const handleSelectInsightCard = useCallback((index) => {
+        if (!Number.isInteger(index) || index < 0 || index >= visibleCount || !revealedCards.has(index)) return;
+        handleOpenModalFromPanel({
+            card: reading[index],
+            position: spreadInfo?.positions?.[index] || `Position ${index + 1}`,
+            index,
+            readingKey: readingIdentity
+        });
+    }, [handleOpenModalFromPanel, reading, readingIdentity, revealedCards, spreadInfo?.positions, visibleCount]);
+
     const isCardModalOpen = Boolean(selectedCardData);
     useLayoutEffect(() => {
         // Suspend global shortcuts before the newly opened modal can take input.
@@ -339,6 +349,8 @@ export function ReadingDisplay({
         narrativeModel
     } = useNarrativeReadingController({
         reading,
+        deckStyleId,
+        onSelectInsightCard: handleSelectInsightCard,
         visibleCount,
         spreadPositions: spreadInfo?.positions || [],
         personalReading,
@@ -695,6 +707,7 @@ export function ReadingDisplay({
 
             <ReadingOverlays
                 selectedCardData={selectedCardData}
+                deckStyleId={deckStyleId}
                 resolvedQuestion={resolvedQuestion}
                 effectiveTier={effectiveTier}
                 onCloseDetail={handleCloseModal}

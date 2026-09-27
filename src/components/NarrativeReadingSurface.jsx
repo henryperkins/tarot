@@ -117,9 +117,10 @@ export function NarrativeReadingSurface({
     shouldShowSpreadInsights,
     themes,
     highlightItems = [],
-    traditionalPassages = []
+    traditionalPassages = [],
+    insightCards = []
   } = surfaceModel;
-  const { onCinematicMediaReady, onStoryArtMediaReady } = callbacks;
+  const { onCinematicMediaReady, onStoryArtMediaReady, onSelectCard } = callbacks;
   const shouldShowSafetyNotice = !personalReading && !isGenerating;
   const shouldSplitCompanionGrid = shouldShowCinematicReveal && shouldShowStoryIllustration;
   const narrativeForIllustration = fullReadingText || narrativeText;
@@ -226,9 +227,12 @@ export function NarrativeReadingSurface({
       {shouldShowSpreadInsights ? (
         <div className="w-full max-w-5xl mx-auto">
           <SpreadPatterns
+            key={readingIdentity}
             themes={themes}
             spreadHighlights={highlightItems}
             passages={traditionalPassages}
+            cards={insightCards}
+            onSelectCard={onSelectCard}
           />
         </div>
       ) : null}
@@ -259,10 +263,12 @@ NarrativeReadingSurface.propTypes = {
     shouldShowSpreadInsights: PropTypes.bool,
     themes: PropTypes.object,
     highlightItems: PropTypes.array,
-    traditionalPassages: PropTypes.array
+    traditionalPassages: PropTypes.array,
+    insightCards: PropTypes.array
   }),
   callbacks: PropTypes.shape({
     onCinematicMediaReady: PropTypes.func,
-    onStoryArtMediaReady: PropTypes.func
+    onStoryArtMediaReady: PropTypes.func,
+    onSelectCard: PropTypes.func
   })
 };

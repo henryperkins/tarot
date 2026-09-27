@@ -1,8 +1,9 @@
 import { createPortal } from 'react-dom';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ParticleLayer } from '../ParticleLayer';
 import { CardModal } from '../CardModal';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { getCardForDeck } from '../../lib/cardLookup';
 
 function GhostCard({ startRect, endRect, suit = null, onComplete }) {
   const prefersReducedMotion = useReducedMotion();
@@ -193,6 +194,7 @@ function GhostCard({ startRect, endRect, suit = null, onComplete }) {
 
 export function ReadingOverlays({
   selectedCardData,
+  deckStyleId,
   resolvedQuestion,
   effectiveTier,
   onCloseDetail,
@@ -201,11 +203,15 @@ export function ReadingOverlays({
   ghostAnimation,
   onGhostComplete
 }) {
+  const selectedCard = selectedCardData?.card;
+  // Keep unrelated reading updates from restarting the modal's animation.
+  const modalCard = useMemo(() => getCardForDeck(selectedCard, deckStyleId), [selectedCard, deckStyleId]);
+
   return (
     <>
       {selectedCardData ? (
         <CardModal
-          card={selectedCardData.card}
+          card={modalCard}
           position={selectedCardData.position}
           question={resolvedQuestion}
           userTier={effectiveTier}

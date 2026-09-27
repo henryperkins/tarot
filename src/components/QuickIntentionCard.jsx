@@ -151,7 +151,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
           setHasRequestedExample(true);
           onPlaceholderRefresh?.();
         }}
-        className="inline-flex items-center gap-2 self-start rounded-full border border-secondary/35 px-3 py-1.5 text-xs font-semibold text-secondary hover:text-main hover:border-secondary/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="inline-flex min-h-touch items-center gap-2 self-start rounded-full border border-secondary/35 px-3 py-1.5 text-xs font-semibold text-secondary hover:text-main hover:border-secondary/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         aria-label="Inspire me with a new example intention"
       >
         <ArrowsClockwise className="w-3.5 h-3.5" aria-hidden="true" />

@@ -1,242 +1,158 @@
-import { memo, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import { Fire, Drop, Wind, Leaf, Star, Triangle, Path, Infinity as InfinityIcon, CaretDown, CaretUp, BookOpen } from '@phosphor-icons/react';
+import { memo, useId, useState } from 'react';
+import { Fire, Drop, Wind, Leaf, Star, Triangle, Path, Infinity as InfinityIcon, CaretDown } from '@phosphor-icons/react';
 import { useHandsetLayout } from '../hooks/useHandsetLayout';
+import { buildSpreadInsightSections } from '../lib/spreadInsights.js';
+import { getPassageSource } from '../../shared/passageSource.js';
+import { DECK_CATALOG } from '../../shared/vision/deckCatalog.js';
+import { InsightText } from './reading/InsightText';
 
-// Suit icons using Phosphor icons for consistent rendering
-const SUIT_ICONS = {
-  Wands: <Fire className="w-4 h-4 text-wands" weight="fill" aria-hidden="true" />,
-  Cups: <Drop className="w-4 h-4 text-cups" weight="fill" aria-hidden="true" />,
-  Swords: <Wind className="w-4 h-4 text-swords" weight="fill" aria-hidden="true" />,
-  Pentacles: <Leaf className="w-4 h-4 text-pentacles" weight="fill" aria-hidden="true" />
-};
-
-// Pattern type icons
+const SUIT_ICONS = { Wands: Fire, Cups: Drop, Swords: Wind, Pentacles: Leaf };
 const PATTERN_ICONS = {
-  'complete-triad': <Star className="w-4 h-4 text-accent" weight="fill" aria-hidden="true" />,
-  'partial-triad': <Triangle className="w-4 h-4 text-accent" aria-hidden="true" />,
-  'fools-journey': <Path className="w-4 h-4 text-accent" aria-hidden="true" />,
-  'high-dyad': <InfinityIcon className="w-4 h-4 text-accent" aria-hidden="true" />,
-  'medium-high-dyad': <InfinityIcon className="w-4 h-4 text-accent" aria-hidden="true" />,
-  'suit-progression': null, // Uses suit-specific icon
-  'emerging-suit-progression': null // Uses suit-specific icon
+  'partial-triad': Triangle,
+  'fools-journey': Path,
+  'high-dyad': InfinityIcon,
+  'medium-high-dyad': InfinityIcon
 };
 
-// Default icon for unknown pattern types
-const DEFAULT_ICON = <Star className="w-4 h-4 text-accent" aria-hidden="true" />;
-
-// Maximum length for passage text before truncation
-// Increased from 250 to 450 to preserve complete quotes from traditional sources
-const MAX_PASSAGE_LENGTH = 450;
-
-/**
- * Get the appropriate icon for a pattern type
- * @param {string} type - Pattern type identifier
- * @param {string} [suit] - Optional suit name for suit progressions
- * @returns {JSX.Element} Icon component
- */
-function getPatternIcon(type, suit) {
-  // For suit progressions, use the suit icon
-  if (type === 'suit-progression' || type === 'emerging-suit-progression') {
-    return SUIT_ICONS[suit] || SUIT_ICONS.Wands;
-  }
-  // For other patterns, use the pattern icon
-  return PATTERN_ICONS[type] || DEFAULT_ICON;
+function InsightItem({ item, cards, onSelectCard }) {
+  const Icon = SUIT_ICONS[item.suit] || PATTERN_ICONS[item.type] || Star;
+  return (
+    <li className="flex items-start gap-3">
+      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
+      <div className="min-w-0 max-w-prose break-words text-base leading-relaxed text-main">
+        {item.title ? (
+          <><span className="font-semibold"><InsightText text={item.title} cards={cards} onSelectCard={onSelectCard} /></span>{' '}</>
+        ) : null}
+        <InsightText text={item.text} cards={cards} onSelectCard={onSelectCard} />
+      </div>
+    </li>
+  );
 }
 
-/**
- * Truncate text to a maximum length, adding ellipsis if needed
- * @param {string} text - Text to truncate
- * @param {number} maxLength - Maximum length
- * @returns {string} Truncated text
- */
-function truncateText(text, maxLength = MAX_PASSAGE_LENGTH) {
-  if (!text || text.length <= maxLength) return text;
-  const truncated = text.slice(0, maxLength);
-  const lastSpace = truncated.lastIndexOf(' ');
-  // If no space found or space is too early, hard truncate
-  return (lastSpace > 0 && lastSpace > maxLength * 0.8 ? truncated.slice(0, lastSpace) : truncated) + '…';
+function InsightList({ items, label, cards, onSelectCard }) {
+  return (
+    <ul className="space-y-4 text-main" role="list" aria-label={label}>
+      {items.map((item, index) => (
+        <InsightItem key={`${item.kind}-${item.id || item.key || item.type || 'insight'}-${index}`} item={item} cards={cards} onSelectCard={onSelectCard} />
+      ))}
+    </ul>
+  );
 }
 
-/**
- * Generate a stable unique key for a highlight item
- * @param {Object} highlight - Highlight object
- * @param {number} index - Array index as fallback
- * @param {string} [prefix] - Optional prefix for key uniqueness
- * @returns {string} Unique key
- */
-function generateHighlightKey(highlight, index, prefix = '') {
-  // Prefer explicit id if available
-  if (highlight.id) return `${prefix}${highlight.id}`;
-  if (highlight.key) return `${prefix}${highlight.key}`;
-
-  // Create a deterministic key from type + text hash
-  const typeKey = highlight.type || 'unknown';
-  const textKey = (highlight.text || highlight.title || '')
-    .slice(0, 50).replace(/\s+/g, '-').toLowerCase();
-
-  return `${prefix}${typeKey}-${textKey}-${index}`;
+function InsightSection({ title, children }) {
+  const id = useId();
+  const [isExpanded, setIsExpanded] = useState(false);
+  return (
+    <section className="border-t border-secondary/30">
+      <h3>
+        <button
+          type="button"
+          className="flex min-h-touch w-full items-center justify-between gap-3 rounded py-3 text-left text-base font-semibold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          onClick={() => setIsExpanded(expanded => !expanded)}
+          aria-expanded={isExpanded}
+          aria-controls={id}
+        >
+          <span className="min-w-0 break-words">{title}</span>
+          <CaretDown className={`h-5 w-5 shrink-0 ${isExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+        </button>
+      </h3>
+      <div id={id} hidden={!isExpanded} className="pb-4 pt-1 space-y-4">
+        {children}
+      </div>
+    </section>
+  );
 }
 
-/**
- * Generate stable key for passage
- * @param {Object} passage - Passage object
- * @param {number} index - Array index as fallback
- * @returns {string} Stable key
- */
-function generatePassageKey(passage, index) {
-  if (passage.id) return `passage-${passage.id}`;
-  const titleKey = (passage.title || passage.theme || 'passage').slice(0, 20).replace(/\s+/g, '-');
-  const sourceKey = (passage.source || '').slice(0, 15).replace(/\s+/g, '-');
-  return `passage-${titleKey}-${sourceKey}-${index}`;
-}
-
-/**
- * SpreadPatterns - Unified component for all spread insights
- *
- * Displays all insight types in one place:
- * - spreadHighlights: Card relationship insights (suit dominance, reversals, etc.)
- * - themes.knowledgeGraph.narrativeHighlights: Archetypal patterns (triads, dyads, Fool's Journey)
- * - passages: Traditional wisdom from GraphRAG knowledge base
- *
- * @param {Object} props
- * @param {Object} props.themes - Themes containing knowledgeGraph.narrativeHighlights
- * @param {Array} props.spreadHighlights - Spread-specific highlight items from useReading
- * @param {Array} props.passages - Traditional wisdom passages from GraphRAG
- */
-export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighlights = [], passages = [] }) {
-  const archetypeHighlights = themes?.knowledgeGraph?.narrativeHighlights || [];
+/** A short reading summary with supporting patterns and reference passages. */
+export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighlights = [], passages = [], cards = [], onSelectCard }) {
+  const contentId = useId();
   const [isExpanded, setIsExpanded] = useState(false);
   const isHandset = useHandsetLayout();
+  const { highlights, spreadDetails, archetypes } = buildSpreadInsightSections(
+    spreadHighlights, themes?.knowledgeGraph?.narrativeHighlights
+  );
+  const references = (Array.isArray(passages) ? passages : [])
+    .filter(passage => passage && typeof passage.text === 'string' && passage.text.trim());
+  const totalCount = highlights.length + spreadDetails.length + archetypes.length + references.length;
+  const selectedDeck = DECK_CATALOG[themes?.deckStyle];
+  const otherSources = [...new Set(references.map(getPassageSource)
+    .filter(source => selectedDeck && source && source.deckStyle !== themes.deckStyle)
+    .map(source => source.label))];
 
-  const hasArchetypes = Array.isArray(archetypeHighlights) && archetypeHighlights.length > 0;
-  const hasSpreadHighlights = Array.isArray(spreadHighlights) && spreadHighlights.length > 0;
-  const hasPassages = Array.isArray(passages) && passages.length > 0;
-  const shouldRenderContent = !isHandset || isExpanded;
-
-  if (!hasArchetypes && !hasSpreadHighlights && !hasPassages) {
-    return null;
-  }
-
-  const totalCount = archetypeHighlights.length + spreadHighlights.length + passages.length;
+  if (!totalCount) return null;
 
   return (
-    <div className="modern-surface spread-patterns-panel border border-secondary/40 p-4 sm:p-6 motion-safe:animate-fade-in">
+    <div className="modern-surface spread-patterns-panel border border-secondary/40 p-4 sm:p-6">
       {isHandset ? (
         <h2>
           <button
             type="button"
-            onClick={() => setIsExpanded(prev => !prev)}
-            className="flex min-h-touch w-full items-center justify-between gap-2 mb-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 rounded"
+            onClick={() => setIsExpanded(expanded => !expanded)}
+            className="flex min-h-touch w-full items-center justify-between gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             aria-expanded={isExpanded}
-            aria-controls="spread-patterns-content"
+            aria-controls={contentId}
           >
             <span className="flex min-w-0 flex-wrap items-center gap-2">
-              <Star className="w-5 h-5 text-accent" aria-hidden="true" />
-              <span className="text-accent text-base font-serif">Spread Insights</span>
-              <span className="text-xs text-muted">({totalCount})</span>
+              <Star className="h-5 w-5 text-accent" aria-hidden="true" />
+              <span className="text-accent text-lg font-serif">Spread Insights</span>
+              <span className="text-sm text-muted">({totalCount})</span>
             </span>
-            {isExpanded ? (
-              <CaretUp className="w-5 h-5 text-accent" aria-hidden="true" />
-            ) : (
-              <CaretDown className="w-5 h-5 text-accent" aria-hidden="true" />
-            )}
+            <CaretDown className={`h-5 w-5 shrink-0 text-accent ${isExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>
         </h2>
       ) : (
-        <h2 className="flex items-center gap-2 mb-4">
-          <Star className="w-5 h-5 text-accent" aria-hidden="true" />
-          <span className="text-accent text-lg font-serif">Spread Insights</span>
+        <h2 className="mb-5 flex items-center gap-2 text-accent">
+          <Star className="h-5 w-5" aria-hidden="true" />
+          <span className="text-lg font-serif">Spread Insights</span>
         </h2>
       )}
 
-      {/* Unified content: collapsed on mobile (unless expanded), always visible on desktop */}
-      <div id="spread-patterns-content" className={`${shouldRenderContent ? '' : 'hidden'} ${isHandset ? 'mt-3' : 'mt-0'} space-y-4`}>
-        {shouldRenderContent && (
-          <>
-        {/* Spread Highlights Section */}
-        {hasSpreadHighlights && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-accent/90">Highlights</h3>
-            <ul className="space-y-2" role="list" aria-label="Spread highlights">
-              {spreadHighlights.map((item, index) => (
-                <li key={generateHighlightKey(item, index, 'spread-')} className="flex items-start gap-3">
-                  <div className="text-accent mt-0.5 flex-shrink-0" aria-hidden="true">{item.icon}</div>
-                  <div className="text-muted text-sm leading-snug">
-                    <span className="font-semibold text-accent">{item.title}</span> {item.text}
-                  </div>
-                </li>
-              ))}
+      <div id={contentId} hidden={isHandset && !isExpanded} className={isHandset ? 'mt-4' : ''}>
+        {highlights.length > 0 ? (
+          <div className="pb-5 space-y-3">
+            <h3 className="text-base font-semibold text-accent">Highlights</h3>
+            <InsightList items={highlights} label="Spread highlights" cards={cards} onSelectCard={onSelectCard} />
+          </div>
+        ) : null}
+        {spreadDetails.length > 0 ? (
+          <InsightSection title="More spread details">
+            <InsightList items={spreadDetails} label="Supporting spread details" cards={cards} onSelectCard={onSelectCard} />
+          </InsightSection>
+        ) : null}
+        {archetypes.length > 0 ? (
+          <InsightSection title="Archetypal Patterns">
+            <InsightList items={archetypes} label="Detected archetypal patterns" cards={cards} onSelectCard={onSelectCard} />
+          </InsightSection>
+        ) : null}
+        {references.length > 0 ? (
+          <InsightSection title="Traditional Wisdom">
+            {otherSources.length > 0 ? (
+              <p className="max-w-prose break-words text-base leading-relaxed text-muted">
+                These references use {otherSources.join(' and ')} names and imagery. Your reading uses {selectedDeck.label}.
+              </p>
+            ) : null}
+            <ul className="space-y-5 text-main" role="list" aria-label="Traditional wisdom passages">
+              {references.map((passage, index) => {
+                const source = getPassageSource(passage);
+                return (
+                  <li key={`${passage.id || passage.patternId || 'passage'}-${index}`}>
+                    <article className="max-w-prose break-words space-y-2 text-base leading-relaxed">
+                      <p className="font-semibold">
+                        <InsightText text={passage.title || passage.theme} cards={cards} onSelectCard={onSelectCard} sourceDeck={source?.deckStyle} />
+                      </p>
+                      {source ? <p className="text-sm text-muted">{source.label} reference</p> : null}
+                      <blockquote>
+                        <InsightText text={passage.text} cards={cards} onSelectCard={onSelectCard} sourceDeck={source?.deckStyle} />
+                      </blockquote>
+                      {passage.source ? <p className="text-sm text-muted">— {passage.source}</p> : null}
+                    </article>
+                  </li>
+                );
+              })}
             </ul>
-          </div>
-        )}
-
-        {/* Archetypal Patterns Section */}
-        {hasArchetypes && (
-          <div className={hasSpreadHighlights ? 'pt-3 sm:pt-4 border-t border-secondary/30' : ''}>
-            <h3 className="text-sm font-semibold text-accent/90 mb-3">Archetypal Patterns</h3>
-            <ul className="pattern-list space-y-2" role="list" aria-label="Detected archetypal patterns">
-              {archetypeHighlights.map((highlight, index) => (
-                <li
-                  key={generateHighlightKey(highlight, index, 'archetype-')}
-                  className={`pattern pattern-${highlight.type || 'default'} flex items-start gap-2`}
-                >
-                  <span className="pattern-icon flex-shrink-0 mt-0.5" aria-hidden="true">
-                    {getPatternIcon(highlight.type, highlight.suit)}
-                  </span>
-                  <span className="pattern-text text-sm text-main/90 leading-relaxed">
-                    <ReactMarkdown
-                      components={{
-                        p: ({ children }) => <span>{children}</span>,
-                        strong: ({ children }) => <strong className="font-semibold text-accent">{children}</strong>,
-                        em: ({ children }) => <em className="italic">{children}</em>
-                      }}
-                    >
-                      {highlight.text || ''}
-                    </ReactMarkdown>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Traditional Wisdom Section */}
-        {hasPassages && (
-          <div className={(hasSpreadHighlights || hasArchetypes) ? 'pt-3 sm:pt-4 border-t border-secondary/30' : ''}>
-            <div className="flex items-center gap-2 mb-3">
-              <BookOpen className="w-4 h-4 text-accent flex-shrink-0" aria-hidden="true" />
-              <h3 className="text-sm font-semibold text-accent/90">Traditional Wisdom</h3>
-            </div>
-            <div className="space-y-3" role="list">
-              {passages.map((passage, i) => (
-                <article
-                  key={generatePassageKey(passage, i)}
-                  className="text-sm text-main/90 leading-relaxed bg-secondary/10 p-3 rounded border border-secondary/20"
-                >
-                  <p className="font-medium text-accent mb-1">{passage.title || passage.theme}</p>
-                  <p className="italic opacity-90 mb-1">
-                    &ldquo;{truncateText(passage.text)}&rdquo;
-                  </p>
-                  {passage.source && (
-                    <p className="text-muted text-xs text-right mt-1">— {passage.source}</p>
-                  )}
-                </article>
-              ))}
-            </div>
-          </div>
-        )}
-          </>
-        )}
+          </InsightSection>
+        ) : null}
       </div>
     </div>
-  );
-}, (prevProps, nextProps) => {
-  const prevArchetypes = prevProps.themes?.knowledgeGraph?.narrativeHighlights;
-  const nextArchetypes = nextProps.themes?.knowledgeGraph?.narrativeHighlights;
-  return (
-    prevArchetypes === nextArchetypes &&
-    prevProps.spreadHighlights === nextProps.spreadHighlights &&
-    prevProps.passages === nextProps.passages
   );
 });

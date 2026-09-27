@@ -95,8 +95,7 @@ export function deriveNarrativeVisibility({
   autoGenerateVisualsEnabled,
   isGenerating,
   storyArtCards = [],
-  cinematicCard,
-  isHandset
+  cinematicCard
 }) {
   const traditionalPassages = getTraditionalPassages(themes);
   const hasPatternHighlights = Boolean(!isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
@@ -104,7 +103,7 @@ export function deriveNarrativeVisibility({
   const hasHighlightPanel = Boolean(highlightItems.length && visibleCount > 0 && revealedCardsSize === visibleCount);
   const cardsFullyRevealed = Boolean(visibleCount > 0 && revealedCardsSize >= visibleCount);
   const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasHighlightPanel || canShowVisionPanel;
-  const focusToggleAvailable = hasInsightPanels && !isHandset;
+  const focusToggleAvailable = hasInsightPanels;
   const shouldShowSpreadInsights = cardsFullyRevealed
     && !isShuffling
     && !isNarrativeFocus
@@ -269,6 +268,7 @@ export function buildNarrativeSurfaceModel({
   themes,
   highlightItems,
   traditionalPassages,
+  insightCards,
   isLandscape
 }) {
   return {
@@ -294,6 +294,7 @@ export function buildNarrativeSurfaceModel({
     themes,
     highlightItems,
     traditionalPassages,
+    insightCards,
     layoutClassName: isLandscape ? 'space-y-4' : 'space-y-8'
   };
 }

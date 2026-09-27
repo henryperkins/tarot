@@ -2,6 +2,7 @@ import { createElement, useCallback, useEffect, useMemo } from 'react';
 import { NarrativePanel } from '../components/NarrativePanel';
 import { NarrativeReadingSurface } from '../components/NarrativeReadingSurface';
 import { useNarrationAutomation } from './useNarrationAutomation';
+import { getCardForDeck } from '../lib/cardLookup';
 import {
   getNarrativeBiasClass,
   getNarrativePhaseClass,
@@ -20,6 +21,8 @@ import {
 
 export function useNarrativeReadingController({
   reading,
+  deckStyleId,
+  onSelectInsightCard,
   visibleCount,
   spreadPositions,
   personalReading,
@@ -85,6 +88,12 @@ export function useNarrativeReadingController({
   const storyArtCards = useMemo(() => (
     buildStoryArtCards({ reading, visibleCount, spreadPositions })
   ), [reading, spreadPositions, visibleCount]);
+  const insightCards = useMemo(() => (Array.isArray(reading) ? reading : [])
+    .slice(0, visibleCount)
+    .map((card, index) => ({
+      ...getCardForDeck(card, deckStyleId),
+      position: spreadPositions?.[index] || `Position ${index + 1}`
+    })), [reading, deckStyleId, spreadPositions, visibleCount]);
   const { cinematicCard, cinematicPosition } = useMemo(() => (
     selectCinematicCard({ reading, visibleCount, spreadPositions })
   ), [reading, spreadPositions, visibleCount]);
@@ -311,6 +320,7 @@ export function useNarrativeReadingController({
     themes,
     highlightItems,
     traditionalPassages: visibilityState.traditionalPassages,
+    insightCards,
     isLandscape
   }), [
     cinematicCard,
@@ -318,6 +328,7 @@ export function useNarrativeReadingController({
     effectiveTier,
     fullReadingText,
     highlightItems,
+    insightCards,
     isGenerating,
     isHandset,
     isLandscape,
@@ -368,8 +379,9 @@ export function useNarrativeReadingController({
 
   const surfaceCallbacks = useMemo(() => ({
     onCinematicMediaReady: handleCinematicMediaReady,
-    onStoryArtMediaReady: handleStoryArtMediaReady
-  }), [handleCinematicMediaReady, handleStoryArtMediaReady]);
+    onStoryArtMediaReady: handleStoryArtMediaReady,
+    onSelectCard: onSelectInsightCard
+  }), [handleCinematicMediaReady, handleStoryArtMediaReady, onSelectInsightCard]);
 
   const narrativePanel = personalReading
     ? createElement(NarrativePanel, { panelModel, callbacks: panelCallbacks })

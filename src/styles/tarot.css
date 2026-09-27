@@ -605,7 +605,7 @@ body {
 
 .header-sticky {
   position: sticky;
-  transition: transform 260ms ease, padding 200ms ease, opacity 200ms ease;
+  transition: transform 260ms ease, opacity 200ms ease;
 }
 
 .header-sticky--compact {
@@ -649,77 +649,29 @@ body {
   min-height: 3.25rem;
 }
 
+/* Reserve room for guest actions at every width instead of overlaying navigation. */
 .header-sticky__nav {
-  flex: 1;
+  flex: 1 1 22rem;
+  min-width: 0;
   display: flex;
   justify-content: center;
-  /* Mobile: UserMenu is fixed FAB, no padding needed */
-  padding-left: 0;
-  padding-right: 0;
-}
-
-/* Desktop (sm+): UserMenu is absolutely positioned in header row, need padding */
-@media (min-width: 640px) {
-  .header-sticky__nav {
-    padding-left: 6rem;
-    padding-right: 6rem;
-  }
 }
 
 .header-sticky__user {
   transition: opacity 200ms ease, transform 200ms ease;
-  position: absolute;
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 48px;
   min-height: 48px;
   padding: 0.125rem;
-  /* Account for safe area on notched devices */
-  right: max(0.75rem, var(--safe-pad-right, 0px));
-  top: 50%;
-  transform: translateY(-50%);
   touch-action: manipulation;
 }
 
 .header-sticky--compact .header-sticky__user {
-  /* Keep user menu accessible in compact mode - UserMenu handles condensed display */
   opacity: 1;
-  transform: translateY(-50%);
   pointer-events: auto;
-}
-
-.header-sticky__user--fab {
-  border-radius: 999px;
-}
-
-/* Mobile: UserMenu as fixed FAB to avoid overlap with nav buttons */
-/* Extended to sm breakpoint (639px) to cover all mobile sizes */
-@media (max-width: 639px) {
-  .header-sticky__user--fab {
-    position: fixed;
-    top: max(0.75rem, var(--safe-pad-top, 0px));
-    right: max(0.85rem, var(--safe-pad-right, 0px));
-    background: var(--surface-88, rgba(28, 26, 34, 0.88));
-    background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
-    -webkit-backdrop-filter: blur(14px);
-    backdrop-filter: blur(14px);
-    box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.65),
-      0 0 0 1px var(--border-warm-light);
-    box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.65),
-      0 0 0 1px color-mix(in srgb, var(--brand-accent) 20%, transparent);
-    z-index: var(--z-fixed, 50);
-  }
-}
-
-@supports not (color: color-mix(in srgb, red 50%, blue)) {
-  @media (max-width: 639px) {
-    .header-sticky__user--fab {
-      background: var(--surface-88, rgba(28, 26, 34, 0.88));
-      box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.65),
-        0 0 0 1px var(--border-warm-light);
-    }
-  }
 }
 
 .header-sticky__status {
@@ -1033,53 +985,19 @@ body {
 
 .spread-patterns-panel {
   margin-top: 1.5rem;
-  background: radial-gradient(
-      circle at top,
-      var(--brand-secondary),
-      transparent
-    )
-    var(--bg-surface);
+  background: var(--bg-surface);
   border-radius: 1.25rem;
-  box-shadow: 0 25px 50px -12px var(--brand-secondary);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
-.spread-patterns-panel .pattern-list {
-  display: flex;
-  flex-direction: column;
-  list-style: none;
-  gap: 1rem;
+.spread-patterns-panel .insight-card-link {
+  /* Inline mentions follow the surrounding text instead of button sizing. */
+  display: inline;
+  font: inherit;
+  line-height: inherit;
   padding: 0;
-  margin: 0;
-}
-
-.spread-patterns-panel .pattern {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-}
-
-.spread-patterns-panel .pattern-icon {
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 9999px;
-  border: 1px solid var(--brand-accent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  background: var(--brand-secondary);
-  color: var(--brand-accent);
-  opacity: 0.9;
-}
-
-.spread-patterns-panel .pattern-text {
-  color: var(--text-main);
-  line-height: 1.5;
-  font-size: 0.95rem;
-}
-
-.spread-patterns-panel .pattern-text p {
-  margin: 0;
 }
 
 /* Celtic Cross grid layout */

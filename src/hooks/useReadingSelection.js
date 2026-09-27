@@ -123,7 +123,7 @@ export function useReadingSelection({
     }, [reading, revealedCards]);
 
     const navigationData = useMemo(() => {
-        const currentIndex = activeFocusedCardData?.index ?? selectedCardData?.index ?? -1;
+        const currentIndex = selectedCardData?.index ?? activeFocusedCardData?.index ?? -1;
         if (currentIndex < 0 || revealedIndicesSorted.length === 0) {
             return { canPrev: false, canNext: false, label: '', currentPos: -1 };
         }
