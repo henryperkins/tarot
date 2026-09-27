@@ -1,8 +1,9 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from './useJournal';
 import { getSpreadInfo } from '../data/spreads';
+import { sanitizeSourceUsage } from '../../shared/readingSourceUsage';
 
 export function useSaveReading() {
     const {
@@ -34,13 +35,9 @@ export function useSaveReading() {
     const lastSavedSeedRef = useRef(null);
 
     // Reset saved-seed tracking when a new reading starts (sessionSeed goes null on shuffle)
-    const prevSeedRef = useRef(sessionSeed);
-    if (prevSeedRef.current !== sessionSeed) {
-        if (sessionSeed === null && prevSeedRef.current !== null) {
-            lastSavedSeedRef.current = null;
-        }
-        prevSeedRef.current = sessionSeed;
-    }
+    useEffect(() => {
+        if (sessionSeed === null) lastSavedSeedRef.current = null;
+    }, [sessionSeed]);
 
     const saveReading = useCallback(async function saveReading() {
         // Prevent double-saves
@@ -102,6 +99,8 @@ export function useSaveReading() {
             followUps: Array.isArray(followUps) && followUps.length ? followUps : undefined,
             // Request ID for API tracing/correlation
             requestId: readingMeta?.requestId || null,
+            sourceUsage: (personalReading?.provider || readingMeta?.provider) === 'safe-fallback'
+                ? null : sanitizeSourceUsage(readingMeta?.sourceUsage),
             // Snapshot of user preferences at the time of the reading (Phase 5.1)
             userPreferences: personalization ? {
                 readingTone: personalization.readingTone || 'balanced',

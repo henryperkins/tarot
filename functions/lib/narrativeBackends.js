@@ -43,7 +43,7 @@ import {
   TONE_STYLES,
   FRAME_VOCABULARY
 } from './narrative/styleHelpers.js';
-import { buildOpening, buildReflectionsSection, sanitizeQuestionForNarrative } from './narrative/helpers.js';
+import { buildOpening, buildReflectionsSection, prepareReflectionsText, sanitizeQuestionForNarrative } from './narrative/helpers.js';
 import { buildUserContextSourceUsage } from './narrative/sourceUsage.js';
 import { formatPassagesForPrompt } from './graphRAG.js';
 import { buildPromptRedactionOptions, redactPII } from './promptEngineering.js';
@@ -490,13 +490,38 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
   const personalization = payload?.personalization || {};
   const rawUserQuestion = typeof payload?.userQuestion === 'string' ? payload.userQuestion : '';
   const rawReflections = collectQuerentReflections(payload?.reflectionsText, payload?.cardsInfo);
+  const generalReflections = typeof payload?.reflectionsText === 'string' ? payload.reflectionsText.trim() : '';
+  const cardReflections = (payload?.cardsInfo || []).map(card => card?.userReflection).filter(note => typeof note === 'string' && note.trim());
+  // Match collectQuerentReflections' case/whitespace-insensitive deduplication.
+  const normalizeReflection = text => text.toLowerCase().replace(/\s+/g, ' ').trim();
+  const includedReflections = normalizeReflection(prepareReflectionsText(rawReflections));
+  const reflectionFields = Object.fromEntries([
+    ['reflections', generalReflections],
+    ...(payload?.cardsInfo || []).map((card, index) => [`card-${index}`, card?.userReflection || ''])
+  ].map(([key, value]) => {
+    const text = typeof value === 'string' ? value : '';
+    const prepared = normalizeReflection(prepareReflectionsText(text, { maxLength: text.length || 1 }));
+    // Measure the retained prefix, including a partially clipped last note.
+    // Matching notes intentionally count as represented once.
+    const start = prepared ? includedReflections.indexOf(prepared.slice(0, 32)) : -1;
+    let includedLength = 0;
+    if (start >= 0) {
+      while (includedLength < prepared.length && prepared[includedLength] === includedReflections[start + includedLength]) includedLength += 1;
+    }
+    return [key, {
+      originalLength: text.length, sanitizedLength: prepared.length, includedLength,
+      limitApplied: Boolean(prepared && includedLength < prepared.length),
+      omitted: Boolean(text && includedLength === 0),
+      reason: text && !prepared ? 'sanitized_empty' : prepared && includedLength < prepared.length ? 'input_limit' : null
+    }];
+  }));
+  const cardFields = Object.entries(reflectionFields).filter(([key]) => key.startsWith('card-')).map(([, field]) => field);
   const rawFocusAreas = Array.isArray(personalization?.focusAreas)
     ? personalization.focusAreas.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
     : [];
   const rawDisplayName = typeof personalization?.displayName === 'string' ? personalization.displayName : '';
   const safeDisplayName = sanitizeDisplayName(rawDisplayName);
   const sanitizedQuestion = sanitizeQuestionForNarrative(rawUserQuestion);
-  const reflectionsSection = buildReflectionsSection(rawReflections);
   const toneKey = typeof personalization?.readingTone === 'string' ? personalization.readingTone : '';
   const frameKey = typeof personalization?.spiritualFrame === 'string' ? personalization.spiritualFrame : '';
   const experienceKey = typeof personalization?.tarotExperience === 'string' ? personalization.tarotExperience : '';
@@ -505,7 +530,7 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
   const hasSupportedFrame = Boolean(frameKey && Object.prototype.hasOwnProperty.call(FRAME_VOCABULARY, frameKey));
   const hasSupportedExperience = Boolean(buildExperienceLine(experienceKey));
   const depthProfile = getDepthProfile(depthKey);
-  const hasDepthOverride = Boolean(depthKey) && depthProfile.key !== 'standard';
+  const hasSupportedDepth = Boolean(depthKey) && depthProfile.key === depthKey;
   const userContext = buildUserContextSourceUsage({
     question: {
       provided: rawUserQuestion.trim().length > 0,
@@ -513,9 +538,14 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
       skippedReason: rawUserQuestion.trim().length > 0 && !sanitizedQuestion ? 'sanitized_empty' : null
     },
     reflections: {
-      provided: rawReflections.trim().length > 0,
-      used: Boolean(reflectionsSection),
-      skippedReason: rawReflections.trim().length > 0 && !reflectionsSection ? 'sanitized_empty' : null
+      provided: generalReflections.length > 0,
+      used: reflectionFields.reflections.includedLength > 0,
+      skippedReason: reflectionFields.reflections.reason
+    },
+    cardReflections: {
+      provided: cardReflections.length > 0,
+      used: cardFields.some(field => field.includedLength > 0),
+      skippedReason: cardFields.some(field => field.limitApplied) ? 'input_limit' : 'sanitized_empty'
     },
     focusAreas: {
       provided: rawFocusAreas.length > 0,
@@ -544,9 +574,9 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
     },
     depth: {
       provided: Boolean(depthKey),
-      used: hasDepthOverride,
+      used: hasSupportedDepth,
       skippedReason: depthKey
-        ? (hasDepthOverride ? null : (depthKey === 'standard' ? 'default_profile' : 'unsupported_value'))
+        ? (hasSupportedDepth ? null : 'unsupported_value')
         : null
     }
   });
@@ -603,7 +633,7 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
       suppressionReasons: visionPromptEligibility.suppressionReasons,
       skippedReason: hasVisionSource ? 'not_used_by_backend' : 'not_provided'
     },
-    userContext,
+    userContext: { ...userContext, fields: reflectionFields },
     graphRAG: {
       requested: hasGraphRAGSource,
       used: graphRAGUsed,

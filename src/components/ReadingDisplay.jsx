@@ -641,6 +641,7 @@ export function ReadingDisplay({
 
     const completionModel = {
         personalReading,
+        isNarrativeFocus,
         isPersonalReadingError,
         narrativePhase,
         isHandset,

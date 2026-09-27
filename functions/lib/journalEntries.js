@@ -11,6 +11,7 @@ import { scheduleCoachExtraction } from './coachSuggestion.js';
 import { insertFollowUps, sanitizeFollowUps } from './journalFollowups.js';
 import { normalizeJournalContext } from './journalContext.js';
 import { safeJsonParse } from './utils.js';
+import { sanitizeSourceUsage } from '../../shared/readingSourceUsage.js';
 
 /**
  * Whether a D1/SQLite error is a unique-constraint failure on the given
@@ -63,6 +64,7 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
     timestampMs,
     // User preferences snapshot at time of reading (Phase 5.2)
     userPreferences,
+    sourceUsage,
     // Deck style identifier (rws1909, marseille, thoth, etc.)
     deckId,
     // Request ID for API tracing/correlation
@@ -154,9 +156,10 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
         location_latitude,
         location_longitude,
         location_timezone,
-        location_consent
+        location_consent,
+        source_usage_json
       )
-      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       WHERE NOT EXISTS (
         SELECT 1 FROM journal_entries WHERE user_id = ? AND session_seed = ?
       )
@@ -183,6 +186,7 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
         locationLongitude,
         locationTimezone,
         locationConsent,
+        JSON.stringify(provider === 'safe-fallback' ? null : sanitizeSourceUsage(sourceUsage)),
         user.id,
         sessionSeed || null
       )

@@ -243,6 +243,12 @@ export class ReadingJob {
           ));
         }
 
+        // Metadata is a snapshot, not a text delta. A resumed consumer may
+        // have lost its in-memory copy even though its cursor was persisted.
+        const metadata = this.events.findLast((event) => event.event === 'meta');
+        if (metadata && metadata.id <= cursor) {
+          controller.enqueue(this.encoder.encode(this.formatEvent(metadata)));
+        }
         const backlog = this.events.filter((event) => event.id > cursor);
         backlog.forEach((event) => {
           controller.enqueue(this.encoder.encode(this.formatEvent(event)));

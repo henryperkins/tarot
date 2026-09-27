@@ -100,9 +100,10 @@ export async function* readReadingJobEvents({ jobId, jobToken, cursor = 0, signa
           }
           const terminal = event === 'done' || event === 'error';
           const eventId = data?.eventId;
-          // Terminal events may be replayed at the exact requested cursor.
+          // Metadata snapshots and terminal events can be replayed without
+          // advancing the cursor. Text deltas must still be deduplicated.
           if (Number.isFinite(eventId)) {
-            if (eventId <= cursor && !terminal) continue;
+            if (eventId <= cursor && !terminal && event !== 'meta') continue;
             if (eventId > cursor) {
               cursor = eventId;
               reconnects = 0;

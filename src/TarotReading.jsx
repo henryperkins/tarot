@@ -8,6 +8,7 @@ import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
 import { formatReading } from './lib/formatting';
+import { readingMetadataFromEntry } from './lib/readingMetadata';
 import FollowUpModal from './components/FollowUpModal';
 import { QuickIntentionCard } from './components/QuickIntentionCard';
 import { Header } from './components/Header';
@@ -384,13 +385,9 @@ export default function TarotReading() {
       personalReading: entryNarrative = '',
       themes: entryThemes = null,
       spreadKey,
-      spreadName,
       context: entryContext,
-      deckId,
       followUps = [],
-      sessionSeed: entrySessionSeed,
-      requestId,
-      provider
+      sessionSeed: entrySessionSeed
     } = followUpEntry;
 
     const normalizedSpread = spreadKey || selectedSpread;
@@ -425,15 +422,7 @@ export default function TarotReading() {
     setIsGenerating(false);
     setJournalStatus(null);
     setFollowUps(Array.isArray(followUps) ? followUps : []);
-	    setReadingMeta((prev) => ({
-	      ...prev,
-	      requestId: requestId || prev.requestId,
-	      spreadKey: normalizedSpread || prev.spreadKey,
-	      spreadName: spreadName || prev.spreadName,
-	      deckStyle: deckId || prev.deckStyle,
-	      userQuestion: question || prev.userQuestion,
-	      provider: provider || prev.provider
-	    }));
+    setReadingMeta(readingMetadataFromEntry({ ...followUpEntry, spreadKey: normalizedSpread }));
 	    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncing UI state from router state
 	    setFollowUpIntent(normalizedIntent);
 	    setIsFollowUpOpen(true);

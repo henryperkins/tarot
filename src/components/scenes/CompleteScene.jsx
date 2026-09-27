@@ -15,6 +15,7 @@ export function CompleteScene({
   const completionModel = getSceneModel(sceneModels, 'completionModel');
   const {
     personalReading,
+    isNarrativeFocus,
     isPersonalReadingError,
     narrativePhase,
     isHandset,
@@ -55,11 +56,6 @@ export function CompleteScene({
         followUpAutoFocus={followUpAutoFocus}
       />
 
-      <ReadingInputUsageSection
-        personalReading={personalReading}
-        sourceUsage={readingMeta?.sourceUsage}
-      />
-
       <ReadingMediaSection
         personalReading={personalReading}
         isPersonalReadingError={isPersonalReadingError}
@@ -87,6 +83,16 @@ export function CompleteScene({
         lastCardsForFeedback={lastCardsForFeedback}
         feedbackVisionSummary={feedbackVisionSummary}
       />
+
+      {!isNarrativeFocus && (
+        <ReadingInputUsageSection
+          key={readingMeta?.requestId || readingMeta?.readingId}
+          personalReading={personalReading}
+          isPersonalReadingError={isPersonalReadingError}
+          provider={readingMeta?.provider}
+          sourceUsage={readingMeta?.sourceUsage}
+        />
+      )}
     </>
   );
 
