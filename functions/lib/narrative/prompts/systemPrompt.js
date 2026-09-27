@@ -232,9 +232,10 @@ export function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQu
   });
   recordUserContextSignal(userContextSignals, 'depth', {
     provided: Boolean(depthPreference),
-    eligible: Boolean(depthProfile && depthProfile.systemGuidance && depthProfile.key !== 'standard'),
+    eligible: Boolean(depthPreference && depthProfile?.key === depthPreference),
+    appliedByBaseContract: depthPreference === 'standard',
     skippedReasonIfNotEligible: depthPreference
-      ? (depthPreference === 'standard' ? 'default_profile' : 'unsupported_value')
+      ? 'unsupported_value'
       : null,
     skippedReasonIfMissing: 'removed_for_budget'
   });

@@ -269,13 +269,9 @@ for (const signedOut of [false, true]) {
 
 const expectedSourceRows = {
   reference: [
-    ['Spread & cards', 'Used'], ['Vision uploads', 'Not requested'], ['User context', 'Used'],
-    ['Traditional wisdom', 'Used'], ['Ephemeris', 'Requested not used'], ['Forecast', 'Skipped']
+    ['Your question & notes', 'Included'], ['Your preferences', 'Included'], ['Traditional wisdom', 'Included']
   ],
-  alternate: [
-    ['Spread & cards', 'Used'], ['Vision uploads', 'Used'], ['User context', 'Skipped'],
-    ['Traditional wisdom', 'Not requested'], ['Ephemeris', 'Not requested'], ['Forecast', 'Not requested']
-  ]
+  alternate: [['Uploaded images', 'Partly included']]
 };
 
 for (const source of ['reference', 'alternate']) {
@@ -283,13 +279,15 @@ for (const source of ['reference', 'alternate']) {
     test(`A04 ${theme} source badges have accurate ${source} states and composited contrast`, async ({ page }, testInfo) => {
       await withReading(page, { source, theme }, async () => {
         const trigger = page.getByRole('button', { name: 'Reading Inputs Used', exact: true });
-        await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+        await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        await trigger.press('Enter');
         const region = page.getByRole('region', { name: 'Reading Inputs Used' });
         const panel = page.locator(`#${await trigger.getAttribute('aria-controls')}`);
         const rows = panel.getByRole('listitem');
-        await expect(rows).toHaveCount(6);
-        await expect(region.getByText(source === 'reference' ? '3 used' : '2 used', { exact: true })).toBeVisible();
-        await expect(region.getByText(source === 'reference' ? '2 requested not used' : '1 requested not used', { exact: true })).toBeVisible();
+        await expect(rows).toHaveCount(expectedSourceRows[source].length);
+        await expect(region).not.toContainText('requested not used');
+        if (source === 'alternate') await expect(region).toContainText('Some of your input was shortened or left out.');
+        else await expect(region).not.toContainText('Some of your input was shortened or left out.');
         const contrast = [];
         for (const [label, state] of expectedSourceRows[source]) {
           const row = rows.filter({ has: page.getByText(label, { exact: true }) });
@@ -304,12 +302,11 @@ for (const source of ['reference', 'alternate']) {
           if (await icon.count()) expect((await badgeContrast(icon)).ratio).toBeGreaterThanOrEqual(3);
         }
         if (source === 'reference') {
-          await expect(panel).toContainText('Used: question, tone');
-          await expect(panel).toContainText('semantic mode, 2/3 passages');
-          await expect(panel).toContainText('Reason: budget limit');
+          await expect(panel).toContainText('Included: question and card notes.');
+          await expect(panel).toContainText('Included: tone and reading depth.');
+          await expect(panel).toContainText('1 reference passage');
         } else {
-          await expect(panel).toContainText('2 uploaded evidence packets used');
-          await expect(panel).toContainText('Reason: consent required');
+          await expect(panel).toContainText('1 image could not be included');
         }
         await testInfo.attach(`source-contrast-${source}-${theme}`, { body: JSON.stringify(contrast, null, 2), contentType: 'application/json' });
         await trigger.click();
@@ -470,6 +467,7 @@ for (const mobile of [false, true]) {
       if (mobile) await page.setViewportSize(handsets[1]);
       for (const [name, level] of expectedLevels) await expect(narrative.getByRole('heading', { name, level, exact: true })).toBeVisible();
       await expect(page.getByRole('heading', { name: /^Spread Insights/, level: 2 })).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Reading Inputs Used', level: 2 })).toHaveCount(0);
       if (mobile) await page.setViewportSize(desktop);
       await expect(page.getByRole('button', { name: 'Show insight panels', exact: true })).toHaveAttribute('aria-pressed', 'true');
       const showPanels = page.getByRole('button', { name: 'Show insight panels', exact: true });

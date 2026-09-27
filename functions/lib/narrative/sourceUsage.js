@@ -7,6 +7,10 @@ const USER_CONTEXT_FIELD_CONFIG = Object.freeze({
     providedProp: 'reflectionsProvided',
     usedProp: 'reflectionsUsed'
   }),
+  cardReflections: Object.freeze({
+    providedProp: 'cardReflectionsProvided',
+    usedProp: 'cardReflectionsUsed'
+  }),
   focusAreas: Object.freeze({
     providedProp: 'focusAreasProvided',
     usedProp: 'focusAreasUsed'

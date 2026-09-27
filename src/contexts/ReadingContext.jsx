@@ -556,7 +556,7 @@ export function ReadingProvider({ children }) {
                             userQuestion,
                             graphContext: data.themes?.knowledgeGraph || null,
                             ephemeris: data.ephemeris || null,
-                            sourceUsage: data.sourceUsage || null
+                            sourceUsage: data.provider === 'safe-fallback' ? null : (data.sourceUsage || null)
                         });
                     }
                 } else if (eventType === 'snapshot') {
@@ -646,7 +646,9 @@ export function ReadingProvider({ children }) {
                     setReadingMeta((prev) => ({
                         ...prev,
                         requestId: formatted.requestId,
-                        provider: formatted.provider || prev?.provider || 'local'
+                        provider: formatted.provider || prev?.provider || 'local',
+                        sourceUsage: formatted.provider === 'safe-fallback' ? null
+                            : (Object.hasOwn(data, 'sourceUsage') ? data.sourceUsage : prev.sourceUsage)
                     }));
                     clearReadingJob();
                     setIsGenerating(false);
