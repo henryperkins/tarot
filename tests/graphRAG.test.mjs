@@ -24,6 +24,14 @@ import {
 } from '../functions/lib/knowledgeBase.js';
 import { ARCHETYPAL_DYADS } from '../src/data/knowledgeGraphData.js';
 
+test('retrieval preserves the origin of imagery instead of implying the selected deck', () => {
+  const passages = retrievePassages({ completeTriadIds: ['death-temperance-star'], thothSuits: ['Cups'], marseilleRanks: [3] }, { maxPassages: 10 });
+  assert.equal(passages.find(p => p.type === 'triad').sourceDeck, 'rws-1909');
+  assert.equal(passages.find(p => p.type === 'thoth-suit').sourceDeck, 'thoth-a1');
+  assert.equal(passages.find(p => p.type === 'marseille-numerology').sourceDeck, 'marseille-classic');
+  assert.match(passages.find(p => p.type === 'triad').text, /white horse/, 'Keep the authored reference intact');
+});
+
 describe('GraphRAG Knowledge Base', () => {
   test('getKnowledgeBaseStats returns correct counts', () => {
     const stats = getKnowledgeBaseStats();

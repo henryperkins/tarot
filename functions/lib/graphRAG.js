@@ -21,6 +21,7 @@ import {
   getKnowledgeBaseStats
 } from './knowledgeBase.js';
 import { cosineSimilarity, embedTextWithMetadata } from './embeddings.js';
+import { getPassageSource } from '../../shared/passageSource.js';
 
 // ============================================================================
 // HELPER: Word Boundary Matching
@@ -416,6 +417,28 @@ export function retrievePassages(graphKeys, options = {}) {
     });
   }
 
+  // Prefer the existing tradition-specific collections when those patterns
+  // were detected. These graph keys are emitted only for the matching deck.
+  for (const { keys, type } of [
+    { keys: graphKeys.thothSuits, type: 'thoth-suit' },
+    { keys: graphKeys.marseilleRanks, type: 'marseille-numerology' }
+  ]) {
+    if (!Array.isArray(keys)) continue;
+    for (const key of new Set(keys)) {
+      const entry = getPassagesForPattern(type, key);
+      const passage = entry?.passages && selectPassageForContext(entry.passages, contextCandidates);
+      if (!passage) continue;
+      passages.push({
+        ...passage,
+        priority: 3,
+        type,
+        patternId: String(key),
+        title: entry.title,
+        theme: entry.theme
+      });
+    }
+  }
+
   // Priority 6: Partial triads (two of three archetypes present)
   // Ranked below every complete pattern because the arc's third card is absent;
   // the reference block's card guardrail keeps it contextual.
@@ -472,7 +495,10 @@ export function retrievePassages(graphKeys, options = {}) {
     })
     .slice(0, maxPassages);
 
-  return ranked;
+  return ranked.map(passage => ({
+    ...passage,
+    sourceDeck: getPassageSource(passage)?.deckStyle || null
+  }));
 }
 
 /**

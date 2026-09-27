@@ -26,6 +26,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 import { GlobalNav } from '../components/GlobalNav';
 import AuthModal from '../components/AuthModal';
 import { MobileInfoSection } from '../components/MobileInfoSection';
@@ -98,25 +99,25 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled, b
   return (
     <div
       className={[
-        'relative rounded-3xl border bg-surface/80 p-6 backdrop-blur',
+        'relative min-w-0 rounded-3xl border bg-surface/80 p-6 backdrop-blur [overflow-wrap:anywhere]',
         isCurrent
           ? 'border-accent/80 ring-2 ring-accent/40'
           : 'border-secondary/40 hover:border-accent/60',
         prefersReducedMotion ? '' : 'transition-transform hover:-translate-y-0.5'
       ].join(' ')}
     >
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className={`rounded-full p-2 ${isPaid ? 'bg-accent/15' : 'bg-secondary/20'}`}>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 max-w-full items-center gap-3">
+          <div className={`shrink-0 rounded-full p-2 ${isPaid ? 'bg-accent/15' : 'bg-secondary/20'}`}>
             <TierIcon className={`h-5 w-5 ${isPaid ? 'text-accent' : 'text-secondary'}`} weight="fill" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">{config.name}</p>
             <p className="text-lg font-semibold text-main">{config.label}</p>
           </div>
         </div>
 
-        <div className="text-right">
+        <div className="ml-auto max-w-full text-right">
           {isFree ? (
             <p className="text-3xl font-bold text-main">Free</p>
           ) : isAnnual ? (
@@ -264,7 +265,7 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled, b
         onClick={() => onSelect(tierKey)}
         disabled={disabled || isLoading || isCurrent}
         className={[
-          'inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold',
+          'inline-flex min-h-cta w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold',
           isCurrent
             ? 'bg-secondary/30 text-secondary cursor-default'
             : isPaid
@@ -664,11 +665,13 @@ export default function PricingPage() {
 
   // Only show sticky CTA for confirmed free-tier users (not during loading)
   const showMobileSticky = !subscriptionLoading && effectiveTier === 'free';
+  const headerRef = useResponsiveSticky();
 
   return (
     <div className="min-h-screen bg-main text-main">
       {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
       <header
+        ref={headerRef}
         className="sticky top-0 z-sticky-elevated border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
       >
         <div className="mx-auto max-w-6xl px-4 py-3">
@@ -732,7 +735,7 @@ export default function PricingPage() {
               type="button"
               onClick={() => handleSelectTier('free')}
               disabled={loadingTier !== null}
-              className="mt-1 text-xs text-muted underline underline-offset-4"
+              className="mt-1 inline-flex min-h-touch items-center text-xs text-muted underline underline-offset-4"
             >
               Or stay on the Seeker plan for free
             </button>
@@ -741,7 +744,7 @@ export default function PricingPage() {
               type="button"
               onClick={handleRestorePurchases}
               disabled={restoreLoading}
-              className="text-xs text-muted underline underline-offset-4"
+              className="inline-flex min-h-touch items-center text-xs text-muted underline underline-offset-4"
             >
               {restoreLoading ? 'Restoring purchases…' : 'Restore purchases'}
             </button>
@@ -826,7 +829,7 @@ export default function PricingPage() {
                         type="button"
                         onClick={() => handleSelectTier(tier)}
                         disabled={loadingTier !== null}
-                        className="inline-flex items-center gap-1 rounded-full bg-accent px-3 py-1.5 text-2xs font-semibold text-surface hover:bg-accent/90 transition"
+                        className="inline-flex min-h-touch min-w-touch shrink-0 items-center gap-1 rounded-full bg-accent px-3 py-1.5 text-2xs font-semibold text-surface hover:bg-accent/90 transition"
                       >
                         Choose
                         <ArrowRight className="h-3 w-3" />
@@ -853,7 +856,7 @@ export default function PricingPage() {
             </h2>
 
             {/* Billing interval toggle */}
-            <div className="flex items-center gap-2 rounded-full border border-secondary/40 bg-surface/80 p-1">
+            <div className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-3xl border border-secondary/40 bg-surface/80 p-1">
               <button
                 type="button"
                 onClick={() => setBillingInterval('monthly')}
@@ -870,7 +873,7 @@ export default function PricingPage() {
                 type="button"
                 onClick={() => setBillingInterval('annual')}
                 className={[
-                  'inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 min-h-touch text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
+                  'inline-flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-full px-4 py-1.5 min-h-touch text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
                   billingInterval === 'annual'
                     ? 'bg-accent text-surface'
                     : 'text-secondary hover:text-main'
@@ -926,7 +929,7 @@ export default function PricingPage() {
             type="button"
             onClick={() => setShowComparisonModal(true)}
             className={[
-              'inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-surface/80 px-5 py-2.5 text-sm font-medium text-secondary backdrop-blur',
+              'inline-flex min-h-touch items-center gap-2 rounded-full border border-secondary/40 bg-surface/80 px-5 py-2.5 text-sm font-medium text-secondary backdrop-blur',
               'hover:border-accent/60 hover:text-main',
               prefersReducedMotion ? '' : 'transition'
             ].join(' ')}
@@ -994,7 +997,7 @@ export default function PricingPage() {
             <Link
               to="/"
               className={[
-                'inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold',
+                'inline-flex min-h-touch items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold',
                 'bg-main/90 text-accent border border-secondary/40',
                 prefersReducedMotion ? '' : 'transition hover:scale-[1.02]'
               ].join(' ')}
@@ -1007,7 +1010,7 @@ export default function PricingPage() {
             type="button"
             onClick={handleRestorePurchases}
             disabled={restoreLoading}
-            className="mt-4 text-xs text-muted underline underline-offset-4"
+            className="mt-4 inline-flex min-h-touch items-center text-xs text-muted underline underline-offset-4"
           >
             {restoreLoading ? 'Restoring purchases…' : 'Restore purchases'}
           </button>
@@ -1017,8 +1020,8 @@ export default function PricingPage() {
       {/* Sticky mobile CTA */}
       {showMobileSticky && (
         <div className="fixed inset-x-0 bottom-0 z-sticky-nav border-t border-secondary/40 bg-main/95 px-safe pt-3 pb-[max(0.75rem,var(--safe-pad-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.6)] lg:hidden">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
-            <div className="text-xs text-muted">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0 text-xs text-muted">
               <p className="font-semibold text-main">Upgrade to Plus</p>
               <p>
                 {billingInterval === 'annual' && plusAnnualTotal && plusAnnualMonthly
@@ -1030,7 +1033,7 @@ export default function PricingPage() {
               type="button"
               onClick={() => handleSelectTier('plus')}
               disabled={loadingTier !== null}
-              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-surface shadow-md hover:bg-accent/90 transition"
+              className="inline-flex min-h-touch shrink-0 items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-surface shadow-md hover:bg-accent/90 transition"
             >
               Go Plus
               {loadingTier === 'plus' ? (
