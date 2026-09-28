@@ -1,4 +1,5 @@
 import { FeedbackPanel } from '../../FeedbackPanel';
+import { READING_PANEL_COLUMN_CLASS } from '../../../styles/panelClasses';
 
 export function ReadingFeedbackSection({
     personalReading,
@@ -13,7 +14,7 @@ export function ReadingFeedbackSection({
     if (!personalReading || personalReading.isError || personalReading.isStreaming) return null;
 
     return (
-        <div className="w-full max-w-2xl mx-auto mt-6 sm:mt-8">
+        <div className={`${READING_PANEL_COLUMN_CLASS} mt-6 sm:mt-8`}>
             <FeedbackPanel
                 requestId={readingMeta?.requestId}
                 spreadKey={readingMeta?.spreadKey || selectedSpread}

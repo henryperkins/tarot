@@ -14,6 +14,8 @@ import { buildFollowUpPrompt } from '../lib/followUpPrompt.js';
 import { findSimilarJournalEntries, getRecurringCardPatterns } from '../lib/journalSearch.js';
 import { insertFollowUps, loadFollowUpsByEntry } from '../lib/journalFollowups.js';
 import { callAzureResponses } from '../lib/azureResponses.js';
+import { callModalChatCompletions } from '../lib/modalChatCompletions.js';
+import { NARRATIVE_BACKENDS } from '../lib/narrativeBackends.js';
 import {
   callAzureResponsesStream,
   callAzureResponsesStreamWithConversation,
@@ -40,6 +42,8 @@ const MIN_RESERVATION_TTL_SECONDS = 60;
 const MAX_RESERVATION_TTL_SECONDS = 60 * 60;
 const MAX_STORED_HISTORY_TURNS = 10;
 const MAX_ALLOWED_CARDS_IN_REPAIR_PROMPT = 20;
+// The reading's primary narrative provider answers when the Responses API cannot.
+const FALLBACK_PROVIDER = 'modal-qwen';
 
 function normalizeRepairText(value, maxLength = 240) {
   if (typeof value !== 'string') return '';
@@ -68,7 +72,8 @@ async function repairHallucinatedFollowUp(env, {
   responseText,
   hallucinations,
   cardsInfo,
-  deckStyle
+  deckStyle,
+  provider
 }) {
   const allowedCards = buildAllowedCardReferenceLines(cardsInfo);
   if (!allowedCards.length) {
@@ -105,14 +110,23 @@ async function repairHallucinatedFollowUp(env, {
   ].join('\n');
 
   try {
-    const revised = await callAzureResponses(env, {
-      instructions: 'You revise tarot responses for card-set grounding compliance.',
-      input: repairInstructions,
-      maxTokens: 450,
-      reasoningEffort: null,
-      verbosity: 'low',
-      requestId: `${requestId}:repair`
-    });
+    const instructions = 'You revise tarot responses for card-set grounding compliance.';
+    // Repair with the provider that wrote the answer. After a fallback, the
+    // Responses API has already failed for this request.
+    const revised = provider === FALLBACK_PROVIDER
+      ? (await callModalChatCompletions(env, {
+          systemPrompt: instructions,
+          userPrompt: repairInstructions,
+          requestId: `${requestId}:repair`
+        })).text
+      : await callAzureResponses(env, {
+          instructions,
+          input: repairInstructions,
+          maxTokens: 450,
+          reasoningEffort: null,
+          verbosity: 'low',
+          requestId: `${requestId}:repair`
+        });
 
     const revisedText = typeof revised === 'string' ? revised.trim() : '';
     if (!revisedText) {
@@ -145,6 +159,42 @@ async function repairHallucinatedFollowUp(env, {
       remainingHallucinations: hallucinations
     };
   }
+}
+
+/**
+ * Answer with the Responses API, or with the reading's primary narrative
+ * provider (Modal) when that call fails or returns no text. Modal gets no
+ * tools, so it takes prompts built without the memory tool instructions.
+ *
+ * @returns {Promise<{ text: string, provider: string }>}
+ */
+async function generateFollowUpText(env, {
+  requestId,
+  primaryProvider,
+  generatePrimary,
+  buildFallbackPrompts
+}) {
+  let primaryText = '';
+  let primaryError = null;
+  try {
+    primaryText = await generatePrimary();
+    if (typeof primaryText === 'string' && primaryText.trim()) {
+      return { text: primaryText, provider: primaryProvider };
+    }
+  } catch (error) {
+    primaryError = error;
+  }
+
+  if (!NARRATIVE_BACKENDS[FALLBACK_PROVIDER].isAvailable(env)) {
+    if (primaryError) throw primaryError;
+    return { text: primaryText, provider: primaryProvider };
+  }
+
+  const reason = primaryError ? `failed: ${primaryError.message}` : 'returned no text';
+  console.warn(`[${requestId}] Responses API follow-up ${reason}; falling back to ${FALLBACK_PROVIDER}`);
+  const { systemPrompt, userPrompt } = buildFallbackPrompts();
+  const result = await callModalChatCompletions(env, { systemPrompt, userPrompt, requestId });
+  return { text: result.text, provider: FALLBACK_PROVIDER };
 }
 
 /**
@@ -508,17 +558,23 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     }
 
     // Build prompt with all context
-    const { systemPrompt, userPrompt } = buildFollowUpPrompt({
+    const promptInput = {
       originalReading: effectiveContext,
       followUpQuestion: followUpQuestion.trim(),
       conversationHistory: effectiveConversationHistory,
       journalContext,
       personalization,
-      memories,
+      memories
+    };
+    const { systemPrompt, userPrompt } = buildFollowUpPrompt({
+      ...promptInput,
       memoryOptions: {
         includeMemoryTool: memoryEnabled // Enable tool-based memory capture
       }
     });
+    const buildFallbackPrompts = () => (memoryEnabled
+      ? buildFollowUpPrompt({ ...promptInput, memoryOptions: { includeMemoryTool: false } })
+      : { systemPrompt, userPrompt });
     
     console.log(`[${requestId}] Prompt built: system=${systemPrompt.length}chars, user=${userPrompt.length}chars`);
 
@@ -639,54 +695,61 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       });
 
       try {
-        // Prepare tools array if memory is enabled
-        const tools = enableMemoryTool ? [MEMORY_TOOL_AZURE_RESPONSES_FORMAT] : null;
+        const { text: fullText, provider } = await generateFollowUpText(env, {
+          requestId,
+          primaryProvider: 'azure-responses-stream-buffered',
+          buildFallbackPrompts,
+          generatePrimary: async () => {
+            // Prepare tools array if memory is enabled
+            const tools = enableMemoryTool ? [MEMORY_TOOL_AZURE_RESPONSES_FORMAT] : null;
 
-        // If memory tool is enabled, we need to handle potential tool round-trips
-        // The model might call save_memory_note, and we need to:
-        // 1. Execute the tool
-        // 2. Send the result back to Azure
-        // 3. Get the continuation response with actual text
-        let transformedStream;
+            // If memory tool is enabled, we need to handle potential tool round-trips
+            // The model might call save_memory_note, and we need to:
+            // 1. Execute the tool
+            // 2. Send the result back to Azure
+            // 3. Get the continuation response with actual text
+            let transformedStream;
 
-        if (enableMemoryTool) {
-          // Create a stream that handles tool calls with proper round-trip
-          transformedStream = await createToolRoundTripStream(env, {
-            instructions: effectiveSystemPrompt,
-            userInput: effectiveUserPrompt,
-            tools,
-            maxTokens: 400,
-            verbosity: 'medium',
-            requestId,
-            onToolCall: async (callId, name, args) => {
-              if (name === 'save_memory_note') {
-                console.log(`[${requestId}] Memory tool called: category=${args?.category || 'unknown'}, len=${args?.text?.length || 0}`);
-                const result = await handleMemoryToolCall(env.DB, user.id, readingIdentifier, args);
-                if (result.success) {
-                  memoryToolCalled = true;
-                  const consolidationPromise = consolidateOnce();
-                  if (ctx?.waitUntil) {
-                    ctx.waitUntil(consolidationPromise);
+            if (enableMemoryTool) {
+              // Create a stream that handles tool calls with proper round-trip
+              transformedStream = await createToolRoundTripStream(env, {
+                instructions: effectiveSystemPrompt,
+                userInput: effectiveUserPrompt,
+                tools,
+                maxTokens: 400,
+                verbosity: 'medium',
+                requestId,
+                onToolCall: async (callId, name, args) => {
+                  if (name === 'save_memory_note') {
+                    console.log(`[${requestId}] Memory tool called: category=${args?.category || 'unknown'}, len=${args?.text?.length || 0}`);
+                    const result = await handleMemoryToolCall(env.DB, user.id, readingIdentifier, args);
+                    if (result.success) {
+                      memoryToolCalled = true;
+                      const consolidationPromise = consolidateOnce();
+                      if (ctx?.waitUntil) {
+                        ctx.waitUntil(consolidationPromise);
+                      }
+                    }
+                    return result;
                   }
+                  return { success: false, message: 'Unknown tool' };
                 }
-                return result;
-              }
-              return { success: false, message: 'Unknown tool' };
+              });
+            } else {
+              const azureStream = await callAzureResponsesStream(env, {
+                instructions: effectiveSystemPrompt,
+                input: effectiveUserPrompt,
+                maxTokens: 400,
+                verbosity: 'medium',
+                tools: null
+              });
+              transformedStream = transformAzureStream(azureStream);
             }
-          });
-        } else {
-          const azureStream = await callAzureResponsesStream(env, {
-            instructions: effectiveSystemPrompt,
-            input: effectiveUserPrompt,
-            maxTokens: 400,
-            verbosity: 'medium',
-            tools: null
-          });
-          transformedStream = transformAzureStream(azureStream);
-        }
 
-        // Buffer before emitting so safety/card checks can repair or replace unsafe content.
-        const fullText = await collectFullTextFromSse(transformedStream, { requestId });
+            // Buffer before emitting so safety/card checks can repair or replace unsafe content.
+            return collectFullTextFromSse(transformedStream, { requestId });
+          }
+        });
         heartbeatReservation({ fullTextLength: fullText?.length || 0 });
         const latencyMs = Date.now() - startTime;
         console.log(`[${requestId}] Buffered streaming completed in ${latencyMs}ms, ${fullText?.length || 0} chars`);
@@ -723,7 +786,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             responseText: deliveredResponseText,
             hallucinations,
             cardsInfo: effectiveContext?.cardsInfo || [],
-            deckStyle: effectiveContext?.deckStyle || 'rws-1909'
+            deckStyle: effectiveContext?.deckStyle || 'rws-1909',
+            provider
           });
           if (repair.repaired) {
             const repairedSafety = checkFollowUpSafety(repair.response);
@@ -749,7 +813,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           journalContextUsed: Boolean(journalContext),
           patternsFound: journalContext?.patterns?.length || 0,
           latencyMs,
-          provider: 'azure-responses-stream-buffered'
+          provider
         }).then(result => {
           if (result.updated) {
             reservationCompleted = true;
@@ -785,7 +849,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           } : null,
           memoryEnabled,
           meta: {
-            provider: 'azure-responses-stream-buffered',
+            provider,
             requestId,
             latencyMs
           }
@@ -806,6 +870,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     } else {
       // === NON-STREAMING PATH (existing behavior) ===
       let responseText;
+      let provider;
       const stopReservationHeartbeat = startReservationHeartbeatTimer({
         db: env.DB,
         reservationId,
@@ -816,45 +881,51 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       });
 
       try {
-        if (enableMemoryTool) {
-          const tools = [MEMORY_TOOL_AZURE_RESPONSES_FORMAT];
-          const toolStream = await createToolRoundTripStream(env, {
-            instructions: effectiveSystemPrompt,
-            userInput: effectiveUserPrompt,
-            tools,
-            maxTokens: 400,
-            verbosity: 'medium',
-            requestId,
-            onToolCall: async (callId, name, args) => {
-              if (name === 'save_memory_note') {
-                console.log(`[${requestId}] (non-stream) Memory tool called: category=${args?.category || 'unknown'}, len=${args?.text?.length || 0}`);
-                const result = await handleMemoryToolCall(env.DB, user.id, readingIdentifier, args);
-                if (result.success) {
-                  memoryToolCalled = true;
-                  const consolidationPromise = consolidateOnce();
-                  if (ctx?.waitUntil) {
-                    ctx.waitUntil(consolidationPromise);
-                  } else {
-                    await consolidationPromise;
+        ({ text: responseText, provider } = await generateFollowUpText(env, {
+          requestId,
+          primaryProvider: 'azure-responses',
+          buildFallbackPrompts,
+          generatePrimary: async () => {
+            if (enableMemoryTool) {
+              const tools = [MEMORY_TOOL_AZURE_RESPONSES_FORMAT];
+              const toolStream = await createToolRoundTripStream(env, {
+                instructions: effectiveSystemPrompt,
+                userInput: effectiveUserPrompt,
+                tools,
+                maxTokens: 400,
+                verbosity: 'medium',
+                requestId,
+                onToolCall: async (callId, name, args) => {
+                  if (name === 'save_memory_note') {
+                    console.log(`[${requestId}] (non-stream) Memory tool called: category=${args?.category || 'unknown'}, len=${args?.text?.length || 0}`);
+                    const result = await handleMemoryToolCall(env.DB, user.id, readingIdentifier, args);
+                    if (result.success) {
+                      memoryToolCalled = true;
+                      const consolidationPromise = consolidateOnce();
+                      if (ctx?.waitUntil) {
+                        ctx.waitUntil(consolidationPromise);
+                      } else {
+                        await consolidationPromise;
+                      }
+                    }
+                    return result;
                   }
+                  return { success: false, message: 'Unknown tool' };
                 }
-                return result;
-              }
-              return { success: false, message: 'Unknown tool' };
+              });
+              return collectFullTextFromSse(toolStream, { requestId });
             }
-          });
-          responseText = await collectFullTextFromSse(toolStream, { requestId });
-        } else {
-          responseText = await callAzureResponses(env, {
-            instructions: effectiveSystemPrompt,
-            input: effectiveUserPrompt,
-            maxTokens: 400,  // ~250-300 words, aligned with response format guidance
-            reasoningEffort: 'low',
-            verbosity: 'medium'
-          });
-        }
+            return callAzureResponses(env, {
+              instructions: effectiveSystemPrompt,
+              input: effectiveUserPrompt,
+              maxTokens: 400,  // ~250-300 words, aligned with response format guidance
+              reasoningEffort: 'low',
+              verbosity: 'medium'
+            });
+          }
+        }));
 
-        console.log(`[${requestId}] LLM response received: ${responseText?.length || 0} chars`);
+        console.log(`[${requestId}] LLM response received from ${provider}: ${responseText?.length || 0} chars`);
 
         if (!responseText || !responseText.trim()) {
           console.log(`[${requestId}] Empty follow-up response; releasing reservation`);
@@ -889,7 +960,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             responseText,
             hallucinations,
             cardsInfo: effectiveContext?.cardsInfo || [],
-            deckStyle: effectiveContext?.deckStyle || 'rws-1909'
+            deckStyle: effectiveContext?.deckStyle || 'rws-1909',
+            provider
           });
           if (repair.repaired) {
             responseText = repair.response;
@@ -924,7 +996,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         journalContextUsed: Boolean(journalContext),
         patternsFound: journalContext?.patterns?.length || 0,
         latencyMs,
-        provider: 'azure-responses'
+        provider
       }).then(result => {
         if (result.updated) {
           reservationCompleted = true;
@@ -967,7 +1039,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           patternsFound: journalContext.patterns
         } : null,
         meta: {
-          provider: 'azure-responses',
+          provider,
           latencyMs,
           requestId
         }

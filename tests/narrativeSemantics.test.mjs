@@ -130,15 +130,20 @@ test('narrative title exposes the stable h2 focus destination', () => {
 test('spread insights uses an h2 panel title with h3 immediate subsections', () => {
   const markup = render(SpreadPatterns, {
     spreadHighlights: [{ title: 'Balance', text: 'Notice what repeats.' }],
-    themes: { knowledgeGraph: { narrativeHighlights: [{ text: 'A developing theme.' }] } },
+    themes: { knowledgeGraph: { narrativeHighlights: [
+      { text: 'A developing theme.' }, { text: 'A second pattern.' },
+      { text: 'A third pattern.' }, { text: 'A supporting pattern.' }
+    ] } },
     passages: [{ title: 'A source', text: 'Traditional context.' }]
   });
   assert.deepEqual(headings(markup), [
     { level: 2, text: 'Spread Insights' },
     { level: 3, text: 'Highlights' },
-    { level: 3, text: 'Archetypal Patterns' },
-    { level: 3, text: 'Traditional Wisdom' }
+    { level: 3, text: 'More spread details' },
+    { level: 3, text: 'Archetypal patterns' },
+    { level: 3, text: 'Traditional wisdom' }
   ]);
+  assert.match(markup, /^<section[^>]*aria-labelledby="([^"]+)"[^>]*>\s*<h2[^>]*id="\1"/, 'The panel is a region named by its title');
 });
 
 test('collapsed feedback disclosure controls a mounted, hidden panel', () => {
@@ -148,4 +153,44 @@ test('collapsed feedback disclosure controls a mounted, hidden panel', () => {
   assert.ok(markup.includes(`<div id="${targetId}" hidden=""`));
   assert.match(markup, /aria-expanded="false"/);
   assert.doesNotMatch(markup, /<input/);
+});
+
+test('spread insights leads with card relationships and limits the initial summary', () => {
+  const markup = render(SpreadPatterns, {
+    themes: { knowledgeGraph: { narrativeHighlights: [{ type: 'complete-triad', priority: 1, text: '**Healing Arc** Death, Temperance, and The Star.' }] } },
+    spreadHighlights: [
+      { key: 'deck-scope', title: 'Deck scope:', text: 'Full deck.' },
+      { key: 'elemental-balance', title: 'Balance:', text: 'Major Arcana.' },
+      { key: 'reversal-framework', title: 'Lens:', text: 'Look inward.' },
+      { key: 'rel-0-sequence', title: 'Story Flow', text: 'From The Star to Death.' }
+    ]
+  });
+  const summary = markup.match(/<ul[^>]*aria-label="Spread highlights"[^>]*>([\s\S]*?)<\/ul>/)?.[1] || '';
+  assert.match(summary, /Healing Arc/);
+  assert.match(summary, /Story Flow/);
+  assert.doesNotMatch(summary, /Deck scope/);
+  assert.equal((summary.match(/<li\b/g) || []).length, 3);
+  assert.match(markup, /Full deck\./, 'Supplementary context is retained behind a disclosure');
+});
+
+test('traditional passages expose native list items and their source tradition', () => {
+  const markup = render(SpreadPatterns, {
+    themes: { deckStyle: 'thoth-a1' },
+    passages: [{ type: 'triad', title: 'Healing', text: 'Temperance pours between cups.', source: 'Tableu Tarot Canon' }]
+  });
+  assert.match(markup, /<ul[^>]*aria-label="Traditional wisdom passages"[^>]*>\s*<li\b/);
+  assert.match(markup, /Rider-Waite-Smith reference/);
+  assert.match(markup, /Thoth/);
+  assert.match(markup, /imagery/);
+});
+
+test('card mentions offer detail actions only for cards in the current spread', () => {
+  const markup = render(SpreadPatterns, {
+    spreadHighlights: [{ title: 'Connection:', text: 'Death and The Star; the heart of the matter.' }],
+    cards: [{ name: 'Death', position: 'Future' }, { name: 'Art', canonicalName: 'Temperance', position: 'Present' }],
+    onSelectCard: () => {}
+  });
+  assert.match(markup, /<button[^>]*aria-label="View Death[^"]*"[^>]*>Death<\/button>/);
+  assert.doesNotMatch(markup, /<button[^>]*>The Star<\/button>/);
+  assert.doesNotMatch(markup, /he<button/);
 });

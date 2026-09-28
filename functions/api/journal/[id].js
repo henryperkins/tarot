@@ -7,6 +7,7 @@
 import { getUserFromRequest } from '../../lib/auth.js';
 import { journalAccessDenied } from '../../lib/journalAccess.js';
 import { safeJsonParse } from '../../lib/utils.js';
+import { sanitizeSourceUsage } from '../../../shared/readingSourceUsage.js';
 import { deleteFollowUpsByEntry, loadFollowUpsByEntry } from '../../lib/journalFollowups.js';
 
 function isMissingColumnError(err) {
@@ -55,6 +56,7 @@ export async function onRequestGet(context) {
         provider,
         session_seed,
         user_preferences_json,
+        source_usage_json,
         deck_id,
         request_id,
         extracted_steps,
@@ -141,6 +143,7 @@ export async function onRequestGet(context) {
       provider: entry.provider,
       sessionSeed: entry.session_seed,
       userPreferences: entry.user_preferences_json ? safeJsonParse(entry.user_preferences_json, null) : null,
+      sourceUsage: entry.provider === 'safe-fallback' ? null : sanitizeSourceUsage(safeJsonParse(entry.source_usage_json, null)),
       deckId: entry.deck_id,
       requestId: entry.request_id,
       extractedSteps: entry.extracted_steps ? safeJsonParse(entry.extracted_steps, null) : null,

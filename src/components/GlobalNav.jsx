@@ -28,8 +28,7 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
   const buttonPadding = condensed
     ? 'px-3 sm:px-3.5 py-2 text-xs-plus'
     : 'px-3.5 sm:px-5 py-2.5 text-sm';
-  // Mobile layout uses a grid (2 cols, or 3 cols when user chip is present) to prevent the
-  // user menu from crowding/overlapping the Reading/Journal buttons.
+  // Reserve readable destinations; guest actions wrap below them when space is tight.
   const buttonWidth = condensed
     ? 'w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-[9rem] sm:basis-auto'
     : 'w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-[10rem] sm:basis-auto';
@@ -46,11 +45,11 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
       aria-label="Primary navigation"
       className={`flex ${condensed ? 'justify-start mb-1.5' : 'justify-center mb-3'} animate-fade-in w-full`}
     >
-      <div className={`w-full max-w-full ${withUserChip ? 'flex items-center gap-2' : ''} sm:block`}>
+      <div className={`w-full max-w-full ${withUserChip ? 'flex flex-wrap items-center gap-2' : ''} sm:block`}>
         <div
           className={`
-            grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center w-full max-w-full
-            ${withUserChip ? 'flex-1' : ''}
+            grid grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] items-center w-full max-w-full
+            ${withUserChip ? 'flex-[1_1_14rem]' : ''}
             sm:inline-flex sm:flex-nowrap
             ${condensed ? 'gap-1 sm:gap-1.5 px-1.5 py-1 shadow-inner shadow-main/20' : 'gap-1.5 sm:gap-2 px-1.5 py-1'}
             rounded-full sm:bg-surface/80 bg-surface/60 border border-transparent sm:border-accent/20
@@ -77,7 +76,7 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
         </div>
 
         {withUserChip && (
-          <div className="shrink-0 sm:hidden">
+          <div className="ml-auto max-w-full sm:hidden">
             <UserMenu condensed />
           </div>
         )}

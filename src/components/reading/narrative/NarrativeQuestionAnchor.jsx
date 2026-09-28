@@ -1,20 +1,17 @@
 export function NarrativeQuestionAnchor({
   question,
-  compact = false
+  compact = false,
+  className = ''
 }) {
   if (!question) return null;
 
-  if (compact) {
-    return (
-      <div className="max-w-3xl mx-auto mt-3">
-        <p className="text-sm text-accent/85 leading-relaxed [overflow-wrap:anywhere]">Anchor: <bdi>{question}</bdi></p>
-      </div>
-    );
-  }
-
+  // Matches the journal's editorial treatment of a reading's question.
   return (
-    <div className="bg-surface/85 rounded-lg px-3 xxs:px-4 py-3 border border-secondary/40">
-      <p className="text-accent/85 text-xs sm:text-sm italic [overflow-wrap:anywhere]">Anchor: <bdi>{question}</bdi></p>
+    <div className={className}>
+      <p className="text-2xs font-semibold uppercase tracking-[0.2em] text-muted">Your question</p>
+      <p className={`mt-1.5 font-serif italic leading-snug text-main [overflow-wrap:anywhere] ${compact ? 'text-base' : 'text-lg'}`}>
+        &ldquo;<bdi>{question}</bdi>&rdquo;
+      </p>
     </div>
   );
 }

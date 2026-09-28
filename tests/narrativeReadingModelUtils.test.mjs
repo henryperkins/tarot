@@ -95,7 +95,7 @@ describe('deriveNarrativeVisibility', () => {
     assert.equal(state.visualCompanionModeLabel, 'Auto generation on');
   });
 
-  test('suppresses the focus toggle on handset layouts', () => {
+  test('keeps insight controls available on handset layouts', () => {
     const state = deriveNarrativeVisibility({
       personalReading: { raw: 'Completed reading' },
       isPersonalReadingError: false,
@@ -121,6 +121,18 @@ describe('deriveNarrativeVisibility', () => {
       isHandset: true
     });
 
-    assert.equal(state.focusToggleAvailable, false);
+    assert.equal(state.focusToggleAvailable, true);
+  });
+
+  test('can restore insights after entering focus mode and narrowing the viewport', () => {
+    const state = deriveNarrativeVisibility({
+      themes: { knowledgeGraph: { narrativeHighlights: [{ text: 'A pattern' }] } },
+      visibleCount: 3,
+      revealedCardsSize: 3,
+      isNarrativeFocus: true,
+      isHandset: true
+    });
+    assert.equal(state.shouldShowSpreadInsights, false);
+    assert.equal(state.focusToggleAvailable, true);
   });
 });

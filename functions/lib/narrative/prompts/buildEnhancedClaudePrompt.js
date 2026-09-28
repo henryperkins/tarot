@@ -289,7 +289,9 @@ function resolvePromptUserContextField(signal, used) {
 function buildPromptUserContextSourceUsage(sourceUsageSignals, finalUserPrompt, finalSystemPrompt) {
   const userContextSignals = sourceUsageSignals?.userContext || {};
   const depthUsed = hasPromptMarker(finalUserPrompt, '**Depth Preference**:')
-    || hasPromptMarker(finalSystemPrompt, '## Narrative Depth Preference');
+    || hasPromptMarker(finalSystemPrompt, '## Narrative Depth Preference')
+    // Standard depth is carried by the base formatting/length contract.
+    || (userContextSignals.depth?.appliedByBaseContract === true && hasPromptMarker(finalSystemPrompt, 'FORMATTING'));
 
   return buildUserContextSourceUsage({
     question: resolvePromptUserContextField(
@@ -1124,12 +1126,13 @@ export function buildEnhancedClaudePrompt({
     };
   }
 
-  const hasVisionSource = Array.isArray(visionInsights) && visionInsights.length > 0;
+  const hasVisionSource = (Array.isArray(visionInsights) && visionInsights.length > 0)
+    || (Array.isArray(visionEvidence) && visionEvidence.length > 0);
   const visionPromptEligibility = summarizeVisionPromptEligibility(visionInsights);
   const visionDiagnosticsIncluded = hasVisionSource && hasVisibleVisionDiagnostics(finalUser);
   const visionCardCuesIncluded = built.sourceUsageSignals?.visionCardCuesUsed === true && hasVisibleVisionCardCues(finalUser);
   const visionEvidencePacketsUsed = countVisibleVisionEvidencePackets(finalUser, built.sourceUsageSignals?.visionEvidencePacketHeadings);
-  const visionUsed = hasVisionSource && (visionDiagnosticsIncluded || visionCardCuesIncluded);
+  const visionUsed = visionCardCuesIncluded || visionEvidencePacketsUsed > 0;
   const visionRemovedForBudget = slimmingSteps.some((step) =>
     step === 'drop-diagnostics' || step === 'hard-cap-drop-diagnostics'
   );
@@ -1181,7 +1184,7 @@ export function buildEnhancedClaudePrompt({
       evidencePacketsUsed: visionEvidencePacketsUsed,
       evidenceMode: visionEvidencePacketsUsed > 0 ? 'uploaded_image' : 'none',
       skippedReason: hasVisionSource
-        ? (visionUsed ? null : (visionRemovedForBudget ? 'removed_for_budget' : 'diagnostics_disabled'))
+        ? (visionUsed ? null : (visionRemovedForBudget ? 'removed_for_budget' : 'no_usable_evidence'))
         : 'not_provided'
     },
     userContext: {

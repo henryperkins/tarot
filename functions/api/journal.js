@@ -10,6 +10,7 @@ import { dedupeEntries } from '../../shared/journal/dedupe.js';
 import { safeJsonParse } from '../lib/utils.js';
 import { loadFollowUpsByEntry } from '../lib/journalFollowups.js';
 import { saveAppJournalEntry } from '../lib/journalEntries.js';
+import { sanitizeSourceUsage } from '../../shared/readingSourceUsage.js';
 
 function isMissingColumnError(err) {
   const message = String(err?.message || err || '');
@@ -83,6 +84,7 @@ export async function onRequestGet(context) {
         provider,
         session_seed,
         user_preferences_json,
+        source_usage_json,
         deck_id,
         request_id,
         extracted_steps,
@@ -206,6 +208,7 @@ export async function onRequestGet(context) {
           provider: entry.provider,
           sessionSeed: entry.session_seed,
           userPreferences: entry.user_preferences_json ? safeJsonParse(entry.user_preferences_json, null) : null,
+          sourceUsage: entry.provider === 'safe-fallback' ? null : sanitizeSourceUsage(safeJsonParse(entry.source_usage_json, null)),
           deckId: entry.deck_id,
           requestId: entry.request_id,
           // Pre-computed coach suggestion data (AI-extracted steps + embeddings)
@@ -234,6 +237,7 @@ export async function onRequestGet(context) {
           provider: entry.provider,
           sessionSeed: entry.session_seed,
           userPreferences: null,
+          sourceUsage: null,
           deckId: entry.deck_id,
           requestId: entry.request_id,
           extractedSteps: null,

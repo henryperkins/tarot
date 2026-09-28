@@ -1341,10 +1341,10 @@ function formatCrossCheck(label, crossCheck, themes, options = {}) {
   return `${label}: ${parts.join(' ')}`.trim();
 }
 
-function buildReflectionsSection(reflectionsText) {
+export function prepareReflectionsText(reflectionsText, { maxLength = MAX_REFLECTION_TEXT_LENGTH } = {}) {
   if (!reflectionsText || typeof reflectionsText !== 'string') return '';
   let safeReflection = sanitizeText(reflectionsText, {
-    maxLength: MAX_REFLECTION_TEXT_LENGTH,
+    maxLength,
     addEllipsis: true,
     stripMarkdown: true,
     filterInstructions: true
@@ -1355,6 +1355,11 @@ function buildReflectionsSection(reflectionsText) {
       safeReflection = reflectionCheck.sanitizedText || safeReflection;
     }
   }
+  return safeReflection || '';
+}
+
+function buildReflectionsSection(reflectionsText) {
+  const safeReflection = prepareReflectionsText(reflectionsText);
   if (!safeReflection) return '';
   const reflectionIntros = [
     'This reflection shows how this reading lands in your lived experience.',

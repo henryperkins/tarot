@@ -7,6 +7,7 @@
 
 import { MAJOR_ARCANA } from '../data/majorArcana.js';
 import { MINOR_ARCANA } from '../data/minorArcana.js';
+import { getDeckAlias, getDeckImagePath } from '../../shared/vision/deckAssets.js';
 
 // Fallback image for missing cards
 export const FALLBACK_IMAGE = '/images/cards/card-back.jpeg';
@@ -75,6 +76,19 @@ export function getCanonicalCard(card) {
   }
 
   return null;
+}
+
+/** Keep canonical identity and orientation while displaying the selected deck. */
+export function getCardForDeck(card, deckStyle = 'rws-1909') {
+  if (!card) return null;
+  const canonical = getCanonicalCard(card) || card;
+  return {
+    ...canonical,
+    ...card,
+    canonicalName: canonical.name,
+    name: getDeckAlias(canonical, deckStyle),
+    image: getDeckImagePath(canonical, deckStyle) || card.image || canonical.image
+  };
 }
 
 /**

@@ -4,6 +4,7 @@ import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
 import { StepProgress } from './StepProgress';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 import { useSmallScreen, TABLET_SCREEN_MAX } from '../hooks/useSmallScreen';
 import { usePreferences } from '../contexts/PreferencesContext';
 
@@ -20,6 +21,7 @@ export function Header({
   minimalNav = false
 }) {
   const prefersReducedMotion = useReducedMotion();
+  const stickyRef = useResponsiveSticky();
   const isMobile = useSmallScreen(TABLET_SCREEN_MAX);
   const { personalization } = usePreferences();
   const displayName = personalization?.displayName?.trim();
@@ -153,6 +155,7 @@ export function Header({
 
       {/* Sticky Navigation Bar */}
       <div
+        ref={stickyRef}
         className={`
           full-bleed sticky top-0 z-sticky-nav ${minimalNav ? 'mb-3' : 'mb-5'}
           bg-surface/95 backdrop-blur
@@ -176,9 +179,9 @@ export function Header({
             <div className="header-sticky__nav flex-1 w-full sm:w-auto">
               <GlobalNav condensed={isCompact} withUserChip />
             </div>
-            {/* Fallback placement if user chip overflows (desktop still shows) */}
-            <div className="hidden sm:block">
-              <div className="header-sticky__user header-sticky__user--fab">
+            {/* Desktop actions reserve their own space alongside the destinations. */}
+            <div className="hidden max-w-full sm:block">
+              <div className="header-sticky__user">
                 <UserMenu condensed={isCompact} />
               </div>
             </div>

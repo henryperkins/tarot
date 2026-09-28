@@ -1,6 +1,21 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ReadingJob } from '../src/worker/readingJob.js';
+import { readReadingJobEvents } from '../src/lib/readingJobStream.js';
+
+test('resuming after metadata restores attribution through the real stream client without replaying text', async (t) => {
+  const { job, reader } = await createJob(t);
+  await reader.cancel();
+  const sourceUsage = { spreadCards: { used: true, requested: true } };
+  job.appendEvent('meta', { provider: 'test', sourceUsage });
+  job.appendEvent('delta', { text: 'Partial text.' });
+  job.appendEvent('done', { fullText: 'Complete text.' });
+  t.mock.method(globalThis, 'fetch', (url, options) => job.fetch(new Request(`https://jobs/stream?cursor=${new URL(url, 'https://jobs').searchParams.get('cursor')}`, options)));
+  const events = [];
+  for await (const event of readReadingJobEvents({ jobId: 'job-1', jobToken: 'secret', cursor: 2 })) events.push(event);
+  assert.deepEqual(events.map(event => event.event), ['meta', 'done']);
+  assert.deepEqual(events[0].data.sourceUsage, sourceUsage);
+});
 
 async function createJob(t) {
   t.mock.timers.enable({ apis: ['setInterval'] });

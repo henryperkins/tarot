@@ -1,13 +1,14 @@
 import { useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { CaretDown, CaretUp, TextAlignLeft, Sparkle, Stack } from '@phosphor-icons/react';
+import { CaretDown, CaretUp, Sparkle, Stack } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
 import { RitualControls } from './RitualControls';
 import { DeckSelector } from './DeckSelector';
 
-// Mobile tab configuration (Audio/Theme settings moved to Account page)
+// Mobile tab configuration (Audio/Theme settings moved to Account page).
+// The question is written on the page itself (QuickIntentionCard), so the
+// drawer no longer carries a second editor for it.
 const MOBILE_TABS = [
-    { id: 'intention', label: 'Intent', icon: TextAlignLeft },
     { id: 'deck', label: 'Deck', icon: Stack },
     { id: 'ritual', label: 'Ritual', icon: Sparkle }
 ];
@@ -17,8 +18,6 @@ export function ReadingPreparation({
     // State & Setters
     userQuestion,
     setUserQuestion,
-    placeholderIndex,
-    onPlaceholderRefresh,
     onQuestionFocus,
     onQuestionBlur,
 
@@ -43,7 +42,7 @@ export function ReadingPreparation({
     deckAnnouncement,
     deckStyleId,
     onDeckChange,
-    initialMobileTab = 'intention',
+    initialMobileTab = 'deck',
     sectionRef,
     shouldSkipRitual = false
 }) {
@@ -62,8 +61,6 @@ export function ReadingPreparation({
                     <QuestionInput
                         userQuestion={userQuestion}
                         setUserQuestion={setUserQuestion}
-                        placeholderIndex={placeholderIndex}
-                        onPlaceholderRefresh={onPlaceholderRefresh}
                         onFocus={onQuestionFocus}
                         onBlur={onQuestionBlur}
                         onLaunchCoach={onLaunchCoach}
@@ -114,14 +111,14 @@ export function ReadingPreparation({
     // Mobile tabbed navigation state
     const [activeTabRaw, setActiveTabRaw] = useState(() => {
         const availableTabIds = new Set(mobileTabs.map(tab => tab.id));
-        const requested = typeof initialMobileTab === 'string' ? initialMobileTab : 'intention';
-        const normalizedRequested = (shouldSkipRitual && requested === 'ritual') ? 'intention' : requested;
-        return availableTabIds.has(normalizedRequested) ? normalizedRequested : 'intention';
+        const requested = typeof initialMobileTab === 'string' ? initialMobileTab : 'deck';
+        const normalizedRequested = (shouldSkipRitual && requested === 'ritual') ? 'deck' : requested;
+        return availableTabIds.has(normalizedRequested) ? normalizedRequested : 'deck';
     });
     const tabRefs = useRef({});
 
-    // Derive the effective active tab - if ritual is skipped and ritual was selected, fall back to intention
-    const activeTab = (shouldSkipRitual && activeTabRaw === 'ritual') ? 'intention' : activeTabRaw;
+    // Derive the effective active tab - if ritual is skipped and ritual was selected, fall back to deck
+    const activeTab = (shouldSkipRitual && activeTabRaw === 'ritual') ? 'deck' : activeTabRaw;
 
     const handleTabChange = useCallback((tabId) => {
         setActiveTabRaw(tabId);
@@ -159,9 +156,12 @@ export function ReadingPreparation({
     }, [mobileTabs]);
 
     if (variant === 'mobile') {
+        // With the ritual hidden by personalization only Deck remains: no tabs.
+        const hasTabs = mobileTabs.length > 1;
         return (
             <div className="space-y-4">
                 {/* Segmented tab control */}
+                {hasTabs && (
                 <div
                     className="flex bg-surface-muted/60 rounded-xl p-1 border border-secondary/20"
                     role="tablist"
@@ -198,12 +198,13 @@ export function ReadingPreparation({
                         );
                     })}
                 </div>
+                )}
 
-                <div className="rounded-xl border border-secondary/20 bg-surface/40 px-3 py-2 text-2xs text-muted flex items-center justify-between gap-2">
+                <div className="px-1 text-xs text-muted flex flex-wrap items-center justify-between gap-2">
                     <span>Audio and appearance live in Settings.</span>
                     <Link
                         to="/account#audio"
-                        className="text-accent underline underline-offset-2 text-2xs font-semibold"
+                        className="min-h-touch inline-flex items-center rounded-lg px-2 text-accent underline underline-offset-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
                         Open Settings
                     </Link>
@@ -214,8 +215,8 @@ export function ReadingPreparation({
                         <div
                             key={tab.id}
                             id={`mobile-panel-${tab.id}`}
-                            role="tabpanel"
-                            aria-labelledby={`mobile-tab-${tab.id}`}
+                            role={hasTabs ? 'tabpanel' : undefined}
+                            aria-labelledby={hasTabs ? `mobile-tab-${tab.id}` : undefined}
                             hidden={activeTab !== tab.id}
                         >
                             {activeTab === tab.id && (
@@ -243,36 +244,15 @@ export function ReadingPreparation({
             <div className="relative z-10 space-y-5">
                 <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <p className="text-2xs uppercase tracking-[0.22em] text-gold-soft">Prepare Your Reading</p>
-                        <p className="text-xs text-muted max-w-2xl">
-                            Set your intention, choose your deck, and complete the ritual before drawing.
+                        <h2 className="font-serif text-xl text-accent">Prepare your reading</h2>
+                        <p className="mt-1 text-sm text-muted max-w-2xl">
+                            Add an optional question and settle into your reading.
                         </p>
-                    </div>
-                    <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-2xs text-accent backdrop-blur">
-                        <span className="w-1.5 h-1.5 rounded-full bg-gold-soft animate-pulse" aria-hidden="true" />
-                        <span>All-in-one prep</span>
                     </div>
                 </header>
 
-                <div className="prepare-summary-chip">
-                    <span>{prepareSummaries.intention}</span>
-                    {!shouldSkipRitual && (
-                        <>
-                            <span aria-hidden="true">·</span>
-                            <span>{prepareSummaries.ritual}</span>
-                        </>
-                    )}
-                </div>
-
                 <div className="space-y-4">
                     <div className="prepare-card">
-                        <div className="prepare-card__header">
-                            <div>
-                                <p className="font-serif text-accent text-base leading-tight">Intention</p>
-                                <p className="text-xs text-muted">Set your guiding prompt before you draw — always available without expanding a panel.</p>
-                            </div>
-                            <span className="prepare-card__badge">Inline</span>
-                        </div>
                         <div className="prepare-card__body">
                             {renderSectionContent('intention')}
                         </div>
@@ -283,7 +263,7 @@ export function ReadingPreparation({
                             <button
                                 type="button"
                                 onClick={() => togglePrepareSection(section)}
-                                className="prepare-card__toggle"
+                                className="prepare-card__toggle min-h-touch"
                                 aria-expanded={prepareSectionsOpen[section]}
                             >
                                 <div>
@@ -308,10 +288,7 @@ export function ReadingPreparation({
                 </div>
 
                 <div className="deck-panel-footnote prepare-panel-footnote">
-                    <p className="text-2xs leading-relaxed text-muted">
-                        <strong className="text-accent">Tip:</strong> Complete preparation before drawing to help the AI craft a personalized reading.
-                    </p>
-                    <p className="text-2xs leading-relaxed text-muted">
+                    <p className="text-xs leading-relaxed text-muted">
                         Audio and appearance live in{' '}
                         <Link to="/account#audio" className="text-accent underline underline-offset-2 font-semibold">
                             Settings

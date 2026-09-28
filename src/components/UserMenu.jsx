@@ -377,7 +377,7 @@ export function UserMenu({ condensed = false }) {
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {onboardingComplete && (
               <button
                 onClick={handleReplayTutorial}
@@ -398,7 +398,7 @@ export function UserMenu({ condensed = false }) {
             <Link
               to="/account"
               className="
-                flex items-center gap-1.5 px-3 sm:px-4 min-h-touch
+                flex items-center gap-1.5 px-3 sm:px-4 min-h-touch min-w-touch
                 rounded-full border border-accent/30 text-accent
                 hover:bg-surface hover:border-accent/50 active:bg-surface-muted
                 transition text-xs-plus font-semibold touch-manipulation

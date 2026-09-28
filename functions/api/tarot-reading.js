@@ -657,7 +657,9 @@ async function finalizeReading({
     contextDiagnostics: finalContextDiagnostics,
     narrativeMetrics,
     graphRAG: graphRAGStats,
-    sourceUsage: promptMeta?.sourceUsage || null,
+    // Attribution belongs to the delivered text. Keep the discarded prompt's
+    // metadata for diagnostics, but never attach it to the canned fallback.
+    sourceUsage: finalProvider === 'safe-fallback' ? null : (promptMeta?.sourceUsage || null),
     spreadAnalysis: buildSpreadAnalysisPayload(analysis),
     ...responseGateStatus
   };

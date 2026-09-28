@@ -7,6 +7,7 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
 
 import {
   getCurrentPositions,
@@ -20,6 +21,11 @@ const server = new McpServer({
   name: 'ephemeris-server',
   version: '1.0.0',
 });
+
+const dateString = z.string().min(1).refine(
+  value => Number.isFinite(Date.parse(value)),
+  'Expected a valid date string'
+);
 
 // Define tool: get_current_positions
 server.tool(
@@ -38,7 +44,7 @@ server.tool(
   'get_moon_phase',
   'Get current moon phase, illumination percentage, and sign placement',
   {
-    date: { type: 'string', description: 'Optional ISO date string. Defaults to now.' },
+    date: dateString.optional().describe('Optional ISO date string. Defaults to now.'),
   },
   async ({ date }) => {
     return {
@@ -52,8 +58,8 @@ server.tool(
   'get_planetary_aspects',
   'Get active planetary aspects (conjunctions, squares, trines, etc.)',
   {
-    date: { type: 'string', description: 'Optional ISO date string. Defaults to now.' },
-    orb: { type: 'number', description: 'Orb in degrees (default: 8)' },
+    date: dateString.optional().describe('Optional ISO date string. Defaults to now.'),
+    orb: z.number().finite().nonnegative().optional().describe('Orb in degrees (default: 8)'),
   },
   async ({ date, orb }) => {
     return {
@@ -67,7 +73,7 @@ server.tool(
   'get_retrograde_planets',
   'Get list of planets currently in retrograde motion',
   {
-    date: { type: 'string', description: 'Optional ISO date string. Defaults to now.' },
+    date: dateString.optional().describe('Optional ISO date string. Defaults to now.'),
   },
   async ({ date }) => {
     return {
@@ -81,7 +87,7 @@ server.tool(
   'get_ephemeris_for_reading',
   'Get complete astrological snapshot for a tarot reading timestamp',
   {
-    timestamp: { type: 'string', description: 'ISO timestamp of the reading' },
+    timestamp: dateString.describe('ISO timestamp of the reading'),
   },
   async ({ timestamp }) => {
     if (!timestamp) throw new Error('timestamp is required');
@@ -96,7 +102,7 @@ server.tool(
   'get_daily_astrological_weather',
   'Get overall astrological "weather" - key transits and themes for the day',
   {
-    date: { type: 'string', description: 'Optional ISO date string. Defaults to today.' },
+    date: dateString.optional().describe('Optional ISO date string. Defaults to today.'),
   },
   async ({ date }) => {
     const positions = getCurrentPositions(date);
@@ -179,6 +185,14 @@ function generateDailyTheme(positions, aspects, moon, retrogrades) {
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();
+  // MCP permits omitted arguments. SDK 1.26 invokes this hook before validating
+  // tool inputs, which otherwise treats an absent object as an invalid value.
+  transport.onmessage = (message) => {
+    if (message.method === 'tools/call' && message.params
+      && typeof message.params === 'object' && !Object.hasOwn(message.params, 'arguments')) {
+      message.params.arguments = {};
+    }
+  };
   await server.connect(transport);
   console.error('Ephemeris MCP server running on stdio');
 }

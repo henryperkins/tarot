@@ -34,7 +34,13 @@ function writeToStorage(key, value) {
     return { success: false, error: 'Coach storage is unavailable in this environment.' };
   }
   try {
-    safeStorage.setItem(key, JSON.stringify(value));
+    const serialized = JSON.stringify(value);
+    safeStorage.setItem(key, serialized);
+    // safeStorage absorbs quota/privacy errors. Confirm persistence before
+    // reporting success or notifying other coach views about a change.
+    if (safeStorage.getItem(key) !== serialized) {
+      throw new Error('Browser storage did not retain the coach data.');
+    }
     dispatchCoachStorageEvent(key);
     return { success: true };
   } catch (error) {

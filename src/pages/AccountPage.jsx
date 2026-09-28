@@ -37,6 +37,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useToast } from '../contexts/ToastContext';
 import { useJournal } from '../hooks/useJournal';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 import { computeJournalStats, exportJournalEntriesToCsv } from '../lib/journalInsights';
 import {
   FOCUS_RING_ACCENT_SOFT,
@@ -136,7 +137,7 @@ function SectionCard({ title, icon: Icon, children, id, highlighted = false, bad
       tabIndex={-1}
       aria-labelledby={headingId}
       className={`
-        rounded-2xl border border-secondary/30 bg-surface overflow-hidden scroll-mt-24
+        rounded-2xl border border-secondary/30 bg-surface overflow-hidden scroll-mt-[calc(var(--sticky-header-height,6rem)+var(--account-sections-height,4rem)+1rem)]
         ${highlighted ? 'ring-2 ring-accent/30' : ''}
       `}
     >
@@ -254,6 +255,25 @@ export default function AccountPage() {
   const journalEntriesRef = useRef(journalEntries);
   const hasMoreEntriesRef = useRef(hasMoreJournalEntries);
   const highlightTimeoutRef = useRef(null);
+  const pageRef = useRef(null);
+  const headerRef = useResponsiveSticky(!authLoading);
+  const sectionNavRef = useRef(null);
+
+  // Keep sticky sections and anchor targets clear of headers that wrap or scale with text.
+  useEffect(() => {
+    if (authLoading) return undefined;
+    const page = pageRef.current;
+    const sectionNav = sectionNavRef.current;
+    if (!page || !sectionNav) return undefined;
+
+    const measure = () => {
+      page.style.setProperty('--account-sections-height', `${sectionNav.getBoundingClientRect().height}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(sectionNav);
+    return () => observer.disconnect();
+  }, [authLoading]);
 
   // Handle upgrade success from Stripe redirect
   useEffect(() => {
@@ -1107,9 +1127,10 @@ export default function AccountPage() {
   const reversalDescription = reversalDescriptions[reversalKey] || reversalDescriptions.auto;
 
   return (
-    <div className="min-h-screen bg-main text-main">
+    <div ref={pageRef} className="min-h-screen bg-main text-main">
       {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
       <header
+        ref={headerRef}
         className="sticky top-0 z-sticky-elevated border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
       >
         <div className="mx-auto max-w-2xl px-4 py-3">
@@ -1128,7 +1149,7 @@ export default function AccountPage() {
           </div>
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-full border border-secondary/40 px-3 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition"
+            className="min-h-touch min-w-touch inline-flex items-center justify-center rounded-full border border-secondary/40 px-3 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition"
           >
             Done
           </Link>
@@ -1136,7 +1157,8 @@ export default function AccountPage() {
 
         {/* Section Navigation Chips */}
         <nav
-          className="sticky z-sticky-nav -mx-4 px-4 py-2 bg-main/95 backdrop-blur-sm border-b border-secondary/20 overflow-x-auto top-[calc(var(--safe-pad-top)+4.5rem)]"
+          ref={sectionNavRef}
+          className="sticky z-sticky-nav -mx-4 px-4 py-2 bg-main/95 backdrop-blur-sm border-b border-secondary/20 overflow-x-auto top-[var(--sticky-header-height,6rem)]"
           aria-label="Jump to section"
           style={{
             scrollbarWidth: 'none',
@@ -1159,7 +1181,7 @@ export default function AccountPage() {
                   key={section.id}
                   href={`#${section.id}`}
                   className={`
-                    px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap
+                    inline-flex min-h-touch min-w-touch items-center px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap
                     border transition-colors touch-manipulation
                     ${highlightedSection === section.id
                       ? 'bg-accent/20 border-accent/40 text-accent'
@@ -1188,7 +1210,7 @@ export default function AccountPage() {
                   setAuthModalMode('register');
                   setShowAuthModal(true);
                 }}
-                className="flex-1 inline-flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-main hover:bg-accent/90 transition"
+                className="min-h-touch min-w-touch flex-1 inline-flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-surface hover:bg-primary transition"
               >
                 Create free account
               </button>
@@ -1198,7 +1220,7 @@ export default function AccountPage() {
                   setAuthModalMode('login');
                   setShowAuthModal(true);
                 }}
-                className="flex-1 inline-flex items-center justify-center rounded-full border border-accent/40 px-4 py-2.5 text-xs font-semibold text-main hover:bg-accent/10 transition"
+                className="min-h-touch min-w-touch flex-1 inline-flex items-center justify-center rounded-full border border-accent/40 px-4 py-2.5 text-xs font-semibold text-main hover:bg-accent/10 transition"
               >
                 Sign in
               </button>
@@ -1222,14 +1244,14 @@ export default function AccountPage() {
                 <button
                   type="button"
                   onClick={handleResendEmailVerification}
-                  className="inline-flex items-center justify-center rounded-full bg-accent px-4 py-2 text-xs font-semibold text-main hover:bg-accent/90 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="min-h-touch min-w-touch inline-flex items-center justify-center rounded-full bg-accent px-4 py-2 text-xs font-semibold text-surface hover:bg-primary transition disabled:opacity-60 disabled:cursor-not-allowed"
                   disabled={verificationSending}
                 >
                   {verificationSending ? 'Sending...' : 'Resend verification'}
                 </button>
                 <Link
                   to="/reset-password"
-                  className="inline-flex items-center justify-center rounded-full border border-warning/40 px-4 py-2 text-xs font-semibold text-warning hover:bg-warning/20 transition"
+                  className="min-h-touch min-w-touch inline-flex items-center justify-center rounded-full border border-warning/40 px-4 py-2 text-xs font-semibold text-warning hover:bg-warning/20 transition"
                 >
                   Forgot password?
                 </Link>
@@ -1241,8 +1263,8 @@ export default function AccountPage() {
         {/* Profile Section - Auth only */}
         {isAuthenticated && (
         <SectionCard title="Profile" icon={User} id="profile" highlighted={highlightedSection === 'profile'}>
-          <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-accent/20 flex items-center justify-center">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="h-16 w-16 shrink-0 rounded-full bg-accent/20 flex items-center justify-center">
               <span className="text-2xl font-bold text-accent">
                 {user?.username?.charAt(0).toUpperCase() || '?'}
               </span>
@@ -1259,7 +1281,7 @@ export default function AccountPage() {
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
               <button
                 type="button"
                 onClick={() => {
@@ -1267,7 +1289,7 @@ export default function AccountPage() {
                   setProfileError(null);
                   setProfileSuccess(null);
                 }}
-                className="inline-flex items-center gap-1.5 rounded-full border border-secondary/40 px-3 py-1.5 text-xs text-muted hover:text-main hover:border-secondary/60 transition"
+                className="min-h-touch min-w-touch inline-flex items-center gap-1.5 rounded-full border border-secondary/40 px-3 py-1.5 text-xs text-muted hover:text-main hover:border-secondary/60 transition"
               >
                 <PencilSimple className="h-3.5 w-3.5" />
                 {profileEditing ? 'Cancel' : 'Edit'}
@@ -1280,7 +1302,7 @@ export default function AccountPage() {
                     setPasswordError(null);
                     setPasswordSuccess(null);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-secondary/40 px-3 py-1.5 text-xs text-muted hover:text-main hover:border-secondary/60 transition"
+                  className="min-h-touch min-w-touch inline-flex items-center gap-1.5 rounded-full border border-secondary/40 px-3 py-1.5 text-xs text-muted hover:text-main hover:border-secondary/60 transition"
                 >
                   <Lock className="h-3.5 w-3.5" />
                   {passwordEditing ? 'Close' : 'Password'}
@@ -1354,7 +1376,7 @@ export default function AccountPage() {
                   onClick={handleProfileSave}
                   disabled={profileSaveDisabled}
                   className={`
-                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    min-h-touch min-w-touch flex-1 inline-flex items-center justify-center gap-2 rounded-full
                     border border-accent/60 bg-accent/10 px-4 py-2.5 text-xs font-semibold text-main
                     hover:bg-accent/20 transition
                     ${profileSaveDisabled ? 'opacity-70 cursor-not-allowed' : ''}
@@ -1372,7 +1394,7 @@ export default function AccountPage() {
                     setProfileSuccess(null);
                   }}
                   className="
-                    flex-1 inline-flex items-center justify-center rounded-full
+                    min-h-touch min-w-touch flex-1 inline-flex items-center justify-center rounded-full
                     border border-secondary/40 bg-transparent px-4 py-2.5 text-xs font-semibold text-main
                     hover:bg-secondary/10 transition
                   "
@@ -1507,7 +1529,7 @@ export default function AccountPage() {
                 onClick={handlePasswordUpdate}
                 disabled={passwordSaveDisabled}
                 className={`
-                  w-full inline-flex items-center justify-center gap-2 rounded-full
+                  min-h-touch min-w-touch w-full inline-flex items-center justify-center gap-2 rounded-full
                   border border-accent/60 bg-accent/10 px-4 py-2.5 text-xs font-semibold text-main
                   hover:bg-accent/20 transition
                   ${passwordSaveDisabled ? 'opacity-70 cursor-not-allowed' : ''}
@@ -1574,7 +1596,7 @@ export default function AccountPage() {
                 {needsResubscribe && !isStoreProvider ? (
                   <Link
                     to="/pricing"
-                    className="inline-flex items-center justify-center rounded-full border border-warning/40 bg-warning/20 px-4 py-2 text-xs font-semibold text-warning hover:bg-warning/30 transition"
+                    className="min-h-touch min-w-touch inline-flex items-center justify-center rounded-full border border-warning/40 bg-warning/20 px-4 py-2 text-xs font-semibold text-warning hover:bg-warning/30 transition"
                   >
                     Resubscribe
                   </Link>
@@ -1584,7 +1606,7 @@ export default function AccountPage() {
                     onClick={handleManageSubscription}
                     disabled={portalLoading}
                     className={`
-                      inline-flex items-center justify-center gap-2 rounded-full
+                      min-h-touch min-w-touch inline-flex items-center justify-center gap-2 rounded-full
                       border border-warning/40 bg-warning/20 px-4 py-2 text-xs font-semibold text-warning
                       hover:bg-warning/30 transition
                       ${portalLoading ? 'opacity-70 cursor-not-allowed' : ''}
@@ -1638,13 +1660,13 @@ export default function AccountPage() {
 
           {/* Usage dashboard */}
           <div className="border-t border-secondary/20 pt-4 mb-4">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
               <p className="text-xs uppercase tracking-wider text-muted">Usage this month</p>
               <button
                 type="button"
                 onClick={fetchUsage}
                 disabled={usageLoading}
-                className="text-xs text-muted hover:text-main transition disabled:opacity-60 disabled:cursor-not-allowed"
+                className="min-h-touch min-w-touch inline-flex items-center text-xs text-muted hover:text-main transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 Refresh
               </button>
@@ -1664,7 +1686,7 @@ export default function AccountPage() {
                 <button
                   type="button"
                   onClick={fetchUsage}
-                  className="text-xs text-muted hover:text-main transition"
+                  className="min-h-touch min-w-touch inline-flex items-center text-xs text-muted hover:text-main transition"
                 >
                   Try again
                 </button>
@@ -1696,7 +1718,7 @@ export default function AccountPage() {
                 {!readingUsage.unlimited && getUsageThreshold(readingUsage.used, readingUsage.limit) !== 'normal' && (
                   <Link
                     to="/pricing"
-                    className="inline-flex items-center gap-1 text-xs text-accent hover:text-accent/80 transition"
+                    className="min-h-touch min-w-touch inline-flex items-center gap-1 text-xs text-accent hover:text-accent/80 transition"
                   >
                     <Crown className="h-3 w-3" weight="fill" />
                     Upgrade for more readings
@@ -1772,7 +1794,7 @@ export default function AccountPage() {
                   type="button"
                   onClick={fetchUsage}
                   disabled={usageLoading}
-                  className="inline-flex items-center gap-1.5 text-xs text-accent hover:text-accent/80 transition disabled:opacity-60"
+                  className="min-h-touch min-w-touch inline-flex items-center gap-1.5 text-xs text-accent hover:text-accent/80 transition disabled:opacity-60"
                 >
                   <ArrowClockwise className="h-3.5 w-3.5" />
                   Try again
@@ -1787,9 +1809,9 @@ export default function AccountPage() {
               <Link
                 to="/pricing"
                 className={`
-                  flex-1 inline-flex items-center justify-center gap-2 rounded-full
-                  border border-accent bg-accent px-4 py-3 text-sm font-semibold text-main
-                  hover:bg-accent/90 transition
+                  min-h-touch min-w-touch flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                  border border-accent bg-accent px-4 py-3 text-sm font-semibold text-surface
+                  hover:bg-primary transition
                   ${prefersReducedMotion ? '' : 'hover:scale-[1.02]'}
                 `}
               >
@@ -1802,7 +1824,7 @@ export default function AccountPage() {
                 <Link
                   to="/pricing"
                   className={`
-                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    min-h-touch min-w-touch flex-1 inline-flex items-center justify-center gap-2 rounded-full
                     border border-secondary/60 bg-transparent px-4 py-3 text-sm font-semibold text-main
                     hover:bg-secondary/10 transition
                     ${prefersReducedMotion ? '' : 'hover:scale-[1.02]'}
@@ -1816,7 +1838,7 @@ export default function AccountPage() {
                   onClick={handleManageSubscription}
                   disabled={portalLoading}
                   className={`
-                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    min-h-touch min-w-touch flex-1 inline-flex items-center justify-center gap-2 rounded-full
                     border border-accent/60 bg-transparent px-4 py-3 text-sm font-semibold text-main
                     hover:bg-accent/10 transition
                     ${portalLoading ? 'opacity-70 cursor-not-allowed' : ''}
@@ -1841,7 +1863,7 @@ export default function AccountPage() {
                 <button
                   type="button"
                   onClick={handleManageSubscription}
-                  className="text-xs font-semibold text-error hover:text-error/80 transition"
+                  className="min-h-touch min-w-touch inline-flex items-center text-xs font-semibold text-error hover:text-error/80 transition"
                 >
                   Try again
                 </button>
@@ -1855,7 +1877,7 @@ export default function AccountPage() {
               onClick={handleRestorePurchases}
               disabled={restoreLoading}
               className={`
-                w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full
+                min-h-touch min-w-touch w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full
                 border border-secondary/50 bg-transparent px-4 py-2.5 text-xs font-semibold text-main
                 hover:bg-secondary/10 transition
                 ${restoreLoading ? 'opacity-70 cursor-not-allowed' : ''}
@@ -1919,7 +1941,7 @@ export default function AccountPage() {
                   aria-checked={ttsProvider === engine.id}
                   onClick={() => setTtsProvider(engine.id)}
                   className={`
-                    px-3 py-2.5 rounded-xl text-center transition-all touch-manipulation
+                    min-h-touch min-w-touch px-3 py-2.5 rounded-xl text-center transition-all touch-manipulation
                     ${ttsProvider === engine.id
                       ? 'bg-accent/20 border-2 border-accent text-main'
                       : 'bg-surface-muted/50 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50'
@@ -1927,7 +1949,7 @@ export default function AccountPage() {
                   `}
                 >
                   <span className="block text-xs font-semibold">{engine.label}</span>
-                  <span className="block text-2xs opacity-75">{engine.desc}</span>
+                  <span className="block text-2xs text-muted">{engine.desc}</span>
                 </button>
               ))}
             </div>
@@ -1954,7 +1976,7 @@ export default function AccountPage() {
               </div>
             </div>
             <div
-              className="mt-3 inline-flex rounded-full border border-secondary/30 bg-surface-muted/50 p-1"
+              className="mt-3 inline-flex max-w-full flex-wrap rounded-3xl border border-secondary/30 bg-surface-muted/50 p-1"
               role="radiogroup"
               aria-label="Theme"
             >
@@ -2004,14 +2026,14 @@ export default function AccountPage() {
           <div className="mt-4 pt-4 border-t border-secondary/20">
             <div className="flex items-center gap-2 mb-3">
               <ArrowCounterClockwise className="h-4 w-4 text-accent" />
-              <span className="text-xs font-semibold text-muted uppercase tracking-wide">Reversal Lens</span>
+              <label htmlFor="reversal-framework-select" className="text-xs font-semibold text-muted uppercase tracking-wide">Reversal Lens</label>
             </div>
             <select
               id="reversal-framework-select"
               value={reversalFramework || 'auto'}
               onChange={e => setReversalFramework(e.target.value === 'auto' ? null : e.target.value)}
               className="
-                w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                min-h-touch min-w-touch w-full rounded-xl border border-secondary/30 bg-surface-muted/50
                 px-3 py-2.5 text-sm text-main
                 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
                 transition
@@ -2047,7 +2069,7 @@ export default function AccountPage() {
               <div
                 id="analytics"
                 tabIndex={-1}
-                className={`scroll-mt-24 rounded-xl ${highlightedSection === 'analytics' ? 'ring-2 ring-accent/30' : ''}`}
+                className={`scroll-mt-[calc(var(--sticky-header-height,6rem)+var(--account-sections-height,4rem)+1rem)] rounded-xl ${highlightedSection === 'analytics' ? 'ring-2 ring-accent/30' : ''}`}
               >
                 <p id="analytics-heading" tabIndex={-1} data-section-heading="true" className="sr-only">
                   Archetype Journey analytics
@@ -2065,7 +2087,7 @@ export default function AccountPage() {
                   <button
                     type="button"
                     onClick={handleRetryAnalytics}
-                    className="text-xs text-muted hover:text-main transition pb-2"
+                    className="min-h-touch min-w-touch inline-flex items-center text-xs text-muted hover:text-main transition pb-2"
                   >
                     Retry
                   </button>
@@ -2082,7 +2104,7 @@ export default function AccountPage() {
                         setJourneyResetOpen(true);
                       }}
                       disabled={journeyResetLoading}
-                      className={`text-xs font-semibold text-error hover:text-error/80 transition ${journeyResetLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                      className={`min-h-touch min-w-touch inline-flex items-center text-xs font-semibold text-error hover:text-error/80 transition ${journeyResetLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
                       Reset Journey data
                     </button>
@@ -2116,7 +2138,7 @@ export default function AccountPage() {
                   onClick={handleExportPdf}
                   disabled={exportLoading || journalLoading}
                   className={`
-                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    min-h-touch min-w-touch flex-1 inline-flex items-center justify-center gap-2 rounded-full
                     border border-secondary/50 bg-transparent px-4 py-2.5 text-xs font-semibold text-main
                     hover:bg-secondary/10 transition
                     ${exportLoading || journalLoading ? 'opacity-70 cursor-not-allowed' : ''}
@@ -2130,7 +2152,7 @@ export default function AccountPage() {
                   onClick={handleExportCsv}
                   disabled={exportLoading || journalLoading}
                   className={`
-                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    min-h-touch min-w-touch flex-1 inline-flex items-center justify-center gap-2 rounded-full
                     border border-secondary/50 bg-transparent px-4 py-2.5 text-xs font-semibold text-main
                     hover:bg-secondary/10 transition
                     ${exportLoading || journalLoading ? 'opacity-70 cursor-not-allowed' : ''}
@@ -2155,12 +2177,12 @@ export default function AccountPage() {
 
             <div className="pt-4 border-t border-secondary/20">
               <p className="text-xs uppercase tracking-wider text-muted mb-2">Account data</p>
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="space-y-4">
                 <button
                   type="button"
                   onClick={handleDownloadAccountData}
                   className="
-                    flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    min-h-touch min-w-touch w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full
                     border border-secondary/50 bg-transparent px-4 py-2.5 text-xs font-semibold text-main
                     hover:bg-secondary/10 transition
                   "
@@ -2168,7 +2190,7 @@ export default function AccountPage() {
                   <DownloadSimple className="h-4 w-4" />
                   Download account data
                 </button>
-                <div className="flex-1 space-y-2">
+                <div className="space-y-2">
                   {hasActiveSubscription && (
                     <div
                       className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs"
@@ -2176,15 +2198,15 @@ export default function AccountPage() {
                       aria-live="polite"
                       aria-atomic="true"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <p className="text-warning">
+                      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                        <p className="min-w-0 text-warning">
                           Active subscription detected. Manage your subscription first to avoid future charges.
                         </p>
                         <button
                           type="button"
                           onClick={handleManageSubscription}
                           disabled={portalLoading}
-                          className={`inline-flex items-center gap-1 font-semibold underline underline-offset-2 transition hover:text-warning text-warning ${
+                          className={`min-h-touch min-w-touch shrink-0 inline-flex items-center gap-1 font-semibold underline underline-offset-2 transition hover:text-warning text-warning ${
                             portalLoading ? 'opacity-60 cursor-not-allowed' : ''
                           }`}
                         >
@@ -2199,8 +2221,9 @@ export default function AccountPage() {
                   <button
                     type="button"
                     onClick={() => setDeleteModalOpen(true)}
+                    aria-describedby="account-delete-description"
                     className="
-                      w-full inline-flex items-center justify-center gap-2 rounded-full
+                      min-h-touch min-w-touch w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full
                       border border-error/40 bg-error/10 px-4 py-2.5 text-xs font-semibold text-error
                       hover:bg-error/20 transition
                     "
@@ -2208,11 +2231,11 @@ export default function AccountPage() {
                     <Trash className="h-4 w-4" />
                     Delete account
                   </button>
+                  <p id="account-delete-description" className="text-xs text-muted">
+                    Deleting your account removes your synced journal, analytics, and memories. This cannot be undone.
+                  </p>
                 </div>
               </div>
-              <p className="text-xs text-muted mt-2">
-                Deleting your account removes your synced journal, analytics, and memories. This cannot be undone.
-              </p>
             </div>
           </div>
         </SectionCard>
@@ -2223,13 +2246,13 @@ export default function AccountPage() {
 
         {/* Actions Section - Auth only */}
         {isAuthenticated && (
-        <SectionCard id="actions" highlighted={highlightedSection === 'actions'}>
+        <SectionCard id="actions" title="Actions" highlighted={highlightedSection === 'actions'}>
           <div className="space-y-1">
             <button
               type="button"
               onClick={handleReplayTutorial}
               className="
-                w-full flex items-center gap-3 px-2 py-3 -mx-2 rounded-xl
+                min-h-touch min-w-touch w-full flex items-center gap-3 px-2 py-3 rounded-xl
                 text-sm text-main hover:bg-accent/5 active:bg-accent/10
                 transition touch-manipulation text-left
               "
@@ -2243,7 +2266,7 @@ export default function AccountPage() {
               type="button"
               onClick={handleLogout}
               className="
-                w-full flex items-center gap-3 px-2 py-3 -mx-2 rounded-xl
+                min-h-touch min-w-touch w-full flex items-center gap-3 px-2 py-3 rounded-xl
                 text-sm text-main hover:bg-accent/5 active:bg-accent/10
                 transition touch-manipulation text-left
               "
@@ -2301,7 +2324,7 @@ export default function AccountPage() {
         <div className="text-center pt-4">
           <Link
             to="/"
-            className="text-sm text-muted hover:text-accent transition"
+            className="min-h-touch min-w-touch inline-flex items-center text-sm text-muted hover:text-accent transition"
           >
             Back to Reading
           </Link>

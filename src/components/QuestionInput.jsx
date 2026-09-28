@@ -1,38 +1,48 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { ArrowsClockwise, ChartLine, Sparkle } from '@phosphor-icons/react';
-import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions';
-import { recordCoachQuestion } from '../lib/coachStorage';
-import { getQualityLevel, scoreQuestion } from '../lib/questionQuality';
+import { useId, useMemo } from 'react';
+import { ChartLine, Sparkle } from '@phosphor-icons/react';
+import { getQualityLevel, getQuestionNudge, isAssessableQuestion, scoreQuestion } from '../lib/questionQuality';
 import { QualityLevelIcon } from './QualityLevelIcon';
+import { QuestionExamples } from './QuestionExamples';
+import { QuestionNudge } from './QuestionNudge';
+import { SaveIntentionButton } from './SaveIntentionButton';
+import {
+  QUESTION_HELPER,
+  QUESTION_PLACEHOLDER,
+  getQuestionPrompt,
+  handleQuestionFieldKeyDown,
+  isExampleQuestion
+} from './questionField';
 import { usePreferences } from '../contexts/PreferencesContext';
-import { useAuth } from '../contexts/AuthContext';
 import { useAutoGrow } from '../hooks/useAutoGrow';
+import { useSettledValue } from '../hooks/useSettledValue';
 import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingSchema.js';
+import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
 
 export function QuestionInput({
   userQuestion,
   setUserQuestion,
-  placeholderIndex,
   onFocus,
   onBlur,
-  onPlaceholderRefresh,
   onLaunchCoach
 }) {
-  const optionalId = useId();
-  const [savedNotice, setSavedNotice] = useState(false);
-  const [saveError, setSaveError] = useState('');
-  const timeoutRefs = useRef([]);
+  const helperId = useId();
+  const nudgeId = useId();
+  const clarityId = useId();
   const { personalization } = usePreferences();
-  const { user } = useAuth();
-  const userId = user?.id || null;
   const textareaRef = useAutoGrow(userQuestion, 1, 4);
   const isExperienced = personalization?.tarotExperience === 'experienced';
   const isNewbie = personalization?.tarotExperience === 'newbie';
   const displayName = personalization?.displayName?.trim();
+  const canLaunchCoach = typeof onLaunchCoach === 'function';
   const trimmedQuestion = userQuestion.trim();
   const wordCount = trimmedQuestion ? trimmedQuestion.split(/\s+/).length : 0;
   const wordLabel = wordCount === 1 ? 'word' : 'words';
-  const showQualityIndicator = wordCount >= 5;
+  const nudgeKind = getQuestionNudge(userQuestion);
+  // The word count and clarity grade are English heuristics; see
+  // isAssessableQuestion.
+  const isAssessable = isAssessableQuestion(trimmedQuestion);
+  // One message at a time: a phrasing nudge stands in for the clarity grade.
+  const showQualityIndicator = wordCount >= 5 && !nudgeKind && isAssessable;
   const quality = useMemo(() => scoreQuestion(userQuestion), [userQuestion]);
   const qualityLevel = useMemo(() => getQualityLevel(quality.score), [quality.score]);
   const qualityHelperText = useMemo(() => {
@@ -42,69 +52,31 @@ export function QuestionInput({
     if (quality.score >= 40) return 'Sharpen the focus to strengthen it.';
     return 'Try reframing it from a curious, open-ended angle.';
   }, [quality.feedback, quality.score]);
-
-  const clearAllTimeouts = () => {
-    timeoutRefs.current.forEach(timeoutId => clearTimeout(timeoutId));
-    timeoutRefs.current = [];
-  };
-
-  const registerTimeout = (callback, delay) => {
-    const id = setTimeout(() => {
-      callback();
-      timeoutRefs.current = timeoutRefs.current.filter(timeoutId => timeoutId !== id);
-    }, delay);
-    timeoutRefs.current = [...timeoutRefs.current, id];
-    return id;
-  };
-
-  useEffect(() => clearAllTimeouts, []);
-
-  const handleRefreshExamples = () => {
-    onPlaceholderRefresh?.();
-  };
-
-  const handleSaveIntention = () => {
-    const trimmed = userQuestion.trim();
-    if (!trimmed) return;
-    const result = recordCoachQuestion(trimmed, undefined, userId);
-    if (result.success) {
-      setSavedNotice(true);
-      setSaveError('');
-      registerTimeout(() => setSavedNotice(false), 1800);
-    } else {
-      setSavedNotice(false);
-      setSaveError(result.error || 'Unable to save this question. Check browser storage settings.');
-      registerTimeout(() => setSaveError(''), 3000);
-    }
-  };
-
-  const handleLaunchCoach = () => {
-    if (typeof onLaunchCoach === 'function') {
-      onLaunchCoach();
-    }
-  };
-
-  // Enter blurs (implicit continue), Shift+Enter inserts newline
-  const handleKeyDown = (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      event.target.blur();
-    }
-  };
+  // Spoken when typing pauses, so a screen reader hears the check without a
+  // running commentary on every keystroke.
+  const clarityAnnouncement = useSettledValue(
+    showQualityIndicator ? `Clarity check: ${qualityLevel.label}. ${qualityHelperText}` : ''
+  );
+  const describedBy = [
+    helperId,
+    nudgeKind ? nudgeId : null,
+    showQualityIndicator ? clarityId : null
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className="space-y-3 animate-fade-in">
-      <div className="flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
-        <div className="text-accent font-serif text-sm sm:text-base">
-          <label htmlFor="question-input">
-            Step 2 · {displayName ? `${displayName}'s intention` : 'Your question or intention'}
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 xs:flex-row xs:items-start xs:justify-between">
+        <div className="min-w-0 space-y-1">
+          <label htmlFor="question-input" className="block font-serif text-base sm:text-lg leading-snug text-main text-balance">
+            {getQuestionPrompt(displayName)}
           </label>
+          <p id={helperId} className="text-xs text-muted text-pretty">{QUESTION_HELPER}</p>
         </div>
-        {typeof onLaunchCoach === 'function' && (
+        {canLaunchCoach && (
           <button
             type="button"
-            onClick={handleLaunchCoach}
-            className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3 py-1.5 min-h-touch text-xs text-main transition hover:bg-primary/10 active:bg-primary/15 touch-manipulation self-start xs:self-auto"
+            onClick={onLaunchCoach}
+            className={`inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-3 py-1.5 min-h-touch text-xs text-main transition hover:bg-primary/10 active:bg-primary/15 touch-manipulation self-start xs:self-auto ${FOCUS_RING_DEFAULT}`}
             title="Shortcut: Shift+G"
             aria-label="Open guided coach (Shift+G)"
           >
@@ -112,50 +84,43 @@ export function QuestionInput({
             {isExperienced ? 'Coach' : 'Guided coach'}
           </button>
         )}
-        <span id={optionalId} className="sr-only">
-          Optional field
-        </span>
       </div>
-      {isNewbie && (
-        <p className="text-xs text-muted mt-1">
-          Unsure what to ask? Tap Guided coach or try a quick starter below.
-        </p>
+      <textarea
+        ref={textareaRef}
+        id="question-input"
+        dir="auto"
+        value={userQuestion}
+        onChange={event => setUserQuestion(event.target.value)}
+        onKeyDown={handleQuestionFieldKeyDown}
+        placeholder={QUESTION_PLACEHOLDER}
+        rows={1}
+        // Mirrors the server contract so an over-long paste is trimmed here
+        // rather than rejected with a 400 after the ritual.
+        maxLength={USER_QUESTION_MAX_LENGTH}
+        className="block w-full min-h-touch bg-surface border border-primary/40 rounded-xl px-3 xs:px-4 py-3 text-base text-main caret-accent placeholder:italic placeholder:text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-colors resize-none"
+        // text-base (16px) prevents iOS zoom on focus
+        onFocus={onFocus}
+        onBlur={onBlur}
+        enterKeyHint="done"
+        aria-describedby={describedBy}
+      />
+      <QuestionNudge id={nudgeId} kind={nudgeKind} onOpenCoach={canLaunchCoach ? onLaunchCoach : undefined} />
+      {(!trimmedQuestion || isExampleQuestion(trimmedQuestion)) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <QuestionExamples value={userQuestion} onChange={setUserQuestion} />
+          {isNewbie && !trimmedQuestion && canLaunchCoach && (
+            <p className="text-xs text-muted">Or let the guided coach shape one with you.</p>
+          )}
+        </div>
       )}
-      <div className="relative">
-        <textarea
-          ref={textareaRef}
-          id="question-input"
-          value={userQuestion}
-          onChange={event => setUserQuestion(event.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={EXAMPLE_QUESTIONS[placeholderIndex]}
-          rows={1}
-          // Mirrors the server contract so an over-long paste is trimmed here
-          // rather than rejected with a 400 after the ritual.
-          maxLength={USER_QUESTION_MAX_LENGTH}
-          className="w-full bg-surface border border-primary/40 rounded-lg px-3 xs:px-4 py-3 pr-12 text-base text-main placeholder:text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all resize-none"
-          // text-base (16px) prevents iOS zoom on focus
-          onFocus={onFocus}
-          onBlur={onBlur}
-          aria-describedby={optionalId}
-        />
-        <button
-          type="button"
-          onClick={handleRefreshExamples}
-          className="absolute top-1 right-1 flex items-center justify-center min-w-touch min-h-touch text-muted hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded-full touch-manipulation"
-          aria-label="Cycle example intention prompts"
-        >
-          <ArrowsClockwise className="w-4 h-4" aria-hidden="true" />
-        </button>
-      </div>
-      {wordCount > 0 && (
-        <div className="flex items-center justify-between text-2xs text-muted/90">
+      {wordCount > 0 && isAssessable && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
           <span>{wordCount} {wordLabel}</span>
           <span>Aim for 8-30 words</span>
         </div>
       )}
       {showQualityIndicator && (
-        <div className="rounded-lg border border-secondary/30 bg-surface/60 p-2">
+        <div id={clarityId} className="rounded-lg border border-secondary/30 bg-surface/60 p-3">
           <div className="flex items-center justify-between text-xs text-secondary">
             <span className="inline-flex items-center gap-1">
               <ChartLine className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
@@ -166,40 +131,13 @@ export function QuestionInput({
               <span>{qualityLevel.label}</span>
             </span>
           </div>
-          <p className="text-2xs text-secondary/80 mt-1">{qualityHelperText}</p>
+          <p className="text-xs text-secondary mt-1">{qualityHelperText}</p>
         </div>
       )}
-      {!trimmedQuestion && (
-        <div className="space-y-2">
-          <p className="text-xs text-muted">Quick starters</p>
-          <div className="flex flex-wrap gap-2">
-            {EXAMPLE_QUESTIONS.slice(0, 3).map(example => (
-              <button
-                key={example}
-                type="button"
-                onClick={() => setUserQuestion(example)}
-                className="min-h-touch rounded-full border border-secondary/30 bg-surface/40 px-3 py-1.5 text-2xs text-secondary transition hover:border-accent/50 hover:text-main"
-              >
-                {example.length > 40 ? `${example.slice(0, 40)}...` : example}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2 xs:gap-3">
-        <button
-          type="button"
-          className="px-3 py-1.5 min-h-touch rounded-lg border border-primary/40 text-xs text-main hover:bg-primary/10 active:bg-primary/15 transition disabled:opacity-50 touch-manipulation"
-          onClick={handleSaveIntention}
-          disabled={!trimmedQuestion}
-        >
-          Save intention
-        </button>
-        <span role="status" aria-live="polite" className="text-xs min-h-[1.25rem]">
-          {savedNotice && <span className="text-primary">Saved to intentions ✓</span>}
-          {saveError && <span className="text-error">{saveError}</span>}
-        </span>
-      </div>
+      <span className="sr-only" role="status" aria-live="polite">
+        {clarityAnnouncement}
+      </span>
+      <SaveIntentionButton question={userQuestion} />
     </div>
   );
 }

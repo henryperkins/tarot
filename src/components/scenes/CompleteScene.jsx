@@ -15,6 +15,7 @@ export function CompleteScene({
   const completionModel = getSceneModel(sceneModels, 'completionModel');
   const {
     personalReading,
+    isNarrativeFocus,
     isPersonalReadingError,
     narrativePhase,
     isHandset,
@@ -45,6 +46,28 @@ export function CompleteScene({
     <>
       {shouldRenderNarrativeCompanion ? <div className="mt-6 sm:mt-8">{narrativeCompanion}</div> : null}
 
+      {/* Reading Inputs sits under Spread Insights: both describe how the reading was built. */}
+      {!isNarrativeFocus && (
+        <ReadingInputUsageSection
+          key={readingMeta?.requestId || readingMeta?.readingId}
+          personalReading={personalReading}
+          isPersonalReadingError={isPersonalReadingError}
+          provider={readingMeta?.provider}
+          sourceUsage={readingMeta?.sourceUsage}
+        />
+      )}
+
+      <ReadingFeedbackSection
+        personalReading={personalReading}
+        readingMeta={readingMeta}
+        selectedSpread={selectedSpread}
+        spreadName={spreadName}
+        deckStyleId={deckStyleId}
+        userQuestion={userQuestion}
+        lastCardsForFeedback={lastCardsForFeedback}
+        feedbackVisionSummary={feedbackVisionSummary}
+      />
+
       <ContinueConversationSection
         personalReading={personalReading}
         isPersonalReadingError={isPersonalReadingError}
@@ -53,11 +76,6 @@ export function CompleteScene({
         followUpOpen={followUpOpen}
         setFollowUpOpen={setFollowUpOpen}
         followUpAutoFocus={followUpAutoFocus}
-      />
-
-      <ReadingInputUsageSection
-        personalReading={personalReading}
-        sourceUsage={readingMeta?.sourceUsage}
       />
 
       <ReadingMediaSection
@@ -75,17 +93,6 @@ export function CompleteScene({
       <NewReadingSection
         isShuffling={isShuffling}
         shuffle={shuffle}
-      />
-
-      <ReadingFeedbackSection
-        personalReading={personalReading}
-        readingMeta={readingMeta}
-        selectedSpread={selectedSpread}
-        spreadName={spreadName}
-        deckStyleId={deckStyleId}
-        userQuestion={userQuestion}
-        lastCardsForFeedback={lastCardsForFeedback}
-        feedbackVisionSummary={feedbackVisionSummary}
       />
     </>
   );

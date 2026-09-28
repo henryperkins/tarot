@@ -1,13 +1,12 @@
-import { useState, useEffect, useMemo, useRef, useCallback, useSyncExternalStore } from 'react';
-import { EXAMPLE_QUESTIONS } from './data/exampleQuestions';
+import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback, useSyncExternalStore } from 'react';
 import { SpreadSelector } from './components/SpreadSelector';
 import { ReadingPreparation } from './components/ReadingPreparation';
-import { ReadingDisplay } from './components/ReadingDisplay';
 import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
 import { formatReading } from './lib/formatting';
+import { readingMetadataFromEntry } from './lib/readingMetadata';
 import FollowUpModal from './components/FollowUpModal';
 import { QuickIntentionCard } from './components/QuickIntentionCard';
 import { Header } from './components/Header';
@@ -27,7 +26,7 @@ import { useSmallScreen } from './hooks/useSmallScreen';
 import { useLandscape } from './hooks/useLandscape';
 import { useHandsetLayout } from './hooks/useHandsetLayout';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
-import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
+import { loadCoachRecommendation } from './lib/journalInsights';
 import { shouldUseMobileStableMode } from './lib/mobileStableMode';
 import { getSpreadInfo, normalizeSpreadKey } from './data/spreads';
 import {
@@ -43,6 +42,8 @@ const STEP_PROGRESS_STEPS = [
   { id: 'ritual', label: 'Ritual (optional)' },
   { id: 'reading', label: 'Reading' }
 ];
+
+const ReadingDisplay = lazy(() => import('./components/ReadingDisplay').then(module => ({ default: module.ReadingDisplay })));
 
 function ReadingSkipLinks({ showSetupSection }) {
   const narrativeTarget = useSyncExternalStore(
@@ -182,9 +183,8 @@ export default function TarotReading() {
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [followUpIntent, setFollowUpIntent] = useState('continue');
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
-  const [mobileSettingsTab, setMobileSettingsTab] = useState('intention');
+  const [mobileSettingsTab, setMobileSettingsTab] = useState('deck');
   const [highlightQuickIntention, setHighlightQuickIntention] = useState(false);
   const [onboardingDeferred, setOnboardingDeferred] = useState(false);
   const isOnboardingOpen = !onboardingComplete && !showPersonalizationBanner && !onboardingDeferred;
@@ -195,7 +195,7 @@ export default function TarotReading() {
     Boolean(personalReading)
   );
   const [showSetupInFocusMode, setShowSetupInFocusMode] = useState(false);
-  const showSetupSection = !shouldFocusCinematicFlow || showSetupInFocusMode;
+  const showSetupSection = !isOnboardingOpen && (!shouldFocusCinematicFlow || showSetupInFocusMode);
   const suppressFocusInterruptions = shouldFocusCinematicFlow;
   const shouldEnableMobileStableMode = useMemo(() => shouldUseMobileStableMode({
     isHandset,
@@ -384,13 +384,9 @@ export default function TarotReading() {
       personalReading: entryNarrative = '',
       themes: entryThemes = null,
       spreadKey,
-      spreadName,
       context: entryContext,
-      deckId,
       followUps = [],
-      sessionSeed: entrySessionSeed,
-      requestId,
-      provider
+      sessionSeed: entrySessionSeed
     } = followUpEntry;
 
     const normalizedSpread = spreadKey || selectedSpread;
@@ -425,15 +421,7 @@ export default function TarotReading() {
     setIsGenerating(false);
     setJournalStatus(null);
     setFollowUps(Array.isArray(followUps) ? followUps : []);
-	    setReadingMeta((prev) => ({
-	      ...prev,
-	      requestId: requestId || prev.requestId,
-	      spreadKey: normalizedSpread || prev.spreadKey,
-	      spreadName: spreadName || prev.spreadName,
-	      deckStyle: deckId || prev.deckStyle,
-	      userQuestion: question || prev.userQuestion,
-	      provider: provider || prev.provider
-	    }));
+    setReadingMeta(readingMetadataFromEntry({ ...followUpEntry, spreadKey: normalizedSpread }));
 	    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncing UI state from router state
 	    setFollowUpIntent(normalizedIntent);
 	    setIsFollowUpOpen(true);
@@ -527,13 +515,26 @@ export default function TarotReading() {
       try {
         target.scrollIntoView({
           behavior: 'auto',
-          block: 'center'
+          block: 'start'
         });
       } catch {
         // Silently ignore scroll failures (e.g., Safari quirks)
       }
     });
   }, [isHandset]);
+
+  // Bring the handset question card into view and pulse it briefly.
+  const promptQuickIntention = useCallback(() => {
+    scrollQuickIntentionIntoView();
+    setHighlightQuickIntention(true);
+    if (quickIntentionHighlightTimeoutRef.current) {
+      window.clearTimeout(quickIntentionHighlightTimeoutRef.current);
+    }
+    quickIntentionHighlightTimeoutRef.current = window.setTimeout(() => {
+      setHighlightQuickIntention(false);
+      quickIntentionHighlightTimeoutRef.current = null;
+    }, 1500);
+  }, [scrollQuickIntentionIntoView]);
 
   const handleQuestionFocus = useCallback(() => {
   }, []);
@@ -555,38 +556,14 @@ export default function TarotReading() {
     setReflections({});
     setIsGenerating(false);
     if (shouldPromptQuickIntention) {
-      scrollQuickIntentionIntoView();
-      setHighlightQuickIntention(true);
-      if (quickIntentionHighlightTimeoutRef.current) {
-        window.clearTimeout(quickIntentionHighlightTimeoutRef.current);
-      }
-      quickIntentionHighlightTimeoutRef.current = window.setTimeout(() => {
-        setHighlightQuickIntention(false);
-        quickIntentionHighlightTimeoutRef.current = null;
-      }, 1500);
+      promptQuickIntention();
     }
-  }, [hasConfirmedSpread, isHandset, scrollQuickIntentionIntoView, selectSpread, setIsGenerating, setJournalStatus, setPersonalReading, setReflections]);
+  }, [hasConfirmedSpread, isHandset, promptQuickIntention, selectSpread, setIsGenerating, setJournalStatus, setPersonalReading, setReflections]);
 
   const handleCoachClose = useCallback(() => {
     setIsIntentionCoachOpen(false);
     setPendingCoachPrefill(null);
   }, []);
-
-  const clearCoachRecommendation = useCallback(() => {
-    saveCoachRecommendation(null, userId);
-    refreshCoachRecommendation();
-  }, [refreshCoachRecommendation, userId]);
-
-  const applyCoachRecommendation = useCallback(() => {
-    const nextQuestion = coachRecommendation?.question || coachRecommendation?.customFocus;
-    if (!nextQuestion) return;
-    setUserQuestion(nextQuestion);
-    clearCoachRecommendation();
-  }, [clearCoachRecommendation, coachRecommendation, setUserQuestion]);
-
-  const dismissCoachRecommendation = useCallback(() => {
-    clearCoachRecommendation();
-  }, [clearCoachRecommendation]);
 
   const handleCoachApply = (guidedQuestion) => {
     if (!guidedQuestion) return;
@@ -611,11 +588,20 @@ export default function TarotReading() {
       });
     };
 
-    // On mobile (< 640px), open the settings drawer for intention/ritual steps
-    // since the prep section is hidden on mobile
-    if (isHandset && (stepId === 'intention' || stepId === 'ritual')) {
-      setMobileSettingsTab(stepId === 'ritual' ? 'ritual' : 'intention');
+    // On handsets the ritual settings live in the drawer, while the question is
+    // written on the page in the quick card.
+    if (isHandset && stepId === 'ritual') {
+      setMobileSettingsTab('ritual');
       setIsMobileSettingsOpen(true);
+      return;
+    }
+    if (isHandset && stepId === 'intention') {
+      if (shouldFocusCinematicFlow && !showSetupInFocusMode) {
+        setShowSetupInFocusMode(true);
+        window.setTimeout(promptQuickIntention, prefersReducedMotion ? 0 : 30);
+      } else {
+        promptQuickIntention();
+      }
       return;
     }
 
@@ -632,7 +618,7 @@ export default function TarotReading() {
     }
 
     scrollToStep();
-  }, [isHandset, prefersReducedMotion, shouldFocusCinematicFlow, showSetupInFocusMode]);
+  }, [isHandset, prefersReducedMotion, promptQuickIntention, shouldFocusCinematicFlow, showSetupInFocusMode]);
 
   // Handle navigation requests passed via router state (e.g., from Journal empty state)
   useEffect(() => {
@@ -734,8 +720,8 @@ export default function TarotReading() {
   const prepareSummaries = useMemo(() => {
     const trimmedQuestion = userQuestion.trim();
     const questionSummary = trimmedQuestion
-      ? `Intention: ${trimmedQuestion.length > 60 ? `${trimmedQuestion.slice(0, 57)}…` : trimmedQuestion}`
-      : 'Intention: Blank';
+      ? `Question: ${trimmedQuestion.length > 60 ? `${trimmedQuestion.slice(0, 57)}…` : trimmedQuestion}`
+      : 'No question yet';
     const knockSummary = knockCount >= 3 ? 'Knocks ready' : `Knocks ${knockCount}/3`;
     const cutSummary = hasCut ? `Cut ${cutIndex}` : 'Cut pending';
     const ritualSummary = shouldSkipRitual
@@ -864,8 +850,9 @@ export default function TarotReading() {
       };
     }
 
-    // No reading yet - check preparation milestones
-    if (!hasConfirmedSpread) {
+    // Writing a question also accepts the selected layout, including the
+    // default spread. Restored drafts should reflect that progress too.
+    if (!hasConfirmedSpread && !hasQuestion) {
       return {
         stepIndicatorLabel: 'Pick a spread',
         stepIndicatorHint: 'Match the layout to the depth of your inquiry.',
@@ -895,11 +882,11 @@ export default function TarotReading() {
       };
     }
 
-    // Ready to draw - either ritual complete/skipped or no ritual started
+    // Keep preparation current until the user actually begins the reading.
     return {
-      stepIndicatorLabel: 'Begin your draw',
-      stepIndicatorHint: 'When you feel ready, deal the cards to begin your reading.',
-      activeStep: 'reading'
+      stepIndicatorLabel: 'Your intention is ready',
+      stepIndicatorHint: 'When you feel ready, shuffle the deck to begin your reading.',
+      activeStep: 'intention'
     };
   }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, hasQuestion, hasConfirmedSpread, knockCount, hasCut, revealedCards, visibleCount]);
 
@@ -999,11 +986,9 @@ export default function TarotReading() {
             </div>
 
             <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
-              <div aria-label="Choose your physical deck">
-                {!isHandset && (
-                  <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
-                )}
-              </div>
+              {!isHandset && (
+                <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
+              )}
 
               <div aria-label="Spread selection" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
                 <SpreadSelector
@@ -1021,14 +1006,12 @@ export default function TarotReading() {
                   highlight={highlightQuickIntention}
                   userQuestion={userQuestion}
                   onQuestionChange={setUserQuestion}
-                  placeholderQuestion={EXAMPLE_QUESTIONS[placeholderIndex]}
-                  onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
                   inputRef={quickIntentionInputRef}
                   onInputFocus={handleQuickIntentionFocus}
                   onInputBlur={handleQuestionBlur}
                   onCoachOpen={openIntentionCoach}
                   onMoreOpen={() => {
-                    setMobileSettingsTab('intention');
+                    setMobileSettingsTab('deck');
                     setIsMobileSettingsOpen(true);
                   }}
                   deckStyleId={deckStyleId}
@@ -1045,8 +1028,6 @@ export default function TarotReading() {
                   sectionRef={prepareSectionRef}
                   userQuestion={userQuestion}
                   setUserQuestion={setUserQuestion}
-                  placeholderIndex={placeholderIndex}
-                  onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
                   onQuestionFocus={handleQuestionFocus}
                   onQuestionBlur={handleQuestionBlur}
                   onLaunchCoach={openIntentionCoach}
@@ -1068,11 +1049,11 @@ export default function TarotReading() {
               )}
 
               {!isLandscape && !isSmallScreen && (
-                <div className="flex justify-center pt-1">
+                <div className="flex justify-center">
                   <button
                     type="button"
                     onClick={() => handleStepNav('reading')}
-                    className="text-sm text-secondary hover:text-main underline underline-offset-4"
+                    className="inline-flex min-h-touch items-center text-sm text-secondary hover:text-main underline underline-offset-4"
                   >
                     Skip ahead to the reading
                   </button>
@@ -1082,16 +1063,24 @@ export default function TarotReading() {
           </section>
         )}
 
-        <ReadingDisplay
-          onCardModalChange={setIsCardModalOpen}
-          sectionRef={readingSectionRef}
-          onOpenFollowUp={showFollowUpButton ? handleOpenFollowUp : null}
-          followUpOpen={isFollowUpOpen}
-          onFollowUpOpenChange={handleFollowUpOpenChange}
-          followUpAutoFocus={followUpIntent === 'ask'}
-          suppressInterruptions={suppressFocusInterruptions}
-          isMobileStableMode={shouldEnableMobileStableMode}
-        />
+        {!isOnboardingOpen && (
+          <Suspense fallback={
+            <section id="step-reading" ref={readingSectionRef} tabIndex={-1} aria-label="Draw and explore your reading" className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
+              <p role="status" className="py-6 text-sm text-muted">Loading your reading space…</p>
+            </section>
+          }>
+            <ReadingDisplay
+              onCardModalChange={setIsCardModalOpen}
+              sectionRef={readingSectionRef}
+              onOpenFollowUp={showFollowUpButton ? handleOpenFollowUp : null}
+              followUpOpen={isFollowUpOpen}
+              onFollowUpOpenChange={handleFollowUpOpenChange}
+              followUpAutoFocus={followUpIntent === 'ask'}
+              suppressInterruptions={suppressFocusInterruptions}
+              isMobileStableMode={shouldEnableMobileStableMode}
+            />
+          </Suspense>
+        )}
       </main>
 
       <FollowUpModal
@@ -1122,10 +1111,9 @@ export default function TarotReading() {
               personalReading={personalReading}
               needsNarrativeGeneration={needsNarrativeGeneration}
               stepIndicatorLabel={stepIndicatorLabel}
-              activeStep={activeStep}
               revealFocus={revealFocus}
               onOpenSettings={() => {
-                setMobileSettingsTab(activeStep === 'ritual' ? 'ritual' : 'intention');
+                setMobileSettingsTab(activeStep === 'ritual' ? 'ritual' : 'deck');
                 setIsMobileSettingsOpen(true);
               }}
               onOpenCoach={openIntentionCoach}
@@ -1171,7 +1159,6 @@ export default function TarotReading() {
                 personalReading={personalReading}
                 needsNarrativeGeneration={needsNarrativeGeneration}
                 stepIndicatorLabel={stepIndicatorLabel}
-                activeStep={activeStep}
                 revealFocus={revealFocus}
                 showUtilityButtons={false}
                 onOpenSettings={() => setIsMobileSettingsOpen(false)}
@@ -1192,13 +1179,8 @@ export default function TarotReading() {
               variant="mobile"
               userQuestion={userQuestion}
               setUserQuestion={setUserQuestion}
-              placeholderIndex={placeholderIndex}
-              onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
               onQuestionFocus={handleQuestionFocus}
               onQuestionBlur={handleQuestionBlur}
-              coachRecommendation={coachRecommendation}
-              applyCoachRecommendation={() => { applyCoachRecommendation(); setIsMobileSettingsOpen(false); }}
-              dismissCoachRecommendation={dismissCoachRecommendation}
               onLaunchCoach={() => {
                 setIsMobileSettingsOpen(false);
                 openIntentionCoach();

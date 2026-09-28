@@ -7,12 +7,30 @@
 
 const YES_NO_PATTERNS = [
   /^(will|should|is|are|am|can|does|do)\b.*\?$/i,
-  /\b(yes|no)\b.*\?$/i
+  // The phrase itself, so "What does no mean to me?" stays open.
+  /\byes\s+or\s+no\b/i
 ];
+
+// A closed question opens with an auxiliary verb ("Will…", "Should I…"). Many
+// people skip the question mark on a phone, so the opener is enough. The
+// lookahead keeps contractions ("Can't") and longer words ("Island") out.
+const CLOSED_OPENER = /^(?:will|would|should|shall|is|are|am|was|were|can|could|does|do|did|has|have|had)(?![\w'’])/i;
+
+// "How can I…" is an open question even without its question mark.
+const OPEN_OPENER = /^(?:how|what|where|why|which|who|when)(?![\w'’])/i;
+
+// Question marks across scripts: ASCII, full-width (CJK), Arabic, Greek,
+// Armenian and the reversed mark used in some right-to-left text.
+const QUESTION_MARK_END = /[?\uFF1F\u061F\u037E\u055E\u2E2E]\s*$/;
+
+// Wording that asks the cards for a guarantee. Narrower than the scoring
+// patterns below, because it drives a visible message.
+const FIXED_OUTCOME_PATTERN = /\b(guaranteed|destined|fated|inevitable|for\s+sure|meant\s+to\s+be)\b/i;
 
 const DETERMINISTIC_PATTERNS = [
   /\b(guaranteed|certain|destined|fated|inevitable|for\s+sure)\b/i,
-  /\b(always|never|forever)\b.+\?/i,
+  // "Will we always…", not "How can I stop always…".
+  /^(will|would|is|are|am|can|could|does|do|did|should|shall)\b.*\b(always|never|forever)\b/i,
   /\b(will|does)\s+(he|she|they|my|the)\s+(love|come back|return|stay|leave)\b/i
 ];
 
@@ -68,9 +86,9 @@ export function scoreQuestion(question) {
   const wordCount = trimmed.split(/\s+/).length;
 
   // Check if question is open-ended (not yes/no)
-  const isYesNo = YES_NO_PATTERNS.some(pattern => pattern.test(trimmed));
+  const isYesNo = CLOSED_OPENER.test(trimmed) || YES_NO_PATTERNS.some(pattern => pattern.test(trimmed));
   const deterministicLanguage = DETERMINISTIC_PATTERNS.some(pattern => pattern.test(trimmed));
-  const openEnded = !isYesNo && trimmed.endsWith('?');
+  const openEnded = !isYesNo && (QUESTION_MARK_END.test(trimmed) || OPEN_OPENER.test(trimmed));
 
   // Check specificity (not too vague, sufficient length)
   const hasVagueWords = VAGUE_WORDS.some(word =>
@@ -131,7 +149,9 @@ export function scoreQuestion(question) {
   // Generate feedback
   const feedback = [];
   if (!openEnded) {
-    feedback.push('Try "How" or "What" instead of yes/no questions');
+    feedback.push(isYesNo
+      ? 'Try "How" or "What" instead of yes/no questions'
+      : 'Try phrasing it as a question that starts with "How" or "What"');
   }
   if (deterministicLanguage) {
     feedback.push('Avoid fate/guarantee wording and focus on guidance you can act on');
@@ -167,6 +187,43 @@ export function scoreQuestion(question) {
     feedback,
     wordCount
   };
+}
+
+/**
+ * The scoring word lists are English, so grades and word counts only make
+ * sense for text written mostly in Latin letters. Arabic, Hebrew, Chinese,
+ * Japanese or Korean questions would otherwise get English advice and a
+ * "1 word" count.
+ *
+ * @param {string} question
+ * @returns {boolean}
+ */
+export function isAssessableQuestion(question) {
+  if (typeof question !== 'string') return false;
+  const letters = question.match(/\p{L}/gu);
+  if (!letters) return false;
+  const latin = question.match(/\p{Script=Latin}/gu);
+  return Boolean(latin) && latin.length / letters.length >= 0.6;
+}
+
+/**
+ * Ungraded guidance for phrasing a reading cannot answer well.
+ *
+ * Waits for three words, since "Will I" is still being written, and ignores
+ * the question mark, which many people leave off on a phone.
+ *
+ * @param {string} question
+ * @returns {'closed'|'fixed-outcome'|null}
+ */
+export function getQuestionNudge(question) {
+  if (typeof question !== 'string') return null;
+  const trimmed = question.trim();
+  if (!trimmed || trimmed.split(/\s+/).length < 3) return null;
+  if (CLOSED_OPENER.test(trimmed) || YES_NO_PATTERNS.some(pattern => pattern.test(trimmed))) {
+    return 'closed';
+  }
+  if (FIXED_OUTCOME_PATTERN.test(trimmed)) return 'fixed-outcome';
+  return null;
 }
 
 /**

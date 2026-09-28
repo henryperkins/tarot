@@ -521,21 +521,21 @@ export default function CardGalleryPage() {
             <button
               onClick={() => setFilterStatus('all')}
               aria-pressed={filterStatus === 'all'}
-              className={`min-h-touch px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'all' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
+              className={`min-h-touch px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'all' ? 'bg-accent/20 text-main' : 'text-muted hover:text-main'}`}
             >
               All
             </button>
             <button
               onClick={() => setFilterStatus('found')}
               aria-pressed={filterStatus === 'found'}
-              className={`min-h-touch px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'found' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
+              className={`min-h-touch px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'found' ? 'bg-accent/20 text-main' : 'text-muted hover:text-main'}`}
             >
               Found
             </button>
             <button
               onClick={() => setFilterStatus('missing')}
               aria-pressed={filterStatus === 'missing'}
-              className={`min-h-touch px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'missing' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-main'}`}
+              className={`min-h-touch px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'missing' ? 'bg-accent/20 text-main' : 'text-muted hover:text-main'}`}
             >
               Missing
             </button>

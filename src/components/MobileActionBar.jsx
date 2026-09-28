@@ -11,17 +11,10 @@ import {
 
 // Shared button styles - reduced height in landscape while maintaining touch target
 const BTN_BASE = 'inline-flex items-center justify-center rounded-xl font-semibold transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]';
-const BTN_PRIMARY = `${BTN_BASE} bg-accent text-surface shadow-lg hover:opacity-90`;
+const BTN_PRIMARY = `${BTN_BASE} bg-accent text-surface shadow-lg hover:bg-primary`;
 const BTN_SECONDARY = `${BTN_BASE} bg-surface-muted text-accent border border-accent/30 hover:bg-surface`;
-const BTN_TERTIARY = `${BTN_BASE} bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30`;
+const BTN_TERTIARY = `${BTN_BASE} bg-primary/20 text-main border border-primary/40 hover:bg-primary/30`;
 const BTN_COACH = `${BTN_BASE} bg-secondary/20 text-secondary border border-secondary/40 hover:bg-secondary/30`;
-
-const STEP_BADGES = {
-  spread: 'Step 1',
-  intention: 'Step 2',
-  ritual: 'Step 3',
-  reading: 'Step 4'
-};
 
 /**
  * Determines which action mode the mobile bar should display
@@ -91,7 +84,7 @@ function ActionButton({
     >
       {Icon && !showStepLabel && <Icon className={isLandscape ? 'w-3.5 h-3.5' : 'w-4 h-4'} weight="fill" aria-hidden="true" />}
       {showStepLabel && (
-        <span className="text-xs uppercase tracking-wider opacity-70">{stepLabel}</span>
+        <span className="text-xs uppercase tracking-wider">{stepLabel}</span>
       )}
       <span className={`${textSize} font-semibold`}>{children}</span>
     </button>
@@ -111,7 +104,6 @@ function MobileActionContents({
   showFollowUp = false,
   isFollowUpOpen = false,
   stepIndicatorLabel,
-  activeStep = 'spread',
   onOpenSettings,
   onOpenCoach,
   onOpenFollowUp,
@@ -157,11 +149,14 @@ function MobileActionContents({
       case 'error':
         return 'Narrate';
       case 'completed':
-        return hasNarrative ? 'Save' : null;
+        // "Save reading" already names the step; a badge would only repeat it.
+        return null;
       default:
-        return STEP_BADGES[activeStep] || null;
+        // Progress belongs to the four-step navigation; the action names
+        // what this button will do regardless of which prep step is current.
+        return null;
     }
-  }, [mode, hasNarrative, activeStep]);
+  }, [mode]);
 
   // In landscape: tighter layout with smaller gaps
   const layoutClass = variant === 'inline'
@@ -251,8 +246,7 @@ function renderActions(mode, options) {
         <ActionButton
           variant="primary"
           disabled
-          stepLabel={stepBadge}
-          ariaLabel={withStepContext(label, stepIndicatorLabel)}
+          ariaLabel={label}
           className={`${widthClasses.primary} ${px}`}
           isLandscape={isLandscape}
         >
@@ -272,7 +266,7 @@ function renderActions(mode, options) {
             <ActionButton
               variant="secondary"
               onClick={onOpenSettings}
-              ariaLabel="Open settings"
+              ariaLabel="Open reading preparation"
               ariaControls={settingsDialogId}
               ariaExpanded={isSettingsOpen}
               className={`${widthClasses.icon} ${variant === 'inline' ? px : 'px-0'}`}
@@ -298,8 +292,7 @@ function renderActions(mode, options) {
           <ActionButton
             variant="primary"
             onClick={onShuffle}
-            stepLabel={stepBadge}
-            ariaLabel={withStepContext(drawLabel, stepIndicatorLabel)}
+            ariaLabel={drawLabel}
             className={`${widthClasses.prepPrimary} ${px}`}
             isLandscape={isLandscape}
           >

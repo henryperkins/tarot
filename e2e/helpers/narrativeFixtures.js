@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { expect } from '@playwright/test';
+import { buildReadingUsageFixtures } from '../../tests/helpers/readingUsageFixtures.mjs';
 
 export const QUESTION = 'How can I find a sustainable balance between work and rest?';
 export const NARRATIVE = `## Opening
@@ -40,24 +41,7 @@ Sustainable progress does not require constant motion. Your attention can move b
 
 What would enough look like today? Use what resonates, and set aside what does not.`;
 
-export const SOURCE_USAGE = {
-  reference: {
-    spreadCards: { requested: true, used: true },
-    vision: { requested: false, used: false },
-    userContext: { requested: true, used: true, usedInputs: ['question', 'tone'] },
-    graphRAG: { requested: true, used: true, mode: 'semantic', passagesProvided: 3, passagesUsedInPrompt: 2 },
-    ephemeris: { requested: true, used: false },
-    forecast: { requested: true, used: false, skippedReason: 'budget_limit' }
-  },
-  alternate: {
-    spreadCards: { requested: true, used: true },
-    vision: { requested: true, used: true, evidencePacketsUsed: 2 },
-    userContext: { requested: true, used: false, skippedReason: 'consent_required' },
-    graphRAG: { requested: false, used: false },
-    ephemeris: { requested: false, used: false },
-    forecast: { requested: false, used: false }
-  }
-};
+export const SOURCE_USAGE = buildReadingUsageFixtures();
 
 // These are real, controllable SSE connections, not pre-completed route bodies.
 // They let tests close/reopen or resize while the same response is in flight.
@@ -70,7 +54,8 @@ export async function createNarrativeFixture(page, options = {}) {
   let followupStatus = 200;
   let feedbackRelease;
   let feedbackGate = null;
-  const sourceUsage = SOURCE_USAGE[options.source || 'reference'];
+  const sourceUsage = Object.hasOwn(options, 'sourceUsage') ? options.sourceUsage : SOURCE_USAGE[options.source || 'reference'];
+  const provider = options.provider || 'fixture';
   const send = (response, event, data) => response.write(
     `event: ${event}\ndata: ${JSON.stringify({ ...data, eventId: ++eventId })}\n\n`
   );
@@ -90,7 +75,7 @@ export async function createNarrativeFixture(page, options = {}) {
     clients[kind].add(response);
     response.on('close', () => clients[kind].delete(response));
     send(response, 'meta', kind === 'reading'
-      ? { provider: 'fixture', requestId: 'narrative-remediation', sourceUsage }
+      ? { provider, requestId: 'narrative-remediation', sourceUsage }
       : { provider: 'fixture', requestId: 'narrative-followup', turn: ++successfulFollowupStreams });
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -140,7 +125,7 @@ export async function createNarrativeFixture(page, options = {}) {
       }
     },
     async completeReading() {
-      await this.emit('reading', 'done', { fullText: NARRATIVE, requestId: 'narrative-remediation', provider: 'fixture', sourceUsage });
+      await this.emit('reading', 'done', { fullText: NARRATIVE, requestId: 'narrative-remediation', provider, sourceUsage });
       await expect(page.locator('.narrative-stream')).toContainText('What would enough look like today?');
       await expect(page.getByText('Narrative ready.', { exact: true })).toBeAttached();
       await page.evaluate(() => Promise.race([

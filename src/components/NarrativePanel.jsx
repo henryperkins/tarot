@@ -61,7 +61,7 @@ export function NarrativePanel({
           {narrativeText || 'The connection was interrupted. Please try again.'}
         </p>
         <p className="mt-3 text-sm text-muted">Your cards and question are still here. You can retry this reading.</p>
-        <NarrativeQuestionAnchor question={question} compact={isHandset} />
+        <NarrativeQuestionAnchor question={question} compact={isHandset} className="mt-4" />
         {onRetryNarrative && !isHandset && (
           <button
             type="button"
@@ -77,7 +77,8 @@ export function NarrativePanel({
 
   return (
     <div className={panelClassName}>
-      <div className="space-y-3 sm:space-y-4">
+      {/* One reading column keeps the title, question, notice, and prose on a shared edge. */}
+      <div className="mx-auto max-w-prose space-y-5 sm:space-y-6">
         <NarrativePanelHeader
           focusToggleAvailable={focusToggleAvailable}
           isNarrativeFocus={isNarrativeFocus}

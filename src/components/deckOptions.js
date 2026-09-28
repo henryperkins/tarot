@@ -3,12 +3,29 @@ import thothPreview from '../../selectorimages/Thoth.jpeg';
 import marseillePreview from '../../selectorimages/marseille.jpeg';
 import { DECK_CATALOG, DECK_ORDER } from '../../shared/vision/deckCatalog.js';
 
+const DECK_PREVIEW_URLS = import.meta.glob(
+  '../../selectorimages/{rider,Thoth,marseille}-{480,960}.{avif,webp}',
+  { eager: true, query: '?url', import: 'default' }
+);
+
+function buildDeckPreview(baseName, src, alt) {
+  return {
+    src,
+    alt,
+    width: 982,
+    height: 799,
+    sources: ['avif', 'webp'].map(format => ({
+      type: `image/${format}`,
+      srcSet: [480, 960].map(width => (
+        `${DECK_PREVIEW_URLS[`../../selectorimages/${baseName}-${width}.${format}`]} ${width}w`
+      )).join(', ')
+    }))
+  };
+}
+
 const DECK_VISUALS = {
   'rws-1909': {
-    preview: {
-      src: rwsPreview,
-      alt: 'Rider-Waite-Smith deck featuring The Magician card'
-    },
+    preview: buildDeckPreview('rider', rwsPreview, 'Rider-Waite-Smith deck featuring The Magician card'),
     accent: 'var(--brand-primary)',
     border: 'rgba(220, 188, 141, 0.35)',
     borderActive: 'rgba(229, 196, 142, 0.9)',
@@ -16,10 +33,7 @@ const DECK_VISUALS = {
     background: 'linear-gradient(150deg, rgba(255, 209, 159, 0.12), var(--panel-dark-1)), radial-gradient(circle at 20% 18%, rgba(255, 225, 180, 0.12), transparent 52%), radial-gradient(circle at 80% -10%, rgba(63, 118, 192, 0.18), transparent 48)'
   },
   'thoth-a1': {
-    preview: {
-      src: thothPreview,
-      alt: 'Thoth deck featuring The Magus card with Art Deco styling'
-    },
+    preview: buildDeckPreview('Thoth', thothPreview, 'Thoth deck featuring The Magus card with Art Deco styling'),
     accent: 'var(--color-cups)',
     border: 'rgba(83, 216, 206, 0.25)',
     borderActive: 'rgba(83, 216, 206, 0.75)',
@@ -28,10 +42,7 @@ const DECK_VISUALS = {
     note: 'Uses Thoth card names (e.g., "The Magus", "Adjustment").'
   },
   'marseille-classic': {
-    preview: {
-      src: marseillePreview,
-      alt: 'Tarot de Marseille deck featuring Le Bateleur card'
-    },
+    preview: buildDeckPreview('marseille', marseillePreview, 'Tarot de Marseille deck featuring Le Bateleur card'),
     accent: 'var(--status-warning)',
     border: 'rgba(192, 146, 64, 0.28)',
     borderActive: 'rgba(216, 163, 0, 0.82)',

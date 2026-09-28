@@ -249,7 +249,9 @@ export function useEntryActions(entry, {
         deckId: entry?.deckId || null,
         followUps: followUps.length > 0 ? followUps : [],
         sessionSeed: entry?.sessionSeed || null,
-        requestId: entry?.requestId || null
+        requestId: entry?.requestId || null,
+        sourceUsage: entry?.sourceUsage || null,
+        provider: entry?.provider || null
       };
 
       navigate('/', {

@@ -21,13 +21,13 @@ export function NarrativeBody({
   narrativeAtmosphereClassName,
   hasHeroStoryArt
 }) {
-  const streamClassName = `max-w-3xl mx-auto mt-4 sm:mt-5 ${hasHeroStoryArt ? 'glass-panel' : ''}`;
+  const streamClassName = `mt-6 sm:mt-8 ${hasHeroStoryArt ? 'glass-panel' : ''}`;
 
   return (
-    <>
+    <div>
       <NarrativeQuestionAnchor question={question} compact={isHandset} />
 
-      <NarrativeSafetyNotice className="max-w-3xl mx-auto mt-4" compact={isHandset} />
+      <NarrativeSafetyNotice className={question ? 'mt-4' : ''} compact={isHandset} />
 
       <StreamingNarrative
         className={streamClassName}
@@ -48,6 +48,6 @@ export function NarrativeBody({
         withAtmosphere
         atmosphereClassName={narrativeAtmosphereClassName}
       />
-    </>
+    </div>
   );
 }

@@ -87,7 +87,7 @@ export function WelcomeStep({ onNext }) {
             onChange={(e) => setName(e.target.value.slice(0, PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH))}
             maxLength={PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH}
             placeholder="Your name or nickname"
-            className="w-full rounded-xl border border-secondary/30 bg-surface min-h-touch px-4 py-3 text-base text-main placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/50 transition"
+            className="w-full rounded-xl border border-secondary/30 bg-surface min-h-touch px-4 py-3 text-base text-main placeholder:text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/50 transition"
             autoComplete="given-name"
           />
         </div>
@@ -142,7 +142,7 @@ export function WelcomeStep({ onNext }) {
                 <span className="block text-sm font-semibold">{opt.label}</span>
                 <span
                   className={`block text-2xs ${
-                    tone === opt.value ? 'text-surface/80' : 'text-muted'
+                    tone === opt.value ? 'text-surface' : 'text-muted'
                   }`}
                 >
                   {opt.sublabel}
@@ -159,7 +159,7 @@ export function WelcomeStep({ onNext }) {
         <button
           type="button"
           onClick={handleContinue}
-          className="w-full min-h-cta rounded-xl bg-accent text-surface font-semibold text-lg transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="w-full min-h-cta rounded-xl bg-accent text-surface font-semibold text-lg transition hover:bg-primary active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
         </button>

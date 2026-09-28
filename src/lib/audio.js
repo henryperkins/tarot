@@ -122,25 +122,8 @@ export function initAudio() {
     });
   }
 
-  if (!flipAudio) {
-    try {
-      flipAudio = new Audio('/sounds/flip.mp3');
-      flipAudio.preload = 'auto';
-    } catch {
-      flipAudio = null;
-    }
-  }
-
-  if (!ambienceAudio) {
-    try {
-      ambienceAudio = new Audio('/sounds/ambience.mp3');
-      ambienceAudio.loop = true;
-      ambienceAudio.volume = AMBIENCE_BASE_VOLUME;
-    } catch {
-      ambienceAudio = null;
-    }
-  }
-
+  // Register the interaction listeners now; sound files are only requested
+  // when a card flips or ambience is enabled.
   return {
     flipAudio,
     ambienceAudio
@@ -148,20 +131,28 @@ export function initAudio() {
 }
 
 export function playFlip() {
-  if (!flipAudio) return;
+  if (typeof Audio === 'undefined') return;
   try {
+    ensureGlobalCleanupListeners();
+    if (!flipAudio) flipAudio = new Audio('/sounds/flip.mp3');
     flipAudio.currentTime = 0;
-    void flipAudio.play();
+    flipAudio.play()?.catch(() => {});
   } catch {
     // ignore autoplay / interruption errors
   }
 }
 
 export function toggleAmbience(on) {
-  if (!ambienceAudio) return;
+  if (typeof Audio === 'undefined' || (!on && !ambienceAudio)) return;
   try {
+    ensureGlobalCleanupListeners();
+    if (!ambienceAudio) {
+      ambienceAudio = new Audio('/sounds/ambience.mp3');
+      ambienceAudio.loop = true;
+      ambienceAudio.volume = AMBIENCE_BASE_VOLUME;
+    }
     if (on) {
-      void ambienceAudio.play();
+      ambienceAudio.play()?.catch(() => {});
     } else {
       ambienceAudio.pause();
     }

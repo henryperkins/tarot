@@ -1,4 +1,5 @@
 import { ChatCircle } from '@phosphor-icons/react';
+import { READING_PANEL_COLUMN_CLASS } from '../../../styles/panelClasses';
 
 export function ContinueConversationSection({
     personalReading,
@@ -15,7 +16,7 @@ export function ContinueConversationSection({
     if (!shouldRender) return null;
 
     return (
-        <div className="w-full max-w-2xl mx-auto mt-6">
+        <div className={`${READING_PANEL_COLUMN_CLASS} mt-6`}>
             <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-4 sm:p-5">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="space-y-1">

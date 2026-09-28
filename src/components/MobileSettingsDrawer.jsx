@@ -165,9 +165,9 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
         <div className="mobile-drawer__header px-4 pt-3 pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
-              <h2 id="mobile-drawer-title" className="text-lg font-serif text-accent">Prepare Reading</h2>
-              <p className="text-[0.78rem] text-muted/90 leading-snug max-w-[22rem]">
-                Align your spread, deck, and ritual steps before you draw cards.
+              <h2 id="mobile-drawer-title" className="text-lg font-serif text-accent">Prepare your reading</h2>
+              <p className="text-xs text-muted leading-relaxed max-w-[22rem]">
+                Choose your deck and ritual before you draw.
               </p>
             </div>
 
@@ -175,7 +175,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
               ref={closeButtonRef}
               onClick={onClose}
               className="mobile-drawer__close"
-              aria-label="Close settings drawer"
+              aria-label="Close reading preparation"
             >
               <X className="w-5 h-5" />
             </button>
