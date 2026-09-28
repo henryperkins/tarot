@@ -1,6 +1,6 @@
 import { TOKEN_TYPES, createUserToken } from './authTokens.js';
 import { buildPasswordResetEmail, buildVerificationEmail } from './authEmails.js';
-import { sendEmail } from './emailService.js';
+import { isEmailConfigured, sendEmail } from './emailService.js';
 import { getBaseUrl } from './utils.js';
 
 function getRequestMetadata(request) {
@@ -11,11 +11,7 @@ function getRequestMetadata(request) {
 }
 
 function getEmailConfigError(env) {
-  const apiKey = env?.RESEND_API_KEY;
-  if (!apiKey || !String(apiKey).trim()) {
-    return 'api_key_missing';
-  }
-  return null;
+  return isEmailConfigured(env) ? null : 'email_not_configured';
 }
 
 async function dispatchEmail(env, email, content) {
@@ -37,7 +33,7 @@ export async function sendVerificationEmail(env, request, user, options = {}) {
   try {
     const configError = getEmailConfigError(env);
     if (configError) {
-      console.warn('[auth] Email delivery disabled; RESEND_API_KEY missing');
+      console.warn('[auth] Email delivery disabled; no EMAIL binding or RESEND_API_KEY');
       return { sent: false, error: configError };
     }
 
@@ -73,7 +69,7 @@ export async function sendPasswordResetEmail(env, request, user, options = {}) {
   try {
     const configError = getEmailConfigError(env);
     if (configError) {
-      console.warn('[auth] Email delivery disabled; RESEND_API_KEY missing');
+      console.warn('[auth] Email delivery disabled; no EMAIL binding or RESEND_API_KEY');
       return { sent: false, error: configError };
     }
 
