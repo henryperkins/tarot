@@ -11,7 +11,8 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { UpgradeNudge } from './UpgradeNudge';
 import { getSpreadFromDepth } from '../utils/personalization';
-import { getSpreadArt, preloadAllSpreadArt } from '../utils/spreadArt';
+import { getSpreadArt } from '../utils/spreadArt';
+import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
 
 const STAR_TOTAL = 3;
 
@@ -132,9 +133,6 @@ export function SpreadSelector({
 }) {
   const spreadRefs = useRef({});
   const carouselRef = useRef(null);
-  
-  // Track loaded spread art (lazy loaded after mount)
-  const [spreadArt, setSpreadArt] = useState({});
   const spreadKeys = Object.keys(SPREADS);
   const [activeIndex, setActiveIndex] = useState(0);
   const [showLeftFade, setShowLeftFade] = useState(false);
@@ -148,21 +146,6 @@ export function SpreadSelector({
   const canUseSpread = subscription?.canUseSpread ?? (() => true);
   const recommendedSpread = getSpreadFromDepth(personalization?.preferredSpreadDepth);
   const isExperienced = personalization?.tarotExperience === 'experienced';
-
-  // Lazy load spread art after component mounts (non-blocking)
-  useEffect(() => {
-    let cancelled = false;
-    preloadAllSpreadArt().then(() => {
-      if (cancelled) return;
-      // Rebuild art objects now that cache is populated
-      const art = {};
-      for (const key of spreadKeys) {
-        art[key] = getSpreadArt(key, { alt: SPREAD_ART_ALTS[key] });
-      }
-      setSpreadArt(art);
-    });
-    return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // In landscape: smaller cards to fit more on screen
   const cardBasisClass = isLandscape
@@ -214,7 +197,12 @@ export function SpreadSelector({
     // Initialize on mount
     handleScroll();
     el.addEventListener('scroll', handleScroll, { passive: true });
-    return () => el.removeEventListener('scroll', handleScroll);
+    const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(handleScroll) : null;
+    resizeObserver?.observe(el);
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      resizeObserver?.disconnect();
+    };
   }, [spreadKeys.length, updateEdgeFades]);
 
   const scrollToIndex = (index) => {
@@ -319,6 +307,7 @@ export function SpreadSelector({
   );
 
   const handleArrowNav = direction => {
+    if (direction === 'prev' ? !showLeftFade : !showRightFade) return;
     const nextIndex = direction === 'next' ? activeIndex + 1 : activeIndex - 1;
     scrollToIndex(nextIndex);
   };
@@ -348,14 +337,16 @@ export function SpreadSelector({
               transition-opacity duration-200
               sm:hidden
               flex items-center justify-start pl-1
-              ${showLeftFade ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+              ${showLeftFade ? 'opacity-100 pointer-events-auto' : 'invisible opacity-0 pointer-events-none focus-within:visible focus-within:opacity-100'}
             `}
           >
             <button
               type="button"
               onClick={() => handleArrowNav('prev')}
-              className="min-w-touch min-h-touch rounded-full bg-surface/80 border border-secondary/55 text-main hover:border-secondary/75 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg"
+              className={`min-w-touch min-h-touch rounded-full bg-surface/80 border border-secondary/55 text-main hover:border-secondary/75 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg ${FOCUS_RING_DEFAULT}`}
               aria-label="Previous spread"
+              aria-disabled={!showLeftFade}
+              tabIndex={showLeftFade ? 0 : -1}
             >
               <CaretRight className="w-5 h-5 rotate-180" weight="bold" />
             </button>
@@ -370,14 +361,16 @@ export function SpreadSelector({
               transition-opacity duration-200
               sm:hidden
               flex items-center justify-end pr-1
-              ${showRightFade ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+              ${showRightFade ? 'opacity-100 pointer-events-auto' : 'invisible opacity-0 pointer-events-none focus-within:visible focus-within:opacity-100'}
             `}
           >
             <button
               type="button"
               onClick={() => handleArrowNav('next')}
-              className="min-w-touch min-h-touch rounded-full bg-surface/80 border border-secondary/55 text-main hover:border-secondary/75 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg"
+              className={`min-w-touch min-h-touch rounded-full bg-surface/80 border border-secondary/55 text-main hover:border-secondary/75 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg ${FOCUS_RING_DEFAULT}`}
               aria-label="Next spread"
+              aria-disabled={!showRightFade}
+              tabIndex={showRightFade ? 0 : -1}
             >
               <CaretRight className="w-5 h-5" weight="bold" />
             </button>
@@ -406,7 +399,7 @@ export function SpreadSelector({
             const resolvedBorder = isActive
               ? (theme.borderActive || FALLBACK_SPREAD_THEME.borderActive)
               : (theme.border || FALLBACK_SPREAD_THEME.border);
-            const previewArt = spreadArt[key] || spread.preview;
+            const previewArt = getSpreadArt(key, { alt: SPREAD_ART_ALTS[key] }) || spread.preview;
 
             return (
               <button

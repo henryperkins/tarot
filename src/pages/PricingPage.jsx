@@ -731,23 +731,25 @@ export default function PricingPage() {
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => handleSelectTier('free')}
-              disabled={loadingTier !== null}
-              className="mt-1 inline-flex min-h-touch items-center text-xs text-muted underline underline-offset-4"
-            >
-              Or stay on the Seeker plan for free
-            </button>
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <button
+                type="button"
+                onClick={() => handleSelectTier('free')}
+                disabled={loadingTier !== null}
+                className="inline-flex min-h-touch items-center text-xs text-muted underline underline-offset-4"
+              >
+                Or stay on the Seeker plan for free
+              </button>
 
-            <button
-              type="button"
-              onClick={handleRestorePurchases}
-              disabled={restoreLoading}
-              className="inline-flex min-h-touch items-center text-xs text-muted underline underline-offset-4"
-            >
-              {restoreLoading ? 'Restoring purchases…' : 'Restore purchases'}
-            </button>
+              <button
+                type="button"
+                onClick={handleRestorePurchases}
+                disabled={restoreLoading}
+                className="inline-flex min-h-touch items-center text-xs text-muted underline underline-offset-4"
+              >
+                {restoreLoading ? 'Restoring purchases…' : 'Restore purchases'}
+              </button>
+            </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {heroBenefits.map(({ label, icon: Icon }) => (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Info } from '@phosphor-icons/react';
 import { BEGINNER_SPREADS } from '../../data/spreadBrowse';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -6,7 +6,7 @@ import { useLandscape } from '../../hooks/useLandscape';
 import { useSmallScreen } from '../../hooks/useSmallScreen';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { ResponsiveSpreadArt } from '../ResponsiveSpreadArt';
-import { getSpreadArt, preloadAllSpreadArt } from '../../utils/spreadArt';
+import { getSpreadArt } from '../../utils/spreadArt';
 
 const SPREAD_DEPTH_OPTIONS = [
   { value: 'short', label: 'Quick check-ins (1–2 cards)' },
@@ -45,16 +45,10 @@ const buildResponsiveSources = (sources = {}) => (
  */
 export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack }) {
   const [expandedSpread, setExpandedSpread] = useState(null);
-  const [, setArtLoaded] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
   const isSmallScreen = useSmallScreen();
   const { personalization, setPreferredSpreadDepth, toggleFocusArea } = usePreferences();
-
-  // Preload spread art after mount
-  useEffect(() => {
-    preloadAllSpreadArt().then(() => setArtLoaded(true));
-  }, []);
 
   const handleSpreadClick = (spreadKey) => {
     onSelectSpread(spreadKey);

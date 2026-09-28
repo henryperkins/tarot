@@ -171,14 +171,13 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
           const isLastStep = index === steps.length - 1;
 
           return (
-            <li key={step.id} className="flex-1 snap-start relative min-w-0">
+            <li key={step.id} className="flex-1 snap-start relative min-w-max">
               <button
                 ref={(el) => { buttonRefs.current[step.id] = el; }}
                 type="button"
                 className={`
                   w-full rounded-xl border transition-all font-semibold
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/80
-                  focus-visible:ring-offset-2 focus-visible:ring-offset-main
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--focus-ring-color)]
                   touch-manipulation active:scale-[0.97]
                   min-h-touch
                   ${isCelebrating ? 'motion-safe:animate-pop-in' : ''}
@@ -206,26 +205,26 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                 <div className="flex items-center justify-center gap-0.5 xs:gap-1 sm:gap-2">
                   {StepIcon && (
                     <StepIcon
-                      className={`shrink-0 ${condensed ? 'w-3 h-3 xs:w-4 xs:h-4' : 'w-3 h-3 xs:w-4 xs:h-4 sm:w-5 sm:h-5'}`}
+                      className={`hidden sm:block shrink-0 ${condensed ? 'w-4 h-4' : 'w-5 h-5'}`}
                       aria-hidden="true"
                     />
                   )}
-                  {/* Mobile: show short label, Desktop: show full label */}
+                  {/* Compact labels through tablet widths; enlarged text can scroll. */}
                   <span className={`
-                    font-semibold truncate
+                    font-semibold whitespace-nowrap
                     ${condensed
                       ? 'text-xs xs:text-xs-plus'
                       : 'text-xs xs:text-xs-plus sm:text-sm'
                     }
                     ${isActive ? 'text-main' : 'text-muted-high'}
                   `}>
-                    <span className="sm:hidden">
+                    <span className="lg:hidden">
                       {shortLabel}
                       {OPTIONAL_STEPS.has(step.id) && (
                         <span aria-hidden="true" className="text-muted/70 ml-0.5">*</span>
                       )}
                     </span>
-                    <span className="hidden sm:inline">{step.label}</span>
+                    <span className="hidden lg:inline">{step.label}</span>
                   </span>
                 </div>
               </button>

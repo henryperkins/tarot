@@ -2177,12 +2177,12 @@ export default function AccountPage() {
 
             <div className="pt-4 border-t border-secondary/20">
               <p className="text-xs uppercase tracking-wider text-muted mb-2">Account data</p>
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="space-y-4">
                 <button
                   type="button"
                   onClick={handleDownloadAccountData}
                   className="
-                    min-h-touch min-w-touch flex-1 inline-flex items-center justify-center gap-2 rounded-full
+                    min-h-touch min-w-touch w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full
                     border border-secondary/50 bg-transparent px-4 py-2.5 text-xs font-semibold text-main
                     hover:bg-secondary/10 transition
                   "
@@ -2190,7 +2190,7 @@ export default function AccountPage() {
                   <DownloadSimple className="h-4 w-4" />
                   Download account data
                 </button>
-                <div className="flex-1 space-y-2">
+                <div className="space-y-2">
                   {hasActiveSubscription && (
                     <div
                       className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs"
@@ -2198,15 +2198,15 @@ export default function AccountPage() {
                       aria-live="polite"
                       aria-atomic="true"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <p className="text-warning">
+                      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                        <p className="min-w-0 text-warning">
                           Active subscription detected. Manage your subscription first to avoid future charges.
                         </p>
                         <button
                           type="button"
                           onClick={handleManageSubscription}
                           disabled={portalLoading}
-                          className={`min-h-touch min-w-touch inline-flex items-center gap-1 font-semibold underline underline-offset-2 transition hover:text-warning text-warning ${
+                          className={`min-h-touch min-w-touch shrink-0 inline-flex items-center gap-1 font-semibold underline underline-offset-2 transition hover:text-warning text-warning ${
                             portalLoading ? 'opacity-60 cursor-not-allowed' : ''
                           }`}
                         >
@@ -2221,8 +2221,9 @@ export default function AccountPage() {
                   <button
                     type="button"
                     onClick={() => setDeleteModalOpen(true)}
+                    aria-describedby="account-delete-description"
                     className="
-                      min-h-touch min-w-touch w-full inline-flex items-center justify-center gap-2 rounded-full
+                      min-h-touch min-w-touch w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full
                       border border-error/40 bg-error/10 px-4 py-2.5 text-xs font-semibold text-error
                       hover:bg-error/20 transition
                     "
@@ -2230,11 +2231,11 @@ export default function AccountPage() {
                     <Trash className="h-4 w-4" />
                     Delete account
                   </button>
+                  <p id="account-delete-description" className="text-xs text-muted">
+                    Deleting your account removes your synced journal, analytics, and memories. This cannot be undone.
+                  </p>
                 </div>
               </div>
-              <p className="text-xs text-muted mt-2">
-                Deleting your account removes your synced journal, analytics, and memories. This cannot be undone.
-              </p>
             </div>
           </div>
         </SectionCard>
@@ -2245,13 +2246,13 @@ export default function AccountPage() {
 
         {/* Actions Section - Auth only */}
         {isAuthenticated && (
-        <SectionCard id="actions" highlighted={highlightedSection === 'actions'}>
+        <SectionCard id="actions" title="Actions" highlighted={highlightedSection === 'actions'}>
           <div className="space-y-1">
             <button
               type="button"
               onClick={handleReplayTutorial}
               className="
-                min-h-touch min-w-touch w-full flex items-center gap-3 px-2 py-3 -mx-2 rounded-xl
+                min-h-touch min-w-touch w-full flex items-center gap-3 px-2 py-3 rounded-xl
                 text-sm text-main hover:bg-accent/5 active:bg-accent/10
                 transition touch-manipulation text-left
               "
@@ -2265,7 +2266,7 @@ export default function AccountPage() {
               type="button"
               onClick={handleLogout}
               className="
-                min-h-touch min-w-touch w-full flex items-center gap-3 px-2 py-3 -mx-2 rounded-xl
+                min-h-touch min-w-touch w-full flex items-center gap-3 px-2 py-3 rounded-xl
                 text-sm text-main hover:bg-accent/5 active:bg-accent/10
                 transition touch-manipulation text-left
               "

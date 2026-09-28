@@ -7,28 +7,42 @@ import { MobileInfoSection } from './MobileInfoSection';
 import { DECK_OPTIONS } from './deckOptions';
 
 function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
+  const fallbackSrc = preview?.src;
+  const attachImage = useCallback((image) => {
+    // WebKit starts eager src requests while React builds detached nodes.
+    // Attach the fallback after <picture> has its sources to avoid fetching both.
+    if (image && fallbackSrc) image.src = fallbackSrc;
+  }, [fallbackSrc]);
+
   if (!preview?.src) {
     return null;
   }
 
   const isHighPriority = priority === 'high';
   const loading = isHighPriority ? 'eager' : 'lazy';
+  const sizes = '(min-width: 1024px) 280px, (min-width: 640px) 42vw, 60vw';
 
   return (
-    <div className="relative overflow-hidden rounded-[14px] bg-main mb-1">
-      <img
-        src={preview.src}
-        width={preview.width || 640}
-        height={preview.height || 360}
-        sizes="(max-width: 640px) 88vw, (max-width: 1024px) 46vw, 340px"
-        alt={preview.alt || `${deckLabel} deck preview`}
-        className="w-full h-auto object-cover"
-        loading={loading}
-        decoding="async"
-        onError={(e) => {
-          e.currentTarget.style.display = 'none';
-        }}
-      />
+    <div className="relative aspect-[982/799] overflow-hidden rounded-[14px] bg-main mb-1">
+      <picture className="block h-full w-full">
+        {(preview.sources || []).map(source => (
+          <source key={source.type} type={source.type} srcSet={source.srcSet} sizes={sizes} />
+        ))}
+        <img
+          ref={attachImage}
+          width={preview.width}
+          height={preview.height}
+          sizes={sizes}
+          alt={preview.alt || `${deckLabel} deck preview`}
+          className="block w-full h-full object-cover"
+          loading={loading}
+          fetchPriority={isHighPriority ? 'high' : 'auto'}
+          decoding="async"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+      </picture>
       <div
         className="pointer-events-none absolute inset-0 rounded-[14px] border border-[color:var(--border-warm-light)] shadow-[0_0_0_1px_var(--border-warm-subtle)]"
         aria-hidden="true"
