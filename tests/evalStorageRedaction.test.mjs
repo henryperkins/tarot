@@ -68,4 +68,5 @@ test('stored eval metrics redact a name that reaches the reading only through me
   assert.equal(stored._storageMode, 'redact');
   assert.equal(stored.eval.scores.notes, "'[NAME]' is used.");
   assert.doesNotMatch(stored.readingText, /Henry/);
+  assert.equal(stored.reversalFramework, 'none', 'an all-upright reading records the "none" framework');
 });

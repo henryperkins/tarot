@@ -36,6 +36,11 @@ const MAX_EVAL_POSITION_LENGTH = 200;
 const MAX_EVAL_ORIENTATION_LENGTH = 80;
 const EVAL_TEMPERATURE = 0.1;
 const EVAL_MAX_OUTPUT_TOKENS = 2048;
+const MAX_EVAL_NOTES_LENGTH = 600;
+// Evidence quotes the evaluator cites for its scores, kept within fixed bounds.
+const MAX_EVIDENCE_ITEMS = 6;
+const MAX_EVIDENCE_TEXT_LENGTH = 180;
+const EVIDENCE_QUOTE_KEYS = ['cross_card_links', 'hard_imperatives', 'deterministic_futures'];
 const DEFAULT_DETERMINISTIC_SAFETY_ENABLED = true;
 
 // Default setting for PII storage - set to 'redact' for production safety
@@ -595,6 +600,18 @@ function sanitizeEvalText(evalPayload, redactText) {
       sanitized[key] = clean(sanitized[key]);
     }
   }
+  if (sanitized.evidence && typeof sanitized.evidence === 'object') {
+    sanitized.evidence = redactText
+      ? Object.fromEntries(Object.entries(sanitized.evidence).map(([key, entries]) => [
+        key,
+        Array.isArray(entries)
+          ? entries.map((entry) => (typeof entry === 'string'
+            ? clean(entry)
+            : { question: clean(entry?.question), reading: clean(entry?.reading) }))
+          : entries
+      ]))
+      : null;
+  }
   if (sanitized.originalEval && typeof sanitized.originalEval === 'object') {
     sanitized.originalEval = sanitizeEvalText(sanitized.originalEval, redactText);
   }
@@ -752,12 +769,8 @@ function buildStoragePayload({ metricsPayload, evalPayload, evalParams, storageM
   const mode = storageMode || DEFAULT_METRICS_STORAGE_MODE;
 
   const sanitizedMetrics = sanitizeMetricsPayload(metricsPayload, mode);
-
-  // Base payload without sensitive fields
-  const basePayload = {
-    ...sanitizedMetrics,
-    eval: evalPayload
-  };
+  // The reversal framework the narrator was given; analysis metadata, not PII
+  const reversalFramework = evalParams.reversalFramework || null;
 
   switch (mode) {
     case 'full':
@@ -765,6 +778,7 @@ function buildStoragePayload({ metricsPayload, evalPayload, evalParams, storageM
       return {
         ...metricsPayload,
         eval: evalPayload,
+        reversalFramework,
         readingText: evalParams.reading,
         cardsInfo: evalParams.cardsInfo,
         userQuestion: evalParams.userQuestion,
@@ -776,6 +790,7 @@ function buildStoragePayload({ metricsPayload, evalPayload, evalParams, storageM
       return {
         ...sanitizedMetrics,
         eval: sanitizeEvalText(evalPayload, null),
+        reversalFramework,
         _storageMode: 'minimal',
         // Only store aggregate metrics for analysis
         readingLength: evalParams.reading?.length || 0,
@@ -788,8 +803,9 @@ function buildStoragePayload({ metricsPayload, evalPayload, evalParams, storageM
       // Default: Store redacted versions for debugging while protecting PII
       const names = collectStorageNames(evalParams);
       return {
-        ...basePayload,
+        ...sanitizedMetrics,
         eval: sanitizeEvalText(evalPayload, (text) => redactReadingText(text, { names })),
+        reversalFramework,
         readingText: redactReadingText(evalParams.reading, { names }),
         cardsInfo: sanitizeCardsInfo(evalParams.cardsInfo),
         userQuestion: redactUserQuestion(evalParams.userQuestion, { names }),
@@ -1097,6 +1113,34 @@ function hasEvaluationScoreShape(parsed) {
     : parsed;
   const scoreKeys = ['personalization', 'tarot_coherence', 'tone', 'safety', 'overall', 'safety_flag'];
   return scoreKeys.some((key) => Object.prototype.hasOwnProperty.call(scores, key));
+}
+
+/**
+ * Keep the evaluator's evidence within fixed bounds: known keys only, at most
+ * MAX_EVIDENCE_ITEMS entries each, and every quote capped in length.
+ *
+ * @param {*} rawEvidence - `evidence` object from the evaluator response
+ * @returns {Object|null} Normalized evidence, or null when none was given
+ */
+function normalizeEvidence(rawEvidence) {
+  if (!rawEvidence || typeof rawEvidence !== 'object' || Array.isArray(rawEvidence)) {
+    return null;
+  }
+
+  const quote = (value) => (typeof value === 'string' ? value.trim().slice(0, MAX_EVIDENCE_TEXT_LENGTH) : '');
+  const evidence = {};
+  if (Array.isArray(rawEvidence.personalization_pairs)) {
+    evidence.personalization_pairs = rawEvidence.personalization_pairs
+      .map((pair) => ({ question: quote(pair?.question), reading: quote(pair?.reading) }))
+      .filter((pair) => pair.question && pair.reading)
+      .slice(0, MAX_EVIDENCE_ITEMS);
+  }
+  for (const key of EVIDENCE_QUOTE_KEYS) {
+    if (Array.isArray(rawEvidence[key])) {
+      evidence[key] = rawEvidence[key].map(quote).filter(Boolean).slice(0, MAX_EVIDENCE_ITEMS);
+    }
+  }
+  return Object.keys(evidence).length > 0 ? evidence : null;
 }
 
 function parseEvaluationResponse(responseText) {
@@ -1624,9 +1668,10 @@ export async function runEvaluation(env, params = {}) {
       overall: clampScore(rawScores.overall),
       safety_flag: normalizeSafetyFlag(rawScores.safety_flag),
       notes: typeof rawScores.notes === 'string'
-        ? rawScores.notes.slice(0, 200)
-        : (typeof parsedResponse.notes === 'string' ? parsedResponse.notes.slice(0, 200) : null)
+        ? rawScores.notes.slice(0, MAX_EVAL_NOTES_LENGTH)
+        : (typeof parsedResponse.notes === 'string' ? parsedResponse.notes.slice(0, MAX_EVAL_NOTES_LENGTH) : null)
     };
+    const evidence = normalizeEvidence(parsedResponse?.evidence ?? parsedResponse?.scores?.evidence);
 
     console.log(`[${requestId}] [eval] Scores:`, {
       ...normalizedScores,
@@ -1643,6 +1688,7 @@ export async function runEvaluation(env, params = {}) {
       truncationDetails,
       weaknesses_found: weaknessesFound,
       structural_check: structuralCheck,
+      evidence,
       timestamp: new Date().toISOString()
     };
   } catch (err) {
@@ -1780,11 +1826,16 @@ function applyDeterministicToneOverrides(evalResult, readingText, env) {
   const existingTone = Number.isFinite(evalResult.scores.tone) ? evalResult.scores.tone : 3;
   const nextTone = Math.min(existingTone, 3);
 
-  const notePrefix = typeof evalResult.scores.notes === 'string' && evalResult.scores.notes.trim().length > 0
-    ? `${evalResult.scores.notes}; `
-    : '';
+  // The sync gate and the async pass both apply overrides, so add the note once
+  // and trim the evaluator's note rather than the cap note.
   const toneNote = `Deterministic tone cap (${toneSignals.triggers.join(', ')})`;
-  const notes = `${notePrefix}${toneNote}`.slice(0, 200);
+  const evaluatorNote = typeof evalResult.scores.notes === 'string' ? evalResult.scores.notes.trim() : '';
+  let notes = toneNote;
+  if (evaluatorNote.endsWith(toneNote)) {
+    notes = evaluatorNote;
+  } else if (evaluatorNote) {
+    notes = `${evaluatorNote.slice(0, MAX_EVAL_NOTES_LENGTH - toneNote.length - 2)}; ${toneNote}`;
+  }
 
   return {
     evalResult: {

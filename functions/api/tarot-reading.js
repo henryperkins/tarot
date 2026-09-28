@@ -465,6 +465,7 @@ async function finalizeReading({
     requestId,
     displayName: personalization?.displayName,
     redactionNames: readingRedactionOptions.additionalNames || [],
+    reversalFramework: analysis.themes?.reversalFramework || null,
     narrativeMetrics: baseNarrativeMetrics
   };
 

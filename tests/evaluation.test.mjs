@@ -160,6 +160,79 @@ describe('evaluation', () => {
       assert.equal(result.promptVersion, '2.4.0');
     });
 
+    test('keeps a bounded evidence block from the evaluator response', async () => {
+      const longQuote = 'x'.repeat(300);
+      mockAI.run = async () => ({
+        response: JSON.stringify({
+          evidence: {
+            personalization_pairs: [
+              { question: 'calm awareness', reading: 'with calm awareness, notice the pull' },
+              { question: 'no reading side' },
+              ...Array.from({ length: 7 }, (_, index) => ({ question: `q${index}`, reading: longQuote }))
+            ],
+            cross_card_links: ['The Tower breaks what the Emperor built', 42, ''],
+            hard_imperatives: [],
+            unknown_key: ['dropped']
+          },
+          personalization: 4, tarot_coherence: 4, tone: 4, safety: 5, overall: 4, safety_flag: false
+        })
+      });
+
+      const result = await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
+        reading: 'Your reading shows...', userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'eval-evidence'
+      });
+
+      const { personalization_pairs: pairs, cross_card_links: links, hard_imperatives: imperatives } = result.evidence;
+      assert.equal(pairs.length, 6);
+      assert.deepEqual(pairs[0], { question: 'calm awareness', reading: 'with calm awareness, notice the pull' });
+      assert.equal(pairs[1].reading.length, 180);
+      assert.deepEqual(links, ['The Tower breaks what the Emperor built']);
+      assert.deepEqual(imperatives, []);
+      assert.deepEqual(Object.keys(result.evidence).sort(), ['cross_card_links', 'hard_imperatives', 'personalization_pairs']);
+    });
+
+    test('reports no evidence when the evaluator omits it', async () => {
+      mockAI.run = async () => ({
+        response: JSON.stringify({ personalization: 3, tarot_coherence: 3, tone: 3, safety: 5, overall: 3, safety_flag: false })
+      });
+
+      const result = await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
+        reading: 'Your reading shows...', userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'eval-no-evidence'
+      });
+
+      assert.equal(result.evidence, null);
+    });
+
+    test('keeps evaluator notes up to 600 characters', async () => {
+      mockAI.run = async () => ({
+        response: JSON.stringify({
+          personalization: 3, tarot_coherence: 3, tone: 3, safety: 5, overall: 3, safety_flag: false,
+          notes: 'n'.repeat(700)
+        })
+      });
+
+      const result = await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
+        reading: 'Your reading shows...', userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'eval-notes'
+      });
+
+      assert.equal(result.scores.notes.length, 600);
+    });
+
+    test('does not add the reversal framework to the version 2.4.0 prompt', async () => {
+      let userPrompt = '';
+      mockAI.run = async (_model, params) => {
+        userPrompt = getUserPromptFromParams(params);
+        return { response: JSON.stringify({ personalization: 3, tarot_coherence: 3, tone: 3, safety: 5, overall: 3, safety_flag: false }) };
+      };
+
+      await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
+        reading: 'Your reading shows...', userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'eval-prompt', reversalFramework: 'blocked'
+      });
+
+      assert.ok(userPrompt.length > 0);
+      assert.doesNotMatch(userPrompt, /blocked|reversal framework/i);
+    });
+
     test('normalizes string safety_flag values', async () => {
       mockAI.run = async () => ({
         response: JSON.stringify({
@@ -531,6 +604,20 @@ describe('evaluation', () => {
       const storedEval = JSON.parse(payloadBinding).eval;
       assert.equal(storedEval.scores.tone, 3);
       assert.equal(storedEval.tone_before_cap, 4);
+      assert.equal(storedEval.scores.notes, 'Deterministic tone cap (hard_imperative)');
+    });
+
+    test('keeps the tone-cap note when the evaluator note is long', async () => {
+      const env = { AI: mockAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' };
+      mockAI.run = async () => ({ response: JSON.stringify({ ...modelScores, notes: 'n'.repeat(700) }) });
+
+      const result = await runSyncEvaluationGate(env, {
+        reading: directiveReading, userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'tone-cap-long-note'
+      });
+
+      const { notes } = result.evalResult.scores;
+      assert.equal(notes.length, 600);
+      assert.ok(notes.endsWith('nnn; Deterministic tone cap (hard_imperative)'));
     });
   });
 
@@ -1784,6 +1871,51 @@ describe('evaluation', () => {
         assert.equal(stored.eval.weaknesses_found, null);
         assert.equal(stored.eval.scores.overall, 4);
       });
+
+      const evidenceEval = {
+        ...modelEval,
+        evidence: {
+          personalization_pairs: [{ question: 'support Henry this week', reading: 'Henry, this week asks for rest.' }],
+          cross_card_links: ['The Tower breaks what Henry built with the Emperor'],
+          hard_imperatives: []
+        }
+      };
+
+      test('redacts evidence quotes in redact mode', async () => {
+        const stored = await storeEval(
+          { reading: 'Henry, this week asks for rest.', redactionNames: ['Henry'] },
+          { evalResult: evidenceEval }
+        );
+        assert.deepEqual(stored.eval.evidence, {
+          personalization_pairs: [{ question: 'support [NAME] this week', reading: '[NAME], this week asks for rest.' }],
+          cross_card_links: ['The Tower breaks what [NAME] built with the Emperor'],
+          hard_imperatives: []
+        });
+      });
+
+      test('drops evidence in minimal mode', async () => {
+        const stored = await storeEval({ reading: 'Henry, this week asks for rest.' }, { storageMode: 'minimal', evalResult: evidenceEval });
+        assert.equal(stored.eval.evidence, null);
+      });
+    });
+
+    test('stores the reversal framework in every storage mode', async () => {
+      for (const storageMode of ['full', 'redact', 'minimal']) {
+        const mockDB = new MockDB();
+        const waitPromises = [];
+        scheduleEvaluation(
+          { EVAL_ENABLED: 'true', DB: mockDB, METRICS_STORAGE_MODE: storageMode },
+          { reading: 'r', userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'reversal-framework', reversalFramework: 'blocked' },
+          { requestId: 'reversal-framework', spreadKey: 'threeCard' },
+          {
+            waitUntil: (p) => waitPromises.push(p),
+            precomputedEvalResult: { scores: { personalization: 3, tarot_coherence: 3, tone: 3, safety: 5, overall: 3, safety_flag: false }, mode: 'model' }
+          }
+        );
+        await Promise.all(waitPromises);
+        const payloadBinding = mockDB.getLastQuery().bindings.find((b) => typeof b === 'string' && b.startsWith('{'));
+        assert.equal(JSON.parse(payloadBinding).reversalFramework, 'blocked', storageMode);
+      }
     });
   });
 
