@@ -16,25 +16,23 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
     });
 
     for (const width of [390, 1440]) {
-      test(`examples insert editable text and keep their full accessible names at ${width}px`, async ({ page, browserName }) => {
+      test(`examples insert editable text and announce each choice at ${width}px`, async ({ page, browserName }) => {
         await page.setViewportSize({ width, height: 1000 });
         await openSetup(page);
         const field = page.locator('#quick-intention,#question-input').filter({ visible: true }).first();
         await expect(field).toHaveValue('');
-        await expect(field).toHaveAttribute('placeholder', 'Ask about something you want to understand…');
-        const example = page.getByRole('button', { name: /^Use example: / }).first();
-        const previous = await example.innerText();
-        await page.getByRole('button', { name: 'Show another example intention', exact: true }).click();
-        await expect(example).not.toHaveText(previous);
-        const fullText = (await example.textContent()).replace(/^Use example: /, '');
-        await expect(example).toHaveAccessibleName(`Use example: ${fullText}`);
-        await expect(page.getByRole('status').filter({ hasText: `Example: ${fullText}` })).toHaveText(`Example: ${fullText}`);
+        await expect(field).toHaveAttribute('placeholder', 'In your own words…');
+        const example = page.getByRole('button', { name: 'Try an example', exact: true });
         if (browserName === 'webkit' && width === 390) await example.tap();
         else await example.press('Enter');
-        await expect(field).toHaveValue(fullText);
+        const firstExample = await field.inputValue();
+        expect(firstExample.length).toBeGreaterThan(0);
+        await expect(page.getByRole('status').filter({ hasText: `Example added: ${firstExample}` })).toHaveText(`Example added: ${firstExample}`);
+        await page.getByRole('button', { name: 'Another example', exact: true }).press('Enter');
+        await expect(field).not.toHaveValue(firstExample);
+        await field.fill('What can I learn from this change at work?');
         await expect(field).toBeFocused();
-        expect(await field.evaluate(el => el.selectionEnd - el.selectionStart)).toBe(fullText.length);
-        await expect(page.getByRole('button', { name: 'Show another example intention', exact: true })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Another example', exact: true })).toHaveCount(0);
       });
 
       test(`composition and clarity feedback behave consistently at ${width}px`, async ({ page }) => {
@@ -45,10 +43,10 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await field.fill('Will he come back?');
         await field.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true, keyCode: 229, bubbles: true, cancelable: true });
         await expect(field).toBeFocused();
-        await expect(field).toHaveAccessibleDescription(/Try "How" or "What"/);
+        await expect(field).toHaveAccessibleDescription(/This reads as a yes-or-no question/);
         await expect(page.getByRole('navigation', { name: 'Tarot reading progress' }).locator('[aria-current="step"]')).toHaveAccessibleName(/Question/);
-        const guidance = field.locator('..').locator('[aria-live="polite"]').filter({ hasText: /Try "How" or "What"/ });
-        await expect(guidance).toBeVisible();
+        const guidance = page.getByRole('status').filter({ hasText: /This reads as a yes-or-no question/ });
+        await expect(guidance).toHaveText(/This reads as a yes-or-no question/);
         await field.press('Shift+Enter');
         await expect(field).toBeFocused();
         await expect(field).toHaveValue('Will he come back?\n');
@@ -59,7 +57,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       });
     }
 
-    test('preparation names are distinct and the drawer keeps the shared draft', async ({ page }) => {
+    test('preparation names are distinct and the question stays on the page', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await openSetup(page);
       const field = page.locator('#quick-intention');
@@ -68,14 +66,14 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await expect(draw).not.toContainText(/Step \d/);
       await page.getByRole('button', { name: 'Open reading preparation', exact: true }).click();
       const drawer = page.getByRole('dialog', { name: 'Prepare your reading', exact: true });
-      const editor = drawer.locator('#question-input');
-      await expect(editor).toHaveValue('How can I balance work and rest this week?');
-      await editor.fill('أمان 🌿 安心 — What can I learn today?');
-      await editor.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true, keyCode: 229, bubbles: true, cancelable: true });
-      await expect(editor).toBeFocused();
+      await expect(drawer.getByRole('textbox')).toHaveCount(0);
+      await expect(drawer.getByRole('tablist', { name: 'Preparation settings' }).getByRole('tab')).toHaveText(['Deck', 'Ritual']);
       await drawer.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
-      await expect(field).toHaveValue('أمان 🌿 安心 — What can I learn today?');
+      await expect(field).toHaveValue('How can I balance work and rest this week?');
       await expect(page.getByRole('button', { name: 'Open reading preparation', exact: true })).toBeFocused();
+      await field.fill('أمان 🌿 安心 — What can I learn today?');
+      await field.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true, keyCode: 229, bubbles: true, cancelable: true });
+      await expect(field).toBeFocused();
     });
 
     test('the small-phone field remains below the sticky navigation on focus', async ({ page }) => {

@@ -6,7 +6,9 @@
  * is kept here and restored on the next open; applying a question clears it.
  *
  * Drafts live in memory only: a reload starts fresh, and nothing about the
- * user's intention is written to storage without an explicit save.
+ * user's intention is written to storage without an explicit save. The one
+ * exception is the question field itself, which keeps a tab-scoped draft in
+ * sessionStorage (see questionDraft.js).
  */
 
 export const COACH_DRAFT_TTL_MS = 30 * 60 * 1000;

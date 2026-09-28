@@ -1,13 +1,14 @@
 import { useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { CaretDown, CaretUp, TextAlignLeft, Sparkle, Stack } from '@phosphor-icons/react';
+import { CaretDown, CaretUp, Sparkle, Stack } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
 import { RitualControls } from './RitualControls';
 import { DeckSelector } from './DeckSelector';
 
-// Mobile tab configuration (Audio/Theme settings moved to Account page)
+// Mobile tab configuration (Audio/Theme settings moved to Account page).
+// The question is written on the page itself (QuickIntentionCard), so the
+// drawer no longer carries a second editor for it.
 const MOBILE_TABS = [
-    { id: 'intention', label: 'Intent', icon: TextAlignLeft },
     { id: 'deck', label: 'Deck', icon: Stack },
     { id: 'ritual', label: 'Ritual', icon: Sparkle }
 ];
@@ -17,8 +18,6 @@ export function ReadingPreparation({
     // State & Setters
     userQuestion,
     setUserQuestion,
-    placeholderIndex,
-    onPlaceholderRefresh,
     onQuestionFocus,
     onQuestionBlur,
 
@@ -43,7 +42,7 @@ export function ReadingPreparation({
     deckAnnouncement,
     deckStyleId,
     onDeckChange,
-    initialMobileTab = 'intention',
+    initialMobileTab = 'deck',
     sectionRef,
     shouldSkipRitual = false
 }) {
@@ -62,8 +61,6 @@ export function ReadingPreparation({
                     <QuestionInput
                         userQuestion={userQuestion}
                         setUserQuestion={setUserQuestion}
-                        placeholderIndex={placeholderIndex}
-                        onPlaceholderRefresh={onPlaceholderRefresh}
                         onFocus={onQuestionFocus}
                         onBlur={onQuestionBlur}
                         onLaunchCoach={onLaunchCoach}
@@ -114,14 +111,14 @@ export function ReadingPreparation({
     // Mobile tabbed navigation state
     const [activeTabRaw, setActiveTabRaw] = useState(() => {
         const availableTabIds = new Set(mobileTabs.map(tab => tab.id));
-        const requested = typeof initialMobileTab === 'string' ? initialMobileTab : 'intention';
-        const normalizedRequested = (shouldSkipRitual && requested === 'ritual') ? 'intention' : requested;
-        return availableTabIds.has(normalizedRequested) ? normalizedRequested : 'intention';
+        const requested = typeof initialMobileTab === 'string' ? initialMobileTab : 'deck';
+        const normalizedRequested = (shouldSkipRitual && requested === 'ritual') ? 'deck' : requested;
+        return availableTabIds.has(normalizedRequested) ? normalizedRequested : 'deck';
     });
     const tabRefs = useRef({});
 
-    // Derive the effective active tab - if ritual is skipped and ritual was selected, fall back to intention
-    const activeTab = (shouldSkipRitual && activeTabRaw === 'ritual') ? 'intention' : activeTabRaw;
+    // Derive the effective active tab - if ritual is skipped and ritual was selected, fall back to deck
+    const activeTab = (shouldSkipRitual && activeTabRaw === 'ritual') ? 'deck' : activeTabRaw;
 
     const handleTabChange = useCallback((tabId) => {
         setActiveTabRaw(tabId);
@@ -159,9 +156,12 @@ export function ReadingPreparation({
     }, [mobileTabs]);
 
     if (variant === 'mobile') {
+        // With the ritual hidden by personalization only Deck remains: no tabs.
+        const hasTabs = mobileTabs.length > 1;
         return (
             <div className="space-y-4">
                 {/* Segmented tab control */}
+                {hasTabs && (
                 <div
                     className="flex bg-surface-muted/60 rounded-xl p-1 border border-secondary/20"
                     role="tablist"
@@ -198,6 +198,7 @@ export function ReadingPreparation({
                         );
                     })}
                 </div>
+                )}
 
                 <div className="px-1 text-xs text-muted flex flex-wrap items-center justify-between gap-2">
                     <span>Audio and appearance live in Settings.</span>
@@ -214,8 +215,8 @@ export function ReadingPreparation({
                         <div
                             key={tab.id}
                             id={`mobile-panel-${tab.id}`}
-                            role="tabpanel"
-                            aria-labelledby={`mobile-tab-${tab.id}`}
+                            role={hasTabs ? 'tabpanel' : undefined}
+                            aria-labelledby={hasTabs ? `mobile-tab-${tab.id}` : undefined}
                             hidden={activeTab !== tab.id}
                         >
                             {activeTab === tab.id && (

@@ -152,6 +152,8 @@ function MobileActionContents({
         // "Save reading" already names the step; a badge would only repeat it.
         return null;
       default:
+        // Progress belongs to the four-step navigation; the action names
+        // what this button will do regardless of which prep step is current.
         return null;
     }
   }, [mode]);
@@ -244,8 +246,7 @@ function renderActions(mode, options) {
         <ActionButton
           variant="primary"
           disabled
-          stepLabel={stepBadge}
-          ariaLabel={withStepContext(label, stepIndicatorLabel)}
+          ariaLabel={label}
           className={`${widthClasses.primary} ${px}`}
           isLandscape={isLandscape}
         >
@@ -291,7 +292,6 @@ function renderActions(mode, options) {
           <ActionButton
             variant="primary"
             onClick={onShuffle}
-            stepLabel={stepBadge}
             ariaLabel={drawLabel}
             className={`${widthClasses.prepPrimary} ${px}`}
             isLandscape={isLandscape}

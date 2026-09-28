@@ -167,7 +167,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
             <div className="space-y-1">
               <h2 id="mobile-drawer-title" className="text-lg font-serif text-accent">Prepare your reading</h2>
               <p className="text-xs text-muted leading-relaxed max-w-[22rem]">
-                Edit your intention, deck, and optional ritual.
+                Choose your deck and ritual before you draw.
               </p>
             </div>
 

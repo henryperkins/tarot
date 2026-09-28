@@ -148,18 +148,12 @@ test.describe('Accessibility - Core Pages', () => {
     await page.goto('/');
     await waitForAppReady(page);
 
-    // Find question input
-    const questionInput = page.locator('textarea[placeholder*="question"], textarea[aria-label*="question"], input[placeholder*="question"]').first();
+    // The desktop panel and the phone card each render one question field.
+    const questionInput = page.locator('#question-input, #quick-intention').filter({ visible: true }).first();
 
     if (await questionInput.isVisible()) {
-      // Verify it has accessible name
-      const ariaLabel = await questionInput.getAttribute('aria-label');
-      const placeholder = await questionInput.getAttribute('placeholder');
-      const id = await questionInput.getAttribute('id');
-
-      // Should have some form of labeling
-      const hasLabel = ariaLabel || placeholder || id;
-      expect(hasLabel).toBeTruthy();
+      // Named by its visible prompt, not by a placeholder.
+      await expect(questionInput).toHaveAccessibleName(/What would you like to understand/);
     }
 
     const violations = await analyzeAccessibility(page);

@@ -4,6 +4,14 @@ import { playFlip, unlockAudio } from '../lib/audio';
 import { DEFAULT_SPREAD_KEY, normalizeSpreadKey, getSpreadInfo } from '../data/spreads';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  GUEST_DRAFT_OWNER,
+  clearQuestionDraft,
+  getQuestionDraftOwner,
+  loadQuestionDraft,
+  saveQuestionDraft
+} from '../lib/questionDraft';
 import { getSpreadFromDepth } from '../utils/personalization';
 import { resolveFallbackSpreadKey } from '../utils/spreadEntitlements';
 
@@ -15,6 +23,8 @@ const SKIP_RITUAL_DEFAULTS = {
 export function useTarotState(speak) {
   const { includeMinors, deckSize, personalization } = usePreferences();
   const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { user, loading: authLoading } = useAuth();
+  const questionDraftOwner = getQuestionDraftOwner(user?.id || null);
   const [selectedSpreadState, setSelectedSpreadState] = useState(DEFAULT_SPREAD_KEY);
   const [hasUserSelectedSpread, setHasUserSelectedSpread] = useState(false);
   const autoSelectedSpread = (!hasUserSelectedSpread && personalization?.preferredSpreadDepth)
@@ -39,6 +49,7 @@ export function useTarotState(speak) {
   const [userQuestion, setUserQuestion] = useState('');
   const [deckAnnouncement, setDeckAnnouncement] = useState('');
   const [knockCadenceResetAt, setKnockCadenceResetAt] = useState(0);
+  const questionDraftSyncRef = useRef({ restored: false, owner: null });
 
   const knockTimesRef = useRef([]);
   const knockResetTimeoutRef = useRef(null);
@@ -46,6 +57,38 @@ export function useTarotState(speak) {
   const deckAnnouncementTimeoutRef = useRef(null);
   const deckSizeInitializedRef = useRef(false);
   const shouldSkipRitual = personalization?.showRitualSteps === false;
+
+  // Keep the question someone is writing through a reload, for this tab only
+  // (see lib/questionDraft). Restore once auth has settled, so one account's
+  // question never shows while another is still loading.
+  useEffect(() => {
+    if (authLoading) return;
+    const sync = questionDraftSyncRef.current;
+    if (!sync.restored) {
+      sync.restored = true;
+      sync.owner = questionDraftOwner;
+      const draft = loadQuestionDraft(questionDraftOwner);
+      if (draft) {
+        // A question set meanwhile (a journal suggestion, a typed word) wins.
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- restores sessionStorage once auth settles
+        setUserQuestion(current => current || draft);
+      }
+      return;
+    }
+    if (sync.owner === questionDraftOwner) return;
+    const previousOwner = sync.owner;
+    sync.owner = questionDraftOwner;
+    // Signing in keeps the question; signing out or switching accounts forgets it.
+    if (previousOwner !== GUEST_DRAFT_OWNER) {
+      clearQuestionDraft();
+      setUserQuestion('');
+    }
+  }, [authLoading, questionDraftOwner]);
+
+  useEffect(() => {
+    if (!questionDraftSyncRef.current.restored) return;
+    saveQuestionDraft(questionDraftOwner, userQuestion);
+  }, [questionDraftOwner, userQuestion]);
 
   // Keep cut index centered on active deck and announce deck scope changes
   useEffect(() => {
