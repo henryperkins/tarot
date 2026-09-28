@@ -7,12 +7,13 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "test": "node server/test.js"
+    "test": "node --test server/index.test.mjs && node server/test.js"
   },
   "keywords": ["mcp", "symbolism", "tarot", "interpretation", "imagery"],
   "author": "Mystic Tarot",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.26.0"
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "zod": "^3.25.76"
   }
 }

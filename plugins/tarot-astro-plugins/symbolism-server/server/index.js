@@ -7,6 +7,7 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
 
 import { searchSymbols, getSymbol, getCategory, fuzzyMatch, getRelatedSymbols } from './database.js';
 
@@ -20,9 +21,9 @@ server.tool(
   'search_symbols',
   'Search for symbols by keyword or name. Returns matching symbols with meanings and interpretations.',
   {
-    query: { type: 'string', description: 'Search query (symbol name or keyword)' },
-    category: { type: 'string', description: 'Optional category filter: animals, colors, numbers, elements, plants, celestial' },
-    limit: { type: 'number', description: 'Maximum number of results (default: 10)' },
+    query: z.string().min(1).describe('Search query (symbol name or keyword)'),
+    category: z.string().optional().describe('Optional category filter: animals, colors, numbers, elements, plants, celestial'),
+    limit: z.number().int().nonnegative().optional().describe('Maximum number of results (default: 10)'),
   },
   async ({ query, category, limit }) => {
     if (!query) throw new Error('query is required');
@@ -36,8 +37,8 @@ server.tool(
   'get_symbol',
   'Get detailed information about a specific symbol',
   {
-    category: { type: 'string', description: 'Symbol category' },
-    name: { type: 'string', description: 'Symbol name (e.g., "rose", "red", "7")' },
+    category: z.string().min(1).describe('Symbol category'),
+    name: z.string().min(1).describe('Symbol name (e.g., "rose", "red", "7")'),
   },
   async ({ category, name }) => {
     if (!category || !name) throw new Error('category and name are required');
@@ -51,7 +52,7 @@ server.tool(
   'get_category',
   'Get all symbols in a specific category',
   {
-    category: { type: 'string', description: 'Category to retrieve' },
+    category: z.string().min(1).describe('Category to retrieve'),
   },
   async ({ category }) => {
     if (!category) throw new Error('category is required');
@@ -65,8 +66,8 @@ server.tool(
   'get_related_symbols',
   'Get symbols related to a specific theme or archetype',
   {
-    theme: { type: 'string', description: 'Theme to explore (e.g., "transformation", "love", "wisdom")' },
-    limit: { type: 'number', description: 'Maximum number of results (default: 10)' },
+    theme: z.string().min(1).describe('Theme to explore (e.g., "transformation", "love", "wisdom")'),
+    limit: z.number().int().nonnegative().optional().describe('Maximum number of results (default: 10)'),
   },
   async ({ theme, limit }) => {
     if (!theme) throw new Error('theme is required');
@@ -80,8 +81,8 @@ server.tool(
   'interpret_card_symbols',
   'Get interpretation framework for common symbols appearing in a tarot card',
   {
-    cardName: { type: 'string', description: 'Name of the tarot card' },
-    symbols: { type: 'array', description: 'List of symbols visible in the card' },
+    cardName: z.string().min(1).describe('Name of the tarot card'),
+    symbols: z.array(z.string().min(1)).describe('List of symbols visible in the card'),
   },
   async ({ cardName, symbols }) => {
     if (!cardName || !symbols) throw new Error('cardName and symbols are required');
@@ -95,7 +96,7 @@ server.tool(
   'get_color_meanings',
   'Get comprehensive color symbolism and meanings',
   {
-    colors: { type: 'array', description: 'List of colors to interpret' },
+    colors: z.array(z.string().min(1)).describe('List of colors to interpret'),
   },
   async ({ colors }) => {
     if (!colors) throw new Error('colors is required');
@@ -112,7 +113,7 @@ server.tool(
   'get_numerological_insight',
   'Get numerological meaning for a number or card position',
   {
-    number: { type: 'string', description: 'Number to interpret (0-10)' },
+    number: z.string().min(1).describe('Number to interpret (0-10)'),
   },
   async ({ number }) => {
     if (!number) throw new Error('number is required');
