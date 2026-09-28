@@ -16,13 +16,6 @@ const BTN_SECONDARY = `${BTN_BASE} bg-surface-muted text-accent border border-ac
 const BTN_TERTIARY = `${BTN_BASE} bg-primary/20 text-main border border-primary/40 hover:bg-primary/30`;
 const BTN_COACH = `${BTN_BASE} bg-secondary/20 text-secondary border border-secondary/40 hover:bg-secondary/30`;
 
-const STEP_BADGES = {
-  spread: 'Step 1',
-  intention: 'Step 2',
-  ritual: 'Step 3',
-  reading: 'Step 4'
-};
-
 /**
  * Determines which action mode the mobile bar should display
  */
@@ -111,7 +104,6 @@ function MobileActionContents({
   showFollowUp = false,
   isFollowUpOpen = false,
   stepIndicatorLabel,
-  activeStep = 'spread',
   onOpenSettings,
   onOpenCoach,
   onOpenFollowUp,
@@ -160,9 +152,9 @@ function MobileActionContents({
         // "Save reading" already names the step; a badge would only repeat it.
         return null;
       default:
-        return STEP_BADGES[activeStep] || null;
+        return null;
     }
-  }, [mode, activeStep]);
+  }, [mode]);
 
   // In landscape: tighter layout with smaller gaps
   const layoutClass = variant === 'inline'
@@ -273,7 +265,7 @@ function renderActions(mode, options) {
             <ActionButton
               variant="secondary"
               onClick={onOpenSettings}
-              ariaLabel="Open settings"
+              ariaLabel="Open reading preparation"
               ariaControls={settingsDialogId}
               ariaExpanded={isSettingsOpen}
               className={`${widthClasses.icon} ${variant === 'inline' ? px : 'px-0'}`}
@@ -300,7 +292,7 @@ function renderActions(mode, options) {
             variant="primary"
             onClick={onShuffle}
             stepLabel={stepBadge}
-            ariaLabel={withStepContext(drawLabel, stepIndicatorLabel)}
+            ariaLabel={drawLabel}
             className={`${widthClasses.prepPrimary} ${px}`}
             isLandscape={isLandscape}
           >

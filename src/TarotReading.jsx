@@ -27,7 +27,7 @@ import { useSmallScreen } from './hooks/useSmallScreen';
 import { useLandscape } from './hooks/useLandscape';
 import { useHandsetLayout } from './hooks/useHandsetLayout';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
-import { loadCoachRecommendation, saveCoachRecommendation } from './lib/journalInsights';
+import { loadCoachRecommendation } from './lib/journalInsights';
 import { shouldUseMobileStableMode } from './lib/mobileStableMode';
 import { getSpreadInfo, normalizeSpreadKey } from './data/spreads';
 import {
@@ -517,7 +517,7 @@ export default function TarotReading() {
       try {
         target.scrollIntoView({
           behavior: 'auto',
-          block: 'center'
+          block: 'start'
         });
       } catch {
         // Silently ignore scroll failures (e.g., Safari quirks)
@@ -561,22 +561,6 @@ export default function TarotReading() {
     setIsIntentionCoachOpen(false);
     setPendingCoachPrefill(null);
   }, []);
-
-  const clearCoachRecommendation = useCallback(() => {
-    saveCoachRecommendation(null, userId);
-    refreshCoachRecommendation();
-  }, [refreshCoachRecommendation, userId]);
-
-  const applyCoachRecommendation = useCallback(() => {
-    const nextQuestion = coachRecommendation?.question || coachRecommendation?.customFocus;
-    if (!nextQuestion) return;
-    setUserQuestion(nextQuestion);
-    clearCoachRecommendation();
-  }, [clearCoachRecommendation, coachRecommendation, setUserQuestion]);
-
-  const dismissCoachRecommendation = useCallback(() => {
-    clearCoachRecommendation();
-  }, [clearCoachRecommendation]);
 
   const handleCoachApply = (guidedQuestion) => {
     if (!guidedQuestion) return;
@@ -855,7 +839,7 @@ export default function TarotReading() {
     }
 
     // No reading yet - check preparation milestones
-    if (!hasConfirmedSpread) {
+    if (!hasConfirmedSpread && !hasQuestion) {
       return {
         stepIndicatorLabel: 'Pick a spread',
         stepIndicatorHint: 'Match the layout to the depth of your inquiry.',
@@ -885,11 +869,11 @@ export default function TarotReading() {
       };
     }
 
-    // Ready to draw - either ritual complete/skipped or no ritual started
+    // Keep preparation current until the user actually begins the reading.
     return {
-      stepIndicatorLabel: 'Begin your draw',
-      stepIndicatorHint: 'When you feel ready, deal the cards to begin your reading.',
-      activeStep: 'reading'
+      stepIndicatorLabel: 'Your intention is ready',
+      stepIndicatorHint: 'When you feel ready, shuffle the deck to begin your reading.',
+      activeStep: 'intention'
     };
   }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, hasQuestion, hasConfirmedSpread, knockCount, hasCut, revealedCards, visibleCount]);
 
@@ -1192,9 +1176,6 @@ export default function TarotReading() {
               onPlaceholderRefresh={() => setPlaceholderIndex(prev => (prev + 1) % EXAMPLE_QUESTIONS.length)}
               onQuestionFocus={handleQuestionFocus}
               onQuestionBlur={handleQuestionBlur}
-              coachRecommendation={coachRecommendation}
-              applyCoachRecommendation={() => { applyCoachRecommendation(); setIsMobileSettingsOpen(false); }}
-              dismissCoachRecommendation={dismissCoachRecommendation}
               onLaunchCoach={() => {
                 setIsMobileSettingsOpen(false);
                 openIntentionCoach();

@@ -1,8 +1,7 @@
-import { forwardRef, useCallback, useId, useRef, useState } from 'react';
-import { Sparkle, GearSix, ArrowsClockwise } from '@phosphor-icons/react';
+import { forwardRef } from 'react';
+import { Sparkle, GearSix } from '@phosphor-icons/react';
 import { DECK_OPTIONS } from './deckOptions';
-import { useAutoGrow } from '../hooks/useAutoGrow';
-import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingSchema.js';
+import { QuestionInput } from './QuestionInput';
 
 /**
  * QuickIntentionCard - Mobile quick intention entry
@@ -26,54 +25,22 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
   selectedSpread,
   onDeckChange
 }, ref) {
-  const autoGrowRef = useAutoGrow(userQuestion, 1, 4);
-  const localInputRef = useRef(null);
-  const helperId = useId();
-  const [hasRequestedExample, setHasRequestedExample] = useState(false);
   const isCompact = variant === 'compact';
-
-  // Merge inputRef (from parent) with autoGrowRef (from hook)
-  const mergedRef = useCallback((el) => {
-    // Store in local ref (mutable)
-    localInputRef.current = el;
-    // Update autoGrow hook's ref
-    if (autoGrowRef && typeof autoGrowRef === 'object') {
-      autoGrowRef.current = el;
-    }
-    // Forward to parent's inputRef
-    if (typeof inputRef === 'function') {
-      inputRef(el);
-    } else if (inputRef && typeof inputRef === 'object') {
-      // Use Object.assign to avoid direct mutation lint error
-      Object.assign(inputRef, { current: el });
-    }
-  }, [inputRef, autoGrowRef]);
-
-  // Enter blurs (implicit continue), Shift+Enter inserts newline
-  const handleKeyDown = (event) => {
-    // Enter also confirms an IME composition (Japanese, Chinese, Korean); that
-    // keystroke belongs to the input method, not to "done".
-    if (event.nativeEvent?.isComposing || event.keyCode === 229) return;
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      event.target.blur();
-    }
-  };
 
   if (isCompact) {
     const trimmedQuestion = userQuestion.trim();
     return (
       <div
         ref={ref}
-        className={`rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-2 shadow-lg shadow-main/20 transition selection:bg-accent selection:text-surface ${
+        className={`scroll-mt-[calc(var(--sticky-header-height,0px)+1rem)] rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-2 shadow-lg shadow-main/20 transition selection:bg-accent selection:text-surface ${
           highlight ? 'ring-2 ring-accent/50 shadow-xl shadow-accent/10' : ''
         }`}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs uppercase tracking-[0.18em] text-secondary">Quick intention</p>
+            <p className="font-serif text-base text-accent">Your intention</p>
             <p className={`text-xs ${trimmedQuestion ? 'text-secondary' : 'text-muted'} truncate`}>
-              {trimmedQuestion || 'Add a question before you draw.'}
+              {trimmedQuestion || 'Add an optional question.'}
             </p>
           </div>
           <button
@@ -93,14 +60,14 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
   return (
     <div
       ref={ref}
-      className={`rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex flex-col gap-3 transition selection:bg-accent selection:text-surface ${
+      className={`scroll-mt-[calc(var(--sticky-header-height,0px)+1rem)] rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex flex-col gap-3 transition selection:bg-accent selection:text-surface ${
         highlight ? 'ring-2 ring-accent/50 shadow-xl shadow-accent/10' : ''
       }`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0 flex-1 basis-44">
-          <p className="text-xs uppercase tracking-[0.18em] text-secondary">Step 2 · Quick intention</p>
-          <p id={helperId} className="text-xs text-muted">Add or edit your question before drawing.</p>
+          <label htmlFor="quick-intention" className="font-serif text-base text-accent">Your intention</label>
+          <p className="mt-1 text-xs text-muted">Optional. Add a question, or leave it open.</p>
         </div>
         <button
           type="button"
@@ -113,25 +80,30 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
           Coach
         </button>
       </div>
-      <div className="flex flex-wrap items-start gap-2">
-        <textarea
-          ref={mergedRef}
-          id="quick-intention"
-          aria-label="Your question or intention (optional)"
-          value={userQuestion}
-          onChange={(event) => onQuestionChange(event.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={onInputFocus}
-          onBlur={onInputBlur}
-          placeholder={placeholderQuestion}
-          rows={1}
-          // Mirrors the server contract (and the desktop question input) so an
-          // over-long paste is trimmed here rather than rejected after the ritual.
-          maxLength={USER_QUESTION_MAX_LENGTH}
-          enterKeyHint="done"
-          aria-describedby={helperId}
-          className="min-w-0 flex-1 basis-44 min-h-touch rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main caret-accent placeholder:text-secondary focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/50 resize-none"
-        />
+      <QuestionInput
+        variant="compact"
+        id="quick-intention"
+        inputRef={inputRef}
+        userQuestion={userQuestion}
+        setUserQuestion={onQuestionChange}
+        onFocus={onInputFocus}
+        onBlur={onInputBlur}
+        placeholderQuestion={placeholderQuestion}
+        onPlaceholderRefresh={onPlaceholderRefresh}
+      />
+      <div className="flex flex-wrap items-center gap-2 text-xs text-secondary">
+        <span className="min-w-0 break-words font-semibold">
+          {DECK_OPTIONS.find(d => d.id === deckStyleId)?.label || 'Selected deck'}
+        </span>
+        <button
+          type="button"
+          onClick={onDeckChange}
+          aria-haspopup="dialog"
+          aria-label="Change deck"
+          className="min-h-touch min-w-touch px-3 py-2 text-xs font-semibold text-secondary underline underline-offset-4 rounded-lg hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          Change
+        </button>
         <button
           type="button"
           onClick={onMoreOpen}
@@ -143,36 +115,6 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
             <GearSix className="w-4 h-4" weight="duotone" aria-hidden="true" />
             <span className="hidden xxs:inline">More</span>
           </span>
-        </button>
-      </div>
-      <button
-        type="button"
-        onClick={() => {
-          setHasRequestedExample(true);
-          onPlaceholderRefresh?.();
-        }}
-        className="inline-flex min-h-touch items-center gap-2 self-start rounded-full border border-secondary/35 px-3 py-1.5 text-xs font-semibold text-secondary hover:text-main hover:border-secondary/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        aria-label="Inspire me with a new example intention"
-      >
-        <ArrowsClockwise className="w-3.5 h-3.5" aria-hidden="true" />
-        Inspire me
-      </button>
-      {/* The new example only changes the placeholder, which nothing announces. */}
-      <span className="sr-only" role="status" aria-live="polite">
-        {hasRequestedExample && placeholderQuestion ? `Example: ${placeholderQuestion}` : ''}
-      </span>
-      <div className="flex flex-wrap items-center gap-2 text-xs text-secondary">
-        <span className="inline-flex items-center gap-1 rounded-full border border-secondary/40 bg-surface px-2.5 py-1 font-semibold text-secondary/90">
-          Deck: {DECK_OPTIONS.find(d => d.id === deckStyleId)?.label || 'Selected'}
-        </span>
-        <button
-          type="button"
-          onClick={onDeckChange}
-          aria-haspopup="dialog"
-          aria-label="Change deck"
-          className="min-h-touch min-w-touch px-3 py-2 text-xs font-semibold text-secondary underline underline-offset-4 rounded-lg hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          Change
         </button>
       </div>
       {selectedSpread && userQuestion.trim().length > 0 && (

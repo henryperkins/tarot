@@ -199,11 +199,11 @@ export function ReadingPreparation({
                     })}
                 </div>
 
-                <div className="rounded-xl border border-secondary/20 bg-surface/40 px-3 py-2 text-2xs text-muted flex items-center justify-between gap-2">
+                <div className="px-1 text-xs text-muted flex flex-wrap items-center justify-between gap-2">
                     <span>Audio and appearance live in Settings.</span>
                     <Link
                         to="/account#audio"
-                        className="text-accent underline underline-offset-2 text-2xs font-semibold"
+                        className="min-h-touch inline-flex items-center rounded-lg px-2 text-accent underline underline-offset-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
                         Open Settings
                     </Link>
@@ -243,36 +243,15 @@ export function ReadingPreparation({
             <div className="relative z-10 space-y-5">
                 <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <p className="text-2xs uppercase tracking-[0.22em] text-gold-soft">Prepare Your Reading</p>
-                        <p className="text-xs text-muted max-w-2xl">
-                            Set your intention, choose your deck, and complete the ritual before drawing.
+                        <h2 className="font-serif text-xl text-accent">Prepare your reading</h2>
+                        <p className="mt-1 text-sm text-muted max-w-2xl">
+                            Add an optional question and settle into your reading.
                         </p>
-                    </div>
-                    <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-2xs text-accent backdrop-blur">
-                        <span className="w-1.5 h-1.5 rounded-full bg-gold-soft animate-pulse" aria-hidden="true" />
-                        <span>All-in-one prep</span>
                     </div>
                 </header>
 
-                <div className="prepare-summary-chip">
-                    <span>{prepareSummaries.intention}</span>
-                    {!shouldSkipRitual && (
-                        <>
-                            <span aria-hidden="true">·</span>
-                            <span>{prepareSummaries.ritual}</span>
-                        </>
-                    )}
-                </div>
-
                 <div className="space-y-4">
                     <div className="prepare-card">
-                        <div className="prepare-card__header">
-                            <div>
-                                <p className="font-serif text-accent text-base leading-tight">Intention</p>
-                                <p className="text-xs text-muted">Set your guiding prompt before you draw — always available without expanding a panel.</p>
-                            </div>
-                            <span className="prepare-card__badge">Inline</span>
-                        </div>
                         <div className="prepare-card__body">
                             {renderSectionContent('intention')}
                         </div>
@@ -283,7 +262,7 @@ export function ReadingPreparation({
                             <button
                                 type="button"
                                 onClick={() => togglePrepareSection(section)}
-                                className="prepare-card__toggle"
+                                className="prepare-card__toggle min-h-touch"
                                 aria-expanded={prepareSectionsOpen[section]}
                             >
                                 <div>
@@ -308,10 +287,7 @@ export function ReadingPreparation({
                 </div>
 
                 <div className="deck-panel-footnote prepare-panel-footnote">
-                    <p className="text-2xs leading-relaxed text-muted">
-                        <strong className="text-accent">Tip:</strong> Complete preparation before drawing to help the AI craft a personalized reading.
-                    </p>
-                    <p className="text-2xs leading-relaxed text-muted">
+                    <p className="text-xs leading-relaxed text-muted">
                         Audio and appearance live in{' '}
                         <Link to="/account#audio" className="text-accent underline underline-offset-2 font-semibold">
                             Settings
