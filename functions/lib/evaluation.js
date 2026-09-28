@@ -472,14 +472,17 @@ function collectNames(text, patterns) {
 }
 
 /**
- * Redact every whole-word mention of the given names, in any case. A trailing
- * possessive is kept ("Sam's" -> "[NAME]'s").
+ * Redact every whole-word mention of the given names. A trailing possessive is
+ * kept ("Sam's" -> "[NAME]'s").
  *
  * @param {string} text - Text to redact
  * @param {string[]} names - Names to redact
+ * @param {Object} [options]
+ * @param {boolean} [options.caseSensitive] - Match only as written, for names
+ *   guessed from capitalization
  * @returns {string} Redacted text
  */
-function redactKnownNames(text, names = []) {
+function redactKnownNames(text, names = [], { caseSensitive = false } = {}) {
   const uniqueNames = Array.from(new Set(
     names
       .filter((name) => typeof name === 'string')
@@ -490,7 +493,10 @@ function redactKnownNames(text, names = []) {
   return uniqueNames.reduce((redacted, name) => {
     try {
       const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+');
-      const namePattern = new RegExp(`(?<![\\p{L}\\p{N}_])${escapedName}(?![\\p{L}\\p{N}_])`, 'giu');
+      const namePattern = new RegExp(
+        `(?<![\\p{L}\\p{N}_])${escapedName}(?![\\p{L}\\p{N}_])`,
+        caseSensitive ? 'gu' : 'giu'
+      );
       return redacted.replace(namePattern, '[NAME]');
     } catch {
       return redacted;
@@ -525,7 +531,8 @@ function redactUserQuestion(text, { names = [] } = {}) {
   // Redact SSN patterns
   redacted = redacted.replace(/\b\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\b/g, '[SSN]');
 
-  return redactKnownNames(redacted, [...names, ...collectNames(redacted, QUESTION_NAME_PATTERNS)]);
+  redacted = redactKnownNames(redacted, names);
+  return redactKnownNames(redacted, collectNames(redacted, QUESTION_NAME_PATTERNS), { caseSensitive: true });
 }
 
 /**
@@ -534,10 +541,12 @@ function redactUserQuestion(text, { names = [] } = {}) {
  *
  * @param {string} text - Reading text, or evaluator output that quotes it
  * @param {Object} [options]
- * @param {string[]} [options.names] - Known names to redact everywhere
+ * @param {string[]} [options.names] - Known names to redact in any case
+ * @param {string[]} [options.questionNames] - Names guessed from the question,
+ *   redacted only where capitalized
  * @returns {string} Redacted text
  */
-function redactReadingText(text, { names = [] } = {}) {
+function redactReadingText(text, { names = [], questionNames = [] } = {}) {
   if (!text || typeof text !== 'string') return '';
 
   let redacted = text;
@@ -557,23 +566,27 @@ function redactReadingText(text, { names = [] } = {}) {
   }
   redacted = redacted.replace(ISO_DATE_REGEX, '[DATE]');
 
-  return redactKnownNames(redacted, names);
+  redacted = redactKnownNames(redacted, names);
+  return redactKnownNames(redacted, questionNames, { caseSensitive: true });
 }
 
 /**
- * Names to redact from every stored text field: the display name, names found
- * in the question, reflections and memories (redactionNames), and names the
- * question introduces, since the reading can repeat any of them.
+ * Names to redact from every stored text field, since the reading can repeat
+ * any of them: the display name and names found in the question, reflections
+ * and memories (redactionNames), plus names guessed from the question's
+ * wording, which only match where capitalized.
  *
  * @param {Object} evalParams - Evaluation parameters
- * @returns {string[]} Names to redact
+ * @returns {{ names: string[], questionNames: string[] }} Names to redact
  */
 function collectStorageNames(evalParams = {}) {
-  return [
-    evalParams.displayName,
-    ...(Array.isArray(evalParams.redactionNames) ? evalParams.redactionNames : []),
-    ...collectNames(evalParams.userQuestion, QUESTION_NAME_PATTERNS)
-  ];
+  return {
+    names: [
+      evalParams.displayName,
+      ...(Array.isArray(evalParams.redactionNames) ? evalParams.redactionNames : [])
+    ],
+    questionNames: collectNames(evalParams.userQuestion, QUESTION_NAME_PATTERNS)
+  };
 }
 
 /**
@@ -801,14 +814,14 @@ function buildStoragePayload({ metricsPayload, evalPayload, evalParams, storageM
     case 'redact':
     default: {
       // Default: Store redacted versions for debugging while protecting PII
-      const names = collectStorageNames(evalParams);
+      const storageNames = collectStorageNames(evalParams);
       return {
         ...sanitizedMetrics,
-        eval: sanitizeEvalText(evalPayload, (text) => redactReadingText(text, { names })),
+        eval: sanitizeEvalText(evalPayload, (text) => redactReadingText(text, storageNames)),
         reversalFramework,
-        readingText: redactReadingText(evalParams.reading, { names }),
+        readingText: redactReadingText(evalParams.reading, storageNames),
         cardsInfo: sanitizeCardsInfo(evalParams.cardsInfo),
-        userQuestion: redactUserQuestion(evalParams.userQuestion, { names }),
+        userQuestion: redactUserQuestion(evalParams.userQuestion, { names: storageNames.names }),
         _storageMode: 'redact'
       };
     }

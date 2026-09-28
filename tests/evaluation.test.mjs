@@ -1825,6 +1825,14 @@ describe('evaluation', () => {
         assert.equal(stored.readingText, '[NAME] may need time before she answers.');
       });
 
+      test('matches a name guessed from a question possessive only where it is capitalized', async () => {
+        const stored = await storeEval({
+          userQuestion: "Grief's grip won't loosen. How do I move forward?",
+          reading: 'Your grief deserves room before you choose.'
+        });
+        assert.equal(stored.readingText, 'Your grief deserves room before you choose.');
+      });
+
       test('does not read "I am" or "I\'m" followed by an ordinary word as a name', async () => {
         const userQuestion = "I'm feeling stuck at work and I am unsure what to focus on.";
         const stored = await storeEval({ userQuestion });
