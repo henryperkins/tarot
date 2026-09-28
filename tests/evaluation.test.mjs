@@ -11,6 +11,7 @@ import {
   getEvaluationGateTimeoutMs
 } from '../functions/lib/evaluation.js';
 import { buildPromptTelemetry } from '../functions/lib/telemetrySchema.js';
+import { buildReadingRedactionOptions } from '../functions/lib/promptEngineering.js';
 
 const mockAI = {
   run: async () => ({ response: '' })
@@ -158,6 +159,111 @@ describe('evaluation', () => {
       assert.equal(result.scores.safety_flag, false);
       assert.equal(result.model, '@cf/qwen/qwen3-30b-a3b-fp8');
       assert.equal(result.promptVersion, '2.4.0');
+    });
+
+    test('keeps a bounded evidence block from the evaluator response', async () => {
+      const longQuote = 'x'.repeat(300);
+      mockAI.run = async () => ({
+        response: JSON.stringify({
+          evidence: {
+            personalization_pairs: [
+              { question: 'calm awareness', reading: 'with calm awareness, notice the pull' },
+              { question: 'no reading side' },
+              ...Array.from({ length: 7 }, (_, index) => ({ question: `q${index}`, reading: longQuote }))
+            ],
+            cross_card_links: ['The Tower breaks what the Emperor built', 42, ''],
+            hard_imperatives: [],
+            unknown_key: ['dropped']
+          },
+          personalization: 4, tarot_coherence: 4, tone: 4, safety: 5, overall: 4, safety_flag: false
+        })
+      });
+
+      const result = await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
+        reading: 'Your reading shows...', userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'eval-evidence'
+      });
+
+      const { personalization_pairs: pairs, cross_card_links: links, hard_imperatives: imperatives } = result.evidence;
+      assert.equal(pairs.length, 6);
+      assert.deepEqual(pairs[0], { question: 'calm awareness', reading: 'with calm awareness, notice the pull' });
+      assert.equal(pairs[1].reading.length, 180);
+      assert.deepEqual(links, ['The Tower breaks what the Emperor built']);
+      assert.deepEqual(imperatives, []);
+      assert.deepEqual(Object.keys(result.evidence).sort(), ['cross_card_links', 'hard_imperatives', 'personalization_pairs']);
+    });
+
+    test('reports no evidence when the evaluator omits it', async () => {
+      mockAI.run = async () => ({
+        response: JSON.stringify({ personalization: 3, tarot_coherence: 3, tone: 3, safety: 5, overall: 3, safety_flag: false })
+      });
+
+      const result = await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
+        reading: 'Your reading shows...', userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'eval-no-evidence'
+      });
+
+      assert.equal(result.evidence, null);
+    });
+
+    test('keeps evaluator notes up to 600 characters', async () => {
+      mockAI.run = async () => ({
+        response: JSON.stringify({
+          personalization: 3, tarot_coherence: 3, tone: 3, safety: 5, overall: 3, safety_flag: false,
+          notes: 'n'.repeat(700)
+        })
+      });
+
+      const result = await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
+        reading: 'Your reading shows...', userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'eval-notes'
+      });
+
+      assert.equal(result.scores.notes.length, 600);
+    });
+
+    test('storage-only fields never change the evaluator request', async () => {
+      const requests = [];
+      mockAI.run = async (model, params) => {
+        requests.push(JSON.stringify({ model, params }));
+        return { response: JSON.stringify({ personalization: 3, tarot_coherence: 3, tone: 3, safety: 5, overall: 3, safety_flag: false }) };
+      };
+      const params = {
+        reading: 'Henry, the Star asks for patience.',
+        userQuestion: 'How can I trust myself again?',
+        cardsInfo: [{ position: 'Present', card: 'The Star', orientation: 'Reversed' }],
+        spreadKey: 'single',
+        requestId: 'eval-request'
+      };
+
+      await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, params);
+      await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
+        ...params,
+        displayName: 'Henry',
+        redactionNames: ['Henry'],
+        reflectionsText: 'Sarah keeps coming to mind.',
+        reversalFramework: 'blocked'
+      });
+
+      assert.equal(requests.length, 2);
+      assert.equal(requests[1], requests[0]);
+    });
+
+    test('logs the length of evaluator notes, not their text', async (t) => {
+      const logged = [];
+      t.mock.method(console, 'log', (...args) => logged.push(JSON.stringify(args)));
+      mockAI.run = async () => ({
+        response: JSON.stringify({
+          personalization: 3, tarot_coherence: 3, tone: 3, safety: 5, overall: 3, safety_flag: false,
+          notes: "'Henry' is used by name."
+        })
+      });
+
+      await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
+        reading: 'Henry, rest.', userQuestion: 'q', cardsInfo: [], spreadKey: 'single', requestId: 'eval-log'
+      });
+
+      const scoreLine = logged.find((line) => line.includes('[eval] Scores:'));
+      assert.ok(scoreLine);
+      assert.doesNotMatch(scoreLine, /Henry/);
+      assert.match(scoreLine, /"notesLength":24/);
     });
 
     test('normalizes string safety_flag values', async () => {
@@ -531,6 +637,20 @@ describe('evaluation', () => {
       const storedEval = JSON.parse(payloadBinding).eval;
       assert.equal(storedEval.scores.tone, 3);
       assert.equal(storedEval.tone_before_cap, 4);
+      assert.equal(storedEval.scores.notes, 'Deterministic tone cap (hard_imperative)');
+    });
+
+    test('keeps the tone-cap note when the evaluator note is long', async () => {
+      const env = { AI: mockAI, EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'true' };
+      mockAI.run = async () => ({ response: JSON.stringify({ ...modelScores, notes: 'n'.repeat(700) }) });
+
+      const result = await runSyncEvaluationGate(env, {
+        reading: directiveReading, userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'tone-cap-long-note'
+      });
+
+      const { notes } = result.evalResult.scores;
+      assert.equal(notes.length, 600);
+      assert.ok(notes.endsWith('nnn; Deterministic tone cap (hard_imperative)'));
     });
   });
 
@@ -1669,6 +1789,295 @@ describe('evaluation', () => {
       assert.ok(!('cardsInfo' in storedData));
       assert.equal(storedData.eval.scores.overall, 4);
       assert.equal(storedData.cardCount, 1);
+    });
+
+    describe('stored text redaction', () => {
+      const modelEval = {
+        scores: { personalization: 4, tarot_coherence: 4, tone: 4, safety: 5, overall: 4, safety_flag: false },
+        model: 'gate-model',
+        latencyMs: 10,
+        promptVersion: '2.4.0',
+        mode: 'model'
+      };
+
+      async function storeEval(evalParams, { evalResult = modelEval, storageMode = 'redact' } = {}) {
+        const mockDB = new MockDB();
+        const waitPromises = [];
+        scheduleEvaluation(
+          { EVAL_ENABLED: 'true', DB: mockDB, METRICS_STORAGE_MODE: storageMode },
+          { reading: '', userQuestion: '', cardsInfo: [], spreadKey: 'threeCard', requestId: 'stored-redaction', ...evalParams },
+          { requestId: 'stored-redaction', spreadKey: 'threeCard', provider: 'claude' },
+          { waitUntil: (p) => waitPromises.push(p), precomputedEvalResult: evalResult }
+        );
+        await Promise.all(waitPromises);
+        const payloadBinding = mockDB.getLastQuery().bindings.find((b) => typeof b === 'string' && b.startsWith('{'));
+        return JSON.parse(payloadBinding);
+      }
+
+      test('keeps contractions and card possessives in the stored reading', async () => {
+        const reading = "It's a turning point. The World's promise meets the Hanged Man's pause. That's your cue.";
+        const stored = await storeEval({ reading });
+        assert.equal(stored.readingText, reading);
+      });
+
+      test('does not read ordinary words after "remember" or "for you" as a name', async () => {
+        const reading = 'Remember that you can choose. What this means for you right now is rest.';
+        const stored = await storeEval({ reading });
+        assert.equal(stored.readingText, reading);
+      });
+
+      test('does not read a card after "remember" or "for you" as a name', async () => {
+        const reading = 'Remember, The Star keeps its promise. For you, Strength asks for patience.';
+        const stored = await storeEval({ reading });
+        assert.equal(stored.readingText, reading);
+      });
+
+      test('still redacts an unknown name the reading addresses directly', async () => {
+        const stored = await storeEval({ reading: 'Remember, Jordan, your choices matter.' });
+        assert.equal(stored.readingText, 'Remember, [NAME], your choices matter.');
+      });
+
+      test('redacts every mention of a name passed from memory context', async () => {
+        const stored = await storeEval({
+          reading: "Henry, the Hermit asks you to slow down. This week, Henry's focus can soften.",
+          redactionNames: ['Henry']
+        });
+        assert.equal(stored.readingText, "[NAME], the Hermit asks you to slow down. This week, [NAME]'s focus can soften.");
+      });
+
+      test('keeps contractions in the stored question and redacts possessive names', async () => {
+        const stored = await storeEval({ userQuestion: "What's next for Sarah's career? It's been a hard year." });
+        assert.equal(stored.userQuestion, "What's next for [NAME]'s career? It's been a hard year.");
+      });
+
+      test('redacts a name from the question wherever the reading repeats it', async () => {
+        const stored = await storeEval({
+          userQuestion: "Will Sarah's feelings change?",
+          reading: 'Sarah may need time before she answers.'
+        });
+        assert.equal(stored.readingText, '[NAME] may need time before she answers.');
+      });
+
+      test('matches a name guessed from a question possessive only where it is capitalized', async () => {
+        const stored = await storeEval({
+          userQuestion: "Winter's grip won't loosen. How do I move forward?",
+          reading: 'Your winter deserves room before you choose.'
+        });
+        assert.equal(stored.readingText, 'Your winter deserves room before you choose.');
+      });
+
+      test('redacts a mid-sentence possessive name that is also an ordinary word', async () => {
+        const stored = await storeEval({
+          userQuestion: "How is May's new job going to change things?",
+          reading: "May's new job asks for patience."
+        });
+        assert.equal(stored.userQuestion, "How is [NAME]'s new job going to change things?");
+        assert.equal(stored.readingText, "[NAME]'s new job asks for patience.");
+      });
+
+      test('ignores a capitalized topic the name extractor reads after "about"', async () => {
+        const userQuestion = 'What should I know about Grief right now?';
+        const reading = 'Your grief deserves room. Grief softens with time.';
+        const { additionalNames } = buildReadingRedactionOptions({ userQuestion });
+        const stored = await storeEval({ userQuestion, reading, redactionNames: additionalNames });
+        assert.equal(stored.userQuestion, userQuestion);
+        assert.equal(stored.readingText, reading);
+      });
+
+      test('does not read "I am" or "I\'m" followed by an ordinary word as a name', async () => {
+        const userQuestion = "I'm feeling stuck at work and I am unsure what to focus on.";
+        const stored = await storeEval({ userQuestion });
+        assert.equal(stored.userQuestion, userQuestion);
+      });
+
+      test('redacts names in evaluator notes and weaknesses', async () => {
+        const stored = await storeEval(
+          { reading: 'Henry, the Sun is warm.', redactionNames: ['Henry'] },
+          {
+            evalResult: {
+              ...modelEval,
+              scores: { ...modelEval.scores, notes: "'Henry' is used; the reading echoes 'calm awareness'." },
+              weaknesses_found: ['Addresses Henry but the advice stays generic']
+            }
+          }
+        );
+        assert.equal(stored.eval.scores.notes, "'[NAME]' is used; the reading echoes 'calm awareness'.");
+        assert.deepEqual(stored.eval.weaknesses_found, ['Addresses [NAME] but the advice stays generic']);
+      });
+
+      test('redacts the raw evaluator response kept after a parse failure', async () => {
+        const stored = await storeEval(
+          { reading: 'Henry, the Sun is warm.', redactionNames: ['Henry'], narrativeMetrics: { cardCoverage: 1 } },
+          { evalResult: { error: 'invalid_json', rawResponse: 'Henry reads the Sun well but' } }
+        );
+        assert.equal(stored.eval.mode, 'heuristic');
+        assert.equal(stored.eval.rawResponseSnippet, '[NAME] reads the Sun well but');
+      });
+
+      test('drops evaluator free text in minimal mode', async () => {
+        const stored = await storeEval(
+          { reading: 'Henry, the Sun is warm.' },
+          {
+            storageMode: 'minimal',
+            evalResult: {
+              ...modelEval,
+              scores: { ...modelEval.scores, notes: "'Henry' is used." },
+              weaknesses_found: ['Addresses Henry']
+            }
+          }
+        );
+        assert.equal(stored.eval.scores.notes, null);
+        assert.equal(stored.eval.weaknesses_found, null);
+        assert.equal(stored.eval.scores.overall, 4);
+      });
+
+      const evidenceEval = {
+        ...modelEval,
+        evidence: {
+          personalization_pairs: [{ question: 'support Henry this week', reading: 'Henry, this week asks for rest.' }],
+          cross_card_links: ['The Tower breaks what Henry built with the Emperor'],
+          hard_imperatives: []
+        }
+      };
+
+      test('redacts evidence quotes in redact mode', async () => {
+        const stored = await storeEval(
+          { reading: 'Henry, this week asks for rest.', redactionNames: ['Henry'] },
+          { evalResult: evidenceEval }
+        );
+        assert.deepEqual(stored.eval.evidence, {
+          personalization_pairs: [{ question: 'support [NAME] this week', reading: '[NAME], this week asks for rest.' }],
+          cross_card_links: ['The Tower breaks what [NAME] built with the Emperor'],
+          hard_imperatives: []
+        });
+      });
+
+      test('drops evidence in minimal mode', async () => {
+        const stored = await storeEval({ reading: 'Henry, this week asks for rest.' }, { storageMode: 'minimal', evalResult: evidenceEval });
+        assert.equal(stored.eval.evidence, null);
+      });
+
+      test('drops evidence values that are not lists', async () => {
+        const stored = await storeEval(
+          { reading: 'r', redactionNames: ['Henry'] },
+          { evalResult: { ...modelEval, evidence: { personalization_pairs: 'Henry said yes' } } }
+        );
+        assert.equal(stored.eval.evidence.personalization_pairs, null);
+      });
+
+      test('ignores question words the name extractor mistakes for names', async () => {
+        const userQuestion = 'Will my partner and I reconcile this year?';
+        const reading = 'The Lovers suggest you will need patience. Will you choose it?';
+        const { additionalNames } = buildReadingRedactionOptions({ userQuestion });
+        const stored = await storeEval({ userQuestion, reading, redactionNames: additionalNames });
+        assert.equal(stored.readingText, reading);
+      });
+
+      test('ignores card names that stored memories mention', async () => {
+        const memories = [{ text: 'User often connects with Strength and feels calm about Death appearing.' }];
+        const reading = 'Strength asks for patience. Death marks an ending, not a literal death.';
+        const { additionalNames } = buildReadingRedactionOptions({ userQuestion: 'What supports me today?', memories });
+        const stored = await storeEval({ userQuestion: 'What supports me today?', reading, redactionNames: additionalNames });
+        assert.equal(stored.readingText, reading);
+      });
+
+      test('redacts a lowercase name after an explicit introduction', async () => {
+        const stored = await storeEval({
+          userQuestion: 'my name is sarah and i feel stuck. call me sarah.',
+          reading: 'Sarah, rest before you decide.'
+        });
+        assert.equal(stored.userQuestion, 'my name is [NAME] and i feel stuck. call me [NAME].');
+        assert.equal(stored.readingText, '[NAME], rest before you decide.');
+      });
+
+      test('redacts introduced names that are also ordinary words', async () => {
+        const stored = await storeEval({ userQuestion: "I'm Leo, a Scorpio. Call me Will." });
+        assert.equal(stored.userQuestion, "I'm [NAME], a Scorpio. Call me [NAME].");
+      });
+
+      test('redacts accented names', async () => {
+        const stored = await storeEval({ userQuestion: "I'm José. What about my career?", reading: 'José, the Star is near.' });
+        assert.equal(stored.userQuestion, "I'm [NAME]. What about my career?");
+        assert.equal(stored.readingText, '[NAME], the Star is near.');
+      });
+
+      test('redacts a name from the reflections wherever the reading repeats it', async () => {
+        const stored = await storeEval({
+          reflectionsText: "Sarah's silence still hurts.",
+          reading: "Sarah's silence sits with the Five of Cups."
+        });
+        assert.equal(stored.readingText, "[NAME]'s silence sits with the Five of Cups.");
+      });
+
+      test('keeps the greeting when a greeted name is followed by "remember"', async () => {
+        const stored = await storeEval({ reading: 'Hello Maya, remember the Six of Wands. Hello again tomorrow.' });
+        assert.equal(stored.readingText, 'Hello [NAME], remember the Six of Wands. Hello again tomorrow.');
+      });
+
+      test('redacts a name the reading addresses everywhere it appears', async () => {
+        const stored = await storeEval(
+          { reading: 'Remember, Jordan, your choices matter. Jordan may need rest.' },
+          { evalResult: { ...modelEval, scores: { ...modelEval.scores, notes: "'Jordan' is used by name." } } }
+        );
+        assert.equal(stored.readingText, 'Remember, [NAME], your choices matter. [NAME] may need rest.');
+        assert.equal(stored.eval.scores.notes, "'[NAME]' is used by name.");
+      });
+
+      test('redacts dates the evaluator quotes from the question', async () => {
+        const stored = await storeEval(
+          { userQuestion: 'I was born 03/14/1990, what now?', reading: 'r' },
+          { evalResult: { ...modelEval, scores: { ...modelEval.scores, notes: "Echoes 'born 03/14/1990' but stays generic." } } }
+        );
+        assert.equal(stored.userQuestion, 'I was born [DATE], what now?');
+        assert.equal(stored.eval.scores.notes, "Echoes 'born [DATE]' but stays generic.");
+      });
+
+      test('leaves evaluator phrasing that only looks like addressing someone', async () => {
+        const notes = 'Personalization: Generic, consider more specific references. Coherence: Strong, here the Tower is used well.';
+        const stored = await storeEval({ reading: 'r' }, { evalResult: { ...modelEval, scores: { ...modelEval.scores, notes } } });
+        assert.equal(stored.eval.scores.notes, notes);
+      });
+
+      test('does not treat a life area in a question possessive as a name', async () => {
+        const reading = 'Work is asking you to rest.';
+        const stored = await storeEval({ userQuestion: "Work's been draining lately.", reading });
+        assert.equal(stored.readingText, reading);
+      });
+
+      test('leaves discourse adverbs and headings after "remember" or "consider"', async () => {
+        const reading = 'Ultimately, remember the Star. Lastly, consider the Moon.\n## Remember Who You Are';
+        const stored = await storeEval({ reading });
+        assert.equal(stored.readingText, reading);
+      });
+
+      test('does not nest placeholders when a name matches "NAME"', async () => {
+        const stored = await storeEval({ reading: 'Remember, Sarah, rest.', displayName: 'name' });
+        assert.equal(stored.readingText, 'Remember, [NAME], rest.');
+      });
+
+      test('redacts each part of a multi-word name', async () => {
+        const stored = await storeEval({ reading: 'Henry, rest. The Perkins family agrees.', redactionNames: ['Henry Perkins'] });
+        assert.equal(stored.readingText, '[NAME], rest. The [NAME] family agrees.');
+      });
+    });
+
+    test('stores the reversal framework in every storage mode', async () => {
+      for (const storageMode of ['full', 'redact', 'minimal']) {
+        const mockDB = new MockDB();
+        const waitPromises = [];
+        scheduleEvaluation(
+          { EVAL_ENABLED: 'true', DB: mockDB, METRICS_STORAGE_MODE: storageMode },
+          { reading: 'r', userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'reversal-framework', reversalFramework: 'blocked' },
+          { requestId: 'reversal-framework', spreadKey: 'threeCard' },
+          {
+            waitUntil: (p) => waitPromises.push(p),
+            precomputedEvalResult: { scores: { personalization: 3, tarot_coherence: 3, tone: 3, safety: 5, overall: 3, safety_flag: false }, mode: 'model' }
+          }
+        );
+        await Promise.all(waitPromises);
+        const payloadBinding = mockDB.getLastQuery().bindings.find((b) => typeof b === 'string' && b.startsWith('{'));
+        assert.equal(JSON.parse(payloadBinding).reversalFramework, 'blocked', storageMode);
+      }
     });
   });
 

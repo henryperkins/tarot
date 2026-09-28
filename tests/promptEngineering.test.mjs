@@ -10,7 +10,8 @@ import {
   stripUserPromptContent,
   shouldAllowUnredactedPromptStorage,
   buildPromptEngineeringPayload,
-  buildPromptRedactionOptions
+  buildPromptRedactionOptions,
+  buildReadingRedactionOptions
 } from '../functions/lib/promptEngineering.js';
 import { estimateTokenCount } from '../functions/lib/narrative/prompts/budgeting.js';
 import { truncateToTokenBudget, truncateUserPromptSafely } from '../functions/lib/narrative/prompts/truncation.js';
@@ -652,6 +653,43 @@ describe('buildPromptRedactionOptions', () => {
     assert.equal(options.additionalNames.length, 24);
     assert.ok(!options.additionalNames.includes('Name0'));
     assert.ok(!options.additionalNames.includes('A'));
+  });
+
+  test('extracts the querent name from memory self-references', () => {
+    const options = buildPromptRedactionOptions({
+      additionalTextSources: [
+        'User (Henry) asks for grounded, practical advice.',
+        "The querent's name is Sam.",
+        'Prefers to be called Robin.'
+      ]
+    });
+
+    assert.deepEqual(options.additionalNames, ['Henry', 'Sam', 'Robin']);
+  });
+
+  test('does not read memory parentheticals that are not names', () => {
+    const options = buildPromptRedactionOptions({
+      additionalTextSources: [
+        'User (Pro tier) prefers short readings.',
+        'Querent (Capricorn sun) values structure.'
+      ]
+    });
+
+    assert.deepEqual(options.additionalNames || [], []);
+  });
+});
+
+describe('buildReadingRedactionOptions', () => {
+  test('collects names from the display name, question, reflections and stored memories', () => {
+    const options = buildReadingRedactionOptions({
+      personalization: { displayName: 'Casey' },
+      userQuestion: 'How do I support my partner Alex?',
+      reflectionsText: 'I keep thinking about Jamie.',
+      memories: [{ text: 'User (Henry) asks for grounded, practical advice.' }, { text: null }]
+    });
+
+    assert.equal(options.displayName, 'Casey');
+    assert.deepEqual(options.additionalNames, ['Alex', 'Jamie', 'Henry']);
   });
 });
 

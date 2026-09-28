@@ -17,6 +17,7 @@ import { verifyVisionProof } from '../lib/visionProof.js';
 import { buildVisionEvidencePackets } from '../lib/visionEvidence.js';
 import {
   buildPromptEngineeringPayload,
+  buildReadingRedactionOptions,
   shouldAllowUnredactedPromptStorage,
   shouldPersistPrompts
 } from '../lib/promptEngineering.js';
@@ -449,6 +450,13 @@ async function finalizeReading({
   const baseNarrativeMetrics = acceptedQualityMetrics || buildNarrativeMetrics(originalReading, cardsInfo, deckStyle);
   let finalNarrativeMetrics = baseNarrativeMetrics;
 
+  const readingRedactionOptions = buildReadingRedactionOptions({
+    personalization,
+    userQuestion,
+    reflectionsText,
+    memories: narrativePayload.memories
+  });
+
   const evalParams = {
     reading: originalReading,
     userQuestion,
@@ -456,6 +464,9 @@ async function finalizeReading({
     spreadKey: analysis.spreadKey,
     requestId,
     displayName: personalization?.displayName,
+    redactionNames: readingRedactionOptions.additionalNames || [],
+    reflectionsText,
+    reversalFramework: analysis.themes?.reversalFramework || null,
     narrativeMetrics: baseNarrativeMetrics
   };
 

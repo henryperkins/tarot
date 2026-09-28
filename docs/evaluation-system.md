@@ -603,8 +603,16 @@ Returns: `Promise<Object|null>`
     safety: 1-5,
     overall: 1-5,
     safety_flag: boolean,
-    notes: string | null
+    notes: string | null // up to 600 characters
   },
+  // Quotes the evaluator cites, when its response includes them: up to 6
+  // entries per key, 180 characters per quote. Unknown keys are dropped.
+  evidence: {
+    personalization_pairs?: { question: string, reading: string }[],
+    cross_card_links?: string[],
+    hard_imperatives?: string[],
+    deterministic_futures?: string[]
+  } | null,
   model: string,
   latencyMs: number,
   promptVersion: string,
@@ -618,11 +626,22 @@ Schedule async evaluation after response is sent.
 
 Parameters:
 - `env`
-- `evalParams`: params for `runEvaluation`
+- `evalParams`: params for `runEvaluation`, plus storage-only fields that are
+  never sent to the evaluator: `displayName`, `redactionNames` and
+  `reflectionsText` (sources of names to redact from stored text) and
+  `reversalFramework` (stored with the reading)
 - `metricsPayload`: metrics payload to update in D1
 - `options.waitUntil`: request context `waitUntil`
 
 Returns: `void` (async)
+
+In the default `redact` storage mode, the stored reading, question, evaluator
+notes, weaknesses, evidence and raw responses all get the same redaction:
+contact details, dates and names. The display name matches in any case; other
+names are guesses (from introductions, possessives, how the narrator addresses
+the querent, and the question, reflections and memories) and match only as
+written, after sentence openers and card or astrology words are trimmed.
+`minimal` mode drops all of this text.
 
 ### `checkEvalGate(evalResult)`
 
