@@ -666,6 +666,17 @@ describe('buildPromptRedactionOptions', () => {
 
     assert.deepEqual(options.additionalNames, ['Henry', 'Sam', 'Robin']);
   });
+
+  test('does not read memory parentheticals that are not names', () => {
+    const options = buildPromptRedactionOptions({
+      additionalTextSources: [
+        'User (Pro tier) prefers short readings.',
+        'Querent (Capricorn sun) values structure.'
+      ]
+    });
+
+    assert.deepEqual(options.additionalNames || [], []);
+  });
 });
 
 describe('buildReadingRedactionOptions', () => {

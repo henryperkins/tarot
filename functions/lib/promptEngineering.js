@@ -103,9 +103,10 @@ const NAME_HINT_PATTERNS = [
   ),
   new RegExp(String.raw`(${NAME_SEQUENCE})\s+and\s+(?:me|I)\b`, 'giu'),
   new RegExp(String.raw`(${NAME_SEQUENCE})['']s\\b`, 'giu'),
-  // Querent self-references in stored memories: "User (Henry) prefers…", "name is Henry"
-  new RegExp(String.raw`\b(?:user|querent|seeker|client)\s*\(\s*(${NAME_SEQUENCE})\s*\)`, 'giu'),
-  new RegExp(String.raw`\b(?:name\s+is|named|goes\s+by|prefers\s+to\s+be\s+called|call\s+me)\s+(${NAME_SEQUENCE})`, 'giu')
+  // Querent self-references in stored memories: "User (Henry) prefers…", "name is Henry".
+  // Case-sensitive so the parenthetical must be only capitalized words, unlike "User (Pro tier)".
+  new RegExp(String.raw`\b(?:[Uu]ser|[Qq]uerent|[Ss]eeker|[Cc]lient)\s*\(\s*(${NAME_SEQUENCE})\s*\)`, 'gu'),
+  new RegExp(String.raw`\b(?:[Nn]ame\s+is|[Nn]amed|[Gg]oes\s+by|[Pp]refers\s+to\s+be\s+called|[Cc]all\s+me)\s+(${NAME_SEQUENCE})`, 'gu')
 ];
 const HONORIFIC_AND_INITIAL_HINT_PATTERNS = [
   new RegExp(String.raw`\b(${HONORIFIC_NAME_SEQUENCE})\b`, 'gu'),

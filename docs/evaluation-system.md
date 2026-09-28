@@ -626,17 +626,22 @@ Schedule async evaluation after response is sent.
 
 Parameters:
 - `env`
-- `evalParams`: params for `runEvaluation`, plus storage-only fields:
-  `displayName` and `redactionNames` (names redacted from stored text) and
-  `reversalFramework` (stored with the reading, not sent to the evaluator)
+- `evalParams`: params for `runEvaluation`, plus storage-only fields that are
+  never sent to the evaluator: `displayName`, `redactionNames` and
+  `reflectionsText` (sources of names to redact from stored text) and
+  `reversalFramework` (stored with the reading)
 - `metricsPayload`: metrics payload to update in D1
 - `options.waitUntil`: request context `waitUntil`
 
 Returns: `void` (async)
 
 In the default `redact` storage mode, the stored reading, question, evaluator
-notes, weaknesses, evidence and raw responses are redacted with the same
-names. `minimal` mode drops all of them.
+notes, weaknesses, evidence and raw responses all get the same redaction:
+contact details, dates and names. The display name matches in any case; other
+names are guesses (from introductions, possessives, how the narrator addresses
+the querent, and the question, reflections and memories) and match only as
+written, after sentence openers and card or astrology words are trimmed.
+`minimal` mode drops all of this text.
 
 ### `checkEvalGate(evalResult)`
 

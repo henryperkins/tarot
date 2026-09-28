@@ -21,7 +21,7 @@ test('stored eval metrics redact a name that reaches the reading only through me
   assert.equal(memory.saved, true);
 
   t.mock.method(globalThis, 'fetch', async () => Response.json({
-    output_text: 'Henry, The Sun invites a gentle reflection today. Consider one small supportive choice, Henry. Your choices shape the way forward.'
+    output_text: "Henry, The Sun invites a gentle reflection today. Sarah's silence can soften in its warmth. Consider one small supportive choice, Henry. Your choices shape the way forward."
   }));
   const evaluator = {
     async run(model) {
@@ -41,7 +41,10 @@ test('stored eval metrics redact a name that reaches the reading only through me
       headers: { 'content-type': 'application/json', Cookie: 'session=session-1' },
       body: JSON.stringify({
         spreadInfo: { key: 'single', name: 'One-Card Insight' },
-        cardsInfo: [{ card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth and renewal.' }],
+        cardsInfo: [{
+          card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth and renewal.',
+          userReflection: "Sarah's silence still hurts."
+        }],
         userQuestion: 'What supports me today?'
       })
     }),
@@ -68,5 +71,6 @@ test('stored eval metrics redact a name that reaches the reading only through me
   assert.equal(stored._storageMode, 'redact');
   assert.equal(stored.eval.scores.notes, "'[NAME]' is used.");
   assert.doesNotMatch(stored.readingText, /Henry/);
+  assert.doesNotMatch(stored.readingText, /Sarah/, 'a name from a card reflection is redacted');
   assert.equal(stored.reversalFramework, 'none', 'an all-upright reading records the "none" framework');
 });

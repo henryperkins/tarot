@@ -11,6 +11,7 @@ import {
   getEvaluationGateTimeoutMs
 } from '../functions/lib/evaluation.js';
 import { buildPromptTelemetry } from '../functions/lib/telemetrySchema.js';
+import { buildReadingRedactionOptions } from '../functions/lib/promptEngineering.js';
 
 const mockAI = {
   run: async () => ({ response: '' })
@@ -218,19 +219,51 @@ describe('evaluation', () => {
       assert.equal(result.scores.notes.length, 600);
     });
 
-    test('does not add the reversal framework to the version 2.4.0 prompt', async () => {
-      let userPrompt = '';
-      mockAI.run = async (_model, params) => {
-        userPrompt = getUserPromptFromParams(params);
+    test('storage-only fields never change the evaluator request', async () => {
+      const requests = [];
+      mockAI.run = async (model, params) => {
+        requests.push(JSON.stringify({ model, params }));
         return { response: JSON.stringify({ personalization: 3, tarot_coherence: 3, tone: 3, safety: 5, overall: 3, safety_flag: false }) };
       };
+      const params = {
+        reading: 'Henry, the Star asks for patience.',
+        userQuestion: 'How can I trust myself again?',
+        cardsInfo: [{ position: 'Present', card: 'The Star', orientation: 'Reversed' }],
+        spreadKey: 'single',
+        requestId: 'eval-request'
+      };
 
+      await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, params);
       await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
-        reading: 'Your reading shows...', userQuestion: 'q', cardsInfo: [], spreadKey: 'threeCard', requestId: 'eval-prompt', reversalFramework: 'blocked'
+        ...params,
+        displayName: 'Henry',
+        redactionNames: ['Henry'],
+        reflectionsText: 'Sarah keeps coming to mind.',
+        reversalFramework: 'blocked'
       });
 
-      assert.ok(userPrompt.length > 0);
-      assert.doesNotMatch(userPrompt, /blocked|reversal framework/i);
+      assert.equal(requests.length, 2);
+      assert.equal(requests[1], requests[0]);
+    });
+
+    test('logs the length of evaluator notes, not their text', async (t) => {
+      const logged = [];
+      t.mock.method(console, 'log', (...args) => logged.push(JSON.stringify(args)));
+      mockAI.run = async () => ({
+        response: JSON.stringify({
+          personalization: 3, tarot_coherence: 3, tone: 3, safety: 5, overall: 3, safety_flag: false,
+          notes: "'Henry' is used by name."
+        })
+      });
+
+      await runEvaluation({ AI: mockAI, EVAL_ENABLED: 'true' }, {
+        reading: 'Henry, rest.', userQuestion: 'q', cardsInfo: [], spreadKey: 'single', requestId: 'eval-log'
+      });
+
+      const scoreLine = logged.find((line) => line.includes('[eval] Scores:'));
+      assert.ok(scoreLine);
+      assert.doesNotMatch(scoreLine, /Henry/);
+      assert.match(scoreLine, /"notesLength":24/);
     });
 
     test('normalizes string safety_flag values', async () => {
@@ -1827,10 +1860,28 @@ describe('evaluation', () => {
 
       test('matches a name guessed from a question possessive only where it is capitalized', async () => {
         const stored = await storeEval({
-          userQuestion: "Grief's grip won't loosen. How do I move forward?",
-          reading: 'Your grief deserves room before you choose.'
+          userQuestion: "Winter's grip won't loosen. How do I move forward?",
+          reading: 'Your winter deserves room before you choose.'
         });
-        assert.equal(stored.readingText, 'Your grief deserves room before you choose.');
+        assert.equal(stored.readingText, 'Your winter deserves room before you choose.');
+      });
+
+      test('redacts a mid-sentence possessive name that is also an ordinary word', async () => {
+        const stored = await storeEval({
+          userQuestion: "How is May's new job going to change things?",
+          reading: "May's new job asks for patience."
+        });
+        assert.equal(stored.userQuestion, "How is [NAME]'s new job going to change things?");
+        assert.equal(stored.readingText, "[NAME]'s new job asks for patience.");
+      });
+
+      test('ignores a capitalized topic the name extractor reads after "about"', async () => {
+        const userQuestion = 'What should I know about Grief right now?';
+        const reading = 'Your grief deserves room. Grief softens with time.';
+        const { additionalNames } = buildReadingRedactionOptions({ userQuestion });
+        const stored = await storeEval({ userQuestion, reading, redactionNames: additionalNames });
+        assert.equal(stored.userQuestion, userQuestion);
+        assert.equal(stored.readingText, reading);
       });
 
       test('does not read "I am" or "I\'m" followed by an ordinary word as a name', async () => {
@@ -1904,6 +1955,109 @@ describe('evaluation', () => {
       test('drops evidence in minimal mode', async () => {
         const stored = await storeEval({ reading: 'Henry, this week asks for rest.' }, { storageMode: 'minimal', evalResult: evidenceEval });
         assert.equal(stored.eval.evidence, null);
+      });
+
+      test('drops evidence values that are not lists', async () => {
+        const stored = await storeEval(
+          { reading: 'r', redactionNames: ['Henry'] },
+          { evalResult: { ...modelEval, evidence: { personalization_pairs: 'Henry said yes' } } }
+        );
+        assert.equal(stored.eval.evidence.personalization_pairs, null);
+      });
+
+      test('ignores question words the name extractor mistakes for names', async () => {
+        const userQuestion = 'Will my partner and I reconcile this year?';
+        const reading = 'The Lovers suggest you will need patience. Will you choose it?';
+        const { additionalNames } = buildReadingRedactionOptions({ userQuestion });
+        const stored = await storeEval({ userQuestion, reading, redactionNames: additionalNames });
+        assert.equal(stored.readingText, reading);
+      });
+
+      test('ignores card names that stored memories mention', async () => {
+        const memories = [{ text: 'User often connects with Strength and feels calm about Death appearing.' }];
+        const reading = 'Strength asks for patience. Death marks an ending, not a literal death.';
+        const { additionalNames } = buildReadingRedactionOptions({ userQuestion: 'What supports me today?', memories });
+        const stored = await storeEval({ userQuestion: 'What supports me today?', reading, redactionNames: additionalNames });
+        assert.equal(stored.readingText, reading);
+      });
+
+      test('redacts a lowercase name after an explicit introduction', async () => {
+        const stored = await storeEval({
+          userQuestion: 'my name is sarah and i feel stuck. call me sarah.',
+          reading: 'Sarah, rest before you decide.'
+        });
+        assert.equal(stored.userQuestion, 'my name is [NAME] and i feel stuck. call me [NAME].');
+        assert.equal(stored.readingText, '[NAME], rest before you decide.');
+      });
+
+      test('redacts introduced names that are also ordinary words', async () => {
+        const stored = await storeEval({ userQuestion: "I'm Leo, a Scorpio. Call me Will." });
+        assert.equal(stored.userQuestion, "I'm [NAME], a Scorpio. Call me [NAME].");
+      });
+
+      test('redacts accented names', async () => {
+        const stored = await storeEval({ userQuestion: "I'm José. What about my career?", reading: 'José, the Star is near.' });
+        assert.equal(stored.userQuestion, "I'm [NAME]. What about my career?");
+        assert.equal(stored.readingText, '[NAME], the Star is near.');
+      });
+
+      test('redacts a name from the reflections wherever the reading repeats it', async () => {
+        const stored = await storeEval({
+          reflectionsText: "Sarah's silence still hurts.",
+          reading: "Sarah's silence sits with the Five of Cups."
+        });
+        assert.equal(stored.readingText, "[NAME]'s silence sits with the Five of Cups.");
+      });
+
+      test('keeps the greeting when a greeted name is followed by "remember"', async () => {
+        const stored = await storeEval({ reading: 'Hello Maya, remember the Six of Wands. Hello again tomorrow.' });
+        assert.equal(stored.readingText, 'Hello [NAME], remember the Six of Wands. Hello again tomorrow.');
+      });
+
+      test('redacts a name the reading addresses everywhere it appears', async () => {
+        const stored = await storeEval(
+          { reading: 'Remember, Jordan, your choices matter. Jordan may need rest.' },
+          { evalResult: { ...modelEval, scores: { ...modelEval.scores, notes: "'Jordan' is used by name." } } }
+        );
+        assert.equal(stored.readingText, 'Remember, [NAME], your choices matter. [NAME] may need rest.');
+        assert.equal(stored.eval.scores.notes, "'[NAME]' is used by name.");
+      });
+
+      test('redacts dates the evaluator quotes from the question', async () => {
+        const stored = await storeEval(
+          { userQuestion: 'I was born 03/14/1990, what now?', reading: 'r' },
+          { evalResult: { ...modelEval, scores: { ...modelEval.scores, notes: "Echoes 'born 03/14/1990' but stays generic." } } }
+        );
+        assert.equal(stored.userQuestion, 'I was born [DATE], what now?');
+        assert.equal(stored.eval.scores.notes, "Echoes 'born [DATE]' but stays generic.");
+      });
+
+      test('leaves evaluator phrasing that only looks like addressing someone', async () => {
+        const notes = 'Personalization: Generic, consider more specific references. Coherence: Strong, here the Tower is used well.';
+        const stored = await storeEval({ reading: 'r' }, { evalResult: { ...modelEval, scores: { ...modelEval.scores, notes } } });
+        assert.equal(stored.eval.scores.notes, notes);
+      });
+
+      test('does not treat a life area in a question possessive as a name', async () => {
+        const reading = 'Work is asking you to rest.';
+        const stored = await storeEval({ userQuestion: "Work's been draining lately.", reading });
+        assert.equal(stored.readingText, reading);
+      });
+
+      test('leaves discourse adverbs and headings after "remember" or "consider"', async () => {
+        const reading = 'Ultimately, remember the Star. Lastly, consider the Moon.\n## Remember Who You Are';
+        const stored = await storeEval({ reading });
+        assert.equal(stored.readingText, reading);
+      });
+
+      test('does not nest placeholders when a name matches "NAME"', async () => {
+        const stored = await storeEval({ reading: 'Remember, Sarah, rest.', displayName: 'name' });
+        assert.equal(stored.readingText, 'Remember, [NAME], rest.');
+      });
+
+      test('redacts each part of a multi-word name', async () => {
+        const stored = await storeEval({ reading: 'Henry, rest. The Perkins family agrees.', redactionNames: ['Henry Perkins'] });
+        assert.equal(stored.readingText, '[NAME], rest. The [NAME] family agrees.');
       });
     });
 
