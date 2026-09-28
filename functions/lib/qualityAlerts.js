@@ -8,7 +8,7 @@
  * - Email (via Resend API)
  */
 
-import { sendAlertEmail } from './emailService.js';
+import { isEmailConfigured, sendAlertEmail } from './emailService.js';
 
 /**
  * Dispatch a single alert across all configured channels.
@@ -75,10 +75,10 @@ export async function dispatchAlert(env, alert, options = {}) {
     results.kv = 'skipped: no db';
   }
 
-  // 3. Email via Resend
+  // 3. Email
   if (skipEmail) {
     results.email = 'skipped: grouped';
-  } else if (env.RESEND_API_KEY && env.ALERT_EMAIL_TO) {
+  } else if (isEmailConfigured(env) && env.ALERT_EMAIL_TO) {
     try {
       const emailResult = await sendAlertEmail(env, alert, { dateStr });
       results.email = emailResult.success ? 'sent' : `error: ${emailResult.error}`;
@@ -201,7 +201,7 @@ async function dispatchAlertSummary(env, alerts, options = {}) {
 
   console.warn(`[QUALITY ALERT] Summary: ${alerts.length} warnings detected for ${dateStr}`);
 
-  if (env.RESEND_API_KEY && env.ALERT_EMAIL_TO) {
+  if (isEmailConfigured(env) && env.ALERT_EMAIL_TO) {
     try {
       const { subject, html } = formatSummaryEmail(alerts, { dateStr });
       const { sendEmail } = await import('./emailService.js');

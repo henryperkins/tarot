@@ -1,37 +1,59 @@
 /**
  * Email Service Module
  *
- * Sends emails via Resend API for quality alerts and notifications.
- * Resend is Workers-compatible and has a simple REST API.
- *
- * Setup:
- * 1. Create account at resend.com
- * 2. Add domain and verify DNS
- * 3. Create API key
- * 4. wrangler secret put RESEND_API_KEY
+ * Sends auth, billing and quality-alert emails. Production uses the
+ * Cloudflare Email Service `send_email` binding (`env.EMAIL`), which needs no
+ * API key; the sender's domain must be onboarded to Email Sending
+ * (`npx wrangler email sending list`). When the binding is absent, sending
+ * falls back to the Resend API if RESEND_API_KEY is set.
  */
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
+const DEFAULT_FROM = 'Tableu <hello@lakefrontdigital.io>';
+
+function hasEmailBinding(env) {
+  return typeof env?.EMAIL?.send === 'function';
+}
 
 /**
- * Send an email via Resend API.
+ * Whether any email transport is configured.
+ */
+export function isEmailConfigured(env) {
+  return hasEmailBinding(env) || Boolean(env?.RESEND_API_KEY && String(env.RESEND_API_KEY).trim());
+}
+
+/**
+ * Split "Name <address>" into the binding's { email, name } form.
+ */
+export function parseSender(value) {
+  const raw = String(value || DEFAULT_FROM).trim();
+  const match = raw.match(/^(.*?)\s*<([^<>\s]+@[^<>\s]+)>$/);
+  if (match) {
+    const name = match[1].trim().replace(/^"(.*)"$/, '$1');
+    return name ? { email: match[2], name } : { email: match[2] };
+  }
+  return { email: raw };
+}
+
+/**
+ * Send an email through the send_email binding, or through Resend when the
+ * binding is absent.
  *
  * @param {Object} env - Worker environment
  * @param {Object} options - Email options
- * @param {string} options.to - Recipient email
+ * @param {string|string[]} [options.to] - Recipient(s); defaults to ALERT_EMAIL_TO
  * @param {string} options.subject - Email subject
  * @param {string} options.html - HTML body
- * @param {string} [options.text] - Plain text body (optional)
- * @returns {Promise<{success: boolean, id?: string, error?: string}>}
+ * @param {string} [options.text] - Plain text body (derived from html when omitted)
+ * @returns {Promise<{success: boolean, id?: string, error?: string, details?: string}>}
  */
 export async function sendEmail(env, options) {
-  const apiKey = env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.warn('[email] RESEND_API_KEY not configured');
-    return { success: false, error: 'api_key_missing' };
+  if (!isEmailConfigured(env)) {
+    console.warn('[email] No email transport configured (EMAIL binding or RESEND_API_KEY)');
+    return { success: false, error: 'email_not_configured' };
   }
 
-  const from = env.ALERT_EMAIL_FROM || 'alerts@tarot.app';
+  const from = env.ALERT_EMAIL_FROM || DEFAULT_FROM;
   const to = options.to || env.ALERT_EMAIL_TO;
 
   if (!to) {
@@ -39,11 +61,31 @@ export async function sendEmail(env, options) {
     return { success: false, error: 'no_recipient' };
   }
 
+  const text = options.text || stripHtml(options.html);
+
+  if (hasEmailBinding(env)) {
+    try {
+      const result = await env.EMAIL.send({
+        from: parseSender(from),
+        to,
+        subject: options.subject,
+        html: options.html,
+        text,
+      });
+      console.log(`[email] Sent successfully: ${result?.messageId}`);
+      return { success: true, id: result?.messageId };
+    } catch (err) {
+      const code = err?.code || 'send_failed';
+      console.error(`[email] Email Service error: ${code} ${err?.message || ''}`);
+      return { success: false, error: code, details: err?.message };
+    }
+  }
+
   try {
     const response = await fetch(RESEND_API_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -51,7 +93,7 @@ export async function sendEmail(env, options) {
         to: Array.isArray(to) ? to : [to],
         subject: options.subject,
         html: options.html,
-        text: options.text || stripHtml(options.html),
+        text,
       }),
     });
 
