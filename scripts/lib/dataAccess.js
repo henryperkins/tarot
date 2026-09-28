@@ -3,7 +3,17 @@
  */
 
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
+import path from 'node:path';
 import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+
+const require = createRequire(import.meta.url);
+
+function resolveWranglerBin() {
+  // wrangler's "exports" hides bin/, so resolve it via package.json
+  const pkgPath = require.resolve('wrangler/package.json');
+  return path.join(path.dirname(pkgPath), require(pkgPath).bin.wrangler);
+}
 
 export function createR2Client(options = {}) {
   const accountId = options.accountId || process.env.CF_ACCOUNT_ID;
@@ -162,9 +172,16 @@ export async function runWranglerCommand(args) {
     // Pass through Cloudflare API token from environment if available
     const env = { ...process.env };
 
-    const child = spawn('npx', args, {
+    // Run the local wrangler entrypoint with node directly: spawning `npx`
+    // fails on Windows (npx.cmd needs a shell), and a shell would mangle the
+    // multi-line SQL arguments. Callers pass 'wrangler' as the first argument.
+    const wranglerArgs = args[0] === 'wrangler' ? args.slice(1) : args;
+    const child = spawn(process.execPath, [resolveWranglerBin(), ...wranglerArgs], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env
+    });
+    child.on('error', (err) => {
+      reject(new Error(`${args.join(' ')} failed to start: ${err.message}`));
     });
     let stdout = '';
     let stderr = '';
