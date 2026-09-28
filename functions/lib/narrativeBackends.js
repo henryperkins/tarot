@@ -46,7 +46,7 @@ import {
 import { buildOpening, buildReflectionsSection, prepareReflectionsText, sanitizeQuestionForNarrative } from './narrative/helpers.js';
 import { buildUserContextSourceUsage } from './narrative/sourceUsage.js';
 import { formatPassagesForPrompt } from './graphRAG.js';
-import { buildPromptRedactionOptions, redactPII } from './promptEngineering.js';
+import { buildReadingRedactionOptions, redactPII } from './promptEngineering.js';
 import { evaluateVisionInsightPromptEligibility } from './readingQuality.js';
 import {
   resolveSemanticScoring,
@@ -741,13 +741,11 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown', optio
 
   // Card reflections can name people too, so redaction hints read every reflection.
   const querentReflections = collectQuerentReflections(reflectionsText, cardsInfo);
-  const promptRedactionOptions = buildPromptRedactionOptions({
+  const promptRedactionOptions = buildReadingRedactionOptions({
     personalization: payload.personalization,
     userQuestion,
     reflectionsText: querentReflections,
-    additionalTextSources: Array.isArray(payload.memories)
-      ? payload.memories.map((memory) => memory?.text).filter(Boolean)
-      : []
+    memories: payload.memories
   });
 
   console.log(`[${requestId}] System prompt length: ${systemPrompt.length}, User prompt length: ${userPrompt.length}`);
@@ -966,13 +964,11 @@ export async function generateWithClaudeOpus45(env, payload, requestId = 'unknow
 
   // Card reflections can name people too, so redaction hints read every reflection.
   const querentReflections = collectQuerentReflections(reflectionsText, cardsInfo);
-  const promptRedactionOptions = buildPromptRedactionOptions({
+  const promptRedactionOptions = buildReadingRedactionOptions({
     personalization: payload.personalization,
     userQuestion,
     reflectionsText: querentReflections,
-    additionalTextSources: Array.isArray(payload.memories)
-      ? payload.memories.map((memory) => memory?.text).filter(Boolean)
-      : []
+    memories: payload.memories
   });
 
   maybeLogPromptPayload(

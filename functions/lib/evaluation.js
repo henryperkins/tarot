@@ -10,6 +10,16 @@ import { getQualityGateThresholds } from './readingQuality.js';
 import { sanitizeText } from './utils.js';
 import { detectPromptInjection } from './promptInjectionDetector.js';
 import { withSpan } from './tracingSpans.js';
+import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
+import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
+import {
+  THOTH_MAJOR_ALIASES,
+  THOTH_SUIT_ALIASES,
+  THOTH_COURT_ALIASES,
+  MARSEILLE_MAJOR_ALIASES,
+  MARSEILLE_SUIT_ALIASES,
+  MARSEILLE_COURT_ALIASES
+} from '../../shared/vision/deckAssets.js';
 
 const EVAL_PROMPT_VERSION = '2.4.0';
 const DEFAULT_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
@@ -45,7 +55,51 @@ const RESPONSES_MODEL_HINTS = ['@cf/openai/gpt-oss', '@cf/openai/gpt-4o', '@cf/o
 // PII redaction patterns
 const PHONE_REGEX = /\b(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?)?[0-9]{3}[-.\s]?[0-9]{4}(?:\s?(?:x|ext\.?|extension)\s?[0-9]{1,5})?\b/g;
 const ISO_DATE_REGEX = /\b\d{4}-\d{2}-\d{2}\b/g;
-const POSSESSIVE_NAME_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})'s\b/g;
+
+// Name heuristics for stored text. Trigger words match in either case, but a
+// captured name must be capitalized.
+const NAME_SEQUENCE = String.raw`[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}`;
+// Names the querent introduces in the question ("call me Sam", "Sam's job").
+const QUESTION_NAME_PATTERNS = [
+  new RegExp(String.raw`\b(?:[Mm]y name is|[Ii]['’]m|[Ii] am|[Tt]his is|[Cc]all me|[Nn]ame['’]s|[Nn]ame is|[Ii] go by)\s+(${NAME_SEQUENCE})`, 'g'),
+  new RegExp(String.raw`\b(${NAME_SEQUENCE})['’]s\b`, 'g')
+];
+// Places where the narrator addresses the querent by name ("Remember, Sam,").
+const READING_NAME_PATTERNS = [
+  new RegExp(String.raw`\b(?:[Dd]ear|[Hh]ello|[Hh]i|[Hh]ey|[Tt]hanks(?: you)?|[Rr]emember|[Ff]or you)\s*[,:-]?\s+(${NAME_SEQUENCE})`, 'g'),
+  new RegExp(String.raw`\b(${NAME_SEQUENCE}),\s+(?:remember|consider|reflect|here)`, 'g')
+];
+
+const DECK_VOCABULARY = [
+  ...MAJOR_ARCANA.map((card) => card.name),
+  ...MINOR_ARCANA.map((card) => card.name),
+  ...[
+    THOTH_MAJOR_ALIASES,
+    THOTH_SUIT_ALIASES,
+    THOTH_COURT_ALIASES,
+    MARSEILLE_MAJOR_ALIASES,
+    MARSEILLE_SUIT_ALIASES,
+    MARSEILLE_COURT_ALIASES
+  ].flatMap((aliases) => Object.values(aliases))
+];
+// Capitalized words that are not people's names: sentence openers ("It's",
+// "Will Sam's"), and card, suit and astrology vocabulary ("the World's",
+// "Mercury's"). They are trimmed from the start of a captured name.
+const NON_NAME_WORDS = new Set([
+  'it', 'that', 'there', 'here', 'what', 'where', 'when', 'who', 'how', 'why', 'let',
+  'he', 'she', 'one', 'this', 'my', 'your', 'our', 'his', 'her', 'their',
+  'will', 'would', 'can', 'could', 'should', 'shall', 'may', 'might', 'must',
+  'do', 'does', 'did', 'is', 'are', 'was', 'were', 'am', 'has', 'have', 'had',
+  'and', 'but', 'or', 'if', 'yes', 'no', 'please',
+  'now', 'then', 'so', 'first', 'next', 'finally', 'instead', 'still', 'again', 'also',
+  'today', 'tonight', 'tomorrow', 'yesterday', 'life', 'love', 'spirit', 'nature', 'tarot',
+  'everyone', 'everything', 'someone', 'something', 'nobody', 'nothing',
+  'sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto',
+  'aries', 'taurus', 'gemini', 'cancer', 'leo', 'virgo', 'libra', 'scorpio',
+  'sagittarius', 'capricorn', 'aquarius', 'pisces',
+  'a', 'an', 'the', 'of',
+  ...DECK_VOCABULARY.flatMap((name) => String(name).toLowerCase().split(/\s+/))
+]);
 
 // Content-aware heuristic patterns for safety/tone detection
 // Used when AI evaluation is unavailable
@@ -385,32 +439,70 @@ Is there something about your reading's cards or themes I can help you explore i
 }
 
 /**
- * Redact potentially sensitive information from user question.
- * Removes patterns that might contain PII like emails, phone numbers, names, etc.
+ * Drop sentence openers and card vocabulary from the start of a captured name
+ * ("Will Sarah" -> "Sarah", "The World" -> ""), so they are never redacted.
  *
- * @param {string} text - Text to redact
- * @returns {string} Redacted text
+ * @param {string} candidate - Capitalized run captured by a name pattern
+ * @returns {string} The likely name, or '' when none remains
  */
-function redactDisplayName(text, displayName) {
-  if (!text || typeof text !== 'string') return text || '';
-  if (!displayName || typeof displayName !== 'string') return text;
-
-  const name = displayName.trim();
-  if (!name) return text;
-
-  try {
-    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const namePattern = new RegExp(
-      `(^|[^\\p{L}\\p{N}_])(${escapedName}(?:['’]s)?)(?![\\p{L}\\p{N}_])`,
-      'giu'
-    );
-    return text.replace(namePattern, (_, prefix) => `${prefix}[NAME]`);
-  } catch {
-    return text;
+function trimToLikelyName(candidate) {
+  const words = String(candidate || '').trim().split(/\s+/);
+  while (words.length > 0 && NON_NAME_WORDS.has(words[0].toLowerCase())) {
+    words.shift();
   }
+  return words.join(' ');
 }
 
-function redactUserQuestion(text, options = {}) {
+function collectNames(text, patterns) {
+  if (!text || typeof text !== 'string') return [];
+
+  const names = [];
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const name = trimToLikelyName(match[1]);
+      if (name) names.push(name);
+    }
+  }
+  return names;
+}
+
+/**
+ * Redact every whole-word mention of the given names, in any case. A trailing
+ * possessive is kept ("Sam's" -> "[NAME]'s").
+ *
+ * @param {string} text - Text to redact
+ * @param {string[]} names - Names to redact
+ * @returns {string} Redacted text
+ */
+function redactKnownNames(text, names = []) {
+  const uniqueNames = Array.from(new Set(
+    names
+      .filter((name) => typeof name === 'string')
+      .map((name) => name.trim().replace(/\s+/g, ' '))
+      .filter((name) => name.length >= 2)
+  )).sort((a, b) => b.length - a.length);
+
+  return uniqueNames.reduce((redacted, name) => {
+    try {
+      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+');
+      const namePattern = new RegExp(`(?<![\\p{L}\\p{N}_])${escapedName}(?![\\p{L}\\p{N}_])`, 'giu');
+      return redacted.replace(namePattern, '[NAME]');
+    } catch {
+      return redacted;
+    }
+  }, text);
+}
+
+/**
+ * Redact potentially sensitive information from the user question: emails,
+ * phone numbers, dates, SSNs, names the question introduces, and known names.
+ *
+ * @param {string} text - Question text
+ * @param {Object} [options]
+ * @param {string[]} [options.names] - Known names to redact
+ * @returns {string} Redacted text
+ */
+function redactUserQuestion(text, { names = [] } = {}) {
   if (!text || typeof text !== 'string') return '';
 
   let redacted = text;
@@ -425,34 +517,22 @@ function redactUserQuestion(text, options = {}) {
   redacted = redacted.replace(/\b(?:0?[1-9]|1[0-2])[-/](?:0?[1-9]|[12][0-9]|3[01])[-/](?:19|20)?\d{2}\b/g, '[DATE]');
   redacted = redacted.replace(ISO_DATE_REGEX, '[DATE]');
 
-  // Redact potential names (capitalized sequences of 2-4 words)
-  // Only in contexts like "my name is X" or "I'm X"
-  redacted = redacted.replace(/(?:my name is|i'm|i am|this is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/gi,
-    (match, name) => match.replace(name, '[NAME]'));
-  // Additional name phrases
-  redacted = redacted.replace(/(?:call me|name's|name is|i go by)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/gi,
-    (match, name) => match.replace(name, '[NAME]'));
-  redacted = redacted.replace(POSSESSIVE_NAME_REGEX, (match) => match.replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}/, '[NAME]'));
-
   // Redact SSN patterns
   redacted = redacted.replace(/\b\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\b/g, '[SSN]');
 
-  if (options.displayName) {
-    redacted = redactDisplayName(redacted, options.displayName);
-  }
-
-  return redacted;
+  return redactKnownNames(redacted, [...names, ...collectNames(redacted, QUESTION_NAME_PATTERNS)]);
 }
 
 /**
- * Redact reading text for storage - removes any embedded PII patterns.
- * Reading text should not normally contain PII, but models sometimes
- * mirror back user-provided names.
+ * Redact reading text for storage. Readings should not contain PII, but models
+ * mirror back names from the question, reflections and memories.
  *
- * @param {string} text - Reading text to redact
+ * @param {string} text - Reading text, or evaluator output that quotes it
+ * @param {Object} [options]
+ * @param {string[]} [options.names] - Known names to redact everywhere
  * @returns {string} Redacted text
  */
-function redactReadingText(text, options = {}) {
+function redactReadingText(text, { names = [] } = {}) {
   if (!text || typeof text !== 'string') return '';
 
   let redacted = text;
@@ -463,19 +543,62 @@ function redactReadingText(text, options = {}) {
   // Redact phone numbers
   redacted = redacted.replace(PHONE_REGEX, '[PHONE]');
 
-  // Redact mirrored names that may have been echoed back
-  redacted = redacted.replace(/\b(?:dear|hello|hi|hey|thanks(?: you)?|remember|for you)\s*[,:-]?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})/gi,
-    (match, name) => match.replace(name, '[NAME]'));
-  redacted = redacted.replace(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}),\s+(?:remember|consider|reflect|here)/g,
-    (match, name) => match.replace(name, '[NAME]'));
-  redacted = redacted.replace(POSSESSIVE_NAME_REGEX, (match) => match.replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}/, '[NAME]'));
+  // An unknown name is redacted only where the narrator addresses the querent with it
+  for (const pattern of READING_NAME_PATTERNS) {
+    redacted = redacted.replace(pattern, (match, candidate) => {
+      const name = trimToLikelyName(candidate);
+      return name ? match.replace(name, '[NAME]') : match;
+    });
+  }
   redacted = redacted.replace(ISO_DATE_REGEX, '[DATE]');
 
-  if (options.displayName) {
-    redacted = redactDisplayName(redacted, options.displayName);
-  }
+  return redactKnownNames(redacted, names);
+}
 
-  return redacted;
+/**
+ * Names to redact from every stored text field: the display name, names found
+ * in the question, reflections and memories (redactionNames), and names the
+ * question introduces, since the reading can repeat any of them.
+ *
+ * @param {Object} evalParams - Evaluation parameters
+ * @returns {string[]} Names to redact
+ */
+function collectStorageNames(evalParams = {}) {
+  return [
+    evalParams.displayName,
+    ...(Array.isArray(evalParams.redactionNames) ? evalParams.redactionNames : []),
+    ...collectNames(evalParams.userQuestion, QUESTION_NAME_PATTERNS)
+  ];
+}
+
+/**
+ * Evaluator output quotes the reading and question, so it is redacted like
+ * them in 'redact' mode and dropped with them in 'minimal' mode.
+ *
+ * @param {Object} evalPayload - Evaluation result to store
+ * @param {Function|null} redactText - Redacts one string; null drops the text
+ * @returns {Object} Storage-safe evaluation result
+ */
+function sanitizeEvalText(evalPayload, redactText) {
+  if (!evalPayload || typeof evalPayload !== 'object') return evalPayload;
+
+  const clean = (value) => (redactText && typeof value === 'string' ? redactText(value) : null);
+  const sanitized = { ...evalPayload };
+  if (sanitized.scores && typeof sanitized.scores.notes === 'string') {
+    sanitized.scores = { ...sanitized.scores, notes: clean(sanitized.scores.notes) };
+  }
+  if (Array.isArray(sanitized.weaknesses_found)) {
+    sanitized.weaknesses_found = redactText ? sanitized.weaknesses_found.map(clean) : null;
+  }
+  for (const key of ['rawResponse', 'rawResponseSnippet']) {
+    if (typeof sanitized[key] === 'string') {
+      sanitized[key] = clean(sanitized[key]);
+    }
+  }
+  if (sanitized.originalEval && typeof sanitized.originalEval === 'object') {
+    sanitized.originalEval = sanitizeEvalText(sanitized.originalEval, redactText);
+  }
+  return sanitized;
 }
 
 /**
@@ -652,7 +775,7 @@ function buildStoragePayload({ metricsPayload, evalPayload, evalParams, storageM
       // Most privacy-preserving - no user content stored
       return {
         ...sanitizedMetrics,
-        eval: evalPayload,
+        eval: sanitizeEvalText(evalPayload, null),
         _storageMode: 'minimal',
         // Only store aggregate metrics for analysis
         readingLength: evalParams.reading?.length || 0,
@@ -661,15 +784,18 @@ function buildStoragePayload({ metricsPayload, evalPayload, evalParams, storageM
       };
 
     case 'redact':
-    default:
+    default: {
       // Default: Store redacted versions for debugging while protecting PII
+      const names = collectStorageNames(evalParams);
       return {
         ...basePayload,
-        readingText: redactReadingText(evalParams.reading, { displayName: evalParams.displayName }),
+        eval: sanitizeEvalText(evalPayload, (text) => redactReadingText(text, { names })),
+        readingText: redactReadingText(evalParams.reading, { names }),
         cardsInfo: sanitizeCardsInfo(evalParams.cardsInfo),
-        userQuestion: redactUserQuestion(evalParams.userQuestion, { displayName: evalParams.displayName }),
+        userQuestion: redactUserQuestion(evalParams.userQuestion, { names }),
         _storageMode: 'redact'
       };
+    }
   }
 }
 

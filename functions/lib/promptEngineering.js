@@ -102,7 +102,10 @@ const NAME_HINT_PATTERNS = [
     'giu'
   ),
   new RegExp(String.raw`(${NAME_SEQUENCE})\s+and\s+(?:me|I)\b`, 'giu'),
-  new RegExp(String.raw`(${NAME_SEQUENCE})['']s\\b`, 'giu')
+  new RegExp(String.raw`(${NAME_SEQUENCE})['']s\\b`, 'giu'),
+  // Querent self-references in stored memories: "User (Henry) prefers…", "name is Henry"
+  new RegExp(String.raw`\b(?:user|querent|seeker|client)\s*\(\s*(${NAME_SEQUENCE})\s*\)`, 'giu'),
+  new RegExp(String.raw`\b(?:name\s+is|named|goes\s+by|prefers\s+to\s+be\s+called|call\s+me)\s+(${NAME_SEQUENCE})`, 'giu')
 ];
 const HONORIFIC_AND_INITIAL_HINT_PATTERNS = [
   new RegExp(String.raw`\b(${HONORIFIC_NAME_SEQUENCE})\b`, 'gu'),
@@ -389,6 +392,29 @@ function redactNameWithBoundary(text, rawName) {
   } catch {
     return text;
   }
+}
+
+/**
+ * Redaction options for a reading: the display name plus names found in the
+ * question, the querent's reflections and stored memories, since the reading
+ * can echo any of them.
+ *
+ * @param {Object} params
+ * @param {Object} [params.personalization] - Personalization with displayName
+ * @param {string} [params.userQuestion] - User question
+ * @param {string} [params.reflectionsText] - Collected querent reflections
+ * @param {Array<{text: string}>} [params.memories] - Stored memories used in the prompt
+ * @returns {Object} Sanitized redaction options
+ */
+export function buildReadingRedactionOptions({ personalization, userQuestion, reflectionsText, memories } = {}) {
+  return buildPromptRedactionOptions({
+    personalization,
+    userQuestion,
+    reflectionsText,
+    additionalTextSources: Array.isArray(memories)
+      ? memories.map((memory) => memory?.text).filter(Boolean)
+      : []
+  });
 }
 
 /**
