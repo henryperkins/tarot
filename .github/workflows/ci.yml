@@ -13,6 +13,31 @@ permissions:
   contents: read
 
 jobs:
+  plugin-mcp:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        plugin: [ephemeris-server, symbolism-server]
+    defaults:
+      run:
+        working-directory: plugins/tarot-astro-plugins/${{ matrix.plugin }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: plugins/tarot-astro-plugins/${{ matrix.plugin }}/package-lock.json
+
+      - name: Install plugin dependencies
+        run: npm ci
+
+      - name: Test plugin calculations and MCP protocol
+        run: npm test
+
   build:
     runs-on: ubuntu-latest
     steps:
