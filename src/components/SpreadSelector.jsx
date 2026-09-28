@@ -388,9 +388,10 @@ export function SpreadSelector({
             const baseDescription = spread.description || 'Guided snapshot for your focus.';
             const maxCards = typeof spread.maxCards === 'number' ? spread.maxCards : null;
             const baseCount = typeof spread.drawCount === 'number' ? spread.drawCount : spread.count;
+            const cardNoun = baseCount === 1 ? 'card' : 'cards';
             const cardLabel = maxCards && maxCards > baseCount
-              ? `${baseCount} cards + clarifiers`
-              : `${baseCount} cards`;
+              ? `${baseCount} ${cardNoun} + clarifiers`
+              : `${baseCount} ${cardNoun}`;
             const isFirstSpread = index === 0;
             const isTabbable = isActive || (!selectedSpread && isFirstSpread);
             const stars = spread.complexity?.stars ?? 0;

@@ -72,9 +72,10 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
               ? spread.spread.drawCount
               : spreadCount;
             const maxCards = typeof spread.spread?.maxCards === 'number' ? spread.spread.maxCards : null;
+            const cardNoun = baseCount === 1 ? 'card' : 'cards';
             const cardLabel = maxCards && maxCards > baseCount
-              ? `${baseCount} cards + clarifiers`
-              : `${baseCount} cards`;
+              ? `${baseCount} ${cardNoun} + clarifiers`
+              : `${baseCount} ${cardNoun}`;
             const displayName = spread.shortName || spread.spread?.name || spread.key;
 
             return (

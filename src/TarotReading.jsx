@@ -1040,11 +1040,11 @@ export default function TarotReading() {
               )}
 
               {!isLandscape && !isSmallScreen && (
-                <div className="flex justify-center pt-1">
+                <div className="flex justify-center">
                   <button
                     type="button"
                     onClick={() => handleStepNav('reading')}
-                    className="text-sm text-secondary hover:text-main underline underline-offset-4"
+                    className="inline-flex min-h-touch items-center text-sm text-secondary hover:text-main underline underline-offset-4"
                   >
                     Skip ahead to the reading
                   </button>

@@ -1150,6 +1150,8 @@ body {
   min-width: min(100%, 14rem);
   min-height: var(--spread-card-height-mobile, 18rem);
   height: auto;
+  /* The card is a <button>; keep its copy on the title's left edge. */
+  text-align: left;
   background: var(--spread-background, var(--panel-dark-2));
   border: 1px solid var(--spread-border, var(--border-warm-subtle));
   box-shadow: 0 18px 36px -24px rgba(0, 0, 0, 0.85),
@@ -1375,7 +1377,7 @@ body {
     rgba(255, 255, 255, 0.06),
     rgba(255, 255, 255, 0.01)
   );
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-warm-subtle);
   box-shadow: 0 14px 28px -18px rgba(0, 0, 0, 0.55),
     inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
@@ -1387,7 +1389,7 @@ body {
   gap: 0.5rem;
   margin-top: auto;
   padding-top: 0.75rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--border-warm-subtle);
 }
 
 .spread-card__complexity {

@@ -823,7 +823,7 @@ export default function PricingPage() {
                       </p>
                     </div>
                     {isCurrent ? (
-                      <span className="rounded-full bg-primary/20 px-3 py-1 text-2xs font-semibold text-primary">
+                      <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                         Current
                       </span>
                     ) : (
@@ -831,7 +831,7 @@ export default function PricingPage() {
                         type="button"
                         onClick={() => handleSelectTier(tier)}
                         disabled={loadingTier !== null}
-                        className="inline-flex min-h-touch min-w-touch shrink-0 items-center gap-1 rounded-full bg-accent px-3 py-1.5 text-2xs font-semibold text-surface hover:bg-accent/90 transition"
+                        className="inline-flex min-h-touch min-w-touch shrink-0 items-center gap-1 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-surface hover:bg-accent/90 transition"
                       >
                         Choose
                         <ArrowRight className="h-3 w-3" />
