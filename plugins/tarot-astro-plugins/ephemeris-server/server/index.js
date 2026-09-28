@@ -185,6 +185,14 @@ function generateDailyTheme(positions, aspects, moon, retrogrades) {
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();
+  // MCP permits omitted arguments. SDK 1.26 invokes this hook before validating
+  // tool inputs, which otherwise treats an absent object as an invalid value.
+  transport.onmessage = (message) => {
+    if (message.method === 'tools/call' && message.params
+      && typeof message.params === 'object' && !Object.hasOwn(message.params, 'arguments')) {
+      message.params.arguments = {};
+    }
+  };
   await server.connect(transport);
   console.error('Ephemeris MCP server running on stdio');
 }

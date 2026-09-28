@@ -116,6 +116,29 @@ for (const name of datedTools) {
   });
 }
 
+for (const name of ['get_current_positions', ...datedTools]) {
+  test(`${name} accepts a call with the arguments member omitted`, async () => {
+    const result = await client.callTool({ name }, undefined, { timeout: 10000 });
+    assert.ok(!result.isError, JSON.stringify(result.content));
+    const value = JSON.parse(result.content.find(item => item.type === 'text').text);
+    assert.ok(value && typeof value === 'object');
+  });
+}
+
+test('omitting the arguments member does not bypass required timestamp validation', async () => {
+  const result = await client.callTool({ name: 'get_ephemeris_for_reading' });
+  assert.equal(result.isError, true, JSON.stringify(result.content));
+});
+
+for (const args of [null, 'invalid', []]) {
+  test(`explicit invalid arguments ${JSON.stringify(args)} are not replaced with defaults`, async () => {
+    await assert.rejects(
+      client.callTool({ name: 'get_moon_phase', arguments: args }),
+      /arguments/
+    );
+  });
+}
+
 const invalidCalls = [
   ['get_ephemeris_for_reading', {}, 'missing timestamp'],
   ['get_ephemeris_for_reading', { timestamp: 123 }, 'numeric timestamp'],
