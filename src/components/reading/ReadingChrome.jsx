@@ -23,7 +23,8 @@ export function ReadingChrome({
   return (
     <>
       {(!isTableScene || displayName || readingMeta?.ephemeris) && (
-        <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
+        // Before the draw, handsets keep the draw action in the dock, so this label would title nothing.
+        <div className={`${reading ? '' : 'hidden sm:block '}${isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}`}>
           <div className="flex items-center justify-between gap-3">
             {(!isTableScene || displayName) && (
               <p className={isTableScene ? 'text-sm text-muted' : 'text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent'}>

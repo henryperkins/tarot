@@ -196,7 +196,7 @@ export function NarrativeReadingSurface({
             {shouldShowStoryIllustration ? (
               <VisualCompanionModule
                 title="Narrative Illustration"
-                badge={`${storyArtCards.length} cards`}
+                badge={`${storyArtCards.length} ${storyArtCards.length === 1 ? 'card' : 'cards'}`}
                 description="Uses your full reading text and spread context."
                 fallback="Loading illustration tools..."
               >

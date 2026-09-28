@@ -470,7 +470,7 @@ export default function JourneySidebar({
                 {reversalRateReliable ? `${reversalRate}%` : 'Emerging'}
               </p>
               <p className="text-xs text-muted">
-                {reversalRateReliable ? 'reversed' : `${reversalRateSample} cards`}
+                {reversalRateReliable ? 'reversed' : `${reversalRateSample} ${reversalRateSample === 1 ? 'card' : 'cards'}`}
               </p>
             </div>
           )}
