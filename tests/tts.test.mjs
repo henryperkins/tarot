@@ -202,6 +202,7 @@ describe('TTS API - Aura-2 speech', () => {
   beforeEach(() => {
     console.log = () => {};
     console.error = () => {};
+    console.warn = () => {}; // The stand-in's few bytes of "audio" look short
   });
 
   it('speaks the trimmed text with the Cora voice and returns an MP3 data URI', async () => {
@@ -257,6 +258,44 @@ describe('TTS API - Aura-2 speech', () => {
   });
 });
 
+describe('TTS API - Short audio warning', () => {
+  // Aura-2 stand-in that returns `bytesPerChar` bytes of audio per character.
+  function createSizedAI(bytesPerChar) {
+    return {
+      calls: [],
+      async run(model, input) {
+        this.calls.push({ model, input });
+        return new Response(new Uint8Array(input.text.length * bytesPerChar)).body;
+      }
+    };
+  }
+
+  const text = 'The Moon lights a road that shifts under your feet. '.repeat(10).trim();
+
+  async function warningsFor(bytesPerChar, path) {
+    const warnings = [];
+    console.warn = (...args) => warnings.push(args.join(' '));
+    const request = createMockRequest(path, { method: 'POST', body: { text } });
+    const response = await onRequestPost({ request, env: createMockEnv({ AI: createSizedAI(bytesPerChar) }) });
+    await response.arrayBuffer();
+    console.warn = () => {};
+    return warnings;
+  }
+
+  it('logs a piece with far less audio than its text in JSON and stream modes', async () => {
+    for (const path of ['/api/tts', '/api/tts?stream=true']) {
+      const warnings = await warningsFor(180, path);
+      assert.strictEqual(warnings.length, 1, path);
+      assert.match(warnings[0], new RegExp(`piece 1/1 returned ${text.length * 180} bytes for ${text.length} characters`));
+    }
+  });
+
+  it('stays quiet for a piece of normal length', async () => {
+    assert.deepStrictEqual(await warningsFor(390, '/api/tts'), []);
+    assert.deepStrictEqual(await warningsFor(390, '/api/tts?stream=true'), []);
+  });
+});
+
 describe('splitForSpeech', () => {
   it('leaves text under the limit whole', () => {
     assert.deepStrictEqual(splitForSpeech('  One short line.  '), ['One short line.']);
@@ -281,6 +320,7 @@ describe('TTS API - Streaming Mode', () => {
   beforeEach(() => {
     console.log = () => {};
     console.error = () => {};
+    console.warn = () => {}; // The stand-in's few bytes of "audio" look short
   });
 
   it('streams MP3 pieces in order with the provider header', async () => {

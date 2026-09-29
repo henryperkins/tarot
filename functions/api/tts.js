@@ -11,6 +11,11 @@ const TTS_PROVIDER = 'workers-ai-aura-2';
 const TTS_SPEAKER = 'cora';
 // Deepgram takes at most 2,000 characters per request.
 const MAX_PIECE_CHARS = 1900;
+// Aura-2 MP3 is 48 kbps (6,000 bytes a second) and speaks about 15.5
+// characters a second, so a piece usually runs 360-420 bytes per character.
+const TYPICAL_BYTES_PER_CHAR = 390;
+const MIN_BYTES_PER_CHAR = 250;
+const MIN_CHECKED_CHARS = 100;
 
 /**
  * Text-to-speech for readings with Deepgram Aura-2 on Workers AI.
@@ -113,7 +118,7 @@ export const onRequestPost = async ({ request, env }) => {
       try {
         const pieces = await startSpeech(env, sanitizedText);
         if (stream) {
-          return new Response(joinStreams(pieces), {
+          return new Response(joinStreams(pieces, requestId), {
             headers: {
               'content-type': 'audio/mpeg',
               'cache-control': 'no-cache',
@@ -121,7 +126,7 @@ export const onRequestPost = async ({ request, env }) => {
             }
           });
         }
-        const bytes = await readPieces(pieces);
+        const bytes = await readPieces(pieces, requestId);
         // audio/mpeg, not audio/mp3: Safari rejects audio/mp3.
         return jsonResponse({ audio: `data:audio/mpeg;base64,${uint8ToBase64(bytes)}`, provider: TTS_PROVIDER });
       } catch (error) {
@@ -203,19 +208,20 @@ export function splitForSpeech(text) {
 }
 
 /**
- * Start Aura-2 on every piece at once and return promises for their MP3
- * streams, in order. Waits for the first piece to start so that a failure
- * there can still fall back to the local waveform.
+ * Start Aura-2 on every piece at once and return each piece's length with a
+ * promise for its MP3 stream, in order. Waits for the first piece to start so
+ * that a failure there can still fall back to the local waveform.
  */
 async function startSpeech(env, text) {
-  const pieces = splitForSpeech(text).map((piece) =>
-    env.AI.run(TTS_MODEL, { text: piece, speaker: TTS_SPEAKER })
-  );
+  const pieces = splitForSpeech(text).map((piece) => ({
+    chars: piece.length,
+    audio: env.AI.run(TTS_MODEL, { text: piece, speaker: TTS_SPEAKER })
+  }));
   // Later pieces are awaited after earlier ones. Without a handler now, one
   // that fails in the meantime counts as an unhandled rejection.
-  pieces.forEach((piece) => piece.catch(() => {}));
+  pieces.forEach((piece) => piece.audio.catch(() => {}));
 
-  const first = await pieces[0];
+  const first = await pieces[0].audio;
   if (typeof first?.pipeTo !== 'function') {
     throw new Error('Aura-2 returned no audio stream');
   }
@@ -225,12 +231,20 @@ async function startSpeech(env, text) {
 /**
  * Play the pieces' MP3 streams back to back as one stream.
  */
-function joinStreams(pieces) {
+function joinStreams(pieces, requestId) {
   const { readable, writable } = new TransformStream();
   const pipePieces = async () => {
     try {
-      for (const piece of pieces) {
-        await (await piece).pipeTo(writable, { preventClose: true });
+      for (const [index, piece] of pieces.entries()) {
+        let bytes = 0;
+        const counter = new TransformStream({
+          transform(chunk, controller) {
+            bytes += chunk.byteLength;
+            controller.enqueue(chunk);
+          }
+        });
+        await (await piece.audio).pipeThrough(counter).pipeTo(writable, { preventClose: true });
+        warnIfShort(requestId, pieces, index, bytes);
       }
       await writable.close();
     } catch (error) {
@@ -245,10 +259,11 @@ function joinStreams(pieces) {
  * Read every piece at the same time and join the MP3 bytes in order.
  * Reading them one by one would make a long reading wait for each in turn.
  */
-async function readPieces(pieces) {
+async function readPieces(pieces, requestId) {
   const parts = await Promise.all(
-    pieces.map(async (piece) => new Uint8Array(await new Response(await piece).arrayBuffer()))
+    pieces.map(async (piece) => new Uint8Array(await new Response(await piece.audio).arrayBuffer()))
   );
+  parts.forEach((part, index) => warnIfShort(requestId, pieces, index, part.length));
   const bytes = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
   let offset = 0;
   for (const part of parts) {
@@ -256,4 +271,20 @@ async function readPieces(pieces) {
     offset += part.length;
   }
   return bytes;
+}
+
+/**
+ * Log a piece whose MP3 is far shorter than its text. Aura-2 streams can end
+ * early and still close normally: once with half the audio for a two-piece
+ * text, and once with 85 KB for an 843-character reading after workerd logged
+ * "Network connection lost". This makes a repeat visible in the Worker logs.
+ */
+function warnIfShort(requestId, pieces, index, bytes) {
+  const { chars } = pieces[index];
+  if (chars >= MIN_CHECKED_CHARS && bytes < chars * MIN_BYTES_PER_CHAR) {
+    console.warn(
+      `[${requestId}] [tts] Aura-2 piece ${index + 1}/${pieces.length} returned ${bytes} bytes ` +
+      `for ${chars} characters (usually about ${chars * TYPICAL_BYTES_PER_CHAR})`
+    );
+  }
 }
