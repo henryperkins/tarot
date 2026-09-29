@@ -63,6 +63,9 @@ describe('delayed reversal lens keeps outcomes conditional', () => {
 
     assert.match(lens, /Shadow Integration/);
     assert.doesNotMatch(lens, /\b(?:anxiety|fear|grief|pain|depression)\s+(?:eases|lifts|fades|heals|resolves)\b/i);
+    // Hidden feelings are offered for the querent to check, never declared.
+    assert.doesNotMatch(lens, /Name the hidden feeling/);
+    assert.match(lens, /as a possibility to check/);
   });
 
   it('keeps promised fulfillment out of the local fallback reading', async () => {

@@ -657,7 +657,7 @@ export const REVERSAL_FRAMEWORKS = {
   shadow: {
     name: 'Shadow Integration',
     description: 'Reversals reveal disowned emotions, avoided needs, or unconscious habits surfacing for healing and wholeness.',
-    guidance: 'Name the hidden feeling, show how it can be witnessed safely, and suggest a micro-practice for reintegration.',
+    guidance: 'Offer the feeling that may be hidden as a possibility to check, show how it can be witnessed safely, and suggest a micro-practice for reintegration.',
     examples: {
       'The Moon': 'An unnamed fear may be shaping the mood; naming it aloud or writing it down is one way to meet it rather than avoid it.',
       'Five of Swords': 'Step out of zero-sum thinking by repairing the belief that conflict automatically equals abandonment.',

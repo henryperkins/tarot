@@ -139,6 +139,40 @@ const SAMPLE_DEFINITIONS = [
       { name: 'The Sun', orientation: 'Reversed' }
     ]
   },
+  // Review cases for audit F03 (2026-09-29): a hypothetical third-party
+  // question and a general question must not produce claims about anyone's
+  // hidden feelings, history, or private behavior.
+  {
+    id: 'relationship-hypothetical-collaborators',
+    spreadKey: 'relationship',
+    userQuestion: 'Two hypothetical collaborators are planning a project together. What could help them communicate well?',
+    reflectionsText: 'This is a hypothetical scenario. Please do not guess at either person\'s hidden feelings or private behavior.',
+    deckStyle: 'marseille-classic',
+    cards: [
+      { name: 'Page of Swords', orientation: 'Upright' },
+      { name: 'Five of Cups', orientation: 'Reversed' },
+      { name: 'Two of Pentacles', orientation: 'Upright' }
+    ]
+  },
+  {
+    id: 'celtic-general-focused-week',
+    spreadKey: 'celtic',
+    userQuestion: 'What can help me have a focused week?',
+    reflectionsText: '',
+    deckStyle: 'thoth-a1',
+    cards: [
+      { name: 'Eight of Pentacles', orientation: 'Upright' },
+      { name: 'Five of Cups', orientation: 'Reversed' },
+      { name: 'The Moon', orientation: 'Upright' },
+      { name: 'Six of Cups', orientation: 'Upright' },
+      { name: 'Ace of Swords', orientation: 'Upright' },
+      { name: 'Eight of Cups', orientation: 'Upright' },
+      { name: 'The Hermit', orientation: 'Upright' },
+      { name: 'Three of Wands', orientation: 'Reversed' },
+      { name: 'Nine of Swords', orientation: 'Upright' },
+      { name: 'Four of Wands', orientation: 'Upright' }
+    ]
+  },
   {
     id: 'non-english-spanish',
     spreadKey: 'threeCard',
