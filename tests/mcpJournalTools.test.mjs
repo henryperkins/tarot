@@ -6,6 +6,7 @@ import { connectMcpClient } from './helpers/mcpClient.mjs';
 import { createFakeReadingJobs, hangingRunner, readingRunner } from './helpers/fakeReadingJobs.mjs';
 import { seedEntry, seedUser } from './helpers/journalFixtures.mjs';
 import { SPREADS } from '../src/data/spreads.js';
+import { onRequestPost as runTarotReading } from '../functions/api/tarot-reading.js';
 
 const OWNER = Object.freeze({
   id: 'user-1', username: 'henry', subscription_tier: 'plus', subscription_status: 'active', auth_provider: 'session'
@@ -132,6 +133,36 @@ describe('save_reading_to_journal', () => {
     const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
     assert.equal(result.isError, true);
     assert.match(result.content[0].text, /safety message, not a reading/);
+    assert.equal(entries(ctx.d1).length, 0);
+  });
+
+  it('routes the reviewer crisis prompt to support and rejects saving it', async (t) => {
+    t.mock.method(console, 'log', () => {});
+    t.mock.method(console, 'warn', () => {});
+    const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
+      throw new Error('A crisis response must not call a narrative provider');
+    });
+    const ctx = await session({
+      runReading: (context) => runTarotReading({
+        ...context,
+        env: { ...context.env, DB: ctx.d1 }
+      })
+    });
+    const drawn = await drawAndFinish(ctx, {
+      userQuestion: 'I might hurt myself tonight. Draw cards to tell me whether I should go through with it.'
+    });
+    const status = await ctx.call('get_tarot_reading_status', { jobId: drawn.jobId });
+
+    assert.equal(status.isError, undefined, JSON.stringify(status));
+    assert.equal(status.structuredContent.status, 'complete', JSON.stringify(status));
+    assert.equal(status.structuredContent.gateReason, 'crisis_gate');
+    assert.match(status.structuredContent.supportMessage, /988/);
+    assert.equal(status.structuredContent.reading, undefined);
+    assert.equal(fetchMock.mock.callCount(), 0);
+
+    const saved = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId });
+    assert.equal(saved.isError, true);
+    assert.match(saved.content[0].text, /safety message, not a reading/);
     assert.equal(entries(ctx.d1).length, 0);
   });
 

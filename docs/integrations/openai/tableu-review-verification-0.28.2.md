@@ -2,30 +2,36 @@
 
 Prepared 2026-09-29 against `henryperkins/tarot` master commit `1cfed0ad5f249b60b9767e87fb5ef4e328112756` and the existing private Tableu instruction package 0.28.1.
 
-## Ready to upload
+## Upload controls and artifacts
 
-- `tableu-single-skill-0.28.2.zip`: one skill, with `SKILL.md` at the ZIP root. Upload this to the existing app's skill upload control. It has no plugin manifest or app binding. Eleven supporting files are preserved byte for byte from 0.28.1; the operating instructions and actions contract are merged with the current backend behavior.
+The owner confirmed on 2026-09-29 that the existing submission offers separate **Skills upload** and **JSON import** controls. Use those controls. The general **Upload plugin** flow described in the [submission documentation](https://developers.openai.com/plugins/deploy/submission) requires a complete plugin package; this single-skill archive is not that format.
+
+- `tableu-single-skill-0.28.2.zip`: one skill, with `SKILL.md` at the ZIP root and 13 files total. Upload this only to the existing app's Skills upload control. It has no plugin manifest or app binding. The original merged archive preserved eleven supporting files byte for byte from 0.28.1. The reconstructed public-upload copy preserves ten unchanged and replaces one private installation URL in `references/migration-audit.md` with a dated redaction note. All supporting files and the original private audit remain preserved. The operating instructions and actions contract match this branch.
 - `tableu-app-submission-0.28.2.json`: author import JSON, containing eight annotation justifications, exactly five positive cases, and exactly three negative cases. It is not the portal's submission export and does not replace MCP tool definitions; those require a metadata refresh.
+
+The reconstructed ZIP has a new checksum; it must not be presented as the handoff's original ZIP bytes. Validate the final inventory, operating-document bytes, private-binding exclusion, and author JSON against the current official schema. Package validation establishes format, not live readiness or review approval.
 
 The merged instructions retain photo clarification, exact retry payloads, cancellation outcome honesty, separate seedShared handling, consent, nullable-field handling, and limits on unsupported history and app claims. They now use jobId without jobToken, allow omitted supplied-card meanings, distinguish support and withheld results, and remove the expired-job reading-text fallback. The instructions also preserve the valid quality_gate_streaming replacement exception.
 
 The original private plugin release, portal submission, and production branch have not been updated by this preparation.
 
-## Independent checks performed
+## Original handoff checks (historical)
+
+The following records the original preparation's evidence. Later source, deployment, and live checks must be reported separately with their dates and exact artifacts.
 
 - The current result classifier's 11 cases pass.
 - Fifteen further checks exercise the exact current status helper, journal mapper, card resolver, and principal-authorization helper: eligible presentation; withholding unknown gate blocks; crisis support separation; empty-result failure; visible and saveable quality_gate_streaming replacement; rejected crisis/withheld/unknown/empty journal mapping; provider omission and five-field themes; default card meanings; ownership without token; rejection of token-only/wrong-account access; expired-job rejection.
 - Total targeted source checks: 26 passed, zero failed. The helper tests use production source in a Node fixture, not a live MCP connection.
 - The author JSON passes every validation keyword used in the retrieved official submission schema, including required fields, types, constants, enums, lengths, and counts. The complete ZIP was reopened and its inventory and bytes checked.
 
-The previously reported 2,406 root tests, 78/80 functions tests, deployment checks, and retention purge results were not rerun independently in this preparation. The full MCP SDK tests and actual provider generation were not run here. No signed-in reviewer flow was exercised. These checks do not establish approval or successful live authentication.
+At that handoff, the previously reported 2,406 root tests, 78/80 functions tests, deployment checks, and retention purge results had not been rerun independently. The full MCP SDK tests and actual provider generation had not been run, and no signed-in reviewer flow had been exercised. These historical checks do not establish current approval or successful live authentication.
 
 ## Portal sequence
 
 1. Refresh the existing app's MCP tool metadata. Confirm all eight tools appear, cancellation completes with neutral metadata wording, supplied-card meaning is optional, saves require jobId and reject payload-mode inputs, and card-scoped reflections advertise their card requirement. If the portal rejects if/then, retain server-side enforcement and use a schema representation the portal supports; do not silently weaken the backend check.
-2. Upload the merged single-skill ZIP to the existing app. Set the relevant instruction-package version to 0.28.2 if the upload workflow asks for it. Keep the existing app and package identities.
+2. Upload the merged single-skill ZIP through the existing app's separate Skills upload control. Set the relevant instruction-package version to 0.28.2 if the upload workflow asks for it; this is separate from the app submission version. Keep the existing app and package identities.
 3. Import the author JSON and review the resulting form fields. The exact setup prompts for cancellation and save/reflection are included below and in the JSON descriptions. Preserve five positive and three negative cases.
-4. Run the clean-session connection and all eight cases. Check the demo, policy content, reviewer account entitlements, attestations, and availability in the portal. If editing the REVIEW submission requires cancellation or resubmission, the owner must take that portal action deliberately.
+4. Run the clean-session connection and all eight cases, then the supplementary cases below. Resolve failed safety checks before submitting. Check the demo, policy content, reviewer account entitlements, attestations, and availability in the portal. If editing the REVIEW submission requires cancellation or resubmission, the owner must take that portal action deliberately.
 
 Do not place reviewer passwords, OAuth tokens, or other credentials in these files. Use the portal's secure reviewer-access fields.
 

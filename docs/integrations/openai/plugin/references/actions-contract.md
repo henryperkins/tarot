@@ -1,6 +1,6 @@
 # Tableu tools contract
 
-Updated 2026-09-29 for plugin 0.28.2 against henryperkins/tarot master commit 1cfed0ad5f249b60b9767e87fb5ef4e328112756. Live tool schemas and responses take precedence. [capabilities-audit.md](capabilities-audit.md) records the earlier 0.28.1 inventory and its evidence limits; the job, safety-result, meaning, and save contracts below supersede those older sections. Source inspection and unit tests do not establish successful live OAuth or ChatGPT behavior.
+Updated 2026-09-29 for plugin 0.28.2 against henryperkins/tarot master commit 1cfed0ad5f249b60b9767e87fb5ef4e328112756. Live tool schemas and responses take precedence. The packaged `capabilities-audit.md` records the earlier 0.28.1 inventory and its evidence limits; the job, safety-result, meaning, and save contracts below supersede those older sections. Source inspection and unit tests do not establish successful live OAuth or ChatGPT behavior.
 
 The attached Tableu app supplies these tools. The four former GPT Actions in `migration-source/` are historical contracts, not callable operations. Only invoke a tool actually exposed in the current conversation.
 

@@ -11,6 +11,7 @@ const SELF_HARM_PATTERNS = [
     /end my life/i,
     /take my life/i,
     /harm myself/i,
+    /\bhurt(?:ing)?\s+myself\b/i,
     /self[-\s]?harm/i,
     /self[-\s]?injur(?:y|e)/i,
     /cutting myself/i

@@ -6,7 +6,11 @@ import assert from 'node:assert/strict';
 
 import { maybeLogPromptPayload, summarizeNarrativeEnhancements } from '../lib/readingTelemetry.js';
 import { buildEnhancedClaudePrompt } from '../lib/narrative/prompts.js';
+import { estimateTokenCount } from '../lib/narrative/prompts/budgeting.js';
+import { parseUserContext } from '../lib/narrative/prompts/userContext.js';
 import { formatReversalLens, normalizeContext } from '../lib/narrative/helpers.js';
+import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
+import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -413,10 +417,17 @@ describe('prompt slimming respects budget order', () => {
 
 describe('hard-cap truncation', () => {
   it('preserves safety sections and marks truncation metadata', () => {
-    const spreadInfo = { name: 'One-Card Insight' };
-    const cardsInfo = [
-      { card: 'The Star', position: 'Theme', number: 17, orientation: 'Upright', meaning: 'Hope and healing.' }
-    ];
+    const spreadInfo = { name: 'Custom spread', key: 'custom' };
+    // Exercise the cap with accepted reading context. Experiment overrides are
+    // independently bounded and cannot inflate the prompt enough to reach it.
+    const cardsInfo = MAJOR_ARCANA.slice(0, 15).map((card, index) => ({
+      card: card.name,
+      number: card.number,
+      position: `Focus ${index + 1}`,
+      orientation: 'Upright',
+      meaning: card.upright,
+      userReflection: '家族'.repeat(900) + ` Reflection tail ${index}.`
+    }));
     const themes = {
       reversalCount: 0,
       reversalDescription: {
@@ -429,24 +440,31 @@ describe('hard-cap truncation', () => {
       elementCounts: {}
     };
 
-    const hugeAddition = 'X'.repeat(80000);
-    const { systemPrompt, promptMeta } = buildEnhancedClaudePrompt({
+    const input = {
       spreadInfo,
       cardsInfo,
       userQuestion: 'What should I focus on this week?',
-      reflectionsText: '',
+      reflectionsText: '日々の出来事'.repeat(600)
+    };
+    const parsed = safeParseReadingRequest(input);
+    assert.equal(parsed.success, true, parsed.error);
+
+    const { systemPrompt, userPrompt, promptMeta } = buildEnhancedClaudePrompt({
+      ...parsed.data,
       themes,
       spreadAnalysis: null,
       context: 'self',
       visionInsights: [],
       deckStyle: 'rws-1909',
       budgetTarget: 'default',
-      promptBudgetEnv: { ENABLE_PROMPT_SLIMMING: 'false' },
-      variantOverrides: { systemPromptAddition: hugeAddition }
+      promptBudgetEnv: { ENABLE_PROMPT_SLIMMING: 'false', GRAPHRAG_ENABLED: 'false' }
     });
 
     assert.ok(promptMeta.truncation, 'truncation metadata should be present');
     assert.ok(promptMeta.truncation.systemTruncated || promptMeta.truncation.userTruncated, 'prompt should be truncated');
+    assert.ok(promptMeta.truncation.originalTotalTokens > 15000, 'fixture must exceed the hard cap');
+    assert.ok(estimateTokenCount(systemPrompt) + estimateTokenCount(userPrompt) <= 15000, 'final prompt must fit the hard cap');
+    assert.equal(promptMeta.truncation.userContextTruncated, true);
     assert.ok(promptMeta.slimmingSteps.includes('hard-cap-truncation'));
     assert.ok(systemPrompt.includes('ETHICS'));
     assert.ok(systemPrompt.includes('CORE PRINCIPLES'));
@@ -567,29 +585,40 @@ describe('context diagnostics propagation', () => {
 });
 
 describe('prompt builder resilience', () => {
-  it('handles missing themes and sanitizes long reflections', () => {
-    const reflectionsText = '# Heading\n' + 'This is a very long reflection '.repeat(50);
+  for (const { repeats, length, limited } of [
+    { repeats: 50, length: 1557, limited: false },
+    { repeats: 200, length: 5000, limited: true }
+  ]) {
+    it(`handles missing themes and retains ${length} sanitized reflection characters`, () => {
+      const reflectionsText = '# Heading\n' + 'This is a very long reflection '.repeat(repeats);
 
-    const { userPrompt } = buildEnhancedClaudePrompt({
-      spreadInfo: { name: 'One-Card Insight' },
-      cardsInfo: [
-        { card: 'The Hermit', position: 'Theme / Guidance of the Moment', number: 9, orientation: 'Upright', meaning: 'Inner guidance and solitude.' }
-      ],
-      userQuestion: '',
-      reflectionsText,
-      themes: null,
-      spreadAnalysis: null,
-      context: 'self',
-      visionInsights: [],
-      deckStyle: 'rws-1909'
+      const { userPrompt, promptMeta } = buildEnhancedClaudePrompt({
+        spreadInfo: { name: 'One-Card Insight' },
+        cardsInfo: [
+          { card: 'The Hermit', position: 'Theme / Guidance of the Moment', number: 9, orientation: 'Upright', meaning: 'Inner guidance and solitude.' }
+        ],
+        userQuestion: '',
+        reflectionsText,
+        themes: null,
+        spreadAnalysis: null,
+        context: 'self',
+        visionInsights: [],
+        deckStyle: 'rws-1909'
+      });
+
+      const sanitized = parseUserContext(userPrompt).get('reflections');
+      assert.equal(typeof sanitized, 'string', 'Reflections must remain inside a complete context-data block');
+      assert.ok(!sanitized.includes('#'), 'Sanitized reflections should strip markdown headings');
+      assert.equal(sanitized.length, length, 'Retain accepted context up to the 5000-character input limit');
+      assert.ok(sanitized.startsWith('Heading This is a very long reflection '));
+      const usage = promptMeta.sourceUsage.userContext.fields.reflections;
+      assert.equal(usage.includedLength, length);
+      assert.equal(usage.sanitizationChanged, true);
+      assert.equal(usage.limitApplied, limited);
+      assert.equal(usage.budgetTruncated, false);
+      assert.equal(usage.reason, limited ? 'input_limit' : null);
     });
-
-    const match = userPrompt.match(/\*\*Querent's Reflections\*\*:\n([\s\S]+?)\n\n/);
-    assert.ok(match, 'Reflections block should be present when provided');
-    const sanitized = match[1];
-    assert.ok(!sanitized.includes('#'), 'Sanitized reflections should strip markdown headings');
-    assert.ok(sanitized.length <= 620, 'Sanitized reflections should be truncated to a safe length');
-  });
+  }
 
   it('reuses GraphRAG payload across slimming passes', () => {
     process.env.PROMPT_BUDGET_CLAUDE = '40';
