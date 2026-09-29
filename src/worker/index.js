@@ -87,6 +87,7 @@ import { ReadingJob as ReadingJobBase } from './readingJob.js';
 
 // Admin handlers
 import * as adminQualityStats from '../../functions/api/admin/quality-stats.js';
+import * as adminReadingJobRetention from '../../functions/api/admin/reading-job-retention.js';
 
 // Utility functions
 import { jsonResponse } from '../../functions/lib/utils.js';
@@ -281,6 +282,7 @@ const routes = [
   // Admin endpoints
   { pattern: /^\/api\/admin\/archive$/, handlers: adminArchive },
   { pattern: /^\/api\/admin\/quality-stats$/, handlers: adminQualityStats },
+  { pattern: /^\/api\/admin\/reading-jobs\/retention$/, handlers: adminReadingJobRetention },
   { pattern: /^\/api\/coach-extraction-backfill$/, handlers: coachExtractionBackfill },
   // Sentry debug route (disabled by default; requires admin key when enabled)
   {

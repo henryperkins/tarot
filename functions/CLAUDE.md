@@ -39,6 +39,9 @@ for separately authorized remote configuration. Never log values or user data.
   unset denies linking and existing-token access (kill switch). The var
   `MCP_RESOURCE_URL` pins the exact OAuth resource.
 - `MODAL_PROXY_TOKEN` — Authentication for the configured Modal narrative provider.
+- `READING_JOB_PURGE_TOKEN` — Unset except while running
+  `scripts/purge-expired-reading-jobs.mjs`; it enables
+  `POST /api/admin/reading-jobs/retention` (see `docs/integrations/openai/chatgpt-mcp.md`).
 
 OAuth storage uses the dedicated `tableau-oauth` namespace bound as `OAUTH_KV`.
 Confirm authorization for resource or release changes; approval already granted

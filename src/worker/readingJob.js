@@ -109,6 +109,9 @@ export class ReadingJob {
     if (pathname === '/mcp/cancel') {
       return this.handleMcpCancel(request);
     }
+    if (pathname === '/retention') {
+      return this.handleRetention();
+    }
 
     return buildError(404, 'Not found');
   }
@@ -682,6 +685,22 @@ export class ReadingJob {
     this.deletionScheduledAt = at;
   }
 
+  /**
+   * For jobs stored before deletion alarms existed; reached only through the
+   * maintenance route. Deletes the job if its time has passed, and otherwise
+   * schedules its alarm. Never returns job contents.
+   */
+  async handleRetention() {
+    const at = this.deletionTime();
+    if (!this.job.jobId || !at || Date.now() >= at) {
+      await this.purge();
+      return jsonResponse({ status: 'purged' });
+    }
+    this.deletionScheduledAt = null;
+    await this.scheduleDeletion();
+    return jsonResponse({ status: 'scheduled' });
+  }
+
   async alarm() {
     await this.initialized;
     const at = this.deletionTime();
@@ -696,13 +715,11 @@ export class ReadingJob {
 
   /** Delete everything this job stored, and stop any run still going. */
   async purge() {
+    // Forget the job before stopping its run or awaiting storage, so a run
+    // that ends meanwhile finds nothing to persist or schedule.
+    const run = this.abortController;
     this.cancelled = true;
-    this.abortController?.abort();
     this.closeSubscribers();
-    // deleteAll() keeps the alarm before compatibility date 2026-02-24, and
-    // deleting only the 'job' key would leave storage metadata behind.
-    await this.state.storage.deleteAlarm();
-    await this.state.storage.deleteAll();
     this.job = emptyJob();
     this.events = [];
     this.nextEventId = 1;
@@ -711,6 +728,11 @@ export class ReadingJob {
     this.persistEventCount = 0;
     this.lastPersistAt = 0;
     this.deletionScheduledAt = null;
+    run?.abort();
+    // deleteAll() keeps the alarm before compatibility date 2026-02-24, and
+    // deleting only the 'job' key would leave storage metadata behind.
+    await this.state.storage.deleteAlarm();
+    await this.state.storage.deleteAll();
   }
 
   async expireIfNeeded() {

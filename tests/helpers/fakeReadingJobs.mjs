@@ -36,6 +36,9 @@ export function createFakeReadingJobs({ env = {}, runReading } = {}) {
     idFromName(name) {
       return name;
     },
+    idFromString(id) {
+      return id;
+    },
     get(id) {
       return {
         fetch(input, init) {

@@ -204,6 +204,23 @@ adapter is retired and must not be installed for either suite.
 When you're done, delete `wrangler.dev-local.jsonc`, and never commit it or
 `.dev.vars`.
 
+## Reading-job retention purge
+
+Jobs stored before 2026-09-29 have no deletion alarm, so nothing reaches them
+once they expire. `POST /api/admin/reading-jobs/retention` makes each named job
+delete itself if its retention has passed, or schedule its alarm. The route
+answers 404 unless the `READING_JOB_PURGE_TOKEN` secret is set, so set it only
+for a run:
+
+1. `openssl rand -hex 32 > <token-file>`, then
+   `npx wrangler secret put READING_JOB_PURGE_TOKEN --config wrangler.jsonc < <token-file>`.
+2. `node scripts/purge-expired-reading-jobs.mjs --dry-run` lists how many
+   `ReadingJob` objects hold data (needs `CLOUDFLARE_API_TOKEN` and
+   `CLOUDFLARE_ACCOUNT_ID`).
+3. `READING_JOB_PURGE_TOKEN="$(cat <token-file>)" node scripts/purge-expired-reading-jobs.mjs`.
+4. `npx wrangler secret delete READING_JOB_PURGE_TOKEN --config wrangler.jsonc`,
+   delete the token file, and check that the route answers 404 again.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
