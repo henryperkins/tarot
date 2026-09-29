@@ -145,7 +145,9 @@ export function useAudioController() {
     }
   }, [voiceOn, releaseSdkAudio]);
 
-  // /api/tts (Deepgram Aura-2) speak function; the player applies the speed
+  // /api/tts (Deepgram Aura-2) speak function; the player applies the speed.
+  // A whole reading is streamed: Aura-2 speaks at about 2.5x real time, so
+  // waiting for all of it would hold a long reading silent for 40 s or more.
   const speakWithAzure = useCallback(async (text, context = 'default', emotion = null) => {
     await speakText({
       text,
@@ -153,6 +155,7 @@ export function useAudioController() {
       context,
       voice: 'nova', // Default voice for mystical tarot readings
       speed: ttsSpeed,
+      stream: context === 'full-reading',
       emotion
     });
   }, [voiceOn, ttsSpeed]);
