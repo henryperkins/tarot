@@ -126,13 +126,13 @@
     {
       "description": "Start a fresh conversation with the connected reviewer account. Exact setup prompt: \"Start a Celtic Cross reading about how I can approach this week. Return after starting the job; do not wait for it or interpret it yet, because I may cancel it.\" Once the start tool has returned, immediately send the user_prompt below in the same conversation. Require a running status followed by a cancellation result of cancelled; a job that finishes before cancellation is an inconclusive run, not a cancellation pass. Repeat the complete setup in a fresh conversation if that race occurs.",
       "user_prompt": "Check the status of the reading you just started. If it is still running, cancel it now. Do not wait for it or start a replacement.",
-      "tools_triggered": "draw_tarot_reading (setup), get_tarot_reading_status, cancel_tarot_reading",
+      "tools_triggered": "draw_tarot_reading, get_tarot_reading_status, cancel_tarot_reading",
       "expected_output": "Use the original jobId and the linked OAuth account; do not send jobToken. A cancellation pass requires get_tarot_reading_status to return running and cancel_tarot_reading to return cancelled. Report the actual result. If the job already completed or errored, report that accurately and record this run as inconclusive for cancellation. Do not claim cancellation from the static completion label or start a replacement job."
     },
     {
       "description": "Start a fresh conversation with the connected reviewer account. Exact setup prompt: \"Draw a three-card reading about how I can approach this week. Wait until the reading is complete. Do not save it yet.\" Wait for a complete response with a nonempty reading; if generation fails, is withheld, or returns supportMessage, stop and record the setup as blocked. Within 24 hours, send the user_prompt below in that same conversation. The save returns the entry id used for the note; no previous conversation or invented identifiers are needed.",
       "user_prompt": "Save that completed reading to my Tableu journal, then add this exact note to the whole reading: \"I will make time to consider this patiently.\"",
-      "tools_triggered": "draw_tarot_reading, wait_for_tarot_reading (setup), save_reading_to_journal, add_reflection_to_journal_entry",
+      "tools_triggered": "draw_tarot_reading, wait_for_tarot_reading, save_reading_to_journal, add_reflection_to_journal_entry",
       "expected_output": "Save using only the original jobId and optional supported context. Report saved or already_saved from the result. After a successful save, use its entry.id to append exactly \"I will make time to consider this patiently.\" with scope reading; report added or already_present. Do not send reading-text payloads or jobToken, invent identifiers, save support/withheld results, or fall back to chat text after expiry. Confirm each write only from a successful result."
     }
   ],
