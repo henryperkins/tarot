@@ -23,6 +23,30 @@ Thoth images and visible labels both remain correct. CI runs Node 24 and the roo
 Worker MCP tests; the retired adapter is removed. Publication and resource
 creation still require the separate confirmations in the implementation plan.
 
+### Directory review amendment — 2026-09-29
+
+A pre-submission review of the ChatGPT app changed these decisions. Where the
+sections below disagree, this amendment wins.
+
+- **Eligibility (§6.3, §6.4).** Only a job that produced a reading exposes
+  `reading` or can be saved (`functions/lib/mcp/readingOutcome.js`). A crisis
+  response returns `supportMessage`. A safe-fallback narrative, or any gate
+  block other than the `quality_gate_streaming` notice, is withheld and can't
+  be saved; this reverses §6.4's "eval-gated replacement narratives are
+  saveable". A complete job without text is reported as an error.
+- **Saves (D5, §6.4, §7.2).** Payload mode is removed. A save is
+  `{ jobId, context? }`, rebuilt from the account's own job. After the job's
+  24 hours the reading can no longer be saved.
+- **Job reference (§6, §7.4).** The MCP paths authorize by the owning
+  principal and `jobId`. `jobToken` remains a server-side verifier for
+  `/start` and the public routes; the tools still return and accept it,
+  deprecated and ignored, until the submitted tool metadata is refreshed.
+- **Retention (§7.4).** Each job keeps a Durable Object alarm at its deletion
+  time and is purged with `deleteAlarm()` and `deleteAll()`.
+- **Contracts.** Supplied cards may omit `meaning` (the catalog meaning is
+  used). Status results drop `provider` and reduce `themes` to five summary
+  fields. The reflection schema advertises that a card note needs `card`.
+
 ## 1. Goal
 
 Let the Tableu ChatGPT plugin (v0.27.3, migrated from the former Custom GPT) run a

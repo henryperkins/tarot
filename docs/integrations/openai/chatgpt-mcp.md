@@ -2,7 +2,7 @@
 
 Type: runbook
 Status: active
-Last reviewed: 2026-09-24
+Last reviewed: 2026-09-29
 
 The Tableu ChatGPT plugin reaches the backend through an MCP endpoint on the
 main Worker, `https://tarot.lakefrontdev.com/mcp`, protected by OAuth 2.1 that
@@ -33,7 +33,13 @@ Design: `docs/superpowers/specs/2026-09-22-chatgpt-mcp-journal-design.md`.
   labels, including Thoth court cards.
 - **Reading jobs.** Readings run as jobs in the `ReadingJob` Durable Object,
   under an in-Worker principal. Jobs started from ChatGPT are readable only
-  through `/mcp` and are kept for 24 hours.
+  through `/mcp`, only by the account that started them, and by `jobId` alone;
+  the job token stays server-side. Each job's alarm deletes its storage 24
+  hours after it finishes (app jobs: 1 hour).
+- **What the tools expose.** `functions/lib/mcp/readingOutcome.js` decides
+  what a finished job delivered. Only a reading is returned as `reading` and
+  can be saved; a crisis response comes back as `supportMessage`, and a
+  safety-check fallback is withheld.
 
 ## Tools
 
@@ -45,7 +51,7 @@ Design: `docs/superpowers/specs/2026-09-22-chatgpt-mcp-journal-design.md`.
 | `wait_for_tarot_reading` | Waits up to 45 s for the reading, then returns its status and narrative |
 | `get_tarot_reading_status` | Checks a reading once |
 | `cancel_tarot_reading` | Cancels a running reading |
-| `save_reading_to_journal` | Saves a finished reading from its job, verbatim and idempotently; accepts the audited payload after the job expires |
+| `save_reading_to_journal` | Saves a finished reading from its job, verbatim and idempotently, within 24 hours; refuses support messages and withheld readings |
 | `add_reflection_to_journal_entry` | Appends the user's exact words to the whole reading or one card; idempotent |
 
 ## Configuration
@@ -208,6 +214,6 @@ When you're done, delete `wrangler.dev-local.jsonc`, and never commit it or
 | `invalid_redirect_uri` on registration | Redirect URI isn't a ChatGPT callback or loopback | Register from ChatGPT or a local tool |
 | 429 on `/oauth/register` | More than 10 registrations an hour from one address | Wait for the next hour |
 | 503 on `/oauth/register` | D1 admission unavailable, including a missing migration 0031 | Check the DB binding and migration status; restore admission storage before retrying |
-| "Reading job not found." | Wrong jobId/jobToken, or another account's job | Start a new reading |
-| "…job has expired…" when saving | MCP jobs are kept for 24 h | Save with the reading fields, as the tool describes |
+| "Reading job not found." | Wrong jobId, or another account's job | Start a new reading |
+| "…can no longer be saved…" when saving | MCP jobs are deleted 24 h after they finish | Save within 24 hours of the reading |
 | Journal routes answer 403 `service_account_journal_forbidden` | Called with the shared GPT service token | Use a personal credential |

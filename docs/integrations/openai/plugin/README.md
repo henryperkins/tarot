@@ -1,8 +1,17 @@
-# Tableu plugin 0.28.0: files to apply
+# Tableu plugin 0.28.2: files to apply
 
-These files update the Tableu ChatGPT plugin (0.27.3, downloaded from ChatGPT)
-so that it uses the live MCP tools. The rest of the package, including its
-reference guides and assets, is not stored in this public repository.
+These files carry the Tableu ChatGPT plugin's instructions for the live MCP
+tools. The rest of the package, including its reference guides and assets, is
+not stored in this public repository.
+
+0.28.2 matches the server changes of 2026-09-29: jobId is the only job
+reference, saves come only from the job within 24 hours, and a status without
+`reading` is a support message or a withheld reading. To update an installed
+0.28.x package, replace the two files in steps 2 and 3, set `version` to
+`0.28.2` in both manifests, and repeat step 6. 0.28.1 was edited outside this
+repository; merge any of its changes that these files lack before uploading.
+
+For a first install from 0.27.3, follow every step:
 
 1. Unzip the 0.27.3 package.
 2. Replace `skills/instructions/SKILL.md` with [SKILL.md](SKILL.md).
@@ -14,7 +23,7 @@ reference guides and assets, is not stored in this public repository.
    requires ids that start with `asdk_app_`. If validation rejects the id,
    ask `@plugin-creator` in ChatGPT to write the mapping for that app id.
 5. Update both manifests, `plugin.json` and `.codex-plugin/plugin.json`:
-   - set `version` to `0.28.0`;
+   - set `version` to `0.28.2`;
    - reference the app mapping: `"apps": "./.app.json"` under
      `extensions.com.openai` in `plugin.json`, and top-level `"apps": "./.app.json"`
      in `.codex-plugin/plugin.json`;

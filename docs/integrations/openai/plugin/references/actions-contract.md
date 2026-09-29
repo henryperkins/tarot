@@ -1,6 +1,6 @@
 # Tableu tools contract
 
-Reviewed 2026-09-23 for plugin 0.28.0. Source of truth: the live tool schemas.
+Reviewed 2026-09-29 for plugin 0.28.2. Source of truth: the live tool schemas.
 The backend is described in `docs/integrations/openai/chatgpt-mcp.md` in
 henryperkins/tarot.
 
@@ -19,11 +19,11 @@ connection acts as. The connection is private to that one account.
 
 | Tool | Input | Returns |
 |---|---|---|
-| `draw_tarot_reading` | `spreadInfo { name, key }`; optional `userQuestion`, `reflectionsText`, `deckStyle` (rws-1909, thoth-a1, marseille-classic), `reversalFrameworkOverride` (blocked, delayed, internalized, contextual, shadow, mirror, potentialBlocked; any other value is refused), `allowReversals`, `seed`, `personalization` | `jobId`, `jobToken`, `status: running`, `spreadInfo`, `cardsInfo`, `seed`, `deckStyle` |
-| `start_tarot_reading` | `spreadInfo { name, key }`, `cardsInfo[] { position, card, orientation, meaning }`, and the optional reading fields above | `jobId`, `jobToken`, `status: running` |
-| `wait_for_tarot_reading` | `jobId`, `jobToken`, optional `timeoutSeconds` (1–45, default 40) | status (below), plus `timedOut` when still running |
-| `get_tarot_reading_status` | `jobId`, `jobToken` | status (below) |
-| `cancel_tarot_reading` | `jobId`, `jobToken` | `status`: `cancelled`, or `complete` / `error` when already finished |
+| `draw_tarot_reading` | `spreadInfo { name, key }`; optional `userQuestion`, `reflectionsText`, `deckStyle` (rws-1909, thoth-a1, marseille-classic), `reversalFrameworkOverride` (blocked, delayed, internalized, contextual, shadow, mirror, potentialBlocked; any other value is refused), `allowReversals`, `seed`, `personalization` | `jobId`, `status: running`, `spreadInfo`, `cardsInfo`, `seed`, `deckStyle` |
+| `start_tarot_reading` | `spreadInfo { name, key }`, `cardsInfo[] { position, card, orientation, meaning? }`, and the optional reading fields above | `jobId`, `status: running` |
+| `wait_for_tarot_reading` | `jobId`, optional `timeoutSeconds` (1–45, default 40) | status (below), plus `timedOut` when still running |
+| `get_tarot_reading_status` | `jobId` | status (below) |
+| `cancel_tarot_reading` | `jobId` | `status`: `cancelled`, or `complete` / `error` when already finished |
 
 - **Spread keys** are exactly `single`, `threeCard`, `fiveCard`, `decision`,
   `relationship` and `celtic`.
@@ -31,12 +31,23 @@ connection acts as. The connection is private to that one account.
   `{ position, card, orientation (Upright or Reversed), meaning, number, suit, rank, rankValue }`.
   `card` is the name in the chosen deck, for example Thoth "Prince of Wands".
   The metadata comes from the card catalog. The returned cards are the ground
-  truth.
+  truth. For supplied cards, send `meaning` only when the user gave one;
+  without it Tableu uses the card's standard upright or reversed meaning.
 - **Status** is `{ jobId, status (running, complete or error), spreadInfo, cardsInfo, seed? }`.
-  When complete it adds `reading`, `provider`, `requestId`, `themes` and, when
-  present, `gateBlocked`/`gateReason`. When it failed it adds `error`.
-- **Tokens.** `jobId` and `jobToken` are private handles; never show them to
-  the user.
+  When it failed it adds `error`. A complete status adds `requestId` and one
+  of three outcomes:
+  - `reading` (plus a `themes` summary): the narrative to present;
+  - `supportMessage` with `gateBlocked` and `gateReason: crisis_gate`: the
+    question suggested a crisis, so there is no reading. Set the cards aside
+    and share the support information;
+  - `gateBlocked` and `gateReason` alone: Tableu held the reading back. Say it
+    isn't available and don't write one in its place.
+
+  A job that finished without any text is reported as `error`.
+- **Job reference.** `jobId` is a private handle; never show it to the user.
+  Tableu serves a job only to the account that started it. `jobToken` is
+  deprecated: it may still appear in results and is accepted, but it is
+  ignored.
 - **Waiting.** Wait again if a reading is still running, and never start a
   second reading for the same request.
 - **Replay.** Reuse the returned decimal `seed` unchanged with the same spread,
@@ -50,20 +61,14 @@ connection acts as. The connection is private to that one account.
 Consent is required: an explicit request, or an unambiguous yes right after an
 offer.
 
-- **Preferred:** `{ jobId, jobToken, context? }`. The server copies the
-  narrative, cards, spread, question, deck, personalization and seed exactly.
-  `context` is one of love, career, self, spiritual, wellbeing, decision or
-  general, and is sent only when clearly supported.
-- **After the job expires (24 h):** the reading fields `spread`, `spreadKey`,
-  `cards`, `personalReading` and `requestId`, plus optional `question`,
-  `themes`, `context`, `provider`, `sessionSeed`, `deckId` and
-  `userPreferences`.
-  - Each card is `{ position, name, orientation }`, where `name` is the card's
-    name as the reading returned it (`cardsInfo[].card`). It also carries its
-    identity: `number` for a Major Arcana card, or `suit` and `rankValue` for a
-    Minor Arcana card, exactly as returned.
-  - `personalReading` is the complete narrative, verbatim.
-- **Never both:** don't send a job reference and reading fields together.
+- **Input:** `{ jobId, context? }`. The server copies the narrative, cards,
+  spread, question, deck, personalization and seed from the account's own
+  job, exactly. `context` is one of love, career, self, spiritual, wellbeing,
+  decision or general, and is sent only when clearly supported.
+- **Window:** a reading can be saved for 24 hours after it is written. After
+  that the tool answers "Not saved: this reading can no longer be saved".
+- **Not saveable:** a support message, a reading Tableu held back, or a job
+  that failed.
 - **Canonical names:** cards are stored under their canonical names, which is
   how the app stores them; Thoth "Prince of Wands" is stored as "Knight of
   Wands". The app shows canonical names.
