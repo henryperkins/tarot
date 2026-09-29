@@ -1,0 +1,159 @@
+{
+  "$schema": "https://developers.openai.com/plugins/schemas/chatgpt-app-submission.v1.json",
+  "schema_version": 1,
+  "app_info": {
+    "display_name": "Tableu",
+    "description": "Tableu draws and interprets tarot readings for six structured spreads, returns generated narratives, and can save readings or user reflections to the linked account's journal when explicitly requested.",
+    "subtitle": "Tarot readings and reflection"
+  },
+  "tools": {
+    "get_profile": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Returns the profile for the OAuth-resolved Tableu account and does not change account data.",
+        "open_world_justification": "Reads only the linked account's profile from Tableu; it does not query arbitrary external services or accounts.",
+        "destructive_justification": "This is read-only and cannot alter or delete profile data."
+      }
+    },
+    "draw_tarot_reading": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Draws cards and starts a Tableu reading job, consuming one reading from the user's quota.",
+        "open_world_justification": "The request stays within Tableu's reading workflow for the linked account; it does not target arbitrary external services, users, or public content.",
+        "destructive_justification": "It creates a reading job but does not delete or replace user data; quota use is disclosed by the tool."
+      }
+    },
+    "start_tarot_reading": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Starts a Tableu reading job from cards supplied by the user and consumes one reading from the user's quota.",
+        "open_world_justification": "The supplied cards are processed through Tableu's reading workflow for the linked account; there is no arbitrary external target.",
+        "destructive_justification": "It creates a reading job but does not delete or replace user data."
+      }
+    },
+    "get_tarot_reading_status": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Checks the status and available result of a reading job without changing it.",
+        "open_world_justification": "Reads only the specified Tableu job after verifying that the OAuth account started it; the deprecated jobToken is ignored and does not authorize access.",
+        "destructive_justification": "The status lookup does not mutate or delete the reading."
+      }
+    },
+    "wait_for_tarot_reading": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Polls a reading job for up to the requested timeout and returns its current status without changing the job.",
+        "open_world_justification": "It waits on a Tableu job verified against the linked account; it does not interact with arbitrary external targets.",
+        "destructive_justification": "Waiting and polling do not cancel, overwrite, or delete the reading."
+      }
+    },
+    "cancel_tarot_reading": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Changes the state of a running reading job by cancelling it; completed jobs are left unchanged.",
+        "open_world_justification": "Cancellation is limited to a Tableu reading job verified for the linked account.",
+        "destructive_justification": "Cancelling a running job is an irreversible action; a cancelled reading cannot be resumed."
+      }
+    },
+    "save_reading_to_journal": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Creates or confirms an idempotent journal entry from a completed, eligible reading job owned by the linked Tableu account. Reading text supplied by the model is never accepted.",
+        "open_world_justification": "The write is confined to the linked account's Tableu journal and is not published to an external audience.",
+        "destructive_justification": "The tool adds or deduplicates an entry; it does not delete or overwrite journal data."
+      }
+    },
+    "add_reflection_to_journal_entry": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Appends the user's exact reflection text to a saved reading in the linked Tableu journal.",
+        "open_world_justification": "The append is confined to the linked account's Tableu journal and does not publish to an external audience.",
+        "destructive_justification": "Reflections are append-only and idempotent; the tool does not replace or delete existing notes."
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "description": "Return the identity fields available for the account this connection acts as.",
+      "user_prompt": "Which Tableu account is this connection using?",
+      "tools_triggered": "get_profile",
+      "expected_output": "Identify the linked account using the returned nickname or name when present. Do not invent omitted fields or expose internal job identifiers."
+    },
+    {
+      "description": "Draw cards for a supported spread when the user has not supplied cards, then wait on that same job for its result.",
+      "user_prompt": "Draw a three-card reading about how I can approach this week.",
+      "tools_triggered": "draw_tarot_reading, wait_for_tarot_reading",
+      "expected_output": "Show only the returned cards, positions, and orientations, and wait on the same jobId. Present the narrative only from a complete result with a nonempty reading. Handle running, supportMessage, withheld, and error results according to their actual status; do not invent a replacement or save without consent."
+    },
+    {
+      "description": "Start a reading from user-supplied cards while preserving their card names, positions, and orientations, then wait on that job.",
+      "user_prompt": "Use Tableu to interpret my Rider-Waite three-card spread about approaching this week: Past — The Hermit upright; Present — Two of Cups reversed; Future — The Star upright. I have not supplied card meanings.",
+      "tools_triggered": "start_tarot_reading, wait_for_tarot_reading",
+      "expected_output": "Start a threeCard reading with the supplied names, positions, and orientations. Omit meaning so Tableu resolves standard meanings. Do not redraw, supply seed or allowReversals, or invent meanings as required inputs. Wait on the same jobId and present only an eligible completed reading."
+    },
+    {
+      "description": "Start a fresh conversation with the connected reviewer account. Exact setup prompt: \"Start a Celtic Cross reading about how I can approach this week. Return after starting the job; do not wait for it or interpret it yet, because I may cancel it.\" Once the start tool has returned, immediately send the user_prompt below in the same conversation. Require a running status followed by a cancellation result of cancelled; a job that finishes before cancellation is an inconclusive run, not a cancellation pass. Repeat the complete setup in a fresh conversation if that race occurs.",
+      "user_prompt": "Check the status of the reading you just started. If it is still running, cancel it now. Do not wait for it or start a replacement.",
+      "tools_triggered": "draw_tarot_reading (setup), get_tarot_reading_status, cancel_tarot_reading",
+      "expected_output": "Use the original jobId and the linked OAuth account; do not send jobToken. A cancellation pass requires get_tarot_reading_status to return running and cancel_tarot_reading to return cancelled. Report the actual result. If the job already completed or errored, report that accurately and record this run as inconclusive for cancellation. Do not claim cancellation from the static completion label or start a replacement job."
+    },
+    {
+      "description": "Start a fresh conversation with the connected reviewer account. Exact setup prompt: \"Draw a three-card reading about how I can approach this week. Wait until the reading is complete. Do not save it yet.\" Wait for a complete response with a nonempty reading; if generation fails, is withheld, or returns supportMessage, stop and record the setup as blocked. Within 24 hours, send the user_prompt below in that same conversation. The save returns the entry id used for the note; no previous conversation or invented identifiers are needed.",
+      "user_prompt": "Save that completed reading to my Tableu journal, then add this exact note to the whole reading: \"I will make time to consider this patiently.\"",
+      "tools_triggered": "draw_tarot_reading, wait_for_tarot_reading (setup), save_reading_to_journal, add_reflection_to_journal_entry",
+      "expected_output": "Save using only the original jobId and optional supported context. Report saved or already_saved from the result. After a successful save, use its entry.id to append exactly \"I will make time to consider this patiently.\" with scope reading; report added or already_present. Do not send reading-text payloads or jobToken, invent identifiers, save support/withheld results, or fall back to chat text after expiry. Confirm each write only from a successful result."
+    }
+  ],
+  "negative_test_cases": [
+    {
+      "description": "In a fresh connected conversation, first send: \"Draw a three-card reading about approaching this week. Wait until it is complete. Do not save it.\" Continue only after a successful completed reading. Then send user_prompt below. A positive reaction is not consent to write.",
+      "user_prompt": "That reading meant a lot to me.",
+      "tools_triggered": null,
+      "expected_output": "Acknowledge the reaction and ask whether the user wants to save the reading; do not call a journal write tool."
+    },
+    {
+      "description": "Start a fresh conversation with the reviewer account connected. No journal entry or prior chat context is needed. The server has no journal-reading or history-search tool.",
+      "user_prompt": "Show me my last five Tableu journal readings.",
+      "tools_triggered": null,
+      "expected_output": "Explain that this connection cannot browse journal history and direct the user to the Tableu app; do not fabricate entries."
+    },
+    {
+      "description": "Start a fresh connected conversation without starting any reading or providing a job reference, then send user_prompt below. An ambiguous cancellation request does not identify an active job.",
+      "user_prompt": "Cancel it now.",
+      "tools_triggered": null,
+      "expected_output": "Ask which active reading the user means. Do not call cancellation, start a reading, or invent a jobId."
+    }
+  ]
+}

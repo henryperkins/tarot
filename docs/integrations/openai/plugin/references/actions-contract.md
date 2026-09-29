@@ -1,119 +1,81 @@
 # Tableu tools contract
 
-Reviewed 2026-09-29 for plugin 0.28.2. Source of truth: the live tool schemas.
-The backend is described in `docs/integrations/openai/chatgpt-mcp.md` in
-henryperkins/tarot.
+Updated 2026-09-29 for plugin 0.28.2 against henryperkins/tarot master commit 1cfed0ad5f249b60b9767e87fb5ef4e328112756. Live tool schemas and responses take precedence. [capabilities-audit.md](capabilities-audit.md) records the earlier 0.28.1 inventory and its evidence limits; the job, safety-result, meaning, and save contracts below supersede those older sections. Source inspection and unit tests do not establish successful live OAuth or ChatGPT behavior.
 
-These tools come from the Tableu app (`https://tarot.lakefrontdev.com/mcp`,
-OAuth). Use a tool only when it is actually exposed. The four historical GPT
-Actions (createTarotReading, drawTarotReading, saveReadingToJournal,
-addReflectionToJournalEntry) are superseded; `migration-source/` keeps them as
-history.
+The attached Tableu app supplies these tools. The four former GPT Actions in `migration-source/` are historical contracts, not callable operations. Only invoke a tool actually exposed in the current conversation.
 
-## Account
+## Account and capability boundaries
 
-`get_profile` returns `{ id, name?, nickname? }` for the Tableu account the
-connection acts as. The connection is private to that one account.
+`get_profile({})` is read-only and returns the linked Tableu account's opaque stable `id`, plus optional `name`, `nickname`, and `email`. Prefer the nickname or name when identifying the account; do not invent a display name when absent. Saves target the connected account. A profile response confirms access to that account, not a full ownership or authorization-isolation test.
 
-## Readings
+There are no journal read, list, search, edit, delete, export, sharing, voice, image-upload, or archetype-tracking tools in this inventory. Interpreting visible user-supplied cards is conversational assistance; the backend start tool receives structured cards, not an image. The manifest's Read/Write labels do not promise general journal access. Point to the app for history; verify current app features, tiers, prices, and quotas before promising them.
 
-| Tool | Input | Returns |
+## Reading inputs
+
+| Tool | Required input | Optional input |
 |---|---|---|
-| `draw_tarot_reading` | `spreadInfo { name, key }`; optional `userQuestion`, `reflectionsText`, `deckStyle` (rws-1909, thoth-a1, marseille-classic), `reversalFrameworkOverride` (blocked, delayed, internalized, contextual, shadow, mirror, potentialBlocked; any other value is refused), `allowReversals`, `seed`, `personalization` | `jobId`, `status: running`, `spreadInfo`, `cardsInfo`, `seed`, `deckStyle` |
-| `start_tarot_reading` | `spreadInfo { name, key }`, `cardsInfo[] { position, card, orientation, meaning? }`, and the optional reading fields above | `jobId`, `status: running` |
-| `wait_for_tarot_reading` | `jobId`, optional `timeoutSeconds` (1–45, default 40) | status (below), plus `timedOut` when still running |
-| `get_tarot_reading_status` | `jobId` | status (below) |
-| `cancel_tarot_reading` | `jobId` | `status`: `cancelled`, or `complete` / `error` when already finished |
+| `draw_tarot_reading` | `spreadInfo { name, key }` | `userQuestion`, `reflectionsText`, `deckStyle`, `allowReversals`, `seed`, `personalization`, `reversalFrameworkOverride` |
+| `start_tarot_reading` | `spreadInfo { name, key }`, `cardsInfo[] { position, card, orientation }` | `userQuestion`, `reflectionsText`, `deckStyle`, `personalization`, `reversalFrameworkOverride`; each card can include `meaning`, `number`, `suit`, `rank`, `rankValue` |
 
-- **Spread keys** are exactly `single`, `threeCard`, `fiveCard`, `decision`,
-  `relationship` and `celtic`.
-- **Cards** have the shape
-  `{ position, card, orientation (Upright or Reversed), meaning, number, suit, rank, rankValue }`.
-  `card` is the name in the chosen deck, for example Thoth "Prince of Wands".
-  The metadata comes from the card catalog. The returned cards are the ground
-  truth. For supplied cards, send `meaning` only when the user gave one;
-  without it Tableu uses the card's standard upright or reversed meaning.
-- **Status** is `{ jobId, status (running, complete or error), spreadInfo, cardsInfo, seed? }`.
-  When it failed it adds `error`. A complete status adds `requestId` and one
-  of three outcomes:
-  - `reading` (plus a `themes` summary): the narrative to present;
-  - `supportMessage` with `gateBlocked` and `gateReason: crisis_gate`: the
-    question suggested a crisis, so there is no reading. Set the cards aside
-    and share the support information;
-  - `gateBlocked` and `gateReason` alone: Tableu held the reading back. Say it
-    isn't available and don't write one in its place.
+- Spread keys: `single`, `threeCard`, `fiveCard`, `decision`, `relationship`, `celtic`.
+- Deck keys: `rws-1909`, `thoth-a1`, `marseille-classic`.
+- `personalization` supports `displayName`, `focusAreas[]` (at most 12 nonempty strings, each at most 40 characters), `preferredSpreadDepth` (short/standard/deep), `readingTone` (gentle/balanced/blunt), `spiritualFrame` (psychological/spiritual/mixed/playful), and `tarotExperience` (newbie/intermediate/experienced). Unknown properties are rejected. Use known preferences.
+- `start_tarot_reading` has no `seed` or `allowReversals` input. Preserve supplied orientations (upright/reversed or Upright/Reversed), positions, and card names. Clarify missing or ambiguous cards, positions, and orientations before calling. Send meaning only when supplied by the user; otherwise omit it and the server resolves the standard meaning.
+- Draw only when the user has not supplied cards. Both creation tools consume reading quota. No automatic redraw or restart after an uncertain failure.
+- A returned decimal seed can replay a draw with the same spread, deck, and reversal setting. Preserve that string exactly; do not promise the same generated narrative. Seed parsing internals and HTTP API behavior are outside this contract.
 
-  A job that finished without any text is reported as `error`.
-- **Job reference.** `jobId` is a private handle; never show it to the user.
-  Tableu serves a job only to the account that started it. `jobToken` is
-  deprecated: it may still appear in results and is accepted, but it is
-  ignored.
-- **Waiting.** Wait again if a reading is still running, and never start a
-  second reading for the same request.
-- **Replay.** Reuse the returned decimal `seed` unchanged with the same spread,
-  deck and reversal setting to reproduce the draw. MCP treats decimal seed
-  strings as unsigned 32-bit values; nonnumeric words or phrases are hashed.
-  The existing HTTP draw API retains its original string-hashing behavior.
-- **Timing.** Every tool returns within about 45 seconds.
+## Jobs and results
+
+Both creation tools return `jobId` and `status: running`. Draw also returns `cardsInfo`, `spreadInfo`, `seed`, and `deckStyle`; start does not return cards at creation. The server may still return deprecated `jobToken` for compatibility. It is optional and ignored on MCP status, wait, cancellation, and save calls; send only jobId. Access is enforced using the OAuth account that started the job. Retain original inputs and returned metadata in this conversation. Keep job handles private.
+
+| Tool | Input | Result |
+|---|---|---|
+| `wait_for_tarot_reading` | `jobId`, optional `timeoutSeconds` (integer 1–45, default 40) | Job status and available result fields |
+| `get_tarot_reading_status` | `jobId` | One status check; use wait when waiting for completion |
+| `cancel_tarot_reading` | `jobId` | `jobId`, `status: cancelled / complete / error` |
+
+Status results contain `jobId`, `status` (running/complete/error), `cardsInfo`, and nullable `spreadInfo`. Optional fields are `reading`, `supportMessage`, `error`, `seed`, `timedOut`, `gateBlocked`, `gateReason`, `requestId`, and `themes`; gateReason and requestId may be null. The backend provider is no longer exposed. themes is limited to dominantSuit, dominantElement, majorCount, reversalCount, and reversalFramework. Returned card fields are position, card, orientation (Upright/Reversed), meaning, number, suit, rank, and rankValue; meaning and identity metadata can be null. Preserve actual values and do not fill absent result fields by invention.
+
+- Running, including `timedOut: true`: wait again on the same job. A wait timeout is not job failure and never authorizes a second reading.
+- Complete with a nonempty reading: present the returned narrative. The server classifies a vetted replacement after quality_gate_streaming as a reading and omits the first draft's blocked flag from the public result. For older responses only, this exact reason with a nonempty reading is an eligible exception to gateBlocked; unknown reasons remain withheld.
+- supportMessage with gateReason crisis_gate: no tarot reading was produced. Set the cards aside, respond with care, and share the support information. Do not interpret or offer to save it.
+- gateBlocked without reading: explain that Tableu withheld the reading. Do not present or save it, invent a replacement, or restart without a new user request.
+- Complete without reading or supportMessage: report that the reading could not be confirmed; do not invent a narrative or start another job. The current server reports an empty finished result as error.
+- Error: explain that generation failed. Cards already returned by the draw remain valid evidence of a draw; distinguish them from a failed narrative.
+- Cancel only on the user's request. Report cancelled only when returned. Complete/error means the job had already finished.
+- The wait limit is not an end-to-end latency guarantee for every tool or the whole reading.
 
 ## Saving: `save_reading_to_journal`
 
-Consent is required: an explicit request, or an unambiguous yes right after an
-offer.
+Require the user's explicit save request or an unambiguous yes immediately after an offer. A reading request alone is not save consent.
 
-- **Input:** `{ jobId, context? }`. The server copies the narrative, cards,
-  spread, question, deck, personalization and seed from the account's own
-  job, exactly. `context` is one of love, career, self, spiritual, wellbeing,
-  decision or general, and is sent only when clearly supported.
-- **Window:** a reading can be saved for 24 hours after it is written. After
-  that the tool answers "Not saved: this reading can no longer be saved".
-- **Not saveable:** a support message, a reading Tableu held back, or a job
-  that failed.
-- **Canonical names:** cards are stored under their canonical names, which is
-  how the app stores them; Thoth "Prince of Wands" is stored as "Knight of
-  Wands". The app shows canonical names.
-- **Outcomes:**
-  - `saved`: a new entry, returned as `entry.id`;
-  - `already_saved`: this reading was already stored, nothing changed, and
-    `entry.id` is its id;
-  - `seedShared`: another reading already uses the seed, so this one was
-    stored without it.
-- **Errors:** "Not saved: …" names the reason. "Could not confirm …" means the
-  outcome is unknown, so suggest checking the app.
+Required input: `{ jobId, context? }`. The server copies the completed reading from the connected account's own job; the model never supplies the narrative, cards, provider, requestId, or personalization. Context is love/career/self/spiritual/wellbeing/decision/general; include it only when clearly supported. jobToken is optional, deprecated, and ignored.
+
+A ChatGPT job is retained for 24 hours after finishing. After expiry, report the returned rejection and stop: there is no payload-mode or expired-job fallback. Empty input, reading-text payloads, another account's job, unfinished jobs, failed or empty results, support messages, and withheld readings cannot be saved. Never manufacture an identifier or recreate a reading to bypass these checks. A successful quality_gate_streaming replacement is an ordinary saveable reading.
+
+Successful responses contain `entry { id, ts }`, `deduplicated`, `outcome: saved / already_saved`, and optional boolean `seedShared`.
+- Saved: a new entry was created.
+- Already_saved: use the existing entry id; do not claim another entry was created.
+- seedShared is a separate flag, not a third outcome or a failed save.
+
+Keep the returned entry id for authorized reflections in this conversation. The server stores canonical card identities while returning deck labels in reflection targets; preserve the reading's label when attaching a card note. A save result does not prove archetype tracking changed.
 
 ## Reflections: `add_reflection_to_journal_entry`
 
-Consent is required: an explicit request, or an unambiguous yes right after an
-offer.
+Require an explicit request to save/attach/note the user's words, or an unambiguous yes immediately after an offer.
 
-- **Input:** `{ entryId, text, scope (reading or card), card?, position? }`.
-  `entryId` must come from a save in this conversation.
-- **Text:** the user's exact words, 1–2,000 characters. Never summarize or
-  split them.
-- **Card scope:** send `card` as the reading showed it, plus `position` when
-  that card appears twice. A card that isn't in the entry is rejected, and the
-  error lists the entry's cards.
-- **Returned target:** `target.card` is also the entry deck's label, so it can
-  be reused with `target.position` for another note. Stored journal cards keep
-  their canonical names; a Thoth Prince target remains "Prince of Wands" in
-  reflection results even though its stored canonical name is "Knight of Wands".
-- **Appending:** notes are appended, never replaced. The same note on the same
-  target is never added twice; the outcome is then `already_present`.
-- **Other errors:** "Not added: no saved entry with that id…" means the entry
-  is missing or belongs to another account. Don't guess another id.
+Input: `{ entryId, text, scope, card?, position? }`.
+- Use only an entryId returned by a successful save in this conversation.
+- Send the user's exact words, 1–2,000 characters. Never summarize or split a longer passage; ask them to choose a shorter passage.
+- For the whole spread, use scope `reading`.
+- For scope `card`, send the card's label as the reading showed it. Include its position to disambiguate repeated names. Clarify ambiguity instead of choosing a card.
+- Notes append rather than replace. The same note on the same target returns `already_present`; otherwise `added`.
+- Results contain entryId, key, outcome, text, and target (scope, with optional card, cardIndex, position). When present, `target.card` uses the deck label and can be reused with a non-null target.position. Returned target.card and target.position may be null; omit null values from new requests because the input fields accept strings, not null. An unclear-write retry keeps the original request payload rather than rebuilding it from result fields.
 
 ## Retries and errors
 
-- **Retries:** a save or a reflection may be retried once after an unclear
-  failure. Both are idempotent.
-- **Explicit rejections** ("Not saved", "Not added", "Not started"): fix only
-  the stated problem, once.
-- **Tier or quota errors:** explain them and stop.
-- **Honesty:** never report success without a successful tool result.
+The live descriptions permit one retry after an unclear failure for either write. Repeat the identical payload, including reading/entry identity, target, text, and context. A changed payload is a new write, not a retry.
 
-## Not available
+After the retry remains unclear, say the save or note could not be confirmed and suggest checking the app. Do not claim failure as certain when the result is unknown. For explicit validation rejections, fix only the stated problem once; do not bypass permission, ownership, tier, quota, or authentication errors. For draw/start, a corrective retry requires an explicit validation rejection indicating the reading did not start. Never create a replacement job after a network error.
 
-- There are no journal read, list, search or delete tools.
-- There is no cross-session history, and archetype tracking is not updated by
-  saves.
-- Point to the Tableu app for history.
+Report saved/added only from a successful tool result. Explain explicit Not saved/Not added rejections. Tier or quota errors stop the operation; do not invent quota numbers or promise an upgrade will resolve an unspecified problem.
