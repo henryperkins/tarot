@@ -339,8 +339,10 @@ export function ReadingDisplay({
         });
     }, [handleOpenJournal, navigate]);
 
+    // Offered when narration reaches the monthly limit. Pro is unlimited, so
+    // the plans page is where a guest, free or Plus reader gets more.
     const handleOpenSubscriptionSettings = useCallback(() => {
-        navigate('/settings', { state: { section: 'subscription' } });
+        navigate('/pricing');
     }, [navigate]);
 
     const {
