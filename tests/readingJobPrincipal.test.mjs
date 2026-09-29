@@ -71,10 +71,10 @@ describe('startReadingJob with a principal', () => {
 
   it('serves the snapshot, result and themes to the owning principal', async () => {
     const { jobs, env } = environment(readingRunner({ reading: 'Hope returns.', requestId: 'req-42' }));
-    const { jobId, jobToken } = await startReadingJob({ env, payload: PAYLOAD, principal: { userId: 'user-1' }, snapshot: SNAPSHOT });
+    const { jobId } = await startReadingJob({ env, payload: PAYLOAD, principal: { userId: 'user-1' }, snapshot: SNAPSHOT });
     await jobs.settle();
 
-    const result = await getMcpJobSnapshot({ env, jobId, jobToken, userId: 'user-1' });
+    const result = await getMcpJobSnapshot({ env, jobId, userId: 'user-1' });
 
     assert.equal(result.ok, true);
     assert.equal(result.data.status, 'complete');
@@ -84,15 +84,24 @@ describe('startReadingJob with a principal', () => {
     assert.deepEqual(result.data.meta.themes, { dominantSuit: 'Cups' });
   });
 
-  it('answers the same 404 for a wrong token or another principal', async () => {
+  it('serves a principal job only to its principal, and answers anyone else like an unknown job', async () => {
     const { jobs, env } = environment(readingRunner());
     const { jobId, jobToken } = await startReadingJob({ env, payload: PAYLOAD, principal: { userId: 'user-1' }, snapshot: SNAPSHOT });
     await jobs.settle();
 
-    const wrongToken = await getMcpJobSnapshot({ env, jobId, jobToken: 'nope', userId: 'user-1' });
-    const wrongUser = await getMcpJobSnapshot({ env, jobId, jobToken, userId: 'user-2' });
-    assert.deepEqual([wrongToken.status, wrongUser.status], [404, 404]);
-    assert.equal(wrongToken.error, wrongUser.error);
+    const owner = await getMcpJobSnapshot({ env, jobId, userId: 'user-1' });
+    const wrongUser = await getMcpJobSnapshot({ env, jobId, userId: 'user-2' });
+    const unknown = await getMcpJobSnapshot({ env, jobId: 'no-such-job', userId: 'user-1' });
+    const cancelByOther = await cancelMcpJob({ env, jobId, userId: 'user-2' });
+    assert.equal(owner.data.status, 'complete');
+    assert.deepEqual([wrongUser.status, unknown.status, cancelByOther.status], [404, 404, 404]);
+    assert.equal(wrongUser.error, unknown.error);
+
+    // Even the right token grants nothing without the owning principal.
+    const direct = await jobs.namespace.get(jobId).fetch('https://reading-jobs/mcp/snapshot', {
+      headers: { 'X-Job-Token': jobToken, 'X-Principal-User-Id': 'user-2' }
+    });
+    assert.equal(direct.status, 404);
   });
 
   it('rejects an invalid payload before creating a job', async () => {
@@ -120,7 +129,7 @@ describe('public job routes', () => {
     const cancel = await publicCall(publicCancel, env, { jobId, jobToken, method: 'POST', path: '/cancel' });
 
     assert.deepEqual([status.status, stream.status, cancel.status], [404, 404, 404]);
-    const still = await getMcpJobSnapshot({ env, jobId, jobToken, userId: 'user-1' });
+    const still = await getMcpJobSnapshot({ env, jobId, userId: 'user-1' });
     assert.equal(still.data.status, 'complete', 'the public cancel must not touch the job');
   });
 
@@ -167,27 +176,27 @@ describe('retention and cancellation', () => {
     const { jobs, env } = environment(hangingRunner());
     const running = await startReadingJob({ env, payload: PAYLOAD, principal: { userId: 'user-1' }, snapshot: SNAPSHOT });
 
-    const cancelled = await cancelMcpJob({ env, jobId: running.jobId, jobToken: running.jobToken, userId: 'user-1' });
+    const cancelled = await cancelMcpJob({ env, jobId: running.jobId, userId: 'user-1' });
     await jobs.settle();
     assert.deepEqual(cancelled, { ok: true, data: { status: 'cancelled' } });
-    const after = await getMcpJobSnapshot({ env, jobId: running.jobId, jobToken: running.jobToken, userId: 'user-1' });
+    const after = await getMcpJobSnapshot({ env, jobId: running.jobId, userId: 'user-1' });
     assert.equal(after.data.status, 'error');
     assert.equal(after.data.error, 'Reading cancelled.');
 
     const done = environment(readingRunner());
     const finished = await startReadingJob({ env: done.env, payload: PAYLOAD, principal: { userId: 'user-1' }, snapshot: SNAPSHOT });
     await done.jobs.settle();
-    const noop = await cancelMcpJob({ env: done.env, jobId: finished.jobId, jobToken: finished.jobToken, userId: 'user-1' });
+    const noop = await cancelMcpJob({ env: done.env, jobId: finished.jobId, userId: 'user-1' });
     assert.deepEqual(noop, { ok: true, data: { status: 'complete' } });
   });
 
   it('reports an expired MCP job as 410', async () => {
     const { jobs, env } = environment(readingRunner());
-    const { jobId, jobToken } = await startReadingJob({ env, payload: PAYLOAD, principal: { userId: 'user-1' }, snapshot: SNAPSHOT });
+    const { jobId } = await startReadingJob({ env, payload: PAYLOAD, principal: { userId: 'user-1' }, snapshot: SNAPSHOT });
     await jobs.settle();
     jobs.instances.get(jobId).object.job.expiresAt = Date.now() - 1;
 
-    const result = await getMcpJobSnapshot({ env, jobId, jobToken, userId: 'user-1' });
+    const result = await getMcpJobSnapshot({ env, jobId, userId: 'user-1' });
     assert.deepEqual([result.ok, result.status], [false, 410]);
   });
 });

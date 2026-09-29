@@ -74,6 +74,14 @@ describe('save_reading_to_journal', () => {
     assert.ok(cards.every((card) => typeof card.name === 'string' && !('meaning' in card) && !('card' in card)));
   });
 
+  it('saves by jobId alone', async () => {
+    const ctx = await session();
+    const drawn = await drawAndFinish(ctx);
+    const saved = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId });
+    assert.equal(saved.structuredContent.outcome, 'saved');
+    assert.equal(entries(ctx.d1)[0].narrative, NARRATIVE);
+  });
+
   it('answers already_saved when the same job is saved again', async () => {
     const ctx = await session();
     const drawn = await drawAndFinish(ctx);

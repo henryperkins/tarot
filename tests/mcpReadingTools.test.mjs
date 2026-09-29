@@ -184,6 +184,50 @@ describe('waiting and status', () => {
     assert.equal(jobs.instances.size, 1, 'no second job was started');
   });
 
+  it('follows a job by jobId alone, and ignores the deprecated jobToken', async () => {
+    const { call, jobs } = await session();
+    const drawn = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
+    await jobs.settle();
+    assert.equal(typeof drawn.jobToken, 'string', 'still returned for clients of the submitted contract');
+
+    const waited = await call('wait_for_tarot_reading', { jobId: drawn.jobId });
+    const legacy = await call('get_tarot_reading_status', { jobId: drawn.jobId, jobToken: drawn.jobToken });
+    const stale = await call('get_tarot_reading_status', { jobId: drawn.jobId, jobToken: 'not-the-token' });
+    for (const result of [waited, legacy, stale]) assert.equal(result.structuredContent.status, 'complete');
+    assert.doesNotMatch(waited.content[0].text, /jobToken/);
+  });
+
+  it('returns the narrative with a bounded theme summary and no provider', async () => {
+    const themes = {
+      dominantSuit: 'Cups', dominantElement: 'Water', majorCount: 2, reversalCount: 1, reversalFramework: 'blocked',
+      suitFocus: 'long prose', knowledgeGraph: { patterns: ['large'] }, suitCounts: { Cups: 2 }
+    };
+    const { call, jobs } = await session({ runReading: readingRunner({ themes }) });
+    const { jobId } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
+    await jobs.settle();
+
+    const { structuredContent } = await call('wait_for_tarot_reading', { jobId });
+    assert.deepEqual(structuredContent.themes, {
+      dominantSuit: 'Cups', dominantElement: 'Water', majorCount: 2, reversalCount: 1, reversalFramework: 'blocked'
+    });
+    assert.equal('provider' in structuredContent, false);
+  });
+
+  it('advertises jobId as the only required job reference', async () => {
+    const { client } = await session();
+    const { tools } = await client.listTools();
+    const byName = Object.fromEntries(tools.map((tool) => [tool.name, tool]));
+    for (const name of ['wait_for_tarot_reading', 'get_tarot_reading_status', 'cancel_tarot_reading', 'save_reading_to_journal']) {
+      const { required, properties } = byName[name].inputSchema;
+      assert.ok(required.includes('jobId'), name);
+      assert.equal(required.includes('jobToken'), false, name);
+      assert.match(properties.jobToken.description, /Deprecated and ignored/, name);
+    }
+    for (const name of ['draw_tarot_reading', 'start_tarot_reading']) {
+      assert.equal(byName[name].outputSchema.required.includes('jobToken'), false, name);
+    }
+  });
+
   it('rejects a timeout above 45 seconds', async () => {
     const { call } = await session();
     const result = await call('wait_for_tarot_reading', { jobId: 'a', jobToken: 'b', timeoutSeconds: 46 });

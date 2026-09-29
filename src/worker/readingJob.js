@@ -317,19 +317,14 @@ export class ReadingJob {
 
   /**
    * Gate for the MCP-only paths. The job must be a principal job, and the
-   * caller must present its token and the same principal. Every failure is
-   * the same 404, so these paths reveal nothing about other jobs.
+   * caller must be that principal. The job token is not needed here: it stays
+   * server-side, guarding /start and the public routes, which never serve
+   * principal jobs. Every failure is the same 404, so these paths reveal
+   * nothing about other jobs.
    */
   async authorizeMcp(request) {
-    const token = getJobToken(request);
     const principal = request.headers.get('X-Principal-User-Id') || '';
-    if (
-      !this.job.jobId ||
-      !this.isPrincipalJob() ||
-      !token ||
-      token !== this.job.token ||
-      principal !== this.job.principalUserId
-    ) {
+    if (!this.job.jobId || !this.isPrincipalJob() || principal !== this.job.principalUserId) {
       return buildError(404, JOB_NOT_FOUND);
     }
     if (await this.expireIfNeeded()) {

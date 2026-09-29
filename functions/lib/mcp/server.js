@@ -19,8 +19,8 @@ export const MCP_INSTRUCTIONS = [
   'Call add_reflection_to_journal_entry only when the user explicitly asks to save or attach something they said, or says yes right after you offer. Send their exact words.',
   'Never say something was saved unless the tool returned success.',
   '1. Start a reading with draw_tarot_reading when Tableu should draw the cards, or with start_tarot_reading when the user supplies cards (keep their cards, positions and orientations exactly).',
-  '2. Call wait_for_tarot_reading with the returned jobId and jobToken until the status is complete or error. If it is still running, call it again; never start a second job for the same request.',
-  '3. Present each card as "Position — Card (orientation)" and make the returned narrative the centerpiece.',
+  '2. Call wait_for_tarot_reading with the returned jobId until the status is complete or error. If it is still running, call it again; never start a second job for the same request.',
+  '3. When the status includes `reading`, present each card as "Position — Card (orientation)" and make that narrative the centerpiece. When it includes `supportMessage` or says the reading was held back, follow the result text instead; never write a reading in its place.',
   'get_profile shows which Tableu account these tools act as.'
 ].join('\n');
 

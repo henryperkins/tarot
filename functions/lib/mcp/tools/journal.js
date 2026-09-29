@@ -17,7 +17,7 @@ import { WRITE, fail, ok, toolMeta } from './common.js';
 // and eligibility never come from the model.
 const saveInput = z.object({
   jobId: z.string().min(1),
-  jobToken: z.string().min(1),
+  jobToken: z.string().min(1).optional().describe('Deprecated and ignored; send only jobId.'),
   context: journalContextSchema.optional()
 }).strict();
 
@@ -54,7 +54,7 @@ const EXPIRED_JOB =
   'Not saved: this reading can no longer be saved. Readings started in ChatGPT are kept for 24 hours after they are written.';
 
 async function entryFromJob({ env, user, input }) {
-  const job = await getMcpJobSnapshot({ env, jobId: input.jobId, jobToken: input.jobToken, userId: user.id });
+  const job = await getMcpJobSnapshot({ env, jobId: input.jobId, userId: user.id });
   if (!job.ok) {
     if (job.status === 410) return { failure: fail(EXPIRED_JOB) };
     if (job.status === 404) return { failure: fail('Not saved: reading job not found.') };
@@ -76,7 +76,7 @@ export function registerJournalTools(server, { env, user, waitUntil }) {
     {
       title: 'Save a reading to the Tableu journal',
       description:
-        "Saves a finished Tableu reading to the user's journal. Call only when the user explicitly asks to save, journal, keep or remember the reading, or says yes right after you offer. Send the reading's jobId and jobToken; the server copies the narrative and cards exactly. A reading can be saved for 24 hours after it is written; support messages and readings Tableu held back can't be saved. Retrying once after an unclear failure is safe. Keep the returned entry id for reflections.",
+        "Saves a finished Tableu reading to the user's journal. Call only when the user explicitly asks to save, journal, keep or remember the reading, or says yes right after you offer. Send the reading's jobId; the server copies the narrative and cards exactly. A reading can be saved for 24 hours after it is written; support messages and readings Tableu held back can't be saved. Retrying once after an unclear failure is safe. Keep the returned entry id for reflections.",
       inputSchema: saveInput,
       outputSchema: saveOutput,
       annotations: WRITE,

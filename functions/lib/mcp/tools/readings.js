@@ -95,15 +95,36 @@ const startInput = z.object({
   ...readingContext
 }).strict();
 
+// jobId alone identifies a job: the MCP paths serve it only to the account
+// that started it. jobToken is still returned and accepted so clients that
+// learned the earlier contract keep working, but it is never checked.
+const DEPRECATED_TOKEN = 'Deprecated and ignored; send only jobId.';
 const jobRef = {
   jobId: z.string().min(1),
-  jobToken: z.string().min(1)
+  jobToken: z.string().min(1).optional().describe(DEPRECATED_TOKEN)
 };
 const jobRefInput = z.object(jobRef).strict();
 const waitInput = z.object({
   ...jobRef,
   timeoutSeconds: z.number().int().min(1).max(WAIT_MAX_SECONDS).optional()
 }).strict();
+
+/** The reading's pattern summary; the full analysis stays server-side. */
+const THEME_FIELDS = Object.freeze({
+  dominantSuit: 'string',
+  dominantElement: 'string',
+  majorCount: 'number',
+  reversalCount: 'number',
+  reversalFramework: 'string'
+});
+
+const themesOutput = z.object({
+  dominantSuit: z.string().optional(),
+  dominantElement: z.string().optional(),
+  majorCount: z.number().int().optional(),
+  reversalCount: z.number().int().optional(),
+  reversalFramework: z.string().optional()
+});
 
 const statusOutput = z.object({
   jobId: z.string(),
@@ -113,9 +134,8 @@ const statusOutput = z.object({
   seed: z.string().optional(),
   reading: z.string().optional(),
   supportMessage: z.string().optional(),
-  provider: z.string().nullable().optional(),
   requestId: z.string().nullable().optional(),
-  themes: z.record(z.string(), z.unknown()).optional(),
+  themes: themesOutput.optional(),
   gateBlocked: z.boolean().optional(),
   gateReason: z.string().nullable().optional(),
   error: z.string().optional(),
@@ -124,7 +144,7 @@ const statusOutput = z.object({
 
 const drawOutput = z.object({
   jobId: z.string(),
-  jobToken: z.string(),
+  jobToken: z.string().optional().describe(DEPRECATED_TOKEN),
   status: z.literal('running'),
   spreadInfo: spreadInfoOutputSchema,
   cardsInfo: z.array(publicCardSchema),
@@ -134,7 +154,7 @@ const drawOutput = z.object({
 
 const startOutput = z.object({
   jobId: z.string(),
-  jobToken: z.string(),
+  jobToken: z.string().optional().describe(DEPRECATED_TOKEN),
   status: z.literal('running')
 });
 
@@ -145,6 +165,16 @@ const cancelOutput = z.object({
 
 function jobStatus(status) {
   return status === 'complete' || status === 'error' ? status : 'running';
+}
+
+function toThemeSummary(themes) {
+  if (!themes || typeof themes !== 'object') return null;
+  const summary = {};
+  for (const [field, type] of Object.entries(THEME_FIELDS)) {
+    const value = themes[field];
+    if (typeof value === type && (type !== 'number' || Number.isInteger(value))) summary[field] = value;
+  }
+  return Object.keys(summary).length ? summary : null;
 }
 
 /**
@@ -174,8 +204,8 @@ export function toCompactStatus(data) {
   compact.requestId = result.requestId ?? null;
   if (outcome === READING_OUTCOME.READING) {
     compact.reading = result.reading;
-    compact.provider = result.provider ?? null;
-    if (data.meta?.themes && typeof data.meta.themes === 'object') compact.themes = data.meta.themes;
+    const themes = toThemeSummary(data.meta?.themes);
+    if (themes) compact.themes = themes;
     return compact;
   }
   compact.gateBlocked = true;
@@ -197,7 +227,7 @@ function describeCards(cards) {
 function statusText(compact) {
   if (compact.status === 'error') return `The reading failed: ${compact.error}`;
   if (compact.status !== 'complete') {
-    return 'The reading is still being written; call wait_for_tarot_reading again with the same jobId and jobToken; do not start a new reading.';
+    return 'The reading is still being written; call wait_for_tarot_reading again with the same jobId; do not start a new reading.';
   }
   if (compact.reading !== undefined) {
     return `The reading is complete (requestId ${compact.requestId ?? 'unknown'}). Present the narrative in \`reading\` with the cards: ${describeCards(compact.cardsInfo)}.`;
@@ -230,7 +260,7 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
     {
       title: 'Draw a tarot reading',
       description:
-        "Draws cards on the Tableu backend for one of the six spreads and starts writing the reading. Returns the drawn cards at once, with a jobId and jobToken; then call wait_for_tarot_reading. Use only when the user has not supplied cards, and never invent cards. Uses one reading from the user's quota. A phrase seed is deterministic; pass the returned decimal seed back to replay the exact cards and orientations.",
+        "Draws cards on the Tableu backend for one of the six spreads and starts writing the reading. Returns the drawn cards at once, with a jobId; then call wait_for_tarot_reading. Use only when the user has not supplied cards, and never invent cards. Uses one reading from the user's quota. A phrase seed is deterministic; pass the returned decimal seed back to replay the exact cards and orientations.",
       inputSchema: drawInput,
       outputSchema: drawOutput,
       annotations: WRITE,
@@ -286,7 +316,7 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
           seed,
           deckStyle: drawn.deckStyle
         },
-        `Drew ${cardsInfo.length} card${cardsInfo.length === 1 ? '' : 's'} for ${drawn.spreadInfo.name}: ${describeCards(cardsInfo)}. The reading is being written; call wait_for_tarot_reading with this jobId and jobToken.`
+        `Drew ${cardsInfo.length} card${cardsInfo.length === 1 ? '' : 's'} for ${drawn.spreadInfo.name}: ${describeCards(cardsInfo)}. The reading is being written; call wait_for_tarot_reading with this jobId.`
       );
     }
   );
@@ -296,7 +326,7 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
     {
       title: 'Start a reading from supplied cards',
       description:
-        "Starts a Tableu reading for cards the user supplies: a physical deck, a photo, or an earlier draw. Keep their cards, positions and orientations exactly. Returns a jobId and jobToken at once; then call wait_for_tarot_reading. Uses one reading from the user's quota.",
+        "Starts a Tableu reading for cards the user supplies: a physical deck, a photo, or an earlier draw. Keep their cards, positions and orientations exactly. Returns a jobId at once; then call wait_for_tarot_reading. Uses one reading from the user's quota.",
       inputSchema: startInput,
       outputSchema: startOutput,
       annotations: WRITE,
@@ -343,7 +373,7 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
 
       return ok(
         { jobId: started.jobId, jobToken: started.jobToken, status: 'running' },
-        'Reading started. Call wait_for_tarot_reading with this jobId and jobToken.'
+        'Reading started. Call wait_for_tarot_reading with this jobId.'
       );
     }
   );
@@ -358,8 +388,8 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
       annotations: READ_ONLY,
       _meta: toolMeta({ invoking: 'Checking the reading…', invoked: 'Reading checked' })
     },
-    async ({ jobId, jobToken }) => {
-      const result = await getMcpJobSnapshot({ env, jobId, jobToken, userId: user.id });
+    async ({ jobId }) => {
+      const result = await getMcpJobSnapshot({ env, jobId, userId: user.id });
       if (!result.ok) return lookupFailure(result);
       const compact = toCompactStatus(result.data);
       return ok(compact, statusText(compact));
@@ -370,16 +400,16 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
     'wait_for_tarot_reading',
     {
       title: 'Wait for a reading',
-      description: `Waits up to timeoutSeconds (default ${WAIT_DEFAULT_SECONDS}, at most ${WAIT_MAX_SECONDS}) for a reading job to finish, then returns its status. When it is complete, \`reading\` holds the narrative; when Tableu returned a support message or held the reading back, \`reading\` is absent and the result text says what to do. If it is still running, call this again with the same jobId and jobToken; never start a second reading for the same request.`,
+      description: `Waits up to timeoutSeconds (default ${WAIT_DEFAULT_SECONDS}, at most ${WAIT_MAX_SECONDS}) for a reading job to finish, then returns its status. When it is complete, \`reading\` holds the narrative; when Tableu returned a support message or held the reading back, \`reading\` is absent and the result text says what to do. If it is still running, call this again with the same jobId; never start a second reading for the same request.`,
       inputSchema: waitInput,
       outputSchema: statusOutput,
       annotations: READ_ONLY,
       _meta: toolMeta({ invoking: 'Waiting for the reading…', invoked: 'Reading checked' })
     },
-    async ({ jobId, jobToken, timeoutSeconds = WAIT_DEFAULT_SECONDS }) => {
+    async ({ jobId, timeoutSeconds = WAIT_DEFAULT_SECONDS }) => {
       const deadline = now() + timeoutSeconds * 1000;
       for (;;) {
-        const result = await getMcpJobSnapshot({ env, jobId, jobToken, userId: user.id });
+        const result = await getMcpJobSnapshot({ env, jobId, userId: user.id });
         if (!result.ok) return lookupFailure(result);
         const compact = toCompactStatus(result.data);
         if (compact.status !== 'running') return ok(compact, statusText(compact));
@@ -404,8 +434,8 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
       // already finished, so it must not claim the cancellation happened.
       _meta: toolMeta({ invoking: 'Cancelling the reading…', invoked: 'Cancellation checked' })
     },
-    async ({ jobId, jobToken }) => {
-      const result = await cancelMcpJob({ env, jobId, jobToken, userId: user.id });
+    async ({ jobId }) => {
+      const result = await cancelMcpJob({ env, jobId, userId: user.id });
       if (!result.ok) {
         return fail(result.status === 404 ? 'Not cancelled: Reading job not found.' : `Not cancelled: ${result.error}`);
       }

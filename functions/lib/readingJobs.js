@@ -4,9 +4,10 @@
  *
  * MCP jobs carry an in-Worker principal and a request snapshot. The
  * ReadingJob Durable Object serves them only on its MCP paths
- * (/mcp/snapshot, /mcp/cancel), never on the public status, stream and
- * cancel routes (spec §7.4). A job token that surfaces in a ChatGPT
- * conversation therefore grants nothing outside /mcp.
+ * (/mcp/snapshot, /mcp/cancel), and only to that principal; never on the
+ * public status, stream and cancel routes (spec §7.4). The MCP paths need
+ * just the jobId, so the job token stays a server-side verifier: it guards
+ * /start and the public routes, which never serve principal jobs.
  */
 
 import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
@@ -75,16 +76,16 @@ export async function startReadingJob({ env, payload, principal = null, snapshot
   return { ok: true, jobId, jobToken };
 }
 
-async function callMcpPath(path, { env, jobId, jobToken, userId, method = 'GET' }) {
+async function callMcpPath(path, { env, jobId, userId, method = 'GET' }) {
   if (!env?.READING_JOBS) {
     return { ok: false, status: 503, error: 'Reading jobs not configured.' };
   }
-  if (!jobId || !jobToken || !userId) {
+  if (!jobId || !userId) {
     return { ok: false, status: 404, error: 'Reading job not found.' };
   }
   const response = await jobStub(env, jobId).fetch(`${DO_ORIGIN}${path}`, {
     method,
-    headers: { 'X-Job-Token': jobToken, 'X-Principal-User-Id': String(userId) }
+    headers: { 'X-Principal-User-Id': String(userId) }
   });
   const data = await readJson(response);
   if (!response.ok) {
@@ -94,11 +95,11 @@ async function callMcpPath(path, { env, jobId, jobToken, userId, method = 'GET' 
 }
 
 /** Snapshot, result and themes of a principal job owned by `userId`. */
-export function getMcpJobSnapshot({ env, jobId, jobToken, userId }) {
-  return callMcpPath('/mcp/snapshot', { env, jobId, jobToken, userId });
+export function getMcpJobSnapshot({ env, jobId, userId }) {
+  return callMcpPath('/mcp/snapshot', { env, jobId, userId });
 }
 
 /** Cancel a principal job owned by `userId`; a finished job is left intact. */
-export function cancelMcpJob({ env, jobId, jobToken, userId }) {
-  return callMcpPath('/mcp/cancel', { env, jobId, jobToken, userId, method: 'POST' });
+export function cancelMcpJob({ env, jobId, userId }) {
+  return callMcpPath('/mcp/cancel', { env, jobId, userId, method: 'POST' });
 }
