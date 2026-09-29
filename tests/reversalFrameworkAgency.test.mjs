@@ -78,3 +78,12 @@ describe('delayed reversal lens keeps outcomes conditional', () => {
     assert.doesNotMatch(reading, PROMISED_FULFILLMENT);
   });
 });
+
+describe('requested reversal lens', () => {
+  it('reads through the requested lens instead of the automatic one', async () => {
+    await buildDelayedThemes();
+    const themes = await analyzeSpreadThemes(DECISION_CARDS, { userQuestion: QUESTION, reversalFrameworkOverride: 'internalized' });
+    assert.equal(themes.reversalFramework, 'internalized');
+    assert.equal(themes.reversalDescription.name, 'Internal Processing');
+  });
+});

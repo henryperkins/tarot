@@ -10,6 +10,7 @@ import * as z from 'zod';
 import { ReadingCardResolutionError, resolveReadingCards } from '../../readingCardResolution.js';
 import { cancelMcpJob, getMcpJobSnapshot, startReadingJob } from '../../readingJobs.js';
 import { drawForSpread } from '../../serverDraw.js';
+import { REVERSAL_FRAMEWORK_OVERRIDES } from '../../spreadAnalysis.js';
 import { REFLECTIONS_TEXT_MAX_LENGTH, USER_QUESTION_MAX_LENGTH } from '../../../../shared/contracts/readingSchema.js';
 import { toPublicCard } from '../journalMapping.js';
 import {
@@ -55,10 +56,16 @@ const spreadInfoInput = z.object({
   key: spreadKeySchema
 }).strict();
 
+// The analysis ignores any other override value, so reject it before the
+// reading starts instead of reading with a lens the user did not choose.
+const reversalLensInput = z.enum(REVERSAL_FRAMEWORK_OVERRIDES).describe(
+  'Reversal lens for the whole reading. Send only when the user asks for one; omit it and Tableu chooses. blocked: resistance to clear; delayed: timing not ripe; internalized: inner processing; contextual: card by card; shadow: disowned feelings; mirror: projection; potentialBlocked: dormant strengths.'
+);
+
 const readingContext = {
   userQuestion: z.string().max(USER_QUESTION_MAX_LENGTH).optional(),
   reflectionsText: z.string().max(REFLECTIONS_TEXT_MAX_LENGTH).optional(),
-  reversalFrameworkOverride: z.string().min(1).optional(),
+  reversalFrameworkOverride: reversalLensInput.optional(),
   deckStyle: deckStyleSchema.optional(),
   personalization: personalizationSchema.optional()
 };
@@ -372,7 +379,9 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
       inputSchema: jobRefInput,
       outputSchema: cancelOutput,
       annotations: DESTRUCTIVE,
-      _meta: toolMeta({ invoking: 'Cancelling the reading…', invoked: 'Reading cancelled' })
+      // Static text shown for every outcome, including a reading that had
+      // already finished, so it must not claim the cancellation happened.
+      _meta: toolMeta({ invoking: 'Cancelling the reading…', invoked: 'Cancellation checked' })
     },
     async ({ jobId, jobToken }) => {
       const result = await cancelMcpJob({ env, jobId, jobToken, userId: user.id });

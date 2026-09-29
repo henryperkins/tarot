@@ -10,6 +10,11 @@ const OWNER = Object.freeze({
 });
 const OTHER = Object.freeze({ ...OWNER, id: 'user-2', username: 'guest' });
 const THREE = { name: SPREADS.threeCard.name, key: 'threeCard' };
+const SUPPLIED = Object.freeze([
+  { position: 'Past', card: 'The Hermit', orientation: 'Upright', meaning: 'Solitude' },
+  { position: 'Present', card: 'Three of Cups', orientation: 'Reversed', meaning: 'Excess' },
+  { position: 'Future', card: 'The Star', orientation: 'Upright', meaning: 'Hope' }
+]);
 
 const open = [];
 after(async () => {
@@ -126,6 +131,34 @@ describe('start_tarot_reading', () => {
     });
   });
 
+  it('refuses a reversal lens outside the supported keys before any job starts', async () => {
+    const { call, jobs } = await session();
+    // The prose override that the 2026-09-29 connected-tool audit (F01) saw
+    // accepted and silently read through a different lens.
+    const prose = 'Read reversals as an internalized or blocked expression, not a fixed outcome.';
+    const started = await call('start_tarot_reading', { spreadInfo: THREE, cardsInfo: SUPPLIED, reversalFrameworkOverride: prose });
+    const drawn = await call('draw_tarot_reading', { spreadInfo: THREE, reversalFrameworkOverride: prose });
+    for (const result of [started, drawn]) {
+      assert.equal(result.isError, true);
+      assert.match(result.content[0].text, /Input validation error/);
+    }
+    assert.equal(jobs.instances.size, 0);
+  });
+
+  it('passes a supported reversal lens to the reading and lists the lenses in the schema', async () => {
+    const calls = [];
+    const { client, call, jobs } = await session({ runReading: readingRunner({ calls }) });
+    await call('start_tarot_reading', { spreadInfo: THREE, cardsInfo: SUPPLIED, reversalFrameworkOverride: 'internalized' });
+    await jobs.settle();
+    assert.equal(JSON.parse(await calls[0].request.text()).reversalFrameworkOverride, 'internalized');
+
+    const { tools } = await client.listTools();
+    for (const name of ['draw_tarot_reading', 'start_tarot_reading']) {
+      const lens = tools.find((tool) => tool.name === name).inputSchema.properties.reversalFrameworkOverride;
+      assert.deepEqual(lens.enum, ['blocked', 'delayed', 'internalized', 'contextual', 'shadow', 'mirror', 'potentialBlocked'], name);
+    }
+  });
+
   it('refuses an unknown card before any job starts', async () => {
     const { call, jobs } = await session();
     const result = await call('start_tarot_reading', {
@@ -198,7 +231,10 @@ describe('cancel_tarot_reading', () => {
   it('is marked destructive and leaves a finished reading intact', async () => {
     const { client, call, jobs } = await session();
     const { tools } = await client.listTools();
-    assert.equal(tools.find((tool) => tool.name === 'cancel_tarot_reading').annotations.destructiveHint, true);
+    const cancelTool = tools.find((tool) => tool.name === 'cancel_tarot_reading');
+    assert.equal(cancelTool.annotations.destructiveHint, true);
+    // ChatGPT shows this static text for every outcome, including this one.
+    assert.doesNotMatch(cancelTool._meta['openai/toolInvocation/invoked'], /cancelled/i);
 
     const { jobId, jobToken } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
     await jobs.settle();

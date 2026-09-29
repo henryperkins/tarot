@@ -19,7 +19,7 @@ connection acts as. The connection is private to that one account.
 
 | Tool | Input | Returns |
 |---|---|---|
-| `draw_tarot_reading` | `spreadInfo { name, key }`; optional `userQuestion`, `reflectionsText`, `deckStyle` (rws-1909, thoth-a1, marseille-classic), `allowReversals`, `seed`, `personalization` | `jobId`, `jobToken`, `status: running`, `spreadInfo`, `cardsInfo`, `seed`, `deckStyle` |
+| `draw_tarot_reading` | `spreadInfo { name, key }`; optional `userQuestion`, `reflectionsText`, `deckStyle` (rws-1909, thoth-a1, marseille-classic), `reversalFrameworkOverride` (blocked, delayed, internalized, contextual, shadow, mirror, potentialBlocked; any other value is refused), `allowReversals`, `seed`, `personalization` | `jobId`, `jobToken`, `status: running`, `spreadInfo`, `cardsInfo`, `seed`, `deckStyle` |
 | `start_tarot_reading` | `spreadInfo { name, key }`, `cardsInfo[] { position, card, orientation, meaning }`, and the optional reading fields above | `jobId`, `jobToken`, `status: running` |
 | `wait_for_tarot_reading` | `jobId`, `jobToken`, optional `timeoutSeconds` (1–45, default 40) | status (below), plus `timedOut` when still running |
 | `get_tarot_reading_status` | `jobId`, `jobToken` | status (below) |

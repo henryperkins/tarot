@@ -690,6 +690,14 @@ export const REVERSAL_FRAMEWORKS = {
 };
 
 /**
+ * Framework keys a caller may request as reversalFrameworkOverride. `none`
+ * only describes an all-upright spread, so it cannot be requested.
+ */
+export const REVERSAL_FRAMEWORK_OVERRIDES = Object.freeze(
+  Object.keys(REVERSAL_FRAMEWORKS).filter((key) => key !== 'none')
+);
+
+/**
  * Get reversal framework description object
  *
  * @param {string} framework - Framework key
