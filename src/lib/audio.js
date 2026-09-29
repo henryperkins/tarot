@@ -49,8 +49,33 @@ let ttsStreamFinalized = false;
 let ttsStreamProcessing = false;
 let ttsStreamRequestId = 0;
 let ttsStreamAbortController = null;
+let narrationSessionId = null;
 
 const SILENT_AUDIO_URI = 'data:audio/mp3;base64,//MkxAAHiAICWABElBeKPL/RANb2w+yiT1g/gTok//lP/W/l3h8QO/OCdCqCW2Cw//MkxAQHkAIWUAhEmAQXWUOFW2dxPu//9mr60ElY5sseQ+xxesmHKtZr7bsqqX2L//MkxAgFwAYiQAhEAC2hq22d3///9FTV6tA36JdgBJoOGgc+7qvqej5Zu7/7uI9l//MkxBQHAAYi8AhEAO193vt9KGOq+6qcT7hhfN5FTInmwk8RkqKImTM55pRQHQSq//MkxBsGkgoIAABHhTACIJLf99nVI///yuW1uBqWfEu7CgNPWGpUadBmZ////4sL//MkxCMHMAH9iABEmAsKioqKigsLCwtVTEFNRTMuOTkuNVVVVVVVVVVVVVVVVVVV//MkxCkECAUYCAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+
+/**
+ * Start a new narration session. Every /api/tts request carries the session
+ * id, and the server counts one reading's speech (card reveal lines, then the
+ * reading itself) as one narration per 4,096 characters instead of one per
+ * request. Call it when a new reading begins.
+ */
+export function startNarrationSession() {
+  narrationSessionId = createNarrationId();
+}
+
+function getNarrationSessionId() {
+  if (!narrationSessionId) {
+    narrationSessionId = createNarrationId();
+  }
+  return narrationSessionId;
+}
+
+function createNarrationId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
 
 /**
  * Unlock audio playback by creating and playing a silent audio element.
@@ -391,7 +416,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
     } else {
       // Fetch from API with normalized TTS text
       const url = stream ? '/api/tts?stream=true' : '/api/tts';
-      const requestBody = { text: ttsText, context, voice };
+      const requestBody = { text: ttsText, context, voice, narrationId: getNarrationSessionId() };
 
       // Add speed parameter if specified
       if (speed !== undefined) {
@@ -735,7 +760,7 @@ async function playTtsStreamSegment(segment, requestId) {
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   ttsStreamAbortController = controller;
 
-  const requestBody = { text, context, voice };
+  const requestBody = { text, context, voice, narrationId: getNarrationSessionId() };
   if (speed !== undefined) {
     requestBody.speed = speed;
   }

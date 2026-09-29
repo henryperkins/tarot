@@ -484,6 +484,80 @@ describe('TTS API - Rate Limiting', () => {
   });
 });
 
+describe('TTS API - Narration allowance', () => {
+  beforeEach(() => {
+    console.warn = () => {};
+  });
+
+  // Guests get the free allowance (3 narrations a month), counted in KV per IP.
+  function setup() {
+    const kvStore = new MockKVStore();
+    const env = createMockEnv({ RATELIMIT: kvStore });
+    const speak = (chars, narrationId) => onRequestPost({
+      request: createMockRequest('/api/tts', {
+        method: 'POST',
+        body: { text: 'x'.repeat(chars), ...(narrationId === undefined ? {} : { narrationId }) },
+        headers: { 'cf-connecting-ip': '192.168.1.1' }
+      }),
+      env
+    });
+    const narrationsUsed = () => {
+      const key = Array.from(kvStore.store.keys()).find((k) => k.startsWith('tts-monthly:'));
+      return key ? Number(kvStore.store.get(key)) : 0;
+    };
+    return { speak, narrationsUsed };
+  }
+
+  it('counts every request for one reading as one narration', async () => {
+    const { speak, narrationsUsed } = setup();
+
+    for (let i = 0; i < 5; i++) {
+      const response = await speak(200, 'reading-0001');
+      assert.strictEqual(response.status, 200);
+    }
+
+    assert.strictEqual(narrationsUsed(), 1);
+  });
+
+  it('counts another narration once a reading passes 4,096 characters', async () => {
+    const { speak, narrationsUsed } = setup();
+
+    assert.strictEqual((await speak(3000, 'reading-0001')).status, 200);
+    assert.strictEqual(narrationsUsed(), 1);
+    assert.strictEqual((await speak(2000, 'reading-0001')).status, 200);
+    assert.strictEqual(narrationsUsed(), 2);
+    // The second narration started with those 2,000 characters.
+    assert.strictEqual((await speak(2000, 'reading-0001')).status, 200);
+    assert.strictEqual(narrationsUsed(), 2);
+  });
+
+  it('counts each request without a usable narration id', async () => {
+    const { speak, narrationsUsed } = setup();
+
+    assert.strictEqual((await speak(100)).status, 200);
+    assert.strictEqual((await speak(100, 'not a valid id')).status, 200);
+    assert.strictEqual((await speak(100)).status, 200);
+    assert.strictEqual(narrationsUsed(), 3);
+
+    const response = await speak(100);
+    const data = await response.json();
+    assert.strictEqual(response.status, 429);
+    assert.strictEqual(data.errorCode, 'TIER_LIMIT');
+  });
+
+  it('finishes a counted reading after the allowance runs out, but starts no new one', async () => {
+    const { speak, narrationsUsed } = setup();
+
+    assert.strictEqual((await speak(300, 'reading-0001')).status, 200);
+    assert.strictEqual((await speak(300, 'reading-0002')).status, 200);
+    assert.strictEqual((await speak(300, 'reading-0003')).status, 200);
+    assert.strictEqual(narrationsUsed(), 3);
+
+    assert.strictEqual((await speak(300, 'reading-0001')).status, 200);
+    assert.strictEqual((await speak(300, 'reading-0004')).status, 429);
+  });
+});
+
 // Restore console after all tests
 describe('Cleanup', () => {
   it('should restore console functions', () => {

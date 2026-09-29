@@ -3,7 +3,7 @@ import { jsonResponse, readJsonBody, sanitizeText } from '../lib/utils.js';
 import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
-import { getTtsLimits, enforceTtsRateLimit } from '../lib/ttsLimits.js';
+import { getTtsLimits, enforceTtsRateLimit, NARRATION_UNIT_CHARS } from '../lib/ttsLimits.js';
 
 const TTS_MODEL = '@cf/deepgram/aura-2-en';
 const TTS_PROVIDER = 'workers-ai-aura-2';
@@ -19,6 +19,10 @@ const MAX_PIECE_CHARS = 1900;
  * one speaker and the browser applies the listener's speed setting. Requests
  * may still carry `voice`, `speed`, `format`, `context` and `emotion`; they
  * are ignored. Audio is always MP3.
+ *
+ * Requests may also carry `narrationId`. Everything spoken for one reading
+ * shares an id and counts as one narration per 4,096 characters, not one per
+ * request (see enforceTtsRateLimit).
  *
  * Non-streaming mode (returns JSON with base64 data URI):
  *   POST /api/tts
@@ -57,8 +61,8 @@ export const onRequestPost = async ({ request, env }) => {
     const effectiveTier = subscription.effectiveTier;
     const ttsLimits = getTtsLimits(effectiveTier);
 
-    const { text } = await readJsonBody(request);
-    const sanitizedText = sanitizeText(text, { maxLength: 4096, collapseWhitespace: false });
+    const { text, narrationId } = await readJsonBody(request);
+    const sanitizedText = sanitizeText(text, { maxLength: NARRATION_UNIT_CHARS, collapseWhitespace: false });
 
     if (!sanitizedText) {
       return jsonResponse(
@@ -76,7 +80,10 @@ export const onRequestPost = async ({ request, env }) => {
     }
 
     // Check tier-based rate limits (in addition to global rate limit)
-    const rateLimitResult = await enforceTtsRateLimit(env, request, user, ttsLimits, requestId);
+    const rateLimitResult = await enforceTtsRateLimit(env, request, user, ttsLimits, requestId, {
+      narrationId,
+      chars: sanitizedText.length
+    });
     if (rateLimitResult?.limited) {
       const errorCode = rateLimitResult.tierLimited ? 'TIER_LIMIT' : 'RATE_LIMIT';
       const errorMessage = rateLimitResult.tierLimited

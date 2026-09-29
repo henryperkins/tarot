@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { computeSeed, drawSpread } from '../lib/deck';
-import { playFlip, unlockAudio } from '../lib/audio';
+import { playFlip, startNarrationSession, unlockAudio } from '../lib/audio';
 import { DEFAULT_SPREAD_KEY, normalizeSpreadKey, getSpreadInfo } from '../data/spreads';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -89,6 +89,12 @@ export function useTarotState(speak) {
     if (!questionDraftSyncRef.current.restored) return;
     saveQuestionDraft(questionDraftOwner, userQuestion);
   }, [questionDraftOwner, userQuestion]);
+
+  // New cards (a shuffle, the ritual deal, a reading reopened from the
+  // journal) start a new narration for the monthly narration allowance.
+  useEffect(() => {
+    startNarrationSession();
+  }, [reading]);
 
   // Keep cut index centered on active deck and announce deck scope changes
   useEffect(() => {
