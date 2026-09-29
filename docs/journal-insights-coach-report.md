@@ -59,8 +59,8 @@ Scope: Reading Journey insights + coach suggestion pipeline (client + worker).
 ### 2) Journal save -> AI extraction -> embeddings -> client clustering
 
 - Trigger: `scheduleCoachExtraction()` runs on save when AI/DB bindings exist and narrative length >= 100.
-- Extraction: `extractNextStepsWithAI()` returns steps, `v1-empty`, or `v1-steps-only` status when parsing or embeddings fail.
-- Retrieval: `/api/journal` includes extracted steps for all entries, embeddings for the newest entries only.
+- Extraction: `extractNextStepsWithAI()` (Workers AI `@cf/meta/llama-4-scout-17b-16e-instruct`) returns steps; step embeddings come from `@cf/baai/bge-m3`. Entries are stamped `EXTRACTION_VERSION` (`v2`), or `v2-empty` / `v2-steps-only` when no steps are found or embeddings fail.
+- Retrieval: `/api/journal` includes extracted steps for all entries, embeddings for the newest entries only, and only when they carry the current `EXTRACTION_VERSION` (vectors from another model aren't comparable). Semantic search applies the same rule; `POST /api/coach-extraction-backfill` re-extracts entries at any other version.
 - Clustering: `computeCoachSuggestionWithEmbeddings()` surfaces extraction coverage signals and adds a status message when steps are missing.
 
 ### 3) Coach suggestion generation -> selection -> UI surfaces -> next reading

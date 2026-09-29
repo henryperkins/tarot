@@ -1,8 +1,9 @@
 /**
  * /api/coach-extraction-backfill
  *
- * Backfills extracted_steps and step_embeddings for existing journal entries
- * that don't have extraction data. Processes in batches to avoid timeouts.
+ * Backfills extracted_steps and step_embeddings for journal entries that have
+ * no extraction data, or data from an older EXTRACTION_VERSION (whose vectors
+ * came from a different embedding model). Processes in batches to avoid timeouts.
  *
  * GET  - status/progress overview
  * POST - process a small batch
@@ -23,7 +24,12 @@
  * Example: while true; do curl -X POST ... && sleep 5; done
  */
 
-import { extractAndEmbed } from '../lib/coachSuggestion.js';
+import {
+  EMPTY_EXTRACTION_VERSION,
+  EXTRACTION_VERSION,
+  STEPS_ONLY_EXTRACTION_VERSION,
+  extractAndEmbed
+} from '../lib/coachSuggestion.js';
 import { timingSafeEqual } from '../lib/crypto.js';
 
 // Keep batch sizes small - each entry can take ~13s worst-case (8s extraction + 5s embedding).
@@ -35,6 +41,15 @@ const DEFAULT_BATCH_SIZE = 2;
 const REQUEST_TIME_BUDGET_MS = 25000;
 // Conservative estimate for one entry (timeouts + DB write + overhead).
 const ENTRY_BUDGET_MS = 14000;
+
+// Entries without a finished extraction at the current version: never
+// extracted, extracted by an older version, or stored without embeddings.
+const NEEDS_EXTRACTION_SQL = `
+  narrative IS NOT NULL
+  AND length(narrative) > 100
+  AND (extraction_version IS NULL OR extraction_version NOT IN (?, ?))
+`;
+const FINISHED_VERSIONS = [EXTRACTION_VERSION, EMPTY_EXTRACTION_VERSION];
 
 export async function onRequestPost({ request, env }) {
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `backfill_${Date.now()}`;
@@ -76,16 +91,14 @@ export async function onRequestPost({ request, env }) {
   console.log(`[${requestId}] [backfill] Starting backfill (limit: ${limit}, dryRun: ${dryRun})`);
 
   try {
-    // Find entries without extraction data
+    // Find entries without current extraction data
     const entriesResult = await env.DB.prepare(`
       SELECT id, narrative
       FROM journal_entries
-      WHERE extracted_steps IS NULL
-        AND narrative IS NOT NULL
-        AND length(narrative) > 100
+      WHERE ${NEEDS_EXTRACTION_SQL}
       ORDER BY created_at DESC
       LIMIT ?
-    `).bind(limit).all();
+    `).bind(...FINISHED_VERSIONS, limit).all();
 
     const entries = entriesResult.results || [];
 
@@ -93,10 +106,8 @@ export async function onRequestPost({ request, env }) {
     const remainingResult = await env.DB.prepare(`
       SELECT COUNT(*) as count
       FROM journal_entries
-      WHERE extracted_steps IS NULL
-        AND narrative IS NOT NULL
-        AND length(narrative) > 100
-    `).first();
+      WHERE ${NEEDS_EXTRACTION_SQL}
+    `).bind(...FINISHED_VERSIONS).first();
     const totalRemaining = remainingResult?.count || 0;
 
     console.log(`[${requestId}] [backfill] Found ${entries.length} entries to process, ${totalRemaining} total remaining`);
@@ -160,7 +171,7 @@ export async function onRequestPost({ request, env }) {
             WHERE id = ?3
           `).bind(
             JSON.stringify(result.steps),
-            result.version || 'v1-steps-only',
+            result.version || STEPS_ONLY_EXTRACTION_VERSION,
             entry.id
           ).run();
 
@@ -176,7 +187,7 @@ export async function onRequestPost({ request, env }) {
             UPDATE journal_entries
             SET extracted_steps = '[]', step_embeddings = '[]', extraction_version = ?
             WHERE id = ?
-          `).bind(result.version || 'v1-empty', entry.id).run();
+          `).bind(result.version || EMPTY_EXTRACTION_VERSION, entry.id).run();
           continue;
         }
 
@@ -243,13 +254,14 @@ export async function onRequestGet({ request, env }) {
     const stats = await env.DB.prepare(`
       SELECT
         COUNT(*) as total,
-        SUM(CASE WHEN extracted_steps IS NOT NULL THEN 1 ELSE 0 END) as with_extraction,
-        SUM(CASE WHEN extracted_steps IS NULL AND narrative IS NOT NULL AND length(narrative) > 100 THEN 1 ELSE 0 END) as needs_extraction,
-        SUM(CASE WHEN extraction_version = 'v1-empty' THEN 1 ELSE 0 END) as no_steps_found
+        SUM(CASE WHEN extraction_version IN (?, ?) THEN 1 ELSE 0 END) as with_extraction,
+        SUM(CASE WHEN ${NEEDS_EXTRACTION_SQL} THEN 1 ELSE 0 END) as needs_extraction,
+        SUM(CASE WHEN extraction_version = ? THEN 1 ELSE 0 END) as no_steps_found
       FROM journal_entries
-    `).first();
+    `).bind(...FINISHED_VERSIONS, ...FINISHED_VERSIONS, EMPTY_EXTRACTION_VERSION).first();
 
     return new Response(JSON.stringify({
+      extractionVersion: EXTRACTION_VERSION,
       total: stats?.total || 0,
       withExtraction: stats?.with_extraction || 0,
       needsExtraction: stats?.needs_extraction || 0,

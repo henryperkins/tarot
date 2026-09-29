@@ -11,13 +11,21 @@
  * - On journal load: Client clusters pre-computed data, picks top theme
  */
 
-const EXTRACTION_MODEL = '@cf/meta/llama-3-8b-instruct-awq';
-const EMBEDDING_MODEL = '@cf/qwen/qwen3-embedding-0.6b';
+const EXTRACTION_MODEL = '@cf/meta/llama-4-scout-17b-16e-instruct';
+// Same model as GraphRAG (embeddings.js): multilingual and quick.
+const EMBEDDING_MODEL = '@cf/baai/bge-m3';
 const DEFAULT_TIMEOUT_MS = 8000;
-const EXTRACTION_VERSION = 'v1';
 
-// Maximum narrative length to process (prevents context overflow)
-const MAX_NARRATIVE_LENGTH = 4000;
+// Stored step embeddings only compare with vectors from the same model, so
+// bump the version whenever EMBEDDING_MODEL changes. Readers skip embeddings
+// from other versions and the backfill re-extracts those entries.
+export const EXTRACTION_VERSION = 'v2';
+export const EMPTY_EXTRACTION_VERSION = `${EXTRACTION_VERSION}-empty`;
+export const STEPS_ONLY_EXTRACTION_VERSION = `${EXTRACTION_VERSION}-steps-only`;
+
+// Maximum narrative length to process. "Gentle Next Steps" sits near the end
+// of a reading, so this covers whole narratives rather than their openings.
+const MAX_NARRATIVE_LENGTH = 16000;
 
 // ============================================================================
 // Prompts
@@ -96,7 +104,10 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
     );
 
     const latencyMs = Date.now() - startTime;
-    const responseText = response?.response || '';
+    // Workers AI returns JSON output already parsed in `response` (an array
+    // here), plain text as a string, and OpenAI-style models only in `choices`.
+    const raw = response?.response ?? response?.choices?.[0]?.message?.content;
+    const responseText = typeof raw === 'string' ? raw : JSON.stringify(raw ?? null);
 
     // Parse JSON array from response
     const match = responseText.match(/\[[\s\S]*\]/);
@@ -171,7 +182,7 @@ export async function generateEmbeddings(env, texts, requestId = 'unknown') {
   try {
     const response = await env.AI.run(
       EMBEDDING_MODEL,
-      { text: texts },
+      { text: texts, truncate_inputs: true },
       { signal: controller.signal }
     );
 
@@ -219,7 +230,7 @@ export async function extractAndEmbed(env, narrative, requestId = 'unknown') {
     return {
       steps: [],
       embeddings: [],
-      version: `${EXTRACTION_VERSION}-empty`,
+      version: EMPTY_EXTRACTION_VERSION,
       status: 'no_steps'
     };
   }
@@ -236,7 +247,7 @@ export async function extractAndEmbed(env, narrative, requestId = 'unknown') {
 
   if (embeddings.length !== steps.length) {
     console.warn(`[${requestId}] [coach] Embedding generation failed or mismatched; storing steps without embeddings`);
-    return { steps, embeddings: [], version: `${EXTRACTION_VERSION}-steps-only`, status: 'steps_only' };
+    return { steps, embeddings: [], version: STEPS_ONLY_EXTRACTION_VERSION, status: 'steps_only' };
   }
 
   return {
@@ -307,7 +318,7 @@ export function scheduleCoachExtraction(env, entryId, narrative, options = {}) {
           UPDATE journal_entries
           SET extracted_steps = '[]', step_embeddings = '[]', extraction_version = ?
           WHERE id = ?
-        `).bind(`${EXTRACTION_VERSION}-empty`, entryId).run();
+        `).bind(EMPTY_EXTRACTION_VERSION, entryId).run();
         console.log(`[${requestId}] [coach] Stored empty extraction for entry ${entryId}`);
         return;
       }
@@ -319,7 +330,7 @@ export function scheduleCoachExtraction(env, entryId, narrative, options = {}) {
           WHERE id = ?3
         `).bind(
           JSON.stringify(result.steps),
-          result.version || `${EXTRACTION_VERSION}-steps-only`,
+          result.version || STEPS_ONLY_EXTRACTION_VERSION,
           entryId
         ).run();
         console.log(`[${requestId}] [coach] Stored ${result.steps.length} steps without embeddings for entry ${entryId}`);

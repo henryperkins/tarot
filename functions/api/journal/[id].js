@@ -9,6 +9,7 @@ import { journalAccessDenied } from '../../lib/journalAccess.js';
 import { safeJsonParse } from '../../lib/utils.js';
 import { sanitizeSourceUsage } from '../../../shared/readingSourceUsage.js';
 import { deleteFollowUpsByEntry, loadFollowUpsByEntry } from '../../lib/journalFollowups.js';
+import { EXTRACTION_VERSION } from '../../lib/coachSuggestion.js';
 
 function isMissingColumnError(err) {
   const message = String(err?.message || err || '');
@@ -147,7 +148,8 @@ export async function onRequestGet(context) {
       deckId: entry.deck_id,
       requestId: entry.request_id,
       extractedSteps: entry.extracted_steps ? safeJsonParse(entry.extracted_steps, null) : null,
-      stepEmbeddings: hasCoachColumns && entry.step_embeddings
+      // Only vectors from the current model are comparable with other entries.
+      stepEmbeddings: hasCoachColumns && entry.step_embeddings && entry.extraction_version === EXTRACTION_VERSION
         ? safeJsonParse(entry.step_embeddings, null)
         : null,
       extractionVersion: entry.extraction_version || null,

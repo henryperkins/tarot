@@ -10,6 +10,7 @@ import { dedupeEntries } from '../../shared/journal/dedupe.js';
 import { safeJsonParse } from '../lib/utils.js';
 import { loadFollowUpsByEntry } from '../lib/journalFollowups.js';
 import { saveAppJournalEntry } from '../lib/journalEntries.js';
+import { EXTRACTION_VERSION } from '../lib/coachSuggestion.js';
 import { sanitizeSourceUsage } from '../../shared/readingSourceUsage.js';
 
 function isMissingColumnError(err) {
@@ -162,9 +163,11 @@ export async function onRequestGet(context) {
     if (idsForEmbeddings.length > 0 && hasCoachColumns) {
       try {
         const placeholders = idsForEmbeddings.map(() => '?').join(', ');
+        // Vectors from another extraction version come from a different model;
+        // clustering them with current ones would compare unrelated spaces.
         const embeddingRows = await env.DB.prepare(
-          `SELECT id, step_embeddings FROM journal_entries WHERE user_id = ? AND id IN (${placeholders})`
-        ).bind(user.id, ...idsForEmbeddings).all();
+          `SELECT id, step_embeddings FROM journal_entries WHERE user_id = ? AND extraction_version = ? AND id IN (${placeholders})`
+        ).bind(user.id, EXTRACTION_VERSION, ...idsForEmbeddings).all();
 
         (embeddingRows?.results || []).forEach((row) => {
           embeddingMap.set(row.id, row.step_embeddings);
@@ -213,7 +216,7 @@ export async function onRequestGet(context) {
           requestId: entry.request_id,
           // Pre-computed coach suggestion data (AI-extracted steps + embeddings)
           // extractedSteps are small strings, always include
-          // stepEmbeddings are large (768 floats each), only include for recent entries
+          // stepEmbeddings are large (1,024 floats each), only include for recent entries
           extractedSteps: entry.extracted_steps ? safeJsonParse(entry.extracted_steps, null) : null,
           stepEmbeddings: rawEmbeddings ? safeJsonParse(rawEmbeddings, null) : null,
           extractionVersion: entry.extraction_version || null,

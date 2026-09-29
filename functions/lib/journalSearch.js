@@ -5,7 +5,7 @@
  * Enables pattern recognition across a user's reading history.
  */
 
-import { generateEmbeddings } from './coachSuggestion.js';
+import { EXTRACTION_VERSION, generateEmbeddings } from './coachSuggestion.js';
 import { safeJsonParse } from './utils.js';
 
 const DEFAULT_SEARCH_LIMIT = 3;
@@ -55,9 +55,9 @@ export async function findSimilarJournalEntries(env, userId, query, options = {}
     
     const queryEmbedding = embeddings[0];
     
-    // Fetch recent entries with embeddings
-    const whereParts = ['user_id = ?', 'step_embeddings IS NOT NULL'];
-    const queryParams = [userId];
+    // Fetch recent entries with embeddings from the query's model
+    const whereParts = ['user_id = ?', 'step_embeddings IS NOT NULL', 'extraction_version = ?'];
+    const queryParams = [userId, EXTRACTION_VERSION];
 
     if (timeframeCutoffMs) {
       whereParts.push('created_at >= ?');
