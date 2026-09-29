@@ -9,40 +9,16 @@ import { checkJournalAccess } from '../../journalAccess.js';
 import { saveReadingJournalEntry } from '../../journalEntries.js';
 import { addJournalReflection, MAX_REFLECTION_LENGTH } from '../../journalReflections.js';
 import { getMcpJobSnapshot } from '../../readingJobs.js';
-import { buildJournalEntryFromJob, buildJournalEntryFromPayload, JournalMappingError } from '../journalMapping.js';
-import { anyOrientationSchema, deckStyleSchema, journalContextSchema, spreadKeySchema } from '../schemas.js';
+import { buildJournalEntryFromJob, JournalMappingError } from '../journalMapping.js';
+import { journalContextSchema } from '../schemas.js';
 import { WRITE, fail, ok, toolMeta } from './common.js';
 
-const PAYLOAD_FIELDS = Object.freeze([
-  'spread', 'spreadKey', 'question', 'cards', 'personalReading', 'themes',
-  'provider', 'sessionSeed', 'requestId', 'deckId', 'userPreferences'
-]);
-
-const journalCardInput = z.object({
-  position: z.string().trim().min(1),
-  name: z.string().trim().min(1),
-  orientation: anyOrientationSchema,
-  number: z.number().int().optional(),
-  suit: z.string().optional(),
-  rank: z.string().optional(),
-  rankValue: z.number().int().optional()
-}).strict();
-
+// Every save is rebuilt from the account's own job, so the narrative, cards
+// and eligibility never come from the model.
 const saveInput = z.object({
-  jobId: z.string().min(1).optional(),
-  jobToken: z.string().min(1).optional(),
-  context: journalContextSchema.optional(),
-  spread: z.string().trim().min(1).optional(),
-  spreadKey: spreadKeySchema.optional(),
-  question: z.string().optional(),
-  cards: z.array(journalCardInput).min(1).optional(),
-  personalReading: z.string().optional(),
-  themes: z.record(z.string(), z.unknown()).nullable().optional(),
-  provider: z.string().optional(),
-  sessionSeed: z.string().optional(),
-  requestId: z.string().optional(),
-  deckId: deckStyleSchema.optional(),
-  userPreferences: z.record(z.string(), z.unknown()).nullable().optional()
+  jobId: z.string().min(1),
+  jobToken: z.string().min(1),
+  context: journalContextSchema.optional()
 }).strict();
 
 const saveOutput = z.object({
@@ -75,18 +51,9 @@ const reflectOutput = z.object({
 });
 
 const EXPIRED_JOB =
-  "Not saved: this reading's job has expired. Save it with the reading fields instead: spread, spreadKey, cards (name, position, orientation, and number or suit and rankValue, exactly as the reading returned them), personalReading (the complete narrative) and requestId.";
+  'Not saved: this reading can no longer be saved. Readings started in ChatGPT are kept for 24 hours after they are written.';
 
 async function entryFromJob({ env, user, input }) {
-  if (!input.jobId || !input.jobToken) {
-    return { failure: fail('Not saved: send both jobId and jobToken from the reading.') };
-  }
-  const extras = PAYLOAD_FIELDS.filter((field) => input[field] !== undefined);
-  if (extras.length) {
-    return {
-      failure: fail(`Not saved: send either jobId and jobToken, or the reading fields, not both (also sent: ${extras.join(', ')}).`)
-    };
-  }
   const job = await getMcpJobSnapshot({ env, jobId: input.jobId, jobToken: input.jobToken, userId: user.id });
   if (!job.ok) {
     if (job.status === 410) return { failure: fail(EXPIRED_JOB) };
@@ -109,7 +76,7 @@ export function registerJournalTools(server, { env, user, waitUntil }) {
     {
       title: 'Save a reading to the Tableu journal',
       description:
-        "Saves a finished Tableu reading to the user's journal. Call only when the user explicitly asks to save, journal, keep or remember the reading, or says yes right after you offer. Send the reading's jobId and jobToken; the server copies the narrative and cards exactly. Only if the job has expired, send the reading fields instead (spread, spreadKey, cards, personalReading, requestId). Retrying once after an unclear failure is safe. Keep the returned entry id for reflections.",
+        "Saves a finished Tableu reading to the user's journal. Call only when the user explicitly asks to save, journal, keep or remember the reading, or says yes right after you offer. Send the reading's jobId and jobToken; the server copies the narrative and cards exactly. A reading can be saved for 24 hours after it is written; support messages and readings Tableu held back can't be saved. Retrying once after an unclear failure is safe. Keep the returned entry id for reflections.",
       inputSchema: saveInput,
       outputSchema: saveOutput,
       annotations: WRITE,
@@ -121,14 +88,9 @@ export function registerJournalTools(server, { env, user, waitUntil }) {
 
       let entry;
       try {
-        const usesJob = input.jobId !== undefined || input.jobToken !== undefined;
-        if (usesJob) {
-          const fromJob = await entryFromJob({ env, user, input });
-          if (fromJob.failure) return fromJob.failure;
-          entry = fromJob.entry;
-        } else {
-          entry = buildJournalEntryFromPayload(input);
-        }
+        const fromJob = await entryFromJob({ env, user, input });
+        if (fromJob.failure) return fromJob.failure;
+        entry = fromJob.entry;
       } catch (error) {
         if (error instanceof JournalMappingError) return fail(`Not saved: ${error.message}`);
         throw error;

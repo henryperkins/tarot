@@ -40,22 +40,14 @@ function entries(d1) {
   return d1.rows('SELECT * FROM journal_entries ORDER BY created_at');
 }
 
-/** The audited payload for a drawn reading: labels plus catalog metadata. */
-function payloadFor(drawn, overrides = {}) {
+/** Reading fields as the retired payload mode took them. */
+function readingFieldsFor(drawn) {
   return {
     spread: drawn.spreadInfo.name,
     spreadKey: drawn.spreadInfo.key,
-    cards: drawn.cardsInfo.map(({ position, card, orientation, number, suit, rankValue }) => ({
-      position,
-      name: card,
-      orientation,
-      ...(number !== null ? { number } : { suit, rankValue })
-    })),
+    cards: drawn.cardsInfo.map(({ position, card, orientation, number }) => ({ position, name: card, orientation, number })),
     personalReading: NARRATIVE,
-    requestId: 'req-save-1',
-    sessionSeed: drawn.seed,
-    deckId: drawn.deckStyle,
-    ...overrides
+    requestId: 'req-save-1'
   };
 }
 
@@ -104,37 +96,17 @@ describe('save_reading_to_journal', () => {
     assert.equal(entries(ctx.d1).length, 1);
   });
 
-  it('recognises a payload save of a reading already saved from its job', async () => {
+  it('refuses reading fields: a save always comes from the job', async () => {
     const ctx = await session();
     const drawn = await drawAndFinish(ctx);
-    const fromJob = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
-    const fromPayload = await ctx.call('save_reading_to_journal', payloadFor(drawn));
+    const fieldsOnly = await ctx.call('save_reading_to_journal', readingFieldsFor(drawn));
+    const mixed = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken, spread: 'x' });
+    const empty = await ctx.call('save_reading_to_journal', {});
 
-    assert.equal(fromPayload.structuredContent.outcome, 'already_saved');
-    assert.equal(fromPayload.structuredContent.entry.id, fromJob.structuredContent.entry.id);
-    assert.equal(entries(ctx.d1).length, 1);
-  });
-
-  it('refuses a payload whose request ID belongs to a different reading', async () => {
-    const ctx = await session();
-    const drawn = await drawAndFinish(ctx);
-    await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
-    const other = payloadFor(drawn);
-    other.cards[0] = { ...other.cards[0], orientation: other.cards[0].orientation === 'Upright' ? 'Reversed' : 'Upright' };
-
-    const result = await ctx.call('save_reading_to_journal', other);
-
-    assert.equal(result.isError, true);
-    assert.match(result.content[0].text, /different reading under this request ID/);
-    assert.equal(entries(ctx.d1).length, 1);
-  });
-
-  it('refuses a job reference mixed with reading fields', async () => {
-    const ctx = await session();
-    const drawn = await drawAndFinish(ctx);
-    const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken, spread: 'x' });
-    assert.equal(result.isError, true);
-    assert.match(result.content[0].text, /not both \(also sent: spread\)/);
+    for (const result of [fieldsOnly, mixed, empty]) {
+      assert.equal(result.isError, true);
+      assert.match(result.content[0].text, /Input validation error/);
+    }
     assert.equal(entries(ctx.d1).length, 0);
   });
 
@@ -172,7 +144,7 @@ describe('save_reading_to_journal', () => {
     assert.equal(entries(ctx.d1)[0].narrative, NARRATIVE);
   });
 
-  it('points to payload mode when the job has expired', async () => {
+  it('says an expired reading can no longer be saved', async () => {
     const ctx = await session();
     const drawn = await drawAndFinish(ctx);
     ctx.jobs.instances.get(drawn.jobId).object.job.expiresAt = Date.now() - 1;
@@ -180,9 +152,8 @@ describe('save_reading_to_journal', () => {
     const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
 
     assert.equal(result.isError, true);
-    assert.match(result.content[0].text, /job has expired\. Save it with the reading fields instead/);
-    const fallback = await ctx.call('save_reading_to_journal', payloadFor(drawn));
-    assert.equal(fallback.structuredContent.outcome, 'saved');
+    assert.equal(result.content[0].text, 'Not saved: this reading can no longer be saved. Readings started in ChatGPT are kept for 24 hours after they are written.');
+    assert.equal(entries(ctx.d1).length, 0);
   });
 
   it('refuses accounts below Plus', async () => {

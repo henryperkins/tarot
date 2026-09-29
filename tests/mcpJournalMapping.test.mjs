@@ -3,7 +3,6 @@ import { describe, it } from 'node:test';
 
 import {
   buildJournalEntryFromJob,
-  buildJournalEntryFromPayload,
   JournalMappingError,
   toPublicCard
 } from '../functions/lib/mcp/journalMapping.js';
@@ -46,19 +45,6 @@ const EXPECTED_CARDS = [
   { position: 'Present', name: 'Three of Cups', orientation: 'Reversed', suit: 'Cups', rank: 'Three', rankValue: 3 },
   { position: 'Future', name: 'The Star', orientation: 'Upright', number: 17 }
 ];
-
-const PAYLOAD = {
-  spread: SPREAD.name,
-  spreadKey: 'threeCard',
-  cards: [
-    { position: 'Past', name: 'The Hermit', orientation: 'Upright', number: 9 },
-    { position: 'Present', name: 'Three of Cups', orientation: 'Reversed', suit: 'Cups', rank: 'Three', rankValue: 3 },
-    { position: 'Future', name: 'The Star', orientation: 'Upright', number: 17 }
-  ],
-  personalReading: 'The Hermit asks for patience.',
-  requestId: 'req-1',
-  deckId: 'rws-1909'
-};
 
 describe('buildJournalEntryFromJob', () => {
   it('maps every row of the audited field table', () => {
@@ -144,50 +130,6 @@ describe('buildJournalEntryFromJob', () => {
   it('refuses a label the deck does not know, naming its index', () => {
     const unknown = job({}, { cardsInfo: [{ position: 'Past', card: 'The Unicorn', orientation: 'Upright', meaning: 'x' }] });
     assert.throws(() => buildJournalEntryFromJob(unknown), (error) => error instanceof JournalMappingError && /cardsInfo\[0\]/.test(error.message));
-  });
-});
-
-describe('buildJournalEntryFromPayload', () => {
-  it('maps a payload save to the same canonical entry as the job would', () => {
-    const entry = buildJournalEntryFromPayload(PAYLOAD);
-    assert.deepEqual(entry.cards, EXPECTED_CARDS);
-    assert.equal(entry.requestId, 'req-1');
-    assert.equal(entry.sessionSeed, null);
-    assert.equal(entry.context, null);
-    assert.equal(entry.personalReading, PAYLOAD.personalReading);
-  });
-
-  it('requires identity metadata for every card', () => {
-    const missing = { ...PAYLOAD, cards: [{ position: 'Past', name: 'The Hermit', orientation: 'Upright' }] };
-    assert.throws(() => buildJournalEntryFromPayload(missing), /needs its number/);
-    const minor = { ...PAYLOAD, cards: [{ position: 'Past', name: 'Three of Cups', orientation: 'Upright', suit: 'Cups' }] };
-    assert.throws(() => buildJournalEntryFromPayload(minor), /needs its suit and rankValue/);
-  });
-
-  it('refuses a canonical name sent for a non-RWS deck', () => {
-    const confused = {
-      ...PAYLOAD,
-      deckId: 'thoth-a1',
-      cards: [{ position: 'Past', name: 'Knight of Wands', orientation: 'Upright', suit: 'Wands', rankValue: 12 }]
-    };
-    assert.throws(() => buildJournalEntryFromPayload(confused), /King of Wands/);
-  });
-
-  it('accepts the Thoth label with its catalog metadata', () => {
-    const thoth = {
-      ...PAYLOAD,
-      deckId: 'thoth-a1',
-      cards: [{ position: 'Past', name: 'Prince of Wands', orientation: 'upright', suit: 'Wands', rankValue: 12 }]
-    };
-    assert.deepEqual(buildJournalEntryFromPayload(thoth).cards, [
-      { position: 'Past', name: 'Knight of Wands', displayName: 'Prince of Wands', orientation: 'Upright', suit: 'Wands', rank: 'Knight', rankValue: 12 }
-    ]);
-  });
-
-  it('requires the narrative, the request ID and a known spread key', () => {
-    assert.throws(() => buildJournalEntryFromPayload({ ...PAYLOAD, personalReading: '' }), /personalReading is required/);
-    assert.throws(() => buildJournalEntryFromPayload({ ...PAYLOAD, requestId: undefined }), /requestId is required/);
-    assert.throws(() => buildJournalEntryFromPayload({ ...PAYLOAD, spreadKey: 'three-card' }), /spreadKey must be one of/);
   });
 });
 

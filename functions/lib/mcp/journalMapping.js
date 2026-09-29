@@ -1,6 +1,7 @@
 /**
- * Mapping from a completed MCP reading (job snapshot, or the audited
- * SaveReadingRequest payload) to a journal entry (spec §6.4, D11).
+ * Mapping from a completed MCP reading job to a journal entry (spec §6.4,
+ * D11). Saves always rebuild the entry from the account's own job; the model
+ * never supplies the narrative or cards.
  *
  * Cards are stored under their canonical catalog identity, the namespace the
  * app's own saves use, resolved with the reading pipeline's own resolver
@@ -59,12 +60,12 @@ export function toPublicCard(card, catalog = card) {
   };
 }
 
-function readLabels(cards, labelField) {
+function readLabels(cards) {
   if (!Array.isArray(cards) || cards.length === 0) {
     throw new JournalMappingError('the reading has no cards');
   }
   return cards.map((card, index) => ({
-    card: requireText(card?.[labelField], `card ${index + 1} has no name`),
+    card: requireText(card?.card, `card ${index + 1} has no name`),
     position: requireText(card?.position, `card ${index + 1} has no position`),
     orientation: normalizeOrientation(card?.orientation)
   }));
@@ -131,7 +132,7 @@ export function buildJournalEntryFromJob(job, { context } = {}) {
   }
 
   const deckStyle = snapshot.deckStyle || DEFAULT_DECK;
-  const labels = readLabels(snapshot.cardsInfo, 'card');
+  const labels = readLabels(snapshot.cardsInfo);
   const catalog = resolveCatalogCards(labels, deckStyle);
 
   return {
@@ -147,67 +148,5 @@ export function buildJournalEntryFromJob(job, { context } = {}) {
     requestId,
     deckId: deckStyle,
     userPreferences: snapshot.personalization ?? null
-  };
-}
-
-function assertCatalogIdentity(card, catalog, index, deckStyle) {
-  const where = `card ${index + 1} (${JSON.stringify(card.name)})`;
-  if (catalog.number !== null && catalog.number !== undefined) {
-    if (card.number === undefined || card.number === null) {
-      throw new JournalMappingError(`${where} needs its number, as the reading returned it`);
-    }
-    if (card.number !== catalog.number) {
-      throw new JournalMappingError(
-        `${where} is ${catalog.name} (number ${catalog.number}) in deck ${deckStyle}, but number ${card.number} was sent`
-      );
-    }
-    return;
-  }
-  if (!card.suit || card.rankValue === undefined || card.rankValue === null) {
-    throw new JournalMappingError(`${where} needs its suit and rankValue, as the reading returned them`);
-  }
-  if (card.suit !== catalog.suit || card.rankValue !== catalog.rankValue) {
-    throw new JournalMappingError(
-      `${where} is ${catalog.name} (${catalog.suit}, rankValue ${catalog.rankValue}) in deck ${deckStyle}, but ${card.suit} rankValue ${card.rankValue} was sent`
-    );
-  }
-}
-
-/**
- * Journal entry from the audited SaveReadingRequest payload (the fallback
- * when a job has expired). Each card's label must agree with the catalog
- * metadata the reading returned, so a canonical name sent for a non-RWS deck
- * is refused rather than resolved to the wrong card.
- */
-export function buildJournalEntryFromPayload(input) {
-  const spreadKey = input?.spreadKey;
-  if (!SPREAD_KEYS.includes(spreadKey)) {
-    throw new JournalMappingError(`spreadKey must be one of ${SPREAD_KEYS.join(', ')}`);
-  }
-  const spread = requireText(input.spread, 'spread is required');
-  const personalReading = requireText(
-    input.personalReading,
-    'personalReading is required: send the complete narrative exactly as the reading returned it'
-  );
-  const requestId = requireText(input.requestId, 'requestId is required: use the requestId the reading returned');
-
-  const deckStyle = input.deckId || DEFAULT_DECK;
-  const labels = readLabels(input.cards, 'name');
-  const catalog = resolveCatalogCards(labels, deckStyle);
-  input.cards.forEach((card, index) => assertCatalogIdentity(card, catalog[index], index, deckStyle));
-
-  return {
-    spread,
-    spreadKey,
-    question: input.question ?? null,
-    cards: labels.map((label, index) => toJournalCard(label, catalog[index])),
-    personalReading,
-    themes: input.themes ?? null,
-    context: normalizeContextInput(input.context),
-    provider: input.provider ?? null,
-    sessionSeed: input.sessionSeed ?? null,
-    requestId,
-    deckId: deckStyle,
-    userPreferences: input.userPreferences ?? null
   };
 }
