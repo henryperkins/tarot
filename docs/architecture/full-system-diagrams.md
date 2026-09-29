@@ -19,7 +19,6 @@ graph TB
         Claude["Azure AI Foundry<br/>Claude Opus 4.5"]
         AuraTTS["Workers AI<br/>Deepgram Aura-2 TTS"]
         AzureSpeech["Azure Speech<br/>Client Tokens"]
-        HumeAI["Hume AI<br/>Alternative TTS"]
         Stripe["Stripe<br/>Checkout, Portal, Webhooks"]
         EmailService["Email Service<br/>Quality Alerts"]
         Sentry["Sentry<br/>Errors and sampled replay"]
@@ -62,7 +61,6 @@ graph TB
     Worker -->|3. fallback| Claude
     Worker -->|4. deterministic fallback| LocalComposer
     Worker -->|TTS| AuraTTS
-    Worker -->|TTS alternative| HumeAI
     Worker -->|Payments| Stripe
     Worker -->|Alerts| EmailService
     Worker -->|Diagnostics and replay| Sentry
@@ -148,7 +146,7 @@ graph TB
     subgraph Libs["Libraries (src/lib/)"]
         direction TB
         DeckLib["Deck<br>deck.js, cardLookup.js<br>cardInsights.js"]
-        AudioLib["Audio<br>audio.js, audioCache.js<br>audioHume.js, audioSpeechSDK.js"]
+        AudioLib["Audio<br>audio.js, audioSpeechSDK.js"]
         JournalLib["Journal<br>journalInsights.js"]
         CoachLib["Coach<br>intentionCoach.js, coachStorage.js<br>questionQuality.js, followUpSuggestions.js"]
         JourneyLib["Journey<br>archetypeJourney.js"]
@@ -209,7 +207,6 @@ graph TB
 
     subgraph AudioAPIs["Audio APIs"]
         TTSAPI["POST /api/tts<br>Deepgram Aura-2"]
-        TTSHumeAPI["POST /api/tts-hume<br>Hume AI TTS"]
         SpeechToken["GET /api/speech-token<br>Azure Speech Tokens"]
     end
 
@@ -759,7 +756,6 @@ graph LR
         Stripe["Stripe<br/>Checkout, Portal, Webhooks"]
         AuraTTS["Workers AI Aura-2 TTS"]
         AzureSpeech["Azure Speech<br/>Client tokens"]
-        Hume["Hume AI<br/>Alternative TTS"]
         Email["Email provider<br/>Quality alerts"]
     end
 
@@ -778,7 +774,6 @@ graph LR
     API --> Stripe
     API --> AuraTTS
     API --> AzureSpeech
-    API --> Hume
     API --> Email
 ```
 

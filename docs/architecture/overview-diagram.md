@@ -30,7 +30,7 @@ flowchart TB
             API_Tarot["Tarot Reading (tarot-reading.js) – core reading logic"]
             API_Jobs["Reading Job API (tarot-reading-job-start/status/stream/cancel.js) –<br/>/jobs start/status/stream/cancel"]
             API_Followup["Follow-up Q&A (reading-followup.js)"]
-            API_TTS["Text-to-Speech (tts.js, tts-hume.js)"]
+            API_TTS["Text-to-Speech (tts.js)"]
             API_SpeechToken["Speech Token (speech-token.js)"]
             API_Journal["Journal Entries (journal.js & variants)"]
             API_Feedback["Feedback (feedback.js)"]
@@ -75,16 +75,14 @@ flowchart TB
         ModalQwen["Modal Qwen<br/>Chat Completions"]
         AzureGPT5["azure-gpt5<br/>OpenAI native Responses or Azure OpenAI Responses"]
         Claude["Azure AI Foundry<br/>Claude Opus 4.5"]
-        AzureOpenAI["Azure OpenAI – TTS"]
+        AuraTTS["Workers AI – Deepgram Aura-2 TTS"]
         AzureSpeech["Azure Speech Service – client TTS"]
-        HumeAI["Hume AI API – alt. TTS/emotion"]
     end
     Worker -->|1. narrative| ModalQwen
     Worker -->|2. narrative| AzureGPT5
     Worker -->|3. fallback| Claude
     Worker -->|4. deterministic fallback| LocalComposer
-    Worker -->|TTS generation| AzureOpenAI
-    Worker -->|Hume emotion TTS| HumeAI
+    Worker -->|TTS generation| AuraTTS
     Worker -->|Create sessions, Portal| StripeAPI
     Worker <-->|Stripe Webhook| StripeAPI
     Frontend -->|Speech audio fetch| AzureSpeech

@@ -21,7 +21,6 @@ import * as tarotReadingJobStream from '../../functions/api/tarot-reading-job-st
 import * as tarotReadingJobCancel from '../../functions/api/tarot-reading-job-cancel.js';
 import * as readingFollowup from '../../functions/api/reading-followup.js';
 import * as tts from '../../functions/api/tts.js';
-import * as ttsHume from '../../functions/api/tts-hume.js';
 import * as speechToken from '../../functions/api/speech-token.js';
 import * as journal from '../../functions/api/journal.js';
 import * as journalById from '../../functions/api/journal/[id].js';
@@ -220,7 +219,6 @@ const routes = [
   { pattern: /^\/api\/tarot-reading$/, handlers: tarotReading },
   { pattern: /^\/api\/reading-followup$/, handlers: readingFollowup },
   { pattern: /^\/api\/tts$/, handlers: tts },
-  { pattern: /^\/api\/tts-hume$/, handlers: ttsHume },
   { pattern: /^\/api\/speech-token$/, handlers: speechToken },
   { pattern: /^\/api\/usage$/, handlers: usage },
   { pattern: /^\/api\/subscription$/, handlers: subscription },
@@ -393,7 +391,6 @@ function addCorsHeaders(response, request) {
  * @property {string} VISION_PROOF_SECRET - Vision proof signing secret
  * @property {string} VISION_BACKEND_DEFAULT - Default vision backend id for server-side proofs
  * @property {string} VISION_TIMEOUT_MS - Vision backend timeout in milliseconds
- * @property {string} HUME_API_KEY - Hume AI API key
  * @property {string} ADMIN_API_KEY - Admin API key for manual archival
  * @property {string} ENABLE_DEBUG_ROUTES - Enables debug endpoints when set to "true"
  * @property {string} EVAL_ENABLED - Enable evaluation (string flag)

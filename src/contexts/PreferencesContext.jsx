@@ -140,19 +140,21 @@ export function PreferencesProvider({ children }) {
     }
   }, [autoNarrate]);
 
-  // --- Audio: TTS Provider (azure, azure-sdk, or hume) ---
-  const TTS_PROVIDER_OPTIONS = ['hume', 'azure', 'azure-sdk'];
+  // --- Audio: TTS Provider ('azure' is Deepgram Aura-2 via /api/tts; 'azure-sdk' is Azure Speech word sync) ---
+  // Retired engines saved by older builds (such as 'hume') fall back to the default.
+  const TTS_PROVIDER_OPTIONS = ['azure', 'azure-sdk'];
+  const DEFAULT_TTS_PROVIDER = 'azure';
   const [ttsProviderState, setTtsProviderState] = useState(() => {
     if (typeof localStorage !== 'undefined') {
       const saved = localStorage.getItem('tarot-tts-provider');
-      return TTS_PROVIDER_OPTIONS.includes(saved) ? saved : 'hume'; // Default to Hume for expressive readings
+      return TTS_PROVIDER_OPTIONS.includes(saved) ? saved : DEFAULT_TTS_PROVIDER;
     }
-    return 'hume';
+    return DEFAULT_TTS_PROVIDER;
   });
 
   // Wrapper setter that guards against invalid TTS provider values
   const setTtsProvider = (value) => {
-    const safeValue = TTS_PROVIDER_OPTIONS.includes(value) ? value : 'hume';
+    const safeValue = TTS_PROVIDER_OPTIONS.includes(value) ? value : DEFAULT_TTS_PROVIDER;
     setTtsProviderState(safeValue);
   };
 

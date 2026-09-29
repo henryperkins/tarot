@@ -1,10 +1,10 @@
 /**
- * Emotion Mapping for GraphRAG-based TTS
+ * Emotion Mapping for GraphRAG patterns
  *
  * Maps detected archetypal patterns (triads, dyads, journey stages, suit progressions)
- * to emotional tones for Hume TTS acting instructions.
- *
- * Used by both frontend (audioHume.js) and backend (tts-hume.js).
+ * to an emotional tone for the reading. The reading API returns it as
+ * `emotionalTone`, and the frontend uses it for the narrative's atmosphere and
+ * color script.
  */
 
 /**
@@ -69,110 +69,6 @@ export const SUIT_EMOTIONS = {
     challenge: 'resourceful-testing',
     mastery: 'abundant-legacy'
   }
-};
-
-/**
- * Maps emotional tones to Hume acting instructions (voice descriptions)
- * These descriptions guide how the TTS voice should express the emotion.
- */
-export const EMOTION_DESCRIPTIONS = {
-  // Triad-derived emotions
-  'hopeful-transformative':
-    'Speak with gentle hope and acknowledgment of change. Your voice should convey that while transformation may be difficult, renewal awaits. Pace yourself with compassion, allowing space for the weight of change.',
-
-  'triumphant-revelatory':
-    'Speak with quiet triumph and revelation. Your voice carries the energy of breakthrough—not boastful, but genuinely liberated. Allow moments of wonder and relief to color your delivery.',
-
-  'contemplative-mysterious':
-    'Speak with deep contemplation and mystery. Your voice should feel like it comes from within a sacred space. Slow, deliberate pacing with space for the unconscious to breathe. Honor the unknown.',
-
-  'confident-empowering':
-    'Speak with grounded confidence and empowerment. Your voice conveys mastery and capability. Clear, assured, but not arrogant—wise authority that uplifts the listener.',
-
-  'warm-reflective':
-    'Speak with warmth and gentle reflection. Your voice nurtures and invites introspection about values and connections. Soft, caring, fully present with the listener.',
-
-  'expansive-triumphant':
-    'Speak with expansive energy and celebration. Your voice carries the fullness of achievement—joyful completion, the satisfaction of a journey well-traveled. Grand but grounded.',
-
-  'grounded-wise':
-    'Speak with earthy wisdom and stability. Your voice conveys deep knowledge born of experience. Measured, trustworthy, like a wise elder sharing hard-won understanding.',
-
-  'grounded-authoritative':
-    'Speak with grounded authority and structure. Your voice conveys leadership and clear direction. Firm but not harsh—the voice of someone who has earned their position.',
-
-  'accepting-serene':
-    'Speak with peaceful acceptance and serenity. Your voice conveys surrender to what is, finding peace in the flow of fate. Calm, centered, at ease with uncertainty.',
-
-  'accepting-wise':
-    'Speak with the wisdom of acceptance. Your voice acknowledges life\'s cycles with equanimity. Neither resigned nor passive—actively at peace with change.',
-
-  'tender-hopeful':
-    'Speak with tender care and gentle hope. Your voice acknowledges fragility while nurturing possibility. Soft, encouraging, like a hand offered in the dark.',
-
-  'introspective-peaceful':
-    'Speak with quiet introspection and inner peace. Your voice comes from a place of solitary wisdom, comfortable with silence, at home in the depths.',
-
-  // Journey-derived emotions
-  'curious-hopeful':
-    'Speak with fresh curiosity and open-hearted hope. Your voice carries the energy of new beginnings—exploratory, encouraging, full of possibility. Light and inviting.',
-
-  'transformative-deep':
-    'Speak with acknowledgment of difficulty and honor for the process. Your voice recognizes the weight of transformation while holding space for growth. Patient, compassionate, understanding.',
-
-  'profound-transcendent':
-    'Speak with deep wisdom and cosmic perspective. Your voice touches the transcendent—aware of larger patterns, connected to something greater. Reverent but not distant.',
-
-  // Dyad-derived emotions
-  'transformative-profound':
-    'Speak with recognition of deep change. Your voice honors the profound nature of transformation. Serious but not heavy—carrying weight with grace.',
-
-  'thoughtful-cautionary':
-    'Speak with gentle warning and supportive concern. Your voice is caring but honest about shadows. Not alarming—thoughtfully protective, like a wise friend.',
-
-  'hopeful-inspiring':
-    'Speak with hope that inspires action. Your voice lifts and motivates. Encouraging without being saccharine—genuine optimism grounded in possibility.',
-
-  // Suit-derived emotions
-  'passionate-inspired':
-    'Speak with creative fire and inspired energy. Your voice carries enthusiasm and vision. Dynamic, alive, ready to ignite possibility.',
-
-  'determined-fierce':
-    'Speak with fierce determination and protective strength. Your voice holds ground with conviction. Intense but focused—fire that has learned discipline.',
-
-  'accomplished-weary':
-    'Speak with the weight of accomplishment. Your voice acknowledges both achievement and exhaustion. Proud but tired—success that needs rest.',
-
-  'loving-open':
-    'Speak with open-hearted love and emotional availability. Your voice flows with connection and warmth. Tender, receptive, emotionally generous.',
-
-  'grieving-complex':
-    'Speak with acknowledgment of emotional complexity. Your voice holds space for grief, confusion, and mixed feelings. Compassionate with the messiness of the heart.',
-
-  'fulfilled-wise':
-    'Speak with emotional fulfillment and relational wisdom. Your voice carries the satisfaction of authentic connection. Content, grateful, emotionally mature.',
-
-  'clear-piercing':
-    'Speak with mental clarity and truth-telling directness. Your voice cuts through confusion with precision. Clear, honest, unafraid of difficult truths.',
-
-  'conflicted-strategic':
-    'Speak with acknowledgment of mental conflict and strategic thinking. Your voice navigates complexity without oversimplifying. Thoughtful, tactical, aware of tensions.',
-
-  'liberated-dawning':
-    'Speak with the freshness of mental liberation. Your voice carries the relief of clarity finally achieved. Light, free, awakening from confusion.',
-
-  'grounded-promising':
-    'Speak with earthy groundedness and practical promise. Your voice conveys solid foundations and real potential. Steady, reliable, genuinely encouraging.',
-
-  'resourceful-testing':
-    'Speak with practical resourcefulness under pressure. Your voice acknowledges challenges while emphasizing capability. Steady, problem-solving, resilient.',
-
-  'abundant-legacy':
-    'Speak with the fullness of material and spiritual abundance. Your voice carries generational wisdom and lasting achievement. Rich, substantial, enduring.',
-
-  // Default fallback
-  'default':
-    'Speak as a wise, compassionate tarot reader. Use a thoughtful, contemplative tone with natural pauses for reflection. Your voice should feel like a trusted guide—warm, insightful, and present.'
 };
 
 /**
@@ -302,14 +198,4 @@ export function deriveEmotionalTone(themes) {
     totalWeight,
     sources
   };
-}
-
-/**
- * Get Hume acting instructions for a given emotion
- *
- * @param {string} emotion - The emotion key
- * @returns {string} The voice description/acting instructions
- */
-export function getActingInstructions(emotion) {
-  return EMOTION_DESCRIPTIONS[emotion] || EMOTION_DESCRIPTIONS['default'];
 }

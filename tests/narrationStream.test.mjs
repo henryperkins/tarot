@@ -82,7 +82,7 @@ describe('auto-narration debounce scheduling', () => {
     isReadingStreaming: true,
     isPersonalReadingError: false,
     autoNarrationTriggered: false,
-    ttsProvider: 'hume',
+    ttsProvider: 'azure-sdk',
     ttsStatus: 'idle'
   };
 

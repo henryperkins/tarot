@@ -26,7 +26,7 @@ Common local variables include:
 - `VITE_ENABLE_VISION_RESEARCH` — set to `true` only to expose the research UI; the default is `false`
 - Auth variables such as `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_AUDIENCE`, `AUTH0_USERINFO_URL`, and `APP_URL` when testing auth flows
 
-`npm run config:check` validates selected provider and authentication variables; it is not a complete feature-secret audit. Set optional Stripe, Hume, Azure Speech, MCP/OAuth, email, media, and admin secrets only for the environments and routes that use them.
+`npm run config:check` validates selected provider and authentication variables; it is not a complete feature-secret audit. Set optional Stripe, Azure Speech, MCP/OAuth, email, media, and admin secrets only for the environments and routes that use them.
 
 ## Repo Shape
 

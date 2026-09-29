@@ -101,8 +101,8 @@ export function resolveEnv(env, key) {
  * @returns {string | undefined} The environment variable value or undefined
  *
  * @example
- * const apiKey = resolveEnvStrict(env, 'HUME_API_KEY');
- * // Returns undefined if HUME_API_KEY is '', 0, false, null, or undefined
+ * const apiKey = resolveEnvStrict(env, 'STRIPE_SECRET_KEY');
+ * // Returns undefined if STRIPE_SECRET_KEY is '', 0, false, null, or undefined
  */
 export function resolveEnvStrict(env, key) {
   if (env?.[key]) return env[key];
