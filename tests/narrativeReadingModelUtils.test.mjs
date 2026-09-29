@@ -135,4 +135,26 @@ describe('deriveNarrativeVisibility', () => {
     assert.equal(state.shouldShowSpreadInsights, false);
     assert.equal(state.focusToggleAvailable, true);
   });
+
+  test('offers the cinematic reveal only when card video is enabled', () => {
+    const completedPlusReading = {
+      personalReading: { raw: 'Completed reading' },
+      narrativePhase: 'complete',
+      visibleCount: 3,
+      revealedCardsSize: 3,
+      effectiveTier: 'plus',
+      isAuthenticated: true,
+      storyArtCards: [{ name: 'The Fool' }],
+      cinematicCard: { name: 'The Fool' }
+    };
+
+    const withoutVideo = deriveNarrativeVisibility(completedPlusReading);
+    assert.equal(withoutVideo.shouldShowCinematicReveal, false);
+    assert.equal(withoutVideo.shouldShowVisualCompanion, true);
+    assert.doesNotMatch(withoutVideo.visualCompanionMessage, /cinematic/);
+
+    const withVideo = deriveNarrativeVisibility({ ...completedPlusReading, cardVideoEnabled: true });
+    assert.equal(withVideo.shouldShowCinematicReveal, true);
+    assert.match(withVideo.visualCompanionMessage, /cinematic/);
+  });
 });

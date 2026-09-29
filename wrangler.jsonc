@@ -191,7 +191,8 @@
     // Media Generation Feature Flags
     // -------------------------------------------------------------------------
     // Card video still runs on Azure OpenAI (gpt-image keyframes + Sora); off
-    // until that path moves to a working provider.
+    // until that path moves to a working provider. The UI for it also needs
+    // VITE_ENABLE_CARD_VIDEO=true at build time.
     "FEATURE_CARD_VIDEO": "false",
     "FEATURE_STORY_ART": "true",
     // Card video burst controls (short-window, per user+client bucket)

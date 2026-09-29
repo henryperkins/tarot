@@ -72,6 +72,10 @@ export function useFeatureFlags() {
 
     // Auto-generate visuals (ops-only: cost-impacting media automation)
     autoGenerateVisuals: getFlag('auto_generate_visuals', 'VITE_AUTO_GENERATE_VISUALS', false, false),
+
+    // Card video / Cinematic reveal (ops-only). The Worker serves it only when
+    // FEATURE_CARD_VIDEO is also "true" in wrangler.jsonc.
+    cardVideo: getFlag('card_video', 'VITE_ENABLE_CARD_VIDEO', false, false),
   }), []);
 
   return flags;

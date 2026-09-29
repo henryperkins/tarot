@@ -4,6 +4,7 @@ import { ParticleLayer } from '../ParticleLayer';
 import { CardModal } from '../CardModal';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { getCardForDeck } from '../../lib/cardLookup';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 
 function GhostCard({ startRect, endRect, suit = null, onComplete }) {
   const prefersReducedMotion = useReducedMotion();
@@ -204,6 +205,7 @@ export function ReadingOverlays({
   onGhostComplete
 }) {
   const selectedCard = selectedCardData?.card;
+  const { cardVideo: cardVideoEnabled } = useFeatureFlags();
   // Keep unrelated reading updates from restarting the modal's animation.
   const modalCard = useMemo(() => getCardForDeck(selectedCard, deckStyleId), [selectedCard, deckStyleId]);
 
@@ -215,7 +217,7 @@ export function ReadingOverlays({
           position={selectedCardData.position}
           question={resolvedQuestion}
           userTier={effectiveTier}
-          enableCinematic
+          enableCinematic={cardVideoEnabled}
           isOpen={Boolean(selectedCardData)}
           onClose={onCloseDetail}
           layoutId={`card-${selectedCardData.index}`}
