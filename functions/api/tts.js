@@ -4,61 +4,42 @@ import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
 import { getTtsLimits, enforceTtsRateLimit } from '../lib/ttsLimits.js';
-import { resolveEnv } from '../lib/environment.js';
-import { EMOTION_INSTRUCTIONS } from '../lib/emotionInstructions.js';
 
-function normalizeAzureEndpoint(rawEndpoint) {
-  return String(rawEndpoint || '')
-    .replace(/\/+$/, '')
-    .replace(/\/openai\/v1\/?$/, '')
-    .replace(/\/openai\/?$/, '');
-}
+const TTS_MODEL = '@cf/deepgram/aura-2-en';
+const TTS_PROVIDER = 'workers-ai-aura-2';
+// Deepgram describes Cora as smooth, melodic and caring, for storytelling.
+const TTS_SPEAKER = 'cora';
+// Deepgram takes at most 2,000 characters per request.
+const MAX_PIECE_CHARS = 1900;
 
 /**
- * Cloudflare Pages Function that provides text-to-speech audio as a data URI or streaming response.
+ * Text-to-speech for readings with Deepgram Aura-2 on Workers AI.
  *
- * Enhanced with gpt-4o-mini-tts steerable instructions for context-aware,
- * mystical tarot reading narration.
- *
- * Supports:
- * - Context-specific instruction templates (card-reveal, full-reading, synthesis)
- * - Voice selection (verse, nova, shimmer, alloy, echo, fable, onyx, etc.)
- * - Speed control for contemplative pacing (0.25-4.0, default 1.1)
- * - Streaming mode for real-time audio playback
- * - Graceful fallback to local waveform
- *
- * Usage:
+ * Aura-2 takes no speed, style or emotion instructions, so every reading uses
+ * one speaker and the browser applies the listener's speed setting. Requests
+ * may still carry `voice`, `speed`, `format`, `context` and `emotion`; they
+ * are ignored. Audio is always MP3.
  *
  * Non-streaming mode (returns JSON with base64 data URI):
  *   POST /api/tts
- *   Body: { "text": "...", "context": "full-reading", "voice": "verse", "speed": 0.9 }
- *   Response: { "audio": "data:audio/mp3;base64,...", "provider": "azure-gpt-4o-mini-tts" }
+ *   Body: { "text": "..." }
+ *   Response: { "audio": "data:audio/mpeg;base64,...", "provider": "workers-ai-aura-2" }
  *
- * Streaming mode (returns audio stream):
+ * Streaming mode (returns the MP3 as it is generated):
  *   POST /api/tts?stream=true
- *   Body: { "text": "...", "context": "full-reading", "voice": "verse", "speed": 0.9 }
- *   Response: audio/mp3 stream (content-type: audio/mp3)
+ *   Body: { "text": "..." }
+ *   Response: audio/mpeg stream; the x-tts-provider header names the provider
  *
- * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest#create-speech
+ * If Workers AI fails before audio starts, both modes return a short local
+ * waveform instead (provider "fallback").
  */
 export const onRequestGet = async ({ env }) => {
   // Health check endpoint
-  // TTS can use separate credentials (AZURE_OPENAI_TTS_*) or fall back to shared credentials
-  const azureEndpoint = resolveEnv(env, 'AZURE_OPENAI_TTS_ENDPOINT') || resolveEnv(env, 'AZURE_OPENAI_ENDPOINT');
-  const azureKey = resolveEnv(env, 'AZURE_OPENAI_TTS_API_KEY') || resolveEnv(env, 'AZURE_OPENAI_API_KEY');
-  const azureDeployment = resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT');
-  const speechRouting = resolveSpeechRouting({
-    apiVersion: resolveEnv(env, 'AZURE_OPENAI_API_VERSION'),
-    useV1Format: resolveEnv(env, 'AZURE_OPENAI_USE_V1_FORMAT')
-  });
-  const audioFormat = resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT') || 'mp3';
-  const hasAzure = !!(azureEndpoint && azureKey && azureDeployment);
   return jsonResponse({
     status: 'ok',
-    provider: hasAzure ? 'azure-openai' : 'local',
-    apiVersion: speechRouting.apiVersion,
-    useV1Format: speechRouting.useV1Format,
-    format: audioFormat,
+    provider: env?.AI?.run ? TTS_PROVIDER : 'local',
+    model: TTS_MODEL,
+    format: 'mp3',
     timestamp: new Date().toISOString()
   });
 };
@@ -76,10 +57,8 @@ export const onRequestPost = async ({ request, env }) => {
     const effectiveTier = subscription.effectiveTier;
     const ttsLimits = getTtsLimits(effectiveTier);
 
-    const { text, context, voice, speed, format, response_format: responseFormat, emotion } = await readJsonBody(request);
+    const { text } = await readJsonBody(request);
     const sanitizedText = sanitizeText(text, { maxLength: 4096, collapseWhitespace: false });
-    const requestedFormat = normalizeSpeechFormat(format ?? responseFormat);
-    const debugLoggingEnabled = isTtsDebugLoggingEnabled(env);
 
     if (!sanitizedText) {
       return jsonResponse(
@@ -123,44 +102,23 @@ export const onRequestPost = async ({ request, env }) => {
       );
     }
 
-    // Primary: Azure OpenAI gpt-4o-mini-tts with steerable instructions
-    // TTS can use separate credentials (AZURE_OPENAI_TTS_*) or fall back to shared credentials
-    const azureConfig = {
-      endpoint: normalizeAzureEndpoint(resolveEnv(env, 'AZURE_OPENAI_TTS_ENDPOINT') || resolveEnv(env, 'AZURE_OPENAI_ENDPOINT')),
-      apiKey: resolveEnv(env, 'AZURE_OPENAI_TTS_API_KEY') || resolveEnv(env, 'AZURE_OPENAI_API_KEY'),
-      deployment: resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT'),
-      apiVersion: resolveEnv(env, 'AZURE_OPENAI_API_VERSION'),
-      format: requestedFormat || resolveEnv(env, 'AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT'),
-      useV1Format: resolveEnv(env, 'AZURE_OPENAI_USE_V1_FORMAT'),
-      debugLoggingEnabled
-    };
-
-    if (azureConfig.endpoint && azureConfig.apiKey && azureConfig.deployment) {
+    if (env?.AI?.run) {
       try {
+        const pieces = await startSpeech(env, sanitizedText);
         if (stream) {
-          // Return streaming response
-          return await generateWithAzureGptMiniTTSStream(azureConfig, {
-            text: sanitizedText,
-            context: context || 'default',
-            voice: voice || 'verse',
-            speed: speed,
-            emotion: emotion || null
+          return new Response(joinStreams(pieces), {
+            headers: {
+              'content-type': 'audio/mpeg',
+              'cache-control': 'no-cache',
+              'x-tts-provider': TTS_PROVIDER
+            }
           });
-        } else {
-          // Return complete audio as data URI via /audio/speech
-          const audio = await generateWithAzureGptMiniTTS(azureConfig, {
-            text: sanitizedText,
-            context: context || 'default',
-            voice: voice || 'verse',
-            speed: speed,
-            emotion: emotion || null
-          });
-          if (audio) {
-            return jsonResponse({ audio, provider: 'azure-gpt-4o-mini-tts' });
-          }
         }
+        const bytes = await readPieces(pieces);
+        // audio/mpeg, not audio/mp3: Safari rejects audio/mp3.
+        return jsonResponse({ audio: `data:audio/mpeg;base64,${uint8ToBase64(bytes)}`, provider: TTS_PROVIDER });
       } catch (error) {
-        console.error(`[${requestId}] [tts] Azure gpt-4o-mini-tts failed, falling back to local waveform:`, error);
+        console.error(`[${requestId}] [tts] Aura-2 failed, falling back to local waveform:`, error);
       }
     }
 
@@ -198,8 +156,6 @@ export const onRequestPost = async ({ request, env }) => {
   }
 };
 
-// sanitizeText is now imported from ../lib/utils.js
-
 /**
  * Convert Uint8Array to base64 string.
  * Used for encoding audio binary data into data URIs.
@@ -213,310 +169,84 @@ function uint8ToBase64(uint8Array) {
 }
 
 /**
- * Steerable instruction templates for different tarot reading contexts.
- * These leverage gpt-4o-mini-tts's ability to control tone, pacing, and delivery style.
+ * Split text into pieces Aura-2 accepts, breaking after a sentence where one
+ * ends in the second half of a piece, otherwise between words.
  */
-const INSTRUCTION_TEMPLATES = {
-  'card-reveal': `Speak gently and mystically, as a tarot reader revealing a single card with reverence.
-    Use a slightly slower pace with brief pauses after the card name and orientation.
-    Convey wisdom and contemplation in your tone.`,
-
-  'full-reading': `Speak as a wise, compassionate tarot reader sharing a complete reading.
-    Use a thoughtful, contemplative tone with natural pauses between card descriptions and themes.
-    Allow space for reflection—speak slowly and deliberately, as if sitting across from the querent.
-    Convey mystical depth while remaining grounded and accessible.
-    Maintain a gentle, trauma-informed presence throughout.`,
-
-  'synthesis': `Speak as a tarot reader weaving together the threads of a reading into cohesive guidance.
-    Use a flowing, storytelling cadence that connects themes and patterns.
-    Pause briefly between major insights to allow integration.
-    Convey both wisdom and warmth, emphasizing agency and empowerment.`,
-
-  'question': `Speak gently and clearly, acknowledging the querent's question with respect.
-    Use a warm, inviting tone that creates space for exploration rather than fixed answers.`,
-
-  'reflection': `Speak softly and affirmingly, honoring the querent's personal reflections.
-    Use a validating, supportive tone that acknowledges their intuitive insights.`,
-
-  'default': `Speak thoughtfully and gently, as a tarot reader sharing wisdom.
-    Use a mystical yet grounded tone with natural pacing and slight pauses for contemplation.`
-};
-
-function normalizeSpeechFormat(value) {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed.toLowerCase() : null;
-}
-
-function resolveUseV1Format(env) {
-  if (!env) return false;
-  if (typeof env.useV1Format !== 'undefined' && env.useV1Format !== null && env.useV1Format !== '') {
-    return parseBooleanFlag(env.useV1Format);
-  }
-  const apiVersion = String(env.apiVersion || '').trim().toLowerCase();
-  return apiVersion === 'preview' || apiVersion === 'v1';
-}
-
-function resolveSpeechApiVersion(env, useV1Format) {
-  const rawApiVersion = String(env?.apiVersion || '').trim();
-  const normalized = rawApiVersion.toLowerCase();
-  if (useV1Format) {
-    if (normalized === 'preview' || normalized === 'v1') {
-      return normalized;
+export function splitForSpeech(text) {
+  const pieces = [];
+  let rest = text.trim();
+  while (rest.length > MAX_PIECE_CHARS) {
+    const head = rest.slice(0, MAX_PIECE_CHARS);
+    const sentenceEnd = Math.max(
+      head.lastIndexOf('\n'),
+      ...['. ', '! ', '? '].map((mark) => head.lastIndexOf(mark) + 1)
+    );
+    const wordEnd = head.lastIndexOf(' ');
+    let cut = MAX_PIECE_CHARS;
+    if (sentenceEnd > MAX_PIECE_CHARS / 2) {
+      cut = sentenceEnd;
+    } else if (wordEnd > 0) {
+      cut = wordEnd;
     }
-    return 'preview';
+    pieces.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trim();
   }
-  return rawApiVersion || '2025-04-01-preview';
+  if (rest) pieces.push(rest);
+  return pieces;
 }
 
-function resolveSpeechRouting(env) {
-  const useV1Format = resolveUseV1Format(env);
-  const apiVersion = resolveSpeechApiVersion(env, useV1Format);
-  return { useV1Format, apiVersion };
-}
+/**
+ * Start Aura-2 on every piece at once and return promises for their MP3
+ * streams, in order. Waits for the first piece to start so that a failure
+ * there can still fall back to the local waveform.
+ */
+async function startSpeech(env, text) {
+  const pieces = splitForSpeech(text).map((piece) =>
+    env.AI.run(TTS_MODEL, { text: piece, speaker: TTS_SPEAKER })
+  );
+  // Later pieces are awaited after earlier ones. Without a handler now, one
+  // that fails in the meantime counts as an unhandled rejection.
+  pieces.forEach((piece) => piece.catch(() => {}));
 
-function buildSpeechFormData(payload) {
-  const formData = new FormData();
-  for (const [key, value] of Object.entries(payload)) {
-    if (typeof value === 'undefined' || value === null) continue;
-    formData.append(key, typeof value === 'string' ? value : String(value));
+  const first = await pieces[0];
+  if (typeof first?.pipeTo !== 'function') {
+    throw new Error('Aura-2 returned no audio stream');
   }
-  return formData;
+  return pieces;
 }
 
-function buildSpeechRequestOptions(env, payload, mode = 'multipart') {
-  const headers = {
-    'api-key': env.apiKey,
-    'accept': 'application/octet-stream'
+/**
+ * Play the pieces' MP3 streams back to back as one stream.
+ */
+function joinStreams(pieces) {
+  const { readable, writable } = new TransformStream();
+  const pipePieces = async () => {
+    try {
+      for (const piece of pieces) {
+        await (await piece).pipeTo(writable, { preventClose: true });
+      }
+      await writable.close();
+    } catch (error) {
+      await writable.abort(error).catch(() => {});
+    }
   };
-
-  if (mode === 'json') {
-    headers['content-type'] = 'application/json';
-    return { headers, body: JSON.stringify(payload), mode };
-  }
-
-  return { headers, body: buildSpeechFormData(payload), mode };
-}
-
-function shouldRetrySpeechAsJson(status, errorText) {
-  if (status === 415) return true;
-  if (status !== 400) return false;
-  const normalized = (errorText || '').toLowerCase();
-  return normalized.includes('content-type') || normalized.includes('multipart') || normalized.includes('form');
-}
-
-async function fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled, useV1Format = false) {
-  // v1 preview format expects JSON; legacy deployment format may need multipart
-  const attempts = useV1Format ? ['json', 'multipart'] : ['multipart', 'json'];
-  let lastError = null;
-
-  for (const mode of attempts) {
-    if (debugLoggingEnabled) {
-      console.log(`[TTS] Request mode: ${mode}`);
-    }
-
-    const { headers, body } = buildSpeechRequestOptions(env, payload, mode);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body
-    });
-
-    if (response.ok) {
-      return { response, mode };
-    }
-
-    const errText = await response.text().catch(() => '');
-    const preview = errText.slice(0, 1000);
-
-    if (debugLoggingEnabled && preview) {
-      console.warn(`[TTS] ${mode} error response:`, preview);
-    }
-
-    if (mode === 'multipart' && shouldRetrySpeechAsJson(response.status, preview)) {
-      lastError = new Error(`Azure TTS error ${response.status}: ${preview}`);
-      continue;
-    }
-
-    throw new Error(`Azure TTS error ${response.status}: ${preview}`);
-  }
-
-  if (lastError) throw lastError;
-  throw new Error('Azure TTS request failed without a response.');
+  pipePieces();
+  return readable;
 }
 
 /**
- * Build TTS request configuration shared by both streaming and non-streaming modes.
- * Extracts common logic for endpoint construction, payload building, and parameter validation.
- *
- * @param {Object} env - Environment configuration
- * @param {Object} options - TTS options
- * @param {string} options.text - Text to synthesize
- * @param {string} options.context - Context template (card-reveal, full-reading, etc.)
- * @param {string} [options.voice='verse'] - Voice selection
- * @param {number} [options.speed=1.1] - Speech speed (0.25-4.0)
- * @param {string} [options.emotion=null] - Emotion from GraphRAG analysis
- * @returns {Object} Request configuration with url, payload, format, etc.
+ * Read every piece at the same time and join the MP3 bytes in order.
+ * Reading them one by one would make a long reading wait for each in turn.
  */
-function buildTTSRequest(env, { text, context, voice, speed, emotion }) {
-  const endpoint = normalizeAzureEndpoint(env.endpoint);
-  const deployment = env.deployment;
-  const format = normalizeSpeechFormat(env.format) || 'mp3';
-  const debugLoggingEnabled = Boolean(env.debugLoggingEnabled);
-
-  // API version logic:
-  // - v1 format uses "preview" or "v1"
-  // - deployment format uses dated preview version (e.g., "2025-04-01-preview")
-  const { useV1Format, apiVersion } = resolveSpeechRouting(env);
-
-  // Select instruction template based on context
-  let instructions = INSTRUCTION_TEMPLATES[context] || INSTRUCTION_TEMPLATES.default;
-
-  // Merge emotion-specific instructions if provided
-  if (emotion && EMOTION_INSTRUCTIONS[emotion]) {
-    instructions = `${instructions}\n\nEmotional tone for this reading: ${EMOTION_INSTRUCTIONS[emotion]}`;
+async function readPieces(pieces) {
+  const parts = await Promise.all(
+    pieces.map(async (piece) => new Uint8Array(await new Response(await piece).arrayBuffer()))
+  );
+  const bytes = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
+  let offset = 0;
+  for (const part of parts) {
+    bytes.set(part, offset);
+    offset += part.length;
   }
-
-  // Voice validation (gpt-4o-mini-tts voices - 11 available)
-  // Base voices: alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse
-  const validVoices = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse'];
-  const selectedVoice = validVoices.includes(voice) ? voice : 'verse';
-
-  // Speed validation (0.25 - 4.0 range per API spec)
-  // Coerce to number first to handle string/invalid inputs
-  const parsedSpeed = speed !== undefined ? parseFloat(speed) : NaN;
-  const selectedSpeed = Number.isFinite(parsedSpeed)
-    ? Math.max(0.25, Math.min(4.0, parsedSpeed))
-    : 1.1; // Default: slightly faster for engaging tarot reading pace
-
-  // Build URL based on format preference
-  const url = useV1Format
-    ? `${endpoint}/openai/v1/audio/speech?api-version=${apiVersion}`
-    : `${endpoint}/openai/deployments/${deployment}/audio/speech?api-version=${apiVersion}`;
-
-  // Build payload per API specification
-  const payload = {
-    input: text,
-    model: deployment,
-    voice: selectedVoice,
-    response_format: format,
-    speed: selectedSpeed
-  };
-
-  // Check if this deployment supports steerable instructions
-  const isSteerableModel = /gpt-4o|mini-tts|audio-preview/i.test(deployment);
-
-  if (isSteerableModel) {
-    payload.instructions = instructions;
-  }
-
-  return { url, payload, format, useV1Format, apiVersion, debugLoggingEnabled };
-}
-
-/**
- * Enhanced Azure OpenAI TTS generation with optional steerable instructions.
- *
- * For steerable-capable models (e.g. gpt-4o-mini-tts, audio-preview variants), includes
- * context-aware instructions. For standard models (tts-1, tts-1-hd), omits unsupported fields.
- * This keeps behavior model-agnostic while preserving rich narration when available.
- *
- * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest#create-speech
- */
-async function generateWithAzureGptMiniTTS(env, { text, context, voice, speed, emotion }) {
-  const { url, payload, format, useV1Format, debugLoggingEnabled } = buildTTSRequest(env, { text, context, voice, speed, emotion });
-
-  if (debugLoggingEnabled) {
-    console.log('[TTS] Request URL:', url);
-    console.log('[TTS] Request payload:', JSON.stringify(payload, null, 2));
-  }
-
-  const { response } = await fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled, useV1Format);
-
-  if (debugLoggingEnabled) {
-    console.log('[TTS] Response status:', response.status, response.statusText);
-    console.log('[TTS] Response headers:', JSON.stringify([...response.headers.entries()]));
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
-  const base64 = uint8ToBase64(new Uint8Array(arrayBuffer));
-  // Use standard MIME types: audio/mpeg for MP3 (Safari rejects audio/mp3)
-  const mime = format === 'wav' ? 'audio/wav' : format === 'mp3' ? 'audio/mpeg' : `audio/${format}`;
-  return `data:${mime};base64,${base64}`;
-}
-
-/**
- * Streaming Azure OpenAI TTS generation.
- *
- * Uses the stream_format parameter to request Server-Sent Events (SSE)
- * or raw audio streaming from Azure OpenAI.
- *
- * Per API docs: "sse is not supported for tts-1 or tts-1-hd"
- * Use stream_format: 'audio' for all models
- *
- * API Reference: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest#create-speech
- */
-async function generateWithAzureGptMiniTTSStream(env, { text, context, voice, speed, emotion }) {
-  const { url, payload, format, useV1Format, debugLoggingEnabled } = buildTTSRequest(env, { text, context, voice, speed, emotion });
-
-  // Add streaming parameter
-  payload.stream_format = 'audio'; // Stream raw audio chunks (safer, works with all models)
-
-  if (debugLoggingEnabled) {
-    console.log('[TTS Streaming] Request URL:', url);
-    console.log('[TTS Streaming] Request payload:', JSON.stringify(payload, null, 2));
-  }
-
-  const { response } = await fetchSpeechWithFallback(url, env, payload, debugLoggingEnabled, useV1Format);
-
-  if (debugLoggingEnabled) {
-    console.log('[TTS Streaming] Response status:', response.status, response.statusText);
-  }
-
-  // Return the streaming response directly
-  // The response body is a ReadableStream of audio chunks
-  // Use standard MIME types: audio/mpeg for MP3 (Safari rejects audio/mp3)
-  const mime = format === 'wav' ? 'audio/wav' : format === 'mp3' ? 'audio/mpeg' : `audio/${format}`;
-  return new Response(response.body, {
-    headers: {
-      'content-type': mime,
-      'cache-control': 'no-cache',
-      'x-tts-provider': 'azure-gpt-4o-mini-tts'
-    }
-  });
-}
-
-function parseBooleanFlag(value) {
-  if (typeof value === 'boolean') {
-    return value;
-  }
-
-  if (typeof value === 'number') {
-    return value !== 0;
-  }
-
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    return normalized === 'true' || normalized === '1' || normalized === 'yes';
-  }
-
-  return false;
-}
-
-function isTtsDebugLoggingEnabled(env) {
-  const explicit = resolveEnv(env, 'ENABLE_TTS_DEBUG_LOGGING');
-  if (typeof explicit !== 'undefined') {
-    return parseBooleanFlag(explicit);
-  }
-
-  const nodeEnv = resolveEnv(env, 'NODE_ENV');
-  if (nodeEnv && nodeEnv.toLowerCase() !== 'production') {
-    return true;
-  }
-
-  const mode = resolveEnv(env, 'MODE');
-  if (mode && mode.toLowerCase() !== 'production') {
-    return true;
-  }
-
-  return false;
+  return bytes;
 }

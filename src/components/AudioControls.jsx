@@ -151,7 +151,7 @@ export function AudioControls({ className = '' }) {
             <Waveform className="h-4 w-4 text-accent" aria-hidden="true" />
             <span className="text-xs font-semibold text-accent uppercase tracking-wide">Voice Engine</span>
             <Tooltip
-              content="Hume AI offers expressive voices. Azure provides clear narration, and Azure SDK adds word-by-word highlighting."
+              content="Hume AI offers expressive voices. Deepgram provides clear narration, and Azure SDK adds word-by-word highlighting."
               position="top"
               triggerClassName={infoButtonClass}
               ariaLabel="About voice engine options"
@@ -185,7 +185,7 @@ export function AudioControls({ className = '' }) {
                   : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
               }`}
             >
-              <span className="block font-semibold text-xs xs:text-sm">Azure</span>
+              <span className="block font-semibold text-xs xs:text-sm">Deepgram</span>
               <span className="block text-2xs xs:text-xs opacity-75">Clear</span>
             </button>
             <button
@@ -206,7 +206,7 @@ export function AudioControls({ className = '' }) {
         </div>
       )}
 
-      {/* Speed Control - only for Azure provider */}
+      {/* Speed Control - only for the Deepgram provider */}
       {voiceOn && ttsProvider === 'azure' && (
         <div className="mt-3 xs:mt-4 pt-3 xs:pt-4 border-t border-secondary/20">
           <div className="flex items-center gap-2 mb-2">

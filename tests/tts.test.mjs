@@ -1,24 +1,18 @@
 import assert from 'node:assert/strict';
-import { describe, it, beforeEach, mock } from 'node:test';
+import { describe, it, beforeEach } from 'node:test';
+import { onRequestGet, onRequestPost, splitForSpeech } from '../functions/api/tts.js';
 
 /**
  * TTS (Text-to-Speech) API Tests
  *
  * Tests for functions/api/tts.js covering:
  * - Health check endpoint (GET)
- * - Request validation
- * - Text sanitization
+ * - Request validation and text sanitization
  * - Rate limiting
- * - Voice and speed validation
- * - Azure TTS integration
- * - Fallback audio generation
+ * - Deepgram Aura-2 on Workers AI, in pieces for long text
  * - Streaming mode
- * - Environment variable resolution
+ * - Fallback audio generation
  */
-
-// Mock dependencies
-const mockFetch = mock.fn();
-global.fetch = mockFetch;
 
 // Mock console to suppress logs during tests
 const originalConsoleLog = console.log;
@@ -46,17 +40,41 @@ function createMockRequest(url, options = {}) {
   };
 }
 
+/**
+ * Workers AI stand-in for Aura-2. Each call returns a stream holding
+ * "<n>", where n counts calls from 1, so tests can check the order of pieces.
+ * `failOn` lists call numbers that reject; `delayMs` delays given calls.
+ */
+function createAuraAI({ failOn = [], delayMs = {} } = {}) {
+  const calls = [];
+  return {
+    calls,
+    async run(model, input) {
+      calls.push({ model, input });
+      const callNumber = calls.length;
+      if (delayMs[callNumber]) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs[callNumber]));
+      }
+      if (failOn.includes(callNumber)) {
+        throw new Error(`Aura-2 call ${callNumber} failed`);
+      }
+      return new Response(`<${callNumber}>`).body;
+    }
+  };
+}
+
 // Helper to create mock environment
 function createMockEnv(overrides = {}) {
   return {
-    AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
-    AZURE_OPENAI_API_KEY: 'test-key',
-    AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT: 'gpt-audio-mini',
-    AZURE_OPENAI_API_VERSION: '2025-04-01-preview',
-    AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT: 'mp3',
+    AI: createAuraAI(),
     RATELIMIT: null, // No rate limiting by default in tests
     ...overrides
   };
+}
+
+function decodeDataUri(dataUri) {
+  const [prefix, base64] = dataUri.split(',');
+  return { prefix, text: Buffer.from(base64, 'base64').toString() };
 }
 
 // Mock KV store for rate limiting tests
@@ -89,61 +107,24 @@ class MockKVStore {
 }
 
 describe('TTS API - Health Check (GET)', () => {
-  it('should return ok status with azure-openai provider when credentials are present', async () => {
-    // Dynamically import to get fresh module
-    const { onRequestGet } = await import('../functions/api/tts.js');
-
-    const env = createMockEnv();
-    const response = await onRequestGet({ env });
+  it('reports Aura-2 when the Workers AI binding is present', async () => {
+    const response = await onRequestGet({ env: createMockEnv() });
     const data = await response.json();
 
     assert.strictEqual(response.status, 200);
     assert.strictEqual(data.status, 'ok');
-    assert.strictEqual(data.provider, 'azure-openai');
+    assert.strictEqual(data.provider, 'workers-ai-aura-2');
+    assert.strictEqual(data.model, '@cf/deepgram/aura-2-en');
     assert.ok(data.timestamp);
   });
 
-  it('should return ok status with local provider when credentials are missing', async () => {
-    const { onRequestGet } = await import('../functions/api/tts.js');
-
-    // Clear process.env credentials temporarily
-    const originalEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
-    const originalKey = process.env.AZURE_OPENAI_API_KEY;
-    const originalDeployment = process.env.AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT;
-
-    delete process.env.AZURE_OPENAI_ENDPOINT;
-    delete process.env.AZURE_OPENAI_API_KEY;
-    delete process.env.AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT;
-    delete process.env.AZURE_OPENAI_TTS_ENDPOINT;
-    delete process.env.AZURE_OPENAI_TTS_API_KEY;
-
-    const env = {};
-    const response = await onRequestGet({ env });
+  it('reports the local provider without the binding', async () => {
+    const response = await onRequestGet({ env: {} });
     const data = await response.json();
-
-    // Restore process.env
-    if (originalEndpoint) process.env.AZURE_OPENAI_ENDPOINT = originalEndpoint;
-    if (originalKey) process.env.AZURE_OPENAI_API_KEY = originalKey;
-    if (originalDeployment) process.env.AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT = originalDeployment;
 
     assert.strictEqual(response.status, 200);
     assert.strictEqual(data.status, 'ok');
     assert.strictEqual(data.provider, 'local');
-    assert.ok(data.timestamp);
-  });
-
-  it('should use TTS-specific credentials when available', async () => {
-    const { onRequestGet } = await import('../functions/api/tts.js');
-
-    const env = createMockEnv({
-      AZURE_OPENAI_TTS_ENDPOINT: 'https://tts-specific.openai.azure.com',
-      AZURE_OPENAI_TTS_API_KEY: 'tts-specific-key'
-    });
-
-    const response = await onRequestGet({ env });
-    const data = await response.json();
-
-    assert.strictEqual(data.provider, 'azure-openai');
   });
 });
 
@@ -155,8 +136,6 @@ describe('TTS API - Request Validation (POST)', () => {
   });
 
   it('should reject requests without text field', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
     const request = createMockRequest('/api/tts', {
       method: 'POST',
       body: {}
@@ -169,11 +148,10 @@ describe('TTS API - Request Validation (POST)', () => {
     assert.strictEqual(response.status, 400);
     assert.ok(data.error);
     assert.match(data.error, /text.*required/i);
+    assert.strictEqual(env.AI.calls.length, 0);
   });
 
   it('should reject requests with empty text', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
     const request = createMockRequest('/api/tts', {
       method: 'POST',
       body: { text: '   ' }
@@ -187,71 +165,7 @@ describe('TTS API - Request Validation (POST)', () => {
     assert.ok(data.error);
   });
 
-  it('should accept requests with valid text', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'The Fool card represents new beginnings.' }
-    });
-    const env = createMockEnv({
-      RATELIMIT: null,
-      // No Azure credentials, will use fallback
-      AZURE_OPENAI_ENDPOINT: null
-    });
-
-    const response = await onRequestPost({ request, env });
-    const data = await response.json();
-
-    assert.strictEqual(response.status, 200);
-    assert.ok(data.audio);
-    assert.strictEqual(data.provider, 'fallback');
-  });
-});
-
-describe('TTS API - Text Sanitization', () => {
-  it('should trim whitespace from text', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: '   test   ' }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null // Use fallback
-    });
-
-    const response = await onRequestPost({ request, env });
-    const data = await response.json();
-
-    assert.strictEqual(response.status, 200);
-    // Fallback should still work with trimmed text
-    assert.ok(data.audio);
-  });
-
-  it('should limit text to 4096 characters', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const longText = 'a'.repeat(5000);
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: longText }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null // Use fallback
-    });
-
-    const response = await onRequestPost({ request, env });
-    const data = await response.json();
-
-    assert.strictEqual(response.status, 200);
-    // Should succeed with truncated text
-    assert.ok(data.audio);
-  });
-
   it('should handle non-string text input', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
     const request = createMockRequest('/api/tts', {
       method: 'POST',
       body: { text: 12345 }
@@ -264,6 +178,201 @@ describe('TTS API - Text Sanitization', () => {
     assert.strictEqual(response.status, 400);
     assert.ok(data.error);
   });
+
+  it('should return 400 for invalid JSON body', async () => {
+    const request = {
+      url: 'https://example.com/api/tts',
+      method: 'POST',
+      headers: {
+        get: () => null,
+        set: () => {},
+        has: () => false
+      },
+      text: async () => 'not valid json {'
+    };
+
+    const response = await onRequestPost({ request, env: createMockEnv() });
+    assert.strictEqual(response.status, 400);
+    const body = await response.json();
+    assert.strictEqual(body.error, 'Invalid JSON payload.');
+  });
+});
+
+describe('TTS API - Aura-2 speech', () => {
+  beforeEach(() => {
+    console.log = () => {};
+    console.error = () => {};
+  });
+
+  it('speaks the trimmed text with the Cora voice and returns an MP3 data URI', async () => {
+    const request = createMockRequest('/api/tts', {
+      method: 'POST',
+      body: { text: '   The Fool card represents new beginnings.   ', voice: 'nova', speed: 0.85, emotion: 'hopeful' }
+    });
+    const env = createMockEnv();
+
+    const response = await onRequestPost({ request, env });
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.provider, 'workers-ai-aura-2');
+    assert.deepStrictEqual(decodeDataUri(data.audio), { prefix: 'data:audio/mpeg;base64', text: '<1>' });
+    assert.deepStrictEqual(env.AI.calls, [{
+      model: '@cf/deepgram/aura-2-en',
+      input: { text: 'The Fool card represents new beginnings.', speaker: 'cora' }
+    }]);
+  });
+
+  it('limits text to 4096 characters', async () => {
+    const request = createMockRequest('/api/tts', {
+      method: 'POST',
+      body: { text: 'a'.repeat(5000) }
+    });
+    const env = createMockEnv();
+
+    const response = await onRequestPost({ request, env });
+    assert.strictEqual(response.status, 200);
+    const spoken = env.AI.calls.map((call) => call.input.text).join('');
+    assert.strictEqual(spoken.length, 4096);
+  });
+
+  it('speaks long text in pieces and keeps their order when later pieces finish first', async () => {
+    const sentence = 'The Tower asks what was never built to last. ';
+    const text = sentence.repeat(90).trim(); // about 4,000 characters
+    const request = createMockRequest('/api/tts', {
+      method: 'POST',
+      body: { text }
+    });
+    const env = createMockEnv({ AI: createAuraAI({ delayMs: { 1: 20 } }) });
+
+    const response = await onRequestPost({ request, env });
+    const data = await response.json();
+
+    assert.strictEqual(env.AI.calls.length, 3);
+    for (const call of env.AI.calls) {
+      assert.ok(call.input.text.length <= 1900);
+      assert.ok(call.input.text.endsWith('last.'), 'Pieces should end at a sentence');
+    }
+    assert.strictEqual(decodeDataUri(data.audio).text, '<1><2><3>');
+  });
+});
+
+describe('splitForSpeech', () => {
+  it('leaves text under the limit whole', () => {
+    assert.deepStrictEqual(splitForSpeech('  One short line.  '), ['One short line.']);
+  });
+
+  it('breaks between words when no sentence ends late enough', () => {
+    const pieces = splitForSpeech('word '.repeat(800));
+    assert.ok(pieces.length > 1);
+    for (const piece of pieces) {
+      assert.ok(piece.length <= 1900);
+      assert.match(piece, /^word( word)*$/);
+    }
+  });
+
+  it('cuts text with no spaces at the limit', () => {
+    const pieces = splitForSpeech('x'.repeat(4000));
+    assert.deepStrictEqual(pieces.map((piece) => piece.length), [1900, 1900, 200]);
+  });
+});
+
+describe('TTS API - Streaming Mode', () => {
+  beforeEach(() => {
+    console.log = () => {};
+    console.error = () => {};
+  });
+
+  it('streams MP3 pieces in order with the provider header', async () => {
+    const text = 'The Star pours water on the land and into the pool. '.repeat(80).trim();
+    const request = createMockRequest('/api/tts?stream=true', {
+      method: 'POST',
+      body: { text }
+    });
+    const env = createMockEnv({ AI: createAuraAI({ delayMs: { 1: 20 } }) });
+
+    const response = await onRequestPost({ request, env });
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.headers.get('content-type'), 'audio/mpeg');
+    assert.strictEqual(response.headers.get('x-tts-provider'), 'workers-ai-aura-2');
+    assert.strictEqual(await response.text(), '<1><2><3>');
+  });
+
+  it('returns JSON when stream=false', async () => {
+    const request = createMockRequest('/api/tts?stream=false', {
+      method: 'POST',
+      body: { text: 'test' }
+    });
+
+    const response = await onRequestPost({ request, env: createMockEnv() });
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.provider, 'workers-ai-aura-2');
+  });
+});
+
+describe('TTS API - Fallback Audio Generation', () => {
+  beforeEach(() => {
+    console.error = () => {}; // Suppress error logs
+  });
+
+  it('returns fallback audio without the Workers AI binding', async () => {
+    const request = createMockRequest('/api/tts', {
+      method: 'POST',
+      body: { text: 'test' }
+    });
+
+    const response = await onRequestPost({ request, env: {} });
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.ok(data.audio.startsWith('data:audio/wav;base64,'));
+    assert.strictEqual(data.provider, 'fallback');
+  });
+
+  it('returns fallback audio when Aura-2 fails', async () => {
+    const request = createMockRequest('/api/tts', {
+      method: 'POST',
+      body: { text: 'test' }
+    });
+    const env = createMockEnv({ AI: createAuraAI({ failOn: [1] }) });
+
+    const response = await onRequestPost({ request, env });
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.provider, 'fallback');
+  });
+
+  it('returns fallback audio when a later piece fails', async () => {
+    const request = createMockRequest('/api/tts', {
+      method: 'POST',
+      body: { text: 'The Moon hides the path. '.repeat(100).trim() }
+    });
+    const env = createMockEnv({ AI: createAuraAI({ failOn: [2] }) });
+
+    const response = await onRequestPost({ request, env });
+    const data = await response.json();
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(data.provider, 'fallback');
+  });
+
+  it('streams fallback WAV audio when Aura-2 fails before any audio', async () => {
+    const request = createMockRequest('/api/tts?stream=true', {
+      method: 'POST',
+      body: { text: 'test' }
+    });
+    const env = createMockEnv({ AI: createAuraAI({ failOn: [1] }) });
+
+    const response = await onRequestPost({ request, env });
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.headers.get('content-type'), 'audio/wav');
+    assert.strictEqual(response.headers.get('x-tts-provider'), 'fallback');
+  });
 });
 
 describe('TTS API - Rate Limiting', () => {
@@ -272,8 +381,6 @@ describe('TTS API - Rate Limiting', () => {
   });
 
   it('should allow requests when under rate limit', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
     const kvStore = new MockKVStore();
     const request = createMockRequest('/api/tts', {
       method: 'POST',
@@ -282,7 +389,6 @@ describe('TTS API - Rate Limiting', () => {
     });
     const env = createMockEnv({
       RATELIMIT: kvStore,
-      AZURE_OPENAI_ENDPOINT: null, // Use fallback
       TTS_RATE_LIMIT_MAX: 5,
       TTS_RATE_LIMIT_WINDOW: 60
     });
@@ -292,8 +398,6 @@ describe('TTS API - Rate Limiting', () => {
   });
 
   it('should reject requests when rate limit exceeded', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
     const kvStore = new MockKVStore();
     const request = createMockRequest('/api/tts', {
       method: 'POST',
@@ -302,7 +406,6 @@ describe('TTS API - Rate Limiting', () => {
     });
     const env = createMockEnv({
       RATELIMIT: kvStore,
-      AZURE_OPENAI_ENDPOINT: null,
       TTS_RATE_LIMIT_MAX: 2,
       TTS_RATE_LIMIT_WINDOW: 60
     });
@@ -319,11 +422,10 @@ describe('TTS API - Rate Limiting', () => {
     assert.ok(data.error);
     assert.match(data.error, /too many.*requests/i);
     assert.ok(response.headers.get('retry-after'));
+    assert.strictEqual(env.AI.calls.length, 2);
   });
 
   it('should use client IP from cf-connecting-ip header', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
     const kvStore = new MockKVStore();
     const request1 = createMockRequest('/api/tts', {
       method: 'POST',
@@ -337,7 +439,6 @@ describe('TTS API - Rate Limiting', () => {
     });
     const env = createMockEnv({
       RATELIMIT: kvStore,
-      AZURE_OPENAI_ENDPOINT: null,
       TTS_RATE_LIMIT_MAX: 1,
       TTS_RATE_LIMIT_WINDOW: 60
     });
@@ -351,18 +452,13 @@ describe('TTS API - Rate Limiting', () => {
   });
 
   it('should handle x-forwarded-for header with multiple IPs', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
     const kvStore = new MockKVStore();
     const request = createMockRequest('/api/tts', {
       method: 'POST',
       body: { text: 'test' },
       headers: { 'x-forwarded-for': '192.168.1.1, 10.0.0.1, 172.16.0.1' }
     });
-    const env = createMockEnv({
-      RATELIMIT: kvStore,
-      AZURE_OPENAI_ENDPOINT: null
-    });
+    const env = createMockEnv({ RATELIMIT: kvStore });
 
     const response = await onRequestPost({ request, env });
     assert.strictEqual(response.status, 200);
@@ -373,17 +469,12 @@ describe('TTS API - Rate Limiting', () => {
   });
 
   it('should use "anonymous" when no IP headers present', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
     const kvStore = new MockKVStore();
     const request = createMockRequest('/api/tts', {
       method: 'POST',
       body: { text: 'test' }
     });
-    const env = createMockEnv({
-      RATELIMIT: kvStore,
-      AZURE_OPENAI_ENDPOINT: null
-    });
+    const env = createMockEnv({ RATELIMIT: kvStore });
 
     const response = await onRequestPost({ request, env });
     assert.strictEqual(response.status, 200);
@@ -392,407 +483,6 @@ describe('TTS API - Rate Limiting', () => {
     assert.ok(keys.some(k => k.includes('anonymous')));
   });
 });
-
-describe('TTS API - Voice and Speed Validation', () => {
-  beforeEach(() => {
-    console.log = () => {};
-    console.error = () => {};
-  });
-
-  it('should use default voice "nova" when no voice specified', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'test' }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null // Use fallback
-    });
-
-    const response = await onRequestPost({ request, env });
-    assert.strictEqual(response.status, 200);
-  });
-
-  it('should use default speed 1.1 when no speed specified', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'test' }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null // Use fallback
-    });
-
-    const response = await onRequestPost({ request, env });
-    assert.strictEqual(response.status, 200);
-  });
-
-  it('should clamp speed to minimum 0.25', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'test', speed: 0.1 }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null // Use fallback
-    });
-
-    const response = await onRequestPost({ request, env });
-    assert.strictEqual(response.status, 200);
-  });
-
-  it('should clamp speed to maximum 4.0', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'test', speed: 5.0 }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null // Use fallback
-    });
-
-    const response = await onRequestPost({ request, env });
-    assert.strictEqual(response.status, 200);
-  });
-
-  it('should handle non-numeric speed values (use default)', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'test', speed: 'fast' }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null // Use fallback
-    });
-
-    const response = await onRequestPost({ request, env });
-    // Should use default speed (1.1) instead of NaN
-    assert.strictEqual(response.status, 200);
-  });
-
-  it('should handle null speed value (use default)', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'test', speed: null }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null // Use fallback
-    });
-
-    const response = await onRequestPost({ request, env });
-    assert.strictEqual(response.status, 200);
-  });
-});
-
-describe('TTS API - Invalid JSON Handling', () => {
-  beforeEach(() => {
-    console.log = () => {};
-    console.error = () => {};
-  });
-
-  it('should return 400 for invalid JSON body', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    // Create a request that returns invalid JSON
-    const request = {
-      url: 'https://example.com/api/tts',
-      method: 'POST',
-      headers: {
-        get: () => null,
-        set: () => {},
-        has: () => false
-      },
-      text: async () => 'not valid json {'
-    };
-    const env = createMockEnv();
-
-    const response = await onRequestPost({ request, env });
-    assert.strictEqual(response.status, 400);
-    const body = await response.json();
-    assert.strictEqual(body.error, 'Invalid JSON payload.');
-  });
-});
-
-describe('TTS API - Context Templates', () => {
-  it('should accept card-reveal context', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'The Fool', context: 'card-reveal' }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null
-    });
-
-    const response = await onRequestPost({ request, env });
-    assert.strictEqual(response.status, 200);
-  });
-
-  it('should accept full-reading context', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'Your reading shows...', context: 'full-reading' }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null
-    });
-
-    const response = await onRequestPost({ request, env });
-    assert.strictEqual(response.status, 200);
-  });
-
-  it('should accept synthesis context', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'To synthesize...', context: 'synthesis' }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null
-    });
-
-    const response = await onRequestPost({ request, env });
-    assert.strictEqual(response.status, 200);
-  });
-
-  it('should use default context for unknown contexts', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'test', context: 'unknown-context' }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null
-    });
-
-    const response = await onRequestPost({ request, env });
-    assert.strictEqual(response.status, 200);
-  });
-});
-
-describe('TTS API - Fallback Audio Generation', () => {
-  beforeEach(() => {
-    console.error = () => {}; // Suppress error logs
-  });
-
-  it('should return fallback audio when Azure is not configured', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'test' }
-    });
-    const env = {
-      // No Azure credentials
-    };
-
-    const response = await onRequestPost({ request, env });
-    const data = await response.json();
-
-    assert.strictEqual(response.status, 200);
-    assert.ok(data.audio);
-    assert.ok(data.audio.startsWith('data:audio/wav;base64,'));
-    assert.strictEqual(data.provider, 'fallback');
-  });
-
-  it('should return fallback audio when Azure fails', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    // Mock fetch to fail
-    mockFetch.mock.mockImplementation(() => {
-      throw new Error('Azure API failed');
-    });
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'test' }
-    });
-    const env = createMockEnv();
-
-    const response = await onRequestPost({ request, env });
-    const data = await response.json();
-
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual(data.provider, 'fallback');
-
-    mockFetch.mock.resetCalls();
-  });
-});
-
-describe('TTS API - Streaming Mode', () => {
-  beforeEach(() => {
-    console.log = () => {};
-    console.error = () => {};
-  });
-
-  it('should detect streaming mode from query parameter', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts?stream=true', {
-      method: 'POST',
-      body: { text: 'test' }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null // Use fallback
-    });
-
-    const response = await onRequestPost({ request, env });
-
-    assert.strictEqual(response.status, 200);
-    assert.ok(response.headers.get('content-type').includes('audio/'));
-    // Streaming mode returns binary audio directly, not JSON with base64
-    // Note: transfer-encoding: chunked is only set when streaming unknown-length data;
-    // the fallback audio returns a fixed-size Uint8Array so no chunked encoding is used
-    const body = await response.arrayBuffer();
-    assert.ok(body.byteLength > 0, 'Should return binary audio data');
-  });
-
-  it('should return non-streaming response when stream=false', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts?stream=false', {
-      method: 'POST',
-      body: { text: 'test' }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null
-    });
-
-    const response = await onRequestPost({ request, env });
-    const data = await response.json();
-
-    assert.strictEqual(response.status, 200);
-    assert.ok(data.audio);
-    assert.ok(data.provider);
-  });
-});
-
-describe('TTS API - Environment Resolution', () => {
-  it('should resolve environment variables from env object', async () => {
-    const { onRequestGet } = await import('../functions/api/tts.js');
-
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://from-env.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'key-from-env',
-      AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT: 'deployment-from-env'
-    };
-
-    const response = await onRequestGet({ env });
-    const data = await response.json();
-
-    assert.strictEqual(data.provider, 'azure-openai');
-  });
-
-  it('should prefer TTS-specific credentials over shared credentials', async () => {
-    const { onRequestGet } = await import('../functions/api/tts.js');
-
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://shared.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'shared-key',
-      AZURE_OPENAI_TTS_ENDPOINT: 'https://tts.openai.azure.com',
-      AZURE_OPENAI_TTS_API_KEY: 'tts-key',
-      AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT: 'deployment'
-    };
-
-    const response = await onRequestGet({ env });
-    const data = await response.json();
-
-    assert.strictEqual(data.provider, 'azure-openai');
-  });
-});
-
-describe('TTS API - Debug Logging', () => {
-  it('should enable debug logging in non-production NODE_ENV', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'test' }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null
-    });
-
-    const response = await onRequestPost({ request, env });
-    assert.strictEqual(response.status, 200);
-
-    process.env.NODE_ENV = originalEnv;
-  });
-
-  it('should respect explicit ENABLE_TTS_DEBUG_LOGGING flag', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'test' }
-    });
-    const env = createMockEnv({
-      AZURE_OPENAI_ENDPOINT: null,
-      ENABLE_TTS_DEBUG_LOGGING: 'true'
-    });
-
-    const response = await onRequestPost({ request, env });
-    assert.strictEqual(response.status, 200);
-  });
-});
-
-describe('TTS API - Error Handling', () => {
-  beforeEach(() => {
-    console.error = () => {}; // Suppress error logs
-  });
-
-  it('should handle Azure TTS failures gracefully with fallback', async () => {
-    const { onRequestPost } = await import('../functions/api/tts.js');
-
-    // Mock fetch to simulate Azure failure
-    mockFetch.mock.mockImplementation(() =>
-      Promise.resolve({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-        text: async () => 'Azure service error',
-        headers: new Map()
-      })
-    );
-
-    const request = createMockRequest('/api/tts', {
-      method: 'POST',
-      body: { text: 'test' }
-    });
-    const env = createMockEnv();
-
-    const response = await onRequestPost({ request, env });
-    const data = await response.json();
-
-    // Should fallback gracefully instead of returning error
-    assert.strictEqual(response.status, 200);
-    assert.ok(data.audio);
-    assert.strictEqual(data.provider, 'fallback');
-
-    mockFetch.mock.resetCalls();
-  });
-});
-
-// NOTE: Azure Responses TTS tests were removed because the feature
-// (using /openai/v1/responses endpoint for TTS with transcript support)
-// is not yet implemented in functions/api/tts.js. The current implementation
-// uses /audio/speech endpoint which returns binary audio without transcripts.
-// These tests can be re-added when Azure Responses TTS is implemented.
 
 // Restore console after all tests
 describe('Cleanup', () => {

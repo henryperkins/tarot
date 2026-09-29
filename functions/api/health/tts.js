@@ -13,9 +13,6 @@ export const onRequestGet = async (context) => {
   return jsonResponse({
     status: 'ok',
     provider: 'local-fallback',
-    apiVersion: context?.env?.AZURE_OPENAI_API_VERSION ?? null,
-    useV1Format: context?.env?.AZURE_OPENAI_USE_V1_FORMAT ?? null,
-    format: context?.env?.AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT ?? null,
     timestamp: new Date().toISOString()
   });
 };

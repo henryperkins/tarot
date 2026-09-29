@@ -39,15 +39,6 @@ const OPTIONAL_FOR_CLAUDE_FALLBACK = [
   'AZURE_ANTHROPIC_MODEL'
 ];
 
-const OPTIONAL_FOR_TTS = [
-  // TTS requires a deployment; endpoint/key may fall back to AZURE_OPENAI_*.
-  'AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT',
-  'AZURE_OPENAI_TTS_ENDPOINT',
-  'AZURE_OPENAI_TTS_API_KEY',
-  'AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT',
-  'AZURE_OPENAI_USE_V1_FORMAT'
-];
-
 const OPTIONAL_FOR_VISION_RESEARCH = [
   'VISION_PROOF_SECRET'
 ];
@@ -286,20 +277,6 @@ function run() {
     }
   }
 
-  // Conditional: treat TTS as "wanted" if a deployment is set.
-  const ttsDeployment = resolveValue('AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT', process.env, fileVars, wranglerVars);
-  const ttsEnabled = typeof ttsDeployment === 'string' && ttsDeployment.trim().length > 0;
-  const missingTts = [];
-  if (ttsEnabled) {
-    // Deployment is already truthy here; check whether we have *some* endpoint+key.
-    const endpoint = resolveValue('AZURE_OPENAI_TTS_ENDPOINT', process.env, fileVars, wranglerVars)
-      || resolveValue('AZURE_OPENAI_ENDPOINT', process.env, fileVars, wranglerVars);
-    const apiKey = resolveValue('AZURE_OPENAI_TTS_API_KEY', process.env, fileVars, wranglerVars)
-      || resolveValue('AZURE_OPENAI_API_KEY', process.env, fileVars, wranglerVars);
-    if (!endpoint) missingTts.push('AZURE_OPENAI_TTS_ENDPOINT (or AZURE_OPENAI_ENDPOINT)');
-    if (!apiKey) missingTts.push('AZURE_OPENAI_TTS_API_KEY (or AZURE_OPENAI_API_KEY)');
-  }
-
   console.log('🔐 Environment prerequisite check');
   console.log(`- Loaded ${Object.keys(fileVars).length} entries from ${path.basename(devVarsPath)}${fs.existsSync(devVarsPath) ? '' : ' (file not present)'}`);
   console.log(`- Loaded ${Object.keys(wranglerVars).length} non-secret vars from ${path.basename(wranglerConfigPath)}${fs.existsSync(wranglerConfigPath) ? '' : ' (file not present)'}`);
@@ -348,15 +325,6 @@ function run() {
     }
   }
 
-  if (ttsEnabled) {
-    console.log('\nText-to-speech looks ENABLED (AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT set):');
-    if (missingTts.length === 0) {
-      console.log('✔ TTS endpoint/key appear configured (via AZURE_OPENAI_TTS_* or fallback to AZURE_OPENAI_*)');
-    } else {
-      console.log(`✖ Missing TTS prerequisites: ${missingTts.join(', ')}`);
-    }
-  }
-
   if (!modalConfigured && !openAIConfigured && !azureFallbackConfigured) {
     console.error(`\nMissing AI reading provider credentials: ${REQUIRED_FOR_MODAL_READINGS.join(', ')} (preferred), ${REQUIRED_FOR_OPENAI_READINGS.join(', ')}, or ${REQUIRED_FOR_AZURE_OPENAI_FALLBACK.join(', ')} (fallback).`);
     console.error('Populate .dev.vars (or export env vars) to enable AI-generated readings.');
@@ -396,15 +364,6 @@ function run() {
   if (OPTIONAL_FOR_AUTH.length > 0) {
     console.log('\nOptional: Auth0 social login variables:');
     OPTIONAL_FOR_AUTH.forEach((key) => {
-      const entry = resolveVariable(key, process.env, fileVars, wranglerVars);
-      if (entry) console.log(`• ${key} (${entry.source})`);
-      else console.log(`• ${key} (not set)`);
-    });
-  }
-
-  if (OPTIONAL_FOR_TTS.length > 0) {
-    console.log('\nOptional: Azure OpenAI TTS variables:');
-    OPTIONAL_FOR_TTS.forEach((key) => {
       const entry = resolveVariable(key, process.env, fileVars, wranglerVars);
       if (entry) console.log(`• ${key} (${entry.source})`);
       else console.log(`• ${key} (not set)`);

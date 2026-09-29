@@ -66,7 +66,6 @@ export function getStoryArtLimits(
     return {
       enabled: true,
       maxPerDay: 20,
-      quality: 'medium',
       styles: proStyles,
       formats: proFormats
     };
@@ -76,7 +75,6 @@ export function getStoryArtLimits(
     return {
       enabled: true,
       maxPerDay: 3,
-      quality: 'low',
       styles: ['watercolor'],
       formats: ['single']
     };
@@ -85,7 +83,6 @@ export function getStoryArtLimits(
   return {
     enabled: false,
     maxPerDay: 0,
-    quality: 'low',
     styles: [],
     formats: []
   };

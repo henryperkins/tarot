@@ -67,13 +67,8 @@
     "MODAL_REASONING_EFFORT": "medium",
     // Qwen output and prompt token budgets are managed by the serving model.
     "MODAL_TIMEOUT_MS": "300000",
-    "AZURE_OPENAI_GPT_AUDIO_MINI_FORMAT": "mp3",
-    "AZURE_OPENAI_USE_V1_FORMAT": "true",
     "AZURE_OPENAI_API_VERSION": "preview",
     "AZURE_OPENAI_RESPONSES_API_VERSION": "v1",
-    // Optional: override the api-version used for /openai/v1/responses TTS calls.
-    // If unset/empty, falls back to AZURE_OPENAI_RESPONSES_API_VERSION (then AZURE_OPENAI_API_VERSION).
-    "AZURE_OPENAI_TTS_RESPONSES_API_VERSION": "",
     "OPENAI_STREAMING_ENABLED": "true",
     "AZURE_OPENAI_STREAMING_ENABLED": "true",
     // AZURE_OPENAI_REASONING_EFFORT: Controls reasoning depth for the Azure
@@ -135,7 +130,6 @@
     // promptDebug. GPT_OWNER_TOKEN is never shared, so ownership fails closed
     // when it is unset — which is the default.
     "PROMPT_DEBUG_ENABLED": "true",
-    "ENABLE_TTS_DEBUG_LOGGING": "false",
     "ENABLE_SPEECH_TOKEN_DEBUG": "false",
     // -------------------------------------------------------------------------
     // Service-account auth for the Tableu Custom GPT / ChatGPT App.
@@ -196,7 +190,9 @@
     // -------------------------------------------------------------------------
     // Media Generation Feature Flags
     // -------------------------------------------------------------------------
-    "FEATURE_CARD_VIDEO": "true",
+    // Card video still runs on Azure OpenAI (gpt-image keyframes + Sora); off
+    // until that path moves to a working provider.
+    "FEATURE_CARD_VIDEO": "false",
     "FEATURE_STORY_ART": "true",
     // Card video burst controls (short-window, per user+client bucket)
     "CARD_VIDEO_POST_RATE_LIMIT_MAX": "3",
@@ -328,10 +324,8 @@
   // wrangler secret put AZURE_ANTHROPIC_API_KEY   (from Foundry Keys & endpoint, or falls back to AZURE_OPENAI_API_KEY)
   // wrangler secret put AZURE_ANTHROPIC_MODEL     (deployment name, default: claude-opus-4-5)
   //
-  // Azure TTS (GPT-4o Audio Mini - existing implementation)
-  // wrangler secret put AZURE_OPENAI_TTS_ENDPOINT
-  // wrangler secret put AZURE_OPENAI_TTS_API_KEY
-  // wrangler secret put AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT
+  // Narration (/api/tts) and story art use Workers AI through the AI binding
+  // and need no secrets.
   //
   // Azure Speech Service (Neural TTS via Speech SDK - separate from OpenAI TTS)
   // wrangler secret put AZURE_SPEECH_ENDPOINT  (e.g., https://fifteenmodels.cognitiveservices.azure.com/)

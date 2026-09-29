@@ -143,6 +143,26 @@ function createMockDbWithD1RateLimit(user) {
   };
 }
 
+// Workers AI stand-in for FLUX.2 [dev]: records each call with its form fields.
+function createImageAI({ fail = false } = {}) {
+  const calls = [];
+  return {
+    calls,
+    async run(model, input) {
+      const { body, contentType } = input.multipart;
+      const form = await new Response(body, { headers: { 'content-type': contentType } }).formData();
+      calls.push({
+        model,
+        prompt: form.get('prompt'),
+        width: form.get('width'),
+        height: form.get('height')
+      });
+      if (fail) throw new Error('model unavailable');
+      return { image: 'abc' };
+    }
+  };
+}
+
 function createBaseEnv(overrides = {}) {
   return {
     FEATURE_STORY_ART: 'true',
@@ -171,33 +191,24 @@ describe('Media generation APIs', () => {
     console.warn = originalConsoleWarn;
   });
 
-  it('enforces story art quality by tier (ignores payload override)', async () => {
-    let capturedQuality = null;
-
-    mockFetch.mock.mockImplementation(async (_url, options) => {
-      const body = JSON.parse(options.body);
-      capturedQuality = body.quality;
-      return new Response(JSON.stringify({
-        data: [{ b64_json: 'abc', revised_prompt: '' }]
-      }), { status: 200, headers: { 'content-type': 'application/json' } });
-    });
-
+  it('generates story art with FLUX.2 [dev] from a prompt without the reading text', async () => {
+    const ai = createImageAI();
     const user = {
       id: 'user-plus',
       subscription_tier: 'plus',
       subscription_status: 'active'
     };
-    const env = createBaseEnv({ DB: createMockDb(user) });
+    const env = createBaseEnv({ DB: createMockDb(user), AI: ai });
 
     const request = createMockRequest('/api/generate-story-art', {
       method: 'POST',
       headers: { authorization: 'Bearer test' },
       body: {
-        cards: [{ name: 'The Fool', position: 'Present', reversed: false }],
+        cards: [{ name: 'The Fool', number: 0, position: 'Present', reversed: false, meaning: 'New beginnings' }],
         question: 'What should I focus on?',
+        narrative: 'I keep circling the same decision.',
         format: 'single',
-        style: 'watercolor',
-        quality: 'high'
+        style: 'watercolor'
       }
     });
 
@@ -206,19 +217,24 @@ describe('Media generation APIs', () => {
 
     assert.equal(response.status, 200);
     assert.equal(payload.success, true);
-    assert.equal(capturedQuality, 'low');
+    assert.equal(payload.image, 'abc');
+    assert.equal(payload.format, 'jpeg');
+    assert.equal(ai.calls.length, 1);
+    assert.equal(ai.calls[0].model, '@cf/black-forest-labs/flux-2-dev');
+    assert.equal(ai.calls[0].width, '1536');
+    assert.equal(ai.calls[0].height, '1024');
+    assert.doesNotMatch(ai.calls[0].prompt, /Fool|Present|New beginnings|focus on|circling/);
+    assert.equal(mockFetch.mock.calls.length, 0);
   });
 
   it('refunds story art usage on generation failure', async () => {
-    mockFetch.mock.mockImplementation(async () => new Response('fail', { status: 500 }));
-
     const user = {
       id: 'user-plus',
       subscription_tier: 'plus',
       subscription_status: 'active'
     };
     const metrics = new MockKVStore();
-    const env = createBaseEnv({ DB: createMockDb(user), METRICS_DB: metrics });
+    const env = createBaseEnv({ DB: createMockDb(user), METRICS_DB: metrics, AI: createImageAI({ fail: true }) });
 
     const request = createMockRequest('/api/generate-story-art', {
       method: 'POST',
@@ -238,6 +254,80 @@ describe('Media generation APIs', () => {
     const usageKey = `media_usage:story-art:${user.id}:${dateKey}`;
     const usageValue = await metrics.get(usageKey);
     assert.equal(usageValue, null);
+  });
+
+  describe('stalled FLUX.2 requests', () => {
+    // Workers AI stand-in whose calls hang unless listed in `answers`
+    // (call number -> image); `nextCall()` resolves once another call starts.
+    function createStallingAI(answers = {}) {
+      const waiters = [];
+      let count = 0;
+      return {
+        get count() { return count; },
+        nextCall: () => new Promise((resolve) => waiters.push(resolve)),
+        run: () => {
+          count += 1;
+          waiters.splice(0).forEach((resolve) => resolve());
+          return answers[count] ? Promise.resolve({ image: answers[count] }) : new Promise(() => {});
+        }
+      };
+    }
+
+    const user = {
+      id: 'user-plus',
+      subscription_tier: 'plus',
+      subscription_status: 'active'
+    };
+    const storyArtRequest = () => createMockRequest('/api/generate-story-art', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test' },
+      body: {
+        cards: [{ name: 'The Fool', number: 0, position: 'Present', reversed: false }],
+        question: 'What should I focus on?',
+        format: 'single',
+        style: 'watercolor'
+      }
+    });
+
+    it('retries once after a 35-second stall', async (t) => {
+      t.mock.timers.enable({ apis: ['setTimeout'] });
+      const ai = createStallingAI({ 2: 'retried' });
+      const env = createBaseEnv({ DB: createMockDb(user), AI: ai });
+
+      const firstCall = ai.nextCall();
+      const pending = onStoryArtPost({ request: storyArtRequest(), env });
+      await firstCall;
+      t.mock.timers.tick(35000);
+      const response = await pending;
+      const payload = await response.json();
+
+      assert.equal(response.status, 200);
+      assert.equal(payload.image, 'retried');
+      assert.equal(ai.count, 2);
+    });
+
+    it('gives up after two stalled attempts and refunds usage', async (t) => {
+      t.mock.timers.enable({ apis: ['setTimeout'] });
+      const ai = createStallingAI();
+      const metrics = new MockKVStore();
+      const env = createBaseEnv({ DB: createMockDb(user), METRICS_DB: metrics, AI: ai });
+
+      let call = ai.nextCall();
+      const pending = onStoryArtPost({ request: storyArtRequest(), env });
+      await call;
+      call = ai.nextCall();
+      t.mock.timers.tick(35000);
+      await call;
+      t.mock.timers.tick(35000);
+      const response = await pending;
+      const payload = await response.json();
+
+      assert.equal(response.status, 500);
+      assert.match(payload.details, /timed out after 35000ms/);
+      assert.equal(ai.count, 2);
+      const usageKey = `media_usage:story-art:${user.id}:${getUtcDateKey(new Date())}`;
+      assert.equal(await metrics.get(usageKey), null);
+    });
   });
 
   it('refunds card video usage when job fails', async () => {
@@ -1017,12 +1107,13 @@ describe('Media generation APIs', () => {
   });
 
   it('rejects malformed story-art card payloads before provider calls', async () => {
+    const ai = createImageAI();
     const user = {
       id: 'user-plus',
       subscription_tier: 'plus',
       subscription_status: 'active'
     };
-    const env = createBaseEnv({ DB: createMockDb(user) });
+    const env = createBaseEnv({ DB: createMockDb(user), AI: ai });
 
     const request = createMockRequest('/api/generate-story-art', {
       method: 'POST',
@@ -1040,28 +1131,17 @@ describe('Media generation APIs', () => {
 
     assert.equal(response.status, 400);
     assert.match(payload.error, /cards\[0\]\.name is required/);
-    assert.equal(mockFetch.mock.calls.length, 0);
+    assert.equal(ai.calls.length, 0);
   });
 
   it('accepts vignette story-art requests with multiple cards by trimming to the lead card', async () => {
-    let imageRequests = 0;
-    mockFetch.mock.mockImplementation(async (url) => {
-      const requestUrl = typeof url === 'string' ? url : String(url);
-      if (requestUrl.includes('/openai/v1/images/generations?')) {
-        imageRequests += 1;
-        return new Response(JSON.stringify({
-          data: [{ b64_json: 'abc', revised_prompt: '' }]
-        }), { status: 200, headers: { 'content-type': 'application/json' } });
-      }
-      throw new Error(`Unexpected fetch URL in vignette compatibility test: ${requestUrl}`);
-    });
-
+    const ai = createImageAI();
     const user = {
       id: 'user-pro',
       subscription_tier: 'pro',
       subscription_status: 'active'
     };
-    const env = createBaseEnv({ DB: createMockDb(user) });
+    const env = createBaseEnv({ DB: createMockDb(user), AI: ai });
 
     const request = createMockRequest('/api/generate-story-art', {
       method: 'POST',
@@ -1082,20 +1162,13 @@ describe('Media generation APIs', () => {
 
     assert.equal(response.status, 200);
     assert.equal(payload.success, true);
-    assert.equal(imageRequests, 1);
+    assert.equal(ai.calls.length, 1);
+    assert.equal(ai.calls[0].width, '1024');
+    assert.equal(ai.calls[0].height, '1536');
   });
 
-  it('slims oversized story-art prompts under configured budget before provider calls', async () => {
-    let capturedPromptLength = 0;
-
-    mockFetch.mock.mockImplementation(async (_url, options) => {
-      const body = JSON.parse(options.body);
-      capturedPromptLength = body.prompt.length;
-      return new Response(JSON.stringify({
-        data: [{ b64_json: 'abc', revised_prompt: '' }]
-      }), { status: 200, headers: { 'content-type': 'application/json' } });
-    });
-
+  it('keeps story-art prompts under the configured budget', async () => {
+    const ai = createImageAI();
     const user = {
       id: 'user-plus',
       subscription_tier: 'plus',
@@ -1103,6 +1176,7 @@ describe('Media generation APIs', () => {
     };
     const env = createBaseEnv({
       DB: createMockDb(user),
+      AI: ai,
       MEDIA_PROMPT_BUDGET_GUARDS: 'true',
       MEDIA_PROMPT_BUDGET_STORY_ART_CHARS: '7000'
     });
@@ -1124,11 +1198,13 @@ describe('Media generation APIs', () => {
 
     assert.equal(response.status, 200);
     assert.equal(payload.success, true);
-    assert.equal(capturedPromptLength > 0, true);
-    assert.equal(capturedPromptLength <= 7000, true);
+    assert.equal(ai.calls.length, 1);
+    assert.equal(ai.calls[0].prompt.length > 0, true);
+    assert.equal(ai.calls[0].prompt.length <= 7000, true);
   });
 
   it('returns explicit budget error when story-art prompt cannot fit hard cap', async () => {
+    const ai = createImageAI();
     const user = {
       id: 'user-plus',
       subscription_tier: 'plus',
@@ -1136,6 +1212,7 @@ describe('Media generation APIs', () => {
     };
     const env = createBaseEnv({
       DB: createMockDb(user),
+      AI: ai,
       MEDIA_PROMPT_BUDGET_GUARDS: 'true',
       MEDIA_PROMPT_BUDGET_STORY_ART_CHARS: '200'
     });
@@ -1156,7 +1233,7 @@ describe('Media generation APIs', () => {
 
     assert.equal(response.status, 400);
     assert.equal(payload.code, 'media_prompt_budget_exceeded');
-    assert.equal(mockFetch.mock.calls.length, 0);
+    assert.equal(ai.calls.length, 0);
   });
 
   it('rejects invalid card-video position characters before provider calls', async () => {

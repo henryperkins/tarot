@@ -1,11 +1,10 @@
 // functions/lib/storyArtPrompts.js
-// Prompt engineering for GPT-Image-1.5 story illustrations
-// Based on OpenAI's gpt-image-1.5 Prompting Guide best practices:
-// - Structure: background/scene → subject → key details → constraints
-// - Specificity: concrete materials, shapes, textures, visual medium
-// - Composition: framing, viewpoint, lighting/mood
-// - Constraints: explicit exclusions and invariants
-// - No text: avoid text rendering issues by excluding it entirely
+// Story-art prompts for FLUX.2 [dev] on Workers AI.
+// Diffusion models paint whatever a prompt names: card names, quoted questions
+// and "no text" rules come out as lettering or as literal cards. So the prompt
+// is a short, positive description of the picture, built only from the curated
+// card imagery in this file and generativeVisuals.js. The question only picks a
+// theme category; no user text reaches the prompt.
 
 import {
   QUESTION_VISUAL_CUES,
@@ -13,7 +12,6 @@ import {
   getCardVisuals,
   detectQuestionCategory
 } from './generativeVisuals.js';
-import { buildMediaNarrativeReference } from './mediaPromptAlignment.js';
 
 /**
  * Style presets for consistent visual language
@@ -226,265 +224,75 @@ export const SUIT_VISUALS = {
   }
 };
 
-function buildPromptSafeCards(cards, narrativeReference) {
-  return cards.map((card, index) => {
-    const safeCard = narrativeReference?.cards?.[index] || {};
-    const safeName = safeCard.card || safeCard.name || card?.name || `Card ${index + 1}`;
-    const safePosition = safeCard.position || card?.position || `Card ${index + 1}`;
-    const safeMeaning = safeCard.meaning || card?.meaning || card?.interpretation || '';
+const LAYOUTS = {
+  triptych: 'A triptych of three tall painted panels side by side, one continuous landscape flowing through all three',
+  single: 'Full-bleed artwork filling the whole frame: one unified dreamlike scene in a wide landscape format',
+  panoramic: 'Full-bleed artwork filling the whole frame: one sweeping panoramic scene in a wide landscape format',
+  vignette: 'Full-bleed artwork filling the whole frame: one intimate scene in a tall portrait format'
+};
 
-    return {
-      ...card,
-      card: safeName,
-      name: safeName,
-      position: safePosition,
-      meaning: safeMeaning
-    };
-  });
+// More cards than this crowd a single scene.
+const MAX_SCENE_CARDS = 5;
+
+// Queen and king imagery names the throne but not who sits on it, and the
+// model then paints the suit symbol where the head should be.
+const THRONE_FIGURES = { queen: 'A crowned queen', king: 'A crowned king' };
+
+function describeCardImagery(card) {
+  const visual = getCardVisuals(card);
+  let imagery = (visual.visual || CARD_VISUALS[card.number]?.symbols || visual.symbols || 'an archetypal robed figure')
+    .trim()
+    .replace(/[.\s]+$/, '');
+  const throneFigure = THRONE_FIGURES[String(card.name || '').split(' ')[0].toLowerCase()];
+  if (visual.type === 'court' && throneFigure) {
+    imagery = imagery.replace(/^Throne\b/, `${throneFigure} on a throne`);
+  }
+  return card.reversed ? `${imagery}, in ${REVERSAL_TREATMENT.colors}` : imagery;
+}
+
+function selectSceneCards(cards, format) {
+  if (format === 'vignette') return cards.slice(0, 1);
+  if (format === 'triptych') {
+    // Beginning, middle and end of longer spreads.
+    return cards.length >= 5
+      ? [cards[0], cards[Math.floor(cards.length / 2)], cards[cards.length - 1]]
+      : cards.slice(0, 3);
+  }
+  return cards.slice(0, MAX_SCENE_CARDS);
 }
 
 /**
- * Build a prompt for a single scene illustration
- * Follows GPT-Image-1.5 best practices: scene → subject → details → constraints
+ * Build the image prompt for one story illustration.
+ * @param {Array<Object>} cards - Sanitized cards ({ name, number, suit, reversed })
+ * @param {string} question - Only used to pick a theme category
+ * @param {string} style - Key of STYLE_PROMPTS
+ * @param {string} format - triptych, single, panoramic or vignette
+ * @returns {string}
  */
-export function buildSingleScenePrompt(cards, question, style, narrative) {
+export function buildStoryArtPrompt(cards, question, style, format) {
   const styleConfig = STYLE_PROMPTS[style] || STYLE_PROMPTS.watercolor;
-  const narrativeReference = buildMediaNarrativeReference({
-    cards,
-    question,
-    reflectionsText: narrative,
-    spreadKey: cards.length === 1 ? 'single' : 'general'
-  });
-  const safeQuestion = narrativeReference.question;
-  const safeCards = buildPromptSafeCards(cards, narrativeReference);
-  
-  // Detect question category for visual metaphors
-  const questionCategory = detectQuestionCategory(safeQuestion);
-  const questionCues = QUESTION_VISUAL_CUES[questionCategory] || QUESTION_VISUAL_CUES.general;
-  
-  // Prompt builders must never interpolate unsanitized request payload fields directly.
-  // Build subject descriptions from cards (supports Major and Minor Arcana)
-  const subjects = safeCards.map((card, _i) => {
-    const visual = getCardVisuals(card);
-    const legacyVisual = CARD_VISUALS[card.number] || {};
-    const reversalNote = card.reversed ? REVERSAL_TREATMENT.forImage : 'energy flowing openly';
-    const figure = visual.figure || legacyVisual.figure || 'archetypal figure';
-    const mood = visual.mood || legacyVisual.mood || card.meaning;
-    const suitNote = visual.suit ? ` (${visual.element} energy)` : '';
-    return `- ${card.name} in ${card.position} position: ${figure}${suitNote}, mood of ${mood} (${reversalNote})`;
-  }).join('\n');
+  const questionCues = QUESTION_VISUAL_CUES[detectQuestionCategory(question)] || QUESTION_VISUAL_CUES.general;
+  const sceneCards = selectSceneCards(cards, format);
 
-  // Extract key symbols from all cards
-  const allSymbols = safeCards.map(card => {
-    const visual = getCardVisuals(card);
-    const legacyVisual = CARD_VISUALS[card.number] || {};
-    return visual.symbols || legacyVisual.symbols || '';
-  }).filter(Boolean).join(', ');
-  
-  // Optional narrative context integration
-  const narrativeNote = narrativeReference.reflectionsText
-    ? `\nNARRATIVE CONTEXT: ${narrativeReference.reflectionsText}` 
-    : '';
-
-  return `
-${narrativeReference.referenceBlock}
-
-SCENE/BACKGROUND:
-Mystical dreamscape setting that evokes the emotional weight of: "${safeQuestion}"
-${styleConfig.lighting}
-Environment cues: ${questionCues.environment}
-
-VISUAL MEDIUM:
-${styleConfig.medium}
-${styleConfig.materials}
-
-SUBJECTS:
-${subjects}
-
-KEY VISUAL ELEMENTS:
-Symbolic imagery drawn from: ${allSymbols}
-Question-related metaphors: ${questionCues.metaphors}
-Allow symbols to merge and flow organically into a unified composition.
-${narrativeNote}
-
-COLOR PALETTE:
-${styleConfig.palette}
-
-COMPOSITION:
-Landscape orientation (16:9 aspect ratio), balanced composition with visual flow from left to right.
-Figures should feel archetypal and universal, not specific individuals.
-Create emotional resonance with the question's theme through visual metaphor.
-
-CONSTRAINTS:
-- No text, words, labels, or writing of any kind
-- No literal tarot card imagery or card borders
-- No modern objects or anachronistic elements
-- ${styleConfig.constraints}
-- Unified dreamlike scene blending all card energies
-`.trim();
-}
-
-/**
- * Build a prompt for triptych (3-panel) illustration
- * Follows GPT-Image-1.5 best practices for multi-panel compositions
- */
-export function buildTriptychPrompt(cards, question, style) {
-  const styleConfig = STYLE_PROMPTS[style] || STYLE_PROMPTS.watercolor;
-  const narrativeReference = buildMediaNarrativeReference({
-    cards,
-    question,
-    spreadKey: cards.length === 1 ? 'single' : 'general'
-  });
-  const safeQuestion = narrativeReference.question;
-  const safeCards = buildPromptSafeCards(cards, narrativeReference);
-  
-  // Detect question category for visual metaphors
-  const questionCategory = detectQuestionCategory(safeQuestion);
-  const questionCues = QUESTION_VISUAL_CUES[questionCategory] || QUESTION_VISUAL_CUES.general;
-  
-  // For 3-card spreads, map directly; for others, select key cards
-  let panelCards;
-  if (safeCards.length === 3) {
-    panelCards = safeCards;
-  } else if (safeCards.length >= 5) {
-    // Use first, middle, last for arc
-    panelCards = [safeCards[0], safeCards[Math.floor(safeCards.length / 2)], safeCards[safeCards.length - 1]];
+  let subject;
+  if (format === 'triptych') {
+    const panels = ['Left', 'Center', 'Right'];
+    subject = sceneCards.map((card, index) => `${panels[index]} panel: ${describeCardImagery(card)}.`).join(' ')
+      + ' A ribbon of light flows through all three panels.';
+  } else if (format === 'vignette') {
+    const { sensory } = getCardVisuals(sceneCards[0]);
+    subject = `${describeCardImagery(sceneCards[0])}.${sensory ? ` ${sensory}.` : ''}`;
   } else {
-    panelCards = safeCards.slice(0, 3);
+    subject = `Within it: ${sceneCards.map(describeCardImagery).join('; ')}.`;
   }
 
-  const panelLabels = ['LEFT PANEL (Beginning)', 'CENTER PANEL (Present)', 'RIGHT PANEL (Outcome)'];
-  const panels = panelCards.map((card, i) => {
-    const visual = getCardVisuals(card);
-    const legacyVisual = CARD_VISUALS[card.number] || {};
-    const reversalNote = card.reversed ? `(${REVERSAL_TREATMENT.forImage})` : '';
-    const symbols = visual.symbols || legacyVisual.symbols || 'archetypal imagery';
-    const figure = visual.figure || legacyVisual.figure || 'symbolic figure embodying this energy';
-    const mood = visual.mood || legacyVisual.mood || card.meaning;
-    const colors = legacyVisual.colors || 'drawn from main palette';
-    const suitNote = visual.suit ? `\n- Elemental energy: ${visual.element} (${visual.suitEnergy || ''})` : '';
-    
-    return `
-${panelLabels[i]} - ${card.name} ${reversalNote}
-- Position meaning: ${card.position}
-- Key symbols: ${symbols}
-- Figure: ${figure}${suitNote}
-- Mood: ${mood}
-- Panel colors: ${colors}`;
-  }).join('\n');
-
-  return `
-${narrativeReference.referenceBlock}
-
-VISUAL MEDIUM:
-${styleConfig.medium}
-${styleConfig.materials}
-
-COMPOSITION:
-A TRIPTYCH—three connected vertical panels side-by-side forming one landscape image.
-Each panel captures one card's essence while visual motifs flow across all three.
-
-SCENE CONTEXT:
-A visual journey responding to the question: "${safeQuestion}"
-${styleConfig.lighting}
-Environment cues: ${questionCues.environment}
-Journey metaphor: ${questionCues.metaphors}
-
-THE THREE PANELS:
-${panels}
-
-COLOR PALETTE:
-${styleConfig.palette}
-Colors should subtly shift across panels—cooler on left, warmer on right—showing transformation.
-
-VISUAL CONTINUITY:
-- Include a connecting element flowing through all panels (a river, path, light ray, or vine)
-- Recurring symbolic motifs that transform from panel to panel
-- Consistent horizon line and perspective across all three
-- Style remains unified; mood evolves left to right
-
-CONSTRAINTS:
-- No text, words, labels, or writing of any kind
-- No literal tarot card imagery or card borders
-- No modern objects
-- ${styleConfig.constraints}
-- Three distinct but clearly connected panels
-- Each panel must be visually complete on its own
-`.trim();
-}
-
-/**
- * Build a prompt for individual card vignette
- */
-export function buildCardVignettePrompt(card, question, position, style) {
-  const styleConfig = STYLE_PROMPTS[style] || STYLE_PROMPTS.watercolor;
-  const narrativeReference = buildMediaNarrativeReference({
-    cards: [card],
-    question,
-    spreadKey: 'single'
-  });
-  const safeQuestion = narrativeReference.question;
-  const safeCard = buildPromptSafeCards([card], narrativeReference)[0];
-  const safePosition = safeCard?.position || position || 'Card 1';
-  const visual = getCardVisuals(safeCard);
-  const legacyVisual = CARD_VISUALS[safeCard.number] || {};
-  const suitVisual = safeCard.suit ? SUIT_VISUALS[safeCard.suit.toLowerCase()] : null;
-  
-  // Detect question category for contextual cues
-  const questionCategory = detectQuestionCategory(safeQuestion);
-  const questionCues = QUESTION_VISUAL_CUES[questionCategory] || QUESTION_VISUAL_CUES.general;
-  
-  // Unified reversal treatment
-  const orientationNote = safeCard.reversed 
-    ? REVERSAL_TREATMENT.forImage
-    : 'The energy flows openly. Full expression of the archetype.';
-
-  // Build suit/element note from either new or legacy visuals
-  const element = visual.element || (suitVisual ? suitVisual.element : null);
-  const suitNote = element 
-    ? `\nELEMENTAL ENERGY: ${element} - ${visual.suitEnergy || suitVisual?.energy || ''}
-\nSUIT SYMBOLS: ${suitVisual?.symbols || visual.symbols || ''}`
-    : '';
-  
-  // Use combined visual data
-  const symbols = visual.symbols || legacyVisual.symbols || 'archetypal imagery';
-  const figure = visual.figure || legacyVisual.figure || 'symbolic figure';
-  const mood = visual.mood || legacyVisual.mood || safeCard.meaning;
-  const colors = legacyVisual.colors || styleConfig.palette;
-
-  return `
-${narrativeReference.referenceBlock}
-
-Create an artistic vignette for this tarot card in context.
-
-STYLE: ${styleConfig.medium}
-MATERIALS: ${styleConfig.materials}
-LIGHTING: ${styleConfig.lighting}
-
-THE CARD: ${safeCard.name}
-POSITION IN SPREAD: ${safePosition}
-QUESTION CONTEXT: "${safeQuestion}"
-QUESTION THEME CUES: ${questionCues.cues}
-${orientationNote}
-
-VISUAL ELEMENTS:
-Symbols: ${symbols}
-Figure: ${figure}
-Mood: ${mood}
-Colors: ${colors}
-${suitNote}
-
-ARTISTIC DIRECTION:
-- Capture the card's essence through symbolic visual metaphor
-- Contextualize for the question and position meaning
-- Environment cues: ${questionCues.environment}
-- Focus on emotional truth rather than literal card reproduction
-- Use the position (${safePosition}) to inform the narrative role
-- No text or labels
-- Create a moment frozen in time, rich with symbolic meaning
-
-FORMAT: Portrait orientation (9:16 aspect ratio)
-`.trim();
+  return [
+    `${styleConfig.medium}, ${styleConfig.materials}.`,
+    `${LAYOUTS[format] || LAYOUTS.single}.`,
+    subject,
+    `The scene suggests ${questionCues.environment}, lit by ${styleConfig.lighting}, with ${questionCues.cues}.`,
+    `Colors of ${styleConfig.palette}; ${styleConfig.constraints}. The figures are archetypal, with natural human faces, fully clothed in timeless robes.`
+  ].join('\n');
 }
 
 /**
@@ -561,8 +369,6 @@ export default {
   STYLE_PROMPTS,
   CARD_VISUALS,
   SUIT_VISUALS,
-  buildSingleScenePrompt,
-  buildTriptychPrompt,
-  buildCardVignettePrompt,
+  buildStoryArtPrompt,
   buildAmbientBackgroundPrompt
 };

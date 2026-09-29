@@ -320,8 +320,8 @@ async function buildStreamingAudioSource(response, signal) {
  * @param {string} options.text - Text to speak (can be Markdown)
  * @param {boolean} options.enabled - Whether TTS is enabled
  * @param {string} [options.context='default'] - Reading context (card-reveal, full-reading, synthesis, etc.)
- * @param {string} [options.voice='verse'] - Voice selection (alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse)
- * @param {number} [options.speed] - Playback speed (0.25-4.0, default 1.1 for engaging pace)
+ * @param {string} [options.voice='verse'] - Voice name; the server currently uses one voice for all narration
+ * @param {number} [options.speed] - Playback speed, applied by the player (1 is normal)
  * @param {string} [options.format] - Audio format to request (mp3, wav, etc.)
  * @param {boolean} [options.stream=false] - Use streaming mode for progressive audio playback
  * @param {string} [options.emotion=null] - Emotion from GraphRAG analysis for voice styling
@@ -453,7 +453,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
         audioDataUri = streamResult.url;
         objectUrlForCleanup = streamResult.url;
         const headerProvider = response.headers.get('x-tts-provider');
-        provider = headerProvider || provider || 'azure-gpt-4o-mini-tts';
+        provider = headerProvider || provider || 'workers-ai-aura-2';
         source = 'stream';
         if (isStaleRequest()) {
           revokeTrackedObjectUrl(streamResult.url);
@@ -547,6 +547,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
     const audio = new Audio(audioDataUri);
     // Important: set volume based on ambience setting or default
     audio.volume = 1.0;
+    applyNarrationSpeed(audio, speed);
 
     if (objectUrlForCleanup) {
       audioObjectUrlMap.set(audio, objectUrlForCleanup);
@@ -774,7 +775,7 @@ async function playTtsStreamSegment(segment, requestId) {
 
   const streamResult = await buildStreamingAudioSource(response, controller?.signal);
   const headerProvider = response.headers.get('x-tts-provider');
-  const provider = headerProvider || 'azure-gpt-4o-mini-tts';
+  const provider = headerProvider || 'workers-ai-aura-2';
   const source = 'stream';
 
   emitTTSState({
@@ -791,13 +792,15 @@ async function playTtsStreamSegment(segment, requestId) {
     source,
     context,
     requestId,
+    speed,
     signal: controller?.signal
   });
 }
 
-function playQueuedAudio(audioUrl, { provider, source, context, requestId, signal }) {
+function playQueuedAudio(audioUrl, { provider, source, context, requestId, speed, signal }) {
   return new Promise((resolve, reject) => {
     const audio = new Audio(audioUrl);
+    applyNarrationSpeed(audio, speed);
     ttsAudio = audio;
     audioObjectUrlMap.set(audio, audioUrl);
 
@@ -911,7 +914,7 @@ function finishTtsStreamQueue() {
   if (!ttsStreamActive) return;
   ttsStreamActive = false;
   ttsStreamFinalized = false;
-  const provider = currentTTSState.provider || 'azure-gpt-4o-mini-tts';
+  const provider = currentTTSState.provider || 'workers-ai-aura-2';
   const context = currentTTSState.context || 'full-reading';
   emitTTSState({
     status: 'completed',
@@ -1484,6 +1487,15 @@ function trackObjectUrl(url) {
     return;
   }
   trackedObjectUrls.add(url);
+}
+
+// The narration voice has no speed setting, so the player applies the chosen pace.
+function applyNarrationSpeed(audio, speed) {
+  const rate = Number(speed);
+  if (!Number.isFinite(rate) || rate <= 0) return;
+  const clamped = Math.min(Math.max(rate, 0.5), 2);
+  audio.defaultPlaybackRate = clamped;
+  audio.playbackRate = clamped;
 }
 
 function releaseAudioObjectUrl(audio) {

@@ -17,7 +17,7 @@ graph TB
         OpenAI["OpenAI native Responses<br/>azure-gpt5"]
         AzureOpenAI["Azure OpenAI Responses<br/>azure-gpt5 fallback"]
         Claude["Azure AI Foundry<br/>Claude Opus 4.5"]
-        AzureTTS["Azure OpenAI<br/>Text-to-Speech"]
+        AuraTTS["Workers AI<br/>Deepgram Aura-2 TTS"]
         AzureSpeech["Azure Speech<br/>Client Tokens"]
         HumeAI["Hume AI<br/>Alternative TTS"]
         Stripe["Stripe<br/>Checkout, Portal, Webhooks"]
@@ -61,7 +61,7 @@ graph TB
     Worker -->|2. azure-gpt5: Azure fallback| AzureOpenAI
     Worker -->|3. fallback| Claude
     Worker -->|4. deterministic fallback| LocalComposer
-    Worker -->|TTS| AzureTTS
+    Worker -->|TTS| AuraTTS
     Worker -->|TTS alternative| HumeAI
     Worker -->|Payments| Stripe
     Worker -->|Alerts| EmailService
@@ -208,7 +208,7 @@ graph TB
     end
 
     subgraph AudioAPIs["Audio APIs"]
-        TTSAPI["POST /api/tts<br>Azure TTS"]
+        TTSAPI["POST /api/tts<br>Deepgram Aura-2"]
         TTSHumeAPI["POST /api/tts-hume<br>Hume AI TTS"]
         SpeechToken["GET /api/speech-token<br>Azure Speech Tokens"]
     end
@@ -757,7 +757,7 @@ graph LR
 
     subgraph OtherServices["Other Services"]
         Stripe["Stripe<br/>Checkout, Portal, Webhooks"]
-        AzureTTS["Azure OpenAI TTS"]
+        AuraTTS["Workers AI Aura-2 TTS"]
         AzureSpeech["Azure Speech<br/>Client tokens"]
         Hume["Hume AI<br/>Alternative TTS"]
         Email["Email provider<br/>Quality alerts"]
@@ -776,7 +776,7 @@ graph LR
     API --> Assets
     API --> Sentry
     API --> Stripe
-    API --> AzureTTS
+    API --> AuraTTS
     API --> AzureSpeech
     API --> Hume
     API --> Email

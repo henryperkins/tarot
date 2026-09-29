@@ -3,11 +3,8 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import {
-  buildSingleScenePrompt,
-  buildTriptychPrompt,
-  buildCardVignettePrompt
-} from '../functions/lib/storyArtPrompts.js';
+import { buildStoryArtPrompt } from '../functions/lib/storyArtPrompts.js';
+import { REVERSAL_TREATMENT, getCardVisuals } from '../functions/lib/generativeVisuals.js';
 import {
   buildCardRevealPrompt,
   buildKeyframePrompt,
@@ -63,153 +60,87 @@ const adversarialCard = {
 const testQuestion = 'Should I start a new creative project?';
 const careerQuestion = 'Will I get the promotion at work?';
 
-describe('buildSingleScenePrompt', () => {
-  it('includes text-model alignment reference block', () => {
-    const prompt = buildSingleScenePrompt([majorArcanaCard], testQuestion, 'watercolor');
-    assert.ok(prompt.includes('READING MODEL ALIGNMENT'), 'Should include narrative alignment block');
-    assert.ok(prompt.includes('ALLOWED CARD EVIDENCE'), 'Should include media-safe card evidence');
-    assert.ok(!prompt.includes('TEXT MODEL SYSTEM PROMPT'), 'Should not embed full text model system prompt');
-    assert.ok(!prompt.includes('TEXT MODEL USER PROMPT'), 'Should not embed full text model user prompt');
+const imageryOf = (card) => getCardVisuals(card).visual.replace(/[.\s]+$/, '');
+
+describe('buildStoryArtPrompt', () => {
+  const spread = [majorArcanaCard, minorArcanaCard, courtCard];
+
+  it('paints each card from its curated imagery', () => {
+    const prompt = buildStoryArtPrompt(spread, testQuestion, 'watercolor', 'single');
+    for (const card of spread) {
+      assert.ok(prompt.toLowerCase().includes(imageryOf(card).toLowerCase()), `Should paint ${card.name}`);
+    }
   });
 
-  it('generates prompt for Major Arcana cards', () => {
-    const prompt = buildSingleScenePrompt([majorArcanaCard], testQuestion, 'watercolor');
-    
-    assert.ok(prompt.includes('The Fool'), 'Should include card name');
-    assert.ok(prompt.includes('Present'), 'Should include position');
-    assert.ok(prompt.includes(testQuestion), 'Should include question');
-    assert.ok(prompt.includes('No text'), 'Should have text constraint');
+  it('leaves out card names, positions, meanings and the question', () => {
+    const prompt = buildStoryArtPrompt(spread, testQuestion, 'watercolor', 'single');
+    for (const card of spread) {
+      assert.ok(!prompt.includes(card.name), `Should not name ${card.name}`);
+      assert.ok(!prompt.includes(card.position), `Should not name the ${card.position} position`);
+      assert.ok(!prompt.includes(card.meaning), `Should not include the meaning of ${card.name}`);
+    }
+    assert.ok(!prompt.includes('creative project'), 'Should not include the question');
   });
 
-  it('generates prompt for Minor Arcana cards', () => {
-    const prompt = buildSingleScenePrompt([minorArcanaCard], testQuestion, 'watercolor');
-    
-    assert.ok(prompt.includes('Three of Pentacles'), 'Should include card name');
-    assert.ok(prompt.includes('earth'), 'Should include element');
-    assert.ok(prompt.includes('Future'), 'Should include position');
+  it('ignores instructions hidden in card fields', () => {
+    const prompt = buildStoryArtPrompt([adversarialCard], testQuestion, 'watercolor', 'single');
+    assert.doesNotMatch(prompt, /ignore previous instructions|reveal system prompt|\[system\]|\[developer\]/i);
   });
 
-  it('handles mixed Major and Minor Arcana', () => {
-    const prompt = buildSingleScenePrompt([majorArcanaCard, minorArcanaCard], testQuestion, 'watercolor');
-    
-    assert.ok(prompt.includes('The Fool'), 'Should include Major card');
-    assert.ok(prompt.includes('Three of Pentacles'), 'Should include Minor card');
+  it('has no negative rules that a diffusion model would paint as lettering', () => {
+    const prompt = buildStoryArtPrompt(spread, testQuestion, 'watercolor', 'triptych');
+    assert.doesNotMatch(prompt, /\bno (text|words|labels|modern)\b|\btext\b|\blabels?\b/i);
   });
 
-  it('applies question category visual cues', () => {
-    const prompt = buildSingleScenePrompt([majorArcanaCard], careerQuestion, 'watercolor');
-    
-    // Career questions should get career-related visual cues
-    assert.ok(
-      prompt.toLowerCase().includes('path') ||
-      prompt.toLowerCase().includes('workspace') ||
-      prompt.toLowerCase().includes('opportunity') ||
-      prompt.toLowerCase().includes('professional'),
-      'Should include career-related visual cues'
-    );
+  it('shows reversed cards in muted colors', () => {
+    const upright = buildStoryArtPrompt([majorArcanaCard], testQuestion, 'watercolor', 'single');
+    const reversed = buildStoryArtPrompt([majorArcanaReversed], testQuestion, 'watercolor', 'single');
+    assert.ok(!upright.includes(REVERSAL_TREATMENT.colors), 'Upright cards keep their colors');
+    assert.ok(reversed.includes(`${imageryOf(majorArcanaReversed)}, in ${REVERSAL_TREATMENT.colors}`));
   });
 
-  it('applies reversal treatment consistently', () => {
-    const prompt = buildSingleScenePrompt([majorArcanaReversed], testQuestion, 'watercolor');
-    
-    assert.ok(
-      prompt.toLowerCase().includes('shadow') ||
-      prompt.toLowerCase().includes('internalized') ||
-      prompt.toLowerCase().includes('muted') ||
-      prompt.toLowerCase().includes('veiled'),
-      'Reversed card should have reversal visual treatment'
-    );
+  it('sets the scene from the question category', () => {
+    const prompt = buildStoryArtPrompt([majorArcanaCard], careerQuestion, 'watercolor', 'single');
+    assert.ok(prompt.includes('ascending mountain path'), 'Should use career environment cues');
   });
 
-  it('includes narrative context when provided', () => {
-    const narrative = 'The querent is at a crossroads in their creative journey...';
-    const prompt = buildSingleScenePrompt([majorArcanaCard], testQuestion, 'watercolor', narrative);
-    
-    assert.ok(prompt.includes('NARRATIVE CONTEXT'), 'Should include narrative label');
-    assert.ok(prompt.includes('crossroads'), 'Should include narrative content');
-  });
-});
-
-describe('buildTriptychPrompt', () => {
-  it('includes text-model alignment reference block', () => {
-    const cards = [majorArcanaCard, minorArcanaCard, courtCard];
-    const prompt = buildTriptychPrompt(cards, testQuestion, 'watercolor');
-    assert.ok(prompt.includes('READING MODEL ALIGNMENT'), 'Should include narrative alignment block');
+  it('builds triptych panels from the start, middle and end of a long spread', () => {
+    const majors = [0, 1, 2, 3, 4].map((number) => ({ ...majorArcanaCard, number }));
+    const prompt = buildStoryArtPrompt(majors, testQuestion, 'watercolor', 'triptych');
+    assert.ok(prompt.includes(`Left panel: ${imageryOf(majors[0])}.`));
+    assert.ok(prompt.includes(`Center panel: ${imageryOf(majors[2])}.`));
+    assert.ok(prompt.includes(`Right panel: ${imageryOf(majors[4])}.`));
+    assert.ok(!prompt.includes(imageryOf(majors[1])), 'Should skip cards between the panels');
   });
 
-  it('generates three-panel prompt', () => {
-    const cards = [majorArcanaCard, minorArcanaCard, courtCard];
-    const prompt = buildTriptychPrompt(cards, testQuestion, 'watercolor');
-    
-    assert.ok(prompt.includes('LEFT PANEL'), 'Should have left panel');
-    assert.ok(prompt.includes('CENTER PANEL'), 'Should have center panel');
-    assert.ok(prompt.includes('RIGHT PANEL'), 'Should have right panel');
-    assert.ok(prompt.includes('TRIPTYCH'), 'Should mention triptych format');
+  it('seats a crowned figure on queen and king thrones', () => {
+    const queen = buildStoryArtPrompt([courtCard], testQuestion, 'watercolor', 'vignette');
+    const king = buildStoryArtPrompt([{ ...courtCard, name: 'King of Swords', suit: 'swords', rank: 'king' }], testQuestion, 'watercolor', 'vignette');
+    const page = buildStoryArtPrompt([{ ...courtCard, name: 'Page of Cups', rank: 'page' }], testQuestion, 'watercolor', 'vignette');
+    assert.ok(queen.includes('A crowned queen on a throne by the sea'));
+    assert.ok(king.includes('A crowned king on a throne high above'));
+    assert.ok(page.includes(imageryOf({ name: 'Page of Cups' })));
   });
 
-  it('includes question category environment cues', () => {
-    const cards = [majorArcanaCard, minorArcanaCard, courtCard];
-    const prompt = buildTriptychPrompt(cards, careerQuestion, 'watercolor');
-    
-    assert.ok(prompt.includes('Environment cues'), 'Should have environment cues');
+  it('paints only the lead card in a portrait vignette', () => {
+    const prompt = buildStoryArtPrompt([courtCard, minorArcanaCard], testQuestion, 'watercolor', 'vignette');
+    assert.ok(prompt.includes('tall portrait format'));
+    assert.ok(prompt.includes('A crowned queen on a throne'));
+    assert.ok(!prompt.includes(imageryOf(minorArcanaCard)));
   });
 
-  it('handles Minor Arcana with elemental energy', () => {
-    const cards = [minorArcanaCard, courtCard, majorArcanaCard];
-    const prompt = buildTriptychPrompt(cards, testQuestion, 'watercolor');
-    
-    // Minor cards should show elemental energy
-    assert.ok(
-      prompt.toLowerCase().includes('earth') ||
-      prompt.toLowerCase().includes('water') ||
-      prompt.toLowerCase().includes('element'),
-      'Should include elemental energy for Minor Arcana'
-    );
-  });
-});
-
-describe('buildCardVignettePrompt', () => {
-  it('includes text-model alignment reference block', () => {
-    const prompt = buildCardVignettePrompt(majorArcanaCard, testQuestion, 'Present', 'watercolor');
-    assert.ok(prompt.includes('READING MODEL ALIGNMENT'), 'Should include narrative alignment block');
+  it('keeps a single scene to five cards', () => {
+    const majors = Array.from({ length: 7 }, (_, number) => ({ ...majorArcanaCard, number }));
+    const prompt = buildStoryArtPrompt(majors, testQuestion, 'watercolor', 'panoramic');
+    assert.ok(prompt.includes(imageryOf(majors[4])));
+    assert.ok(!prompt.includes(imageryOf(majors[5])));
   });
 
-  it('generates single card vignette', () => {
-    const prompt = buildCardVignettePrompt(majorArcanaCard, testQuestion, 'Present', 'watercolor');
-    
-    assert.ok(prompt.includes('The Fool'), 'Should include card name');
-    assert.ok(prompt.includes('Present'), 'Should include position');
-    assert.ok(prompt.includes('vignette'), 'Should mention vignette format');
-    assert.ok(prompt.includes('9:16'), 'Should specify portrait aspect ratio');
-  });
-
-  it('includes suit symbols for Minor Arcana', () => {
-    const prompt = buildCardVignettePrompt(minorArcanaCard, testQuestion, 'Future', 'watercolor');
-    
-    assert.ok(
-      prompt.includes('ELEMENTAL ENERGY') ||
-      prompt.includes('earth') ||
-      prompt.includes('pentacle'),
-      'Should include suit/element information'
-    );
-  });
-
-  it('applies question theme cues', () => {
-    const prompt = buildCardVignettePrompt(majorArcanaCard, careerQuestion, 'Present', 'watercolor');
-    
-    assert.ok(prompt.includes('QUESTION THEME CUES'), 'Should have question theme cues section');
-  });
-
-  it('applies unified reversal treatment', () => {
-    const reversedMinor = { ...minorArcanaCard, reversed: true };
-    const prompt = buildCardVignettePrompt(reversedMinor, testQuestion, 'Future', 'watercolor');
-    
-    assert.ok(
-      prompt.toLowerCase().includes('shadow') ||
-      prompt.toLowerCase().includes('internalized') ||
-      prompt.toLowerCase().includes('veiled'),
-      'Should apply reversal treatment'
-    );
+  it('asks for natural faces and clothed figures', () => {
+    const prompt = buildStoryArtPrompt(spread, testQuestion, 'cosmic', 'single');
+    // "Anonymous" figures came back faceless, or with a symbol for a head.
+    assert.ok(!prompt.includes('anonymous'));
+    assert.ok(prompt.includes('natural human faces, fully clothed'));
   });
 });
 
@@ -341,7 +272,7 @@ describe('style consistency', () => {
   
   it('all styles produce valid prompts', () => {
     for (const style of styles) {
-      const imagePrompt = buildSingleScenePrompt([majorArcanaCard], testQuestion, style);
+      const imagePrompt = buildStoryArtPrompt([majorArcanaCard], testQuestion, style, 'single');
       assert.ok(imagePrompt.length > 100, `${style} image prompt should have content`);
       
       const videoPrompt = buildCardRevealPrompt(majorArcanaCard, testQuestion, 'Present', style);
@@ -351,32 +282,14 @@ describe('style consistency', () => {
 });
 
 describe('constraint enforcement', () => {
-  it('image prompts include no-text constraint', () => {
-    const prompt = buildSingleScenePrompt([majorArcanaCard], testQuestion, 'watercolor');
-    assert.ok(prompt.toLowerCase().includes('no text'), 'Should forbid text');
-  });
-
   it('video prompts include no-text constraint', () => {
     const prompt = buildCardRevealPrompt(majorArcanaCard, testQuestion, 'Present', 'mystical');
     assert.ok(prompt.toLowerCase().includes('no text'), 'Should forbid text');
   });
 
-  it('image prompts forbid modern objects', () => {
-    const prompt = buildSingleScenePrompt([majorArcanaCard], testQuestion, 'watercolor');
-    assert.ok(prompt.toLowerCase().includes('no modern'), 'Should forbid modern objects');
-  });
-
   it('video prompts forbid modern objects', () => {
     const prompt = buildCardRevealPrompt(majorArcanaCard, testQuestion, 'Present', 'mystical');
     assert.ok(prompt.toLowerCase().includes('no modern'), 'Should forbid modern objects');
-  });
-
-  it('sanitizes adversarial card fields before image prompt interpolation', () => {
-    const prompt = buildSingleScenePrompt([adversarialCard], testQuestion, 'watercolor');
-    assert.ok(!/ignore previous instructions/i.test(prompt), 'Should strip instruction-injection phrases');
-    assert.ok(!/\[system\]|\[developer\]/i.test(prompt), 'Should strip markdown-style control labels');
-    assert.ok(prompt.toLowerCase().includes('no text'), 'Hard visual constraints must remain after sanitization');
-    assert.ok(prompt.toLowerCase().includes('no modern'), 'Modern-object exclusion must remain after sanitization');
   });
 
   it('sanitizes adversarial card fields before video prompt interpolation', () => {

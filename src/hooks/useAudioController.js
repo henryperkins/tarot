@@ -167,7 +167,7 @@ export function useAudioController() {
     }
   }, [ttsProvider]);
 
-  // Azure TTS speak function with emotion and speed support
+  // /api/tts (Deepgram Aura-2) speak function; the player applies the speed
   const speakWithAzure = useCallback(async (text, context = 'default', emotion = null) => {
     await speakText({
       text,
@@ -239,7 +239,7 @@ export function useAudioController() {
       if (isStaleRequest()) return;
       console.error('Hume TTS error:', error);
       setHumeState({ status: 'error', error: error.message || 'Failed to generate speech' });
-      setTtsAnnouncement('Hume unavailable. Falling back to Azure...');
+      setTtsAnnouncement('Hume unavailable. Falling back to Deepgram...');
       setHumeFallbackActive(true);
       await speakWithAzure(text, context, emotion);
     }

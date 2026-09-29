@@ -30,7 +30,6 @@ for separately authorized remote configuration. Never log values or user data.
 - `OPENAI_API_KEY` — OpenAI native Responses API key; provider selection follows the configured backend.
 - `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_GPT5_MODEL` — Azure fallback path
 - `AZURE_ANTHROPIC_ENDPOINT`, `AZURE_ANTHROPIC_API_KEY`, `AZURE_ANTHROPIC_MODEL`
-- `AZURE_OPENAI_TTS_ENDPOINT`, `AZURE_OPENAI_TTS_API_KEY`, `AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT`
 - `VISION_PROOF_SECRET`
 - `EMAIL` `send_email` binding (Cloudflare Email Service) — email delivery for auth, billing and alerts, sent from `ALERT_EMAIL_FROM`; `RESEND_API_KEY` is only a fallback when the binding is absent
 - `ADMIN_API_KEY` — Admin endpoints

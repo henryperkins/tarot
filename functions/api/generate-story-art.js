@@ -1,9 +1,8 @@
 /**
- * Cloudflare Pages Function for generating story illustrations using GPT-Image-1.5
- * via Azure OpenAI.
- * 
+ * Generates story illustrations with FLUX.2 [dev] on Workers AI.
+ *
  * POST /api/generate-story-art
- * 
+ *
  * Generates personalized artwork capturing a reading's essence.
  * Supports triptych (3-panel), single scene, and card vignette formats.
  */
@@ -23,9 +22,7 @@ import {
   persistMediaTelemetry
 } from '../lib/mediaTelemetry.js';
 import {
-  buildTriptychPrompt,
-  buildSingleScenePrompt,
-  buildCardVignettePrompt,
+  buildStoryArtPrompt,
   STYLE_PROMPTS
 } from '../lib/storyArtPrompts.js';
 import { getStoryArtLimits } from '../../shared/monetization/media.js';
@@ -40,13 +37,12 @@ import {
   resolveMediaPromptBudgets
 } from '../lib/mediaPromptBudget.js';
 
-// Azure OpenAI Image Generation configuration
-const AZURE_IMAGE_API_VERSION = 'preview';
-const DEFAULT_MODEL = 'gpt-image-1.5';
-const DEFAULT_QUALITY = 'medium';
-const DEFAULT_FORMAT = 'jpeg';
-const DEFAULT_COMPRESSION = 85;
-const DEFAULT_IMAGE_TIMEOUT_MS = 45000;
+const IMAGE_MODEL = '@cf/black-forest-labs/flux-2-dev';
+// FLUX.2 [dev] answers in 20-25 seconds, but some requests never return, so
+// each attempt gets 35 seconds and a stalled one is tried once more. Two
+// attempts stay inside the client's 90-second limit.
+const IMAGE_ATTEMPT_TIMEOUT_MS = 35000;
+const IMAGE_ATTEMPTS = 2;
 const STORY_ART_SANITIZED_FIELDS = Object.freeze([
   'cards[].name',
   'cards[].position',
@@ -62,13 +58,12 @@ const FORMAT_CARD_LIMITS = Object.freeze({
   vignette: { min: 1, max: 1 }
 });
 
-// Size mappings for different formats
+// Image sizes by format (FLUX.2 [dev] accepts 256-1920 px per side)
 const FORMAT_SIZES = {
-  triptych: '1536x1024',    // landscape
-  single: '1536x1024',      // landscape
-  panoramic: '1536x1024',   // landscape
-  vignette: '1024x1536',    // portrait
-  square: '1024x1024'       // square
+  triptych: { width: 1536, height: 1024 },
+  single: { width: 1536, height: 1024 },
+  panoramic: { width: 1536, height: 1024 },
+  vignette: { width: 1024, height: 1536 }
 };
 
 function isMediaPromptSanitizationEnabled(env) {
@@ -227,89 +222,59 @@ function simpleHash(str) {
 }
 
 /**
- * Fetch with timeout to prevent hung requests.
+ * Generate one image with FLUX.2 [dev] and return it as base64 JPEG.
  */
-async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_IMAGE_TIMEOUT_MS, label = 'request') {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  const merged = { ...options, signal: controller.signal };
+async function generateImage(env, prompt, size, requestId) {
+  if (!env.AI?.run) {
+    throw new Error('Workers AI binding is not configured');
+  }
+
+  let lastError;
+  for (let attempt = 1; attempt <= IMAGE_ATTEMPTS; attempt++) {
+    try {
+      return await runImageModel(env, prompt, size);
+    } catch (err) {
+      lastError = err;
+      console.warn(`[${requestId}] [story-art] Attempt ${attempt} of ${IMAGE_ATTEMPTS} failed: ${err.message}`);
+    }
+  }
+  throw lastError;
+}
+
+async function runImageModel(env, prompt, { width, height }) {
+  // FLUX.2 only takes multipart form data. FormData has no serialized body or
+  // boundary of its own, so a Response builds both.
+  const form = new FormData();
+  form.append('prompt', prompt);
+  form.append('width', String(width));
+  form.append('height', String(height));
+  const multipart = new Response(form);
+
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error(`Image generation timed out after ${IMAGE_ATTEMPT_TIMEOUT_MS}ms`)),
+      IMAGE_ATTEMPT_TIMEOUT_MS
+    );
+  });
 
   try {
-    return await fetch(url, merged);
-  } catch (err) {
-    if (err?.name === 'AbortError') {
-      throw new Error(`Azure Image API ${label} timed out after ${timeoutMs}ms`);
+    const result = await Promise.race([
+      env.AI.run(IMAGE_MODEL, {
+        multipart: {
+          body: multipart.body,
+          contentType: multipart.headers.get('content-type')
+        }
+      }),
+      timeout
+    ]);
+    if (typeof result?.image !== 'string' || !result.image) {
+      throw new Error('No image data in response');
     }
-    throw err;
+    return result.image;
   } finally {
     clearTimeout(timeoutId);
   }
-}
-
-/**
- * Call Azure OpenAI Image Generation API
- */
-async function generateImage(env, prompt, options = {}) {
-  const endpoint = env.AZURE_OPENAI_IMAGE_ENDPOINT || env.AZURE_OPENAI_ENDPOINT;
-  const apiKey = env.AZURE_OPENAI_IMAGE_API_KEY || env.AZURE_OPENAI_API_KEY;
-  const model = env.AZURE_OPENAI_IMAGE_MODEL || DEFAULT_MODEL;
-  const timeoutMs = Number.parseInt(env.AZURE_OPENAI_IMAGE_TIMEOUT_MS || DEFAULT_IMAGE_TIMEOUT_MS, 10);
-  
-  if (!endpoint || !apiKey) {
-    throw new Error('Azure OpenAI Image configuration is missing');
-  }
-  
-  // Normalize endpoint
-  const normalizedEndpoint = endpoint
-    .replace(/\/+$/, '')
-    .replace(/\/openai\/v1\/?$/, '')
-    .replace(/\/openai\/?$/, '');
-  
-  const {
-    size = '1536x1024',
-    quality = DEFAULT_QUALITY,
-    outputFormat = DEFAULT_FORMAT,
-    compression = DEFAULT_COMPRESSION,
-    background = 'opaque'
-  } = options;
-  
-  const url = `${normalizedEndpoint}/openai/v1/images/generations?api-version=${AZURE_IMAGE_API_VERSION}`;
-  
-  const body = {
-    model,
-    prompt,
-    size,
-    quality,
-    n: 1,
-    output_format: outputFormat,
-    output_compression: compression,
-    background
-  };
-  
-  const response = await fetchWithTimeout(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'api-key': apiKey
-    },
-    body: JSON.stringify(body)
-  }, Number.isFinite(timeoutMs) ? timeoutMs : DEFAULT_IMAGE_TIMEOUT_MS, 'image generation');
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Azure Image API error (${response.status}): ${errorText}`);
-  }
-  
-  const result = await response.json();
-  
-  if (!result.data || !result.data[0]) {
-    throw new Error('No image data in response');
-  }
-  
-  return {
-    b64_json: result.data[0].b64_json,
-    revised_prompt: result.data[0].revised_prompt
-  };
 }
 
 /**
@@ -420,11 +385,8 @@ export async function onRequestPost(ctx) {
     format = 'single',
     style = 'watercolor'
   } = normalizedPayload;
-  const quality = limits.quality || DEFAULT_QUALITY;
-  const imageModel = env.AZURE_OPENAI_IMAGE_MODEL || DEFAULT_MODEL;
-  const endpointSource = env.AZURE_OPENAI_IMAGE_ENDPOINT ? 'image' : 'shared';
-  const apiKeySource = env.AZURE_OPENAI_IMAGE_API_KEY ? 'image' : 'shared';
-  const requestedSize = FORMAT_SIZES[format] || FORMAT_SIZES.single;
+  const imageSize = FORMAT_SIZES[format] || FORMAT_SIZES.single;
+  const size = `${imageSize.width}x${imageSize.height}`;
   
   // Validate tier access to format/style
   if (!limits.formats.includes(format)) {
@@ -453,22 +415,18 @@ export async function onRequestPost(ctx) {
       timestamp: new Date().toISOString(),
       feature: 'story-art',
       status: 'completed',
-      provider: 'azure-openai-image',
-      models: { image: imageModel },
-      apiVersion: { image: AZURE_IMAGE_API_VERSION },
+      provider: 'workers-ai',
+      models: { image: IMAGE_MODEL },
       tier,
       input: {
         cardCount: Array.isArray(cards) ? cards.length : 0,
         format,
         style,
-        quality,
-        size: requestedSize,
+        size,
         questionLength: typeof question === 'string' ? question.length : 0,
         narrativeLength: typeof narrative === 'string' ? narrative.length : 0,
         sanitizationApplied,
-        sanitizedFields: sanitizationApplied ? STORY_ART_SANITIZED_FIELDS : [],
-        endpointSource,
-        apiKeySource
+        sanitizedFields: sanitizationApplied ? STORY_ART_SANITIZED_FIELDS : []
       },
       output: {
         cached: true,
@@ -497,20 +455,7 @@ export async function onRequestPost(ctx) {
   let prompt = null;
   let promptBudgetMeta = null;
   try {
-    switch (format) {
-      case 'triptych':
-        prompt = buildTriptychPrompt(cards, question, style);
-        break;
-      case 'vignette':
-        // For vignette, use first card
-        prompt = buildCardVignettePrompt(cards[0], question, cards[0].position, style);
-        break;
-      case 'single':
-      case 'panoramic':
-      default:
-        prompt = buildSingleScenePrompt(cards, question, style, narrative);
-        break;
-    }
+    prompt = buildStoryArtPrompt(cards, question, style, format);
   } catch (err) {
     return jsonResponse({ error: `Failed to build prompt: ${err.message}` }, 500);
   }
@@ -560,25 +505,16 @@ export async function onRequestPost(ctx) {
 
   // Generate image
   try {
-    const size = requestedSize;
-    console.log(`[${requestId}] [story-art] Calling Azure image generation`, {
-      model: imageModel,
-      size,
-      quality,
-      endpointSource,
-      apiKeySource
+    console.log(`[${requestId}] [story-art] Calling Workers AI image generation`, {
+      model: IMAGE_MODEL,
+      size
     });
     const apiStart = Date.now();
-    const result = await generateImage(env, prompt, {
-      size,
-      quality,
-      outputFormat: DEFAULT_FORMAT,
-      compression: DEFAULT_COMPRESSION
-    });
+    const image = await generateImage(env, prompt, imageSize, requestId);
     const apiMs = Date.now() - apiStart;
     
     // Cache the result
-    await storeInCache(env, cacheKey, result.b64_json);
+    await storeInCache(env, cacheKey, image);
     
     const totalMs = Date.now() - startTime;
     await persistMediaTelemetry(env, buildMediaTelemetryPayload({
@@ -586,15 +522,13 @@ export async function onRequestPost(ctx) {
       timestamp: new Date().toISOString(),
       feature: 'story-art',
       status: 'completed',
-      provider: 'azure-openai-image',
-      models: { image: imageModel },
-      apiVersion: { image: AZURE_IMAGE_API_VERSION },
+      provider: 'workers-ai',
+      models: { image: IMAGE_MODEL },
       tier,
       input: {
         cardCount: Array.isArray(cards) ? cards.length : 0,
         format,
         style,
-        quality,
         size,
         questionLength: typeof question === 'string' ? question.length : 0,
         narrativeLength: typeof narrative === 'string' ? narrative.length : 0,
@@ -604,14 +538,11 @@ export async function onRequestPost(ctx) {
         promptSlimmed: Boolean(promptBudgetMeta.slimmed),
         promptSlimmingSteps: promptBudgetMeta.trimmedSections,
         sanitizationApplied,
-        sanitizedFields: sanitizationApplied ? STORY_ART_SANITIZED_FIELDS : [],
-        endpointSource,
-        apiKeySource
+        sanitizedFields: sanitizationApplied ? STORY_ART_SANITIZED_FIELDS : []
       },
       output: {
         cached: false,
-        format: 'jpeg',
-        revisedPromptLength: typeof result.revised_prompt === 'string' ? result.revised_prompt.length : 0
+        format: 'jpeg'
       },
       timings: {
         totalMs,
@@ -622,13 +553,12 @@ export async function onRequestPost(ctx) {
     console.log(`[${requestId}] [story-art] === STORY ART REQUEST END ===`);
     return jsonResponse({
       success: true,
-      image: result.b64_json,
+      image,
       format: 'jpeg',
       cached: false,
       style,
       artFormat: format,
       cacheKey,
-      revisedPrompt: result.revised_prompt,
       requestId
     });
     
@@ -645,16 +575,14 @@ export async function onRequestPost(ctx) {
       timestamp: new Date().toISOString(),
       feature: 'story-art',
       status: 'error',
-      provider: 'azure-openai-image',
-      models: { image: imageModel },
-      apiVersion: { image: AZURE_IMAGE_API_VERSION },
+      provider: 'workers-ai',
+      models: { image: IMAGE_MODEL },
       tier,
       input: {
         cardCount: Array.isArray(cards) ? cards.length : 0,
         format,
         style,
-        quality,
-        size: requestedSize,
+        size,
         questionLength: typeof question === 'string' ? question.length : 0,
         narrativeLength: typeof narrative === 'string' ? narrative.length : 0,
         promptLength: promptBudgetMeta.finalLength,
@@ -663,9 +591,7 @@ export async function onRequestPost(ctx) {
         promptSlimmed: Boolean(promptBudgetMeta.slimmed),
         promptSlimmingSteps: promptBudgetMeta.trimmedSections,
         sanitizationApplied,
-        sanitizedFields: sanitizationApplied ? STORY_ART_SANITIZED_FIELDS : [],
-        endpointSource,
-        apiKeySource
+        sanitizedFields: sanitizationApplied ? STORY_ART_SANITIZED_FIELDS : []
       },
       output: {
         cached: false,

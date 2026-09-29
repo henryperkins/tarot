@@ -1931,7 +1931,7 @@ export default function AccountPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Select voice engine">
               {[
                 { id: 'hume', label: 'Expressive', desc: 'Hume AI' },
-                { id: 'azure', label: 'Clear', desc: 'Azure' },
+                { id: 'azure', label: 'Clear', desc: 'Deepgram' },
                 { id: 'azure-sdk', label: 'Word-Sync', desc: 'Azure SDK' }
               ].map(engine => (
                 <button

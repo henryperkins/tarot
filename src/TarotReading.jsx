@@ -272,7 +272,7 @@ export default function TarotReading() {
             azure: azureAvailable,
             message: 'Using local services' +
               (!anthropicAvailable ? ' (Claude unavailable)' : '') +
-              (!azureAvailable ? ' (Azure TTS unavailable)' : '')
+              (!azureAvailable ? ' (narration voice unavailable)' : '')
           });
           setConnectionBanner({
             status: 'degraded',
