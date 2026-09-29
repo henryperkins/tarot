@@ -90,9 +90,9 @@ export function allowStreamingWithEvalGate(env) {
 /**
  * Determine if semantic scoring should be enabled for GraphRAG retrieval.
  *
- * Semantic scoring is enabled by default when the embeddings API is configured
- * (AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY). This function only handles
- * explicit env var overrides; auto-detection happens in the calling code.
+ * Semantic scoring is enabled by default when the Workers AI binding (env.AI) is
+ * present. This function only handles explicit env var overrides; auto-detection
+ * happens in the calling code.
  *
  * @param {Object} env - Environment variables
  * @returns {boolean|null} - true/false for explicit env var config, null for auto-detect
@@ -110,7 +110,7 @@ export function getSemanticScoringConfig(env) {
   }
 
   // Return null to enable auto-detection based on API availability
-  // Auto-detection logic: if AZURE_OPENAI_ENDPOINT + API_KEY are set, semantic scoring is enabled
+  // Auto-detection logic: if the Workers AI binding is present, semantic scoring is enabled
   return null;
 }
 

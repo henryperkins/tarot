@@ -10,25 +10,26 @@ import {
 } from '../functions/lib/graphRAG.js';
 
 describe('GraphRAG embedding failures', () => {
-  const env = {
-    AZURE_OPENAI_ENDPOINT: 'https://embeddings.test',
-    AZURE_OPENAI_API_KEY: 'test-key'
-  };
   const userQuery = 'hope career';
   const passage = 'The Star offers hope through change.';
+  const vectors = (input, vectorFor = () => [1, 0]) => ({ data: input.text.map(vectorFor) });
+  // Workers AI binding stub whose responses come from `respond(input)`.
+  const workersAI = (t, respond) => {
+    const run = t.mock.fn(async (_model, input) => respond(input));
+    return { env: { AI: { run } }, run };
+  };
 
   beforeEach(clearEmbeddingCache);
   afterEach(clearEmbeddingCache);
 
-  for (const [failure, response] of [
-    ['HTTP failure', () => new Response('Synthetic outage', { status: 503 })],
-    ['network failure', () => { throw new Error('Synthetic network failure'); }],
-    ['missing embedding', () => Response.json({ data: [] })],
-    ['invalid embedding', () => Response.json({ data: [{ embedding: [null, 1] }] })],
-    ['zero embedding', () => Response.json({ data: [{ embedding: [0, 0] }] })]
+  for (const [failure, respond] of [
+    ['a Workers AI error', () => { throw new Error('Synthetic outage'); }],
+    ['a response without vectors', () => ({ data: [] })],
+    ['an invalid embedding', (input) => vectors(input, () => [null, 1])],
+    ['a zero embedding', (input) => vectors(input, () => [0, 0])]
   ]) {
     it(`uses keyword-only scoring after ${failure}`, async (t) => {
-      t.mock.method(globalThis, 'fetch', async () => response());
+      const { env } = workersAI(t, respond);
       const semanticStatus = { attempted: false, succeeded: false };
 
       const score = await scorePassageRelevance(passage, userQuery, {
@@ -42,14 +43,9 @@ describe('GraphRAG embedding failures', () => {
     });
   }
 
-  for (const failedInput of [userQuery, passage]) {
-    it(`uses keyword-only scoring when only the ${failedInput === userQuery ? 'query' : 'passage'} embedding fails`, async (t) => {
-      t.mock.method(globalThis, 'fetch', async (_url, init) => {
-        const { input } = JSON.parse(init.body);
-        return input === failedInput
-          ? new Response('Synthetic outage', { status: 503 })
-          : Response.json({ data: [{ embedding: [1, 0] }] });
-      });
+  for (const failedText of [userQuery, passage]) {
+    it(`uses keyword-only scoring when only the ${failedText === userQuery ? 'query' : 'passage'} embedding is unusable`, async (t) => {
+      const { env } = workersAI(t, (input) => vectors(input, (text) => (text === failedText ? [0, 0] : [1, 0])));
       const semanticStatus = { attempted: false, succeeded: false };
 
       const score = await scorePassageRelevance(passage, userQuery, {
@@ -63,7 +59,7 @@ describe('GraphRAG embedding failures', () => {
     });
   }
 
-  it('uses keyword-only scoring when the embedding API is not configured', async (t) => {
+  it('uses keyword-only scoring without a Workers AI binding', async (t) => {
     const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
       throw new Error('No embedding request expected');
     });
@@ -82,9 +78,10 @@ describe('GraphRAG embedding failures', () => {
 
   it('uses genuine semantic embeddings again after the provider recovers, including cache hits', async (t) => {
     let available = false;
-    const fetchMock = t.mock.method(globalThis, 'fetch', async () => available
-      ? Response.json({ data: [{ embedding: [1, 0] }] })
-      : new Response('Synthetic outage', { status: 503 }));
+    const { env, run } = workersAI(t, (input) => {
+      if (!available) throw new Error('Synthetic outage');
+      return vectors(input);
+    });
     const semanticStatus = { attempted: false, succeeded: false };
     const options = { env, enableSemanticScoring: true, semanticStatus };
 
@@ -97,11 +94,26 @@ describe('GraphRAG embedding failures', () => {
       assert.ok(Math.abs(score - 0.85) < 0.00001);
       assert.deepEqual(semanticStatus, { attempted: true, succeeded: true });
     }
-    assert.equal(fetchMock.mock.callCount(), 4, 'Fallbacks must not prevent recovery; genuine vectors are cached');
+    assert.equal(run.mock.callCount(), 2, 'Fallbacks must not prevent recovery; genuine vectors are cached');
+  });
+
+  it('embeds the question and all candidate passages in one request', async (t) => {
+    const { env, run } = workersAI(t, (input) => vectors(input));
+    const passages = await retrievePassagesWithQuality(
+      { completeTriadIds: ['death-temperance-star'], foolsJourneyStageKey: 'integration' },
+      { userQuery: 'hope transition', enableSemanticScoring: true, env }
+    );
+
+    assert.equal(run.mock.callCount(), 1);
+    const { text } = run.mock.calls[0].arguments[1];
+    assert.equal(text[0], 'hope transition');
+    assert.ok(text.length > 2, 'Scenario precondition: several candidate passages');
+    assert.ok(passages.length > 1);
+    assert.ok(passages.every((p) => p._semanticScoringSucceeded === true));
   });
 
   it('reports embedding outages in retrieval and prompt metadata', async (t) => {
-    t.mock.method(globalThis, 'fetch', async () => new Response('Synthetic outage', { status: 503 }));
+    const { env } = workersAI(t, () => { throw new Error('Synthetic outage'); });
     const graphKeys = { completeTriadIds: ['death-temperance-star'] };
     const passages = await retrievePassagesWithQuality(graphKeys, {
       userQuery: 'hope transition',

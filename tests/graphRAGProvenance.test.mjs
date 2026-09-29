@@ -16,11 +16,12 @@ const TRIAD_CARDS = [
 ];
 // Shares no keywords with the triad passages, so keyword scoring lands at 0.
 const UNRELATED_QUESTION = 'zzyzx quorbit';
-const EMBEDDINGS_ENV = {
-  GRAPHRAG_ENABLED: 'true',
-  AZURE_OPENAI_ENDPOINT: 'https://embeddings.test',
-  AZURE_OPENAI_API_KEY: 'test-only'
-};
+// Env with a Workers AI binding; by default no embedding request is expected.
+function embeddingsEnv(run = async () => { throw new Error('No embedding request expected'); }) {
+  return { GRAPHRAG_ENABLED: 'true', AI: { run } };
+}
+// Workers AI run() stub answering every text with vectorFor(text).
+const embedEach = (vectorFor = () => [1, 0]) => async (_model, { text }) => ({ data: text.map(vectorFor) });
 
 function analyzeTriad(env) {
   return performSpreadAnalysis(
@@ -55,21 +56,17 @@ describe('GraphRAG scoring provenance', () => {
   it('reports mixed ranking when embeddings fail for only some passages', async (t) => {
     clearEmbeddingCache();
     t.after(clearEmbeddingCache);
-    // Fail only the Fool's Journey stage passage; the question shares its keywords,
-    // so its keyword-fallback score keeps it above the relevance threshold.
-    t.mock.method(globalThis, 'fetch', async (_url, init) => {
-      const { input } = JSON.parse(init.body);
-      return input.includes('Here the work turns inward')
-        ? new Response('Synthetic outage', { status: 503 })
-        : Response.json({ data: [{ embedding: [1, 0] }] });
-    });
+    // Give only the Fool's Journey stage passage an unusable vector; the question
+    // shares its keywords, so its keyword-fallback score keeps it above the
+    // relevance threshold.
+    const run = embedEach((text) => (text.includes('Here the work turns inward') ? [0, 0] : [1, 0]));
 
     const { graphRAGPayload } = await performSpreadAnalysis(
       TRIAD_SPREAD,
       TRIAD_CARDS,
       { userQuestion: 'reality checks surrender', enableSemanticScoring: true, subscriptionTier: 'pro' },
       'graphrag-mixed-test',
-      EMBEDDINGS_ENV
+      embeddingsEnv(run)
     );
 
     assert.ok(graphRAGPayload.passages.some((p) => p._semanticScoringSucceeded === false), 'Scenario precondition');
@@ -82,14 +79,14 @@ describe('GraphRAG scoring provenance', () => {
       TRIAD_CARDS,
       { userQuestion: '', enableSemanticScoring: true, subscriptionTier: 'pro' },
       'graphrag-no-query-test',
-      EMBEDDINGS_ENV
+      embeddingsEnv()
     );
 
     assert.equal(graphRAGPayload.retrievalSummary.semanticScoringFallbackReason, 'no-query');
   });
 
   it('reports that quality filtering was disabled instead of an embeddings failure', async () => {
-    const { graphRAGPayload } = await analyzeTriad({ ...EMBEDDINGS_ENV, DISABLE_QUALITY_FILTERING: 'true' });
+    const { graphRAGPayload } = await analyzeTriad({ ...embeddingsEnv(), DISABLE_QUALITY_FILTERING: 'true' });
 
     assert.equal(graphRAGPayload.retrievalSummary.semanticScoringFallbackReason, 'quality-filtering-disabled');
   });
@@ -104,9 +101,9 @@ describe('GraphRAG scoring provenance', () => {
   it('reports keyword ranking and why, when configured embeddings fail', async (t) => {
     clearEmbeddingCache();
     t.after(clearEmbeddingCache);
-    t.mock.method(globalThis, 'fetch', async () => new Response('Synthetic outage', { status: 503 }));
-
-    const { graphRAGPayload } = await analyzeTriad(EMBEDDINGS_ENV);
+    const { graphRAGPayload } = await analyzeTriad(embeddingsEnv(async () => {
+      throw new Error('Synthetic outage');
+    }));
 
     assert.equal(graphRAGPayload.semanticScoringUsed, false);
     assert.equal(graphRAGPayload.rankingStrategy, 'keyword');
@@ -143,9 +140,7 @@ describe('GraphRAG scoring provenance', () => {
   it('reports semantic ranking with no fallback reason when embeddings score the passages', async (t) => {
     clearEmbeddingCache();
     t.after(clearEmbeddingCache);
-    t.mock.method(globalThis, 'fetch', async () => Response.json({ data: [{ embedding: [1, 0] }] }));
-
-    const { graphRAGPayload } = await analyzeTriad(EMBEDDINGS_ENV);
+    const { graphRAGPayload } = await analyzeTriad(embeddingsEnv(embedEach()));
 
     assert.equal(graphRAGPayload.semanticScoringUsed, true);
     assert.equal(graphRAGPayload.rankingStrategy, 'semantic');

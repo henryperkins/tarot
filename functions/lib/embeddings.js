@@ -1,10 +1,20 @@
 // functions/lib/embeddings.js
 // Embeddings utility for GraphRAG quality filtering
 //
-// Provides text embedding via Azure OpenAI and cosine similarity calculation.
-// Used by graphRAG.js for semantic scoring of passage relevance.
+// Provides text embedding via the Workers AI binding (env.AI) and cosine
+// similarity calculation. Used by graphRAG.js for semantic scoring of passage
+// relevance.
 
 import { sha256Hex } from './crypto.js';
+
+// Multilingual (a question in any language can match the English canon), an
+// 8,192-token context, and quick enough to sit on the reading path.
+// Queries and passages embed the same way, so they share one request.
+export const EMBEDDING_MODEL = '@cf/baai/bge-m3';
+
+const MAX_INPUT_LENGTH = 8000;
+const MAX_TEXTS_PER_REQUEST = 100;
+const EMBEDDING_TIMEOUT_MS = 3000;
 
 /**
  * Calculate cosine similarity between two vectors.
@@ -62,12 +72,32 @@ const embeddingCache = new Map();
 const MAX_CACHE_SIZE = 100;
 
 /**
- * Get embedding for text using Azure OpenAI embeddings API.
- * Falls back to a simple hash-based pseudo-embedding if API is unavailable.
+ * Whether real embeddings can be requested: the Worker has a Workers AI binding.
+ *
+ * @param {Object} [env] - Worker environment
+ * @returns {boolean}
+ */
+export function isEmbeddingProviderAvailable(env) {
+  return typeof env?.AI?.run === 'function';
+}
+
+/**
+ * Whether an embedding result is a real model embedding rather than the local
+ * pseudo-embedding fallback.
+ *
+ * @param {{source?: string}} [result] - Result from embedTextWithMetadata()
+ * @returns {boolean}
+ */
+export function isSemanticEmbedding(result) {
+  return result?.source === 'workers-ai';
+}
+
+/**
+ * Get embedding for text using Workers AI.
+ * Falls back to a simple hash-based pseudo-embedding if the model is unavailable.
  *
  * @param {string} text - Text to embed
- * @param {Object} [options] - Options
- * @param {Object} [options.env] - Environment variables (for Cloudflare Workers)
+ * @param {Object} [options] - See embedTextsWithMetadata()
  * @returns {Promise<number[]>} Embedding vector
  */
 export async function embedText(text, options = {}) {
@@ -80,122 +110,138 @@ export async function embedText(text, options = {}) {
  * semantic embeddings from the local pseudo-embedding fallback.
  *
  * @param {string} text - Text to embed
- * @param {Object} [options] - Options
- * @param {Object} [options.env] - Environment variables (for Cloudflare Workers)
- * @returns {Promise<{embedding: number[], source: 'azure'|'fallback'}>}
+ * @param {Object} [options] - See embedTextsWithMetadata()
+ * @returns {Promise<{embedding: number[], source: 'workers-ai'|'fallback'}>}
  */
 export async function embedTextWithMetadata(text, options = {}) {
-  if (!text || typeof text !== 'string') {
-    return { embedding: generateFallbackEmbedding(''), source: 'fallback' };
-  }
-
-  const trimmed = text.trim().slice(0, 8000); // Limit input length
-  if (!trimmed) {
-    return { embedding: generateFallbackEmbedding(''), source: 'fallback' };
-  }
-
-  const env = options.env || (typeof process !== 'undefined' && process.env ? process.env : {});
-  const config = resolveAzureEmbeddingConfig(env);
-  if (config) {
-    // Hash the full effective request, excluding credentials. Neither shared text
-    // prefixes nor a different endpoint/model/API version can reuse a vector.
-    const cacheKey = await sha256Hex(JSON.stringify([config.url, config.model, trimmed]));
-    if (embeddingCache.has(cacheKey)) {
-      return { embedding: embeddingCache.get(cacheKey), source: 'azure' };
-    }
-
-    const embedding = await fetchAzureEmbedding(trimmed, config);
-    if (embedding) {
-      if (embeddingCache.size >= MAX_CACHE_SIZE) {
-        // Remove oldest entry (first key)
-        const firstKey = embeddingCache.keys().next().value;
-        embeddingCache.delete(firstKey);
-      }
-      embeddingCache.set(cacheKey, embedding);
-      return { embedding, source: 'azure' };
-    }
-  }
-
-  // Do not cache fallbacks; a subsequent call may succeed after an API outage.
-  return { embedding: generateFallbackEmbedding(trimmed), source: 'fallback' };
-}
-
-// Use the same effective configuration for cache identity and the API request.
-function resolveAzureEmbeddingConfig(env) {
-  const endpoint = env?.AZURE_OPENAI_ENDPOINT;
-  const apiKey = env?.AZURE_OPENAI_API_KEY;
-  const model = env?.AZURE_OPENAI_EMBEDDING_MODEL || 'text-embedding-3-large';
-  // Azure OpenAI embeddings path uses the Foundry v1 API; allow explicit override
-  const explicitApiVersion =
-    env?.AZURE_OPENAI_EMBEDDINGS_API_VERSION || env?.AZURE_OPENAI_API_VERSION;
-  const apiVersion = (explicitApiVersion && String(explicitApiVersion).trim()) || 'v1';
-
-  if (typeof endpoint !== 'string' || !endpoint || !apiKey) {
-    return null;
-  }
-
-  // Normalize endpoint: strip trailing slashes and any existing /openai/v1 path
-  const normalizedEndpoint = endpoint
-    .replace(/\/+$/, '')
-    .replace(/\/openai\/v1\/?$/, '')
-    .replace(/\/openai\/?$/, '');
-
-  return {
-    url: `${normalizedEndpoint}/openai/v1/embeddings?api-version=${encodeURIComponent(apiVersion)}`,
-    apiKey,
-    model
-  };
+  const [result] = await embedTextsWithMetadata([text], options);
+  return result;
 }
 
 /**
- * Fetch embedding from Azure OpenAI embeddings API.
+ * Embed several texts with one Workers AI request per MAX_TEXTS_PER_REQUEST
+ * uncached texts. A text without a valid vector falls back to the
+ * pseudo-embedding on its own; the rest of its batch keeps real vectors.
  *
- * Uses the v1 API format for consistency with the Responses API.
- * See: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/embeddings
- *
- * @param {string} text - Text to embed
- * @param {Object} config - Resolved Azure request configuration
- * @returns {Promise<number[]|null>} Embedding vector or null if unavailable
+ * @param {string[]} texts - Texts to embed
+ * @param {Object} [options] - Options
+ * @param {Object} [options.env] - Worker environment with the AI binding
+ * @returns {Promise<Array<{embedding: number[], source: 'workers-ai'|'fallback'}>>} One result per text, in order
  */
-async function fetchAzureEmbedding(text, config) {
-  const { url, apiKey, model } = config;
+export async function embedTextsWithMetadata(texts, options = {}) {
+  const inputs = (Array.isArray(texts) ? texts : []).map((text) =>
+    typeof text === 'string' ? text.trim().slice(0, MAX_INPUT_LENGTH) : ''
+  );
+  const results = inputs.map((input) => ({
+    embedding: generateFallbackEmbedding(input),
+    source: 'fallback'
+  }));
+
+  const { env } = options;
+  if (!isEmbeddingProviderAvailable(env)) {
+    return results;
+  }
+
+  // Positions per distinct text, so duplicates share one request slot.
+  const positions = new Map();
+  inputs.forEach((input, index) => {
+    if (!input) return;
+    if (!positions.has(input)) positions.set(input, []);
+    positions.get(input).push(index);
+  });
+
+  const uncached = [];
+  for (const [input, indexes] of positions) {
+    // Hash the full input, not a prefix, so shared prefixes never reuse a vector.
+    const cacheKey = await sha256Hex(JSON.stringify([EMBEDDING_MODEL, input]));
+    const cached = embeddingCache.get(cacheKey);
+    if (cached) {
+      indexes.forEach((index) => { results[index] = { embedding: cached, source: 'workers-ai' }; });
+    } else {
+      uncached.push({ input, indexes, cacheKey });
+    }
+  }
+
+  const batches = [];
+  for (let start = 0; start < uncached.length; start += MAX_TEXTS_PER_REQUEST) {
+    batches.push(uncached.slice(start, start + MAX_TEXTS_PER_REQUEST));
+  }
+
+  await Promise.all(batches.map(async (batch) => {
+    const vectors = await fetchWorkersAIEmbeddings(env, batch.map((entry) => entry.input));
+    batch.forEach((entry, offset) => {
+      const embedding = toUnitVector(vectors?.[offset]);
+      // Do not cache fallbacks; a subsequent call may succeed after an API outage.
+      if (!embedding) return;
+      cacheEmbedding(entry.cacheKey, embedding);
+      entry.indexes.forEach((index) => { results[index] = { embedding, source: 'workers-ai' }; });
+    });
+  }));
+
+  return results;
+}
+
+function cacheEmbedding(cacheKey, embedding) {
+  if (embeddingCache.size >= MAX_CACHE_SIZE) {
+    // Remove oldest entry (first key)
+    const firstKey = embeddingCache.keys().next().value;
+    embeddingCache.delete(firstKey);
+  }
+  embeddingCache.set(cacheKey, embedding);
+}
+
+/**
+ * Request one batch of embeddings from Workers AI.
+ *
+ * @param {Object} env - Worker environment with the AI binding
+ * @param {string[]} texts - Non-empty texts, at most MAX_TEXTS_PER_REQUEST
+ * @returns {Promise<Array|null>} One raw vector per text, or null if the request failed
+ */
+async function fetchWorkersAIEmbeddings(env, texts) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), EMBEDDING_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'api-key': apiKey,
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        input: text,
-        model
-      })
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.warn(`[Embeddings] Azure v1 API error ${response.status}: ${errText}`);
+    const response = await env.AI.run(
+      EMBEDDING_MODEL,
+      // Truncate rather than reject text past the model's token limit.
+      { text: texts, truncate_inputs: true },
+      { signal: controller.signal }
+    );
+    const vectors = response?.data;
+    if (!Array.isArray(vectors) || vectors.length !== texts.length) {
+      console.warn(
+        `[Embeddings] Workers AI returned ${Array.isArray(vectors) ? vectors.length : 'no'} vectors for ${texts.length} texts`
+      );
       return null;
     }
-
-    const data = await response.json();
-    const embedding = data?.data?.[0]?.embedding;
-
-    if (!Array.isArray(embedding) || embedding.length === 0 || !embedding.every(Number.isFinite)) {
-      return null;
-    }
-
-    const squaredNorm = embedding.reduce((sum, value) => sum + value * value, 0);
-    if (!Number.isFinite(squaredNorm) || squaredNorm === 0) {
-      return null;
-    }
-
-    return normalizeVector(embedding);
+    return vectors;
   } catch (err) {
-    console.warn('[Embeddings] Azure embedding fetch failed:', err.message);
+    const reason = err?.name === 'AbortError' ? `timed out after ${EMBEDDING_TIMEOUT_MS}ms` : err?.message;
+    console.warn(`[Embeddings] Workers AI embedding failed: ${reason}`);
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Validate a model vector and scale it to unit length.
+ *
+ * @param {unknown} vector - Raw vector from the model
+ * @returns {number[]|null} Unit vector, or null if unusable
+ */
+function toUnitVector(vector) {
+  if (!Array.isArray(vector) || vector.length === 0 || !vector.every(Number.isFinite)) {
     return null;
   }
+
+  const squaredNorm = vector.reduce((sum, value) => sum + value * value, 0);
+  if (!Number.isFinite(squaredNorm) || squaredNorm === 0) {
+    return null;
+  }
+
+  return normalizeVector(vector);
 }
 
 /**

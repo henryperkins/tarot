@@ -37,19 +37,16 @@ it('keeps a career question in the final provider context despite unrelated pers
 it('uses the selected current source for the real GraphRAG embedding query', async (t) => {
   clearEmbeddingCache();
   t.after(clearEmbeddingCache);
-  const embeddedInputs = [];
-  t.mock.method(globalThis, 'fetch', async (url, options) => {
-    assert.match(url, /embeddings/);
-    embeddedInputs.push(JSON.parse(options.body).input);
-    return Response.json({ data: [{ embedding: [1, 0] }] });
-  });
+  const embeddedTexts = [];
+  const run = async (_model, { text }) => {
+    embeddedTexts.push(...text);
+    return { data: text.map(() => [1, 0]) };
+  };
   const contextSources = { userQuestion, focusAreas };
   const analysis = await performSpreadAnalysis({ key: 'threeCard', name: 'Three-Card Story' }, cardsInfo, {
     userQuestion, contextSources, contextInputText: buildContextInferenceInput(contextSources), enableSemanticScoring: true
-  }, 'context-precedence-test', {
-    GRAPHRAG_ENABLED: 'true', AZURE_OPENAI_ENDPOINT: 'https://embeddings.test', AZURE_OPENAI_API_KEY: 'test-only'
-  });
-  const query = embeddedInputs.find(value => typeof value === 'string' && value.includes('job interview'));
+  }, 'context-precedence-test', { GRAPHRAG_ENABLED: 'true', AI: { run } });
+  const query = embeddedTexts.find(value => value.includes('job interview'));
   assert.ok(query, 'The actual retrieval query must be embedded');
   assert.doesNotMatch(query, /Love & relationships/);
   assert.equal(analysis.graphRAGPayload.retrievalSummary.contextSource, 'question');

@@ -394,7 +394,7 @@ async function performSpreadAnalysisInner(
 
       if (requestedSemanticScoring && !semanticAvailable) {
         console.warn(
-          `[${requestId}] Semantic scoring requested but embeddings are unavailable (missing AZURE_OPENAI_ENDPOINT/API_KEY); falling back to keyword scoring.`
+          `[${requestId}] Semantic scoring requested but embeddings are unavailable (no Workers AI binding); falling back to keyword scoring.`
         );
       }
 

@@ -12,7 +12,7 @@
 //
 // Quality filtering enhancements:
 // - Keyword overlap scoring (fast, cheap)
-// - Semantic similarity via embeddings (optional, requires API)
+// - Semantic similarity via Workers AI embeddings (optional, requires env.AI)
 // - Deduplication of similar passages
 // - Relevance threshold filtering
 
@@ -20,7 +20,12 @@ import {
   getPassagesForPattern,
   getKnowledgeBaseStats
 } from './knowledgeBase.js';
-import { cosineSimilarity, embedTextWithMetadata } from './embeddings.js';
+import {
+  cosineSimilarity,
+  embedTextsWithMetadata,
+  isEmbeddingProviderAvailable,
+  isSemanticEmbedding
+} from './embeddings.js';
 import { getPassageSource } from '../../shared/passageSource.js';
 
 // ============================================================================
@@ -697,6 +702,9 @@ export function getKnowledgeBaseInfo() {
 // QUALITY FILTERING ENHANCEMENTS
 // ============================================================================
 
+// Passage text sent for embedding; truncated for efficiency.
+const MAX_PASSAGE_EMBEDDING_CHARS = 500;
+
 /**
  * Score passage relevance against user query.
  * Combines fast keyword matching with optional semantic similarity.
@@ -707,7 +715,9 @@ export function getKnowledgeBaseInfo() {
  * @param {number} [options.keywordWeight=0.3] - Weight for keyword score
  * @param {number} [options.semanticWeight=0.7] - Weight for semantic score
  * @param {boolean} [options.enableSemanticScoring=false] - Use embeddings API
- * @param {Object} [options.env] - Environment variables for API calls
+ * @param {Object} [options.env] - Worker environment with the AI binding
+ * @param {{query: Object, passage: Object}} [options.embeddings] - Precomputed
+ *   embedTextsWithMetadata() results; skips the per-passage embedding request
  * @returns {Promise<number>} Relevance score 0-1
  *
  * @example
@@ -757,11 +767,13 @@ export async function scorePassageRelevance(passage, userQuery, options = {}) {
       semanticStatus.succeeded = false;
     }
     try {
-      const [queryEmbed, passageEmbed] = await Promise.all([
-        embedTextWithMetadata(queryText, { env: options.env }),
-        embedTextWithMetadata(passageText.slice(0, 500), { env: options.env }) // Truncate for efficiency
-      ]);
-      if (queryEmbed.source !== 'azure' || passageEmbed.source !== 'azure') {
+      const [queryEmbed, passageEmbed] = options.embeddings
+        ? [options.embeddings.query, options.embeddings.passage]
+        : await embedTextsWithMetadata(
+          [queryText, passageText.slice(0, MAX_PASSAGE_EMBEDDING_CHARS)],
+          { env: options.env }
+        );
+      if (!isSemanticEmbedding(queryEmbed) || !isSemanticEmbedding(passageEmbed)) {
         return keywordScore;
       }
       semanticScore = cosineSimilarity(queryEmbed.embedding, passageEmbed.embedding);
@@ -924,9 +936,8 @@ function comparePassagesForPrompt(a, b, scoreField) {
  * - Quality threshold filtering
  * - Deduplication
  *
- * Semantic scoring is enabled by default when the embeddings API is configured
- * (AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY). Pass enableSemanticScoring: false
- * to explicitly disable it.
+ * Semantic scoring is enabled by default when the Workers AI binding (env.AI) is
+ * present. Pass enableSemanticScoring: false to explicitly disable it.
  *
  * @param {Object} graphKeys - Graph keys from buildGraphContext()
  * @param {Object} [options] - Retrieval options
@@ -1007,9 +1018,23 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
     }));
   }
 
+  // Embed the question and every candidate passage in one request instead of
+  // a request pair per passage.
+  let queryEmbedding = null;
+  let passageEmbeddings = null;
+  if (enableSemanticScoring && typeof userQuery === 'string' && userQuery.trim()) {
+    [queryEmbedding, ...passageEmbeddings] = await embedTextsWithMetadata(
+      [
+        userQuery,
+        ...rawPassages.map((p) => (typeof p.text === 'string' ? p.text.slice(0, MAX_PASSAGE_EMBEDDING_CHARS) : ''))
+      ],
+      { env }
+    );
+  }
+
   // Score each passage for relevance
   const scoredPassages = await Promise.all(
-    rawPassages.map(async (passage) => {
+    rawPassages.map(async (passage, index) => {
       const semanticStatus = { attempted: false, succeeded: false };
       const relevanceScore = await scorePassageRelevance(
         passage.text,
@@ -1017,7 +1042,10 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
         {
           enableSemanticScoring,
           env,
-          semanticStatus
+          semanticStatus,
+          embeddings: passageEmbeddings
+            ? { query: queryEmbedding, passage: passageEmbeddings[index] }
+            : undefined
         }
       );
       return {
@@ -1113,17 +1141,11 @@ export function buildQualityRetrievalSummary(graphKeys, passages) {
 }
 
 /**
- * Check if semantic scoring is available (API configured).
+ * Check if semantic scoring is available (Workers AI binding present).
  *
- * @param {Object} [env] - Environment variables. Pass null to explicitly check without env.
+ * @param {Object} [env] - Worker environment
  * @returns {boolean} True if semantic scoring can be used
  */
 export function isSemanticScoringAvailable(env) {
-  // If null is explicitly passed, don't fall back to process.env
-  if (env === null) {
-    return false;
-  }
-  
-  const effectiveEnv = env || (typeof process !== 'undefined' && process.env ? process.env : {});
-  return Boolean(effectiveEnv?.AZURE_OPENAI_ENDPOINT && effectiveEnv?.AZURE_OPENAI_API_KEY);
+  return isEmbeddingProviderAvailable(env);
 }

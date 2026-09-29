@@ -5,12 +5,25 @@
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  EMBEDDING_MODEL,
   cosineSimilarity,
   normalizeVector,
   embedText,
+  embedTextWithMetadata,
+  embedTextsWithMetadata,
+  isSemanticEmbedding,
   clearEmbeddingCache,
   getEmbeddingCacheStats
 } from '../functions/lib/embeddings.js';
+
+// Workers AI binding stub that returns one vector per requested text.
+function workersAI(t, vectorFor = () => [1, 0]) {
+  const run = t.mock.fn(async (_model, { text }) => ({
+    data: text.map((value) => vectorFor(value)),
+    shape: [text.length, 2]
+  }));
+  return { env: { AI: { run } }, run };
+}
 
 describe('cosineSimilarity', () => {
   test('returns 1 for identical vectors', () => {
@@ -184,18 +197,11 @@ describe('embedText', () => {
 });
 
 describe('Embedding Cache', () => {
-  const env = {
-    AZURE_OPENAI_ENDPOINT: 'https://embeddings.test',
-    AZURE_OPENAI_API_KEY: 'test-key'
-  };
-
   beforeEach(clearEmbeddingCache);
   afterEach(clearEmbeddingCache);
 
   test('clearEmbeddingCache clears all entries', async (t) => {
-    t.mock.method(globalThis, 'fetch', async () => Response.json({
-      data: [{ embedding: [1, 0] }]
-    }));
+    const { env } = workersAI(t);
     // Add something to cache
     await embedText('cache test', { env });
 
@@ -218,9 +224,7 @@ describe('Embedding Cache', () => {
   });
 
   test('cache respects max size limit', async (t) => {
-    t.mock.method(globalThis, 'fetch', async () => Response.json({
-      data: [{ embedding: [1, 0] }]
-    }));
+    const { env } = workersAI(t);
     const stats = getEmbeddingCacheStats();
     const maxSize = stats.maxSize;
 
@@ -237,65 +241,118 @@ describe('Embedding Cache', () => {
     const prefix = 'Shared background before the distinct current question. '.repeat(5);
     const firstText = `${prefix}Focus on my career.`;
     const secondText = `${prefix}Focus on my marriage.`;
-    const fetchMock = t.mock.method(globalThis, 'fetch', async (_url, init) => {
-      const { input } = JSON.parse(init.body);
-      return Response.json({ data: [{ embedding: input === firstText ? [1, 0] : [0, 1] }] });
-    });
+    const { env, run } = workersAI(t, (text) => (text === firstText ? [1, 0] : [0, 1]));
 
     assert.deepEqual(await embedText(firstText, { env }), [1, 0]);
     assert.deepEqual(await embedText(secondText, { env }), [0, 1]);
-    assert.equal(fetchMock.mock.callCount(), 2);
+    assert.equal(run.mock.callCount(), 2);
   });
 
-  for (const [setting, value] of Object.entries({
-    AZURE_OPENAI_ENDPOINT: 'https://another-embeddings.test',
-    AZURE_OPENAI_EMBEDDING_MODEL: 'another-embedding-model',
-    AZURE_OPENAI_EMBEDDINGS_API_VERSION: 'preview',
-    AZURE_OPENAI_API_VERSION: 'preview'
-  })) {
-    test(`separates cached embeddings when ${setting} changes`, async (t) => {
-      let calls = 0;
-      const fetchMock = t.mock.method(globalThis, 'fetch', async () => Response.json({
-        data: [{ embedding: ++calls === 1 ? [1, 0] : [0, 1] }]
-      }));
+  test('reuses embeddings for equivalent normalized inputs', async (t) => {
+    const { env, run } = workersAI(t);
 
-      assert.deepEqual(await embedText('hope after a transition', { env }), [1, 0]);
-      assert.deepEqual(await embedText('hope after a transition', {
-        env: { ...env, [setting]: value }
-      }), [0, 1]);
-      assert.deepEqual(await embedText('hope after a transition', { env }), [1, 0]);
-      assert.equal(fetchMock.mock.callCount(), 2);
-    });
-  }
-
-  test('reuses embeddings for equivalent normalized inputs and Azure configuration', async (t) => {
-    const fetchMock = t.mock.method(globalThis, 'fetch', async (_url, init) => {
-      assert.equal(JSON.parse(init.body).input, 'hope after a transition');
-      return Response.json({ data: [{ embedding: [1, 0] }] });
-    });
-
-    await embedText('  hope after a transition\n', {
-      env: { ...env, AZURE_OPENAI_ENDPOINT: `${env.AZURE_OPENAI_ENDPOINT}/openai/v1/` }
-    });
-    assert.deepEqual(await embedText('hope after a transition', {
-      env: {
-        ...env,
-        AZURE_OPENAI_EMBEDDING_MODEL: 'text-embedding-3-large',
-        AZURE_OPENAI_EMBEDDINGS_API_VERSION: ' v1 '
-      }
-    }), [1, 0]);
-    assert.equal(fetchMock.mock.callCount(), 1);
+    await embedText('  hope after a transition\n', { env });
+    assert.deepEqual(await embedText('hope after a transition', { env }), [1, 0]);
+    assert.deepEqual(run.mock.calls[0].arguments[1].text, ['hope after a transition']);
+    assert.equal(run.mock.callCount(), 1);
   });
 
   test('keys the same capped API input consistently', async (t) => {
     const cappedInput = 'a'.repeat(8000);
-    const fetchMock = t.mock.method(globalThis, 'fetch', async (_url, init) => {
-      assert.equal(JSON.parse(init.body).input, cappedInput);
-      return Response.json({ data: [{ embedding: [1, 0] }] });
-    });
+    const { env, run } = workersAI(t);
 
     await embedText(`${cappedInput}first unused suffix`, { env });
     assert.deepEqual(await embedText(`${cappedInput}second unused suffix`, { env }), [1, 0]);
-    assert.equal(fetchMock.mock.callCount(), 1);
+    assert.deepEqual(run.mock.calls[0].arguments[1].text, [cappedInput]);
+    assert.equal(run.mock.callCount(), 1);
+  });
+});
+
+describe('Workers AI embeddings', () => {
+  beforeEach(clearEmbeddingCache);
+  afterEach(clearEmbeddingCache);
+
+  test('requests the embedding model with input truncation enabled', async (t) => {
+    const { env, run } = workersAI(t);
+
+    const result = await embedTextWithMetadata('What helps me rest?', { env });
+
+    const [model, input] = run.mock.calls[0].arguments;
+    assert.equal(model, EMBEDDING_MODEL);
+    assert.deepEqual(input, { text: ['What helps me rest?'], truncate_inputs: true });
+    assert.equal(isSemanticEmbedding(result), true);
+  });
+
+  test('embeds a batch in one request and returns results in input order', async (t) => {
+    const { env, run } = workersAI(t, (text) => (text === 'b' ? [0, 1] : [1, 0]));
+
+    const results = await embedTextsWithMetadata(['a', 'b', 'a', ''], { env });
+
+    assert.equal(run.mock.callCount(), 1);
+    assert.deepEqual(run.mock.calls[0].arguments[1].text, ['a', 'b'], 'Duplicate and empty texts are not sent');
+    assert.deepEqual(results.map((r) => r.source), ['workers-ai', 'workers-ai', 'workers-ai', 'fallback']);
+    assert.deepEqual(results.map((r) => r.embedding).slice(0, 3), [[1, 0], [0, 1], [1, 0]]);
+  });
+
+  test('splits batches of more than 100 texts', async (t) => {
+    const { env, run } = workersAI(t);
+    const texts = Array.from({ length: 130 }, (_, i) => `passage ${i}`);
+
+    const results = await embedTextsWithMetadata(texts, { env });
+
+    assert.deepEqual(run.mock.calls.map((call) => call.arguments[1].text.length), [100, 30]);
+    assert.ok(results.every(isSemanticEmbedding));
+  });
+
+  test('falls back only for the texts whose vectors are unusable', async (t) => {
+    const run = t.mock.fn(async () => ({ data: [[3, 4], [0, 0], [1, Number.NaN]] }));
+
+    const results = await embedTextsWithMetadata(['good', 'zero', 'not a number'], { env: { AI: { run } } });
+
+    assert.deepEqual(results.map((r) => r.source), ['workers-ai', 'fallback', 'fallback']);
+    assert.deepEqual(results[0].embedding, [0.6, 0.8], 'Model vectors are scaled to unit length');
+    assert.equal(getEmbeddingCacheStats().size, 1, 'Only the usable vector is cached');
+  });
+
+  for (const [failure, run] of [
+    ['the request throws', async () => { throw new Error('Synthetic outage'); }],
+    ['the response has too few vectors', async () => ({ data: [[1, 0]] })],
+    ['the response has no vectors', async () => ({ response: 'not embeddings' })]
+  ]) {
+    test(`falls back for the whole batch when ${failure}`, async () => {
+      const results = await embedTextsWithMetadata(['first', 'second'], { env: { AI: { run } } });
+
+      assert.deepEqual(results.map((r) => r.source), ['fallback', 'fallback']);
+      assert.equal(getEmbeddingCacheStats().size, 0, 'Failures are not cached');
+    });
+  }
+
+  test('gives up on a request that outlasts the timeout', async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    let markStarted;
+    const started = new Promise((resolve) => { markStarted = resolve; });
+    let requestSignal;
+    const run = (_model, _input, { signal }) => {
+      requestSignal = signal;
+      markStarted();
+      return new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+      });
+    };
+
+    const pending = embedTextWithMetadata('slow text', { env: { AI: { run } } });
+    await started;
+    assert.equal(requestSignal.aborted, false);
+    t.mock.timers.tick(3000);
+
+    assert.equal((await pending).source, 'fallback');
+    assert.equal(requestSignal.aborted, true);
+  });
+
+  test('uses the fallback without a Workers AI binding', async () => {
+    const result = await embedTextWithMetadata('no binding', { env: {} });
+
+    assert.equal(result.source, 'fallback');
+    assert.equal(isSemanticEmbedding(result), false);
   });
 });

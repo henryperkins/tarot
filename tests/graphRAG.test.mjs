@@ -817,23 +817,15 @@ describe('GraphRAG Quality Filtering', () => {
       'Average should be 0 when no scores present');
   });
 
-  test('isSemanticScoringAvailable: checks for API configuration', () => {
-    // Without env, should return false
-    const withoutEnv = isSemanticScoringAvailable(null);
-    assert.strictEqual(withoutEnv, false, 'Should return false without env');
-
-    // With partial config, should return false
-    const partialConfig = isSemanticScoringAvailable({
-      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com'
-    });
-    assert.strictEqual(partialConfig, false, 'Should return false with partial config');
-
-    // With full config, should return true
-    const fullConfig = isSemanticScoringAvailable({
+  test('isSemanticScoringAvailable: requires a Workers AI binding', () => {
+    assert.strictEqual(isSemanticScoringAvailable(null), false, 'Should return false without env');
+    assert.strictEqual(isSemanticScoringAvailable(undefined), false, 'Should return false without env');
+    assert.strictEqual(isSemanticScoringAvailable({
       AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
       AZURE_OPENAI_API_KEY: 'test-key'
-    });
-    assert.strictEqual(fullConfig, true, 'Should return true with full config');
+    }), false, 'Azure OpenAI settings no longer provide embeddings');
+    assert.strictEqual(isSemanticScoringAvailable({ AI: {} }), false, 'A binding without run() cannot embed');
+    assert.strictEqual(isSemanticScoringAvailable({ AI: { run: async () => ({}) } }), true);
   });
 });
 

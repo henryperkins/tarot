@@ -213,21 +213,20 @@ describe('GraphRAG pattern coverage telemetry', () => {
 });
 
 describe('GraphRAG quality filtering floor', () => {
+  // Orthogonal embeddings => cosine similarity 0 between the query and every passage.
   const env = {
-    AZURE_OPENAI_ENDPOINT: 'https://embeddings.test',
-    AZURE_OPENAI_API_KEY: 'test-only'
+    AI: {
+      run: async (_model, { text }) => ({
+        data: text.map((value) => (value.includes('zzyzx') ? [1, 0] : [0, 1]))
+      })
+    }
   };
 
   test('retrievePassagesWithQuality: keeps the best passage when all score below the threshold', async (t) => {
     clearEmbeddingCache();
     t.after(clearEmbeddingCache);
-    // Orthogonal embeddings => cosine similarity 0, and a query sharing no
-    // keywords with the passages => every relevance score lands at 0.
-    t.mock.method(globalThis, 'fetch', async (_url, init) => {
-      const { input } = JSON.parse(init.body);
-      const isQuery = input.includes('zzyzx');
-      return Response.json({ data: [{ embedding: isQuery ? [1, 0] : [0, 1] }] });
-    });
+    // Orthogonal embeddings and a query sharing no keywords with the passages
+    // => every relevance score lands at 0.
 
     const passages = await retrievePassagesWithQuality(
       { completeTriadIds: ['death-temperance-star'] },
