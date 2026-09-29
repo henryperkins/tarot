@@ -22,7 +22,7 @@ async function createJob(t) {
   const writes = [];
   const job = new ReadingJob({
     blockConcurrencyWhile: (callback) => callback(),
-    storage: { get: async () => null, put: async (...args) => writes.push(args) }
+    storage: { get: async () => null, put: async (...args) => writes.push(args), setAlarm: async () => {} }
   }, {});
   await job.initialized;
   Object.assign(job.job, { jobId: 'job-1', token: 'secret', status: 'running' });

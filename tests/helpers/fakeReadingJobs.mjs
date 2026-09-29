@@ -8,12 +8,19 @@ import { ReadingJob } from '../../src/worker/readingJob.js';
 function createState() {
   const data = new Map();
   const pending = new Set();
+  const alarm = { at: null };
   return {
     storage: {
       async get(key) { return data.has(key) ? structuredClone(data.get(key)) : undefined; },
       async put(key, value) { data.set(key, structuredClone(value)); },
-      async delete(key) { data.delete(key); }
+      async delete(key) { data.delete(key); },
+      async deleteAll() { data.clear(); },
+      async setAlarm(time) { alarm.at = time instanceof Date ? time.getTime() : time; },
+      async getAlarm() { return alarm.at; },
+      async deleteAlarm() { alarm.at = null; }
     },
+    stored: data,
+    alarm,
     blockConcurrencyWhile(fn) { return fn(); },
     waitUntil(promise) {
       const tracked = Promise.resolve(promise).finally(() => pending.delete(tracked));
@@ -51,6 +58,12 @@ export function createFakeReadingJobs({ env = {}, runReading } = {}) {
       for (const { state } of instances.values()) {
         await Promise.all([...state.pending]);
       }
+    },
+    /** Fire a job's alarm as the runtime does: it is spent before the handler runs. */
+    async fireAlarm(jobId) {
+      const { state, object } = instances.get(jobId);
+      state.alarm.at = null;
+      await object.alarm();
     }
   };
 }

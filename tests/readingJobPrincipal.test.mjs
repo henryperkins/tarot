@@ -200,3 +200,75 @@ describe('retention and cancellation', () => {
     assert.deepEqual([result.ok, result.status], [false, 410]);
   });
 });
+
+describe('deletion', () => {
+  const MCP = { principal: { userId: 'user-1' }, snapshot: SNAPSHOT };
+  const stateOf = (jobs, jobId) => jobs.instances.get(jobId).state;
+  const jobOf = (jobs, jobId) => jobs.instances.get(jobId).object.job;
+
+  it('is scheduled one retention period after start, then moved to expiry when the job finishes', async () => {
+    const running = environment(hangingRunner());
+    const { jobId: runningId } = await startReadingJob({ env: running.env, payload: PAYLOAD, ...MCP });
+    assert.equal(stateOf(running.jobs, runningId).alarm.at, jobOf(running.jobs, runningId).startedAt + MCP_JOB_TTL_MS);
+    await cancelMcpJob({ env: running.env, jobId: runningId, userId: 'user-1' });
+    await running.jobs.settle();
+
+    const { jobs, env } = environment(readingRunner());
+    const mcp = await startReadingJob({ env, payload: PAYLOAD, ...MCP });
+    const app = await startReadingJob({ env, payload: PAYLOAD, forwardHeaders: {} });
+    await jobs.settle();
+    for (const { jobId } of [mcp, app]) {
+      assert.equal(stateOf(jobs, jobId).alarm.at, jobOf(jobs, jobId).expiresAt);
+    }
+  });
+
+  it("removes an expired job's storage and alarm when the alarm fires", async () => {
+    const { jobs, env } = environment(readingRunner());
+    const { jobId } = await startReadingJob({ env, payload: PAYLOAD, ...MCP });
+    await jobs.settle();
+    jobOf(jobs, jobId).expiresAt = Date.now() - 1;
+
+    await jobs.fireAlarm(jobId);
+
+    assert.equal(stateOf(jobs, jobId).stored.size, 0);
+    assert.equal(stateOf(jobs, jobId).alarm.at, null);
+    assert.equal((await getMcpJobSnapshot({ env, jobId, userId: 'user-1' })).status, 404);
+  });
+
+  it('sets the deletion time again when an alarm fires early', async () => {
+    const { jobs, env } = environment(readingRunner());
+    const { jobId } = await startReadingJob({ env, payload: PAYLOAD, ...MCP });
+    await jobs.settle();
+
+    await jobs.fireAlarm(jobId);
+
+    assert.equal(stateOf(jobs, jobId).stored.size, 1);
+    assert.equal(stateOf(jobs, jobId).alarm.at, jobOf(jobs, jobId).expiresAt);
+    assert.equal((await getMcpJobSnapshot({ env, jobId, userId: 'user-1' })).data.status, 'complete');
+  });
+
+  it('removes a run that never finished, without the cut-off run writing it back', async () => {
+    const { jobs, env } = environment(hangingRunner());
+    const { jobId } = await startReadingJob({ env, payload: PAYLOAD, ...MCP });
+    jobOf(jobs, jobId).startedAt = Date.now() - MCP_JOB_TTL_MS - 1;
+
+    await jobs.fireAlarm(jobId);
+    await jobs.settle();
+
+    assert.equal(stateOf(jobs, jobId).stored.size, 0);
+    assert.equal(stateOf(jobs, jobId).alarm.at, null);
+  });
+
+  it('removes all storage, not just the job record, when an expired job is read', async () => {
+    const { jobs, env } = environment(readingRunner());
+    const { jobId } = await startReadingJob({ env, payload: PAYLOAD, ...MCP });
+    await jobs.settle();
+    jobOf(jobs, jobId).expiresAt = Date.now() - 1;
+    // Stands in for the storage metadata that deleting one key leaves behind.
+    stateOf(jobs, jobId).stored.set('metadata', {});
+
+    assert.equal((await getMcpJobSnapshot({ env, jobId, userId: 'user-1' })).status, 410);
+    assert.equal(stateOf(jobs, jobId).stored.size, 0);
+    assert.equal(stateOf(jobs, jobId).alarm.at, null);
+  });
+});

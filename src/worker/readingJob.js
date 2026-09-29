@@ -42,6 +42,7 @@ function emptyJob() {
     meta: null,
     result: null,
     error: null,
+    startedAt: null,
     // Set only for jobs started by the MCP tools (in-Worker callers).
     principalUserId: null,
     snapshot: null,
@@ -72,6 +73,7 @@ export class ReadingJob {
     this.job = emptyJob();
     this.abortController = null;
     this.runningPromise = null;
+    this.deletionScheduledAt = null;
     this.initialized = this.state.blockConcurrencyWhile(async () => {
       const stored = await this.state.storage.get('job');
       if (stored) {
@@ -157,6 +159,7 @@ export class ReadingJob {
       jobId,
       token,
       createdAt: this.job.createdAt || Date.now(),
+      startedAt: Date.now(),
       updatedAt: Date.now(),
       expiresAt: null,
       error: null,
@@ -645,6 +648,8 @@ export class ReadingJob {
   }
 
   async persistState() {
+    // A purged job is never written back, even by a run that ends after it.
+    if (!this.job.jobId) return;
     await this.state.storage.put('job', {
       job: this.job,
       events: this.events,
@@ -652,6 +657,60 @@ export class ReadingJob {
       textSoFar: this.textSoFar,
       truncatedBeforeId: this.truncatedBeforeId
     });
+    await this.scheduleDeletion();
+  }
+
+  /**
+   * When this job's storage is deleted: at expiry once it finishes, or one
+   * retention period after it started if it never does (a run cut off by an
+   * eviction never reaches done or error).
+   */
+  deletionTime() {
+    if (this.job.expiresAt) return this.job.expiresAt;
+    const startedAt = this.job.startedAt || this.job.createdAt;
+    return startedAt ? startedAt + (this.job.retentionMs || JOB_TTL_MS) : null;
+  }
+
+  /**
+   * Nothing else reaches a job nobody asks about again, so without an alarm
+   * its reading would stay stored indefinitely instead of for its retention.
+   */
+  async scheduleDeletion() {
+    const at = this.deletionTime();
+    if (!at || at === this.deletionScheduledAt) return;
+    await this.state.storage.setAlarm(at);
+    this.deletionScheduledAt = at;
+  }
+
+  async alarm() {
+    await this.initialized;
+    const at = this.deletionTime();
+    if (at && Date.now() < at) {
+      // The alarm that fired is spent; set the current deletion time again.
+      this.deletionScheduledAt = null;
+      await this.scheduleDeletion();
+      return;
+    }
+    await this.purge();
+  }
+
+  /** Delete everything this job stored, and stop any run still going. */
+  async purge() {
+    this.cancelled = true;
+    this.abortController?.abort();
+    this.closeSubscribers();
+    // deleteAll() keeps the alarm before compatibility date 2026-02-24, and
+    // deleting only the 'job' key would leave storage metadata behind.
+    await this.state.storage.deleteAlarm();
+    await this.state.storage.deleteAll();
+    this.job = emptyJob();
+    this.events = [];
+    this.nextEventId = 1;
+    this.textSoFar = '';
+    this.truncatedBeforeId = 0;
+    this.persistEventCount = 0;
+    this.lastPersistAt = 0;
+    this.deletionScheduledAt = null;
   }
 
   async expireIfNeeded() {
@@ -661,14 +720,7 @@ export class ReadingJob {
     if (Date.now() < this.job.expiresAt) {
       return false;
     }
-    await this.state.storage.delete('job');
-    this.job = emptyJob();
-    this.events = [];
-    this.nextEventId = 1;
-    this.textSoFar = '';
-    this.truncatedBeforeId = 0;
-    this.persistEventCount = 0;
-    this.lastPersistAt = 0;
+    await this.purge();
     return true;
   }
 }
