@@ -11,7 +11,11 @@ import { ReadingCardResolutionError, resolveReadingCards } from '../../readingCa
 import { cancelMcpJob, getMcpJobSnapshot, startReadingJob } from '../../readingJobs.js';
 import { drawForSpread } from '../../serverDraw.js';
 import { REVERSAL_FRAMEWORK_OVERRIDES } from '../../spreadAnalysis.js';
-import { REFLECTIONS_TEXT_MAX_LENGTH, USER_QUESTION_MAX_LENGTH } from '../../../../shared/contracts/readingSchema.js';
+import {
+  CARD_MEANING_MAX_LENGTH,
+  REFLECTIONS_TEXT_MAX_LENGTH,
+  USER_QUESTION_MAX_LENGTH
+} from '../../../../shared/contracts/readingSchema.js';
 import { toPublicCard } from '../journalMapping.js';
 import { classifyReadingResult, READING_OUTCOME } from '../readingOutcome.js';
 import {
@@ -82,7 +86,9 @@ const suppliedCard = z.object({
   position: z.string().trim().min(1),
   card: z.string().trim().min(1),
   orientation: anyOrientationSchema,
-  meaning: z.string().trim().min(1),
+  meaning: z.string().trim().min(1).max(CARD_MEANING_MAX_LENGTH).optional().describe(
+    "The user's own meaning for this card. Omit it when they gave none; Tableu then uses the card's standard upright or reversed meaning."
+  ),
   number: z.number().int().optional(),
   suit: z.string().optional(),
   rank: z.string().optional(),
@@ -326,7 +332,7 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
     {
       title: 'Start a reading from supplied cards',
       description:
-        "Starts a Tableu reading for cards the user supplies: a physical deck, a photo, or an earlier draw. Keep their cards, positions and orientations exactly. Returns a jobId at once; then call wait_for_tarot_reading. Uses one reading from the user's quota.",
+        "Starts a Tableu reading for cards the user supplies: a physical deck, a photo, or an earlier draw. Keep their cards, positions and orientations exactly, and send a meaning only when the user gave one. Returns a jobId at once; then call wait_for_tarot_reading. Uses one reading from the user's quota.",
       inputSchema: startInput,
       outputSchema: startOutput,
       annotations: WRITE,
@@ -334,7 +340,7 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
     },
     async (input) => {
       const deckStyle = input.deckStyle || DEFAULT_DECK;
-      const cardsInfo = input.cardsInfo.map((card) => ({
+      const suppliedCards = input.cardsInfo.map((card) => ({
         ...card,
         orientation: card.orientation.toLowerCase() === 'reversed' ? 'Reversed' : 'Upright'
       }));
@@ -342,11 +348,17 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
       // The same check the reading pipeline makes, done before any quota is used.
       let catalog;
       try {
-        catalog = resolveReadingCards(cardsInfo, deckStyle);
+        catalog = resolveReadingCards(suppliedCards, deckStyle);
       } catch (error) {
         if (error instanceof ReadingCardResolutionError) return fail(`Not started: ${error.message}`);
         throw error;
       }
+      // A card without the user's meaning reads with the catalog's meaning for
+      // its orientation, as a drawn card does.
+      const cardsInfo = suppliedCards.map((card, index) => ({
+        ...card,
+        meaning: card.meaning ?? catalog[index].meaning
+      }));
 
       const started = await startReadingJob({
         env,

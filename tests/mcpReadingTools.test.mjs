@@ -3,6 +3,8 @@ import { after, describe, it } from 'node:test';
 
 import { connectMcpClient } from './helpers/mcpClient.mjs';
 import { createFakeReadingJobs, hangingRunner, readingRunner } from './helpers/fakeReadingJobs.mjs';
+import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
+import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 import { SPREADS } from '../src/data/spreads.js';
 
 const OWNER = Object.freeze({
@@ -157,6 +159,30 @@ describe('start_tarot_reading', () => {
       const lens = tools.find((tool) => tool.name === name).inputSchema.properties.reversalFrameworkOverride;
       assert.deepEqual(lens.enum, ['blocked', 'delayed', 'internalized', 'contextual', 'shadow', 'mirror', 'potentialBlocked'], name);
     }
+  });
+
+  it("reads a supplied card without a meaning with the card's standard meaning", async () => {
+    const calls = [];
+    const { call, jobs } = await session({ runReading: readingRunner({ calls }) });
+    const started = await call('start_tarot_reading', {
+      spreadInfo: THREE,
+      cardsInfo: [
+        { position: 'Past', card: 'The Hermit', orientation: 'Upright' },
+        { position: 'Present', card: 'Three of Cups', orientation: 'reversed' },
+        { position: 'Future', card: 'The Star', orientation: 'Upright', meaning: 'My own hope' }
+      ]
+    });
+    assert.equal(started.isError, undefined);
+    await jobs.settle();
+
+    const sent = JSON.parse(await calls[0].request.text()).cardsInfo.map((card) => card.meaning);
+    assert.deepEqual(sent, [
+      MAJOR_ARCANA.find((card) => card.name === 'The Hermit').upright,
+      MINOR_ARCANA.find((card) => card.name === 'Three of Cups').reversed,
+      'My own hope'
+    ]);
+    const { structuredContent } = await call('get_tarot_reading_status', { jobId: started.structuredContent.jobId });
+    assert.deepEqual(structuredContent.cardsInfo.map((card) => card.meaning), sent);
   });
 
   it('refuses an unknown card before any job starts', async () => {

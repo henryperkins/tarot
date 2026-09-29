@@ -28,13 +28,18 @@ const saveOutput = z.object({
   seedShared: z.boolean().optional()
 });
 
+// A card note must name its card. The handler enforces this with a message
+// the model can act on; the schema also advertises it (draft-07 if/then).
 const reflectInput = z.object({
   entryId: z.string().min(1),
   text: z.string().min(1).max(MAX_REFLECTION_LENGTH),
   scope: z.enum(['reading', 'card']),
   card: z.string().trim().min(1).optional(),
   position: z.string().trim().min(1).optional()
-}).strict();
+}).strict().meta({
+  if: { properties: { scope: { const: 'card' } }, required: ['scope'] },
+  then: { required: ['card'] }
+});
 
 const reflectOutput = z.object({
   outcome: z.enum(['added', 'already_present']),

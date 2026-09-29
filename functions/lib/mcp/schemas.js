@@ -11,6 +11,10 @@ export const journalContextSchema = z.enum(JOURNAL_CONTEXTS);
 export const orientationSchema = z.enum(['Upright', 'Reversed']);
 export const anyOrientationSchema = z.enum(['upright', 'reversed', 'Upright', 'Reversed']);
 
+// The app's limits for focus areas (src/utils/personalizationStorage.js).
+const FOCUS_AREAS_MAX = 12;
+const FOCUS_AREA_MAX_LENGTH = 40;
+
 /** The contract's Personalization object. */
 export const personalizationSchema = z.object({
   displayName: z.string().trim().max(PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH).optional(),
@@ -18,7 +22,7 @@ export const personalizationSchema = z.object({
   spiritualFrame: z.enum(['psychological', 'spiritual', 'mixed', 'playful']).optional(),
   tarotExperience: z.enum(['newbie', 'intermediate', 'experienced']).optional(),
   preferredSpreadDepth: z.enum(['short', 'standard', 'deep']).optional(),
-  focusAreas: z.array(z.string().trim().min(1)).optional()
+  focusAreas: z.array(z.string().trim().min(1).max(FOCUS_AREA_MAX_LENGTH)).max(FOCUS_AREAS_MAX).optional()
 }).strict();
 
 export const spreadInfoOutputSchema = z.object({

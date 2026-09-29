@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { after, describe, it } from 'node:test';
 
+import { CfWorkerJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/cfworker-provider.js';
+
 import { connectMcpClient } from './helpers/mcpClient.mjs';
 
 const OWNER = Object.freeze({
@@ -67,5 +69,46 @@ describe('server instructions', () => {
     assert.match(instructions, /wait_for_tarot_reading/);
     assert.match(instructions, /explicitly asks to save/);
     assert.match(instructions, /never start a second job/i);
+  });
+});
+
+describe('advertised input contracts', () => {
+  // The JSON Schemas ChatGPT receives, checked as draft-07 like the tool
+  // metadata export. Runtime guards stay; these rules must also be visible.
+  async function validators() {
+    const client = await connect();
+    const { tools } = await client.listTools();
+    const draft7 = new CfWorkerJsonSchemaValidator({ draft: '7', shortcircuit: false });
+    return Object.fromEntries(tools.map((tool) => {
+      const { $schema: _dialect, ...schema } = tool.inputSchema;
+      return [tool.name, (input) => draft7.getValidator(schema)(input).valid];
+    }));
+  }
+
+  it('require the job reference for a save', async () => {
+    const valid = await validators();
+    assert.equal(valid.save_reading_to_journal({}), false);
+    assert.equal(valid.save_reading_to_journal({ spread: 'x', personalReading: 'y', requestId: 'z' }), false);
+    assert.equal(valid.save_reading_to_journal({ jobId: 'job-1' }), true);
+    assert.equal(valid.save_reading_to_journal({ jobId: 'job-1', jobToken: 'legacy', context: 'self' }), true);
+  });
+
+  it('require a card for a card note, and only then', async () => {
+    const valid = await validators();
+    const note = { entryId: 'entry-1', text: 'mine' };
+    assert.equal(valid.add_reflection_to_journal_entry({ ...note, scope: 'card' }), false);
+    assert.equal(valid.add_reflection_to_journal_entry({ ...note, scope: 'card', card: 'The Star' }), true);
+    assert.equal(valid.add_reflection_to_journal_entry({ ...note, scope: 'reading' }), true);
+  });
+
+  it('accept supplied cards without a meaning, and bound focus areas', async () => {
+    const valid = await validators();
+    const start = {
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      cardsInfo: [{ position: 'Focus', card: 'The Hermit', orientation: 'Upright' }]
+    };
+    assert.equal(valid.start_tarot_reading(start), true);
+    const tooMany = { focusAreas: Array.from({ length: 13 }, (_, index) => `area ${index}`) };
+    assert.equal(valid.start_tarot_reading({ ...start, personalization: tooMany }), false);
   });
 });
