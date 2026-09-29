@@ -155,6 +155,23 @@ describe('save_reading_to_journal', () => {
     assert.equal(entries(ctx.d1).length, 0);
   });
 
+  it('refuses a reading that the safety check held back', async () => {
+    const ctx = await session({ runReading: readingRunner({ reading: '## A Moment of Reflection', provider: 'safe-fallback', gateReason: 'tone_lt_2' }) });
+    const drawn = await drawAndFinish(ctx);
+    const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
+    assert.equal(result.isError, true);
+    assert.equal(result.content[0].text, "Not saved: Tableu's safety check held back this reading, so there is no reading to save");
+    assert.equal(entries(ctx.d1).length, 0);
+  });
+
+  it('saves a reading whose first streamed draft failed the quality gate', async () => {
+    const ctx = await session({ runReading: readingRunner({ reading: NARRATIVE, requestId: 'req-save-1', gateReason: 'quality_gate_streaming' }) });
+    const drawn = await drawAndFinish(ctx);
+    const saved = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
+    assert.equal(saved.structuredContent.outcome, 'saved');
+    assert.equal(entries(ctx.d1)[0].narrative, NARRATIVE);
+  });
+
   it('points to payload mode when the job has expired', async () => {
     const ctx = await session();
     const drawn = await drawAndFinish(ctx);

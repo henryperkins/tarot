@@ -215,6 +215,68 @@ describe('waiting and status', () => {
   });
 });
 
+/** A reading runner that answers with the given SSE events. */
+function sseRunner(events) {
+  return async () => new Response(
+    events.map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join(''),
+    { status: 200, headers: { 'content-type': 'text/event-stream' } }
+  );
+}
+
+describe('what a finished job delivered', () => {
+  async function finish(runReading) {
+    const { call, jobs } = await session({ runReading });
+    const { jobId, jobToken } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
+    await jobs.settle();
+    return call('wait_for_tarot_reading', { jobId, jobToken });
+  }
+
+  it('returns a crisis response as a support message, never as a reading', async () => {
+    const waited = await finish(readingRunner({ reading: 'Please reach out to someone you trust.', provider: 'safety-gate', gateReason: 'crisis_gate' }));
+    const { structuredContent: status, content } = waited;
+
+    assert.equal(status.status, 'complete');
+    assert.equal(status.reading, undefined);
+    assert.equal(status.supportMessage, 'Please reach out to someone you trust.');
+    assert.equal(status.gateBlocked, true);
+    assert.equal(status.gateReason, 'crisis_gate');
+    assert.doesNotMatch(content[0].text, /Present the narrative/);
+    assert.match(content[0].text, /Set the cards aside/);
+  });
+
+  it('withholds a narrative that the safety check replaced', async () => {
+    const waited = await finish(readingRunner({ reading: '## A Moment of Reflection', provider: 'safe-fallback', gateReason: 'safety_flag_true' }));
+    const { structuredContent: status, content } = waited;
+
+    assert.equal(status.status, 'complete');
+    assert.equal(status.reading, undefined);
+    assert.equal(status.supportMessage, undefined);
+    assert.deepEqual([status.gateBlocked, status.gateReason], [true, 'safety_flag_true']);
+    assert.doesNotMatch(content[0].text, /Present the narrative/);
+    assert.match(content[0].text, /held back this reading/);
+  });
+
+  it('fails closed on a gate reason it does not know', async () => {
+    const { structuredContent: status } = await finish(readingRunner({ reading: 'Text.', gateReason: 'new_gate' }));
+    assert.equal(status.reading, undefined);
+    assert.equal(status.gateBlocked, true);
+  });
+
+  it('presents a reading whose first streamed draft failed the quality gate', async () => {
+    const waited = await finish(readingRunner({ reading: 'A vetted reading.', provider: 'azure-gpt5', gateReason: 'quality_gate_streaming' }));
+    assert.equal(waited.structuredContent.reading, 'A vetted reading.');
+    assert.equal(waited.structuredContent.gateBlocked, undefined);
+    assert.match(waited.content[0].text, /Present the narrative/);
+  });
+
+  it('reports a job that finished without any text as failed', async () => {
+    const waited = await finish(sseRunner([['done', { fullText: '', provider: 'modal-qwen', requestId: 'req-empty' }]]));
+    assert.equal(waited.structuredContent.status, 'error');
+    assert.equal(waited.structuredContent.reading, undefined);
+    assert.equal(waited.content[0].text, 'The reading failed: The reading finished without any text.');
+  });
+});
+
 describe('cancel_tarot_reading', () => {
   it('cancels a running reading', async () => {
     const { call, jobs } = await session({ runReading: hangingRunner() });

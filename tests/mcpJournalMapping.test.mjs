@@ -119,10 +119,14 @@ describe('buildJournalEntryFromJob', () => {
     assert.deepEqual(names.slice(0, 2), ['The Magician', 'Knight of Wands']);
   });
 
-  it('refuses unfinished jobs, safety responses, and readings without identity', () => {
+  it('refuses unfinished jobs, anything that is not a reading, and readings without identity', () => {
     const cases = [
       [job({ status: 'running' }), /not finished/],
+      [job({ status: 'error', result: null, error: 'Reading cancelled.' }), /reading failed/],
       [job({ result: { reading: 'Please reach out…', provider: 'safety-gate', requestId: 'req-1', gateReason: 'crisis_gate' } }), /safety message/],
+      [job({ result: { reading: 'A pause.', provider: 'safe-fallback', requestId: 'req-1', gateBlocked: true, gateReason: 'tone_lt_2' } }), /held back this reading/],
+      [job({ result: { reading: 'Text', provider: 'x', requestId: 'req-1', gateBlocked: true, gateReason: 'new_gate' } }), /held back this reading/],
+      [job({ result: { reading: '  ', provider: 'x', requestId: 'req-1' } }), /without any text/],
       [job({ result: { reading: 'Text', provider: 'x', requestId: null } }), /request ID/],
       [job({}, { spreadInfo: { name: 'Mine', key: 'custom' } }), /spread key/],
       [job({ snapshot: null }), /no saved reading details/]
@@ -130,6 +134,11 @@ describe('buildJournalEntryFromJob', () => {
     for (const [input, message] of cases) {
       assert.throws(() => buildJournalEntryFromJob(input), (error) => error instanceof JournalMappingError && message.test(error.message));
     }
+  });
+
+  it('keeps a reading whose first streamed draft failed the quality gate', () => {
+    const vetted = job({ result: { reading: 'Vetted.', provider: 'azure-gpt5', requestId: 'req-1', gateBlocked: true, gateReason: 'quality_gate_streaming' } });
+    assert.equal(buildJournalEntryFromJob(vetted).personalReading, 'Vetted.');
   });
 
   it('refuses a label the deck does not know, naming its index', () => {

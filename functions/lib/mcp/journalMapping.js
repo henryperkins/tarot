@@ -10,6 +10,7 @@
  */
 
 import { ReadingCardResolutionError, resolveReadingCards } from '../readingCardResolution.js';
+import { classifyReadingResult, READING_OUTCOME } from './readingOutcome.js';
 
 export const SPREAD_KEYS = Object.freeze(['single', 'threeCard', 'fiveCard', 'decision', 'relationship', 'celtic']);
 export const JOURNAL_CONTEXTS = Object.freeze(['love', 'career', 'self', 'spiritual', 'wellbeing', 'decision', 'general']);
@@ -99,9 +100,16 @@ function normalizeContextInput(context) {
   return context;
 }
 
+const NOT_A_READING = Object.freeze({
+  [READING_OUTCOME.SUPPORT]: 'this response was a safety message, not a reading',
+  [READING_OUTCOME.WITHHELD]: "Tableu's safety check held back this reading, so there is no reading to save",
+  [READING_OUTCOME.EMPTY]: 'the reading finished without any text, so there is nothing to save'
+});
+
 /**
  * Journal entry for a completed job, from the job's own snapshot and result.
- * The narrative is copied verbatim; `context` comes only from the tool input.
+ * Only a job that produced a reading can be saved (readingOutcome.js). The
+ * narrative is copied verbatim; `context` comes only from the tool input.
  *
  * @param {object} job - getMcpJobSnapshot(...).data
  * @param {{ context?: string }} [options]
@@ -110,12 +118,12 @@ export function buildJournalEntryFromJob(job, { context } = {}) {
   const snapshot = job?.snapshot;
   const result = job?.result;
   if (!snapshot) throw new JournalMappingError('this job has no saved reading details');
-  if (job.status !== 'complete' || typeof result?.reading !== 'string' || !result.reading.trim()) {
+  if (job.status === 'error') throw new JournalMappingError('the reading failed, so there is nothing to save');
+  if (job.status !== 'complete') {
     throw new JournalMappingError('the reading has not finished; wait for it to complete first');
   }
-  if (result.provider === 'safety-gate' || result.gateReason === 'crisis_gate') {
-    throw new JournalMappingError('this response was a safety message, not a reading');
-  }
+  const outcome = classifyReadingResult(result);
+  if (outcome !== READING_OUTCOME.READING) throw new JournalMappingError(NOT_A_READING[outcome]);
   const requestId = requireText(result.requestId, 'the reading has no request ID');
   const spreadKey = snapshot.spreadInfo?.key;
   if (!SPREAD_KEYS.includes(spreadKey)) {

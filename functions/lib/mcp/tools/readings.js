@@ -13,6 +13,7 @@ import { drawForSpread } from '../../serverDraw.js';
 import { REVERSAL_FRAMEWORK_OVERRIDES } from '../../spreadAnalysis.js';
 import { REFLECTIONS_TEXT_MAX_LENGTH, USER_QUESTION_MAX_LENGTH } from '../../../../shared/contracts/readingSchema.js';
 import { toPublicCard } from '../journalMapping.js';
+import { classifyReadingResult, READING_OUTCOME } from '../readingOutcome.js';
 import {
   anyOrientationSchema,
   deckStyleSchema,
@@ -111,6 +112,7 @@ const statusOutput = z.object({
   cardsInfo: z.array(publicCardSchema),
   seed: z.string().optional(),
   reading: z.string().optional(),
+  supportMessage: z.string().optional(),
   provider: z.string().nullable().optional(),
   requestId: z.string().nullable().optional(),
   themes: z.record(z.string(), z.unknown()).optional(),
@@ -147,7 +149,9 @@ function jobStatus(status) {
 
 /**
  * Model-facing job status: the snapshot's cards are ground truth, and the
- * large analysis metadata is left out.
+ * large analysis metadata is left out. `reading` is present only when the job
+ * produced a reading; a crisis response comes back as `supportMessage`, and a
+ * finished job without any text is reported as failed.
  */
 export function toCompactStatus(data) {
   const snapshot = data?.snapshot || {};
@@ -159,17 +163,28 @@ export function toCompactStatus(data) {
     cardsInfo: Array.isArray(snapshot.cardsInfo) ? snapshot.cardsInfo : []
   };
   if (snapshot.seed) compact.seed = String(snapshot.seed);
-  if (status === 'complete' && data?.result) {
-    if (typeof data.result.reading === 'string') compact.reading = data.result.reading;
-    compact.provider = data.result.provider ?? null;
-    compact.requestId = data.result.requestId ?? null;
-    if (data.meta?.themes && typeof data.meta.themes === 'object') compact.themes = data.meta.themes;
-    if (data.result.gateBlocked) {
-      compact.gateBlocked = true;
-      compact.gateReason = data.result.gateReason ?? null;
-    }
-  }
   if (status === 'error') compact.error = data?.error || 'The reading failed.';
+  if (status !== 'complete') return compact;
+
+  const result = data?.result;
+  const outcome = classifyReadingResult(result);
+  if (outcome === READING_OUTCOME.EMPTY) {
+    return { ...compact, status: 'error', error: 'The reading finished without any text.' };
+  }
+  compact.requestId = result.requestId ?? null;
+  if (outcome === READING_OUTCOME.READING) {
+    compact.reading = result.reading;
+    compact.provider = result.provider ?? null;
+    if (data.meta?.themes && typeof data.meta.themes === 'object') compact.themes = data.meta.themes;
+    return compact;
+  }
+  compact.gateBlocked = true;
+  if (outcome === READING_OUTCOME.SUPPORT) {
+    compact.gateReason = 'crisis_gate';
+    if (typeof result.reading === 'string' && result.reading.trim()) compact.supportMessage = result.reading;
+  } else {
+    compact.gateReason = result.gateReason ?? null;
+  }
   return compact;
 }
 
@@ -180,11 +195,17 @@ function describeCards(cards) {
 }
 
 function statusText(compact) {
-  if (compact.status === 'complete') {
+  if (compact.status === 'error') return `The reading failed: ${compact.error}`;
+  if (compact.status !== 'complete') {
+    return 'The reading is still being written; call wait_for_tarot_reading again with the same jobId and jobToken; do not start a new reading.';
+  }
+  if (compact.reading !== undefined) {
     return `The reading is complete (requestId ${compact.requestId ?? 'unknown'}). Present the narrative in \`reading\` with the cards: ${describeCards(compact.cardsInfo)}.`;
   }
-  if (compact.status === 'error') return `The reading failed: ${compact.error}`;
-  return 'The reading is still being written; call wait_for_tarot_reading again with the same jobId and jobToken; do not start a new reading.';
+  if (compact.gateReason === 'crisis_gate') {
+    return 'Tableu did not write a reading: the question or reflections suggested the person may be in crisis, so it returned a support message in `supportMessage` instead. Set the cards aside and put their safety first: respond with care and share that support information. Do not interpret the cards, and do not offer to save this.';
+  }
+  return "Tableu held back this reading after its safety check, so there is no narrative to present. Tell the user plainly that this reading isn't available. Do not write a reading of these cards in its place, and do not start another reading unless they ask. It can't be saved to the journal.";
 }
 
 function lookupFailure(result) {
@@ -349,7 +370,7 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
     'wait_for_tarot_reading',
     {
       title: 'Wait for a reading',
-      description: `Waits up to timeoutSeconds (default ${WAIT_DEFAULT_SECONDS}, at most ${WAIT_MAX_SECONDS}) for a reading job to finish, then returns its status. When it is complete, \`reading\` holds the narrative. If it is still running, call this again with the same jobId and jobToken; never start a second reading for the same request.`,
+      description: `Waits up to timeoutSeconds (default ${WAIT_DEFAULT_SECONDS}, at most ${WAIT_MAX_SECONDS}) for a reading job to finish, then returns its status. When it is complete, \`reading\` holds the narrative; when Tableu returned a support message or held the reading back, \`reading\` is absent and the result text says what to do. If it is still running, call this again with the same jobId and jobToken; never start a second reading for the same request.`,
       inputSchema: waitInput,
       outputSchema: statusOutput,
       annotations: READ_ONLY,
