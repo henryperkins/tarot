@@ -113,3 +113,10 @@
 - Prompt metadata now surfaces GraphRAG state: `semanticScoringRequested/Used/Fallback`, `passagesProvided`, `passagesUsedInPrompt`, `truncatedPassages`, and `includedInPrompt`. Use these to warn when GraphRAG was dropped for budget or trimmed.
 - GraphRAG slimming steps can remove the block; check `promptMeta.graphRAG.includedInPrompt` before assuming passages were injected.
 - PII redaction covers ISO dates, US phone numbers with extensions, and possessive display names; it is still US-centric for phone formats. Prompt persistence stays opt-in via `PERSIST_PROMPTS=true`.
+
+## When Using Bend
+
+- Run `bend guide` to learn it.
+- Use `LAWS.bend` to keep important rules.
+- Run `bend PROOF.bend` before committing.
+- Parallelize the code whenever possible.
