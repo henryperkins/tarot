@@ -7,6 +7,7 @@ import { buildPositionCardText } from '../functions/lib/narrative/helpers.js';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts.js';
 import { analyzeSpreadThemes, selectReversalFramework } from '../functions/lib/spreadAnalysis.js';
 import { detectAllPatterns, getPriorityPatternNarratives } from '../functions/lib/knowledgeGraph.js';
+import { resolveReadingCards } from '../functions/lib/readingCardResolution.js';
 import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 
@@ -176,5 +177,34 @@ describe('deck-aware card names', () => {
 
     const thoth = buildPositionCardText(cardInfo('Nine of Swords', position), position, { deckStyle: 'thoth-a1' });
     assert.doesNotMatch(thoth, /Nine of Swords\) \(RWS: Nine of Swords\)/);
+  });
+
+  // Pattern highlights see resolved cards, whose `card` is the deck display
+  // label. "(RWS: …)" must still cite the canonical name (audit F04, 2026-09-29).
+  const highlightText = (labels, deckStyle) => {
+    const cards = resolveReadingCards(
+      labels.map((card, index) => ({ position: `Position ${index + 1}`, card, orientation: 'Upright', meaning: 'x' })),
+      deckStyle
+    );
+    return getPriorityPatternNarratives(detectAllPatterns(cards, { deckStyle }), deckStyle)
+      .map((highlight) => highlight.text)
+      .join('\n');
+  };
+
+  it('cite the canonical RWS card in Thoth highlights, not the display label', () => {
+    const text = highlightText(['Completion (Four of Wands)', 'Valour (Seven of Wands)', 'Prince of Disks'], 'thoth-a1');
+    assert.match(text, /Four of Wands/);
+    assert.doesNotMatch(text, /\(RWS: Completion \(Four of Wands\)\)/);
+    assert.doesNotMatch(text, /\(RWS: Valour \(Seven of Wands\)\)/);
+    assert.doesNotMatch(text, /\(RWS: [^)]*\(/, 'no display label nested inside an RWS citation');
+
+    const courts = highlightText(['Prince of Swords', 'Queen of Swords'], 'thoth-a1');
+    assert.match(courts, /Prince of Swords \(RWS: Knight of Swords\)/);
+  });
+
+  it('name each Marseille card once, with a single RWS citation', () => {
+    const text = highlightText(["L'Empereur (RWS: The Emperor)", 'Le Chariot (RWS: The Chariot)'], 'marseille-classic');
+    assert.match(text, /L'Empereur \(RWS: The Emperor\)/);
+    assert.doesNotMatch(text, /\(RWS: [^)]*\(RWS:/);
   });
 });

@@ -78,8 +78,11 @@ function getDeckMeta(deckStyle = 'rws-1909') {
   return DECK_STYLE_OVERRIDES[deckStyle] || null;
 }
 
+// The RWS base that deckAwareName cites as "(RWS: …)". Resolved cards keep the
+// deck display label in `card` ("Completion (Four of Wands)", "L'Empereur (RWS:
+// The Emperor)"), so the canonical name must come first.
 function getCardLabel(card) {
-  return card?.card || card?.name || card?.title || 'Unknown card';
+  return card?.canonicalName || card?.name || card?.card || card?.title || 'Unknown card';
 }
 
 function deckAwareSuitLabel(suit, deckStyle = 'rws-1909') {
