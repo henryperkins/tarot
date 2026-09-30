@@ -32,7 +32,7 @@
 
     <main id="content">
       <h1>Privacy Policy</h1>
-      <p class="meta">Effective September 29, 2026</p>
+      <p class="meta">Effective September 30, 2026</p>
 
       <p class="lede">
         Tableu is a tarot reading service operated by Lakefront Digital (&ldquo;we&rdquo;, &ldquo;us&rdquo;).
@@ -97,9 +97,19 @@
         <ul>
           <li><strong>Connecting.</strong> To connect Tableu in ChatGPT, you sign in to Tableu and approve access. We then store an authorization that lets ChatGPT use Tableu&rsquo;s tools for your account.</li>
           <li><strong>What we receive.</strong> When ChatGPT uses a Tableu tool, we receive what that tool needs, such as your question, the spread, cards you supply or a reflection you ask to save. ChatGPT may also send general hints, such as your language or approximate region, which we don&rsquo;t store. We don&rsquo;t receive your ChatGPT conversation history or your OpenAI account details.</li>
-          <li><strong>What we keep.</strong> A reading started from ChatGPT is kept for 24 hours so that ChatGPT can collect it. If you ask to save it, it goes into your Tableu journal and is kept like any other journal entry.</li>
-          <li><strong>What ChatGPT receives.</strong> The cards, reading text and journal confirmations we send back to ChatGPT are handled by OpenAI under the <a href="https://openai.com/policies/privacy-policy/">OpenAI Privacy Policy</a>.</li>
+          <li><strong>What we keep.</strong> Temporary reading jobs started through ChatGPT expire 24 hours after they finish, fail or are cancelled, and are scheduled for deletion. This gives ChatGPT time to collect a finished reading and lets you ask to save an eligible reading during that period. If a job never finishes, its temporary data is scheduled for deletion 24 hours after it started. If you ask to save a reading, the journal copy follows the journal retention period in section 5. Separate quality and feedback records follow their own retention period there.</li>
+          <li>
+            <strong>What ChatGPT receives.</strong> Depending on the tool used, we return:
+            <ul>
+              <li>Your linked account&rsquo;s name and username-based nickname when available, and a stable account identifier, when the account lookup tool is used.</li>
+              <li>The spread, cards and their meanings and orientations, the draw seed where applicable, reading text or a support message, a short pattern summary, and the reading&rsquo;s progress or error status.</li>
+              <li>References that identify a reading job or saved journal entry so later requests can refer to it. Current responses also include a reading request identifier and the creation time of a saved journal entry.</li>
+              <li>Confirmation that a reading or reflection was saved or already present. A reflection response includes its target and the text currently saved at that target, which can include earlier notes on the same reading or card.</li>
+            </ul>
+          </li>
         </ul>
+        <p>For compatibility with older connections, reading-start responses currently also include a legacy job token. Tableu&rsquo;s ChatGPT tools do not use that token to authorize later status, cancellation or save requests; they check the linked account instead.</p>
+        <p>The information we send back to ChatGPT is handled by OpenAI under the <a href="https://openai.com/policies/privacy-policy/">OpenAI Privacy Policy</a>.</p>
       </section>
 
       <section aria-labelledby="use">
@@ -191,8 +201,12 @@
               <td>Until you delete them. Memories from a single session are deleted after 7 days, and others after one year. We keep at most 100 per person.</td>
             </tr>
             <tr>
-              <th scope="row">Readings started in ChatGPT and not saved</th>
-              <td>24 hours</td>
+              <th scope="row">Temporary reading-job data from ChatGPT</th>
+              <td>Expires and is scheduled for deletion 24 hours after completion, failure or cancellation. If the job never finishes, deletion is scheduled 24 hours after it started.</td>
+            </tr>
+            <tr>
+              <th scope="row">Temporary reading-job data from the Tableu website</th>
+              <td>Expires and is scheduled for deletion one hour after completion, failure or cancellation. If the job never finishes, deletion is scheduled one hour after it started.</td>
             </tr>
             <tr>
               <th scope="row">Quality records and reading feedback</th>
@@ -228,6 +242,7 @@
             </tr>
           </tbody>
         </table>
+        <p>The temporary job limits apply even if you save a reading. Saved journal entries and separate quality and feedback records follow their own rows in this table. Deleting temporary job data does not delete the copy already returned to ChatGPT.</p>
       </section>
 
       <section aria-labelledby="choices">
