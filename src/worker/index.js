@@ -381,10 +381,15 @@ function addCorsHeaders(response, request) {
  * @property {DurableObjectNamespace} READING_JOBS - Durable Object namespace for reading jobs
  * @property {R2Bucket} R2_LOGS - R2 bucket for logs, archives, and exports
  * @property {*} AI - Workers AI binding for evaluation
- * @property {string} MODAL_PROXY_TOKEN - Modal endpoint proxy token (Bearer value)
+ * @property {string} MODAL_PROXY_TOKEN_ID - Modal proxy token ID (paired with the secret)
+ * @property {string} MODAL_PROXY_TOKEN_SECRET - Modal proxy token secret; paired Bearer value is ID.SECRET
+ * @property {string} MODAL_PROXY_TOKEN - Legacy combined Modal Bearer value, used only when both pair fields are absent
  * @property {string} MODAL_ENDPOINT_URL - Modal endpoint base URL
  * @property {string} MODAL_MODEL - Modal Chat Completions model id
  * @property {string} MODAL_REASONING_EFFORT - Modal reasoning effort
+ * @property {string} MODAL_STREAM - Enable upstream Chat Completions streaming (default true)
+ * @property {string} MODAL_TEMPERATURE - Modal sampling temperature (default 0.3)
+ * @property {string} MODAL_TOP_P - Modal nucleus sampling probability (default 0.95)
  * @property {string} MODAL_TIMEOUT_MS - Modal request timeout in milliseconds
  * @property {string} AZURE_OPENAI_ENDPOINT - Azure OpenAI endpoint
  * @property {string} AZURE_OPENAI_API_KEY - Azure OpenAI API key

@@ -32,6 +32,11 @@ export const AMBIGUOUS_CARD_NAMES = new Set([
   'temperance',
   'death',
   'judgement',
+  // Common Thoth Major aliases need the same context as canonical card names.
+  'adjustment',
+  'lust',
+  'art',
+  'fortune',
   // Astronomical terms that overlap with card names
   // These commonly appear in ephemeris context ("The Moon is full tonight")
   'the moon',
@@ -92,6 +97,9 @@ export function hasExplicitCardContext(text = '', name = '') {
 
     // Markdown bold formatting: "**Death**", "**Justice**"
     new RegExp(`\\*\\*${namePattern}\\*\\*`, 'i'),
+
+    // A card-only Markdown heading, optionally followed by a position label.
+    new RegExp(`(?:^|\\n)[\\t ]{0,3}#{1,6}[\\t ]+(?:\\*\\*)?${namePattern}(?:\\*\\*)?(?=[\\t ]*(?:$|\\n|[:\\-–—]))`, 'i'),
 
     // Position labels: "Present: Death", "Card 1: Justice", "Outcome — Death"
     // Common position words followed by colon/dash and the card name

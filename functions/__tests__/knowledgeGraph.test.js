@@ -108,6 +108,46 @@ describe('detectFoolsJourneyStage', () => {
   });
 });
 
+describe('Major Arcana deck-aware pattern labels', () => {
+  const decks = [
+    ['thoth-a1', 'Lust', 'Adjustment'],
+    ['marseille-classic', 'La Force', 'La Justice']
+  ];
+
+  for (const [deckStyle, strengthAlias, justiceAlias] of decks) {
+    for (const shape of ['name', 'card', 'resolved']) {
+      it(`preserves Strength and Justice identities in ${deckStyle} ${shape} inputs`, () => {
+        const cards = [
+          { number: 8, canonical: 'Strength', alias: strengthAlias },
+          { number: 11, canonical: 'Justice', alias: justiceAlias }
+        ].map(({ number, canonical, alias }) => shape === 'resolved'
+          ? { number, card: alias, canonicalName: canonical }
+          : { number, [shape]: canonical });
+        const expected = [`${strengthAlias} (RWS: Strength)`, `${justiceAlias} (RWS: Justice)`];
+
+        const stage = detectFoolsJourneyStage(cards, { deckStyle });
+        assert.deepStrictEqual(stage.displayNames, expected);
+        const dyads = detectArchetypalDyads(cards, { deckStyle });
+        assert.deepStrictEqual(dyads[0].names, expected);
+        const narratives = getPriorityPatternNarratives(detectAllPatterns(cards, { deckStyle }), deckStyle);
+        assert.ok(narratives.some(({ text }) => expected.every((name) => text.includes(name))));
+      });
+    }
+
+    it(`preserves native ${deckStyle} alias names and ordinals`, () => {
+      const cards = [{ number: 11, name: strengthAlias }, { number: 8, name: justiceAlias }];
+      const stage = detectFoolsJourneyStage(cards, { deckStyle });
+      assert.deepStrictEqual(stage.displayNames, [strengthAlias, justiceAlias]);
+    });
+  }
+
+  it('keeps RWS Strength and Justice names unchanged', () => {
+    const cards = [{ number: 8, name: 'Strength' }, { number: 11, name: 'Justice' }];
+    assert.deepStrictEqual(detectFoolsJourneyStage(cards).displayNames, ['Strength', 'Justice']);
+    assert.deepStrictEqual(detectArchetypalDyads(cards)[0].names, ['Strength', 'Justice']);
+  });
+});
+
 describe('detectArchetypalTriads', () => {
   it('detects complete Death-Temperance-Star triad', () => {
     const cards = [

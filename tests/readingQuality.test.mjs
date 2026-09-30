@@ -367,6 +367,34 @@ describe('detectHallucinatedCards', () => {
   });
 
   describe('Thoth deck alias handling', () => {
+    it('maps the reordered Strength and Justice aliases to their canonical identities', () => {
+      assert.deepStrictEqual(
+        detectHallucinatedCards('The **Adjustment** card and **Lust** appear.', [], 'thoth-a1').sort(),
+        ['Justice', 'Strength']
+      );
+      assert.deepStrictEqual(detectHallucinatedCards('**Adjustment** appears.', [{ card: 'Justice', canonicalName: 'Justice' }], 'thoth-a1'), []);
+      assert.deepStrictEqual(detectHallucinatedCards('**Lust** appears.', [{ card: 'Strength', canonicalName: 'Strength' }], 'thoth-a1'), []);
+      assert.deepStrictEqual(detectHallucinatedCards('**Justice** appears.', [{ card: 'Adjustment' }], 'thoth-a1'), []);
+      assert.deepStrictEqual(detectHallucinatedCards('**Strength** appears.', [{ card: 'Lust' }], 'thoth-a1'), []);
+    });
+
+    it('does not count common Thoth Major vocabulary as an undrawn card', () => {
+      const text = 'Weather that favors refinement and adjustment over brand-new starts. Art, lust, and fortune can be ordinary subjects.';
+      assert.deepStrictEqual(detectHallucinatedCards(text, [], 'thoth-a1'), []);
+    });
+
+    it('continues to report explicit undrawn Thoth Major aliases', () => {
+      const text = 'The Adjustment card, **Lust**, Art reversed, and Fortune upright appear.';
+      assert.deepStrictEqual(detectHallucinatedCards(text, [], 'thoth-a1').sort(), ['Justice', 'Strength', 'Temperance', 'Wheel of Fortune']);
+    });
+
+    it('recognizes explicit Thoth Major headings including a misspelled alias', () => {
+      const text = '### Adjustmnt — Advice\nBalance the choices.\n\n### Lust\nAcknowledge courage.\n\n### Art — Outcome\nBlend patiently.';
+      assert.deepStrictEqual(detectHallucinatedCards(text, [], 'thoth-a1').sort(), ['Justice', 'Strength', 'Temperance']);
+      const drawn = ['Justice', 'Strength', 'Temperance'].map((canonicalName) => ({ card: canonicalName, canonicalName }));
+      assert.deepStrictEqual(detectHallucinatedCards(text, drawn, 'thoth-a1'), []);
+    });
+
     it('does not flag Princess when Page is in spread', () => {
       const text = 'The **Princess of Cups** brings emotional intuition.';
       const cardsInfo = [{ card: 'Page of Cups', position: 'Present' }];

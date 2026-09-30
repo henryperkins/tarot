@@ -24,7 +24,7 @@ const DETERMINISTIC_PATTERNS = [
 ];
 
 const NEGATED_DETERMINISTIC_PATTERNS = [
-  /\b(?:not|never)\s+(?:(?:a\s+)?guaranteed|fated to|destined to|set in stone|inescapable|an? inevitable outcome)\b/giu,
+  /\b(?:not|never|(?:is|are|was|were)n['’]t)\s+(?:(?:a\s+)?guaranteed|fated to|destined to|set in stone|inescapable|an? inevitable outcome)\b/giu,
   /\bnothing(?:\s+[\p{L}'’-]+){0,4}\s+(?:is|was|will be)\s+guaranteed\b/giu,
   /\bno\s+(?:outcome|result|path|future)(?:\s+[\p{L}'’-]+){0,3}\s+(?:is|was|will be)\s+guaranteed\b/giu
 ];
@@ -170,6 +170,9 @@ function buildIssueNotes(result) {
   if (result.hallucinatedCards.length) {
     notes.push(`Hallucinated cards referenced: ${result.hallucinatedCards.join(', ')}`);
   }
+  for (const { suit, claimed, actual } of result.suitCountMismatches) {
+    notes.push(`Suit count mismatch: ${suit} claimed ${claimed}, actual ${actual}`);
+  }
   if (result.hasHarshTone) {
     notes.push('Harsh/imperative tone detected');
   }
@@ -201,6 +204,9 @@ function buildIssueFlags(result) {
   }
   if (result.hallucinatedCards.length) {
     flags.push(`hallucinated-cards(${result.hallucinatedCards.length})`);
+  }
+  if (result.suitCountMismatches.length) {
+    flags.push(`suit-count-mismatch(${result.suitCountMismatches.length})`);
   }
   if (result.hasHarshTone) {
     flags.push('harsh-tone');
@@ -235,6 +241,7 @@ function summarizeSample(sample) {
   const deterministicLanguage = containsDeterministicLanguage(plainReading);
   const hasAgencyLanguage = containsPattern(plainReading, AGENCY_PATTERNS);
   const hallucinatedCards = runtimeMetrics.hallucinatedCards || [];
+  const suitCountMismatches = runtimeMetrics.suitCountMismatches || [];
   const tone = analyzeToneSignals(plainReading);
   // A reading can cover every card and still ignore the querent: check that it
   // engages the question and is not one template repeated per card.
@@ -246,6 +253,7 @@ function summarizeSample(sample) {
     deterministicLanguage,
     hasAgencyLanguage,
     hallucinatedCards,
+    suitCountMismatches,
     hasHarshTone: tone.harsh,
     hasSupportiveTone: tone.supportive,
     questionEngagement,
@@ -278,6 +286,7 @@ function summarizeSample(sample) {
     deterministicLanguage,
     hasAgencyLanguage,
     hallucinatedCards,
+    suitCountMismatches,
     hasSupportiveTone: tone.supportive,
     hasHarshTone: tone.harsh,
     questionEngagement: {
@@ -375,6 +384,7 @@ async function main() {
   const deterministicCount = analyses.filter((result) => result.deterministicLanguage).length;
   const missingAgencyCount = analyses.filter((result) => !result.hasAgencyLanguage).length;
   const hallucinationCount = analyses.filter((result) => result.hallucinatedCards.length > 0).length;
+  const suitCountMismatchCount = analyses.filter((result) => result.suitCountMismatches.length > 0).length;
   const harshToneCount = analyses.filter((result) => result.hasHarshTone).length;
   const missingSupportiveToneCount = analyses.filter((result) => !result.hasSupportiveTone).length;
   const questionNotAddressedCount = analyses.filter((result) => !result.questionEngagement.addressed).length;
@@ -409,6 +419,7 @@ async function main() {
     deterministicLanguageCount: deterministicCount,
     missingAgencyCount,
     hallucinationCount,
+    suitCountMismatchCount,
     harshToneCount,
     missingSupportiveToneCount,
     questionNotAddressedCount,

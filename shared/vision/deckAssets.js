@@ -150,9 +150,19 @@ function buildThothMinorAlias(card) {
   return `${rankLabel} of ${suitAlias}`;
 }
 
+// Catalog numbers use RWS ordering. Thoth and Marseille place Justice at VIII
+// and Strength at XI; native deck labels already carry their own ordinals.
+function getReorderedMajorNumber(card) {
+  const rawName = card?.canonicalName || card?.name;
+  const name = typeof rawName === 'string' ? rawName.trim().toLowerCase() : '';
+  if (name === 'strength') return 11;
+  if (name === 'justice') return 8;
+  return card?.number;
+}
+
 export function getThothAlias(card) {
   if (typeof card?.number === 'number') {
-    return THOTH_MAJOR_ALIASES[card.number] || card?.name || 'Major Arcana';
+    return THOTH_MAJOR_ALIASES[getReorderedMajorNumber(card)] || card?.name || 'Major Arcana';
   }
   return buildThothMinorAlias(card);
 }
@@ -160,7 +170,7 @@ export function getThothAlias(card) {
 export function getThothImagePath(card) {
   if (typeof card?.number === 'number') {
     const alias = getThothAlias(card);
-    return `/images/cards/thoth/thoth_major_${pad2(card.number)}_${slugify(alias)}.png`;
+    return `/images/cards/thoth/thoth_major_${pad2(getReorderedMajorNumber(card))}_${slugify(alias)}.png`;
   }
   if (!card?.suit || typeof card?.rankValue !== 'number') {
     return null;
@@ -181,7 +191,7 @@ export function getThothImagePath(card) {
 
 export function getMarseilleAlias(card) {
   if (typeof card?.number === 'number') {
-    const alias = MARSEILLE_MAJOR_ALIASES[card.number];
+    const alias = MARSEILLE_MAJOR_ALIASES[getReorderedMajorNumber(card)];
     if (alias) {
       return card?.name && card.name !== alias ? `${alias} (RWS: ${card.name})` : alias;
     }
@@ -200,7 +210,7 @@ export function getMarseilleAlias(card) {
 
 export function getMarseilleImagePath(card) {
   if (typeof card?.number === 'number') {
-    return `/images/cards/marseille/major${pad2(card.number)}.jpg`;
+    return `/images/cards/marseille/major${pad2(getReorderedMajorNumber(card))}.jpg`;
   }
   if (!card?.suit || typeof card?.rankValue !== 'number') {
     return null;

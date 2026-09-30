@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { modalSseResponse } from './helpers/modalSse.mjs';
+
 import { onRequestGet, onRequestPost } from '../functions/api/tarot-reading.js';
 
 function makeRequest(payload) {
@@ -214,7 +216,7 @@ describe('streaming gate metadata', () => {
       env: {
         MODAL_PROXY_TOKEN: 'wk-test.ws-test',
         MODAL_ENDPOINT_URL: 'https://example.modal.direct',
-        MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B'
+        MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking'
       }
     });
     assert.equal((await modalResponse.json()).provider, 'modal-qwen');
@@ -230,32 +232,7 @@ describe('streaming gate metadata', () => {
       requestedUrls.push(String(url));
 
       if (String(url).endsWith('/v1/chat/completions')) {
-        return new Response(JSON.stringify({
-          id: 'modal-stream-priority',
-          object: 'chat.completion',
-          created: 1787866189,
-          model: 'Qwen/Qwen3.8-2.4T-A95B',
-          choices: [
-            {
-              index: 0,
-              message: {
-                role: 'assistant',
-                content: VALID_MODAL_READING,
-                reasoning_content: 'Private model reasoning.'
-              },
-              finish_reason: 'stop'
-            }
-          ],
-          usage: {
-            prompt_tokens: 200,
-            completion_tokens: 300,
-            total_tokens: 500,
-            reasoning_tokens: 100
-          }
-        }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        });
+        return modalSseResponse(VALID_MODAL_READING);
       }
 
       return new Response(createAzureStream([VALID_MODAL_READING]), {
@@ -267,7 +244,7 @@ describe('streaming gate metadata', () => {
     const env = {
       MODAL_PROXY_TOKEN: 'wk-test.ws-test',
       MODAL_ENDPOINT_URL: 'https://example.modal.direct',
-      MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B',
+      MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking',
       OPENAI_API_KEY: 'openai-test-key',
       OPENAI_BASE_URL: 'https://api.openai.example',
       OPENAI_MODEL: 'gpt-5-test',
@@ -291,6 +268,8 @@ describe('streaming gate metadata', () => {
       assert.equal(meta?.data.provider, 'modal-qwen');
       assert.equal(done?.data.provider, 'modal-qwen');
       assert.equal(done?.data.fullText, VALID_MODAL_READING);
+      assert.equal(events.filter((event) => event.event === 'delta').map((event) => event.data.text).join(''), VALID_MODAL_READING);
+      assert.ok(!JSON.stringify(events).includes('Private provider reasoning'));
       assert.deepEqual(requestedUrls, ['https://example.modal.direct/v1/chat/completions']);
     } finally {
       globalThis.fetch = originalFetch;
@@ -299,29 +278,12 @@ describe('streaming gate metadata', () => {
 
   it('forces a safety scan for buffered Modal SSE output when streaming gates are disabled', async () => {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => new Response(JSON.stringify({
-      id: 'modal-unsafe-reading',
-      object: 'chat.completion',
-      model: 'Qwen/Qwen3.8-2.4T-A95B',
-      choices: [
-        {
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: UNSAFE_MODAL_READING
-          },
-          finish_reason: 'stop'
-        }
-      ]
-    }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' }
-    });
+    globalThis.fetch = async () => modalSseResponse(UNSAFE_MODAL_READING);
 
     const env = {
       MODAL_PROXY_TOKEN: 'wk-test.ws-test',
       MODAL_ENDPOINT_URL: 'https://example.modal.direct',
-      MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B',
+      MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking',
       OPENAI_STREAMING_ENABLED: 'true',
       ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
       EVAL_ENABLED: 'false',
@@ -343,10 +305,54 @@ describe('streaming gate metadata', () => {
       assert.equal(meta?.data.gateReason, 'safety_flag_true');
       assert.equal(done?.data.gateBlocked, true);
       assert.ok(done?.data.fullText.includes('A Moment of Reflection'));
-      assert.ok(!done?.data.fullText.includes('hurt him'));
+      assert.ok(!JSON.stringify(events).includes('hurt him'));
+      assert.ok(!JSON.stringify(events).includes('Private provider reasoning'));
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  it('waits for the complete Modal stream before delivering a reading to an SSE client', async (t) => {
+    const encoder = new TextEncoder();
+    let finishUpstream;
+    let firstChunkSent;
+    const upstreamStarted = new Promise((resolve) => { firstChunkSent = resolve; });
+    t.mock.method(globalThis, 'fetch', async () => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: VALID_MODAL_READING }, finish_reason: null }] })}\n\n`));
+        firstChunkSent();
+        finishUpstream = () => {
+          controller.enqueue(encoder.encode('data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'));
+          controller.close();
+        };
+      }
+    }), { headers: { 'content-type': 'text/event-stream' } }));
+
+    let responseReturned = false;
+    const pendingResponse = onRequestPost({
+      request: makeRequest(BASE_PAYLOAD),
+      env: {
+        MODAL_PROXY_TOKEN: 'reading-test-token',
+        MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking',
+        MODAL_ENDPOINT_URL: 'https://example.modal.direct',
+        EVAL_ENABLED: 'false',
+        EVAL_GATE_ENABLED: 'false',
+        GRAPHRAG_ENABLED: 'false'
+      }
+    }).then((response) => {
+      responseReturned = true;
+      return response;
+    });
+    await upstreamStarted;
+    await new Promise((resolve) => setImmediate(resolve));
+    try {
+      assert.equal(responseReturned, false, 'unvetted partial text must not become a public response');
+    } finally {
+      finishUpstream();
+    }
+    const response = await pendingResponse;
+    const events = await collectSSEEvents(response);
+    assert.equal(events.find((event) => event.event === 'done')?.data.fullText, VALID_MODAL_READING);
   });
 
   it('redacts Modal upstream failure details when a Responses fallback succeeds', async () => {
@@ -375,7 +381,7 @@ describe('streaming gate metadata', () => {
     const env = {
       MODAL_PROXY_TOKEN: 'wk-test.ws-test',
       MODAL_ENDPOINT_URL: 'https://example.modal.direct',
-      MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B',
+      MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking',
       OPENAI_API_KEY: 'openai-test-key',
       OPENAI_BASE_URL: 'https://api.openai.example',
       OPENAI_MODEL: 'gpt-5-test',
@@ -411,8 +417,10 @@ describe('streaming gate metadata', () => {
     }
   });
 
-  for (const stream of [false, true]) {
-    it(`falls back from truncated Modal text before returning ${stream ? 'SSE' : 'JSON'}`, async (t) => {
+  for (const { stream, finishReason } of [false, true].flatMap((stream) => (
+    ['length', 'tool_calls'].map((finishReason) => ({ stream, finishReason }))
+  ))) {
+    it(`falls back from a Modal ${finishReason} completion before returning ${stream ? 'SSE' : 'JSON'}`, async (t) => {
       const requestedUrls = [];
       const truncatedReading = `${VALID_MODAL_READING}\n\nA truncated closing that ends before`;
       t.mock.method(globalThis, 'fetch', async (url) => {
@@ -421,8 +429,14 @@ describe('streaming gate metadata', () => {
           return new Response(JSON.stringify({
             choices: [{
               index: 0,
-              message: { role: 'assistant', content: truncatedReading },
-              finish_reason: 'length'
+              message: {
+                role: 'assistant',
+                content: truncatedReading,
+                ...(finishReason === 'tool_calls' ? {
+                  tool_calls: [{ id: 'unsolicited-call', type: 'function', function: { name: 'save_reading', arguments: '{}' } }]
+                } : {})
+              },
+              finish_reason: finishReason
             }]
           }), { headers: { 'content-type': 'application/json' } });
         }
@@ -437,7 +451,7 @@ describe('streaming gate metadata', () => {
       const env = {
         MODAL_PROXY_TOKEN: 'wk-test.ws-test',
         MODAL_ENDPOINT_URL: 'https://example.modal.direct',
-        MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B',
+        MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking',
         OPENAI_API_KEY: 'openai-test-key',
         OPENAI_BASE_URL: 'https://api.openai.example',
         OPENAI_MODEL: 'gpt-5-test',
@@ -480,6 +494,36 @@ describe('streaming gate metadata', () => {
         'https://example.modal.direct/v1/chat/completions',
         'https://api.openai.example/v1/responses'
       ]);
+    });
+  }
+
+  for (const stream of [false, true]) {
+    it(`withholds an incorrect suit count before returning ${stream ? 'SSE' : 'JSON'}`, async (t) => {
+      const incorrect = `${VALID_MODAL_READING}\n\nFour Cups cards dominate this spread.`;
+      t.mock.method(globalThis, 'fetch', async (url) => String(url).endsWith('/v1/chat/completions')
+        ? modalSseResponse(incorrect)
+        : Response.json({ output_text: VALID_MODAL_READING }));
+      const env = {
+        MODAL_PROXY_TOKEN: 'wk-test.ws-test', MODAL_ENDPOINT_URL: 'https://example.modal.direct',
+        OPENAI_API_KEY: 'fixture-key', OPENAI_BASE_URL: 'https://api.openai.example', OPENAI_MODEL: 'gpt-5-test',
+        EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false', GRAPHRAG_ENABLED: 'false'
+      };
+      const request = stream ? makeRequest(BASE_PAYLOAD) : new Request('http://localhost/api/tarot-reading', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(BASE_PAYLOAD)
+      });
+      const response = await onRequestPost({ request, env });
+      assert.equal(response.status, 200);
+      if (stream) {
+        const events = await collectSSEEvents(response);
+        assert.equal(events.find((event) => event.event === 'done')?.data.provider, 'openai-native');
+        assert.equal(events.find((event) => event.event === 'done')?.data.fullText, VALID_MODAL_READING);
+        assert.ok(!JSON.stringify(events).includes('Four Cups cards'));
+      } else {
+        const result = await response.json();
+        assert.equal(result.provider, 'openai-native');
+        assert.equal(result.reading, VALID_MODAL_READING);
+        assert.ok(!JSON.stringify(result).includes('Four Cups cards'));
+      }
     });
   }
 

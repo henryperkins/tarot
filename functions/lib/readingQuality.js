@@ -17,11 +17,10 @@ import {
 } from './cardContextDetection.js';
 import { canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
 import {
-  THOTH_MAJOR_ALIASES,
+  getDeckAlias,
   THOTH_MINOR_TITLES,
   THOTH_SUIT_ALIASES,
   THOTH_COURT_ALIASES,
-  MARSEILLE_MAJOR_ALIASES,
   MARSEILLE_SUIT_ALIASES,
   MARSEILLE_COURT_ALIASES
 } from '../../shared/vision/deckAssets.js';
@@ -36,6 +35,7 @@ import { normalizeVisionLabel } from './visionLabels.js';
 import { resolveVisionCardIdentity } from './visionProof.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
+import { detectSuitCountMismatches } from './readingSuitCounts.js';
 import {
   RELATIONSHIP_SPREAD_MIN_CARDS,
   RELATIONSHIP_SPREAD_MAX_CARDS
@@ -172,7 +172,7 @@ export function buildCardAliases(card, deckStyle = 'rws-1909') {
   if (deckStyle === 'thoth-a1') {
     // Major Arcana Thoth aliases
     if (typeof card.number === 'number') {
-      const thothName = THOTH_MAJOR_ALIASES[card.number];
+      const thothName = getDeckAlias(card, deckStyle);
       if (thothName && thothName !== card.name) {
         aliases.push(thothName);
       }
@@ -212,7 +212,8 @@ export function buildCardAliases(card, deckStyle = 'rws-1909') {
   } else if (deckStyle === 'marseille-classic') {
     // Major Arcana Marseille aliases
     if (typeof card.number === 'number') {
-      const marseilleName = MARSEILLE_MAJOR_ALIASES[card.number];
+      const deckAlias = getDeckAlias(card, deckStyle);
+      const marseilleName = deckAlias.split(' (RWS:')[0];
       if (marseilleName && marseilleName !== card.name) {
         aliases.push(marseilleName);
         // Also add the parenthetical form that getMarseilleAlias produces
@@ -393,6 +394,12 @@ function extractCardCandidates(text = '') {
   let match;
   while ((match = boldPattern.exec(text)) !== null) {
     addCandidate(match[1], true);
+  }
+
+  const headingPattern = /^[\t ]{0,3}#{1,6}[\t ]+([^\n]{2,80})$/gm;
+  while ((match = headingPattern.exec(text)) !== null) {
+    const name = match[1].split(/\s*[:–—]\s*|\s+-\s+/)[0];
+    addCandidate(name, true);
   }
 
   const ofPattern = /\b([A-Za-z]{1,12}|\d+|[IVX]{1,6})\s+of\s+([A-Za-z]{2,15})\b/gi;
@@ -953,7 +960,8 @@ export function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1
     cardCount: safeCards.length,
     cardCoverage: coverage.coverage,
     missingCards: coverage.missingCards,
-    hallucinatedCards
+    hallucinatedCards,
+    suitCountMismatches: detectSuitCountMismatches(metricsText, safeCards, deckStyle)
   };
 }
 

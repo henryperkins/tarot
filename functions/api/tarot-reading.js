@@ -304,6 +304,9 @@ function evaluateQualityGate({ readingText, cardsInfo, deckStyle, analysis, requ
   const spreadKey = analysis?.spreadKey || null;
   const qualityMetrics = buildNarrativeMetrics(text, safeCards, deckStyle);
   const qualityIssues = [];
+  for (const mismatch of qualityMetrics.suitCountMismatches) {
+    qualityIssues.push(`incorrect ${mismatch.suit} count (${mismatch.claimed} claimed; ${mismatch.actual} drawn)`);
+  }
 
   const { minCoverage, maxHallucinations, highWeightThreshold, minSpineCompletion } = getQualityGateThresholds(
     spreadKey,

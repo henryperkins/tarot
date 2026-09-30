@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import { buildSpreadInsightSections, findInsightCardMentions } from '../src/lib/spreadInsights.js';
 import { getCardForDeck } from '../src/lib/cardLookup.js';
 import { getPassageSource } from '../shared/passageSource.js';
+import { canonicalizeCardName } from '../shared/vision/cardNameMapping.js';
+import { getDeckAlias, getDeckImagePath } from '../shared/vision/deckAssets.js';
 
 test('insight summary prioritizes detected patterns and retains every item once', () => {
   const spread = [
@@ -60,6 +62,30 @@ test('deck display preserves canonical identity, orientation, and matching artwo
   assert.match(marseille.image, /marseille\/major14/);
   assert.equal(marseille.canonicalName, 'Temperance');
   assert.deepEqual(original, { name: 'Temperance', isReversed: true });
+});
+
+for (const [deckStyle, canonicalName, alias, image] of [
+  ['thoth-a1', 'Strength', 'Lust', '/images/cards/thoth/thoth_major_11_lust.png'],
+  ['thoth-a1', 'Justice', 'Adjustment', '/images/cards/thoth/thoth_major_08_adjustment.png'],
+  ['marseille-classic', 'Strength', 'La Force (RWS: Strength)', '/images/cards/marseille/major11.jpg'],
+  ['marseille-classic', 'Justice', 'La Justice (RWS: Justice)', '/images/cards/marseille/major08.jpg']
+]) {
+  test(`${deckStyle} preserves ${canonicalName} identity when the deck ordinal differs`, () => {
+    const displayed = getCardForDeck({ name: canonicalName, isReversed: true }, deckStyle);
+    assert.equal(displayed.name, alias);
+    assert.equal(displayed.image, image);
+    assert.equal(displayed.canonicalName, canonicalName);
+    assert.equal(displayed.isReversed, true);
+    assert.equal(canonicalizeCardName(alias, deckStyle), canonicalName);
+    assert.equal(canonicalizeCardName(alias.split(' (RWS:')[0], deckStyle), canonicalName);
+  });
+}
+
+test('deck-native aliases retain their own ordinals and artwork', () => {
+  assert.equal(getDeckAlias({ name: 'Adjustment', number: 8 }, 'thoth-a1'), 'Adjustment');
+  assert.equal(getDeckImagePath({ name: 'Lust', number: 11 }, 'thoth-a1'), '/images/cards/thoth/thoth_major_11_lust.png');
+  assert.equal(getDeckAlias({ name: 'La Justice', number: 8 }, 'marseille-classic'), 'La Justice');
+  assert.equal(getDeckImagePath({ name: 'La Force', number: 11 }, 'marseille-classic'), '/images/cards/marseille/major11.jpg');
 });
 
 test('source labels cover legacy passages without inventing unknown provenance', () => {

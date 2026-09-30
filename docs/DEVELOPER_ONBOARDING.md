@@ -2,19 +2,20 @@
 
 Type: guide
 Status: active reference
-Last reviewed: 2026-09-25
+Last reviewed: 2026-09-30
 
 This guide is the current starting point for engineers working in the Tableu repository.
 
 ## Environment Bootstrap
 
-1. Create `.dev.vars` and populate the local secrets used by the Worker and local tooling.
+1. Create `.dev.vars` and populate the local secrets used by the Worker. Node evaluation scripts use exported shell credentials instead; see below.
 2. Run `npm run config:check` after adding or changing environment variables.
 3. Mirror production secrets with `wrangler secret put <NAME> --config wrangler.jsonc` when deploying.
 
 Common local variables include:
 
-- `MODAL_PROXY_TOKEN`, `MODAL_ENDPOINT_URL`, `MODAL_MODEL`, `MODAL_REASONING_EFFORT`, and `MODAL_TIMEOUT_MS` — primary `modal-qwen` narrative provider
+- `MODAL_PROXY_TOKEN_ID` and `MODAL_PROXY_TOKEN_SECRET` — primary `modal-qwen` credentials. Both are required together; the adapter forms the Bearer value as `ID.SECRET`. A partial or empty declared pair fails validation, even when legacy or fallback credentials exist. The legacy combined `MODAL_PROXY_TOKEN` works only when both pair fields are absent.
+- `MODAL_ENDPOINT_URL`, `MODAL_MODEL`, `MODAL_REASONING_EFFORT`, `MODAL_STREAM`, `MODAL_TEMPERATURE`, `MODAL_TOP_P`, and `MODAL_TIMEOUT_MS` — non-secret Modal settings from `wrangler.jsonc`
 - `OPENAI_API_KEY` — enables the native OpenAI Responses path in the `azure-gpt5` backend
 - `OPENAI_MODEL` (defaults to `gpt-5.6-sol` in `wrangler.jsonc`) and `OPENAI_STREAMING_ENABLED`
 - Azure OpenAI Responses fallback variables, if the native OpenAI path is not configured:
@@ -27,6 +28,18 @@ Common local variables include:
 - Auth variables such as `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_AUDIENCE`, `AUTH0_USERINFO_URL`, and `APP_URL` when testing auth flows
 
 `npm run config:check` validates selected provider and authentication variables; it is not a complete feature-secret audit. Set optional Stripe, Hume, Azure Speech, MCP/OAuth, email, media, and admin secrets only for the environments and routes that use them.
+
+Modal currently targets `https://henryperkins--ep-qwen3-8-max-vl-thinking-server.us-west.modal.direct/v1` with model `Qwen/Qwen3.8-Max-VL-Thinking`, high reasoning effort, upstream streaming enabled, temperature `0.3`, and top-p `0.95`. Full readings leave `max_tokens` unset. Only callers that explicitly provide a `maxTokens` option apply a cap; a stale `MODAL_MAX_TOKENS` environment value is ignored. Upstream streaming is collected before a complete reading is returned and does not by itself enable user-visible token streaming.
+
+Keep both credential parts in `.dev.vars` for local Worker development and in separately configured Worker secrets for authorized deployments. Never commit, log, or paste their values into command arguments. The configuration checker reads shell variables, then `.dev.vars`, then non-secret Wrangler defaults, and reports only names and sources.
+
+The narrative evaluator's default `production` environment profile combines exported shell variables with `wrangler.jsonc` settings; it does **not** load `.dev.vars`. Supply the token pair through the shell's secure environment before running:
+
+```bash
+NARRATIVE_EVAL_BACKEND=modal-qwen npm run ci:narrative-check
+```
+
+The evaluator calls the selected provider directly. Its results do not verify the hosted fallback chain, request safety gate, or live reviewer flow.
 
 ## Repo Shape
 

@@ -187,7 +187,7 @@ const SAMPLE_DEFINITIONS = [
 ];
 
 function usage() {
-  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|local-composer|azure-gpt5|claude-opus45] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
+  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|modal-qwen|local-composer|azure-gpt5|claude-opus45] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
   console.log(`\nOptions:`);
   console.log(`  --reference-time  Instant for astrological context (default ${DEFAULT_REFERENCE_TIME}; "now" for the live sky)`);
   console.log(`  --env-profile      "production" (default) layers the shell env over wrangler.jsonc vars; "shell" uses the shell env only`);
@@ -265,8 +265,8 @@ function describeBackendConfig(backendId, env) {
     return { provider, model, reasoningEffort: getReasoningEffort(env, model), verbosity: getTextVerbosity(env, model) };
   }
   if (backendId === 'modal-qwen') {
-    const { model, reasoningEffort } = ensureModalConfig(env);
-    return { provider: 'modal', model, reasoningEffort, verbosity: null };
+    const { model, reasoningEffort, stream, temperature, topP } = ensureModalConfig(env);
+    return { provider: 'modal', model, reasoningEffort, stream, temperature, topP, outputTokenCap: null, verbosity: null };
   }
   if (backendId === 'claude-opus45') {
     // null means the backend's built-in default model.

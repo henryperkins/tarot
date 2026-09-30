@@ -38,10 +38,19 @@ for separately authorized remote configuration. Never log values or user data.
 - `MCP_ALLOWED_USER_IDS` — Comma-separated Tableu user ids allowed to link ChatGPT;
   unset denies linking and existing-token access (kill switch). The var
   `MCP_RESOURCE_URL` pins the exact OAuth resource.
-- `MODAL_PROXY_TOKEN` — Authentication for the configured Modal narrative provider.
+- `MODAL_PROXY_TOKEN_ID` and `MODAL_PROXY_TOKEN_SECRET` — Modal proxy authentication; the adapter joins them with a dot for the Bearer value. Set both together. An incomplete or empty declared pair fails closed; legacy `MODAL_PROXY_TOKEN` is accepted only when both pair fields are absent.
 - `READING_JOB_PURGE_TOKEN` — Unset except while running
   `scripts/purge-expired-reading-jobs.mjs`; it enables
   `POST /api/admin/reading-jobs/retention` (see `docs/integrations/openai/chatgpt-mcp.md`).
+
+The Modal provider uses `Qwen/Qwen3.8-Max-VL-Thinking` at the configured `/v1`
+endpoint, high reasoning effort, upstream streaming, temperature `0.3`, and
+top-p `0.95`. Full readings omit `max_tokens`; explicit per-call `maxTokens`
+is the only supported cap. A legacy `MODAL_MAX_TOKENS` env value is ignored.
+Upstream streaming is buffered into the provider result before returning it.
+Keep non-secret defaults in `wrangler.jsonc` and credential values out of logs.
+The narrative evaluator reads exported shell credentials and Wrangler vars,
+not `.dev.vars`; that file supplies local Worker development and `config:check`.
 
 OAuth storage uses the dedicated `tableau-oauth` namespace bound as `OAUTH_KV`.
 Confirm authorization for resource or release changes; approval already granted

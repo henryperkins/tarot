@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import { onRequestPost } from '../functions/api/reading-followup.js';
+import { modalSseResponse } from './helpers/modalSse.mjs';
 
 const OPENAI_URL = 'https://openai.test/v1/responses';
 const MODAL_URL = 'https://modal.test/v1/chat/completions';
@@ -124,7 +125,7 @@ describe('follow-up falls back to the reading provider', () => {
 
   for (const [label, failure] of Object.entries(failures)) {
     test(`answers from Modal after ${label}`, async (t) => {
-      const calls = mockProviders(t, { openai: [failure], modal: [() => modalCompletion(MODAL_TEXT)] });
+      const calls = mockProviders(t, { openai: [failure], modal: [() => modalSseResponse(MODAL_TEXT)] });
       const db = database();
 
       const response = await onRequestPost({ env: { ...ENV, DB: db }, request: followUpRequest({ stream: true }) });
@@ -134,8 +135,10 @@ describe('follow-up falls back to the reading provider', () => {
       assert.equal(events.find(e => e.event === 'meta').data.provider, 'modal-qwen');
       assert.equal(events.find(e => e.event === 'done').data.fullText, MODAL_TEXT);
       assert.equal(finalizedProvider(db), 'modal-qwen');
+      assert.equal(calls.modal[0].stream, true);
+      assert.ok(!JSON.stringify(events).includes('Private provider reasoning'));
 
-      // Modal has no tools, so its prompt must not offer the memory tool the Responses call had.
+      // This fallback supplies no tools, so its prompt must not offer the Responses memory tool.
       assert.ok(calls.openai[0].instructions.includes('save_memory_note'));
       const [system, user] = calls.modal[0].messages;
       assert.equal(system.role, 'system');
@@ -143,6 +146,48 @@ describe('follow-up falls back to the reading provider', () => {
       assert.ok(user.content.includes(QUESTION));
     });
   }
+
+  test('accepts paired Modal credentials without a legacy token or explicit model', async (t) => {
+    const calls = mockProviders(t, {
+      openai: [failures['an in-stream credits error']],
+      modal: [() => modalSseResponse(MODAL_TEXT)]
+    });
+    const response = await onRequestPost({
+      env: {
+        ...ENV,
+        MODAL_PROXY_TOKEN: '',
+        MODAL_PROXY_TOKEN_ID: 'followup-test-id',
+        MODAL_PROXY_TOKEN_SECRET: 'followup-test-secret',
+        MODAL_MODEL: '',
+        DB: database()
+      },
+      request: followUpRequest({ stream: true })
+    });
+    assert.equal(response.status, 200);
+    const events = await readEvents(response);
+    assert.equal(events.find(e => e.event === 'done').data.fullText, MODAL_TEXT);
+    assert.equal(calls.modal[0].model, 'Qwen/Qwen3.8-Max-VL-Thinking');
+    assert.equal(calls.modal[0].reasoning_effort, 'high');
+  });
+
+  test('withholds unsafe fragmented Modal content before emitting any follow-up event', async (t) => {
+    const unsafeText = `${MODAL_TEXT} You should hurt him to make a point.`;
+    const calls = mockProviders(t, {
+      openai: [failures['an in-stream credits error']],
+      modal: [() => modalSseResponse(unsafeText)]
+    });
+    const db = database();
+    const response = await onRequestPost({
+      env: { ...ENV, DB: db },
+      request: followUpRequest({ stream: true })
+    });
+    assert.equal(response.status, 200);
+    const events = await readEvents(response);
+    assert.ok(events.find(e => e.event === 'done').data.fullText.length > 0);
+    assert.doesNotMatch(JSON.stringify(events), /hurt him|Private provider reasoning/);
+    assert.doesNotMatch(JSON.stringify(db.writes), /hurt him|Private provider reasoning/);
+    assert.equal(calls.modal[0].stream, true);
+  });
 
   test('keeps the Responses API answer when it succeeds', async (t) => {
     const calls = mockProviders(t, {

@@ -27,7 +27,7 @@ import {
 } from './narrativeBuilder.js';
 import { enhanceSection } from './narrativeSpine.js';
 import { callAzureResponses, getReasoningEffort, getTextVerbosity, OPENAI_DEFAULT_MODEL } from './azureResponses.js';
-import { callModalChatCompletions, MODAL_DEFAULT_MODEL } from './modalChatCompletions.js';
+import { callModalChatCompletions, ensureModalConfig, isModalConfigured } from './modalChatCompletions.js';
 import {
   buildReasoningAwareOpening,
   buildReasoningSynthesis,
@@ -76,12 +76,8 @@ export const LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE = 'local_composer_unsuppor
 export const NARRATIVE_BACKENDS = Object.freeze({
   'modal-qwen': Object.freeze({
     id: 'modal-qwen',
-    label: 'Qwen 3.8 via Modal Chat Completions',
-    isAvailable: (env) => Boolean(
-      env?.MODAL_PROXY_TOKEN &&
-      env?.MODAL_ENDPOINT_URL &&
-      env?.MODAL_MODEL
-    )
+    label: 'Qwen 3.8 Max VL Thinking via Modal Chat Completions',
+    isAvailable: isModalConfigured
   }),
   'azure-gpt5': Object.freeze({
     id: 'azure-gpt5',
@@ -775,7 +771,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown', optio
  * Generate a reading with the configured Qwen endpoint on Modal.
  */
 export async function generateWithModalQwen(env, payload, requestId = 'unknown') {
-  const effectiveModel = env?.MODAL_MODEL || MODAL_DEFAULT_MODEL;
+  const { model, reasoningEffort, stream } = ensureModalConfig(env);
   const { systemPrompt, userPrompt, promptMeta } = buildAzureGPT5Prompts(
     env,
     payload,
@@ -789,9 +785,9 @@ export async function generateWithModalQwen(env, payload, requestId = 'unknown')
 
   console.log(`[${requestId}] Request config:`, {
     provider: 'modal-qwen',
-    model: effectiveModel,
-    reasoning_effort: env?.MODAL_REASONING_EFFORT || 'medium',
-    stream: false
+    model,
+    reasoning_effort: reasoningEffort,
+    stream
   });
 
   const result = await callModalChatCompletions(env, {

@@ -4,6 +4,7 @@ import { buildExperienceLine, sanitizeDisplayName, resolveNarrativePreferenceCon
 import { sanitizeText } from '../../utils.js';
 import { prepareUserContext, renderUserContext } from './userContext.js';
 import { formatMemoriesForPrompt } from '../../userMemory.js';
+import { countDrawnSuits } from '../../readingSuitCounts.js';
 import {
   DEFAULT_REVERSAL_DESCRIPTION,
   USER_PROMPT_INSTRUCTION_HEADER
@@ -128,6 +129,11 @@ export function buildUserPrompt(
 
   // Thematic context
   const thematicLines = [];
+  const suitCounts = countDrawnSuits(cardsInfo, deckStyle);
+  if (cardsInfo?.length > 1 && Object.values(suitCounts).some((count) => count > 0)) {
+    thematicLines.push(`- Minor Arcana suit counts (count each drawn position once): ${Object.entries(suitCounts).map(([suit, count]) => `${suit}=${count}`).join('; ')}.`);
+    thematicLines.push('- Major Arcana have elemental associations but do not belong to a suit. Do not substitute element totals for suit counts; for example, a Water-associated Major is not a Cups card. Pentacles includes the Disks/Coins deck labels.');
+  }
   if (context && context !== 'general') {
     thematicLines.push(`- Context lens: Focus the narrative through ${getContextDescriptor(context)}`);
   }

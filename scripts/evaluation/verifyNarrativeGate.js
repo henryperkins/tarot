@@ -39,6 +39,7 @@ async function main() {
   const agencyIssues = metrics?.missingAgencyCount ?? 0;
   const flagged = metrics?.flaggedSampleCount ?? 0;
   const hallucinations = metrics?.hallucinationCount ?? 0;
+  const suitCountMismatches = metrics?.suitCountMismatchCount ?? 0;
   const harshTone = metrics?.harshToneCount ?? 0;
   const missingSupportive = metrics?.missingSupportiveToneCount ?? 0;
   const questionUnaddressed = metrics?.questionNotAddressedCount ?? 0;
@@ -62,6 +63,9 @@ async function main() {
   }
   if (hallucinations > MAX_HALLUCINATIONS) {
     failures.push(`Hallucinated card issues ${hallucinations} > limit ${MAX_HALLUCINATIONS}`);
+  }
+  if (suitCountMismatches > 0) {
+    failures.push(`Suit count mismatch issues ${suitCountMismatches} > limit 0`);
   }
   if (harshTone > MAX_HARSH_TONE) {
     failures.push(`Harsh-tone issues ${harshTone} > limit ${MAX_HARSH_TONE}`);
@@ -100,6 +104,7 @@ async function main() {
     deterministicLanguageCount: deterministicIssues,
     missingAgencyCount: agencyIssues,
     hallucinationCount: hallucinations,
+    suitCountMismatchCount: suitCountMismatches,
     harshToneCount: harshTone,
     missingSupportiveToneCount: missingSupportive,
     questionNotAddressedCount: questionUnaddressed,

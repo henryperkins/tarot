@@ -10,7 +10,7 @@ import { analyzeTemplateRepetition } from '../scripts/evaluation/lib/narrativeSi
 
 const execFileAsync = promisify(execFile);
 
-async function computeMetrics(samples) {
+async function computeMetrics(samples, { includeReview = false } = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), 'narrative-metrics-'));
   const input = path.join(dir, 'samples.json');
   const metricsOut = path.join(dir, 'metrics.json');
@@ -27,7 +27,8 @@ async function computeMetrics(samples) {
     reviewOut
   ]);
 
-  return JSON.parse(await readFile(metricsOut, 'utf8'));
+  const metrics = JSON.parse(await readFile(metricsOut, 'utf8'));
+  return includeReview ? { metrics, reviewQueue: await readFile(reviewOut, 'utf8') } : metrics;
 }
 
 async function verifyGate(metrics) {
@@ -186,7 +187,11 @@ test('narrative metrics retain positive guarantees in exception constructions', 
     'NOTHING BUT SUCCESS IS GUARANTEED.',
     'Nothing is guaranteed here; success is guaranteed elsewhere.',
     'This is not just a guaranteed success; it is a transformation.',
-    'Success is not a guaranteed result, but victory is guaranteed.'
+    'Success is not a guaranteed result, but victory is guaranteed.',
+    "This isn't just a guaranteed success; it is a transformation.",
+    'This isn’t just a guaranteed success; it is a transformation.',
+    "Success isn't a guaranteed result, but victory is guaranteed.",
+    'Success isn’t a guaranteed result, but victory is guaranteed.'
   ];
   const metrics = await computeMetrics(claims.map((claim, index) => sampleWithGuidance(`exception-${index}`, claim)));
 
@@ -202,7 +207,7 @@ test('narrative metrics retain positive guarantees in exception constructions', 
   });
 });
 
-test('narrative gate still accepts ordinary negated certainty claims', async () => {
+test('narrative gate accepts ordinary negated certainty including copular contractions', async () => {
   const claims = [
     'Nothing is guaranteed.',
     'Nothing here is guaranteed.',
@@ -215,7 +220,15 @@ test('narrative gate still accepts ordinary negated certainty claims', async () 
     'Your choices point toward a possibility, not a guaranteed endpoint.',
     'There is never a guaranteed outcome.',
     'You are not fated to follow this path.',
-    'This is not set in stone.'
+    'This is not set in stone.',
+    "The likely outcome isn't a guaranteed yes but an expanded sense of authorship.",
+    'The likely outcome isn’t a guaranteed yes but an expanded sense of authorship.',
+    "These outcomes aren't guaranteed.",
+    'These outcomes aren’t guaranteed.',
+    "The result wasn't guaranteed.",
+    'The result wasn’t guaranteed.',
+    "The outcomes weren't guaranteed.",
+    'The outcomes weren’t guaranteed.'
   ];
   const metrics = await computeMetrics(claims.map((claim, index) => sampleWithGuidance(`negated-${index}`, claim)));
 
@@ -337,6 +350,69 @@ test('narrative gate retains Markdown card context when checking undrawn misspel
   await assert.rejects(verifyGate(metrics), (error) => {
     assert.equal(error.code, 1);
     assert.match(error.stderr, /Hallucinated card issues/);
+    return true;
+  });
+});
+
+test('narrative gate rejects an incorrect explicit suit count and explains it in the review queue', async () => {
+  const sample = {
+    id: 'incorrect-cups-count',
+    spreadKey: 'threeCard',
+    spreadName: 'Three-Card Story',
+    userQuestion: 'What deserves attention?',
+    cardsInfo: [
+      { position: 'Past', card: 'Five of Cups', suit: 'Cups', orientation: 'Upright' },
+      { position: 'Present', card: 'Six of Cups', suit: 'Cups', orientation: 'Upright' },
+      { position: 'Future', card: 'Eight of Cups', suit: 'Cups', orientation: 'Upright' }
+    ],
+    reading: [
+      '### Opening',
+      'These four Cups cards invite gentle attention to your emotional life.',
+      '### Past — Five of Cups',
+      '**Five of Cups** suggests grief over what has changed. Because loss can narrow your focus, you can choose to name what remains alongside what you miss.',
+      '### Present — Six of Cups',
+      '**Six of Cups** brings a memory of familiar support. This is a reminder that you can consider reaching out to someone who knows your history and respects your pace.',
+      '### Future — Eight of Cups',
+      '**Eight of Cups** points toward leaving an unsatisfying pattern. Since your needs may have shifted, a small reversible experiment can help you explore a different direction.',
+      '### Closing',
+      'Your choices shape the path, and you can move at your own pace with compassion.'
+    ].join('\n\n')
+  };
+  const { metrics, reviewQueue } = await computeMetrics([sample], { includeReview: true });
+
+  assert.deepEqual(metrics.perSample[0].suitCountMismatches, [{ suit: 'Cups', claimed: 4, actual: 3 }]);
+  assert.deepEqual(metrics.perSample[0].issueFlags, ['suit-count-mismatch(1)']);
+  assert.equal(metrics.suitCountMismatchCount, 1);
+  assert.equal(metrics.flaggedSampleCount, 1);
+  assert.match(reviewQueue, /Suit count mismatch: Cups claimed 4, actual 3/);
+  await assert.rejects(verifyGate(metrics), (error) => {
+    assert.equal(error.code, 1);
+    assert.match(error.stderr, /Suit count mismatch issues 1 > limit 0/);
+    return true;
+  });
+
+  const accurate = await computeMetrics([{
+    ...sample,
+    id: 'accurate-cups-count',
+    reading: sample.reading.replace('four Cups cards', 'three Cups cards')
+  }]);
+  assert.deepEqual(accurate.perSample[0].suitCountMismatches, []);
+  assert.deepEqual(accurate.perSample[0].issueFlags, []);
+  assert.equal(accurate.suitCountMismatchCount, 0);
+  await verifyGate(accurate);
+});
+
+test('narrative gate checks suit counts independently and accepts metrics predating the field', async () => {
+  const metrics = await computeMetrics([
+    sampleWithGuidance('legacy-metrics', 'You can consider one gentle step today.')
+  ]);
+  delete metrics.suitCountMismatchCount;
+  for (const sample of metrics.perSample) delete sample.suitCountMismatches;
+  await verifyGate(metrics);
+
+  await assert.rejects(verifyGate({ ...metrics, suitCountMismatchCount: 1 }), (error) => {
+    assert.equal(error.code, 1);
+    assert.match(error.stderr, /Suit count mismatch issues 1 > limit 0/);
     return true;
   });
 });

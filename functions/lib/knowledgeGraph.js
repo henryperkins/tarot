@@ -99,7 +99,9 @@ function deckAwareName(card, fallback, deckStyle = 'rws-1909') {
 
   if (meta) {
     if (typeof card?.number === 'number' && meta.majorAliases?.[card.number]) {
-      const alias = meta.majorAliases[card.number];
+      // Shared deck resolution accounts for the Strength/Justice VIII/XI swap.
+      // Marseille labels already include an RWS suffix; add it only once below.
+      const alias = getDeckAlias({ ...card, name: baseLabel }, deckStyle).split(' (RWS:')[0];
       if (!alias) {
         return baseLabel;
       }

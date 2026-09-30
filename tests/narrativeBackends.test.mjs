@@ -627,14 +627,14 @@ describe('Claude backend + dispatch coverage', () => {
         return new Response(JSON.stringify({
           id: 'modal-context-safety',
           object: 'chat.completion',
-          model: 'Qwen/Qwen3.8-2.4T-A95B',
+          model: 'Qwen/Qwen3.8-Max-VL-Thinking',
           choices: [{ index: 0, message: { role: 'assistant', content: 'A grounded reading.' }, finish_reason: 'stop' }],
           usage: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 }
         }), { status: 200, headers: { 'content-type': 'application/json' } });
       }, () => runNarrativeBackend('modal-qwen', {
         MODAL_PROXY_TOKEN: 'wk-test.ws-test',
         MODAL_ENDPOINT_URL: 'https://example.modal.direct',
-        MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B'
+        MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking'
       }, payload, `req-context-safety-${fixture.key}-${fixture.branch}`));
 
       assert.equal(requestBody.messages.length, 2);
@@ -661,7 +661,7 @@ describe('Claude backend + dispatch coverage', () => {
     const backends = getAvailableNarrativeBackends({
       MODAL_PROXY_TOKEN: 'wk-test.ws-test',
       MODAL_ENDPOINT_URL: 'https://example.modal.direct',
-      MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B',
+      MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking',
       OPENAI_API_KEY: 'openai-test-key'
     });
 
@@ -669,6 +669,27 @@ describe('Claude backend + dispatch coverage', () => {
       backends.map((backend) => backend.id),
       ['modal-qwen', 'azure-gpt5', 'local-composer']
     );
+  });
+
+  it('selects Modal with a complete proxy credential pair and the default model', () => {
+    const backends = getAvailableNarrativeBackends({
+      MODAL_PROXY_TOKEN_ID: 'test-id',
+      MODAL_PROXY_TOKEN_SECRET: 'test-secret',
+      MODAL_ENDPOINT_URL: 'https://example.modal.direct',
+      OPENAI_API_KEY: 'openai-test-key'
+    });
+    assert.deepEqual(backends.map((backend) => backend.id), ['modal-qwen', 'azure-gpt5', 'local-composer']);
+  });
+
+  it('excludes an incomplete Modal credential pair even when a legacy token exists', () => {
+    const backends = getAvailableNarrativeBackends({
+      MODAL_PROXY_TOKEN_ID: 'test-id',
+      MODAL_PROXY_TOKEN: 'legacy-test-token',
+      MODAL_ENDPOINT_URL: 'https://example.modal.direct',
+      MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking',
+      OPENAI_API_KEY: 'openai-test-key'
+    });
+    assert.deepEqual(backends.map((backend) => backend.id), ['azure-gpt5', 'local-composer']);
   });
 
   it('dispatches Modal Chat Completions with thinking enabled and no application output cap', async () => {
@@ -691,8 +712,8 @@ describe('Claude backend + dispatch coverage', () => {
     const env = {
       MODAL_PROXY_TOKEN: 'wk-test.ws-test',
       MODAL_ENDPOINT_URL: 'https://example.modal.direct/',
-      MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B',
-      MODAL_REASONING_EFFORT: 'xhigh',
+      MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking',
+      MODAL_REASONING_EFFORT: 'high',
       MODAL_MAX_TOKENS: '6144'
     };
 
@@ -703,7 +724,7 @@ describe('Claude backend + dispatch coverage', () => {
         id: 'modal-completion-1',
         object: 'chat.completion',
         created: 1787866189,
-        model: 'Qwen/Qwen3.8-2.4T-A95B',
+        model: 'Qwen/Qwen3.8-Max-VL-Thinking',
         choices: [
           {
             index: 0,
@@ -732,16 +753,16 @@ describe('Claude backend + dispatch coverage', () => {
     assert.equal(capturedRequest.options.headers.Authorization, 'Bearer wk-test.ws-test');
 
     const requestBody = JSON.parse(capturedRequest.options.body);
-    assert.equal(requestBody.model, 'Qwen/Qwen3.8-2.4T-A95B');
+    assert.equal(requestBody.model, 'Qwen/Qwen3.8-Max-VL-Thinking');
     assert.equal(requestBody.messages.length, 2);
     assert.equal(requestBody.messages[0].role, 'system');
     assert.ok(requestBody.messages[0].content.length > 0);
     assert.equal(requestBody.messages[1].role, 'user');
     assert.ok(requestBody.messages[1].content.includes('What should I notice?'));
-    assert.equal(requestBody.reasoning_effort, 'xhigh');
+    assert.equal(requestBody.reasoning_effort, 'high');
     assert.equal(Object.hasOwn(requestBody, 'max_tokens'), false, 'Legacy environment caps must not constrain Qwen output');
     assert.equal(requestBody.chat_template_kwargs.enable_thinking, true);
-    assert.equal(requestBody.stream, false);
+    assert.equal(requestBody.stream, true);
 
     assert.equal(result.reading, 'Modal reading text.');
     assert.deepEqual(result.usage, {
@@ -778,7 +799,7 @@ describe('Claude backend + dispatch coverage', () => {
     await withMockedFetch(async () => new Response(JSON.stringify({
       id: 'modal-completion-empty',
       object: 'chat.completion',
-      model: 'Qwen/Qwen3.8-2.4T-A95B',
+      model: 'Qwen/Qwen3.8-Max-VL-Thinking',
       choices: [
         {
           index: 0,
@@ -787,7 +808,7 @@ describe('Claude backend + dispatch coverage', () => {
             content: '',
             reasoning_content: 'Reasoning only.'
           },
-          finish_reason: 'length'
+          finish_reason: 'stop'
         }
       ],
       usage: {
@@ -804,7 +825,7 @@ describe('Claude backend + dispatch coverage', () => {
         runNarrativeBackend('modal-qwen', {
           MODAL_PROXY_TOKEN: 'wk-test.ws-test',
           MODAL_ENDPOINT_URL: 'https://example.modal.direct',
-          MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B'
+          MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking'
         }, payload, 'req-modal-empty'),
         /Modal Chat Completions returned no text content/
       );
@@ -837,10 +858,10 @@ describe('Claude backend + dispatch coverage', () => {
         runNarrativeBackend('modal-qwen', {
           MODAL_PROXY_TOKEN: 'wk-test.ws-test',
           MODAL_ENDPOINT_URL: 'https://example.modal.direct',
-          MODAL_MODEL: 'Qwen/Qwen3.8-2.4T-A95B'
+          MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking'
         }, payload, 'req-modal-upstream-error'),
         (error) => {
-          assert.match(error.message, /^HTTP 401$/);
+          assert.match(error.message, /HTTP 401/);
           assert.doesNotMatch(error.message, /internal-router-node/);
           return true;
         }

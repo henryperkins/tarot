@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { ensureModalConfig, MODAL_DEFAULT_MODEL } from '../functions/lib/modalChatCompletions.js';
 
 // NOTE: The app can run with local fallbacks when these are missing.
 // This script is intended to help you verify that AI-powered features and
@@ -11,13 +12,22 @@ const REQUIRED_FOR_OPENAI_READINGS = [
 ];
 
 const REQUIRED_FOR_MODAL_READINGS = [
-  'MODAL_PROXY_TOKEN',
-  'MODAL_ENDPOINT_URL',
-  'MODAL_MODEL'
+  'MODAL_ENDPOINT_URL'
 ];
 
+const MODAL_PROXY_TOKEN_PAIR = [
+  'MODAL_PROXY_TOKEN_ID',
+  'MODAL_PROXY_TOKEN_SECRET'
+];
+
+const MODAL_CREDENTIALS = [...MODAL_PROXY_TOKEN_PAIR, 'MODAL_PROXY_TOKEN'];
+
 const OPTIONAL_FOR_MODAL_READINGS = [
+  'MODAL_MODEL',
   'MODAL_REASONING_EFFORT',
+  'MODAL_STREAM',
+  'MODAL_TEMPERATURE',
+  'MODAL_TOP_P',
   'MODAL_TIMEOUT_MS'
 ];
 
@@ -241,13 +251,29 @@ function run() {
   const wranglerVars = parseWranglerVars(wranglerConfigPath);
   const results = {};
 
-  const missingModal = [];
-  for (const key of REQUIRED_FOR_MODAL_READINGS) {
+  const modalInputs = {};
+  for (const key of [...REQUIRED_FOR_MODAL_READINGS, ...MODAL_CREDENTIALS, ...OPTIONAL_FOR_MODAL_READINGS]) {
     const resolved = resolveVariable(key, process.env, fileVars, wranglerVars);
     results[key] = resolved;
-    if (!resolved) missingModal.push(key);
+    if (resolved) modalInputs[key] = resolved.value;
   }
-  const modalConfigured = missingModal.length === 0;
+  const modalPairDeclared = MODAL_PROXY_TOKEN_PAIR.some((key) =>
+    [process.env, fileVars, wranglerVars].some((source) => Object.hasOwn(source, key))
+  );
+  const missingModalPair = MODAL_PROXY_TOKEN_PAIR.filter((key) => !results[key]);
+  const incompleteModalPair = modalPairDeclared && missingModalPair.length > 0;
+  if (modalPairDeclared) {
+    for (const key of missingModalPair) modalInputs[key] = '';
+  }
+  let modalConfigured = false;
+  let modalConfigurationError;
+  try {
+    ensureModalConfig(modalInputs);
+    modalConfigured = true;
+  } catch (error) {
+    // The shared adapter reports only setting names, never credential values.
+    modalConfigurationError = error.message;
+  }
 
   const missingOpenAI = [];
   for (const key of REQUIRED_FOR_OPENAI_READINGS) {
@@ -282,7 +308,7 @@ function run() {
   console.log(`- Loaded ${Object.keys(wranglerVars).length} non-secret vars from ${path.basename(wranglerConfigPath)}${fs.existsSync(wranglerConfigPath) ? '' : ' (file not present)'}`);
 
   console.log('\nAI-generated readings (Modal):');
-  for (const key of REQUIRED_FOR_MODAL_READINGS) {
+  for (const key of [...MODAL_CREDENTIALS, ...REQUIRED_FOR_MODAL_READINGS]) {
     const entry = results[key];
     if (entry) console.log(`✔ ${key} (${entry.source})`);
     else console.log(`• ${key} (not set)`);
@@ -292,6 +318,7 @@ function run() {
   for (const key of OPTIONAL_FOR_MODAL_READINGS) {
     const entry = resolveVariable(key, process.env, fileVars, wranglerVars);
     if (entry) console.log(`• ${key} (${entry.source})`);
+    else if (key === 'MODAL_MODEL') console.log(`• ${key} (default: ${MODAL_DEFAULT_MODEL})`);
     else console.log(`• ${key} (not set)`);
   }
 
@@ -325,8 +352,18 @@ function run() {
     }
   }
 
+  if (incompleteModalPair) {
+    console.error('\nModal proxy token pair is incomplete. Set both MODAL_PROXY_TOKEN_ID and MODAL_PROXY_TOKEN_SECRET, or remove both to use the legacy MODAL_PROXY_TOKEN.');
+    process.exitCode = 1;
+    return;
+  }
+
+  if (modalConfigurationError && (modalPairDeclared || results.MODAL_PROXY_TOKEN)) {
+    console.warn(`\nModal configuration unavailable: ${modalConfigurationError}`);
+  }
+
   if (!modalConfigured && !openAIConfigured && !azureFallbackConfigured) {
-    console.error(`\nMissing AI reading provider credentials: ${REQUIRED_FOR_MODAL_READINGS.join(', ')} (preferred), ${REQUIRED_FOR_OPENAI_READINGS.join(', ')}, or ${REQUIRED_FOR_AZURE_OPENAI_FALLBACK.join(', ')} (fallback).`);
+    console.error(`\nMissing AI reading provider credentials: ${MODAL_PROXY_TOKEN_PAIR.join(' + ')} (or legacy MODAL_PROXY_TOKEN) with ${REQUIRED_FOR_MODAL_READINGS.join(', ')} (preferred), ${REQUIRED_FOR_OPENAI_READINGS.join(', ')}, or ${REQUIRED_FOR_AZURE_OPENAI_FALLBACK.join(', ')} (fallback).`);
     console.error('Populate .dev.vars (or export env vars) to enable AI-generated readings.');
     console.error('Note: `npm run dev` will still run, but API-powered features may fall back to local generators.');
     process.exitCode = 1;
