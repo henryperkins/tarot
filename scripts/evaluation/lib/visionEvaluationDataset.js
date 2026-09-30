@@ -35,7 +35,7 @@ export async function loadVisionDataset({ deckStyle = 'rws-1909', manifestPath =
     const selected = files.filter((file) => expectedByFile.has(path.basename(file))).slice(0, limit ?? files.length);
     if (!selected.length) throw new Error('No reference samples found for the requested deck');
     const inputs = await Promise.all(selected.map(async (source) => ({ source, label: path.basename(source), expected: expectedByFile.get(path.basename(source)), sha256: sha256(await fs.readFile(source)) })));
-    return { inputs, provenance: { datasetKind: 'reference-art', labelSource: 'reference-file-map', referenceOverlapCount: inputs.length, manifestSha256: null } };
+    return { inputs, provenance: { datasetKind: 'reference-art', datasetSampleSize: files.filter(file => expectedByFile.has(path.basename(file))).length, labelSource: 'reference-file-map', referenceOverlapCount: inputs.length, manifestSha256: null } };
   }
 
   const manifestBytes = await fs.readFile(manifestPath);
@@ -66,7 +66,7 @@ export async function loadVisionDataset({ deckStyle = 'rws-1909', manifestPath =
   }
   return {
     inputs: inputs.slice(0, limit ?? inputs.length),
-    provenance: { datasetKind: manifest.kind, datasetId: manifest.id || null, labelSource: manifest.labelSource, manifestSha256: sha256(manifestBytes), referenceOverlapCount: 0 }
+    provenance: { datasetKind: manifest.kind, datasetSampleSize: manifest.samples.length, datasetId: manifest.id || null, labelSource: manifest.labelSource, manifestSha256: sha256(manifestBytes), referenceOverlapCount: 0 }
   };
 }
 

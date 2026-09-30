@@ -18,7 +18,7 @@ describe('vision evidence packets', () => {
         promptEligible: true,
         orientation: 'upright',
         visualDetails: ['cliff edge', 'small dog', 'white rose'],
-        symbolVerification: {
+        symbolVerification: { annotationStatus: 'verified',
           matchRate: 0.8,
           matches: [
             { object: 'cliff', found: true, confidence: 0.74 },
@@ -68,7 +68,7 @@ describe('vision evidence packets', () => {
         matchesDrawnCard: true,
         promptEligible: false,
         suppressionReason: 'weak_weighted_symbol_verification',
-        symbolVerification: {
+        symbolVerification: { annotationStatus: 'verified',
           matchRate: 0.75,
           weightedMatchRate: 0.31,
           matches: [
@@ -100,7 +100,7 @@ describe('vision evidence packets', () => {
         predictedCard: 'The Moon',
         confidence: 0.92,
         visualDetails: ['UNDRAWN_PACKET_CUE'],
-        symbolVerification: {
+        symbolVerification: { annotationStatus: 'verified',
           matchRate: 0.9,
           matches: [{ object: 'UNDRAWN_PACKET_CUE', found: true, confidence: 0.9 }]
         }

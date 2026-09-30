@@ -191,7 +191,7 @@ function sunInsight(overrides = {}) {
     visualDetails: ['A gold border surrounds the bright portrait.'],
     visualProfile: { tone: ['radiant'], emotion: ['hopeful'] },
     mergeSource: 'combined',
-    symbolVerification: {
+    symbolVerification: { annotationStatus: 'verified',
       matchRate: 0.9,
       matches: [{ object: 'sunflowers', found: true, confidence: 0.9 }],
       missingSymbols: []
@@ -253,7 +253,7 @@ for (const fixture of [
           reasoning: 'SILVER_HOWL_CUE',
           visualDetails: ['SILVER_HOWL_CUE'],
           visualProfile: { tone: ['lunar-cue'], emotion: ['shadow-dread-cue'] },
-          symbolVerification: {
+          symbolVerification: { annotationStatus: 'verified',
             matchRate: 0.9,
             matches: [{ object: 'SILVER_HOWL_CUE', found: true, confidence: 0.9 }],
             missingSymbols: ['UNDRAWN_SYMBOL_CUE']

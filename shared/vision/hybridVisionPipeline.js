@@ -46,7 +46,7 @@ export function buildVisionRouterFeatures(clipResult, llamaResult) {
   const clipCard = extractCardName(clipResult);
   const llamaCard = llamaOk ? extractCardName(llamaResult) : null;
   const symbols = clipResult?.symbolVerification;
-  const unqualifiedSymbols = (symbols?.annotationStatus && symbols.annotationStatus !== 'verified') || symbols?.absentSymbolFalsePositive;
+  const unqualifiedSymbols = (symbols && symbols.annotationStatus !== 'verified') || symbols?.absentSymbolFalsePositive;
   const symbolWeightedMatch = unqualifiedSymbols ? 0 : Number.isFinite(clipResult?.symbolVerification?.weightedMatchRate)
     ? clipResult.symbolVerification.weightedMatchRate
     : (Number.isFinite(clipResult?.symbolVerification?.matchRate) ? clipResult.symbolVerification.matchRate : 0);
@@ -133,7 +133,7 @@ function routedSymbolVerification(symbolVerification, routedCard, clipCard) {
   return {
     ...symbolVerification,
     verifiedCard,
-    telemetryOnly: Boolean((symbolVerification.annotationStatus && symbolVerification.annotationStatus !== 'verified') || symbolVerification.absentSymbolFalsePositive),
+    telemetryOnly: Boolean((symbolVerification.annotationStatus !== 'verified') || symbolVerification.absentSymbolFalsePositive),
     appliesToRoutedCard: true
   };
 }

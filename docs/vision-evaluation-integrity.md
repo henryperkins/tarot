@@ -84,11 +84,16 @@ aggregation time. Historical version 1 reports remain available but cannot pass
 the release gate.
 
 The gate requires the requested deck, the exact committed revision, inference
-within 24 hours, all 78 card identities, no skipped labels, independently labeled
+within 24 hours, a currently clean source checkout, all 78 card identities, no skipped labels, independently labeled
 held-out photos, complete verified symbol/negative annotation coverage, and all
 existing quality floors. Unmeasured metrics remain null and fail. Absent-symbol
 rates use only samples with negative annotations. High-salience recall uses full
 symbol counts; display-list truncation cannot change either metric.
+
+Declared manifest size, declared inference count and actual result count must
+agree. A limited diagnostic subset cannot qualify a larger corpus, even when the
+retained rows still cover all 78 card identities. Older signed symbol proofs with
+no annotation status remain valid signatures but are telemetry-only evidence.
 
 Review CSVs include symbol failures even when the card identity is correct, and
 preserve human verdicts/notes when recomputing. They are triage artifacts, not an

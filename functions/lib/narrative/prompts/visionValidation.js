@@ -48,6 +48,10 @@ function describeTelemetryOnlyReason(reason) {
       return 'telemetry only: weak symbol verification';
     case 'weak_weighted_symbol_verification':
       return 'telemetry only: weak weighted symbol verification';
+    case 'symbol_annotations_unverified':
+      return 'telemetry only: unverified symbol annotations';
+    case 'absent_symbol_false_positive':
+      return 'telemetry only: absent-symbol false positive';
     case 'match_unverified':
       return 'telemetry only: unverified match';
     case 'confidence_unavailable':
@@ -200,7 +204,7 @@ export function buildVisionValidationSection(visionInsights, options = {}) {
       parts.push(`${unverified} upload(s) could not be verified against the drawn spread; treat these as unverified evidence if you reference them.`);
     }
     if (telemetryOnly > 0) {
-      parts.push(`${telemetryOnly} matched upload(s) were too weak to steer tone or emphasis and should remain telemetry-only evidence.`);
+      parts.push(`${telemetryOnly} matched upload(s) lack qualified visual evidence and should remain telemetry-only. Do not use them to steer tone or emphasis.`);
     }
     coverageLine = parts.join(' ');
   }

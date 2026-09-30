@@ -502,6 +502,7 @@ describe('Vision validation prompt context', () => {
           basis: 'image',
           matchesDrawnCard: true,
           symbolVerification: {
+            annotationStatus: 'verified',
             matchRate: 0.8,
             weightedMatchRate: 0.2,
             missingSymbols: ['cliff'],

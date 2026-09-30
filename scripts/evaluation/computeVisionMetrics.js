@@ -186,7 +186,7 @@ export function computeVisionMetricEntry(samples = [], options = {}) {
       }
       const highExpected = symbolVerification.highSalienceExpectedCount;
       const highDetected = symbolVerification.highSalienceDetectedCount;
-      if (Number.isInteger(highExpected) && highExpected >= 0 && Number.isInteger(highDetected) && highDetected >= 0 && highDetected <= highExpected) {
+      if (symbolVerification.annotationStatus !== 'unsupported' && Number.isInteger(highExpected) && highExpected >= 0 && Number.isInteger(highDetected) && highDetected >= 0 && highDetected <= highExpected) {
         highSalienceAnnotatedSampleCount += 1;
         highSalienceExpectedCount += highExpected;
         highSalienceDetectedCount += highDetected;
@@ -230,6 +230,7 @@ export function computeVisionMetricEntry(samples = [], options = {}) {
     sourceGeneratedAt: options.sourceGeneratedAt || null,
     provenance: options.provenance || null,
     inputSampleSize: samples.length,
+    sourceSampleSize: options.sourceSampleSize ?? samples.length,
     unmappedSampleCount,
     uniqueCardCount: perLabelCounts.size,
     symbolScoredSampleCount,
@@ -372,6 +373,9 @@ async function main() {
     console.error('No results found in vision confidence file.');
     process.exit(1);
   }
+  if (!Number.isInteger(payload.sampleSize) || payload.sampleSize !== samples.length) {
+    throw new Error('Inference sample count does not match the declared report sampleSize');
+  }
 
   const deckStyle = options.deckStyle || payload?.deckStyle || 'rws-1909';
   const { imageMap: imageNameMap } = buildDeckLookups(deckStyle);
@@ -382,6 +386,7 @@ async function main() {
     deckStyle,
     sourceFile: path.relative(process.cwd(), inputPath),
     sourceGeneratedAt: payload.generatedAt,
+    sourceSampleSize: payload.sampleSize,
     provenance: payload.provenance,
     imageNameMap
   });

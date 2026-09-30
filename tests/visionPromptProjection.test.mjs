@@ -65,7 +65,7 @@ test('projects every diagnostic prose channel without mutating the raw insight',
     reasoning: 'Unlike The Moon, this is bright. A child holds a banner.',
     visualDetails: ['The Moon card has towers.', safeDetail],
     visualProfile: { tone: ['The Moon card looks dim', 'warm'], emotion: ['The Moon card is uncertain', 'quiet strength'] },
-    symbolVerification: { matchRate: 0.98, missingSymbols: ['The Moon card towers', 'sunflower'] }
+    symbolVerification: { annotationStatus: 'verified', matchRate: 0.98, missingSymbols: ['The Moon card towers', 'sunflower'] }
   };
   const original = structuredClone(insight);
   const prompt = buildVisionValidationSection([insight], { cardsInfo, deckStyle: 'rws-1909' });

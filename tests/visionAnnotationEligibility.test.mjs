@@ -5,9 +5,10 @@ import { mergeVisionAnalyses } from '../shared/vision/hybridVisionPipeline.js';
 import { TarotVisionPipeline } from '../shared/vision/tarotVisionPipeline.js';
 import { onRequestPost } from '../functions/api/vision-proof.js';
 import { verifyVisionProof } from '../functions/lib/visionProof.js';
+import { buildVisionProofPayload, signVisionProof } from '../functions/lib/visionProof.js';
 import { buildVisionEvidencePackets } from '../functions/lib/visionEvidence.js';
 
-for (const annotationStatus of ['unverified', 'unsupported']) {
+for (const annotationStatus of [undefined, 'unverified', 'unsupported']) {
   it(`keeps ${annotationStatus} symbols out of prompts even at high confidence`, () => {
     const result = evaluateVisionInsightPromptEligibility({ matchesDrawnCard: true, confidence: 1, symbolVerification: { annotationStatus, matchRate: 1, weightedMatchRate: 1 } });
     assert.equal(result.promptEligible, false);
@@ -53,4 +54,14 @@ it('retains the annotation restriction through API sanitization and signed proof
 it('does not describe unverified annotation matches as verified visual evidence', () => {
   const [packet] = buildVisionEvidencePackets([{ predictedCard: 'The Fool', confidence: 1, matchesDrawnCard: true, symbolVerification: { annotationStatus: 'unverified', weightedMatchRate: 1, matches: [{ object: 'dog', found: true, confidence: 1 }] } }], [{ card: 'The Fool' }]);
   assert.notEqual(packet?.visualClaimMode, 'verified_visual_evidence');
+});
+
+it('keeps authenticated older symbol proofs without annotation provenance telemetry-only', async () => {
+  const payload = buildVisionProofPayload({ id: 'legacy-symbols', deckStyle: 'rws-1909', insights: [{ predictedCard: 'The Fool', confidence: 1, symbolVerification: { weightedMatchRate: 0.99, matchRate: 1 } }] });
+  const signature = await signVisionProof(payload, 'test-only-legacy-secret');
+  const proof = await verifyVisionProof({ ...payload, signature }, 'test-only-legacy-secret');
+  assert.equal(evaluateVisionInsightPromptEligibility({ ...proof.insights[0], matchesDrawnCard: true }).promptEligible, false);
+  const merged = mergeVisionAnalyses({ topMatch: { cardName: 'The Fool', score: 1 }, symbolVerification: proof.insights[0].symbolVerification }, { topMatch: { cardName: 'The Fool', score: 1 }, analysisStatus: 'ok' });
+  assert.notEqual(merged.decisionReason, 'clip_llama_agree_symbol_grounded');
+  assert.equal(merged.symbolVerification.telemetryOnly, true);
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { visionSourceState } from './lib/visionEvaluationDataset.js';
 
 const DEFAULT_FILE = 'data/evaluations/vision-metrics.json';
 const ACC_THRESHOLD = parseFloat(process.env.VISION_MIN_ACCURACY || '0.9');
@@ -75,40 +75,41 @@ async function main() {
   if (metrics.schemaVersion !== 2 || metrics.deckStyle !== args.deckStyle) failures.push('missing/current-schema deck evidence required');
   const age = Date.now() - Date.parse(metrics.sourceGeneratedAt);
   if (!Number.isFinite(age) || age < -300000 || age > 24 * 60 * 60 * 1000) failures.push('inference evidence must be less than 24 hours old and not in the future');
-  const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  const currentSource = visionSourceState();
   const provenance = metrics.provenance;
-  if (provenance?.sourceRevision !== revision || provenance?.sourceDirty !== false) failures.push('inference must use this exact committed source');
+  if (provenance?.sourceRevision !== currentSource.sourceRevision || provenance?.sourceDirty !== false || currentSource.sourceDirty) failures.push('inference must use this exact committed source and the current checkout must be clean');
   if (provenance?.datasetKind !== 'held-out-photos' || provenance?.labelSource !== 'independent-human'
     || provenance?.referenceOverlapCount !== 0 || !/^[a-f0-9]{64}$/.test(provenance?.manifestSha256 || '')) {
     failures.push('independently labeled held-out photos with no reference-image overlap required; reference/synthetic checks are diagnostic only');
   }
   if (!Number.isInteger(metrics.sampleSize) || metrics.sampleSize < 78 || metrics.uniqueCardCount !== 78
-    || metrics.unmappedSampleCount !== 0 || metrics.inputSampleSize !== metrics.sampleSize) failures.push('complete labeled 78-card coverage required; skipped inputs are not permitted');
+    || metrics.unmappedSampleCount !== 0 || metrics.inputSampleSize !== metrics.sampleSize
+    || metrics.sourceSampleSize !== metrics.inputSampleSize || provenance?.datasetSampleSize !== metrics.inputSampleSize) failures.push('complete labeled corpus and 78-card coverage required; skipped inputs are not permitted');
   if (metrics.symbolScoredSampleCount !== metrics.sampleSize || metrics.symbolAnnotationCoverage !== 1) failures.push('verified symbol annotations and scores required for every evaluated image');
   if (metrics.absenceAnnotationCoverage !== 1 || metrics.absenceAnnotatedSampleCount !== metrics.sampleSize) failures.push('absence-negative tests required for every evaluated image');
   if (metrics.highSalienceAnnotationCoverage !== 1 || !Number.isInteger(metrics.highSalienceExpectedCount) || metrics.highSalienceExpectedCount <= 0) failures.push('measured high-salience symbols and complete annotation coverage required');
-  if (accuracy < ACC_THRESHOLD) {
+  if (Number.isFinite(accuracy) && accuracy < ACC_THRESHOLD) {
     failures.push(`accuracy ${formatPct(accuracy)} < threshold ${formatPct(ACC_THRESHOLD)}`);
   }
-  if (coverage < COVERAGE_THRESHOLD) {
+  if (Number.isFinite(coverage) && coverage < COVERAGE_THRESHOLD) {
     failures.push(`high-confidence coverage ${formatPct(coverage)} < threshold ${formatPct(COVERAGE_THRESHOLD)}`);
   }
-  if (coverageAccuracy < COVERAGE_ACC_THRESHOLD) {
+  if (Number.isFinite(coverageAccuracy) && coverageAccuracy < COVERAGE_ACC_THRESHOLD) {
     failures.push(`high-confidence accuracy ${formatPct(coverageAccuracy)} < threshold ${formatPct(COVERAGE_ACC_THRESHOLD)}`);
   }
-  if (symbolCoverage < SYMBOL_COVERAGE_THRESHOLD) {
+  if (Number.isFinite(symbolCoverage) && symbolCoverage < SYMBOL_COVERAGE_THRESHOLD) {
     failures.push(`symbol coverage ${formatPct(symbolCoverage)} < threshold ${formatPct(SYMBOL_COVERAGE_THRESHOLD)}`);
   }
-  if (weightedSymbolCoverage < WEIGHTED_SYMBOL_COVERAGE_THRESHOLD) {
+  if (Number.isFinite(weightedSymbolCoverage) && weightedSymbolCoverage < WEIGHTED_SYMBOL_COVERAGE_THRESHOLD) {
     failures.push(`weighted symbol coverage ${formatPct(weightedSymbolCoverage)} < threshold ${formatPct(WEIGHTED_SYMBOL_COVERAGE_THRESHOLD)}`);
   }
-  if (highSalienceRecall < HIGH_SALIENCE_RECALL_THRESHOLD) {
+  if (Number.isFinite(highSalienceRecall) && highSalienceRecall < HIGH_SALIENCE_RECALL_THRESHOLD) {
     failures.push(`high-salience recall ${formatPct(highSalienceRecall)} < threshold ${formatPct(HIGH_SALIENCE_RECALL_THRESHOLD)}`);
   }
-  if (absentSymbolFalsePositiveRate > ABSENT_SYMBOL_FALSE_POSITIVE_MAX) {
+  if (Number.isFinite(absentSymbolFalsePositiveRate) && absentSymbolFalsePositiveRate > ABSENT_SYMBOL_FALSE_POSITIVE_MAX) {
     failures.push(`absent-symbol false-positive rate ${formatPct(absentSymbolFalsePositiveRate)} > threshold ${formatPct(ABSENT_SYMBOL_FALSE_POSITIVE_MAX)}`);
   }
-  if (highConfidenceErrorRate > HIGH_CONFIDENCE_ERROR_MAX) {
+  if (Number.isFinite(highConfidenceErrorRate) && highConfidenceErrorRate > HIGH_CONFIDENCE_ERROR_MAX) {
     failures.push(`high-confidence error rate ${formatPct(highConfidenceErrorRate)} > threshold ${formatPct(HIGH_CONFIDENCE_ERROR_MAX)}`);
   }
 

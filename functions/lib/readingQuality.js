@@ -1017,7 +1017,7 @@ export function evaluateVisionInsightPromptEligibility(insight, options = {}) {
   let suppressionReason = null;
   if (insight?.matchesDrawnCard !== true) {
     suppressionReason = insight?.matchesDrawnCard === false ? 'card_mismatch' : 'match_unverified';
-  } else if (insight?.symbolVerification?.annotationStatus && insight.symbolVerification.annotationStatus !== 'verified') {
+  } else if (insight?.symbolVerification && insight.symbolVerification.annotationStatus !== 'verified') {
     suppressionReason = 'symbol_annotations_unverified';
   } else if (insight?.symbolVerification?.absentSymbolFalsePositive === true) {
     suppressionReason = 'absent_symbol_false_positive';

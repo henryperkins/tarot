@@ -14,7 +14,7 @@ describe('vision fusion router', () => {
         topMatch: { cardName: 'The Fool', score: 0.78 },
         confidence: 0.78,
         matches: [{ cardName: 'The Fool', score: 0.78 }, { cardName: 'The Sun', score: 0.61 }],
-        symbolVerification: { weightedMatchRate: 0.71 }
+        symbolVerification: { annotationStatus: 'verified', weightedMatchRate: 0.71 }
       },
       {
         topMatch: { cardName: 'The Fool', score: 0.74 },
@@ -38,7 +38,7 @@ describe('vision fusion router', () => {
       {
         topMatch: { cardName: 'The Fool', score: 0.82 },
         matches: [{ cardName: 'The Fool', score: 0.82 }, { cardName: 'The Sun', score: 0.63 }],
-        symbolVerification: { weightedMatchRate: 0.79 }
+        symbolVerification: { annotationStatus: 'verified', weightedMatchRate: 0.79 }
       },
       {
         topMatch: { cardName: 'The Sun', score: 0.8 },
@@ -58,7 +58,7 @@ describe('vision fusion router', () => {
       {
         topMatch: { cardName: 'The Fool', score: 0.4 },
         confidence: 0.4,
-        symbolVerification: {
+        symbolVerification: { annotationStatus: 'verified',
           verifiedCard: 'The Fool',
           weightedMatchRate: 0.7,
           matches: [{ object: 'cliff', found: true }]

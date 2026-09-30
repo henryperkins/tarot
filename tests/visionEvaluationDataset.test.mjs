@@ -63,6 +63,16 @@ it('keeps synthetic inputs explicitly synthetic', async (t) => {
   assert.equal(dataset.provenance.datasetKind, 'synthetic');
 });
 
+it('retains the complete manifest size when running a limited diagnostic subset', async (t) => {
+  const f = await setup(t);
+  await writeFile(join(f.root, 'second.jpg'), 'second photo bytes');
+  f.manifest.samples.push({ id: 'photo-2', image: 'second.jpg', expected: 'The Sun', sha256: createHash('sha256').update('second photo bytes').digest('hex') });
+  await f.save();
+  const dataset = await loadVisionDataset({ deckStyle: 'rws-1909', ...f, limit: 1 });
+  assert.equal(dataset.inputs.length, 1);
+  assert.equal(dataset.provenance.datasetSampleSize, 2);
+});
+
 it('fails a missing deck directory instead of using RWS images', async (t) => {
   const f = await setup(t);
   await assert.rejects(loadVisionDataset({ deckStyle: 'thoth-a1', referenceRoot: f.referenceRoot }), /ENOENT/);

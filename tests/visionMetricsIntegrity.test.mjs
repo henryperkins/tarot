@@ -29,6 +29,11 @@ it('leaves unmeasured negative and high-salience quality unknown', () => {
   assert.equal(metrics.highSalienceSymbolRecall, null);
 });
 
+it('does not count unsupported zero defaults as annotated salience coverage', () => {
+  const metrics = computeVisionMetricEntry([sample({ annotationStatus: 'unsupported', highSalienceExpectedCount: 0, highSalienceDetectedCount: 0 })]);
+  assert.equal(metrics.highSalienceAnnotationCoverage, 0);
+});
+
 it('does not hide partial symbol scores or unmeasured salience in complete aggregate averages', () => {
   const metrics = computeVisionMetricEntry([
     sample({ annotationStatus: 'verified', matchRate: 1, weightedMatchRate: 0.9, highSalienceExpectedCount: 2, highSalienceDetectedCount: 2 }),
@@ -73,7 +78,7 @@ it('writes symbol-only review rows through the CLI and preserves reviewer notes 
     const input = join(directory, 'input.json');
     const metrics = join(directory, 'metrics.json');
     const review = join(directory, 'review.csv');
-    writeFileSync(input, JSON.stringify({ deckStyle: 'rws-1909', generatedAt: '2026-01-17T00:00:00.000Z', provenance: { datasetKind: 'reference-art' }, results: [sample({ weightedMatchRate: 0.2, annotationStatus: 'unverified' })] }));
+    writeFileSync(input, JSON.stringify({ sampleSize: 1, deckStyle: 'rws-1909', generatedAt: '2026-01-17T00:00:00.000Z', provenance: { datasetKind: 'reference-art' }, results: [sample({ weightedMatchRate: 0.2, annotationStatus: 'unverified' })] }));
     writeFileSync(review, 'image,expected,predicted,human_verdict,human_notes\nfool.jpg,The Fool,The Fool,reject,Keep this note\n');
     const result = spawnSync(process.execPath, ['scripts/evaluation/computeVisionMetrics.js', '--in', input, '--metrics-out', metrics, '--review-out', review], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
@@ -84,5 +89,14 @@ it('writes symbol-only review rows through the CLI and preserves reviewer notes 
     const saved = JSON.parse(readFileSync(metrics, 'utf8')).metricsByDeck['rws-1909'];
     assert.equal(saved.sourceGeneratedAt, '2026-01-17T00:00:00.000Z');
     assert.equal(saved.accuracy, 1);
+    assert.equal(saved.sourceSampleSize, 1);
+    // A truncated report must not become a complete smaller report, even if
+    // every retained sample was correctly recognized.
+    const truncated = JSON.parse(readFileSync(input, 'utf8'));
+    truncated.sampleSize = 156;
+    writeFileSync(input, JSON.stringify(truncated));
+    const rejected = spawnSync(process.execPath, ['scripts/evaluation/computeVisionMetrics.js', '--in', input, '--metrics-out', metrics, '--review-out', review], { encoding: 'utf8' });
+    assert.equal(rejected.status, 1);
+    assert.match(rejected.stderr, /sample count/i);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
