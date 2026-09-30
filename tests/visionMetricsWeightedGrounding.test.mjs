@@ -11,6 +11,7 @@ describe('weighted vision metrics', () => {
         topMatch: { cardName: 'The Fool', score: 0.9 },
         symbolVerification: {
           weightedMatchRate: 0.8,
+          highSalienceExpectedCount: 1, highSalienceDetectedCount: 1, absenceExpectedCount: 1,
           highSalienceMissing: [],
           absenceDetections: [],
           absentSymbolFalsePositive: false
@@ -21,6 +22,7 @@ describe('weighted vision metrics', () => {
         topMatch: { cardName: 'The Sun', score: 0.95 },
         symbolVerification: {
           weightedMatchRate: 0.4,
+          highSalienceExpectedCount: 1, highSalienceDetectedCount: 0, absenceExpectedCount: 1,
           highSalienceMissing: ['cliff'],
           absenceDetections: [{ label: 'a horse', confidence: 0.7 }],
           absentSymbolFalsePositive: true

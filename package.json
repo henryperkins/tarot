@@ -21,14 +21,14 @@
     "deploy": "node scripts/deploy.js",
     "deploy:dry-run": "node scripts/deploy.js --dry-run",
     "deploy:migrations-only": "node scripts/deploy.js --migrations-only",
-    "deploy:skip-migrations": "npm run build && wrangler deploy --config wrangler.jsonc",
+    "deploy:skip-migrations": "node scripts/deploy.js --skip-migrations",
     "migrations:status": "node scripts/deploy.js --migrations-only --dry-run",
     "migrations:apply": "node scripts/deploy.js --migrations-only",
     "migrations:apply:local": "node scripts/deploy.js --migrations-only --local",
     "test": "node --test tests/*.test.mjs",
-    "test:vision-grounding": "node --test tests/rwsEvidenceOntology.test.mjs tests/rwsCaptionDataset.test.mjs tests/symbolDetectorWeightedScoring.test.mjs tests/visionEvidence.test.mjs tests/visionFusionRouter.test.mjs tests/visionMetricsWeightedGrounding.test.mjs",
+    "test:vision-grounding": "node --test tests/rwsEvidenceOntology.test.mjs tests/rwsCaptionDataset.test.mjs tests/symbolDetectorWeightedScoring.test.mjs tests/visionEvidence.test.mjs tests/visionFusionRouter.test.mjs tests/visionMetricsWeightedGrounding.test.mjs tests/symbolDetectorIntegrity.test.mjs tests/visionMetricsIntegrity.test.mjs tests/visionGateIntegrity.test.mjs tests/visionEvaluationDataset.test.mjs tests/visionAnnotationEligibility.test.mjs",
     "test:eval:synthetic": "node --test tests/evaluationSyntheticFailures.test.mjs",
-    "test:deploy": "node --test tests/deployScript.test.mjs",
+    "test:deploy": "node --test tests/deployScript.test.mjs tests/deployQualityGate.test.mjs",
     "test:coverage": "node --test --experimental-test-coverage tests/*.test.mjs",
     "test:e2e": "playwright test",
     "test:e2e:journal": "playwright test --config playwright.journal.config.js",
@@ -75,7 +75,8 @@
     "training:fine-tune-vision": "node scripts/training/fineTuneVision.js",
     "prompts:view": "node scripts/viewPrompts.js",
     "prompts:stats": "node scripts/viewPrompts.js --stats",
-    "prompts:export": "node scripts/viewPrompts.js --export"
+    "prompts:export": "node scripts/viewPrompts.js --export",
+    "ci:release-check": "node scripts/evaluation/runReleaseChecks.js"
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",

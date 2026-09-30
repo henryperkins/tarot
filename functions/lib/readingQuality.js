@@ -1017,6 +1017,10 @@ export function evaluateVisionInsightPromptEligibility(insight, options = {}) {
   let suppressionReason = null;
   if (insight?.matchesDrawnCard !== true) {
     suppressionReason = insight?.matchesDrawnCard === false ? 'card_mismatch' : 'match_unverified';
+  } else if (insight?.symbolVerification?.annotationStatus && insight.symbolVerification.annotationStatus !== 'verified') {
+    suppressionReason = 'symbol_annotations_unverified';
+  } else if (insight?.symbolVerification?.absentSymbolFalsePositive === true) {
+    suppressionReason = 'absent_symbol_false_positive';
   } else if (effectiveSymbolMatchRate !== null && effectiveSymbolMatchRate < effectiveSymbolMatchFloor) {
     suppressionReason = weightedSymbolMatchRate !== null
       ? 'weak_weighted_symbol_verification'

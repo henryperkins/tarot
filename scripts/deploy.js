@@ -98,6 +98,7 @@ function getArgValue(argv, flag) {
 export function parseCliArgs(argv = []) {
   const dryRun = argv.includes('--dry-run');
   const migrationsOnly = argv.includes('--migrations-only');
+  const skipMigrations = argv.includes('--skip-migrations');
   const local = argv.includes('--local');
   const verbose = argv.includes('--verbose') || argv.includes('-v');
   const allowChangedMigrations = argv.includes('--allow-changed-migrations');
@@ -107,6 +108,7 @@ export function parseCliArgs(argv = []) {
   return {
     dryRun,
     migrationsOnly,
+    skipMigrations,
     local,
     verbose,
     allowChangedMigrations,
@@ -357,6 +359,7 @@ function createRuntimeContext(argv = process.argv.slice(2), env = process.env) {
     wranglerConfigPath: WRANGLER_CONFIG,
     dryRun: cli.dryRun,
     migrationsOnly: cli.migrationsOnly,
+    skipMigrations: cli.skipMigrations,
     local: cli.local,
     verbose: cli.verbose,
     allowChangedMigrations: cli.allowChangedMigrations || parseBoolean(env.ALLOW_CHANGED_MIGRATIONS, false),
@@ -794,7 +797,17 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     log('Strict migration checksum checks are enabled.', 'dim');
   }
 
-  const migrationsOk = await applyMigrations();
+  if (!runtime.dryRun && !runtime.migrationsOnly) {
+    log('Running fresh release QA before remote changes...', 'cyan');
+    const qa = spawnCommand('npm', ['run', 'ci:release-check'], { env });
+    if (qa.status !== 0) {
+      logError('Release QA failed or is unavailable. No migrations or deployment were started.');
+      process.exitCode = 1;
+      return;
+    }
+  }
+
+  const migrationsOk = runtime.skipMigrations ? true : await applyMigrations();
   if (!migrationsOk) {
     logError('\nMigration failed! Aborting deployment.');
     process.exit(1);

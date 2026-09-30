@@ -3,11 +3,12 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { createVisionBackend } from '../../shared/vision/visionBackends.js';
-import { getDeckProfile } from '../../shared/vision/deckProfiles.js';
+import { loadVisionDataset, visionSourceState } from './lib/visionEvaluationDataset.js';
 
 function parseArgs(rawArgs) {
   const options = {
     scope: 'all',
+    manifestPath: null,
     deckStyle: 'rws-1909',
     backendId: 'clip-default',
     out: 'data/evaluations/vision-confidence.json',
@@ -23,6 +24,9 @@ function parseArgs(rawArgs) {
     } else if (arg === '--deck-style') {
       options.deckStyle = rawArgs[i + 1] || options.deckStyle;
       i += 1;
+    } else if (arg === '--manifest') {
+      options.manifestPath = rawArgs[++i];
+      if (!options.manifestPath) throw new Error('--manifest requires a local path');
     } else if (arg === '--backend-id') {
       options.backendId = rawArgs[i + 1] || options.backendId;
       i += 1;
@@ -42,40 +46,17 @@ function parseArgs(rawArgs) {
     options.out = `data/evaluations/vision-confidence.${options.deckStyle}.json`;
   }
   delete options.outProvided;
+  if (!options.manifestPath && process.env.VISION_EVAL_MANIFEST_DIR) {
+    options.manifestPath = path.resolve(process.env.VISION_EVAL_MANIFEST_DIR, `${options.deckStyle}.json`);
+  }
 
   return options;
 }
 
-async function collectImagePaths(deckProfile, limit) {
-  const cardsDir = path.resolve(process.cwd(), 'public/images/cards');
-  const deckDir =
-    deckProfile?.assetScanDir && deckProfile.assetScanDir !== '.'
-      ? path.join(cardsDir, deckProfile.assetScanDir)
-      : cardsDir;
-
-  let searchDir = deckDir;
-  try {
-    await fs.access(deckDir);
-  } catch {
-    searchDir = cardsDir;
-  }
-
-  const entries = await fs.readdir(searchDir, { withFileTypes: true });
-  const files = entries
-    .filter((entry) => entry.isFile() && /\.(png|jpe?g)$/i.test(entry.name))
-    .map((entry) => ({
-      source: path.join(searchDir, entry.name).replace(/\\/g, '/'),
-      label: entry.name
-    }));
-
-  const targets = typeof limit === 'number' ? files.slice(0, limit) : files;
-  return targets;
-}
-
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const deckProfile = getDeckProfile(options.deckStyle);
-  const imageInputs = await collectImagePaths(deckProfile, options.limit);
+  const { inputs: imageInputs, provenance: datasetProvenance } = await loadVisionDataset(options);
+  const sourceState = visionSourceState();
   if (imageInputs.length === 0) {
     console.error('No card images found in public/images/cards');
     process.exitCode = 1;
@@ -89,6 +70,7 @@ async function main() {
     maxResults: 5
   });
 
+  console.log(`Dataset kind: ${datasetProvenance.datasetKind}. Reference art and synthetic inputs are diagnostic only.`);
   console.log(`Evaluating ${imageInputs.length} images with deck style ${options.deckStyle} using ${options.backendId}...`);
   await backend.warmup();
   const analyses = await backend.analyzeImages(imageInputs, {
@@ -96,12 +78,22 @@ async function main() {
     includeSymbols: true
   });
 
+  if (analyses.length !== imageInputs.length) throw new Error('Inference did not return every dataset sample');
   const report = {
+    schemaVersion: 2,
+    provenance: {
+      ...datasetProvenance, ...sourceState, backendId: backend.id,
+      recognitionModel: backend.instance.model || backend.instance.clipPipeline?.model || null,
+      symbolModel: analyses.find(entry => entry.symbolVerification?.model)?.symbolVerification.model || null,
+      symbolThreshold: analyses.find(entry => Number.isFinite(entry.symbolVerification?.threshold))?.symbolVerification.threshold ?? null
+    },
     generatedAt: new Date().toISOString(),
     deckStyle: options.deckStyle,
     scope: options.scope,
     sampleSize: analyses.length,
-    results: analyses.map((entry) => ({
+    results: analyses.map((entry, index) => ({
+      expected: imageInputs[index].expected,
+      imageSha256: imageInputs[index].sha256,
       image: entry.label || entry.imagePath,
       topMatch: entry.topMatch,
       confidence: entry.confidence,

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const DEFAULT_FILE = 'data/evaluations/vision-metrics.json';
 const ACC_THRESHOLD = parseFloat(process.env.VISION_MIN_ACCURACY || '0.9');
@@ -46,10 +47,7 @@ async function main() {
     throw err;
   }
 
-  const metrics =
-    payload?.metricsByDeck?.[args.deckStyle] ||
-    payload?.metricsByDeck?.[Object.keys(payload?.metricsByDeck || {})[0]] ||
-    payload;
+  const metrics = payload?.metricsByDeck?.[args.deckStyle];
 
   if (!metrics) {
     console.error(`No metrics found for deck style ${args.deckStyle}.`);
@@ -57,16 +55,38 @@ async function main() {
     return;
   }
 
-  const accuracy = metrics?.accuracy ?? 0;
-  const coverage = metrics?.highConfidenceCoverage ?? 0;
-  const coverageAccuracy = metrics?.highConfidenceAccuracy ?? 0;
-  const symbolCoverage = metrics?.symbolCoverageRate ?? 0;
-  const weightedSymbolCoverage = metrics?.weightedSymbolCoverageRate ?? metrics?.symbolCoverageRate ?? 0;
-  const highSalienceRecall = metrics?.highSalienceSymbolRecall ?? 1;
-  const absentSymbolFalsePositiveRate = metrics?.absentSymbolFalsePositiveRate ?? 0;
-  const highConfidenceErrorRate = metrics?.highConfidenceErrorRate ?? (1 - coverageAccuracy);
+  const accuracy = metrics.accuracy;
+  const coverage = metrics.highConfidenceCoverage;
+  const coverageAccuracy = metrics.highConfidenceAccuracy;
+  const symbolCoverage = metrics.symbolCoverageRate;
+  const weightedSymbolCoverage = metrics.weightedSymbolCoverageRate;
+  const highSalienceRecall = metrics.highSalienceSymbolRecall;
+  const absentSymbolFalsePositiveRate = metrics.absentSymbolFalsePositiveRate;
+  const highConfidenceErrorRate = metrics.highConfidenceErrorRate;
 
   const failures = [];
+  const requiredRates = { accuracy, coverage, coverageAccuracy, symbolCoverage, weightedSymbolCoverage, highSalienceRecall, absentSymbolFalsePositiveRate, highConfidenceErrorRate };
+  for (const [name, value] of Object.entries(requiredRates)) {
+    if (!Number.isFinite(value) || value < 0 || value > 1) failures.push(`${name} is missing or invalid`);
+  }
+  for (const value of [ACC_THRESHOLD, COVERAGE_THRESHOLD, COVERAGE_ACC_THRESHOLD, SYMBOL_COVERAGE_THRESHOLD, WEIGHTED_SYMBOL_COVERAGE_THRESHOLD, HIGH_SALIENCE_RECALL_THRESHOLD, ABSENT_SYMBOL_FALSE_POSITIVE_MAX, HIGH_CONFIDENCE_ERROR_MAX]) {
+    if (!Number.isFinite(value) || value < 0 || value > 1) failures.push('invalid threshold configuration');
+  }
+  if (metrics.schemaVersion !== 2 || metrics.deckStyle !== args.deckStyle) failures.push('missing/current-schema deck evidence required');
+  const age = Date.now() - Date.parse(metrics.sourceGeneratedAt);
+  if (!Number.isFinite(age) || age < -300000 || age > 24 * 60 * 60 * 1000) failures.push('inference evidence must be less than 24 hours old and not in the future');
+  const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  const provenance = metrics.provenance;
+  if (provenance?.sourceRevision !== revision || provenance?.sourceDirty !== false) failures.push('inference must use this exact committed source');
+  if (provenance?.datasetKind !== 'held-out-photos' || provenance?.labelSource !== 'independent-human'
+    || provenance?.referenceOverlapCount !== 0 || !/^[a-f0-9]{64}$/.test(provenance?.manifestSha256 || '')) {
+    failures.push('independently labeled held-out photos with no reference-image overlap required; reference/synthetic checks are diagnostic only');
+  }
+  if (!Number.isInteger(metrics.sampleSize) || metrics.sampleSize < 78 || metrics.uniqueCardCount !== 78
+    || metrics.unmappedSampleCount !== 0 || metrics.inputSampleSize !== metrics.sampleSize) failures.push('complete labeled 78-card coverage required; skipped inputs are not permitted');
+  if (metrics.symbolScoredSampleCount !== metrics.sampleSize || metrics.symbolAnnotationCoverage !== 1) failures.push('verified symbol annotations and scores required for every evaluated image');
+  if (metrics.absenceAnnotationCoverage !== 1 || metrics.absenceAnnotatedSampleCount !== metrics.sampleSize) failures.push('absence-negative tests required for every evaluated image');
+  if (metrics.highSalienceAnnotationCoverage !== 1 || !Number.isInteger(metrics.highSalienceExpectedCount) || metrics.highSalienceExpectedCount <= 0) failures.push('measured high-salience symbols and complete annotation coverage required');
   if (accuracy < ACC_THRESHOLD) {
     failures.push(`accuracy ${formatPct(accuracy)} < threshold ${formatPct(ACC_THRESHOLD)}`);
   }

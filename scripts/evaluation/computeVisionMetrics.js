@@ -14,11 +14,11 @@ function usage() {
 }
 
 function parseArgs(rawArgs) {
-const options = {
-  input: 'data/evaluations/vision-confidence.json',
-  reviewOut: 'data/evaluations/vision-review-queue.csv',
-  metricsOut: 'data/evaluations/vision-metrics.json',
-  deckStyle: null
+  const options = {
+    input: 'data/evaluations/vision-confidence.json',
+    reviewOut: 'data/evaluations/vision-review-queue.csv',
+    metricsOut: 'data/evaluations/vision-metrics.json',
+    deckStyle: null
   };
 
   for (let i = 0; i < rawArgs.length; i++) {
@@ -110,6 +110,7 @@ export function computeVisionMetricEntry(samples = [], options = {}) {
   const deckStyle = options.deckStyle || 'rws-1909';
   const rows = [];
   const mismatches = [];
+  const reviewQueue = [];
   const perLabelCounts = new Map();
   const symbolMatchRates = [];
   const weightedSymbolRates = [];
@@ -118,15 +119,22 @@ export function computeVisionMetricEntry(samples = [], options = {}) {
   let highConfidenceCorrect = 0;
   let highConfidenceTotal = 0;
   let absentSymbolFalsePositiveCount = 0;
-  let symbolVerificationCount = 0;
-  let symbolHallucinationCount = 0;
-  let highSalienceRecallTotal = 0;
-  let highSalienceRecallSamples = 0;
+  let symbolVerifiedSampleCount = 0;
+  let absenceAnnotatedSampleCount = 0;
+  let highSalienceExpectedCount = 0;
+  let highSalienceDetectedCount = 0;
+  let highSalienceAnnotatedSampleCount = 0;
+  let symbolScoredSampleCount = 0;
+  let unmappedSampleCount = 0;
   const missingSymbolTally = new Map();
 
   for (const entry of samples) {
     const expected = resolveExpected(entry, options.imageNameMap);
-    if (!expected) continue;
+    if (!expected) {
+      unmappedSampleCount += 1;
+      reviewQueue.push({ image: entry.image || entry.label || entry.imagePath || '', expected: '', predicted: entry.topMatch?.cardName || '', action: 'review_missing_label' });
+      continue;
+    }
     const predicted = entry.topMatch?.cardName || entry.predictedCard || entry.card;
     const confidence = confidenceFor(entry);
     const normalizedExpected = normalizeName(expected);
@@ -154,12 +162,15 @@ export function computeVisionMetricEntry(samples = [], options = {}) {
 
     const symbolVerification = entry.symbolVerification;
     if (symbolVerification && typeof symbolVerification === 'object') {
-      symbolVerificationCount += 1;
-      if (typeof symbolVerification.matchRate === 'number') {
+      if (symbolVerification.annotationStatus === 'verified') symbolVerifiedSampleCount += 1;
+      if (Number.isFinite(symbolVerification.matchRate)) {
         symbolMatchRates.push(symbolVerification.matchRate);
       }
-      if (typeof symbolVerification.weightedMatchRate === 'number') {
+      if (Number.isFinite(symbolVerification.weightedMatchRate)) {
         weightedSymbolRates.push(symbolVerification.weightedMatchRate);
+      }
+      if ([symbolVerification.matchRate, symbolVerification.weightedMatchRate].every(value => Number.isFinite(value) && value >= 0 && value <= 1)) {
+        symbolScoredSampleCount += 1;
       }
       if (typeof symbolVerification.expectedCount === 'number') {
         symbolExpectedTotal += symbolVerification.expectedCount;
@@ -173,16 +184,33 @@ export function computeVisionMetricEntry(samples = [], options = {}) {
           missingSymbolTally.set(symbol, (missingSymbolTally.get(symbol) || 0) + 1);
         });
       }
-      const highMissing = Array.isArray(symbolVerification.highSalienceMissing)
-        ? symbolVerification.highSalienceMissing.length
-        : 0;
-      highSalienceRecallTotal += highMissing > 0 ? 0 : 1;
-      highSalienceRecallSamples += 1;
-      if (symbolVerification.absentSymbolFalsePositive || (Array.isArray(symbolVerification.absenceDetections) && symbolVerification.absenceDetections.length > 0)) {
-        absentSymbolFalsePositiveCount += 1;
-        symbolHallucinationCount += 1;
+      const highExpected = symbolVerification.highSalienceExpectedCount;
+      const highDetected = symbolVerification.highSalienceDetectedCount;
+      if (Number.isInteger(highExpected) && highExpected >= 0 && Number.isInteger(highDetected) && highDetected >= 0 && highDetected <= highExpected) {
+        highSalienceAnnotatedSampleCount += 1;
+        highSalienceExpectedCount += highExpected;
+        highSalienceDetectedCount += highDetected;
+      }
+      if (Number.isInteger(symbolVerification.absenceExpectedCount) && symbolVerification.absenceExpectedCount > 0
+        && typeof symbolVerification.absentSymbolFalsePositive === 'boolean') {
+        absenceAnnotatedSampleCount += 1;
+        if (symbolVerification.absentSymbolFalsePositive) absentSymbolFalsePositiveCount += 1;
       }
     }
+    const reasons = [];
+    if (!correct) reasons.push('review_prediction');
+    if (symbolVerification?.annotationStatus !== 'verified') reasons.push('review_annotations');
+    if (!Number.isFinite(symbolVerification?.weightedMatchRate) || symbolVerification.weightedMatchRate < 0.65) reasons.push('review_weak_symbols');
+    if (symbolVerification?.absentSymbolFalsePositive) reasons.push('review_absence_false_positive');
+    if (symbolVerification?.highSalienceExpectedCount > symbolVerification?.highSalienceDetectedCount) reasons.push('review_high_salience_missing');
+    if (reasons.length) reviewQueue.push({
+      image: entry.image || entry.label || entry.imagePath || '', expected, predicted: predicted || 'n/a', confidence,
+      basis: entry.topMatch?.basis,
+      weightedScore: symbolVerification?.weightedMatchRate,
+      hallucinatedSymbols: (symbolVerification?.absenceDetections || []).map((det) => det.label).filter(Boolean),
+      visibleSymbols: (symbolVerification?.matches || []).filter((match) => match.found).map((match) => match.object).filter(Boolean),
+      action: reasons.join('; ')
+    });
   }
 
   const total = rows.length;
@@ -197,7 +225,22 @@ export function computeVisionMetricEntry(samples = [], options = {}) {
     : 0;
 
   return {
+    schemaVersion: 2,
     deckStyle,
+    sourceGeneratedAt: options.sourceGeneratedAt || null,
+    provenance: options.provenance || null,
+    inputSampleSize: samples.length,
+    unmappedSampleCount,
+    uniqueCardCount: perLabelCounts.size,
+    symbolScoredSampleCount,
+    symbolVerifiedSampleCount,
+    symbolAnnotationCoverage: samples.length ? symbolVerifiedSampleCount / samples.length : 0,
+    absenceAnnotatedSampleCount,
+    absenceAnnotationCoverage: samples.length ? absenceAnnotatedSampleCount / samples.length : 0,
+    highSalienceExpectedCount,
+    highSalienceDetectedCount,
+    highSalienceAnnotatedSampleCount,
+    highSalienceAnnotationCoverage: samples.length ? highSalienceAnnotatedSampleCount / samples.length : 0,
     generatedAt: new Date().toISOString(),
     sourceFile: options.sourceFile || null,
     sampleSize: total,
@@ -215,14 +258,14 @@ export function computeVisionMetricEntry(samples = [], options = {}) {
     weightedSymbolCoverageRate: weightedSymbolRates.length
       ? Number((weightedSymbolRates.reduce((sum, value) => sum + value, 0) / weightedSymbolRates.length).toFixed(4))
       : null,
-    highSalienceSymbolRecall: highSalienceRecallSamples
-      ? Number((highSalienceRecallTotal / highSalienceRecallSamples).toFixed(4))
+    highSalienceSymbolRecall: highSalienceExpectedCount
+      ? Number((highSalienceDetectedCount / highSalienceExpectedCount).toFixed(4))
       : null,
-    absentSymbolFalsePositiveRate: symbolVerificationCount
-      ? Number((absentSymbolFalsePositiveCount / symbolVerificationCount).toFixed(4))
+    absentSymbolFalsePositiveRate: absenceAnnotatedSampleCount
+      ? Number((absentSymbolFalsePositiveCount / absenceAnnotatedSampleCount).toFixed(4))
       : null,
-    symbolHallucinationRate: symbolVerificationCount
-      ? Number((symbolHallucinationCount / symbolVerificationCount).toFixed(4))
+    symbolHallucinationRate: absenceAnnotatedSampleCount
+      ? Number((absentSymbolFalsePositiveCount / absenceAnnotatedSampleCount).toFixed(4))
       : null,
     brierScore: Number(brierScore.toFixed(4)),
     expectedCalibrationError: computeExpectedCalibrationError(rows),
@@ -235,7 +278,8 @@ export function computeVisionMetricEntry(samples = [], options = {}) {
       accuracy: stats.total ? stats.correct / stats.total : 0,
       total: stats.total
     })).sort((a, b) => a.label.localeCompare(b.label)),
-    mismatches
+    mismatches,
+    reviewQueue
   };
 }
 
@@ -331,155 +375,18 @@ async function main() {
 
   const deckStyle = options.deckStyle || payload?.deckStyle || 'rws-1909';
   const { imageMap: imageNameMap } = buildDeckLookups(deckStyle);
-  let total = 0;
-  let correct = 0;
-  let highConfidenceCorrect = 0;
-  let highConfidenceTotal = 0;
-  const mismatches = [];
-  const perLabelCounts = new Map();
-  let symbolTotal = 0;
-  let symbolFocused = 0;
-  const symbolStats = new Map();
-  const symbolMatchRates = [];
-  let symbolExpectedTotal = 0;
-  let symbolDetectedTotal = 0;
-  const missingSymbolTally = new Map();
-
-  for (const entry of samples) {
-    const image = entry.image || entry.label || entry.imagePath;
-    const basename = path.basename(image);
-    const expected = imageNameMap.get(basename);
-    if (!expected) {
-      console.warn(`No expected mapping for ${basename}; skipping.`);
-      continue;
-    }
-    total += 1;
-    const predicted = entry.topMatch?.cardName;
-    const confidence = entry.topMatch?.score ?? 0;
-    // Expected is already in RWS canonical form (from imageNameMap)
-    // Only canonicalize predicted value (which may be in Thoth/Marseille form)
-    const normalizedExpected = normalizeName(expected);
-    const normalizedPredicted = normalizeName(canonicalizeCardName(predicted, deckStyle) || predicted);
-    const isCorrect = normalizedPredicted === normalizedExpected;
-    if (isCorrect) {
-      correct += 1;
-      if (confidence >= 0.9) highConfidenceCorrect += 1;
-    } else {
-      mismatches.push({
-        image: basename,
-        expected,
-        predicted: predicted || 'n/a',
-        confidence,
-        basis: entry.topMatch?.basis,
-        weightedScore: entry.symbolVerification?.weightedMatchRate,
-        hallucinatedSymbols: (entry.symbolVerification?.absenceDetections || []).map((det) => det.label).filter(Boolean),
-        visibleSymbols: (entry.symbolVerification?.matches || []).filter((match) => match.found).map((match) => match.object).filter(Boolean),
-        action: entry.symbolVerification?.absentSymbolFalsePositive ? 'review_absence_false_positive' : 'review_prediction'
-      });
-    }
-    if (confidence >= 0.9) highConfidenceTotal += 1;
-
-    const labelStats = perLabelCounts.get(expected) || { total: 0, correct: 0 };
-    labelStats.total += 1;
-    if (isCorrect) labelStats.correct += 1;
-    perLabelCounts.set(expected, labelStats);
-
-    const symbolVerification = entry.symbolVerification;
-    if (symbolVerification && typeof symbolVerification.matchRate === 'number') {
-      symbolMatchRates.push(symbolVerification.matchRate);
-      if (typeof symbolVerification.expectedCount === 'number') {
-        symbolExpectedTotal += symbolVerification.expectedCount;
-      }
-      if (typeof symbolVerification.detectedCount === 'number') {
-        symbolDetectedTotal += symbolVerification.detectedCount;
-      }
-      if (Array.isArray(symbolVerification.missingSymbols)) {
-        symbolVerification.missingSymbols.forEach((symbol) => {
-          if (!symbol) return;
-          const current = missingSymbolTally.get(symbol) || 0;
-          missingSymbolTally.set(symbol, current + 1);
-        });
-      }
-    }
-
-    const symbolAlignment = entry.attention?.symbolAlignment;
-    if (Array.isArray(symbolAlignment)) {
-      symbolAlignment.forEach((symbol) => {
-        if (typeof symbol.attentionScore !== 'number') {
-          return;
-        }
-        symbolTotal += 1;
-        const isFocused = symbol.isModelFocused || symbol.attentionScore >= 0.65;
-        if (isFocused) {
-          symbolFocused += 1;
-        }
-        const key = symbol.object || 'symbol';
-        const stats = symbolStats.get(key) || { total: 0, focused: 0 };
-        stats.total += 1;
-        if (isFocused) {
-          stats.focused += 1;
-        }
-        symbolStats.set(key, stats);
-      });
-    }
+  if (options.deckStyle && payload.deckStyle && options.deckStyle !== payload.deckStyle) {
+    throw new Error('Requested deck does not match the inference report');
   }
-
-  const accuracy = total ? correct / total : 0;
-  const highConfidenceAccuracy = highConfidenceTotal ? highConfidenceCorrect / highConfidenceTotal : 0;
-  let symbolCoverageRate = null;
-
-  if (symbolMatchRates.length > 0) {
-    symbolCoverageRate = symbolMatchRates.reduce((sum, value) => sum + value, 0) / symbolMatchRates.length;
-  } else if (symbolTotal) {
-    symbolCoverageRate = symbolFocused / symbolTotal;
-  }
-
-  const symbolDetectionRate = symbolExpectedTotal
-    ? symbolDetectedTotal / symbolExpectedTotal
-    : null;
-
-  // Micro precision/recall/f1 collapses to accuracy for single-label classification.
-  const precisionMicro = accuracy;
-  const recallMicro = accuracy;
-  const f1Micro = accuracy;
-
-  const perLabelAccuracy = Array.from(perLabelCounts.entries()).map(([label, stats]) => ({
-    label,
-    accuracy: stats.total ? stats.correct / stats.total : 0,
-    total: stats.total
-  })).sort((a, b) => a.label.localeCompare(b.label));
-
-  const metricsEntry = {
-    deckStyle,
-    generatedAt: new Date().toISOString(),
-    sourceFile: path.relative(process.cwd(), inputPath),
-    sampleSize: total,
-    accuracy,
-    microPrecision: precisionMicro,
-    microRecall: recallMicro,
-    microF1: f1Micro,
-    highConfidenceCoverage: highConfidenceTotal / (total || 1),
-    highConfidenceAccuracy,
-    symbolCoverageRate,
-    symbolDetectionRate,
-    symbolMissingLeaders: Array.from(missingSymbolTally.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([symbol, count]) => ({ symbol, count })),
-    symbolBreakdown: Array.from(symbolStats.entries()).map(([object, stats]) => ({
-      object,
-      coverage: stats.total ? stats.focused / stats.total : 0,
-      total: stats.total
-    })).sort((a, b) => b.coverage - a.coverage),
-    perLabelAccuracy
-  };
-  const enhancedMetrics = computeVisionMetricEntry(samples, {
+  const metricsEntry = computeVisionMetricEntry(samples, {
     deckStyle,
     sourceFile: path.relative(process.cwd(), inputPath),
+    sourceGeneratedAt: payload.generatedAt,
+    provenance: payload.provenance,
     imageNameMap
   });
-  delete enhancedMetrics.mismatches;
-  Object.assign(metricsEntry, enhancedMetrics);
+  const reviewQueue = metricsEntry.reviewQueue;
+  delete metricsEntry.reviewQueue;
 
   const metricsPath = path.resolve(process.cwd(), options.metricsOut);
   await fs.mkdir(path.dirname(metricsPath), { recursive: true });
@@ -501,14 +408,13 @@ async function main() {
 
   const reviewPath = path.resolve(process.cwd(), options.reviewOut);
   const existingAnnotations = await readExistingAnnotations(reviewPath);
-  await writeReviewCsv(mismatches, reviewPath, existingAnnotations);
+  await fs.mkdir(path.dirname(reviewPath), { recursive: true });
+  await writeReviewCsv(reviewQueue, reviewPath, existingAnnotations);
 
   console.log('Vision metrics written to', metricsPath);
   console.log('Review queue written to', reviewPath);
-  console.log(`Overall accuracy: ${(accuracy * 100).toFixed(2)}% (${correct}/${total})`);
-  if (highConfidenceTotal) {
-    console.log(`High-confidence accuracy (>=0.9): ${(highConfidenceAccuracy * 100).toFixed(2)}% (${highConfidenceCorrect}/${highConfidenceTotal})`);
-  }
+  console.log(`Overall accuracy: ${(metricsEntry.accuracy * 100).toFixed(2)}% (${metricsEntry.sampleSize} labeled inputs; ${metricsEntry.unmappedSampleCount} unlabeled)`);
+  console.log(`Symbol annotation coverage: ${(metricsEntry.symbolAnnotationCoverage * 100).toFixed(2)}%; ${reviewQueue.length} samples queued for review`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {

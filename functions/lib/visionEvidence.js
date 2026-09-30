@@ -86,6 +86,8 @@ function buildExpectedRiderSymbols(ontology) {
 
 function resolveVisualClaimMode(entry, threshold) {
   if (entry?.matchesDrawnCard !== true) return 'ask_for_confirmation';
+  const symbols = entry?.symbolVerification;
+  if ((symbols?.annotationStatus && symbols.annotationStatus !== 'verified') || symbols?.absentSymbolFalsePositive) return 'card_level_only';
   const confidence = typeof entry.confidence === 'number' ? entry.confidence : null;
   const symbolScore = typeof entry.symbolVerification?.weightedMatchRate === 'number'
     ? entry.symbolVerification.weightedMatchRate

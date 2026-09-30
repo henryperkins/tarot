@@ -1,7 +1,5 @@
 import { pipeline, RawImage } from '@xenova/transformers';
-import { SYMBOL_ANNOTATIONS } from '../symbols/symbolAnnotations.js';
 import { getRwsCardEvidence, normalizeRwsSymbolName } from './rwsEvidenceOntology.js';
-import { getMinorSymbolAnnotation } from './minorSymbolLexicon.js';
 
 function getEnvValue(key) {
   if (typeof process !== 'undefined' && process?.env?.[key]) {
@@ -22,84 +20,6 @@ const DEFAULT_MODEL = MODEL_OVERRIDE
   || (MODEL_PRESET === 'fast' ? 'Xenova/owlvit-base-patch32' : 'Xenova/owlvit-large-patch14');
 const DEFAULT_THRESHOLD = Number.parseFloat(getEnvValue('SYMBOL_DETECTOR_THRESHOLD')) || 0.05;
 const DEFAULT_HEATMAP_GRID = Number.parseInt(getEnvValue('SYMBOL_HEATMAP_GRID') || '7', 10);
-const SYMBOL_SYNONYMS = {
-  sun: ['sun', 'solar disk', 'sunlight', 'sunrise'],
-  moon: ['moon', 'luna', 'crescent'],
-  dog: ['dog', 'canine', 'wolf', 'hound'],
-  cat: ['cat', 'feline'],
-  lion: ['lion', 'big cat'],
-  horse: ['horse', 'steed'],
-  crown: ['crown', 'tiara', 'coronet'],
-  wand: ['wand', 'staff', 'rod'],
-  cup: ['cup', 'chalice', 'goblet'],
-  sword: ['sword', 'blade'],
-  pentacle: ['pentacle', 'coin', 'disk', 'disc'],
-  coin: ['coin', 'pentacle', 'disk', 'disc'],
-  star: ['star', 'pentagram'],
-  tower: ['tower', 'castle'],
-  throne: ['throne', 'chair'],
-  wing: ['wing', 'angel wing'],
-  angel: ['angel', 'archangel'],
-  bird: ['bird', 'dove', 'eagle'],
-  flower: ['flower', 'rose', 'lily', 'sunflower'],
-  tree: ['tree', 'branch', 'trunk'],
-  pillar: ['pillar', 'column'],
-  mountain: ['mountain', 'cliff', 'peak'],
-  river: ['river', 'stream', 'waterfall'],
-  water: ['water', 'stream', 'river'],
-  boat: ['boat', 'ship', 'canoe'],
-  angelwing: ['angel wing', 'wing'],
-  shield: ['shield', 'emblem'],
-  scale: ['scale', 'balance'],
-  torch: ['torch', 'lantern', 'lamp'],
-  hand: ['hand', 'palm'],
-  figure: ['figure', 'person', 'human'],
-  child: ['child', 'kid', 'youth'],
-  fish: ['fish', 'koi'],
-  snake: ['snake', 'serpent'],
-  banner: ['banner', 'flag'],
-  bundle: ['bundle', 'knapsack', 'satchel', 'bag'],
-  feather: ['feather', 'plume'],
-  rose: ['rose', 'flower'],
-  cliff: ['cliff', 'ledge', 'precipice'],
-  sunflowers: ['sunflower', 'flower'],
-  grapes: ['grape', 'fruit'],
-  scales: ['scales', 'balance'],
-  wheel: ['wheel', 'circle', 'mandala']
-};
-
-const STOPWORDS = new Set([
-  'a',
-  'an',
-  'the',
-  'with',
-  'and',
-  'or',
-  'of',
-  'on',
-  'in',
-  'at',
-  'over',
-  'under',
-  'around',
-  'through',
-  'for',
-  'near',
-  'by',
-  'to',
-  'from',
-  'up',
-  'down',
-  'scene',
-  'background',
-  'foreground',
-  'center',
-  'left',
-  'right',
-  'top',
-  'bottom'
-]);
-
 const HEATMAP_FOCUS_THRESHOLD = 0.75;
 
 function clamp01(value) {
@@ -153,58 +73,8 @@ function buildDetectionHeatmap(detections = [], gridSize = DEFAULT_HEATMAP_GRID 
   };
 }
 
-const POSITION_KEYWORDS = {
-  top: ['top', 'upper', 'sky', 'crown'],
-  bottom: ['bottom', 'ground', 'base', 'earth'],
-  left: ['left', 'west'],
-  right: ['right', 'east'],
-  center: ['center', 'middle', 'mid']
-};
-
 function normalizeLabel(value = '') {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-}
-
-function singularize(token = '') {
-  if (token.endsWith('ies')) {
-    return token.slice(0, -3) + 'y';
-  }
-  if (token.endsWith('ves')) {
-    return token.slice(0, -3) + 'f';
-  }
-  if (token.endsWith('s') && token.length > 3) {
-    return token.slice(0, -1);
-  }
-  return token;
-}
-
-function buildSymbolTerms(symbolObject = '') {
-  const normalized = normalizeLabel(symbolObject);
-  if (!normalized) return [];
-  const tokens = normalized
-    .split(' ')
-    .map((token) => token.trim())
-    .filter((token) => token && !STOPWORDS.has(token));
-
-  const terms = new Set();
-  if (symbolObject) {
-    terms.add(symbolObject.toLowerCase());
-  }
-
-  for (let i = 0; i < tokens.length; i += 1) {
-    const token = tokens[i];
-    const singular = singularize(token);
-    terms.add(token);
-    terms.add(singular);
-    const synonyms = SYMBOL_SYNONYMS[singular] || SYMBOL_SYNONYMS[token] || [];
-    synonyms.forEach((syn) => terms.add(syn));
-
-    if (i < tokens.length - 1) {
-      terms.add(`${token} ${tokens[i + 1]}`);
-    }
-  }
-
-  return Array.from(terms).filter(Boolean);
 }
 
 function formatPrompt(term) {
@@ -217,30 +87,13 @@ function formatPrompt(term) {
   return `${article} ${trimmed}`;
 }
 
-function getAnnotation(card) {
-  if (typeof card?.number === 'number' && SYMBOL_ANNOTATIONS?.[card.number]) {
-    return SYMBOL_ANNOTATIONS[card.number];
-  }
-  if (card?.suit && card?.rank) {
-    return getMinorSymbolAnnotation(card);
-  }
-  return null;
-}
-
-function getExpectedSymbols(card) {
+function getExpectedSymbols(card, deckStyle) {
+  if (deckStyle !== 'rws-1909') return null;
   const ontology = getRwsCardEvidence(card?.canonicalName || card?.name || card?.cardName || card?.card);
-  if (ontology?.visualSymbols?.length) {
-    return ontology.visualSymbols.map((symbol) => ({
-      ...symbol,
-      object: symbol.label || symbol.symbol
-    }));
-  }
-
-  const annotation = getAnnotation(card);
-  if (!annotation?.symbols || !annotation.symbols.length) {
-    return null;
-  }
-  return annotation.symbols;
+  // Minor Arcana templates describe interpretive suit/rank themes, not the
+  // objects in a particular image. Keep them out of visual verification.
+  if (ontology?.arcana !== 'Major' || !ontology.visualSymbols?.length) return null;
+  return ontology.visualSymbols.map((symbol) => ({ ...symbol, object: symbol.label || symbol.symbol }));
 }
 
 function symbolLabel(symbol) {
@@ -327,6 +180,10 @@ export function computeSymbolVerificationScores(expectedSymbols = [], matches = 
     .slice(0, 5);
 
   return {
+    highSalienceExpectedCount: enrichedMatches.filter((match) => match.salience >= 0.75).length,
+    highSalienceDetectedCount: enrichedMatches.filter((match) => match.salience >= 0.75 && match.found).length,
+    absenceExpectedCount: new Set(expected.flatMap((symbol) => symbol.absenceNegatives || []).map(normalizeDetectionLabel)).size,
+    absenceDetectionCount: safeDetections.filter((det) => det.absenceNegative === true || det.kind === 'absence_negative').length,
     expectedCount,
     detectedCount: foundCount,
     matchRate,
@@ -345,44 +202,6 @@ export function computeSymbolVerificationScores(expectedSymbols = [], matches = 
     absenceDetections,
     unexpectedDetections
   };
-}
-
-function centerFromBox(box = {}) {
-  const x = box.xmin != null && box.xmax != null ? (box.xmin + box.xmax) / 2 : null;
-  const y = box.ymin != null && box.ymax != null ? (box.ymin + box.ymax) / 2 : null;
-  return { x, y };
-}
-
-function resolvePositionKeyword(position = '') {
-  const lower = position.toLowerCase();
-  if (POSITION_KEYWORDS.top.some((token) => lower.includes(token))) return 'top';
-  if (POSITION_KEYWORDS.bottom.some((token) => lower.includes(token))) return 'bottom';
-  if (POSITION_KEYWORDS.left.some((token) => lower.includes(token))) return 'left';
-  if (POSITION_KEYWORDS.right.some((token) => lower.includes(token))) return 'right';
-  if (POSITION_KEYWORDS.center.some((token) => lower.includes(token))) return 'center';
-  return null;
-}
-
-function positionMatches(box, symbolPosition) {
-  if (!symbolPosition || !box) return true;
-  const keyword = resolvePositionKeyword(symbolPosition);
-  if (!keyword) return true;
-  const { x, y } = centerFromBox(box);
-  if (x == null || y == null) return true;
-  switch (keyword) {
-    case 'top':
-      return y <= 0.4;
-    case 'bottom':
-      return y >= 0.6;
-    case 'left':
-      return x <= 0.4;
-    case 'right':
-      return x >= 0.6;
-    case 'center':
-      return y > 0.35 && y < 0.65 && x > 0.35 && x < 0.65;
-    default:
-      return true;
-  }
 }
 
 function normalizeBox(box = {}, dimensions = { width: 1, height: 1 }) {
@@ -413,10 +232,35 @@ export class SymbolDetector {
     return this._detectorPromise;
   }
 
-  async verifySymbols(imageSource, card) {
-    const expectedSymbols = getExpectedSymbols(card);
+  async verifySymbols(imageSource, card, { deckStyle = 'rws-1909' } = {}) {
+    const provenance = {
+      model: this.model,
+      threshold: this.threshold,
+      deckStyle,
+      verifiedCard: card?.canonicalName || card?.name || card?.cardName || card?.card || null,
+      verificationSource: 'symbol-detector',
+      annotationStatus: 'unverified',
+      annotationSource: 'rws-ontology-draft',
+      spatialVerification: 'unverified'
+    };
+    const expectedSymbols = getExpectedSymbols(card, deckStyle);
     if (!expectedSymbols || expectedSymbols.length === 0) {
-      return null;
+      return {
+        ...provenance,
+        annotationStatus: 'unsupported',
+        annotationSource: null,
+        matchRate: null,
+        weightedMatchRate: null,
+        expectedCount: 0,
+        detectedCount: 0,
+        highSalienceExpectedCount: 0,
+        highSalienceDetectedCount: 0,
+        absenceExpectedCount: 0,
+        absenceDetectionCount: 0,
+        absentSymbolFalsePositive: null,
+        matches: [],
+        absenceDetections: []
+      };
     }
 
     const detector = await this._getDetector();
@@ -424,7 +268,7 @@ export class SymbolDetector {
     const { candidateLabels, labelLookup, absenceLabels } = this._buildCandidateLabels(expectedSymbols);
 
     if (!candidateLabels.length) {
-      return computeSymbolVerificationScores(expectedSymbols, [], []);
+      return { ...computeSymbolVerificationScores(expectedSymbols, [], []), ...provenance };
     }
 
     const detections = await detector(rawImage, candidateLabels, {
@@ -453,7 +297,9 @@ export class SymbolDetector {
         const candidates = labelLookup.get(det.label) || [];
         const isCandidate = candidates.includes(symbolIndex);
         if (!isCandidate) return false;
-        return positionMatches(det.box, symbol.position);
+        // Legacy locations/regions have not been checked against these images.
+        // Do not pretend to enforce them or use them as verified spatial proof.
+        return true;
       });
 
       if (detection) {
@@ -477,7 +323,6 @@ export class SymbolDetector {
 
     const unexpectedDetections = normalizedDetections
       .filter((det) => !matchedDetectionIds.has(det.id))
-      .slice(0, 5)
       .map((det) => ({
         label: det.label,
         confidence: det.score,
@@ -489,8 +334,7 @@ export class SymbolDetector {
 
     return {
       ...scores,
-      verifiedCard: card?.canonicalName || card?.name || card?.cardName || card?.card || null,
-      verificationSource: 'symbol-detector',
+      ...provenance,
       matches: scores.matches.slice(0, 8),
       heatmap
     };
@@ -502,12 +346,12 @@ export class SymbolDetector {
 
     symbols.forEach((symbol, index) => {
       const terms = Array.from(new Set([
-        ...buildSymbolTerms(symbolLabel(symbol)),
+        symbolLabel(symbol),
         ...(symbol.aliases || [])
       ]));
       if (!terms.length) return;
       terms.forEach((term) => {
-        const prompt = formatPrompt(term);
+        const prompt = formatPrompt(normalizeDetectionLabel(term));
         if (!prompt) return;
         orderedLabels.push(prompt);
         const mapping = labelLookup.get(prompt) || [];
@@ -516,14 +360,18 @@ export class SymbolDetector {
       });
 
       (symbol.absenceNegatives || []).forEach((negative) => {
-        buildSymbolTerms(negative).forEach((term) => {
-          const prompt = formatPrompt(term);
-          if (!prompt) return;
-          orderedLabels.push(prompt);
-          absenceLabelSet.add(prompt);
-        });
+        // A counted/qualified negative is one concept: "eight swords" must
+        // never become the positive "sword", nor "white rose" a sunflower.
+        const prompt = formatPrompt(normalizeDetectionLabel(negative));
+        if (!prompt) return;
+        orderedLabels.push(prompt);
+        absenceLabelSet.add(prompt);
       });
     });
+
+    for (const label of absenceLabelSet) {
+      if (labelLookup.has(label)) throw new Error(`Conflicting positive/negative symbol annotation: ${label}`);
+    }
 
     const uniqueLabels = Array.from(new Set(orderedLabels));
     return { candidateLabels: uniqueLabels, labelLookup, absenceLabels: absenceLabelSet };
@@ -532,5 +380,5 @@ export class SymbolDetector {
 
 export async function analyzeSymbolVerification(imageSource, card, options = {}) {
   const detector = new SymbolDetector(options);
-  return detector.verifySymbols(imageSource, card);
+  return detector.verifySymbols(imageSource, card, options);
 }

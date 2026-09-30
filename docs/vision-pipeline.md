@@ -2,25 +2,25 @@
 
 Type: reference
 Status: active reference
-Last reviewed: 2026-09-25
+Last reviewed: 2026-09-30
 
 ## Goal
-The current multimodal pipeline embeds tarot card images with CLIP, compares them to text prototypes for each card, and surfaces the closest symbolic matches. It is available as an opt-in research capability and is connected to the Worker through server-signed vision proofs; it is not required to complete a normal reading.
+The current multimodal pipeline embeds tarot card images with CLIP, compares them to reference-image embeddings, text descriptions and optional trained prototypes, and surfaces the closest matches. It is available as an opt-in research capability and is connected to the Worker through server-signed vision proofs; it is not required to complete a normal reading.
 
 ## Implementation Overview
 - **Model**: `Xenova/clip-vit-base-patch32` via `@xenova/transformers` (runs locally/in-browser, downloads weights on first use).
 - **Card Library**: Built from `src/data/majorArcana.js` + `src/data/minorArcana.js`. Prompts now combine:
   - Curated Major Arcana annotations from `shared/symbols/symbolAnnotations.js`
   - Programmatic Minor Arcana symbol expansions from `shared/vision/minorSymbolLexicon.js`
-  - Deck-style metadata from `shared/vision/deckProfiles.js` (RWS, Thoth, Marseille ready)
+  - Deck-style metadata from `shared/vision/deckProfiles.js` (RWS, Thoth and Marseille identity mappings; photo quality unverified)
   - Physical assets live under `public/images/cards/` (RWS scans in the root), with deck-specific folders at `public/images/cards/thoth` and `public/images/cards/marseille`. Asset scanning is driven by `shared/vision/deckProfiles.js`.
 - **Pipeline Class**: `shared/vision/tarotVisionPipeline.js` loads CLIP stacks, embeds prompts/images, normalizes vectors, and compares cosine similarity. It accepts file paths, URLs, or browser data URLs so both CLI scripts and the React UI can reuse the same engine.
 - **Orientation**: the default `clip-default` backend does not infer upright/reversed orientation. Orientation is an optional server-side Llama or hybrid result when that backend is selected and available.
 - **CLI Harness**: `scripts/vision/runVisionPrototype.js` accepts image paths, with flags for deck scope/style and number of matches. Useful for quick regression checks while iterating on symbol prompts.
-- **Evaluation Harness**: `scripts/evaluation/runVisionConfidence.js` sweeps `public/images/cards`, logs top-5 matches + confidence, and writes reports under `data/evaluations/` for the guide's Section 3 benchmarking work.
-- **Metrics + Review Loop**: `scripts/evaluation/computeVisionMetrics.js` ingests any `vision-confidence.json` snapshot, derives ground-truth labels from `src/data/majorArcana.js`/`src/data/minorArcana.js`, computes micro precision/recall/F1 (Section 3 symbolic recognition metric), and emits:
+- **Evaluation Harness**: `scripts/evaluation/runVisionConfidence.js` uses `public/images/cards` for a reference-identity wiring check, or a declared `--manifest` for held-out photos or synthetic diagnostics. It records input hashes, dataset kind, source revision and inference time with the top-5 results. Reference images cannot qualify a release.
+- **Metrics + Review Loop**: `scripts/evaluation/computeVisionMetrics.js` ingests a `vision-confidence.json` snapshot, uses explicit independent labels when supplied (reference-file mapping is a legacy diagnostic fallback), computes identity and symbol metrics separately, and emits:
   - `data/evaluations/vision-metrics.json` — machine-readable stats for release gates.
-  - `data/evaluations/vision-review-queue.csv` — mismatched samples for human-in-the-loop review (Section 3 human evaluation). The queue preserves any previously recorded `human_verdict`/`human_notes` so annotations survive subsequent runs.
+  - `data/evaluations/vision-review-queue.csv` — identity failures, weak/absent symbols, missing labels and unverified annotations for human review. The queue preserves any previously recorded `human_verdict`/`human_notes` so annotations survive subsequent runs.
 - **Review Summaries**: Once reviewers fill the queue, run `npm run review:vision` (wrapper around `scripts/evaluation/processVisionReviews.js`) to convert their annotations into `data/evaluations/vision-review-summary.json`, capturing acceptance/rejection rates and sample rows for audit.
 - **UI Surface**: `VisionValidationPanel` + `useVisionValidation` hook (see `src/components/VisionValidationPanel.jsx`) let users upload photos per spread when vision research is enabled. `useVisionAnalysis` manages the proof handshake; default mismatches are logged for telemetry and do not block `/api/tarot-reading`.
 
@@ -40,7 +40,7 @@ Only recognized uploads returned by `annotateVisionInsights()` enter the annotat
 set. That recognized list is the source of suppression-reason metadata: each entry
 has a `suppressionReason` when it is not prompt-eligible; low-confidence, mismatched,
 or otherwise unverified entries are telemetry-only, while entries that cannot be
-resolved to a card are filtered out.
+resolved to a card are filtered out. Explicitly unsupported or unverified symbol annotations and known absent-symbol false positives are suppressed even when confidence is high. These restrictions survive API sanitization and proof signing.
 
 Deck and mismatch-rate strictness is opt-in. `VISION_STRICT_DECK_MATCH=true` returns
 409 for a proof from the wrong deck. `VISION_STRICT_MISMATCH_RATE=true` returns 409
@@ -79,13 +79,37 @@ The user prompt renders an **Uploaded Visible Evidence** section with literal/sy
 
 ## Current QA and Follow-ups
 
-`npm run gate:vision` and `npm run ci:vision-check` are shipped. The CI workflow runs
-`ci:vision-check` after evaluating all three deck styles, computing per-deck metrics,
-and checking accuracy, high-confidence coverage and accuracy, symbol coverage,
-weighted symbol coverage, high-salience recall, absent-symbol false positives, and
-high-confidence error rate. Thresholds remain configurable through the `VISION_*`
-environment variables; lower them only with an explicit quality decision.
+The current reference-image evaluation is a wiring check: the same 234 images
+are embedded as recognition references and used as test inputs. A 234/234 match
+therefore does not measure phone-photo recognition or prove unique embeddings.
+The close alternative matches are a reason to test camera conditions, not a
+measured real-photo failure. The repository has no independently labeled phone
+photo corpus. Thoth fixtures include placeholders.
 
-The vision review CSV and generated metrics remain useful release artifacts. Future
-work may persist proof summaries for longer-term auditing, but the current
-prompt-eligibility, confidence, and telemetry paths are already implemented.
+The September 30 repairs preserve the numerical quality thresholds. Symbol
+queries keep whole concepts and declared aliases. Negative detections are counted
+before response truncation. Legacy RWS Major Arcana annotations remain diagnostic
+and explicitly unverified, including their spatial priors. Generic Minor Arcana
+templates and non-RWS symbol expectations are unsupported; they receive no score.
+This quarantine is a coverage gap, not improved model quality. No annotations are
+currently qualified for release.
+
+`gate:vision` requires schema-version 2 metrics for the requested deck, inference
+within 24 hours, the exact committed source, all 78 card identities, verified
+symbol annotations for every evaluated image, and measured negative/high-salience
+coverage. Missing evidence fails. A recomputed metrics timestamp cannot refresh
+old inference. Reference art and synthetic transformations cannot satisfy the
+held-out-photo requirement.
+
+The weighted score remains `sum(found * confidence * salience) / sum(salience)`;
+its `0.65` floor is a confidence requirement, not 65% binary symbol recall. Negative
+false-positive rate uses samples with explicit negative annotations; high-salience
+recall counts annotated symbols, not cards with no high-salience labels. Both are
+null when unmeasured. Coverage is reported separately.
+
+Use [the evaluation evidence contract](vision-evaluation-integrity.md) to prepare
+a corpus and run fresh checks. Confidence calibration and any model/threshold
+change require independent measurements and a separately reviewed policy decision.
+`npm run ci:release-check` requires that corpus and a live narrative provider
+(default `modal-qwen`). `npm run deploy` and `deploy:skip-migrations` run these
+checks before remote changes; migration-only operations remain separate.

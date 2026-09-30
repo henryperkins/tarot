@@ -17,9 +17,9 @@ Run every command example in this file from the repository root. Use `python3` i
   has not been authorized. Preserve thresholds; report unsupported samples and
   failed gates explicitly. A build or focused test is not a full QA gate.
 - The checked-in release path is `package.json` → `scripts/deploy.js`.
-  `npm run deploy` checks and applies pending remote D1 migrations, then builds
+  `npm run deploy` first runs `ci:release-check` (held-out vision corpus and live narrative provider required), checks and applies pending remote D1 migrations, then builds
   the frontend and runs Wrangler deploy. `npm run deploy:skip-migrations` builds
-  and deploys only, so apply migrations separately. `npm run deploy:dry-run`
+  and deploys only after the same fresh QA, so apply migrations separately. `npm run deploy:dry-run`
   previews the script; production changes require `npm run deploy` or
   `npm run migrations:apply`, while local migrations use
   `npm run migrations:apply:local`. Keep publication and cleanup separate.

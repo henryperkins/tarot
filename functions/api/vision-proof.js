@@ -116,6 +116,15 @@ function sanitizeSymbolVerification(symbolVerification) {
     : [];
 
   return {
+    annotationStatus: ['verified', 'unverified', 'unsupported'].includes(symbolVerification.annotationStatus)
+      ? symbolVerification.annotationStatus : 'unverified',
+    annotationSource: typeof symbolVerification.annotationSource === 'string' ? symbolVerification.annotationSource.slice(0, 120) : null,
+    deckStyle: typeof symbolVerification.deckStyle === 'string' ? symbolVerification.deckStyle.slice(0, 40) : null,
+    spatialVerification: symbolVerification.spatialVerification === 'verified' ? 'verified' : 'unverified',
+    absenceExpectedCount: Number.isInteger(symbolVerification.absenceExpectedCount) ? symbolVerification.absenceExpectedCount : null,
+    absenceDetectionCount: Number.isInteger(symbolVerification.absenceDetectionCount) ? symbolVerification.absenceDetectionCount : null,
+    highSalienceExpectedCount: Number.isInteger(symbolVerification.highSalienceExpectedCount) ? symbolVerification.highSalienceExpectedCount : null,
+    highSalienceDetectedCount: Number.isInteger(symbolVerification.highSalienceDetectedCount) ? symbolVerification.highSalienceDetectedCount : null,
     expectedCount: symbolVerification.expectedCount ?? null,
     detectedCount: symbolVerification.detectedCount ?? null,
     matchRate,
@@ -130,7 +139,7 @@ function sanitizeSymbolVerification(symbolVerification) {
     lowSalienceMissing: Array.isArray(symbolVerification.lowSalienceMissing)
       ? symbolVerification.lowSalienceMissing.slice(0, 6)
       : [],
-    absentSymbolFalsePositive: Boolean(symbolVerification.absentSymbolFalsePositive),
+    absentSymbolFalsePositive: typeof symbolVerification.absentSymbolFalsePositive === 'boolean' ? symbolVerification.absentSymbolFalsePositive : null,
     absenceDetections,
     unexpectedDetections,
     verifiedCard: typeof symbolVerification.verifiedCard === 'string' ? symbolVerification.verifiedCard : null,
