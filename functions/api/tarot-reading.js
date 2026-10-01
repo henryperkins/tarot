@@ -80,6 +80,7 @@ import {
   buildAzureGPT5Prompts,
   runNarrativeBackend
 } from '../lib/narrativeBackends.js';
+import { getClaudeCodeAccessError, isClaudeCodeEnabled } from '../lib/claudeCode.js';
 import {
   getSpreadDefinition,
   getSpreadKey,
@@ -836,6 +837,8 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
     if (unauthorized) {
       return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
     }
+    const personalAccessError = getClaudeCodeAccessError(env, user);
+    if (personalAccessError) return jsonResponse(personalAccessError, { status: personalAccessError.status });
     const subscription = getSubscriptionContext(user);
     const subscriptionTier = subscription.effectiveTier;
 
@@ -1168,7 +1171,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
     const backendErrors = [];
 
-    const tokenStreamingEnabled = isAzureTokenStreamingEnabled(env);
+    narrativePayload.signal = request.signal;
+    const tokenStreamingEnabled = !isClaudeCodeEnabled(env) && isAzureTokenStreamingEnabled(env);
     const evalGateEnabled = evalGatePolicy.effectiveEvalGateEnabled;
     const allowStreamingGateBypass = allowStreamingWithEvalGate(env);
     const safetyScanExplicit = env?.STREAMING_SAFETY_SCAN_ENABLED !== undefined;
@@ -1496,6 +1500,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     let capturedReasoningSummary = null;
 
     for (const backend of backendsToTry) {
+      request.signal.throwIfAborted();
       const attemptStart = Date.now();
       const backendProvider = resolveNarrativeProviderId(backend.id, env);
       if (backend.id === 'local-composer' && !localComposerLanguageSupport.supported) {
@@ -1525,6 +1530,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       narrativePayload.variantPromptOverrides = variantPromptOverrides;
       try {
         const backendResult = await runNarrativeBackend(backend.id, env, narrativePayload, requestId);
+        request.signal.throwIfAborted();
 
         // Extract reading and prompts from result
         const result = typeof backendResult === 'object' && backendResult.reading

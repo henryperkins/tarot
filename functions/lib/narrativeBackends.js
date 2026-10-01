@@ -28,6 +28,7 @@ import {
 import { enhanceSection } from './narrativeSpine.js';
 import { callAzureResponses, getReasoningEffort, getTextVerbosity, OPENAI_DEFAULT_MODEL } from './azureResponses.js';
 import { callModalChatCompletions, ensureModalConfig, isModalConfigured } from './modalChatCompletions.js';
+import { callClaudeCode, isClaudeCodeEnabled } from './claudeCode.js';
 import {
   buildReasoningAwareOpening,
   buildReasoningSynthesis,
@@ -74,6 +75,11 @@ export const LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE = 'local_composer_unsuppor
  * Frozen to prevent accidental mutation.
  */
 export const NARRATIVE_BACKENDS = Object.freeze({
+  'claude-code': Object.freeze({
+    id: 'claude-code',
+    label: 'Claude Code (personal subscription)',
+    isAvailable: isClaudeCodeEnabled
+  }),
   'modal-qwen': Object.freeze({
     id: 'modal-qwen',
     label: 'Qwen 3.8 Max VL Thinking via Modal Chat Completions',
@@ -110,6 +116,9 @@ export const NARRATIVE_BACKENDS = Object.freeze({
  * @returns {Array} Array of available backend objects
  */
 export function getAvailableNarrativeBackends(env) {
+  // A missing gateway must surface as a failed Claude attempt, never select a
+  // configured paid provider merely because it is available.
+  if (isClaudeCodeEnabled(env)) return [NARRATIVE_BACKENDS['claude-code'], NARRATIVE_BACKENDS['local-composer']];
   return NARRATIVE_BACKEND_ORDER
     .map((id) => {
       const backend = NARRATIVE_BACKENDS[id];
@@ -1567,6 +1576,9 @@ export async function composeReadingEnhanced(payload, env = null) {
  * @returns {Promise<Object>} { reading, prompts, usage }
  */
 export async function runNarrativeBackend(backendId, env, payload, requestId) {
+  if (isClaudeCodeEnabled(env) && !['claude-code', 'local-composer'].includes(backendId)) {
+    throw new Error('Paid narrative backends are disabled in personal subscription mode.');
+  }
   return withSpan(`tarot.narrative.${backendId}`, {
     'tarot.request_id': requestId,
     'tarot.narrative.backend': backendId,
@@ -1574,6 +1586,18 @@ export async function runNarrativeBackend(backendId, env, payload, requestId) {
   }, async (span) => {
     let result;
     switch (backendId) {
+      case 'claude-code': {
+        const { systemPrompt, userPrompt, promptMeta } = buildAzureGPT5Prompts(env, payload, requestId, {
+          backendId: 'claude-code', providerLabel: 'Claude Code subscription', budgetTarget: 'claude'
+        });
+        const completion = await callClaudeCode(env, {
+          task: 'reading', systemPrompt, messages: [{ role: 'user', content: userPrompt }], signal: payload.signal
+        });
+        promptMeta.inference = { provider: 'claude-code', model: completion.model };
+        result = { reading: completion.text, prompts: { system: systemPrompt, user: userPrompt },
+          promptMeta, usage: completion.usage, model: completion.model, reasoningSummary: null };
+        break;
+      }
       case 'modal-qwen':
         result = await generateWithModalQwen(env, payload, requestId);
         break;

@@ -1,4 +1,5 @@
 import { callAzureResponses, ensureAzureConfig, OPENAI_DEFAULT_MODEL } from '../lib/azureResponses.js';
+import { callClaudeCode, getClaudeCodeAccessError, isClaudeCodeEnabled } from '../lib/claudeCode.js';
 import {
   fetchEphemerisForecast,
   formatForecastHighlights
@@ -304,6 +305,8 @@ export async function onRequestPost({ request, env }) {
 
     // Check subscription tier for AI question access
     const user = await getUserFromRequest(request, env);
+    const personalAccessError = getClaudeCodeAccessError(env, user);
+    if (personalAccessError) return new Response(JSON.stringify(personalAccessError), { status: personalAccessError.status, headers: JSON_HEADERS });
     const subscription = getSubscriptionContext(user);
     const hasAIAccess = canUseAIQuestions(subscription);
 
@@ -359,8 +362,22 @@ export async function onRequestPost({ request, env }) {
 
     let provider = 'local-fallback';
     let question = null;
+    let inferenceModel = null;
 
-    if (isAzureConfigured(env)) {
+    if (isClaudeCodeEnabled(env)) {
+      try {
+        const { instructions, input } = buildAzureQuestionPrompt(prompt, metadata);
+        const result = await callClaudeCode(env, {
+          task: 'question', systemPrompt: instructions,
+          messages: [{ role: 'user', content: input }], signal: request.signal
+        });
+        question = sanitizeGeneratedQuestion(result.text);
+        provider = result.provider;
+        inferenceModel = result.model;
+      } catch (error) {
+        console.warn('Claude question generation failed, using local fallback:', error.message);
+      }
+    } else if (isAzureConfigured(env)) {
       try {
         question = await generateQuestionWithAzure(env, prompt, metadata);
         provider = resolveResponsesProviderLabel(env);
@@ -380,7 +397,7 @@ export async function onRequestPost({ request, env }) {
       JSON.stringify({
         question,
         provider,
-        model: isResponsesProvider ? resolveResponsesModelLabel(env) : null,
+        model: provider === 'claude-code' ? inferenceModel : isResponsesProvider ? resolveResponsesModelLabel(env) : null,
         forecast: ephemerisForecast
       }),
       { status: 200, headers: JSON_HEADERS }

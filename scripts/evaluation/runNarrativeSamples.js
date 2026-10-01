@@ -187,7 +187,7 @@ const SAMPLE_DEFINITIONS = [
 ];
 
 function usage() {
-  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|modal-qwen|local-composer|azure-gpt5|claude-opus45] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
+  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|claude-code|modal-qwen|local-composer|azure-gpt5|claude-opus45] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
   console.log(`\nOptions:`);
   console.log(`  --reference-time  Instant for astrological context (default ${DEFAULT_REFERENCE_TIME}; "now" for the live sky)`);
   console.log(`  --env-profile      "production" (default) layers the shell env over wrangler.jsonc vars; "shell" uses the shell env only`);
@@ -260,6 +260,7 @@ async function loadEvalEnv(envProfile) {
 // Record what actually generated the samples; the backend id alone does not
 // say which model, reasoning effort, or retrieval settings were in effect.
 function describeBackendConfig(backendId, env) {
+  if (backendId === 'claude-code') return { provider: 'claude-code', model: null, authentication: 'personal-subscription' };
   if (backendId === 'azure-gpt5') {
     const { model, provider } = ensureAzureConfig(env);
     return { provider, model, reasoningEffort: getReasoningEffort(env, model), verbosity: getTextVerbosity(env, model) };
@@ -380,7 +381,7 @@ async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
     variantPromptOverrides: null
   };
 
-  const { reading } = await runNarrativeBackend(backendId, env, narrativePayload, `eval-${sample.id}`);
+  const { reading, model, usage } = await runNarrativeBackend(backendId, env, narrativePayload, `eval-${sample.id}`);
 
   if (!reading || !reading.trim()) {
     throw new Error(`Reading generation failed for sample ${sample.id}`);
@@ -396,6 +397,7 @@ async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
     cardsInfo,
     deckStyle,
     reading,
+    ...(model && { inference: { provider: backendId, model, usage } }),
     // What retrieval did for this sample, not what the env asked for
     semanticScoring: buildGraphRAGTelemetry(analysis.graphRAGPayload?.retrievalSummary)?.semanticScoring || null,
     themesSummary: {

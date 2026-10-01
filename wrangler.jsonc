@@ -59,6 +59,11 @@
   // Environment Variables (Non-Secret)
   // ============================================================================
   "vars": {
+    // Set claude-code in .dev.vars to use the owner's personal subscription.
+    // Configure CLAUDE_CODE_GATEWAY_URL, CLAUDE_CODE_GATEWAY_TOKEN (secret), and
+    // CLAUDE_CODE_OWNER_USER_ID together. See docs/claude-subscription.md.
+    // Workers AI inference is independent of this text-provider setting.
+    "TEXT_PROVIDER": "legacy",
     "ENABLE_SEMANTIC_SCORING": "true",
     // Modal is the primary provider for tarot-reading narrative generation.
     // Store MODAL_PROXY_TOKEN_ID and MODAL_PROXY_TOKEN_SECRET separately as secrets.

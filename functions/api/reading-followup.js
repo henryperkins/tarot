@@ -30,6 +30,8 @@ import { MEMORY_TOOL_AZURE_RESPONSES_FORMAT, handleMemoryToolCall } from '../lib
 import { detectCrisisSignals } from '../lib/safetyChecks.js';
 import { checkFollowUpSafety, generateSafeFollowUpFallback } from '../lib/evaluation.js';
 import { detectHallucinatedCards } from '../lib/readingQuality.js';
+import { callClaudeCode, getClaudeCodeAccessError, isClaudeCodeEnabled } from '../lib/claudeCode.js';
+import { generateClaudeFollowUp } from '../lib/claudeFollowUp.js';
 
 // Rate limits by tier
 const FOLLOW_UP_LIMITS = {
@@ -73,7 +75,8 @@ async function repairHallucinatedFollowUp(env, {
   hallucinations,
   cardsInfo,
   deckStyle,
-  provider
+  provider,
+  signal
 }) {
   const allowedCards = buildAllowedCardReferenceLines(cardsInfo);
   if (!allowedCards.length) {
@@ -113,7 +116,12 @@ async function repairHallucinatedFollowUp(env, {
     const instructions = 'You revise tarot responses for card-set grounding compliance.';
     // Repair with the provider that wrote the answer. After a fallback, the
     // Responses API has already failed for this request.
-    const revised = provider === FALLBACK_PROVIDER
+    const revised = isClaudeCodeEnabled(env)
+      ? (await callClaudeCode(env, {
+          task: 'followup-repair', systemPrompt: instructions,
+          messages: [{ role: 'user', content: repairInstructions }], signal
+        })).text
+      : provider === FALLBACK_PROVIDER
       ? (await callModalChatCompletions(env, {
           systemPrompt: instructions,
           userPrompt: repairInstructions,
@@ -172,8 +180,10 @@ async function generateFollowUpText(env, {
   requestId,
   primaryProvider,
   generatePrimary,
-  buildFallbackPrompts
+  buildFallbackPrompts,
+  generateClaude
 }) {
+  if (isClaudeCodeEnabled(env)) return { text: await generateClaude(), provider: 'claude-code' };
   let primaryText = '';
   let primaryError = null;
   try {
@@ -321,6 +331,8 @@ export const onRequestPost = async ({ request, env, ctx }) => {
       console.log(`[${requestId}] Unauthenticated request`);
       return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
     }
+    const personalAccessError = getClaudeCodeAccessError(env, user);
+    if (personalAccessError) return jsonResponse(personalAccessError, { status: personalAccessError.status });
     
     console.log(`[${requestId}] User authenticated`);
     
@@ -681,6 +693,22 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       }
       return releasePromise;
     };
+    const generatePersonalFollowUp = () => generateClaudeFollowUp(env, {
+      systemPrompt: effectiveSystemPrompt, userPrompt: effectiveUserPrompt,
+      enableMemoryTool, signal: request.signal,
+      onToolCall: async (name, args) => {
+        if (name !== 'save_memory_note') throw new Error('Unknown memory tool.');
+        request.signal.throwIfAborted();
+        const result = await handleMemoryToolCall(env.DB, user.id, readingIdentifier, args);
+        if (result.success) {
+          memoryToolCalled = true;
+          const consolidation = consolidateOnce();
+          if (ctx?.waitUntil) ctx.waitUntil(consolidation);
+          else await consolidation;
+        }
+        return result;
+      }
+    });
 
     if (useStreaming) {
       // === STREAMING PATH ===
@@ -699,6 +727,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           requestId,
           primaryProvider: 'azure-responses-stream-buffered',
           buildFallbackPrompts,
+          generateClaude: generatePersonalFollowUp,
           generatePrimary: async () => {
             // Prepare tools array if memory is enabled
             const tools = enableMemoryTool ? [MEMORY_TOOL_AZURE_RESPONSES_FORMAT] : null;
@@ -787,7 +816,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             hallucinations,
             cardsInfo: effectiveContext?.cardsInfo || [],
             deckStyle: effectiveContext?.deckStyle || 'rws-1909',
-            provider
+            provider,
+            signal: request.signal
           });
           if (repair.repaired) {
             const repairedSafety = checkFollowUpSafety(repair.response);
@@ -885,6 +915,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           requestId,
           primaryProvider: 'azure-responses',
           buildFallbackPrompts,
+          generateClaude: generatePersonalFollowUp,
           generatePrimary: async () => {
             if (enableMemoryTool) {
               const tools = [MEMORY_TOOL_AZURE_RESPONSES_FORMAT];
@@ -961,7 +992,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             hallucinations,
             cardsInfo: effectiveContext?.cardsInfo || [],
             deckStyle: effectiveContext?.deckStyle || 'rws-1909',
-            provider
+            provider,
+            signal: request.signal
           });
           if (repair.repaired) {
             responseText = repair.response;
