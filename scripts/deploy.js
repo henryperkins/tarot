@@ -536,12 +536,64 @@ function getMigrationFiles() {
 }
 
 /**
- * Calculate checksum of a migration file.
+ * Checksums recorded in _migrations for files edited after they were applied.
+ * Each edit was reviewed as leaving the applied schema unchanged; any other
+ * checksum for these files still counts as a change.
  */
-function getFileChecksum(filename) {
-  const filepath = join(runtime.migrationsDir, filename);
-  const content = readFileSync(filepath, 'utf-8');
-  return createHash('sha256').update(content).digest('hex').substring(0, 16);
+export const REVIEWED_MIGRATION_CHECKSUMS = Object.freeze({
+  // Applied with the user_tokens DDL that now lives, unchanged, in
+  // 0024_add_user_tokens.sql (IF NOT EXISTS); this file became a no-op.
+  '0010_add_user_tokens.sql': '677f08698d36d411',
+  // Applied before the comment block about non-idempotent ALTERs was added.
+  '0020_add_user_preferences.sql': 'afacf18dac558a7c',
+  // Applied with the Date comment mistyped as 2026-02-07.
+  '0021_add_journal_followups_cleanup_trigger.sql': '022207ccf5f781f6'
+});
+
+function sha256Prefix(text) {
+  return createHash('sha256').update(text).digest('hex').substring(0, 16);
+}
+
+/**
+ * Calculate checksum of a migration's text. Line endings are normalized so a
+ * Windows checkout and Linux CI record the same value.
+ */
+export function getMigrationChecksum(content) {
+  return sha256Prefix(String(content).replace(/\r\n/g, '\n'));
+}
+
+/**
+ * Whether a recorded checksum still matches a migration's text. Checksums
+ * recorded before line-ending normalization hashed the file as checked out,
+ * so both the LF and CRLF forms are accepted.
+ */
+function matchesRecordedChecksum(file, content, recordedChecksum, reviewed) {
+  const text = String(content);
+  const lf = text.replace(/\r\n/g, '\n');
+  return [text, lf, lf.replace(/\n/g, '\r\n')].some((variant) => sha256Prefix(variant) === recordedChecksum)
+    || reviewed[file] === recordedChecksum;
+}
+
+/**
+ * Split migration files into pending ones and applied ones whose text changed.
+ */
+export function findMigrationChanges(files, appliedMigrations, readMigration, reviewed = REVIEWED_MIGRATION_CHECKSUMS) {
+  const pending = [];
+  const changedMigrations = [];
+
+  for (const file of files) {
+    const content = readMigration(file);
+    const checksum = getMigrationChecksum(content);
+    const existingChecksum = appliedMigrations.get(file);
+
+    if (!existingChecksum) {
+      pending.push({ file, checksum, status: 'new' });
+    } else if (!matchesRecordedChecksum(file, content, existingChecksum, reviewed)) {
+      changedMigrations.push({ file, expected: existingChecksum, current: checksum });
+    }
+  }
+
+  return { pending, changedMigrations };
 }
 
 /**
@@ -635,19 +687,11 @@ async function applyMigrations() {
     log(`  ${appliedMigrations.size} migrations already applied`, 'dim');
   }
 
-  const pending = [];
-  const changedMigrations = [];
-
-  for (const file of migrationFiles) {
-    const checksum = getFileChecksum(file);
-    const existingChecksum = appliedMigrations.get(file);
-
-    if (!existingChecksum) {
-      pending.push({ file, checksum, status: 'new' });
-    } else if (existingChecksum !== checksum) {
-      changedMigrations.push({ file, expected: existingChecksum, current: checksum });
-    }
-  }
+  const { pending, changedMigrations } = findMigrationChanges(
+    migrationFiles,
+    appliedMigrations,
+    (file) => readFileSync(join(runtime.migrationsDir, file), 'utf-8')
+  );
 
   const changedPolicy = evaluateChangedMigrations(changedMigrations, {
     strictMigrationChecks: runtime.strictMigrationChecks,
@@ -669,7 +713,7 @@ async function applyMigrations() {
 
     if (!changedPolicy.ok) {
       logError('Changed migration files detected. Refusing to continue in strict mode.');
-      logError('Create a new migration instead of editing applied files, or rerun with --allow-changed-migrations after review.');
+      logError('Create a new migration instead of editing applied files. After review, record the applied checksum in REVIEWED_MIGRATION_CHECKSUMS or rerun with --allow-changed-migrations.');
       return false;
     }
   }

@@ -23,6 +23,11 @@ Run every command example in this file from the repository root. Use `python3` i
   previews the script; production changes require `npm run deploy` or
   `npm run migrations:apply`, while local migrations use
   `npm run migrations:apply:local`. Keep publication and cleanup separate.
+- Applied migrations are checksum-checked, ignoring line endings; `CI=true` or
+  `--strict-migration-checks` refuses changed files. Never edit an applied
+  migration. If a past edit is reviewed as schema-neutral, pin the recorded
+  checksum in `REVIEWED_MIGRATION_CHECKSUMS` (`scripts/deploy.js`) instead of
+  rewriting `_migrations` or passing `--allow-changed-migrations`.
 - Set `VISION_EVAL_MANIFEST_DIR` to opt release QA into the strict three-deck
   vision gate. Without it, release QA explicitly reports vision qualification as
   unrun. Supplied manifests must still pass validation and the existing quality
