@@ -48,7 +48,7 @@ if (process.argv.includes('status')) {
   writeFileSync(${JSON.stringify(authPath)}, 'checked');
   console.log(${JSON.stringify(JSON.stringify(status))});
 } else {
-  const started = extra => writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid, cwd: process.cwd(), ...extra }));
+  const started = extra => writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid, cwd: process.cwd(), args: process.argv.slice(2), ...extra }));
   if (${descendant}) {
     const child = spawn(process.execPath, ['-e', ${JSON.stringify(childSource)}], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
     child.once('message', () => { child.disconnect(); started({ descendant: child.pid }); });
@@ -105,6 +105,38 @@ test('runner requires verified subscription metadata before generating', async t
   const result = await runClaudeCode(input, { hostEnv: fixture.hostEnv });
   assert.equal(result.model, 'claude-fixture');
   assert.equal(await exists((await fixture.started()).cwd), false);
+});
+
+test('every subscription task launches Opus 5.5 with xhigh effort by default', async t => {
+  for (const task of ['reading', 'followup', 'followup-repair', 'question', 'journal-summary']) {
+    const fixture = await fakeCli(t);
+    await runClaudeCode({ ...input, task }, { hostEnv: fixture.hostEnv });
+    const { args } = await fixture.started();
+    assert.equal(args[args.indexOf('--model') + 1], 'claude-opus-5-5', task);
+    assert.equal(args[args.indexOf('--effort') + 1], 'xhigh', task);
+  }
+});
+
+test('explicit model overrides retain the selected thinking effort', async t => {
+  for (const [settings, model, effort] of [
+    [{ CLAUDE_CODE_MODEL: 'global-model', CLAUDE_CODE_EFFORT: 'high' }, 'global-model', 'high'],
+    [{ CLAUDE_CODE_MODEL: 'global-model', CLAUDE_CODE_QUESTION_MODEL: 'task-model' }, 'task-model', 'xhigh']
+  ]) {
+    const fixture = await fakeCli(t);
+    await runClaudeCode(input, { hostEnv: { ...fixture.hostEnv, ...settings } });
+    const { args } = await fixture.started();
+    assert.equal(args[args.indexOf('--model') + 1], model);
+    assert.equal(args[args.indexOf('--effort') + 1], effort);
+  }
+});
+
+test('invalid effort is rejected before invoking the CLI', async t => {
+  const fixture = await fakeCli(t);
+  await assert.rejects(runClaudeCode(input, {
+    hostEnv: { ...fixture.hostEnv, CLAUDE_CODE_EFFORT: 'unlimited' }
+  }), /Invalid CLAUDE_CODE_EFFORT/);
+  assert.equal(await exists(fixture.authPath), false);
+  assert.equal(await exists(fixture.startedPath), false);
 });
 
 test('cancellation kills descendants even when the CLI parent exits before them', { skip: process.platform === 'win32' }, async t => {

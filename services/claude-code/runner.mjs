@@ -98,6 +98,10 @@ export async function runClaudeCode(input, { signal, hostEnv = process.env } = {
   if (hostEnv.CLAUDE_CODE_OAUTH_TOKEN) {
     throw new Error('CLAUDE_CODE_OAUTH_TOKEN is unsupported. Unset it and run claude auth login on the service host.');
   }
+  const effort = String(hostEnv.CLAUDE_CODE_EFFORT || 'xhigh').trim().toLowerCase();
+  if (!['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) {
+    throw new Error('Invalid CLAUDE_CODE_EFFORT. Use low, medium, high, xhigh, or max.');
+  }
   const env = buildSubscriptionEnv(hostEnv);
   const executable = hostEnv.CLAUDE_CODE_EXECUTABLE || 'claude';
   const directory = await mkdtemp(path.join(tmpdir(), 'tableu-claude-'));
@@ -112,10 +116,10 @@ export async function runClaudeCode(input, { signal, hostEnv = process.env } = {
       throw new Error('Claude requires a personal subscription login; API billing is disabled.');
     }
     const modelKey = `CLAUDE_CODE_${input.task.replaceAll('-', '_').toUpperCase()}_MODEL`;
-    const model = hostEnv[modelKey] || hostEnv.CLAUDE_CODE_MODEL || 'sonnet';
+    const model = hostEnv[modelKey] || hostEnv.CLAUDE_CODE_MODEL || 'claude-opus-5-5';
     const systemPath = path.join(directory, 'system.txt');
     await writeFile(systemPath, input.systemPrompt, { mode: 0o600 });
-    const args = [...common, '-p', '--model', model, '--tools', '', '--disable-slash-commands',
+    const args = [...common, '-p', '--model', model, '--effort', effort, '--tools', '', '--disable-slash-commands',
       '--no-session-persistence', '--output-format', 'stream-json', '--verbose',
       '--system-prompt-file', systemPath, '--max-turns', '4'];
     if (input.responseSchema) args.push('--json-schema', JSON.stringify(input.responseSchema));

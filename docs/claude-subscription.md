@@ -60,10 +60,16 @@ reading/question/summary fallbacks; follow-ups return their existing retry error
 
 ## Runtime behavior
 
-- Models are selected on the service host. `CLAUDE_CODE_MODEL` defaults to `sonnet`;
-  the example configuration lists per-task overrides. Pin model IDs for repeatable
-  eval comparisons. Reading prompt metadata and offline samples record the actual
-  model returned by Claude.
+- All subscription tasks default to Opus 5.5 (`CLAUDE_CODE_MODEL=claude-opus-5-5`)
+  with `CLAUDE_CODE_EFFORT=xhigh`. The service explicitly passes `--model` and
+  `--effort` to every CLI generation, including repairs and memory continuations.
+  Model IDs are pinned for repeatable eval comparisons; reading prompt metadata
+  and offline samples record the actual model returned by Claude. The example
+  configuration lists optional per-task model overrides. Effort accepts `low`,
+  `medium`, `high`, `xhigh`, or `max`; invalid settings stop before launching the CLI.
+  See [Claude's model and effort configuration](https://code.claude.com/docs/en/model-config#adjust-effort-level).
+  Existing installations should update the model and effort in the service host's
+  `.env.local`, remove any unwanted per-task model overrides, and restart the service.
 - The CLI receives Tableu's assembled prompts in a fresh temporary directory.
   Customizations and built-in tools are disabled; conversation sessions are not
   persisted. Temporary prompt files are private and removed after each call.
@@ -115,7 +121,7 @@ Provisioning a tunnel, setting remote secrets, and deploying are separate operat
 No migration is required. Reverting `TEXT_PROVIDER` to `legacy` restores the prior
 provider routing without changing stored readings or Cloudflare inference.
 
-## Verification recorded on 2026-10-01
+## Initial verification on 2026-10-01
 
 - Root Node suite: 2,618 tests passed, including 36 new provider, route, memory,
   authentication, cancellation, queue and process-shutdown tests.
@@ -129,3 +135,17 @@ provider routing without changing stored readings or Cloudflare inference.
 - Repository-wide ESLint still reports 132 errors and 36 warnings. The findings
   match the unchanged files under the original ESLint configuration.
 - No deployed Worker, remote tunnel or remote secret configuration was changed.
+
+## Opus 5.5 update verified on 2026-10-01
+
+- The service defaults to `claude-opus-5-5` with `--effort xhigh`. Subprocess tests
+  verify both flags for every task and reject invalid effort before CLI startup.
+- Root Node suite: 2,624 tests passed. Changed-file ESLint, documentation links,
+  Worker dry build and narrative prompt assembly checks passed.
+- Live subscription question generation, structured memory decisions and their
+  continuations passed. All 11 narrative samples reported `claude-opus-5-5`.
+- The first deterministic gate run mistook the Star's literal "pair of cups" for
+  "Page of Cups". The detector now requires a recognized rank or explicit card-title
+  context for fuzzy minor-card matching; genuine misspelled-card detection remains
+  covered by tests. Re-scoring the same saved outputs passed the unchanged gate
+  thresholds, with only that false-positive result changed.
