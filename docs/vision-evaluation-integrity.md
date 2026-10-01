@@ -2,13 +2,29 @@
 
 Type: reference
 Status: active reference
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-01
 
 The reference suite tests image loading and identity mapping. It cannot establish
 recognition of physical cards in phone photos: every test image is also a CLIP
 reference. Synthetic transformations provide a separate robustness diagnostic;
-they are not independent photographs. Keep these results separate from release
+they are not independent photographs. Keep these results separate from vision
 qualification.
+
+## Deployment policy — October 1, 2026
+
+At the owner's direction, independently reviewed photo manifests are no longer
+a prerequisite for every deployment. `ci:release-check` always runs the code
+checks and live narrative gate. It runs the strict vision gate only when
+`VISION_EVAL_MANIFEST_DIR` is configured. Otherwise it explicitly reports vision
+qualification as unrun. This changes release policy; it does not change measured
+recognition results, annotation eligibility, numerical thresholds, or what counts
+as valid vision evidence.
+
+The GitHub CI workflow follows the same policy using the repository variable
+`VISION_EVAL_MANIFEST_DIR`. A configured directory must exist in the runner and
+contain the required three manifests and images. Invalid configured data or a
+failed requested vision check remains fatal. The standalone `ci:vision-check`
+and `gate:vision` commands continue to enforce the evidence contract below.
 
 ## Dataset inputs
 
@@ -109,15 +125,19 @@ npm run ci:vision-check
 VISION_EVAL_MANIFEST_DIR=/private/corpus npm run ci:vision-check
 # Runs the same recognizer on declared photos. Symbol annotation gaps still fail.
 
+NARRATIVE_EVAL_BACKEND=modal-qwen npm run ci:release-check
+# Code checks and live narrative gate; reports vision as unrun when its variable is unset.
+
 VISION_EVAL_MANIFEST_DIR=/private/corpus NARRATIVE_EVAL_BACKEND=modal-qwen npm run ci:release-check
-# Requires all quality checks, plus authorized provider credentials in the environment.
+# Also opts into strict vision qualification using the supplied corpus.
 ```
 
 `npm run deploy` and `deploy:skip-migrations` require fresh release checks before
 remote changes. `--migrations-only` remains an explicit independent operation;
 `--dry-run` does not execute release QA or write production state. Cloudflare
 Builds has separate dashboard commands: set its production build command to
-`npm run ci:release-check` and deployment command to `npm run deploy`. This will
-block release while data, credentials, QA capacity or passing evidence is missing.
+`npm run ci:release-check` and deployment command to `npm run deploy`. Missing
+photo data alone no longer blocks release. Required code/narrative checks and
+explicitly configured vision checks must still pass.
 Changing source alone does not update that external trigger. Direct Wrangler/API
 deployments remain privileged operations; this is not an account permission lock.

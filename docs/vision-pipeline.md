@@ -17,7 +17,7 @@ The current multimodal pipeline embeds tarot card images with CLIP, compares the
 - **Pipeline Class**: `shared/vision/tarotVisionPipeline.js` loads CLIP stacks, embeds prompts/images, normalizes vectors, and compares cosine similarity. It accepts file paths, URLs, or browser data URLs so both CLI scripts and the React UI can reuse the same engine.
 - **Orientation**: the default `clip-default` backend does not infer upright/reversed orientation. Orientation is an optional server-side Llama or hybrid result when that backend is selected and available.
 - **CLI Harness**: `scripts/vision/runVisionPrototype.js` accepts image paths, with flags for deck scope/style and number of matches. Useful for quick regression checks while iterating on symbol prompts.
-- **Evaluation Harness**: `scripts/evaluation/runVisionConfidence.js` uses `public/images/cards` for a reference-identity wiring check, or a declared `--manifest` for held-out photos or synthetic diagnostics. It records input hashes, dataset kind, source revision and inference time with the top-5 results. Reference images cannot qualify a release.
+- **Evaluation Harness**: `scripts/evaluation/runVisionConfidence.js` uses `public/images/cards` for a reference-identity wiring check, or a declared `--manifest` for held-out photos or synthetic diagnostics. It records input hashes, dataset kind, source revision and inference time with the top-5 results. Reference images cannot establish real-photo recognition quality.
 - **Metrics + Review Loop**: `scripts/evaluation/computeVisionMetrics.js` ingests a `vision-confidence.json` snapshot, uses explicit independent labels when supplied (reference-file mapping is a legacy diagnostic fallback), computes identity and symbol metrics separately, and emits:
   - `data/evaluations/vision-metrics.json` — machine-readable stats for release gates.
   - `data/evaluations/vision-review-queue.csv` — identity failures, weak/absent symbols, missing labels and unverified annotations for human review. The queue preserves any previously recorded `human_verdict`/`human_notes` so annotations survive subsequent runs.
@@ -110,6 +110,11 @@ null when unmeasured. Coverage is reported separately.
 Use [the evaluation evidence contract](vision-evaluation-integrity.md) to prepare
 a corpus and run fresh checks. Confidence calibration and any model/threshold
 change require independent measurements and a separately reviewed policy decision.
-`npm run ci:release-check` requires that corpus and a live narrative provider
-(default `modal-qwen`). `npm run deploy` and `deploy:skip-migrations` run these
-checks before remote changes; migration-only operations remain separate.
+As of October 1, `npm run ci:release-check` requires code checks and a live
+narrative provider (default `modal-qwen`). Photo qualification is optional for
+deployment: setting `VISION_EVAL_MANIFEST_DIR` opts into the strict vision gate;
+without it, release QA reports vision as unrun. The standalone vision gate retains
+the evidence requirements above. `npm run deploy` and `deploy:skip-migrations`
+run release checks before remote changes; migration-only operations remain
+separate. A deployment without vision qualification does not demonstrate photo
+recognition or symbol quality.

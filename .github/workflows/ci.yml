@@ -66,7 +66,14 @@ jobs:
         run: npm run docs:check
 
       - name: Vision QA gate
-        run: npm run ci:vision-check
+        env:
+          VISION_EVAL_MANIFEST_DIR: ${{ vars.VISION_EVAL_MANIFEST_DIR }}
+        run: |
+          if [ -n "$VISION_EVAL_MANIFEST_DIR" ]; then
+            npm run ci:vision-check
+          else
+            echo "Vision qualification not run: VISION_EVAL_MANIFEST_DIR is unset. Photo recognition and symbol quality remain unverified."
+          fi
 
       - name: Narrative QA gate
         run: npm run ci:narrative-check

@@ -110,7 +110,7 @@ Tables are defined by the migrations in `migrations/`.
 
 **IMPORTANT**: Always apply D1 migrations BEFORE deploying code using new columns.
 
-The checked-in deployment workflow (`.github/workflows/deploy.yml`) runs `node scripts/deploy.js`, which requires fresh release QA before applying pending migrations and deploying the Worker. `VISION_EVAL_MANIFEST_DIR` must identify independently labeled photo manifests; missing data or failed quality gates block deployment. If an external Cloudflare Workers Build is also configured, verify its migration behavior separately; do not assume it matches the checked-in workflow. Apply and verify pending remote migrations before merging, then confirm the active Worker version before another release.
+The checked-in deployment workflow (`.github/workflows/deploy.yml`) runs `node scripts/deploy.js`, which requires fresh release QA before applying pending migrations and deploying the Worker. Photo manifests are optional for deployment: without `VISION_EVAL_MANIFEST_DIR`, release QA reports vision qualification as unrun and continues through the code checks and live narrative gate. Setting that variable opts into the strict three-deck vision gate; invalid data or a failed requested gate blocks deployment. A release without vision qualification does not establish photo recognition or symbol quality. If an external Cloudflare Workers Build is also configured, verify its migration behavior separately; do not assume it matches the checked-in workflow. Apply and verify pending remote migrations before merging, then confirm the active Worker version before another release.
 
 ```bash
 npm run deploy              # Auto-applies migrations + deploys (recommended)

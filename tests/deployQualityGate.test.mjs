@@ -36,9 +36,3 @@ it('preserves QA when migrations are explicitly skipped', () => {
   assert.equal(result.commands.some(call => call.args.includes('d1')), false);
   assert.ok(result.commands.some(call => call.args.includes('deploy')));
 });
-
-it('fails release preflight when the held-out photo corpus is unavailable', () => {
-  const result = spawnSync(process.execPath, ['scripts/evaluation/runReleaseChecks.js'], { encoding: 'utf8', env: { ...process.env, VISION_EVAL_MANIFEST_DIR: '' } });
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /VISION_EVAL_MANIFEST_DIR/);
-});
