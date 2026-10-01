@@ -131,7 +131,11 @@ function writeStoredList(key, list) {
   }
 }
 
-export function CollaborativeNotesPanel({
+export function CollaborativeNotesPanel(props) {
+  return <CollaborativeNotesContent key={props.shareToken} {...props} />;
+}
+
+function CollaborativeNotesContent({
   notes = [],
   cards = [],
   shareToken,
@@ -145,7 +149,8 @@ export function CollaborativeNotesPanel({
   lastSyncedAt
 }) {
   const [authorName, setAuthorName] = useLocalStorage(ALIAS_STORAGE_KEY, '');
-  const [cardPosition, setCardPosition] = useState(selectedPosition || '');
+  const [localPosition, setLocalPosition] = useState('');
+  const cardPosition = selectedPosition === undefined ? localPosition : selectedPosition || '';
   const [body, setBody] = useLocalStorage(DRAFT_STORAGE_KEY, '');
   const [statusMessage, setStatusMessage] = useState('');
   const [statusTone, setStatusTone] = useState('neutral');
@@ -165,13 +170,6 @@ export function CollaborativeNotesPanel({
   const positionSelectId = useId();
   const bodyTextareaId = useId();
   const statusId = useId();
-
-  // Sync external position changes
-  useEffect(() => {
-    if (selectedPosition !== undefined) {
-      setCardPosition(selectedPosition || '');
-    }
-  }, [selectedPosition]);
 
   const setStatus = useCallback((message, tone = 'neutral', timeoutMs) => {
     setStatusMessage(message);
@@ -199,15 +197,8 @@ export function CollaborativeNotesPanel({
     };
   }, []);
 
-  useEffect(() => {
-    if (error) {
-      setStatus(error, 'error');
-    }
-  }, [error, setStatus]);
-
-  useEffect(() => {
-    setReportedNoteIds(new Set(readStoredList(reportedNotesKey)));
-  }, [reportedNotesKey]);
+  // Parent errors already have an alert; avoid announcing the same failure twice.
+  const visibleStatusMessage = error ? '' : statusMessage;
 
   const sortedNotes = useMemo(() => {
     return [...notes]
@@ -253,7 +244,7 @@ export function CollaborativeNotesPanel({
   };
 
   const handlePositionChange = (value) => {
-    setCardPosition(value);
+    setLocalPosition(value);
     onSelectedPositionChange?.(value);
   };
 
@@ -342,7 +333,7 @@ export function CollaborativeNotesPanel({
         )}
       </header>
 
-      <p className="mt-1 text-xs text-secondary/70">
+      <p className="mt-1 text-xs text-secondary">
         Last synced: <time dateTime={lastSyncedAtMs ? new Date(lastSyncedAtMs).toISOString() : undefined}>
           {lastSyncedAtLabel}
         </time>
@@ -358,8 +349,8 @@ export function CollaborativeNotesPanel({
       <div
         className="mt-4 space-y-3 overflow-y-auto pr-1 max-h-[min(240px,40vh)]"
         style={{ WebkitOverflowScrolling: 'touch' }}
-        aria-label={`${sortedNotes.length} reflection${sortedNotes.length === 1 ? '' : 's'}`}
-        role="list"
+        aria-label={sortedNotes.length > 0 ? `${sortedNotes.length} reflection${sortedNotes.length === 1 ? '' : 's'}` : undefined}
+        role={sortedNotes.length > 0 ? 'list' : undefined}
       >
         {sortedNotes.length === 0 && (
           <p className="text-sm text-muted py-4 text-center">
@@ -376,7 +367,7 @@ export function CollaborativeNotesPanel({
               role="listitem"
               className="rounded-2xl border border-accent/20 bg-surface-muted/70 p-3"
             >
-              <div className="flex items-center justify-between gap-2 text-xs text-secondary/90">
+              <div className="flex items-center justify-between gap-2 text-xs text-secondary">
                 <span className="font-semibold truncate">{note.authorName || 'Anonymous'}</span>
                 <div className="flex items-center gap-2 shrink-0">
                   {isReported ? (
@@ -393,14 +384,14 @@ export function CollaborativeNotesPanel({
                   ) : null}
                   <time
                     dateTime={note.isoCreatedAt}
-                    className="text-secondary/70"
+                    className="text-secondary"
                   >
                     {note.formattedCreatedAt}
                   </time>
                 </div>
               </div>
               {note.cardPosition && (
-                <p className="mt-1 text-xs uppercase tracking-[0.12em] text-accent/70">
+                <p className="mt-1 text-xs uppercase tracking-[0.12em] text-accent">
                   {note.cardPosition}
                 </p>
               )}
@@ -409,7 +400,7 @@ export function CollaborativeNotesPanel({
                   Report received. Thanks for helping keep this space safe.
                 </p>
               ) : (
-                <p className="mt-2 text-sm text-main/90 whitespace-pre-wrap break-words">
+                <p className="mt-2 text-sm text-main whitespace-pre-wrap break-words">
                   {note.body}
                 </p>
               )}
@@ -442,7 +433,7 @@ export function CollaborativeNotesPanel({
                       rows={2}
                       maxLength={600}
                       placeholder="Share a little more context"
-                      className="w-full rounded-lg border border-secondary/30 bg-surface-muted/70 px-3 py-2 text-xs text-main placeholder:text-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 resize-none"
+                      className="w-full rounded-lg border border-secondary/30 bg-surface-muted/70 px-3 py-2 text-xs text-main placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 resize-none"
                     />
                   </div>
                   {reportError && (
@@ -487,7 +478,7 @@ export function CollaborativeNotesPanel({
               onChange={(event) => setAuthorName(event.target.value)}
               placeholder="Display name"
               aria-label="Your display name for this note"
-              className="w-full min-h-touch rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main placeholder:text-muted/60
+              className="w-full min-h-touch rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main placeholder:text-muted
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
               maxLength={40}
             />
@@ -529,13 +520,13 @@ export function CollaborativeNotesPanel({
             placeholder="Share what you're seeing..."
             aria-label="Your reflection on this spread"
             maxLength={600}
-            className="w-full rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-3 text-sm text-main placeholder:text-muted/60
+            className="w-full rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-3 text-sm text-main placeholder:text-muted
               focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 resize-none"
           />
         </div>
 
         <div className="flex items-center justify-between gap-3">
-          <span className="text-xs text-muted/70" aria-label={`${body.length} of 600 characters used`}>
+          <span className="text-xs text-muted" aria-label={`${body.length} of 600 characters used`}>
             {body.length} / 600
           </span>
           <button
@@ -554,16 +545,16 @@ export function CollaborativeNotesPanel({
           id={statusId}
           role="status"
           aria-live="polite"
-          className={statusMessage
+          className={visibleStatusMessage
             ? `text-xs ${statusTone === 'error'
               ? 'text-error'
               : statusTone === 'success'
                 ? 'text-success'
-                : 'text-secondary/80'
+                : 'text-secondary'
             }`
             : 'sr-only'}
         >
-          {statusMessage}
+          {visibleStatusMessage}
         </div>
       </form>
     </section>

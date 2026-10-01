@@ -36,6 +36,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
   entryId,
   onCopyShareLink,
   onDeleteShareLink,
+  onClose,
   pendingAction
 }) {
   // Filter to only entry-scoped links for this entry
@@ -96,13 +97,15 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
       )}
 
       {!shareLoading && shareLinksPreview.length > 0 && (
-        <ul className="mt-2 space-y-2">
+        <ul className="mt-2 space-y-2" role="presentation">
           {shareLinksPreview.map((link) => {
             const meta = formatShareMeta(link);
             const isShareLinkPending = shareActionsDisabled;
             return (
               <li
                 key={link.token}
+                role="group"
+                aria-label={link.title || 'Untitled link'}
                 className="rounded-lg border border-[color:var(--border-warm-subtle)] bg-[color:var(--panel-dark-1)] p-2.5 shadow-[0_10px_26px_-22px_rgba(0,0,0,0.7)]"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -121,7 +124,12 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => onCopyShareLink(link.token)}
+                    role="menuitem"
+                    tabIndex={-1}
+                    onClick={() => {
+                      onClose();
+                      onCopyShareLink(link.token);
+                    }}
                     disabled={isShareLinkPending}
                     className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-2xs font-semibold text-[color:var(--text-main)] hover:bg-[color:var(--primary-20)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
@@ -141,7 +149,12 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
                   {onDeleteShareLink && (
                     <button
                       type="button"
-                      onClick={() => onDeleteShareLink(link.token)}
+                      role="menuitem"
+                      tabIndex={-1}
+                      onClick={() => {
+                        onClose();
+                        onDeleteShareLink(link.token);
+                      }}
                       disabled={isShareLinkPending}
                       className="inline-flex items-center gap-1 rounded-full border border-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)] bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] px-2.5 py-1 text-2xs font-semibold text-[color:var(--status-error)] hover:border-[color:color-mix(in_srgb,var(--status-error)_70%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)] disabled:opacity-60 disabled:cursor-not-allowed"
                     >

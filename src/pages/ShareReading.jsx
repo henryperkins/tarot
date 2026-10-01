@@ -32,6 +32,15 @@ function deriveDefaultPosition(entry) {
   return entry.cards[0].position || `Card 1`;
 }
 
+async function loadSharedReading(token, signal) {
+  const response = await fetch(`/api/share/${token}`, { signal });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || 'Unable to load share link');
+  }
+  return response.json();
+}
+
 export default function ShareReading() {
   const { token } = useParams();
   const navigate = useNavigate();
@@ -50,6 +59,7 @@ export default function ShareReading() {
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [mobileView, setMobileView] = useState('spread'); // 'spread' | 'notes'
   const notesPanelRef = useRef(null);
+  const shareRequestRef = useRef(null);
 
   const scrollToNotesForm = useCallback(() => {
     setMobileView('notes');
@@ -68,31 +78,38 @@ export default function ShareReading() {
     });
   }, [prefersReducedMotion]);
 
-  const fetchShare = useCallback(async () => {
+  const fetchShare = useCallback(() => {
     if (!token) return;
-    setStatus('loading');
-    setErrorMessage('');
-    try {
-      const response = await fetch(`/api/share/${token}`);
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Unable to load share link');
-      }
-      const payload = await response.json();
+    shareRequestRef.current?.abort();
+    const controller = new AbortController();
+    shareRequestRef.current = controller;
+    return loadSharedReading(token, controller.signal).then((payload) => {
+      if (controller.signal.aborted) return;
       setShareData(payload);
       setNotes(payload.notes || []);
       setSelectedEntryIndex(0);
+      setActivePosition(deriveDefaultPosition(payload.entries?.[0]));
       setLastSyncedAt(Date.now());
       setStatus('ready');
-    } catch (error) {
+    }).catch((error) => {
+      if (controller.signal.aborted) return;
       setErrorMessage(error.message || 'Unable to load share link');
       setStatus('error');
-    }
+    }).finally(() => {
+      if (shareRequestRef.current === controller) shareRequestRef.current = null;
+    });
   }, [token]);
 
   useEffect(() => {
     fetchShare();
+    return () => shareRequestRef.current?.abort();
   }, [fetchShare]);
+
+  const handleRefreshShare = () => {
+    setStatus('loading');
+    setErrorMessage('');
+    fetchShare();
+  };
 
   const refreshNotes = useCallback(async () => {
     try {
@@ -127,10 +144,11 @@ export default function ShareReading() {
     return shareData.entries[index];
   }, [shareData, selectedEntryIndex]);
 
-  useEffect(() => {
-    const defaultPosition = deriveDefaultPosition(activeEntry);
-    setActivePosition(defaultPosition);
-  }, [activeEntry]);
+  const handleSelectEntry = (index) => {
+    if (index === selectedEntryIndex) return;
+    setSelectedEntryIndex(index);
+    setActivePosition(deriveDefaultPosition(shareData?.entries?.[index]));
+  };
 
   // Track header height for sticky positioning
   useEffect(() => {
@@ -262,9 +280,10 @@ export default function ShareReading() {
             ) : (
               <Link
                 to="/account"
+                aria-label="Account"
                 className="inline-flex items-center justify-center gap-1.5 rounded-full border border-secondary/40 bg-surface/60 px-3 py-2 text-xs font-medium text-main hover:bg-surface hover:border-secondary/60 transition min-h-touch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
               >
-                <User className="h-4 w-4" />
+                <User className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Account</span>
               </Link>
             )}
@@ -294,7 +313,7 @@ export default function ShareReading() {
               </button>
               <button
                 type="button"
-                onClick={fetchShare}
+                onClick={handleRefreshShare}
                 className="inline-flex items-center justify-center rounded-full border border-primary/50 px-4 py-2 min-h-touch text-sm text-main hover:bg-primary/10 active:bg-primary/20 touch-manipulation transition"
               >
                 Refresh reading
@@ -339,7 +358,7 @@ export default function ShareReading() {
                 <button
                   key={entry.id}
                   type="button"
-                  onClick={() => setSelectedEntryIndex(index)}
+                  onClick={() => handleSelectEntry(index)}
                   className={`inline-flex items-center justify-center rounded-full border px-4 py-2 min-h-touch text-xs uppercase tracking-[0.15em] touch-manipulation transition ${index === selectedEntryIndex
                     ? 'border-primary bg-primary/10 text-main'
                     : 'border-secondary text-muted hover:border-primary/50 active:bg-primary/5'

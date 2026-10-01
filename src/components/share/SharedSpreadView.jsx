@@ -150,7 +150,7 @@ function NoteAvatars({ notes }) {
         );
       })}
       {remaining > 0 && (
-        <span className="text-xs text-secondary/80" aria-hidden="true">
+        <span className="text-xs text-secondary" aria-hidden="true">
           +{remaining}
         </span>
       )}
@@ -196,7 +196,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
 
   return (
     <div className="space-y-6">
-      <div className={`${gridClass} gap-4`} role="list" aria-label="Cards in this spread">
+      <ul className={`${gridClass} gap-4`} role="list" aria-label="Cards in this spread">
         {entry.cards?.map((card, index) => {
           const positionLabel = card.position || positions[index] || `Card ${index + 1}`;
           const positionKey = normalizePosition(positionLabel);
@@ -208,59 +208,59 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
           const imageKey = card.id || `${card.name}-${index}`;
 
           return (
-            <button
-              key={`${card.name}-${index}`}
-              type="button"
-              role="listitem"
-              onClick={() => onSelectPosition?.(active ? '' : positionLabel)}
-              aria-pressed={active}
-              aria-label={`${positionLabel}: ${card.name}, ${orientation}. ${positionNotes.length} note${positionNotes.length === 1 ? '' : 's'}. Click to target for note.`}
-              className={`group w-full rounded-2xl border bg-surface/70 p-4 text-left shadow-lg transition-all duration-200
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 focus-visible:ring-offset-2
-                active:scale-[0.98] touch-manipulation
-                ${active
-                  ? 'border-secondary/70 ring-1 ring-secondary/30'
-                  : 'border-secondary/20 hover:border-secondary/40 hover:shadow-xl'
-                }
-                ${entry.spreadKey === 'celtic' ? 'modern-surface' : ''}`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs uppercase tracking-[0.2em] text-secondary">{positionLabel}</p>
-                {positionNotes.length > 0 && (
-                  <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-xs text-secondary">
-                    {positionNotes.length} note{positionNotes.length === 1 ? '' : 's'}
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-3 flex flex-col items-center text-center">
-                {/* Card image container with proper aspect ratio */}
-                <div className="aspect-[2/3.5] w-full max-w-[200px] overflow-hidden rounded-xl border border-primary/30 bg-surface-muted/50">
-                  <img
-                    src={getCardImage(card)}
-                    alt={`${card.name}, ${orientation}`}
-                    className={`w-full h-full object-contain ${isReversed ? 'rotate-180' : ''}`}
-                    loading="lazy"
-                    onError={(e) => handleImageError(e, imageKey)}
-                  />
+            <li key={`${card.name}-${index}`} className="min-w-0">
+              <button
+                type="button"
+                onClick={() => onSelectPosition?.(active ? '' : positionLabel)}
+                aria-pressed={active}
+                aria-label={`${positionLabel}: ${card.name}, ${orientation}. ${positionNotes.length} note${positionNotes.length === 1 ? '' : 's'}. Click to target for note.`}
+                className={`group h-full w-full rounded-2xl border bg-surface/70 p-4 text-left shadow-lg transition-all duration-200
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 focus-visible:ring-offset-2
+                  active:scale-[0.98] touch-manipulation
+                  ${active
+                    ? 'border-secondary/70 ring-1 ring-secondary/30'
+                    : 'border-secondary/20 hover:border-secondary/40 hover:shadow-xl'
+                  }
+                  ${entry.spreadKey === 'celtic' ? 'modern-surface' : ''}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs uppercase tracking-[0.2em] text-secondary">{positionLabel}</p>
+                  {positionNotes.length > 0 && (
+                    <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-xs text-secondary">
+                      {positionNotes.length} note{positionNotes.length === 1 ? '' : 's'}
+                    </span>
+                  )}
                 </div>
-                <p className="mt-3 font-serif text-lg text-main">{card.name}</p>
-                <span className="text-xs uppercase tracking-[0.2em] text-secondary/70">{orientation}</span>
-                <p className="mt-2 text-sm text-muted line-clamp-3">{meaning}</p>
-              </div>
 
-              <div className="mt-4 flex items-center justify-between">
-                <NoteAvatars notes={positionNotes} />
-                {active && (
-                  <span className="rounded-full border border-secondary/60 px-2.5 py-1 text-xs-plus text-secondary">
-                    Targeting note
-                  </span>
-                )}
-              </div>
-            </button>
+                <div className="mt-3 flex flex-col items-center text-center">
+                  {/* Card image container with proper aspect ratio */}
+                  <div className="aspect-[2/3.5] w-full max-w-[200px] overflow-hidden rounded-xl border border-primary/30 bg-surface-muted/50">
+                    <img
+                      src={getCardImage(card)}
+                      alt={`${card.name}, ${orientation}`}
+                      className={`w-full h-full object-contain ${isReversed ? 'rotate-180' : ''}`}
+                      loading="lazy"
+                      onError={(e) => handleImageError(e, imageKey)}
+                    />
+                  </div>
+                  <p className="mt-3 font-serif text-lg text-main">{card.name}</p>
+                  <span className="text-xs uppercase tracking-[0.2em] text-secondary">{orientation}</span>
+                  <p className="mt-2 text-sm text-muted line-clamp-3">{meaning}</p>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between">
+                  <NoteAvatars notes={positionNotes} />
+                  {active && (
+                    <span className="rounded-full border border-secondary/60 px-2.5 py-1 text-xs-plus text-secondary">
+                      Targeting note
+                    </span>
+                  )}
+                </div>
+              </button>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
       {/* General notes section */}
       {generalNotes.length > 0 && (
@@ -282,16 +282,16 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
                 role="listitem"
                 className="rounded-xl border border-accent/20 bg-surface-muted/70 p-3"
               >
-                <header className="flex items-center justify-between gap-2 text-xs text-secondary/90">
+                <header className="flex items-center justify-between gap-2 text-xs text-secondary">
                   <span className="font-semibold truncate">{note.authorName || 'Anonymous'}</span>
                   <time
                     dateTime={note.isoCreatedAt}
-                    className="text-secondary/70 shrink-0"
+                    className="text-secondary shrink-0"
                   >
                     {note.formattedCreatedAt}
                   </time>
                 </header>
-                <p className="mt-2 text-sm text-main/90 whitespace-pre-wrap break-words">{note.body}</p>
+                <p className="mt-2 text-sm text-main whitespace-pre-wrap break-words">{note.body}</p>
               </article>
             ))}
           </div>

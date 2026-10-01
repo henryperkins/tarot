@@ -32,26 +32,17 @@ function initSentry() {
       dsn: 'https://dc6b77e884387701e50a12632de8e0dc@o4508070823395328.ingest.us.sentry.io/4510814880661504',
       integrations: [
         Sentry.browserTracingIntegration(),
-        // Only load replay on error to reduce initial overhead
-        Sentry.replayIntegration({
-          maskAllText: false,
-          blockAllMedia: false,
-        }),
       ],
-      // Capture 100% of traces for performance monitoring
-      tracesSampleRate: 1.0,
-      // Reduced session replay rate, full replay only on error
-      replaysSessionSampleRate: 0.05,
-      replaysOnErrorSampleRate: 1.0,
-      // Propagate traces to backend API for linked replays
+      // Keep error reporting and sampled timing data without session recording.
+      // Session Replay is deliberately not installed.
+      sendDefaultPii: false,
+      tracesSampleRate: 0.1,
+      // Propagate traces to backend API for linked error diagnostics.
       tracePropagationTargets: [
         'localhost',
         /^https:\/\/tarot\.lakefrontdev\.com\/api/,
         /^\/api\//,
       ],
-      _experiments: {
-        enableLogs: true,
-      },
     });
 
     // Remove early handlers and replay queued errors

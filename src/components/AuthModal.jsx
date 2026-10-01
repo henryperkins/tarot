@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import FocusTrap from 'focus-trap-react';
 import { X, Eye, EyeSlash } from '@phosphor-icons/react';
@@ -14,10 +14,15 @@ import {
 
 const PRIMARY_60_RING_WITH_SURFACE_OFFSET = `${FOCUS_RING_PRIMARY_60} ${FOCUS_RING_OFFSET_SURFACE}`;
 
+function normalizeMode(mode) {
+  return ['login', 'register', 'forgot'].includes(mode) ? mode : 'login';
+}
+
 export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   const { register, login, requestPasswordReset, resendVerification, startOAuth, error: authError } = useAuth();
   const isSmallScreen = useSmallScreen();
-  const [mode, setMode] = useState(initialMode); // 'login' | 'register' | 'forgot'
+  const [mode, setMode] = useState(() => normalizeMode(initialMode));
+  const [previousOpening, setPreviousOpening] = useState({ isOpen, initialMode });
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -39,21 +44,23 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
     initialFocusRef: firstInputRef,
   });
 
-  // Sync mode with initialMode when modal opens
-  useEffect(() => {
+  // Adjust this component before committing an opened modal with stale mode or feedback.
+  if (previousOpening.isOpen !== isOpen || previousOpening.initialMode !== initialMode) {
+    setPreviousOpening({ isOpen, initialMode });
     if (isOpen) {
-      const validModes = ['login', 'register', 'forgot'];
-      setMode(validModes.includes(initialMode) ? initialMode : 'login');
+      setMode(normalizeMode(initialMode));
       setError('');
       setSuccess('');
+      setShowPassword(false);
+      setShowConfirmPassword(false);
     }
-  }, [isOpen, initialMode]);
+  }
 
-  // Reset password visibility when mode changes
-  useEffect(() => {
+  const changeMode = (nextMode) => {
+    setMode(nextMode);
     setShowPassword(false);
     setShowConfirmPassword(false);
-  }, [mode]);
+  };
 
   if (!isOpen) return null;
 
@@ -118,7 +125,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
         if (result.success) {
           setSuccess('If this email is registered, you will receive a reset link shortly.');
           setTimeout(() => {
-            setMode('login');
+            changeMode('login');
             setPassword('');
             setConfirmPassword('');
             setSuccess('');
@@ -177,7 +184,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
 
   const switchMode = () => {
     const nextMode = mode === 'register' ? 'login' : 'register';
-    setMode(nextMode);
+    changeMode(nextMode);
     setError('');
     setSuccess('');
     // Preserve email when switching modes
@@ -187,7 +194,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   };
 
   const goToForgot = () => {
-    setMode('forgot');
+    changeMode('forgot');
     setError('');
     setSuccess('');
     setPassword('');
@@ -195,7 +202,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   };
 
   const goToLogin = () => {
-    setMode('login');
+    changeMode('login');
     setError('');
     setSuccess('');
     setPassword('');
@@ -574,8 +581,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
 
           {/* Footer */}
           <div className="px-6 sm:px-8 pb-6 pt-4 border-t border-primary/20">
-            <p className="text-xs text-muted/60 text-center">
-              Your readings are private. We never share your data.
+            <p className="text-xs text-muted text-center">
+              Your readings are private by default. Sharing a reading is your choice.
             </p>
           </div>
         </div>

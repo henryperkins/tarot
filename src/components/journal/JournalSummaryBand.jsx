@@ -141,6 +141,7 @@ export function JournalSummaryBand({
                       key={option.value}
                       type="button"
                       onClick={() => onScopeSelect(option.value)}
+                      aria-pressed={isActive}
                       className={`inline-flex items-center gap-1 rounded-full border ${scopeButtonSizeClass} font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
                         isActive
                           ? 'border-[color:var(--brand-primary)] bg-[color:var(--accent-25)] text-[color:var(--text-main)] shadow-[0_8px_26px_-16px_var(--accent-45)]'

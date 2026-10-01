@@ -4,23 +4,23 @@
 }
 
 .governance-critique-page {
-  --gc-paper: #fbfaf6;
-  --gc-ink: #1b1a17;
-  --gc-soft: #5c574e;
-  --gc-faint: #8a8478;
-  --gc-accent: #b23a2e;
-  --gc-accent-soft: #f3e3df;
-  --gc-line: #e3ddd0;
-  --gc-mono-bg: #f2eee4;
-  --gc-good: #3f6b4e;
-  --gc-good-soft: #e6efe6;
+  --gc-paper: var(--bg-main);
+  --gc-ink: var(--text-main);
+  --gc-soft: var(--text-muted-high);
+  --gc-faint: var(--text-muted);
+  --gc-accent: var(--status-error);
+  --gc-accent-soft: color-mix(in srgb, var(--status-error) 8%, var(--bg-surface));
+  --gc-line: var(--border-warm);
+  --gc-mono-bg: var(--bg-surface-muted);
+  --gc-good: var(--status-success);
+  --gc-good-soft: var(--status-success-bg);
   --gc-font-sans: var(--font-sans, 'Inter Variable', system-ui, sans-serif);
   --gc-font-serif: var(--font-serif, 'Source Serif 4 Variable', Georgia, serif);
   --gc-font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(178, 58, 46, 0.08), transparent 30%),
-    linear-gradient(180deg, #fdfcf9 0%, var(--gc-paper) 20%, #f7f3ea 100%);
+    radial-gradient(circle at top left, rgb(var(--status-error-rgb) / 0.08), transparent 30%),
+    linear-gradient(180deg, var(--bg-surface) 0%, var(--gc-paper) 20%, var(--bg-surface-muted) 100%);
   color: var(--gc-ink);
   font-family: var(--gc-font-sans);
   font-size: 16px;
@@ -44,7 +44,7 @@
 .governance-critique-page code {
   background: var(--gc-mono-bg);
   border-radius: 3px;
-  color: #43403a;
+  color: var(--text-muted-high);
   padding: 0.08em 0.34em;
   white-space: nowrap;
 }
@@ -94,7 +94,7 @@
 }
 
 .governance-critique-page__update {
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--bg-surface);
   border: 1px solid var(--gc-line);
   border-left: 3px solid var(--gc-good);
   border-radius: 5px;
@@ -152,7 +152,7 @@
 }
 
 .governance-critique-page__chip {
-  background: #fff;
+  background: var(--bg-surface);
   border: 1px solid var(--gc-line);
   border-radius: 20px;
   color: var(--gc-soft);
@@ -166,7 +166,7 @@
 }
 
 .governance-critique-page__card {
-  background: #fff;
+  background: var(--bg-surface);
   border: 1px solid var(--gc-line);
   border-left: 3px solid var(--gc-accent);
   border-radius: 5px;
@@ -203,7 +203,7 @@
 
 .governance-critique-page__pill {
   background: var(--gc-good-soft);
-  border: 1px solid #cfe0d0;
+  border: 1px solid rgb(var(--status-success-rgb) / 0.3);
   border-radius: 20px;
   color: var(--gc-good);
   font-family: var(--gc-font-mono);
@@ -260,7 +260,7 @@
 }
 
 .governance-critique-page__metric {
-  background: #fff;
+  background: var(--bg-surface);
   border: 1px solid var(--gc-line);
   border-radius: 5px;
   flex: 1 1 150px;

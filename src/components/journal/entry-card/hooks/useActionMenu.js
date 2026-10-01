@@ -19,6 +19,11 @@ export function useActionMenu() {
 
   const canUseDom = typeof window !== 'undefined' && typeof document !== 'undefined';
 
+  const close = useCallback(() => {
+    if (isOpen) buttonRef.current?.focus({ preventScroll: true });
+    setIsOpen(false);
+  }, [isOpen]);
+
   const updatePlacement = useCallback(() => {
     if (!canUseDom) return;
 
@@ -66,10 +71,11 @@ export function useActionMenu() {
     };
 
     if (typeof requestAnimationFrame !== 'undefined') {
-      requestAnimationFrame(focusFirstItem);
-    } else {
-      setTimeout(focusFirstItem, 0);
+      const frame = requestAnimationFrame(focusFirstItem);
+      return () => cancelAnimationFrame(frame);
     }
+    const timer = setTimeout(focusFirstItem, 0);
+    return () => clearTimeout(timer);
   }, [isOpen, canUseDom]);
 
   // Handle resize and scroll events
@@ -86,7 +92,7 @@ export function useActionMenu() {
     };
   }, [isOpen, canUseDom, updatePlacement]);
 
-  // Handle outside clicks and escape key
+  // Arrow keys move within the menu; Tab resumes the trigger's normal tab order.
   useEffect(() => {
     if (!isOpen) return;
 
@@ -100,6 +106,32 @@ export function useActionMenu() {
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+        return;
+      }
+      const menuEl = menuRef.current;
+      if (!menuEl?.contains(document.activeElement)) return;
+      if (event.key === 'Tab') {
+        // Keep the browser's native Tab/Shift+Tab behavior after restoring its starting point.
+        close();
+        return;
+      }
+      const items = [...menuEl.querySelectorAll('button[role="menuitem"]:not([disabled])')];
+      if (!items.length || !items.includes(document.activeElement)) return;
+      const index = items.indexOf(document.activeElement);
+      let next;
+      if (event.key === 'ArrowDown') next = (index + 1) % items.length;
+      else if (event.key === 'ArrowUp') next = (index - 1 + items.length) % items.length;
+      else if (event.key === 'Home') next = 0;
+      else if (event.key === 'End') next = items.length - 1;
+      else return;
+      event.preventDefault();
+      items[next].focus();
+    };
+
+    const handleFocusIn = (event) => {
+      if (!menuRef.current?.contains(event.target) && !buttonRef.current?.contains(event.target)) {
         setIsOpen(false);
       }
     };
@@ -107,13 +139,15 @@ export function useActionMenu() {
     document.addEventListener('mousedown', handlePointerDown);
     document.addEventListener('touchstart', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('focusin', handleFocusIn);
 
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('touchstart', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('focusin', handleFocusIn);
     };
-  }, [isOpen]);
+  }, [isOpen, close]);
 
   const toggle = useCallback(() => {
     setIsOpen((prev) => {
@@ -129,8 +163,6 @@ export function useActionMenu() {
       return next;
     });
   }, [updatePlacement]);
-
-  const close = useCallback(() => setIsOpen(false), []);
 
   return {
     isOpen,

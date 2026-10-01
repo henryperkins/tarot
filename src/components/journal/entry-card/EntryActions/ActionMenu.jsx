@@ -74,6 +74,7 @@ export const ActionMenu = memo(function ActionMenu({
               key={item.key}
               type="button"
               role="menuitem"
+              tabIndex={-1}
               onClick={() => {
                 onClose();
                 item.onSelect();
@@ -108,7 +109,7 @@ export const ActionMenu = memo(function ActionMenu({
         })}
       </div>
 
-      <ShareLinksPanel {...shareLinksProps} pendingAction={pendingAction} />
+      <ShareLinksPanel {...shareLinksProps} pendingAction={pendingAction} onClose={onClose} />
     </div>
   );
 

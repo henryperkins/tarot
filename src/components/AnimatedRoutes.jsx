@@ -1,6 +1,7 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, useRef, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { PageTransition } from './PageTransition.jsx';
+import { RouteAccessibility } from './RouteAccessibility.jsx';
 
 // Load only the route the visitor needs, including on direct settings visits.
 const TarotReading = lazy(() => import('../TarotReading.jsx'));
@@ -49,6 +50,7 @@ function isTarotRoutePath(pathname) {
 
 export function AnimatedRoutes() {
   const location = useLocation();
+  const contentRef = useRef(null);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(new CustomEvent('tableau:route-change', {
@@ -62,8 +64,9 @@ export function AnimatedRoutes() {
   }, [location.pathname, location.search, location.hash]);
 
   return (
-    <div>
+    <div ref={contentRef}>
       <Suspense fallback={<RouteLoader />}>
+        <RouteAccessibility contentRef={contentRef} />
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<PageTransition><TarotReading /></PageTransition>} />
           <Route path="/journal/gallery" element={<PageTransition><CardGalleryPage /></PageTransition>} />

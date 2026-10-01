@@ -342,12 +342,12 @@
   --scene-bg-end: var(--panel-dark-3);
 }
 
-/* Stable reading stages expose focus rings; keep decorative blooms in bounds. */
-.mobile-stable-mode .scene-shell--reading .scene-stage::before {
+/* Stable stages expose focus rings; keep decorative blooms in bounds in every scene. */
+.mobile-stable-mode .scene-stage::before {
   left: 0;
 }
 
-.mobile-stable-mode .scene-shell--reading .scene-stage::after {
+.mobile-stable-mode .scene-stage::after {
   right: 0;
 }
 

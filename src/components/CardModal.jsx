@@ -388,7 +388,7 @@ export function CardModal({
                         <h2 id={titleId} className="text-base sm:text-lg font-serif text-main leading-tight">
                             {card.name}
                             {card.isReversed && (
-                                <span className="ml-1.5 text-xs text-primary/70 font-normal">(Rev)</span>
+                                <span className="ml-1.5 text-xs text-primary font-normal">(Rev)</span>
                             )}
                         </h2>
                         <p id={descId} className="mt-2 text-sm text-main/90 leading-relaxed">

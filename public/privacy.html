@@ -32,7 +32,7 @@
 
     <main id="content">
       <h1>Privacy Policy</h1>
-      <p class="meta">Effective September 30, 2026</p>
+      <p class="meta">Effective October 1, 2026</p>
 
       <p class="lede">
         Tableu is a tarot reading service operated by Lakefront Digital (&ldquo;we&rdquo;, &ldquo;us&rdquo;).
@@ -86,9 +86,10 @@
         <h3>Information collected automatically</h3>
         <ul>
           <li><strong>Technical logs.</strong> Our hosting provider, Cloudflare, records technical information when you use Tableu: your IP address, browser and device type, the pages and features you request, the time and any errors.</li>
+          <li><strong>Error and performance diagnostics.</strong> We use Sentry to receive error reports and a sample of performance measurements. These can include error messages, browser and device details, page addresses and timing information. We do not record session replays.</li>
           <li><strong>Usage counts.</strong> We count readings, narrations and other features to apply plan limits. For visitors who aren&rsquo;t signed in, we count against a one-way hash of the IP address instead of the address itself.</li>
           <li><strong>Location, only if you allow it.</strong> If you allow location access, your coordinates and time zone are used to add astrological timing to a reading. Coordinates are not kept in our quality records, and they are saved with a reading in your journal only if you choose that.</li>
-          <li><strong>Cookies and local storage.</strong> One cookie keeps you signed in and expires after 30 days. Your browser also keeps settings such as theme and audio, and unsent drafts, on your device. We don&rsquo;t use advertising cookies or third-party analytics.</li>
+          <li><strong>Cookies and local storage.</strong> One cookie keeps you signed in and expires after 30 days. Your browser also keeps settings such as theme and audio, and unsent drafts, on your device. We don&rsquo;t use advertising cookies. We use the error and performance diagnostics described above to maintain the service.</li>
         </ul>
       </section>
 
@@ -144,6 +145,10 @@
             <tr>
               <th scope="row">Cloudflare</th>
               <td>Hosting, databases, file storage and account emails, plus the AI models used for voice narration, artwork, question suggestions, journal search, card recognition and quality scoring</td>
+            </tr>
+            <tr>
+              <th scope="row">Sentry</th>
+              <td>Error reporting and sampled performance diagnostics to help us find and fix problems; session replay recording is disabled</td>
             </tr>
             <tr>
               <th scope="row">OpenAI</th>

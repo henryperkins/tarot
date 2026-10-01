@@ -243,16 +243,9 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
             const isTabbable = isSelected || (!selectedDeck && isFirstDeck);
 
             return (
-              <button
+              <div
                 key={deck.id}
-                ref={el => { deckRefs.current[deck.id] = el; }}
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
-                tabIndex={isTabbable ? 0 : -1}
-                onClick={() => onDeckChange(deck.id)}
-                onKeyDown={(e) => handleKeyDown(e, deck.id)}
-                className={`deck-card relative flex h-full flex-col gap-3 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 text-left transition-all cursor-pointer select-none shrink-0 basis-[82%] xs:basis-[70%] snap-center sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main ${isSelected ? 'deck-card--active' : ''}`}
+                className={`deck-card relative flex h-full flex-col gap-3 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 transition-all shrink-0 basis-[82%] xs:basis-[70%] snap-center sm:basis-auto sm:shrink ${isSelected ? 'deck-card--active' : ''}`}
                 style={{
                   '--deck-accent': deck.accent,
                   '--deck-border': isSelected ? deck.borderActive : deck.border,
@@ -260,83 +253,91 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                   '--deck-glow': deck.glow
                 }}
               >
-                {isSelected && (
-                  <>
-                    <div className="absolute top-3 right-3 z-20">
+                <button
+                  ref={el => { deckRefs.current[deck.id] = el; }}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  tabIndex={isTabbable ? 0 : -1}
+                  onClick={() => onDeckChange(deck.id)}
+                  onKeyDown={(e) => handleKeyDown(e, deck.id)}
+                  className="flex w-full flex-1 flex-col gap-3 rounded-xl text-left cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+                >
+                  {isSelected && (
+                    <>
+                      <div className="absolute top-3 right-3 z-20">
+                        <div
+                          className="w-7 h-7 rounded-full flex items-center justify-center border border-[color:var(--border-warm-light)]"
+                          style={{
+                            backgroundColor: 'var(--deck-accent)',
+                            boxShadow: '0 12px 26px -18px var(--deck-glow, var(--primary-30))'
+                          }}
+                        >
+                          <Check className="w-4 h-4 text-main" strokeWidth={3} aria-hidden="true" />
+                        </div>
+                      </div>
                       <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center border border-[color:var(--border-warm-light)]"
+                        className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-semibold"
                         style={{
-                          backgroundColor: 'var(--deck-accent)',
-                          boxShadow: '0 12px 26px -18px var(--deck-glow, var(--primary-30))'
+                          backgroundColor: 'var(--surface-92)',
+                          color: deck.accent,
+                          border: '1px solid var(--border-warm-light)',
+                          boxShadow: '0 12px 28px -20px rgba(0,0,0,0.7)'
                         }}
                       >
-                        <Check className="w-4 h-4 text-main" strokeWidth={3} aria-hidden="true" />
+                        <Check className="h-3.5 w-3.5" weight="bold" aria-hidden="true" />
+                        <span>Selected</span>
                       </div>
+                    </>
+                  )}
+
+                  <DeckPreviewImage
+                    preview={deck.preview}
+                    deckLabel={deck.label}
+                    priority={index === 0 ? 'high' : 'low'}
+                  />
+
+                  <div className="pr-1">
+                    <div className="font-serif text-accent text-base leading-tight">
+                      {deck.label}
                     </div>
-                    <div
-                      className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-semibold"
-                      style={{
-                        backgroundColor: 'var(--surface-92)',
-                        color: deck.accent,
-                        border: '1px solid var(--border-warm-light)',
-                        boxShadow: '0 12px 28px -20px rgba(0,0,0,0.7)'
-                      }}
-                    >
-                      <Check className="h-3.5 w-3.5" weight="bold" aria-hidden="true" />
-                      <span>Selected</span>
+                    <div className="text-2xs uppercase tracking-[0.18em] text-gold-soft/90 mb-2">
+                      {deck.subtitle}
                     </div>
-                  </>
-                )}
+                    <p className={`text-xs text-muted leading-snug ${isSmallScreen ? 'mb-2 line-clamp-2' : 'mb-3'}`}>
+                      {deck.mobileDescription || deck.description}
+                    </p>
 
-                <DeckPreviewImage
-                  preview={deck.preview}
-                  deckLabel={deck.label}
-                  priority={index === 0 ? 'high' : 'low'}
-                />
+                    {!isSmallScreen && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {deck.palette.map((tone) => (
+                          <PaletteBadge key={`${deck.id}-${tone.label}`} {...tone} />
+                        ))}
+                      </div>
+                    )}
 
-                <div className="pr-1">
-                  <div className="font-serif text-accent text-base leading-tight">
-                    {deck.label}
+                    {deck.note && !isSmallScreen && (
+                      <p className="text-2xs text-accent/85 italic mt-2">
+                        {deck.note}
+                      </p>
+                    )}
                   </div>
-                  <div className="text-2xs uppercase tracking-[0.18em] text-gold-soft/90 mb-2">
-                    {deck.subtitle}
-                  </div>
-                  <p className={`text-xs text-muted leading-snug ${isSmallScreen ? 'mb-2 line-clamp-2' : 'mb-3'}`}>
-                    {deck.mobileDescription || deck.description}
-                  </p>
-
-                  {!isSmallScreen && (
-                    <div className="flex flex-wrap gap-1.5 mb-2">
+                </button>
+                {isSmallScreen && (
+                  <MobileInfoSection title="See color palette">
+                    <div className="flex flex-wrap gap-1.5">
                       {deck.palette.map((tone) => (
                         <PaletteBadge key={`${deck.id}-${tone.label}`} {...tone} />
                       ))}
                     </div>
-                  )}
-
-                  {isSmallScreen && (
-                    <div className="mt-1">
-                      <MobileInfoSection title="See color palette">
-                        <div className="flex flex-wrap gap-1.5">
-                          {deck.palette.map((tone) => (
-                            <PaletteBadge key={`${deck.id}-${tone.label}`} {...tone} />
-                          ))}
-                        </div>
-                        {deck.note && (
-                          <p className="text-2xs text-accent/85 italic mt-2">
-                            {deck.note}
-                          </p>
-                        )}
-                      </MobileInfoSection>
-                    </div>
-                  )}
-
-                  {deck.note && !isSmallScreen && (
-                    <p className="text-2xs text-accent/85 italic mt-2">
-                      {deck.note}
-                    </p>
-                  )}
-                </div>
-              </button>
+                    {deck.note && (
+                      <p className="text-2xs text-accent italic mt-2">
+                        {deck.note}
+                      </p>
+                    )}
+                  </MobileInfoSection>
+                )}
+              </div>
             );
           })}
           </div>

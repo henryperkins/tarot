@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import './GovernanceCritiquePage.css';
 
 const LAYERS = [
@@ -72,15 +71,6 @@ function UpdateNote({ children }) {
 }
 
 export default function GovernanceCritiquePage() {
-  useEffect(() => {
-    const previousTitle = document.title;
-    document.title = 'Human-in-the-Loop Governance Critique - Tableu';
-
-    return () => {
-      document.title = previousTitle;
-    };
-  }, []);
-
   return (
     <main id="main-content" tabIndex={-1} className="governance-critique-page">
       <div className="governance-critique-page__sheet">
