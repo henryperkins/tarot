@@ -354,6 +354,15 @@ test('narrative gate retains Markdown card context when checking undrawn misspel
   });
 });
 
+test('narrative gate accepts literal cup imagery without inventing a Page of Cups', async () => {
+  const metrics = await computeMetrics([
+    sampleWithGuidance('literal-cups', 'That pair of cups works as a brief for your question: receive what comes, then ground it.')
+  ]);
+
+  assert.deepEqual(metrics.perSample[0].hallucinatedCards, []);
+  await verifyGate(metrics);
+});
+
 test('narrative gate rejects an incorrect explicit suit count and explains it in the review queue', async () => {
   const sample = {
     id: 'incorrect-cups-count',

@@ -311,6 +311,14 @@ const FUZZY_MIN_LENGTH = 4;
 const FUZZY_MAX_WORDS = 5;
 const FUZZY_MAX_LENGTH = 60;
 const fuzzyAliasCache = new Map();
+const FUZZY_MINOR_RANKS = new Set([
+  ...MINOR_ARCANA.map(card => card.rank),
+  ...Object.values(THOTH_COURT_ALIASES),
+  ...Object.values(MARSEILLE_COURT_ALIASES),
+  ...Object.values(COURT_RANK_ABBREVIATIONS).flat(),
+  ...Object.keys(ROMAN_NUMERALS),
+  ...Object.values(ROMAN_NUMERALS)
+].filter(Boolean).map(rank => rank.toLowerCase()));
 
 function normalizeForFuzzy(value = '') {
   if (!value || typeof value !== 'string') return '';
@@ -404,7 +412,12 @@ function extractCardCandidates(text = '') {
 
   const ofPattern = /\b([A-Za-z]{1,12}|\d+|[IVX]{1,6})\s+of\s+([A-Za-z]{2,15})\b/gi;
   while ((match = ofPattern.exec(text)) !== null) {
-    addCandidate(`${match[1]} of ${match[2]}`, true);
+    const name = `${match[1]} of ${match[2]}`;
+    // Ordinary phrases such as "pair of cups" are not misspelled card titles.
+    // Unknown ranks need card-name casing or explicit context before fuzzy matching.
+    if (!FUZZY_MINOR_RANKS.has(match[1].toLowerCase())
+      && !looksLikeCardNameCase(name) && !hasExplicitCardContext(text, name)) continue;
+    addCandidate(name, true);
   }
 
   const thePattern = /\bThe\s+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,}){0,2})\b/g;

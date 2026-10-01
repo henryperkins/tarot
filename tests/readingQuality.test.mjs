@@ -330,6 +330,24 @@ describe('detectHallucinatedCards', () => {
   });
 
   describe('ambiguous misspelled references', () => {
+    it('does not interpret ordinary object phrases as misspelled card names', () => {
+      const text = 'That pair of cups works as a brief for your question. Pair of cups imagery suggests receiving and grounding.';
+      for (const deckStyle of ['rws-1909', 'thoth-a1', 'marseille-classic']) {
+        assert.deepStrictEqual(detectHallucinatedCards(text, [], deckStyle), [], deckStyle);
+        const coverage = analyzeCardCoverage(text, [{ card: 'Page of Cups' }], deckStyle);
+        assert.strictEqual(coverage.coverage, 0, deckStyle);
+      }
+    });
+
+    it('retains minor-card typo detection with valid ranks or explicit card context', () => {
+      for (const text of ['page of cupps', 'Pgae of Cups', '**pgae of cups**', 'pgae of cups card']) {
+        assert.deepStrictEqual(detectHallucinatedCards(text, []), ['Page of Cups'], text);
+        assert.strictEqual(analyzeCardCoverage(text, [{ card: 'Page of Cups' }]).coverage, 1, text);
+      }
+      assert.deepStrictEqual(detectHallucinatedCards('prince of cupss', [], 'thoth-a1'), ['Knight of Cups']);
+      assert.deepStrictEqual(detectHallucinatedCards('valet of coupess', [], 'marseille-classic'), ['Page of Cups']);
+    });
+
     for (const deckStyle of ['rws-1909', 'thoth-a1', 'marseille-classic']) {
       it(`flags bold misspelled undrawn cards in ${deckStyle}`, () => {
         const metrics = buildNarrativeMetrics(
