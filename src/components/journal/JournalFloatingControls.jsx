@@ -2,6 +2,7 @@
  * JournalFloatingControls - Fixed position FAB buttons that appear on scroll
  */
 
+import { useEffect, useRef } from 'react';
 import { X } from '@phosphor-icons/react';
 import {
   JournalPlusCircleIcon,
@@ -23,22 +24,41 @@ export function JournalFloatingControls({
   showFiltersShortcut = true,
   showFilterSummary = true
 }) {
-  // Only show when all conditions are met
-  if (!hasEntries || !hasScrolled || !historyFiltersEl || historyFiltersInView) {
-    return null;
-  }
-
+  const controlsRef = useRef(null);
   const showActiveFilters = showFilterSummary && filtersActive && activeFilterChips.length > 0;
   const showFiltersButton = showFiltersShortcut;
   const showNewReading = isMobileLayout;
+  const visible = hasEntries && hasScrolled && historyFiltersEl && !historyFiltersInView
+    && (showActiveFilters || showFiltersButton || showNewReading);
 
-  if (!showActiveFilters && !showFiltersButton && !showNewReading) {
-    return null;
-  }
+  useEffect(() => {
+    if (!visible) return undefined;
+    const controls = controlsRef.current;
+    const parent = controls?.parentElement;
+    if (!controls || !parent) return undefined;
+
+    // Reserve enough scrollable space to uncover the final entry's actions.
+    const measure = () => {
+      const bottom = parseFloat(getComputedStyle(controls).bottom) || 0;
+      parent.style.setProperty('--journal-controls-inset', `${controls.getBoundingClientRect().height + bottom}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(controls);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+      parent.style.removeProperty('--journal-controls-inset');
+    };
+  }, [visible]);
+
+  if (!visible) return null;
 
   return (
     <div
-      className="fixed z-sticky-elevated flex flex-col items-end gap-2 right-[max(var(--safe-pad-right),clamp(1rem,2vw,1.5rem))] bottom-[max(var(--safe-pad-bottom),clamp(1rem,2vw,1.5rem))]"
+      ref={controlsRef}
+      className="fixed z-sticky-elevated flex max-w-[calc(100%-2rem)] flex-col items-end gap-2 right-[max(var(--safe-pad-right),clamp(1rem,2vw,1.5rem))] bottom-[max(var(--safe-pad-bottom),clamp(1rem,2vw,1.5rem))]"
     >
       {showActiveFilters && (
         <div className="max-w-sm rounded-2xl border border-[color:var(--border-warm-subtle)] bg-[color:var(--surface-92)] px-3 py-2 text-2xs text-muted shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur">

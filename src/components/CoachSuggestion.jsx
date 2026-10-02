@@ -222,7 +222,7 @@ export function CoachSuggestion({
                 saveButton: `min-h-touch rounded-full border border-primary/25 px-3 py-2 text-xs text-muted-high hover:text-main hover:border-primary/40 transition-colors ${FOCUS_RING_PRIMARY_50}`,
                 openButton: `min-h-touch rounded-full border border-primary/20 px-3 py-2 text-xs text-muted-high hover:text-main hover:border-primary/35 transition-colors ${FOCUS_RING_PRIMARY_50}`,
                 status: 'text-2xs text-muted/70',
-                focusCta: 'mb-2 text-2xs text-accent/80 underline underline-offset-4 hover:text-main transition-colors',
+                focusCta: 'mb-2 min-h-touch min-w-touch text-left text-2xs text-accent/80 underline underline-offset-4 hover:text-main transition-colors',
             }
             : {
                 container: 'rounded-lg bg-[color:var(--border-warm-subtle)] p-3 border border-[color:var(--border-warm-light)]',
@@ -241,7 +241,7 @@ export function CoachSuggestion({
                 saveButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-2xs text-muted-high hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
                 openButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-2xs text-muted-high hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
                 status: 'text-2xs text-muted',
-                focusCta: 'mt-2 text-2xs text-muted underline underline-offset-4 hover:text-main transition-colors',
+                focusCta: 'mt-2 min-h-touch min-w-touch text-left text-2xs text-muted underline underline-offset-4 hover:text-main transition-colors',
             };
         const focusAreasCta = shouldShowFocusAreasCta ? (
             <button

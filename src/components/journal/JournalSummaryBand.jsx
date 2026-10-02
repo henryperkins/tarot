@@ -142,7 +142,7 @@ export function JournalSummaryBand({
                       type="button"
                       onClick={() => onScopeSelect(option.value)}
                       aria-pressed={isActive}
-                      className={`inline-flex items-center gap-1 rounded-full border ${scopeButtonSizeClass} font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
+                      className={`inline-flex min-h-touch min-w-touch items-center gap-1 rounded-full border ${scopeButtonSizeClass} font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
                         isActive
                           ? 'border-[color:var(--brand-primary)] bg-[color:var(--accent-25)] text-[color:var(--text-main)] shadow-[0_8px_26px_-16px_var(--accent-45)]'
                           : 'border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] text-[color:var(--text-muted)] hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)]'
@@ -165,7 +165,7 @@ export function JournalSummaryBand({
                   <button
                     type="button"
                     onClick={() => onScopeSelect('filters')}
-                    className="font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                    className="min-h-touch min-w-touch font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                   >
                     Apply filters
                   </button>

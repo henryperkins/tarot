@@ -3,6 +3,7 @@ import { PERSONALIZATION_REQUEST_FIELDS } from '../../shared/contracts/personali
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { getDeckPool } from '../lib/deck';
 import { initAudio, cleanupAudio, stopTTS, toggleAmbience } from '../lib/audio';
+import { safeStorage } from '../lib/safeStorage';
 import { useAuth } from './AuthContext';
 import {
   DEFAULT_PERSONALIZATION,
@@ -77,12 +78,9 @@ export function PreferencesProvider({ children }) {
   const personalizationKeyRef = useRef(personalizationStorageKey);
 
   // --- Theme ---
-  const [theme, setTheme] = useState(() => {
-    if (typeof localStorage !== 'undefined') {
-      return localStorage.getItem('tarot-theme') || 'dark';
-    }
-    return 'dark';
-  });
+  const [theme, setTheme] = useState(() => (
+    safeStorage.getItem('tarot-theme') === 'light' ? 'light' : 'dark'
+  ));
 
   useEffect(() => {
     const root = typeof document !== 'undefined' ? document.documentElement : null;
@@ -91,9 +89,7 @@ export function PreferencesProvider({ children }) {
       root.classList.toggle('light', theme === 'light');
     }
     updateThemeColorMeta(theme);
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('tarot-theme', theme);
-    }
+    safeStorage.setItem('tarot-theme', theme);
     if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
       try {
         window.dispatchEvent(new CustomEvent('tarot-theme-change', { detail: { theme } }));

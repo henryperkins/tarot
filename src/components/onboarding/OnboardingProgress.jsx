@@ -52,7 +52,7 @@ export function OnboardingProgress({
               type="button"
               onClick={() => isAccessible && onStepSelect?.(step)}
               disabled={!isAccessible}
-              className={`relative w-8 h-8 xs:w-9 xs:h-9 p-0 rounded-full flex items-center justify-center shrink-0 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main before:absolute before:inset-[-6px] before:content-[''] ${
+              className={`relative min-w-touch min-h-touch p-1 rounded-full flex items-center justify-center shrink-0 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                 isCurrent
                   ? 'bg-accent text-surface'
                   : isCompleted
@@ -94,7 +94,7 @@ export function OnboardingProgress({
                 type="button"
                 onClick={() => isAccessible && onStepSelect?.(step)}
                 disabled={!isAccessible}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                className={`flex min-h-touch min-w-touch items-center gap-2 px-3 py-1.5 rounded-full transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                   isCurrent
                     ? 'bg-accent text-surface'
                     : isCompleted

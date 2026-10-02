@@ -468,7 +468,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                     <button
                       type="button"
                     onClick={goToForgot}
-                    className={`text-accent hover:text-accent/80 underline underline-offset-4 rounded ${FOCUS_RING_DEFAULT}`}
+                    className={`min-h-touch min-w-touch text-left text-accent hover:text-accent/80 underline underline-offset-4 rounded ${FOCUS_RING_DEFAULT}`}
                     disabled={loading}
                   >
                     Forgot password?
@@ -476,7 +476,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                   <button
                     type="button"
                     onClick={handleResendVerification}
-                    className={`text-accent hover:text-accent/80 underline underline-offset-4 disabled:opacity-60 disabled:cursor-not-allowed rounded ${FOCUS_RING_DEFAULT}`}
+                    className={`min-h-touch min-w-touch text-left text-accent hover:text-accent/80 underline underline-offset-4 disabled:opacity-60 disabled:cursor-not-allowed rounded ${FOCUS_RING_DEFAULT}`}
                     disabled={loading}
                   >
                     Resend verification email
@@ -551,7 +551,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                     disabled:opacity-50 disabled:cursor-not-allowed
                     touch-manipulation
                     ${FOCUS_RING_ACCENT_SOFT}
-                    rounded px-2 py-1
+                    min-h-touch min-w-touch rounded px-2 py-1
                   `}
                   disabled={loading}
                 >
@@ -567,7 +567,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                     disabled:opacity-50 disabled:cursor-not-allowed
                     touch-manipulation
                     ${FOCUS_RING_ACCENT_SOFT}
-                    rounded px-2 py-1
+                    min-h-touch min-w-touch rounded px-2 py-1
                   `}
                   disabled={loading}
                 >

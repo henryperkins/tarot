@@ -44,13 +44,44 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
             .filter(entry => /\.js(?:\?|$)/.test(entry.name))
             .reduce((total, entry) => total + entry.decodedBodySize, 0));
           expect(scriptBytes).toBeGreaterThan(0);
-          expect(scriptBytes).toBeLessThan(mode === 'onboarding' ? 1_500_000 : 1_800_000);
+          expect(scriptBytes).toBeLessThan(mode === 'onboarding' ? 1_500_000 : 1_400_000);
+          const readingOnlyScripts = await page.evaluate(() => performance.getEntriesByType('resource')
+            .filter(entry => /\/(ReadingDisplay|CardModal|markdown)-[^/]+\.js(?:\?|$)/.test(entry.name))
+            .map(entry => entry.name));
+          expect(readingOnlyScripts).toEqual([]);
           await expect(page.locator('.follow-up-dialog')).toHaveCount(0);
         } finally {
           await fixture.close();
         }
       });
     }
+
+    test('a slow reading chunk loads only after drawing and preserves the pending draw', async ({ page }) => {
+      const fixture = await createNarrativeFixture(page, { signedOut: true });
+      let release;
+      let requested = false;
+      const held = new Promise(resolve => { release = resolve; });
+      await page.route(/\/assets\/ReadingDisplay-[^/]+\.js(?:\?.*)?$/, async route => {
+        requested = true;
+        await held;
+        await route.continue();
+      });
+      try {
+        await openSetup(page);
+        test.skip(!await page.locator('script[type="module"][src^="/assets/"]').count(), 'Chunk timing applies to the production build.');
+        await page.waitForLoadState('networkidle');
+        expect(requested).toBe(false);
+        await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
+        await page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw/ }).filter({ visible: true }).first().press('Enter');
+        await expect.poll(() => requested).toBe(true);
+        await expect(page.getByText('Loading your reading space…', { exact: true })).toBeVisible();
+        release();
+        await expect(page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first()).toBeEnabled();
+      } finally {
+        release();
+        await fixture.close();
+      }
+    });
 
     test('deferred telemetry still reports browser errors', async ({ page }) => {
       const fixture = await createNarrativeFixture(page, { signedOut: true });

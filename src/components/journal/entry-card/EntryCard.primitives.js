@@ -141,12 +141,12 @@ export const styles = {
 
   // Menu
   menu:
-    'fixed z-toast w-72 max-h-[75vh] overflow-y-auto rounded-2xl ' +
+    'fixed z-toast w-72 max-w-[calc(100vw-16px)] max-h-[75vh] overflow-y-auto rounded-2xl ' +
     'border border-[color:var(--border-warm)] bg-[color:var(--bg-main)] p-2 ' +
     'shadow-[0_18px_60px_-34px_rgba(0,0,0,0.95)]',
 
   menuItem:
-    'flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm ' +
+    'flex min-h-touch w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm ' +
     'transition-colors focus-visible:outline-none focus-visible:ring-2 ' +
     'disabled:opacity-60 disabled:cursor-not-allowed',
 

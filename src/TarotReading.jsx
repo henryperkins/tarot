@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback, useSyncExternalStore } from 'react';
 import { SpreadSelector } from './components/SpreadSelector';
 import { ReadingPreparation } from './components/ReadingPreparation';
+import { ReadingStart } from './components/reading/ReadingStart';
 import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
@@ -77,6 +78,7 @@ export default function TarotReading() {
   const {
     // Theme
     theme,
+    personalization,
     // Audio
     voiceOn,
     ambienceOn,
@@ -163,6 +165,7 @@ export default function TarotReading() {
     isGenerating,
     setIsGenerating,
     setAnalysisContext,
+    readingMeta,
     setReadingMeta,
     journalStatus,
     setJournalStatus,
@@ -897,7 +900,7 @@ export default function TarotReading() {
     <div className={`app-shell relative isolate min-h-screen bg-main text-main ${shouldEnableMobileStableMode ? 'mobile-stable-mode' : ''}`}>
       <div id="app-bg" className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true" />
       <div className="relative z-[1]">
-      <ReadingSkipLinks showSetupSection={showSetupSection} />
+      {!isOnboardingOpen && <ReadingSkipLinks showSetupSection={showSetupSection} />}
       <main
         id="main-content"
         tabIndex={-1}
@@ -1063,7 +1066,7 @@ export default function TarotReading() {
           </section>
         )}
 
-        {!isOnboardingOpen && (
+        {!isOnboardingOpen && (isShuffling || reading?.length || isGenerating || personalReading ? (
           <Suspense fallback={
             <section id="step-reading" ref={readingSectionRef} tabIndex={-1} aria-label="Draw and explore your reading" className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
               <p role="status" className="py-6 text-sm text-muted">Loading your reading space…</p>
@@ -1080,7 +1083,17 @@ export default function TarotReading() {
               isMobileStableMode={shouldEnableMobileStableMode}
             />
           </Suspense>
-        )}
+        ) : (
+          <section id="step-reading" ref={readingSectionRef} tabIndex={-1} aria-label="Draw and explore your reading" className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
+            <ReadingStart
+              displayName={personalization?.displayName?.trim()}
+              readingMeta={readingMeta}
+              isHandset={isHandset}
+              isLandscape={isLandscape}
+              shuffle={handleShuffle}
+            />
+          </section>
+        ))}
       </main>
 
       {canShowFollowUp && (

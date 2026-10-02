@@ -50,7 +50,7 @@ function MajorArcanaMap({ data = [] }) {
   return (
     <div>
       <p className="flex items-center gap-1.5 text-xs text-muted mb-3">
-        <Star className="h-3 w-3" />
+        <Star className="h-3 w-3" aria-hidden="true" />
         Major Arcana Focus
       </p>
 
@@ -58,12 +58,18 @@ function MajorArcanaMap({ data = [] }) {
       {/* Responsive: smaller tiles on narrow screens to avoid overflow */}
       <div className="space-y-1">
         {/* First row: 0-X (indices 0-10) */}
-        <div className="flex gap-0.5 xs:gap-1 justify-start overflow-x-auto pb-1 scrollbar-none">
+        <div
+          role="group"
+          aria-label="Major Arcana 0 to 10"
+          tabIndex={0}
+          className="flex gap-0.5 xs:gap-1 justify-start overflow-x-auto pb-1 scrollbar-none rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring-color)]"
+        >
           {ROMAN_NUMERALS.slice(0, 11).map((numeral, index) => {
             const count = countMap.get(index) || 0;
             return (
               <div
                 key={index}
+                role="img"
                 className={`
                   flex-shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
                   text-2xs xs:text-2xs font-medium transition-colors
@@ -80,13 +86,19 @@ function MajorArcanaMap({ data = [] }) {
         </div>
 
         {/* Second row: XI-XXI (indices 11-21) */}
-        <div className="flex gap-0.5 xs:gap-1 justify-start overflow-x-auto pb-1 scrollbar-none">
+        <div
+          role="group"
+          aria-label="Major Arcana 11 to 21"
+          tabIndex={0}
+          className="flex gap-0.5 xs:gap-1 justify-start overflow-x-auto pb-1 scrollbar-none rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring-color)]"
+        >
           {ROMAN_NUMERALS.slice(11).map((numeral, i) => {
             const index = i + 11;
             const count = countMap.get(index) || 0;
             return (
               <div
                 key={index}
+                role="img"
                 className={`
                   flex-shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
                   text-2xs xs:text-2xs font-medium transition-colors

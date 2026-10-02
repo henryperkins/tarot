@@ -16,6 +16,7 @@ import { ReadingJourney } from './ReadingJourney';
 import { NoFiltersIllustration } from './illustrations/NoFiltersIllustration';
 import { useSmallScreen, SMALL_SCREEN_MAX } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 import { useToast } from '../contexts/ToastContext.jsx';
 import AuthModal from './AuthModal';
 import { getTimestamp } from '../../shared/journal/utils.js';
@@ -77,6 +78,7 @@ export default function Journal() {
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
   const isSmallSummary = useSmallScreen(SMALL_SCREEN_MAX);
   const prefersReducedMotion = useReducedMotion();
+  const headerRef = useResponsiveSticky();
   const shellClass = isMobileLayout ? AMBER_SHELL_MOBILE_CLASS : AMBER_SHELL_CLASS;
   const cardClass = isMobileLayout ? AMBER_CARD_MOBILE_CLASS : AMBER_CARD_CLASS;
 
@@ -744,6 +746,7 @@ export default function Journal() {
       <div className="min-h-screen bg-main text-main">
         {/* Sticky navigation header with safe-area padding */}
         <header
+          ref={headerRef}
           className="sticky top-0 z-sticky-elevated bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
@@ -751,7 +754,7 @@ export default function Journal() {
           </div>
         </header>
 
-        <main id="main-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <main id="main-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-[min(1rem,4vw)] sm:px-6 pt-8 pb-[calc(2rem+var(--journal-controls-inset,0px))]">
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             {fromReading && (
@@ -837,10 +840,11 @@ export default function Journal() {
               ))}
             </div>
           ) : (
-            <div className={hasEntries && hasRailContent ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,24rem)] lg:gap-6 xl:gap-8' : ''}>
-              <div className="space-y-8">
+            <div className={hasEntries && hasRailContent ? 'lg:flex lg:flex-wrap lg:gap-6 xl:gap-8' : ''}>
+              {/* Let the rail move below history when enlarged text needs more room. */}
+              <div className="min-w-0 flex-[999_1_32rem] space-y-8">
                 {hasEntries ? (
-                  <section id="history" className={`${shellClass} p-5 space-y-5`}>
+                  <section id="history" className={`${shellClass} p-[min(1.25rem,4vw)] space-y-5`}>
                     <AmberStarfield />
                     <div className="relative z-10 space-y-5">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1049,7 +1053,7 @@ export default function Journal() {
               </div>
 
               {hasEntries && hasRailContent && desktopRailContent && (
-                <aside className="hidden lg:block lg:w-full">
+                <aside className="hidden min-w-0 lg:block lg:flex-[1_1_24rem]">
                   <div className="lg:sticky lg:top-6 lg:w-full">
                     {desktopRailContent}
                   </div>

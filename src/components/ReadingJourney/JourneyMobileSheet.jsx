@@ -454,7 +454,7 @@ export default function JourneyMobileSheet({
 
         <div className="relative z-10 space-y-4">
           {/* Header */}
-          <h3
+          <h2
             id="reading-journey-mobile-heading"
             className="flex items-center gap-2 journal-eyebrow text-muted-high"
           >
@@ -465,7 +465,7 @@ export default function JourneyMobileSheet({
                 Scope: {scopeLabel}
               </span>
             )}
-          </h3>
+          </h2>
           {filtersApplied && analyticsScope !== 'filters' && typeof onScopeSelect === 'function' && (
             <div className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:var(--accent-25)] px-3 py-1 text-2xs text-muted-high">
               <span>Filters not applied to insights</span>
@@ -633,22 +633,22 @@ export default function JourneyMobileSheet({
             </div>
 
             {/* Header */}
-            <div className="journey-sheet__header flex items-center justify-between px-5 pb-3 short:px-4 short:pb-2">
-              <div className="flex items-center gap-2">
+            <div className="journey-sheet__header flex flex-wrap items-start gap-2 shrink-0 px-5 pb-3 short:px-4 short:pb-2">
+              <div className="flex min-w-0 flex-[1_1_12rem] flex-wrap items-center gap-2">
                 <h2
                   id="journey-sheet-title"
-                  className="flex items-center gap-2 text-sm font-medium text-main"
+                  className="flex min-w-0 items-center gap-2 text-sm font-medium text-main"
                 >
-                  <Sparkle className="h-3 w-3" />
-                  Your Reading Journey
+                  <Sparkle className="h-3 w-3 shrink-0" aria-hidden="true" />
+                  <span className="min-w-0 break-words">Your Reading Journey</span>
                 </h2>
                 {scopeLabel && (
-                  <span className="rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
+                  <span className="max-w-full break-words rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
                     {scopeChipLabel} · {sourceLabel}
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="ms-auto flex shrink-0 items-center gap-1">
                 <Link
                   to="/account#analytics"
                   className="flex items-center justify-center min-h-touch min-w-touch rounded-lg text-muted hover:text-main hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] transition-colors"
@@ -675,17 +675,18 @@ export default function JourneyMobileSheet({
             </div>
 
             {/* Tabs with proper touch targets */}
-            <div className="flex border-b border-[color:var(--border-warm-subtle)] px-5 short:px-4" role="tablist">
+            <div className="flex shrink-0 overflow-x-auto border-b border-[color:var(--border-warm-subtle)] px-5 short:px-4" role="tablist" aria-label="Journey sections">
               {visibleTabs.map((tab) => (
                 <button
                   key={tab.key}
                   id={`journey-tab-${tab.key}`}
                   onClick={() => handleTabChange(tab.key)}
+                  onFocus={(event) => event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })}
                   role="tab"
                   aria-selected={activeTab === tab.key}
                   aria-controls="journey-tabpanel"
                   className={`
-                    flex items-center justify-center gap-1.5
+                    flex shrink-0 items-center justify-center gap-1.5
                     px-4 py-3 min-h-touch
                     text-xs font-medium
                     border-b-2 transition-colors
@@ -704,7 +705,7 @@ export default function JourneyMobileSheet({
 
             {/* Tab content with safe area padding and overscroll containment */}
             <div
-              className="journey-sheet__body flex-1 overflow-y-auto p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] space-y-4 overscroll-contain short:px-4 short:pt-4 short:space-y-3"
+              className="journey-sheet__body min-h-0 flex-1 overflow-y-auto p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] space-y-4 overscroll-contain short:px-4 short:pt-4 short:space-y-3"
               role="tabpanel"
               id="journey-tabpanel"
               aria-labelledby={`journey-tab-${activeTab}`}

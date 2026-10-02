@@ -1,6 +1,6 @@
-import { ArrowCounterClockwise } from '@phosphor-icons/react';
 import { MoonPhaseIndicator } from '../MoonPhaseIndicator';
 import { VisionValidationPanel } from '../VisionValidationPanel';
+import { ReadingStart } from './ReadingStart';
 
 export function ReadingChrome({
   displayName,
@@ -22,9 +22,8 @@ export function ReadingChrome({
 }) {
   return (
     <>
-      {(!isTableScene || displayName || readingMeta?.ephemeris) && (
-        // Before the draw, handsets keep the draw action in the dock, so this label would title nothing.
-        <div className={`${reading ? '' : 'hidden sm:block '}${isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}`}>
+      {reading && (!isTableScene || displayName || readingMeta?.ephemeris) && (
+        <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
           <div className="flex items-center justify-between gap-3">
             {(!isTableScene || displayName) && (
               <p className={isTableScene ? 'text-sm text-muted' : 'text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent'}>
@@ -40,16 +39,14 @@ export function ReadingChrome({
       )}
 
       {!reading ? (
-        <div className="hidden sm:block text-center mb-8 sm:mb-10">
-          <button
-            onClick={shuffle}
-            disabled={isShuffling}
-            className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center gap-2 sm:gap-3 text-base sm:text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
-          >
-            <ArrowCounterClockwise className={`w-4 h-4 sm:w-5 sm:h-5 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
-            <span>{isShuffling ? 'Shuffling the cards...' : 'Draw cards'}</span>
-          </button>
-        </div>
+        <ReadingStart
+          displayName={displayName}
+          readingMeta={readingMeta}
+          isHandset={isHandset}
+          isLandscape={isLandscape}
+          shuffle={shuffle}
+          isShuffling={isShuffling}
+        />
       ) : null}
 
       {canShowVisionPanel && !isNarrativeFocus ? (

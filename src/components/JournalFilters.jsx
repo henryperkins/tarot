@@ -776,8 +776,8 @@ export function JournalFilters({
 
               {/* Search scope help */}
               <details className="text-2xs text-[color:var(--color-gray-light)]">
-                <summary className="cursor-pointer hover:text-[color:var(--text-muted)] transition-colors">
-                  What fields are searched?
+                <summary className={`min-h-touch cursor-pointer content-center rounded hover:text-[color:var(--text-muted)] transition-colors ${FOCUS_RING_DEFAULT}`}>
+                  <span className="inline-block py-3">What fields are searched?</span>
                 </summary>
                 <ul className="mt-1.5 space-y-0.5 pl-4 text-[color:var(--text-muted)]">
                   <li>Questions you asked</li>

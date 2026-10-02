@@ -523,8 +523,8 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
               )}
             </header>
 
-            {/* Main content area - scrollable with swipe navigation */}
-            <main
+            {/* Step content area - scrollable with swipe navigation */}
+            <div
               ref={stepContentRef}
               className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe pb-safe pl-safe pr-safe onboarding-modal__scroll"
               style={{
@@ -539,7 +539,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
               <div className={`w-full max-w-3xl mx-auto min-h-full ${isLandscape ? 'px-2 xxs:px-3 py-2 sm:px-4' : 'px-3 xxs:px-4 md:px-6 py-4 xs:py-5 md:py-8'}`}>
                 {renderStep()}
               </div>
-            </main>
+            </div>
           </div>
         </FocusTrap>
       </div>

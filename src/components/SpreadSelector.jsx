@@ -42,7 +42,6 @@ function toRgba(color, alpha) {
 
 function createSpreadTheme({
   accent,
-  background,
   borderAlpha = 0.22,
   borderActiveAlpha = 0.8,
   glowAlpha = 0.35
@@ -51,8 +50,7 @@ function createSpreadTheme({
     accent,
     border: toRgba(accent, borderAlpha),
     borderActive: toRgba(accent, borderActiveAlpha),
-    glow: toRgba(accent, glowAlpha),
-    background
+    glow: toRgba(accent, glowAlpha)
   };
 }
 
@@ -60,9 +58,7 @@ const FALLBACK_SPREAD_THEME = createSpreadTheme({
   accent: 'var(--brand-primary)',
   borderAlpha: 0.28,
   borderActiveAlpha: 0.8,
-  glowAlpha: 0.35,
-  background:
-    'linear-gradient(155deg, rgba(244, 209, 140, 0.08), var(--panel-dark-1)), radial-gradient(circle at 16% 12%, rgba(244, 209, 140, 0.16), transparent 46%), radial-gradient(circle at 82% -6%, rgba(117, 137, 255, 0.2), transparent 48)'
+  glowAlpha: 0.35
 });
 
 const SPREAD_THEMES = {
@@ -70,49 +66,37 @@ const SPREAD_THEMES = {
     accent: 'var(--brand-accent)',
     borderAlpha: 0.25,
     borderActiveAlpha: 0.8,
-    glowAlpha: 0.38,
-    background:
-      'linear-gradient(165deg, rgba(255, 216, 158, 0.14), var(--panel-dark-1)), radial-gradient(circle at 15% 14%, rgba(243, 208, 141, 0.22), transparent 44%), radial-gradient(circle at 90% -10%, rgba(255, 170, 205, 0.18), transparent 50)'
+    glowAlpha: 0.38
   }),
   threeCard: createSpreadTheme({
     accent: 'var(--color-cups)',
     borderAlpha: 0.2,
     borderActiveAlpha: 0.78,
-    glowAlpha: 0.32,
-    background:
-      'linear-gradient(170deg, var(--panel-dark-2), var(--panel-dark-1)), radial-gradient(circle at 18% 10%, rgba(240, 143, 177, 0.32), transparent 46%), radial-gradient(circle at 88% -8%, rgba(99, 166, 255, 0.18), transparent 52)'
+    glowAlpha: 0.32
   }),
   fiveCard: createSpreadTheme({
     accent: 'color-mix(in srgb, var(--color-cups) 72%, var(--brand-accent) 28%)',
     borderAlpha: 0.2,
     borderActiveAlpha: 0.75,
-    glowAlpha: 0.35,
-    background:
-      'linear-gradient(165deg, var(--panel-dark-2), var(--panel-dark-1)), radial-gradient(circle at 8% 18%, rgba(111, 224, 255, 0.28), transparent 48%), radial-gradient(circle at 88% -12%, rgba(122, 84, 255, 0.18), transparent 50)'
+    glowAlpha: 0.35
   }),
   decision: createSpreadTheme({
     accent: 'var(--status-warning)',
     borderAlpha: 0.22,
     borderActiveAlpha: 0.82,
-    glowAlpha: 0.38,
-    background:
-      'linear-gradient(160deg, rgba(255, 197, 110, 0.2), var(--panel-dark-1)), radial-gradient(circle at 14% 12%, rgba(246, 183, 86, 0.24), transparent 46%), radial-gradient(circle at 84% -6%, rgba(120, 195, 255, 0.18), transparent 50)'
+    glowAlpha: 0.38
   }),
   relationship: createSpreadTheme({
     accent: 'color-mix(in srgb, var(--brand-primary) 62%, var(--color-cups) 38%)',
     borderAlpha: 0.24,
     borderActiveAlpha: 0.82,
-    glowAlpha: 0.34,
-    background:
-      'linear-gradient(165deg, rgba(242, 159, 180, 0.18), var(--panel-dark-1)), radial-gradient(circle at 20% 8%, rgba(242, 159, 180, 0.34), transparent 48%), radial-gradient(circle at 92% -8%, rgba(158, 190, 255, 0.18), transparent 52)'
+    glowAlpha: 0.34
   }),
   celtic: createSpreadTheme({
     accent: 'color-mix(in srgb, var(--brand-secondary) 58%, var(--color-cups) 42%)',
     borderAlpha: 0.24,
     borderActiveAlpha: 0.82,
-    glowAlpha: 0.4,
-    background:
-      'linear-gradient(170deg, var(--panel-dark-2), var(--panel-dark-1)), radial-gradient(circle at 20% 12%, rgba(169, 146, 255, 0.28), transparent 52%), radial-gradient(circle at 88% -10%, rgba(255, 191, 140, 0.2), transparent 54)'
+    glowAlpha: 0.4
   })
 };
 
@@ -336,14 +320,14 @@ export function SpreadSelector({
               rounded-l-2xl
               transition-opacity duration-200
               sm:hidden
-              flex items-center justify-start pl-1
-              ${showLeftFade ? 'opacity-100 pointer-events-auto' : 'invisible opacity-0 pointer-events-none focus-within:visible focus-within:opacity-100'}
+              pointer-events-none flex items-center justify-start pl-1
+              ${showLeftFade ? 'opacity-100' : 'invisible opacity-0 focus-within:visible focus-within:opacity-100'}
             `}
           >
             <button
               type="button"
               onClick={() => handleArrowNav('prev')}
-              className={`min-w-touch min-h-touch rounded-full bg-surface/80 border border-secondary/55 text-main hover:border-secondary/75 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg ${FOCUS_RING_DEFAULT}`}
+              className={`pointer-events-auto min-w-touch min-h-touch rounded-full bg-surface/80 border border-secondary/55 text-main hover:border-secondary/75 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg ${FOCUS_RING_DEFAULT}`}
               aria-label="Previous spread"
               aria-disabled={!showLeftFade}
               tabIndex={showLeftFade ? 0 : -1}
@@ -360,14 +344,14 @@ export function SpreadSelector({
               rounded-r-2xl
               transition-opacity duration-200
               sm:hidden
-              flex items-center justify-end pr-1
-              ${showRightFade ? 'opacity-100 pointer-events-auto' : 'invisible opacity-0 pointer-events-none focus-within:visible focus-within:opacity-100'}
+              pointer-events-none flex items-center justify-end pr-1
+              ${showRightFade ? 'opacity-100' : 'invisible opacity-0 focus-within:visible focus-within:opacity-100'}
             `}
           >
             <button
               type="button"
               onClick={() => handleArrowNav('next')}
-              className={`min-w-touch min-h-touch rounded-full bg-surface/80 border border-secondary/55 text-main hover:border-secondary/75 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg ${FOCUS_RING_DEFAULT}`}
+              className={`pointer-events-auto min-w-touch min-h-touch rounded-full bg-surface/80 border border-secondary/55 text-main hover:border-secondary/75 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg ${FOCUS_RING_DEFAULT}`}
               aria-label="Next spread"
               aria-disabled={!showRightFade}
               tabIndex={showRightFade ? 0 : -1}
@@ -416,7 +400,6 @@ export function SpreadSelector({
                 style={{
                   '--spread-accent': theme.accent || FALLBACK_SPREAD_THEME.accent,
                   '--spread-border': resolvedBorder,
-                  '--spread-background': theme.background || FALLBACK_SPREAD_THEME.background,
                   '--spread-glow': theme.glow || FALLBACK_SPREAD_THEME.glow
                 }}
               >
@@ -426,18 +409,18 @@ export function SpreadSelector({
                       <div
                         className="w-7 h-7 rounded-full flex items-center justify-center border border-[color:var(--border-warm-light)]"
                         style={{
-                          backgroundColor: 'var(--spread-accent)',
+                          backgroundColor: 'var(--brand-primary)',
                           boxShadow: '0 12px 26px -18px var(--spread-glow, var(--primary-30))'
                         }}
                       >
-                        <Check className="w-4 h-4 text-main" weight="bold" aria-hidden="true" />
+                        <Check className="w-4 h-4 text-surface" weight="bold" aria-hidden="true" />
                       </div>
                     </div>
                     <div
                       className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
                       style={{
                         backgroundColor: 'var(--surface-92)',
-                        color: 'var(--spread-accent, var(--brand-primary))',
+                        color: 'var(--text-accent)',
                         border: '1px solid var(--border-warm-light)',
                         boxShadow: '0 12px 28px -20px rgba(0,0,0,0.7)'
                       }}

@@ -51,8 +51,8 @@ export const ComfortableHeader = memo(function ComfortableHeader({
   const timestampTitle = relativeTimeLabel ? formattedTimestamp : undefined;
 
   const headerPadding = isCompactView
-    ? 'px-3.5 py-3 sm:px-4 sm:py-3.5'
-    : 'px-4 py-4 sm:px-5 sm:py-5';
+    ? 'px-[min(0.875rem,4vw)] py-3 sm:px-4 sm:py-3.5'
+    : 'px-[min(1rem,4vw)] py-4 sm:px-5 sm:py-5';
 
   return (
     <div className={cn(
@@ -60,7 +60,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
       headerPadding,
       isExpanded && 'border-b border-[color:var(--border-warm-subtle)]'
     )}>
-      <div className="flex items-start gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         {/* Main clickable area */}
         <button
           type="button"
@@ -69,14 +69,14 @@ export const ComfortableHeader = memo(function ComfortableHeader({
           aria-controls={entryContentId}
           title={isExpanded ? 'Collapse entry' : 'Expand entry'}
           className={cn(
-            'group flex min-w-0 flex-1 rounded-2xl px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
+            'group flex min-w-0 flex-[1_1_14rem] rounded-2xl px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
             isCompactView ? 'flex-row items-start gap-3' : 'flex-col gap-3'
           )}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-3">
             {/* Expand/collapse icon */}
             <span className={cn(
-              'mt-0.5 flex items-center justify-center rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-2)] text-[color:var(--text-muted)] shadow-[0_14px_28px_-18px_rgba(0,0,0,0.7)] transition group-hover:border-[color:var(--border-warm)]',
+              'mt-0.5 flex shrink-0 items-center justify-center rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-2)] text-[color:var(--text-muted)] shadow-[0_14px_28px_-18px_rgba(0,0,0,0.7)] transition group-hover:border-[color:var(--border-warm)]',
               isCompactView ? 'h-8 w-8 rounded-xl shadow-[0_10px_18px_-12px_rgba(0,0,0,0.6)]' : 'h-10 w-10'
             )}>
               {isExpanded ? (
@@ -86,14 +86,14 @@ export const ComfortableHeader = memo(function ComfortableHeader({
               )}
             </span>
 
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-[1_1_10rem]">
               {isCompactView ? (
                 <>
-                  <h3 className="min-w-0 text-sm font-semibold text-accent truncate">
+                  <h3 className="min-w-0 break-words text-sm font-semibold text-accent">
                     {entry.spread || entry.spreadName || 'Reading'}
                   </h3>
                   {timestampLabel && (
-                    <p className="mt-1 text-2xs text-muted truncate">
+                    <p className="mt-1 break-words text-2xs text-muted">
                       {timestampLabel}
                     </p>
                   )}
@@ -111,9 +111,9 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                       </span>
                     )}
                     {deckLabel && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-subtle)] px-2 py-0.5">
+                      <span className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-full border border-[color:var(--border-warm-subtle)] px-2 py-0.5">
                         Deck
-                        <span className="normal-case text-[color:var(--text-main)]">
+                        <span className="min-w-0 break-words normal-case text-[color:var(--text-main)]">
                           {deckLabel}
                         </span>
                       </span>
@@ -121,7 +121,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                   </div>
 
                   {/* Title */}
-                  <h3 className="mt-1 min-w-0 font-serif text-lg sm:text-xl text-[color:var(--brand-primary)] tracking-[0.04em] leading-snug line-clamp-2">
+                  <h3 className="mt-1 min-w-0 break-words font-serif text-lg sm:text-xl text-[color:var(--brand-primary)] tracking-[0.04em] leading-snug">
                     {entry.spread || entry.spreadName || 'Tarot Reading'}
                   </h3>
                 </>
@@ -160,10 +160,10 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                     return (
                       <span
                         key={`${card.name || 'card'}-${idx}`}
-                        className={cn(styles.cardChip, 'flex-nowrap')}
+                        className={cn(styles.cardChip, 'min-w-0 flex-wrap')}
                       >
-                        <JournalCardIcon className="h-3 w-3 text-[color:var(--text-muted)]" aria-hidden="true" />
-                        <span className="min-w-0 max-w-[140px] truncate text-2xs text-[color:var(--text-main)]">
+                        <JournalCardIcon className="h-3 w-3 shrink-0 text-[color:var(--text-muted)]" aria-hidden="true" />
+                        <span className="min-w-0 flex-auto break-words text-2xs text-[color:var(--text-main)]">
                           {name}
                         </span>
                         {reversed && (
@@ -185,8 +185,8 @@ export const ComfortableHeader = memo(function ComfortableHeader({
         </button>
 
         {/* Action buttons */}
-        <div className={cn('relative flex-shrink-0 self-start', !isCompactView && 'pt-1')}>
-          <div className="flex items-center gap-2">
+        <div className={cn('relative max-w-full self-start', !isCompactView && 'pt-1')}>
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleShare}

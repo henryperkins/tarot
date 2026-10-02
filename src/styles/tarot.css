@@ -214,7 +214,7 @@
   --safe-pad-x: max(var(--safe-pad-left), var(--safe-pad-right));
 
   /* Component defaults (can be overridden inline) */
-  --spread-background: var(--panel-dark-2);
+  --spread-background: linear-gradient(165deg, var(--panel-dark-2), var(--panel-dark-1));
   --spread-border: var(--border-warm-subtle);
   --spread-accent: var(--brand-primary);
   --spread-glow: rgb(var(--brand-primary-rgb) / 0.35);
@@ -432,7 +432,7 @@
    ---------------------------
    --spread-card-height-mobile  : Card height on mobile (default: 18rem)
    --spread-card-height-desktop : Card height on desktop (default: 22rem)
-   --spread-background          : Card background color (default: var(--panel-dark-2))
+   --spread-background          : Card surface (default: theme panel gradient)
    --spread-border              : Card border color (default: var(--border-warm-subtle))
    --spread-accent              : Accent color for glows (default: var(--brand-primary))
    --spread-glow                : Box-shadow glow color (default: rgb(var(--brand-primary-rgb) / 0.35))
@@ -1154,8 +1154,8 @@ body {
   text-align: left;
   background: var(--spread-background, var(--panel-dark-2));
   border: 1px solid var(--spread-border, var(--border-warm-subtle));
-  box-shadow: 0 18px 36px -24px rgba(0, 0, 0, 0.85),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: var(--ui-card-shadow-soft),
+    inset 0 1px 0 var(--ui-overlay-emphasis);
   transition: transform 160ms ease, box-shadow 180ms ease,
     border-color 160ms ease;
 }
@@ -1283,9 +1283,7 @@ body {
   .spread-card:hover {
     transform: translateY(-3px);
     border-color: rgb(var(--brand-primary-rgb) / 0.45);
-    box-shadow: 0 24px 45px -28px rgba(0, 0, 0, 0.85),
-      0 8px 22px -18px
-      var(--spread-glow, rgb(var(--brand-primary-rgb) / 0.35));
+    box-shadow: var(--ui-card-shadow-strong);
   }
 }
 

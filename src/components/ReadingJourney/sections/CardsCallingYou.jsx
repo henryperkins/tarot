@@ -56,9 +56,9 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
           return (
             <li
               key={`${card.name}-${index}`}
-              className="flex items-center justify-between text-sm rounded-lg bg-surface-muted/40 px-3 py-3 min-h-touch hover:bg-surface-muted/60 transition-colors"
+              className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-sm rounded-lg bg-surface-muted/40 px-3 py-3 min-h-touch hover:bg-surface-muted/60 transition-colors"
             >
-              <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="flex min-w-0 flex-[1_1_12rem] items-center gap-2">
                 <span
                   className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-accent flex-shrink-0"
                   aria-hidden="true"
@@ -71,7 +71,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
                     aria-label={`${suitName} suit`}
                   />
                 )}
-                <span className="text-main truncate">
+                <span className="min-w-0 text-main break-words">
                   <span className="sr-only">Rank {index + 1}: </span>
                   {card.name}
                 </span>
@@ -89,7 +89,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
                 </div>
               )}
 
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="ms-auto flex max-w-full flex-wrap items-center gap-2">
                 {card.trend && card.trend !== 'stable' && (
                   <TrendIndicator trend={card.trend} />
                 )}
@@ -113,7 +113,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
         })}
       </ul>
       
-      <div className="mt-3 pt-2 border-t border-secondary/20 flex items-center justify-between text-sm sm:text-xs">
+      <div className="mt-3 pt-2 border-t border-secondary/20 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm sm:text-xs">
         <span className="text-muted/70">
           {cards.length > 5 ? `+${cards.length - 5} more` : 'Explore deck'}
         </span>
