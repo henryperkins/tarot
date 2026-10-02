@@ -77,3 +77,12 @@ jobs:
 
       - name: Narrative QA gate
         run: npm run ci:narrative-check
+
+      - name: Preserve narrative evaluation evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: narrative-evaluation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: data/evaluations/runs/
+          if-no-files-found: ignore
+          retention-days: 14

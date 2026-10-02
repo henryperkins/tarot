@@ -94,6 +94,21 @@ async function main() {
 
   if (failures.length) {
     console.error('Narrative gate failed:', failures.join('; '));
+    for (const sample of Array.isArray(metrics.perSample) ? metrics.perSample : []) {
+      if (!sample?.issuesPresent && !sample?.issueFlags?.length) continue;
+      console.error('Flagged narrative sample:', JSON.stringify({
+        id: sample.id,
+        issues: sample.issueFlags || [],
+        deterministicLanguageMatches: sample.deterministicLanguageMatches || [],
+        hallucinatedCards: sample.hallucinatedCards || [],
+        missingCards: sample.missingCards || [],
+        suitCountMismatches: sample.suitCountMismatches || []
+      }));
+    }
+    console.error(`Narrative metrics: ${path.relative(process.cwd(), metricsPath)}`);
+    if (metrics.artifactsDirectory) {
+      console.error(`Narrative evidence directory: ${metrics.artifactsDirectory}`);
+    }
     process.exitCode = 1;
     return;
   }

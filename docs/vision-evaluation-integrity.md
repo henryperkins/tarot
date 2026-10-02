@@ -135,9 +135,24 @@ VISION_EVAL_MANIFEST_DIR=/private/corpus NARRATIVE_EVAL_BACKEND=modal-qwen npm r
 `npm run deploy` and `deploy:skip-migrations` require fresh release checks before
 remote changes. `--migrations-only` remains an explicit independent operation;
 `--dry-run` does not execute release QA or write production state. Cloudflare
-Builds has separate dashboard commands: set its production build command to
-`npm run ci:release-check` and deployment command to `npm run deploy`. Missing
+Builds has separate dashboard commands: leave its production build command empty
+and set its deployment command to `npm run deploy`. The deployment script runs
+release QA once, then migrations, the frontend build, and Worker deployment.
+Putting release QA in both commands generates two independent narrative batches
+and can reject a release after its first batch passed. Missing
 photo data alone no longer blocks release. Required code/narrative checks and
 explicitly configured vision checks must still pass.
 Changing source alone does not update that external trigger. Direct Wrangler/API
 deployments remain privileged operations; this is not an account permission lock.
+
+Every completed narrative evaluation saves its samples, metrics, and review queue
+in a unique `data/evaluations/runs/` directory, alongside the latest output files.
+These local artifacts are ignored by Git. A failed gate prints the flagged sample
+IDs, matching deterministic phrases, detected card names, and evidence directory
+to the build log. Preserve that directory when collecting CI artifacts; files in
+an ephemeral build environment are not durable storage. The GitHub narrative job
+uploads the snapshots even when its gate fails.
+
+`lint:cloudflare` runs a Node script with no shell or ripgrep dependency. Missing
+search targets and read errors fail the check instead of being treated as a clean
+search.

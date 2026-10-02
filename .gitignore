@@ -89,6 +89,7 @@ lerna-debug.log*
 
 # Testing
 coverage/
+/data/evaluations/runs/
 
 # Playwright
 /test-results/

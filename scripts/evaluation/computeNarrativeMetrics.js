@@ -126,15 +126,18 @@ function containsPattern(text, patterns) {
   return patterns.some((pattern) => pattern.test(text));
 }
 
-function containsDeterministicLanguage(text) {
-  if (!text) return false;
+function findDeterministicLanguage(text) {
+  if (!text) return [];
   const withoutNegatedClaims = NEGATED_DETERMINISTIC_PATTERNS.reduce(
     (value, pattern) => value.replace(pattern, (claim) => (
       NEGATION_EXCEPTION_PATTERN.test(claim) ? claim : ''
     )),
     text
   );
-  return containsPattern(withoutNegatedClaims, DETERMINISTIC_PATTERNS);
+  return DETERMINISTIC_PATTERNS.flatMap(pattern => {
+    const match = withoutNegatedClaims.match(pattern);
+    return match ? [match[0]] : [];
+  });
 }
 
 function containsHarshTone(text) {
@@ -162,7 +165,7 @@ function buildIssueNotes(result) {
     notes.push(`Missing cards: ${result.missingCards.join(', ')}`);
   }
   if (result.deterministicLanguage) {
-    notes.push('Deterministic language detected');
+    notes.push(`Deterministic language detected: ${result.deterministicLanguageMatches.join(', ')}`);
   }
   if (!result.hasAgencyLanguage) {
     notes.push('Agency/choice language missing');
@@ -238,7 +241,8 @@ function summarizeSample(sample) {
     coverage: runtimeMetrics.cardCoverage ?? 1,
     missingCards: runtimeMetrics.missingCards || []
   };
-  const deterministicLanguage = containsDeterministicLanguage(plainReading);
+  const deterministicLanguageMatches = findDeterministicLanguage(plainReading);
+  const deterministicLanguage = deterministicLanguageMatches.length > 0;
   const hasAgencyLanguage = containsPattern(plainReading, AGENCY_PATTERNS);
   const hallucinatedCards = runtimeMetrics.hallucinatedCards || [];
   const suitCountMismatches = runtimeMetrics.suitCountMismatches || [];
@@ -284,6 +288,7 @@ function summarizeSample(sample) {
     cardCoverage: cardCoverage.coverage,
     missingCards: cardCoverage.missingCards,
     deterministicLanguage,
+    deterministicLanguageMatches,
     hasAgencyLanguage,
     hallucinatedCards,
     suitCountMismatches,
@@ -365,8 +370,10 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   const inputPath = path.resolve(process.cwd(), options.input);
   let payload;
+  let samplesSource;
   try {
-    payload = JSON.parse(await fs.readFile(inputPath, 'utf-8'));
+    samplesSource = await fs.readFile(inputPath, 'utf-8');
+    payload = JSON.parse(samplesSource);
   } catch (err) {
     console.error(`Unable to read ${options.input}. Run 'npm run eval:narrative' first.`);
     throw err;
@@ -410,9 +417,15 @@ async function main() {
       }
     : { accuracy: 0, coherence: 0, agency: 0, compassion: 0 };
 
+  const metricsPath = path.resolve(process.cwd(), options.metricsOut);
+  const runsDirectory = path.join(path.dirname(metricsPath), 'runs');
+  await fs.mkdir(runsDirectory, { recursive: true });
+  const runPrefix = new Date().toISOString().replaceAll(':', '-');
+  const artifactsDirectory = await fs.mkdtemp(path.join(runsDirectory, `${runPrefix}-`));
   const metrics = {
     generatedAt: new Date().toISOString(),
     sourceFile: path.relative(process.cwd(), inputPath),
+    artifactsDirectory: path.relative(process.cwd(), artifactsDirectory),
     totalSamples,
     spinePassRate: spinePass / totalSamples,
     avgCardCoverage,
@@ -429,7 +442,6 @@ async function main() {
     perSample: analyses
   };
 
-  const metricsPath = path.resolve(process.cwd(), options.metricsOut);
   await fs.mkdir(path.dirname(metricsPath), { recursive: true });
   await fs.writeFile(metricsPath, JSON.stringify(metrics, null, 2));
   console.log(`Narrative metrics written to ${path.relative(process.cwd(), metricsPath)}.`);
@@ -445,6 +457,11 @@ async function main() {
   const reviewPath = path.resolve(process.cwd(), options.reviewOut);
   const existingAnnotations = await readExistingAnnotations(reviewPath);
   await writeReviewQueue(queueRows, reviewPath, existingAnnotations);
+  // Preserve the evaluated bytes before another invocation replaces the latest files.
+  await fs.writeFile(path.join(artifactsDirectory, 'narrative-samples.json'), samplesSource);
+  await fs.copyFile(metricsPath, path.join(artifactsDirectory, 'narrative-metrics.json'));
+  await fs.copyFile(reviewPath, path.join(artifactsDirectory, 'narrative-review-queue.csv'));
+  console.log(`Narrative evidence saved to ${metrics.artifactsDirectory}.`);
   console.log(
     queueRows.length > 0
       ? `Narrative review queue updated with ${queueRows.length} flagged sample(s).`

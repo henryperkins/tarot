@@ -81,10 +81,13 @@ under Task 18 of the implementation plan. Local checks do not authorize either.
 
 ### Merge
 
-Cloudflare Workers Builds deploys every push to `master` with `npm run build`
-and `npx wrangler deploy`. This path does **not** run `scripts/deploy.js` or
-apply D1 migrations, so the pre-merge migration step is required. The manual
-`npm run deploy` command does apply migrations before deployment.
+At the initial MCP release, Cloudflare Workers Builds ran `npm run build` and
+`npx wrangler deploy`, so the first-deployment checklist above applied migrations
+separately. As of October 2, 2026, production pushes to `master` use an empty
+build command and `npm run deploy` as the deployment command. That script runs
+fresh release QA once, then applies pending D1 migrations, builds the frontend,
+and deploys the Worker. See [release checks](../../vision-evaluation-integrity.md)
+for the current gate and evidence requirements.
 
 Wait for the build for the merge commit to succeed and verify the active Worker
 version before merging another PR. Builds can finish out of commit order;
