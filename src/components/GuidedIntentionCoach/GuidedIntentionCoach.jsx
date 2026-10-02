@@ -1,10 +1,10 @@
 import { GuidedIntentionCoachProvider } from '../../contexts/GuidedIntentionCoachContext';
 import { GuidedIntentionCoachView } from './GuidedIntentionCoachView';
 
-export function GuidedIntentionCoach(props) {
+export function GuidedIntentionCoach({ returnFocusRef, ...props }) {
   return (
     <GuidedIntentionCoachProvider {...props}>
-      <GuidedIntentionCoachView />
+      <GuidedIntentionCoachView returnFocusRef={returnFocusRef} />
     </GuidedIntentionCoachProvider>
   );
 }

@@ -15,7 +15,7 @@ import {
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAutoGrow } from '../hooks/useAutoGrow';
 import { useSettledValue } from '../hooks/useSettledValue';
-import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingSchema.js';
+import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingRequestLimits.js';
 import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
 
 export function QuestionInput({

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Crown,
@@ -27,6 +27,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
+import { useModalA11y } from '../hooks/useModalA11y';
+import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
 import { GlobalNav } from '../components/GlobalNav';
 import AuthModal from '../components/AuthModal';
 import { MobileInfoSection } from '../components/MobileInfoSection';
@@ -334,7 +336,28 @@ const mobileTopDifferences = [
 
 function ComparisonModal({ isOpen, onClose }) {
   const prefersReducedMotion = useReducedMotion();
+  const containerRef = useRef(null);
+  const headingRef = useRef(null);
+  const [expandedFeature, setExpandedFeature] = useState(null);
   const tiers = ['free', 'plus', 'pro'];
+
+  useModalA11y(isOpen, {
+    onClose,
+    containerRef,
+    initialFocusRef: headingRef,
+    isolateBackground: true
+  });
+
+  const renderAvailability = (included) => (
+    <span>
+      {included ? (
+        <Check className="mx-auto h-4 w-4 text-accent" weight="bold" aria-hidden="true" />
+      ) : (
+        <X className="mx-auto h-4 w-4 text-muted" aria-hidden="true" />
+      )}
+      <span className="sr-only">{included ? 'Included' : 'Not included'}</span>
+    </span>
+  );
 
   const renderValue = (feature, tier) => {
     const config = SUBSCRIPTION_TIERS[tier];
@@ -348,26 +371,19 @@ function ComparisonModal({ isOpen, onClose }) {
       case 'graphRAG':
         return config.graphRAGDepth === 'full' ? 'Full depth' : 'Limited';
       case 'boolean':
-        return config[feature.key] ? (
-          <Check className="mx-auto h-4 w-4 text-accent" weight="bold" />
-        ) : (
-          <X className="mx-auto h-4 w-4 text-secondary/50" />
-        );
+        return renderAvailability(config[feature.key]);
       case 'api':
         return config.apiAccess ? (
           <span>{config.apiCallsPerMonth?.toLocaleString()} calls/mo</span>
-        ) : (
-          <X className="mx-auto h-4 w-4 text-secondary/50" />
-        );
+        ) : renderAvailability(false);
       case 'tier-check':
-        return feature.tiers?.includes(tier) ? (
-          <Check className="mx-auto h-4 w-4 text-accent" weight="bold" />
-        ) : (
-          <X className="mx-auto h-4 w-4 text-secondary/50" />
-        );
+        return renderAvailability(feature.tiers?.includes(tier));
       case 'refund':
         return tier === 'free' ? (
-          <span className="text-secondary/50">—</span>
+          <span>
+            <span className="text-muted" aria-hidden="true">—</span>
+            <span className="sr-only">Not applicable</span>
+          </span>
         ) : (
           <span>7 days</span>
         );
@@ -380,7 +396,9 @@ function ComparisonModal({ isOpen, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      ref={containerRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex h-[100dvh] items-center justify-center p-4 pt-[max(1rem,var(--safe-pad-top))] pr-[max(1rem,var(--safe-pad-right))] pb-[max(1rem,var(--safe-pad-bottom))] pl-[max(1rem,var(--safe-pad-left))]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="comparison-modal-title"
@@ -398,75 +416,104 @@ function ComparisonModal({ isOpen, onClose }) {
       {/* Modal content */}
       <div
         className={[
-          'relative max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-secondary/30 bg-main shadow-2xl',
+          'relative flex max-h-full min-h-0 w-full max-w-3xl flex-col overflow-clip rounded-3xl border border-secondary/30 bg-main shadow-2xl',
           prefersReducedMotion ? '' : 'animate-scale-in'
         ].join(' ')}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-secondary/20 px-6 py-4">
-          <h2 id="comparison-modal-title" className="text-lg font-semibold text-main">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-secondary/20 px-4 py-3 sm:px-6 sm:py-4">
+          <h2 ref={headingRef} tabIndex={-1} id="comparison-modal-title" className="min-w-0 text-lg font-semibold text-main">
             Compare all features
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-muted transition hover:bg-secondary/20 hover:text-main"
+            className={`inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-full p-2 text-muted transition hover:bg-secondary/20 hover:text-main ${FOCUS_RING_DEFAULT}`}
             aria-label="Close comparison"
           >
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto p-4">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-secondary/30">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-muted">
-                  Feature
-                </th>
-                {tiers.map((tier) => (
-                  <th
-                    key={tier}
-                    className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.15em] text-muted"
-                  >
-                    {SUBSCRIPTION_TIERS[tier].label}
+        <div
+          role="region"
+          aria-label="Plan comparison"
+          tabIndex={0}
+          className={`min-h-0 overflow-y-auto overscroll-contain p-4 focus-visible:ring-inset ${FOCUS_RING_DEFAULT}`}
+        >
+          <div
+            role="region"
+            aria-label="Plan feature columns"
+            tabIndex={0}
+            className={`overflow-x-auto overscroll-x-contain focus-visible:ring-inset ${FOCUS_RING_DEFAULT}`}
+          >
+            <table className="w-full min-w-[32rem] text-sm">
+              <caption className="sr-only">Features included in each plan</caption>
+              <thead>
+                <tr className="border-b border-secondary/30">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-muted">
+                    Feature
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {comparisonFeatures.map((feature, idx) => (
-                <tr
-                  key={feature.key}
-                  className={idx < comparisonFeatures.length - 1 ? 'border-b border-secondary/20' : ''}
-                >
-                  <td className="px-4 py-2.5 text-secondary">
-                    <span className="inline-flex items-center gap-1.5">
-                      {feature.label}
-                      {feature.tooltip && (
-                        <span title={feature.tooltip} aria-label={feature.tooltip}>
-                          <Info className="h-3.5 w-3.5 text-muted" />
-                        </span>
-                      )}
-                    </span>
-                  </td>
                   {tiers.map((tier) => (
-                    <td key={tier} className="px-4 py-2.5 text-center text-main">
-                      {renderValue(feature, tier)}
-                    </td>
+                    <th
+                      key={tier}
+                      scope="col"
+                      className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.15em] text-muted"
+                    >
+                      {SUBSCRIPTION_TIERS[tier].label}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Footer hint */}
-        <div className="border-t border-secondary/20 px-6 py-3 text-center">
-          <p className="text-xs text-muted">
-            All paid plans include a 7-day refund window on first purchase
-          </p>
+              </thead>
+              <tbody>
+                {comparisonFeatures.map((feature, idx) => (
+                  <tr
+                    key={feature.key}
+                    className={idx < comparisonFeatures.length - 1 ? 'border-b border-secondary/20' : ''}
+                  >
+                    <th scope="row" className="px-4 py-2.5 text-left font-normal text-secondary">
+                      <span className="inline-flex items-center gap-1.5">
+                        {feature.label}
+                        {feature.tooltip && (
+                          <button
+                            type="button"
+                            aria-label={`About ${feature.label}`}
+                            aria-expanded={expandedFeature === feature.key}
+                            aria-controls={`comparison-help-${feature.key}`}
+                            onClick={() => setExpandedFeature(current => current === feature.key ? null : feature.key)}
+                            className={`inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-full text-muted hover:bg-secondary/20 hover:text-main ${FOCUS_RING_DEFAULT}`}
+                          >
+                            <Info className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        )}
+                      </span>
+                      {feature.tooltip && (
+                        <p
+                          id={`comparison-help-${feature.key}`}
+                          hidden={expandedFeature !== feature.key}
+                          className="mt-2 max-w-xs text-sm text-muted"
+                        >
+                          {feature.tooltip}
+                        </p>
+                      )}
+                    </th>
+                    {tiers.map((tier) => (
+                      <td key={tier} className="px-4 py-2.5 text-center text-main">
+                        {renderValue(feature, tier)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* Keep the final rows and refund terms reachable on short screens. */}
+          <div className="mt-4 border-t border-secondary/20 px-2 pt-3 text-center">
+            <p className="text-xs text-muted">
+              All paid plans include a 7-day refund window on first purchase
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -1021,7 +1068,7 @@ export default function PricingPage() {
 
       {/* Sticky mobile CTA */}
       {showMobileSticky && (
-        <div className="fixed inset-x-0 bottom-0 z-sticky-nav border-t border-secondary/40 bg-main/95 px-safe pt-3 pb-[max(0.75rem,var(--safe-pad-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.6)] lg:hidden">
+        <section aria-label="Plan upgrade" className="fixed inset-x-0 bottom-0 z-sticky-nav border-t border-secondary/40 bg-main/95 px-safe pt-3 pb-[max(0.75rem,var(--safe-pad-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.6)] lg:hidden">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 text-xs text-muted">
               <p className="font-semibold text-main">Upgrade to Plus</p>
@@ -1045,7 +1092,7 @@ export default function PricingPage() {
               )}
             </button>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Auth Modal */}

@@ -13,7 +13,6 @@ import { readReadingJobEvents } from '../lib/readingJobStream.js';
 import { buildReadingRequestCard } from '../../shared/contracts/readingRequestCards.js';
 import { computeRelationships } from '../lib/deck';
 import { buildSymbolElementCue } from '../lib/symbolElementBridge';
-import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
 import {
     STREAM_NARRATION_MIN_WORDS,
     STREAM_NARRATION_MIN_CHARS,
@@ -1012,6 +1011,12 @@ export function ReadingProvider({ children }) {
                 };
                 payload.persistLocationToJournal = Boolean(persistLocationToJournal);
             }
+            // Validation is needed only when starting a narrative, not during setup.
+            const { safeParseReadingRequest } = await import('../../shared/contracts/readingSchema.js').catch((error) => {
+                startController.signal.throwIfAborted();
+                throw new Error('Your reading could not start. Check your connection, then reload this page. Your question is saved; you can draw again.', { cause: error });
+            });
+            startController.signal.throwIfAborted();
             const normalizedPayload = safeParseReadingRequest(payload);
             if (!normalizedPayload.success) {
                 const validationMessage = normalizedPayload.error || 'Reading request is missing required details.';

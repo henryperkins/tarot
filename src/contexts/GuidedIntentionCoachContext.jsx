@@ -4,7 +4,7 @@ import { usePreferences } from './PreferencesContext';
 import { useAuth } from './AuthContext';
 import { useSubscription } from './SubscriptionContext';
 import { useToast } from './ToastContext';
-import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingSchema.js';
+import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingRequestLimits.js';
 import {
   INTENTION_TOPIC_OPTIONS,
   INTENTION_TIMEFRAME_OPTIONS,

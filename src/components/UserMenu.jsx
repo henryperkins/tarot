@@ -1,11 +1,13 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { lazy, useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { SignIn, User, SignOut, BookOpen, Gear, Crown, Sparkle, Moon } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { ConfirmModal } from './ConfirmModal';
-import AuthModal from './AuthModal';
+import { DeferredDialog } from './DeferredDialog';
+
+const AuthModal = lazy(() => import('./AuthModal'));
 
 export function UserMenu({ condensed = false }) {
   const { isAuthenticated, user, logout } = useAuth();
@@ -439,7 +441,14 @@ export function UserMenu({ condensed = false }) {
         cancelText="Cancel"
       />
 
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      {showAuthModal && (
+        <DeferredDialog
+          component={AuthModal}
+          title="sign in"
+          isOpen
+          onClose={() => setShowAuthModal(false)}
+        />
+      )}
     </>
   );
 }

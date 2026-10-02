@@ -269,18 +269,17 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                         <div
                           className="w-7 h-7 rounded-full flex items-center justify-center border border-[color:var(--border-warm-light)]"
                           style={{
-                            backgroundColor: 'var(--deck-accent)',
+                            backgroundColor: 'var(--brand-primary)',
                             boxShadow: '0 12px 26px -18px var(--deck-glow, var(--primary-30))'
                           }}
                         >
-                          <Check className="w-4 h-4 text-main" strokeWidth={3} aria-hidden="true" />
+                          <Check className="w-4 h-4 text-surface" strokeWidth={3} aria-hidden="true" />
                         </div>
                       </div>
                       <div
-                        className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-semibold"
+                        className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-semibold text-main"
                         style={{
                           backgroundColor: 'var(--surface-92)',
-                          color: deck.accent,
                           border: '1px solid var(--border-warm-light)',
                           boxShadow: '0 12px 28px -20px rgba(0,0,0,0.7)'
                         }}

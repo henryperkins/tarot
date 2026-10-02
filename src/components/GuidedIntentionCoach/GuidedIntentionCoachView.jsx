@@ -60,7 +60,7 @@ function getDepthLabel(value) {
   return INTENTION_DEPTH_OPTIONS.find(option => option.value === value)?.label || null;
 }
 
-export function GuidedIntentionCoachView() {
+export function GuidedIntentionCoachView({ returnFocusRef }) {
   const {
     isOpen,
     selectedSpread,
@@ -149,6 +149,7 @@ export function GuidedIntentionCoachView() {
     containerRef: modalRef,
     trapFocus: false,
     initialFocusRef: closeButtonRef,
+    returnFocusRef,
   });
 
   const { handlers: swipeDismissHandlers, style: swipeDismissStyle } = useSwipeDismiss({

@@ -2,7 +2,7 @@ import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback, useS
 import { SpreadSelector } from './components/SpreadSelector';
 import { ReadingPreparation } from './components/ReadingPreparation';
 import { ReadingStart } from './components/reading/ReadingStart';
-import { GuidedIntentionCoach } from './components/GuidedIntentionCoach';
+import { DeferredDialog } from './components/DeferredDialog';
 import { DeckSelector } from './components/DeckSelector';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
@@ -45,6 +45,7 @@ const STEP_PROGRESS_STEPS = [
 
 const ReadingDisplay = lazy(() => import('./components/ReadingDisplay').then(module => ({ default: module.ReadingDisplay })));
 const FollowUpModal = lazy(() => import('./components/FollowUpModal'));
+const GuidedIntentionCoach = lazy(() => import('./components/GuidedIntentionCoach').then(module => ({ default: module.GuidedIntentionCoach })));
 
 function ReadingSkipLinks({ showSetupSection }) {
   const narrativeTarget = useSyncExternalStore(
@@ -1224,7 +1225,9 @@ export default function TarotReading() {
       )}
 
       {isIntentionCoachOpen && (
-        <GuidedIntentionCoach
+        <DeferredDialog
+          component={GuidedIntentionCoach}
+          title="question coach"
           isOpen={isIntentionCoachOpen}
           selectedSpread={selectedSpread}
           onClose={handleCoachClose}

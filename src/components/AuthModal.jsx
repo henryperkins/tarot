@@ -18,7 +18,7 @@ function normalizeMode(mode) {
   return ['login', 'register', 'forgot'].includes(mode) ? mode : 'login';
 }
 
-export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
+export default function AuthModal({ isOpen, onClose, initialMode = 'login', returnFocusRef }) {
   const { register, login, requestPasswordReset, resendVerification, startOAuth, error: authError } = useAuth();
   const isSmallScreen = useSmallScreen();
   const [mode, setMode] = useState(() => normalizeMode(initialMode));
@@ -42,6 +42,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
     containerRef: modalRef,
     trapFocus: false,
     initialFocusRef: firstInputRef,
+    returnFocusRef,
   });
 
   // Adjust this component before committing an opened modal with stale mode or feedback.

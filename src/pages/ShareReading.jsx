@@ -6,6 +6,7 @@ import { CollaborativeNotesPanel } from '../components/share/CollaborativeNotesP
 import { UserMenu } from '../components/UserMenu.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useReducedMotion } from '../hooks/useReducedMotion.js';
+import { FOCUS_RING_DEFAULT } from '../styles/focusClasses.js';
 
 function StatCard({ label, value, helper }) {
   return (
@@ -227,30 +228,33 @@ export default function ShareReading() {
   const contexts = shareData?.meta?.contexts || [];
   const collaboration = shareData?.collaboration;
 
-  if (status === 'loading') {
+  if (status === 'loading' || status === 'error') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-main text-main">
-        <div className="text-center">
-          <div className="inline-block h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="mt-4 text-sm text-muted">Opening sacred space…</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (status === 'error') {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-main text-main">
-        <div className="max-w-md rounded-3xl border border-error/40 bg-surface p-8 text-center shadow-2xl">
-          <p className="text-lg font-serif text-error">{errorMessage}</p>
-          <Link
-            to="/"
-            className="mt-5 inline-flex items-center justify-center rounded-full border border-primary/60 px-4 py-2 text-sm text-main hover:bg-primary/10"
-          >
-            Return to Tableu
-          </Link>
-        </div>
-      </div>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex min-h-screen items-center justify-center bg-main p-4 text-main pt-[max(1rem,var(--safe-pad-top))] pr-[max(1rem,var(--safe-pad-right))] pb-[max(1rem,var(--safe-pad-bottom))] pl-[max(1rem,var(--safe-pad-left))]"
+      >
+        {status === 'loading' ? (
+          <div className="text-center">
+            <h1 className="sr-only">Shared reading</h1>
+            <div role="status">
+              <div aria-hidden="true" className="inline-block h-10 w-10 rounded-full border-2 border-primary border-t-transparent motion-safe:animate-spin" />
+              <p className="mt-4 text-sm text-muted">Opening sacred space…</p>
+            </div>
+          </div>
+        ) : (
+          <div role="alert" className="min-w-0 max-w-md rounded-3xl border border-error/40 bg-surface p-6 text-center shadow-2xl sm:p-8">
+            <h1 dir="auto" className="break-words text-lg font-serif text-error">{errorMessage}</h1>
+            <Link
+              to="/"
+              className={`mt-5 inline-flex min-h-touch items-center justify-center rounded-full border border-primary/60 px-4 py-2 text-sm text-main hover:bg-primary/10 ${FOCUS_RING_DEFAULT}`}
+            >
+              Return to Tableu
+            </Link>
+          </div>
+        )}
+      </main>
     );
   }
 

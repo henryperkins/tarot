@@ -88,6 +88,11 @@ test.describe('Guided intention coach keyboard and layers', () => {
   test('focus moved just after opening stays where the user put it', async ({ page }) => {
     await seedApp(page);
     await gotoReading(page);
+    // Warm the deferred dialog first so this still tests the activation timer,
+    // rather than trying to focus a tab before its module has arrived.
+    const coach = await openCoachWithShortcut(page);
+    await page.keyboard.press('Escape');
+    await expect(coach).toHaveCount(0);
 
     // The focus trap schedules its own activation focus on a zero-delay timer.
     // Open and move focus before that timer runs, then let it run: it used to

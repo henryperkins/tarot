@@ -14,7 +14,7 @@ import {
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAutoGrow } from '../hooks/useAutoGrow';
 import { getQuestionNudge } from '../lib/questionQuality';
-import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingSchema.js';
+import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingRequestLimits.js';
 
 /**
  * QuickIntentionCard - Mobile quick intention entry
