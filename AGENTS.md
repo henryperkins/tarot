@@ -96,6 +96,8 @@
 - E2E tests in `e2e/` use Playwright; name as `*.spec.js`. Run `npm run test:e2e:ui` for interactive debugging.
 - Accessibility tests live in `tests/accessibility/`; run `npm run test:a11y` for WCAG compliance.
 - Stub external services in server tests; for hooks, mock context/provider wrappers. Cover edge cases and error paths, not only the happy path.
+- For interactive authenticated UI review, use the local Pro reviewer account described in [docs/local-reviewer-account.md](docs/local-reviewer-account.md). Read its private credential file directly in the login script; never print credentials or commit browser session state.
+- For Impeccable `audit`, `critique`, `polish`, `harden`, and `adapt`, follow the [review workflow](docs/local-reviewer-account.md#impeccable-review-workflows): check relevant guest and real signed-in Pro states, record authentication and tier coverage, and log out afterward. Cover other subscription states separately when affected.
 - Run `npm test` before pushing; for vision/narrative changes, also run `npm run ci:vision-check` or `npm run ci:narrative-check` and record results.
 
 ## Commit & Pull Request Guidelines
