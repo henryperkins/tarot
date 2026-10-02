@@ -7,7 +7,6 @@ import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
 import { formatReading } from './lib/formatting';
 import { readingMetadataFromEntry } from './lib/readingMetadata';
-import FollowUpModal from './components/FollowUpModal';
 import { QuickIntentionCard } from './components/QuickIntentionCard';
 import { Header } from './components/Header';
 import { OnboardingWizard } from './components/onboarding';
@@ -44,6 +43,7 @@ const STEP_PROGRESS_STEPS = [
 ];
 
 const ReadingDisplay = lazy(() => import('./components/ReadingDisplay').then(module => ({ default: module.ReadingDisplay })));
+const FollowUpModal = lazy(() => import('./components/FollowUpModal'));
 
 function ReadingSkipLinks({ showSetupSection }) {
   const narrativeTarget = useSyncExternalStore(
@@ -1083,13 +1083,17 @@ export default function TarotReading() {
         )}
       </main>
 
-      <FollowUpModal
-        isOpen={Boolean(isFollowUpVisible)}
-        isHandset={isHandset}
-        onClose={handleCloseFollowUp}
-        returnFocusRef={followUpOpenerRef}
-        autoFocusInput={followUpIntent === 'ask'}
-      />
+      {canShowFollowUp && (
+        <Suspense fallback={null}>
+          <FollowUpModal
+            isOpen={Boolean(isFollowUpVisible)}
+            isHandset={isHandset}
+            onClose={handleCloseFollowUp}
+            returnFocusRef={followUpOpenerRef}
+            autoFocusInput={followUpIntent === 'ask'}
+          />
+        </Suspense>
+      )}
 
       {isHandset && (
         <>

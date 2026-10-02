@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tableu-shell-v2';
+const CACHE_NAME = 'tableu-shell-v3';
 const OFFLINE_URL = '/offline.html';
 const PLACEHOLDER_IMAGE = '/images/cards/RWS1909_-_00_Fool.jpeg';
 const PRECACHE_URLS = [
@@ -59,7 +59,7 @@ self.addEventListener('fetch', (event) => {
         .then((response) => cacheResponse(request, response))
         .catch(async () => {
           const cached = await caches.match(request);
-          return cached || caches.match('/') || caches.match(OFFLINE_URL);
+          return cached || (await caches.match('/')) || caches.match(OFFLINE_URL);
         })
     );
     return;

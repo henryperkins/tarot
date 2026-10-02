@@ -5,6 +5,7 @@ import { DEFAULT_SPREAD_KEY, normalizeSpreadKey, getSpreadInfo } from '../data/s
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useHaptic } from './useHaptic';
 import {
   GUEST_DRAFT_OWNER,
   clearQuestionDraft,
@@ -24,6 +25,7 @@ export function useTarotState(speak) {
   const { includeMinors, deckSize, personalization } = usePreferences();
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const { user, loading: authLoading } = useAuth();
+  const { vibrate } = useHaptic();
   const questionDraftOwner = getQuestionDraftOwner(user?.id || null);
   const [selectedSpreadState, setSelectedSpreadState] = useState(DEFAULT_SPREAD_KEY);
   const [hasUserSelectedSpread, setHasUserSelectedSpread] = useState(false);
@@ -172,18 +174,14 @@ export function useTarotState(speak) {
         clearTimeout(knockResetTimeoutRef.current);
         knockResetTimeoutRef.current = null;
       }
-      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-        navigator.vibrate([18, 40, 18]);
-      }
+      vibrate([18, 40, 18]);
     }
-  }, [hasKnocked]);
+  }, [hasKnocked, vibrate]);
 
   const applyCut = useCallback(() => {
     setHasCut(true);
-    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-      navigator.vibrate(12);
-    }
-  }, []);
+    vibrate(12);
+  }, [vibrate]);
 
   const onSpreadConfirm = useCallback((key) => {
     setHasConfirmedSpread(true);
@@ -332,9 +330,7 @@ export function useTarotState(speak) {
     setRevealedCards(prev => new Set([...prev, next]));
     setDealIndex(prev => Math.max(prev, next + 1));
 
-    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-      navigator.vibrate(10);
-    }
+    vibrate(10);
     playFlip();
 
     const position = spreadInfo?.positions?.[next] || `Position ${next + 1}`;
@@ -342,7 +338,7 @@ export function useTarotState(speak) {
     if (speak) {
       void speak(shortLineForCard(reading[next], position), 'card-reveal');
     }
-  }, [reading, isSpreadDealt, revealedCards, selectedSpread, speak, shortLineForCard]);
+  }, [reading, isSpreadDealt, revealedCards, selectedSpread, speak, shortLineForCard, vibrate]);
 
   const revealCard = useCallback((index) => {
     if (!reading || !isSpreadDealt || !reading[index]) return;
@@ -355,9 +351,7 @@ export function useTarotState(speak) {
     setRevealedCards(prev => new Set([...prev, index]));
     setDealIndex(prev => Math.max(prev, index + 1));
 
-    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-      navigator.vibrate(10);
-    }
+    vibrate(10);
     playFlip();
 
     const position = spreadInfo?.positions?.[index] || `Position ${index + 1}`;
@@ -365,7 +359,7 @@ export function useTarotState(speak) {
     if (speak) {
       void speak(shortLineForCard(reading[index], position), 'card-reveal');
     }
-  }, [reading, isSpreadDealt, revealedCards, selectedSpread, speak, shortLineForCard]);
+  }, [reading, isSpreadDealt, revealedCards, selectedSpread, speak, shortLineForCard, vibrate]);
 
   const revealAll = useCallback(() => {
     if (!reading || !isSpreadDealt || reading.length === 0) return;

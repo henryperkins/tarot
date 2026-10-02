@@ -115,6 +115,19 @@ main {
   color: var(--accent);
 }
 
+.brand,
+.site-nav a,
+.site-footer a,
+.toc a,
+.contact-email a {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 .site-nav ul {
   display: flex;
   flex-wrap: wrap;
@@ -129,7 +142,6 @@ main {
 }
 
 .site-nav a {
-  display: inline-block;
   padding: 0.5rem 0;
   font-size: 0.9375rem;
   color: var(--muted);
@@ -252,6 +264,11 @@ strong {
   break-inside: avoid;
 }
 
+.toc a {
+  display: flex;
+  padding: 0.5rem 0;
+}
+
 .contact-email {
   font-size: 1.1875rem;
   font-weight: 600;
@@ -274,6 +291,7 @@ td {
   padding: 0.75rem 0.75rem 0.75rem 0;
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -323,7 +341,6 @@ dd {
 }
 
 .site-footer a {
-  display: inline-block;
   padding: 0.25rem 0;
 }
 

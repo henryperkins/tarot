@@ -4,60 +4,106 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Tableu · Offline</title>
+    <meta name="theme-color" content="#0F0E13" />
+    <script>
+      try {
+        if (localStorage.getItem('tarot-theme') === 'light') {
+          document.documentElement.classList.add('light');
+          document.querySelector('meta[name="theme-color"]').content = '#FAFAFA';
+        }
+      } catch (e) {}
+    </script>
     <style>
-      body {
-        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: radial-gradient(circle at top, #0f172a 0%, #020617 70%);
-        color: #fef9c3;
-        margin: 0;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 2rem;
-        padding: env(safe-area-inset-top, 2rem) env(safe-area-inset-right, 2rem) env(safe-area-inset-bottom, 2rem) env(safe-area-inset-left, 2rem);
-        text-align: center;
+      /* Self-contained so recovery does not depend on cached CSS or fonts. */
+      :root {
+        color-scheme: dark;
+        --bg: #0F0E13;
+        --surface: #1C1A22;
+        --text: #E8E6E3;
+        --muted: #CCC5B9;
+        --accent: #E8DAC3;
+        --accent-hover: #D4B896;
+        --on-accent: #1C1A22;
+        --border: rgba(212, 184, 150, 0.3);
+        --hover: #2A2730;
+        --shadow: rgba(0, 0, 0, 0.3);
+      }
+      :root.light {
+        color-scheme: light;
+        --bg: #FAFAFA;
+        --surface: #FFFFFF;
+        --text: #1A1A1A;
+        --muted: #555555;
+        --accent: #8A6B3B;
+        --accent-hover: #7D623B;
+        --on-accent: #FFFFFF;
+        --border: rgba(125, 98, 59, 0.3);
+        --hover: #F5F5F5;
+        --shadow: rgba(26, 26, 26, 0.08);
+      }
+      * {
         box-sizing: border-box;
       }
+      ::selection {
+        background: var(--accent);
+        color: var(--on-accent);
+      }
+      body {
+        font-family: "Inter Variable", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        min-height: 100vh;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+        text-align: center;
+        overflow-wrap: anywhere;
+      }
       .card {
-        border: 1px solid rgba(16, 185, 129, 0.4);
-        border-radius: 1.5rem;
-        padding: 2rem 2.5rem;
-        max-width: 28rem;
-        background: rgba(2, 6, 23, 0.85);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--border);
+        border-radius: 0.875rem;
+        padding: clamp(20px, 5vw, 32px);
+        width: 100%;
+        max-width: 30rem;
+        min-width: 0;
+        background: var(--surface);
+        box-shadow: 0 12px 32px -8px var(--shadow);
       }
       h1 {
-        font-family: "Playfair Display", "Times New Roman", serif;
-        margin-bottom: 0.25rem;
-        font-size: 1.75rem;
+        font-family: "Source Serif 4 Variable", "Source Serif 4", Georgia, "Times New Roman", serif;
+        margin: 0 0 0.75rem;
+        font-size: 1.875rem;
+        font-weight: 400;
+        line-height: 1.2;
+        text-wrap: balance;
       }
       p {
-        font-size: 0.95rem;
+        margin: 0;
+        font-size: 1rem;
         line-height: 1.5;
-        color: rgba(248, 250, 252, 0.85);
+        color: var(--muted);
       }
       .actions {
         display: flex;
-        flex-direction: column;
+        flex-wrap: wrap;
         gap: 0.75rem;
         margin-top: 1.5rem;
       }
-      @media (min-width: 400px) {
-        .actions {
-          flex-direction: row;
-          justify-content: center;
-        }
-      }
       .btn {
-        min-height: 44px;
-        padding: 0.85rem 1.5rem;
-        border-radius: 999px;
-        border: 1px solid rgba(248, 250, 252, 0.4);
+        flex: 1 1 9rem;
+        min-height: 52px;
+        min-width: 0;
+        padding: 12px 16px;
+        border-radius: 0.75rem;
+        border: 1px solid var(--border);
         background: transparent;
         color: inherit;
+        font-family: inherit;
         font-weight: 600;
-        font-size: 0.95rem;
+        font-size: 1rem;
+        line-height: 1.5;
         cursor: pointer;
         text-decoration: none;
         display: inline-flex;
@@ -65,18 +111,27 @@
         justify-content: center;
         transition: background-color 0.15s ease;
       }
-      .btn:hover, .btn:focus {
-        background: rgba(248, 250, 252, 0.1);
+      .btn:hover {
+        background: var(--hover);
       }
-      .btn:active {
-        background: rgba(248, 250, 252, 0.2);
+      .btn:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
       }
       .btn-primary {
-        background: rgba(16, 185, 129, 0.2);
-        border-color: rgba(16, 185, 129, 0.5);
+        background: var(--accent);
+        color: var(--on-accent);
+        border-color: var(--accent);
       }
-      .btn-primary:hover, .btn-primary:focus {
-        background: rgba(16, 185, 129, 0.3);
+      .btn-primary:hover,
+      .btn-primary:active {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .btn {
+          transition: none;
+        }
       }
     </style>
   </head>

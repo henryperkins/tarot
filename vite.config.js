@@ -26,16 +26,25 @@ export default defineConfig({
     entries: ['index.html', 'src/main.jsx']
   },
   build: {
+    modulePreload: {
+      // Dynamic route dependencies can point back to the already-running entry.
+      // WebKit otherwise fetches it again as a modulepreload.
+      resolveDependencies: (_filename, dependencies, { hostType }) => hostType === 'js'
+        ? dependencies.filter(dependency => !dependency.startsWith('assets/app-'))
+        : dependencies
+    },
     rollupOptions: {
       external: [
         /^node:/  // Exclude all Node.js built-in modules
       ],
       output: {
-        manualChunks: {
-          // Split vendor chunks to reduce bundle size
-          vision: ['@xenova/transformers'],
-          react: ['react', 'react-dom', 'react-router-dom'],
-          markdown: ['react-markdown', 'remark-gfm']
+        entryFileNames: 'assets/app-[hash].js',
+        manualChunks(id) {
+          // Assign the whole runtime, including CommonJS and JSX entrypoints,
+          // before optional features can absorb its dependencies.
+          if (/\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'react';
+          if (id.includes('/node_modules/@xenova/transformers/')) return 'vision';
+          if (/\/node_modules\/(react-markdown|remark-gfm)\//.test(id)) return 'markdown';
         }
       }
     },

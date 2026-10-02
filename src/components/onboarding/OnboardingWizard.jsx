@@ -103,6 +103,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     setQuestion(nextQuestion);
   } else if (!isOpen && prevIsOpen) {
     setPrevIsOpen(false);
+    setExitIntent(null);
   }
 
   const prefersReducedMotion = useReducedMotion();
@@ -111,6 +112,8 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
   const modalRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const stepContentRef = useRef(null);
+  const focusedStepRef = useRef({ isOpen: false, step: null });
   const titleId = useId();
   const isExitConfirmOpen = Boolean(exitIntent);
 
@@ -127,10 +130,22 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   });
 
   useEffect(() => {
-    if (!isOpen) {
-      setExitIntent(null);
-    }
-  }, [isOpen]);
+    const previous = focusedStepRef.current;
+    focusedStepRef.current = { isOpen, step: currentStep };
+    if (!isOpen || !previous.isOpen || previous.step === currentStep || isExitConfirmOpen) return;
+
+    const content = stepContentRef.current;
+    // Keep intentional autofocus, such as the question field, on the new step.
+    if (!content || content.contains(document.activeElement)) return;
+    const heading = content.querySelector('h2');
+    if (!heading) return;
+
+    // Orient keyboard and screen-reader users when the previous control unmounts.
+    heading.tabIndex = -1;
+    content.scrollTo({ top: 0, behavior: 'instant' });
+    heading.focus({ preventScroll: true });
+    heading.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+  }, [currentStep, isOpen, isExitConfirmOpen]);
 
   const clearSavedProgress = useCallback(() => {
     if (typeof localStorage === 'undefined') return;
@@ -510,6 +525,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
             {/* Main content area - scrollable with swipe navigation */}
             <main
+              ref={stepContentRef}
               className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe pb-safe pl-safe pr-safe onboarding-modal__scroll"
               style={{
                 scrollPaddingTop: 'calc(4.5rem + var(--safe-pad-top))',

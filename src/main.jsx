@@ -26,12 +26,11 @@ if (typeof window !== 'undefined') {
 // Defer Sentry initialization to after first paint
 // This prevents blocking the critical rendering path
 function initSentry() {
-  import('@sentry/react').then((Sentry) => {
-    if (!Sentry?.init) return;
-    Sentry.init({
+  import('@sentry/react').then(({ init, browserTracingIntegration, captureException }) => {
+    init({
       dsn: 'https://dc6b77e884387701e50a12632de8e0dc@o4508070823395328.ingest.us.sentry.io/4510814880661504',
       integrations: [
-        Sentry.browserTracingIntegration(),
+        browserTracingIntegration(),
       ],
       // Keep error reporting and sampled timing data without session recording.
       // Session Replay is deliberately not installed.
@@ -50,7 +49,7 @@ function initSentry() {
     window.removeEventListener('unhandledrejection', earlyRejectionHandler);
     for (const entry of earlyErrors) {
       if (entry.args[0]) {
-        Sentry.captureException(entry.args[0]);
+        captureException(entry.args[0]);
       }
     }
     earlyErrors.length = 0;
