@@ -25,6 +25,15 @@ colors:
   cups-silver-blue: "#8B95A5"
   swords-steel: "#6B7280"
   pentacles-sage: "#8A9985"
+  clear-paper: "#DDD7CD"
+  daylight-clear-ink: "#333333"
+  daylight-success-sage: "#2F6A3B"
+  daylight-warning-amber: "#854D0E"
+  daylight-error-rose: "#A13F3F"
+  success-surface: "#1B2C21"
+  daylight-success-surface: "#EDF4EE"
+  warning-surface: "#392B17"
+  daylight-warning-surface: "#FEF3C7"
 typography:
   display:
     fontFamily: "Source Serif 4 Variable, Georgia, Times New Roman, serif"
@@ -36,7 +45,7 @@ typography:
     fontFamily: "Source Serif 4 Variable, Georgia, Times New Roman, serif"
     fontSize: "1.5rem"
     fontWeight: 400
-    lineHeight: 1.25
+    lineHeight: "2rem"
     letterSpacing: "normal"
   title:
     fontFamily: "Source Serif 4 Variable, Georgia, Times New Roman, serif"
@@ -54,8 +63,39 @@ typography:
     fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
     fontSize: "0.75rem"
     fontWeight: 600
-    lineHeight: 1.4
+    lineHeight: "1rem"
     letterSpacing: "0.18em"
+  reading-title:
+    fontFamily: "Source Serif 4 Variable, Georgia, Times New Roman, serif"
+    fontSize: "clamp(1.5rem, 2.4vw, 2rem)"
+    fontWeight: 500
+    lineHeight: 1.2
+  reading-body:
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "1rem"
+    fontWeight: 400
+    lineHeight: 1.7
+  control:
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "1rem"
+    fontWeight: 600
+    lineHeight: 1.4
+  control-small:
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "0.875rem"
+    fontWeight: 600
+    lineHeight: 1.4
+  control-journey:
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "0.875rem"
+    fontWeight: 500
+    lineHeight: "1.25rem"
+  step-label:
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 600
+    lineHeight: "1rem"
+    letterSpacing: "0.1em"
 rounded:
   sm: "0.25rem"
   default: "0.375rem"
@@ -79,20 +119,20 @@ spacing:
 components:
   button-primary:
     backgroundColor: "{colors.pale-candlelight}"
-    textColor: "{colors.reading-surface}"
-    typography: "{typography.body}"
+    textColor: "{colors.midnight-ink}"
+    typography: "{typography.control}"
     rounded: "{rounded.xl}"
-    padding: "0 16px"
+    padding: "12px 16px"
     height: "52px"
   button-secondary:
     backgroundColor: "rgba(212, 184, 150, 0.10)"
     textColor: "{colors.moonlit-paper}"
-    typography: "{typography.body}"
+    typography: "{typography.control-small}"
     rounded: "{rounded.pill}"
     padding: "8px 16px"
     height: "44px"
   input-default:
-    backgroundColor: "{colors.reading-surface}"
+    backgroundColor: "rgba(42, 39, 48, 0.40)"
     textColor: "{colors.moonlit-paper}"
     typography: "{typography.body}"
     rounded: "{rounded.xl}"
@@ -101,34 +141,43 @@ components:
   chip-selected:
     backgroundColor: "{colors.pale-candlelight}"
     textColor: "{colors.reading-surface}"
-    typography: "{typography.label}"
+    typography: "{typography.step-label}"
     rounded: "{rounded.pill}"
-    padding: "6px 12px"
+    padding: "4px 12px"
+    height: "44px"
   nav-active:
     backgroundColor: "{colors.candlelit-brass}"
     textColor: "{colors.reading-surface}"
-    typography: "{typography.body}"
+    typography: "{typography.control-small}"
     rounded: "{rounded.pill}"
     padding: "10px 14px"
     height: "44px"
   surface-card:
-    backgroundColor: "{colors.reading-surface}"
+    backgroundColor: "rgba(28, 26, 34, 0.70)"
     textColor: "{colors.moonlit-paper}"
     rounded: "{rounded.2xl}"
     padding: "16px"
   mystic-panel:
-    backgroundColor: "{colors.reading-surface}"
     textColor: "{colors.moonlit-paper}"
     rounded: "{rounded.mystic-panel}"
     padding: "16px"
   spread-card:
-    backgroundColor: "{colors.muted-reading-surface}"
     textColor: "{colors.moonlit-paper}"
     rounded: "{rounded.spread-card}"
-    padding: "16px 18px 22px"
+    padding: "1rem 1.15rem 1.35rem"
+  button-journey:
+    textColor: "{colors.moonlit-paper}"
+    typography: "{typography.control-journey}"
+    rounded: "{rounded.xl}"
+    padding: "10px 16px"
+    height: "44px"
 ---
 
 # Design System: Tableu
+
+Refreshed from local source on 2026-10-02 (commit `38701a1`). [Theme tokens](src/styles/theme.css), [Tailwind mapping](tailwind.config.js), [shared styles](src/styles/tarot.css), and [reading-table styles](src/styles/reading-table.css) are the implementation references. The frontmatter records the default dark-theme tokens and named light-theme counterparts; runtime components use semantic CSS variables to follow the active theme. Component height entries describe minimum targets, not fixed clipping heights.
+
+Local Chromium sampling covered `/design`, reading setup, and the revealed reading table at 390px and 1440px in dark and light themes, with reduced motion. This is a design snapshot, not a full accessibility audit. The [design contract](docs/design-contract.md) supplies the accessibility and responsive targets; historical audit counts in that document are not current verification. Format: [DESIGN.md specification](https://raw.githubusercontent.com/google-labs-code/design.md/main/docs/spec.md).
 
 ## Overview
 
@@ -138,7 +187,7 @@ Tableu feels like entering a private reading room after dark: contemplative, sch
 
 The system is dark-first, softly luminous, and materially restrained. Serif type carries tarot meaning and ceremonial moments; sans-serif type keeps navigation, controls, and explanations direct. Grain, radial light, glass, and motion appear as quiet sensory cues, never as neon-occult spectacle, kitschy mysticism, or casino-like stimulation. Light mode is the same room by day, not a separate identity.
 
-The approved image composition is the implementation contract. Preserve its bold focal hierarchy, proportions, negative space, and atmosphere before making local refinements. Micro-interactions stay responsive, while card dealing, reveals, and other ritual transitions use the slower 400–600ms cadence already present in the motion system.
+Where a surface has an approved image composition, preserve its focal hierarchy, proportions, negative space, and atmosphere before making local refinements. The implemented reading table gives cards and interpretation one quiet, mostly opaque surface; deck and spread selection retain the more atmospheric panels. Micro-interactions use the fast end of the motion scale, while the slower 400–600ms tokens support ceremonial transitions. Reduced-motion preferences suppress decorative movement.
 
 **Key Characteristics:**
 
@@ -146,7 +195,8 @@ The approved image composition is the implementation contract. Preserve its bold
 - Scholarly serif moments within a highly legible sans-serif operating layer.
 - Rounded, tactile controls and layered cards with thin warm borders.
 - Ambient glow and restrained texture instead of ornamental occult excess.
-- Responsive ritual flows that become carousels and docked actions on handsets.
+- Responsive spread selection that becomes a carousel on handsets, with reading actions in a bottom dock.
+- A quiet reading table that places card geometry beside interpretation on wide screens and stacks them on phones.
 - Bold focal contrast paired with deliberately slower pacing for ceremonial moments.
 
 ## Colors
@@ -155,28 +205,25 @@ The palette uses low-chroma warmth: candlelight for agency, paper tones for lang
 
 ### Primary
 
-- **Candlelit Brass** (`#D4B896`): the dark-theme brand and active-navigation color; use it for selection, progress, and decisive interactive emphasis.
-- **Aged Brass** (`#7D623B`): the contrast-safe light-theme counterpart for the same semantic role.
+- **Candlelit Brass** and **Aged Brass** are the dark and light expressions of `--brand-primary`: active navigation, progress, and interactive emphasis.
 
 ### Secondary
 
-- **Quiet Taupe** (`#A89D92`): dark-theme secondary borders, subdued controls, and supporting emphasis.
-- **Daylight Taupe** (`#6A5746`): the light-theme counterpart for secondary text and controls.
-- **Wands Gold** (`#C9A876`), **Cups Silver-Blue** (`#8B95A5`), **Swords Steel** (`#6B7280`), and **Pentacles Sage** (`#8A9985`): suit-specific accents. They identify meaning; they do not replace the global interaction palette.
+- **Quiet Taupe** and **Daylight Taupe** supply `--brand-secondary` for supporting emphasis and borders.
+- **Wands Gold**, **Cups Silver-Blue**, **Swords Steel**, and **Pentacles Sage** identify suit meaning. Deck artwork and its palette samples retain the tradition's own colors.
 
 ### Tertiary
 
-- **Pale Candlelight** (`#E8DAC3`): high-contrast CTAs, focus rings, and the strongest warm highlight on dark surfaces.
-- **Daylight Candlelight** (`#8A6B3B`): the light-theme counterpart for accent text and focus.
-- **Success Sage** (`#6B9E78`), **Warning Amber** (`#F59E0B`), and **Error Rose** (`#C97676`): reserved status colors with semantic meaning.
+- **Pale Candlelight** and **Daylight Candlelight** supply `--brand-accent` for decisive actions and the default focus color. The `text-accent` utility instead maps to `--brand-primary-rgb`; it does not mean accent-filled button text.
+- **Success Sage**, **Warning Amber**, and **Error Rose** have explicit daylight counterparts. Their opaque success and warning surfaces also switch with the theme. Use the semantic status variables, rather than the fixed primitive success/error colors, for UI feedback.
 
 ### Neutral
 
-- **Midnight Ink** (`#0F0E13`): the default dark canvas.
-- **Reading Surface** (`#1C1A22`) and **Muted Reading Surface** (`#2A2730`): progressively raised dark surfaces.
-- **Moonlit Paper** (`#E8E6E3`) and **Softened Paper** (`#CCC5B9`): primary and supporting dark-theme text.
-- **Daylight Paper** (`#FAFAFA`), **Daylight Surface** (`#FFFFFF`), and **Daylight Muted Surface** (`#F5F5F5`): light-theme canvas and surface hierarchy.
-- **Daylight Ink** (`#1A1A1A`) and **Daylight Muted Ink** (`#555555`): primary and supporting light-theme text.
+- **Midnight Ink**, **Reading Surface**, and **Muted Reading Surface** provide the dark canvas and tonal layers; **Daylight Paper**, **Daylight Surface**, and **Daylight Muted Surface** provide their light equivalents.
+- **Moonlit Paper**, **Softened Paper**, and **Clear Paper** map to main, muted, and higher-contrast muted text. **Daylight Ink**, **Daylight Muted Ink**, and **Daylight Clear Ink** carry those roles in light mode.
+- Text on brand fills uses `--text-on-brand`: Reading Surface in dark mode and Daylight Paper in light mode. The reading-table primary button specifically uses `--bg-main` for its contrasting text.
+
+Exact colors live in the frontmatter. [theme.css](src/styles/theme.css) also owns the `prefers-contrast: more` overrides, translucent borders, panel gradients, and shadow variants. Keep those live semantic relationships; the named swatches are not a replacement for the theme cascade.
 
 ### Named Rules
 
@@ -195,36 +242,40 @@ The palette uses low-chroma warmth: candlelight for agency, paper tones for lang
 
 ### Hierarchy
 
-- **Display** (400, `1.875rem`, 1.2): onboarding welcomes and the largest ceremonial headings.
-- **Headline** (400, `1.5rem`, 1.25): page titles and major reading sections.
-- **Title** (600, `1.125rem`, 1.25): card names, spread names, and compact section titles.
-- **Body** (400, `1rem`, 1.5): instructions, reading copy, form content, and mobile prose. Long-form reading text should remain near 65–75 characters per line.
-- **Label** (600, `0.75rem`, 1.4, `0.18em` tracking): uppercase eyebrows, compact metadata, and category labels.
+- **Display:** regular serif onboarding welcomes. Short landscape layouts use the smaller headline size.
+- **Headline:** regular serif page titles, including the design reference page. Reading-table titles use their own fluid, medium-weight role.
+- **Title:** semibold serif for compact artifact headings. Spread-selector names are a smaller local variant (16px at standard widths, slightly smaller on compact phones).
+- **Body:** regular sans-serif for instructions and form content. Reading-table meanings use the more open reading-body role. The shared [MarkdownRenderer](src/components/MarkdownRenderer.jsx) uses 16px prose, growing to 18px at 768px, with a 65ch reading measure on wider screens. Follow-up answers retain 16px copy.
+- **Label:** tracked uppercase eyebrows and metadata. Coach step chips use a separate step-label role with tighter tracking; button labels use the control roles rather than eyebrow typography.
 - **Supporting scale:** 11px is the absolute minimum for non-essential metadata; 12px serves captions, 14px serves secondary text, and form controls remain 16px on mobile.
 
 ### Named Rules
 
-**The Two Voices Rule.** Serif carries interpretation, ritual, and named artifacts; sans-serif carries operation, explanation, and system state.
+**The Two Voices Rule.** Serif carries headings, ritual, and named artifacts; sans-serif carries interpretation paragraphs, operation, explanation, and system state.
 
 ## Layout
 
 Tableu uses a four-pixel spacing foundation, with 8px, 12px, 16px, 24px, and 32px as the recurring rhythm. Full-bleed headers and action docks frame a centered reading canvas; reference and account surfaces commonly cap content near 64rem while reading scenes may use more width for card geometry.
 
-At 640px, handset carousels and stacked controls begin resolving into grids and wider navigation. At 1024px, panels gain more internal space and three-column selections become appropriate. The supported lower bound is 320px, with specific 360px, 375px, 400px, and 440px accommodations for compact phones. Short landscape layouts use a separate max-height 500px treatment.
+At 640px, handset carousels and stacked controls begin resolving into grids and wider navigation. At 1024px, panels gain more internal space and the reading table becomes a two-column workspace (1.5fr for the spread, a minimum 18rem interpretation column, and a 32px gap). Below 1024px, interpretation follows the spread with a horizontal divider; at 768px and below, the outer table frame becomes transparent and borderless. Short landscape screens at least 640px wide can restore two columns.
 
-On handsets, preserve horizontal card carousels, condensed labels, safe-area padding, and the fixed primary action bar. On larger screens, let panels breathe, expose complete labels, and keep related controls in shared rows. Interactive targets use 44px minimum height, primary CTAs use 52px, and navigation may use 56px.
+The supported lower bound is 320px, with specific 360px, 375px, 400px, and 440px accommodations for compact phones. Those compact max-width queries are distinct from Tailwind's min-width breakpoints. Short landscape layouts use a max-height 500px treatment; the separate short-viewport query uses 600px.
+
+On handsets, preserve the spread-selection carousel, condensed labels, safe-area padding, and the fixed primary action bar. The revealed spread retains its card geometry rather than becoming that selection carousel. On larger screens, expose complete labels and keep related controls in shared rows. Tableu's internal target is 44px for interactive controls and 52px for primary reading CTAs; a 56px navigation token is available, while GlobalNav currently uses 44px. Compact landscape dock actions may use the 44px minimum.
+
+Bottom content clearance includes the measured action-bar height, keyboard offset, and safe-area inset. Use the shared safe-area utilities and existing dock measurement rather than assuming a fixed bar height.
 
 **The Four-Pixel Rhythm Rule.** Prefer the established 4px-derived spacing steps; introduce a new interval only when card geometry or safe-area math requires it.
 
 ## Elevation & Depth
 
-The Midnight Reading Room uses a hybrid of tonal layering, ambient shadow, thin borders, and low-opacity radial light. Depth is atmospheric rather than architectural: surfaces feel gently lifted or selected, but the interface never becomes a stack of floating white cards. Glass treatment is reserved for overlays and cinematic scenes, using 12–32px blur only when translucency has a functional layering role.
+The Midnight Reading Room uses a hybrid of tonal layering, ambient shadow, thin borders, and low-opacity radial light. Depth is atmospheric rather than architectural: surfaces feel gently lifted or selected, but the interface never becomes a stack of floating white cards. Glass treatment appears on overlays, cinematic scenes, and selected shared surfaces, with blur reduced for accessibility or mobile stability. The reading table removes the scene artwork and particle layers and uses an opaque semantic surface on wide screens.
 
 ### Shadow Vocabulary
 
-- **Selected glow** (`0 12px 30px -18px rgba(212, 184, 150, 0.60)`): selected controls and cards.
-- **Card glow** (`0 14px 36px -20px rgba(212, 184, 150, 0.60)`): emphasized card surfaces.
-- **Elevated overlay** (`0 20px 48px -24px rgba(0, 0, 0, 0.75)`): modals, drawers, and overlays.
+- **Selected glow** (`--ui-selected-shadow`): selected controls and cards, with a lighter shadow in the light theme.
+- **Card glow** (`--ui-card-shadow-strong` / `--ui-card-shadow-soft`): emphasized cards and the quieter reading-table shell.
+- **Elevated overlay** (`--ui-elevated-shadow`): modals, drawers, and overlays, switching to a warm, low-opacity light-theme shadow.
 - **Mystic panel** (`0 24px 64px -40px rgba(0, 0, 0, 0.80)` plus a faint inset highlight): signature reading panels.
 - **Docked action** (`0 -18px 40px rgba(0, 0, 0, 0.35)`): mobile action groups that rise from the bottom edge.
 
@@ -247,14 +298,15 @@ Components are tactile and quietly ceremonial: clear enough for task completion,
 ### Buttons
 
 - **Shape:** 12px corners for primary CTAs; full pills for compact navigation and secondary actions.
-- **Primary:** Pale Candlelight on Reading Surface, 52px high, with 16px horizontal padding and semibold sans-serif text.
-- **Hover / Focus:** a small lift or 2–3% scale at most; focus uses a 2px Pale Candlelight ring with visible offset. Active states return toward the surface and may scale to 98%.
-- **Secondary / Ghost / Destructive:** translucent warm fill with a thin semantic border. Destructive actions use Error Rose only when the action is genuinely destructive.
+- **Primary reading action:** Pale Candlelight fill with Midnight Ink text in the dark theme, switching to Daylight Candlelight with Daylight Paper text in light mode. It has a 52px minimum height and the control typography role. The reading-table instance changes fill on hover and presses down by one pixel only when motion is allowed.
+- **Journey action:** the shared [journey button](src/styles/buttonClasses.js) uses a transparent brass gradient, warm border, medium-weight 14px text, and a 44px minimum target. The design reference page labels this softer variant “Primary action”; it is distinct from the solid reading CTA.
+- **Hover / Focus:** use each shared variant's actual state treatment. The general focus fallback is a 2px semantic outline with 3px offset; reading-table controls use 4px offset. Shared Tailwind focus helpers use rings, sometimes with a surface-matched offset.
+- **Secondary / Panel / Destructive:** the outline action is a translucent brass pill with a small hover lift. The panel action uses 10px corners and a quieter warm wash. Both target 44px minimum height. Destructive actions use the theme-aware error token and a clear label.
 
 ### Chips
 
-- **Style:** full pills with compact 6–8px vertical and 10–12px horizontal padding; supporting chips use translucent surfaces and thin borders.
-- **State:** selected chips invert to candlelight fill with dark text. Suit and status chips keep their semantic colors rather than borrowing the primary accent.
+- **Style:** navigation and coach step chips use full pills; current onboarding preference choices use 12px corners. Interactive chips keep a 44px target even when their text and padding are compact. Non-interactive metadata badges may be smaller.
+- **State:** selected options use the accent fill with theme-aware on-brand text. Coach steps expose selection semantically and keep the full step name accessible when phones show only a number. Suit and status chips retain their own semantic roles.
 
 ### Cards / Containers
 
@@ -266,41 +318,47 @@ Components are tactile and quietly ceremonial: clear enough for task completion,
 
 ### Inputs / Fields
 
-- **Style:** Reading Surface or a translucent muted surface, 12px corners, one-pixel Quiet Taupe border, 12px vertical and 16px horizontal padding.
-- **Focus:** border shifts toward candlelight and gains a 2px visible focus ring.
-- **Error / Disabled:** errors use Error Rose with text reinforcement; disabled fields lower opacity but retain readable labels.
+- **Style:** the design reference field uses a muted surface at 40% opacity, 12px corners, a secondary border at 20% opacity, and 12px vertical / 16px horizontal padding. It uses 16px type on phones and 14px from 640px. The question textarea instead uses an opaque surface and a primary border; retain the pattern appropriate to the task.
+- **Focus:** the question field strengthens its primary border and adds a one-pixel primary ring; the design reference uses the shared primary focus helper. Reading-table reflection uses an explicit semantic outline and a 96px minimum textarea height.
+- **Error / Disabled:** errors pair the theme-aware error color with explanatory text. Keep labels legible when fields are unavailable.
 
 ### Navigation
 
-Primary navigation uses pill segments with 14px semibold sans-serif labels and 44px minimum targets. The active destination receives Candlelit Brass with dark text; inactive items remain on dark translucent surfaces with warm borders. Reading progress uses 12px corners and a subtler brass wash. On mobile, labels condense and the decisive next action moves to a safe-area-aware bottom dock.
+Primary navigation uses pill segments with 14px semibold sans-serif labels and 44px minimum targets. The active destination receives the primary fill and on-brand text and exposes `aria-current="page"`; inactive items use the semantic surface with secondary borders. Reading and Journal remain readable as guest controls wrap. Reading progress is a separate control group with 12px corners and a subtler brass wash. On mobile, progress labels condense and the decisive next action moves to the safe-area-aware bottom dock.
 
 ### Mystic Panel
 
-The signature panel combines a deep plum-black gradient, three extremely soft radial glows, a thin warm border, subtle noise, a 25.6px radius, and responsive 16–26px padding. It frames spread and deck decisions without turning every ordinary card into a special effect.
+The signature panel combines theme-specific layered gradients, three soft radial glows, a thin warm border, subtle noise, and the mystic-panel radius. Padding grows from 16px to 21.6px at 640px and 25.6px at 1024px. Its light variant uses warm paper tones. It frames spread and deck decisions; it is not the shell used by the quieter reading table.
 
 ### Spread Card
 
-Spread cards use tall visual previews, serif names, tracked sans-serif metadata, a 21.6px radius, and restrained theme-specific glow. Hover lifts by roughly 3px on fine pointers; selection strengthens the border and glow. Mobile cards form a horizontal snap carousel, while tablet and desktop layouts become equal-height grids.
+Spread cards combine artwork previews, serif names, tracked metadata, the spread-card radius, and suit-aware selection accents. Hover lifts by 3px on fine pointers; selection strengthens the border and glow. Mobile choices form a horizontal snap carousel, while wider layouts use equal-height grid rows. Heights are minimums and may grow with copy. Actual tarot cards retain their 2:3 shape; the spread artwork preview may use a wider crop.
 
-**The Quiet Ceremony Rule.** The approved image composition is the implementation contract: preserve its bold focal hierarchy, proportions, negative space, and atmosphere; reserve the strongest light and slower 400–600ms motion for decisions that advance or reveal a reading.
+The sidecar uses the existing three-card SVG fallback from [SpreadPatternThumbnail](src/components/SpreadPatternThumbnail.jsx), keeping it self-contained without fabricating replacement artwork. Current per-spread background strings in [SpreadSelector](src/components/SpreadSelector.jsx) contain unitless gradient stops; sampled card backgrounds resolve to `none`, while their decorative pseudo-elements still render. That is an observed implementation discrepancy, not a palette rule.
+
+### Reading Table
+
+[ReadingTableScene](src/components/scenes/ReadingTableScene.jsx) keeps the spread, selected card meaning, navigation, and optional reflection together. A fine divider separates spread and interpretation on wide screens and becomes a horizontal rule when stacked. Fluid serif headings carry the card names; meaning paragraphs use the reading-body role. Decorative scene backgrounds and particles are suppressed in this surface.
+
+**The Quiet Ceremony Rule.** Preserve the focal hierarchy of an approved surface composition; reserve the strongest light and slower motion for decisions that advance or reveal a reading, and keep the interpretation surface quiet.
 
 ## Do's and Don'ts
 
 ### Do:
 
 - **Do** use semantic theme tokens so dark, light, and increased-contrast modes remain aligned.
-- **Do** reserve serif type for interpretation, ritual, card names, and major headings.
-- **Do** keep body copy and mobile form controls at 16px, with 11px reserved for non-essential metadata only.
+- **Do** reserve serif type for ritual, card names, and headings; keep interpretation paragraphs in the established sans-serif reading styles.
+- **Do** keep primary reading copy at least 16px and mobile form controls at 16px, with 11px reserved for non-essential metadata only.
 - **Do** preserve 44px touch targets, safe-area insets, visible focus, and reduced-motion alternatives.
 - **Do** use Candlelit Brass sparingly for selection, progress, focus, and high-value action.
-- **Do** let mobile reading choices become swipeable carousels and move the primary next action into the bottom dock.
-- **Do** match implementation to the approved image composition before optimizing local details.
+- **Do** let mobile spread selection become a swipeable carousel and move the primary next action into the bottom dock; preserve the geometry of the revealed spread.
+- **Do** preserve an approved surface composition where one exists and verify documentation against the rendered implementation in both themes.
 
 ### Don't:
 
 - **Don't** use neon mystical palettes, rainbow chrome, or high-energy casino animation.
 - **Don't** make every surface glassy, glowing, or heavily shadowed; atmospheric treatments lose meaning when universal.
-- **Don't** use Source Serif for dense controls, helper text, or navigation.
+- **Don't** use Source Serif for dense controls, helper text, navigation, or the existing sans-serif interpretation paragraphs.
 - **Don't** introduce text below 11px or mobile inputs below 16px.
 - **Don't** encode status using color alone or replace focus rings with hover-only treatments.
 - **Don't** turn the light theme into a generic white dashboard; preserve the warm paper-and-brass hierarchy.
