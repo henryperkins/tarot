@@ -55,6 +55,10 @@ existing Claude Code login automatically. Hosted runners require the private
 subscription gateway described in [subscription setup](claude-subscription.md#run-narrative-evals).
 No paid API key is required or used by these gates. The deployment step runs
 fresh subscription QA before any remote migration or rollout.
+Subscription QA reuses the production Claude reading request with per-request
+model/effort pins and the same 32,000-token ceiling. The CLI advisor tool is
+disabled, unexpected response models fail qualification, and local release
+checks verify subscription login before running the code checks.
 Saved narrative samples can be checked offline; those samples do not qualify
 the current provider. Each deployment runs one fresh narrative batch and preserves
 its samples, metrics and review queue under `data/evaluations/runs/`.

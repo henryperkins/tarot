@@ -107,15 +107,22 @@ npm run ci:release-check
 
 No gateway, API key, `TEXT_PROVIDER` export or additional login is needed when the
 host is already authenticated. The runner verifies subscription authentication,
-uses the same assembled reading prompts, and defaults to Opus 5.5 at `xhigh`.
+uses the production `claude-api` reading prompt and request builder, and defaults
+to Opus 5.5 at `xhigh`. Release checks verify local login before starting code
+checks; configured gateways validate their configuration and verify subscription
+login on the service host when generating.
 Missing login, usage limits and timeouts fail without paid API fallback. Explicit
 paid backend overrides are rejected even if their keys exist or the Worker uses
 `TEXT_PROVIDER=legacy`.
 
 The eval runner layers exported variables over Wrangler variables; it does not
-read `.dev.vars` or the service's `.env.local`. Export optional CLI model/effort
-settings to override their defaults. Samples record the actual returned model,
-authentication and local/gateway transport. `NARRATIVE_EVAL_BACKEND=local-composer`
+read `.dev.vars` or the service's `.env.local`. Qualification pins each request to
+`ANTHROPIC_MODEL` and `ANTHROPIC_EFFORT` (the production defaults apply when unset),
+with a 32,000-token output ceiling including thinking. CLI host model/effort
+defaults cannot override these pins. The runner disables the server-side advisor
+tool, and qualification rejects a response from a different model. Samples record
+the actual returned model, requested settings, authentication and local/gateway
+transport. `NARRATIVE_EVAL_BACKEND=local-composer`
 remains a deterministic diagnostic; release QA rejects it. Cloudflare's model
 judge retains its separate integration.
 

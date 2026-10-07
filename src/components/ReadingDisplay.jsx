@@ -340,7 +340,7 @@ export function ReadingDisplay({
     }, [handleOpenJournal, navigate]);
 
     const handleOpenSubscriptionSettings = useCallback(() => {
-        navigate('/settings', { state: { section: 'subscription' } });
+        navigate('/pricing');
     }, [navigate]);
 
     const {

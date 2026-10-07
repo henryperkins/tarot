@@ -9,6 +9,10 @@ const TTS_PROVIDER = 'workers-ai-aura-2';
 const TTS_SPEAKER = 'cora';
 const MAX_PIECE_CHARS = 1900;
 const MAX_REQUEST_BYTES = 512 * 1024;
+// Diagnostic heuristics for normally completed MP3 pieces that may be truncated.
+const TYPICAL_BYTES_PER_CHAR = 390;
+const MIN_BYTES_PER_CHAR = 250;
+const MIN_CHECKED_CHARS = 100;
 
 /** One request is one narration, up to 64,000 characters, never silently cut.
  * Full readings stream ordered MP3 pieces; failed or cancelled synthesis does
@@ -178,6 +182,10 @@ async function createNarrationStream(env, request, text, reservation) {
           } finally { activeReader.releaseLock(); activeReader = null; }
           if (!bytes) throw new Error('Narration provider returned empty audio');
           if (cancelled) throw new Error('Narration cancelled');
+          if (piece.length >= MIN_CHECKED_CHARS && bytes < piece.length * MIN_BYTES_PER_CHAR) {
+            console.warn(`[tts] Aura-2 piece ${index + 1}/${pieces.length} returned ${bytes} bytes ` +
+              `for ${piece.length} characters (usually about ${piece.length * TYPICAL_BYTES_PER_CHAR})`);
+          }
         }
         await settleNarration(env, reservation);
         finished = true;

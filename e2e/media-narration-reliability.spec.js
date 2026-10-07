@@ -56,8 +56,41 @@ for (const width of [1440, 390]) {
         await plans.focus();
         await expect(plans).toBeFocused();
         await plans.press('Enter');
-        await expect(page).toHaveURL(/\/(account|pricing|settings)/);
+        await expect(page).toHaveURL(/\/pricing$/);
       } finally { await fixture.close(); }
     });
   }
 }
+
+test('stream duration stays indeterminate until a finite length is available', async ({ page }) => {
+  await page.route('**/api/**', route => route.fulfill({ json: {} }));
+  await page.goto('/');
+  const results = await page.evaluate(async () => {
+    const reactModule = await import('/node_modules/.vite/deps/react.js');
+    const React = reactModule.default || reactModule;
+    const clientModule = await import('/node_modules/.vite/deps/react-dom_client.js');
+    const { createRoot } = clientModule.default || clientModule;
+    const { NarrationProgress } = await import('/src/components/NarrationProgress.jsx');
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const results = [];
+    try {
+      for (const duration of [Infinity, 0, NaN, 125]) {
+        root.render(React.createElement(NarrationProgress, {
+          ttsState: { status: 'playing', progress: 0.2, currentTime: 25, duration }
+        }));
+        await new Promise(resolve => setTimeout(resolve, 50));
+        const progress = container.querySelector('[role="progressbar"]');
+        results.push({ text: container.textContent, value: progress?.getAttribute('aria-valuenow'), label: progress?.getAttribute('aria-label') });
+      }
+    } finally { root.unmount(); container.remove(); }
+    return results;
+  });
+  for (const result of results.slice(0, 3)) {
+    expect(result.text).toBe('0:25');
+    expect(result.value).toBeNull();
+    expect(result.label).toBe('Narration progress: 0:25');
+  }
+  expect(results[3]).toEqual({ text: '0:25 / 2:05', value: '20', label: 'Narration progress: 0:25 of 2:05' });
+});

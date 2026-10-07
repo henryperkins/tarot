@@ -11,7 +11,8 @@ import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 function release(env = {}) {
   const result = spawnSync(process.execPath, ['--import', './tests/helpers/releaseCheckCommandStub.mjs', 'scripts/evaluation/runReleaseChecks.js'], {
     encoding: 'utf8',
-    env: { ...process.env, VISION_EVAL_MANIFEST_DIR: '', NARRATIVE_EVAL_BACKEND: '', TEST_RELEASE_CHECK_FAIL: '', ANTHROPIC_API_KEY: 'offline-test-key', ...env }
+    env: { ...process.env, VISION_EVAL_MANIFEST_DIR: '', NARRATIVE_EVAL_BACKEND: '', TEST_RELEASE_CHECK_FAIL: '',
+      TEST_RELEASE_LOGIN_FAIL: '', CLAUDE_CODE_GATEWAY_URL: '', CLAUDE_CODE_GATEWAY_TOKEN: '', ANTHROPIC_API_KEY: 'offline-test-key', ...env }
   });
   const checks = result.stdout.split('\n').filter(line => line.startsWith('CHECK:')).map(line => JSON.parse(line.slice(6)));
   return { ...result, checks, scripts: checks.map(check => check.script) };
@@ -44,6 +45,21 @@ it('runs required release checks without a photo corpus and reports vision as un
   assert.deepEqual(result.scripts, ['test', 'test:deploy', 'lint:cloudflare', 'docs:check', 'ci:narrative-check']);
   assert.match(result.stdout, /vision qualification not run/i);
   assert.ok(result.checks.every(check => check.backend === 'claude-code' && check.textProvider === 'claude-code'));
+  assert.ok(result.stdout.indexOf('LOGIN_CHECK') >= 0);
+  assert.ok(result.stdout.indexOf('LOGIN_CHECK') < result.stdout.indexOf('CHECK:'));
+});
+
+it('rejects an unavailable subscription login before starting any release check', () => {
+  const result = release({ TEST_RELEASE_LOGIN_FAIL: '1' });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /subscription.*API billing is disabled/i);
+  assert.deepEqual(result.checks, []);
+});
+
+it('gateway release checks do not require a local subscription login', () => {
+  const result = release({ CLAUDE_CODE_GATEWAY_URL: 'https://claude.example.test', CLAUDE_CODE_GATEWAY_TOKEN: 'test-token', TEST_RELEASE_LOGIN_FAIL: '1' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.doesNotMatch(result.stdout, /LOGIN_CHECK/);
 });
 
 for (const script of ['test', 'ci:narrative-check']) {

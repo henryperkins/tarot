@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { speakText, getCurrentTTSState, cleanupAudio } from '../src/lib/audio.js';
+import { speakText, enqueueTTSChunk, getCurrentTTSState, cleanupAudio } from '../src/lib/audio.js';
 
 function browser(t, mediaSource = false) {
   for (const key of ['window', 'Audio', 'MediaSource']) {
@@ -26,6 +26,20 @@ function browser(t, mediaSource = false) {
   } else t.mock.property(globalThis, 'MediaSource', undefined);
   t.after(() => cleanupAudio());
 }
+
+test('queued live narration retains its monthly limit message and upgrade details', async t => {
+  browser(t);
+  t.mock.method(globalThis, 'fetch', async () => Response.json({
+    errorCode: 'TIER_LIMIT', tierLimited: true, used: 3, limit: 3
+  }, { status: 429 }));
+  assert.equal(enqueueTTSChunk({ text: 'A complete reading.', context: 'full-reading' }), true);
+  for (let i = 0; i < 10; i++) await new Promise(resolve => setImmediate(resolve));
+  const state = getCurrentTTSState();
+  assert.equal(state.status, 'error');
+  assert.equal(state.errorCode, 'TIER_LIMIT');
+  assert.match(state.message, /Monthly limit reached \(3\/3\)/);
+  assert.deepEqual(state.errorDetails, { errorCode: 'TIER_LIMIT', tierLimited: true, used: 3, limit: 3 });
+});
 
 for (const mediaSource of [false, true]) {
   test(`incomplete narration surfaces an error in ${mediaSource ? 'progressive' : 'blob'} playback`, async t => {

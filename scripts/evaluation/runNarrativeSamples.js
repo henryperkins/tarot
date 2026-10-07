@@ -15,7 +15,7 @@ import {
   NARRATIVE_BACKENDS,
   runNarrativeBackend
 } from '../../functions/lib/narrativeBackends.js';
-import { resolveNarrativeEvalBackend, runSubscriptionNarrative } from './lib/subscriptionNarrative.js';
+import { resolveNarrativeEvalBackend, runSubscriptionNarrative, describeSubscriptionNarrativeConfig } from './lib/subscriptionNarrative.js';
 import { isGraphRAGEnabled, isSemanticScoringAvailable } from '../../functions/lib/graphRAG.js';
 import { resolveSemanticScoring } from '../../functions/lib/readingTelemetry.js';
 import { buildGraphRAGTelemetry } from '../../functions/lib/telemetrySchema.js';
@@ -260,10 +260,7 @@ async function loadEvalEnv(envProfile) {
 // say which model, reasoning effort, or retrieval settings were in effect.
 function describeBackendConfig(backendId, env) {
   if (backendId === 'claude-code') {
-    const gateway = Boolean(env.CLAUDE_CODE_GATEWAY_URL || env.CLAUDE_CODE_GATEWAY_TOKEN);
-    return { provider: 'claude-code', model: null, authentication: 'personal-subscription',
-      transport: gateway ? 'gateway' : 'local-cli',
-      reasoningEffort: gateway ? null : String(env.CLAUDE_CODE_EFFORT || 'xhigh').trim().toLowerCase() };
+    return describeSubscriptionNarrativeConfig(env);
   }
   return { provider: 'local', model: null, reasoningEffort: null, verbosity: null };
 }

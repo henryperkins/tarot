@@ -25,20 +25,24 @@ function formatTime(seconds) {
 export function NarrationProgress({ ttsState, className = '' }) {
   const { status, progress, currentTime, duration } = ttsState;
 
-  // Only show when actively playing, paused, or has duration
-  const showProgress = (status === 'playing' || status === 'paused') && duration > 0;
+  const showProgress = status === 'playing' || status === 'paused';
   if (!showProgress) return null;
 
-  const progressPercent = Math.min(Math.max(progress * 100, 0), 100);
+  // Streams may report zero or Infinity until their final audio arrives.
+  const lengthKnown = Number.isFinite(duration) && duration > 0;
+  const progressPercent = lengthKnown && Number.isFinite(progress)
+    ? Math.min(Math.max(progress * 100, 0), 100) : 0;
+  const timeLabel = lengthKnown
+    ? `${formatTime(currentTime)} of ${formatTime(duration)}` : formatTime(currentTime);
 
   return (
     <div
       className={`flex items-center gap-2 sm:gap-3 ${className}`}
       role="progressbar"
-      aria-valuenow={Math.round(progressPercent)}
+      aria-valuenow={lengthKnown ? Math.round(progressPercent) : undefined}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-label={`Narration progress: ${formatTime(currentTime)} of ${formatTime(duration)}`}
+      aria-label={`Narration progress: ${timeLabel}`}
     >
       {/* Progress bar track */}
       <div className="flex-1 h-1.5 bg-secondary/20 rounded-full overflow-hidden">
@@ -50,7 +54,7 @@ export function NarrationProgress({ ttsState, className = '' }) {
 
       {/* Time display */}
       <span className="text-xs text-muted tabular-nums min-w-[4.5rem] text-right whitespace-nowrap">
-        {formatTime(currentTime)} / {formatTime(duration)}
+        {lengthKnown ? `${formatTime(currentTime)} / ${formatTime(duration)}` : formatTime(currentTime)}
       </span>
     </div>
   );

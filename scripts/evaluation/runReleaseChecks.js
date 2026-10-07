@@ -3,7 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { loadVisionDataset } from './lib/visionEvaluationDataset.js';
-import { resolveNarrativeEvalBackend } from './lib/subscriptionNarrative.js';
+import { resolveNarrativeEvalBackend, verifyNarrativeSubscription } from './lib/subscriptionNarrative.js';
 
 export async function main() {
   const directory = process.env.VISION_EVAL_MANIFEST_DIR;
@@ -18,6 +18,7 @@ export async function main() {
     console.log('Vision qualification not run: VISION_EVAL_MANIFEST_DIR is unset. Photo recognition and symbol quality remain unverified.');
   }
   const backend = resolveNarrativeEvalBackend(process.env.NARRATIVE_EVAL_BACKEND, { requireLive: true });
+  await verifyNarrativeSubscription(process.env);
   const env = { ...process.env, NARRATIVE_EVAL_BACKEND: backend, TEXT_PROVIDER: 'claude-code' };
   const checks = ['test', 'test:deploy', 'lint:cloudflare', 'docs:check'];
   if (directory) checks.push('ci:vision-check');

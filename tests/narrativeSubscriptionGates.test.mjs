@@ -9,6 +9,7 @@ import { test } from 'node:test';
 import { resolveBackendId } from '../scripts/evaluation/runNarrativeSamples.js';
 import { runSubscriptionNarrative } from '../scripts/evaluation/lib/subscriptionNarrative.js';
 import { analyzeSpreadThemes } from '../functions/lib/spreadAnalysis.js';
+import { buildAzureGPT5Prompts } from '../functions/lib/narrativeBackends.js';
 
 const apiSettings = {
   TEXT_PROVIDER: 'legacy', ANTHROPIC_API_KEY: 'must-not-use', OPENAI_API_KEY: 'must-not-use',
@@ -30,7 +31,7 @@ test('narrative evaluation rejects paid provider overrides and retains local dia
   assert.throws(() => resolveBackendId('unknown', {}), /Unknown backend/);
 });
 
-async function cliFixture(t, { authenticated = true, authMethod = 'claude.ai', failGeneration = false, block = false } = {}) {
+async function cliFixture(t, { authenticated = true, authMethod = 'claude.ai', failGeneration = false, block = false, returnedModel = 'claude-opus-5-5' } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), 'subscription-gate-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const executable = path.join(directory, 'claude.mjs');
@@ -53,7 +54,7 @@ if (args.includes('status')) {
   if (${block}) setInterval(() => {}, 1000);
   else if (${failGeneration}) process.exitCode = 1;
   else {
-    console.log(JSON.stringify({ type: 'system', subtype: 'init', model: 'claude-opus-5-5' }));
+    console.log(JSON.stringify({ type: 'system', subtype: 'init', model: ${JSON.stringify(returnedModel)} }));
     console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, stop_reason: 'end_turn', result: 'The Fool invites a curious first step into leadership.', usage: {} }));
   }
 }
@@ -76,11 +77,16 @@ test('the narrative CLI uses the existing subscription without a gateway or API 
   const payload = JSON.parse(await readFile(result.output, 'utf8'));
   assert.equal(payload.model, 'claude-code');
   assert.equal(payload.config.authentication, 'personal-subscription');
+  assert.equal(payload.config.parityWith, 'claude-api');
+  assert.equal(payload.config.model, 'claude-opus-5-5');
+  assert.equal(payload.config.maxTokens, 32000);
   assert.equal(payload.samples[0].inference.model, 'claude-opus-5-5');
   assert.equal(payload.samples[0].reading, 'The Fool invites a curious first step into leadership.');
   const { args, prompt, env } = JSON.parse(await readFile(result.capture, 'utf8'));
   assert.equal(args[args.indexOf('--effort') + 1], 'xhigh');
   assert.equal(args[args.indexOf('--model') + 1], 'claude-opus-5-5');
+  assert.equal(env.CLAUDE_CODE_DISABLE_ADVISOR_TOOL, '1');
+  assert.equal(env.CLAUDE_CODE_MAX_OUTPUT_TOKENS, '32000');
   assert.match(prompt, /new leadership role/);
   for (const key of Object.keys(apiSettings)) assert.equal(env[key], undefined, key);
   await assert.rejects(readFile(result.network), { code: 'ENOENT' });
@@ -99,6 +105,14 @@ for (const [name, options] of [
     await assert.rejects(readFile(result.network), { code: 'ENOENT' });
   });
 }
+
+test('the narrative CLI refuses samples answered by a different model', async t => {
+  const result = await cliFixture(t, { returnedModel: 'claude-wrong-model' });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /claude-wrong-model.*instead of claude-opus-5-5/);
+  await assert.rejects(readFile(result.output), { code: 'ENOENT' });
+  await assert.rejects(readFile(result.network), { code: 'ENOENT' });
+});
 
 test('subscription evaluation timeout cancels the CLI and removes temporary prompts', async t => {
   const result = await cliFixture(t, { block: true });
@@ -135,19 +149,42 @@ test('cancellation during CLI cleanup cannot qualify a completed response', asyn
 });
 
 test('remote evaluation uses only the configured subscription gateway and records the actual model', async t => {
+  const payload = await narrativePayload();
+  const expected = buildAzureGPT5Prompts(apiSettings, payload, 'test', {
+    backendId: 'claude-api', providerLabel: 'Claude Messages API', budgetTarget: 'claude'
+  });
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.equal(url, 'https://claude.example.test/v1/generate');
     assert.equal(options.headers.Authorization, 'Bearer test-gateway-token');
     const sent = JSON.parse(options.body);
     assert.equal(sent.task, 'reading');
-    assert.match(sent.messages[0].content, /painting/);
+    assert.equal(sent.model, 'claude-opus-5-5');
+    assert.equal(sent.effort, 'xhigh');
+    assert.equal(sent.maxOutputTokens, 32000);
+    assert.equal(sent.systemPrompt, expected.systemPrompt);
+    assert.deepEqual(sent.messages, [{ role: 'user', content: expected.userPrompt }]);
     return Response.json({ provider: 'claude-code', model: 'claude-opus-5-5', text: 'Make space for a small painting practice.', usage: {} });
   });
   const result = await runSubscriptionNarrative({ ...apiSettings,
     CLAUDE_CODE_GATEWAY_URL: 'https://claude.example.test', CLAUDE_CODE_GATEWAY_TOKEN: 'test-gateway-token'
-  }, await narrativePayload(), 'test');
+  }, payload, 'test');
   assert.equal(result.model, 'claude-opus-5-5');
   assert.equal(result.reading, 'Make space for a small painting practice.');
+});
+
+test('gateway evaluation pins the production settings and rejects model substitution', async t => {
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    const sent = JSON.parse(options.body);
+    assert.equal(sent.model, 'claude-pinned-model');
+    assert.equal(sent.effort, 'high');
+    assert.equal(sent.maxOutputTokens, 32000);
+    return Response.json({ provider: 'claude-code', model: 'claude-wrong-model', text: 'A reading.', usage: {} });
+  });
+  await assert.rejects(runSubscriptionNarrative({ ...apiSettings,
+    ANTHROPIC_MODEL: 'claude-pinned-model', ANTHROPIC_EFFORT: 'high',
+    CLAUDE_CODE_MODEL: 'host-model', CLAUDE_CODE_EFFORT: 'low',
+    CLAUDE_CODE_GATEWAY_URL: 'https://claude.example.test', CLAUDE_CODE_GATEWAY_TOKEN: 'test-gateway-token'
+  }, await narrativePayload(), 'test'), /claude-wrong-model.*instead of claude-pinned-model/);
 });
 
 test('a failed configured subscription gateway never falls back to local CLI or a paid API', async t => {

@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { CLAUDE_CODE_MAX_OUTPUT_BYTES, validateClaudeRequest, validateClaudeResult } from '../../shared/inference/claudeCode.js';
+import { CLAUDE_CODE_EFFORTS, CLAUDE_CODE_MAX_OUTPUT_BYTES, validateClaudeRequest, validateClaudeResult } from '../../shared/inference/claudeCode.js';
 
 // Only these host settings reach the CLI. In particular, API credentials,
 // third-party providers, gateway overrides, hooks and NODE_OPTIONS cannot leak in.
@@ -91,35 +91,50 @@ export function parseClaudeOutput(output, responseSchema) {
   }, responseSchema);
 }
 
-export async function runClaudeCode(input, { signal, hostEnv = process.env } = {}) {
-  validateClaudeRequest(input);
-  // auth status cannot verify the subscription plan for setup-token credentials.
-  // Require the host's normal login rather than accepting an unverified override.
+const COMMON_ARGS = ['--safe-mode', '--setting-sources', ''];
+
+// Confirms the host is logged into a Claude subscription, not API billing.
+// setup-token credentials cannot report a verifiable plan, so they are refused.
+export async function verifySubscriptionLogin({ signal, hostEnv = process.env, cwd } = {}) {
   if (hostEnv.CLAUDE_CODE_OAUTH_TOKEN) {
     throw new Error('CLAUDE_CODE_OAUTH_TOKEN is unsupported. Unset it and run claude auth login on the service host.');
   }
-  const effort = String(hostEnv.CLAUDE_CODE_EFFORT || 'xhigh').trim().toLowerCase();
-  if (!['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) {
-    throw new Error('Invalid CLAUDE_CODE_EFFORT. Use low, medium, high, xhigh, or max.');
-  }
-  const env = buildSubscriptionEnv(hostEnv);
-  const executable = hostEnv.CLAUDE_CODE_EXECUTABLE || 'claude';
-  const directory = await mkdtemp(path.join(tmpdir(), 'tableu-claude-'));
-  const common = ['--safe-mode', '--setting-sources', ''];
+  const directory = cwd || await mkdtemp(path.join(tmpdir(), 'tableu-claude-'));
   try {
     let status;
     try {
-      status = JSON.parse(await runProcess(executable, [...common, 'auth', 'status', '--json'], { env, cwd: directory, signal }));
+      status = JSON.parse(await runProcess(hostEnv.CLAUDE_CODE_EXECUTABLE || 'claude', [...COMMON_ARGS, 'auth', 'status', '--json'],
+        { env: buildSubscriptionEnv(hostEnv), cwd: directory, signal }));
     } catch { throw new Error('Claude subscription login is unavailable. Run claude auth login on the service host.'); }
     if (!status.loggedIn || status.authMethod !== 'claude.ai' || status.apiProvider !== 'firstParty'
       || !['pro', 'max', 'team', 'enterprise'].includes(String(status.subscriptionType).toLowerCase())) {
       throw new Error('Claude requires a personal subscription login; API billing is disabled.');
     }
+  } finally {
+    if (!cwd) await rm(directory, { recursive: true, force: true });
+  }
+}
+
+export async function runClaudeCode(input, { signal, hostEnv = process.env } = {}) {
+  validateClaudeRequest(input);
+  // A pinned request effort wins; otherwise the host default applies.
+  const effort = input.effort || String(hostEnv.CLAUDE_CODE_EFFORT || 'xhigh').trim().toLowerCase();
+  if (!CLAUDE_CODE_EFFORTS.includes(effort)) {
+    throw new Error('Invalid CLAUDE_CODE_EFFORT. Use low, medium, high, xhigh, or max.');
+  }
+  // `--tools ''` does not cover the server-side advisor tool; turn it off too.
+  const env = { ...buildSubscriptionEnv(hostEnv), CLAUDE_CODE_DISABLE_ADVISOR_TOOL: '1' };
+  // Claude Code reads its output ceiling (thinking included) from this variable.
+  if (input.maxOutputTokens) env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = String(input.maxOutputTokens);
+  const executable = hostEnv.CLAUDE_CODE_EXECUTABLE || 'claude';
+  const directory = await mkdtemp(path.join(tmpdir(), 'tableu-claude-'));
+  try {
+    await verifySubscriptionLogin({ signal, hostEnv, cwd: directory });
     const modelKey = `CLAUDE_CODE_${input.task.replaceAll('-', '_').toUpperCase()}_MODEL`;
-    const model = hostEnv[modelKey] || hostEnv.CLAUDE_CODE_MODEL || 'claude-opus-5-5';
+    const model = input.model || hostEnv[modelKey] || hostEnv.CLAUDE_CODE_MODEL || 'claude-opus-5-5';
     const systemPath = path.join(directory, 'system.txt');
     await writeFile(systemPath, input.systemPrompt, { mode: 0o600 });
-    const args = [...common, '-p', '--model', model, '--effort', effort, '--tools', '', '--disable-slash-commands',
+    const args = [...COMMON_ARGS, '-p', '--model', model, '--effort', effort, '--tools', '', '--disable-slash-commands',
       '--no-session-persistence', '--output-format', 'stream-json', '--verbose',
       '--system-prompt-file', systemPath, '--max-turns', '4'];
     if (input.responseSchema) args.push('--json-schema', JSON.stringify(input.responseSchema));

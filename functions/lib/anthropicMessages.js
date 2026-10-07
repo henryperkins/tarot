@@ -34,18 +34,22 @@ export function isAnthropicConfigured(env) {
   return Boolean(clean(env?.ANTHROPIC_API_KEY));
 }
 
+/** Model, effort and deadline for Claude requests; needs no credential. */
+export function resolveAnthropicSettings(env) {
+  const timeout = Number.parseInt(env?.ANTHROPIC_TIMEOUT_MS, 10);
+  return {
+    model: clean(env?.ANTHROPIC_MODEL) || ANTHROPIC_DEFAULT_MODEL,
+    effort: resolveEffort(env?.ANTHROPIC_EFFORT, ANTHROPIC_DEFAULT_EFFORT),
+    timeoutMs: Number.isFinite(timeout) ? Math.min(MAX_TIMEOUT_MS, Math.max(1000, timeout)) : DEFAULT_TIMEOUT_MS
+  };
+}
+
 export function ensureAnthropicConfig(env) {
   const apiKey = clean(env?.ANTHROPIC_API_KEY);
   if (!apiKey) {
     throw new ClaudeApiError('Claude API configuration is missing ANTHROPIC_API_KEY.');
   }
-  const timeout = Number.parseInt(env?.ANTHROPIC_TIMEOUT_MS, 10);
-  return {
-    apiKey,
-    model: clean(env?.ANTHROPIC_MODEL) || ANTHROPIC_DEFAULT_MODEL,
-    effort: resolveEffort(env?.ANTHROPIC_EFFORT, ANTHROPIC_DEFAULT_EFFORT),
-    timeoutMs: Number.isFinite(timeout) ? Math.min(MAX_TIMEOUT_MS, Math.max(1000, timeout)) : DEFAULT_TIMEOUT_MS
-  };
+  return { apiKey, ...resolveAnthropicSettings(env) };
 }
 
 function normalizeUsage(usage) {

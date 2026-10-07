@@ -9,6 +9,36 @@ const request = (text, stream = false, signal) => new Request(`https://example.t
 });
 const used = DB => DB.rows('SELECT used, reserved FROM narration_monthly_usage');
 
+for (const stream of [false, true]) {
+  test(`implausibly short ${stream ? 'streamed' : 'buffered'} audio logs counts without private text`, async t => {
+    const DB = await createD1();
+    const text = 'Private reading content. '.repeat(10);
+    const warn = t.mock.method(console, 'warn', () => {});
+    const AI = { run: async () => new Response(new Uint8Array(12)).body };
+    const response = await narrate({ request: request(text, stream), env: { DB, AI } });
+    assert.equal(response.status, 200);
+    await response.arrayBuffer();
+    assert.equal(warn.mock.callCount(), 1);
+    const message = warn.mock.calls[0].arguments[0];
+    assert.match(message, /piece 1\/1 returned 12 bytes/);
+    assert.match(message, new RegExp(`${text.trim().length} characters`));
+    assert.ok(!message.includes('Private reading content'));
+    assert.deepEqual(used(DB), [{ used: 1, reserved: 0 }]);
+  });
+}
+
+test('short snippets and normally sized audio do not raise a diagnostic warning', async t => {
+  const DB = await createD1();
+  const warn = t.mock.method(console, 'warn', () => {});
+  for (const [text, bytes] of [['A short snippet.', 12], ['A'.repeat(120), 120 * 390]]) {
+    const response = await narrate({ request: request(text), env: { DB, AI: {
+      run: async () => new Response(new Uint8Array(bytes)).body
+    } } });
+    assert.equal(response.status, 200);
+  }
+  assert.equal(warn.mock.callCount(), 0);
+});
+
 test('the retired Hume route does not debit or call a provider', async () => {
   const DB = await createD1();
   const response = await retiredHume({ request: request('A reading.'), env: { DB } });

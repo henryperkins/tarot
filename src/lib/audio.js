@@ -695,11 +695,13 @@ async function processTtsStreamQueue() {
       if (requestId !== ttsStreamRequestId || requestId <= cancelledUpToRequestId) {
         break;
       }
-      emitTTSState({
-        status: 'error',
-        error: err?.message || String(err),
-        message: 'Unable to play audio right now.'
-      });
+      if (!err?.reported) {
+        emitTTSState({
+          status: 'error',
+          error: err?.message || String(err),
+          message: 'Unable to play audio right now.'
+        });
+      }
       clearTtsStreamState({ preserveAudio: false });
       break;
     }
@@ -775,7 +777,10 @@ async function playTtsStreamSegment(segment, requestId) {
       context,
       message: userMessage
     });
-    throw new Error(errorData.error || userMessage);
+    const error = new Error(errorData.error || userMessage);
+    // Preserve the service's actionable message through queue teardown.
+    error.reported = true;
+    throw error;
   }
 
   const streamResult = await buildStreamingAudioSource(response, controller?.signal);
