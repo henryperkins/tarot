@@ -107,7 +107,7 @@ for (const width of [320, 390, 1280]) {
       });
 
       if (width < 640) {
-        test(`palette disclosure does not select a deck at ${width}px (${theme})`, async ({ page }, testInfo) => {
+        test(`deck notes stay visible without palette controls at ${width}px (${theme})`, async ({ page }, testInfo) => {
           await page.setViewportSize({ width, height: 900 });
           await prepare(page, theme);
           await page.goto('/');
@@ -115,10 +115,17 @@ for (const width of [320, 390, 1280]) {
           const dialog = page.getByRole('dialog');
           const rws = dialog.getByRole('radio', { name: /Rider-Waite-Smith/ });
           const thoth = dialog.getByRole('radio', { name: /Thoth/ });
-          const palette = dialog.getByRole('button', { name: 'See color palette' }).nth(1);
-          await palette.click();
-          await expect(palette).toHaveAttribute('aria-expanded', 'true');
-          await screenshot(page, testInfo, 'deck-palette');
+          await expect(dialog.getByRole('button', { name: 'See color palette' })).toHaveCount(0);
+          await expect(dialog.locator('.deck-palette-badge')).toHaveCount(0);
+          for (const note of [
+            dialog.getByText('Uses Thoth card names (e.g., "The Magus", "Adjustment").', { exact: true }),
+            dialog.getByText('Uses Marseille numbering with French titles.', { exact: true })
+          ]) {
+            await note.scrollIntoViewIfNeeded();
+            await expect(note).toBeVisible();
+            await expect(note).toBeInViewport();
+          }
+          await screenshot(page, testInfo, 'deck-notes');
           await expect(rws).toHaveAttribute('aria-checked', 'true');
           await expect(thoth).toHaveAttribute('aria-checked', 'false');
           await expectAccessible(page, '[role="dialog"]');

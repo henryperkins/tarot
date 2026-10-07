@@ -100,16 +100,6 @@ const SPREAD_THEMES = {
   })
 };
 
-// Alt text for spread art images
-const SPREAD_ART_ALTS = {
-  single: 'One-card insight spread artwork',
-  threeCard: 'Three-card story spread artwork',
-  fiveCard: 'Five-card clarity spread artwork',
-  decision: 'Decision two-path spread artwork',
-  relationship: 'Relationship snapshot spread artwork',
-  celtic: 'Celtic cross spread artwork'
-};
-
 export function SpreadSelector({
   selectedSpread,
   onSelectSpread,
@@ -384,7 +374,7 @@ export function SpreadSelector({
             const resolvedBorder = isActive
               ? (theme.borderActive || FALLBACK_SPREAD_THEME.borderActive)
               : (theme.border || FALLBACK_SPREAD_THEME.border);
-            const previewArt = getSpreadArt(key, { alt: SPREAD_ART_ALTS[key] }) || spread.preview;
+            const previewArt = getSpreadArt(key, { alt: spread.preview?.alt }) || spread.preview;
 
             return (
               <button

@@ -17,9 +17,9 @@ export const SPREADS = {
     complexity: { stars: 1, label: 'Easy' },
     preview: {
       src: '/images/spread-art/single.png',
-      width: 220,
-      height: 108,
-      alt: 'Single card centered on a starry field'
+      width: 640,
+      height: 360,
+      alt: 'One ivory card with an engraved sunrise on dark reading cloth'
     }
   },
 
@@ -39,9 +39,9 @@ export const SPREADS = {
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/threeCard.png',
-      width: 219,
-      height: 108,
-      alt: 'Three cards aligned for past, present, and future'
+      width: 640,
+      height: 360,
+      alt: 'Three ivory cards in a row, depicting an hourglass, a tree, and an open path'
     }
   },
 
@@ -63,9 +63,9 @@ export const SPREADS = {
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/fiveCard.png',
-      width: 219,
-      height: 108,
-      alt: 'Five-card cross layout'
+      width: 640,
+      height: 360,
+      alt: 'Five engraved ivory cards arranged in a cross on dark reading cloth'
     }
   },
 
@@ -87,9 +87,9 @@ export const SPREADS = {
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/decision.png',
-      width: 220,
-      height: 108,
-      alt: 'Dual path layout with clarifying center'
+      width: 640,
+      height: 360,
+      alt: 'Five ivory cards showing a central seed, two paths, a lantern, and a bird'
     }
   },
 
@@ -107,9 +107,9 @@ export const SPREADS = {
     complexity: { stars: 2, label: 'Normal' },
     preview: {
       src: '/images/spread-art/relationship.png',
-      width: 220,
-      height: 109,
-      alt: 'Relationship snapshot layout'
+      width: 640,
+      height: 360,
+      alt: 'Three botanical cards in a triangle, with two small dots for optional clarifiers'
     }
   },
 
@@ -148,9 +148,9 @@ export const SPREADS = {
     complexity: { stars: 3, label: 'Hard' },
     preview: {
       src: '/images/spread-art/celtic.png',
-      width: 220,
-      height: 109,
-      alt: 'Celtic Cross ten-card arrangement'
+      width: 640,
+      height: 360,
+      alt: 'Ten ivory cards in a Celtic Cross, with a crossing pair and a four-card side column'
     }
   }
 };

@@ -2619,22 +2619,6 @@ input[type="range"]:focus::-webkit-slider-thumb {
   box-shadow: 0 10px 28px -18px rgba(0, 0, 0, 0.7);
 }
 
-.deck-palette-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.02em;
-  padding: 0.4rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.25);
-  font-weight: 600;
-  text-transform: none;
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
-}
-
 /* Prepare reading shell + cards reuse deck styling */
 .prepare-reading-panel {
   margin-bottom: 1.5rem;

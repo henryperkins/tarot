@@ -3,7 +3,6 @@ import { Check, CaretRight } from '@phosphor-icons/react';
 import { CarouselDots } from './CarouselDots';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSmallScreen } from '../hooks/useSmallScreen';
-import { MobileInfoSection } from './MobileInfoSection';
 import { DECK_OPTIONS } from './deckOptions';
 
 function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
@@ -48,21 +47,6 @@ function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
         aria-hidden="true"
       />
     </div>
-  );
-}
-
-function PaletteBadge({ label, swatch, textColor }) {
-  return (
-    <span
-      className="deck-palette-badge"
-      style={{
-        backgroundColor: swatch,
-        color: textColor,
-        boxShadow: `0 10px 20px -14px rgba(0,0,0,0.8), 0 0 0 1px var(--border-warm-subtle), 0 0 0 1px ${swatch}33`
-      }}
-    >
-      {label}
-    </span>
   );
 }
 
@@ -303,39 +287,17 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                     <div className="text-2xs uppercase tracking-[0.18em] text-gold-soft/90 mb-2">
                       {deck.subtitle}
                     </div>
-                    <p className={`text-xs text-muted leading-snug ${isSmallScreen ? 'mb-2 line-clamp-2' : 'mb-3'}`}>
+                    <p className={`text-xs text-muted leading-snug ${isSmallScreen ? 'line-clamp-2' : ''}`}>
                       {deck.mobileDescription || deck.description}
                     </p>
 
-                    {!isSmallScreen && (
-                      <div className="flex flex-wrap gap-1.5 mb-2">
-                        {deck.palette.map((tone) => (
-                          <PaletteBadge key={`${deck.id}-${tone.label}`} {...tone} />
-                        ))}
-                      </div>
-                    )}
-
-                    {deck.note && !isSmallScreen && (
+                    {deck.note && (
                       <p className="text-2xs text-accent/85 italic mt-2">
                         {deck.note}
                       </p>
                     )}
                   </div>
                 </button>
-                {isSmallScreen && (
-                  <MobileInfoSection title="See color palette">
-                    <div className="flex flex-wrap gap-1.5">
-                      {deck.palette.map((tone) => (
-                        <PaletteBadge key={`${deck.id}-${tone.label}`} {...tone} />
-                      ))}
-                    </div>
-                    {deck.note && (
-                      <p className="text-2xs text-accent italic mt-2">
-                        {deck.note}
-                      </p>
-                    )}
-                  </MobileInfoSection>
-                )}
               </div>
             );
           })}

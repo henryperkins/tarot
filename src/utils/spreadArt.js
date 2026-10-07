@@ -36,8 +36,8 @@ const buildSourceEntries = (baseName, format) => ([
 export function buildSpreadArt({
   baseName,
   alt,
-  width = 4096,
-  height = 4096,
+  width = 1280,
+  height = 720,
   aspectRatio = '16 / 9'
 } = {}) {
   if (!baseName) return null;

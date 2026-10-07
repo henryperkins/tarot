@@ -25,16 +25,16 @@ function buildDeckPreview(baseName, src, alt) {
 
 const DECK_VISUALS = {
   'rws-1909': {
-    preview: buildDeckPreview('rider', rwsPreview, 'Rider-Waite-Smith deck featuring The Magician card'),
+    preview: buildDeckPreview('rider', rwsPreview, 'Rider-Waite-Smith cards: The High Priestess, The Magician, and The Moon on dark reading cloth'),
     accent: 'var(--brand-primary)',
   },
   'thoth-a1': {
-    preview: buildDeckPreview('Thoth', thothPreview, 'Thoth deck featuring The Magus card with Art Deco styling'),
+    preview: buildDeckPreview('Thoth', thothPreview, 'Thoth-inspired illustrative preview with three prismatic cards in teal, magenta, and gold'),
     accent: 'var(--color-cups)',
     note: 'Uses Thoth card names (e.g., "The Magus", "Adjustment").'
   },
   'marseille-classic': {
-    preview: buildDeckPreview('marseille', marseillePreview, 'Tarot de Marseille deck featuring Le Bateleur card'),
+    preview: buildDeckPreview('marseille', marseillePreview, 'Tarot de Marseille cards: La Papesse, Le Bateleur, and La Lune on dark reading cloth'),
     accent: 'var(--color-wands)',
     note: 'Uses Marseille numbering with French titles.'
   }
@@ -49,7 +49,6 @@ export const DECK_OPTIONS = DECK_ORDER.map((deckId) => {
     subtitle: deck.subtitleDisplay || deck.subtitle,
     description: deck.description,
     mobileDescription: deck.mobileDescription,
-    palette: deck.palette?.ui || [],
     border: 'var(--border-warm-light)',
     borderActive: 'var(--brand-primary)',
     glow: 'var(--primary-30)',
