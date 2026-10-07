@@ -173,7 +173,7 @@ async function waitForCardsDealt(page) {
 
 async function generateNarrative(page) {
   const generateButton = page
-    .getByRole('button', { name: /generate|create.*narrative|get.*reading|receive.*reading/i })
+    .getByRole('button', { name: /^Interpret cards/ })
     .first();
   await expect(generateButton).toBeVisible({ timeout: 15000 });
   await generateButton.click({ force: true });
@@ -181,7 +181,7 @@ async function generateNarrative(page) {
 
 async function waitForNarrativeComplete(page) {
   await expect(async () => {
-    const skeleton = page.locator('[aria-label="Generating your personalized narrative"]');
+    const skeleton = page.locator('[aria-label="Preparing your interpretation"]');
     expect(await skeleton.isVisible().catch(() => false)).toBe(false);
   }).toPass({ timeout: 30000 });
 

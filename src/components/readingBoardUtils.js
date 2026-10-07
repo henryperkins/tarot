@@ -46,7 +46,7 @@ export function getReadingTableAction({ isSpreadDealt, revealedCards, totalCards
   if (!isSpreadDealt) return { phase: 'deal', label: 'Deal spread', nextIndex: -1 };
   const nextIndex = Array.from({ length: totalCards }, (_, index) => index)
     .find(index => !revealedCards.has(index));
-  if (nextIndex === undefined) return { phase: 'narrative', label: 'Create narrative', nextIndex: -1 };
+  if (nextIndex === undefined) return { phase: 'narrative', label: 'Interpret cards', nextIndex: -1 };
   const position = extractShortLabel(positions[nextIndex], 80) || `Position ${nextIndex + 1}`;
   return { phase: 'reveal', label: `Reveal next: ${position}`, nextIndex };
 }

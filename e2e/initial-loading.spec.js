@@ -25,7 +25,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         const artworkPath = new URL(await artwork.evaluate(image => image.currentSrc)).pathname;
         expect(startupRequests).not.toContain(artworkPath);
         expect(requests).toContain(artworkPath);
-        await expect(page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw/ }).filter({ visible: true }).first()).toBeVisible();
+        await expect(page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first()).toBeVisible();
       } finally {
         await fixture.close();
       }
@@ -72,7 +72,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await page.waitForLoadState('networkidle');
         expect(requested).toBe(false);
         await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
-        await page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw/ }).filter({ visible: true }).first().press('Enter');
+        await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().press('Enter');
         await expect.poll(() => requested).toBe(true);
         await expect(page.getByText('Loading your reading space…', { exact: true })).toBeVisible();
         release();
@@ -147,7 +147,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await expect.poll(() => sounds.includes('/sounds/flip.mp3')).toBe(true);
         expect(sounds).not.toContain('/sounds/ambience.mp3');
         await page.getByRole('button', { name: /^Reveal all cards/ }).click();
-        await page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ }).press('Enter');
+        await page.getByRole('button', { name: /^Interpret cards/ }).press('Enter');
         await fixture.completeReading();
         await expect.poll(() => page.locator('#step-reading canvas').count()).toBeGreaterThan(0);
         await page.emulateMedia({ reducedMotion: 'reduce' });

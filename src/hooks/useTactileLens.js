@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useHaptic } from './useHaptic';
+import { safeStorage } from '../lib/safeStorage';
 
 const LENS_TUTORIAL_KEY = 'tableu_lens_tutorial_shown';
 const TUTORIAL_AUTO_TRIGGER_DELAY = 2500;
@@ -37,7 +38,7 @@ export function useTactileLens({ disabled = false } = {}) {
   // Check if tutorial has been shown before
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const hasShown = localStorage.getItem(LENS_TUTORIAL_KEY) === 'true';
+    const hasShown = tutorialShownRef.current || safeStorage.getItem(LENS_TUTORIAL_KEY) === 'true';
     tutorialShownRef.current = hasShown;
 
     // Auto-trigger tutorial for first-time users
@@ -49,7 +50,7 @@ export function useTactileLens({ disabled = false } = {}) {
         // Auto-dismiss after showing
         tutorialTimerRef.current = setTimeout(() => {
           setShowTutorial(false);
-          localStorage.setItem(LENS_TUTORIAL_KEY, 'true');
+          safeStorage.setItem(LENS_TUTORIAL_KEY, 'true');
           tutorialShownRef.current = true;
         }, TUTORIAL_AUTO_DISMISS_DELAY);
       }, TUTORIAL_AUTO_TRIGGER_DELAY);
@@ -68,7 +69,7 @@ export function useTactileLens({ disabled = false } = {}) {
 
     // Mark tutorial as shown on first activation
     if (!tutorialShownRef.current) {
-      localStorage.setItem(LENS_TUTORIAL_KEY, 'true');
+      safeStorage.setItem(LENS_TUTORIAL_KEY, 'true');
       tutorialShownRef.current = true;
       setShowTutorial(false);
       if (tutorialTimerRef.current) clearTimeout(tutorialTimerRef.current);
@@ -97,7 +98,7 @@ export function useTactileLens({ disabled = false } = {}) {
 
   const dismissTutorial = useCallback(() => {
     setShowTutorial(false);
-    localStorage.setItem(LENS_TUTORIAL_KEY, 'true');
+    safeStorage.setItem(LENS_TUTORIAL_KEY, 'true');
     tutorialShownRef.current = true;
     if (tutorialTimerRef.current) clearTimeout(tutorialTimerRef.current);
     if (autoTriggerTimerRef.current) clearTimeout(autoTriggerTimerRef.current);

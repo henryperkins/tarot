@@ -85,11 +85,11 @@ for (const width of [320, 390, 1280]) {
         try {
           await page.goto('/');
           await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
-          await page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw/ }).filter({ visible: true }).first().click();
+          await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
           await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
           await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
-          await page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ }).filter({ visible: true }).first().click();
-          await expect(page.getByLabel('Generating your personalized narrative')).toBeVisible();
+          await page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first().click();
+          await expect(page.getByLabel('Preparing your interpretation')).toBeVisible();
           await expect(page.locator('[data-scene="interlude"]')).toBeVisible();
           // Observe a held response after layout settles, rather than completing the
           // stream in the first frame before the generation scene has taken over.

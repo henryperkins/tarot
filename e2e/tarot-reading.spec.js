@@ -208,8 +208,8 @@ async function skipRitual(page) {
   }
 
   // Mobile fallback: the primary action bar uses a combined label.
-  // Example: "Shuffle & draw — Set your intention"
-  const shuffleDrawButton = page.getByRole('button', { name: /shuffle\s*&\s*draw/i });
+  // Example: "Draw cards — Set your intention"
+  const shuffleDrawButton = page.getByRole('button', { name: /^Draw cards/ });
   if (await shuffleDrawButton.isVisible({ timeout: 2000 }).catch(() => false)) {
     await shuffleDrawButton.scrollIntoViewIfNeeded();
     await shuffleDrawButton.click({ force: true });
@@ -272,7 +272,7 @@ async function areAllCardsRevealed(page, expectedCount) {
  */
 async function generateNarrative(page) {
   // Desktop button or mobile action bar button
-  const generateButton = page.getByRole('button', { name: /generate|create.*narrative|get.*reading|receive.*reading/i }).first();
+  const generateButton = page.getByRole('button', { name: /^Interpret cards/ }).first();
   await expect(generateButton).toBeVisible({ timeout: 5000 });
   await generateButton.click({ force: true });
 }
@@ -283,7 +283,7 @@ async function generateNarrative(page) {
 async function waitForNarrativeComplete(page) {
   // Wait for loading skeleton to disappear and text to appear
   await expect(async () => {
-    const skeleton = page.locator('[aria-label="Generating your personalized narrative"]');
+    const skeleton = page.locator('[aria-label="Preparing your interpretation"]');
     const isSkeletonVisible = await skeleton.isVisible().catch(() => false);
     expect(isSkeletonVisible).toBe(false);
   }).toPass({ timeout: 30000 }); // Narrative generation can take a while
@@ -361,7 +361,7 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
     }).toPass({ timeout: 3000 });
 
     // 7. Generate narrative button should appear
-    const generateButton = page.getByRole('button', { name: /generate|create.*narrative|get.*reading|receive/i }).first();
+    const generateButton = page.getByRole('button', { name: /^Interpret cards/ }).first();
     await expect(generateButton).toBeVisible({ timeout: 5000 });
   });
 
@@ -524,6 +524,7 @@ test.describe('Reading stream recovery @desktop', () => {
     const errors = [];
     runtimeErrors.set(page, errors);
     page.on('pageerror', (error) => errors.push(error.message));
+    await page.route(/https:\/\/[^/]*sentry\.io\/.*\/envelope\//, route => route.fulfill({ json: {} }));
     await page.addInitScript(getTestSetupScript());
     await page.route('**/api/**', (route) => route.fulfill({
       contentType: 'application/json',
@@ -536,7 +537,7 @@ test.describe('Reading stream recovery @desktop', () => {
     await skipRitual(page);
     await page.getByRole('button', { name: /^Deal spread/ }).click();
     await page.getByRole('button', { name: /^Reveal next:/ }).click();
-    await expect(page.getByRole('button', { name: 'Create narrative', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Interpret cards', exact: true })).toBeVisible();
   });
 
   test.afterEach(async ({ page }, testInfo) => {
@@ -615,7 +616,8 @@ test.describe('Reading stream recovery @desktop', () => {
     await page.reload();
     // Cards are not persisted across reloads, so the narrative panel is hidden.
     // The completion announcement and cleared job prove the resumed reader ran.
-    await expect(page.getByRole('status').first()).toHaveText('Your reading is ready.');
+    // Route loading/navigation has separate live regions before the reading.
+    await expect(page.locator('#main-content > [role="status"]')).toHaveText('Your reading is ready.');
     await expect.poll(() => page.evaluate(() => sessionStorage.getItem('tarot:reading-job'))).toBeNull();
   });
 
@@ -673,7 +675,7 @@ test.describe('Tarot Reading Flow - Mobile @mobile', () => {
     await revealCard(page, 0);
 
     // After reveal - should show generate action
-    const generateButton = page.getByRole('button', { name: /generate|reading/i }).first();
+    const generateButton = page.getByRole('button', { name: /^Interpret cards/ }).first();
     await expect(generateButton).toBeVisible({ timeout: 5000 });
   });
 
@@ -792,7 +794,7 @@ test.describe('Error Handling @desktop', () => {
     });
 
     // Try to generate narrative
-    const generateButton = page.getByRole('button', { name: /generate|reading/i }).first();
+    const generateButton = page.getByRole('button', { name: /^Interpret cards/ }).first();
     if (await generateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await generateButton.click({ force: true });
 
@@ -822,7 +824,7 @@ test.describe('Error Handling @desktop', () => {
       }
     });
 
-    const generateButton = page.getByRole('button', { name: /generate|reading/i }).first();
+    const generateButton = page.getByRole('button', { name: /^Interpret cards/ }).first();
     if (await generateButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       // First attempt - fails
       await generateButton.click({ force: true });

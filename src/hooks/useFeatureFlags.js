@@ -42,14 +42,14 @@ function getFlag(flagKey, envVar, defaultValue = false, userOverridable = false)
     }
 
     // Check localStorage (?ff_flag_name in localStorage)
-    if (typeof localStorage !== 'undefined') {
-      try {
+    try {
+      if (typeof localStorage !== 'undefined') {
         const localValue = localStorage.getItem(`ff_${flagKey}`);
         if (localValue === 'true') return true;
         if (localValue === 'false') return false;
-      } catch (_storageError) {
-        // localStorage errors (e.g., private browsing) are non-fatal; fall through
       }
+    } catch (_storageError) {
+      // Property access and storage methods can fail; fall through to defaults.
     }
   }
 

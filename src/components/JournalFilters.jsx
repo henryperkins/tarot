@@ -15,6 +15,7 @@ import {
   JournalSearchIcon
 } from './JournalIcons';
 import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
+import { safeStorage } from '../lib/safeStorage';
 
 const TIMEFRAME_OPTIONS = [
   { value: 'all', label: 'All time' },
@@ -33,6 +34,7 @@ const OUTLINE_FILTER_ACTIVE = 'border-[color:var(--brand-primary)] bg-[color:var
 function FilterDropdown({ label, options, value, onChange, multiple = false, buttonRef: externalButtonRef }) {
   const [isOpen, setIsOpen] = useState(false);
   const [alignRight, setAlignRight] = useState(false);
+  const [focusedOptionIndex, setFocusedOptionIndex] = useState(0);
   const containerRef = useRef(null);
   const internalButtonRef = useRef(null);
   const menuId = useId();
@@ -51,7 +53,11 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
       }
     };
     document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('focusin', handlePointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('focusin', handlePointerDown);
+    };
   }, []);
 
   const computeAlignRight = () => {
@@ -63,27 +69,30 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
     return rect.left + menuWidth > window.innerWidth - margin;
   };
 
-  const focusFirstOption = () => {
+  const focusOption = (index) => {
+    const items = containerRef.current?.querySelectorAll('[data-dropdown-option="true"]');
+    items?.[index]?.focus();
+  };
+
+  const openMenu = (preferLast = false) => {
+    setAlignRight(computeAlignRight());
+    setIsOpen(true);
+    const selectedIndex = options.findIndex(option => isSelected(option.value));
+    const nextIndex = selectedIndex >= 0 ? selectedIndex : preferLast ? options.length - 1 : 0;
+    setFocusedOptionIndex(nextIndex);
     if (typeof window === 'undefined') return;
     const schedule = typeof window.requestAnimationFrame === 'function'
       ? window.requestAnimationFrame
       : (cb) => setTimeout(cb, 0);
     schedule(() => {
-      const firstOption = containerRef.current?.querySelector('[data-dropdown-option="true"]');
-      if (firstOption instanceof HTMLElement) {
-        firstOption.focus();
-      }
+      focusOption(nextIndex);
     });
   };
 
   const handleButtonKeyDown = (event) => {
-    if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+    if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
       event.preventDefault();
-      if (!isOpen) {
-        setAlignRight(computeAlignRight());
-        setIsOpen(true);
-        focusFirstOption();
-      }
+      openMenu(event.key === 'ArrowUp');
     }
   };
 
@@ -92,7 +101,17 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
       event.preventDefault();
       setIsOpen(false);
       internalButtonRef.current?.focus();
+      return;
     }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || options.length === 0) return;
+    event.preventDefault();
+    const items = [...containerRef.current.querySelectorAll('[data-dropdown-option="true"]')];
+    const currentIndex = Math.max(0, items.indexOf(document.activeElement));
+    const nextIndex = event.key === 'Home' ? 0
+      : event.key === 'End' ? options.length - 1
+        : (currentIndex + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+    setFocusedOptionIndex(nextIndex);
+    focusOption(nextIndex);
   };
 
   const handleSelect = (optionValue) => {
@@ -127,22 +146,13 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
       <button
         ref={setButtonRef}
         type="button"
-        onClick={() => {
-          const next = !isOpen;
-          if (next) {
-            setAlignRight(computeAlignRight());
-          }
-          setIsOpen(next);
-          if (next) {
-            focusFirstOption();
-          }
-        }}
+        onClick={() => isOpen ? setIsOpen(false) : openMenu()}
         onKeyDown={handleButtonKeyDown}
         className={`${OUTLINE_FILTER_BASE} ${activeCount > 0 ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={isOpen ? menuId : undefined}
-        aria-label={!multiple ? label : undefined}
+        aria-label={label}
         aria-pressed={activeCount > 0}
       >
         {multiple && <span>{label}</span>}
@@ -160,6 +170,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
         <div
           id={menuId}
           role="listbox"
+          aria-label={label}
           aria-multiselectable={multiple || undefined}
           className={`absolute top-full z-50 mt-2 w-[min(16rem,calc(100vw-2rem))] ${
             alignRight ? 'right-0 origin-top-right' : 'left-0 origin-top-left'
@@ -167,7 +178,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
           onKeyDown={handleMenuKeyDown}
         >
           <div className="max-h-64 overflow-y-auto py-1">
-            {options.map((option) => (
+            {options.map((option, index) => (
               <button
                 key={option.value}
                 onClick={() => handleSelect(option.value)}
@@ -175,7 +186,9 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
                 data-dropdown-option="true"
                 role="option"
                 aria-selected={isSelected(option.value)}
-                className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs-plus text-muted hover:bg-[color:var(--ui-selected-bg-subtle)] hover:text-accent transition-colors focus:outline-none ${FOCUS_RING_DEFAULT}`}
+                tabIndex={focusedOptionIndex === index ? 0 : -1}
+                onFocus={() => setFocusedOptionIndex(index)}
+                className={`flex min-h-touch w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs-plus text-muted hover:bg-[color:var(--ui-selected-bg-subtle)] hover:text-accent transition-colors focus:outline-none ${FOCUS_RING_DEFAULT}`}
               >
                 <span>{option.label}</span>
                 {isSelected(option.value) && <Check className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" />}
@@ -207,7 +220,7 @@ export function JournalFilters({
   const [savedFilters, setSavedFilters] = useState(() => {
     if (typeof window === 'undefined') return [];
     try {
-      const stored = JSON.parse(localStorage.getItem(SAVED_FILTERS_KEY) || '[]');
+      const stored = JSON.parse(safeStorage.getItem(SAVED_FILTERS_KEY) || '[]');
       return Array.isArray(stored) ? stored : [];
     } catch (error) {
       console.warn('Failed to load saved filters', error);
@@ -216,7 +229,7 @@ export function JournalFilters({
   });
   const [advancedOpen, setAdvancedOpen] = useState(() => {
     if (typeof window === 'undefined') return !isCompact;
-    const stored = localStorage.getItem(ADVANCED_FILTERS_KEY);
+    const stored = safeStorage.getItem(ADVANCED_FILTERS_KEY);
     if (stored === 'true' || stored === 'false') {
       return stored === 'true';
     }
@@ -236,19 +249,14 @@ export function JournalFilters({
     setSavedFilters(next);
     if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(next));
+      safeStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(next));
     } catch (error) {
       console.warn('Unable to persist saved filters', error);
     }
   };
 
   useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    try {
-      localStorage.setItem(ADVANCED_FILTERS_KEY, advancedOpen.toString());
-    } catch (error) {
-      console.warn('Unable to persist advanced filter state', error);
-    }
+    safeStorage.setItem(ADVANCED_FILTERS_KEY, advancedOpen.toString());
   }, [advancedOpen]);
 
   // Note: shouldShowAdvanced handles the display logic, so we don't need
@@ -463,7 +471,7 @@ export function JournalFilters({
       <div className="relative z-10 space-y-4">
         <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-2xs uppercase tracking-[0.3em] text-[color:var(--color-gray-light)]">Filters</p>
+            <p className="text-2xs uppercase tracking-[0.3em] text-[color:var(--text-muted)]">Filters</p>
             <h2 className="text-lg sm:text-xl font-serif text-[color:var(--text-main)]">Journal filters</h2>
             <p className="text-xs text-[color:var(--text-muted)]">Refine your history.</p>
           </div>
@@ -488,7 +496,7 @@ export function JournalFilters({
             <span className="flex items-center gap-2">
               <span>More filters</span>
               {activeFilterCount > 0 && (
-                <span className="text-2xs text-[color:var(--color-gray-light)]">
+                <span className="text-2xs text-[color:var(--text-muted)]">
                   ({activeFilterCount} active)
                 </span>
               )}
@@ -583,7 +591,7 @@ export function JournalFilters({
 
           return (
             <>
-              <p className={`text-2xs text-[color:var(--color-gray-light)] ${isCompact ? 'mb-2' : 'mb-3'}`}>
+              <p className={`text-2xs text-[color:var(--text-muted)] ${isCompact ? 'mb-2' : 'mb-3'}`}>
                 {isCompact ? 'Tap any card to edit filters.' : 'Tap any node to edit filters.'}
               </p>
               {/* Desktop constellation */}
@@ -698,7 +706,7 @@ export function JournalFilters({
                             </div>
                             <p className={`text-2xs uppercase tracking-[0.24em] ${isHero ? 'text-[color:var(--brand-accent)]' : 'text-[color:var(--text-muted)]'}`}>{node.label}</p>
                             <p className={`font-serif leading-tight ${isHero ? 'text-[color:var(--text-main)] text-xl' : 'text-[color:var(--text-main)] text-lg'}`}>{node.value}</p>
-                            <p className="text-2xs text-[color:var(--color-gray-light)]">{node.hint}</p>
+                            <p className="text-2xs text-[color:var(--text-muted)]">{node.hint}</p>
                           </div>
                         </div>
                       </div>
@@ -728,7 +736,7 @@ export function JournalFilters({
                       <span>{node.label}</span>
                     </div>
                     <p className="font-serif text-lg text-[color:var(--text-main)] leading-tight">{node.value}</p>
-                    <p className="text-2xs text-[color:var(--color-gray-light)]">{node.hint}</p>
+                    <p className="text-2xs text-[color:var(--text-muted)]">{node.hint}</p>
                   </button>
                 ))}
               </div>
@@ -751,7 +759,7 @@ export function JournalFilters({
                   onChange={handleQueryChange}
                   placeholder="Search readings..."
                   aria-label="Search journal entries"
-                  className={`w-full min-h-touch rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--ui-overlay)] px-8 py-2 text-sm-mobile text-main placeholder:text-gray-light ${FOCUS_RING_DEFAULT}`}
+                  className={`w-full min-h-touch rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--ui-overlay)] px-8 py-2 text-sm-mobile text-main placeholder:text-muted ${FOCUS_RING_DEFAULT}`}
                 />
               </div>
 
@@ -764,7 +772,7 @@ export function JournalFilters({
               )}
 
               {(searchCoverageLabel || searchScopeLabel) && (
-                <div className="flex flex-wrap items-center gap-2 text-2xs text-[color:var(--color-gray-light)]">
+                <div className="flex flex-wrap items-center gap-2 text-2xs text-[color:var(--text-muted)]">
                   {searchCoverageLabel && (
                     <span>{searchCoverageLabel}</span>
                   )}
@@ -775,7 +783,7 @@ export function JournalFilters({
               )}
 
               {/* Search scope help */}
-              <details className="text-2xs text-[color:var(--color-gray-light)]">
+              <details className="text-2xs text-[color:var(--text-muted)]">
                 <summary className={`min-h-touch cursor-pointer content-center rounded hover:text-[color:var(--text-muted)] transition-colors ${FOCUS_RING_DEFAULT}`}>
                   <span className="inline-block py-3">What fields are searched?</span>
                 </summary>
@@ -795,7 +803,7 @@ export function JournalFilters({
                   <JournalBookmarkIcon className="h-4 w-4" aria-hidden="true" />
                   <span>Saved views</span>
                   {savedFilters.length > 0 && (
-                    <span className="ml-auto text-2xs text-[color:var(--color-gray-light)]">{savedFilters.length} saved</span>
+                    <span className="ml-auto text-2xs text-[color:var(--text-muted)]">{savedFilters.length} saved</span>
                   )}
                 </div>
 
@@ -816,7 +824,7 @@ export function JournalFilters({
                         <button
                           type="button"
                           onClick={() => handleDeleteSaved(saved.id)}
-                          className={`rounded-full px-1 text-[color:var(--color-gray-light)] hover:text-[color:var(--color-error)] ${FOCUS_RING_DEFAULT}`}
+                          className={`rounded-full px-1 text-[color:var(--text-muted)] hover:text-[color:var(--status-error)] ${FOCUS_RING_DEFAULT}`}
                           aria-label={`Delete saved filter ${saved.name}`}
                         >
                           <span aria-hidden="true">×</span>
@@ -824,7 +832,7 @@ export function JournalFilters({
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-[color:var(--color-gray-light)]">No saved views yet.</p>
+                    <p className="text-xs text-[color:var(--text-muted)]">No saved views yet.</p>
                   )}
                 </div>
 
@@ -848,7 +856,7 @@ export function JournalFilters({
                           onChange={(event) => setNewFilterName(event.target.value)}
                           placeholder="Name this view"
                           aria-label="Name for saved filter view"
-                          className={`flex-1 min-h-touch rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--ui-overlay-soft)] px-3 py-2 text-sm-mobile text-main placeholder:text-gray-light ${FOCUS_RING_DEFAULT}`}
+                          className={`flex-1 min-h-touch rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--ui-overlay-soft)] px-3 py-2 text-sm-mobile text-main placeholder:text-muted ${FOCUS_RING_DEFAULT}`}
                         />
                         <div className="flex items-center gap-2">
                           <button
@@ -942,7 +950,7 @@ export function JournalFilters({
 
                   {/* View mode toggle */}
                   <div
-                    className="inline-flex rounded-xl border border-[color:var(--border-warm-light)] bg-[color:rgba(15,14,19,0.5)] p-0.5"
+                    className="inline-flex rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--ui-overlay-muted)] p-0.5"
                     role="group"
                     aria-label="List view mode"
                   >
@@ -980,7 +988,7 @@ export function JournalFilters({
                 </>
               )}
             </div>
-            <p className="mt-3 text-2xs uppercase tracking-[0.22em] text-[color:var(--color-gray-light)]">
+            <p className="mt-3 text-2xs uppercase tracking-[0.22em] text-[color:var(--text-muted)]">
               Tip: combine filters to surface exact readings you want.
             </p>
           </div>

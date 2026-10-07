@@ -127,7 +127,7 @@ export function NarrativeSkeleton({
     <div
       className={`narrative-skeleton ${className}`}
       role="region"
-      aria-label="Generating your personalized narrative"
+      aria-label="Preparing your interpretation"
     >
       <h3 tabIndex={-1} data-reading-focus-target className="text-lg sm:text-2xl font-serif text-accent">
         Preparing your reading

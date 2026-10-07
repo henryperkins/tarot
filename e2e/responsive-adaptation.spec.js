@@ -174,7 +174,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         for (const name of [
           'Done', 'Edit', 'Password', 'Resend verification', 'Forgot password?',
           'Refresh', 'Try again', 'Restore purchases', 'Reset Journey data',
-          'Export PDF', 'Export CSV', 'Download account data', 'Manage subscription', 'Back to Reading'
+          'Export PDF', 'Export CSV', 'Download account summary', 'Manage subscription', 'Back to Reading'
         ]) {
           const control = page.locator('main').getByRole(/Done|Forgot password\?|Back to Reading/.test(name) ? 'link' : 'button', { name, exact: true });
           await expectTouchTarget(control);

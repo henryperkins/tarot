@@ -473,20 +473,20 @@ export default function Journal() {
     const result = await migrateToCloud();
 
     if (result.success) {
-      const parts = [`Migrated ${result.migrated} entries`];
+      const parts = [`Added ${result.migrated} local entries to your cloud journal`];
       if (typeof result.skipped === 'number' && result.skipped > 0) {
         parts.push(`${result.skipped} already existed`);
       }
       showToast({
         type: 'success',
-        title: 'Migration complete',
+        title: 'Local entry results',
         description: parts.join(', ')
       });
     } else {
       showToast({
         type: 'error',
-        title: 'Migration failed',
-        description: result.error || 'We could not sync your local entries.'
+        title: 'Could not add local entries',
+        description: result.error || 'Your local entries could not be added to your cloud journal. Try again.'
       });
     }
 

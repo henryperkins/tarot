@@ -62,7 +62,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await openSetup(page);
       const field = page.locator('#quick-intention');
       await field.fill('How can I balance work and rest this week?');
-      const draw = page.locator('.mobile-action-bar').getByRole('button', { name: 'Shuffle & draw', exact: true });
+      const draw = page.locator('.mobile-action-bar').getByRole('button', { name: 'Draw cards', exact: true });
       await expect(draw).not.toContainText(/Step \d/);
       await page.getByRole('button', { name: 'Open reading preparation', exact: true }).click();
       const drawer = page.getByRole('dialog', { name: 'Prepare your reading', exact: true });

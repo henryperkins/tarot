@@ -4,7 +4,7 @@ import { createNarrativeFixture, openSetup, QUESTION } from './helpers/narrative
 async function openRitual(page) {
   await openSetup(page);
   await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
-  await page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw/ }).filter({ visible: true }).first().click();
+  await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
   await page.getByRole('button', { name: 'Deal spread', exact: true }).waitFor();
   await page.locator('summary').filter({ hasText: 'Optional ritual' }).click();
 }

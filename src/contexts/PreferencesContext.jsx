@@ -4,17 +4,16 @@ import { MAJOR_ARCANA } from '../data/majorArcana';
 import { getDeckPool } from '../lib/deck';
 import { initAudio, cleanupAudio, stopTTS, toggleAmbience } from '../lib/audio';
 import { safeStorage } from '../lib/safeStorage';
+import { migrateLegacyPersonalization, safeSessionStorage } from '../lib/preferenceStorage';
 import { useAuth } from './AuthContext';
 import {
   DEFAULT_PERSONALIZATION,
   PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH,
-  LEGACY_PERSONALIZATION_STORAGE_KEY,
   derivePersonalizationExplicitFields,
   loadPersonalizationExplicitFields,
   getPersonalizationStorageKey,
   savePersonalizationExplicitFields,
   sanitizePersonalization,
-  sanitizeGuestPersonalization,
   loadPersonalizationFromStorage
 } from '../utils/personalizationStorage';
 
@@ -100,19 +99,11 @@ export function PreferencesProvider({ children }) {
   }, [theme]);
 
   // --- Audio: Voice ---
-  const [voiceOn, setVoiceOn] = useState(() => {
-    if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('tarot-voice-enabled');
-      return saved === 'true';
-    }
-    return false;
-  });
+  const [voiceOn, setVoiceOn] = useState(() => safeStorage.getItem('tarot-voice-enabled') === 'true');
 
   // Persist voice setting
   useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('tarot-voice-enabled', voiceOn.toString());
-    }
+    safeStorage.setItem('tarot-voice-enabled', voiceOn.toString());
     // If turned off, stop any current narration
     if (!voiceOn) {
       stopTTS();
@@ -121,29 +112,21 @@ export function PreferencesProvider({ children }) {
 
   // --- Audio: Auto-narrate on first view ---
   const [autoNarrate, setAutoNarrate] = useState(() => {
-    if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('tarot-auto-narrate');
-      // Default to true if not set
-      return saved === null ? true : saved === 'true';
-    }
-    return true;
+    const saved = safeStorage.getItem('tarot-auto-narrate');
+    // Default to true if not set or storage is unavailable.
+    return saved === null ? true : saved === 'true';
   });
 
   // Persist auto-narrate setting
   useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('tarot-auto-narrate', autoNarrate.toString());
-    }
+    safeStorage.setItem('tarot-auto-narrate', autoNarrate.toString());
   }, [autoNarrate]);
 
   // --- Audio: TTS Provider (azure, azure-sdk, or hume) ---
   const TTS_PROVIDER_OPTIONS = ['hume', 'azure', 'azure-sdk'];
   const [ttsProviderState, setTtsProviderState] = useState(() => {
-    if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('tarot-tts-provider');
-      return TTS_PROVIDER_OPTIONS.includes(saved) ? saved : 'hume'; // Default to Hume for expressive readings
-    }
-    return 'hume';
+    const saved = safeStorage.getItem('tarot-tts-provider');
+    return TTS_PROVIDER_OPTIONS.includes(saved) ? saved : 'hume'; // Default to Hume for expressive readings
   });
 
   // Wrapper setter that guards against invalid TTS provider values
@@ -157,20 +140,14 @@ export function PreferencesProvider({ children }) {
 
   // Persist TTS provider setting
   useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('tarot-tts-provider', ttsProviderState);
-    }
+    safeStorage.setItem('tarot-tts-provider', ttsProviderState);
   }, [ttsProviderState]);
 
   // --- Audio: TTS Speed ---
   const TTS_SPEED_OPTIONS = [0.85, 1.0, 1.15];
   const [ttsSpeed, setTtsSpeedState] = useState(() => {
-    if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('tarot-tts-speed');
-      const parsed = parseFloat(saved);
-      return !isNaN(parsed) && TTS_SPEED_OPTIONS.includes(parsed) ? parsed : 1.0;
-    }
-    return 1.0;
+    const parsed = parseFloat(safeStorage.getItem('tarot-tts-speed'));
+    return !isNaN(parsed) && TTS_SPEED_OPTIONS.includes(parsed) ? parsed : 1.0;
   });
 
   // Wrapper setter that guards against invalid speed values
@@ -182,25 +159,15 @@ export function PreferencesProvider({ children }) {
 
   // Persist TTS speed setting
   useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('tarot-tts-speed', ttsSpeed.toString());
-    }
+    safeStorage.setItem('tarot-tts-speed', ttsSpeed.toString());
   }, [ttsSpeed]);
 
   // --- Audio: Ambience ---
-  const [ambienceOn, setAmbienceOn] = useState(() => {
-    if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('tarot-ambience-enabled');
-      return saved === 'true';
-    }
-    return false;
-  });
+  const [ambienceOn, setAmbienceOn] = useState(() => safeStorage.getItem('tarot-ambience-enabled') === 'true');
 
   // Persist ambience setting and toggle audio
   useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('tarot-ambience-enabled', ambienceOn.toString());
-    }
+    safeStorage.setItem('tarot-ambience-enabled', ambienceOn.toString());
     toggleAmbience(ambienceOn);
   }, [ambienceOn]);
 
@@ -215,18 +182,10 @@ export function PreferencesProvider({ children }) {
   }, []);
 
   // --- Deck Style ---
-  const [deckStyleId, setDeckStyleId] = useState(() => {
-    if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('tarot-deck-style');
-      return saved || 'rws-1909';
-    }
-    return 'rws-1909';
-  });
+  const [deckStyleId, setDeckStyleId] = useState(() => safeStorage.getItem('tarot-deck-style') || 'rws-1909');
 
   useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('tarot-deck-style', deckStyleId);
-    }
+    safeStorage.setItem('tarot-deck-style', deckStyleId);
   }, [deckStyleId]);
 
   // --- Deck Scope & Composition ---
@@ -247,80 +206,52 @@ export function PreferencesProvider({ children }) {
 
   // --- Personalization Preferences ---
   const [personalization, setPersonalizationState] = useState(() =>
-    loadPersonalizationFromStorage(personalizationStorageKey)
+    loadPersonalizationFromStorage(personalizationStorageKey, safeStorage)
   );
+  const [loadedPersonalizationKey, setLoadedPersonalizationKey] = useState(null);
   const [personalizationExplicitFields, setPersonalizationExplicitFields] = useState(() => {
-    const storedFields = loadPersonalizationExplicitFields(personalizationStorageKey);
+    const storedFields = loadPersonalizationExplicitFields(personalizationStorageKey, safeStorage);
     if (storedFields.length > 0) return storedFields;
-    return derivePersonalizationExplicitFields(loadPersonalizationFromStorage(personalizationStorageKey));
+    return derivePersonalizationExplicitFields(loadPersonalizationFromStorage(personalizationStorageKey, safeStorage));
   });
 
   // Handle auth transitions + migrate legacy device-scoped personalization storage.
   useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    if (authLoading) return;
+    // A same-owner auth refresh must retain live changes when persistence failed.
+    if (authLoading || loadedPersonalizationKey === personalizationStorageKey) return;
 
     const nextKey = personalizationStorageKey;
     personalizationKeyRef.current = nextKey;
 
-    // Migrate legacy (non-scoped) personalization to the current scope.
-    const legacyRaw = localStorage.getItem(LEGACY_PERSONALIZATION_STORAGE_KEY);
-    if (legacyRaw) {
-      try {
-        const alreadyHasScoped = Boolean(localStorage.getItem(nextKey));
-        if (!alreadyHasScoped) {
-          if (userId) {
-            localStorage.setItem(nextKey, legacyRaw);
-          } else {
-            const parsed = JSON.parse(legacyRaw);
-            const sanitized = sanitizeGuestPersonalization(parsed);
-            localStorage.setItem(nextKey, JSON.stringify(sanitized));
-          }
-        }
-      } catch (error) {
-        console.debug('Unable to migrate legacy personalization:', error);
-      } finally {
-        // Always remove the legacy key to prevent cross-account leakage.
-        localStorage.removeItem(LEGACY_PERSONALIZATION_STORAGE_KEY);
-      }
-    }
-
-    const loadedPersonalization = loadPersonalizationFromStorage(nextKey);
-    const loadedExplicitFields = loadPersonalizationExplicitFields(nextKey);
+    const migrated = migrateLegacyPersonalization(nextKey, { userId });
+    const loadedPersonalization = migrated || loadPersonalizationFromStorage(nextKey, safeStorage);
+    const loadedExplicitFields = loadPersonalizationExplicitFields(nextKey, safeStorage);
     setPersonalizationState(loadedPersonalization);
     setPersonalizationExplicitFields(
       loadedExplicitFields.length > 0
         ? loadedExplicitFields
         : derivePersonalizationExplicitFields(loadedPersonalization)
     );
-  }, [authLoading, personalizationStorageKey, userId]);
+    setLoadedPersonalizationKey(nextKey);
+  }, [authLoading, loadedPersonalizationKey, personalizationStorageKey, userId]);
 
   // Persist personalization changes
   useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      try {
-        const persistedPersonalization = sanitizePersonalization(personalization);
-        localStorage.setItem(personalizationKeyRef.current, JSON.stringify(persistedPersonalization));
-      } catch (error) {
-        console.debug('Unable to persist personalization:', error);
-      }
-    }
-  }, [personalization]);
+    // Auth resolution and scope changes must load before defaults can persist.
+    if (authLoading || loadedPersonalizationKey !== personalizationStorageKey) return;
+    const persistedPersonalization = sanitizePersonalization(personalization);
+    safeStorage.setItem(personalizationKeyRef.current, JSON.stringify(persistedPersonalization));
+  }, [authLoading, loadedPersonalizationKey, personalization, personalizationStorageKey]);
 
   useEffect(() => {
-    savePersonalizationExplicitFields(personalizationKeyRef.current, personalizationExplicitFields);
-  }, [personalizationExplicitFields]);
+    if (authLoading || loadedPersonalizationKey !== personalizationStorageKey) return;
+    savePersonalizationExplicitFields(personalizationKeyRef.current, personalizationExplicitFields, safeStorage);
+  }, [authLoading, loadedPersonalizationKey, personalizationExplicitFields, personalizationStorageKey]);
 
   const resetPersonalization = useCallback(() => {
     setPersonalizationState({ ...DEFAULT_PERSONALIZATION });
     setPersonalizationExplicitFields([]);
-    if (typeof localStorage !== 'undefined') {
-      try {
-        localStorage.removeItem(personalizationKeyRef.current);
-      } catch (error) {
-        console.debug('Unable to clear personalization:', error);
-      }
-    }
+    safeStorage.removeItem(personalizationKeyRef.current);
   }, []);
 
   const markPersonalizationFieldsExplicit = useCallback((fields) => {
@@ -404,11 +335,8 @@ export function PreferencesProvider({ children }) {
 
   // --- UI State: Prepare Sections ---
   const [prepareSectionsOpen, setPrepareSectionsOpen] = useState(() => {
-    if (typeof sessionStorage === 'undefined') {
-      return { ...DEFAULT_PREPARE_SECTIONS };
-    }
     try {
-      const stored = sessionStorage.getItem(PREPARE_SECTIONS_STORAGE_KEY);
+      const stored = safeSessionStorage.getItem(PREPARE_SECTIONS_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         return { ...DEFAULT_PREPARE_SECTIONS, ...parsed };
@@ -420,15 +348,7 @@ export function PreferencesProvider({ children }) {
   });
 
   useEffect(() => {
-    if (typeof sessionStorage === 'undefined') return;
-    try {
-      sessionStorage.setItem(
-        PREPARE_SECTIONS_STORAGE_KEY,
-        JSON.stringify(prepareSectionsOpen)
-      );
-    } catch (error) {
-      console.debug('Unable to persist prepare panel state:', error);
-    }
+    safeSessionStorage.setItem(PREPARE_SECTIONS_STORAGE_KEY, JSON.stringify(prepareSectionsOpen));
   }, [prepareSectionsOpen]);
 
   const togglePrepareSection = (section) => {
@@ -439,36 +359,23 @@ export function PreferencesProvider({ children }) {
   };
 
   // --- Onboarding State ---
-  const [onboardingComplete, setOnboardingCompleteState] = useState(() => {
-    if (typeof localStorage !== 'undefined') {
-      return localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
-    }
-    return false;
-  });
+  const [onboardingComplete, setOnboardingCompleteState] = useState(() => safeStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true');
 
   const [onboardingSpreadKey, setOnboardingSpreadKey] = useState(null);
 
   // Initialize personalization banner visibility based on localStorage
   // Using lazy initializer avoids needing an effect to set initial state
   const [showPersonalizationBanner, setShowPersonalizationBanner] = useState(() => {
-    if (typeof localStorage === 'undefined') return false;
-    try {
-      const hasReadings = localStorage.getItem('tarot_journal');
-      const hasCompletedOnboarding = localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
-      const bannerDismissed = localStorage.getItem(PERSONALIZATION_BANNER_KEY) === 'dismissed';
-      // Show banner if user has readings but hasn't completed onboarding and hasn't dismissed
-      return !!(hasReadings && !hasCompletedOnboarding && !bannerDismissed);
-    } catch (error) {
-      console.debug('Unable to evaluate personalization banner state:', error);
-      return false;
-    }
+    const hasReadings = safeStorage.getItem('tarot_journal');
+    const hasCompletedOnboarding = safeStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
+    const bannerDismissed = safeStorage.getItem(PERSONALIZATION_BANNER_KEY) === 'dismissed';
+    // Show banner if user has readings but hasn't completed onboarding and hasn't dismissed.
+    return !!(hasReadings && !hasCompletedOnboarding && !bannerDismissed);
   });
 
   const setOnboardingComplete = (value) => {
     setOnboardingCompleteState(value);
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(ONBOARDING_STORAGE_KEY, value.toString());
-    }
+    safeStorage.setItem(ONBOARDING_STORAGE_KEY, value.toString());
   };
 
   const resetOnboarding = () => {
@@ -479,11 +386,8 @@ export function PreferencesProvider({ children }) {
 
   // --- Nudge State (Contextual Discovery) ---
   const [nudgeState, setNudgeStateInternal] = useState(() => {
-    if (typeof localStorage === 'undefined') {
-      return { ...DEFAULT_NUDGE_STATE };
-    }
     try {
-      const stored = localStorage.getItem(NUDGE_STATE_STORAGE_KEY);
+      const stored = safeStorage.getItem(NUDGE_STATE_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         return { ...DEFAULT_NUDGE_STATE, ...parsed };
@@ -496,12 +400,7 @@ export function PreferencesProvider({ children }) {
 
   // Persist nudge state to localStorage
   useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    try {
-      localStorage.setItem(NUDGE_STATE_STORAGE_KEY, JSON.stringify(nudgeState));
-    } catch (error) {
-      console.debug('Unable to persist nudge state:', error);
-    }
+    safeStorage.setItem(NUDGE_STATE_STORAGE_KEY, JSON.stringify(nudgeState));
   }, [nudgeState]);
 
   // Nudge state setters
@@ -559,18 +458,11 @@ export function PreferencesProvider({ children }) {
   const [cachedLocation, setCachedLocation] = useState(null);
 
   // persistLocationToJournal: explicit consent to store location with journal entries
-  const [persistLocationToJournal, setPersistLocationToJournalState] = useState(() => {
-    if (typeof localStorage !== 'undefined') {
-      return localStorage.getItem(LOCATION_JOURNAL_CONSENT_KEY) === 'true';
-    }
-    return false;
-  });
+  const [persistLocationToJournal, setPersistLocationToJournalState] = useState(() => safeStorage.getItem(LOCATION_JOURNAL_CONSENT_KEY) === 'true');
 
   // Persist journal location consent to localStorage
   useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(LOCATION_JOURNAL_CONSENT_KEY, persistLocationToJournal.toString());
-    }
+    safeStorage.setItem(LOCATION_JOURNAL_CONSENT_KEY, persistLocationToJournal.toString());
   }, [persistLocationToJournal]);
 
   const setPersistLocationToJournal = useCallback((value) => {

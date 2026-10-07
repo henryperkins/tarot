@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { CaretLeft, Funnel, SortAscending, LockKey } from '@phosphor-icons/react';
+import { BookOpen, CaretLeft, Check, Funnel, SortAscending, LockKey } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from '../components/GlobalNav';
 import { CardModal } from '../components/CardModal';
@@ -121,9 +121,9 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
       </div>
 
       {/* Content Overlay */}
-      <div className="absolute inset-0 p-3 flex flex-col justify-between">
+      <div className="relative [grid-area:1/1] min-w-0 p-3 flex flex-col justify-between gap-3">
         {/* Top: Status */}
-        <div className="flex justify-between items-start">
+        <div className="flex flex-wrap justify-between items-start gap-2">
           {isFound ? (
             <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full bg-[color:var(--brand-primary)] text-2xs font-bold text-surface shadow-sm">
               {count}x
@@ -131,10 +131,24 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
           ) : (
             <LockKey className="w-4 h-4 text-muted" />
           )}
+          {isFound && onViewInJournal && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onViewInJournal(card);
+              }}
+              className="gallery-card__journal relative z-20 inline-flex min-h-touch min-w-0 max-w-full flex-wrap items-center justify-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted-high transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+              aria-label={`View ${card.name} in Journal`}
+            >
+              <BookOpen className="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 [overflow-wrap:anywhere]">Journal</span>
+            </button>
+          )}
         </div>
 
         {/* Bottom: Name & Date */}
-        <div>
+        <div className="min-w-0 [overflow-wrap:anywhere]">
           <p className={`font-serif text-sm leading-tight mb-0.5 ${isFound ? 'text-main' : 'text-muted'}`}>
             {card.name}
           </p>
@@ -151,7 +165,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
   if (isFound) {
     return (
       <div
-        className="group relative aspect-[2/3] rounded-xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] shadow-[0_18px_36px_-24px_rgba(0,0,0,0.85)] transition-[transform,box-shadow,border-color] duration-[var(--duration-medium)] ease-[var(--ease-out)] overflow-hidden text-left hover:-translate-y-1 hover:border-[color:var(--border-warm)] hover:shadow-[0_24px_44px_-26px_rgba(0,0,0,0.9),0_0_18px_var(--primary-20)]"
+        className="group relative grid grid-cols-1 min-w-0 before:content-[''] before:[grid-area:1/1] before:aspect-[2/3] rounded-xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] shadow-[0_18px_36px_-24px_rgba(0,0,0,0.85)] transition-[transform,box-shadow,border-color] duration-[var(--duration-medium)] ease-[var(--ease-out)] overflow-hidden text-left hover:-translate-y-1 hover:border-[color:var(--border-warm)] hover:shadow-[0_24px_44px_-26px_rgba(0,0,0,0.9),0_0_18px_var(--primary-20)]"
         aria-label={`Card ${card.name}`}
         style={{
           animation: `fadeInUp 320ms ease-out ${Math.min(index * 30, 500)}ms both`
@@ -164,26 +178,13 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
           aria-label={`Open details for ${card.name}`}
         />
         {content}
-        {onViewInJournal && (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onViewInJournal(card);
-            }}
-            className="absolute top-2 right-2 z-20 rounded-full border border-[color:var(--border-warm-light)] bg-[color:color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 min-h-touch text-2xs font-semibold uppercase tracking-[0.18em] text-muted-high opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] inline-flex items-center"
-            aria-label={`View ${card.name} in Journal`}
-          >
-            View in Journal
-          </button>
-        )}
       </div>
     );
   }
 
   return (
     <div
-      className="group relative aspect-[2/3] rounded-xl border border-[color:var(--border-warm-subtle)] bg-[color:var(--bg-surface)] transition-[opacity,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] overflow-hidden opacity-60 grayscale hover:opacity-80"
+      className="group relative grid grid-cols-1 min-w-0 before:content-[''] before:[grid-area:1/1] before:aspect-[2/3] rounded-xl border border-[color:var(--border-warm-subtle)] bg-[color:var(--bg-surface)] transition-[opacity,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] overflow-hidden opacity-60 grayscale hover:opacity-80"
       aria-label={`${card.name} (not yet discovered)`}
       style={{
         animation: `fadeInUp 280ms ease-out ${index * 24}ms both`
@@ -212,6 +213,9 @@ export default function CardGalleryPage() {
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [analyticsDisabled, setAnalyticsDisabled] = useState(false);
   const [loadingFullHistory, setLoadingFullHistory] = useState(false);
+  const pageRef = useRef(null);
+  const headerRef = useRef(null);
+  const toolbarRef = useRef(null);
 
   const entriesLengthRef = useRef(entries.length);
   const hasMoreEntriesRef = useRef(hasMoreEntries);
@@ -221,6 +225,41 @@ export default function CardGalleryPage() {
   const [filterSuit, setFilterSuit] = useState('all'); // all, major, wands, cups, swords, pentacles
   const [filterStatus, setFilterStatus] = useState('all'); // all, found, missing
   const [sortBy, setSortBy] = useState('deck'); // deck, count_desc, count_asc, recency
+
+  // Pin chrome only when the real border boxes leave room for the collection.
+  useEffect(() => {
+    const page = pageRef.current;
+    const header = headerRef.current;
+    const toolbar = toolbarRef.current;
+    if (!page || !header || !toolbar) return undefined;
+    const root = document.documentElement;
+    const previousScrollPadding = root.style.getPropertyValue('scroll-padding-top');
+    const previousPriority = root.style.getPropertyPriority('scroll-padding-top');
+    const measure = () => {
+      const headerHeight = header.getBoundingClientRect().height;
+      const toolbarHeight = toolbar.getBoundingClientRect().height;
+      const gap = parseFloat(getComputedStyle(root).fontSize) || 16;
+      const maxPinnedHeight = window.innerHeight * 0.4;
+      const pinHeader = headerHeight <= maxPinnedHeight;
+      const desktop = window.matchMedia('(min-width: 1024px) and (min-height: 700px)').matches;
+      const pinToolbar = desktop && pinHeader && headerHeight + toolbarHeight + gap <= maxPinnedHeight;
+      header.dataset.pinned = String(pinHeader);
+      toolbar.dataset.pinned = String(pinToolbar);
+      page.style.setProperty('--gallery-header-height', `${pinHeader ? headerHeight : 0}px`);
+      root.style.scrollPaddingTop = `${(pinHeader ? headerHeight : 0) + (pinToolbar ? toolbarHeight : 0) + gap}px`;
+    };
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    [header, toolbar].forEach(element => observer?.observe(element, { box: 'border-box' }));
+    window.addEventListener('resize', measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+      page.style.removeProperty('--gallery-header-height');
+      if (previousScrollPadding) root.style.setProperty('scroll-padding-top', previousScrollPadding, previousPriority);
+      else root.style.removeProperty('scroll-padding-top');
+    };
+  }, []);
 
   // Reset remote state when auth status or user changes to avoid cross-account leakage.
   useEffect(() => {
@@ -424,10 +463,12 @@ export default function CardGalleryPage() {
   }, [hasTotalEntries, isAuthenticated, loadMoreEntries, loadingFullHistory, loadingMore]);
 
   return (
-      <div className="min-h-screen bg-main text-main">
+      <div ref={pageRef} className="min-h-screen bg-main text-main">
         {/* Sticky navigation header with safe-area padding */}
         <header
-          className="sticky top-0 z-sticky-elevated bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
+          ref={headerRef}
+          data-pinned="false"
+          className="gallery-header sticky top-0 z-sticky-elevated bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
         >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
           <GlobalNav withUserChip />
@@ -446,7 +487,7 @@ export default function CardGalleryPage() {
           </button>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
+            <div className="min-w-0 [overflow-wrap:anywhere]">
               <h1 className="text-3xl font-serif text-accent mb-2">Card Collection</h1>
               <p className="text-muted text-sm">
                 Discover the full deck through your readings.
@@ -476,31 +517,31 @@ export default function CardGalleryPage() {
 
         {!loading && entries.length === 0 && (
           <div className="mb-6 rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-5 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
-            <h2 className="text-lg font-serif text-main mb-2">Your collection starts with your first reading</h2>
-            <p>Draw a reading to begin tracking cards and patterns in your journal.</p>
+            <h2 className="text-lg font-serif text-main mb-2 [overflow-wrap:anywhere]">Your collection starts with a saved reading</h2>
+            <p>Save a reading to your journal to begin tracking its cards and patterns.</p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => navigate('/', { state: { focusSpread: true } })}
-                className="inline-flex min-h-touch items-center rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--accent-25)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-main)] transition hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                className="inline-flex min-h-touch min-w-0 max-w-full items-center rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--accent-25)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-main)] transition hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
               >
-                Start a reading
+                <span className="min-w-0 [overflow-wrap:anywhere]">Start a reading</span>
               </button>
             </div>
           </div>
         )}
 
         {/* Toolbar */}
-        <div className="sticky top-4 z-20 mb-6 p-1 rounded-xl bg-[color:color-mix(in_srgb,var(--bg-main)_72%,transparent)] backdrop-blur-md border border-[color:var(--border-warm-subtle)] flex flex-wrap gap-2 items-center">
+        <div ref={toolbarRef} data-pinned="false" className="gallery-toolbar z-20 mb-6 p-1 rounded-xl bg-[color:color-mix(in_srgb,var(--bg-main)_72%,transparent)] backdrop-blur-md border border-[color:var(--border-warm-subtle)] flex flex-wrap gap-2 items-center">
           {/* Suit Filter */}
-          <div className="relative group">
+          <div className="relative group min-w-0 max-w-full">
             <label htmlFor="suit-filter" className="sr-only">Filter by suit</label>
             <select
               id="suit-filter"
               aria-label="Filter by suit"
               value={filterSuit}
               onChange={(e) => setFilterSuit(e.target.value)}
-              className="appearance-none min-h-touch bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-[color:var(--border-warm-light)] touch-manipulation"
+              className="appearance-none min-h-touch max-w-full bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] rounded-lg pl-3 pr-8 py-2 text-sm-mobile sm:text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-[color:var(--border-warm-light)] touch-manipulation"
             >
               <option value="all">All Suits</option>
               <option value="major">Major Arcana</option>
@@ -514,44 +555,35 @@ export default function CardGalleryPage() {
 
           {/* Status Filter */}
           <div
-            className="flex bg-[color:var(--border-warm-subtle)] rounded-lg p-1 border border-[color:var(--border-warm-light)]"
+            className="flex max-w-full flex-wrap bg-[color:var(--border-warm-subtle)] rounded-lg p-1 border border-[color:var(--border-warm-light)]"
             role="group"
             aria-label="Filter by card status"
           >
-            <button
-              onClick={() => setFilterStatus('all')}
-              aria-pressed={filterStatus === 'all'}
-              className={`min-h-touch px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'all' ? 'bg-accent/20 text-main' : 'text-muted hover:text-main'}`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilterStatus('found')}
-              aria-pressed={filterStatus === 'found'}
-              className={`min-h-touch px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'found' ? 'bg-accent/20 text-main' : 'text-muted hover:text-main'}`}
-            >
-              Found
-            </button>
-            <button
-              onClick={() => setFilterStatus('missing')}
-              aria-pressed={filterStatus === 'missing'}
-              className={`min-h-touch px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation ${filterStatus === 'missing' ? 'bg-accent/20 text-main' : 'text-muted hover:text-main'}`}
-            >
-              Missing
-            </button>
+            {[['all', 'All'], ['found', 'Found'], ['missing', 'Missing']].map(([status, label]) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setFilterStatus(status)}
+                aria-pressed={filterStatus === status}
+                className={`inline-flex min-h-touch items-center justify-center gap-1.5 border px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main ${filterStatus === status ? 'border-[color:var(--brand-primary)] bg-[color:var(--ui-selected-bg)] text-main' : 'border-transparent text-muted hover:text-main'}`}
+              >
+                <Check className={`h-3 w-3 shrink-0 ${filterStatus === status ? 'opacity-100' : 'opacity-0'}`} aria-hidden="true" />
+                <span>{label}</span>
+              </button>
+            ))}
           </div>
 
           <div className="flex-1" />
 
           {/* Sort */}
-          <div className="relative">
+          <div className="relative min-w-0 max-w-full">
             <label htmlFor="sort-by" className="sr-only">Sort cards by</label>
             <select
               id="sort-by"
               aria-label="Sort cards by"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none min-h-touch bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] rounded-lg pl-3 pr-8 py-2 text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-[color:var(--border-warm-light)] touch-manipulation"
+              className="appearance-none min-h-touch max-w-full bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] rounded-lg pl-3 pr-8 py-2 text-sm-mobile sm:text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-[color:var(--border-warm-light)] touch-manipulation"
             >
               <option value="deck">Deck Order</option>
               <option value="count_desc">Most Frequent</option>

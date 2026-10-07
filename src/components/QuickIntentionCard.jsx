@@ -244,7 +244,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
       </div>
       {selectedSpread && trimmedQuestion.length > 0 && (
         <p className="text-xs text-secondary">
-          Next: tap <span className="font-semibold text-main">Shuffle &amp; draw</span> below when you&apos;re ready.
+          Next: tap <span className="font-semibold text-main">Draw cards</span> below when you&apos;re ready.
         </p>
       )}
     </div>

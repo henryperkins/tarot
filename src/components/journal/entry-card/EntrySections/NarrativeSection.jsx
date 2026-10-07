@@ -37,7 +37,7 @@ const MARKDOWN_COMPONENTS = {
   a: ({ node: _node, ...props }) => (
     <a
       {...props}
-      className="text-[color:var(--brand-primary)] underline decoration-dotted underline-offset-4 hover:text-[color:var(--text-main)] break-words overflow-wrap-anywhere"
+      className="text-[color:var(--brand-primary)] underline decoration-dotted underline-offset-4 hover:text-[color:var(--text-main)] [overflow-wrap:anywhere]"
       target="_blank"
       rel="noopener noreferrer"
     />
@@ -138,7 +138,7 @@ export const NarrativeSection = memo(function NarrativeSection({
             className={styles.sectionBody}
           >
             {showNarrative ? (
-              <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-a:text-[color:var(--brand-primary)] prose-strong:text-[color:var(--text-main)] prose-p:leading-relaxed prose-li:leading-relaxed">
+              <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-headings:text-[color:var(--text-main)] prose-a:text-[color:var(--brand-primary)] prose-strong:text-[color:var(--text-main)] prose-p:leading-relaxed prose-li:leading-relaxed [overflow-wrap:anywhere]">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm, remarkBreaks]}
                   skipHtml
@@ -163,7 +163,7 @@ export const NarrativeSection = memo(function NarrativeSection({
             </div>
           </header>
           <div id={narrativeId} className={styles.sectionBody}>
-            <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-a:text-[color:var(--brand-primary)] prose-strong:text-[color:var(--text-main)] prose-p:leading-relaxed prose-li:leading-relaxed">
+            <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-headings:text-[color:var(--text-main)] prose-a:text-[color:var(--brand-primary)] prose-strong:text-[color:var(--text-main)] prose-p:leading-relaxed prose-li:leading-relaxed [overflow-wrap:anywhere]">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkBreaks]}
                 skipHtml

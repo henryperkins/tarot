@@ -478,6 +478,49 @@
   outline: none;
 }
 
+::selection {
+  background-color: var(--brand-primary);
+  color: var(--text-on-brand);
+  text-shadow: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  caret-color: var(--brand-primary);
+}
+
+/* Collection controls stay in flow when pinned chrome would crowd the cards. */
+.gallery-header[data-pinned="false"] {
+  position: relative;
+}
+
+.gallery-toolbar {
+  position: relative;
+}
+
+@media (min-width: 1024px) and (min-height: 700px) {
+  .gallery-toolbar[data-pinned="true"] {
+    position: sticky;
+    top: calc(var(--gallery-header-height, 0px) + 1rem);
+  }
+}
+
+.gallery-card__journal {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gallery-card__journal {
+    opacity: 0;
+  }
+
+  .group:hover .gallery-card__journal,
+  .group:focus-within .gallery-card__journal {
+    opacity: 1;
+  }
+}
+
 /* Global mobile optimizations */
 body {
   overflow-x: hidden;
@@ -1218,6 +1261,13 @@ body {
   }
 }
 
+@media (min-width: 640px) and (max-height: 500px) and (orientation: landscape) and (hover: none),
+  (min-width: 640px) and (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
+  .spread-card {
+    --spread-card-height-desktop: 12rem;
+  }
+}
+
 .spread-card::before {
   content: "";
   position: absolute;
@@ -1287,8 +1337,9 @@ body {
   }
 }
 
-.spread-card--active {
-  border-color: rgb(var(--brand-primary-rgb) / 0.65);
+.spread-card.spread-card--active,
+.spread-card.spread-card--active:hover {
+  border-color: var(--brand-primary);
   box-shadow: 0 28px 60px -30px
       var(--spread-glow, rgb(var(--brand-primary-rgb) / 0.45)),
     0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -1325,14 +1376,6 @@ body {
         transparent
       );
     }
-  }
-
-  .spread-card--active {
-    border-color: color-mix(
-      in srgb,
-      var(--spread-accent, var(--brand-primary)) 65%,
-      transparent
-    );
   }
 }
 
@@ -2542,13 +2585,9 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
-.deck-card--active {
-  border-color: rgb(var(--brand-primary-rgb) / 0.65);
-  border-color: color-mix(
-    in srgb,
-    var(--deck-accent, var(--brand-primary)) 65%,
-    transparent
-  );
+.deck-card.deck-card--active,
+.deck-card.deck-card--active:hover {
+  border-color: var(--brand-primary);
   box-shadow: 0 28px 60px -30px
       var(--deck-glow, rgb(var(--brand-primary-rgb) / 0.45)),
     0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08);

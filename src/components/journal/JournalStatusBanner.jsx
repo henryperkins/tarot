@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { UploadSimple } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { OUTLINE_BUTTON_CLASS } from '../../styles/buttonClasses';
+import { FOCUS_RING_DEFAULT } from '../../styles/focusClasses';
 import { AmberStarfield } from '../AmberStarfield';
 import { AccountNudge } from '../nudges';
 import { JournalRefreshIcon } from '../JournalIcons';
@@ -74,7 +75,7 @@ export function JournalStatusBanner({
   const localSaveLabel = lastLocalSaveAt ? `Saved locally ${formatRelativeTime(lastLocalSaveAt)}` : null;
   const syncParts = [];
   if (isCloudEnabled && (loading || !syncSource)) {
-    syncParts.push('Syncing');
+    syncParts.push(journalError && !loading ? 'Sync issue' : 'Syncing');
     syncParts.push('Cloud');
   } else if (!isAuthenticated || !canUseCloudJournal || syncSource === 'local') {
     syncParts.push('Local only');
@@ -82,8 +83,8 @@ export function JournalStatusBanner({
       syncParts.push(localSaveLabel);
     }
   } else if (syncSource === 'cache') {
-    syncParts.push('Cached');
-    syncParts.push('Cloud');
+    syncParts.push('Saved copy');
+    syncParts.push('This device');
   } else {
     syncParts.push('Synced');
     syncParts.push('Cloud');
@@ -104,9 +105,9 @@ export function JournalStatusBanner({
           type="button"
           onClick={() => onReload()}
           disabled={loading}
-          className="text-2xs font-semibold text-accent underline underline-offset-2 hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+          className={`inline-flex min-h-touch min-w-touch items-center px-2 text-sm font-semibold text-accent underline underline-offset-2 hover:text-main ${FOCUS_RING_DEFAULT} disabled:opacity-50 disabled:cursor-not-allowed`}
         >
-          Refresh
+          Reload journal
         </button>
       )}
     </div>
@@ -135,11 +136,11 @@ export function JournalStatusBanner({
               )}
               {/* Cache fallback warning with timestamp and refresh CTA */}
               {showCachedNotice && (
-                <span className="inline-flex items-center gap-2 text-2xs text-warning">
+                <p className="min-w-0 text-sm leading-relaxed text-warning">
                   {lastSyncAt
-                    ? `Cached from ${new Date(lastSyncAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
-                    : 'Using cached data'}
-                </span>
+                    ? `Cloud journal couldn’t load. Showing the saved copy from ${new Date(lastSyncAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}.`
+                    : 'Cloud journal couldn’t load. Showing a saved copy from this device.'}
+                </p>
               )}
             </div>
 
@@ -163,14 +164,14 @@ export function JournalStatusBanner({
 
             {/* Sync error with retry */}
             {showCloudSyncIssue && (
-              <div className="flex items-center gap-2 pt-1">
-                <span className="text-xs text-warning">Sync issue</span>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-sm text-warning">Sync issue</span>
                 <button
                   onClick={() => onReload()}
                   disabled={loading}
-                  className="inline-flex items-center gap-1 rounded-full border border-warning/25 bg-warning/10 px-2.5 py-1 text-2xs font-medium text-warning transition hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/40 disabled:opacity-50"
+                  className={`inline-flex min-h-touch min-w-touch items-center gap-2 rounded-full border border-warning/25 bg-warning/10 px-3 py-2 text-sm font-medium text-warning transition-colors hover:bg-warning/15 ${FOCUS_RING_DEFAULT} disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  <JournalRefreshIcon className="h-3 w-3" aria-hidden="true" />
+                  <JournalRefreshIcon className="h-4 w-4" aria-hidden="true" />
                   {loading ? 'Retrying...' : 'Retry'}
                 </button>
               </div>
@@ -198,19 +199,19 @@ export function JournalStatusBanner({
             {showMigrateCta && (
               <div className="space-y-2 pt-1">
                 <p className="text-sm text-muted">
-                  Local journal entries were found on this device. Migrate them to include them in cloud sync.
+                  Add the entries saved on this device to your cloud journal. Local copies are removed only after every entry is added or already exists in the cloud.
                 </p>
                 <button
                   onClick={onMigrate}
                   className={OUTLINE_BUTTON_CLASS}
                 >
                   <UploadSimple className="w-4 h-4" />
-                  Migrate local entries to cloud
+                  Add local entries to cloud journal
                 </button>
               </div>
             )}
             {migrating && (
-              <p className="text-sm text-muted">Migrating...</p>
+              <p className="text-sm text-muted">Adding local entries…</p>
             )}
           </div>
         </div>

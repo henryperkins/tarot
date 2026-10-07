@@ -115,11 +115,11 @@ export function RevealScene({
         {!personalReading && !isGenerating && revealedCards.size === visibleCount && (
           <div className="text-center space-y-3">
             {isHandset ? (
-              <p className="text-xs text-muted">Use the action bar below to create your narrative.</p>
+              <p className="text-xs text-muted">Choose &ldquo;Interpret cards&rdquo; in the action bar below.</p>
             ) : (
               <button onClick={generatePersonalReading} className="bg-accent hover:bg-accent/90 text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">
                 <Sparkle className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>Create Personal Narrative</span>
+                <span>Interpret cards</span>
               </button>
             )}
             {hasVisionData && !isVisionReady && (

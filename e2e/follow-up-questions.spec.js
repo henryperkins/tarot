@@ -174,12 +174,12 @@ async function completeReading(page, question = 'What should I focus on?') {
   const questionInput = page.locator('#question-input, #quick-intention').filter({ visible: true }).first();
   await questionInput.fill(question);
 
-  await page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw/ }).click();
+  await page.getByRole('button', { name: /^Draw cards$/ }).click();
   await page.getByRole('button', { name: /^Deal spread/ }).click();
   await page.getByRole('button', { name: /^Reveal next:/ }).click();
   // Dealing leaves the card face-down until the explicit reveal.
 
-  const generateButton = page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ });
+  const generateButton = page.getByRole('button', { name: /^Interpret cards/ });
   await expect(generateButton).toBeVisible({ timeout: 8000 });
   await generateButton.click();
 
@@ -586,7 +586,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await page.getByRole('button', { name: 'Start a new reading and reset this spread' }).click();
     await page.getByRole('button', { name: /^Deal spread/ }).click();
     await page.getByRole('button', { name: /^Reveal next:/ }).click();
-    await page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ }).click();
+    await page.getByRole('button', { name: /^Interpret cards/ }).click();
     await expect(page.locator('.narrative-stream')).toContainText(MOCK_READING_RESPONSE.reading);
     await expect.poll(() => page.evaluate(() => window.__oldFollowupSignal.aborted)).toBe(true);
     await page.evaluate(() => window.__finishOldFollowup({ message: 'The previous reading reached its limit.' }));

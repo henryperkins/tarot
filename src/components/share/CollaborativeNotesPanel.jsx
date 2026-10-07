@@ -296,7 +296,7 @@ function CollaborativeNotesContent({
         details: reportDetails.trim() || null
       });
       markNoteReported(noteId);
-      setStatus('Report received. Thanks for helping keep this space safe.', 'success', 3000);
+      setStatus('Report received. The note text is hidden in Shared reflections.', 'success', 3000);
       setReportingNoteId(null);
       setReportDetails('');
     } catch (submitError) {
@@ -311,21 +311,21 @@ function CollaborativeNotesContent({
 
   return (
     <section
-      className="rounded-3xl border border-secondary/30 bg-surface/85 p-5 sm:p-6 shadow-xl"
+      className="min-w-0 rounded-3xl border border-secondary/30 bg-surface/85 p-[min(1.25rem,5vw)] sm:p-6 shadow-xl"
       aria-labelledby="collab-notes-title"
     >
-      <header className="flex items-center justify-between gap-3">
-        <h3 id="collab-notes-title" className="text-lg sm:text-xl font-serif text-main">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="collab-notes-title" className="min-w-0 max-w-full break-words text-lg sm:text-xl font-serif text-main">
           Shared reflections
-        </h3>
+        </h2>
         {onRefresh && (
           <button
             type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
             aria-label="Refresh shared notes"
-            className="inline-flex items-center gap-2 rounded-full border border-secondary/40 px-3 py-1.5 text-xs font-medium text-secondary transition-colors
-              hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2
+            className="inline-flex min-h-touch min-w-touch max-w-full items-center gap-2 rounded-full border border-secondary/40 px-3 py-1.5 text-xs font-medium text-secondary transition-colors
+              hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface
               disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isRefreshing ? 'Refreshing…' : 'Refresh'}
@@ -347,36 +347,37 @@ function CollaborativeNotesContent({
 
       {/* Notes list with responsive max-height */}
       <div
-        className="mt-4 space-y-3 overflow-y-auto pr-1 max-h-[min(240px,40vh)]"
+        className="mt-4 overflow-y-auto pr-1 max-h-[min(240px,40vh)]"
         style={{ WebkitOverflowScrolling: 'touch' }}
-        aria-label={sortedNotes.length > 0 ? `${sortedNotes.length} reflection${sortedNotes.length === 1 ? '' : 's'}` : undefined}
-        role={sortedNotes.length > 0 ? 'list' : undefined}
       >
         {sortedNotes.length === 0 && (
           <p className="text-sm text-muted py-4 text-center">
             No reflections yet. Be the first to leave a note.
           </p>
         )}
-        {sortedNotes.map((note) => {
+        {sortedNotes.length > 0 && <ul
+          className="space-y-3"
+          aria-label={`${sortedNotes.length} reflection${sortedNotes.length === 1 ? '' : 's'}`}
+          role="list"
+        >{sortedNotes.map((note) => {
           const isReported = reportedNoteIds.has(note.id);
           const isReporting = reportingNoteId === note.id;
 
           return (
-            <article
+            <li
               key={note.id}
-              role="listitem"
               className="rounded-2xl border border-accent/20 bg-surface-muted/70 p-3"
             >
-              <div className="flex items-center justify-between gap-2 text-xs text-secondary">
-                <span className="font-semibold truncate">{note.authorName || 'Anonymous'}</span>
-                <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-secondary">
+                <span className="min-w-0 max-w-full break-words font-semibold">{note.authorName || 'Anonymous'}</span>
+                <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
                   {isReported ? (
                     <span className="text-2xs uppercase tracking-[0.14em] text-muted">Reported</span>
                   ) : onReport ? (
                     <button
                       type="button"
                       onClick={() => handleReportStart(note.id)}
-                      className="text-2xs text-muted hover:text-accent transition"
+                      className="inline-flex min-h-touch min-w-touch items-center justify-center rounded-full px-2 py-1 text-xs text-muted hover:text-accent transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70"
                       aria-label="Report this note"
                     >
                       Report
@@ -397,7 +398,7 @@ function CollaborativeNotesContent({
               )}
               {isReported ? (
                 <p className="mt-2 text-xs text-muted">
-                  Report received. Thanks for helping keep this space safe.
+                  Report received. The note text is hidden in Shared reflections.
                 </p>
               ) : (
                 <p className="mt-2 text-sm text-main whitespace-pre-wrap break-words">
@@ -424,7 +425,7 @@ function CollaborativeNotesContent({
                       ))}
                     </select>
                     <label className="text-xs text-muted" htmlFor={`report-details-${note.id}`}>
-                      Details (optional)
+                      {reportReason === 'other' ? 'Details (required for Other)' : 'Details (optional)'}
                     </label>
                     <textarea
                       id={`report-details-${note.id}`}
@@ -460,14 +461,14 @@ function CollaborativeNotesContent({
                   </div>
                 </div>
               )}
-            </article>
+            </li>
           );
-        })}
+        })}</ul>}
       </div>
 
       <form onSubmit={handleSubmit} className="mt-5 space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <label htmlFor={nameInputId} className="sr-only">
               Display name
             </label>
@@ -478,12 +479,12 @@ function CollaborativeNotesContent({
               onChange={(event) => setAuthorName(event.target.value)}
               placeholder="Display name"
               aria-label="Your display name for this note"
-              className="w-full min-h-touch rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main placeholder:text-muted
+              className="min-w-0 w-full min-h-touch rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main placeholder:text-muted
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
               maxLength={40}
             />
           </div>
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <label htmlFor={positionSelectId} className="sr-only">
               Card position to comment on
             </label>
@@ -492,7 +493,7 @@ function CollaborativeNotesContent({
               value={cardPosition}
               onChange={(event) => handlePositionChange(event.target.value)}
               aria-label="Select which card position to comment on"
-              className="w-full min-h-touch rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main
+              className="min-w-0 w-full min-h-touch rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
             >
               <option value="">Whole spread</option>
@@ -520,20 +521,20 @@ function CollaborativeNotesContent({
             placeholder="Share what you're seeing..."
             aria-label="Your reflection on this spread"
             maxLength={600}
-            className="w-full rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-3 text-sm text-main placeholder:text-muted
+            className="min-w-0 w-full rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-3 text-sm text-main placeholder:text-muted
               focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 resize-none"
           />
         </div>
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-xs text-muted" aria-label={`${body.length} of 600 characters used`}>
             {body.length} / 600
           </span>
           <button
             type="submit"
             disabled={isSubmitting || !body.trim()}
-            className="min-h-touch rounded-full border border-secondary/60 px-5 py-2.5 text-sm font-medium text-secondary transition-colors touch-manipulation
-              hover:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2
+            className="min-h-touch min-w-touch max-w-full rounded-full border border-secondary/60 px-5 py-2.5 text-sm font-medium text-secondary transition-colors touch-manipulation
+              hover:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface
               disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Sending…' : 'Share note'}

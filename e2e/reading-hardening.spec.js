@@ -12,8 +12,10 @@ async function mockReadingJobs(page, firstStatus = 200) {
     `event: ${event}\ndata: ${JSON.stringify({ ...data, eventId: ++eventId })}\n\n`
   );
   const server = http.createServer((request, response) => {
-    response.setHeader('Access-Control-Allow-Origin', '*');
-    response.setHeader('Access-Control-Allow-Headers', 'X-Job-Token, Accept');
+    response.setHeader('Access-Control-Allow-Origin', request.headers.origin || 'http://localhost:5173');
+    response.setHeader('Access-Control-Allow-Credentials', 'true');
+    response.setHeader('Access-Control-Allow-Headers', request.headers['access-control-request-headers'] || 'X-Job-Token, Accept, sentry-trace, baggage');
+    response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     if (request.method === 'OPTIONS') {
       response.writeHead(204);
       response.end();
@@ -26,6 +28,7 @@ async function mockReadingJobs(page, firstStatus = 200) {
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const streamUrl = `http://127.0.0.1:${server.address().port}/stream`;
+  await page.route(/https:\/\/[^/]*sentry\.io\/.*\/envelope\//, route => route.fulfill({ json: {} }));
   await page.route('**/api/**', async route => {
     const pathname = new URL(route.request().url()).pathname;
     if (pathname === '/api/tarot-reading/jobs') {
@@ -72,14 +75,14 @@ async function prepareNarrative(page) {
   await openReading(page);
   const question = page.locator('#question-input, #quick-intention').filter({ visible: true }).first();
   await question.fill('How can I find balance? 🌿 ما الذي يدعمني؟ 自分を大切にする');
-  await page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw/ }).click();
+  await page.getByRole('button', { name: /^Draw cards$/ }).click();
   await page.getByRole('button', { name: /^Deal spread/ }).click();
   await page.getByRole('button', { name: /^Reveal all cards/ }).click();
-  await expect(page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /^Interpret cards/ })).toBeEnabled();
 }
 
 async function generate(page) {
-  await page.getByRole('button', { name: /^Create Personal Narrative$|^Create narrative/ }).press('Enter');
+  await page.getByRole('button', { name: /^Interpret cards/ }).press('Enter');
 }
 
 async function effectiveOpacity(locator) {
@@ -121,7 +124,7 @@ for (const width of [320, 390, 1440]) {
     try {
       await prepareNarrative(page);
       await generate(page);
-      await expect(page.getByLabel('Generating your personalized narrative')).toBeVisible();
+      await expect(page.getByLabel('Preparing your interpretation')).toBeVisible();
       await jobs.emit('delta', { text: '## Opening\n\nA pause can help you notice what matters.' });
       await expect(page.locator('.narrative-stream')).toContainText('A pause can help');
       await expect(page.locator('.narrative-stream [role="status"]')).not.toContainText('Narrative ready');
@@ -148,7 +151,7 @@ for (const status of [401, 403, 429, 500]) {
       await expect(page.getByRole('alert')).toContainText(`Reading service returned ${status}`);
       await expect(page.getByText('Narrative ready.', { exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: /How did this reading land/ })).toHaveCount(0);
-      const retry = page.getByRole('button', { name: 'Retry narrative', exact: true });
+      const retry = page.getByRole('button', { name: 'Retry interpretation', exact: true });
       await expect(retry).toBeVisible();
       await retry.press('Enter');
       await jobs.emit('done', { fullText: FINAL_TEXT, provider: 'fixture', requestId: 'hardening-retry' });
@@ -234,7 +237,7 @@ test('mobile retry and motion changes remain usable through generation and failu
     await expect.poll(() => effectiveOpacity(page.locator('.narrative-skeleton'))).toBe(1);
     await jobs.emit('error', { message: 'The connection was interrupted.' });
     await expect(page.getByRole('alert')).toContainText('connection was interrupted');
-    await page.getByRole('button', { name: /Retry narrative generation/ }).press('Enter');
+    await page.getByRole('button', { name: /Retry interpretation/ }).press('Enter');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await jobs.emit('done', { fullText: FINAL_TEXT, provider: 'fixture' });
     await expect(page.locator('.narrative-stream')).toContainText('Keep one small commitment');

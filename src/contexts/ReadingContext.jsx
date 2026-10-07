@@ -4,6 +4,7 @@ import { useTarotState } from '../hooks/useTarotState';
 import { useVisionAnalysis } from '../hooks/useVisionAnalysis';
 import { useAudioController } from '../hooks/useAudioController';
 import { usePreferences } from './PreferencesContext';
+import { safeSessionStorage } from '../lib/preferenceStorage';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
@@ -155,12 +156,7 @@ export function ReadingProvider({ children }) {
     }, [autoNarrate, voiceOn, ttsProvider]);
 
     const persistReadingJob = useCallback((nextState) => {
-        if (typeof window === 'undefined' || !window.sessionStorage) return;
-        try {
-            window.sessionStorage.setItem(readingJobStorageKey, JSON.stringify(nextState));
-        } catch {
-            // Ignore storage failures (private mode, quota, etc.)
-        }
+        safeSessionStorage.setItem(readingJobStorageKey, JSON.stringify(nextState));
     }, []);
 
     const setReadingJob = useCallback((updates) => {
@@ -215,12 +211,7 @@ export function ReadingProvider({ children }) {
             eventCount: 0,
             lastJobId: null
         };
-        if (typeof window === 'undefined' || !window.sessionStorage) return;
-        try {
-            window.sessionStorage.removeItem(readingJobStorageKey);
-        } catch {
-            // Ignore storage failures.
-        }
+        safeSessionStorage.removeItem(readingJobStorageKey);
     }, []);
 
     const cancelInFlightReading = useCallback(() => {
@@ -794,7 +785,6 @@ export function ReadingProvider({ children }) {
     }, [autoNarrate, voiceOn, ttsProvider, ttsState?.status, ttsState?.reason, isNarrationStreamActive, speak]);
 
     useEffect(() => {
-        if (typeof window === 'undefined' || !window.sessionStorage) return;
         // Re-renders must not replace a live cursor with an older batched
         // checkpoint. Still resume an aborted reader (including StrictMode's
         // effect cleanup/setup cycle) and invalidate changed reading inputs.
@@ -811,7 +801,7 @@ export function ReadingProvider({ children }) {
             resumeReadingStreamIfEligible();
             return;
         }
-        const stored = window.sessionStorage.getItem(readingJobStorageKey);
+        const stored = safeSessionStorage.getItem(readingJobStorageKey);
         if (!stored) return;
         try {
             const parsed = JSON.parse(stored);

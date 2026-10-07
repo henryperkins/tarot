@@ -73,7 +73,7 @@ test.describe('Save to journal flow @integration', () => {
     await waitForCardsDealt(page);
     await revealCard(page, 0);
 
-    const generateButton = page.getByRole('button', { name: /generate|create.*narrative|get.*reading|receive.*reading/i }).first();
+    const generateButton = page.getByRole('button', { name: /^Interpret cards/ }).first();
     await expect(generateButton).toBeVisible({ timeout: 10000 });
     await generateButton.click();
 

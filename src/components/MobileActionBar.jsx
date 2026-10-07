@@ -34,7 +34,6 @@ function ActionButton({
   onClick,
   disabled,
   variant = 'primary',
-  stepLabel,
   children,
   ariaLabel,
   ariaControls,
@@ -51,9 +50,7 @@ function ActionButton({
     coach: BTN_COACH
   }[variant] || BTN_PRIMARY;
 
-  // In landscape: hide step labels but keep touch target size consistent
-  const showStepLabel = Boolean(stepLabel) && !isLandscape;
-  const heightClass = 'min-h-touch';
+  const heightClass = variant === 'primary' && !isLandscape ? 'min-h-cta' : 'min-h-touch';
   const textSize = isLandscape ? 'text-xs' : 'text-sm';
   const nowrapClass = isLandscape ? 'whitespace-nowrap' : '';
 
@@ -76,16 +73,13 @@ function ActionButton({
       className={`
         ${variantClass}
         ${heightClass}
-        ${showStepLabel ? 'flex-col gap-0.5' : 'gap-1.5'}
+        gap-1.5
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
         ${nowrapClass}
         ${className}
       `}
     >
-      {Icon && !showStepLabel && <Icon className={isLandscape ? 'w-3.5 h-3.5' : 'w-4 h-4'} weight="fill" aria-hidden="true" />}
-      {showStepLabel && (
-        <span className="text-xs uppercase tracking-wider">{stepLabel}</span>
-      )}
+      {Icon && <Icon className={isLandscape ? 'w-3.5 h-3.5' : 'w-4 h-4'} weight="fill" aria-hidden="true" />}
       <span className={`${textSize} font-semibold`}>{children}</span>
     </button>
   );
@@ -140,24 +134,6 @@ function MobileActionContents({
   }), [isShuffling, reading, revealedCount, allRevealed, needsNarrative, hasNarrative, isGenerating, isError]);
   const tableAction = getReadingTableAction({ isSpreadDealt, revealedCards: revealedCards || new Set(), totalCards: readingLength, positions: spreadPositions });
 
-  const stepBadge = useMemo(() => {
-    switch (mode) {
-      case 'revealing':
-        return 'Reveal';
-      case 'ready-for-narrative':
-      case 'generating':
-      case 'error':
-        return 'Narrate';
-      case 'completed':
-        // "Save reading" already names the step; a badge would only repeat it.
-        return null;
-      default:
-        // Progress belongs to the four-step navigation; the action names
-        // what this button will do regardless of which prep step is current.
-        return null;
-    }
-  }, [mode]);
-
   // In landscape: tighter layout with smaller gaps
   const layoutClass = variant === 'inline'
     ? 'flex flex-col gap-2 w-full'
@@ -170,7 +146,6 @@ function MobileActionContents({
       {renderActions(mode, {
         variant,
         showUtilityButtons,
-        stepBadge,
         stepIndicatorLabel,
         hasNarrative,
         isLandscape,
@@ -204,7 +179,6 @@ function renderActions(mode, options) {
   const {
     variant,
     showUtilityButtons,
-    stepBadge,
     stepIndicatorLabel,
     hasNarrative,
     isLandscape,
@@ -259,7 +233,7 @@ function renderActions(mode, options) {
     }
 
     case 'preparation': {
-      const drawLabel = isLandscape ? 'Shuffle deck' : 'Shuffle & draw';
+      const drawLabel = 'Draw cards';
       return (
         <>
           {showUtilityButtons && (
@@ -318,14 +292,13 @@ function renderActions(mode, options) {
     }
 
     case 'generating': {
-      const generatingLabel = isLandscape ? 'Weaving story' : 'Weaving...';
+      const generatingLabel = 'Interpreting…';
       return (
         <>
           <ActionButton
             variant="primary"
             disabled
-            stepLabel={stepBadge}
-            ariaLabel={withStepContext('Narrative in progress', stepIndicatorLabel)}
+            ariaLabel={withStepContext('Interpreting cards', stepIndicatorLabel)}
             className={`${widthClasses.primary} ${px}`}
             isLandscape={isLandscape}
           >
@@ -341,7 +314,7 @@ function renderActions(mode, options) {
             className={`${widthClasses.secondary} ${px}`}
             isLandscape={isLandscape}
           >
-            {isLandscape ? 'New read' : 'New reading'}
+            New reading
           </ActionButton>
         </>
       );
@@ -353,13 +326,12 @@ function renderActions(mode, options) {
           <ActionButton
             variant="primary"
             onClick={onGenerateNarrative}
-            stepLabel={stepBadge}
             icon={ArrowsClockwise}
-            ariaLabel={withStepContext('Retry narrative generation', stepIndicatorLabel)}
+            ariaLabel={withStepContext('Retry interpretation', stepIndicatorLabel)}
             className={`${widthClasses.primary} ${px}`}
             isLandscape={isLandscape}
           >
-            {isLandscape ? 'Retry story' : 'Retry narrative'}
+            Retry interpretation
           </ActionButton>
           <ActionButton
             variant="secondary"
@@ -368,7 +340,7 @@ function renderActions(mode, options) {
             className={`${widthClasses.secondary} ${px}`}
             isLandscape={isLandscape}
           >
-            {isLandscape ? 'New read' : 'New reading'}
+            New reading
           </ActionButton>
         </>
       );
@@ -379,11 +351,11 @@ function renderActions(mode, options) {
             readingTableAction
             variant="primary"
             onClick={onGenerateNarrative}
-            ariaLabel="Create narrative"
+            ariaLabel="Interpret cards"
             className={`${widthClasses.primary} ${px}`}
             isLandscape={isLandscape}
           >
-            Create narrative
+            Interpret cards
           </ActionButton>
       );
 
@@ -394,12 +366,11 @@ function renderActions(mode, options) {
             <ActionButton
               variant="primary"
               onClick={onSaveReading}
-              stepLabel={stepBadge}
               ariaLabel={withStepContext('Save reading to journal', stepIndicatorLabel)}
             className={`${widthClasses.primary} ${px}`}
             isLandscape={isLandscape}
           >
-            {isLandscape ? 'Save read' : 'Save reading'}
+            Save reading
           </ActionButton>
           )}
           {showFollowUp && (
@@ -423,7 +394,7 @@ function renderActions(mode, options) {
             className={`${widthClasses.secondary} ${px}`}
             isLandscape={isLandscape}
           >
-            {isLandscape ? 'New read' : 'New reading'}
+            New reading
           </ActionButton>
         </>
       );

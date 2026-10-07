@@ -32,7 +32,7 @@ export function RitualControls({
     applyCut?.();
     publishToast({
       type: 'info',
-      title: hasCut ? 'Cut updated' : 'Cut locked',
+      title: hasCut ? 'Cut updated' : 'Cut confirmed',
       description: `#${cutIndex}`,
       duration: 700
     });
@@ -57,7 +57,7 @@ export function RitualControls({
   const infoButtonClass =
     'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
   const primaryButtonBase =
-    'flex w-full items-center justify-between rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]';
+    'flex min-h-touch w-full items-center justify-between rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]';
   const primaryButtonActive = 'border-secondary/60 bg-secondary/15 text-secondary shadow-lg shadow-secondary/20';
   const primaryButtonIdle = 'border-accent/20 bg-surface/60 text-main/90 hover:border-accent/60 hover:text-main';
   const sliderWrapClass = 'rounded-2xl border border-accent/20 bg-surface/60 px-3 py-2.5';
@@ -195,7 +195,7 @@ export function RitualControls({
             <span
               className={`${badgeBaseClass} ${hasCut ? activeBadgeClass : inactiveBadgeClass}`}
             >
-              {hasCut ? 'Locked' : `Cut #${cutIndex}`}
+              {hasCut ? 'Confirmed' : `Cut #${cutIndex}`}
             </span>
           </div>
           <div className={sliderWrapClass}>
@@ -225,16 +225,14 @@ export function RitualControls({
             onClick={handleCutConfirm}
             className={`${primaryButtonBase} ${hasCut ? primaryButtonActive : primaryButtonIdle}`}
             aria-pressed={hasCut}
+            aria-label={hasCut ? `Update cut at position ${cutIndex}` : `Confirm cut at position ${cutIndex}`}
           >
-            <span>{hasCut ? 'Cut confirmed' : 'Confirm cut'}</span>
-            <span className="text-2xs uppercase tracking-[0.2em] text-accent/80">
-              {hasCut ? 'Locked' : 'Lock'}
-            </span>
+            <span>{hasCut ? 'Update cut' : 'Confirm cut'}</span>
           </button>
           {!isExperienced && (
             <p className="text-sm text-muted">
               Cut at <span className="font-semibold text-secondary">{cutIndex}</span> of {deckSize}.{' '}
-              {hasCut ? <span className="text-secondary">Cut locked in.</span> : 'Adjust until it feels right.'}
+              {hasCut ? <span className="text-secondary">Cut confirmed. Adjust and update anytime.</span> : 'Adjust until it feels right.'}
             </p>
           )}
         </div>
@@ -267,11 +265,11 @@ export function RitualControls({
               : 'bg-surface-muted/60 border-accent/20 text-main'
               }`}
             aria-pressed={hasCut}
-            aria-label={hasCut ? `Relock cut at position ${cutIndex}` : `Lock cut at position ${cutIndex}`}
+            aria-label={hasCut ? `Update cut at position ${cutIndex}` : `Confirm cut at position ${cutIndex}`}
           >
             <Scissors className={`w-8 h-8 ${hasCut ? 'text-secondary' : 'text-accent'}`} />
-            <span className="text-sm font-semibold">{hasCut ? 'Relock' : 'Lock'}</span>
-            <span className="text-xs opacity-70">{hasCut ? 'Adjust or relock anytime' : `Cut #${cutIndex}`}</span>
+            <span className="text-sm font-semibold">{hasCut ? 'Update cut' : 'Confirm cut'}</span>
+            <span className="text-xs opacity-70">{hasCut ? 'Adjust and update anytime' : `Cut #${cutIndex}`}</span>
           </button>
         </div>
         {!knockComplete && (
@@ -304,7 +302,7 @@ export function RitualControls({
           </div>
           {hasCut && (
             <p className="mt-2 text-xs text-secondary/80">
-              Adjust the slider and tap &ldquo;Relock cut&rdquo; whenever you need to fine-tune.
+              Adjust the slider and tap &ldquo;Update cut&rdquo; whenever you need to fine-tune.
             </p>
           )}
         </div>

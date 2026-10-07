@@ -36,9 +36,9 @@ function sortEntriesNewestFirst(entries) {
 }
 
 function readLocalJournalArray(key) {
-  if (typeof localStorage === 'undefined') return [];
   if (!key) return [];
   try {
+    if (typeof localStorage === 'undefined') return [];
     const stored = localStorage.getItem(key);
     if (!stored) return [];
     const parsed = JSON.parse(stored);

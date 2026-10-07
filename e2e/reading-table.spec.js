@@ -20,7 +20,7 @@ async function openTable(page, spread = /Three-Card Story/) {
   await page.getByRole('radio', { name: spread }).click();
   const question = page.locator('#question-input, #quick-intention').filter({ visible: true }).first();
   if (await question.count()) await question.fill('What deserves my attention today?');
-  await page.getByRole('button', { name: /^Draw cards$|^Shuffle & draw|^Shuffle deck/ }).first().click();
+  await page.getByRole('button', { name: /^Draw cards$/ }).first().click();
   return page.getByRole('region', { name: /layout$/ }).first();
 }
 
@@ -52,7 +52,7 @@ test('dealing stays face-down, reveals select meaning, and reset preserves the t
   await expect(detail.getByRole('heading', { level: 3 })).toHaveText(firstName);
   await expect(detail.getByLabel('What resonates for you?')).toHaveValue('A small step is enough.');
   await page.getByRole('button', { name: 'Reveal all cards', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Create narrative', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Interpret cards', exact: true })).toBeVisible();
 });
 
 for (const width of [1440, 390]) {
@@ -92,7 +92,7 @@ for (const width of [1440, 390]) {
     await expect(table.getByRole('button', { name: /Click to reveal/ })).toHaveCount(1);
     await expect(table.getByRole('button', { name: /Click to view details/ })).toHaveCount(0);
     await page.getByRole('button', { name: /^Reveal next:/ }).dblclick({ delay: 70 });
-    await expect(page.getByRole('button', { name: 'Create narrative', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Interpret cards', exact: true })).toBeVisible();
     await expect(table.getByRole('button', { name: /Click to view details/ })).toHaveCount(1);
   });
 
@@ -106,10 +106,10 @@ for (const width of [1440, 390]) {
     await page.keyboard.up('Enter');
     await expect(table.getByRole('button', { name: /Click to reveal/ })).toHaveCount(1);
     await page.keyboard.down('Enter');
-    await expect(page.getByRole('button', { name: 'Create narrative', exact: true })).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Interpret cards', exact: true })).toBeFocused();
     await page.keyboard.down('Enter');
     await page.keyboard.up('Enter');
-    await expect(page.getByRole('button', { name: 'Create narrative', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Interpret cards', exact: true })).toBeVisible();
   });
 }
 

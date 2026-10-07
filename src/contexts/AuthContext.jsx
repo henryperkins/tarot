@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { clearAllNarrativeCaches } from '../lib/safeStorage';
+import { clearAllNarrativeCaches, safeStorage } from '../lib/safeStorage';
 import { clearJournalInsightsCache } from '../lib/journalInsights';
 import {
   getCurrentPathname,
@@ -224,14 +224,10 @@ export function AuthProvider({ children }) {
     // Clear local state even if server logout failed.
     clearAllNarrativeCaches();
     
-    if (logoutUserId && typeof localStorage !== 'undefined') {
-      try {
-        const journalCacheKey = `${JOURNAL_CACHE_KEY_PREFIX}_${logoutUserId}`;
-        localStorage.removeItem(journalCacheKey);
-        clearJournalInsightsCache(logoutUserId);
-      } catch (e) {
-        console.warn('Failed to clear user caches on logout:', e);
-      }
+    if (logoutUserId) {
+      const journalCacheKey = `${JOURNAL_CACHE_KEY_PREFIX}_${logoutUserId}`;
+      safeStorage.removeItem(journalCacheKey);
+      clearJournalInsightsCache(logoutUserId);
     }
 
     setUser(null);

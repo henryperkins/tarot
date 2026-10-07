@@ -16,7 +16,7 @@ describe('reading table primary action', () => {
   });
   it('offers the narrative only after every position is revealed', () => {
     assert.deepEqual(board.getReadingTableAction?.({ isSpreadDealt: true, revealedCards: new Set([0, 1, 2]), totalCards: 3, positions }), {
-      phase: 'narrative', label: 'Create narrative', nextIndex: -1
+      phase: 'narrative', label: 'Interpret cards', nextIndex: -1
     });
   });
   it('does not offer an action without cards', () => {

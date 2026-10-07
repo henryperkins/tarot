@@ -181,7 +181,7 @@ test.describe('Question card @mobile', () => {
 
     await page.getByRole('button', { name: 'Try an example' }).click();
     await expect(field).toHaveValue(FIRST_EXAMPLE);
-    await expect(page.getByText('Next: tap Shuffle & draw below')).toBeVisible();
+    await expect(page.getByText('Next: tap Draw cards below')).toBeVisible();
 
     await page.getByRole('button', { name: 'Clear example' }).click();
     await expect(field).toHaveValue('');
@@ -195,20 +195,20 @@ test.describe('Question card hardening @mobile', () => {
     await gotoReading(page);
 
     const actions = page.getByRole('navigation', { name: 'Primary mobile actions' });
-    const draw = actions.getByRole('button', { name: /^Shuffle & draw/ });
-    await expect(draw).toHaveText('Shuffle & draw');
-    await expect(draw).toHaveAccessibleName('Shuffle & draw');
+    const draw = actions.getByRole('button', { name: /^Draw cards/ });
+    await expect(draw).toHaveText('Draw cards');
+    await expect(draw).toHaveAccessibleName('Draw cards');
 
     await page.getByRole('textbox', { name: PROMPT }).fill('How can I make space for rest this week?');
-    await expect(draw).toHaveText('Shuffle & draw');
-    await expect(draw).toHaveAccessibleName('Shuffle & draw');
+    await expect(draw).toHaveText('Draw cards');
+    await expect(draw).toHaveAccessibleName('Draw cards');
     await expect(page.getByRole('navigation', { name: 'Tarot reading progress' }).getByRole('button')).toHaveCount(4);
 
     await page.getByRole('button', { name: 'More reading settings' }).click();
     const drawer = page.getByRole('dialog', { name: 'Prepare your reading' });
-    const drawerDraw = drawer.getByRole('button', { name: /^Shuffle & draw/ });
-    await expect(drawerDraw).toHaveText('Shuffle & draw');
-    await expect(drawerDraw).toHaveAccessibleName('Shuffle & draw');
+    const drawerDraw = drawer.getByRole('button', { name: /^Draw cards/ });
+    await expect(drawerDraw).toHaveText('Draw cards');
+    await expect(drawerDraw).toHaveAccessibleName('Draw cards');
     await drawerDraw.click();
     await expect(page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first()).toBeVisible();
   });

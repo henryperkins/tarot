@@ -41,6 +41,7 @@ import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 import { computeJournalStats, exportJournalEntriesToCsv } from '../lib/journalInsights';
 import {
   FOCUS_RING_ACCENT_SOFT,
+  FOCUS_RING_DEFAULT,
   FOCUS_RING_OFFSET_SURFACE,
   FOCUS_RING_PRIMARY_60
 } from '../styles/focusClasses';
@@ -49,6 +50,10 @@ import {
 const loadPdfExport = () => import('../lib/pdfExport').then(m => m.exportJournalInsightsToPdf);
 const ACCENT_SOFT_RING_WITH_SURFACE_OFFSET = `${FOCUS_RING_ACCENT_SOFT} ${FOCUS_RING_OFFSET_SURFACE}`;
 const PRIMARY_60_RING_WITH_SURFACE_OFFSET = `${FOCUS_RING_PRIMARY_60} ${FOCUS_RING_OFFSET_SURFACE}`;
+const THEME_OPTIONS = [
+  { id: 'light', label: 'Light', chip: 'bg-white border-secondary/30' },
+  { id: 'dark', label: 'Dark', chip: 'bg-main border-secondary/60' }
+];
 
 /**
  * Settings toggle component - matches UserMenu style
@@ -142,7 +147,7 @@ function SectionCard({ title, icon: Icon, children, id, highlighted = false, bad
       `}
     >
       {title && (
-        <div className="flex items-center gap-2 px-5 py-3 border-b border-secondary/20 bg-surface-muted/50">
+        <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-secondary/20 bg-surface-muted/50">
           {Icon && <Icon className="h-4 w-4 text-accent" weight="duotone" />}
           <h2
             id={headingId}
@@ -258,6 +263,27 @@ export default function AccountPage() {
   const pageRef = useRef(null);
   const headerRef = useResponsiveSticky(!authLoading);
   const sectionNavRef = useRef(null);
+  const themeRadioRefs = useRef({});
+
+  const handleThemeKeyDown = (event, optionId) => {
+    const currentIndex = THEME_OPTIONS.findIndex(option => option.id === optionId);
+    let nextIndex;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % THEME_OPTIONS.length;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + THEME_OPTIONS.length) % THEME_OPTIONS.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = THEME_OPTIONS.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    const nextTheme = THEME_OPTIONS[nextIndex].id;
+    setTheme(nextTheme);
+    themeRadioRefs.current[nextTheme]?.focus();
+  };
 
   // Keep sticky sections and anchor targets clear of headers that wrap or scale with text.
   useEffect(() => {
@@ -711,14 +737,14 @@ export default function AccountPage() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       publish({
-        title: 'Account data ready',
-        description: 'Your data export is downloading.',
+        title: 'Account summary ready',
+        description: 'Your profile, plan details and device preferences are downloading as JSON.',
         type: 'success'
       });
     } catch {
       publish({
         title: 'Download failed',
-        description: 'Unable to download account data.',
+        description: 'Unable to download your account summary.',
         type: 'error'
       });
     }
@@ -1167,7 +1193,7 @@ export default function AccountPage() {
         >
           <div className="flex items-center gap-2 min-w-max">
             {[
-              { id: 'profile', label: 'Profile', authOnly: false },
+              { id: 'profile', label: 'Profile', authOnly: true },
               { id: 'subscription', label: 'Subscription', authOnly: true },
               { id: 'audio', label: 'Audio', authOnly: false },
               { id: 'display', label: 'Display', authOnly: false },
@@ -1546,12 +1572,12 @@ export default function AccountPage() {
         {/* Subscription Section - Auth only */}
         {isAuthenticated && (
         <SectionCard title="Subscription" icon={CreditCard} id="subscription" highlighted={highlightedSection === 'subscription'}>
-          <div className="flex items-center gap-4 mb-4">
-            <div className={`h-12 w-12 rounded-full flex items-center justify-center ${isPaid ? 'bg-accent/20' : 'bg-secondary/20'}`}>
+          <div className="flex flex-wrap items-center gap-4 mb-4">
+            <div className={`h-12 w-12 shrink-0 rounded-full flex items-center justify-center ${isPaid ? 'bg-accent/20' : 'bg-secondary/20'}`}>
               <TierIcon className={`h-6 w-6 ${isPaid ? 'text-accent' : 'text-secondary'}`} weight="fill" />
             </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-[1_1_10rem] [overflow-wrap:anywhere]">
+              <div className="flex flex-wrap items-center gap-2">
                 <p className="text-lg font-semibold text-main">{tierConfig.name}</p>
                 <span className="text-xs uppercase tracking-wider text-muted bg-secondary/20 px-2 py-0.5 rounded-full">
                   {tierConfig.label}
@@ -1631,28 +1657,28 @@ export default function AccountPage() {
             <ul className="space-y-1.5">
               <li className="flex items-center gap-2 text-sm text-secondary">
                 <Check className="h-4 w-4 text-accent shrink-0" />
-                {tierConfig.monthlyReadings === Infinity ? 'Unlimited' : tierConfig.monthlyReadings} AI readings/month
+                <span className="min-w-0 [overflow-wrap:anywhere]">{tierConfig.monthlyReadings === Infinity ? 'Unlimited' : tierConfig.monthlyReadings} AI readings/month</span>
               </li>
               <li className="flex items-center gap-2 text-sm text-secondary">
                 <Check className="h-4 w-4 text-accent shrink-0" />
-                {tierConfig.monthlyTTS === Infinity ? 'Unlimited' : tierConfig.monthlyTTS} voice narrations/month
+                <span className="min-w-0 [overflow-wrap:anywhere]">{tierConfig.monthlyTTS === Infinity ? 'Unlimited' : tierConfig.monthlyTTS} voice narrations/month</span>
               </li>
               {tierConfig.cloudJournal && (
                 <li className="flex items-center gap-2 text-sm text-secondary">
                   <Check className="h-4 w-4 text-accent shrink-0" />
-                  Cloud journal sync
+                  <span className="min-w-0 [overflow-wrap:anywhere]">Cloud journal sync</span>
                 </li>
               )}
               {tierConfig.advancedInsights && (
                 <li className="flex items-center gap-2 text-sm text-secondary">
                   <Check className="h-4 w-4 text-accent shrink-0" />
-                  Advanced insights
+                  <span className="min-w-0 [overflow-wrap:anywhere]">Advanced insights</span>
                 </li>
               )}
               {tierConfig.apiAccess && (
                 <li className="flex items-center gap-2 text-sm text-secondary">
                   <Check className="h-4 w-4 text-accent shrink-0" />
-                  API access ({tierConfig.apiCallsPerMonth} calls/mo)
+                  <span className="min-w-0 [overflow-wrap:anywhere]">API access ({tierConfig.apiCallsPerMonth} calls/mo)</span>
                 </li>
               )}
             </ul>
@@ -1694,7 +1720,7 @@ export default function AccountPage() {
             ) : usageStatus?.trackingAvailable !== false && readingUsage?.source ? (
               <div className="space-y-2">
                 {/* AI Readings Usage */}
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <span className="text-secondary">AI readings</span>
                   <span className={`font-medium ${usageThresholdTextColors[getUsageThreshold(readingUsage.used, readingUsage.limit)]}`}>
                     {readingUsage.unlimited
@@ -1728,7 +1754,7 @@ export default function AccountPage() {
                 {/* Voice Narrations Usage */}
                 {ttsUsage && (
                   <>
-                    <div className="flex items-center justify-between text-sm pt-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm pt-2">
                       <span className="text-secondary">Voice narrations</span>
                       <span className={`font-medium ${usageThresholdTextColors[getUsageThreshold(ttsUsage.used, ttsUsage.limit)]}`}>
                         {ttsUsage.unlimited
@@ -1753,7 +1779,7 @@ export default function AccountPage() {
                 {/* API Calls Usage */}
                 {apiCallsUsage?.enabled && (
                   <>
-                    <div className="flex items-center justify-between text-sm pt-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm pt-2">
                       <span className="text-secondary">API calls</span>
                       <span className={`font-medium ${usageThresholdTextColors[getUsageThreshold(apiCallsUsage.used, apiCallsUsage.limit)]}`}>
                         {typeof apiCallsUsage.limit === 'number'
@@ -1980,29 +2006,30 @@ export default function AccountPage() {
               role="radiogroup"
               aria-label="Theme"
             >
-              {[
-                { id: 'light', label: 'Light', chip: 'bg-white border-secondary/30' },
-                { id: 'dark', label: 'Dark', chip: 'bg-main border-secondary/60' }
-              ].map(option => {
+              {THEME_OPTIONS.map(option => {
                 const isActive = theme === option.id;
                 return (
                   <button
                     key={option.id}
+                    ref={element => { themeRadioRefs.current[option.id] = element; }}
                     type="button"
                     role="radio"
                     aria-checked={isActive}
+                    tabIndex={isActive ? 0 : -1}
                     onClick={() => setTheme(option.id)}
+                    onKeyDown={event => handleThemeKeyDown(event, option.id)}
                     className={`
-                      min-h-touch px-4 py-2 rounded-full text-xs font-semibold
+                      min-h-touch border px-4 py-2 rounded-full text-xs font-semibold
                       flex items-center gap-2 transition
-                      ${ACCENT_SOFT_RING_WITH_SURFACE_OFFSET}
+                      ${FOCUS_RING_DEFAULT} ${FOCUS_RING_OFFSET_SURFACE}
                       ${isActive
-                        ? 'bg-surface border border-secondary/40 text-main'
-                        : 'text-muted hover:text-main'}
+                        ? 'bg-[color:var(--ui-selected-bg)] border-[color:var(--brand-primary)] text-main'
+                        : 'border-transparent text-muted hover:text-main'}
                     `}
                   >
                     <span className={`h-3 w-3 rounded-full border ${option.chip}`} aria-hidden="true" />
                     {option.label}
+                    <Check className={`h-3 w-3 shrink-0 ${isActive ? 'opacity-100' : 'opacity-0'}`} aria-hidden="true" />
                   </button>
                 );
               })}
@@ -2188,7 +2215,7 @@ export default function AccountPage() {
                   "
                 >
                   <DownloadSimple className="h-4 w-4" />
-                  Download account data
+                  Download account summary
                 </button>
                 <div className="space-y-2">
                   {hasActiveSubscription && (

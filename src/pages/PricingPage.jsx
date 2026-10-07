@@ -33,6 +33,7 @@ import { GlobalNav } from '../components/GlobalNav';
 import AuthModal from '../components/AuthModal';
 import { MobileInfoSection } from '../components/MobileInfoSection';
 import { useToast } from '../contexts/ToastContext';
+import { TIER_ORDER } from '../../shared/monetization/subscription.js';
 
 function formatCount(value) {
   if (value === Infinity) return 'Unlimited';
@@ -69,7 +70,7 @@ function getAnnualPricing(config) {
   };
 }
 
-function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled, billingInterval = 'monthly' }) {
+function TierCard({ tierKey, config, isCurrent, actionLabel, onSelect, isLoading, disabled, billingInterval = 'monthly' }) {
   const prefersReducedMotion = useReducedMotion();
   const isFree = tierKey === 'free';
   const isPaid = !isFree;
@@ -278,9 +279,7 @@ function TierCard({ tierKey, config, isCurrent, onSelect, isLoading, disabled, b
       >
         {isCurrent
           ? 'Current plan'
-          : isFree
-            ? 'Continue free'
-            : `Upgrade to ${config.label}`}
+          : actionLabel}
         {isLoading && <CircleNotch className="h-4 w-4 animate-spin" />}
       </button>
     </div>
@@ -602,10 +601,31 @@ export default function PricingPage() {
   const annualDiscountLabel = plusAnnualPricing?.discountPercent
     ? `Save ${plusAnnualPricing.discountPercent}%`
     : 'Annual';
+  const hasActivePaidPlan = isSubscriptionActive && TIER_ORDER[accountTier] > TIER_ORDER.free;
+  const isRenewal = isAuthenticated && !isSubscriptionActive && TIER_ORDER[accountTier] > TIER_ORDER.free;
+  const heroTier = hasActivePaidPlan ? 'pro' : isRenewal ? accountTier : 'plus';
+  const HeroIcon = heroTier === 'pro' ? Crown : Sparkle;
+  const getPlanActionLabel = tier => {
+    const label = SUBSCRIPTION_TIERS[tier].label;
+    if (hasActivePaidPlan && TIER_ORDER[tier] < TIER_ORDER[accountTier]) {
+      return `Manage downgrade to ${label}`;
+    }
+    if (isRenewal && tier === accountTier) return `Renew ${label}`;
+    return tier === 'free' ? 'Continue free' : `Upgrade to ${label}`;
+  };
 
   const handleSelectTier = useCallback(
     async (tier) => {
       setError('');
+
+      if (subscriptionLoading) return;
+
+      // Existing same/lower paid plans use the account's provider-aware management.
+      // A free-plan selection must not imply that an existing subscription was canceled.
+      if (hasActivePaidPlan && TIER_ORDER[tier] <= TIER_ORDER[accountTier]) {
+        navigate('/account#subscription');
+        return;
+      }
 
       // Free tier - just go to home
       if (tier === 'free') {
@@ -617,11 +637,6 @@ export default function PricingPage() {
       if (!isAuthenticated) {
         setPendingTier(tier);
         setShowAuthModal(true);
-        return;
-      }
-
-      // Already on this tier
-      if (isSubscriptionActive && tier === accountTier) {
         return;
       }
 
@@ -660,7 +675,7 @@ export default function PricingPage() {
         setLoadingTier(null);
       }
     },
-    [isAuthenticated, accountTier, isSubscriptionActive, navigate, billingInterval]
+    [isAuthenticated, accountTier, hasActivePaidPlan, subscriptionLoading, navigate, billingInterval]
   );
 
   const handleRestorePurchases = useCallback(async () => {
@@ -728,8 +743,8 @@ export default function PricingPage() {
 
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 pb-24 pt-8">
         {/* Hero */}
-        <section className="mb-10 grid gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)] lg:items-center">
-          <div className="space-y-6">
+        <section className="mb-10 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)] lg:items-center">
+          <div className="min-w-0 space-y-6 [overflow-wrap:anywhere]">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
               Plans for deeper practice
             </p>
@@ -738,55 +753,87 @@ export default function PricingPage() {
                 Keep every reading grounded and growing
               </h1>
               <p className="max-w-2xl text-sm text-muted sm:text-base">
-                Start on Seeker, then step into Plus and Pro for deeper context, cloud-synced journals, and
-                voice rituals each month.
+                {hasActivePaidPlan
+                  ? `Your ${SUBSCRIPTION_TIERS[accountTier].label} plan keeps your readings, cloud journal, and voice rituals connected.`
+                  : isRenewal
+                    ? 'Renew your plan to restore premium readings, cloud journal sync, and voice rituals.'
+                    : 'Start on Seeker, then step into Plus and Pro for deeper context, cloud-synced journals, and voice rituals each month.'}
               </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={() => handleSelectTier('plus')}
-                disabled={loadingTier !== null}
-                className={[
-                  'inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold shadow-md',
-                  'bg-accent text-surface hover:bg-accent/90',
-                  prefersReducedMotion ? '' : 'transition hover:scale-[1.02]'
-                ].join(' ')}
-              >
-                <Sparkle className="h-4 w-4" weight="fill" />
-                Upgrade to Plus
-                {loadingTier === 'plus' ? (
-                  <CircleNotch className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ArrowRight className="h-4 w-4" />
-                )}
-              </button>
+              {hasActivePaidPlan && accountTier === 'pro' ? (
+                <Link
+                  to="/account#subscription"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-surface shadow-md hover:bg-accent/90"
+                >
+                  <Crown className="h-4 w-4 shrink-0" weight="fill" />
+                  Manage current plan
+                  <ArrowRight className="h-4 w-4 shrink-0" />
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSelectTier(heroTier)}
+                  disabled={subscriptionLoading || loadingTier !== null}
+                  className={[
+                    'inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold shadow-md',
+                    'bg-accent text-surface hover:bg-accent/90',
+                    prefersReducedMotion ? '' : 'transition hover:scale-[1.02]'
+                  ].join(' ')}
+                >
+                  <HeroIcon className="h-4 w-4 shrink-0" weight="fill" />
+                  {getPlanActionLabel(heroTier)}
+                  {loadingTier === heroTier ? (
+                    <CircleNotch className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ArrowRight className="h-4 w-4" />
+                  )}
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => handleSelectTier('pro')}
-                disabled={loadingTier !== null}
-                className={[
-                  'inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold',
-                  'border-2 border-secondary/60 bg-transparent text-main hover:border-accent/60 hover:bg-secondary/10',
-                  prefersReducedMotion ? '' : 'transition hover:scale-[1.02]'
-                ].join(' ')}
-              >
-                <Crown className="h-4 w-4" weight="fill" />
-                Explore Pro
-              </button>
+              {hasActivePaidPlan && accountTier === 'plus' ? (
+                <Link
+                  to="/account#subscription"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-secondary/60 px-6 py-3 text-sm font-semibold text-main hover:border-accent/60 hover:bg-secondary/10"
+                >
+                  Manage current plan
+                </Link>
+              ) : hasActivePaidPlan || isRenewal ? (
+                <a
+                  href="#plans"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-secondary/60 px-6 py-3 text-sm font-semibold text-main hover:border-accent/60 hover:bg-secondary/10"
+                >
+                  Compare plans
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSelectTier('pro')}
+                  disabled={subscriptionLoading || loadingTier !== null}
+                  className={[
+                    'inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold',
+                    'border-2 border-secondary/60 bg-transparent text-main hover:border-accent/60 hover:bg-secondary/10',
+                    prefersReducedMotion ? '' : 'transition hover:scale-[1.02]'
+                  ].join(' ')}
+                >
+                  <Crown className="h-4 w-4" weight="fill" />
+                  Explore Pro
+                </button>
+              )}
             </div>
 
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <button
-                type="button"
-                onClick={() => handleSelectTier('free')}
-                disabled={loadingTier !== null}
-                className="inline-flex min-h-touch items-center text-xs text-muted underline underline-offset-4"
-              >
-                Or stay on the Seeker plan for free
-              </button>
+              {!hasActivePaidPlan && !isRenewal && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectTier('free')}
+                  disabled={subscriptionLoading || loadingTier !== null}
+                  className="inline-flex min-h-touch items-center text-xs text-muted underline underline-offset-4"
+                >
+                  Or stay on the Seeker plan for free
+                </button>
+              )}
 
               <button
                 type="button"
@@ -851,9 +898,9 @@ export default function PricingPage() {
                 return (
                   <div
                     key={tier}
-                    className="flex items-center justify-between gap-3 rounded-2xl border border-secondary/30 bg-main/70 px-4 py-3"
+                    className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-secondary/30 bg-main/70 px-4 py-3"
                   >
-                    <div className="space-y-0.5">
+                    <div className="min-w-0 flex-[1_1_10rem] space-y-0.5 [overflow-wrap:anywhere]">
                       <p className="text-2xs font-semibold uppercase tracking-[0.16em] text-muted">
                         {config.name}
                       </p>
@@ -877,10 +924,10 @@ export default function PricingPage() {
                       <button
                         type="button"
                         onClick={() => handleSelectTier(tier)}
-                        disabled={loadingTier !== null}
-                        className="inline-flex min-h-touch min-w-touch shrink-0 items-center gap-1 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-surface hover:bg-accent/90 transition"
+                        disabled={subscriptionLoading || loadingTier !== null}
+                        className="inline-flex min-h-touch min-w-touch max-w-full items-center gap-1 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-surface hover:bg-accent/90 transition"
                       >
-                        Choose
+                        {getPlanActionLabel(tier)}
                         <ArrowRight className="h-3 w-3" />
                       </button>
                     )}
@@ -948,9 +995,10 @@ export default function PricingPage() {
                   tierKey={tier}
                   config={config}
                   isCurrent={isCurrent}
+                  actionLabel={getPlanActionLabel(tier)}
                   onSelect={handleSelectTier}
                   isLoading={loadingTier === tier}
-                  disabled={loadingTier !== null}
+                  disabled={subscriptionLoading || loadingTier !== null}
                   billingInterval={billingInterval}
                 />
               );
@@ -1040,7 +1088,9 @@ export default function PricingPage() {
                 Ready to deepen your practice?
               </p>
               <p className="mt-1 text-sm text-secondary">
-                Start a reading, then upgrade when you&apos;re ready for more ritual, context, and monetization.
+                {hasActivePaidPlan
+                  ? 'Continue your practice with your current plan.'
+                  : 'Start a reading, then choose a plan when you’re ready for more context and voice narration.'}
               </p>
             </div>
             <Link

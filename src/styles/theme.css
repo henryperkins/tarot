@@ -250,10 +250,12 @@
   :root.light {
     /* Higher-differentiation semantic colors for light mode. */
     --color-gold-champagne: #5F4627;
+    --brand-primary: var(--color-gold-champagne);
     --brand-primary-rgb: 95 70 39;
     --brand-secondary: #4D3B2A;
     --brand-secondary-rgb: 77 59 42;
     --color-gold-soft: #6E532E;
+    --brand-accent: var(--color-gold-soft);
     --brand-accent-rgb: 110 83 46;
     --status-success: #2F6A3B;
     --status-success-rgb: 47 106 59;

@@ -47,7 +47,10 @@ export default function ShareReading() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const prefersReducedMotion = useReducedMotion();
+  const pageRef = useRef(null);
   const headerRef = useRef(null);
+  const mobileTabsRef = useRef(null);
+  const guestFooterRef = useRef(null);
   const [shareData, setShareData] = useState(null);
   const [notes, setNotes] = useState([]);
   const [status, setStatus] = useState('loading');
@@ -151,22 +154,57 @@ export default function ShareReading() {
     setActivePosition(deriveDefaultPosition(shareData?.entries?.[index]));
   };
 
-  // Track header height for sticky positioning
+  // Reserve the actual pinned chrome, including changes from enlarged text.
+  // Oversized chrome flows with the page so it cannot consume the viewport.
   useEffect(() => {
-    if (!headerRef.current) return;
-    const updateHeaderHeight = () => {
-      document.documentElement.style.setProperty(
-        '--share-header-height',
-        `${headerRef.current.offsetHeight}px`
-      );
+    if (status !== 'ready') return undefined;
+    const page = pageRef.current;
+    const header = headerRef.current;
+    const tabs = mobileTabsRef.current;
+    const footer = guestFooterRef.current;
+    if (!page || !header) return undefined;
+    const root = document.documentElement;
+    const previousScrollPadding = ['scroll-padding-top', 'scroll-padding-bottom'].map(property => ({
+      property,
+      value: root.style.getPropertyValue(property),
+      priority: root.style.getPropertyPriority(property)
+    }));
+    const measure = () => {
+      const maxPinnedHeight = window.innerHeight * 0.4;
+      const headerHeight = header.getBoundingClientRect().height;
+      const pinHeader = headerHeight <= maxPinnedHeight;
+      const tabsHeight = tabs?.getBoundingClientRect().height || 0;
+      const pinTabs = pinHeader && headerHeight + tabsHeight <= maxPinnedHeight;
+      const footerHeight = footer?.getBoundingClientRect().height || 0;
+      const pinFooter = footerHeight > 0 && footerHeight <= maxPinnedHeight;
+      const reservedFooterHeight = pinFooter ? footerHeight : 0;
+      const gap = parseFloat(getComputedStyle(root).fontSize) || 16;
+
+      header.style.position = pinHeader ? 'sticky' : 'relative';
+      if (tabs) tabs.style.position = pinTabs ? 'sticky' : 'relative';
+      if (footer) footer.style.position = pinFooter ? 'fixed' : 'relative';
+      page.style.setProperty('--share-header-height', `${pinHeader ? headerHeight : 0}px`);
+      page.style.setProperty('--share-footer-height', `${reservedFooterHeight}px`);
+      root.style.scrollPaddingTop = `${(pinHeader ? headerHeight : 0) + (pinTabs ? tabsHeight : 0) + gap}px`;
+      root.style.scrollPaddingBottom = `${reservedFooterHeight + gap}px`;
     };
-    updateHeaderHeight();
-    window.addEventListener('resize', updateHeaderHeight);
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    // Safe-area padding can change the border box without changing content size.
+    [header, tabs, footer].filter(Boolean).forEach(element => observer?.observe(element, { box: 'border-box' }));
+    window.addEventListener('resize', measure);
     return () => {
-      window.removeEventListener('resize', updateHeaderHeight);
-      document.documentElement.style.removeProperty('--share-header-height');
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+      [header, tabs, footer].filter(Boolean).forEach(element => element.style.removeProperty('position'));
+      page.style.removeProperty('--share-header-height');
+      page.style.removeProperty('--share-footer-height');
+      previousScrollPadding.forEach(({ property, value, priority }) => {
+        if (value) root.style.setProperty(property, value, priority);
+        else root.style.removeProperty(property);
+      });
     };
-  }, []);
+  }, [status, isAuthenticated]);
 
   const stats = shareData?.stats;
 
@@ -176,7 +214,7 @@ export default function ShareReading() {
       await navigator.clipboard.writeText(window.location.href);
       setCopyState('Link copied');
     } catch {
-      setCopyState('Clipboard unavailable');
+      setCopyState('Couldn’t copy the link. Copy this page’s address from your browser.');
     }
     setTimeout(() => setCopyState(''), 2500);
   };
@@ -259,11 +297,11 @@ export default function ShareReading() {
   }
 
   return (
-    <div className="min-h-screen bg-main text-main">
+    <div ref={pageRef} className="min-h-screen bg-main text-main">
       {/* Top navigation bar with safe-area padding */}
       <header ref={headerRef} className="sticky top-0 z-sticky-elevated border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-safe pr-safe">
-        <div className="mx-auto max-w-6xl flex items-center justify-between py-3 px-4">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={() => navigate('/')}
@@ -273,19 +311,19 @@ export default function ShareReading() {
               <ArrowLeft className="h-5 w-5" weight="bold" />
               <span className="hidden sm:inline text-sm font-medium">Back to Reading</span>
             </button>
-            <div className="flex items-center gap-2">
-              <Eye className="h-5 w-5 text-accent" weight="duotone" />
-              <span className="font-serif text-lg text-accent">Tableu</span>
+            <div className="flex min-w-0 max-w-full items-center gap-2">
+              <Eye className="h-5 w-5 shrink-0 text-accent" weight="duotone" />
+              <span className="min-w-0 break-words font-serif text-lg text-accent">Tableu</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 max-w-full items-center gap-2">
             {isAuthenticated ? (
               <UserMenu condensed />
             ) : (
               <Link
                 to="/account"
                 aria-label="Account"
-                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-secondary/40 bg-surface/60 px-3 py-2 text-xs font-medium text-main hover:bg-surface hover:border-secondary/60 transition min-h-touch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                className="inline-flex min-w-touch items-center justify-center gap-1.5 rounded-full border border-secondary/40 bg-surface/60 px-3 py-2 text-xs font-medium text-main hover:bg-surface hover:border-secondary/60 transition min-h-touch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
               >
                 <User className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Account</span>
@@ -295,10 +333,10 @@ export default function ShareReading() {
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-8">
-        <div className="rounded-3xl border border-secondary/40 bg-surface p-6 shadow-2xl">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 pt-8 pb-[calc(2rem+var(--share-footer-height,0px))] [overflow-wrap:anywhere]">
+        <div className="min-w-0 rounded-3xl border border-secondary/40 bg-surface p-[min(1.5rem,6vw)] shadow-2xl">
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1">
               <p className="text-xs uppercase tracking-[0.24em] text-primary">Shared reading</p>
               <h1 className="mt-1 text-3xl font-serif text-accent">
                 {shareData?.title || (shareData?.scope === 'journal' ? 'Journal snapshot' : 'Reading transmission')}
@@ -307,7 +345,7 @@ export default function ShareReading() {
                 Invite trusted friends to add their gentle insights. This page updates as new notes arrive.
               </p>
             </div>
-            <div className="flex flex-col items-stretch gap-2 sm:flex-row">
+            <div className="flex min-w-0 max-w-full flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap">
               <button
                 type="button"
                 onClick={copyShareLink}
@@ -334,11 +372,11 @@ export default function ShareReading() {
 
           <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted">
             <MetaChip label={`Views ${shareData?.viewCount ?? 0}`} />
-            {shareData?.meta?.entryCount && <MetaChip label={`${shareData.meta.entryCount} entries`} />}
+            {shareData?.meta?.entryCount && <MetaChip label={`${shareData.meta.entryCount} ${shareData.meta.entryCount === 1 ? 'entry' : 'entries'}`} />}
             {shareData?.expiresAt && (
               <MetaChip label={`Expires ${new Date(shareData.expiresAt).toLocaleString()}`} />
             )}
-            {collaboration?.noteCount ? <MetaChip label={`${collaboration.noteCount} shared notes`} /> : null}
+            {collaboration?.noteCount ? <MetaChip label={`${collaboration.noteCount} shared ${collaboration.noteCount === 1 ? 'note' : 'notes'}`} /> : null}
             {contexts?.slice(0, 3).map((context) => (
               <MetaChip key={context.name} label={`${context.name} · ${context.count}`} />
             ))}
@@ -377,11 +415,12 @@ export default function ShareReading() {
 
         {/* Mobile view toggle - only visible below lg breakpoint */}
         <div
-          className="mt-6 lg:hidden sticky z-20 top-[calc(var(--share-header-height,5rem)+var(--safe-pad-top))]"
+          ref={mobileTabsRef}
+          className="mt-6 lg:hidden sticky z-20 top-[var(--share-header-height,5rem)]"
           role="tablist"
           aria-label="View selection"
         >
-          <div className="flex rounded-xl bg-surface-muted/80 backdrop-blur p-1 border border-secondary/20 shadow-sm shadow-secondary/20">
+          <div className="grid min-w-0 grid-cols-2 rounded-xl bg-surface-muted/80 backdrop-blur p-1 border border-secondary/20 shadow-sm shadow-secondary/20">
             <button
               type="button"
               role="tab"
@@ -397,7 +436,7 @@ export default function ShareReading() {
                   document.getElementById(mobileView === 'spread' ? 'mobile-notes-tab' : 'mobile-spread-tab')?.focus();
                 }
               }}
-              className={`flex-1 rounded-lg px-4 py-3 min-h-touch text-sm font-semibold transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
+              className={`min-w-0 rounded-lg px-[min(0.75rem,3vw)] py-3 min-h-touch text-sm font-semibold transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
                 mobileView === 'spread'
                   ? 'bg-surface shadow-sm border border-secondary/30 text-accent'
                   : 'text-muted hover:text-main'
@@ -420,7 +459,7 @@ export default function ShareReading() {
                   document.getElementById(mobileView === 'spread' ? 'mobile-notes-tab' : 'mobile-spread-tab')?.focus();
                 }
               }}
-              className={`flex-1 rounded-lg px-4 py-3 min-h-touch text-sm font-semibold transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
+              className={`min-w-0 rounded-lg px-[min(0.75rem,3vw)] py-3 min-h-touch text-sm font-semibold transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
                 mobileView === 'notes'
                   ? 'bg-surface shadow-sm border border-secondary/30 text-accent'
                   : 'text-muted hover:text-main'
@@ -494,7 +533,7 @@ export default function ShareReading() {
               type="button"
               onClick={scrollToNotesForm}
               className="inline-flex items-center gap-2 rounded-full bg-primary text-surface px-4 py-2.5 shadow-lg shadow-primary/30 border border-primary/70 text-sm font-semibold touch-manipulation min-h-touch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
-              aria-label="Jump to note form"
+              aria-label="Add note: open note form"
             >
               Add note
             </button>
@@ -542,11 +581,12 @@ export default function ShareReading() {
       {/* Bottom sticky "Open in app" bar for guests */}
       {!isAuthenticated && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-sticky-nav border-t border-accent/30 bg-surface/95 backdrop-blur-sm shadow-[0_-8px_30px_rgba(0,0,0,0.4)] pb-safe-action pl-safe pr-safe"
+          ref={guestFooterRef}
+          className="fixed bottom-0 left-0 right-0 z-sticky-nav w-full border-t border-accent/30 bg-surface/95 backdrop-blur-sm shadow-[0_-8px_30px_rgba(0,0,0,0.4)] pb-safe-action pl-safe pr-safe [overflow-wrap:anywhere]"
         >
           <div className="mx-auto max-w-6xl px-4 py-3">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-              <div className="text-center sm:text-left">
+              <div className="min-w-0 text-center sm:text-left">
                 <p className="text-sm font-semibold text-main">Get your own insights</p>
                 <p className="text-xs text-muted">Create readings and track your tarot journey</p>
               </div>

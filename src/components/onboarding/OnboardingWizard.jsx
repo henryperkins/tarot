@@ -21,6 +21,7 @@ import { ConfirmModal } from '../ConfirmModal';
 // A/B test utilities
 import { getOnboardingVariant, getStepLabels, getTotalSteps } from '../../lib/onboardingVariant';
 import { startOnboardingTimer } from '../../lib/onboardingMetrics';
+import { safeStorage } from '../../lib/safeStorage';
 
 /**
  * OnboardingWizard - Multi-step onboarding flow for new users
@@ -85,7 +86,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('tableau-onboarding-progress');
+        const saved = safeStorage.getItem('tableau-onboarding-progress');
         if (saved) {
           const parsed = JSON.parse(saved);
           nextStep = Math.min(getTotalSteps(variant), Math.max(1, parsed.step || 1));
@@ -148,12 +149,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   }, [currentStep, isOpen, isExitConfirmOpen]);
 
   const clearSavedProgress = useCallback(() => {
-    if (typeof localStorage === 'undefined') return;
-    try {
-      localStorage.removeItem('tableau-onboarding-progress');
-    } catch (error) {
-      console.debug('Unable to clear onboarding progress', error);
-    }
+    safeStorage.removeItem('tableau-onboarding-progress');
   }, []);
 
   const handleNext = useCallback(() => {
@@ -183,18 +179,12 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     metricsTimerRef.current?.complete({ skipped: true, reason: 'resume-later' });
     metricsTimerRef.current = null;
 
-    if (typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem('tableau-onboarding-progress', JSON.stringify({
-          step: currentStep,
-          selectedSpread,
-          question,
-          variant
-        }));
-      } catch (error) {
-        console.debug('Unable to persist onboarding progress', error);
-      }
-    }
+    safeStorage.setItem('tableau-onboarding-progress', JSON.stringify({
+      step: currentStep,
+      selectedSpread,
+      question,
+      variant
+    }));
 
     onComplete?.({
       selectedSpread,

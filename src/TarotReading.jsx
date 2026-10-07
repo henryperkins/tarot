@@ -27,6 +27,7 @@ import { useLandscape } from './hooks/useLandscape';
 import { useHandsetLayout } from './hooks/useHandsetLayout';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { loadCoachRecommendation } from './lib/journalInsights';
+import { safeStorage } from './lib/safeStorage';
 import { shouldUseMobileStableMode } from './lib/mobileStableMode';
 import { getSpreadInfo, normalizeSpreadKey } from './data/spreads';
 import {
@@ -66,7 +67,7 @@ function ReadingSkipLinks({ showSetupSection }) {
     <div className="skip-links">
       {showSetupSection && <a href="#step-spread" onClick={handleSkip} className="skip-link">Skip to spreads</a>}
       <a href="#step-reading" onClick={handleSkip} className="skip-link">Skip to reading</a>
-      {narrativeTarget && <a href={`#${NARRATIVE_FOCUS_TARGET_ID}`} onClick={handleSkip} className="skip-link">Skip to narrative</a>}
+      {narrativeTarget && <a href={`#${NARRATIVE_FOCUS_TARGET_ID}`} onClick={handleSkip} className="skip-link">Skip to interpretation</a>}
     </div>
   );
 }
@@ -671,23 +672,11 @@ export default function TarotReading() {
 
   const handlePersonalizationBannerDismiss = useCallback(() => {
     setShowPersonalizationBanner(false);
-    if (typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem('tarot-personalization-banner', 'dismissed');
-      } catch (error) {
-        console.debug('Unable to persist personalization banner dismissal', error);
-      }
-    }
+    safeStorage.setItem('tarot-personalization-banner', 'dismissed');
   }, [setShowPersonalizationBanner]);
 
   const handlePersonalizationBannerPersonalize = useCallback(() => {
-    if (typeof localStorage !== 'undefined') {
-      try {
-        localStorage.removeItem('tarot-personalization-banner');
-      } catch (error) {
-        console.debug('Unable to reset personalization banner state', error);
-      }
-    }
+    safeStorage.removeItem('tarot-personalization-banner');
     setShowPersonalizationBanner(false);
     setOnboardingComplete(false);
     setOnboardingDeferred(false);
@@ -826,22 +815,22 @@ export default function TarotReading() {
     if (hasReading) {
       if (hasNarrative) {
         return {
-          stepIndicatorLabel: 'Reflect on your narrative',
+          stepIndicatorLabel: 'Reflect on your reading',
           stepIndicatorHint: 'Read through the personalized guidance and save anything that resonates.',
           activeStep: 'reading'
         };
       }
       if (narrativeInProgress) {
         return {
-          stepIndicatorLabel: 'Weaving your narrative',
-          stepIndicatorHint: 'Hang tight while we compose your personalized reading.',
+          stepIndicatorLabel: 'Interpreting your cards',
+          stepIndicatorHint: 'Preparing a written reading from your revealed cards.',
           activeStep: 'reading'
         };
       }
       if (allCardsRevealed) {
         return {
           stepIndicatorLabel: 'Explore your spread',
-          stepIndicatorHint: 'Review the card insights below or generate a personalized narrative.',
+          stepIndicatorHint: 'Explore each card, or choose “Interpret cards” to connect the whole spread.',
           activeStep: 'reading'
         };
       }
@@ -869,7 +858,7 @@ export default function TarotReading() {
     if (!hasQuestion) {
       return {
         stepIndicatorLabel: 'Set your intention',
-        stepIndicatorHint: 'A focused question helps guide the narrative (optional but recommended).',
+        stepIndicatorHint: 'A question can guide your reading. You can also draw without one.',
         activeStep: 'intention'
       };
     }
@@ -889,7 +878,7 @@ export default function TarotReading() {
     // Keep preparation current until the user actually begins the reading.
     return {
       stepIndicatorLabel: 'Your intention is ready',
-      stepIndicatorHint: 'When you feel ready, shuffle the deck to begin your reading.',
+      stepIndicatorHint: 'When you feel ready, choose “Draw cards” to begin your reading.',
       activeStep: 'intention'
     };
   }, [hasNarrative, narrativeInProgress, hasReading, allCardsRevealed, hasQuestion, hasConfirmedSpread, knockCount, hasCut, revealedCards, visibleCount]);
