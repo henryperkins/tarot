@@ -8,7 +8,8 @@ import {
   scheduleEvaluation,
   runSyncEvaluationGate,
   generateSafeFallbackReading,
-  getEvaluationGateTimeoutMs
+  getEvaluationGateTimeoutMs,
+  getEvaluationTimeoutMs
 } from '../functions/lib/evaluation.js';
 import { buildPromptTelemetry } from '../functions/lib/telemetrySchema.js';
 import { buildReadingRedactionOptions } from '../functions/lib/promptEngineering.js';
@@ -157,7 +158,7 @@ describe('evaluation', () => {
 
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
-      assert.equal(result.model, '@cf/zai-org/glm-5.3-flash');
+      assert.equal(result.model, '@cf/zai-org/glm-5.3');
       assert.equal(result.promptVersion, '2.4.0');
     });
 
@@ -399,7 +400,7 @@ describe('evaluation', () => {
       assert.equal(capturedParams.max_tokens, 2048);
       assert.equal(capturedParams.temperature, 0.1);
       assert.deepEqual(capturedParams.response_format, { type: 'json_object' });
-      assert.ok(!('reasoning_effort' in capturedParams), 'only the default model gets a default effort');
+      assert.ok(!('reasoning_effort' in capturedParams), 'only GLM models get a default effort');
       assert.ok(!capturedParams.input);
     });
 
@@ -437,11 +438,48 @@ describe('evaluation', () => {
       await runEvaluation({ AI: capturingMockAI, EVAL_ENABLED: 'true', EVAL_REASONING_EFFORT: 'sideways' }, params);
 
       assert.equal(result.scores.overall, 4);
-      assert.equal(calls[0].model, '@cf/zai-org/glm-5.3-flash');
+      assert.equal(calls[0].model, '@cf/zai-org/glm-5.3');
       assert.deepEqual(calls[0].params.response_format, { type: 'json_object' });
       assert.equal(calls[0].params.reasoning_effort, 'low');
       assert.equal(calls[1].params.reasoning_effort, 'high');
       assert.ok(!('reasoning_effort' in calls[2].params), 'an unknown effort is not sent');
+    });
+
+    test('runs the sync gate on GLM-5.3 Flash with its own reasoning effort', async () => {
+      const calls = [];
+      const capturingMockAI = {
+        run: async (model, params) => {
+          calls.push({ model, params });
+          return {
+            response: JSON.stringify({
+              personalization: 4,
+              tarot_coherence: 4,
+              tone: 4,
+              safety: 5,
+              overall: 4,
+              safety_flag: false
+            })
+          };
+        }
+      };
+      const params = { reading: 'test', userQuestion: 'test', cardsInfo: [], spreadKey: 'threeCard', requestId: 'gate-model' };
+      const env = {
+        AI: capturingMockAI,
+        EVAL_ENABLED: 'true',
+        EVAL_GATE_ENABLED: 'true',
+        EVAL_MODEL: '@cf/zai-org/glm-5.3',
+        EVAL_REASONING_EFFORT: 'high'
+      };
+
+      const result = await runSyncEvaluationGate(env, params);
+      await runSyncEvaluationGate({ ...env, EVAL_GATE_MODEL: '@cf/zai-org/glm-5.3', EVAL_GATE_REASONING_EFFORT: 'max' }, params);
+
+      assert.equal(result.passed, true);
+      assert.equal(result.evalResult.model, '@cf/zai-org/glm-5.3-flash');
+      assert.equal(calls[0].model, '@cf/zai-org/glm-5.3-flash');
+      assert.equal(calls[0].params.reasoning_effort, 'low', 'EVAL_REASONING_EFFORT does not reach the gate');
+      assert.equal(calls[1].model, '@cf/zai-org/glm-5.3');
+      assert.equal(calls[1].params.reasoning_effort, 'max');
     });
 
     test('parses choices message content when Responses API returns choices array', async () => {
@@ -1070,10 +1108,11 @@ describe('evaluation', () => {
       assert.ok(Date.now() - startedAt < 5000);
     });
 
-    test('gate timeout falls back to EVAL_TIMEOUT_MS, then the default', () => {
-      assert.equal(getEvaluationGateTimeoutMs({ EVAL_GATE_TIMEOUT_MS: '7000', EVAL_TIMEOUT_MS: '20000' }), 7000);
-      assert.equal(getEvaluationGateTimeoutMs({ EVAL_TIMEOUT_MS: '20000' }), 20000);
+    test('gate timeout defaults to 15 s, not the longer async timeout', () => {
+      assert.equal(getEvaluationGateTimeoutMs({ EVAL_GATE_TIMEOUT_MS: '7000', EVAL_TIMEOUT_MS: '28000' }), 7000);
+      assert.equal(getEvaluationGateTimeoutMs({ EVAL_TIMEOUT_MS: '28000' }), 15000);
       assert.equal(getEvaluationGateTimeoutMs({ EVAL_GATE_TIMEOUT_MS: 'soon' }), 15000);
+      assert.equal(getEvaluationTimeoutMs({}), 28000);
     });
 
     test('completes successfully when AI responds within timeout', async () => {
@@ -1405,6 +1444,49 @@ describe('evaluation', () => {
       // Wait for any scheduled promises
       await Promise.all(waitPromises);
       assert.equal(evalRan, false);
+    });
+
+    test('retries a timed-out gate on the async scoring model', async () => {
+      const mockDB = new MockDB();
+      const calls = [];
+      const scoringMockAI = {
+        run: async (model, params) => {
+          calls.push({ model, params });
+          return {
+            response: JSON.stringify({
+              personalization: 4,
+              tarot_coherence: 5,
+              tone: 4,
+              safety: 5,
+              overall: 5,
+              safety_flag: false
+            })
+          };
+        }
+      };
+      const gateEval = {
+        mode: 'heuristic',
+        fallbackReason: 'eval_error_timeout',
+        originalError: 'timeout',
+        model: '@cf/zai-org/glm-5.3-flash',
+        scores: { personalization: 3, tarot_coherence: 3, tone: 3, safety: 3, overall: 3, safety_flag: false }
+      };
+
+      const waitPromises = [];
+      scheduleEvaluation(
+        { AI: scoringMockAI, EVAL_ENABLED: 'true', DB: mockDB },
+        { reading: 'test reading', userQuestion: 'test question', cardsInfo: [], spreadKey: 'threeCard', requestId: 'gate-retry' },
+        { requestId: 'gate-retry', spreadKey: 'threeCard' },
+        { waitUntil: (p) => waitPromises.push(p), precomputedEvalResult: gateEval, allowAsyncRetry: true }
+      );
+      await Promise.all(waitPromises);
+
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].model, '@cf/zai-org/glm-5.3');
+      assert.equal(calls[0].params.reasoning_effort, 'low');
+      const query = mockDB.getLastQuery();
+      assert.equal(query.bindings[0], 'model', 'the retried model scores replace the gate fallback');
+      assert.equal(query.bindings[1], 5);
     });
 
     test('stores eval results in D1 when available', async () => {

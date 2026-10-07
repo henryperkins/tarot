@@ -14,7 +14,7 @@ Tableu includes an automated quality assurance system that evaluates every AI-ge
 
 - **When it runs:** async after a reading via `waitUntil()`; a sync gate runs when `EVAL_GATE_ENABLED=true` or the selective policy forces it for a language or safety case
 - **Where scores live:** D1 table `eval_metrics` (runtime metrics + eval payload)
-- **Evaluator model:** Workers AI (default `@cf/zai-org/glm-5.3-flash`)
+- **Evaluator models:** Workers AI. Async scoring uses `@cf/zai-org/glm-5.3` (`EVAL_MODEL`); the sync gate uses the faster `@cf/zai-org/glm-5.3-flash` (`EVAL_GATE_MODEL`)
 - **Outputs:** 1-5 scores + `safety_flag` + notes, used for analysis and optional gating
 
 > [!NOTE]
@@ -84,9 +84,9 @@ flowchart TB
   subgraph R["RUNTIME (per request)"]
     U["User request"] --> G["Generate reading<br/>claude-api → modal-qwen → azure-gpt5 → local-composer"]
     G --> QG["Structural quality gate<br/>(tarot-reading.js + readingQuality.js)"]
-    QG --> EG["Sync evaluation gate<br/>(evaluation.js; enabled or selectively forced)"]
+    QG --> EG["Sync evaluation gate<br/>(evaluation.js, @cf/zai-org/glm-5.3-flash;<br/>enabled or selectively forced)"]
     EG --> RESP["Return response to user"]
-    RESP -->|waitUntil()| E["Workers AI evaluation<br/>(@cf/zai-org/glm-5.3-flash)"]
+    RESP -->|waitUntil()| E["Workers AI evaluation<br/>(@cf/zai-org/glm-5.3)"]
     E --> S["Scores + safety_flag + notes"]
     S --> D1["Upsert eval_metrics (D1)"]
   end
@@ -155,7 +155,7 @@ export function buildHeuristicScores(narrativeMetrics)  // Fallback scoring
 ```
 
 Key features:
-- Uses Workers AI (`@cf/zai-org/glm-5.3-flash`) for evaluation
+- Uses Workers AI for evaluation: `@cf/zai-org/glm-5.3` for async scoring and `@cf/zai-org/glm-5.3-flash` for the sync gate
 - Runs asynchronously via `waitUntil()` to avoid blocking user responses
 - Supports synchronous gating when `EVAL_GATE_ENABLED=true` (fail-open/closed via `EVAL_GATE_FAILURE_MODE`)
 - Includes prompt versioning (`EVAL_PROMPT_VERSION = '2.4.0'`)
@@ -173,10 +173,12 @@ Set in `wrangler.jsonc` under `vars` (all values are strings at runtime):
 | Variable | Checked-in `wrangler.jsonc` | Code fallback when unset | Description |
 |---|---:|---:|---|
 | `EVAL_ENABLED` | `"true"` | `false` | Master switch for evaluation system |
-| `EVAL_MODEL` | `"@cf/zai-org/glm-5.3-flash"` | same model | Workers AI model for scoring |
-| `EVAL_REASONING_EFFORT` | `"low"` | `low` for the default model; not sent for others | Reasoning effort sent to the evaluator |
-| `EVAL_TIMEOUT_MS` | `"20000"` | `15000` | Timeout for the async eval call (ms); it runs in `waitUntil()`, which allows 30 s after the response |
-| `EVAL_GATE_TIMEOUT_MS` | `"15000"` | `EVAL_TIMEOUT_MS` | Timeout for the sync gate's eval call (ms), which holds the reading response |
+| `EVAL_MODEL` | `"@cf/zai-org/glm-5.3"` | same model | Workers AI model for async scoring |
+| `EVAL_REASONING_EFFORT` | `"low"` | `low` for GLM-5.3 models; not sent for others | Reasoning effort for async scoring |
+| `EVAL_TIMEOUT_MS` | `"28000"` | `28000` | Timeout for the async eval call (ms); it runs in `waitUntil()`, which allows 30 s after the response |
+| `EVAL_GATE_MODEL` | `"@cf/zai-org/glm-5.3-flash"` | same model | Workers AI model for the sync gate |
+| `EVAL_GATE_REASONING_EFFORT` | `"low"` | `low` for GLM-5.3 models; not sent for others | Reasoning effort for the sync gate; `EVAL_REASONING_EFFORT` does not apply to it |
+| `EVAL_GATE_TIMEOUT_MS` | `"15000"` | `15000` | Timeout for the sync gate's eval call (ms), which holds the reading response |
 | `EVAL_GATE_ENABLED` | `"false"` | `false` | Whether to block readings on low scores |
 | `EVAL_GATE_FAILURE_MODE` | `"closed"` | `"open"` in non-prod, `"closed"` in prod | When eval fails: `open` allows if heuristic passes, `closed` blocks |
 | `EVAL_GATEWAY_ID` | `""` | `""` | Optional AI Gateway id for eval calls |
@@ -326,7 +328,7 @@ Output schema (example):
         "safety_flag": false,
         "notes": "Good reading with specific advice"
       },
-      "model": "@cf/zai-org/glm-5.3-flash",
+      "model": "@cf/zai-org/glm-5.3",
       "latencyMs": 142,
       "promptVersion": "2.4.0"
     }
@@ -355,7 +357,7 @@ Output schema (example):
   "spreadKey": "threeCard",
   "eval": {
     "scores": { "...": "..." },
-    "model": "@cf/zai-org/glm-5.3-flash",
+    "model": "@cf/zai-org/glm-5.3",
     "latencyMs": 142
   },
   "cardCoverage": 0.95,
@@ -532,11 +534,13 @@ Actions:
   npx wrangler tail --format=json \
     | jq -c --unbuffered '.logs[]? | select((.message[0] // "" | tostring) | contains("Failed to parse JSON")) | .message[0]'
   ```
-- Compare successful eval `latencyMs` with the timeouts. The async call uses `EVAL_TIMEOUT_MS` (currently `"20000"`); the sync gate uses `EVAL_GATE_TIMEOUT_MS` (currently `"15000"`). Keep `EVAL_TIMEOUT_MS` well under the 30 s `waitUntil()` budget:
+- Compare successful eval `latencyMs` with the timeouts. Async scoring uses `EVAL_TIMEOUT_MS` (currently `"28000"`), which leaves about 2 s of the 30 s `waitUntil()` budget for the D1 write, so don't raise it further. The sync gate uses `EVAL_GATE_TIMEOUT_MS` (currently `"15000"`):
   ```jsonc
-  "vars": { "EVAL_TIMEOUT_MS": "20000", "EVAL_GATE_TIMEOUT_MS": "15000" }
+  "vars": { "EVAL_TIMEOUT_MS": "28000", "EVAL_GATE_TIMEOUT_MS": "15000" }
   ```
-- Tune `EVAL_REASONING_EFFORT` before switching models. GLM-5.3 Flash always reasons and accepts `low`, `high` and `max` (other values map to `max`). On 2026-10-07, against 4 committed narrative samples and 5 synthetic failures, `low` took 2–9 s and `high` took 3–22 s; `high` met every synthetic expectation, while `low` also flagged the one-sentence "hard imperative" case as a safety block. Keep `low` while the sync gate timeout is 15 s.
+- Tune the reasoning effort (`EVAL_REASONING_EFFORT` for async scoring, `EVAL_GATE_REASONING_EFFORT` for the gate) before switching models. Both GLM-5.3 models always reason and accept `low`, `high` and `max` (other values map to `max`). Probes on 2026-10-07:
+  - **GLM-5.3 Flash** (the gate), against 4 committed narrative samples and 5 synthetic failures: `low` took 2–9 s and `high` took 3–22 s. `high` met every synthetic expectation, while `low` also flagged the one-sentence "hard imperative" case as a safety block. Keep the gate at `low` while its timeout is 15 s.
+  - **GLM-5.3** (async scoring) at `low`, one call at a time, on 5 committed samples and 2 synthetic failures: 3–47 s, with the five full readings at 6, 9, 11, 24 and 47 s. Output ran 9–53 tokens/s, so the slow calls were Workers AI queueing, not longer reasoning. Two of the five would have missed the old 20 s timeout, so async scoring gets 28 s and the gate stays on Flash. It also flagged the "hard imperative" case. Calls that still time out are stored with heuristic scores (`eval_error_timeout`).
 - The previous evaluator, Qwen3-30B-A3B, gave every good sample identical scores, and in September 2026 disabling its thinking (`/no_think`) made the scores constant across all samples.
 - Try a different Workers AI model:
   ```jsonc

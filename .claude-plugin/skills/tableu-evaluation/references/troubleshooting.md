@@ -85,7 +85,7 @@ npx wrangler d1 execute mystic-tarot-db --remote --command \
 grep -E 'EVAL_(GATE_)?TIMEOUT_MS' wrangler.jsonc
 ```
 
-Consider increasing if frequently timing out. Keep `EVAL_TIMEOUT_MS` well under the 30 s `waitUntil()` budget.
+`EVAL_TIMEOUT_MS` is already 28 s, which leaves about 2 s of the 30 s `waitUntil()` budget for the D1 write. Don't raise it; frequent async timeouts call for a faster `EVAL_MODEL`.
 
 ### Step 3: Check Error Logs
 
@@ -183,15 +183,15 @@ npx wrangler d1 execute mystic-tarot-db --remote --command "SELECT COUNT(*) FROM
 
 ## Common Fixes
 
-### Fix 1: Increase Timeout
+### Fix 1: Timeouts
 
-If `fallbackReason` is often `eval_error_timeout`:
+If `fallbackReason` is often `eval_error_timeout`, check which call timed out. Async scoring already has the most `waitUntil()` allows, so switch `EVAL_MODEL` to a faster model instead of raising its timeout. Raising the gate timeout delays every gated reading:
 
 ```jsonc
 // wrangler.jsonc
 {
   "vars": {
-    "EVAL_TIMEOUT_MS": "25000",  // async eval; increase from 20000, stay under 30000
+    "EVAL_TIMEOUT_MS": "28000",  // async eval; the D1 write needs the last ~2 s of the 30 s budget
     "EVAL_GATE_TIMEOUT_MS": "15000"  // sync gate; raising it delays gated readings
   }
 }

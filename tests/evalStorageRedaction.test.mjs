@@ -6,7 +6,7 @@ import { saveMemory } from '../functions/lib/userMemory.js';
 import { createD1 } from './helpers/d1Sqlite.mjs';
 import { seedUser, seedSession } from './helpers/journalFixtures.mjs';
 
-const EVAL_MODEL = '@cf/zai-org/glm-5.3-flash';
+const EVAL_MODEL = '@cf/zai-org/glm-5.3';
 
 test('stored eval metrics redact a name that reaches the reading only through memory', async (t) => {
   t.mock.method(console, 'log', () => {});

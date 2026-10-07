@@ -10,7 +10,7 @@ describe('getEvaluationTimeoutMs', () => {
 
     it('falls back to default when unset', () => {
         const timeout = getEvaluationTimeoutMs({});
-        assert.equal(timeout, 15000);
+        assert.equal(timeout, 28000);
     });
 });
 

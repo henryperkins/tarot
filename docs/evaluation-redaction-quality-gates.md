@@ -18,7 +18,7 @@ quality checks, and gating mechanisms in the Tarot codebase. It complements
 - Core evaluation module: `functions/lib/evaluation.js`.
 - Async evaluation:
   - `scheduleEvaluation()` runs after responses via `waitUntil()` to avoid blocking.
-  - Uses Workers AI (`EVAL_MODEL`, default Qwen) with JSON output enforcement where supported.
+  - Uses Workers AI (`EVAL_MODEL`, default GLM-5.3; the sync gate uses `EVAL_GATE_MODEL`, default GLM-5.3 Flash) with JSON output enforcement where supported.
   - Stores results in D1 `eval_metrics` with `eval_mode` (model/heuristic/error); the evaluator prompt version is `2.4.0`.
 - Sync evaluation gate:
   - `runSyncEvaluationGate()` runs before responding when `EVAL_GATE_ENABLED=true` or a selective safety/language policy forces it.
