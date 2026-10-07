@@ -101,7 +101,7 @@ export function resolveEnv(env, key) {
  * @returns {string | undefined} The environment variable value or undefined
  *
  * @example
- * const apiKey = resolveEnvStrict(env, 'HUME_API_KEY');
+ * const apiKey = resolveEnvStrict(env, 'AZURE_SPEECH_KEY');
  * // Returns undefined if HUME_API_KEY is '', 0, false, null, or undefined
  */
 export function resolveEnvStrict(env, key) {

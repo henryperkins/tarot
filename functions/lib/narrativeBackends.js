@@ -799,10 +799,12 @@ export async function generateWithModalQwen(env, payload, requestId = 'unknown')
   const result = await callModalChatCompletions(env, {
     systemPrompt,
     userPrompt,
-    requestId
+    requestId,
+    signal: payload.signal
   });
 
   console.log(`[${requestId}] Generated Modal reading length: ${result.text.length} characters`);
+  promptMeta.inference = { provider: 'modal-qwen', model: result.model };
 
   return {
     reading: result.text,
@@ -812,6 +814,7 @@ export async function generateWithModalQwen(env, payload, requestId = 'unknown')
       user: userPrompt
     },
     usage: result.usage,
+    model: result.model,
     promptMeta
   };
 }
@@ -850,10 +853,13 @@ export async function generateWithAzureGPT5Responses(env, payload, requestId = '
     reasoningEffort,          // Env override or model default
     reasoningSummary: 'auto', // Get reasoning summary in response
     verbosity,
+    signal: payload.signal,
+    requestId,
     returnFullResponse: true  // Get usage data
   });
 
   console.log(`[${requestId}] Generated reading length: ${result.text.length} characters`);
+  promptMeta.inference = { provider: isNative ? 'openai-native' : 'azure-gpt5', model: result.model };
   if (result.usage) {
     console.log(`[${requestId}] Token usage:`, {
       input_tokens: result.usage.input_tokens,
@@ -875,6 +881,7 @@ export async function generateWithAzureGPT5Responses(env, payload, requestId = '
       user: userPrompt
     },
     usage: result.usage,
+    model: result.model,
     promptMeta
   };
 }

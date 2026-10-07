@@ -89,7 +89,8 @@ describe('transformAzureStream', () => {
       formatAzureEvent('response.code_interpreter_call_code.done', { item_id: 'ci_1', output_index: 0, code: 'print("hi")' }),
       formatAzureEvent('response.code_interpreter_call.completed', { item_id: 'ci_1', output_index: 0 }),
       formatAzureEvent('response.output_text.delta', { delta: 'Final answer' }),
-      formatAzureEvent('response.output_text.done', { text: 'Final answer' })
+      formatAzureEvent('response.output_text.done', { text: 'Final answer' }),
+      formatAzureEvent('response.completed', { response: { status: 'completed' } })
     ];
 
     const transformed = transformAzureStream(createMockAzureStream(azureEvents));

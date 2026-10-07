@@ -1,3 +1,5 @@
+import { recordInferenceAttempt, inferAttemptReason } from '../lib/inferenceAttempts.js';
+import { createDeadline, getTaskTimeoutMs } from '../lib/requestDeadline.js';
 /**
  * Cloudflare Pages Function for generating a personalized tarot reading.
  *
@@ -463,6 +465,7 @@ async function finalizeReading({
   });
 
   const evalParams = {
+    signal: narrativePayload.signal,
     reading: originalReading,
     userQuestion,
     cardsInfo,
@@ -479,6 +482,14 @@ async function finalizeReading({
     console.warn(`[${requestId}] Selective evaluation gate enabled for this reading: ${evalGatePolicy.reasons.join(', ')}`);
   }
 
+  // Check the generated text too: an English question can receive non-English
+  // output. This reuses the existing bounded detector, not proof of language or
+  // comprehensive multilingual safety. Confident detections require the model.
+  const deliveryGatePolicy = buildSelectiveEvalGatePolicy({
+    env: evalGateEnv,
+    languageSupport: getLocalComposerLanguageSupport(originalReading)
+  });
+
   const gateResult = gateOverride?.blocked
     ? {
       passed: false,
@@ -487,12 +498,21 @@ async function finalizeReading({
       latencyMs: gateOverride.latencyMs || 0
     }
     : await runSyncEvaluationGate(
-      evalGateEnv,
+      deliveryGatePolicy.effectiveEnv,
       evalParams,
       baseNarrativeMetrics
     );
 
   evalGateResult = gateResult;
+
+  if (gateResult.retryable) {
+    // This is an unavailable assessment, not evidence that the reading is unsafe.
+    // The outer error handler releases this request's reservation before returning.
+    const error = new Error('We could not finish checking your reading. Please try again in a moment.');
+    error.code = 'reading_safety_unavailable';
+    error.retryable = true;
+    throw error;
+  }
 
   if (!gateResult.passed) {
     wasGateBlocked = true;
@@ -746,6 +766,8 @@ export async function resolveReadingUser({ request, env, principal }) {
 
 export const onRequestPost = async ({ request, env, waitUntil, principal = null }) => {
   const startTime = Date.now();
+  const taskDeadline = createDeadline({ signal: request.signal, timeoutMs: getTaskTimeoutMs(env, 'reading') });
+  const taskSignal = taskDeadline.signal;
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   let readingReservation = null;
   const url = new URL(request.url);
@@ -1172,7 +1194,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
     const backendErrors = [];
 
-    narrativePayload.signal = request.signal;
+    narrativePayload.signal = taskSignal;
     const tokenStreamingEnabled = !isClaudeCodeEnabled(env) && isAzureTokenStreamingEnabled(env);
     const evalGateEnabled = evalGatePolicy.effectiveEvalGateEnabled;
     const allowStreamingGateBypass = allowStreamingWithEvalGate(env);
@@ -1279,11 +1301,17 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           user: userPrompt
         };
 
+        const streamStartedAt = Date.now();
+        let streamState = 'failed';
+        let streamModel = null;
+        let streamUsage = null;
+        let streamReason = 'provider_error';
         try {
         const azureStream = await callAzureResponsesStream(env, {
           instructions: systemPrompt,
           input: userPrompt,
           maxTokens: null,
+          signal: taskSignal,
           reasoningEffort,
           reasoningSummary: 'auto',
           verbosity
@@ -1294,8 +1322,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         if (shouldBufferStreaming) {
           // Buffer streamed output so the eval gate can block before we emit SSE.
           const collected = await collectSSEStreamText(transformedStream);
+          streamModel = collected.donePayload?.model || collected.errorPayload?.model || null;
+          streamUsage = collected.donePayload?.usage || collected.errorPayload?.usage || null;
           if (collected.error || collected.sawError) {
-            throw new Error('Streaming provider returned an error.');
+            throw Object.assign(new Error('Streaming provider returned an error.'), { code: collected.errorPayload?.code, model: streamModel, usage: streamUsage });
           }
 
           const finalText = (collected.fullText || '').trim();
@@ -1315,6 +1345,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             console.warn(`[${requestId}] Streaming backend ${streamProvider} failed quality gate: ${qualityIssues.join('; ')}`);
             const qualityError = new Error('Narrative failed quality checks.');
             qualityError.qualityIssues = qualityIssues;
+            streamState = 'rejected';
+            streamReason = 'quality_rejected';
             backendErrors.push(buildPublicBackendError(streamProvider, qualityError));
             streamingFallback = true;
             streamingGateNotice = {
@@ -1327,6 +1359,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             console.warn(`[${requestId}] Streaming quality gate failed; falling back to buffered backends.`);
             // fall through to non-streaming backend loop
           } else {
+            streamState = 'accepted';
+            streamReason = null;
+            narrativePayload.promptMeta.inference = { provider: streamProvider, model: streamModel };
             let gateOverride = null;
             if (shouldSafetyScanStreaming) {
               const safetyEval = buildHeuristicScores(
@@ -1345,7 +1380,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               }
             }
 
-            const { responsePayload } = await finalizeReading({
+            const { responsePayload } = await taskDeadline.run(() => finalizeReading({
               env,
               requestId,
               startTime,
@@ -1362,7 +1397,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               visionMetrics,
               abAssignment: attemptAssignment,
               capturedPrompts,
-              capturedUsage: null,
+              capturedUsage: streamUsage,
               waitUntil,
               personalization,
               backendErrors: [],
@@ -1372,7 +1407,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               evalGateEnv,
               evalGatePolicy,
               promptDebugAllowed: promptDebugAccess.allowed
-            });
+            }));
 
             if (attemptAssignment) {
               console.log(`[${requestId}] A/B assignment accepted: ${attemptAssignment.experimentId} → ${attemptAssignment.variantId} (provider: ${streamProvider})`);
@@ -1479,11 +1514,17 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           return createSSEResponse(wrappedStream);
         }
         } catch (streamError) {
+          streamReason = inferAttemptReason(streamError, taskSignal);
+          streamModel ||= streamError?.model || null;
+          streamUsage ||= streamError?.usage || null;
+          if (streamError?.code === 'reading_safety_unavailable') throw streamError;
           console.error(`[${requestId}] Streaming error: ${streamError.message}`);
           backendErrors.push(buildPublicBackendError(streamProvider, streamError));
           // No reading has been sent yet. Keep the reservation for the remaining
           // providers; only release it if the entire fallback chain fails.
           streamingFallback = true;
+        } finally {
+          await recordInferenceAttempt(env, { requestId, task: 'reading', provider: streamProvider, requestedModel: effectiveModel, model: streamModel, usage: streamUsage, state: streamState, reason: streamReason, startedAtMs: streamStartedAt, finishedAtMs: Date.now() });
         }
       }
     }
@@ -1501,7 +1542,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     let capturedReasoningSummary = null;
 
     for (const backend of backendsToTry) {
-      request.signal.throwIfAborted();
+      taskSignal.throwIfAborted();
       const attemptStart = Date.now();
       const backendProvider = resolveNarrativeProviderId(backend.id, env);
       if (backend.id === 'local-composer' && !localComposerLanguageSupport.supported) {
@@ -1529,9 +1570,17 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       });
       narrativePayload.abAssignment = attemptAssignment;
       narrativePayload.variantPromptOverrides = variantPromptOverrides;
+      const attemptDeadline = createDeadline({
+        signal: taskSignal,
+        timeoutMs: Math.min(90000, taskDeadline.remainingMs() || 1)
+      });
+      narrativePayload.signal = attemptDeadline.signal;
+      let backendResult = null;
+      let attemptState = 'failed';
+      let attemptError = null;
       try {
-        const backendResult = await runNarrativeBackend(backend.id, env, narrativePayload, requestId);
-        request.signal.throwIfAborted();
+        backendResult = await attemptDeadline.run(() => runNarrativeBackend(backend.id, env, narrativePayload, requestId));
+        taskSignal.throwIfAborted();
 
         // Extract reading and prompts from result
         const result = typeof backendResult === 'object' && backendResult.reading
@@ -1581,6 +1630,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         capturedUsage = attemptUsage;
         capturedReasoningSummary = attemptReasoningSummary;
 
+        attemptState = 'accepted';
         reading = result;
         provider = backendProvider;
         acceptedQualityMetrics = qualityMetrics; // Store for reuse in response
@@ -1595,8 +1645,25 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         console.log(`[${requestId}] Backend ${backendProvider} succeeded in ${Date.now() - attemptStart}ms, reading length: ${reading.length}, coverage: ${(qualityMetrics.cardCoverage * 100).toFixed(0)}%`);
         break;
       } catch (err) {
+        attemptError = err;
+        attemptState = err.qualityIssues ? 'rejected' : 'failed';
         console.error(`[${requestId}] Backend ${backendProvider} failed:`, err.message);
         backendErrors.push(buildPublicBackendError(backendProvider, err));
+        taskSignal.throwIfAborted();
+      } finally {
+        attemptDeadline.dispose();
+        narrativePayload.signal = taskSignal;
+        await recordInferenceAttempt(env, {
+          requestId, task: 'reading', provider: backendProvider, state: attemptState,
+          reason: attemptError ? inferAttemptReason(attemptError, taskSignal) : null,
+          model: backendResult?.model || attemptError?.model || null,
+          usage: backendResult?.usage || attemptError?.usage || null,
+          requestedModel: backend.id === 'claude-api' ? env.ANTHROPIC_MODEL || 'claude-opus-5-5'
+            : backend.id === 'modal-qwen' ? env.MODAL_MODEL || 'Qwen/Qwen3.8-Max-VL-Thinking'
+            : backend.id === 'azure-gpt5' ? env.OPENAI_API_KEY ? env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL : env.AZURE_OPENAI_GPT5_MODEL
+            : null,
+          startedAtMs: attemptStart, finishedAtMs: Date.now()
+        });
       }
     }
 
@@ -1641,7 +1708,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       }
     }
 
-    const { responsePayload } = await finalizeReading({
+    const { responsePayload } = await taskDeadline.run(() => finalizeReading({
       env,
       requestId,
       startTime,
@@ -1670,7 +1737,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       evalGateEnv,
       evalGatePolicy,
       promptDebugAllowed: promptDebugAccess.allowed
-    });
+    }));
 
     if (useStreaming) {
       return createSSEResponse(createReadingStream(responsePayload));
@@ -1687,6 +1754,19 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     });
     await releaseReadingReservation(env, readingReservation);
     console.log(`[${requestId}] === TAROT READING REQUEST END (ERROR) ===`);
+
+    if (taskSignal.aborted) {
+      return jsonResponse({ error: 'reading_timeout', code: 'reading_timeout', message: 'The reading took too long. Please try again.', retryable: true }, { status: 503 });
+    }
+
+    if (error?.code === 'reading_safety_unavailable') {
+      return jsonResponse({
+        error: error.code,
+        code: error.code,
+        message: error.message,
+        retryable: true
+      }, { status: 503 });
+    }
 
     if (error?.message === 'PROMPT_SAFETY_BUDGET_EXCEEDED') {
       return jsonResponse({
@@ -1713,6 +1793,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       { error: 'Failed to generate reading.' },
       { status: 500 }
     );
+  } finally {
+    taskDeadline.dispose();
   }
 };
 

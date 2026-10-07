@@ -41,6 +41,7 @@ export function useNarrativeReadingController({
   effectiveTier,
   isAuthenticated,
   autoGenerateVisualsEnabled,
+  cardVideoEnabled,
   userQuestion,
   displayName,
   isHandset,
@@ -122,6 +123,7 @@ export function useNarrativeReadingController({
     effectiveTier,
     isAuthenticated,
     autoGenerateVisualsEnabled,
+    cardVideoEnabled,
     isGenerating,
     storyArtCards,
     cinematicCard,
@@ -129,6 +131,7 @@ export function useNarrativeReadingController({
   }), [
     autoGenerateVisualsEnabled,
     canShowVisionPanel,
+    cardVideoEnabled,
     cinematicCard,
     effectiveTier,
     highlightItems,

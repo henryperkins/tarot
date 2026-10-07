@@ -1,3 +1,4 @@
+import { createD1 } from './helpers/d1Sqlite.mjs';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -12,7 +13,7 @@ const DATA_URL = 'data:image/png;base64,ZmFrZQ==';
 function makeVisionRequest(body) {
   return new Request('http://localhost/api/vision-proof', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', 'CF-Connecting-IP': '192.0.2.40' },
     body: JSON.stringify(body)
   });
 }
@@ -182,7 +183,7 @@ describe('mergeVisionAnalyses', () => {
 });
 
 describe('vision-proof backend selection', () => {
-  it('routes backendId to llama-vision', async () => {
+  it('uses the server-selected llama-vision backend', async () => {
     const env = makeEnv();
     const request = makeVisionRequest({
       deckStyle: 'marseille-classic',
@@ -190,6 +191,8 @@ describe('vision-proof backend selection', () => {
       evidence: [{ label: 'img-1', dataUrl: DATA_URL }]
     });
 
+    env.DB = await createD1();
+    env.VISION_BACKEND_DEFAULT = 'llama-vision';
     const response = await onRequestPost({ request, env });
     assert.equal(response.status, 201);
     const payload = await response.json();
@@ -203,6 +206,8 @@ describe('vision-proof backend selection', () => {
       evidence: [{ label: 'img-2', dataUrl: DATA_URL }]
     });
 
+    env.DB = await createD1();
+    env.VISION_BACKEND_DEFAULT = 'llama-vision';
     const response = await onRequestPost({ request, env });
     assert.equal(response.status, 201);
     const payload = await response.json();
@@ -230,6 +235,8 @@ describe('vision-proof backend selection', () => {
       evidence: [{ label: 'img-injection', dataUrl: DATA_URL }]
     });
 
+    env.DB = await createD1();
+    env.VISION_BACKEND_DEFAULT = 'llama-vision';
     const response = await onRequestPost({ request, env });
     assert.equal(response.status, 201);
     const payload = await response.json();
@@ -255,6 +262,8 @@ describe('vision-proof backend selection', () => {
       evidence: [{ label: 'img-4', dataUrl: DATA_URL }]
     });
 
+    env.DB = await createD1();
+    env.VISION_BACKEND_DEFAULT = 'llama-vision';
     const responseRws = await onRequestPost({ request: requestRws, env });
     const responseThoth = await onRequestPost({ request: requestThoth, env });
 

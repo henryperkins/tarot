@@ -289,42 +289,20 @@ describe('Media generation APIs', () => {
       }
     });
 
-    it('retries once after a 35-second stall', async (t) => {
+    it('does not retry an uncancellable inference after its deadline', async (t) => {
       t.mock.timers.enable({ apis: ['setTimeout'] });
-      const ai = createStallingAI({ 2: 'retried' });
-      const env = createBaseEnv({ DB: createMockDb(user), AI: ai });
-
+      const ai = createStallingAI({ 2: 'must-not-run' });
+      const metrics = new MockKVStore();
+      const env = createBaseEnv({ DB: createMockDb(user), METRICS_DB: metrics, AI: ai });
       const firstCall = ai.nextCall();
       const pending = onStoryArtPost({ request: storyArtRequest(), env });
       await firstCall;
       t.mock.timers.tick(35000);
       const response = await pending;
       const payload = await response.json();
-
-      assert.equal(response.status, 200);
-      assert.equal(payload.image, 'retried');
-      assert.equal(ai.count, 2);
-    });
-
-    it('gives up after two stalled attempts and refunds usage', async (t) => {
-      t.mock.timers.enable({ apis: ['setTimeout'] });
-      const ai = createStallingAI();
-      const metrics = new MockKVStore();
-      const env = createBaseEnv({ DB: createMockDb(user), METRICS_DB: metrics, AI: ai });
-
-      let call = ai.nextCall();
-      const pending = onStoryArtPost({ request: storyArtRequest(), env });
-      await call;
-      call = ai.nextCall();
-      t.mock.timers.tick(35000);
-      await call;
-      t.mock.timers.tick(35000);
-      const response = await pending;
-      const payload = await response.json();
-
       assert.equal(response.status, 500);
       assert.match(payload.details, /timed out after 35000ms/);
-      assert.equal(ai.count, 2);
+      assert.equal(ai.count, 1, 'The binding has no cancellation API; never overlap a retry');
       const usageKey = `media_usage:story-art:${user.id}:${getUtcDateKey(new Date())}`;
       assert.equal(await metrics.get(usageKey), null);
     });

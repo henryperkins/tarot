@@ -16,6 +16,37 @@
  */
 
 import { ensureAzureConfig, resolveResponsesUser } from './azureResponses.js';
+import { createDeadline, streamWithDeadline } from './requestDeadline.js';
+import { validateResponsesStream } from './responsesCompletion.js';
+import { recordInferenceAttempt, inferAttemptReason } from './inferenceAttempts.js';
+
+async function fetchResponsesBody(url, init, { signal, timeoutMs = 120000, env, telemetry } = {}) {
+  const startedAtMs = Date.now();
+  let recorded = false;
+  const record = async (error, response) => {
+    if (!telemetry || recorded) return;
+    recorded = true;
+    await recordInferenceAttempt(env, { ...telemetry, startedAtMs, finishedAtMs: Date.now(),
+      state: error ? 'failed' : 'accepted', reason: error ? inferAttemptReason(error, signal) : null,
+      model: response?.model ?? error?.model ?? null, usage: response?.usage ?? error?.usage ?? null });
+  };
+  const deadline = createDeadline({ signal, timeoutMs });
+  try {
+    const response = await deadline.run(() => fetch(url, { ...init, signal: deadline.signal }));
+    if (!response.ok) {
+      response.body?.cancel().catch(() => {});
+      throw new Error(`Responses API error HTTP ${response.status}.`);
+    }
+    if (!response.body) throw new Error('Responses API returned no body for streaming.');
+    return validateResponsesStream(streamWithDeadline(response.body, deadline), {
+      onComplete: (response) => record(null, response), onError: record
+    });
+  } catch (error) {
+    deadline.dispose();
+    await record(error);
+    throw error;
+  }
+}
 
 /**
  * Call Azure Responses API with streaming enabled
@@ -41,13 +72,17 @@ export async function callAzureResponsesStream(env, {
   reasoningSummary = null,
   verbosity = 'medium',
   user = null,
-  tools = null
+  tools = null,
+  signal,
+  timeoutMs = 120000,
+  telemetry
 }) {
   const { model, apiVersion, url, authHeaders, provider } = ensureAzureConfig(env);
   const resolvedUser = resolveResponsesUser(env, user);
 
   const body = {
     model,
+    store: false,
     instructions,
     input,
     text: { verbosity },
@@ -89,31 +124,14 @@ export async function callAzureResponsesStream(env, {
     userProvided: Boolean(resolvedUser)
   });
 
-  const response = await fetch(url, {
+  return fetchResponsesBody(url, {
     method: 'POST',
     headers: {
       ...authHeaders,
       'content-type': 'application/json'
     },
     body: JSON.stringify(body)
-  });
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    console.error('[azureResponsesStream] Non-OK HTTP status', {
-      status: response.status,
-      statusText: response.statusText,
-      provider,
-      bodyPreview: errText.slice(0, 500)
-    });
-    throw new Error(`Responses API error ${response.status}: ${errText}`);
-  }
-
-  if (!response.body) {
-    throw new Error('Azure Responses API returned no body for streaming');
-  }
-
-  return response.body;
+  }, { signal, timeoutMs, env, telemetry: telemetry ? { ...telemetry, provider, requestedModel: model } : null });
 }
 
 /**
@@ -137,12 +155,15 @@ export async function callAzureResponsesStream(env, {
  * @returns {ReadableStream} Transformed SSE stream
  */
 export function transformAzureStream(azureStream) {
+  azureStream = validateResponsesStream(azureStream);
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
 
   let buffer = '';
   let fullText = '';
   let reasoningSummary = '';
+  let model = null;
+  let usage = null;
   let reader = null;
 
   const processEventBlock = (eventBlock, controller) => {
@@ -218,6 +239,8 @@ export function transformAzureStream(azureStream) {
         });
         controller.enqueue(encoder.encode(codeStatusEvent));
       } else if (dataType === 'response.completed') {
+        model = parsed.response?.model || null;
+        usage = parsed.response?.usage || null;
         console.log('[azureResponsesStream] Response completed event received');
       } else if (dataType === 'response.error' || dataType === 'error') {
         const errorMsg = parsed.error?.message || parsed.message || 'Unknown error';
@@ -254,7 +277,7 @@ export function transformAzureStream(azureStream) {
             // Stream ended - send done event with full text and reasoning
             // Include isEmpty flag so consumers know if this was a tool-only response
             const isEmpty = !fullText || !fullText.trim();
-            const doneEvent = formatSSE('done', { fullText, reasoningSummary: reasoningSummary || null, isEmpty });
+            const doneEvent = formatSSE('done', { fullText, reasoningSummary: reasoningSummary || null, isEmpty, model, usage });
             controller.enqueue(encoder.encode(doneEvent));
             controller.close();
             break;
@@ -272,7 +295,7 @@ export function transformAzureStream(azureStream) {
         }
       } catch (error) {
         console.error('[azureResponsesStream] Stream processing error:', error.message);
-        const errorEvent = formatSSE('error', { message: error.message });
+        const errorEvent = formatSSE('error', { message: error.message, code: error.code || null, model: error.model || model, usage: error.usage || usage });
         controller.enqueue(encoder.encode(errorEvent));
         controller.close();
       } finally {
@@ -363,6 +386,7 @@ export function createSSEErrorResponse(message, status = 500) {
  * @returns {{ stream: ReadableStream, getToolCalls: () => Array }}
  */
 export function transformAzureStreamWithTools(azureStream, { onToolCall = null } = {}) {
+  azureStream = validateResponsesStream(azureStream);
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
 
@@ -720,13 +744,17 @@ export async function callAzureResponsesStreamWithConversation(env, {
   conversation,
   maxTokens = 400,
   verbosity = 'medium',
-  user = null
+  user = null,
+  signal,
+  timeoutMs = 120000,
+  telemetry
 }) {
   const { model, url, authHeaders, provider } = ensureAzureConfig(env);
   const resolvedUser = resolveResponsesUser(env, user);
 
   const body = {
     model,
+    store: false,
     instructions,
     input: conversation,
     text: { verbosity },
@@ -751,31 +779,14 @@ export async function callAzureResponsesStreamWithConversation(env, {
     userProvided: Boolean(resolvedUser)
   });
 
-  const response = await fetch(url, {
+  return fetchResponsesBody(url, {
     method: 'POST',
     headers: {
       ...authHeaders,
       'content-type': 'application/json'
     },
     body: JSON.stringify(body)
-  });
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    console.error('[azureResponsesStream] Continuation request failed', {
-      status: response.status,
-      statusText: response.statusText,
-      provider,
-      bodyPreview: errText.slice(0, 500)
-    });
-    throw new Error(`Responses API continuation error ${response.status}: ${errText}`);
-  }
-
-  if (!response.body) {
-    throw new Error('Azure Responses API returned no body for continuation');
-  }
-
-  return response.body;
+  }, { signal, timeoutMs, env, telemetry: telemetry ? { ...telemetry, provider, requestedModel: model } : null });
 }
 
 /**

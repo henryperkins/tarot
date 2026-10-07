@@ -1,177 +1,93 @@
-import { generateFallbackWaveform } from '../../shared/fallbackAudio.js';
-import { jsonResponse, readJsonBody, sanitizeText } from '../lib/utils.js';
+import { jsonResponse, sanitizeText } from '../lib/utils.js';
 import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
-import { getTtsLimits, enforceTtsRateLimit } from '../lib/ttsLimits.js';
+import { getTtsLimits, reserveNarration, settleNarration, releaseNarration, MAX_NARRATION_CHARS, NARRATION_DEADLINE_MS } from '../lib/ttsLimits.js';
 
 const TTS_MODEL = '@cf/deepgram/aura-2-en';
 const TTS_PROVIDER = 'workers-ai-aura-2';
-// Deepgram describes Cora as smooth, melodic and caring, for storytelling.
 const TTS_SPEAKER = 'cora';
-// Deepgram takes at most 2,000 characters per request.
 const MAX_PIECE_CHARS = 1900;
+const MAX_REQUEST_BYTES = 512 * 1024;
 
-/**
- * Text-to-speech for readings with Deepgram Aura-2 on Workers AI.
- *
- * Aura-2 takes no speed, style or emotion instructions, so every reading uses
- * one speaker and the browser applies the listener's speed setting. Requests
- * may still carry `voice`, `speed`, `format`, `context` and `emotion`; they
- * are ignored. Audio is always MP3.
- *
- * Non-streaming mode (returns JSON with base64 data URI):
- *   POST /api/tts
- *   Body: { "text": "..." }
- *   Response: { "audio": "data:audio/mpeg;base64,...", "provider": "workers-ai-aura-2" }
- *
- * Streaming mode (returns the MP3 as it is generated):
- *   POST /api/tts?stream=true
- *   Body: { "text": "..." }
- *   Response: audio/mpeg stream; the x-tts-provider header names the provider
- *
- * If Workers AI fails before audio starts, both modes return a short local
- * waveform instead (provider "fallback").
+/** One request is one narration, up to 64,000 characters, never silently cut.
+ * Full readings stream ordered MP3 pieces; failed or cancelled synthesis does
+ * not consume the monthly narration allowance. No local tone replaces speech.
  */
-export const onRequestGet = async ({ env }) => {
-  // Health check endpoint
-  return jsonResponse({
-    status: 'ok',
-    provider: env?.AI?.run ? TTS_PROVIDER : 'local',
-    model: TTS_MODEL,
-    format: 'mp3',
-    timestamp: new Date().toISOString()
-  });
-};
+export const onRequestGet = async ({ env }) => jsonResponse({
+  status: 'ok', provider: env?.AI?.run ? TTS_PROVIDER : 'unavailable',
+  model: TTS_MODEL, format: 'mp3', maxCharacters: MAX_NARRATION_CHARS,
+  timestamp: new Date().toISOString()
+});
 
-export const onRequestPost = async ({ request, env }) => {
-  const requestId = crypto.randomUUID();
-  try {
-    const url = new URL(request.url);
-    const stream = url.searchParams.get('stream') === 'true';
-
-    // Get user and subscription info
-    const user = await getUserFromRequest(request, env);
-    const subscription = getSubscriptionContext(user);
-    const tier = subscription.tier;
-    const effectiveTier = subscription.effectiveTier;
-    const ttsLimits = getTtsLimits(effectiveTier);
-
-    const { text } = await readJsonBody(request);
-    const sanitizedText = sanitizeText(text, { maxLength: 4096, collapseWhitespace: false });
-
-    if (!sanitizedText) {
-      return jsonResponse(
-        { error: 'The "text" field is required.' },
-        { status: 400 }
-      );
-    }
-
-    // API key usage is Pro-only and subject to API call limits.
-    if (user?.auth_provider === 'api_key') {
-      const apiLimit = await enforceApiCallLimit(env, user);
-      if (!apiLimit.allowed) {
-        return jsonResponse(apiLimit.payload, { status: apiLimit.status });
-      }
-    }
-
-    // Check tier-based rate limits (in addition to global rate limit)
-    const rateLimitResult = await enforceTtsRateLimit(env, request, user, ttsLimits, requestId);
-    if (rateLimitResult?.limited) {
-      const errorCode = rateLimitResult.tierLimited ? 'TIER_LIMIT' : 'RATE_LIMIT';
-      const errorMessage = rateLimitResult.tierLimited
-        ? `You've reached your monthly TTS limit (${ttsLimits.monthly}). Upgrade to Plus or Pro for more.`
-        : 'Too many text-to-speech requests. Please wait a few moments and try again.';
-
-      return jsonResponse(
-        {
-          error: errorMessage,
-          errorCode,
-          tierLimited: rateLimitResult.tierLimited || false,
-          currentTier: tier,
-          limit: rateLimitResult.limit ?? null,
-          used: rateLimitResult.used ?? null,
-          resetAt: rateLimitResult.resetAt ?? null
-        },
-        {
-          status: 429,
-          headers: {
-            'retry-after': rateLimitResult.retryAfter.toString()
-          }
-        }
-      );
-    }
-
-    if (env?.AI?.run) {
-      try {
-        const pieces = await startSpeech(env, sanitizedText);
-        if (stream) {
-          return new Response(joinStreams(pieces), {
-            headers: {
-              'content-type': 'audio/mpeg',
-              'cache-control': 'no-cache',
-              'x-tts-provider': TTS_PROVIDER
-            }
-          });
-        }
-        const bytes = await readPieces(pieces);
-        // audio/mpeg, not audio/mp3: Safari rejects audio/mp3.
-        return jsonResponse({ audio: `data:audio/mpeg;base64,${uint8ToBase64(bytes)}`, provider: TTS_PROVIDER });
-      } catch (error) {
-        console.error(`[${requestId}] [tts] Aura-2 failed, falling back to local waveform:`, error);
-      }
-    }
-
-    // Fallback: local synthesized waveform (no external dependency).
-    const fallbackAudio = generateFallbackWaveform(sanitizedText);
-
-    if (stream) {
-      // For streaming requests, decode base64 and return binary audio
-      const base64Data = fallbackAudio.split(',')[1];
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      return new Response(bytes, {
-        headers: {
-          'content-type': 'audio/wav',
-          'cache-control': 'no-cache',
-          'x-tts-provider': 'fallback'
-        }
-      });
-    }
-
-    return jsonResponse({ audio: fallbackAudio, provider: 'fallback' });
-  } catch (error) {
-    // Return 400 for JSON parse errors (client mistake)
-    if (error?.message === 'Invalid JSON payload.') {
-      return jsonResponse({ error: 'Invalid JSON payload.' }, { status: 400 });
-    }
-    console.error(`[${requestId}] [tts] Function error:`, error);
-    return jsonResponse(
-      { error: 'Unable to generate audio at this time.' },
-      { status: 500 }
-    );
+async function readNarrationBody(request) {
+  if (Number(request.headers?.get('content-length')) > MAX_REQUEST_BYTES) {
+    throw Object.assign(new Error('Narration request is too large.'), { status: 413 });
   }
-};
-
-/**
- * Convert Uint8Array to base64 string.
- * Used for encoding audio binary data into data URIs.
- */
-function uint8ToBase64(uint8Array) {
-  let binary = '';
-  for (let i = 0; i < uint8Array.length; i++) {
-    binary += String.fromCharCode(uint8Array[i]);
+  let text;
+  if (request.body?.getReader) {
+    const reader = request.body.getReader();
+    const chunks = [];
+    let bytes = 0;
+    try {
+      for (;;) {
+        const result = await reader.read();
+        if (result.done) break;
+        bytes += result.value.byteLength;
+        if (bytes > MAX_REQUEST_BYTES) {
+          await reader.cancel();
+          throw Object.assign(new Error('Narration request is too large.'), { status: 413 });
+        }
+        chunks.push(result.value);
+      }
+    } finally { reader.releaseLock(); }
+    const decoder = new TextDecoder();
+    text = chunks.map(chunk => decoder.decode(chunk, { stream: true })).join('') + decoder.decode();
+  } else {
+    text = await request.text();
+    if (new TextEncoder().encode(text).byteLength > MAX_REQUEST_BYTES) {
+      throw Object.assign(new Error('Narration request is too large.'), { status: 413 });
+    }
   }
-  return btoa(binary);
+  try { return JSON.parse(text || '{}'); }
+  catch { throw Object.assign(new Error('Invalid JSON payload.'), { status: 400 }); }
 }
 
-/**
- * Split text into pieces Aura-2 accepts, breaking after a sentence where one
- * ends in the second half of a piece, otherwise between words.
- */
+export const onRequestPost = async ({ request, env }) => {
+  let reservation;
+  try {
+    const body = await readNarrationBody(request);
+    if (typeof body.text === 'string' && body.text.length > MAX_NARRATION_CHARS) {
+      return jsonResponse({ error: `Narration can contain up to ${MAX_NARRATION_CHARS.toLocaleString('en-US')} characters.`, errorCode: 'NARRATION_TOO_LONG' }, { status: 413 });
+    }
+    const text = sanitizeText(body.text, { collapseWhitespace: false });
+    if (!text) return jsonResponse({ error: 'The "text" field is required.' }, { status: 400 });
+    if (!env?.AI?.run) return jsonResponse({ error: 'Narration is temporarily unavailable. Please try again.', errorCode: 'SERVICE_UNAVAILABLE', retryable: true }, { status: 503 });
+    const user = await getUserFromRequest(request, env);
+    if (user?.auth_provider === 'api_key') {
+      const apiLimit = await enforceApiCallLimit(env, user);
+      if (!apiLimit.allowed) return jsonResponse(apiLimit.payload, { status: apiLimit.status });
+    }
+    const subscription = getSubscriptionContext(user);
+    const accounting = await reserveNarration({ env, request, user, limits: getTtsLimits(subscription.effectiveTier) });
+    if (!accounting.allowed) {
+      return jsonResponse({ ...accounting.payload, currentTier: subscription.tier }, { status: accounting.status, headers: accounting.retryAfter ? { 'retry-after': String(accounting.retryAfter) } : {} });
+    }
+    reservation = accounting.reservation;
+    const audio = await createNarrationStream(env, request, text, reservation);
+    if (new URL(request.url).searchParams.get('stream') === 'true') {
+      return new Response(audio, { headers: { 'content-type': 'audio/mpeg', 'cache-control': 'no-store', 'x-tts-provider': TTS_PROVIDER } });
+    }
+    const bytes = new Uint8Array(await new Response(audio).arrayBuffer());
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return jsonResponse({ audio: `data:audio/mpeg;base64,${btoa(binary)}`, provider: TTS_PROVIDER });
+  } catch (error) {
+    await releaseNarration(env, reservation).catch(() => {});
+    return jsonResponse({ error: error.status ? error.message : 'Narration could not finish. Please try again.', errorCode: error.status === 413 ? 'NARRATION_TOO_LONG' : 'NARRATION_UNAVAILABLE', retryable: !error.status }, { status: error.status || 503 });
+  }
+};
+
 export function splitForSpeech(text) {
   const pieces = [];
   let rest = text.trim();
@@ -195,58 +111,89 @@ export function splitForSpeech(text) {
   return pieces;
 }
 
-/**
- * Start Aura-2 on every piece at once and return promises for their MP3
- * streams, in order. Waits for the first piece to start so that a failure
- * there can still fall back to the local waveform.
- */
-async function startSpeech(env, text) {
-  const pieces = splitForSpeech(text).map((piece) =>
-    env.AI.run(TTS_MODEL, { text: piece, speaker: TTS_SPEAKER })
-  );
-  // Later pieces are awaited after earlier ones. Without a handler now, one
-  // that fails in the meantime counts as an unhandled rejection.
-  pieces.forEach((piece) => piece.catch(() => {}));
 
-  const first = await pieces[0];
-  if (typeof first?.pipeTo !== 'function') {
-    throw new Error('Aura-2 returned no audio stream');
-  }
-  return pieces;
-}
-
-/**
- * Play the pieces' MP3 streams back to back as one stream.
- */
-function joinStreams(pieces) {
-  const { readable, writable } = new TransformStream();
-  const pipePieces = async () => {
-    try {
-      for (const piece of pieces) {
-        await (await piece).pipeTo(writable, { preventClose: true });
-      }
-      await writable.close();
-    } catch (error) {
-      await writable.abort(error).catch(() => {});
-    }
+async function createNarrationStream(env, request, text, reservation) {
+  const pieces = splitForSpeech(text);
+  let activeReader;
+  let cancelled = false;
+  let finished = false;
+  let rejectDeadline;
+  const deadline = new Promise((_, reject) => { rejectDeadline = reject; });
+  // An already-aborted caller can reject before the first race is installed.
+  deadline.catch(() => {});
+  const cancelReader = reader => {
+    try { void reader?.cancel?.().catch(() => {}); }
+    catch { /* Provider cancellation is best effort and must not block refunds. */ }
   };
-  pipePieces();
-  return readable;
-}
+  // Every run/body read races the same bounded deadline. Workers AI bindings
+  // do not guarantee cancellation before a response exists; cancel late bodies
+  // and never retry an outstanding inference.
+  const timer = setTimeout(() => {
+    cancelled = true;
+    rejectDeadline(new Error('Narration timed out'));
+  }, NARRATION_DEADLINE_MS);
+  const abort = () => {
+    cancelled = true;
+    rejectDeadline(new Error('Narration cancelled'));
+    cancelReader(activeReader);
+  };
+  request.signal?.addEventListener('abort', abort, { once: true });
+  if (request.signal?.aborted) abort();
+  const cleanup = () => {
+    clearTimeout(timer);
+    request.signal?.removeEventListener('abort', abort);
+  };
+  const runPiece = async piece => {
+    if (cancelled || request.signal?.aborted) throw new Error('Narration cancelled');
+    const pending = Promise.resolve().then(() => {
+      if (cancelled || request.signal?.aborted) throw new Error('Narration cancelled');
+      return env.AI.run(TTS_MODEL, { text: piece, speaker: TTS_SPEAKER });
+    });
+    pending.then(stream => { if (cancelled) cancelReader(stream); }, () => {});
+    const stream = await Promise.race([pending, deadline]);
+    if (!stream?.getReader) throw new Error('Narration provider returned no audio');
+    return stream;
+  };
+  let first;
+  try { first = await runPiece(pieces[0]); }
+  catch (error) { cancelled = true; cleanup(); throw error; }
 
-/**
- * Read every piece at the same time and join the MP3 bytes in order.
- * Reading them one by one would make a long reading wait for each in turn.
- */
-async function readPieces(pieces) {
-  const parts = await Promise.all(
-    pieces.map(async (piece) => new Uint8Array(await new Response(await piece).arrayBuffer()))
-  );
-  const bytes = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
-  let offset = 0;
-  for (const part of parts) {
-    bytes.set(part, offset);
-    offset += part.length;
-  }
-  return bytes;
+  return new ReadableStream({
+    async start(controller) {
+      try {
+        for (const [index, piece] of pieces.entries()) {
+          const source = index === 0 ? first : await runPiece(piece);
+          activeReader = source.getReader();
+          let bytes = 0;
+          try {
+            for (;;) {
+              const { value, done } = await Promise.race([activeReader.read(), deadline]);
+              if (done) break;
+              bytes += value.byteLength;
+              controller.enqueue(value);
+            }
+          } catch (error) {
+            cancelReader(activeReader);
+            throw error;
+          } finally { activeReader.releaseLock(); activeReader = null; }
+          if (!bytes) throw new Error('Narration provider returned empty audio');
+          if (cancelled) throw new Error('Narration cancelled');
+        }
+        await settleNarration(env, reservation);
+        finished = true;
+        controller.close();
+      } catch (error) {
+        cancelled = true;
+        cancelReader(activeReader);
+        await releaseNarration(env, reservation).catch(() => {});
+        try { controller.error(error); } catch { /* Consumer already cancelled. */ }
+      } finally { cleanup(); }
+    },
+    async cancel() {
+      if (finished) return;
+      abort();
+      cleanup();
+      await releaseNarration(env, reservation);
+    }
+  });
 }

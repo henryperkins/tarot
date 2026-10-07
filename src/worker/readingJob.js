@@ -421,7 +421,11 @@ export class ReadingJob {
         payload = null;
       }
       const message = payload?.message || payload?.error || 'Failed to generate reading.';
-      this.appendEvent('error', { message });
+      this.appendEvent('error', {
+        message,
+        ...(typeof payload?.code === 'string' ? { code: payload.code } : {}),
+        ...(payload?.retryable === true ? { retryable: true } : {})
+      });
       return;
     }
 

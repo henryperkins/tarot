@@ -219,6 +219,7 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
   if (personalReading && waitUntil) {
     scheduleCoachExtraction(env, entryId, personalReading, {
       waitUntil,
+      provider,
       requestId: requestId || entryId
     });
   }
@@ -370,6 +371,7 @@ export async function saveReadingJournalEntry({ env, user, entry, waitUntil }) {
   if (result.inserted && entry.personalReading && waitUntil) {
     scheduleCoachExtraction(env, result.entry.id, entry.personalReading, {
       waitUntil,
+      provider: entry.provider,
       requestId: entry.requestId
     });
   }

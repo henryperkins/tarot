@@ -1,6 +1,6 @@
 /**
  * Retry utility with exponential backoff for API calls
- * 
+ *
  * Provides configurable retry logic with exponential backoff, circuit breaker pattern,
  * and idempotency key support for safe retries.
  */
@@ -19,6 +19,8 @@
  * @property {number} circuitBreakerThreshold - Failures before opening circuit (default: 5)
  * @property {number} circuitBreakerResetMs - Time before attempting reset (default: 60000)
  */
+
+import { createDeadline, delayWithSignal } from './requestDeadline.js';
 
 const DEFAULT_RETRY_CONFIG = {
   maxRetries: 3,
@@ -71,7 +73,7 @@ function getCircuitBreaker(endpoint, _config) {
  */
 function isCircuitClosed(breaker, config) {
   if (breaker.state === 'CLOSED') return true;
-  
+
   if (breaker.state === 'OPEN') {
     const timeSinceLastFailure = Date.now() - breaker.lastFailure;
     if (timeSinceLastFailure >= config.circuitBreakerResetMs) {
@@ -82,7 +84,7 @@ function isCircuitClosed(breaker, config) {
     }
     return false;
   }
-  
+
   return true; // HALF_OPEN allows limited requests
 }
 
@@ -111,7 +113,7 @@ function recordSuccess(breaker) {
 function recordFailure(breaker, config) {
   breaker.failures++;
   breaker.lastFailure = Date.now();
-  
+
   if (breaker.failures >= config.circuitBreakerThreshold) {
     breaker.state = 'OPEN';
     console.warn(`[CircuitBreaker] Circuit OPEN after ${breaker.failures} failures`);
@@ -127,13 +129,13 @@ function recordFailure(breaker, config) {
 function calculateDelay(attempt, config) {
   // Exponential backoff: baseDelay * (multiplier ^ attempt)
   const exponentialDelay = config.baseDelayMs * Math.pow(config.backoffMultiplier, attempt);
-  
+
   // Cap at max delay
   const cappedDelay = Math.min(exponentialDelay, config.maxDelayMs);
-  
+
   // Add jitter (±25%) to prevent thundering herd
   const jitter = cappedDelay * 0.25 * (Math.random() * 2 - 1);
-  
+
   return Math.max(0, Math.floor(cappedDelay + jitter));
 }
 
@@ -148,19 +150,19 @@ function isRetryableError(error, config) {
   if (error.name === 'TypeError' || error.name === 'FetchError') {
     return true;
   }
-  
+
   // Timeout errors are retryable
-  if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+  if (error.name === 'AbortError' || error.name === 'TimeoutError' || /timeout|timed out/i.test(error.message || '')) {
     return true;
   }
-  
+
   // Check HTTP status codes
   const statusMatch = error.message?.match(/(\d{3})/);
   if (statusMatch) {
     const status = parseInt(statusMatch[1], 10);
     return config.retryableStatuses.includes(status);
   }
-  
+
   return false;
 }
 
@@ -171,24 +173,21 @@ function isRetryableError(error, config) {
  * @param {number} timeoutMs - Timeout in milliseconds
  * @returns {Promise<Response>} Fetch response
  */
-async function fetchWithTimeout(url, options, timeoutMs) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  
+async function fetchWithTimeout(url, options, timeoutMs, consume) {
+  const deadline = createDeadline({ signal: options.signal, timeoutMs });
   try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal
+    return await deadline.run(async () => {
+      const response = await fetch(url, { ...options, signal: deadline.signal });
+      return consume(response);
     });
-    return response;
   } finally {
-    clearTimeout(timeoutId);
+    deadline.dispose();
   }
 }
 
 /**
  * Execute a function with retry logic and exponential backoff
- * 
+ *
  * @param {Function} fn - Async function to execute
  * @param {string} endpoint - Endpoint identifier for circuit breaker
  * @param {string} requestId - Request ID for logging
@@ -198,66 +197,70 @@ async function fetchWithTimeout(url, options, timeoutMs) {
  */
 export async function withRetry(fn, endpoint, requestId, config = {}) {
   const mergedConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
-  const breaker = mergedConfig.enableCircuitBreaker 
-    ? getCircuitBreaker(endpoint, mergedConfig) 
+  const breaker = mergedConfig.enableCircuitBreaker
+    ? getCircuitBreaker(endpoint, mergedConfig)
     : null;
-  
+
   // Check circuit breaker
   if (breaker && !isCircuitClosed(breaker, mergedConfig)) {
     throw new Error(`Circuit breaker OPEN for ${endpoint}. Try again later.`);
   }
-  
+
   let lastError = null;
-  
+
   for (let attempt = 0; attempt <= mergedConfig.maxRetries; attempt++) {
+    mergedConfig.signal?.throwIfAborted();
     try {
       console.log(`[${requestId}] Attempt ${attempt + 1}/${mergedConfig.maxRetries + 1} for ${endpoint}`);
-      
+
       const result = await fn(attempt);
-      
+
       // Record success for circuit breaker
       if (breaker) {
         recordSuccess(breaker);
       }
-      
+
       if (attempt > 0) {
         console.log(`[${requestId}] Succeeded on attempt ${attempt + 1} after ${attempt} retries`);
       }
-      
+
       return result;
-      
+
     } catch (error) {
+      mergedConfig.signal?.throwIfAborted();
       lastError = error;
-      
+
       // Check if we should retry
       const isLastAttempt = attempt >= mergedConfig.maxRetries;
       const shouldRetry = !isLastAttempt && isRetryableError(error, mergedConfig);
-      
+
       if (!shouldRetry) {
         // Record failure for circuit breaker
         if (breaker) {
           recordFailure(breaker, mergedConfig);
         }
-        
+
         console.error(`[${requestId}] Non-retryable error or max retries exceeded:`, error.message);
         throw error;
       }
-      
+
       // Calculate and apply delay
-      const delayMs = calculateDelay(attempt, mergedConfig);
+      const delayMs = Number.isFinite(error.retryAfterMs)
+        ? Math.min(mergedConfig.maxDelayMs, Math.max(0, error.retryAfterMs))
+        : calculateDelay(attempt, mergedConfig);
       console.warn(`[${requestId}] Attempt ${attempt + 1} failed: ${error.message}. Retrying in ${delayMs}ms...`);
-      
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+
+      await delayWithSignal(delayMs, mergedConfig.signal);
     }
   }
-  
+
   // Should not reach here, but just in case
   throw lastError || new Error('All retry attempts failed');
 }
 
 /**
  * Fetch with retry logic for Azure/Claude APIs
- * 
+ *
  * @param {string} url - API URL
  * @param {Object} options - Fetch options
  * @param {string} endpoint - Endpoint identifier
@@ -273,34 +276,36 @@ export async function fetchWithRetry(url, options, endpoint, requestId, retryCon
         ...options.headers,
         'X-Idempotency-Key': generateIdempotencyKey(requestId, attempt)
       };
-      
-      const response = await fetchWithTimeout(url, { ...options, headers }, retryConfig.timeoutMs || 60000);
-      
-      // Handle rate limiting with Retry-After header
-      if (response.status === 429) {
-        const retryAfter = response.headers.get('Retry-After');
-        if (retryAfter) {
-          const delayMs = parseInt(retryAfter, 10) * 1000;
-          console.warn(`[${requestId}] Rate limited. Retry-After: ${retryAfter}s`);
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-          throw new Error(`429 Too Many Requests - retry after ${retryAfter}s`);
+
+      return fetchWithTimeout(url, { ...options, headers }, retryConfig.timeoutMs || 60000, async (response) => {
+        // Handle rate limiting with Retry-After header
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After');
+          if (retryAfter) {
+            const seconds = Number(retryAfter);
+            const delayMs = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter) - Date.now();
+            response.body?.cancel().catch(() => {});
+            const error = new Error('429 Too Many Requests');
+            error.retryAfterMs = delayMs;
+            throw error;
+          }
         }
-      }
-      
-      // Throw for non-OK responses to trigger retry
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        const publicDetail = retryConfig.includeResponseBodyInError === false
-          ? ''
-          : errText.slice(0, 200);
-        throw new Error(`HTTP ${response.status}${publicDetail ? `: ${publicDetail}` : ''}`);
-      }
-      
-      return response;
+
+        // Throw for non-OK responses to trigger retry
+        if (!response.ok) {
+          const errText = await response.text().catch(() => '');
+          const publicDetail = retryConfig.includeResponseBodyInError === false
+            ? ''
+            : errText.slice(0, 200);
+          throw new Error(`HTTP ${response.status}${publicDetail ? `: ${publicDetail}` : ''}`);
+        }
+
+        return retryConfig.consumeResponse ? retryConfig.consumeResponse(response) : response;
+      });
     },
     endpoint,
     requestId,
-    retryConfig
+    { ...retryConfig, signal: options.signal || retryConfig.signal }
   );
 }
 

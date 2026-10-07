@@ -11,7 +11,7 @@ import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 function release(env = {}) {
   const result = spawnSync(process.execPath, ['--import', './tests/helpers/releaseCheckCommandStub.mjs', 'scripts/evaluation/runReleaseChecks.js'], {
     encoding: 'utf8',
-    env: { ...process.env, VISION_EVAL_MANIFEST_DIR: '', NARRATIVE_EVAL_BACKEND: '', TEST_RELEASE_CHECK_FAIL: '', ...env }
+    env: { ...process.env, VISION_EVAL_MANIFEST_DIR: '', NARRATIVE_EVAL_BACKEND: '', TEST_RELEASE_CHECK_FAIL: '', ANTHROPIC_API_KEY: 'offline-test-key', ...env }
   });
   const checks = result.stdout.split('\n').filter(line => line.startsWith('CHECK:')).map(line => JSON.parse(line.slice(6)));
   return { ...result, checks, scripts: checks.map(check => check.script) };
@@ -43,7 +43,7 @@ it('runs required release checks without a photo corpus and reports vision as un
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.scripts, ['test', 'test:deploy', 'lint:cloudflare', 'docs:check', 'ci:narrative-check']);
   assert.match(result.stdout, /vision qualification not run/i);
-  assert.ok(result.checks.every(check => check.backend === 'modal-qwen'));
+  assert.ok(result.checks.every(check => check.backend === 'claude-api'));
 });
 
 for (const script of ['test', 'ci:narrative-check']) {
@@ -92,4 +92,17 @@ it('keeps an explicitly requested failing vision gate fatal', async (t) => {
   assert.equal(result.status, 1);
   assert.equal(result.scripts.at(-1), 'ci:vision-check');
   assert.match(result.stderr, /Release check ci:vision-check failed/);
+});
+
+it('fails before checks if the primary release provider secret is missing', () => {
+  const result = release({ ANTHROPIC_API_KEY: '' });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /ANTHROPIC_API_KEY/);
+  assert.deepEqual(result.checks, []);
+});
+
+it('allows an explicit alternate provider release diagnostic', () => {
+  const result = release({ ANTHROPIC_API_KEY: '', NARRATIVE_EVAL_BACKEND: 'modal-qwen' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(result.checks.every(check => check.backend === 'modal-qwen'));
 });

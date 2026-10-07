@@ -1517,7 +1517,7 @@ describe('evaluation', () => {
 
       await Promise.all(waitPromises);
 
-      assert.equal(mockDB.queries.length, 1);
+      assert.equal(mockDB.queries.filter((query) => !query.sql.includes('INSERT INTO inference_attempts')).length, 1);
       const query = mockDB.getLastQuery();
       assert.ok(query.sql.includes('UPDATE eval_metrics'));
       assert.ok(query.bindings.includes('db-test-1'));
@@ -1575,7 +1575,7 @@ describe('evaluation', () => {
       await Promise.all(waitPromises);
 
       // Heuristic fallback still updates D1 with eval mode 'heuristic'
-      assert.equal(mockDB.queries.length, 1);
+      assert.equal(mockDB.queries.filter((query) => !query.sql.includes('INSERT INTO inference_attempts')).length, 1);
       const query = mockDB.getLastQuery();
       assert.ok(query.sql.includes('UPDATE eval_metrics'));
       assert.ok(query.bindings.includes('heuristic'));
@@ -1723,7 +1723,7 @@ describe('evaluation', () => {
       await Promise.all(waitPromises);
 
       // D1 storage should still happen even if gateway fails
-      assert.equal(mockDB.queries.length, 1);
+      assert.equal(mockDB.queries.filter((query) => !query.sql.includes('INSERT INTO inference_attempts')).length, 1);
     });
 
     test('runs inline when waitUntil is unavailable', async () => {
@@ -1752,7 +1752,7 @@ describe('evaluation', () => {
       // Wait for inline execution
       await result;
 
-      assert.equal(mockDB.queries.length, 1);
+      assert.equal(mockDB.queries.filter((query) => !query.sql.includes('INSERT INTO inference_attempts')).length, 1);
     });
 
     test('stores precomputed gate evaluation without rerunning AI', async () => {
@@ -1794,7 +1794,7 @@ describe('evaluation', () => {
       await Promise.all(waitPromises);
 
       assert.equal(runCalled, false);
-      assert.equal(mockDB.queries.length, 1);
+      assert.equal(mockDB.queries.filter((query) => !query.sql.includes('INSERT INTO inference_attempts')).length, 1);
       const query = mockDB.getLastQuery();
       assert.ok(query.bindings.includes(5)); // overall score
     });
@@ -2564,7 +2564,7 @@ describe('evaluation', () => {
       await Promise.all(waitPromises);
 
       // Verify D1 storage
-      assert.equal(mockDB.queries.length, 1);
+      assert.equal(mockDB.queries.filter((query) => !query.sql.includes('INSERT INTO inference_attempts')).length, 1);
       const query = mockDB.getLastQuery();
       assert.ok(query.sql.includes('UPDATE eval_metrics'));
       assert.ok(query.bindings.includes('integration-test-001'));

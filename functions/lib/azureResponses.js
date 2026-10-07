@@ -1,4 +1,6 @@
 import { fetchWithRetry } from './retryWithBackoff.js';
+import { createDeadline } from './requestDeadline.js';
+import { observeInferenceAttempt } from './inferenceAttempts.js';
 
 export const OPENAI_DEFAULT_MODEL = 'gpt-5.6-sol';
 
@@ -174,7 +176,17 @@ export function getTextVerbosity(env = null, modelName = '') {
  * @param {boolean} options.returnFullResponse - When true, return { text, usage } instead of just text
  * @returns {Promise<string|Object>} Response text or { text, usage } if returnFullResponse=true
  */
-export async function callAzureResponses(env, {
+export async function callAzureResponses(env, options) {
+  if (!options.telemetry) return callAzureResponsesImpl(env, options);
+  const config = ensureAzureConfig(env);
+  const result = await observeInferenceAttempt(env, {
+    ...options.telemetry, signal: options.signal,
+    provider: config.provider, requestedModel: config.model
+  }, () => callAzureResponsesImpl(env, { ...options, returnFullResponse: true }));
+  return options.returnFullResponse ? result : result.text;
+}
+
+async function callAzureResponsesImpl(env, {
   instructions,
   input,
   maxTokens = 900,
@@ -183,7 +195,9 @@ export async function callAzureResponses(env, {
   verbosity = 'medium',
   user = null,
   returnFullResponse = false,
-  requestId = 'unknown'
+  requestId = 'unknown',
+  signal,
+  timeoutMs = 120000
 }) {
   const { model, apiVersion, url, authHeaders, provider } = ensureAzureConfig(env);
   const resolvedUser = resolveResponsesUser(env, user);
@@ -193,10 +207,10 @@ export async function callAzureResponses(env, {
   // When `reasoning` is enabled with a token limit, the model can consume the entire
   // `max_output_tokens` budget on reasoning tokens only, returning only a `reasoning`
   // block with `status: "incomplete"` and no `output_text` / message content.
-  // For short outputs (follow-ups, questions), omit reasoning. For full readings
-  // (no token limit), reasoning is beneficial.
+  // Callers budget for both reasoning and the requested final answer.
   const body = {
     model,
+    store: false,
     instructions,
     input,
     text: { verbosity }
@@ -237,26 +251,47 @@ export async function callAzureResponses(env, {
   });
 
   // Use retry logic with exponential backoff
-  const response = await fetchWithRetry(
-    url,
-    {
-      method: 'POST',
-      headers: {
-        ...authHeaders,
-        'content-type': 'application/json'
+  const deadline = createDeadline({ signal, timeoutMs });
+  let data;
+  try {
+    data = await deadline.run(() => fetchWithRetry(
+      url,
+      {
+        method: 'POST',
+        signal: deadline.signal,
+        headers: {
+          ...authHeaders,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify(body)
       },
-      body: JSON.stringify(body)
-    },
-    provider === 'openai-native' ? 'openai-native' : 'azure-openai',
-    requestId,
-    {
-      maxRetries: 3,
-      baseDelayMs: 1000,
-      timeoutMs: 120000 // 2 minutes for long readings
-    }
-  );
-
-  const data = await response.json();
+      provider === 'openai-native' ? 'openai-native' : 'azure-openai',
+      requestId,
+      {
+        maxRetries: 3,
+        baseDelayMs: 1000,
+        timeoutMs,
+        includeResponseBodyInError: false,
+        consumeResponse: (response) => response.json()
+      }
+    ));
+  } finally {
+    deadline.dispose();
+  }
+  if (data.status && data.status !== 'completed') {
+    const error = new Error(`Responses API returned ${data.status}; a complete answer is required.`);
+    error.code = 'response_incomplete';
+    error.model = data.model || null;
+    error.usage = data.usage || null;
+    throw error;
+  }
+  if (data.error || data.incomplete_details || (Array.isArray(data.output) && data.output.some((item) => item?.status === 'incomplete' || item?.status === 'failed'))) {
+    const error = new Error('Responses API returned an incomplete or failed answer.');
+    error.code = 'response_incomplete';
+    error.model = data.model || null;
+    error.usage = data.usage || null;
+    throw error;
+  }
 
   // Snapshot of the raw payload shape for debugging
   try {
@@ -308,8 +343,6 @@ export async function callAzureResponses(env, {
   }
 
   if (!text) {
-    const serialized = JSON.stringify(data, null, 2);
-    console.warn('[azureResponses] No output_text returned. Raw payload:', serialized?.slice(0, 2000));
     throw new Error('Azure Responses API returned no text content.');
   }
 
@@ -322,6 +355,7 @@ export async function callAzureResponses(env, {
     return {
       text,
       reasoningSummary: reasoningSummaryText,
+      model: data.model || null,
       usage: data.usage || null
     };
   }

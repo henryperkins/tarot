@@ -160,6 +160,8 @@ Key features:
 - Supports synchronous gating when `EVAL_GATE_ENABLED=true` (fail-open/closed via `EVAL_GATE_FAILURE_MODE`)
 - Includes prompt versioning (`EVAL_PROMPT_VERSION = '2.4.0'`)
 - Falls back to heuristic scoring if AI evaluation fails
+- Runs deterministic pre-delivery output checks over both JSON and SSE. Sensitive input and confidently detected non-English input/output require complete evaluation; benign wellbeing context alone does not force medical-risk gating.
+- Returns a retryable `reading_safety_unavailable` HTTP 503 and releases the reading reservation when required evaluation is unavailable or incomplete. Genuine safety rejection retains a clearly identified reflective fallback. English patterns and the bounded language detector are not comprehensive multilingual safety coverage.
 - Logs safety flags and low-tone events for monitoring
 
 ---

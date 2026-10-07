@@ -1,3 +1,4 @@
+import { createD1 } from './helpers/d1Sqlite.mjs';
 import assert from 'node:assert/strict';
 import { it } from 'node:test';
 import { evaluateVisionInsightPromptEligibility } from '../functions/lib/readingQuality.js';
@@ -39,8 +40,8 @@ it('retains the annotation restriction through API sanitization and signed proof
     symbolVerification: { annotationStatus: 'unsupported', deckStyle: 'marseille-classic', matchRate: null, weightedMatchRate: null, absenceExpectedCount: 0, absentSymbolFalsePositive: null }
   }]);
   const response = await onRequestPost({
-    request: new Request('https://example.test/api/vision-proof', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ deckStyle: 'marseille-classic', backendId: 'clip-default', evidence: [{ label: 'test-photo', dataUrl: 'data:image/png;base64,AA==' }] }) }),
-    env: { VISION_PROOF_SECRET: 'test-only-annotation-secret' }
+    request: new Request('https://example.test/api/vision-proof', { method: 'POST', headers: { 'content-type': 'application/json', 'CF-Connecting-IP': '192.0.2.40' }, body: JSON.stringify({ deckStyle: 'marseille-classic', backendId: 'clip-default', evidence: [{ label: 'test-photo', dataUrl: 'data:image/png;base64,AA==' }] }) }),
+    env: { DB: await createD1(), VISION_BACKEND_DEFAULT: 'clip-default', VISION_PROOF_SECRET: 'test-only-annotation-secret' }
   });
   assert.equal(response.status, 201);
   const { proof } = await response.json();

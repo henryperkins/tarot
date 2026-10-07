@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import * as weave from 'weave';
 
 import { parseJsoncConfig } from '../deploy.js';
@@ -310,7 +311,7 @@ function normalizeBackendId(value) {
   return normalized;
 }
 
-function resolveBackendId(requestedBackend, env) {
+export function resolveBackendId(requestedBackend, env) {
   const normalized = normalizeBackendId(requestedBackend);
   if (normalized === 'auto') {
     const available = getAvailableNarrativeBackends(env);
@@ -409,7 +410,7 @@ async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
   };
 }
 
-async function main() {
+export async function main() {
   const options = parseArgs(process.argv.slice(2));
   const env = await loadEvalEnv(options.envProfile);
   const backendId = resolveBackendId(options.backend, env);
@@ -479,7 +480,9 @@ async function main() {
   console.log(`Narrative samples written to ${path.relative(process.cwd(), outPath)} (${generated.length} samples).`);
 }
 
-main().catch((err) => {
-  console.error('Failed to generate narrative samples:', err.message);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  main().catch((err) => {
+    console.error('Failed to generate narrative samples:', err.message);
+    process.exitCode = 1;
+  });
+}

@@ -44,14 +44,14 @@ describe('selective evaluation gate policy', () => {
 
     assert.equal(policy.requested, true);
     assert.equal(policy.forced, true);
-    assert.ok(policy.reasons.includes('context_wellbeing'));
+    assert.ok(!policy.reasons.includes('context_wellbeing'));
     assert.ok(policy.reasons.includes('restricted_medical'));
     assert.equal(policy.effectiveEnv.EVAL_GATE_ENABLED, 'true');
     assert.equal(policy.effectiveEvalGateEnabled, true);
     assert.equal(policy.effectiveEnv.EVAL_GATE_FAILURE_MODE, 'closed');
   });
 
-  it('does not pretend to force the gate when evaluation is disabled', () => {
+  it('requires assessment instead of silently bypassing when evaluation is disabled', () => {
     const policy = buildSelectiveEvalGatePolicy({
       env: { EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' },
       context: 'wellbeing',
@@ -61,9 +61,10 @@ describe('selective evaluation gate policy', () => {
     });
 
     assert.equal(policy.requested, true);
-    assert.equal(policy.forced, false);
-    assert.equal(policy.effectiveEvalGateEnabled, false);
-    assert.equal(policy.effectiveEnv.EVAL_GATE_ENABLED, 'false');
+    assert.equal(policy.forced, true);
+    assert.equal(policy.effectiveEvalGateEnabled, true);
+    assert.equal(policy.effectiveEnv.EVAL_GATE_ENABLED, 'true');
+    assert.equal(policy.effectiveEnv.EVAL_GATE_REQUIRED, 'true');
   });
 
   // --- #1: restricted patterns narrowed so everyday questions don't force a sync gate ---
@@ -168,8 +169,8 @@ describe('selective evaluation gate policy', () => {
     assert.ok(policy.reasons.includes('restricted_abuse_safety'));
   });
 
-  // --- #2: language-only forcing fails OPEN so an eval outage doesn't black-hole non-English readers ---
-  it('fails open when a reading is forced solely by non-English detection', () => {
+  // Language-only requests need a complete assessment beyond English heuristics.
+  it('requires complete assessment when forced solely by non-English detection', () => {
     const policy = buildSelectiveEvalGatePolicy({
       env: { EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'false' },
       context: 'general',
@@ -181,7 +182,8 @@ describe('selective evaluation gate policy', () => {
     assert.equal(policy.forced, true);
     assert.deepEqual(policy.reasons, ['language_es']);
     assert.equal(policy.effectiveEnv.EVAL_GATE_ENABLED, 'true');
-    assert.equal(policy.effectiveEnv.EVAL_GATE_FAILURE_MODE, 'open');
+    assert.equal(policy.effectiveEnv.EVAL_GATE_FAILURE_MODE, 'closed');
+    assert.equal(policy.effectiveEnv.EVAL_GATE_REQUIRED, 'true');
   });
 
   it('keeps failing closed when a non-English reading also has a safety reason', () => {
@@ -195,11 +197,11 @@ describe('selective evaluation gate policy', () => {
 
     assert.equal(policy.forced, true);
     assert.ok(policy.reasons.includes('language_es'));
-    assert.ok(policy.reasons.includes('context_wellbeing'));
+    assert.ok(!policy.reasons.includes('context_wellbeing'));
     assert.equal(policy.effectiveEnv.EVAL_GATE_FAILURE_MODE, 'closed');
   });
 
-  it('honors an explicitly configured open failure mode for safety-forced readings', () => {
+  it('protects sensitive requests despite an explicitly configured open generic failure mode', () => {
     const policy = buildSelectiveEvalGatePolicy({
       env: { EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'false', EVAL_GATE_FAILURE_MODE: 'open' },
       context: 'wellbeing',
@@ -209,7 +211,8 @@ describe('selective evaluation gate policy', () => {
     });
 
     assert.equal(policy.forced, true);
-    assert.equal(policy.effectiveEnv.EVAL_GATE_FAILURE_MODE, 'open');
+    assert.equal(policy.effectiveEnv.EVAL_GATE_FAILURE_MODE, 'closed');
+    assert.equal(policy.effectiveEnv.EVAL_GATE_REQUIRED, 'true');
   });
 
   // --- #4: effectiveEnv is always a usable object, even when env is absent ---

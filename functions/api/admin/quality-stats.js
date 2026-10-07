@@ -224,7 +224,7 @@ export async function onRequestPost(context) {
 /**
  * Compute summary statistics from quality stats.
  */
-function computeSummary(stats) {
+export function computeSummary(stats) {
   if (!stats || stats.length === 0) {
     return {
       totalReadings: 0,
@@ -234,6 +234,21 @@ function computeSummary(stats) {
     };
   }
 
+  const evaluatorGroups = new Map();
+  for (const row of stats) {
+    const key = JSON.stringify([row.eval_model || 'unknown', row.eval_source || 'unknown']);
+    if (!evaluatorGroups.has(key)) evaluatorGroups.set(key, []);
+    evaluatorGroups.get(key).push(row);
+  }
+  const evaluators = [...evaluatorGroups.entries()].map(([key, rows]) => {
+    const [model, source] = JSON.parse(key);
+    const scored = rows.filter((row) => Number.isFinite(row.avg_overall));
+    const count = scored.reduce((sum, row) => sum + (row.eval_count || row.heuristic_count || 0), 0);
+    const sum = scored.reduce((total, row) => total + row.avg_overall * (row.eval_count || row.heuristic_count || 0), 0);
+    return { model, source, readings: rows.reduce((total, row) => total + (row.reading_count || 0), 0), avgOverall: count ? (sum / count).toFixed(2) : null };
+  });
+  // A single pooled score cannot compare different evaluator rubrics or heuristic scores.
+  const comparable = evaluators.length === 1 && evaluators[0].source === 'model';
   const totalReadings = stats.reduce((sum, s) => sum + (s.reading_count || 0), 0);
 
   // Weighted average by reading_count to avoid low-volume slices skewing the result
@@ -256,8 +271,9 @@ function computeSummary(stats) {
 
   return {
     totalReadings,
-    avgOverall: avgOverall?.toFixed(2),
-    safetyFlagRate: safetyFlagRate?.toFixed(4),
+    avgOverall: comparable ? avgOverall?.toFixed(2) : null,
+    safetyFlagRate: comparable ? safetyFlagRate?.toFixed(4) : null,
+    evaluators,
     periodsCovered: periods.size,
     versions,
     variants,

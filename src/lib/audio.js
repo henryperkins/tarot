@@ -1,7 +1,11 @@
 import { normalizeReadingText, prepareForTTS } from './formatting.js';
-import { generateFallbackWaveform } from '../../shared/fallbackAudio.js';
 import { djb2Hash } from './utils.js';
 import { safeStorage } from './safeStorage.js';
+
+// Retired saved preferences use the regular narration path.
+export function normalizeTtsProvider(value) {
+  return value === 'azure-sdk' ? 'azure-sdk' : 'azure';
+}
 
 let flipAudio = null;
 let ambienceAudio = null;
@@ -221,7 +225,7 @@ function normalizeAudioContentType(contentType) {
   return contentType;
 }
 
-async function buildStreamingAudioSource(response, signal) {
+async function buildStreamingAudioSource(response, signal, onError = () => {}) {
   const contentType = normalizeAudioContentType(response.headers.get('content-type'));
   const canStream = typeof MediaSource !== 'undefined' &&
     typeof MediaSource.isTypeSupported === 'function' &&
@@ -276,16 +280,21 @@ async function buildStreamingAudioSource(response, signal) {
       if (!sourceBuffer?.updating && queue.length === 0) {
         finishStream();
       }
-    } catch {
+    } catch (error) {
+      await reader.cancel().catch(() => {});
+      if (!signal?.aborted) onError(error);
       finishStream();
+    } finally {
+      reader.releaseLock();
     }
   };
 
   mediaSource.addEventListener('sourceopen', () => {
     try {
       sourceBuffer = mediaSource.addSourceBuffer(contentType);
-    } catch {
+    } catch (error) {
       reader.cancel().catch(() => null);
+      onError(error);
       finishStream();
       return;
     }
@@ -449,7 +458,12 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
 
       if (stream) {
         // Streaming mode: response body is a ReadableStream of audio chunks
-        const streamResult = await buildStreamingAudioSource(response, controller?.signal);
+        const streamResult = await buildStreamingAudioSource(response, controller?.signal, error => {
+          if (isStaleRequest()) return;
+          activeNarrationId = null;
+          ttsAudio?.pause();
+          emitTTSState({ status: 'error', errorCode: 'NARRATION_INCOMPLETE', error: error?.message || 'Audio body failed', context: narrationContext, message: 'Narration stopped before it finished. Please try again.' });
+        });
         audioDataUri = streamResult.url;
         objectUrlForCleanup = streamResult.url;
         const headerProvider = response.headers.get('x-tts-provider');
@@ -595,21 +609,12 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
       return;
     }
     console.error('Error playing TTS audio:', err);
-    const fallbackPlayed = await tryPlayLocalFallback({
-      requestId,
-      context: narrationContext,
-      fallbackText: normalizedText || text
-    });
-
-    if (fallbackPlayed) {
-      return;
-    }
-
     emitTTSState({
       status: 'error',
       context: narrationContext,
       error: err?.message || String(err),
-      message: 'Unable to play audio right now.'
+      errorCode: stream ? 'NARRATION_INCOMPLETE' : 'NARRATION_UNAVAILABLE',
+      message: 'Narration could not finish. Please try again.'
     });
     activeNarrationId = null;
   }
@@ -930,71 +935,6 @@ function finishTtsStreamQueue() {
     activeNarrationId = null;
   }
   ttsStreamRequestId = 0;
-}
-
-async function tryPlayLocalFallback({ requestId, context, fallbackText }) {
-  try {
-    const safeText = fallbackText && fallbackText.length
-      ? fallbackText
-      : 'The cards rest quietly; here is a gentle chime instead.';
-    const audioDataUri = generateFallbackWaveform(safeText);
-
-    emitTTSState({
-      status: 'loading',
-      provider: 'fallback',
-      source: 'local',
-      cached: false,
-      error: null,
-      context,
-      message: getPreparingMessage('fallback', context)
-    });
-
-    if (requestId <= cancelledUpToRequestId) {
-      emitTTSState({
-        status: 'stopped',
-        reason: 'user',
-        context,
-        message: 'Narration stopped.'
-      });
-      activeNarrationId = null;
-      return true;
-    }
-
-    if (!audioUnlocked) {
-      const unlocked = await unlockAudio();
-      if (!unlocked) {
-        emitTTSState({
-          status: 'unlock-failed',
-          provider: 'fallback',
-          source: 'local',
-          context,
-          error: 'Audio not unlocked',
-          message: 'Tap anywhere on the page to enable audio, then try again.',
-          reason: 'interaction-required'
-        });
-        activeNarrationId = null;
-        return true;
-      }
-    }
-
-    const fallbackAudio = new Audio(audioDataUri);
-    ttsAudio = fallbackAudio;
-    wireTTSEvents(fallbackAudio, 'fallback', 'local', requestId, context);
-    await fallbackAudio.play();
-
-    emitTTSState({
-      status: 'playing',
-      provider: 'fallback',
-      source: 'local',
-      context,
-      message: getPlayMessage('fallback', context)
-    });
-
-    return true;
-  } catch (fallbackErr) {
-    console.error('Local fallback audio failed:', fallbackErr);
-    return false;
-  }
 }
 
 /**
@@ -1328,8 +1268,10 @@ function emitTTSState(update) {
 }
 
 function wireTTSEvents(audio, provider, source, requestId, context) {
+  const isCurrent = () => activeNarrationId === requestId && requestId > cancelledUpToRequestId;
   // Progress tracking: capture duration when metadata loads
   audio.addEventListener('loadedmetadata', () => {
+    if (!isCurrent()) return;
     const duration = audio.duration || 0;
     if (duration > 0 && isFinite(duration)) {
       emitTTSState({ duration });
@@ -1338,6 +1280,7 @@ function wireTTSEvents(audio, provider, source, requestId, context) {
 
   // Progress tracking: update currentTime and progress on timeupdate
   audio.addEventListener('timeupdate', () => {
+    if (!isCurrent()) return;
     const currentTime = audio.currentTime || 0;
     const duration = audio.duration || 0;
     const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
@@ -1345,6 +1288,7 @@ function wireTTSEvents(audio, provider, source, requestId, context) {
   });
 
   audio.addEventListener('ended', () => {
+    if (!isCurrent()) return;
     emitTTSState({
       status: 'completed',
       provider,
@@ -1366,6 +1310,7 @@ function wireTTSEvents(audio, provider, source, requestId, context) {
   });
 
   audio.addEventListener('pause', () => {
+    if (!isCurrent()) return;
     if (!audio.ended) {
       emitTTSState({
         status: 'paused',
@@ -1378,6 +1323,7 @@ function wireTTSEvents(audio, provider, source, requestId, context) {
   });
 
   audio.addEventListener('error', () => {
+    if (!isCurrent()) return;
     emitTTSState({
       status: 'error',
       provider,
@@ -1462,7 +1408,7 @@ function getErrorMessage(status, errorData) {
     return 'Voice service temporarily unavailable. Try again shortly.';
   }
   if (status >= 500) {
-    return 'Voice service error. Using fallback if available.';
+    return 'Voice service is unavailable. Please try again.';
   }
   return 'Unable to generate audio right now.';
 }

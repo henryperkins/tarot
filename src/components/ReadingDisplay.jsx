@@ -217,7 +217,8 @@ export function ReadingDisplay({
     const {
         visionResearch: visionResearchEnabled,
         newDeckInterface,
-        autoGenerateVisuals: autoGenerateVisualsEnabled
+        autoGenerateVisuals: autoGenerateVisualsEnabled,
+        cardVideo: cardVideoEnabled
     } = useFeatureFlags();
     const isLandscape = useLandscape();
     const isHandsetLayout = useHandsetLayout();
@@ -371,6 +372,7 @@ export function ReadingDisplay({
         effectiveTier,
         isAuthenticated,
         autoGenerateVisualsEnabled,
+        cardVideoEnabled,
         isHandset,
         isLandscape,
         isShuffling,

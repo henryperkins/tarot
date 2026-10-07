@@ -1,167 +1,102 @@
 import { getTierConfig } from '../../shared/monetization/subscription.js';
-import { getClientIdentifier } from './clientId.js';
-import { resolveEnv } from './environment.js';
-import {
-  getMonthKeyUtc,
-  getResetAtUtc,
-  getUsageRow,
-  incrementUsageCounter
-} from './usageTracking.js';
+import { sha256Hex } from './crypto.js';
+import { getMonthKeyUtc, getResetAtUtc } from './usageTracking.js';
 
-const DEFAULT_RATE_LIMIT_MAX = 30;
-const DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60;
-const TTS_RATE_LIMIT_KEY_PREFIX = 'tts-rate';
-const TTS_MONTHLY_KEY_PREFIX = 'tts-monthly';
+export const MAX_NARRATION_CHARS = 64000;
+export const NARRATION_DEADLINE_MS = 120000;
+const RESERVATION_LIFETIME_MS = NARRATION_DEADLINE_MS + 60000;
 
 export function getTtsLimits(tier) {
-  const config = getTierConfig(tier);
-  return {
-    monthly: config.monthlyTTS,
-    premium: tier === 'plus' || tier === 'pro'
-  };
+  return { monthly: getTierConfig(tier).monthlyTTS, premium: tier === 'plus' || tier === 'pro' };
 }
 
-export async function enforceTtsRateLimit(
-  env,
-  request,
-  user,
-  ttsLimits = { monthly: 3, premium: false },
-  requestId = 'unknown'
-) {
+async function identityFor(request, user) {
+  if (user?.id) return `user:${user.id}`;
+  // Only trust the edge-supplied address. Forwarded headers are caller-controlled.
+  const ip = request?.headers?.get('cf-connecting-ip') || 'local-anonymous';
+  return `guest:${await sha256Hex(`narration-v1:${ip}`)}`;
+}
+
+function unavailable() {
+  return { allowed: false, status: 503, payload: { error: 'Narration is temporarily unavailable. Please try again.', errorCode: 'ACCOUNTING_UNAVAILABLE', retryable: true } };
+}
+
+async function consumeAbuseLimit(db, identity, scope, max, windowSeconds = 60) {
+  const now = Date.now();
+  const windowKey = Math.floor(now / (windowSeconds * 1000));
+  const row = await db.prepare(`
+    INSERT INTO narration_request_limits (identity, scope, window_key, count) VALUES (?, ?, ?, 1)
+    ON CONFLICT(identity, scope, window_key) DO UPDATE SET count = count + 1 WHERE count < ?
+    RETURNING count
+  `).bind(identity, scope, windowKey, max).first();
+  if (row) return { allowed: true };
+  const retryAfter = Math.max(1, Math.ceil(((windowKey + 1) * windowSeconds * 1000 - now) / 1000));
+  return { allowed: false, status: 429, retryAfter, payload: { error: 'Too many narration requests. Please wait a moment.', errorCode: 'RATE_LIMIT' } };
+}
+
+/** Token issuance has its own abuse limit, never a narration allowance debit. */
+export async function enforceSpeechTokenLimit(env, request, user) {
+  if (!env?.DB) return unavailable();
   try {
-    const store = env?.RATELIMIT;
-    
-    // Short-term rate limit (requests per minute)
-    // Uses optimistic locking with verification to mitigate race conditions
-    if (store) {
-      const maxRequests = Number(resolveEnv(env, 'TTS_RATE_LIMIT_MAX')) || DEFAULT_RATE_LIMIT_MAX;
-      const windowSeconds = Number(resolveEnv(env, 'TTS_RATE_LIMIT_WINDOW')) || DEFAULT_RATE_LIMIT_WINDOW_SECONDS;
-      const now = Date.now();
-      const windowBucket = Math.floor(now / (windowSeconds * 1000));
-      const clientId = getClientIdentifier(request);
-      const rateLimitKey = `${TTS_RATE_LIMIT_KEY_PREFIX}:${clientId}:${windowBucket}`;
-
-      const existing = await store.get(rateLimitKey);
-      const currentCount = existing ? Number(existing) || 0 : 0;
-
-      if (currentCount >= maxRequests) {
-        const windowBoundary = (windowBucket + 1) * windowSeconds * 1000;
-        const retryAfter = Math.max(1, Math.ceil((windowBoundary - now) / 1000));
-        return { limited: true, retryAfter };
-      }
-
-      const nextCount = currentCount + 1;
-      await store.put(rateLimitKey, String(nextCount), {
-        expirationTtl: windowSeconds
-      });
-
-      // Verify to detect race conditions - if count is higher than expected,
-      // a concurrent request also incremented; re-check limit
-      const verified = await store.get(rateLimitKey);
-      const verifiedCount = verified ? Number(verified) || 0 : 0;
-      if (verifiedCount > nextCount && verifiedCount > maxRequests) {
-        const windowBoundary = (windowBucket + 1) * windowSeconds * 1000;
-        const retryAfter = Math.max(1, Math.ceil((windowBoundary - now) / 1000));
-        console.log(`[${requestId}] [tts] Rate limit race detected: ${verifiedCount}/${maxRequests}`);
-        return { limited: true, retryAfter };
-      }
-    }
-
-    // Monthly tier-based limit (prefer D1 per-user counters; fall back to KV per IP).
-    const now = new Date();
-    const monthKey = getMonthKeyUtc(now);
-    const resetAt = getResetAtUtc(now);
-
-    if (user?.id && env?.DB) {
-      try {
-        const nowMs = Date.now();
-
-        if (ttsLimits.monthly === Infinity) {
-          await incrementUsageCounter(env.DB, {
-            userId: user.id,
-            month: monthKey,
-            counter: 'tts',
-            nowMs
-          });
-          return { limited: false };
-        }
-
-        const incrementResult = await incrementUsageCounter(env.DB, {
-          userId: user.id,
-          month: monthKey,
-          counter: 'tts',
-          limit: ttsLimits.monthly,
-          nowMs
-        });
-
-        if (incrementResult.changed === 0) {
-          const row = await getUsageRow(env.DB, user.id, monthKey);
-          const used = row?.tts_count || ttsLimits.monthly;
-          const retryAfter = Math.max(1, Math.ceil((Date.parse(resetAt) - now.getTime()) / 1000));
-          return {
-            limited: true,
-            tierLimited: true,
-            retryAfter,
-            used,
-            limit: ttsLimits.monthly,
-            resetAt
-          };
-        }
-
-        return { limited: false };
-      } catch (error) {
-        // If usage tracking isn't available yet (missing migration), fall back to KV.
-        if (!String(error?.message || '').includes('no such table')) {
-          throw error;
-        }
-      }
-    }
-
-    // Monthly KV fallback with optimistic locking
-    if (store && ttsLimits.monthly !== Infinity) {
-      const clientId = getClientIdentifier(request);
-      const monthlyKey = `${TTS_MONTHLY_KEY_PREFIX}:${clientId}:${monthKey}`;
-
-      const monthlyCount = await store.get(monthlyKey);
-      const currentMonthlyCount = monthlyCount ? Number(monthlyCount) || 0 : 0;
-
-      if (currentMonthlyCount >= ttsLimits.monthly) {
-        const retryAfter = Math.max(1, Math.ceil((Date.parse(resetAt) - now.getTime()) / 1000));
-        return {
-          limited: true,
-          tierLimited: true,
-          retryAfter,
-          used: currentMonthlyCount,
-          limit: ttsLimits.monthly,
-          resetAt
-        };
-      }
-
-      const nextCount = currentMonthlyCount + 1;
-      await store.put(monthlyKey, String(nextCount), {
-        expirationTtl: 35 * 24 * 60 * 60
-      });
-
-      // Verify to detect race conditions
-      const verified = await store.get(monthlyKey);
-      const verifiedCount = verified ? Number(verified) || 0 : 0;
-      if (verifiedCount > nextCount && verifiedCount > ttsLimits.monthly) {
-        const retryAfter = Math.max(1, Math.ceil((Date.parse(resetAt) - now.getTime()) / 1000));
-        console.log(`[${requestId}] [tts] Monthly limit race detected: ${verifiedCount}/${ttsLimits.monthly}`);
-        return {
-          limited: true,
-          tierLimited: true,
-          retryAfter,
-          used: verifiedCount,
-          limit: ttsLimits.monthly,
-          resetAt
-        };
-      }
-    }
-
-    return { limited: false };
-  } catch (error) {
-    console.warn(`[${requestId}] [tts] Rate limit check failed, allowing request:`, error);
-    return { limited: false };
+    const identity = await identityFor(request, user);
+    await env.DB.prepare('DELETE FROM narration_request_limits WHERE identity = ? AND window_key < ?').bind(identity, Math.floor(Date.now() / 60000) - 1).run();
+    return await consumeAbuseLimit(env.DB, identity, 'speech-token', 6);
+  } catch {
+    return unavailable();
   }
+}
+
+/** Reserve one complete narration; D1 constraints serialize quota/concurrency. */
+export async function reserveNarration({ env, request, user, limits = getTtsLimits('free') }) {
+  if (!env?.DB) return unavailable();
+  const db = env.DB;
+  const identity = await identityFor(request, user);
+  const month = getMonthKeyUtc();
+  const now = Date.now();
+  try {
+    const abuse = await consumeAbuseLimit(db, identity, 'narration', 30);
+    if (!abuse.allowed) return abuse;
+    // A crash lease outlives the synthesis deadline. Normal failures release
+    // immediately; abandoned work cannot permanently consume the allowance.
+    await db.prepare("UPDATE narration_requests SET state = 'released', updated_at = ? WHERE identity = ? AND state = 'reserved' AND expires_at <= ?").bind(now, identity, now).run();
+    await db.prepare("DELETE FROM narration_requests WHERE identity = ? AND state != 'reserved' AND updated_at < ?").bind(identity, now - 90 * 86400000).run();
+    await db.prepare('DELETE FROM narration_request_limits WHERE identity = ? AND window_key < ?').bind(identity, Math.floor(now / 60000) - 1).run();
+    let seed = 0;
+    if (user?.id) {
+      const previous = await db.prepare('SELECT tts_count FROM usage_tracking WHERE user_id = ? AND month = ?').bind(user.id, month).first();
+      seed = Number(previous?.tts_count) || 0;
+    } else if (env.RATELIMIT) {
+      // Preserve guest usage during rollout; only new keys use hashed identity.
+      const legacyIp = request?.headers?.get('cf-connecting-ip') || 'anonymous';
+      seed = Number(await env.RATELIMIT.get(`tts-monthly:${legacyIp}:${month}`)) || 0;
+    }
+    await db.prepare('INSERT OR IGNORE INTO narration_monthly_usage (identity, month, used) VALUES (?, ?, ?)').bind(identity, month, Math.max(0, seed)).run();
+    const id = crypto.randomUUID();
+    await db.prepare(`INSERT INTO narration_requests (id, identity, user_id, month, monthly_limit, state, expires_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'reserved', ?, ?)`).bind(id, identity, user?.id || null, month, Number.isFinite(limits.monthly) ? limits.monthly : -1, now + RESERVATION_LIFETIME_MS, now).run();
+    return { allowed: true, reservation: { id } };
+  } catch (error) {
+    const message = String(error?.message || '');
+    if (message.includes('narration_monthly_limit')) {
+      const row = await db.prepare('SELECT used, reserved FROM narration_monthly_usage WHERE identity = ? AND month = ?').bind(identity, month).first().catch(() => null);
+      return { allowed: false, status: 429, retryAfter: 60, payload: { error: 'Your monthly narration allowance is used up. View plans for more.', errorCode: 'TIER_LIMIT', tierLimited: true, used: row?.used ?? limits.monthly, limit: limits.monthly, resetAt: getResetAtUtc() } };
+    }
+    if (message.includes('narration_requests.identity')) {
+      return { allowed: false, status: 409, retryAfter: 2, payload: { error: 'A narration is already being prepared. Please wait a moment.', errorCode: 'NARRATION_BUSY', retryable: true } };
+    }
+    return unavailable();
+  }
+}
+
+export async function settleNarration(env, reservation) {
+  const result = await env.DB.prepare("UPDATE narration_requests SET state = 'settled', updated_at = ? WHERE id = ? AND state = 'reserved'").bind(Date.now(), reservation.id).run();
+  if (!result.meta?.changes) {
+    const row = await env.DB.prepare('SELECT state FROM narration_requests WHERE id = ?').bind(reservation.id).first();
+    if (row?.state !== 'settled') throw new Error('Narration reservation is no longer active');
+  }
+}
+
+export async function releaseNarration(env, reservation) {
+  if (!reservation) return;
+  await env.DB.prepare("UPDATE narration_requests SET state = 'released', updated_at = ? WHERE id = ? AND state = 'reserved'").bind(Date.now(), reservation.id).run();
 }

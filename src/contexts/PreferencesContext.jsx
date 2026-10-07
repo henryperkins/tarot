@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useRef, useCal
 import { PERSONALIZATION_REQUEST_FIELDS } from '../../shared/contracts/personalizationConstants.js';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { getDeckPool } from '../lib/deck';
-import { initAudio, cleanupAudio, stopTTS, toggleAmbience } from '../lib/audio';
+import { initAudio, cleanupAudio, stopTTS, toggleAmbience, normalizeTtsProvider } from '../lib/audio';
 import { safeStorage } from '../lib/safeStorage';
 import { migrateLegacyPersonalization, safeSessionStorage } from '../lib/preferenceStorage';
 import { useAuth } from './AuthContext';
@@ -122,17 +122,13 @@ export function PreferencesProvider({ children }) {
     safeStorage.setItem('tarot-auto-narrate', autoNarrate.toString());
   }, [autoNarrate]);
 
-  // --- Audio: TTS Provider (azure, azure-sdk, or hume) ---
-  const TTS_PROVIDER_OPTIONS = ['hume', 'azure', 'azure-sdk'];
+  // Older saved engines migrate to the regular reader voice. Keep the safe
+  // storage wrapper: blocked localStorage must not break preferences.
   const [ttsProviderState, setTtsProviderState] = useState(() => {
-    const saved = safeStorage.getItem('tarot-tts-provider');
-    return TTS_PROVIDER_OPTIONS.includes(saved) ? saved : 'hume'; // Default to Hume for expressive readings
+    return normalizeTtsProvider(safeStorage.getItem('tarot-tts-provider'));
   });
-
-  // Wrapper setter that guards against invalid TTS provider values
   const setTtsProvider = (value) => {
-    const safeValue = TTS_PROVIDER_OPTIONS.includes(value) ? value : 'hume';
-    setTtsProviderState(safeValue);
+    setTtsProviderState(normalizeTtsProvider(value));
   };
 
   // Expose validated state value (alias for clarity)

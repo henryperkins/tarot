@@ -93,6 +93,7 @@ export function deriveNarrativeVisibility({
   effectiveTier,
   isAuthenticated,
   autoGenerateVisualsEnabled,
+  cardVideoEnabled = false,
   isGenerating,
   storyArtCards = [],
   cinematicCard
@@ -128,7 +129,8 @@ export function deriveNarrativeVisibility({
     && storyArtCards.length > 0
   );
   const shouldShowCinematicReveal = Boolean(
-    cinematicCard
+    cardVideoEnabled
+    && cinematicCard
     && isReadingComplete
     && canAutoGenerateVisuals
   );
@@ -154,7 +156,9 @@ export function deriveNarrativeVisibility({
       : 'Generate a short cinematic reveal of this card.',
     visualCompanionMessage: autoGenerateVisuals
       ? 'Visual generation is running from your completed narrative.'
-      : 'Generate artwork and cinematic motion that stay anchored to this reading.',
+      : shouldShowCinematicReveal
+        ? 'Generate artwork and cinematic motion that stay anchored to this reading.'
+        : 'Generate artwork that stays anchored to this reading.',
     visualCompanionModeLabel: autoGenerateVisuals ? 'Auto generation on' : 'Generate on demand'
   };
 }

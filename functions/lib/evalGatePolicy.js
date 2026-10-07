@@ -1,7 +1,5 @@
 import { normalizeBooleanFlag } from './readingTelemetry.js';
 
-const RESTRICTED_CONTEXTS = new Set(['wellbeing']);
-
 const RESTRICTED_INPUT_PATTERNS = Object.freeze([
   {
     reason: 'restricted_medical',
@@ -35,20 +33,14 @@ function collectRestrictedInputReasons(inputText) {
 
 export function buildSelectiveEvalGatePolicy({
   env,
-  context,
   languageSupport,
   userQuestion,
   reflectionsText
 } = {}) {
   const reasons = [];
-  const normalizedContext = typeof context === 'string' ? context.trim().toLowerCase() : '';
 
   if (languageSupport && languageSupport.supported === false) {
     reasons.push(`language_${languageSupport.language || 'unsupported'}`);
-  }
-
-  if (RESTRICTED_CONTEXTS.has(normalizedContext)) {
-    reasons.push(`context_${normalizedContext}`);
   }
 
   const combinedInput = [userQuestion, reflectionsText]
@@ -60,25 +52,18 @@ export function buildSelectiveEvalGatePolicy({
   const requested = uniqueReasons.length > 0;
   const evalEnabled = normalizeBooleanFlag(env?.EVAL_ENABLED);
   const globalGateEnabled = evalEnabled && normalizeBooleanFlag(env?.EVAL_GATE_ENABLED);
-  const forced = requested && evalEnabled && !globalGateEnabled;
+  const forced = requested && !globalGateEnabled;
 
-  // Safety-driven reasons must fail closed (block when the eval is unavailable).
-  // A reading forced ONLY because it is non-English is a quality/UX driver, not a
-  // safety one — fail it OPEN so a transient eval outage doesn't black-hole the
-  // non-English reader behind the English-only fallback. Any safety reason in the
-  // mix (restricted_* or context_*) keeps the gate failing closed.
-  const hasSafetyReason = uniqueReasons.some(
-    (reason) => reason.startsWith('restricted_') || reason.startsWith('context_')
-  );
-  const forcedFailureMode = hasSafetyReason
-    ? (env?.EVAL_GATE_FAILURE_MODE || 'closed')
-    : 'open';
+  // A wellbeing topic alone is not medical intent. Restricted input and languages
+  // beyond the deterministic checks still require a complete model assessment.
+  // Disabling evaluation must not silently convert these requests into safe ones.
 
-  const effectiveEnv = forced
+  const effectiveEnv = requested
     ? {
       ...env,
       EVAL_GATE_ENABLED: 'true',
-      EVAL_GATE_FAILURE_MODE: forcedFailureMode
+      EVAL_GATE_FAILURE_MODE: 'closed',
+      EVAL_GATE_REQUIRED: 'true'
     }
     : (env || {});
 
@@ -87,6 +72,6 @@ export function buildSelectiveEvalGatePolicy({
     forced,
     reasons: uniqueReasons,
     effectiveEnv,
-    effectiveEvalGateEnabled: evalEnabled && (globalGateEnabled || forced)
+    effectiveEvalGateEnabled: globalGateEnabled || forced
   };
 }

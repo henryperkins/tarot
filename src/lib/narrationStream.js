@@ -161,31 +161,9 @@ export function shouldFlushNarrationBuffer({
   return false;
 }
 
-export function shouldScheduleAutoNarration({
-  voiceOn,
-  autoNarrate,
-  isReadingStreaming,
-  isPersonalReadingError,
-  autoNarrationTriggered,
-  narrativeText,
-  ttsProvider,
-  ttsStatus,
-  minWords = STREAM_AUTO_NARRATE_MIN_WORDS
-}) {
-  const hasNarrationText = typeof narrativeText === 'string' && narrativeText.trim().length > 0;
-  if (!hasNarrationText) return false;
-
-  if (!voiceOn || !autoNarrate || !isReadingStreaming || isPersonalReadingError || autoNarrationTriggered) {
-    return false;
-  }
-
-  if (ttsProvider === 'azure') {
-    return false;
-  }
-
-  if (isNarrationPlaybackBusy(ttsStatus)) {
-    return false;
-  }
-
-  return countWords(narrativeText) >= minWords;
+// Automatic narration waits for the complete, screened reading. Server-side
+// MP3 chunking provides progressive playback without synthesizing partial SSE
+// text or charging one monthly unit for every incoming paragraph.
+export function shouldScheduleAutoNarration() {
+  return false;
 }

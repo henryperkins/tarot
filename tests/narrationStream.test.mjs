@@ -82,17 +82,17 @@ describe('auto-narration debounce scheduling', () => {
     isReadingStreaming: true,
     isPersonalReadingError: false,
     autoNarrationTriggered: false,
-    ttsProvider: 'hume',
+    ttsProvider: 'azure-sdk',
     ttsStatus: 'idle'
   };
 
-  it('schedules once streaming text has enough words', () => {
+  it('waits for the screened completed reading even when streamed text is long', () => {
     const shouldSchedule = shouldScheduleAutoNarration({
       ...baseOptions,
       narrativeText: 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree twentyfour twentyfive twentysix twentyseven twentyeight twentynine thirty thirtyone thirtytwo'
     });
 
-    assert.equal(shouldSchedule, true);
+    assert.equal(shouldSchedule, false);
   });
 
   it('does not schedule while narration is already busy', () => {

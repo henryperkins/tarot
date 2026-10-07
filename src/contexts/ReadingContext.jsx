@@ -10,6 +10,7 @@ import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { buildPersonalizationRequestPayload } from '../utils/personalizationStorage';
 import { formatReading } from '../lib/formatting';
+import { createReadingError, formatReadingFailure } from '../lib/readingErrors.js';
 import { readReadingJobEvents } from '../lib/readingJobStream.js';
 import { buildReadingRequestCard } from '../../shared/contracts/readingRequestCards.js';
 import { computeRelationships } from '../lib/deck';
@@ -643,7 +644,7 @@ export function ReadingProvider({ children }) {
                     clearReadingJob();
                     setIsGenerating(false);
                 } else if (eventType === 'error') {
-                    throw new Error(data.message || 'Streaming error occurred');
+                    throw createReadingError(data);
                 }
             }
         } catch (error) {
@@ -667,10 +668,7 @@ export function ReadingProvider({ children }) {
                 typeof error?.message === 'string' && error.message.trim()
                     ? error.message.trim()
                     : 'Unable to generate reading at this time. Please try again in a moment.';
-            const formattedError = formatReading(errorMsg);
-            formattedError.isError = true;
-            formattedError.isStreaming = false;
-            formattedError.isServerStreamed = false;
+            const formattedError = formatReadingFailure(error);
             setPersonalReading(formattedError);
             setJournalStatus({
                 type: 'error',
@@ -782,7 +780,7 @@ export function ReadingProvider({ children }) {
         narrationFallbackPendingRef.current = false;
         narrationFallbackTextRef.current = '';
         void speak(fallbackText, 'full-reading', narrationEmotionRef.current);
-    }, [autoNarrate, voiceOn, ttsProvider, ttsState?.status, ttsState?.reason, isNarrationStreamActive, speak]);
+    }, [autoNarrate, voiceOn, ttsProvider, ttsState?.status, ttsState?.reason, isNarrationStreamActive, speak, personalReading]);
 
     useEffect(() => {
         // Re-renders must not replace a live cursor with an older batched
@@ -1060,7 +1058,7 @@ export function ReadingProvider({ children }) {
                     'Unable to generate reading at this time. Please try again in a moment.';
 
                 console.error('Tarot reading job start error:', startResponse.status, errPayload || errText);
-                throw new Error(finalMessage);
+                throw createReadingError({ ...errPayload, message: finalMessage });
             }
 
             const startData = await startResponse.json();
@@ -1091,10 +1089,7 @@ export function ReadingProvider({ children }) {
                 typeof error?.message === 'string' && error.message.trim()
                     ? error.message.trim()
                     : 'Unable to generate reading at this time. Please try again in a moment.';
-            const formattedError = formatReading(errorMsg);
-            formattedError.isError = true;
-            formattedError.isStreaming = false;
-            formattedError.isServerStreamed = false;
+            const formattedError = formatReadingFailure(error);
             setPersonalReading(formattedError);
             setJournalStatus({
                 type: 'error',

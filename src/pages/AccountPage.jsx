@@ -1661,7 +1661,7 @@ export default function AccountPage() {
               </li>
               <li className="flex items-center gap-2 text-sm text-secondary">
                 <Check className="h-4 w-4 text-accent shrink-0" />
-                <span className="min-w-0 [overflow-wrap:anywhere]">{tierConfig.monthlyTTS === Infinity ? 'Unlimited' : tierConfig.monthlyTTS} voice narrations/month</span>
+                <span className="min-w-0 [overflow-wrap:anywhere]">{tierConfig.monthlyTTS === Infinity ? 'Unlimited' : tierConfig.monthlyTTS} Reader voice narrations/month</span>
               </li>
               {tierConfig.cloudJournal && (
                 <li className="flex items-center gap-2 text-sm text-secondary">
@@ -1954,9 +1954,8 @@ export default function AccountPage() {
               <Waveform className="h-4 w-4 text-accent" />
               <span className="text-xs font-semibold text-muted uppercase tracking-wide">Voice Engine</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Select voice engine">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Select voice engine">
               {[
-                { id: 'hume', label: 'Expressive', desc: 'Hume AI' },
                 { id: 'azure', label: 'Clear', desc: 'Deepgram' },
                 { id: 'azure-sdk', label: 'Word-Sync', desc: 'Azure SDK' }
               ].map(engine => (
@@ -1980,7 +1979,7 @@ export default function AccountPage() {
               ))}
             </div>
             <p className="text-xs text-muted mt-2">
-              Choose a voice engine now; it will apply when Reader Voice is on.
+              Clear uses your monthly narration allowance. Word-Sync uses separate request safeguards; it does not count against that allowance.
             </p>
           </div>
         </SectionCard>

@@ -1,11 +1,15 @@
-import { jsonResponse, readJsonBody, sanitizeText } from '../lib/utils.js';
+import { jsonResponse, sanitizeText } from '../lib/utils.js';
 import { createVisionBackend } from '../../shared/vision/visionBackends.js';
 import { buildVisionProofPayload, resolveVisionCardIdentity, signVisionProof } from '../lib/visionProof.js';
 import { normalizeVisionLabel } from '../lib/visionLabels.js';
+import { getUserFromRequest } from '../lib/auth.js';
+import { enforceApiCallLimit } from '../lib/apiUsage.js';
+import { readFeatureJsonBody, reserveFeatureUsage, settleFeatureUsage } from '../lib/featureUsage.js';
 
 const MAX_EVIDENCE = 5;
 const MAX_DATA_URL_BYTES = 8 * 1024 * 1024; // 8MB per upload
-const visionBackendCache = new Map();
+const visionBackendCache = new WeakMap();
+const MAX_REQUEST_BYTES = Math.ceil(MAX_EVIDENCE * MAX_DATA_URL_BYTES * 1.37) + 65536;
 const DEFAULT_BACKEND_ID = 'clip-default';
 
 function clampConfidence(value) {
@@ -149,9 +153,12 @@ function sanitizeSymbolVerification(symbolVerification) {
 
 async function getVisionBackend({ deckStyle, backendId, env, timeoutMs }) {
   const cacheKey = `${backendId}:${deckStyle}`;
-  if (visionBackendCache.has(cacheKey)) {
-    return visionBackendCache.get(cacheKey);
+  let cache = visionBackendCache.get(env);
+  if (!cache) {
+    cache = new Map();
+    visionBackendCache.set(env, cache);
   }
+  if (cache.has(cacheKey)) return cache.get(cacheKey);
   const backendPromise = (async () => {
     const backend = await createVisionBackend({
       backendId,
@@ -164,8 +171,11 @@ async function getVisionBackend({ deckStyle, backendId, env, timeoutMs }) {
     await backend.warmup();
     return backend;
   })();
-  visionBackendCache.set(cacheKey, backendPromise);
-  return backendPromise;
+  cache.set(cacheKey, backendPromise);
+  try { return await backendPromise; } catch (error) {
+    cache.delete(cacheKey);
+    throw error;
+  }
 }
 
 function validateEvidence(evidence) {
@@ -313,13 +323,24 @@ async function analyzeEvidence(evidence, deckStyle, backendId, env, timeoutMs) {
 }
 
 export async function onRequestPost({ request, env }) {
+  let reservationId = null;
+  let completed = false;
   try {
-    const body = await readJsonBody(request);
+    const body = await readFeatureJsonBody(request, MAX_REQUEST_BYTES);
     const deckStyle = body?.deckStyle || 'rws-1909';
-    const requestedBackendId = typeof body?.backendId === 'string' ? body.backendId : null;
-    const backendId = requestedBackendId || env?.VISION_BACKEND_DEFAULT || DEFAULT_BACKEND_ID;
+    // Recognition remains available to guests, but only server configuration
+    // can select an inference backend. A body backendId is never authoritative.
+    const backendId = env?.VISION_BACKEND_DEFAULT || DEFAULT_BACKEND_ID;
     const timeoutMs = Number(env?.VISION_TIMEOUT_MS) || null;
     const evidence = validateEvidence(body?.evidence);
+    const user = await getUserFromRequest(request, env);
+    if (user?.auth_provider === 'api_key') {
+      const apiLimit = await enforceApiCallLimit(env, user);
+      if (!apiLimit.allowed) return jsonResponse(apiLimit.payload, { status: apiLimit.status });
+    }
+    const reservation = await reserveFeatureUsage({ env, request, user, feature: 'vision' });
+    if (!reservation.allowed) return jsonResponse(reservation.payload, { status: reservation.status });
+    reservationId = reservation.reservationId;
     const insights = await analyzeEvidence(evidence, deckStyle, backendId, env, timeoutMs);
 
     const payload = buildVisionProofPayload({
@@ -329,16 +350,20 @@ export async function onRequestPost({ request, env }) {
     });
     const signature = await signVisionProof(payload, env?.VISION_PROOF_SECRET);
 
-    return jsonResponse({
+    const response = jsonResponse({
       proof: {
         ...payload,
         signature
       }
     }, { status: 201 });
+    completed = true;
+    return response;
   } catch (error) {
     console.error('vision-proof error:', error);
-    const status = /size|limit/i.test(error.message) ? 413 : 400;
+    const status = error.status || (/size|limit/i.test(error.message) ? 413 : 400);
     return jsonResponse({ error: error.message || 'Vision proof failed.' }, { status });
+  } finally {
+    await settleFeatureUsage(env, reservationId, { completed });
   }
 }
 

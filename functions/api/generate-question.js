@@ -1,3 +1,4 @@
+import { createDeadline, getTaskTimeoutMs } from '../lib/requestDeadline.js';
 import { callAzureResponses, ensureAzureConfig, OPENAI_DEFAULT_MODEL } from '../lib/azureResponses.js';
 import { callClaudeCode, getClaudeCodeAccessError, isClaudeCodeEnabled } from '../lib/claudeCode.js';
 import { CLAUDE_API_PROVIDER, generateClaudeText, isAnthropicConfigured } from '../lib/anthropicMessages.js';
@@ -7,6 +8,7 @@ import {
 } from '../lib/ephemerisIntegration.js';
 import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
+import { readFeatureJsonBody, reserveFeatureUsage, settleFeatureUsage } from '../lib/featureUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
 import { sanitizeText } from '../lib/utils.js';
 import { hashString, ensureQuestionMark } from '../../shared/utils.js';
@@ -247,21 +249,23 @@ export function buildAzureQuestionPrompt(prompt, metadata = {}) {
   return { instructions, input: inputLines };
 }
 
-async function generateQuestionWithAzure(env, prompt, metadata) {
+async function generateQuestionWithAzure(env, prompt, metadata, signal, requestId) {
   ensureAzureConfig(env); // Throws if missing
   const { instructions, input } = buildAzureQuestionPrompt(prompt, metadata);
 
-  const question = await callAzureResponses(env, {
+  const result = await callAzureResponses(env, {
     instructions,
     input,
-    // Give the model ample budget for a short question while
-    // keeping latency reasonable. We no longer request reasoning
-    // tokens, so this is mostly for the final text.
-    maxTokens: 256,
+    // The budget includes reasoning; the prompt limits the final question.
+    maxTokens: 4096,
+    reasoningEffort: 'low',
+    telemetry: { task: 'question', requestId },
+    returnFullResponse: true,
+    signal,
     verbosity: 'low'
   });
 
-  const finalQuestion = sanitizeGeneratedQuestion(question);
+  const finalQuestion = sanitizeGeneratedQuestion(result.text);
 
   // Log successful Azure-backed question for debugging (no PII beyond prompt summary)
   try {
@@ -274,7 +278,7 @@ async function generateQuestionWithAzure(env, prompt, metadata) {
     console.warn('[generate-question] Failed to log Azure question result', logError);
   }
 
-  return finalQuestion;
+  return { question: finalQuestion, model: result.model };
 }
 
 function isAzureConfigured(env) {
@@ -292,8 +296,12 @@ function resolveResponsesProviderLabel(env) {
 }
 
 export async function onRequestPost({ request, env }) {
+  const deadline = createDeadline({ signal: request.signal, timeoutMs: getTaskTimeoutMs(env) });
+  const requestId = crypto.randomUUID();
+  let reservationId = null;
+  let completed = false;
   try {
-    const body = await request.json();
+    const body = await readFeatureJsonBody(request, 64 * 1024);
     const prompt = body?.prompt;
     const metadata = body?.metadata || {};
 
@@ -337,6 +345,10 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
+    const reservation = await reserveFeatureUsage({ env, request, user, feature: 'question' });
+    if (!reservation.allowed) return new Response(JSON.stringify(reservation.payload), { status: reservation.status, headers: JSON_HEADERS });
+    reservationId = reservation.reservationId;
+
     // Optional ephemeris forecast for medium/long-range timeframes
     let ephemerisForecast = null;
     const forecastDays = getForecastDays(metadata);
@@ -370,12 +382,13 @@ export async function onRequestPost({ request, env }) {
         const { instructions, input } = buildAzureQuestionPrompt(prompt, metadata);
         const result = await callClaudeCode(env, {
           task: 'question', systemPrompt: instructions,
-          messages: [{ role: 'user', content: input }], signal: request.signal
+          messages: [{ role: 'user', content: input }], signal: deadline.signal
         });
         question = sanitizeGeneratedQuestion(result.text);
         provider = result.provider;
         inferenceModel = result.model;
       } catch (error) {
+        deadline.signal.throwIfAborted();
         console.warn('Claude question generation failed, using local fallback:', error.message);
       }
     } else {
@@ -387,21 +400,26 @@ export async function onRequestPost({ request, env }) {
             prompt: input,
             maxTokens: 4000,
             effort: 'low',
-            signal: request.signal,
-            requestId: 'generate-question'
+            signal: deadline.signal,
+            requestId,
+            telemetry: { task: 'question', requestId }
           });
           question = sanitizeGeneratedQuestion(result.text);
           provider = CLAUDE_API_PROVIDER;
           inferenceModel = result.model;
         } catch (error) {
+          deadline.signal.throwIfAborted();
           console.warn('Claude API question generation failed, trying the Responses API:', error.message);
         }
       }
       if (!question && isAzureConfigured(env)) {
         try {
-          question = await generateQuestionWithAzure(env, prompt, metadata);
+          const result = await generateQuestionWithAzure(env, prompt, metadata, deadline.signal, requestId);
+          question = result.question;
+          inferenceModel = result.model;
           provider = resolveResponsesProviderLabel(env);
         } catch (error) {
+          deadline.signal.throwIfAborted();
           console.warn('Responses API question generation failed, using fallback:', error?.message || error);
         }
       }
@@ -413,14 +431,13 @@ export async function onRequestPost({ request, env }) {
     }
 
     const isResponsesProvider = provider === 'azure-gpt5' || provider === 'openai-native';
+    completed = provider === 'claude-code' || provider === CLAUDE_API_PROVIDER || isResponsesProvider;
 
     return new Response(
       JSON.stringify({
         question,
         provider,
-        model: provider === 'claude-code' || provider === CLAUDE_API_PROVIDER
-          ? inferenceModel
-          : isResponsesProvider ? resolveResponsesModelLabel(env) : null,
+        model: completed ? inferenceModel : null,
         forecast: ephemerisForecast
       }),
       { status: 200, headers: JSON_HEADERS }
@@ -429,7 +446,10 @@ export async function onRequestPost({ request, env }) {
     console.error('generate-question error:', error);
     return new Response(
       JSON.stringify({ error: 'Unable to craft question' }),
-      { status: 500, headers: JSON_HEADERS }
+      { status: deadline.signal.aborted ? 503 : error.status || 500, headers: JSON_HEADERS }
     );
+  } finally {
+    deadline.dispose();
+    await settleFeatureUsage(env, reservationId, { completed });
   }
 }

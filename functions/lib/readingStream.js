@@ -139,6 +139,7 @@ export async function collectSSEStreamText(stream) {
   let fullText = '';
   let donePayload = null;
   let errorMessage = null;
+  let errorPayload = null;
   let sawError = false;
 
   const reader = stream.getReader();
@@ -172,6 +173,7 @@ export async function collectSSEStreamText(stream) {
       } else if (eventType === 'error') {
         sawError = true;
         errorMessage = data?.message || 'Streaming error';
+        errorPayload = data;
       }
     } catch {
       // Ignore parse errors for malformed events
@@ -207,6 +209,7 @@ export async function collectSSEStreamText(stream) {
   return {
     fullText,
     error: errorMessage,
+    errorPayload,
     sawError,
     donePayload
   };

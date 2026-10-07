@@ -50,7 +50,7 @@ export function AudioControls({ className = '' }) {
       id: 'auto-narrate-toggle',
       label: 'Auto-narrate',
       tooltipContent: voiceOn
-        ? 'Automatically play narration as your reading streams in (first view only).'
+        ? 'Automatically play narration after your reading is complete (first view only).'
         : 'Enable "Reader voice" first to use auto-narration.',
       tooltipAria: 'About auto-narration with streaming',
       srDescription: 'Automatically start voice narration when a new reading appears.',
@@ -151,7 +151,7 @@ export function AudioControls({ className = '' }) {
             <Waveform className="h-4 w-4 text-accent" aria-hidden="true" />
             <span className="text-xs font-semibold text-accent uppercase tracking-wide">Voice Engine</span>
             <Tooltip
-              content="Hume AI offers expressive voices. Deepgram provides clear narration, and Azure SDK adds word-by-word highlighting."
+              content="Reader voice uses your monthly narration allowance. Word Sync adds highlighting and uses separate request safeguards."
               position="top"
               triggerClassName={infoButtonClass}
               ariaLabel="About voice engine options"
@@ -160,20 +160,6 @@ export function AudioControls({ className = '' }) {
             </Tooltip>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-2" role="radiogroup" aria-label="Select voice engine">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={ttsProvider === 'hume'}
-              onClick={() => setTtsProvider('hume')}
-              className={`flex-1 min-h-cta px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
-                ttsProvider === 'hume'
-                  ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
-                  : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
-              }`}
-            >
-              <span className="block font-semibold text-xs xs:text-sm">Hume AI</span>
-              <span className="block text-2xs xs:text-xs opacity-75">Expressive</span>
-            </button>
             <button
               type="button"
               role="radio"

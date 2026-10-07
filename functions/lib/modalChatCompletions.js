@@ -1,3 +1,4 @@
+import { observeInferenceAttempt } from './inferenceAttempts.js';
 import { withRetry, generateIdempotencyKey } from './retryWithBackoff.js';
 
 export const MODAL_DEFAULT_MODEL = 'Qwen/Qwen3.8-Max-VL-Thinking';
@@ -171,12 +172,13 @@ function toolPolicy(tools, toolChoice) {
 }
 
 function completionState() {
-  return { text: '', finishReason: null, toolCalls: new Map(), usage: null, reasoningPresent: false };
+  return { text: '', finishReason: null, toolCalls: new Map(), usage: null, model: null, reasoningPresent: false };
 }
 
 function collectCompletion(state, data, streaming) {
   if (!data || typeof data !== 'object' || data.error) throw incomplete();
   if (data.usage && typeof data.usage === 'object') state.usage = data.usage;
+  if (typeof data.model === 'string') state.model = data.model;
   if (!Array.isArray(data.choices)) throw incomplete();
   // Only choice zero belongs to this result. Other alternatives never supply
   // text, reasoning, finish reasons, or tool arguments to the selected answer.
@@ -314,7 +316,7 @@ function completedResult(state, policy) {
  * Tool calls are returned only for explicitly supplied tools; never executed.
  * Private reasoning text and upstream error bodies are never returned or logged.
  */
-export async function callModalChatCompletions(env, {
+async function callModalChatCompletionsInternal(env, {
   systemPrompt,
   userPrompt,
   requestId = 'unknown',
@@ -378,7 +380,12 @@ export async function callModalChatCompletions(env, {
       }
       return response;
     }, 'modal-qwen', requestId, { maxRetries: 2, baseDelayMs: 1000 }));
-    const result = completedResult(await readCompletion(response, lifetime), policy);
+    const completion = await readCompletion(response, lifetime);
+    let result;
+    try { result = completedResult(completion, policy); } catch (error) {
+      throw Object.assign(error, { model: completion.model, usage: normalizeUsage(completion.usage) });
+    }
+    result.model = completion.model;
     console.log('[modalChatCompletions] Completion received', {
       model: config.model,
       finishReason: result.finishReason,
@@ -393,4 +400,13 @@ export async function callModalChatCompletions(env, {
   } finally {
     lifetime.close();
   }
+}
+
+/** Opt-in task telemetry; full readings log quality decisions in their caller. */
+export async function callModalChatCompletions(env, options = {}) {
+  if (!options.telemetry) return callModalChatCompletionsInternal(env, options);
+  return observeInferenceAttempt(env, {
+    ...options.telemetry, provider: 'modal-qwen',
+    requestedModel: env?.MODAL_MODEL || MODAL_DEFAULT_MODEL, signal: options.signal
+  }, () => callModalChatCompletionsInternal(env, options));
 }

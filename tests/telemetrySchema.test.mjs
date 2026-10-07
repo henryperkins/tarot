@@ -265,7 +265,7 @@ describe('telemetrySchema', () => {
       assert.strictEqual(buildLLMUsageTelemetry(null), null);
       assert.strictEqual(buildLLMUsageTelemetry(undefined), null);
       assert.deepStrictEqual(buildLLMUsageTelemetry(baseUsage), {
-        inputTokens: 100, outputTokens: 50, totalTokens: 150, source: 'api'
+        inputTokens: 100, outputTokens: 50, totalTokens: 150, source: 'api', usageStatus: 'known', cacheReadInputTokens: null, cacheCreationInputTokens: null
       });
     });
 
@@ -320,7 +320,7 @@ describe('telemetrySchema', () => {
         }
       });
       assert.deepStrictEqual(result.llmUsage, {
-        inputTokens: 100, outputTokens: 50, totalTokens: 150, source: 'api',
+        inputTokens: 100, outputTokens: 50, totalTokens: 150, source: 'api', usageStatus: 'known', cacheReadInputTokens: null, cacheCreationInputTokens: null,
         reasoningTokens: 24, reasoningContentPresent: true
       });
       assert.strictEqual(JSON.stringify(result).includes(rawReasoning), false);

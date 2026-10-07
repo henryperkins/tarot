@@ -1,3 +1,4 @@
+import { createDeadline, getTaskTimeoutMs, runWithSignal } from '../lib/requestDeadline.js';
 /**
  * Follow-Up Questions API Endpoint
  * 
@@ -130,20 +131,26 @@ async function repairHallucinatedFollowUp(env, {
           maxTokens: 4000,
           effort: 'low',
           signal,
+          telemetry: { task: 'followup-repair', requestId },
           requestId: `${requestId}:repair`
         })).text
       : provider === FALLBACK_PROVIDER
       ? (await callModalChatCompletions(env, {
           systemPrompt: instructions,
           userPrompt: repairInstructions,
-          requestId: `${requestId}:repair`
+          telemetry: { task: 'followup-repair', requestId },
+          requestId: `${requestId}:repair`,
+          signal,
+          maxTokens: 4000
         })).text
       : await callAzureResponses(env, {
           instructions,
           input: repairInstructions,
-          maxTokens: 450,
-          reasoningEffort: null,
+          maxTokens: 4096,
+          signal,
+          reasoningEffort: 'low',
           verbosity: 'low',
+          telemetry: { task: 'followup-repair', requestId },
           requestId: `${requestId}:repair`
         });
 
@@ -171,6 +178,7 @@ async function repairHallucinatedFollowUp(env, {
       remainingHallucinations: []
     };
   } catch (error) {
+    signal?.throwIfAborted();
     console.warn(`[${requestId}] Follow-up hallucination repair failed:`, error?.message || error);
     return {
       repaired: false,
@@ -218,6 +226,7 @@ async function generateFollowUpText(env, {
       return { text: primaryText, provider: primaryProvider };
     }
   } catch (error) {
+    signal?.throwIfAborted();
     primaryError = error;
   }
 
@@ -229,7 +238,7 @@ async function generateFollowUpText(env, {
   const reason = primaryError ? `failed: ${primaryError.message}` : 'returned no text';
   console.warn(`[${requestId}] Responses API follow-up ${reason}; falling back to ${FALLBACK_PROVIDER}`);
   const { systemPrompt, userPrompt } = buildFallbackPrompts();
-  const result = await callModalChatCompletions(env, { systemPrompt, userPrompt, requestId });
+  const result = await callModalChatCompletions(env, { systemPrompt, userPrompt, requestId, signal, maxTokens: 4000, telemetry: { task: 'followup', requestId } });
   return { text: result.text, provider: FALLBACK_PROVIDER };
 }
 
@@ -322,6 +331,8 @@ export const onRequestGet = async () => {
  */
 export const onRequestPost = async ({ request, env, ctx }) => {
   const startTime = Date.now();
+  const taskDeadline = createDeadline({ signal: request.signal, timeoutMs: getTaskTimeoutMs(env) });
+  const taskSignal = taskDeadline.signal;
   const requestId = crypto.randomUUID();
   let reservationId = null;
   let turnNumber = null;
@@ -721,7 +732,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     };
     const runClaudeMemoryTool = async (name, args) => {
       if (name !== 'save_memory_note') throw new Error('Unknown memory tool.');
-      request.signal.throwIfAborted();
+      taskSignal.throwIfAborted();
       const result = await handleMemoryToolCall(env.DB, user.id, readingIdentifier, args);
       if (result.success) {
         memoryToolCalled = true;
@@ -733,12 +744,12 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     };
     const generatePersonalFollowUp = () => generateClaudeFollowUp(env, {
       systemPrompt: effectiveSystemPrompt, userPrompt: effectiveUserPrompt,
-      enableMemoryTool, signal: request.signal,
+      enableMemoryTool, signal: taskSignal,
       onToolCall: runClaudeMemoryTool
     });
     const generateClaudeApiAnswer = async () => (await generateClaudeApiFollowUp(env, {
       systemPrompt: effectiveSystemPrompt, userPrompt: effectiveUserPrompt,
-      enableMemoryTool, signal: request.signal, requestId,
+      enableMemoryTool, signal: taskSignal, requestId,
       onToolCall: runClaudeMemoryTool
     })).text;
 
@@ -761,7 +772,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           buildFallbackPrompts,
           generateClaude: generatePersonalFollowUp,
           generateClaudeApi: generateClaudeApiAnswer,
-          signal: request.signal,
+          signal: taskSignal,
           generatePrimary: async () => {
             // Prepare tools array if memory is enabled
             const tools = enableMemoryTool ? [MEMORY_TOOL_AZURE_RESPONSES_FORMAT] : null;
@@ -779,7 +790,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 instructions: effectiveSystemPrompt,
                 userInput: effectiveUserPrompt,
                 tools,
-                maxTokens: 400,
+                telemetry: { task: 'followup', requestId },
+                signal: taskSignal,
+                maxTokens: 4096,
                 verbosity: 'medium',
                 requestId,
                 onToolCall: async (callId, name, args) => {
@@ -802,7 +815,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               const azureStream = await callAzureResponsesStream(env, {
                 instructions: effectiveSystemPrompt,
                 input: effectiveUserPrompt,
-                maxTokens: 400,
+                telemetry: { task: 'followup', requestId },
+                signal: taskSignal,
+                maxTokens: 4096,
                 verbosity: 'medium',
                 tools: null
               });
@@ -851,7 +866,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             cardsInfo: effectiveContext?.cardsInfo || [],
             deckStyle: effectiveContext?.deckStyle || 'rws-1909',
             provider,
-            signal: request.signal
+            signal: taskSignal
           });
           if (repair.repaired) {
             const repairedSafety = checkFollowUpSafety(repair.response);
@@ -951,7 +966,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           buildFallbackPrompts,
           generateClaude: generatePersonalFollowUp,
           generateClaudeApi: generateClaudeApiAnswer,
-          signal: request.signal,
+          signal: taskSignal,
           generatePrimary: async () => {
             if (enableMemoryTool) {
               const tools = [MEMORY_TOOL_AZURE_RESPONSES_FORMAT];
@@ -959,7 +974,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 instructions: effectiveSystemPrompt,
                 userInput: effectiveUserPrompt,
                 tools,
-                maxTokens: 400,
+                telemetry: { task: 'followup', requestId },
+                signal: taskSignal,
+                maxTokens: 4096,
                 verbosity: 'medium',
                 requestId,
                 onToolCall: async (callId, name, args) => {
@@ -985,7 +1002,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             return callAzureResponses(env, {
               instructions: effectiveSystemPrompt,
               input: effectiveUserPrompt,
-              maxTokens: 400,  // ~250-300 words, aligned with response format guidance
+              telemetry: { task: 'followup', requestId },
+              signal: taskSignal,
+              maxTokens: 4096,  // Includes reasoning; prompt still requests a concise answer
               reasoningEffort: 'low',
               verbosity: 'medium'
             });
@@ -1029,7 +1048,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             cardsInfo: effectiveContext?.cardsInfo || [],
             deckStyle: effectiveContext?.deckStyle || 'rws-1909',
             provider,
-            signal: request.signal
+            signal: taskSignal
           });
           if (repair.repaired) {
             responseText = repair.response;
@@ -1119,7 +1138,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     console.error(`[${requestId}] Follow-up error after ${latencyMs}ms:`, error.message);
     console.log(`[${requestId}] === FOLLOW-UP REQUEST END (ERROR) ===`);
     await releaseReservation('request_error');
-    return jsonResponse({ error: 'Failed to generate follow-up response' }, { status: 500 });
+    return jsonResponse({ error: taskSignal.aborted ? 'text_generation_timeout' : 'Failed to generate follow-up response', retryable: true }, { status: taskSignal.aborted ? 503 : 500 });
+  } finally {
+    taskDeadline.dispose();
   }
 };
 
@@ -1587,7 +1608,9 @@ function createToolRoundTripStream(env, {
   maxTokens,
   verbosity,
   requestId,
-  onToolCall
+  onToolCall,
+  signal,
+  telemetry
 }) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
@@ -1724,6 +1747,8 @@ function createToolRoundTripStream(env, {
         azureStream = await callAzureResponsesStream(env, {
           instructions,
           input: userInput,
+          signal,
+          telemetry,
           maxTokens,
           verbosity,
           tools
@@ -1795,9 +1820,10 @@ function createToolRoundTripStream(env, {
       const toolResults = [];
       for (const tc of toolCalls) {
         try {
-          const result = await onToolCall(tc.callId, tc.name, tc.arguments);
+          const result = await runWithSignal(() => onToolCall(tc.callId, tc.name, tc.arguments), signal);
           toolResults.push({ callId: tc.callId, result });
         } catch (err) {
+          signal?.throwIfAborted();
           console.warn(`[${requestId}] Tool call error:`, err.message);
           toolResults.push({ callId: tc.callId, result: { success: false, message: err.message } });
         }
@@ -1811,6 +1837,8 @@ function createToolRoundTripStream(env, {
         continuationStream = await callAzureResponsesStreamWithConversation(env, {
           instructions,
           conversation,
+          signal,
+          telemetry,
           maxTokens,
           verbosity
         });

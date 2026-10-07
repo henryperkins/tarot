@@ -16,6 +16,7 @@
  */
 
 import { useMemo } from 'react';
+import { useMediaAvailability } from './useMediaAvailability';
 
 /**
  * Get a feature flag value from multiple sources.
@@ -62,6 +63,7 @@ function getFlag(flagKey, envVar, defaultValue = false, userOverridable = false)
 }
 
 export function useFeatureFlags() {
+  const { cardVideo } = useMediaAvailability();
   const flags = useMemo(() => ({
     // Vision Research Mode (ops-only: experimental camera/vision features)
     visionResearch: getFlag('vision_research', 'VITE_ENABLE_VISION_RESEARCH', false, false),
@@ -72,7 +74,9 @@ export function useFeatureFlags() {
 
     // Auto-generate visuals (ops-only: cost-impacting media automation)
     autoGenerateVisuals: getFlag('auto_generate_visuals', 'VITE_AUTO_GENERATE_VISUALS', false, false),
-  }), []);
+    // Server configuration decides whether cinematic generation is available.
+    cardVideo,
+  }), [cardVideo]);
 
   return flags;
 }

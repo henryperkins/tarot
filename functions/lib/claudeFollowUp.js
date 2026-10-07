@@ -1,3 +1,4 @@
+import { runWithSignal } from './requestDeadline.js';
 import { callClaudeCode } from './claudeCode.js';
 import { MEMORY_TOOL_DEFINITION } from './memoryTool.js';
 
@@ -50,7 +51,7 @@ export async function generateClaudeFollowUp(env, { systemPrompt, userPrompt, en
     if (seenMemories.has(key)) throw new Error('Claude repeated a memory request.');
     seenMemories.add(key);
     signal?.throwIfAborted();
-    const toolResult = await onToolCall('save_memory_note', memory);
+    const toolResult = await runWithSignal(() => onToolCall('save_memory_note', memory), signal);
     messages.push({ role: 'assistant', content: JSON.stringify({ response: null, memory }) });
     messages.push({ role: 'user', content: `Application tool result for save_memory_note: ${JSON.stringify(toolResult)}. Continue with your answer.` });
   }

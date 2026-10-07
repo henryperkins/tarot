@@ -23,7 +23,9 @@ quality checks, and gating mechanisms in the Tarot codebase. It complements
 - Sync evaluation gate:
   - `runSyncEvaluationGate()` runs before responding when `EVAL_GATE_ENABLED=true` or a selective safety/language policy forces it.
   - Failure mode defaults to `open` in non-prod and `closed` in prod; set via `EVAL_GATE_FAILURE_MODE`.
-  - On block, a safe fallback reading is returned (`generateSafeFallbackReading()`).
+  - Restricted medical/financial/legal/abuse input and confidently detected non-English input or output require a complete model assessment, regardless of the generic failure mode. Wellbeing context alone does not classify a question as medical risk.
+  - Deterministic output checks run for JSON and SSE even with the model gate disabled. Their English patterns and the bounded language detector do not establish comprehensive multilingual safety.
+  - Genuine safety rejection returns a clearly identified reflection (`generateSafeFallbackReading()`). Unavailable or incomplete required evaluation returns HTTP 503 with `code: reading_safety_unavailable` and `retryable: true`; the request's reading reservation is released through the error path, and the UI preserves the question for retry. This outcome does not claim the original reading was unsafe.
 - Heuristic fallback:
   - `buildHeuristicScores()` derives safety/tone flags from content patterns and structural metrics.
   - Used when model eval fails or returns incomplete scores.

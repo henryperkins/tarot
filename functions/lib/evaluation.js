@@ -1,3 +1,5 @@
+import { observeInferenceAttempt } from './inferenceAttempts.js';
+import { createDeadline } from './requestDeadline.js';
 /**
  * Automated Prompt Evaluation System
  *
@@ -1486,9 +1488,9 @@ function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, narrativ
  * Clamp score to valid 1-5 range
  */
 function clampScore(value) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return null;
-  return Math.max(1, Math.min(5, Math.round(num)));
+  // Missing or malformed assessments must not become an actual score.
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return Math.max(1, Math.min(5, Math.round(value)));
 }
 
 function normalizeSafetyFlag(value) {
@@ -1652,7 +1654,8 @@ export async function runEvaluation(env, params = {}) {
 
   const startTime = Date.now();
   const settings = resolveEvaluatorSettings(env, { gate });
-  const model = settings.model;
+  const requestedModel = settings.model;
+  let model = requestedModel;
   const timeoutMs = parseTimeoutMs(timeoutOverrideMs) ?? settings.timeoutMs;
   const gatewayId = env.EVAL_GATEWAY_ID || null;
 
@@ -1672,20 +1675,20 @@ export async function runEvaluation(env, params = {}) {
 
     console.log(`[${requestId}] [eval] Starting evaluation with ${model} (${payloadFormat} payload)`);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const deadline = createDeadline({ signal: params.signal, timeoutMs });
 
     const gatewayOption = gatewayId ? { gateway: { id: gatewayId } } : {};
 
     let response;
     try {
-      response = await env.AI.run(
-        model,
+      response = await observeInferenceAttempt(env, { requestId, task: gate ? 'evaluation-gate' : 'evaluation', provider: 'workers-ai', requestedModel, signal: deadline.signal }, () => deadline.run(() => env.AI.run(
+        requestedModel,
         evalPayload,
-        { signal: controller.signal, ...gatewayOption }
-      );
+        { signal: deadline.signal, ...gatewayOption }
+      )));
+      model = typeof response?.model === 'string' ? response.model : requestedModel;
     } finally {
-      clearTimeout(timeoutId);
+      deadline.dispose();
     }
 
     const latencyMs = Date.now() - startTime;
@@ -1778,7 +1781,7 @@ export async function runEvaluation(env, params = {}) {
   } catch (err) {
     const latencyMs = Date.now() - startTime;
 
-    if (err.name === 'AbortError') {
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
       console.warn(`[${requestId}] [eval] Timeout after ${timeoutMs}ms`);
       return { error: 'timeout', latencyMs, model, promptVersion: EVAL_PROMPT_VERSION };
     }
@@ -1994,7 +1997,7 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
         if (retryResult && !retryResult.error) {
           evalResult = retryResult;
         } else if (retryResult?.error && fallbackEval) {
-          evalResult = { ...fallbackEval, error: retryResult.error, latencyMs: retryResult.latencyMs, model: retryResult.model || fallbackEval.model };
+          evalResult = { ...fallbackEval, error: retryResult.error, latencyMs: retryResult.latencyMs, attemptedModel: retryResult.model || null };
         } else {
           evalResult = retryResult || fallbackEval;
         }
@@ -2034,6 +2037,7 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
           fallbackReason,
           missingFields: hasIncompleteScores ? missingFields : undefined,
           originalEval: evalResult && !evalResult?.error ? evalResult : null,
+          attemptedModel: evalResult?.model || null,
           originalError: evalResult?.error || null,
           // Capture raw response snippet for debugging JSON parse failures
           rawResponseSnippet: evalResult?.rawResponse?.slice(0, 300) || null
@@ -2218,19 +2222,43 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
       narrativeMetrics: evalParams.narrativeMetrics || narrativeMetrics
     };
 
-    // Check if gate is enabled
+    // Check if the model gate is enabled
     if (!normalizeBooleanFlag(env?.EVAL_GATE_ENABLED)) {
+      // Inspect delivered output even without model gating. Input classification
+      // cannot anticipate every unsafe output; JSON and SSE share this check.
+      const safetyEval = applyDeterministicOverrides(
+        buildHeuristicScores(narrativeMetrics, resolvedSpreadKey, {
+          readingText: evalParams?.reading, cardCount: resolvedCardCount
+        }), evalParams?.reading, env
+      ).evalResult;
+      const safetyGate = checkEvalGate(safetyEval);
+      if (safetyGate.shouldBlock) {
+        return {
+          passed: false, evalResult: safetyEval,
+          gateResult: { ...safetyGate, thresholds_snapshot: thresholdsSnapshot },
+          reason: safetyGate.reason, eval_source: 'heuristic_only',
+          thresholds_snapshot: thresholdsSnapshot, latencyMs: 0
+        };
+      }
       console.log(`[${requestId}] [gate] Skipped: EVAL_GATE_ENABLED !== true`);
       return { passed: true, evalResult: null, gateResult: null, reason: 'gate_disabled', eval_source: 'heuristic_only', thresholds_snapshot: thresholdsSnapshot };
     }
 
     // Heuristic-only path when evaluation is disabled
     if (!normalizeBooleanFlag(env?.EVAL_ENABLED)) {
-      console.log(`[${requestId}] [gate] Running heuristic-only gate (EVAL_ENABLED !== true)...`);
       let heuristicEval = buildHeuristicScores(narrativeMetrics, resolvedSpreadKey, { readingText: evalParams?.reading, cardCount: resolvedCardCount });
       const overrideResult = applyDeterministicOverrides(heuristicEval, evalParams?.reading, env);
       heuristicEval = overrideResult.evalResult;
       const gateResult = checkEvalGate(heuristicEval);
+      if (!gateResult.shouldBlock && normalizeBooleanFlag(env?.EVAL_GATE_REQUIRED)) {
+        return {
+          passed: false, retryable: true, evalResult: null,
+          gateResult: { shouldBlock: true, reason: 'eval_unavailable', reasons: ['eval_unavailable'], thresholds_snapshot: thresholdsSnapshot },
+          reason: 'eval_unavailable', eval_source: 'heuristic_only',
+          thresholds_snapshot: thresholdsSnapshot, latencyMs: 0
+        };
+      }
+      console.log(`[${requestId}] [gate] Running heuristic-only gate (EVAL_ENABLED !== true)...`);
       const decoratedGate = { ...gateResult, thresholds_snapshot: thresholdsSnapshot };
       return {
         passed: !gateResult.shouldBlock,
@@ -2340,6 +2368,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
 
     return {
       passed: !gateResult.shouldBlock,
+      retryable: gateResult.shouldBlock && ['eval_unavailable', 'eval_incomplete_scores'].includes(gateResult.reason),
       evalResult: decoratedEvalResult,
       gateResult: { ...gateResult, thresholds_snapshot: thresholdsSnapshot },
       eval_source: evalSource || 'ai',
@@ -2387,7 +2416,7 @@ The cards before you hold meaning that unfolds through your own reflection. Cons
 *If you'd like to explore further, consider drawing a fresh spread or returning when you feel ready.*
 
 ---
-*This is a reflective pause rather than a full interpretation. The system detected an opportunity for deeper personal contemplation.*`;
+*The generated interpretation was withheld because it did not pass our safety checks. This reflection does not replace professional advice.*`;
 }
 
 /**

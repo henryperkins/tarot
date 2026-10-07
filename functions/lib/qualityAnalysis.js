@@ -87,6 +87,8 @@ export async function computeDailyAggregates(db, dateStr) {
         json_extract(payload, '$.promptMeta.readingPromptVersion')
       ) as reading_prompt_version,
       json_extract(payload, '$.eval.promptVersion') as eval_prompt_version,
+      COALESCE(json_extract(payload, '$.eval.model'), 'unknown') as eval_model,
+      COALESCE(eval_mode, json_extract(payload, '$.eval.mode'), 'unknown') as eval_source,
       COALESCE(variant_id, json_extract(payload, '$.variantId')) as variant_id,
       COALESCE(provider, json_extract(payload, '$.provider')) as provider,
       COALESCE(spread_key, json_extract(payload, '$.spreadKey')) as spread_key,
@@ -126,6 +128,7 @@ export async function computeDailyAggregates(db, dateStr) {
         json_extract(payload, '$.promptMeta.readingPromptVersion')
       ),
       json_extract(payload, '$.eval.promptVersion'),
+      eval_model, eval_source,
       COALESCE(variant_id, json_extract(payload, '$.variantId')),
       COALESCE(provider, json_extract(payload, '$.provider')),
       COALESCE(spread_key, json_extract(payload, '$.spreadKey'))
@@ -168,6 +171,9 @@ export async function getBaseline(db, dateStr, dimensions) {
     WHERE period_type = 'daily'
       AND period_key < ?
       AND period_key >= date(?, '-7 days')
+      AND (eval_model = ? OR (eval_model IS NULL AND ? IS NULL))
+      AND (eval_source = ? OR (eval_source IS NULL AND ? IS NULL))
+      AND (eval_prompt_version = ? OR (eval_prompt_version IS NULL AND ? IS NULL))
       AND (reading_prompt_version = ? OR (reading_prompt_version IS NULL AND ? IS NULL))
       AND (variant_id = ? OR (variant_id IS NULL AND ? IS NULL))
       AND (spread_key = ? OR ? IS NULL)
@@ -178,6 +184,9 @@ export async function getBaseline(db, dateStr, dimensions) {
     const result = await db.prepare(query).bind(
       dateStr,
       dateStr,
+      dimensions.eval_model ?? null, dimensions.eval_model ?? null,
+      dimensions.eval_source ?? null, dimensions.eval_source ?? null,
+      dimensions.eval_prompt_version ?? null, dimensions.eval_prompt_version ?? null,
       dimensions.reading_prompt_version,
       dimensions.reading_prompt_version,
       dimensions.variant_id,
@@ -223,6 +232,8 @@ function buildDimensionKey(agg) {
     agg.variant_id || 'null',
     agg.spread_key || 'all',
     agg.provider || 'all',
+    ...(agg.eval_model !== undefined || agg.eval_source !== undefined
+      ? [agg.eval_prompt_version || 'null', agg.eval_model || 'unknown', agg.eval_source || 'unknown'] : [])
   ].join(':');
 }
 
@@ -395,6 +406,8 @@ export async function storeQualityStats(db, periodKey, agg, baseline = null) {
     DELETE FROM quality_stats
     WHERE period_type = 'daily'
       AND period_key = ?
+      AND (eval_model = ? OR (eval_model IS NULL AND ? IS NULL))
+      AND (eval_source = ? OR (eval_source IS NULL AND ? IS NULL))
       AND (reading_prompt_version = ? OR (reading_prompt_version IS NULL AND ? IS NULL))
       AND (eval_prompt_version = ? OR (eval_prompt_version IS NULL AND ? IS NULL))
       AND (variant_id = ? OR (variant_id IS NULL AND ? IS NULL))
@@ -408,10 +421,10 @@ export async function storeQualityStats(db, periodKey, agg, baseline = null) {
       heuristic_count, error_count, avg_overall, avg_personalization,
       avg_tarot_coherence, avg_tone, avg_safety, safety_flag_count,
       low_tone_count, low_safety_count, avg_card_coverage, hallucination_count,
-      baseline_overall, delta_overall, created_at
+      baseline_overall, delta_overall, eval_model, eval_source, created_at
     ) VALUES (
       'daily', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-      ?, ?, CURRENT_TIMESTAMP
+      ?, ?, ?, ?, CURRENT_TIMESTAMP
     )
   `;
 
@@ -422,6 +435,8 @@ export async function storeQualityStats(db, periodKey, agg, baseline = null) {
   try {
     await db.prepare(deleteQuery).bind(
       periodKey,
+      agg.eval_model ?? null, agg.eval_model ?? null,
+      agg.eval_source ?? null, agg.eval_source ?? null,
       agg.reading_prompt_version,
       agg.reading_prompt_version,
       agg.eval_prompt_version,
@@ -455,7 +470,8 @@ export async function storeQualityStats(db, periodKey, agg, baseline = null) {
       agg.avg_card_coverage,
       agg.hallucination_count || 0,
       baseline?.overall || null,
-      delta
+      delta,
+      agg.eval_model ?? null, agg.eval_source ?? null
     ).run();
     console.log(`[quality] Stored stats for ${periodKey}/${agg.provider}/${agg.spread_key}: rows_written=${result?.meta?.rows_written}`);
   } catch (err) {
@@ -481,8 +497,8 @@ export async function storeAlert(db, periodKey, alert) {
       alert_type, severity, period_key, reading_prompt_version,
       eval_prompt_version, variant_id, spread_key, provider,
       metric_name, observed_value, threshold_value, baseline_value,
-      delta, reading_count, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      delta, reading_count, eval_model, eval_source, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `;
 
   try {
@@ -500,7 +516,8 @@ export async function storeAlert(db, periodKey, alert) {
       alert.threshold,
       alert.baseline,
       alert.delta,
-      alert.dimensions?.reading_count || null
+      alert.dimensions?.reading_count || null,
+      alert.dimensions?.eval_model ?? null, alert.dimensions?.eval_source ?? null
     ).run();
 
     return { id: result?.meta?.last_row_id ?? null, created: true };
@@ -521,6 +538,8 @@ async function findExistingAlertId(db, periodKey, alert) {
         AND alert_type = ?
         AND severity = ?
         AND metric_name = ?
+        AND (eval_model = ? OR (eval_model IS NULL AND ? IS NULL))
+        AND (eval_source = ? OR (eval_source IS NULL AND ? IS NULL))
         AND (reading_prompt_version = ? OR (reading_prompt_version IS NULL AND ? IS NULL))
         AND (eval_prompt_version = ? OR (eval_prompt_version IS NULL AND ? IS NULL))
         AND (variant_id = ? OR (variant_id IS NULL AND ? IS NULL))
@@ -532,6 +551,8 @@ async function findExistingAlertId(db, periodKey, alert) {
       alert.type,
       alert.severity,
       alert.metric,
+      alert.dimensions?.eval_model ?? null, alert.dimensions?.eval_model ?? null,
+      alert.dimensions?.eval_source ?? null, alert.dimensions?.eval_source ?? null,
       alert.dimensions?.reading_prompt_version || null,
       alert.dimensions?.reading_prompt_version || null,
       alert.dimensions?.eval_prompt_version || null,

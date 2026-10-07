@@ -63,7 +63,7 @@ describe('local-composer language fallback', () => {
     assert.ok(typeof payload.reading === 'string' && payload.reading.startsWith('### Opening'));
   });
 
-  it('continues to try AI backends for non-English prompts before failing closed', async () => {
+  it('continues to try AI backends and requires complete evaluation for non-English prompts', async () => {
     const request = makeRequest({
       ...BASE_PAYLOAD,
       userQuestion: '¿Cómo puedo avanzar en esta relación?'
@@ -72,8 +72,9 @@ describe('local-composer language fallback', () => {
       AZURE_OPENAI_API_KEY: 'test-key',
       AZURE_OPENAI_ENDPOINT: 'https://example.com',
       AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-      EVAL_ENABLED: 'false',
+      EVAL_ENABLED: 'true',
       EVAL_GATE_ENABLED: 'false',
+      AI: { run: async () => ({ response: JSON.stringify({ personalization: 4, tarot_coherence: 4, tone: 4, safety: 4, overall: 4, safety_flag: false }) }) },
       GRAPHRAG_ENABLED: 'false'
     };
 

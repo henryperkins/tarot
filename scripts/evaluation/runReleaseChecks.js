@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { loadVisionDataset } from './lib/visionEvaluationDataset.js';
 
-async function main() {
+export async function main() {
   const directory = process.env.VISION_EVAL_MANIFEST_DIR;
   if (directory) {
     for (const deckStyle of ['rws-1909', 'thoth-a1', 'marseille-classic']) {
@@ -15,9 +16,12 @@ async function main() {
   } else {
     console.log('Vision qualification not run: VISION_EVAL_MANIFEST_DIR is unset. Photo recognition and symbol quality remain unverified.');
   }
-  const backend = process.env.NARRATIVE_EVAL_BACKEND || 'modal-qwen';
+  const backend = process.env.NARRATIVE_EVAL_BACKEND || 'claude-api';
   if (!['claude-api', 'modal-qwen', 'azure-gpt5'].includes(backend)) {
     throw new Error('Release narrative QA requires a live configured provider; local-composer is diagnostic only.');
+  }
+  if (backend === 'claude-api' && !process.env.ANTHROPIC_API_KEY) {
+    throw new Error('Release narrative QA requires ANTHROPIC_API_KEY for the primary Claude provider. Configure it as a build secret; alternate providers require an explicit NARRATIVE_EVAL_BACKEND override.');
   }
   const env = { ...process.env, NARRATIVE_EVAL_BACKEND: backend };
   const checks = ['test', 'test:deploy', 'lint:cloudflare', 'docs:check'];
@@ -32,7 +36,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}

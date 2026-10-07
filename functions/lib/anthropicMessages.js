@@ -6,6 +6,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { observeInferenceAttempt } from './inferenceAttempts.js';
 
 export const CLAUDE_API_PROVIDER = 'claude-api';
 export const ANTHROPIC_DEFAULT_MODEL = 'claude-opus-5-5';
@@ -78,7 +79,7 @@ function normalizeUsage(usage) {
  * @param {string} [options.requestId] - For logs
  * @returns {Promise<{ text: string, message: Object, model: string, usage: Object|null, stopReason: string }>}
  */
-export async function callClaudeMessages(env, {
+async function callClaudeMessagesInternal(env, {
   system,
   messages,
   maxTokens,
@@ -132,10 +133,10 @@ export async function callClaudeMessages(env, {
 
     // Branch on stop_reason before reading content.
     if (message.stop_reason === 'refusal') {
-      throw new ClaudeApiError(`Claude declined the request (${message.stop_details?.category || 'uncategorized'}).`);
+      throw Object.assign(new ClaudeApiError(`Claude declined the request (${message.stop_details?.category || 'uncategorized'}).`), { model: message.model, usage, code: 'provider_refusal' });
     }
     if (message.stop_reason === 'max_tokens' || message.stop_reason === 'model_context_window_exceeded') {
-      throw new ClaudeApiError(`Claude response was cut off (${message.stop_reason}).`);
+      throw Object.assign(new ClaudeApiError(`Claude response was cut off (${message.stop_reason}).`), { model: message.model, usage, code: 'provider_incomplete' });
     }
 
     const text = message.content
@@ -160,15 +161,25 @@ export async function callClaudeMessages(env, {
 /**
  * Convenience wrapper for single-turn text tasks.
  */
-export async function generateClaudeText(env, { system, prompt, maxTokens, effort, signal, requestId }) {
+export async function generateClaudeText(env, { system, prompt, maxTokens, effort, signal, requestId, telemetry }) {
   const result = await callClaudeMessages(env, {
     system,
     messages: [{ role: 'user', content: prompt }],
     maxTokens,
     effort,
     signal,
-    requestId
+    requestId,
+    telemetry
   });
-  if (!result.text) throw new ClaudeApiError('Claude returned no text content.');
+  if (!result.text) throw Object.assign(new ClaudeApiError('Claude returned no text content.'), { model: result.model, usage: result.usage });
   return result;
+}
+
+/** Opt-in task telemetry; reading orchestration records quality acceptance itself. */
+export async function callClaudeMessages(env, options) {
+  if (!options?.telemetry) return callClaudeMessagesInternal(env, options);
+  return observeInferenceAttempt(env, {
+    ...options.telemetry, provider: CLAUDE_API_PROVIDER,
+    requestedModel: env?.ANTHROPIC_MODEL || ANTHROPIC_DEFAULT_MODEL, signal: options.signal
+  }, () => callClaudeMessagesInternal(env, options));
 }

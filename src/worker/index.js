@@ -401,7 +401,6 @@ function addCorsHeaders(response, request) {
  * @property {string} VISION_PROOF_SECRET - Vision proof signing secret
  * @property {string} VISION_BACKEND_DEFAULT - Default vision backend id for server-side proofs
  * @property {string} VISION_TIMEOUT_MS - Vision backend timeout in milliseconds
- * @property {string} HUME_API_KEY - Hume AI API key
  * @property {string} ADMIN_API_KEY - Admin API key for manual archival
  * @property {string} ENABLE_DEBUG_ROUTES - Enables debug endpoints when set to "true"
  * @property {string} EVAL_ENABLED - Enable evaluation (string flag)

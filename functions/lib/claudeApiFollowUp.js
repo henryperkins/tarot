@@ -1,3 +1,4 @@
+import { runWithSignal } from './requestDeadline.js';
 import { callClaudeMessages, ClaudeApiError } from './anthropicMessages.js';
 import { MEMORY_TOOL_DEFINITION } from './memoryTool.js';
 
@@ -35,7 +36,8 @@ export async function generateClaudeApiFollowUp(env, {
       maxTokens: FOLLOW_UP_MAX_TOKENS,
       effort: FOLLOW_UP_EFFORT,
       signal,
-      requestId
+      requestId,
+      telemetry: { task: 'followup', requestId }
     });
     if (result.text) textParts.push(result.text);
 
@@ -54,7 +56,7 @@ export async function generateClaudeApiFollowUp(env, {
       let output;
       if (block.name === MEMORY_TOOL_DEFINITION.name && typeof onToolCall === 'function') {
         signal?.throwIfAborted();
-        output = await onToolCall(block.name, block.input);
+        output = await runWithSignal(() => onToolCall(block.name, block.input), signal);
       } else {
         output = { success: false, message: 'Unknown tool' };
       }

@@ -1,3 +1,4 @@
+import { createD1 } from './helpers/d1Sqlite.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
@@ -12,13 +13,14 @@ import { buildEnhancedClaudePrompt } from '../functions/lib/narrativeBuilder.js'
 const cardsInfo = [{ card: 'The Sun', canonicalName: 'The Sun', canonicalKey: 'the sun', position: 'Theme', orientation: 'Upright', meaning: 'Confidence and renewal.' }];
 const safeDetail = 'A moonlit sky surrounds the sun, suggesting quiet strength.';
 const post = (path, body) => new Request(`https://tableau.test${path}`, {
-  method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
+  method: 'POST', headers: { 'content-type': 'application/json', 'CF-Connecting-IP': '192.0.2.40' }, body: JSON.stringify(body)
 });
 
 test('projects recognizer prose after signing before the actual Modal reading request', async (t) => {
   t.mock.method(console, 'log', () => {});
   t.mock.method(console, 'warn', () => {});
   const env = {
+    DB: await createD1(), VISION_BACKEND_DEFAULT: 'llama-vision',
     MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_MODEL: 'test-qwen', MODAL_PROXY_TOKEN: 'test-token',
     VISION_PROOF_SECRET: 'vision-projection-test-secret', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false',
     AI: { run: async () => ({ response: JSON.stringify({

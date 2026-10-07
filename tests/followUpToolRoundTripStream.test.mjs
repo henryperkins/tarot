@@ -8,6 +8,7 @@ function formatAzureEvent(event, data) {
 }
 
 function createMockAzureStream(eventChunks) {
+  eventChunks = [...eventChunks, formatAzureEvent('response.completed', { response: { status: 'completed' } })];
   const encoder = new TextEncoder();
   let index = 0;
 

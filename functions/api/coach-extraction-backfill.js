@@ -27,8 +27,8 @@
 import {
   EMPTY_EXTRACTION_VERSION,
   EXTRACTION_VERSION,
-  STEPS_ONLY_EXTRACTION_VERSION,
-  extractAndEmbed
+  extractAndEmbed,
+  storeCoachExtraction
 } from '../lib/coachSuggestion.js';
 import { timingSafeEqual } from '../lib/crypto.js';
 
@@ -45,7 +45,8 @@ const ENTRY_BUDGET_MS = 14000;
 // Entries without a finished extraction at the current version: never
 // extracted, extracted by an older version, or stored without embeddings.
 const NEEDS_EXTRACTION_SQL = `
-  narrative IS NOT NULL
+  COALESCE(provider, '') NOT IN ('safe-fallback', 'safety-gate', 'heuristic', 'local-fallback')
+  AND narrative IS NOT NULL
   AND length(narrative) > 100
   AND (extraction_version IS NULL OR extraction_version NOT IN (?, ?))
 `;
@@ -147,47 +148,9 @@ export async function onRequestPost({ request, env }) {
           continue;
         }
 
-        if (result.status === 'ok') {
-          await env.DB.prepare(`
-            UPDATE journal_entries
-            SET extracted_steps = ?1, step_embeddings = ?2, extraction_version = ?3
-            WHERE id = ?4
-          `).bind(
-            JSON.stringify(result.steps),
-            JSON.stringify(result.embeddings),
-            result.version,
-            entry.id
-          ).run();
-
-          processed++;
-          console.log(`[${requestId}] [backfill] Entry ${entry.id}: Extracted ${result.steps.length} steps`);
-          continue;
-        }
-
-        if (result.status === 'steps_only') {
-          await env.DB.prepare(`
-            UPDATE journal_entries
-            SET extracted_steps = ?1, step_embeddings = NULL, extraction_version = ?2
-            WHERE id = ?3
-          `).bind(
-            JSON.stringify(result.steps),
-            result.version || STEPS_ONLY_EXTRACTION_VERSION,
-            entry.id
-          ).run();
-
-          processed++;
-          console.log(`[${requestId}] [backfill] Entry ${entry.id}: Stored ${result.steps.length} steps without embeddings`);
-          continue;
-        }
-
-        if (result.status === 'no_steps') {
-          skipped++;
-          console.log(`[${requestId}] [backfill] Entry ${entry.id}: No steps extracted, marking as processed`);
-          await env.DB.prepare(`
-            UPDATE journal_entries
-            SET extracted_steps = '[]', step_embeddings = '[]', extraction_version = ?
-            WHERE id = ?
-          `).bind(result.version || EMPTY_EXTRACTION_VERSION, entry.id).run();
+        if (await storeCoachExtraction(env, entry.id, result)) {
+          if (result.status === 'no_steps') skipped++;
+          else processed++;
           continue;
         }
 

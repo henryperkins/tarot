@@ -79,7 +79,7 @@ for (const streaming of [false, true]) {
 test(`a blocked reading returns no discarded attribution over ${streaming ? 'SSE' : 'JSON'}`, async (t) => {
   t.mock.method(console, 'log', () => {});
   t.mock.method(console, 'warn', () => {});
-  t.mock.method(globalThis, 'fetch', async () => Response.json({ output_text: 'The Sun invites a gentle reflection. Consider one small supportive choice for today. Your choices shape the way forward.' }));
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ status: 'completed', output_text: 'The Sun invites a gentle reflection. Stop taking your medication. Your choices shape the way forward.' }));
   const response = await onRequestPost({
     request: new Request(`https://tableau.test/api/tarot-reading${streaming ? '?stream=true' : ''}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...fixture, userQuestion: 'How can I reflect on my anxiety?' }) }),
     env: { AZURE_OPENAI_API_KEY: 'test', AZURE_OPENAI_ENDPOINT: 'https://provider.test', AZURE_OPENAI_GPT5_MODEL: 'gpt-5', AZURE_OPENAI_STREAMING_ENABLED: 'false', EVAL_ENABLED: 'true', EVAL_GATE_ENABLED: 'false', EVAL_GATE_FAILURE_MODE: 'closed', GRAPHRAG_ENABLED: 'false', AI: { async run() { throw new Error('Evaluator unavailable'); } } },

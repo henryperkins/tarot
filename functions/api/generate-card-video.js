@@ -1568,6 +1568,18 @@ export async function onRequestPost({ request, env }) {
 export async function onRequestGet(ctx) {
   const { request, env } = ctx;
   const url = new URL(request.url);
+  if (url.searchParams.get('capabilities') === 'true') {
+    const cardVideo = Boolean(
+      env.FEATURE_CARD_VIDEO === 'true' && env.METRICS_DB
+      && (env.AZURE_OPENAI_IMAGE_ENDPOINT || env.AZURE_OPENAI_ENDPOINT)
+      && (env.AZURE_OPENAI_IMAGE_API_KEY || env.AZURE_OPENAI_API_KEY)
+      && (env.AZURE_OPENAI_VIDEO_ENDPOINT || env.AZURE_OPENAI_ENDPOINT)
+      && (env.AZURE_OPENAI_VIDEO_API_KEY || env.AZURE_OPENAI_API_KEY)
+    );
+    // Availability reveals no credentials and performs no inference or usage
+    // writes. Generating a job still requires authentication and tier checks.
+    return jsonResponse({ cardVideo }, { headers: { 'cache-control': 'no-store' } });
+  }
   const jobId = url.searchParams.get('jobId');
   const statusStart = Date.now();
 

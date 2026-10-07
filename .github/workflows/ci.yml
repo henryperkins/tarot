@@ -75,7 +75,10 @@ jobs:
             echo "Vision qualification not run: VISION_EVAL_MANIFEST_DIR is unset. Photo recognition and symbol quality remain unverified."
           fi
 
-      - name: Narrative QA gate
+      - name: Narrative QA gate (primary Claude provider)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NARRATIVE_EVAL_BACKEND: claude-api
         run: npm run ci:narrative-check
 
       - name: Preserve narrative evaluation evidence

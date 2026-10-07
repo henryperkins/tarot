@@ -1,9 +1,9 @@
 import { jsonResponse } from '../lib/utils.js';
 import { resolveEnv } from '../lib/environment.js';
 import { getUserFromRequest } from '../lib/auth.js';
-import { getSubscriptionContext } from '../lib/entitlements.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
-import { enforceTtsRateLimit, getTtsLimits } from '../lib/ttsLimits.js';
+import { enforceSpeechTokenLimit } from '../lib/ttsLimits.js';
+import { createDeadline } from '../lib/requestDeadline.js';
 
 /**
  * Speech Token Endpoint for Azure Cognitive Services Speech SDK
@@ -14,7 +14,6 @@ import { enforceTtsRateLimit, getTtsLimits } from '../lib/ttsLimits.js';
  */
 export async function onRequestGet(context) {
   const { request, env } = context;
-  const requestId = crypto.randomUUID();
 
   const user = await getUserFromRequest(request, env);
   if (!user) {
@@ -29,32 +28,12 @@ export async function onRequestGet(context) {
     }
   }
 
-  const subscription = getSubscriptionContext(user);
-  const ttsLimits = getTtsLimits(subscription.effectiveTier);
-  const rateLimitResult = await enforceTtsRateLimit(env, request, user, ttsLimits, requestId);
-  if (rateLimitResult?.limited) {
-    const errorCode = rateLimitResult.tierLimited ? 'TIER_LIMIT' : 'RATE_LIMIT';
-    const errorMessage = rateLimitResult.tierLimited
-      ? `You've reached your monthly TTS limit (${ttsLimits.monthly}).`
-      : 'Too many speech token requests. Please wait a few moments and try again.';
-
-    return jsonResponse(
-      {
-        error: errorMessage,
-        errorCode,
-        tierLimited: rateLimitResult.tierLimited || false,
-        currentTier: subscription.tier,
-        limit: rateLimitResult.limit ?? null,
-        used: rateLimitResult.used ?? null,
-        resetAt: rateLimitResult.resetAt ?? null
-      },
-      {
-        status: 429,
-        headers: {
-          'retry-after': rateLimitResult.retryAfter.toString()
-        }
-      }
-    );
+  const rateLimitResult = await enforceSpeechTokenLimit(env, request, user);
+  if (!rateLimitResult.allowed) {
+    return jsonResponse(rateLimitResult.payload, {
+      status: rateLimitResult.status,
+      headers: rateLimitResult.retryAfter ? { 'retry-after': String(rateLimitResult.retryAfter) } : {}
+    });
   }
 
   const speechKey = resolveEnv(env, 'AZURE_SPEECH_KEY');
@@ -69,6 +48,7 @@ export async function onRequestGet(context) {
     );
   }
 
+  const deadline = createDeadline({ signal: request.signal, timeoutMs: 15000 });
   try {
     // Custom endpoints (Azure AI Foundry) use endpoint-based token URL
     // Standard Speech Service uses region-based URL
@@ -82,20 +62,21 @@ export async function onRequestGet(context) {
       tokenEndpoint = `https://${speechRegion}.api.cognitive.microsoft.com/sts/v1.0/issueToken`;
     }
 
-    const tokenResponse = await fetch(tokenEndpoint, {
+    const tokenResponse = await deadline.run(() => fetch(tokenEndpoint, {
       method: 'POST',
+      signal: deadline.signal,
       headers: {
         'Ocp-Apim-Subscription-Key': speechKey,
         'Content-Type': 'application/x-www-form-urlencoded',
         'Content-Length': '0'
       }
-    });
+    }));
 
     if (!tokenResponse.ok) {
       console.error('[SpeechToken] Azure token fetch failed:', tokenResponse.status, tokenResponse.statusText);
 
       if (isDebugEnabled(env)) {
-        const errorText = await tokenResponse.text().catch(() => '');
+        const errorText = await deadline.run(() => tokenResponse.text()).catch(() => '');
         if (errorText) {
           console.error('[SpeechToken] Error details:', errorText);
         }
@@ -107,7 +88,7 @@ export async function onRequestGet(context) {
       );
     }
 
-    const token = await tokenResponse.text();
+    const token = await deadline.run(() => tokenResponse.text());
 
     return jsonResponse(
       {
@@ -126,9 +107,9 @@ export async function onRequestGet(context) {
     console.error('[SpeechToken] Error:', err);
     return jsonResponse(
       { error: 'Token service unavailable' },
-      { status: 500 }
+      { status: 503 }
     );
-  }
+  } finally { deadline.dispose(); }
 }
 
 function isDebugEnabled(env) {

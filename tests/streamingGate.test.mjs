@@ -23,6 +23,9 @@ function createAzureStream(deltas) {
     `event: response.output_text.delta\n` +
     `data: ${JSON.stringify({ type: 'response.output_text.delta', delta })}\n\n`
   ));
+  events.push(`event: response.completed\ndata: ${JSON.stringify({
+    type: 'response.completed', response: { status: 'completed' }
+  })}\n\n`);
 
   let index = 0;
   return new ReadableStream({

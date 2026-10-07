@@ -1,3 +1,4 @@
+import { observeInferenceAttempt } from './inferenceAttempts.js';
 /**
  * AI-Enhanced Coach Suggestion System
  *
@@ -95,7 +96,7 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
 
     const prompt = EXTRACT_STEPS_USER.replace('{{narrative}}', truncatedNarrative);
 
-    const response = await env.AI.run(
+    const response = await observeInferenceAttempt(env, { requestId, task: 'coach-extraction', provider: 'workers-ai', requestedModel: EXTRACTION_MODEL, signal: controller.signal }, () => env.AI.run(
       EXTRACTION_MODEL,
       {
         messages: [
@@ -107,8 +108,9 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
         reasoning_effort: EXTRACTION_REASONING_EFFORT
       },
       { signal: controller.signal }
-    );
+    ));
 
+    const provenance = { model: typeof response?.model === 'string' ? response.model : null, requestedModel: EXTRACTION_MODEL };
     const latencyMs = Date.now() - startTime;
     // Workers AI returns JSON output already parsed in `response` (an array
     // here), plain text as a string, and OpenAI-style models only in `choices`.
@@ -118,9 +120,9 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
     // Parse JSON array from response
     const match = responseText.match(/\[[\s\S]*\]/);
     if (!match) {
-      console.warn(`[${requestId}] [coach] No JSON array in response (${latencyMs}ms): ${responseText.slice(0, 100)}`);
+      console.warn(`[${requestId}] [coach] No JSON array in response (${latencyMs}ms): output omitted`);
       // Use parse_error (retriable) instead of no_steps (permanent) for malformed AI output
-      return { steps: [], status: 'parse_error', error: 'no_json_array' };
+      return { ...provenance, steps: [], status: 'parse_error', error: 'no_json_array' };
     }
 
     let steps;
@@ -128,12 +130,12 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
       steps = JSON.parse(match[0]);
     } catch (parseErr) {
       console.warn(`[${requestId}] [coach] Invalid JSON in response (${latencyMs}ms): ${parseErr.message}`);
-      return { steps: [], status: 'parse_error', error: 'invalid_json' };
+      return { ...provenance, steps: [], status: 'parse_error', error: 'invalid_json' };
     }
 
     if (!Array.isArray(steps)) {
       console.warn(`[${requestId}] [coach] Response not an array (${latencyMs}ms)`);
-      return { steps: [], status: 'parse_error', error: 'not_array' };
+      return { ...provenance, steps: [], status: 'parse_error', error: 'not_array' };
     }
 
     // Filter to valid strings only
@@ -143,7 +145,7 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
       .slice(0, 5); // Cap at 5 steps
 
     console.log(`[${requestId}] [coach] Extracted ${validSteps.length} steps in ${latencyMs}ms`);
-    return { steps: validSteps, status: validSteps.length ? 'ok' : 'no_steps' };
+    return { ...provenance, steps: validSteps, status: validSteps.length ? 'ok' : 'no_steps' };
 
   } catch (err) {
     const latencyMs = Date.now() - startTime;
@@ -186,11 +188,11 @@ export async function generateEmbeddings(env, texts, requestId = 'unknown') {
   const timeoutId = setTimeout(() => controller.abort(), EMBEDDING_TIMEOUT_MS);
 
   try {
-    const response = await env.AI.run(
+    const response = await observeInferenceAttempt(env, { requestId, task: 'coach-embedding', provider: 'workers-ai', requestedModel: EMBEDDING_MODEL, signal: controller.signal }, () => env.AI.run(
       EMBEDDING_MODEL,
       { text: texts, truncate_inputs: true },
       { signal: controller.signal }
-    );
+    ));
 
     const latencyMs = Date.now() - startTime;
     const embeddings = response?.data || [];
@@ -201,6 +203,7 @@ export async function generateEmbeddings(env, texts, requestId = 'unknown') {
     }
 
     console.log(`[${requestId}] [coach] Generated ${embeddings.length} embeddings in ${latencyMs}ms`);
+    if (typeof response?.model === 'string') Object.defineProperty(embeddings, 'model', { value: response.model });
     return embeddings;
 
   } catch (err) {
@@ -231,11 +234,14 @@ export async function extractAndEmbed(env, narrative, requestId = 'unknown') {
   // Step 1: Extract actionable steps
   const extraction = await extractNextStepsWithAI(env, narrative, requestId);
 
+  const provenance = { extractionModel: extraction.model || extraction.requestedModel || null, embeddingModel: null };
+
   if (extraction.status === 'no_steps') {
     console.log(`[${requestId}] [coach] No steps extracted, marking empty extraction`);
     return {
       steps: [],
       embeddings: [],
+      ...provenance,
       version: EMPTY_EXTRACTION_VERSION,
       status: 'no_steps'
     };
@@ -243,7 +249,7 @@ export async function extractAndEmbed(env, narrative, requestId = 'unknown') {
 
   if (extraction.status !== 'ok') {
     console.warn(`[${requestId}] [coach] Extraction failed (${extraction.status}), skipping embeddings`);
-    return { steps: [], embeddings: [], version: null, status: extraction.status };
+    return { ...provenance, steps: [], embeddings: [], version: null, status: extraction.status };
   }
 
   const steps = extraction.steps;
@@ -253,12 +259,14 @@ export async function extractAndEmbed(env, narrative, requestId = 'unknown') {
 
   if (embeddings.length !== steps.length) {
     console.warn(`[${requestId}] [coach] Embedding generation failed or mismatched; storing steps without embeddings`);
-    return { steps, embeddings: [], version: STEPS_ONLY_EXTRACTION_VERSION, status: 'steps_only' };
+    return { ...provenance, steps, embeddings: [], version: STEPS_ONLY_EXTRACTION_VERSION, status: 'steps_only' };
   }
 
   return {
     steps,
     embeddings,
+    ...provenance,
+    embeddingModel: embeddings.model || EMBEDDING_MODEL,
     version: EXTRACTION_VERSION,
     status: 'ok'
   };
@@ -276,7 +284,8 @@ export async function extractAndEmbed(env, narrative, requestId = 'unknown') {
  * @param {string} options.requestId - Request ID for logging
  */
 export function scheduleCoachExtraction(env, entryId, narrative, options = {}) {
-  const { waitUntil, requestId = 'unknown' } = options;
+  const { waitUntil, requestId = 'unknown', provider } = options;
+  if (isCannedReadingProvider(provider)) return;
 
   if (!env?.AI) {
     console.log(`[${requestId}] [coach] Skipped: AI binding not available`);
@@ -302,46 +311,7 @@ export function scheduleCoachExtraction(env, entryId, narrative, options = {}) {
         return;
       }
 
-      if (result.status === 'ok') {
-        // Store in D1
-        await env.DB.prepare(`
-          UPDATE journal_entries
-          SET extracted_steps = ?1, step_embeddings = ?2, extraction_version = ?3
-          WHERE id = ?4
-        `).bind(
-          JSON.stringify(result.steps),
-          JSON.stringify(result.embeddings),
-          result.version,
-          entryId
-        ).run();
-
-        console.log(`[${requestId}] [coach] Stored ${result.steps.length} steps for entry ${entryId}`);
-        return;
-      }
-
-      if (result.status === 'no_steps') {
-        await env.DB.prepare(`
-          UPDATE journal_entries
-          SET extracted_steps = '[]', step_embeddings = '[]', extraction_version = ?
-          WHERE id = ?
-        `).bind(EMPTY_EXTRACTION_VERSION, entryId).run();
-        console.log(`[${requestId}] [coach] Stored empty extraction for entry ${entryId}`);
-        return;
-      }
-
-      if (result.status === 'steps_only') {
-        await env.DB.prepare(`
-          UPDATE journal_entries
-          SET extracted_steps = ?1, step_embeddings = NULL, extraction_version = ?2
-          WHERE id = ?3
-        `).bind(
-          JSON.stringify(result.steps),
-          result.version || STEPS_ONLY_EXTRACTION_VERSION,
-          entryId
-        ).run();
-        console.log(`[${requestId}] [coach] Stored ${result.steps.length} steps without embeddings for entry ${entryId}`);
-        return;
-      }
+      if (await storeCoachExtraction(env, entryId, result)) return;
 
       console.warn(`[${requestId}] [coach] Extraction not stored due to status: ${result.status}`);
 
@@ -358,4 +328,21 @@ export function scheduleCoachExtraction(env, entryId, narrative, options = {}) {
   // Fallback: run inline (not ideal but better than nothing)
   console.warn(`[${requestId}] [coach] waitUntil unavailable; running extraction inline`);
   return runner();
+}
+
+/** Canned readings contain no personalized actions to extract. */
+export function isCannedReadingProvider(provider) {
+  return ['safe-fallback', 'safety-gate', 'heuristic', 'local-fallback'].includes(provider);
+}
+
+export async function storeCoachExtraction(env, entryId, result) {
+  if (!['ok', 'no_steps', 'steps_only'].includes(result?.status)) return false;
+  await env.DB.prepare(`
+    UPDATE journal_entries
+    SET extracted_steps = ?1, step_embeddings = ?2, extraction_version = ?3,
+        extraction_model = ?4, embedding_model = ?5
+    WHERE id = ?6
+  `).bind(JSON.stringify(result.steps), result.status === 'steps_only' ? null : JSON.stringify(result.embeddings),
+    result.version, result.extractionModel || null, result.embeddingModel || null, entryId).run();
+  return true;
 }

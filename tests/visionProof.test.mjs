@@ -1,3 +1,4 @@
+import { createD1 } from './helpers/d1Sqlite.mjs';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { describe, it } from 'node:test';
@@ -173,13 +174,15 @@ describe('vision API signed identity round trip', () => {
       });
       const request = new Request('http://localhost/api/vision-proof', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'CF-Connecting-IP': '192.0.2.40' },
         body: JSON.stringify({
           deckStyle,
           backendId: 'llama-vision',
           evidence: [{ label: 'court-upload', dataUrl: 'data:image/png;base64,ZmFrZQ==' }]
         })
       });
+      env.DB ??= await createD1();
+      env.VISION_BACKEND_DEFAULT = 'llama-vision';
       const response = await onRequestPost({ request, env });
       assert.equal(response.status, 201);
       const { proof } = await response.json();

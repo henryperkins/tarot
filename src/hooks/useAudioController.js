@@ -8,17 +8,11 @@ import {
   subscribeToTTS,
   getCurrentTTSState,
   unlockAudio,
-  enqueueTTSChunk,
   finalizeTTSStream,
   resetTTSStream,
   isTTSStreamActive,
   swellAmbience
 } from '../lib/audio';
-import {
-  speakWithHume,
-  stopHumeAudio,
-  resetGenerationId
-} from '../lib/audioHume';
 import {
   initSpeechSDK,
   isSpeechSDKReady,
@@ -33,12 +27,6 @@ export function useAudioController() {
   const [ttsAnnouncement, setTtsAnnouncement] = useState('');
   const [voicePromptRequested, setVoicePromptRequested] = useState(false);
   const showVoicePrompt = voicePromptRequested && !voiceOn;
-
-  // Track Hume audio state separately
-  const humeAudioRef = useRef(null);
-  const [humeState, setHumeState] = useState({ status: 'idle', error: null });
-  const [humeFallbackActive, setHumeFallbackActive] = useState(false);
-  const humeRequestRef = useRef(0);
 
   // Track Speech SDK state separately
   const sdkAudioRef = useRef(null);
@@ -143,15 +131,10 @@ export function useAudioController() {
   // Stop TTS when voice is toggled off
   useEffect(() => {
     if (!voiceOn) {
-      humeRequestRef.current += 1;
       sdkRequestRef.current += 1;
       stopTTS();
-      stopHumeAudio();
-      setHumeFallbackActive(false);
-      setTimeout(() => {
-        setHumeState({ status: 'idle', error: null });
-      }, 0);
       releaseSdkAudio();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset Word-Sync state when the preference turns voice off
       setSdkState({ status: 'idle', error: null });
       setWordBoundary(null);
       if (sdkInitializedRef.current) {
@@ -161,12 +144,6 @@ export function useAudioController() {
     }
   }, [voiceOn, releaseSdkAudio]);
 
-  useEffect(() => {
-    if (ttsProvider !== 'hume') {
-      setHumeFallbackActive(false);
-    }
-  }, [ttsProvider]);
-
   // /api/tts (Deepgram Aura-2) speak function; the player applies the speed
   const speakWithAzure = useCallback(async (text, context = 'default', emotion = null) => {
     await speakText({
@@ -175,91 +152,14 @@ export function useAudioController() {
       context,
       voice: 'nova', // Default voice for mystical tarot readings
       speed: ttsSpeed,
+      stream: context === 'full-reading',
       emotion
     });
   }, [voiceOn, ttsSpeed]);
 
-  // Hume TTS speak function with emotion support
-  const speakWithHumeProvider = useCallback(async (text, context = 'default', emotion = null) => {
-    if (!text || !voiceOn) return;
-    const requestId = ++humeRequestRef.current;
-    const isStaleRequest = () => humeRequestRef.current !== requestId;
-
-    try {
-      setHumeFallbackActive(false);
-      // Stop any currently playing Hume audio
-      if (humeAudioRef.current) {
-        humeAudioRef.current.stop();
-      }
-
-      setHumeState({ status: 'loading', error: null });
-      setTtsAnnouncement('Preparing mystical narration...');
-
-      const result = await speakWithHume(text, {
-        context,
-        voiceName: 'ITO', // Warm, contemplative voice for readings
-        speed: 0.95, // Slightly slower for contemplation
-        emotion // GraphRAG-derived emotion for acting instructions
-      });
-
-      if (isStaleRequest()) {
-        result?.stop?.();
-        return;
-      }
-
-      humeAudioRef.current = result;
-      setHumeState({ status: 'playing', error: null });
-      setTtsAnnouncement('Playing your personalized reading...');
-
-      // Play the audio
-      await result.play();
-      if (isStaleRequest()) {
-        result?.stop?.();
-        return;
-      }
-
-      // Handle audio end
-      result.audio.onended = () => {
-        if (isStaleRequest()) return;
-        setHumeState({ status: 'completed', error: null });
-        setTtsAnnouncement('Narration finished.');
-        humeAudioRef.current = null;
-      };
-
-      // Handle audio errors
-      result.audio.onerror = (e) => {
-        if (isStaleRequest()) return;
-        console.error('Hume audio playback error:', e);
-        setHumeState({ status: 'error', error: 'Audio playback failed' });
-        setTtsAnnouncement('Narration unavailable.');
-        humeAudioRef.current = null;
-      };
-
-    } catch (error) {
-      if (isStaleRequest()) return;
-      console.error('Hume TTS error:', error);
-      setHumeState({ status: 'error', error: error.message || 'Failed to generate speech' });
-      setTtsAnnouncement('Hume unavailable. Falling back to Deepgram...');
-      setHumeFallbackActive(true);
-      await speakWithAzure(text, context, emotion);
-    }
-  }, [voiceOn, speakWithAzure]);
-
-  const enqueueNarrationChunk = useCallback((text, context = 'full-reading', emotion = null) => {
-    if (!voiceOn || !text) return false;
-    if (ttsProvider !== 'azure') return false;
-    const status = ttsState.status;
-    const isBusy = status === 'playing' || status === 'paused' || status === 'loading' || status === 'synthesizing';
-    if (isBusy && !isTTSStreamActive()) return false;
-
-    return enqueueTTSChunk({
-      text,
-      context,
-      voice: 'nova',
-      speed: ttsSpeed,
-      emotion
-    });
-  }, [voiceOn, ttsProvider, ttsSpeed, ttsState.status]);
+  // Wait for the completed, screened reading and narrate it in one request.
+  // A client-controlled cross-request session could bypass the allowance.
+  const enqueueNarrationChunk = useCallback(() => false, []);
 
   const finalizeNarrationStream = useCallback(() => {
     finalizeTTSStream();
@@ -272,17 +172,6 @@ export function useAudioController() {
   const isNarrationStreamActive = useCallback(() => isTTSStreamActive(), []);
 
   const pauseNarrationPlayback = useCallback(() => {
-    if (ttsProvider === 'hume' && humeAudioRef.current) {
-      try {
-        humeAudioRef.current.pause();
-      } catch {
-        // ignore pause errors
-      }
-      setHumeState({ status: 'paused', error: null });
-      setTtsAnnouncement('Narration paused.');
-      return;
-    }
-
     if (ttsProvider === 'azure-sdk' && sdkAudioRef.current) {
       try {
         sdkAudioRef.current.pause();
@@ -298,17 +187,6 @@ export function useAudioController() {
   }, [ttsProvider]);
 
   const resumeNarrationPlayback = useCallback(async () => {
-    if (ttsProvider === 'hume' && humeAudioRef.current?.audio) {
-      try {
-        await humeAudioRef.current.audio.play();
-        setHumeState({ status: 'playing', error: null });
-        setTtsAnnouncement('Resuming narration...');
-      } catch {
-        // ignore resume errors
-      }
-      return;
-    }
-
     if (ttsProvider === 'azure-sdk' && sdkAudioRef.current) {
       try {
         await sdkAudioRef.current.play();
@@ -461,15 +339,15 @@ export function useAudioController() {
 
   // Unified speak function that routes to appropriate provider
   const speak = useCallback(async (text, context = 'default', emotion = null) => {
-    if (ttsProvider === 'hume') {
-      await speakWithHumeProvider(text, context, emotion);
-    } else if (ttsProvider === 'azure-sdk') {
+    if (ttsProvider === 'azure-sdk') {
       await speakWithSpeechSDK(text, context);
     } else {
-      // Azure TTS now supports emotion parameter via steerable instructions
       await speakWithAzure(text, context, emotion);
     }
-  }, [ttsProvider, speakWithHumeProvider, speakWithSpeechSDK, speakWithAzure]);
+  }, [ttsProvider, speakWithSpeechSDK, speakWithAzure]);
+
+  const currentSpeakRef = useRef(speak);
+  useEffect(() => { currentSpeakRef.current = speak; }, [speak]);
 
   const swellCooldownRef = useRef(0);
   const triggerCinematicSwell = useCallback((beatKey) => {
@@ -499,33 +377,19 @@ export function useAudioController() {
     const isNarrationAvailable = Boolean(fullReadingText);
     if (!isNarrationAvailable || isPersonalReadingError) return;
 
-    const shouldUseAzureFallback = ttsProvider === 'hume' && humeFallbackActive;
     // Determine current state based on provider
-    const currentState = shouldUseAzureFallback
-      ? ttsState
-      : ttsProvider === 'hume'
-        ? humeState
-        : ttsProvider === 'azure-sdk'
-          ? sdkState
-          : ttsState;
+    const currentState = ttsProvider === 'azure-sdk' ? sdkState : ttsState;
     const isLoading = currentState.status === 'loading' || currentState.status === 'synthesizing';
 
     // Check if any provider is playing to prevent overlap
-    const isHumePlaying = humeState.status === 'playing';
     const isAzurePlaying = ttsState.status === 'playing';
     const isSdkPlaying = sdkState.status === 'playing';
-    const isPlaying = isHumePlaying || isAzurePlaying || isSdkPlaying;
+    const isPlaying = isAzurePlaying || isSdkPlaying;
     const isPaused = currentState.status === 'paused';
 
     if (isLoading && !isPaused && !isPlaying) return;
 
     if (isPlaying) {
-      if (isHumePlaying && humeAudioRef.current) {
-        humeAudioRef.current.pause();
-        setHumeState({ status: 'paused', error: null });
-        setTtsAnnouncement('Narration paused.');
-      }
-
       if (isSdkPlaying && sdkAudioRef.current) {
         sdkAudioRef.current.pause();
         setSdkState({ status: 'paused', error: null });
@@ -544,11 +408,7 @@ export function useAudioController() {
     }
 
     if (isPaused) {
-      if (ttsProvider === 'hume' && humeAudioRef.current) {
-        humeAudioRef.current.audio.play();
-        setHumeState({ status: 'playing', error: null });
-        setTtsAnnouncement('Resuming narration...');
-      } else if (ttsProvider === 'azure-sdk' && sdkAudioRef.current) {
+      if (ttsProvider === 'azure-sdk' && sdkAudioRef.current) {
         void sdkAudioRef.current.play();
         setSdkState({ status: 'playing', error: null });
         setTtsAnnouncement('Resuming narration...');
@@ -558,26 +418,12 @@ export function useAudioController() {
       return;
     }
 
-    // Reset voice continuity when starting a new reading narration
-    if (ttsProvider === 'hume') {
-      resetGenerationId();
-    }
-
     void speak(fullReadingText, 'full-reading', emotion);
-  }, [voiceOn, ttsState, humeState, sdkState, ttsProvider, humeFallbackActive, speak]);
+  }, [voiceOn, ttsState, sdkState, ttsProvider, speak]);
 
   const handleNarrationStop = useCallback(() => {
-    humeRequestRef.current += 1;
     sdkRequestRef.current += 1;
     // Always attempt to stop both providers to prevent orphaned audio
-    stopHumeAudio();
-    if (humeAudioRef.current) {
-      humeAudioRef.current = null;
-    }
-    setHumeState({ status: 'stopped', error: null });
-    setHumeFallbackActive(false);
-    resetGenerationId(); // Reset for next reading
-
     releaseSdkAudio();
     setSdkState({ status: 'stopped', error: null });
     setWordBoundary(null);
@@ -593,25 +439,18 @@ export function useAudioController() {
     const unlocked = await unlockAudio();
     if (!unlocked) return;
     setTimeout(() => {
-      void speak(fullReadingText, 'full-reading', emotion);
+      // Enabling voice rerenders the hook; use the callback with that updated
+      // preference rather than the muted callback captured by this click.
+      void currentSpeakRef.current(fullReadingText, 'full-reading', emotion);
     }, 120);
-  }, [setVoiceOn, speak]);
+  }, [setVoiceOn]);
 
   const setShowVoicePrompt = useCallback((nextVisible) => {
     setVoicePromptRequested(Boolean(nextVisible));
   }, []);
 
   // Expose the correct TTS state based on current provider
-  let effectiveTtsState;
-  if (ttsProvider === 'hume' && humeFallbackActive) {
-    effectiveTtsState = ttsState;
-  } else if (ttsProvider === 'hume') {
-    effectiveTtsState = humeState;
-  } else if (ttsProvider === 'azure-sdk') {
-    effectiveTtsState = sdkState;
-  } else {
-    effectiveTtsState = ttsState;
-  }
+  const effectiveTtsState = ttsProvider === 'azure-sdk' ? sdkState : ttsState;
 
   return {
     ttsState: effectiveTtsState,

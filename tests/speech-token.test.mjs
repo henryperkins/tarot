@@ -1,154 +1,79 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-
 import { onRequestGet } from '../functions/api/speech-token.js';
+import { createD1 } from './helpers/d1Sqlite.mjs';
+import { getMonthKeyUtc } from '../functions/lib/usageTracking.js';
 
-class MockAuthDb {
-  constructor(sessionRow = null) {
-    this.sessionRow = sessionRow;
+async function setup(tier = 'plus') {
+  const DB = await createD1();
+  await DB.prepare('INSERT INTO users (id, email, username, password_hash, password_salt, created_at, updated_at, subscription_tier, subscription_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').bind('speech-user', 'speech@example.test', 'speech', 'unused', 'unused', 1, 1, tier, 'active').run();
+  await DB.prepare('INSERT INTO sessions (id, user_id, created_at, expires_at, last_used_at) VALUES (?, ?, ?, ?, ?)').bind('speech-session', 'speech-user', 1, Math.floor(Date.now() / 1000) + 3600, 1).run();
+  await DB.prepare('INSERT INTO usage_tracking (user_id, month, tts_count, created_at, updated_at) VALUES (?, ?, 2, 1, 1)').bind('speech-user', getMonthKeyUtc()).run();
+  return DB;
+}
+const request = authenticated => new Request('https://example.test/api/speech-token', { headers: authenticated ? { Cookie: 'session=speech-session' } : {} });
+
+test('speech tokens require authentication', async () => {
+  assert.equal((await onRequestGet({ request: request(false), env: {} })).status, 401);
+});
+
+test('all signed-in tiers can obtain tokens and refreshing never debits narration', async t => {
+  t.mock.method(globalThis, 'fetch', async () => new Response('test-only-token'));
+  for (const tier of ['free', 'plus', 'pro']) {
+    const DB = await setup(tier);
+    for (let i = 0; i < 2; i++) {
+      const response = await onRequestGet({ request: request(true), env: { DB, AZURE_SPEECH_KEY: 'test-only', AZURE_SPEECH_REGION: 'eastus2' } });
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).expiresIn, 540);
+      assert.equal(response.headers.get('cache-control'), 'no-store, no-cache, must-revalidate');
+    }
+    assert.equal(DB.rows('SELECT tts_count FROM usage_tracking')[0].tts_count, 2);
+    assert.deepEqual(DB.rows('SELECT * FROM narration_requests'), []);
   }
-
-  prepare(query) {
-    if (query.includes('FROM sessions')) {
-      return {
-        bind: () => ({
-          first: async () => this.sessionRow
-        })
-      };
-    }
-
-    if (query.startsWith('UPDATE sessions SET last_used_at')) {
-      return {
-        bind: () => ({
-          run: async () => ({ meta: { changes: 1 } })
-        })
-      };
-    }
-
-    if (query.includes('usage_tracking')) {
-      return {
-        bind: () => ({
-          first: async () => null,
-          run: async () => ({ meta: { changes: 1 } })
-        })
-      };
-    }
-
-    return {
-      bind: () => ({
-        first: async () => null,
-        all: async () => ({ results: [] }),
-        run: async () => ({ meta: { changes: 0 } })
-      })
-    };
-  }
-}
-
-function createSessionRow(overrides = {}) {
-  return {
-    session_id: 'session-1',
-    user_id: 'user-1',
-    expires_at: Math.floor(Date.now() / 1000) + 3600,
-    id: 'user-1',
-    email: 'user@example.com',
-    username: 'mystic',
-    is_active: 1,
-    subscription_tier: 'pro',
-    subscription_status: 'active',
-    subscription_provider: 'stripe',
-    stripe_customer_id: 'cus_123',
-    email_verified: 1,
-    ...overrides
-  };
-}
-
-function createRequest(cookieHeader) {
-  const headers = cookieHeader ? { Cookie: cookieHeader } : {};
-  return new Request('https://example.com/api/speech-token', { headers });
-}
-
-test('onRequestGet returns 401 for unauthenticated requests', async () => {
-  const response = await onRequestGet({
-    request: createRequest(null),
-    env: {}
-  });
-
-  const payload = await response.json();
-  assert.equal(response.status, 401);
-  assert.equal(payload.error, 'Not authenticated');
 });
 
-test('onRequestGet allows non-Pro users (subject to rate limits)', async () => {
-  // A Plus-tier user should reach the speech-key check, not be blocked by tier
-  const response = await onRequestGet({
-    request: createRequest('session=token-1'),
-    env: {
-      DB: new MockAuthDb(
-        createSessionRow({
-          subscription_tier: 'plus',
-          subscription_status: 'active'
-        })
-      )
-    }
-  });
-
-  const payload = await response.json();
-  // 503 = reached the AZURE_SPEECH_KEY check (not configured), not a 403 tier block
+test('failed speech token configuration preserves the narration allowance', async () => {
+  const DB = await setup();
+  const response = await onRequestGet({ request: request(true), env: { DB } });
   assert.equal(response.status, 503);
-  assert.equal(payload.error, 'Speech service not configured');
+  assert.equal((await response.json()).error, 'Speech service not configured');
+  assert.equal(DB.rows('SELECT tts_count FROM usage_tracking')[0].tts_count, 2);
 });
 
-test('onRequestGet returns 503 when Azure Speech is not configured', async () => {
-  const response = await onRequestGet({
-    request: createRequest('session=token-1'),
-    env: {
-      DB: new MockAuthDb(createSessionRow()),
-      AZURE_SPEECH_KEY: ''
-    }
-  });
-
-  const payload = await response.json();
-  assert.equal(response.status, 503);
-  assert.equal(payload.error, 'Speech service not configured');
+test('token bursts are atomically bounded separately from narration', async t => {
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async () => { calls++; return new Response('test-only-token'); });
+  const DB = await setup();
+  const env = { DB, AZURE_SPEECH_KEY: 'test-only' };
+  const responses = await Promise.all(Array.from({ length: 8 }, () => onRequestGet({ request: request(true), env })));
+  assert.equal(responses.filter(response => response.status === 200).length, 6);
+  assert.equal(responses.filter(response => response.status === 429).length, 2);
+  assert.equal(calls, 6);
+  assert.equal(DB.rows('SELECT tts_count FROM usage_tracking')[0].tts_count, 2);
 });
 
-test('onRequestGet returns Azure token for authenticated users', async () => {
-  const originalFetch = global.fetch;
-  const fetchCalls = [];
-
-  global.fetch = async (url, init) => {
-    fetchCalls.push({ url, init });
-    return new Response('mock-speech-token', { status: 200 });
-  };
-
-  try {
-    const response = await onRequestGet({
-      request: createRequest('session=token-1'),
-      env: {
-        DB: new MockAuthDb(createSessionRow()),
-        AZURE_SPEECH_KEY: 'speech-key',
-        AZURE_SPEECH_REGION: 'eastus2',
-        RATELIMIT: null
-      }
+for (const stalledPart of ['headers', 'body']) {
+  test(`speech token ${stalledPart} stall has a bounded deadline without narration debit`, async t => {
+    const DB = await setup();
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    let called;
+    const started = new Promise(resolve => { called = resolve; });
+    let signal;
+    t.mock.method(globalThis, 'fetch', async (_url, options) => {
+      signal = options.signal;
+      called();
+      if (stalledPart === 'headers') return new Promise(() => {});
+      return new Response(new ReadableStream({ start() {} }));
     });
-
-    const payload = await response.json();
-    assert.equal(response.status, 200);
-    assert.equal(payload.token, 'mock-speech-token');
-    assert.equal(payload.region, 'eastus2');
-    assert.equal(payload.expiresIn, 540);
-    assert.equal(fetchCalls.length, 1);
-    assert.equal(
-      fetchCalls[0].url,
-      'https://eastus2.api.cognitive.microsoft.com/sts/v1.0/issueToken'
-    );
-    assert.equal(fetchCalls[0].init?.method, 'POST');
-    assert.equal(
-      fetchCalls[0].init?.headers?.['Ocp-Apim-Subscription-Key'],
-      'speech-key'
-    );
-    assert.equal(response.headers.get('cache-control'), 'no-store, no-cache, must-revalidate');
-  } finally {
-    global.fetch = originalFetch;
-  }
-});
+    const pending = onRequestGet({ request: request(true), env: { DB, AZURE_SPEECH_KEY: 'test-only' } });
+    await started;
+    await new Promise(resolve => setImmediate(resolve));
+    t.mock.timers.tick(15000);
+    for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve));
+    const response = await Promise.race([pending, Promise.resolve(null)]);
+    assert.notEqual(response, null);
+    assert.equal(response.status, 503);
+    assert.equal(signal.aborted, true);
+    assert.equal(DB.rows('SELECT tts_count FROM usage_tracking')[0].tts_count, 2);
+  });
+}

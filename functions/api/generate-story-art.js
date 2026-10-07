@@ -38,11 +38,9 @@ import {
 } from '../lib/mediaPromptBudget.js';
 
 const IMAGE_MODEL = '@cf/black-forest-labs/flux-2-dev';
-// FLUX.2 [dev] answers in 20-25 seconds, but some requests never return, so
-// each attempt gets 35 seconds and a stalled one is tried once more. Two
-// attempts stay inside the client's 90-second limit.
+// The binding cannot reliably cancel an outstanding inference. A deadline
+// ends this request; retrying it here could run two paid generations at once.
 const IMAGE_ATTEMPT_TIMEOUT_MS = 35000;
-const IMAGE_ATTEMPTS = 2;
 const STORY_ART_SANITIZED_FIELDS = Object.freeze([
   'cards[].name',
   'cards[].position',
@@ -229,16 +227,12 @@ async function generateImage(env, prompt, size, requestId) {
     throw new Error('Workers AI binding is not configured');
   }
 
-  let lastError;
-  for (let attempt = 1; attempt <= IMAGE_ATTEMPTS; attempt++) {
-    try {
-      return await runImageModel(env, prompt, size);
-    } catch (err) {
-      lastError = err;
-      console.warn(`[${requestId}] [story-art] Attempt ${attempt} of ${IMAGE_ATTEMPTS} failed: ${err.message}`);
-    }
+  try {
+    return await runImageModel(env, prompt, size);
+  } catch (error) {
+    console.warn(`[${requestId}] [story-art] Image generation did not finish`);
+    throw error;
   }
-  throw lastError;
 }
 
 async function runImageModel(env, prompt, { width, height }) {

@@ -201,7 +201,8 @@ describe('follow-up falls back to the reading provider', () => {
     const calls = mockProviders(t, {
       openai: [() => sse(
         { type: 'response.output_text.delta', delta: OPENAI_TEXT },
-        { type: 'response.output_text.done', text: OPENAI_TEXT }
+        { type: 'response.output_text.done', text: OPENAI_TEXT },
+        { type: 'response.completed', response: { status: 'completed' } }
       )]
     });
     const db = database();
@@ -302,7 +303,8 @@ describe('follow-up answers come from the Claude API first', () => {
       claude: [() => claudeErrorResponse(400)],
       openai: [() => sse(
         { type: 'response.output_text.delta', delta: OPENAI_TEXT },
-        { type: 'response.output_text.done', text: OPENAI_TEXT }
+        { type: 'response.output_text.done', text: OPENAI_TEXT },
+        { type: 'response.completed', response: { status: 'completed' } }
       )]
     });
     const db = database();
