@@ -43,10 +43,14 @@ const REQUIRED_FOR_AZURE_OPENAI_FALLBACK = [
   'AZURE_OPENAI_GPT5_MODEL'
 ];
 
-const OPTIONAL_FOR_CLAUDE_FALLBACK = [
-  'AZURE_ANTHROPIC_ENDPOINT',
-  'AZURE_ANTHROPIC_API_KEY',
-  'AZURE_ANTHROPIC_MODEL'
+const REQUIRED_FOR_CLAUDE_API = [
+  'ANTHROPIC_API_KEY'
+];
+
+const OPTIONAL_FOR_CLAUDE_API = [
+  'ANTHROPIC_MODEL',
+  'ANTHROPIC_EFFORT',
+  'ANTHROPIC_TIMEOUT_MS'
 ];
 
 const OPTIONAL_FOR_VISION_RESEARCH = [
@@ -275,6 +279,14 @@ function run() {
     modalConfigurationError = error.message;
   }
 
+  const missingClaude = [];
+  for (const key of REQUIRED_FOR_CLAUDE_API) {
+    const resolved = resolveVariable(key, process.env, fileVars, wranglerVars);
+    results[key] = resolved;
+    if (!resolved) missingClaude.push(key);
+  }
+  const claudeConfigured = missingClaude.length === 0;
+
   const missingOpenAI = [];
   for (const key of REQUIRED_FOR_OPENAI_READINGS) {
     const resolved = resolveVariable(key, process.env, fileVars, wranglerVars);
@@ -306,6 +318,20 @@ function run() {
   console.log('🔐 Environment prerequisite check');
   console.log(`- Loaded ${Object.keys(fileVars).length} entries from ${path.basename(devVarsPath)}${fs.existsSync(devVarsPath) ? '' : ' (file not present)'}`);
   console.log(`- Loaded ${Object.keys(wranglerVars).length} non-secret vars from ${path.basename(wranglerConfigPath)}${fs.existsSync(wranglerConfigPath) ? '' : ' (file not present)'}`);
+
+  console.log('\nAI-generated readings (Claude API, tried first):');
+  for (const key of REQUIRED_FOR_CLAUDE_API) {
+    const entry = results[key];
+    if (entry) console.log(`✔ ${key} (${entry.source})`);
+    else console.log(`• ${key} (not set)`);
+  }
+
+  console.log('\nClaude API optional settings:');
+  for (const key of OPTIONAL_FOR_CLAUDE_API) {
+    const entry = resolveVariable(key, process.env, fileVars, wranglerVars);
+    if (entry) console.log(`• ${key} (${entry.source})`);
+    else console.log(`• ${key} (not set)`);
+  }
 
   console.log('\nAI-generated readings (Modal):');
   for (const key of [...MODAL_CREDENTIALS, ...REQUIRED_FOR_MODAL_READINGS]) {
@@ -362,8 +388,8 @@ function run() {
     console.warn(`\nModal configuration unavailable: ${modalConfigurationError}`);
   }
 
-  if (!modalConfigured && !openAIConfigured && !azureFallbackConfigured) {
-    console.error(`\nMissing AI reading provider credentials: ${MODAL_PROXY_TOKEN_PAIR.join(' + ')} (or legacy MODAL_PROXY_TOKEN) with ${REQUIRED_FOR_MODAL_READINGS.join(', ')} (preferred), ${REQUIRED_FOR_OPENAI_READINGS.join(', ')}, or ${REQUIRED_FOR_AZURE_OPENAI_FALLBACK.join(', ')} (fallback).`);
+  if (!claudeConfigured && !modalConfigured && !openAIConfigured && !azureFallbackConfigured) {
+    console.error(`\nMissing AI reading provider credentials: ${REQUIRED_FOR_CLAUDE_API.join(', ')} (preferred), ${MODAL_PROXY_TOKEN_PAIR.join(' + ')} (or legacy MODAL_PROXY_TOKEN) with ${REQUIRED_FOR_MODAL_READINGS.join(', ')}, ${REQUIRED_FOR_OPENAI_READINGS.join(', ')}, or ${REQUIRED_FOR_AZURE_OPENAI_FALLBACK.join(', ')} (fallback).`);
     console.error('Populate .dev.vars (or export env vars) to enable AI-generated readings.');
     console.error('Note: `npm run dev` will still run, but API-powered features may fall back to local generators.');
     process.exitCode = 1;
@@ -389,15 +415,6 @@ function run() {
     });
   }
 
-  if (OPTIONAL_FOR_CLAUDE_FALLBACK.length > 0) {
-    console.log('\nOptional: Claude fallback (Azure AI Foundry Anthropic):');
-    OPTIONAL_FOR_CLAUDE_FALLBACK.forEach((key) => {
-      const entry = resolveVariable(key, process.env, fileVars, wranglerVars);
-      if (entry) console.log(`• ${key} (${entry.source})`);
-      else console.log(`• ${key} (not set)`);
-    });
-  }
-
   if (OPTIONAL_FOR_AUTH.length > 0) {
     console.log('\nOptional: Auth0 social login variables:');
     OPTIONAL_FOR_AUTH.forEach((key) => {
@@ -407,9 +424,11 @@ function run() {
     });
   }
 
-  const activeProvider = modalConfigured
-    ? 'Modal'
-    : (openAIConfigured ? 'OpenAI native' : 'Azure OpenAI fallback');
+  const activeProvider = claudeConfigured
+    ? 'Claude API'
+    : modalConfigured
+      ? 'Modal'
+      : (openAIConfigured ? 'OpenAI native' : 'Azure OpenAI fallback');
   console.log(`\nAll required environment variables for AI-generated readings are present (${activeProvider}). You are ready to run \`npm run dev\` 🙌`);
 }
 

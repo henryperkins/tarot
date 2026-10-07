@@ -82,7 +82,7 @@ The deterministic scan (`buildHeuristicScores`, the streaming safety scan, and t
 ```mermaid
 flowchart TB
   subgraph R["RUNTIME (per request)"]
-    U["User request"] --> G["Generate reading<br/>modal-qwen → azure-gpt5 → claude-opus45 → local-composer"]
+    U["User request"] --> G["Generate reading<br/>claude-api → modal-qwen → azure-gpt5 → local-composer"]
     G --> QG["Structural quality gate<br/>(tarot-reading.js + readingQuality.js)"]
     QG --> EG["Sync evaluation gate<br/>(evaluation.js; enabled or selectively forced)"]
     EG --> RESP["Return response to user"]
@@ -224,7 +224,7 @@ npx wrangler tail --format=json \
 
 ```text
 POST /api/tarot-reading
-  -> generateReading() (modal-qwen → azure-gpt5 → claude-opus45 → local-composer)
+  -> generateReading() (claude-api → modal-qwen → azure-gpt5 → local-composer)
   -> Structural quality gate (tarot-reading.js + readingQuality.js: coverage + hallucination + spine + high-weight positions)
   -> (optional) evaluation gate (evaluation.js) if enabled or selectively forced
   -> persistReadingMetrics() upsert to D1 (eval_metrics)

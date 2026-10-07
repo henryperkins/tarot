@@ -12,7 +12,7 @@
   - `data/` — Static frontend data
   - `styles/tailwind.css` — Tailwind setup
 - **Cloudflare Worker** entrypoint is `src/worker/index.js`; route handlers live in `functions/api/`, shared logic in `functions/lib/`.
-- **Narrative providers** are tried in `functions/lib/narrativeBackends.js` order: `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `claude-opus45` → `local-composer`.
+- **Narrative providers** are tried in `functions/lib/narrativeBackends.js` order: `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `local-composer`.
 - **Reading jobs** use the `READING_JOBS` Durable Object and public start/status/SSE/cancel routes under `/api/tarot-reading/jobs`.
 - **Shared code** between frontend and worker lives in `shared/`: `contracts/`, `journal/`, `monetization/`, `symbols/`, `vision/`.
 - **Scripts** live in `scripts/`: `evaluation/` for quality gates, `training/` for ML workflows, `vision/` for vision pipeline tools, and `lib/` plus category-specific `lib/` folders for shared utilities.

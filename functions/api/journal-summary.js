@@ -4,9 +4,9 @@
  * POST /api/journal-summary
  *
  * Authenticated users can request a high-level summary of their tarot journal.
- * When Azure OpenAI is configured, this uses the Responses API for rich,
- * narrative summaries and falls back to the shared heuristic summary helper
- * otherwise.
+ * Claude (through the Anthropic API) writes the narrative summary when it is
+ * configured, then the Responses API; the shared heuristic summary helper
+ * covers any failure.
  */
 
 import { getSessionFromCookie, validateSession } from '../lib/auth.js';
@@ -16,6 +16,7 @@ import { computeJournalStats } from '../../shared/journal/stats.js';
 import { buildHeuristicJourneySummary } from '../../shared/journal/summary.js';
 import { callAzureResponses, OPENAI_DEFAULT_MODEL } from '../lib/azureResponses.js';
 import { callClaudeCode, getClaudeCodeAccessError, isClaudeCodeEnabled } from '../lib/claudeCode.js';
+import { CLAUDE_API_PROVIDER, generateClaudeText, isAnthropicConfigured } from '../lib/anthropicMessages.js';
 
 const MAX_SUMMARY_ENTRIES = 10;
 
@@ -170,6 +171,22 @@ async function generateLLMSummary(env, entries, signal) {
   if (isClaudeCodeEnabled(env)) {
     return callClaudeCode(env, { task: 'journal-summary', systemPrompt: options.instructions,
       messages: [{ role: 'user', content: input }], signal });
+  }
+  if (isAnthropicConfigured(env)) {
+    try {
+      const result = await generateClaudeText(env, {
+        system: options.instructions,
+        prompt: input,
+        maxTokens: 16000,
+        effort: 'medium',
+        signal,
+        requestId: 'journal-summary'
+      });
+      return { text: result.text, provider: CLAUDE_API_PROVIDER, model: result.model };
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      console.warn('[journal] Claude API summary failed, trying the Responses API:', error.message);
+    }
   }
   return { text: await callAzureResponses(env, options), provider: 'azure-responses',
     model: env.OPENAI_API_KEY ? (env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL) : (env.AZURE_OPENAI_GPT5_MODEL || null) };

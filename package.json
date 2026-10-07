@@ -80,6 +80,7 @@
     "ci:release-check": "node scripts/evaluation/runReleaseChecks.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@cfworker/json-schema": "^4.1.1",
     "@cloudflare/workers-oauth-provider": "0.10.3",
     "@fontsource-variable/inter": "^5.2.8",

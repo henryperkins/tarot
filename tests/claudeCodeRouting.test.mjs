@@ -14,7 +14,7 @@ const env = {
   CLAUDE_CODE_GATEWAY_URL: 'https://claude.example.test', CLAUDE_CODE_GATEWAY_TOKEN: 'test-token',
   OPENAI_API_KEY: 'must-not-use', OPENAI_BASE_URL: 'https://openai.test',
   MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'must-not-use',
-  AZURE_ANTHROPIC_ENDPOINT: 'https://foundry.test', AZURE_ANTHROPIC_API_KEY: 'must-not-use'
+  ANTHROPIC_API_KEY: 'must-not-use'
 };
 const completion = text => ({ provider: 'claude-code', text, structured: null, model: 'claude-pinned-test', usage: { input_tokens: 42, output_tokens: 12 } });
 async function setup() {
@@ -34,7 +34,7 @@ test('subscription narrative order excludes paid backends even when their keys e
 });
 
 test('explicit paid narrative backend cannot override personal subscription mode', async () => {
-  for (const backend of ['azure-gpt5', 'claude-opus45', 'modal-qwen']) {
+  for (const backend of ['azure-gpt5', 'claude-api', 'modal-qwen']) {
     await assert.rejects(runNarrativeBackend(backend, env, {}, 'test'), /subscription mode/i);
   }
 });

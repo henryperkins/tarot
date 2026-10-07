@@ -2,15 +2,14 @@
  * Narrative Backend Dispatch and Generation
  *
  * Manages the fallback chain of narrative generation backends:
- * 1. modal-qwen - Qwen via Modal Chat Completions
- * 2. azure-gpt5 - OpenAI native or Azure OpenAI via Responses API
- * 3. claude-opus45 - Claude Opus 4.5 via Azure AI Foundry
+ * 1. claude-api - Claude (Opus 5.5 by default) via the Anthropic Messages API
+ * 2. modal-qwen - Qwen via Modal Chat Completions
+ * 3. azure-gpt5 - OpenAI native or Azure OpenAI via Responses API
  * 4. local-composer - Deterministic local narrative builder
  *
  * Extracted from tarot-reading.js to maintain <900 line limit.
  */
 
-import { fetchWithRetry } from './retryWithBackoff.js';
 import { buildEnhancedClaudePrompt } from './narrativeBuilder.js';
 import {
   buildCelticCrossReading,
@@ -29,6 +28,7 @@ import { enhanceSection } from './narrativeSpine.js';
 import { callAzureResponses, getReasoningEffort, getTextVerbosity, OPENAI_DEFAULT_MODEL } from './azureResponses.js';
 import { callModalChatCompletions, ensureModalConfig, isModalConfigured } from './modalChatCompletions.js';
 import { callClaudeCode, isClaudeCodeEnabled } from './claudeCode.js';
+import { callClaudeMessages, isAnthropicConfigured } from './anthropicMessages.js';
 import {
   buildReasoningAwareOpening,
   buildReasoningSynthesis,
@@ -47,13 +47,11 @@ import {
 import { buildOpening, buildReflectionsSection, prepareReflectionsText, sanitizeQuestionForNarrative } from './narrative/helpers.js';
 import { buildUserContextSourceUsage } from './narrative/sourceUsage.js';
 import { formatPassagesForPrompt } from './graphRAG.js';
-import { buildReadingRedactionOptions, redactPII } from './promptEngineering.js';
+import { buildReadingRedactionOptions } from './promptEngineering.js';
 import { evaluateVisionInsightPromptEligibility } from './readingQuality.js';
 import {
   resolveSemanticScoring,
-  shouldLogLLMPrompts,
-  maybeLogPromptPayload,
-  trimForTelemetry
+  maybeLogPromptPayload
 } from './readingTelemetry.js';
 import { withSpan } from './tracingSpans.js';
 import { resolveContextSelection } from './contextDetection.js';
@@ -67,8 +65,11 @@ import { collectQuerentReflections } from './querentReflections.js';
  * Ordered list of backend IDs to try (first available wins).
  * Frozen to prevent accidental mutation.
  */
-export const NARRATIVE_BACKEND_ORDER = Object.freeze(['modal-qwen', 'azure-gpt5', 'claude-opus45', 'local-composer']);
+export const NARRATIVE_BACKEND_ORDER = Object.freeze(['claude-api', 'modal-qwen', 'azure-gpt5', 'local-composer']);
 export const LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE = 'local_composer_unsupported_language';
+
+// Thinking counts toward max_tokens, so a reading needs room for both.
+const CLAUDE_API_READING_MAX_TOKENS = 32000;
 
 /**
  * Backend definitions with availability checks.
@@ -79,6 +80,11 @@ export const NARRATIVE_BACKENDS = Object.freeze({
     id: 'claude-code',
     label: 'Claude Code (personal subscription)',
     isAvailable: isClaudeCodeEnabled
+  }),
+  'claude-api': Object.freeze({
+    id: 'claude-api',
+    label: 'Claude via the Anthropic Messages API',
+    isAvailable: isAnthropicConfigured
   }),
   'modal-qwen': Object.freeze({
     id: 'modal-qwen',
@@ -92,15 +98,6 @@ export const NARRATIVE_BACKENDS = Object.freeze({
       if (env?.OPENAI_API_KEY) return true;
       return Boolean(env?.AZURE_OPENAI_API_KEY && env?.AZURE_OPENAI_ENDPOINT && env?.AZURE_OPENAI_GPT5_MODEL);
     }
-  }),
-  'claude-opus45': Object.freeze({
-    id: 'claude-opus45',
-    label: 'Claude Opus 4.5 (Azure Foundry)',
-    // Uses Azure AI Foundry Anthropic endpoint - may use separate API key
-    isAvailable: (env) => Boolean(
-      (env?.AZURE_ANTHROPIC_API_KEY || env?.AZURE_OPENAI_API_KEY) &&
-      env?.AZURE_ANTHROPIC_ENDPOINT
-    )
   }),
   'local-composer': Object.freeze({
     id: 'local-composer',
@@ -883,176 +880,50 @@ export async function generateWithAzureGPT5Responses(env, payload, requestId = '
 }
 
 // ============================================================================
-// Claude Opus 4.5 Backend (via Azure AI Foundry)
+// Claude API Backend (Anthropic Messages API)
 // ============================================================================
 
 /**
- * Generate reading using Claude Opus 4.5 via Azure AI Foundry.
+ * Generate a reading with Claude through the Anthropic Messages API.
  *
  * @param {Object} env - Environment bindings
  * @param {Object} payload - Reading payload
  * @param {string} requestId - Request ID for logging
- * @returns {Promise<Object>} { reading, prompts, usage }
+ * @returns {Promise<Object>} { reading, prompts, usage, promptMeta, model }
  */
-export async function generateWithClaudeOpus45(env, payload, requestId = 'unknown') {
-  const { spreadInfo, cardsInfo, userQuestion, contextInputText, reflectionsText, analysis, context, visionInsights, visionEvidence, contextDiagnostics = [] } = payload;
-
-  // Track prompts for engineering analysis
-  let capturedSystemPrompt = '';
-  let capturedUserPrompt = '';
-
-  // Azure AI Foundry Anthropic endpoint
-  // API key: prefer AZURE_ANTHROPIC_API_KEY, fall back to AZURE_OPENAI_API_KEY
-  const apiKey = env.AZURE_ANTHROPIC_API_KEY || env.AZURE_OPENAI_API_KEY;
-  // Base URL should be: https://<resource>.services.ai.azure.com/anthropic
-  // We append /v1/messages if not already present
-  const baseEndpoint = env.AZURE_ANTHROPIC_ENDPOINT || '';
-  const apiUrl = baseEndpoint.endsWith('/v1/messages')
-    ? baseEndpoint
-    : `${baseEndpoint.replace(/\/$/, '')}/v1/messages`;
-  // Model = deployment name in Foundry (e.g., 'claude-opus-4-5' or custom)
-  const model = env.AZURE_ANTHROPIC_MODEL || 'claude-opus-4-5';
-
-  const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
-
-  // Resolve semantic scoring: env override takes priority, then graphRAG payload setting
-  const enableSemanticScoring = resolveSemanticScoring(
-    env,
-    analysis.graphRAGPayload?.enableSemanticScoring ?? null
-  );
-
-  const effectiveGraphRAGPayload =
-    analysis?.graphRAGPayload ||
-    payload?.graphRAGPayload ||
-    analysis?.themes?.knowledgeGraph?.graphRAGPayload ||
-    null;
-
-  // Build enhanced prompts using narrative builder
-  const { systemPrompt, userPrompt, promptMeta, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
-    userContextInputStats: payload.userContextInputStats,
-    spreadInfo,
-    cardsInfo,
-    userQuestion,
-    contextInputText,
-    reflectionsText,
-    themes: analysis.themes,
-    spreadAnalysis: analysis.spreadAnalysis,
-    context,
-    visionInsights,
-    visionEvidence,
-    deckStyle,
-    graphRAGPayload: effectiveGraphRAGPayload,
-    ephemerisContext: analysis.ephemerisContext,
-    ephemerisForecast: analysis.ephemerisForecast,
-    transitResonances: analysis.transitResonances,
-    budgetTarget: 'claude',
-    contextDiagnostics,
-    promptBudgetEnv: env,
-    personalization: payload.personalization,
-    memories: payload.memories,
-    enableSemanticScoring,
-    subscriptionTier: payload.subscriptionTier,
-    variantOverrides: payload.variantPromptOverrides
+export async function generateWithClaudeApi(env, payload, requestId = 'unknown') {
+  const { systemPrompt, userPrompt, promptMeta } = buildAzureGPT5Prompts(env, payload, requestId, {
+    backendId: 'claude-api',
+    providerLabel: 'Claude Messages API',
+    budgetTarget: 'claude'
   });
 
-  // Capture prompts for persistence
-  capturedSystemPrompt = systemPrompt;
-  capturedUserPrompt = userPrompt;
+  const result = await callClaudeMessages(env, {
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
+    maxTokens: CLAUDE_API_READING_MAX_TOKENS,
+    signal: payload.signal,
+    requestId
+  });
+  if (!result.text) {
+    throw new Error('Claude API returned no reading text.');
+  }
 
+  console.log(`[${requestId}] Generated Claude reading length: ${result.text.length} characters`);
   if (promptMeta) {
-    payload.promptMeta = promptMeta;
+    promptMeta.inference = { provider: 'claude-api', model: result.model };
   }
 
-  if (Array.isArray(promptDiagnostics) && promptDiagnostics.length) {
-    payload.contextDiagnostics = Array.from(new Set([...(payload.contextDiagnostics || []), ...promptDiagnostics]));
-  }
-
-  // Card reflections can name people too, so redaction hints read every reflection.
-  const querentReflections = collectQuerentReflections(reflectionsText, cardsInfo);
-  const promptRedactionOptions = buildReadingRedactionOptions({
-    personalization: payload.personalization,
-    userQuestion,
-    reflectionsText: querentReflections,
-    memories: payload.memories
-  });
-
-  maybeLogPromptPayload(
-    env,
-    requestId,
-    'claude-opus45',
-    systemPrompt,
-    userPrompt,
-    promptMeta,
-    {
-      personalization: payload.personalization,
-      userQuestion,
-      reflectionsText: querentReflections,
-      redactionOptions: promptRedactionOptions
-    }
-  );
-
-  const response = await fetchWithRetry(
-    // Use retry logic with exponential backoff for Claude API
-    apiUrl,
-    {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey, // Azure Foundry Anthropic uses 'x-api-key' header
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 8192, // Increased to allow full narrative generation without arbitrary limits
-        temperature: 0.75,
-        system: systemPrompt,
-        messages: [
-          {
-            role: 'user',
-            content: userPrompt
-          }
-        ]
-      })
-    },
-    'claude-opus45',
-    requestId,
-    {
-      maxRetries: 3,
-      baseDelayMs: 1000,
-      timeoutMs: 120000 // 2 minutes for long readings
-    }
-  );
-
-  const data = await response.json();
-  const content = Array.isArray(data.content)
-    ? data.content.map(part => part.text || '').join('').trim()
-    : (data.content?.toString?.() || '').trim();
-
-  if (shouldLogLLMPrompts(env)) {
-    const redactedContent = redactPII(content, promptRedactionOptions);
-    console.log(
-      `[${requestId}] Azure Foundry Claude response (redacted):`,
-      JSON.stringify({
-        id: data.id,
-        model: data.model || model,
-        usage: data.usage,
-        textPreview: trimForTelemetry(redactedContent, 1200)
-      }, null, 2)
-    );
-  }
-
-  if (!content) {
-    throw new Error('Empty response from Azure Claude Opus 4.5');
-  }
-
-  // Return reading with captured prompts for engineering analysis
   return {
-    reading: content,
+    reading: result.text,
+    reasoningSummary: null,
     prompts: {
-      system: capturedSystemPrompt,
-      user: capturedUserPrompt
+      system: systemPrompt,
+      user: userPrompt
     },
-    usage: data.usage
+    usage: result.usage,
+    promptMeta,
+    model: result.model
   };
 }
 
@@ -1598,14 +1469,14 @@ export async function runNarrativeBackend(backendId, env, payload, requestId) {
           promptMeta, usage: completion.usage, model: completion.model, reasoningSummary: null };
         break;
       }
+      case 'claude-api':
+        result = await generateWithClaudeApi(env, payload, requestId);
+        break;
       case 'modal-qwen':
         result = await generateWithModalQwen(env, payload, requestId);
         break;
       case 'azure-gpt5':
         result = await generateWithAzureGPT5Responses(env, payload, requestId);
-        break;
-      case 'claude-opus45':
-        result = await generateWithClaudeOpus45(env, payload, requestId);
         break;
       case 'local-composer':
       default:

@@ -14,7 +14,8 @@ This guide is the current starting point for engineers working in the Tableu rep
 
 Common local variables include:
 
-- `MODAL_PROXY_TOKEN_ID` and `MODAL_PROXY_TOKEN_SECRET` — primary `modal-qwen` credentials. Both are required together; the adapter forms the Bearer value as `ID.SECRET`. A partial or empty declared pair fails validation, even when legacy or fallback credentials exist. The legacy combined `MODAL_PROXY_TOKEN` works only when both pair fields are absent.
+- `ANTHROPIC_API_KEY` — enables the `claude-api` backend, which is tried first for readings, follow-up answers, suggested questions and journal summaries. `ANTHROPIC_MODEL` (default `claude-opus-5-5`), `ANTHROPIC_EFFORT` (reading effort, default `xhigh`) and `ANTHROPIC_TIMEOUT_MS` are non-secret settings in `wrangler.jsonc`.
+- `MODAL_PROXY_TOKEN_ID` and `MODAL_PROXY_TOKEN_SECRET` — `modal-qwen` credentials (the reading fallback after Claude). Both are required together; the adapter forms the Bearer value as `ID.SECRET`. A partial or empty declared pair fails validation, even when legacy or fallback credentials exist. The legacy combined `MODAL_PROXY_TOKEN` works only when both pair fields are absent.
 - `MODAL_ENDPOINT_URL`, `MODAL_MODEL`, `MODAL_REASONING_EFFORT`, `MODAL_STREAM`, `MODAL_TEMPERATURE`, `MODAL_TOP_P`, and `MODAL_TIMEOUT_MS` — non-secret Modal settings from `wrangler.jsonc`
 - `OPENAI_API_KEY` — enables the native OpenAI Responses path in the `azure-gpt5` backend
 - `OPENAI_MODEL` (defaults to `gpt-5.6-sol` in `wrangler.jsonc`) and `OPENAI_STREAMING_ENABLED`
@@ -22,7 +23,6 @@ Common local variables include:
   - `AZURE_OPENAI_ENDPOINT`
   - `AZURE_OPENAI_API_KEY`
   - `AZURE_OPENAI_GPT5_MODEL`
-- `AZURE_ANTHROPIC_ENDPOINT`, `AZURE_ANTHROPIC_API_KEY`, and `AZURE_ANTHROPIC_MODEL` — `claude-opus45` fallback (default deployment `claude-opus-4-5`)
 - `VISION_PROOF_SECRET` when using the opt-in vision research flow
 - `VITE_ENABLE_VISION_RESEARCH` — set to `true` only to expose the research UI; the default is `false`
 - Auth variables such as `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_AUDIENCE`, `AUTH0_USERINFO_URL`, and `APP_URL` when testing auth flows
@@ -67,7 +67,7 @@ Do not cross-import browser code into Worker code or Worker code into browser co
 - Backend: Cloudflare Workers with route handlers in `functions/api/`
 - Data: Cloudflare D1, KV, R2
 
-Narrative backends are attempted in this order: `modal-qwen` → `azure-gpt5` (native OpenAI Responses when `OPENAI_API_KEY` is set, otherwise Azure OpenAI Responses) → `claude-opus45` → `local-composer`.
+Narrative backends are attempted in this order: `claude-api` (Claude Opus 5.5 through the Anthropic Messages API when `ANTHROPIC_API_KEY` is set) → `modal-qwen` → `azure-gpt5` (native OpenAI Responses when `OPENAI_API_KEY` is set, otherwise Azure OpenAI Responses) → `local-composer`. Follow-up answers, suggested questions and journal summaries also try Claude first, then the Responses API.
 
 Runtime reading metrics and evaluation payloads are written to D1 `eval_metrics`. `METRICS_DB` is also active operational KV for media telemetry, daily media-usage counters, and card-video job metadata, with ongoing legacy `reading:*` compatibility archival. `R2_LOGS` stores generated/user media, journal-export caches, archives, and exports. GraphRAG passages are internally authored `Tableu Tarot Canon` content from `functions/lib/knowledgeBase.js`.
 

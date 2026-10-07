@@ -16,7 +16,7 @@ graph TB
         ModalQwen["Modal Qwen<br/>Chat Completions"]
         OpenAI["OpenAI native Responses<br/>azure-gpt5"]
         AzureOpenAI["Azure OpenAI Responses<br/>azure-gpt5 fallback"]
-        Claude["Azure AI Foundry<br/>Claude Opus 4.5"]
+        Claude["Anthropic API<br/>Claude Opus 5.5"]
         AuraTTS["Workers AI<br/>Deepgram Aura-2 TTS"]
         AzureSpeech["Azure Speech<br/>Client Tokens"]
         HumeAI["Hume AI<br/>Alternative TTS"]
@@ -543,7 +543,7 @@ sequenceDiagram
     Memory-->>ReadingAPI: Lower-precedence personalization context
     ReadingAPI->>GraphRAG: Retrieve eligible pattern passages
     GraphRAG-->>ReadingAPI: Optional passages and GraphRAG metadata
-    ReadingAPI->>Provider: Try modal-qwen → azure-gpt5 → claude-opus45 → local-composer
+    ReadingAPI->>Provider: Try claude-api → modal-qwen → azure-gpt5 → local-composer
     Provider-->>ReadingAPI: Accepted narrative and provider metadata
     ReadingAPI->>Gate: Check coverage, hallucinations, spine, high-weight positions
     Gate-->>ReadingAPI: Pass or retry/fallback
@@ -740,7 +740,7 @@ graph LR
         Modal["Modal Qwen<br/>Chat Completions"]
         OpenAI["OpenAI native Responses<br/>azure-gpt5 when configured"]
         Azure["Azure OpenAI Responses<br/>azure-gpt5 fallback"]
-        Claude["Azure AI Foundry<br/>Claude Opus 4.5"]
+        Claude["Anthropic API<br/>Claude Opus 5.5"]
         Local["Local composer<br/>Deterministic fallback"]
     end
 

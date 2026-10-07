@@ -32,6 +32,8 @@ import { checkFollowUpSafety, generateSafeFollowUpFallback } from '../lib/evalua
 import { detectHallucinatedCards } from '../lib/readingQuality.js';
 import { callClaudeCode, getClaudeCodeAccessError, isClaudeCodeEnabled } from '../lib/claudeCode.js';
 import { generateClaudeFollowUp } from '../lib/claudeFollowUp.js';
+import { CLAUDE_API_PROVIDER, generateClaudeText, isAnthropicConfigured } from '../lib/anthropicMessages.js';
+import { generateClaudeApiFollowUp } from '../lib/claudeApiFollowUp.js';
 
 // Rate limits by tier
 const FOLLOW_UP_LIMITS = {
@@ -115,11 +117,20 @@ async function repairHallucinatedFollowUp(env, {
   try {
     const instructions = 'You revise tarot responses for card-set grounding compliance.';
     // Repair with the provider that wrote the answer. After a fallback, the
-    // Responses API has already failed for this request.
+    // providers ahead of it have already failed for this request.
     const revised = isClaudeCodeEnabled(env)
       ? (await callClaudeCode(env, {
           task: 'followup-repair', systemPrompt: instructions,
           messages: [{ role: 'user', content: repairInstructions }], signal
+        })).text
+      : provider === CLAUDE_API_PROVIDER
+      ? (await generateClaudeText(env, {
+          system: instructions,
+          prompt: repairInstructions,
+          maxTokens: 4000,
+          effort: 'low',
+          signal,
+          requestId: `${requestId}:repair`
         })).text
       : provider === FALLBACK_PROVIDER
       ? (await callModalChatCompletions(env, {
@@ -170,9 +181,10 @@ async function repairHallucinatedFollowUp(env, {
 }
 
 /**
- * Answer with the Responses API, or with the reading's primary narrative
- * provider (Modal) when that call fails or returns no text. Modal gets no
- * tools, so it takes prompts built without the memory tool instructions.
+ * Answer with Claude through the Anthropic API when it is configured, then
+ * with the Responses API, then with Modal when both fail or return no text.
+ * Modal gets no tools, so it takes prompts built without the memory tool
+ * instructions.
  *
  * @returns {Promise<{ text: string, provider: string }>}
  */
@@ -181,9 +193,23 @@ async function generateFollowUpText(env, {
   primaryProvider,
   generatePrimary,
   buildFallbackPrompts,
-  generateClaude
+  generateClaude,
+  generateClaudeApi,
+  signal
 }) {
   if (isClaudeCodeEnabled(env)) return { text: await generateClaude(), provider: 'claude-code' };
+  if (isAnthropicConfigured(env)) {
+    try {
+      const claudeText = await generateClaudeApi();
+      if (typeof claudeText === 'string' && claudeText.trim()) {
+        return { text: claudeText, provider: CLAUDE_API_PROVIDER };
+      }
+      console.warn(`[${requestId}] Claude API follow-up returned no text; falling back to the Responses API`);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      console.warn(`[${requestId}] Claude API follow-up failed: ${error.message}; falling back to the Responses API`);
+    }
+  }
   let primaryText = '';
   let primaryError = null;
   try {
@@ -693,22 +719,28 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       }
       return releasePromise;
     };
+    const runClaudeMemoryTool = async (name, args) => {
+      if (name !== 'save_memory_note') throw new Error('Unknown memory tool.');
+      request.signal.throwIfAborted();
+      const result = await handleMemoryToolCall(env.DB, user.id, readingIdentifier, args);
+      if (result.success) {
+        memoryToolCalled = true;
+        const consolidation = consolidateOnce();
+        if (ctx?.waitUntil) ctx.waitUntil(consolidation);
+        else await consolidation;
+      }
+      return result;
+    };
     const generatePersonalFollowUp = () => generateClaudeFollowUp(env, {
       systemPrompt: effectiveSystemPrompt, userPrompt: effectiveUserPrompt,
       enableMemoryTool, signal: request.signal,
-      onToolCall: async (name, args) => {
-        if (name !== 'save_memory_note') throw new Error('Unknown memory tool.');
-        request.signal.throwIfAborted();
-        const result = await handleMemoryToolCall(env.DB, user.id, readingIdentifier, args);
-        if (result.success) {
-          memoryToolCalled = true;
-          const consolidation = consolidateOnce();
-          if (ctx?.waitUntil) ctx.waitUntil(consolidation);
-          else await consolidation;
-        }
-        return result;
-      }
+      onToolCall: runClaudeMemoryTool
     });
+    const generateClaudeApiAnswer = async () => (await generateClaudeApiFollowUp(env, {
+      systemPrompt: effectiveSystemPrompt, userPrompt: effectiveUserPrompt,
+      enableMemoryTool, signal: request.signal, requestId,
+      onToolCall: runClaudeMemoryTool
+    })).text;
 
     if (useStreaming) {
       // === STREAMING PATH ===
@@ -728,6 +760,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           primaryProvider: 'azure-responses-stream-buffered',
           buildFallbackPrompts,
           generateClaude: generatePersonalFollowUp,
+          generateClaudeApi: generateClaudeApiAnswer,
+          signal: request.signal,
           generatePrimary: async () => {
             // Prepare tools array if memory is enabled
             const tools = enableMemoryTool ? [MEMORY_TOOL_AZURE_RESPONSES_FORMAT] : null;
@@ -916,6 +950,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           primaryProvider: 'azure-responses',
           buildFallbackPrompts,
           generateClaude: generatePersonalFollowUp,
+          generateClaudeApi: generateClaudeApiAnswer,
+          signal: request.signal,
           generatePrimary: async () => {
             if (enableMemoryTool) {
               const tools = [MEMORY_TOOL_AZURE_RESPONSES_FORMAT];

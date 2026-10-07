@@ -21,7 +21,7 @@ Focus on the actual reading pipeline in this repo:
 Evaluate whether the implementation actually delivers personalized, safe, and internally consistent readings. In particular, check:
 - Whether the user's question, reflections, display name, onboarding focus areas, `readingTone`, `spiritualFrame`, `preferredSpreadDepth`, deck style, spread metadata, and card-level details materially influence the final reading.
 - Whether spread-specific composers (`single`, `threeCard`, `fiveCard`, `relationship`, `decision`, `celtic`) preserve positional meaning, reversal framework, narrative spine, and high-weight positions.
-- Whether Azure GPT-5, Claude Opus 4.5, and `local-composer` dispatch, streaming, fallback, and non-English fail-closed behavior are correct and user-safe.
+- Whether Claude (Anthropic API), Modal Qwen, the Responses API, and `local-composer` dispatch, streaming, fallback, and non-English fail-closed behavior are correct and user-safe.
 - Whether GraphRAG, vision cues, ephemeris/forecast, and deck-specific context are included intentionally, slimmed or truncated safely, and reflected accurately in `promptMeta` and `sourceUsage`.
 - Whether prompt injection hardening, display-name sanitization, question/reflection sanitization, PII redaction, and prompt persistence rules (`PERSIST_PROMPTS`, unredacted storage controls) are enforced correctly.
 - Whether quality gates catch hallucinated cards, low card coverage, missing high-weight positions, incomplete narrative spine, deck-alias edge cases, and misleading source-usage reporting.

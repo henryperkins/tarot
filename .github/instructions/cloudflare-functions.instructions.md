@@ -21,7 +21,7 @@ applyTo: "functions/**/*.js"
 
 ## Tarot Reading Pipeline
 - Use `performSpreadAnalysis()` as the canonical analyzer
-- Narrative generation order: `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `claude-opus45` → `local-composer`
+- Narrative generation order: `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `local-composer`
 - Never invent cards or add cards not in `cardsInfo[]`
 - Follow ethics guidelines from `CLAUDE.md`: no absolute predictions, no medical/legal/financial advice
 

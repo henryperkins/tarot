@@ -394,9 +394,10 @@ function addCorsHeaders(response, request) {
  * @property {string} AZURE_OPENAI_ENDPOINT - Azure OpenAI endpoint
  * @property {string} AZURE_OPENAI_API_KEY - Azure OpenAI API key
  * @property {string} AZURE_OPENAI_GPT5_MODEL - GPT-5 model deployment name
- * @property {string} AZURE_ANTHROPIC_ENDPOINT - Azure AI Foundry Anthropic endpoint
- * @property {string} AZURE_ANTHROPIC_API_KEY - Azure AI Foundry Anthropic API key (optional; may fall back to AZURE_OPENAI_API_KEY)
- * @property {string} AZURE_ANTHROPIC_MODEL - Anthropic deployment name (default handled in code)
+ * @property {string} ANTHROPIC_API_KEY - Claude Messages API key; when set, Claude is the first text provider
+ * @property {string} ANTHROPIC_MODEL - Claude model id (default claude-opus-5-5)
+ * @property {string} ANTHROPIC_EFFORT - Reading effort: low, medium, high, xhigh or max (default xhigh)
+ * @property {string} ANTHROPIC_TIMEOUT_MS - Claude request timeout in milliseconds (default 300000)
  * @property {string} VISION_PROOF_SECRET - Vision proof signing secret
  * @property {string} VISION_BACKEND_DEFAULT - Default vision backend id for server-side proofs
  * @property {string} VISION_TIMEOUT_MS - Vision backend timeout in milliseconds

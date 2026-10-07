@@ -1,5 +1,6 @@
 import { callAzureResponses, ensureAzureConfig, OPENAI_DEFAULT_MODEL } from '../lib/azureResponses.js';
 import { callClaudeCode, getClaudeCodeAccessError, isClaudeCodeEnabled } from '../lib/claudeCode.js';
+import { CLAUDE_API_PROVIDER, generateClaudeText, isAnthropicConfigured } from '../lib/anthropicMessages.js';
 import {
   fetchEphemerisForecast,
   formatForecastHighlights
@@ -377,12 +378,32 @@ export async function onRequestPost({ request, env }) {
       } catch (error) {
         console.warn('Claude question generation failed, using local fallback:', error.message);
       }
-    } else if (isAzureConfigured(env)) {
-      try {
-        question = await generateQuestionWithAzure(env, prompt, metadata);
-        provider = resolveResponsesProviderLabel(env);
-      } catch (error) {
-        console.warn('Responses API question generation failed, using fallback:', error?.message || error);
+    } else {
+      if (isAnthropicConfigured(env)) {
+        try {
+          const { instructions, input } = buildAzureQuestionPrompt(prompt, metadata);
+          const result = await generateClaudeText(env, {
+            system: instructions,
+            prompt: input,
+            maxTokens: 4000,
+            effort: 'low',
+            signal: request.signal,
+            requestId: 'generate-question'
+          });
+          question = sanitizeGeneratedQuestion(result.text);
+          provider = CLAUDE_API_PROVIDER;
+          inferenceModel = result.model;
+        } catch (error) {
+          console.warn('Claude API question generation failed, trying the Responses API:', error.message);
+        }
+      }
+      if (!question && isAzureConfigured(env)) {
+        try {
+          question = await generateQuestionWithAzure(env, prompt, metadata);
+          provider = resolveResponsesProviderLabel(env);
+        } catch (error) {
+          console.warn('Responses API question generation failed, using fallback:', error?.message || error);
+        }
       }
     }
 
@@ -397,7 +418,9 @@ export async function onRequestPost({ request, env }) {
       JSON.stringify({
         question,
         provider,
-        model: provider === 'claude-code' ? inferenceModel : isResponsesProvider ? resolveResponsesModelLabel(env) : null,
+        model: provider === 'claude-code' || provider === CLAUDE_API_PROVIDER
+          ? inferenceModel
+          : isResponsesProvider ? resolveResponsesModelLabel(env) : null,
         forecast: ephemerisForecast
       }),
       { status: 200, headers: JSON_HEADERS }
