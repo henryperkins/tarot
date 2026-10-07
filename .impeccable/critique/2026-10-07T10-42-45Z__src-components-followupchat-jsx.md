@@ -45,6 +45,6 @@ Evidence: fresh local build; supplied screenshot; Chromium mobile Pro/active at 
 
 The scoped CLI detector reported **0 findings** in FollowUpChat.jsx. Browser overlay injection and execution succeeded; whole-page totals of 17/13/24/15 include obscured background UI and supply no verified chat-specific defect. The hierarchy findings above come from rendered layout, not detector flags. Browser automation was headless, so no user-visible live overlay is claimed. Browser contexts, fixture servers and detector live-server were stopped.
 
-Source anchors: [suggestion rendering](/home/ubuntu/tarot/src/components/FollowUpChat.jsx:706), [suggestion sizing](/home/ubuntu/tarot/src/styles/follow-up.css:81), [tap submission](/home/ubuntu/tarot/src/components/FollowUpChat.jsx:632), [original-question truncation](/home/ubuntu/tarot/src/lib/followUpSuggestions.js:409).
+Source anchors: [suggestion rendering, line 706](../../src/components/FollowUpChat.jsx), [suggestion sizing, line 81](../../src/styles/follow-up.css), [tap submission, line 632](../../src/components/FollowUpChat.jsx), [original-question truncation, line 409](../../src/lib/followUpSuggestions.js).
 
 Application code was unchanged. This critique recommends a mobile adaptation that preserves the current visual identity.

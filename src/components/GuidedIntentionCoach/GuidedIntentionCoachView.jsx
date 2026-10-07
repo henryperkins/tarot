@@ -28,7 +28,7 @@ import {
 } from '../../lib/intentionCoach';
 import { MAX_TEMPLATES } from '../../lib/coachStorage';
 import { MOBILE_COACH_DIALOG_ID } from '../mobileActionBarConstants';
-import { CUSTOM_FOCUS_MAX_LENGTH, STEPS, SPREAD_NAMES, SPREAD_TO_TOPIC_MAP } from '../../lib/coachConstants';
+import { CUSTOM_FOCUS_MAX_LENGTH, STEPS } from '../../lib/coachConstants';
 import { useGuidedIntentionCoach } from '../../contexts/GuidedIntentionCoachContext';
 import { QualityLevelIcon } from '../QualityLevelIcon';
 import { CoachSuggestionsPanel } from './CoachSuggestionsPanel';
@@ -64,6 +64,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const {
     isOpen,
     selectedSpread,
+    spreadQuestionContext,
     onClose,
     canUseAIQuestions,
     step,
@@ -97,6 +98,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     prefillSourceDescription,
     guidedQuestion,
     questionQuality,
+    isManualQuestion,
     qualityLevel,
     footerSummary,
     footerSummaryCompact,
@@ -212,9 +214,10 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
       timeframe: suggestionTimeframe,
       depth: suggestionDepth,
       customFocus: suggestionFocus || undefined,
-      seed: suggestionSeed
+      seed: suggestionSeed,
+      spreadKey: selectedSpread
     });
-  }, [topic, timeframe, depth]);
+  }, [topic, timeframe, depth, selectedSpread]);
 
   const handleStepKeyDown = (event, currentIndex) => {
     let nextIndex = null;
@@ -350,18 +353,17 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
       return (
         <div className="space-y-4">
           <p id={topicPromptId} className="text-sm text-muted">What area do you want to explore?</p>
-          {SPREAD_TO_TOPIC_MAP[selectedSpread] && (
+          {/* Says how the spread shapes the question, never which topic to
+              pick: the checked topic may come from the reader's interests. */}
+          {spreadQuestionContext && (
             <div className="rounded-lg bg-accent/10 border border-accent/30 px-3 py-2">
               <div className="flex items-center gap-2 mb-1">
                 <Sparkle className="h-3 w-3 text-accent" aria-hidden="true" />
-                <span className="text-xs font-bold uppercase tracking-wider text-accent">Suggested Focus</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-accent">Shaped for your spread</span>
               </div>
               <p className="text-xs text-secondary">
-                Based on your <span className="font-medium">{SPREAD_NAMES[selectedSpread]}</span> spread, we suggest exploring{' '}
-                <span className="font-medium text-main">
-                  {INTENTION_TOPIC_OPTIONS.find(opt => opt.value === SPREAD_TO_TOPIC_MAP[selectedSpread])?.label}
-                </span>
-                . Feel free to choose any topic.
+                <span className="font-medium text-main">{spreadQuestionContext.shortName}</span>. {spreadQuestionContext.hint}
+                {isManualQuestion && ' The question already in place stays as written until you Remix or change a setting.'}
               </p>
             </div>
           )}
@@ -453,8 +455,8 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
                         <span className="truncate">{chip.label}</span>
                       </>
                     );
-                    // A chip with nowhere to go (the custom-question mode) is a
-                    // label, not a button that silently does nothing.
+                    // A chip with nowhere to go (the custom-question mode, the
+                    // spread) is a label, not a button that silently does nothing.
                     if (typeof chip.step !== 'number' && chip.action !== 'focus') {
                       return (
                         <span key={`${chip.label}-${idx}`} className={chipClassName}>

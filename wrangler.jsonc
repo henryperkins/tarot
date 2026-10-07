@@ -65,8 +65,8 @@
     // Workers AI inference is independent of this text-provider setting.
     "TEXT_PROVIDER": "legacy",
     // Claude through the Anthropic API is the first provider for readings,
-    // follow-up answers, suggested questions and journal summaries whenever the
-    // ANTHROPIC_API_KEY secret is set; without it those paths skip Claude.
+    // follow-up answers and journal summaries whenever the ANTHROPIC_API_KEY
+    // secret is set; without it those paths skip Claude.
     // ANTHROPIC_EFFORT sets reading effort (low, medium, high, xhigh, max);
     // shorter tasks use fixed lower efforts in code.
     "ANTHROPIC_MODEL": "claude-opus-5-5",
@@ -115,6 +115,9 @@
     "EVAL_REASONING_EFFORT": "low",
     "EVAL_GATE_MODEL": "@cf/zai-org/glm-5.3-flash",
     "EVAL_GATE_REASONING_EFFORT": "low",
+    // Suggested questions run on Workers AI; failures use the local templates.
+    "QUESTION_MODEL": "@cf/zai-org/glm-5.3",
+    "QUESTION_REASONING_EFFORT": "high",
     // EVAL_TIMEOUT_MS bounds the async evaluation, which runs in waitUntil()
     // (30s budget after the response, shared with other background work);
     // 28s leaves room for the D1 write. EVAL_GATE_TIMEOUT_MS bounds the sync

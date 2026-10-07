@@ -15,14 +15,27 @@ const TEMPLATE = {
   updatedAt: 1
 };
 
-async function seedApp(page, { templates = [], recommendation = null } = {}) {
-  // Anonymous storage fixtures only; no Worker or account session is needed.
-  await page.route('**/api/auth/me', (route) => route.fulfill({
-    status: 401,
-    json: { user: null }
-  }));
+// The free plan cannot select the Decision spread, so its tests sign in.
+const PLUS_USER = {
+  id: 'user-e2e-plus',
+  email: 'plus@example.com',
+  username: 'plus-reader',
+  subscription_tier: 'plus',
+  subscription_status: 'active',
+  subscription_provider: 'stripe'
+};
+const STAYS_AS_WRITTEN = 'The question already in place stays as written until you Remix or change a setting.';
+// Every Decision template weighs the paths; no generic template names one.
+const DECISION_SHAPED = /\bpaths?\b/;
 
-  await page.addInitScript(({ seededTemplates, seededRecommendation }) => {
+async function seedApp(page, { templates = [], recommendation = null, focusAreas = [], user = null } = {}) {
+  // Storage fixtures only; no Worker is needed. Anonymous unless a user is
+  // given, which stands in for a signed-in account with storage of its own.
+  await page.route('**/api/auth/me', (route) => route.fulfill(user
+    ? { status: 200, json: { user } }
+    : { status: 401, json: { user: null } }));
+
+  await page.addInitScript(({ seededTemplates, seededRecommendation, seededFocusAreas, ownerId }) => {
     localStorage.setItem('tarot-onboarding-complete', 'true');
     localStorage.setItem('tarot-nudge-state', JSON.stringify({
       readingCount: 1,
@@ -32,16 +45,27 @@ async function seedApp(page, { templates = [], recommendation = null } = {}) {
       journalSaveCount: 0,
       hasDismissedAccountNudge: true
     }));
+    const coachScope = ownerId || 'anon';
     if (seededTemplates.length > 0) {
-      localStorage.setItem('tarot_coach_templates_anon', JSON.stringify(seededTemplates));
+      localStorage.setItem(`tarot_coach_templates_${coachScope}`, JSON.stringify(seededTemplates));
     }
     if (seededRecommendation) {
-      localStorage.setItem('tarot_coach_recommendation_anon', JSON.stringify({
+      localStorage.setItem(`tarot_coach_recommendation_${coachScope}`, JSON.stringify({
         ...seededRecommendation,
         updatedAt: Date.now()
       }));
     }
-  }, { seededTemplates: templates, seededRecommendation: recommendation });
+    if (seededFocusAreas.length > 0) {
+      localStorage.setItem(`tarot-personalization:${ownerId || 'guest'}`, JSON.stringify({
+        focusAreas: seededFocusAreas
+      }));
+    }
+  }, {
+    seededTemplates: templates,
+    seededRecommendation: recommendation,
+    seededFocusAreas: focusAreas,
+    ownerId: user?.id || null
+  });
 }
 
 async function gotoReading(page) {
@@ -54,6 +78,29 @@ async function openCoachWithShortcut(page) {
   const coach = page.getByRole('dialog', { name: COACH_NAME });
   await expect(coach).toBeVisible();
   return coach;
+}
+
+async function selectSpread(page, name) {
+  const spread = page.getByRole('radio', { name });
+  // A spread outside the plan opens an upgrade prompt instead, so wait for a
+  // signed-in account's plan to unlock it before choosing it.
+  await expect(spread).not.toContainText('Requires Plus');
+  await spread.click();
+  await expect(spread).toHaveAttribute('aria-checked', 'true');
+}
+
+// The topic step's note on how the spread shapes the question.
+function spreadNote(coach) {
+  return coach.getByText('Shaped for your spread', { exact: true }).locator('../..');
+}
+
+function reviewQuestion(coach) {
+  return coach.getByText('Your Question', { exact: true }).locator('..').locator('p');
+}
+
+// A review chip on the current step, read as "Type:" then its label.
+function contextChip(coach, type) {
+  return coach.getByRole('tabpanel').getByText(`${type}:`, { exact: true }).locator('..');
 }
 
 test.describe('Guided intention coach keyboard and layers', () => {
@@ -313,6 +360,162 @@ test.describe('Guided intention coach keyboard and layers', () => {
     const coach = await openCoachWithShortcut(page);
 
     await expect(coach.getByRole('button', { name: 'Back', exact: true })).toBeVisible();
+  });
+});
+
+test.describe('Guided intention coach and the selected spread', () => {
+  test('the Decision spread shapes the note, the question and its chips', async ({ page }) => {
+    await seedApp(page, { user: PLUS_USER });
+    await gotoReading(page);
+    await selectSpread(page, /Decision \/ Two-Path/);
+    const coach = await openCoachWithShortcut(page);
+
+    // The note explains the spread's shape; it suggests no topic.
+    const note = spreadNote(coach);
+    await expect(note).toBeVisible();
+    await expect(note).toContainText('Decision. Two paths are read side by side');
+    await expect(note).not.toContainText(STAYS_AS_WRITTEN);
+    await expect(note.getByRole('button')).toHaveCount(0);
+    await expect(coach.getByText(/we suggest exploring/i)).toHaveCount(0);
+
+    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await expect(reviewQuestion(coach)).toHaveText(DECISION_SHAPED);
+    await expect(contextChip(coach, 'Spread')).toHaveText(/^Spread:\s*Decision$/);
+    // The spread is chosen on the page, so its chip is a label, not a button.
+    await expect(coach.getByRole('button', { name: /^Spread:/ })).toHaveCount(0);
+  });
+
+  test('interests pick the topic while the spread note describes only the spread', async ({ page }) => {
+    await seedApp(page, { focusAreas: ['career'] });
+    await gotoReading(page);
+    await selectSpread(page, /Five-Card Clarity/);
+    const coach = await openCoachWithShortcut(page);
+
+    const career = coach.getByRole('radiogroup', { name: TOPIC_PROMPT })
+      .getByRole('radio', { name: /^Career & Purpose/ });
+    await expect(career).toHaveAttribute('aria-checked', 'true');
+    await expect(career).toContainText('Based on your interests');
+    // The old box said this spread suggested Wellbeing while Career was checked.
+    const note = spreadNote(coach);
+    await expect(note).toContainText('Five-Card Clarity. Five cards circle the core of the matter');
+    await expect(note).not.toContainText(/wellbeing|suggest/i);
+  });
+
+  test('a generated draft keeps its words after the spread changes until Remix', async ({ page }) => {
+    await seedApp(page);
+    await gotoReading(page);
+    await selectSpread(page, /Five-Card Clarity/);
+    let coach = await openCoachWithShortcut(page);
+    await coach.getByRole('tab', { name: 'Depth' }).click();
+    const savedQuestion = await reviewQuestion(coach).innerText();
+
+    await page.keyboard.press('Escape');
+    await expect(coach).toHaveCount(0);
+    await selectSpread(page, /Three-Card Story/);
+    coach = await openCoachWithShortcut(page);
+
+    await expect(reviewQuestion(coach)).toHaveText(savedQuestion);
+    await coach.getByRole('tab', { name: 'Topic' }).click();
+    await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
+    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await coach.getByRole('button', { name: 'Remix', exact: true }).click();
+    await expect(reviewQuestion(coach)).not.toHaveText(savedQuestion);
+    await expect(contextChip(coach, 'Spread')).toHaveText(/^Spread:\s*Three-Card Story$/);
+  });
+
+  test('a restored draft generates a new question when a setting changes', async ({ page }) => {
+    await seedApp(page);
+    await gotoReading(page);
+    await selectSpread(page, /Five-Card Clarity/);
+    let coach = await openCoachWithShortcut(page);
+    await coach.getByRole('tab', { name: 'Depth' }).click();
+    const savedQuestion = await reviewQuestion(coach).innerText();
+    await page.keyboard.press('Escape');
+    await expect(coach).toHaveCount(0);
+    coach = await openCoachWithShortcut(page);
+    await coach.getByRole('tab', { name: 'Topic' }).click();
+    await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
+    await coach.getByRole('radiogroup', { name: TOPIC_PROMPT })
+      .getByRole('radio', { name: /^Career & Purpose/ }).click();
+    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await expect(reviewQuestion(coach)).not.toHaveText(savedQuestion);
+    await expect(reviewQuestion(coach)).toContainText('my career direction and purpose');
+    await expect(contextChip(coach, 'Spread')).toHaveText(/^Spread:\s*Five-Card Clarity$/);
+  });
+
+  test('an AI draft stays as written on reopen without another generation', async ({ page }) => {
+    await seedApp(page, { user: PLUS_USER });
+    let generations = 0;
+    const savedQuestion = 'What can I offer and receive as I tend this bond this week?';
+    await page.route('**/api/generate-question', (route) => {
+      generations++;
+      return route.fulfill({ status: 200, json: {
+        question: generations === 1 ? savedQuestion : 'What new question could replace my saved intention?',
+        provider: 'workers-ai'
+      } });
+    });
+    await gotoReading(page);
+    await selectSpread(page, /Relationship Snapshot/);
+    let coach = await openCoachWithShortcut(page);
+    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await coach.getByRole('checkbox', { name: 'Personalize with AI' }).check();
+    await expect(reviewQuestion(coach)).toHaveText(savedQuestion);
+
+    await page.keyboard.press('Escape');
+    await expect(coach).toHaveCount(0);
+    coach = await openCoachWithShortcut(page);
+    await coach.getByRole('tab', { name: 'Topic' }).click();
+    await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
+    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await expect(reviewQuestion(coach)).toHaveText(savedQuestion);
+    expect(generations).toBe(1);
+
+    await coach.getByRole('button', { name: 'Remix', exact: true }).click();
+    await expect(reviewQuestion(coach)).toHaveText('What new question could replace my saved intention?');
+    expect(generations).toBe(2);
+  });
+
+  test('a saved template keeps its words until Remix shapes a question for the spread', async ({ page }) => {
+    await seedApp(page, { user: PLUS_USER, templates: [TEMPLATE] });
+    await gotoReading(page);
+    await selectSpread(page, /Decision \/ Two-Path/);
+    const coach = await openCoachWithShortcut(page);
+    const library = page.getByRole('dialog', { name: 'Template library' });
+
+    await coach.getByRole('button', { name: 'Templates', exact: true }).click();
+    await library.getByRole('button', { name: `Apply template ${TEMPLATE.label}` }).click();
+    await expect(library).toHaveCount(0);
+    await expect(reviewQuestion(coach)).toHaveText(TEMPLATE.savedQuestion);
+    await expect(contextChip(coach, 'Mode')).toHaveText(/^Mode:\s*Custom question$/);
+    await expect(contextChip(coach, 'Spread')).toHaveCount(0);
+
+    await coach.getByRole('tab', { name: 'Topic' }).click();
+    await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
+    await expect(reviewQuestion(coach)).toHaveText(TEMPLATE.savedQuestion);
+
+    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await coach.getByRole('button', { name: 'Remix', exact: true }).click();
+    await expect(reviewQuestion(coach)).toHaveText(DECISION_SHAPED);
+    await expect(contextChip(coach, 'Spread')).toHaveText(/^Spread:\s*Decision$/);
+  });
+
+  test('a journal recommendation keeps its own question on a chosen spread', async ({ page }) => {
+    const question = 'What is The Hermit asking me to notice this month?';
+    await seedApp(page, {
+      recommendation: { question, label: 'The Hermit', source: 'card:The Hermit', topicValue: 'growth' }
+    });
+    await gotoReading(page);
+    await selectSpread(page, /Three-Card Story/);
+    const coach = await openCoachWithShortcut(page);
+
+    const note = spreadNote(coach);
+    await expect(note).toContainText('Three-Card Story. Three cards read as a story');
+    await expect(note).toContainText(`follow that arc. ${STAYS_AS_WRITTEN}`);
+
+    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await expect(reviewQuestion(coach)).toHaveText(question);
+    await expect(contextChip(coach, 'Mode')).toHaveText(/^Mode:\s*Custom question$/);
+    await expect(contextChip(coach, 'Spread')).toHaveCount(0);
   });
 });
 

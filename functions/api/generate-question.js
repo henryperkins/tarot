@@ -1,7 +1,5 @@
 import { createDeadline, getTaskTimeoutMs } from '../lib/requestDeadline.js';
-import { callAzureResponses, ensureAzureConfig, OPENAI_DEFAULT_MODEL } from '../lib/azureResponses.js';
-import { callClaudeCode, getClaudeCodeAccessError, isClaudeCodeEnabled } from '../lib/claudeCode.js';
-import { CLAUDE_API_PROVIDER, generateClaudeText, isAnthropicConfigured } from '../lib/anthropicMessages.js';
+import { observeInferenceAttempt } from '../lib/inferenceAttempts.js';
 import {
   fetchEphemerisForecast,
   formatForecastHighlights
@@ -12,8 +10,44 @@ import { readFeatureJsonBody, reserveFeatureUsage, settleFeatureUsage } from '..
 import { getSubscriptionContext } from '../lib/entitlements.js';
 import { sanitizeText } from '../lib/utils.js';
 import { hashString, ensureQuestionMark } from '../../shared/utils.js';
+import {
+  buildSpreadQuestionVariants,
+  DECISION_QUESTION_INSTRUCTION,
+  resolveSpreadQuestionContext
+} from '../../shared/coach/spreadQuestions.js';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
+
+// Suggested questions use Workers AI independently of TEXT_PROVIDER. Model
+// failures use the local templates without calling Claude or OpenAI.
+const WORKERS_AI_PROVIDER = 'workers-ai';
+const DEFAULT_QUESTION_MODEL = '@cf/zai-org/glm-5.3';
+const DEFAULT_QUESTION_REASONING_EFFORT = 'high';
+const QUESTION_REASONING_EFFORTS = new Set(['none', 'low', 'medium', 'high', 'xhigh', 'max']);
+// The budget includes reasoning; the prompt limits the final question.
+const QUESTION_MAX_TOKENS = 8192;
+const DEFAULT_QUESTION_TIMEOUT_MS = 60000;
+
+// The depth descriptions the coach shows, sent as tone rather than labels:
+// GLM-5.3 copied "Pattern:" and "Closing:" labels into its questions.
+const QUESTION_TONES = {
+  support: 'a gentle check-in on the energy',
+  navigate: 'clarity about the next move or plan',
+  lesson: 'the deeper lesson or teaching',
+  transform: 'transformational, soulful change'
+};
+
+// The reading frames the Relationship Snapshot's second card as another
+// person's energy. Without this line GLM-5.3 often made the topic (work,
+// money) the other party.
+const RELATIONSHIP_OTHER_PARTY = 'Them: another person in the querent’s life, unnamed unless the focus names them. The focus is where the bond lives, never the other party.';
+
+// Questions show whole in the coach's serif display. The prompt asks for
+// about 180 characters; a model answer past this is rejected rather than cut.
+const GENERATED_QUESTION_MAX_LENGTH = 240;
+// Matches the coach's own detail limit (CUSTOM_FOCUS_MAX_LENGTH), so the
+// querent's words are never cut here.
+const FOCUS_MAX_LENGTH = 160;
 
 function canUseAIQuestions(subscription) {
   const tier = subscription?.effectiveTier || 'free';
@@ -43,10 +77,12 @@ function sanitizeSnippetList(values, maxItems, maxLength) {
 }
 
 function sanitizeGeneratedQuestion(value) {
-  const sanitized = sanitizeSnippet(value, '', 180)
+  const sanitized = sanitizeSnippet(value, '', 1000)
     .replace(/^[-•\d.)\s]+/, '')
     .replace(/^['"“”‘’]+|['"“”‘’]+$/g, '')
     .trim();
+  // Model answers are length-checked before normalization. Local templates
+  // retain the full detail and closing instead of becoming incomplete clauses.
   return ensureQuestionMark(sanitized || 'What question would help me explore this moment with clarity');
 }
 
@@ -74,16 +110,17 @@ function pick(list, seed = '') {
  * Crafts a creative question from prompt and metadata.
  *
  * @param {string} prompt - The prompt text
- * @param {Object} metadata - Question metadata including seed
+ * @param {Object} metadata - Question metadata, including seed and spreadKey
  * @returns {string} Generated question text
  */
 export function craftQuestionFromPrompt(prompt, metadata = {}) {
+  const spread = resolveSpreadQuestionContext(metadata.spreadKey);
   const safePrompt = sanitizeSnippet(prompt, '', 500);
   const focusMatch = safePrompt.match(/about (.+?) for the/i);
   const timeframeMatch = safePrompt.match(/for the (.+?)(?:\.|$)/i);
   const depthMatch = safePrompt.match(/depth is (.+?)(?:\.|$)/i);
 
-  const focus = sanitizeSnippet(metadata.focus || metadata.customFocus || (focusMatch ? focusMatch[1] : ''), 'this area of my life');
+  const focus = sanitizeSnippet(metadata.focus || metadata.customFocus || (focusMatch ? focusMatch[1] : ''), 'this area of my life', FOCUS_MAX_LENGTH);
   const timeframePhrase = sanitizeSnippet(metadata.timeframePhrase || (timeframeMatch ? timeframeMatch[1] : ''), '');
   const depthLabel = sanitizeSnippet(metadata.depth || (depthMatch ? depthMatch[1] : ''), 'Focused guidance');
   const topicLabel = sanitizeSnippet(metadata.topic, 'this chapter');
@@ -144,7 +181,15 @@ export function craftQuestionFromPrompt(prompt, metadata = {}) {
     transform: transformVariants
   };
 
-  const variants = variantsByPattern[pattern] || [`How can I explore ${focusWithTimeframe}${closingSuffix}`];
+  // A known spread shapes the question; unknown keys keep the generic list.
+  const spreadVariants = spread
+    ? buildSpreadQuestionVariants(spread.key, pattern, {
+      focus,
+      timeframeText: timeframePhrase ? ` ${timeframePhrase}` : '',
+      closingSuffix
+    })
+    : null;
+  const variants = spreadVariants || variantsByPattern[pattern] || [`How can I explore ${focusWithTimeframe}${closingSuffix}`];
 
   const seed = metadata.seed;
   const hasSeed = seed !== null && seed !== undefined;
@@ -192,13 +237,37 @@ function getForecastDays(metadata = {}) {
   return null;
 }
 
-export function buildAzureQuestionPrompt(prompt, metadata = {}) {
+// The Relationship Snapshot's clarifiers are drawn only on request, so the
+// question must stand on its three core positions.
+function describeSpread(spread) {
+  const numbered = (positions) => positions.map((position, index) => `${index + 1}. ${position}`).join('; ');
+  if (spread.optionalPositions.length > 0) {
+    return [
+      `Spread: ${spread.name} (${spread.cardCount} core cards; up to ${spread.optionalPositions.length} optional clarifiers)`,
+      `Core positions: ${numbered(spread.corePositions)}`,
+      `Optional clarifiers (drawn only if the querent asks): ${spread.optionalPositions.join('; ')}`,
+      ...(spread.key === 'relationship' ? [RELATIONSHIP_OTHER_PARTY] : [])
+    ];
+  }
+  return [
+    `Spread: ${spread.name} (${spread.cardCount} cards)`,
+    `Positions: ${numbered(spread.corePositions)}`
+  ];
+}
+
+/**
+ * Instructions and input for the question model. Only metadata.spreadKey is
+ * read for the spread: its name and positions come from the canonical
+ * definitions, never from client-sent text.
+ */
+export function buildQuestionPrompt(prompt, metadata = {}) {
+  const spread = resolveSpreadQuestionContext(metadata.spreadKey);
   const safePrompt = sanitizeSnippet(prompt, '', 500);
   const focusMatch = safePrompt.match(/about (.+?) for the/i);
   const timeframeMatch = safePrompt.match(/for the (.+?)(?:\.|$)/i);
   const depthMatch = safePrompt.match(/depth is (.+?)(?:\.|$)/i);
 
-  const focus = sanitizeSnippet(metadata.focus || metadata.customFocus || (focusMatch ? focusMatch[1] : ''), 'this area of my life');
+  const focus = sanitizeSnippet(metadata.focus || metadata.customFocus || (focusMatch ? focusMatch[1] : ''), 'this area of my life', FOCUS_MAX_LENGTH);
   const timeframe = sanitizeSnippet(metadata.timeframePhrase || (timeframeMatch ? timeframeMatch[1] : ''), 'the current moment');
   const depthLabel = sanitizeSnippet(metadata.depth || (depthMatch ? depthMatch[1] : ''), 'Focused guidance');
   const topicLabel = sanitizeSnippet(metadata.topic, 'this chapter');
@@ -226,11 +295,21 @@ export function buildAzureQuestionPrompt(prompt, metadata = {}) {
     ? metadata.ephemerisForecast.highlights
     : [];
 
+  // The Decision spread weighs two paths in one question, which the generic
+  // "avoid listing options" rule would forbid.
+  const optionsRule = spread?.key === 'decision'
+    ? DECISION_QUESTION_INSTRUCTION
+    : 'Avoid yes/no phrasing and avoid listing options.';
+  const closingNote = closing ? ` It may end with “${closing}” if that reads naturally.` : '';
+
   const instructions = [
-    'You are a tarot intention coach. Write ONE open, agency-forward question that fits the user’s focus, timeframe, and depth.',
-    'Use supportive verbs like support, navigate, transform, or explore. Avoid yes/no phrasing and avoid listing options.',
+    `You are a tarot intention coach. Write ONE open, agency-forward question that fits the user’s focus, timeframe, ${spread ? 'depth, and chosen spread' : 'and depth'}.`,
+    // GLM-5.3 otherwise addresses the querent as "you".
+    'Write it in the querent’s own voice, in the first person (I, me, my), as they would ask it of the cards.',
+    `Use open, supportive verbs (support, navigate, explore, transform) without repeating them mechanically. ${optionsRule}`,
     'Do not add quotes, bullets, or any preamble. Respond with the question only and end with a question mark.',
-    `Pattern: ${pattern} (support/navigate/lesson/transform), Closing: ${closing || 'none'}.`,
+    `Tone: ${QUESTION_TONES[pattern]}.${closingNote} Treat this as tone, not words to copy.`,
+    spread ? `Spread shape: ${spread.promptShape}` : null,
     astroHighlights.length ? 'Astro window is contextual; you may echo the timing (e.g., “this cycle”, “up to the next Full Moon”) but do not list the events verbatim.' : null,
     metadata.seed ? `Seed: ${sanitizeSnippet(String(metadata.seed), '', 80)} (use to pick a variant; do not mention).` : null
   ].filter(Boolean).join('\n');
@@ -240,59 +319,73 @@ export function buildAzureQuestionPrompt(prompt, metadata = {}) {
     `Timeframe: ${timeframe}`,
     `Depth: ${depthLabel}`,
     `Topic: ${topicLabel}`,
+    ...(spread ? describeSpread(spread) : []),
     personalizationLines.length > 0 ? personalizationLines.join('\n') : null,
     astroHighlights.length ? `Astro window: ${sanitizeSnippetList(astroHighlights, 3, 120).join(' • ')}` : null,
     '',
-    'Return a single question. Keep it under 28 words.'
+    'Return a single question. Keep it under 28 words (about 180 characters).'
   ].filter(Boolean).join('\n');
 
   return { instructions, input: inputLines };
 }
 
-async function generateQuestionWithAzure(env, prompt, metadata, signal, requestId) {
-  ensureAzureConfig(env); // Throws if missing
-  const { instructions, input } = buildAzureQuestionPrompt(prompt, metadata);
+function resolveQuestionReasoningEffort(value) {
+  const effort = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return QUESTION_REASONING_EFFORTS.has(effort) ? effort : DEFAULT_QUESTION_REASONING_EFFORT;
+}
 
-  const result = await callAzureResponses(env, {
-    instructions,
-    input,
-    // The budget includes reasoning; the prompt limits the final question.
-    maxTokens: 4096,
-    reasoningEffort: 'low',
-    telemetry: { task: 'question', requestId },
-    returnFullResponse: true,
-    signal,
-    verbosity: 'low'
-  });
+// A question timeout falls back to the template, but the route deadline
+// cancels the whole request, so the question timeout never outlasts it.
+function getQuestionTimeoutMs(env) {
+  const configured = Number(env?.QUESTION_TIMEOUT_MS);
+  const timeoutMs = Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_QUESTION_TIMEOUT_MS;
+  return Math.min(getTaskTimeoutMs(env), Math.max(1000, timeoutMs));
+}
 
-  const finalQuestion = sanitizeGeneratedQuestion(result.text);
+// Only the final answer can become the question; reasoning is never read.
+function readQuestionText(response) {
+  const text = typeof response?.response === 'string'
+    ? response.response
+    : response?.choices?.[0]?.message?.content;
+  return typeof text === 'string' ? text.trim() : '';
+}
 
-  // Log successful Azure-backed question for debugging (no PII beyond prompt summary)
+async function generateQuestionWithWorkersAI(env, prompt, metadata, signal, requestId) {
+  if (!env?.AI) throw new Error('Workers AI binding is not available.');
+  const model = env.QUESTION_MODEL || DEFAULT_QUESTION_MODEL;
+  const { instructions, input } = buildQuestionPrompt(prompt, metadata);
+  // Aborts on the route deadline, a client abort or the question timeout.
+  const questionDeadline = createDeadline({ signal, timeoutMs: getQuestionTimeoutMs(env) });
   try {
-    console.log('[generate-question] Responses question generated', {
-      provider: resolveResponsesProviderLabel(env),
-      model: resolveResponsesModelLabel(env),
-      snippet: finalQuestion.slice(0, 160)
-    });
-  } catch (logError) {
-    console.warn('[generate-question] Failed to log Azure question result', logError);
+    const response = await observeInferenceAttempt(env, {
+      requestId, task: 'question', provider: WORKERS_AI_PROVIDER, requestedModel: model, signal: questionDeadline.signal
+    }, () => questionDeadline.run(async () => {
+      const result = await env.AI.run(model, {
+        messages: [
+          { role: 'system', content: instructions },
+          { role: 'user', content: input }
+        ],
+        max_tokens: QUESTION_MAX_TOKENS,
+        reasoning_effort: resolveQuestionReasoningEffort(env.QUESTION_REASONING_EFFORT)
+      }, { signal: questionDeadline.signal });
+      // Thrown here so the attempt is recorded as an empty response.
+      const text = readQuestionText(result);
+      if (!text) {
+        throw Object.assign(new Error('Workers AI returned an empty question.'), { model: result?.model, usage: result?.usage });
+      }
+      // Cutting a rambling answer short would end it mid-thought; the
+      // template reads better.
+      if (text.length > GENERATED_QUESTION_MAX_LENGTH) {
+        throw Object.assign(new Error('Workers AI returned an over-long question.'), {
+          model: result?.model, usage: result?.usage, qualityIssues: ['question_too_long']
+        });
+      }
+      return result;
+    }));
+    return { question: sanitizeGeneratedQuestion(readQuestionText(response)), model: response?.model || model };
+  } finally {
+    questionDeadline.dispose();
   }
-
-  return { question: finalQuestion, model: result.model };
-}
-
-function isAzureConfigured(env) {
-  if (env?.OPENAI_API_KEY) return true;
-  return Boolean(env?.AZURE_OPENAI_API_KEY && env?.AZURE_OPENAI_ENDPOINT && env?.AZURE_OPENAI_GPT5_MODEL);
-}
-
-function resolveResponsesModelLabel(env) {
-  if (env?.OPENAI_API_KEY) return env?.OPENAI_MODEL || OPENAI_DEFAULT_MODEL;
-  return env?.AZURE_OPENAI_GPT5_MODEL || null;
-}
-
-function resolveResponsesProviderLabel(env) {
-  return env?.OPENAI_API_KEY ? 'openai-native' : 'azure-gpt5';
 }
 
 export async function onRequestPost({ request, env }) {
@@ -314,8 +407,6 @@ export async function onRequestPost({ request, env }) {
 
     // Check subscription tier for AI question access
     const user = await getUserFromRequest(request, env);
-    const personalAccessError = getClaudeCodeAccessError(env, user);
-    if (personalAccessError) return new Response(JSON.stringify(personalAccessError), { status: personalAccessError.status, headers: JSON_HEADERS });
     const subscription = getSubscriptionContext(user);
     const hasAIAccess = canUseAIQuestions(subscription);
 
@@ -330,7 +421,7 @@ export async function onRequestPost({ request, env }) {
       }
     }
 
-    // For free tier, skip Azure AI and use local template directly
+    // For free tier, skip the model and use local template directly
     if (!hasAIAccess) {
       const question = craftQuestionFromPrompt(prompt, metadata);
       return new Response(
@@ -377,52 +468,16 @@ export async function onRequestPost({ request, env }) {
     let question = null;
     let inferenceModel = null;
 
-    if (isClaudeCodeEnabled(env)) {
-      try {
-        const { instructions, input } = buildAzureQuestionPrompt(prompt, metadata);
-        const result = await callClaudeCode(env, {
-          task: 'question', systemPrompt: instructions,
-          messages: [{ role: 'user', content: input }], signal: deadline.signal
-        });
-        question = sanitizeGeneratedQuestion(result.text);
-        provider = result.provider;
-        inferenceModel = result.model;
-      } catch (error) {
-        deadline.signal.throwIfAborted();
-        console.warn('Claude question generation failed, using local fallback:', error.message);
-      }
-    } else {
-      if (isAnthropicConfigured(env)) {
-        try {
-          const { instructions, input } = buildAzureQuestionPrompt(prompt, metadata);
-          const result = await generateClaudeText(env, {
-            system: instructions,
-            prompt: input,
-            maxTokens: 4000,
-            effort: 'low',
-            signal: deadline.signal,
-            requestId,
-            telemetry: { task: 'question', requestId }
-          });
-          question = sanitizeGeneratedQuestion(result.text);
-          provider = CLAUDE_API_PROVIDER;
-          inferenceModel = result.model;
-        } catch (error) {
-          deadline.signal.throwIfAborted();
-          console.warn('Claude API question generation failed, trying the Responses API:', error.message);
-        }
-      }
-      if (!question && isAzureConfigured(env)) {
-        try {
-          const result = await generateQuestionWithAzure(env, prompt, metadata, deadline.signal, requestId);
-          question = result.question;
-          inferenceModel = result.model;
-          provider = resolveResponsesProviderLabel(env);
-        } catch (error) {
-          deadline.signal.throwIfAborted();
-          console.warn('Responses API question generation failed, using fallback:', error?.message || error);
-        }
-      }
+    try {
+      const result = await generateQuestionWithWorkersAI(env, prompt, metadata, deadline.signal, requestId);
+      question = result.question;
+      inferenceModel = result.model;
+      provider = WORKERS_AI_PROVIDER;
+    } catch (error) {
+      // A cancelled request still fails; only the question timeout or a
+      // model failure falls through to the template.
+      deadline.signal.throwIfAborted();
+      console.warn('Workers AI question generation failed, using the local template:', error?.message || error);
     }
 
     if (!question) {
@@ -430,8 +485,7 @@ export async function onRequestPost({ request, env }) {
       provider = 'local-fallback';
     }
 
-    const isResponsesProvider = provider === 'azure-gpt5' || provider === 'openai-native';
-    completed = provider === 'claude-code' || provider === CLAUDE_API_PROVIDER || isResponsesProvider;
+    completed = provider === WORKERS_AI_PROVIDER;
 
     return new Response(
       JSON.stringify({

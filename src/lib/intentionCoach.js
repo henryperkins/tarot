@@ -2,6 +2,7 @@ import { loadStoredJournalInsights } from './journalInsights.js';
 import { loadCoachHistory } from './coachStorage.js';
 import { djb2Hash } from './utils.js';
 import { ensureQuestionMark } from './themeText.js';
+import { buildSpreadQuestionVariants } from '../../shared/coach/spreadQuestions.js';
 
 /**
  * Deterministically picks a variant from a list based on a seed.
@@ -116,6 +117,7 @@ export const INTENTION_DEPTH_OPTIONS = [
 /**
  * Local creative question builder (fallback when API is unavailable).
  * Mirrors the guided templates so creative mode keeps the same intention-aware tone.
+ * A known spread swaps in that spread's templates; the variant pick is the same.
  *
  * @param {Object} params - Question parameters
  * @param {string} params.focus - Focus area text
@@ -125,9 +127,10 @@ export const INTENTION_DEPTH_OPTIONS = [
  * @param {string} params.pattern - Depth pattern (support/navigate/lesson/transform)
  * @param {string} [params.closing] - Closing phrase based on depth
  * @param {number|string} [params.seed] - Optional seed for deterministic output
+ * @param {string} [params.spreadKey] - Selected spread; missing or unknown keys keep the generic templates
  * @returns {string} Generated question text
  */
-export function buildLocalCreativeQuestion({ focus, timeframePhrase, depthLabel, topicLabel, pattern, closing, seed }) {
+export function buildLocalCreativeQuestion({ focus, timeframePhrase, depthLabel, topicLabel, pattern, closing, seed, spreadKey }) {
   const cleanFocus = (focus || 'this area of my life').replace(/\s+/g, ' ').trim();
   const timeframeText = timeframePhrase ? ` ${timeframePhrase}` : '';
   const closingSuffix = pattern === 'transform'
@@ -177,7 +180,9 @@ export function buildLocalCreativeQuestion({ focus, timeframePhrase, depthLabel,
     transform: transformVariants
   };
 
-  const variants = variantsByPattern[pattern] || [`How can I explore ${focusWithTimeframe}${closingSuffix}`];
+  const variants = buildSpreadQuestionVariants(spreadKey, pattern, { focus: cleanFocus, timeframeText, closingSuffix })
+    || variantsByPattern[pattern]
+    || [`How can I explore ${focusWithTimeframe}${closingSuffix}`];
 
   // Choose picker based on seed presence and bake the context into the seed to reduce collisions
   const picker = seed !== undefined ? pickVariantDeterministic : pickVariant;
@@ -230,9 +235,12 @@ export async function callLlmApi(prompt, metadata, options = {}) {
  * @param {string} params.depth - Depth level (pulse, guided, lesson, deep)
  * @param {string} [params.customFocus] - Optional custom focus text
  * @param {number|string} [params.seed] - Optional seed for deterministic output
+ * @param {string[]} [params.focusAreas] - Onboarding focus areas for personalization
+ * @param {string} [params.spreadKey] - Selected spread. Only the key is sent; the
+ *   server resolves the spread's name and positions itself.
  * @returns {Promise<Object>} { question: string, source: 'api'|'local' }
  */
-export async function buildCreativeQuestion({ topic, timeframe, depth, customFocus, seed, focusAreas }, options = {}) {
+export async function buildCreativeQuestion({ topic, timeframe, depth, customFocus, seed, focusAreas, spreadKey }, options = {}) {
   const { signal, userId = null } = options;
   const topicData = INTENTION_TOPIC_OPTIONS.find(option => option.value === topic) || INTENTION_TOPIC_OPTIONS[0];
   const timeframeData = INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === timeframe) || INTENTION_TIMEFRAME_OPTIONS[0];
@@ -301,7 +309,8 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
     reversalRate,
     recentQuestions,
     seed: seed !== undefined ? seed : null,  // Pass seed to backend
-    focusAreas: normalizedFocusAreas
+    focusAreas: normalizedFocusAreas,
+    spreadKey: typeof spreadKey === 'string' ? spreadKey : null
   };
 
   let apiResult = null;
@@ -327,14 +336,16 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
     pattern: depthData.pattern,
     closing: depthData.closing,
     topicLabel: topicData.label,
-    seed  // Pass seed to fallback
+    seed,  // Pass seed to fallback
+    spreadKey
   });
 
   return { question: localCreative, source: 'local', forecast: null };
 }
 
 /**
- * Builds a guided tarot question from structured parameters.
+ * Builds a guided tarot question from structured parameters. A known spread
+ * swaps in that spread's templates; the variant pick is the same.
  *
  * @param {Object} params - Question parameters
  * @param {string} params.topic - Topic area (relationships, career, etc.)
@@ -342,9 +353,10 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
  * @param {string} params.depth - Depth level (pulse, guided, lesson, deep)
  * @param {string} [params.customFocus] - Optional custom focus text
  * @param {number|string} [params.seed] - Optional seed for deterministic output
+ * @param {string} [params.spreadKey] - Selected spread; missing or unknown keys keep the generic templates
  * @returns {string} Generated question text
  */
-export function buildGuidedQuestion({ topic, timeframe, depth, customFocus, seed }) {
+export function buildGuidedQuestion({ topic, timeframe, depth, customFocus, seed, spreadKey }) {
   const topicData = INTENTION_TOPIC_OPTIONS.find(option => option.value === topic) || INTENTION_TOPIC_OPTIONS[0];
   const timeframeData = INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === timeframe) || INTENTION_TIMEFRAME_OPTIONS[0];
   const depthData = INTENTION_DEPTH_OPTIONS.find(option => option.value === depth) || INTENTION_DEPTH_OPTIONS[0];
@@ -390,7 +402,9 @@ export function buildGuidedQuestion({ topic, timeframe, depth, customFocus, seed
     transform: transformVariants
   };
 
-  const variants = variantsByPattern[depthData.pattern] || [`How can I explore ${focus}${timeframeText}`];
+  const variants = buildSpreadQuestionVariants(spreadKey, depthData.pattern, { focus, timeframeText, closingSuffix })
+    || variantsByPattern[depthData.pattern]
+    || [`How can I explore ${focus}${timeframeText}`];
 
   // Choose picker based on seed presence
   const picker = seed !== undefined ? pickVariantDeterministic : pickVariant;

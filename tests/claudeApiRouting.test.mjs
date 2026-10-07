@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { onRequestPost as questionRoute } from '../functions/api/generate-question.js';
 import { onRequestPost as summaryRoute } from '../functions/api/journal-summary.js';
 import { createD1 } from './helpers/d1Sqlite.mjs';
 import { seedUser, seedSession, seedEntry, jsonRequest } from './helpers/journalFixtures.mjs';
@@ -27,12 +26,6 @@ const request = (route, body) => jsonRequest(`https://tableu.test/api/${route}`,
   headers: { Cookie: 'session=session-reader' }
 });
 
-const openAIText = (text) => Response.json({
-  id: 'resp-test',
-  model: 'openai-test-model',
-  output: [{ type: 'message', content: [{ type: 'output_text', text }] }]
-});
-
 function mockProviders(t, { claude = [], openai = [] }) {
   const calls = { claude: [], openai: [] };
   t.mock.method(globalThis, 'fetch', async (url, init) => {
@@ -53,31 +46,6 @@ function mockProviders(t, { claude = [], openai = [] }) {
   });
   return calls;
 }
-
-test('suggested questions come from Claude at low effort', async (t) => {
-  const calls = mockProviders(t, { claude: [() => claudeSseResponse('What would help me steady my work this month?')] });
-  const response = await questionRoute({ env: await setup(), request: request('generate-question', { prompt: 'Craft a question about career.', metadata: {} }) });
-  assert.equal(response.status, 200);
-  const body = await response.json();
-  assert.equal(body.provider, 'claude-api');
-  assert.equal(body.model, 'claude-opus-5-5');
-  assert.equal(body.question, 'What would help me steady my work this month?');
-  assert.deepEqual(calls.claude[0].output_config, { effort: 'low' });
-  assert.equal(calls.openai.length, 0);
-});
-
-test('suggested questions fall back to the Responses API when Claude fails', async (t) => {
-  const calls = mockProviders(t, {
-    claude: [() => claudeErrorResponse(400)],
-    openai: [() => openAIText('What is asking for my attention at work?')]
-  });
-  const response = await questionRoute({ env: await setup(), request: request('generate-question', { prompt: 'Craft a question about career.', metadata: {} }) });
-  const body = await response.json();
-  assert.equal(body.provider, 'openai-native');
-  assert.equal(body.model, 'openai-test-model');
-  assert.equal(body.question, 'What is asking for my attention at work?');
-  assert.equal(calls.claude.length, 1);
-});
 
 test('journal summaries come from Claude', async (t) => {
   const summaryText = '### Arc of the Journey\nYour readings return to steady, patient work.';

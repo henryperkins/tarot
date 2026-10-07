@@ -19,6 +19,12 @@ const headers = { Cookie: 'session=session-reader' };
 const req = (route, body, extraHeaders = headers) => jsonRequest(`https://tableu.test/api/${route}`, { body, headers: extraHeaders });
 const visionBody = { backendId: 'hybrid', evidence: [{ label: 'photo', dataUrl: 'data:image/jpeg;base64,AA==' }] };
 const prediction = { response: JSON.stringify({ card: 'The Star', confidence: 0.9, orientation: 'upright' }) };
+// Suggested questions run on Workers AI; journal summaries reach Claude
+// through fetch. The provider receives the call's abort signal.
+function mockProvider(t, feature, env, provider) {
+  if (feature === 'question') env.AI = { run: (_model, _inputs, options) => provider(options?.signal) };
+  else t.mock.method(globalThis, 'fetch', (_url, options) => provider(options?.signal));
+}
 
 test('guest vision ignores forged backend and retains recognition on server-selected backend', async () => {
   let calls = 0;
@@ -76,12 +82,12 @@ for (const [feature, route, handler, body, setting] of [
     let start;
     const started = new Promise((resolve) => { start = resolve; });
     let calls = 0;
-    t.mock.method(globalThis, 'fetch', async () => { calls++; start(); return new Promise((resolve) => { release = resolve; }); });
+    mockProvider(t, feature, env, async () => { calls++; start(); return new Promise((resolve) => { release = resolve; }); });
     const pending = handler({ env, request: req(route, body) });
     await started;
     const burst = await handler({ env, request: req(route, body) });
     assert.equal(burst.status, 429);
-    release(claudeSseResponse(feature === 'question' ? 'What helps me move forward?' : 'Your journal invites patience.'));
+    release(feature === 'question' ? { response: 'What helps me move forward?' } : claudeSseResponse('Your journal invites patience.'));
     assert.equal((await pending).status, 200);
     assert.equal((await handler({ env, request: req(route, body) })).status, 429);
     assert.equal(calls, 1);
@@ -125,9 +131,9 @@ test('guest vision fails closed when no trusted client identity is available', a
 });
 
 test('service-token question safeguards use the service tier without requiring a cookie', async (t) => {
-  const env = { DB: await createD1(), GPT_SERVICE_TOKEN: 'test-service-token-with-more-than-24-characters', FEATURE_QUESTION_PLUS_DAILY_LIMIT: '1', ANTHROPIC_API_KEY: 'test-only' };
+  const env = { DB: await createD1(), GPT_SERVICE_TOKEN: 'test-service-token-with-more-than-24-characters', FEATURE_QUESTION_PLUS_DAILY_LIMIT: '1' };
   let calls = 0;
-  t.mock.method(globalThis, 'fetch', async () => { calls++; return claudeSseResponse('What helps me move forward?'); });
+  mockProvider(t, 'question', env, async () => { calls++; return { response: 'What helps me move forward?' }; });
   const authorized = () => req('generate-question', { prompt: 'Help me reflect.' }, { Authorization: `Bearer ${env.GPT_SERVICE_TOKEN}` });
   assert.equal((await questionRoute({ env, request: authorized() })).status, 200);
   assert.equal((await questionRoute({ env, request: authorized() })).status, 429);
@@ -141,10 +147,11 @@ for (const [feature, route, handler, body] of [
 ]) {
   test(`${feature} streamed input overflow is refused without a reservation or provider call`, async (t) => {
     const env = { ...await setup(), ANTHROPIC_API_KEY: 'test-only' };
-    const fetchMock = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Provider must not run'); });
+    let calls = 0;
+    mockProvider(t, feature, env, async () => { calls++; throw new Error('Provider must not run'); });
     const response = await handler({ env, request: req(route, { ...body, excess: 'a'.repeat(65536) }) });
     assert.equal(response.status, 413);
-    assert.equal(fetchMock.mock.callCount(), 0);
+    assert.equal(calls, 0);
     assert.equal(env.DB.rows('SELECT * FROM feature_usage').length, 0);
   });
 }
@@ -168,7 +175,11 @@ for (const [feature, handler, body, setting] of [
   test(`${feature} repeated paid failures refund allowance but stop after three independent attempts`, async (t) => {
     const env = { ...await setup(), ANTHROPIC_API_KEY: 'test-only', [setting]: '1' };
     let calls = 0;
-    t.mock.method(globalThis, 'fetch', async () => { calls++; return claudeErrorResponse(400, 'invalid_request_error', 'Mock failure'); });
+    mockProvider(t, feature, env, async () => {
+      calls++;
+      if (feature === 'question') throw new Error('Mock failure');
+      return claudeErrorResponse(400, 'invalid_request_error', 'Mock failure');
+    });
     const statuses = [];
     for (let index = 0; index < 8; index++) statuses.push((await handler({ env, request: req(feature, body) })).status);
     assert.deepEqual(statuses, [200, 200, 200, 429, 429, 429, 429, 429]);
@@ -181,13 +192,13 @@ for (const [feature, handler, body, setting] of [
     const env = { ...await setup(), ANTHROPIC_API_KEY: 'test-only', [setting]: '1' };
     let calls = 0;
     let controller;
-    t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    mockProvider(t, feature, env, async (signal) => {
       calls++;
       setImmediate(() => controller.abort());
       return new Promise((_resolve, reject) => {
         const abort = () => reject(Object.assign(new Error('Mock cancelled'), { name: 'AbortError' }));
-        if (options.signal.aborted) abort();
-        else options.signal.addEventListener('abort', abort, { once: true });
+        if (signal.aborted) abort();
+        else signal.addEventListener('abort', abort, { once: true });
       });
     });
     const statuses = [];

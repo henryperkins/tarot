@@ -151,6 +151,7 @@ do not lower thresholds or claim a local-composer result proves a live provider.
    - Position definitions in `src/data/spreads.js` with `positions` and `roleKeys`
    - Spread-specific analysis in `functions/lib/spreadAnalysis.js` (optional)
    - Narrative builder in `functions/lib/narrative/spreads/`
+   - Question-coach profile in `shared/coach/spreadQuestions.js` (hint, AI prompt shape, templates per depth); `tests/spreadQuestions.test.mjs` fails without one
 4. **New patterns** need entries in `src/data/knowledgeGraphData.js` and passages in `functions/lib/knowledgeBase.js` (internally authored Tableu Tarot Canon; no copyrighted book text is included)
 5. **Visual changes** must preserve A11y (labels, focus, ARIA)
 6. **Deck-aware code** should accept `deckStyle` and use helpers from `knowledgeGraph.js`

@@ -2,11 +2,14 @@
 
 This optional mode sends non-Cloudflare text generation through the owner's
 Claude subscription using the official `claude -p` interface. It covers readings,
-follow-up answers and repairs, suggested questions, journal summaries, and offline
+follow-up answers and repairs, journal summaries, and offline
 narrative sample generation. Workers AI grading, embeddings, coaching extraction,
 vision, speech and story art retain their existing integrations.
 
-The service is for the subscription owner's personal use. Tableu endpoints require
+Question suggestions always use Workers AI, independently of `TEXT_PROVIDER`,
+and fall back to the coach's local templates when generation fails.
+
+The service is for the subscription owner's personal use. Subscription-backed endpoints require
 the configured owner's authenticated account; anonymous callers, other users and
 shared service accounts cannot spend the subscription. See Anthropic's
 [subscription guidance](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan)
@@ -56,7 +59,7 @@ The default `TEXT_PROVIDER=legacy` in Wrangler keeps an unconfigured deployment
 working. Switching to `claude-code` takes priority over configured Modal, OpenAI
 and Azure credentials. Invalid provider names are configuration errors. A missing
 owner denies access. A missing or unavailable gateway permits only existing local
-reading/question/summary fallbacks; follow-ups return their existing retry error.
+reading/summary fallbacks; follow-ups return their existing retry error.
 
 ## Runtime behavior
 

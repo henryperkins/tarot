@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { useSubscription } from './SubscriptionContext';
 import { useToast } from './ToastContext';
 import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingRequestLimits.js';
+import { resolveSpreadQuestionContext } from '../../shared/coach/spreadQuestions.js';
 import {
   INTENTION_TOPIC_OPTIONS,
   INTENTION_TIMEFRAME_OPTIONS,
@@ -56,7 +57,9 @@ const RESUMED_MESSAGE = 'Picked up where you left off.';
 function resolveOpeningState({ userId, suggestedTopic, prefillRecommendation }) {
   const draft = loadCoachDraft(userId);
   if (draft) {
-    return { ...draft, resumed: draft.step > 0 };
+    // A restored intention belongs to the reader, even if it was generated.
+    // Explicit Remix or setting changes release it for generation again.
+    return { ...draft, autoQuestionEnabled: draft.questionText?.trim() ? false : draft.autoQuestionEnabled, resumed: draft.step > 0 };
   }
 
   let topic = suggestedTopic;
@@ -133,6 +136,11 @@ export function GuidedIntentionCoachProvider({
     return focusAreaSuggestedTopic || spreadSuggestedTopic || INTENTION_TOPIC_OPTIONS[0].value;
   }, [focusAreaSuggestedTopic, spreadSuggestedTopic]);
 
+  const spreadQuestionContext = useMemo(
+    () => resolveSpreadQuestionContext(selectedSpread),
+    [selectedSpread]
+  );
+
   // Resolved before the first render, so the opening question is in place
   // from the start instead of racing the question generator's first run.
   const [openingState] = useState(() => (isOpen
@@ -198,11 +206,9 @@ export function GuidedIntentionCoachProvider({
   }, [coachStatsMeta]);
 
   const releasePrefill = useCallback(() => {
-    if (prefillSource) {
-      setPrefillSource(null);
-      setAutoQuestionEnabled(true);
-    }
-  }, [prefillSource]);
+    setPrefillSource(null);
+    setAutoQuestionEnabled(true);
+  }, []);
 
   const clearAstroForecast = useCallback(() => {
     setAstroHighlights([]);
@@ -262,8 +268,8 @@ export function GuidedIntentionCoachProvider({
   }, [topic, timeframe, depth, customFocus, remixCount]);
 
   const guidedQuestion = useMemo(
-    () => buildGuidedQuestion({ topic, timeframe, depth, customFocus, seed: questionSeed }),
-    [topic, timeframe, depth, customFocus, questionSeed]
+    () => buildGuidedQuestion({ topic, timeframe, depth, customFocus, seed: questionSeed, spreadKey: selectedSpread }),
+    [topic, timeframe, depth, customFocus, questionSeed, selectedSpread]
   );
 
   const questionQuality = useMemo(
@@ -304,11 +310,16 @@ export function GuidedIntentionCoachProvider({
     if (summary.depthLabel) {
       chips.push({ label: summary.depthLabel, type: 'Depth', step: 2 });
     }
+    // The spread is chosen on the page, not in the coach, so this chip is a
+    // label with nowhere to go.
+    if (spreadQuestionContext) {
+      chips.push({ label: spreadQuestionContext.shortName, type: 'Spread' });
+    }
     if (customFocus?.trim()) {
       chips.push({ label: customFocus.trim(), type: 'Detail', action: 'focus' });
     }
     return chips;
-  }, [summary.topicLabel, summary.timeframeLabel, summary.depthLabel, customFocus, isManualQuestion]);
+  }, [summary.topicLabel, summary.timeframeLabel, summary.depthLabel, spreadQuestionContext, customFocus, isManualQuestion]);
 
   const qualityHelperText = useMemo(() => {
     if (questionQuality.score >= 85) return 'Excellent - ready to anchor into your spread.';
@@ -788,7 +799,8 @@ export function GuidedIntentionCoachProvider({
           depth,
           customFocus,
           seed: questionSeed,
-          focusAreas: personalization?.focusAreas
+          focusAreas: personalization?.focusAreas,
+          spreadKey: selectedSpread
         }, { signal: controller.signal, userId });
 
         if (isCancelled || controller.signal.aborted) {
@@ -853,6 +865,7 @@ export function GuidedIntentionCoachProvider({
     depth,
     customFocus,
     personalization?.focusAreas,
+    selectedSpread,
     userId,
     announce
   ]);
@@ -860,6 +873,7 @@ export function GuidedIntentionCoachProvider({
   const value = {
     isOpen,
     selectedSpread,
+    spreadQuestionContext,
     onClose,
     canUseAIQuestions,
     step,

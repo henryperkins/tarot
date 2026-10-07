@@ -32,16 +32,6 @@ export const SPREAD_TO_TOPIC_MAP = {
   single: null
 };
 
-// Friendly spread names for hints
-export const SPREAD_NAMES = {
-  relationship: 'Relationship Snapshot',
-  decision: 'Decision',
-  celtic: 'Celtic Cross',
-  fiveCard: 'Five-Card Clarity',
-  threeCard: 'Three-Card Story',
-  single: 'One-Card Insight'
-};
-
 // Map onboarding focus areas to intention topics
 export const FOCUS_AREA_TO_TOPIC = {
   love: 'relationships',

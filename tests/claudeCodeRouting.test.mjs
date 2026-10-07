@@ -65,33 +65,27 @@ test('Claude narrative retains personalized prompts and source usage metadata', 
   assert.match(result.prompts.user, /painting/);
 });
 
-test('question and journal summary use Claude and expose actual model', async t => {
+test('journal summary uses Claude and exposes actual model', async t => {
   const configured = await setup();
   const tasks = [];
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.equal(url, 'https://claude.example.test/v1/generate');
     const sent = JSON.parse(options.body);
     tasks.push(sent.task);
-    return Response.json(completion(sent.task === 'question' ? 'What is one step I can choose for my career?' : 'Your journal invites a gentler pace.'));
+    return Response.json(completion('Your journal invites a gentler pace.'));
   });
-  const question = await questionRoute({ env: configured, request: request('generate-question', { prompt: 'Craft a question about career.', metadata: {} }) });
-  assert.equal(question.status, 200);
-  const q = await question.json();
-  assert.equal(q.provider, 'claude-code');
-  assert.equal(q.model, 'claude-pinned-test');
   const summary = await summaryRoute({ env: configured, request: request('journal-summary', {}) });
   assert.equal(summary.status, 200);
   const s = await summary.json();
   assert.equal(s.meta.provider, 'claude-code');
   assert.equal(s.meta.model, 'claude-pinned-test');
-  assert.deepEqual(tasks, ['question', 'journal-summary']);
+  assert.deepEqual(tasks, ['journal-summary']);
 });
 
 test('personal text routes reject another account before inference', async t => {
   const configured = await setup();
   t.mock.method(globalThis, 'fetch', async () => assert.fail('unauthorized inference'));
   const inputs = [
-    [questionRoute, 'generate-question', { prompt: 'Craft a question about career.' }],
     [summaryRoute, 'journal-summary', {}],
     [readingRoute, 'tarot-reading', { spreadInfo: { name: SPREADS.single.name, key: 'single' }, cardsInfo: [{ position: SPREADS.single.positions[0], card: 'The Star', orientation: 'Upright', meaning: 'Hope' }] }]
   ];
@@ -102,7 +96,7 @@ test('personal text routes reject another account before inference', async t => 
   }
 });
 
-test('failed Claude suggestions retain local fallback without calling a paid provider', async t => {
+test('questions retain local fallback when Workers AI is missing even in personal mode', async t => {
   const configured = await setup();
   const urls = [];
   t.mock.method(globalThis, 'fetch', async url => {
@@ -114,7 +108,7 @@ test('failed Claude suggestions retain local fallback without calling a paid pro
   assert.equal(body.provider, 'local-fallback');
   assert.equal(body.model, null);
   assert.ok(body.question.endsWith('?'));
-  assert.deepEqual(urls, ['https://claude.example.test/v1/generate']);
+  assert.deepEqual(urls, []);
 });
 
 for (const stream of [false, true]) {

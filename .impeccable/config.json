@@ -21,6 +21,42 @@
         ],
         "createdAt": "2026-09-27T20:30:18.233Z",
         "reason": "Agent verified: this legacy skeleton selector only sets a standard non-overshooting timing curve; NarrativeSkeleton has no matching animate-bounce elements and uses pulse, shimmer, and float animations instead."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "source serif 4",
+        "files": [
+          "public/privacy.html"
+        ],
+        "createdAt": "2026-10-07T15:09:01.257Z",
+        "reason": "Claude triage: legal.css uses the static family name of DESIGN.md's 'Source Serif 4 Variable'"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "inter",
+        "files": [
+          "public/privacy.html"
+        ],
+        "createdAt": "2026-10-07T15:09:01.270Z",
+        "reason": "Claude triage: legal.css uses the static family name of DESIGN.md's 'Inter Variable'"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "public/privacy.html"
+        ],
+        "createdAt": "2026-10-07T15:09:01.284Z",
+        "reason": "Claude triage: detector paired dark-theme hover #E8DAC3 with the light theme's #FFFFFF; dark hover sits on #0F0E13/#1C1A22 and light hover is #5F4A2C"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "public/privacy.html"
+        ],
+        "createdAt": "2026-10-07T15:09:21.007Z",
+        "reason": "Claude triage: DESIGN.md declares Inter Variable as the body family; the legal pages mirror the app's type system"
       }
     ]
   }
