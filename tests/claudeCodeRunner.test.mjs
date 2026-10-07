@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { runClaudeCode } from '../services/claude-code/runner.mjs';
+import { runClaudeCode, verifySubscriptionLogin } from '../services/claude-code/runner.mjs';
 
 const input = { task: 'question', systemPrompt: 'Ask a question.', messages: [{ role: 'user', content: 'Career' }] };
 const authenticated = { loggedIn: true, authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max' };
@@ -48,7 +48,7 @@ if (process.argv.includes('status')) {
   writeFileSync(${JSON.stringify(authPath)}, 'checked');
   console.log(${JSON.stringify(JSON.stringify(status))});
 } else {
-  const started = extra => writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid, cwd: process.cwd(), args: process.argv.slice(2), ...extra }));
+  const started = extra => writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid, cwd: process.cwd(), args: process.argv.slice(2), maxOutputTokens: process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS ?? null, advisorDisabled: process.env.CLAUDE_CODE_DISABLE_ADVISOR_TOOL ?? null, ...extra }));
   if (${descendant}) {
     const child = spawn(process.execPath, ['-e', ${JSON.stringify(childSource)}], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
     child.once('message', () => { child.disconnect(); started({ descendant: child.pid }); });
@@ -128,6 +128,48 @@ test('explicit model overrides retain the selected thinking effort', async t => 
     assert.equal(args[args.indexOf('--model') + 1], model);
     assert.equal(args[args.indexOf('--effort') + 1], effort);
   }
+});
+
+test('request pins override host model, effort and output defaults', async t => {
+  const fixture = await fakeCli(t);
+  await runClaudeCode({ ...input, task: 'reading', model: 'claude-opus-5-5', effort: 'max', maxOutputTokens: 32000 }, {
+    hostEnv: { ...fixture.hostEnv, CLAUDE_CODE_MODEL: 'host-model', CLAUDE_CODE_READING_MODEL: 'task-model', CLAUDE_CODE_EFFORT: 'low' }
+  });
+  const { args, maxOutputTokens } = await fixture.started();
+  assert.equal(args[args.indexOf('--model') + 1], 'claude-opus-5-5');
+  assert.equal(args[args.indexOf('--effort') + 1], 'max');
+  assert.equal(maxOutputTokens, '32000');
+});
+
+test('every task runs without the server-side advisor tool', async t => {
+  const fixture = await fakeCli(t);
+  await runClaudeCode(input, { hostEnv: fixture.hostEnv });
+  assert.equal((await fixture.started()).advisorDisabled, '1');
+});
+
+test('unpinned requests leave the CLI output ceiling at its default', async t => {
+  const fixture = await fakeCli(t);
+  await runClaudeCode(input, { hostEnv: { ...fixture.hostEnv, CLAUDE_CODE_MAX_OUTPUT_TOKENS: '999' } });
+  assert.equal((await fixture.started()).maxOutputTokens, null);
+});
+
+test('invalid request pins are rejected before invoking the CLI', async t => {
+  const fixture = await fakeCli(t);
+  for (const pins of [{ model: '--dangerously-skip-permissions' }, { model: '' }, { effort: 'unlimited' }, { maxOutputTokens: 0 }, { maxOutputTokens: 1.5 }, { maxOutputTokens: '32000' }]) {
+    await assert.rejects(runClaudeCode({ ...input, ...pins }, { hostEnv: fixture.hostEnv }), /Invalid Claude request settings/, JSON.stringify(pins));
+  }
+  assert.equal(await exists(fixture.authPath), false);
+  assert.equal(await exists(fixture.startedPath), false);
+});
+
+test('subscription login verification stands alone for release preflight', async t => {
+  const fixture = await fakeCli(t);
+  await verifySubscriptionLogin({ hostEnv: fixture.hostEnv });
+  assert.equal(await exists(fixture.authPath), true);
+  assert.equal(await exists(fixture.startedPath), false);
+  const apiBilled = await fakeCli(t, { status: { ...authenticated, authMethod: 'api_key' } });
+  await assert.rejects(verifySubscriptionLogin({ hostEnv: apiBilled.hostEnv }), /API billing is disabled/);
+  await assert.rejects(verifySubscriptionLogin({ hostEnv: { ...fixture.hostEnv, CLAUDE_CODE_OAUTH_TOKEN: 'x' } }), /unsupported/);
 });
 
 test('invalid effort is rejected before invoking the CLI', async t => {

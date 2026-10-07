@@ -59,7 +59,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        # Release QA uses the owner's Claude Code subscription login, which hosted
+        # runners lack, so full deployments run from that host (npm run deploy).
         run: |
           # Build the flags based on inputs
           FLAGS=""
@@ -105,6 +106,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Common issues:**" >> $GITHUB_STEP_SUMMARY
           echo "- Missing CLOUDFLARE_API_TOKEN secret" >> $GITHUB_STEP_SUMMARY
-          echo "- Missing ANTHROPIC_API_KEY secret for primary-provider QA" >> $GITHUB_STEP_SUMMARY
+          echo "- Release QA needs the owner's Claude Code subscription host; run npm run deploy there" >> $GITHUB_STEP_SUMMARY
           echo "- Migration SQL syntax error" >> $GITHUB_STEP_SUMMARY
           echo "- Build failure" >> $GITHUB_STEP_SUMMARY

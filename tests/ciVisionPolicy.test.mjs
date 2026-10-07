@@ -50,17 +50,15 @@ it('CI recomputes saved narrative metrics without starting paid generation and p
   assert.match(result.stdout, /fresh primary-provider qualification runs before deployment/);
 });
 
-it('Claude credentials stay scoped to the rollout step and fresh gate evidence survives failure', async () => {
+it('hosted workflows never receive the paid Claude key and fresh gate evidence survives failure', async () => {
   const ci = yaml.load(await readFile('.github/workflows/ci.yml', 'utf8'));
   const deploy = yaml.load(await readFile('.github/workflows/deploy.yml', 'utf8'));
   const ciSteps = Object.values(ci.jobs).flatMap(job => job.steps || []);
-  assert.ok(ciSteps.every(step => !step.env?.ANTHROPIC_API_KEY));
-  assert.ok(ciSteps.every(step => !step.run?.includes('ci:narrative-check')));
   const rolloutSteps = deploy.jobs.deploy.steps;
-  const credentialSteps = rolloutSteps.filter(step => step.env?.ANTHROPIC_API_KEY);
-  assert.equal(credentialSteps.length, 1);
-  assert.match(credentialSteps[0].run, /node scripts\/deploy\.js/);
-  assert.equal(credentialSteps[0].env.ANTHROPIC_API_KEY, '${{ secrets.ANTHROPIC_API_KEY }}');
+  // Release QA runs on the owner's Claude Code subscription, not the API key.
+  assert.ok([...ciSteps, ...rolloutSteps].every(step => !step.env?.ANTHROPIC_API_KEY && !step.env?.NARRATIVE_EVAL_BACKEND));
+  assert.ok(ciSteps.every(step => !step.run?.includes('ci:narrative-check')));
+  assert.ok(rolloutSteps.some(step => /node scripts\/deploy\.js/.test(step.run || '')));
   const evidence = rolloutSteps.find(step => step.uses?.startsWith('actions/upload-artifact@'));
   assert.equal(evidence.if, '${{ always() }}');
   assert.equal(evidence.with.path, 'data/evaluations/runs/');

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { it } from 'node:test';
+import { after, before, it } from 'node:test';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -8,10 +8,25 @@ import { join } from 'node:path';
 import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 
+// Stand-ins for `claude auth status`; release preflight never reaches the real CLI.
+const fakeClaude = {};
+before(async () => {
+  fakeClaude.directory = await mkdtemp(join(tmpdir(), 'release-claude-'));
+  for (const [name, authMethod] of [['subscription', 'claude.ai'], ['apiKey', 'api_key']]) {
+    fakeClaude[name] = join(fakeClaude.directory, `${name}.mjs`);
+    const status = { loggedIn: true, authMethod, apiProvider: 'firstParty', subscriptionType: 'max' };
+    await writeFile(fakeClaude[name], `#!${process.execPath}\nconsole.log(${JSON.stringify(JSON.stringify(status))});\n`, { mode: 0o700 });
+  }
+});
+after(() => rm(fakeClaude.directory, { recursive: true, force: true }));
+
 function release(env = {}) {
   const result = spawnSync(process.execPath, ['--import', './tests/helpers/releaseCheckCommandStub.mjs', 'scripts/evaluation/runReleaseChecks.js'], {
     encoding: 'utf8',
-    env: { ...process.env, VISION_EVAL_MANIFEST_DIR: '', NARRATIVE_EVAL_BACKEND: '', TEST_RELEASE_CHECK_FAIL: '', ANTHROPIC_API_KEY: 'offline-test-key', ...env }
+    env: {
+      ...process.env, VISION_EVAL_MANIFEST_DIR: '', NARRATIVE_EVAL_BACKEND: '', TEST_RELEASE_CHECK_FAIL: '',
+      ANTHROPIC_API_KEY: '', CLAUDE_CODE_OAUTH_TOKEN: '', CLAUDE_CODE_EXECUTABLE: fakeClaude.subscription, ...env
+    }
   });
   const checks = result.stdout.split('\n').filter(line => line.startsWith('CHECK:')).map(line => JSON.parse(line.slice(6)));
   return { ...result, checks, scripts: checks.map(check => check.script) };
@@ -43,7 +58,7 @@ it('runs required release checks without a photo corpus and reports vision as un
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.scripts, ['test', 'test:deploy', 'lint:cloudflare', 'docs:check', 'ci:narrative-check']);
   assert.match(result.stdout, /vision qualification not run/i);
-  assert.ok(result.checks.every(check => check.backend === 'claude-api'));
+  assert.ok(result.checks.every(check => check.backend === 'claude-subscription'));
 });
 
 for (const script of ['test', 'ci:narrative-check']) {
@@ -94,11 +109,24 @@ it('keeps an explicitly requested failing vision gate fatal', async (t) => {
   assert.match(result.stderr, /Release check ci:vision-check failed/);
 });
 
-it('fails before checks if the primary release provider secret is missing', () => {
-  const result = release({ ANTHROPIC_API_KEY: '' });
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /ANTHROPIC_API_KEY/);
-  assert.deepEqual(result.checks, []);
+it('fails before checks without a Claude Code subscription login', () => {
+  for (const env of [{ CLAUDE_CODE_EXECUTABLE: fakeClaude.apiKey }, { CLAUDE_CODE_EXECUTABLE: join(fakeClaude.directory, 'missing') }, { CLAUDE_CODE_OAUTH_TOKEN: 'setup-token' }]) {
+    const result = release({ ...env, ANTHROPIC_API_KEY: 'offline-test-key' });
+    assert.equal(result.status, 1, JSON.stringify(env));
+    assert.match(result.stderr, /Claude Code subscription/);
+    assert.match(result.stderr, /NARRATIVE_EVAL_BACKEND=claude-api/);
+    assert.deepEqual(result.checks, []);
+  }
+});
+
+it('runs paid API QA only on explicit request and with its key', () => {
+  const missing = release({ NARRATIVE_EVAL_BACKEND: 'claude-api' });
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /ANTHROPIC_API_KEY/);
+  assert.deepEqual(missing.checks, []);
+  const paid = release({ NARRATIVE_EVAL_BACKEND: 'claude-api', ANTHROPIC_API_KEY: 'offline-test-key', CLAUDE_CODE_EXECUTABLE: fakeClaude.apiKey });
+  assert.equal(paid.status, 0, paid.stderr);
+  assert.ok(paid.checks.every(check => check.backend === 'claude-api'));
 });
 
 it('allows an explicit alternate provider release diagnostic', () => {

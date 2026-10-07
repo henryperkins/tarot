@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  CLAUDE_API_READING_MAX_TOKENS,
   LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE,
   buildAzureGPT5Prompts,
   composeReadingEnhanced,
@@ -12,6 +13,11 @@ import {
 } from '../functions/lib/narrativeBackends.js';
 import { applyGraphRAGAlerts } from '../functions/lib/graphRAGAlerts.js';
 import { CLAUDE_API_URL_PREFIX, claudeSseResponse } from './helpers/claudeSse.mjs';
+import {
+  CLAUDE_SUBSCRIPTION_BACKEND,
+  createClaudeSubscriptionSend,
+  describeClaudeSubscriptionConfig
+} from '../scripts/evaluation/lib/claudeSubscriptionTransport.js';
 import {
   analyzeCelticCross,
   analyzeDecision,
@@ -980,6 +986,65 @@ describe('Claude backend + dispatch coverage', () => {
         /Claude API returned no reading text/
       );
     });
+  });
+
+  it('sends release QA through the subscription with the claude-api prompt and settings', async () => {
+    const cardsInfo = [
+      major('The Fool', 0, 'Past — influences that led here', 'Upright'),
+      major('The Magician', 1, 'Present — where you stand now', 'Reversed'),
+      major('The High Priestess', 2, 'Future — trajectory if nothing shifts', 'Upright')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    const spreadAnalysis = analyzeThreeCard(cardsInfo);
+    const buildPayload = () => ({
+      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)', key: 'threeCard' },
+      cardsInfo,
+      userQuestion: 'How can I steady my work this season?',
+      reflectionsText: '',
+      analysis: { themes, spreadAnalysis, spreadKey: 'threeCard' },
+      context: 'career'
+    });
+    const settings = { ANTHROPIC_MODEL: 'claude-opus-5-5', ANTHROPIC_EFFORT: 'max', ANTHROPIC_TIMEOUT_MS: '120000' };
+
+    let apiRequest;
+    const api = await withMockedFetch(async (_url, options) => {
+      apiRequest = JSON.parse(options.body);
+      return claudeSseResponse([{ type: 'text', text: 'API reading.' }]);
+    }, async () => generateWithClaudeApi({ ...settings, ANTHROPIC_API_KEY: 'test-key' }, buildPayload(), 'req-api'));
+
+    let runnerInput;
+    let runnerOptions;
+    const send = createClaudeSubscriptionSend({
+      hostEnv: { CLAUDE_CODE_MODEL: 'host-model', CLAUDE_CODE_EFFORT: 'low' },
+      run: async (input, options) => {
+        runnerInput = input;
+        runnerOptions = options;
+        return { provider: 'claude-code', text: 'Subscription reading.', model: 'claude-opus-5-5', usage: { input_tokens: 1, output_tokens: 2 } };
+      }
+    });
+    // No API key: the subscription path must never need it.
+    const subscription = await withMockedFetch(async () => assert.fail('subscription QA must not call the API'),
+      async () => generateWithClaudeApi(settings, buildPayload(), 'req-sub', { send, provider: CLAUDE_SUBSCRIPTION_BACKEND }));
+
+    assert.equal(runnerInput.systemPrompt, apiRequest.system);
+    assert.deepEqual(runnerInput.messages, apiRequest.messages);
+    assert.equal(runnerInput.model, apiRequest.model);
+    assert.equal(runnerInput.effort, apiRequest.output_config.effort);
+    assert.equal(runnerInput.maxOutputTokens, apiRequest.max_tokens);
+    assert.equal(runnerInput.maxOutputTokens, CLAUDE_API_READING_MAX_TOKENS);
+    assert.equal(runnerInput.task, 'reading');
+    assert.ok(runnerOptions.signal instanceof AbortSignal, 'the ANTHROPIC_TIMEOUT_MS deadline applies');
+    assert.equal(api.prompts.system, subscription.prompts.system);
+    assert.equal(api.prompts.user, subscription.prompts.user);
+    assert.equal(subscription.reading, 'Subscription reading.');
+    assert.deepEqual(subscription.promptMeta.inference, { provider: CLAUDE_SUBSCRIPTION_BACKEND, model: 'claude-opus-5-5' });
+    assert.deepEqual(describeClaudeSubscriptionConfig(settings), {
+      provider: 'claude-code', authentication: 'personal-subscription', parityWith: 'claude-api',
+      model: 'claude-opus-5-5', reasoningEffort: 'max', maxTokens: CLAUDE_API_READING_MAX_TOKENS, verbosity: null
+    });
+    await assert.rejects(send(settings, { system: 's', messages: [{ role: 'user', content: 'u' }], maxTokens: 10, tools: [{ name: 'x' }] }), /client tools/);
+    const fallback = createClaudeSubscriptionSend({ run: async () => ({ text: 'x', model: 'claude-sonnet-5-5', usage: {} }) });
+    await assert.rejects(fallback(settings, { system: 's', messages: [{ role: 'user', content: 'u' }], maxTokens: 10 }), /claude-sonnet-5-5 instead of claude-opus-5-5/);
   });
 
   it('dispatches azure-gpt5, claude-api, local-composer, and unknown ids deterministically', async () => {

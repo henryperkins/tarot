@@ -13,6 +13,7 @@ import { inferContext } from '../../functions/lib/contextDetection.js';
 import { performSpreadAnalysis } from '../../functions/lib/spreadAnalysisOrchestrator.js';
 import {
   NARRATIVE_BACKENDS,
+  generateWithClaudeApi,
   getAvailableNarrativeBackends,
   runNarrativeBackend
 } from '../../functions/lib/narrativeBackends.js';
@@ -22,6 +23,11 @@ import { ensureAnthropicConfig } from '../../functions/lib/anthropicMessages.js'
 import { isGraphRAGEnabled, isSemanticScoringAvailable } from '../../functions/lib/graphRAG.js';
 import { resolveSemanticScoring } from '../../functions/lib/readingTelemetry.js';
 import { buildGraphRAGTelemetry } from '../../functions/lib/telemetrySchema.js';
+import {
+  CLAUDE_SUBSCRIPTION_BACKEND,
+  createClaudeSubscriptionSend,
+  describeClaudeSubscriptionConfig
+} from './lib/claudeSubscriptionTransport.js';
 
 const CARD_LOOKUP = new Map([
   ...MAJOR_ARCANA.map((card) => [card.name, card]),
@@ -189,10 +195,11 @@ const SAMPLE_DEFINITIONS = [
 ];
 
 function usage() {
-  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|claude-code|claude-api|modal-qwen|local-composer|azure-gpt5] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
+  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|claude-subscription|claude-code|claude-api|modal-qwen|local-composer|azure-gpt5] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
   console.log(`\nOptions:`);
   console.log(`  --reference-time  Instant for astrological context (default ${DEFAULT_REFERENCE_TIME}; "now" for the live sky)`);
   console.log(`  --env-profile      "production" (default) layers the shell env over wrangler.jsonc vars; "shell" uses the shell env only`);
+  console.log(`  --backend claude-subscription  The claude-api request (model, effort, max tokens) sent through this host's Claude Code login`);
   console.log(`  --trace    Enable W&B Weave tracing (requires WANDB_API_KEY)`);
 }
 
@@ -262,6 +269,7 @@ async function loadEvalEnv(envProfile) {
 // Record what actually generated the samples; the backend id alone does not
 // say which model, reasoning effort, or retrieval settings were in effect.
 function describeBackendConfig(backendId, env) {
+  if (backendId === CLAUDE_SUBSCRIPTION_BACKEND) return describeClaudeSubscriptionConfig(env);
   if (backendId === 'claude-code') return { provider: 'claude-code', model: null, authentication: 'personal-subscription' };
   if (backendId === 'azure-gpt5') {
     const { model, provider } = ensureAzureConfig(env);
@@ -317,6 +325,8 @@ export function resolveBackendId(requestedBackend, env) {
     const available = getAvailableNarrativeBackends(env);
     return available.length ? available[0].id : 'local-composer';
   }
+  // Eval-only: the subscription login is checked when the first sample runs.
+  if (normalized === CLAUDE_SUBSCRIPTION_BACKEND) return normalized;
 
   if (!NARRATIVE_BACKENDS[normalized]) {
     throw new Error(`Unknown backend "${requestedBackend}"`);
@@ -383,7 +393,10 @@ async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
     variantPromptOverrides: null
   };
 
-  const { reading, model, usage } = await runNarrativeBackend(backendId, env, narrativePayload, `eval-${sample.id}`);
+  const requestId = `eval-${sample.id}`;
+  const { reading, model, usage } = backendId === CLAUDE_SUBSCRIPTION_BACKEND
+    ? await generateWithClaudeApi(env, narrativePayload, requestId, { send: createClaudeSubscriptionSend(), provider: CLAUDE_SUBSCRIPTION_BACKEND })
+    : await runNarrativeBackend(backendId, env, narrativePayload, requestId);
 
   if (!reading || !reading.trim()) {
     throw new Error(`Reading generation failed for sample ${sample.id}`);

@@ -3,6 +3,8 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { loadVisionDataset } from './lib/visionEvaluationDataset.js';
+import { CLAUDE_SUBSCRIPTION_BACKEND } from './lib/claudeSubscriptionTransport.js';
+import { verifySubscriptionLogin } from '../../services/claude-code/runner.mjs';
 
 export async function main() {
   const directory = process.env.VISION_EVAL_MANIFEST_DIR;
@@ -16,12 +18,21 @@ export async function main() {
   } else {
     console.log('Vision qualification not run: VISION_EVAL_MANIFEST_DIR is unset. Photo recognition and symbol quality remain unverified.');
   }
-  const backend = process.env.NARRATIVE_EVAL_BACKEND || 'claude-api';
-  if (!['claude-api', 'modal-qwen', 'azure-gpt5'].includes(backend)) {
+  // The primary claude-api request, billed to the owner's Claude Code subscription.
+  const backend = process.env.NARRATIVE_EVAL_BACKEND || CLAUDE_SUBSCRIPTION_BACKEND;
+  if (![CLAUDE_SUBSCRIPTION_BACKEND, 'claude-api', 'modal-qwen', 'azure-gpt5'].includes(backend)) {
     throw new Error('Release narrative QA requires a live configured provider; local-composer is diagnostic only.');
   }
+  if (backend === CLAUDE_SUBSCRIPTION_BACKEND) {
+    // Fail before the code checks rather than after them.
+    try {
+      await verifySubscriptionLogin();
+    } catch (error) {
+      throw new Error(`Release narrative QA runs on this host's Claude Code subscription. ${error.message} Paid API QA requires an explicit NARRATIVE_EVAL_BACKEND=claude-api override.`);
+    }
+  }
   if (backend === 'claude-api' && !process.env.ANTHROPIC_API_KEY) {
-    throw new Error('Release narrative QA requires ANTHROPIC_API_KEY for the primary Claude provider. Configure it as a build secret; alternate providers require an explicit NARRATIVE_EVAL_BACKEND override.');
+    throw new Error('NARRATIVE_EVAL_BACKEND=claude-api requires ANTHROPIC_API_KEY.');
   }
   const env = { ...process.env, NARRATIVE_EVAL_BACKEND: backend };
   const checks = ['test', 'test:deploy', 'lint:cloudflare', 'docs:check'];

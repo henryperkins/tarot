@@ -23,6 +23,11 @@ Run every command example in this file from the repository root. Use `python3` i
   previews the script; production changes require `npm run deploy` or
   `npm run migrations:apply`, while local migrations use
   `npm run migrations:apply:local`. Keep publication and cleanup separate.
+- Release narrative QA defaults to `claude-subscription`: the `claude-api` reading
+  request (same prompts, model, effort and max tokens) sent through this host's
+  `claude auth login` subscription. Paid API QA needs an explicit
+  `NARRATIVE_EVAL_BACKEND=claude-api` and `ANTHROPIC_API_KEY`. See
+  [AI reliability](../docs/ai-reliability.md#safe-release-qa).
 - Applied migrations are checksum-checked, ignoring line endings; `CI=true` or
   `--strict-migration-checks` refuses changed files. Never edit an applied
   migration. If a past edit is reviewed as schema-neutral, pin the recorded

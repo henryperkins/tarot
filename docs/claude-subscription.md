@@ -92,6 +92,19 @@ service liveness, not subscription login or inference availability. The inferenc
 endpoint is `POST /v1/generate`; both endpoints are private and send no CORS grants.
 Error responses omit upstream prompts, account details and credentials.
 
+## Release QA
+
+`npm run ci:release-check` (and therefore `npm run deploy`) generates its 11 narrative
+samples with the `claude-subscription` eval backend. That backend calls this runner
+in-process with no gateway service or token. Each sample uses the paid
+`claude-api` reading request unchanged and pins the CLI to its model, effort and
+32,000-token output ceiling (`CLAUDE_CODE_MAX_OUTPUT_TOKENS`). Requests may pin
+`model`, `effort` and `maxOutputTokens`, and pinned values override this service's
+host defaults. Every task runs with `CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1`, because
+`--tools ''` does not remove that server-side tool. Claude Code still adds its own
+context reminders, including the account email, to every prompt. See
+[AI reliability](ai-reliability.md#safe-release-qa) for the remaining differences.
+
 ## Run narrative evals
 
 Export the gateway URL and token into the eval shell, then run:

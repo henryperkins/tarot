@@ -69,7 +69,7 @@ export const NARRATIVE_BACKEND_ORDER = Object.freeze(['claude-api', 'modal-qwen'
 export const LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE = 'local_composer_unsupported_language';
 
 // Thinking counts toward max_tokens, so a reading needs room for both.
-const CLAUDE_API_READING_MAX_TOKENS = 32000;
+export const CLAUDE_API_READING_MAX_TOKENS = 32000;
 
 /**
  * Backend definitions with availability checks.
@@ -893,19 +893,28 @@ export async function generateWithAzureGPT5Responses(env, payload, requestId = '
 /**
  * Generate a reading with Claude through the Anthropic Messages API.
  *
+ * Release QA swaps `send` for the Claude Code subscription transport, so its
+ * samples use this exact prompt and request; only the billing path differs.
+ *
  * @param {Object} env - Environment bindings
  * @param {Object} payload - Reading payload
  * @param {string} requestId - Request ID for logging
+ * @param {Object} [options]
+ * @param {Function} [options.send] - Takes callClaudeMessages' arguments and result shape
+ * @param {string} [options.provider] - Provider recorded in promptMeta.inference
  * @returns {Promise<Object>} { reading, prompts, usage, promptMeta, model }
  */
-export async function generateWithClaudeApi(env, payload, requestId = 'unknown') {
+export async function generateWithClaudeApi(env, payload, requestId = 'unknown', {
+  send = callClaudeMessages,
+  provider = 'claude-api'
+} = {}) {
   const { systemPrompt, userPrompt, promptMeta } = buildAzureGPT5Prompts(env, payload, requestId, {
     backendId: 'claude-api',
     providerLabel: 'Claude Messages API',
     budgetTarget: 'claude'
   });
 
-  const result = await callClaudeMessages(env, {
+  const result = await send(env, {
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
     maxTokens: CLAUDE_API_READING_MAX_TOKENS,
@@ -918,7 +927,7 @@ export async function generateWithClaudeApi(env, payload, requestId = 'unknown')
 
   console.log(`[${requestId}] Generated Claude reading length: ${result.text.length} characters`);
   if (promptMeta) {
-    promptMeta.inference = { provider: 'claude-api', model: result.model };
+    promptMeta.inference = { provider, model: result.model };
   }
 
   return {

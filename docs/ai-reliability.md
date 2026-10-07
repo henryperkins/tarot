@@ -49,20 +49,35 @@ executing its CLI is required to generate samples. Never use an import as a way
 to run a benchmark. Unit tests stub inference and verify import behavior with
 invalid dummy credentials.
 
-`npm run ci:release-check` defaults to `claude-api`, matching the primary provider.
-Configure `ANTHROPIC_API_KEY` as a private Workers Builds/GitHub Actions build secret,
-not a plaintext Worker variable or committed file. The deployment step receives
-the key and runs fresh primary-provider QA before any remote migration or rollout.
-Ordinary CI checks saved narrative samples offline; those samples do not qualify
-the current provider. This keeps each deployment to one fresh narrative batch,
-and GitHub preserves its evidence even if the deployment fails.
-Missing primary credentials fail release QA; they do
-not silently qualify a backup provider. An explicit `NARRATIVE_EVAL_BACKEND`
-override can test Modal or OpenAI, but that result qualifies the chosen provider.
+`npm run ci:release-check` defaults to the `claude-subscription` backend. It builds
+the exact `claude-api` reading request: the same prompts, `ANTHROPIC_MODEL`,
+`ANTHROPIC_EFFORT`, `ANTHROPIC_TIMEOUT_MS` deadline and 32,000-token output ceiling.
+It then sends that request through the release host's Claude Code subscription
+login (`services/claude-code/runner.mjs`) instead of the paid API key. The samples
+therefore qualify the primary provider's model and settings without per-token
+charges. A sample answered by any other model fails. The server-side advisor
+tool is disabled, so the request has no tools, as on the API.
 
-Live narrative QA generates synthetic samples and incurs provider charges.
-Review the sample count, task settings and current pricing before running it;
-retry attempts can also incur charges. Offline provider/route tests are not live
+Claude Code 2.1.292 still differs from the API request in ways no supported
+setting removes. It prefixes the system prompt with an Agent SDK identity line.
+It adds about 510 tokens of context reminders: working directory and OS, the
+model name, today's date, and the logged-in account's email address. The API's
+server-side refusal fallback is unavailable, so a refused sample fails the gate
+rather than switching models. Claude Code also applies its own transport retries.
+
+Release QA checks `claude auth status` before the code checks start. It accepts
+only a first-party `claude.ai` subscription login; API-key logins and
+`CLAUDE_CODE_OAUTH_TOKEN` are refused. Run `claude auth login` on the release host
+first. Hosted runners (GitHub Actions and Workers Builds) lack that login, so
+`npm run deploy` runs from the owner's host, and no workflow receives
+`ANTHROPIC_API_KEY`. Paid API QA needs an explicit `NARRATIVE_EVAL_BACKEND=claude-api`
+override plus the key. An explicit override can also test Modal or OpenAI, but
+that result qualifies only the chosen provider. Ordinary CI checks the committed
+narrative samples offline; those samples do not qualify the current provider.
+
+Live narrative QA generates 11 synthetic samples, which count toward the
+subscription's shared usage limits. Paid-provider overrides incur charges, and
+retry attempts can add to them. Offline provider/route tests are not live
 model-quality evidence. A vision photo gate additionally needs the independent
 held-out corpus described in [vision evaluation integrity](vision-evaluation-integrity.md).
 Neither a mock run nor generated card art substitutes for that corpus.
@@ -70,7 +85,7 @@ Neither a mock run nor generated card art substitutes for that corpus.
 ## Rollout
 
 1. Review the branch and migration results, including existing usage/quality data.
-2. Configure the primary QA build secret and run one recorded live narrative gate.
+2. Log the release host into the Claude subscription and run one recorded live narrative gate.
 3. Apply migrations and deploy the reviewed version through the normal release path.
 4. Verify the active Worker version, assets, login, quota behavior and retry UI.
 5. Inspect logical attempt failures and safety outages before changing evaluator
