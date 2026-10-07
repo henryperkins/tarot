@@ -1,5 +1,9 @@
 # AI reliability verification — October 7, 2026
 
+**Release update:** [Production release evidence](2026-10-07-ai-reliability-release.md)
+records successful fresh Claude QA, applied migrations, publication and live checks.
+The implementation snapshot below retains its original pre-release limits.
+
 Implemented on `codex/ai-reliability-20261007`, based on `c5139fe`, in the isolated
 worktree `.worktrees/ai-reliability-20261007`. The original checkout remains at
 `2406ed1` with its unrelated changes preserved. This report describes local
