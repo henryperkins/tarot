@@ -51,8 +51,12 @@ invalid dummy credentials.
 
 `npm run ci:release-check` defaults to `claude-api`, matching the primary provider.
 Configure `ANTHROPIC_API_KEY` as a private Workers Builds/GitHub Actions build secret,
-not a plaintext Worker variable or committed file. The GitHub narrative QA step
-explicitly selects Claude. Missing primary credentials fail release QA; they do
+not a plaintext Worker variable or committed file. The deployment step receives
+the key and runs fresh primary-provider QA before any remote migration or rollout.
+Ordinary CI checks saved narrative samples offline; those samples do not qualify
+the current provider. This keeps each deployment to one fresh narrative batch,
+and GitHub preserves its evidence even if the deployment fails.
+Missing primary credentials fail release QA; they do
 not silently qualify a backup provider. An explicit `NARRATIVE_EVAL_BACKEND`
 override can test Modal or OpenAI, but that result qualifies the chosen provider.
 

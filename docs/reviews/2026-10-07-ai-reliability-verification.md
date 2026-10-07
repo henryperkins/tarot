@@ -40,9 +40,9 @@ See [implementation details](../ai-reliability.md),
 
 | Check | Result |
 | --- | --- |
-| Root unit suite with outbound network denied | 2,816 passed; no failures/skips |
+| Root unit suite with outbound network denied | 2,818 passed; no failures/skips |
 | Additional functions safety/evaluation/telemetry tests | 80 passed |
-| Deploy/release command tests | 34 passed |
+| Deploy/release command tests | 36 passed |
 | Independent review after corrections | 270 tests passed; no unresolved material findings |
 | Production frontend build | Passed, 11.72 seconds |
 | Maintained documentation links | Passed |
@@ -71,11 +71,13 @@ voice-enable callback. The final unit count includes the resulting regressions.
 
 ## Release limits and remaining actions
 
-No external inference was performed during this implementation. No production
-migration, deployment, shared-branch push or secret deletion was performed.
+No external inference was performed during this implementation or release
+preparation. No production migration, deployment or secret deletion was performed.
 
 - Fresh primary-Claude QA is unrun: `ANTHROPIC_API_KEY` is absent from the local
-  shell and known local configuration. Configure the private build secret and run
+  shell, local configuration, GitHub Actions and both Workers Builds triggers.
+  The existing runtime Worker secret is present but cannot be read back to supply
+  build QA. Configure the private build secret and run
   one recorded live narrative gate before rollout. Existing saved narrative gates
   pass, but use nine April 24 OpenAI samples and do not qualify current Claude.
 - The vision gate fails its evidence requirements: current independently labeled
@@ -84,9 +86,29 @@ migration, deployment, shared-branch push or secret deletion was performed.
   mocked route checks as model-quality evidence.
 - Clef has no live comparison result and is not qualified or activated.
 - Apply migrations 0033–0035 through the reviewed release path. They were tested
-  locally with SQLite, including concurrency and historical aggregate preservation;
-  validate against a representative production snapshot before the aggregate-table
-  rebuild. Rollout needs subsequent active-version and live behavior verification.
+  locally with SQLite, including concurrency and historical aggregate preservation.
+  Release preparation checked the current production schema and all 36 historical
+  checksums using schema/count queries, and rehearsed the three migrations against
+  that schema with representative synthetic data. All 175 synthetic aggregates
+  retained every original field and ID; indexes, narration triggers, foreign keys
+  and integrity checks passed. No production rows were exported. Preserve a normal
+  production recovery point before the aggregate-table rebuild, then verify counts
+  and schema. Rollout needs active-version and live behavior verification.
 - Attempt telemetry is best effort and does not itemize SDK retries or reconstruct
   unknown vendor charges. Word Sync direct-browser synthesis remains bounded by
   token issuance safeguards rather than exact narration accounting.
+
+## Release preparation follow-up
+
+The release workflow now keeps ordinary CI offline: it recomputes metrics from
+saved samples and checks regression thresholds and prompt assembly. The deployment
+step alone receives the Claude key and runs mandatory fresh QA before migrations.
+Fresh evaluation evidence uploads on success or failure. This prevents duplicate
+paid narrative batches in the CI and deployment workflow. Independent review and
+19 focused release-policy tests passed after this adjustment.
+
+GitHub's current check annotation says jobs cannot start because the account is
+locked due to a billing issue. Workers Builds is separate: its default-branch
+trigger has an empty build command and `npm run deploy`, which preserves the normal
+release gate. Its Claude build secret is missing. Non-production branches build
+and upload preview versions without activating production or applying migrations.

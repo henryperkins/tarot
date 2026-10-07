@@ -59,6 +59,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           # Build the flags based on inputs
           FLAGS=""
@@ -71,6 +72,15 @@ jobs:
 
           # Run the deployment script
           node scripts/deploy.js --verbose $FLAGS
+
+      - name: Preserve fresh narrative evaluation evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: narrative-evaluation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: data/evaluations/runs/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Deployment summary
         if: success()
@@ -95,5 +105,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Common issues:**" >> $GITHUB_STEP_SUMMARY
           echo "- Missing CLOUDFLARE_API_TOKEN secret" >> $GITHUB_STEP_SUMMARY
+          echo "- Missing ANTHROPIC_API_KEY secret for primary-provider QA" >> $GITHUB_STEP_SUMMARY
           echo "- Migration SQL syntax error" >> $GITHUB_STEP_SUMMARY
           echo "- Build failure" >> $GITHUB_STEP_SUMMARY
