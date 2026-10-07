@@ -36,7 +36,10 @@ Fresh sample/metric evidence is retained under the ignored evaluation run
 `data/evaluations/runs/2026-10-07T10-21-48.723Z-mq24Bf/`, with an additional copy
 and deployment, recovery, public-check and provenance reports under
 `/tmp/tableu-ai-reliability-20261007/`. Generated QA files were preserved before
-restoring the committed offline fixtures. No secret value was printed or committed.
+restoring the committed offline fixtures. A follow-up commit replaced those fixtures
+(nine April 24 OpenAI samples) with this batch's 11 Claude samples and metrics, so
+the offline regression gate now checks Opus 5.5 output. No secret value was printed
+or committed.
 
 ## Remaining qualification and operational limits
 
