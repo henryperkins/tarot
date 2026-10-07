@@ -70,7 +70,16 @@
 - [x] Retain the existing 19:46 run as historical evidence; generate a fresh run for the changed transport.
 - [x] Run the full local release checks, build, scoped lint, docs checks, and Chromium/WebKit media verification.
 - [x] Request whole-branch review, resolve material findings, and commit the reconciled changes.
-- [ ] Integrate the verified commit into local `master`, preserving loose files; keep publication distinct from reconciliation.
+- [x] Integrate the verified commit into local `master`, preserving loose files; keep publication distinct from reconciliation.
 - [x] Verify archive hashes, clean merged worktrees, ancestry and exact tips before cleanup.
 - [x] Remove redundant merged worktrees and local/remote branches; retain unique and archive refs.
-- [ ] Verify final Git inventory, recoverability, and loose-file preservation.
+- [x] Verify final Git inventory, recoverability, and loose-file preservation.
+
+## Completion evidence
+
+- Frozen source `14efa98` passed `ci:release-check`: 2,899 unit tests, 42 deployment tests, Cloudflare command validation, docs links, and 11 live subscription samples. Story spine and card coverage were 100%; no sample was flagged. Every response used the pinned `claude-opus-5-5` model.
+- The qualified dataset was committed in `cb6af0f` and integrated into local `master`. The integrated checkout passed all 2,899 unit tests. Build, scoped lint, and ten Chromium/WebKit media cases passed; built Worker coverage included real local Pro authentication and mocked guest/Free/Plus quota cases.
+- Whole-branch review found one mixed-model parser defect, fixed with failing-then-passing regressions for the parser, local CLI, and actual private gateway. No review findings remain.
+- Nine original merged worktrees, eleven original merged local branches, and five merged GitHub branches were removed after preservation; approximately 6.3 GB was reclaimed. Both temporary verification worktrees and their merged branch were also removed.
+- Two worktrees and three local branches remain: `master`, the backed-up unique QA branch, and `fix/media-followups`. The narrative archive and six Dependabot PRs remain on GitHub. The original `.impeccable` patch and all 30 loose plugin files match their backups.
+- Vision photo qualification remains unrun because no held-out corpus was configured. Physical devices and live TTS-provider behavior were not tested. Local `master` was not published or deployed.
