@@ -22,12 +22,19 @@ import {
 } from '../../shared/vision/deckAssets.js';
 
 const EVAL_PROMPT_VERSION = '2.4.0';
-const DEFAULT_MODEL = '@cf/zai-org/glm-5.3-flash';
-// GLM-5.3 Flash always reasons; 'low' keeps the sync gate well inside its
-// timeout (2-9 s in the 2026-10-07 probe, against 14-22 s at 'high').
+// Async scoring runs in waitUntil(), so it can use the full GLM-5.3. The sync
+// gate holds the reading response, so it uses the faster GLM-5.3 Flash.
+const DEFAULT_MODEL = '@cf/zai-org/glm-5.3';
+const DEFAULT_GATE_MODEL = '@cf/zai-org/glm-5.3-flash';
+// Both GLM models always reason; 'low' keeps them inside their timeouts. In
+// the 2026-10-07 probes Flash took 2-9 s at 'low' (14-22 s at 'high') and
+// GLM-5.3 took 3-47 s at 'low'.
+const GLM_REASONING_MODELS = new Set([DEFAULT_MODEL, DEFAULT_GATE_MODEL]);
 const DEFAULT_REASONING_EFFORT = 'low';
 const EVAL_REASONING_EFFORTS = new Set(['none', 'low', 'medium', 'high', 'xhigh', 'max']);
-const DEFAULT_TIMEOUT_MS = 15000;
+// waitUntil() allows 30 s after the response; leave room for the D1 write.
+const DEFAULT_TIMEOUT_MS = 28000;
+const DEFAULT_GATE_TIMEOUT_MS = 15000;
 const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int for timers
 
 // Input length limits to prevent context overflow and timeouts
@@ -1223,10 +1230,10 @@ export function getEvaluationTimeoutMs(env) {
   return parseTimeoutMs(env?.EVAL_TIMEOUT_MS) ?? DEFAULT_TIMEOUT_MS;
 }
 
-// The sync gate holds the reading response, so it gets its own (usually
-// shorter) timeout; async evaluation runs in waitUntil() and can wait longer.
+// The sync gate holds the reading response, so it gets its own shorter
+// timeout; async evaluation runs in waitUntil() and can wait longer.
 export function getEvaluationGateTimeoutMs(env) {
-  return parseTimeoutMs(env?.EVAL_GATE_TIMEOUT_MS) ?? getEvaluationTimeoutMs(env);
+  return parseTimeoutMs(env?.EVAL_GATE_TIMEOUT_MS) ?? DEFAULT_GATE_TIMEOUT_MS;
 }
 
 function buildCardsList(cardsInfo = [], maxLength = MAX_CARDS_INFO_LENGTH) {
@@ -1532,15 +1539,31 @@ function shouldUseResponsesApi(model) {
 }
 
 /**
- * Reasoning effort sent to the evaluator. EVAL_REASONING_EFFORT wins; the
- * default model gets DEFAULT_REASONING_EFFORT; other models get none sent.
+ * Reasoning effort sent to the evaluator. A configured effort wins; GLM-5.3
+ * models get DEFAULT_REASONING_EFFORT; other models get none sent.
  */
-function resolveEvalReasoningEffort(env, model) {
-  const configured = typeof env?.EVAL_REASONING_EFFORT === 'string'
-    ? env.EVAL_REASONING_EFFORT.trim().toLowerCase()
+function resolveEvalReasoningEffort(configuredEffort, model) {
+  const configured = typeof configuredEffort === 'string'
+    ? configuredEffort.trim().toLowerCase()
     : '';
   if (configured) return EVAL_REASONING_EFFORTS.has(configured) ? configured : null;
-  return model === DEFAULT_MODEL ? DEFAULT_REASONING_EFFORT : null;
+  return GLM_REASONING_MODELS.has(model) ? DEFAULT_REASONING_EFFORT : null;
+}
+
+// The sync gate has its own model, effort and timeout; async scoring uses
+// EVAL_MODEL, EVAL_REASONING_EFFORT and EVAL_TIMEOUT_MS.
+function resolveEvaluatorSettings(env, { gate = false } = {}) {
+  const model = gate
+    ? env?.EVAL_GATE_MODEL || DEFAULT_GATE_MODEL
+    : env?.EVAL_MODEL || DEFAULT_MODEL;
+  return {
+    model,
+    reasoningEffort: resolveEvalReasoningEffort(
+      gate ? env?.EVAL_GATE_REASONING_EFFORT : env?.EVAL_REASONING_EFFORT,
+      model
+    ),
+    timeoutMs: gate ? getEvaluationGateTimeoutMs(env) : getEvaluationTimeoutMs(env)
+  };
 }
 
 function buildEvaluationRequest(model, userPrompt, systemPrompt, { reasoningEffort = null } = {}) {
@@ -1610,11 +1633,12 @@ function extractEvalResponseText(response) {
  * @param {Array} params.cardsInfo - Cards in the spread
  * @param {string} params.spreadKey - Spread type identifier
  * @param {string} params.requestId - Request ID for logging
- * @param {number} [params.timeoutMs] - Overrides EVAL_TIMEOUT_MS (the sync gate passes EVAL_GATE_TIMEOUT_MS)
+ * @param {boolean} [params.gate] - Use the sync gate's model, effort and timeout
+ * @param {number} [params.timeoutMs] - Overrides the resolved timeout
  * @returns {Promise<Object|null>} Evaluation results or null on skip
  */
 export async function runEvaluation(env, params = {}) {
-  const { reading = '', userQuestion, cardsInfo, spreadKey, narrativeMetrics = {}, requestId = 'unknown', timeoutMs: timeoutOverrideMs } = params;
+  const { reading = '', userQuestion, cardsInfo, spreadKey, narrativeMetrics = {}, requestId = 'unknown', gate = false, timeoutMs: timeoutOverrideMs } = params;
 
   if (!env?.AI) {
     console.log(`[${requestId}] [eval] Skipped: AI binding not available`);
@@ -1627,8 +1651,9 @@ export async function runEvaluation(env, params = {}) {
   }
 
   const startTime = Date.now();
-  const model = env.EVAL_MODEL || DEFAULT_MODEL;
-  const timeoutMs = parseTimeoutMs(timeoutOverrideMs) ?? getEvaluationTimeoutMs(env);
+  const settings = resolveEvaluatorSettings(env, { gate });
+  const model = settings.model;
+  const timeoutMs = parseTimeoutMs(timeoutOverrideMs) ?? settings.timeoutMs;
   const gatewayId = env.EVAL_GATEWAY_ID || null;
 
   try {
@@ -1642,7 +1667,7 @@ export async function runEvaluation(env, params = {}) {
     });
 
     const { payload: evalPayload, format: payloadFormat } = buildEvaluationRequest(model, userPrompt, systemPrompt, {
-      reasoningEffort: resolveEvalReasoningEffort(env, model)
+      reasoningEffort: settings.reasoningEffort
     });
 
     console.log(`[${requestId}] [eval] Starting evaluation with ${model} (${payloadFormat} payload)`);
@@ -2222,7 +2247,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
     const startTime = Date.now();
 
     // Try AI evaluation first
-    let evalResult = await runEvaluation(env, { ...enrichedParams, timeoutMs: getEvaluationGateTimeoutMs(env) });
+    let evalResult = await runEvaluation(env, { ...enrichedParams, gate: true });
     let evalSource = evalResult && !evalResult.error ? 'ai' : null;
 
     if (evalResult && evalResult.scores) {

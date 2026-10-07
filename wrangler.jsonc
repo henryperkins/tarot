@@ -107,14 +107,19 @@
     "STREAMING_QUALITY_GATE_ENABLED": "false",
     "STREAMING_SAFETY_SCAN_ENABLED": "false",
     "EVAL_ENABLED": "true",
-    "EVAL_MODEL": "@cf/zai-org/glm-5.3-flash",
-    // GLM-5.3 Flash always reasons; low keeps the sync gate inside its timeout.
+    // Async scoring runs in waitUntil() on the full GLM-5.3. The sync gate
+    // (sensitive-topic readings) holds the reading response, so it stays on
+    // the faster GLM-5.3 Flash. Both always reason; low keeps them inside
+    // their timeouts.
+    "EVAL_MODEL": "@cf/zai-org/glm-5.3",
     "EVAL_REASONING_EFFORT": "low",
+    "EVAL_GATE_MODEL": "@cf/zai-org/glm-5.3-flash",
+    "EVAL_GATE_REASONING_EFFORT": "low",
     // EVAL_TIMEOUT_MS bounds the async evaluation, which runs in waitUntil()
-    // (30s budget after the response, shared with other background work).
-    // EVAL_GATE_TIMEOUT_MS bounds the sync gate, which holds the reading
-    // response; it falls back to EVAL_TIMEOUT_MS when unset.
-    "EVAL_TIMEOUT_MS": "20000",
+    // (30s budget after the response, shared with other background work);
+    // 28s leaves room for the D1 write. EVAL_GATE_TIMEOUT_MS bounds the sync
+    // gate, which holds the reading response.
+    "EVAL_TIMEOUT_MS": "28000",
     "EVAL_GATE_TIMEOUT_MS": "15000",
     // EVAL_GATE_ENABLED: When "true", readings that fail quality evaluation are
     // replaced with a safe fallback. CAUTION: If eval model is unavailable,

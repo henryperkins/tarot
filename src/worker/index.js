@@ -405,9 +405,12 @@ function addCorsHeaders(response, request) {
  * @property {string} ADMIN_API_KEY - Admin API key for manual archival
  * @property {string} ENABLE_DEBUG_ROUTES - Enables debug endpoints when set to "true"
  * @property {string} EVAL_ENABLED - Enable evaluation (string flag)
- * @property {string} EVAL_MODEL - Workers AI model id for evaluation
+ * @property {string} EVAL_MODEL - Workers AI model id for async evaluation
+ * @property {string} EVAL_REASONING_EFFORT - Reasoning effort for async evaluation
  * @property {string} EVAL_TIMEOUT_MS - Async evaluation timeout in milliseconds
- * @property {string} EVAL_GATE_TIMEOUT_MS - Sync evaluation gate timeout in milliseconds (defaults to EVAL_TIMEOUT_MS)
+ * @property {string} EVAL_GATE_MODEL - Workers AI model id for the sync evaluation gate
+ * @property {string} EVAL_GATE_REASONING_EFFORT - Reasoning effort for the sync evaluation gate
+ * @property {string} EVAL_GATE_TIMEOUT_MS - Sync evaluation gate timeout in milliseconds
  * @property {string} EVAL_GATE_ENABLED - Enable gating on eval results
  * @property {string} EVAL_GATEWAY_ID - AI Gateway id for routing eval calls
  */
