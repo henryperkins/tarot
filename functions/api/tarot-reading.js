@@ -4,8 +4,9 @@
  * Enhanced with authentic position-relationship analysis, elemental dignities,
  * and spread-specific narrative construction.
  *
- * Delegates narrative synthesis to Qwen on Modal, then falls back through the
- * configured OpenAI/Azure, Claude, and local deterministic providers.
+ * Delegates narrative synthesis to Claude through the Anthropic API, then falls
+ * back through Qwen on Modal, the configured OpenAI/Azure provider, and the
+ * local deterministic composer.
  */
 
 // Core imports
@@ -1184,8 +1185,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     const configuredQualityGateStreamingEnabled = qualityGateExplicit
       ? normalizeBooleanFlag(env?.STREAMING_QUALITY_GATE_ENABLED)
       : true;
-    const modalNarrativeAvailable = Boolean(NARRATIVE_BACKENDS['modal-qwen']?.isAvailable(env));
-    const azureStreamingAvailable = !modalNarrativeAvailable && Boolean(NARRATIVE_BACKENDS['azure-gpt5']?.isAvailable(env));
+    // Only the Responses API streams tokens, so stream only when it is the primary provider.
+    const azureStreamingAvailable = getAvailableNarrativeBackends(env)[0]?.id === 'azure-gpt5';
     const wantsAzureStreaming = useStreaming && tokenStreamingEnabled && azureStreamingAvailable;
     const canUseAzureStreaming = wantsAzureStreaming && allowStreamingGateBypass;
     let qualityGateStreamingEnabled = configuredQualityGateStreamingEnabled;

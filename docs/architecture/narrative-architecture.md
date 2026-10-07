@@ -52,7 +52,7 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
                      │              BACKEND SELECTION              │
                      │  • availability and per-attempt A/B assignment      │
                      │  NARRATIVE_BACKEND_ORDER:                    │
-                     │  modal-qwen → azure-gpt5 → claude-opus45 →   │
+                     │  claude-api → modal-qwen → azure-gpt5 →      │
                      │  local-composer                               │
                      │  azure-gpt5 = native OpenAI Responses or      │
                      │  Azure OpenAI Responses                       │
@@ -61,9 +61,9 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
                                         ▼
              ┌─────────────────────────────────────────────────┐
              │           PROVIDER ATTEMPT LOOP                 │
-             │  1. modal-qwen (Qwen via Modal)                │
-             │  2. azure-gpt5 (native OpenAI or Azure)       │
-             │  3. claude-opus45 (Azure AI Foundry)           │
+             │  1. claude-api (Claude via Anthropic API)      │
+             │  2. modal-qwen (Qwen via Modal)                │
+             │  3. azure-gpt5 (native OpenAI or Azure)       │
              │  4. local-composer (deterministic fallback)   │
              └──────────────────┬──────────────────────────┘
                                         │
@@ -196,8 +196,8 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
              │              CLIENT RESPONSE                    │
              │  {                                              │
              │    reading: "Narrative text...",                │
-             │    provider: "modal-qwen | openai-native |      │
-             │      azure-gpt5 | claude-opus45 | local-composer",│
+             │    provider: "claude-api | modal-qwen |         │
+             │      openai-native | azure-gpt5 | local-composer",│
              │    themes: {...},                               │
              │    context: "love",                             │
              │    spreadAnalysis: {...},                       │
@@ -206,7 +206,7 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
              └─────────────────────────────────────────────────┘
 ```
 
-For `modal-qwen`, `azure-gpt5`, and `claude-opus45`, the prompt-construction layer
+For `claude-api`, `modal-qwen`, and `azure-gpt5`, the prompt-construction layer
 assembles system and user prompts. `local-composer` bypasses LLM prompt assembly and
 uses the reasoning-aware spread builders directly.
 
@@ -271,7 +271,7 @@ No cross-request bleed in production.
 3. **Crisis check** performed (1-2ms)
 4. **Spread analysis** computed (50-100ms)
 5. **Reasoning chain** built from the actual spread and question
-6. **Backend selected** in order: `modal-qwen` → `azure-gpt5` → `claude-opus45` → `local-composer`
+6. **Backend selected** in order: `claude-api` → `modal-qwen` → `azure-gpt5` → `local-composer`
 7. **Prompt or local composition** constructed (10-20ms):
    - Token budgeting and GraphRAG retrieval for LLM paths
    - Spread-specific sections and reasoning-aware synthesis

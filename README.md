@@ -12,7 +12,7 @@ Tableu is an AI-powered tarot reading application built around a React web clien
 ## Core Features
 
 - Multiple spread types, including One-Card Insight, Three-Card Story, Five-Card Clarity, Decision/Two-Path, Relationship Snapshot, and Celtic Cross
-- LLM-generated readings with the configured provider order: `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `claude-opus45` → `local-composer`
+- LLM-generated readings with the configured provider order: `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `local-composer`
 - Knowledge-graph and GraphRAG-assisted narrative context
 - Deepgram Aura-2 (Workers AI), Azure Speech SDK, and Hume-backed narration options
 - Journal, sharing, follow-ups, and subscription-aware feature gating

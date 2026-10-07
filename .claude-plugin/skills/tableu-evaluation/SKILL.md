@@ -120,7 +120,7 @@ Key variables, with their values in `wrangler.jsonc`:
 | `EVAL_ENABLED` | `"true"` | Master evaluation switch (off if unset) |
 | `EVAL_GATE_ENABLED` | `"false"` | Block readings on low scores |
 | `EVAL_GATE_FAILURE_MODE` | `"closed"` | Gate behavior when the model evaluation fails: `open` or `closed` |
-| `EVAL_MODEL` | `@cf/qwen/qwen3-30b-a3b-fp8` | Workers AI model (also the code default) |
+| `EVAL_MODEL` | `@cf/zai-org/glm-5.3-flash` | Workers AI model (also the code default) |
 | `EVAL_TIMEOUT_MS` | `"20000"` | Async evaluation timeout (15000 if unset) |
 | `EVAL_GATE_TIMEOUT_MS` | `"15000"` | Sync gate evaluation timeout (`EVAL_TIMEOUT_MS` if unset) |
 | `METRICS_STORAGE_MODE` | `"redact"` | PII handling: full/redact/minimal |

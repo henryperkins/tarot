@@ -157,7 +157,7 @@ describe('evaluation', () => {
 
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
-      assert.equal(result.model, '@cf/qwen/qwen3-30b-a3b-fp8');
+      assert.equal(result.model, '@cf/zai-org/glm-5.3-flash');
       assert.equal(result.promptVersion, '2.4.0');
     });
 
@@ -398,7 +398,50 @@ describe('evaluation', () => {
       assert.equal(capturedParams.messages.length, 2);
       assert.equal(capturedParams.max_tokens, 2048);
       assert.equal(capturedParams.temperature, 0.1);
+      assert.deepEqual(capturedParams.response_format, { type: 'json_object' });
+      assert.ok(!('reasoning_effort' in capturedParams), 'only the default model gets a default effort');
       assert.ok(!capturedParams.input);
+    });
+
+    test('asks the default GLM evaluator for JSON at low reasoning effort', async () => {
+      const calls = [];
+      const capturingMockAI = {
+        run: async (model, params) => {
+          calls.push({ model, params });
+          return {
+            choices: [{
+              message: {
+                content: JSON.stringify({
+                  personalization: 4,
+                  tarot_coherence: 4,
+                  tone: 4,
+                  safety: 4,
+                  overall: 4,
+                  safety_flag: false
+                })
+              }
+            }]
+          };
+        }
+      };
+      const params = {
+        reading: 'test',
+        userQuestion: 'test',
+        cardsInfo: [],
+        spreadKey: 'test',
+        requestId: 'glm-default'
+      };
+
+      const result = await runEvaluation({ AI: capturingMockAI, EVAL_ENABLED: 'true' }, params);
+      await runEvaluation({ AI: capturingMockAI, EVAL_ENABLED: 'true', EVAL_REASONING_EFFORT: 'High' }, params);
+      await runEvaluation({ AI: capturingMockAI, EVAL_ENABLED: 'true', EVAL_REASONING_EFFORT: 'sideways' }, params);
+
+      assert.equal(result.scores.overall, 4);
+      assert.equal(calls[0].model, '@cf/zai-org/glm-5.3-flash');
+      assert.deepEqual(calls[0].params.response_format, { type: 'json_object' });
+      assert.equal(calls[0].params.reasoning_effort, 'low');
+      assert.equal(calls[1].params.reasoning_effort, 'high');
+      assert.ok(!('reasoning_effort' in calls[2].params), 'an unknown effort is not sent');
     });
 
     test('parses choices message content when Responses API returns choices array', async () => {

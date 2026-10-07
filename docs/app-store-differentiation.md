@@ -243,7 +243,7 @@ Hardcoded into AI prompting:
 1. **Cloudflare Workers** — single Worker runtime with D1, KV, R2, and the configured `READING_JOBS` Durable Object (`ReadingJob`)
 2. **D1 Database** — user journey data and current `eval_metrics` records
 3. **Quality Evaluation System** — automated scoring of AI readings (personalization, coherence, tone, safety)
-4. **Narrative provider order** — `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `claude-opus45` → `local-composer`
+4. **Narrative provider order** — `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `local-composer`
 
 ---
 

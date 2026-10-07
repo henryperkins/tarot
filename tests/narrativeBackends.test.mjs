@@ -5,12 +5,13 @@ import {
   LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE,
   buildAzureGPT5Prompts,
   composeReadingEnhanced,
-  generateWithClaudeOpus45,
+  generateWithClaudeApi,
   getAvailableNarrativeBackends,
   getLocalComposerLanguageSupport,
   runNarrativeBackend
 } from '../functions/lib/narrativeBackends.js';
 import { applyGraphRAGAlerts } from '../functions/lib/graphRAGAlerts.js';
+import { CLAUDE_API_URL_PREFIX, claudeSseResponse } from './helpers/claudeSse.mjs';
 import {
   analyzeCelticCross,
   analyzeDecision,
@@ -657,6 +658,20 @@ describe('Claude backend + dispatch coverage', () => {
     });
   }
 
+  it('puts the Claude API ahead of Modal, the Responses API and the local composer', () => {
+    const backends = getAvailableNarrativeBackends({
+      ANTHROPIC_API_KEY: 'anthropic-test-key',
+      MODAL_PROXY_TOKEN_ID: 'test-id',
+      MODAL_PROXY_TOKEN_SECRET: 'test-secret',
+      MODAL_ENDPOINT_URL: 'https://example.modal.direct',
+      OPENAI_API_KEY: 'openai-test-key'
+    });
+    assert.deepEqual(
+      backends.map((backend) => backend.id),
+      ['claude-api', 'modal-qwen', 'azure-gpt5', 'local-composer']
+    );
+  });
+
   it('prioritizes Modal while retaining the configured Responses and local fallbacks', () => {
     const backends = getAvailableNarrativeBackends({
       MODAL_PROXY_TOKEN: 'wk-test.ws-test',
@@ -869,7 +884,7 @@ describe('Claude backend + dispatch coverage', () => {
     });
   });
 
-  it('generates via Claude with redacted prompt logging and promptMeta propagation', async () => {
+  it('generates via the Claude API with redacted prompt logging and promptMeta propagation', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'Past — influences that led here', 'Upright'),
       major('The Magician', 1, 'Present — where you stand now', 'Upright'),
@@ -895,9 +910,7 @@ describe('Claude backend + dispatch coverage', () => {
       }
     };
     const env = {
-      AZURE_ANTHROPIC_ENDPOINT: 'https://example.services.ai.azure.com/anthropic',
-      AZURE_ANTHROPIC_API_KEY: 'test-key',
-      AZURE_ANTHROPIC_MODEL: 'claude-opus-4-5',
+      ANTHROPIC_API_KEY: 'test-key',
       LOG_LLM_PROMPTS: 'true',
       NODE_ENV: 'development'
     };
@@ -911,29 +924,26 @@ describe('Claude backend + dispatch coverage', () => {
 
     try {
       const result = await withMockedFetch(async (url, options) => {
-        capturedRequest = { url, options };
-        return new Response(JSON.stringify({
-          id: 'claude-response-1',
-          model: 'claude-opus-4-5',
-          usage: { input_tokens: 12, output_tokens: 34 },
-          content: [{ text: 'Claude reading text.' }]
-        }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        });
-      }, async () => generateWithClaudeOpus45(env, payload, 'req-claude'));
+        assert.ok(String(url).startsWith(CLAUDE_API_URL_PREFIX));
+        capturedRequest = { url: String(url), options };
+        return claudeSseResponse([{ type: 'thinking' }, { type: 'text', text: 'Claude reading text.' }]);
+      }, async () => generateWithClaudeApi(env, payload, 'req-claude'));
 
       assert.equal(result.reading, 'Claude reading text.');
+      assert.equal(result.model, 'claude-opus-5-5');
+      assert.deepEqual(result.usage, { input_tokens: 120, output_tokens: 80, total_tokens: 200 });
       assert.ok(result.prompts.system.length > 0, 'Claude backend should return captured system prompt');
       assert.ok(result.prompts.user.length > 0, 'Claude backend should return captured user prompt');
       assert.ok(payload.promptMeta, 'Claude backend should propagate promptMeta onto the payload');
       assert.equal(payload.promptMeta.spreadKey, 'threeCard');
       assert.ok(payload.promptMeta.sourceUsage, 'Claude backend should propagate sourceUsage metadata');
+      assert.deepEqual(result.promptMeta.inference, { provider: 'claude-api', model: 'claude-opus-5-5' });
 
       const requestBody = JSON.parse(capturedRequest.options.body);
-      assert.equal(capturedRequest.url, 'https://example.services.ai.azure.com/anthropic/v1/messages');
-      assert.equal(capturedRequest.options.headers['x-api-key'], 'test-key');
-      assert.equal(requestBody.model, 'claude-opus-4-5');
+      assert.equal(requestBody.model, 'claude-opus-5-5');
+      assert.equal(requestBody.max_tokens, 32000);
+      assert.deepEqual(requestBody.output_config, { effort: 'xhigh' });
+      assert.ok(!('temperature' in requestBody), 'Opus 5.5 rejects sampling parameters');
       assert.equal(requestBody.system, result.prompts.system);
       assert.equal(requestBody.messages[0].content, result.prompts.user);
 
@@ -946,7 +956,7 @@ describe('Claude backend + dispatch coverage', () => {
     }
   });
 
-  it('throws on empty Claude responses', async () => {
+  it('throws on empty Claude API readings', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'One-Card Insight', 'Upright')
     ];
@@ -963,26 +973,16 @@ describe('Claude backend + dispatch coverage', () => {
       },
       context: 'general'
     };
-    const env = {
-      AZURE_ANTHROPIC_ENDPOINT: 'https://example.services.ai.azure.com/anthropic',
-      AZURE_ANTHROPIC_API_KEY: 'test-key'
-    };
 
-    await withMockedFetch(async () => new Response(JSON.stringify({
-      id: 'claude-response-2',
-      content: [{ text: '' }]
-    }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' }
-    }), async () => {
+    await withMockedFetch(async () => claudeSseResponse([{ type: 'thinking' }]), async () => {
       await assert.rejects(
-        generateWithClaudeOpus45(env, payload, 'req-empty-claude'),
-        /Empty response from Azure Claude Opus 4\.5/
+        generateWithClaudeApi({ ANTHROPIC_API_KEY: 'test-key' }, payload, 'req-empty-claude'),
+        /Claude API returned no reading text/
       );
     });
   });
 
-  it('dispatches azure-gpt5, claude-opus45, local-composer, and unknown ids deterministically', async () => {
+  it('dispatches azure-gpt5, claude-api, local-composer, and unknown ids deterministically', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'One-Card Insight', 'Upright')
     ];
@@ -1001,15 +1001,8 @@ describe('Claude backend + dispatch coverage', () => {
     };
 
     await withMockedFetch(async (url) => {
-      if (url.includes('/anthropic/')) {
-        return new Response(JSON.stringify({
-          id: 'claude-dispatch',
-          content: [{ text: 'Claude dispatch reading.' }],
-          usage: { input_tokens: 10, output_tokens: 20 }
-        }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        });
+      if (String(url).startsWith(CLAUDE_API_URL_PREFIX)) {
+        return claudeSseResponse('Claude dispatch reading.');
       }
 
       return new Response(JSON.stringify({
@@ -1037,9 +1030,8 @@ describe('Claude backend + dispatch coverage', () => {
       assert.equal(azureResult.reading, 'Azure dispatch reading.');
       assert.ok(azureResult.promptMeta, 'Azure dispatch should return promptMeta');
 
-      const claudeResult = await runNarrativeBackend('claude-opus45', {
-        AZURE_ANTHROPIC_ENDPOINT: 'https://example.services.ai.azure.com/anthropic',
-        AZURE_ANTHROPIC_API_KEY: 'claude-key'
+      const claudeResult = await runNarrativeBackend('claude-api', {
+        ANTHROPIC_API_KEY: 'claude-key'
       }, structuredClone(basePayload), 'req-claude-dispatch');
       assert.equal(claudeResult.reading, 'Claude dispatch reading.');
 

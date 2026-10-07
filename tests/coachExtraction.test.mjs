@@ -45,7 +45,9 @@ describe('coach extraction models', () => {
     const result = await extractNextStepsWithAI({ AI: ai }, LONG_NARRATIVE, 'test');
     assert.equal(result.status, 'ok');
     assert.deepEqual(result.steps, STEPS);
-    assert.equal(ai.calls[0].model, '@cf/meta/llama-4-scout-17b-16e-instruct');
+    assert.equal(ai.calls[0].model, '@cf/zai-org/glm-5.3-flash');
+    assert.equal(ai.calls[0].input.reasoning_effort, 'low');
+    assert.equal(ai.calls[0].input.max_tokens, 1024);
     assert.ok(LONG_NARRATIVE.length > 4000);
     assert.ok(ai.calls[0].input.messages[1].content.includes('### Gentle Next Steps'));
   });

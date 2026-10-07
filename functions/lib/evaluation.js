@@ -22,7 +22,11 @@ import {
 } from '../../shared/vision/deckAssets.js';
 
 const EVAL_PROMPT_VERSION = '2.4.0';
-const DEFAULT_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
+const DEFAULT_MODEL = '@cf/zai-org/glm-5.3-flash';
+// GLM-5.3 Flash always reasons; 'low' keeps the sync gate well inside its
+// timeout (2-9 s in the 2026-10-07 probe, against 14-22 s at 'high').
+const DEFAULT_REASONING_EFFORT = 'low';
+const EVAL_REASONING_EFFORTS = new Set(['none', 'low', 'medium', 'high', 'xhigh', 'max']);
 const DEFAULT_TIMEOUT_MS = 15000;
 const MAX_SAFE_TIMEOUT_MS = 2147483647; // Max 32-bit signed int for timers
 
@@ -1527,7 +1531,19 @@ function shouldUseResponsesApi(model) {
   return RESPONSES_MODEL_HINTS.some((hint) => model.includes(hint));
 }
 
-function buildEvaluationRequest(model, userPrompt, systemPrompt) {
+/**
+ * Reasoning effort sent to the evaluator. EVAL_REASONING_EFFORT wins; the
+ * default model gets DEFAULT_REASONING_EFFORT; other models get none sent.
+ */
+function resolveEvalReasoningEffort(env, model) {
+  const configured = typeof env?.EVAL_REASONING_EFFORT === 'string'
+    ? env.EVAL_REASONING_EFFORT.trim().toLowerCase()
+    : '';
+  if (configured) return EVAL_REASONING_EFFORTS.has(configured) ? configured : null;
+  return model === DEFAULT_MODEL ? DEFAULT_REASONING_EFFORT : null;
+}
+
+function buildEvaluationRequest(model, userPrompt, systemPrompt, { reasoningEffort = null } = {}) {
   const messages = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt }
@@ -1544,17 +1560,14 @@ function buildEvaluationRequest(model, userPrompt, systemPrompt) {
     };
   }
 
-  // Use JSON mode for models that support it (Qwen3, etc.)
-  // This forces the model to output valid JSON
-  const supportsJsonMode = model.includes('qwen') || model.includes('llama');
-  const responseFormat = supportsJsonMode ? { type: 'json_object' } : undefined;
-
+  // JSON mode makes chat models return a single JSON object.
   return {
     payload: {
       messages,
       max_tokens: EVAL_MAX_OUTPUT_TOKENS,
       temperature: EVAL_TEMPERATURE,
-      ...(responseFormat && { response_format: responseFormat })
+      response_format: { type: 'json_object' },
+      ...(reasoningEffort && { reasoning_effort: reasoningEffort })
     },
     format: 'chat'
   };
@@ -1628,7 +1641,9 @@ export async function runEvaluation(env, params = {}) {
       requestId
     });
 
-    const { payload: evalPayload, format: payloadFormat } = buildEvaluationRequest(model, userPrompt, systemPrompt);
+    const { payload: evalPayload, format: payloadFormat } = buildEvaluationRequest(model, userPrompt, systemPrompt, {
+      reasoningEffort: resolveEvalReasoningEffort(env, model)
+    });
 
     console.log(`[${requestId}] [eval] Starting evaluation with ${model} (${payloadFormat} payload)`);
 

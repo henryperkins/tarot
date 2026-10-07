@@ -74,7 +74,7 @@ flowchart TB
         StripeAPI["Stripe API – payments"]
         ModalQwen["Modal Qwen<br/>Chat Completions"]
         AzureGPT5["azure-gpt5<br/>OpenAI native Responses or Azure OpenAI Responses"]
-        Claude["Azure AI Foundry<br/>Claude Opus 4.5"]
+        Claude["Anthropic API<br/>Claude Opus 5.5"]
         AzureOpenAI["Azure OpenAI – TTS"]
         AzureSpeech["Azure Speech Service – client TTS"]
         HumeAI["Hume AI API – alt. TTS/emotion"]

@@ -10,7 +10,7 @@ Guidance for Claude Code when working with this repository.
 |-------|------|----------|
 | Frontend | React + Vite | `src/` |
 | Backend | Cloudflare Workers | `functions/api/` |
-| AI | `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `claude-opus45` → `local-composer` | `functions/api/tarot-reading.js`, `functions/lib/narrativeBackends.js`, `wrangler.jsonc` |
+| AI | `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `local-composer` | `functions/api/tarot-reading.js`, `functions/lib/narrativeBackends.js`, `wrangler.jsonc` |
 | Database | Cloudflare D1 | `migrations/*.sql` |
 | Storage | Cloudflare D1 + KV + R2 | `eval_metrics` in D1 is the primary reading/evaluation store; `METRICS_DB` KV carries media telemetry, media-usage counters, card-video job metadata, and ongoing legacy archival input; R2 stores generated/user media, exports, archives, and logs |
 
@@ -61,7 +61,7 @@ Shared logic goes in `shared/`; pure card/spread data in `src/data/` is also use
 2. **Ritual** — Knocks + cut position + question → `computeSeed()`
 3. **Draw** — `drawSpread()` uses seeded shuffle, assigns upright/reversed
 4. **Reveal** — Card flip animation, user reflections per card
-5. **Narrative** — Use `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `claude-opus45` → `local-composer` in `functions/lib/narrativeBackends.js`; do not assume a model from an older guide.
+5. **Narrative** — Use `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `local-composer` in `functions/lib/narrativeBackends.js`; do not assume a model from an older guide.
 
 **Pipeline**: `spreadAnalysis.js` (dignities, reversals) + `knowledgeGraph.js` (patterns) → `graphContext.js` → `graphRAG.js` (passages) → `prompts.js` → AI → structural quality gate (`tarot-reading.js` + `readingQuality.js`) → `evaluation.js` (async scoring). The same analysis invokes `buildReadingReasoning()`; the local composer wraps its builders with `buildReadingWithReasoning()`.
 

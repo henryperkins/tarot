@@ -16,7 +16,7 @@ async function main() {
     console.log('Vision qualification not run: VISION_EVAL_MANIFEST_DIR is unset. Photo recognition and symbol quality remain unverified.');
   }
   const backend = process.env.NARRATIVE_EVAL_BACKEND || 'modal-qwen';
-  if (!['modal-qwen', 'azure-gpt5', 'claude-opus45'].includes(backend)) {
+  if (!['claude-api', 'modal-qwen', 'azure-gpt5'].includes(backend)) {
     throw new Error('Release narrative QA requires a live configured provider; local-composer is diagnostic only.');
   }
   const env = { ...process.env, NARRATIVE_EVAL_BACKEND: backend };

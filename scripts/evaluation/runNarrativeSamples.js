@@ -17,6 +17,7 @@ import {
 } from '../../functions/lib/narrativeBackends.js';
 import { ensureAzureConfig, getReasoningEffort, getTextVerbosity } from '../../functions/lib/azureResponses.js';
 import { ensureModalConfig } from '../../functions/lib/modalChatCompletions.js';
+import { ensureAnthropicConfig } from '../../functions/lib/anthropicMessages.js';
 import { isGraphRAGEnabled, isSemanticScoringAvailable } from '../../functions/lib/graphRAG.js';
 import { resolveSemanticScoring } from '../../functions/lib/readingTelemetry.js';
 import { buildGraphRAGTelemetry } from '../../functions/lib/telemetrySchema.js';
@@ -187,7 +188,7 @@ const SAMPLE_DEFINITIONS = [
 ];
 
 function usage() {
-  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|claude-code|modal-qwen|local-composer|azure-gpt5|claude-opus45] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
+  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|claude-code|claude-api|modal-qwen|local-composer|azure-gpt5] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
   console.log(`\nOptions:`);
   console.log(`  --reference-time  Instant for astrological context (default ${DEFAULT_REFERENCE_TIME}; "now" for the live sky)`);
   console.log(`  --env-profile      "production" (default) layers the shell env over wrangler.jsonc vars; "shell" uses the shell env only`);
@@ -269,9 +270,9 @@ function describeBackendConfig(backendId, env) {
     const { model, reasoningEffort, stream, temperature, topP } = ensureModalConfig(env);
     return { provider: 'modal', model, reasoningEffort, stream, temperature, topP, outputTokenCap: null, verbosity: null };
   }
-  if (backendId === 'claude-opus45') {
-    // null means the backend's built-in default model.
-    return { provider: 'azure-anthropic', model: env.AZURE_ANTHROPIC_MODEL || null, reasoningEffort: null, verbosity: null };
+  if (backendId === 'claude-api') {
+    const { model, effort } = ensureAnthropicConfig(env);
+    return { provider: 'anthropic', model, reasoningEffort: effort, verbosity: null };
   }
   return { provider: 'local', model: null, reasoningEffort: null, verbosity: null };
 }

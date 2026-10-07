@@ -29,7 +29,7 @@ Use `.dev.vars` locally and `wrangler secret put <NAME> --config wrangler.jsonc`
 for separately authorized remote configuration. Never log values or user data.
 - `OPENAI_API_KEY` — OpenAI native Responses API key; provider selection follows the configured backend.
 - `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_GPT5_MODEL` — Azure fallback path
-- `AZURE_ANTHROPIC_ENDPOINT`, `AZURE_ANTHROPIC_API_KEY`, `AZURE_ANTHROPIC_MODEL`
+- `ANTHROPIC_API_KEY` — Claude Messages API key. When set, Claude (`ANTHROPIC_MODEL`, default `claude-opus-5-5`) is the first provider for readings, follow-up answers, suggested questions and journal summaries; `TEXT_PROVIDER=claude-code` still overrides it.
 - `VISION_PROOF_SECRET`
 - `EMAIL` `send_email` binding (Cloudflare Email Service) — email delivery for auth, billing and alerts, sent from `ALERT_EMAIL_FROM`; `RESEND_API_KEY` is only a fallback when the binding is absent
 - `ADMIN_API_KEY` — Admin endpoints

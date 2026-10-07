@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { modalSseResponse } from './helpers/modalSse.mjs';
+import { CLAUDE_API_URL_PREFIX, claudeSseResponse } from './helpers/claudeSse.mjs';
 
 import { onRequestGet, onRequestPost } from '../functions/api/tarot-reading.js';
 
@@ -136,51 +137,82 @@ function makeSafeMockAI({ safetyFlag = true, safety = 1, tone = 4 } = {}) {
 }
 
 describe('streaming gate metadata', () => {
+  // Token streaming runs only when the Responses API is the first provider, so
+  // a streaming failure continues with the providers after it.
   for (const failure of ['http', 'stream-error', 'empty']) {
-    for (const claudeAvailable of [true, false]) {
-      it(`continues from Azure ${failure} to ${claudeAvailable ? 'Claude' : 'local composer'}`, async (t) => {
-        const requestedUrls = [];
-        const quota = new Map();
-        t.mock.method(globalThis, 'fetch', async (url) => {
-          requestedUrls.push(String(url));
-          if (String(url).includes('claude.example')) {
-            return Response.json({ content: [{ type: 'text', text: VALID_MODAL_READING }] });
-          }
-          if (failure === 'http') return new Response('private upstream details', { status: 400 });
-          if (failure === 'empty') return new Response(createAzureStream([]));
-          return new Response('event: error\ndata: {"type":"error","error":{"message":"private upstream details"}}\n\n');
-        });
-        const response = await onRequestPost({
-          request: makeRequest(BASE_PAYLOAD),
-          env: {
-            AZURE_OPENAI_API_KEY: 'test-key',
-            AZURE_OPENAI_ENDPOINT: 'https://azure.example',
-            AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-            AZURE_OPENAI_STREAMING_ENABLED: 'true',
-            ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
-            EVAL_ENABLED: 'false',
-            EVAL_GATE_ENABLED: 'false',
-            GRAPHRAG_ENABLED: 'false',
-            RATELIMIT: {
-              get: async (key) => quota.get(key) || null,
-              put: async (key, value) => { quota.set(key, value); }
-            },
-            ...(claudeAvailable ? { AZURE_ANTHROPIC_ENDPOINT: 'https://claude.example' } : {})
-          }
-        });
-        assert.equal(response.status, 200);
-        const events = await collectSSEEvents(response);
-        const meta = events.find((event) => event.event === 'meta')?.data;
-        const done = events.find((event) => event.event === 'done')?.data;
-        assert.equal(done?.provider, claudeAvailable ? 'claude-opus45' : 'local-composer');
-        assert.ok(done.fullText.length > 0);
-        assert.equal(meta.backendErrors[0].backend, 'azure-gpt5');
-        assert.ok(!JSON.stringify(meta.backendErrors).includes('private upstream details'));
-        assert.equal(requestedUrls.filter((url) => url.includes('azure.example')).length, 1);
-        assert.deepEqual([...quota.entries()].filter(([key]) => key.startsWith('readings-monthly:')).map(([, value]) => value), ['1']);
+    it(`continues from Azure ${failure} to the local composer`, async (t) => {
+      const requestedUrls = [];
+      const quota = new Map();
+      t.mock.method(globalThis, 'fetch', async (url) => {
+        requestedUrls.push(String(url));
+        if (failure === 'http') return new Response('private upstream details', { status: 400 });
+        if (failure === 'empty') return new Response(createAzureStream([]));
+        return new Response('event: error\ndata: {"type":"error","error":{"message":"private upstream details"}}\n\n');
       });
-    }
+      const response = await onRequestPost({
+        request: makeRequest(BASE_PAYLOAD),
+        env: {
+          AZURE_OPENAI_API_KEY: 'test-key',
+          AZURE_OPENAI_ENDPOINT: 'https://azure.example',
+          AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
+          AZURE_OPENAI_STREAMING_ENABLED: 'true',
+          ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
+          EVAL_ENABLED: 'false',
+          EVAL_GATE_ENABLED: 'false',
+          GRAPHRAG_ENABLED: 'false',
+          RATELIMIT: {
+            get: async (key) => quota.get(key) || null,
+            put: async (key, value) => { quota.set(key, value); }
+          }
+        }
+      });
+      assert.equal(response.status, 200);
+      const events = await collectSSEEvents(response);
+      const meta = events.find((event) => event.event === 'meta')?.data;
+      const done = events.find((event) => event.event === 'done')?.data;
+      assert.equal(done?.provider, 'local-composer');
+      assert.ok(done.fullText.length > 0);
+      assert.equal(meta.backendErrors[0].backend, 'azure-gpt5');
+      assert.ok(!JSON.stringify(meta.backendErrors).includes('private upstream details'));
+      assert.equal(requestedUrls.filter((url) => url.includes('azure.example')).length, 1);
+      assert.deepEqual([...quota.entries()].filter(([key]) => key.startsWith('readings-monthly:')).map(([, value]) => value), ['1']);
+    });
   }
+
+  it('uses the Claude API ahead of Responses token streaming', async (t) => {
+    const requestedUrls = [];
+    const quota = new Map();
+    t.mock.method(globalThis, 'fetch', async (url) => {
+      requestedUrls.push(String(url));
+      if (String(url).startsWith(CLAUDE_API_URL_PREFIX)) return claudeSseResponse(VALID_MODAL_READING);
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    const response = await onRequestPost({
+      request: makeRequest(BASE_PAYLOAD),
+      env: {
+        ANTHROPIC_API_KEY: 'test-key',
+        AZURE_OPENAI_API_KEY: 'test-key',
+        AZURE_OPENAI_ENDPOINT: 'https://azure.example',
+        AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
+        AZURE_OPENAI_STREAMING_ENABLED: 'true',
+        ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
+        EVAL_ENABLED: 'false',
+        EVAL_GATE_ENABLED: 'false',
+        GRAPHRAG_ENABLED: 'false',
+        RATELIMIT: {
+          get: async (key) => quota.get(key) || null,
+          put: async (key, value) => { quota.set(key, value); }
+        }
+      }
+    });
+    assert.equal(response.status, 200);
+    const events = await collectSSEEvents(response);
+    const done = events.find((event) => event.event === 'done')?.data;
+    assert.equal(done?.provider, 'claude-api');
+    assert.equal(done.fullText, VALID_MODAL_READING);
+    assert.equal(requestedUrls.filter((url) => url.includes('azure.example')).length, 0);
+    assert.equal(requestedUrls.length, 1);
+  });
 
   it('refunds the reservation when Azure fails and no fallback supports the question language', async (t) => {
     const quota = new Map();
