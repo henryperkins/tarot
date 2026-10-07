@@ -23,7 +23,7 @@
 ## Integrations and data flow
 
 - Narratives use the configured order `modal-qwen` → `azure-gpt5` (native OpenAI or Azure Responses) → `claude-opus45` → `local-composer`; see `functions/lib/narrativeBackends.js` and `wrangler.jsonc`.
-- Evaluation runs async via Workers AI model `@cf/qwen/qwen3-30b-a3b-fp8` and stores results in D1 `eval_metrics`.
+- Evaluation runs async via Workers AI model `@cf/zai-org/glm-5.3-flash` and stores results in D1 `eval_metrics`.
 - Vision research mode uses `/api/vision-proof` and `VISION_PROOF_SECRET`; proof is optional but must be valid when provided.
 
 ## Dev, deploy, and tests

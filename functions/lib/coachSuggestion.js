@@ -11,7 +11,12 @@
  * - On journal load: Client clusters pre-computed data, picks top theme
  */
 
-const EXTRACTION_MODEL = '@cf/meta/llama-4-scout-17b-16e-instruct';
+// GLM-5.3 Flash always reasons; at 'low' it answered in 1-4 s in the
+// 2026-10-07 probe and keeps steps in the reading's language.
+const EXTRACTION_MODEL = '@cf/zai-org/glm-5.3-flash';
+const EXTRACTION_REASONING_EFFORT = 'low';
+// Reasoning counts toward max_tokens, so leave room beyond the short array.
+const EXTRACTION_MAX_TOKENS = 1024;
 // Same model as GraphRAG (embeddings.js): multilingual and quick.
 const EMBEDDING_MODEL = '@cf/baai/bge-m3';
 const DEFAULT_TIMEOUT_MS = 8000;
@@ -97,8 +102,9 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
           { role: 'system', content: EXTRACT_STEPS_SYSTEM },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 256,
-        temperature: 0.1
+        max_tokens: EXTRACTION_MAX_TOKENS,
+        temperature: 0.1,
+        reasoning_effort: EXTRACTION_REASONING_EFFORT
       },
       { signal: controller.signal }
     );

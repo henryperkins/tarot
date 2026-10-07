@@ -14,7 +14,7 @@ Tableu includes an automated quality assurance system that evaluates every AI-ge
 
 - **When it runs:** async after a reading via `waitUntil()`; a sync gate runs when `EVAL_GATE_ENABLED=true` or the selective policy forces it for a language or safety case
 - **Where scores live:** D1 table `eval_metrics` (runtime metrics + eval payload)
-- **Evaluator model:** Workers AI (default `@cf/qwen/qwen3-30b-a3b-fp8`)
+- **Evaluator model:** Workers AI (default `@cf/zai-org/glm-5.3-flash`)
 - **Outputs:** 1-5 scores + `safety_flag` + notes, used for analysis and optional gating
 
 > [!NOTE]
@@ -86,7 +86,7 @@ flowchart TB
     G --> QG["Structural quality gate<br/>(tarot-reading.js + readingQuality.js)"]
     QG --> EG["Sync evaluation gate<br/>(evaluation.js; enabled or selectively forced)"]
     EG --> RESP["Return response to user"]
-    RESP -->|waitUntil()| E["Workers AI evaluation<br/>(@cf/qwen/qwen3-30b-a3b-fp8)"]
+    RESP -->|waitUntil()| E["Workers AI evaluation<br/>(@cf/zai-org/glm-5.3-flash)"]
     E --> S["Scores + safety_flag + notes"]
     S --> D1["Upsert eval_metrics (D1)"]
   end
@@ -155,7 +155,7 @@ export function buildHeuristicScores(narrativeMetrics)  // Fallback scoring
 ```
 
 Key features:
-- Uses Workers AI (`@cf/qwen/qwen3-30b-a3b-fp8`) for evaluation
+- Uses Workers AI (`@cf/zai-org/glm-5.3-flash`) for evaluation
 - Runs asynchronously via `waitUntil()` to avoid blocking user responses
 - Supports synchronous gating when `EVAL_GATE_ENABLED=true` (fail-open/closed via `EVAL_GATE_FAILURE_MODE`)
 - Includes prompt versioning (`EVAL_PROMPT_VERSION = '2.4.0'`)
@@ -173,7 +173,8 @@ Set in `wrangler.jsonc` under `vars` (all values are strings at runtime):
 | Variable | Checked-in `wrangler.jsonc` | Code fallback when unset | Description |
 |---|---:|---:|---|
 | `EVAL_ENABLED` | `"true"` | `false` | Master switch for evaluation system |
-| `EVAL_MODEL` | `"@cf/qwen/qwen3-30b-a3b-fp8"` | same model | Workers AI model for scoring |
+| `EVAL_MODEL` | `"@cf/zai-org/glm-5.3-flash"` | same model | Workers AI model for scoring |
+| `EVAL_REASONING_EFFORT` | `"low"` | `low` for the default model; not sent for others | Reasoning effort sent to the evaluator |
 | `EVAL_TIMEOUT_MS` | `"20000"` | `15000` | Timeout for the async eval call (ms); it runs in `waitUntil()`, which allows 30 s after the response |
 | `EVAL_GATE_TIMEOUT_MS` | `"15000"` | `EVAL_TIMEOUT_MS` | Timeout for the sync gate's eval call (ms), which holds the reading response |
 | `EVAL_GATE_ENABLED` | `"false"` | `false` | Whether to block readings on low scores |
@@ -325,7 +326,7 @@ Output schema (example):
         "safety_flag": false,
         "notes": "Good reading with specific advice"
       },
-      "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+      "model": "@cf/zai-org/glm-5.3-flash",
       "latencyMs": 142,
       "promptVersion": "2.4.0"
     }
@@ -354,7 +355,7 @@ Output schema (example):
   "spreadKey": "threeCard",
   "eval": {
     "scores": { "...": "..." },
-    "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+    "model": "@cf/zai-org/glm-5.3-flash",
     "latencyMs": 142
   },
   "cardCoverage": 0.95,
@@ -535,7 +536,8 @@ Actions:
   ```jsonc
   "vars": { "EVAL_TIMEOUT_MS": "20000", "EVAL_GATE_TIMEOUT_MS": "15000" }
   ```
-- Don't disable Qwen3 thinking to save time. In a September 2026 test on the committed narrative samples, `/no_think` cut median latency from 4.6 s to 0.9 s, but every sample then got the same scores (single-card readings included), and `chat_template_kwargs.enable_thinking=false` returned invalid JSON every time.
+- Tune `EVAL_REASONING_EFFORT` before switching models. GLM-5.3 Flash always reasons and accepts `low`, `high` and `max` (other values map to `max`). On 2026-10-07, against 4 committed narrative samples and 5 synthetic failures, `low` took 2–9 s and `high` took 3–22 s; `high` met every synthetic expectation, while `low` also flagged the one-sentence "hard imperative" case as a safety block. Keep `low` while the sync gate timeout is 15 s.
+- The previous evaluator, Qwen3-30B-A3B, gave every good sample identical scores, and in September 2026 disabling its thinking (`/no_think`) made the scores constant across all samples.
 - Try a different Workers AI model:
   ```jsonc
   "vars": { "EVAL_MODEL": "<workers-ai-model-id>" }

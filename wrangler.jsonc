@@ -99,7 +99,9 @@
     "STREAMING_QUALITY_GATE_ENABLED": "false",
     "STREAMING_SAFETY_SCAN_ENABLED": "false",
     "EVAL_ENABLED": "true",
-    "EVAL_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
+    "EVAL_MODEL": "@cf/zai-org/glm-5.3-flash",
+    // GLM-5.3 Flash always reasons; low keeps the sync gate inside its timeout.
+    "EVAL_REASONING_EFFORT": "low",
     // EVAL_TIMEOUT_MS bounds the async evaluation, which runs in waitUntil()
     // (30s budget after the response, shared with other background work).
     // EVAL_GATE_TIMEOUT_MS bounds the sync gate, which holds the reading
