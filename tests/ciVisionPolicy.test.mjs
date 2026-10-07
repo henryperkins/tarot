@@ -47,20 +47,22 @@ it('CI recomputes saved narrative metrics without starting paid generation and p
   const result = await runWorkflowStep(t, 'Saved narrative regression gate (offline)');
   assert.equal(result.status, 7, result.stderr);
   assert.equal(result.command, 'scripts/evaluation/computeNarrativeMetrics.js\nrun gate:narrative\n');
-  assert.match(result.stdout, /fresh primary-provider qualification runs before deployment/);
+  assert.match(result.stdout, /fresh Claude subscription qualification runs before deployment/);
 });
 
-it('Claude credentials stay scoped to the rollout step and fresh gate evidence survives failure', async () => {
+it('subscription gateway credentials stay scoped to rollout and fresh gate evidence survives failure', async () => {
   const ci = yaml.load(await readFile('.github/workflows/ci.yml', 'utf8'));
   const deploy = yaml.load(await readFile('.github/workflows/deploy.yml', 'utf8'));
   const ciSteps = Object.values(ci.jobs).flatMap(job => job.steps || []);
-  assert.ok(ciSteps.every(step => !step.env?.ANTHROPIC_API_KEY));
+  assert.ok(ciSteps.every(step => !step.env?.ANTHROPIC_API_KEY && !step.env?.CLAUDE_CODE_GATEWAY_TOKEN));
   assert.ok(ciSteps.every(step => !step.run?.includes('ci:narrative-check')));
   const rolloutSteps = deploy.jobs.deploy.steps;
-  const credentialSteps = rolloutSteps.filter(step => step.env?.ANTHROPIC_API_KEY);
+  assert.ok(rolloutSteps.every(step => !step.env?.ANTHROPIC_API_KEY));
+  const credentialSteps = rolloutSteps.filter(step => step.env?.CLAUDE_CODE_GATEWAY_TOKEN);
   assert.equal(credentialSteps.length, 1);
   assert.match(credentialSteps[0].run, /node scripts\/deploy\.js/);
-  assert.equal(credentialSteps[0].env.ANTHROPIC_API_KEY, '${{ secrets.ANTHROPIC_API_KEY }}');
+  assert.equal(credentialSteps[0].env.CLAUDE_CODE_GATEWAY_TOKEN, '${{ secrets.CLAUDE_CODE_GATEWAY_TOKEN }}');
+  assert.equal(credentialSteps[0].env.CLAUDE_CODE_GATEWAY_URL, '${{ vars.CLAUDE_CODE_GATEWAY_URL }}');
   const evidence = rolloutSteps.find(step => step.uses?.startsWith('actions/upload-artifact@'));
   assert.equal(evidence.if, '${{ always() }}');
   assert.equal(evidence.with.path, 'data/evaluations/runs/');

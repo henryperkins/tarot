@@ -110,8 +110,8 @@ null when unmeasured. Coverage is reported separately.
 Use [the evaluation evidence contract](vision-evaluation-integrity.md) to prepare
 a corpus and run fresh checks. Confidence calibration and any model/threshold
 change require independent measurements and a separately reviewed policy decision.
-As of October 1, `npm run ci:release-check` requires code checks and a live
-narrative provider (default `modal-qwen`). Photo qualification is optional for
+`npm run ci:release-check` requires code checks and live narrative generation
+through the owner's Claude subscription (Opus 5.5 at `xhigh`). Photo qualification is optional for
 deployment: setting `VISION_EVAL_MANIFEST_DIR` opts into the strict vision gate;
 without it, release QA reports vision as unrun. The standalone vision gate retains
 the evidence requirements above. `npm run deploy` and `deploy:skip-migrations`

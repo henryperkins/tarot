@@ -13,12 +13,9 @@ import { inferContext } from '../../functions/lib/contextDetection.js';
 import { performSpreadAnalysis } from '../../functions/lib/spreadAnalysisOrchestrator.js';
 import {
   NARRATIVE_BACKENDS,
-  getAvailableNarrativeBackends,
   runNarrativeBackend
 } from '../../functions/lib/narrativeBackends.js';
-import { ensureAzureConfig, getReasoningEffort, getTextVerbosity } from '../../functions/lib/azureResponses.js';
-import { ensureModalConfig } from '../../functions/lib/modalChatCompletions.js';
-import { ensureAnthropicConfig } from '../../functions/lib/anthropicMessages.js';
+import { resolveNarrativeEvalBackend, runSubscriptionNarrative } from './lib/subscriptionNarrative.js';
 import { isGraphRAGEnabled, isSemanticScoringAvailable } from '../../functions/lib/graphRAG.js';
 import { resolveSemanticScoring } from '../../functions/lib/readingTelemetry.js';
 import { buildGraphRAGTelemetry } from '../../functions/lib/telemetrySchema.js';
@@ -29,7 +26,7 @@ const CARD_LOOKUP = new Map([
 ]);
 
 const DEFAULT_OUTPUT = 'data/evaluations/narrative-samples.json';
-const DEFAULT_BACKEND = process.env.NARRATIVE_EVAL_BACKEND || 'auto';
+const DEFAULT_BACKEND = process.env.NARRATIVE_EVAL_BACKEND || 'claude-code';
 // Astrological context (moon phase, retrogrades, forecast) depends on this instant,
 // so a fixed default keeps runs comparable. Pass `--reference-time now` for live sky.
 const DEFAULT_REFERENCE_TIME = process.env.NARRATIVE_EVAL_REFERENCE_TIME || '2026-09-23T14:04:00Z';
@@ -189,7 +186,7 @@ const SAMPLE_DEFINITIONS = [
 ];
 
 function usage() {
-  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|claude-code|claude-api|modal-qwen|local-composer|azure-gpt5] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
+  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|claude-code|local-composer] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
   console.log(`\nOptions:`);
   console.log(`  --reference-time  Instant for astrological context (default ${DEFAULT_REFERENCE_TIME}; "now" for the live sky)`);
   console.log(`  --env-profile      "production" (default) layers the shell env over wrangler.jsonc vars; "shell" uses the shell env only`);
@@ -262,18 +259,11 @@ async function loadEvalEnv(envProfile) {
 // Record what actually generated the samples; the backend id alone does not
 // say which model, reasoning effort, or retrieval settings were in effect.
 function describeBackendConfig(backendId, env) {
-  if (backendId === 'claude-code') return { provider: 'claude-code', model: null, authentication: 'personal-subscription' };
-  if (backendId === 'azure-gpt5') {
-    const { model, provider } = ensureAzureConfig(env);
-    return { provider, model, reasoningEffort: getReasoningEffort(env, model), verbosity: getTextVerbosity(env, model) };
-  }
-  if (backendId === 'modal-qwen') {
-    const { model, reasoningEffort, stream, temperature, topP } = ensureModalConfig(env);
-    return { provider: 'modal', model, reasoningEffort, stream, temperature, topP, outputTokenCap: null, verbosity: null };
-  }
-  if (backendId === 'claude-api') {
-    const { model, effort } = ensureAnthropicConfig(env);
-    return { provider: 'anthropic', model, reasoningEffort: effort, verbosity: null };
+  if (backendId === 'claude-code') {
+    const gateway = Boolean(env.CLAUDE_CODE_GATEWAY_URL || env.CLAUDE_CODE_GATEWAY_TOKEN);
+    return { provider: 'claude-code', model: null, authentication: 'personal-subscription',
+      transport: gateway ? 'gateway' : 'local-cli',
+      reasoningEffort: gateway ? null : String(env.CLAUDE_CODE_EFFORT || 'xhigh').trim().toLowerCase() };
   }
   return { provider: 'local', model: null, reasoningEffort: null, verbosity: null };
 }
@@ -304,29 +294,8 @@ function buildCardEntry(baseCard, position, orientation) {
   };
 }
 
-function normalizeBackendId(value) {
-  const normalized = String(value || '').trim().toLowerCase();
-  if (!normalized || normalized === 'auto') return 'auto';
-  if (normalized === 'local') return 'local-composer';
-  return normalized;
-}
-
-export function resolveBackendId(requestedBackend, env) {
-  const normalized = normalizeBackendId(requestedBackend);
-  if (normalized === 'auto') {
-    const available = getAvailableNarrativeBackends(env);
-    return available.length ? available[0].id : 'local-composer';
-  }
-
-  if (!NARRATIVE_BACKENDS[normalized]) {
-    throw new Error(`Unknown backend "${requestedBackend}"`);
-  }
-
-  if (!NARRATIVE_BACKENDS[normalized].isAvailable(env)) {
-    throw new Error(`Backend "${normalized}" is not available (missing configuration).`);
-  }
-
-  return normalized;
+export function resolveBackendId(requestedBackend) {
+  return resolveNarrativeEvalBackend(requestedBackend);
 }
 
 /**
@@ -383,7 +352,9 @@ async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
     variantPromptOverrides: null
   };
 
-  const { reading, model, usage } = await runNarrativeBackend(backendId, env, narrativePayload, `eval-${sample.id}`);
+  const { reading, model, usage } = backendId === 'claude-code'
+    ? await runSubscriptionNarrative(env, narrativePayload, `eval-${sample.id}`)
+    : await runNarrativeBackend(backendId, env, narrativePayload, `eval-${sample.id}`);
 
   if (!reading || !reading.trim()) {
     throw new Error(`Reading generation failed for sample ${sample.id}`);

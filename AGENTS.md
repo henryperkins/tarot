@@ -99,6 +99,7 @@
 - For interactive authenticated UI review, use the local Pro reviewer account described in [docs/local-reviewer-account.md](docs/local-reviewer-account.md). Read its private credential file directly in the login script; never print credentials or commit browser session state.
 - For Impeccable `audit`, `critique`, `polish`, `harden`, and `adapt`, follow the [review workflow](docs/local-reviewer-account.md#impeccable-review-workflows): check relevant guest and real signed-in Pro states, record authentication and tier coverage, and log out afterward. Cover other subscription states separately when affected.
 - Run `npm test` before pushing; for vision/narrative changes, also run `npm run ci:vision-check` or `npm run ci:narrative-check` and record results.
+- Gates that generate narratives use the owner's Claude subscription, never paid API credentials. `npm run ci:narrative-check` and `npm run ci:release-check` default to the existing Claude Code login (Opus 5.5, `xhigh`); no gateway setup is needed locally. Hosted runners use a private subscription gateway. Missing login or gateway access must fail without paid API fallback. Workers AI integrations keep their configured providers.
 
 ## Commit & Pull Request Guidelines
 

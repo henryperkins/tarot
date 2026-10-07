@@ -43,7 +43,7 @@ it('runs required release checks without a photo corpus and reports vision as un
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.scripts, ['test', 'test:deploy', 'lint:cloudflare', 'docs:check', 'ci:narrative-check']);
   assert.match(result.stdout, /vision qualification not run/i);
-  assert.ok(result.checks.every(check => check.backend === 'claude-api'));
+  assert.ok(result.checks.every(check => check.backend === 'claude-code' && check.textProvider === 'claude-code'));
 });
 
 for (const script of ['test', 'ci:narrative-check']) {
@@ -58,7 +58,7 @@ for (const script of ['test', 'ci:narrative-check']) {
 it('still requires a live narrative provider when vision qualification is omitted', () => {
   const result = release({ NARRATIVE_EVAL_BACKEND: 'local-composer' });
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /live configured provider/);
+  assert.match(result.stderr, /subscription.*local-composer is diagnostic only/i);
   assert.deepEqual(result.checks, []);
 });
 
@@ -94,15 +94,25 @@ it('keeps an explicitly requested failing vision gate fatal', async (t) => {
   assert.match(result.stderr, /Release check ci:vision-check failed/);
 });
 
-it('fails before checks if the primary release provider secret is missing', () => {
+it('runs subscription QA without an Anthropic API key', () => {
   const result = release({ ANTHROPIC_API_KEY: '' });
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /ANTHROPIC_API_KEY/);
-  assert.deepEqual(result.checks, []);
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(result.checks.every(check => check.backend === 'claude-code'));
 });
 
-it('allows an explicit alternate provider release diagnostic', () => {
-  const result = release({ ANTHROPIC_API_KEY: '', NARRATIVE_EVAL_BACKEND: 'modal-qwen' });
-  assert.equal(result.status, 0, result.stderr);
-  assert.ok(result.checks.every(check => check.backend === 'modal-qwen'));
-});
+for (const backend of ['claude-api', 'modal-qwen', 'azure-gpt5']) {
+  it(`rejects the paid ${backend} backend before release checks`, () => {
+    const result = release({ NARRATIVE_EVAL_BACKEND: backend });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /paid API backends are disabled/i);
+    assert.deepEqual(result.checks, []);
+  });
+}
+
+for (const backend of ['auto', 'claude-code']) {
+  it(`runs ${backend} release QA on the subscription even with legacy runtime settings`, () => {
+    const result = release({ NARRATIVE_EVAL_BACKEND: backend, TEXT_PROVIDER: 'legacy' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(result.checks.every(check => check.backend === 'claude-code' && check.textProvider === 'claude-code'));
+  });
+}

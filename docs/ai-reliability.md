@@ -49,28 +49,28 @@ executing its CLI is required to generate samples. Never use an import as a way
 to run a benchmark. Unit tests stub inference and verify import behavior with
 invalid dummy credentials.
 
-`npm run ci:release-check` defaults to `claude-api`, matching the primary provider.
-Configure `ANTHROPIC_API_KEY` as a private Workers Builds/GitHub Actions build secret,
-not a plaintext Worker variable or committed file. The deployment step receives
-the key and runs fresh primary-provider QA before any remote migration or rollout.
+`npm run ci:release-check` and `npm run ci:narrative-check` generate through the
+owner's Claude subscription, defaulting to Opus 5.5 at `xhigh`. Local runs use the
+existing Claude Code login automatically. Hosted runners require the private
+subscription gateway described in [subscription setup](claude-subscription.md#run-narrative-evals).
+No paid API key is required or used by these gates. The deployment step runs
+fresh subscription QA before any remote migration or rollout.
 Ordinary CI checks saved narrative samples offline; those samples do not qualify
 the current provider. This keeps each deployment to one fresh narrative batch,
 and GitHub preserves its evidence even if the deployment fails.
-Missing primary credentials fail release QA; they do
-not silently qualify a backup provider. An explicit `NARRATIVE_EVAL_BACKEND`
-override can test Modal or OpenAI, but that result qualifies the chosen provider.
+Missing subscription access fails release QA. Paid backend overrides are rejected;
+there is no paid API or local-composer fallback for qualification.
 
-Live narrative QA generates synthetic samples and incurs provider charges.
-Review the sample count, task settings and current pricing before running it;
-retry attempts can also incur charges. Offline provider/route tests are not live
-model-quality evidence. A vision photo gate additionally needs the independent
+Live narrative QA generates synthetic samples and consumes the owner's subscription
+allowance. Offline provider/route tests are not live model-quality evidence.
+A vision photo gate additionally needs the independent
 held-out corpus described in [vision evaluation integrity](vision-evaluation-integrity.md).
 Neither a mock run nor generated card art substitutes for that corpus.
 
 ## Rollout
 
 1. Review the branch and migration results, including existing usage/quality data.
-2. Configure the primary QA build secret and run one recorded live narrative gate.
+2. Verify the subscription login or private build gateway and run one recorded live narrative gate.
 3. Apply migrations and deploy the reviewed version through the normal release path.
 4. Verify the active Worker version, assets, login, quota behavior and retry UI.
 5. Inspect logical attempt failures and safety outages before changing evaluator

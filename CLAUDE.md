@@ -121,6 +121,13 @@ npm run migrations:apply    # Apply only
 
 ## Evaluation System
 
+Narrative-generation and release gates use the owner's Claude subscription, never
+paid APIs. Run `npm run ci:narrative-check` or `npm run ci:release-check` with the
+existing Claude Code login; they default to Opus 5.5 at `xhigh` effort without
+local gateway setup. Hosted runners require a private subscription gateway.
+Missing subscription access fails the gate without API fallback. Workers AI
+integrations retain their configured providers. See [subscription setup](docs/claude-subscription.md#run-narrative-evals).
+
 When evaluation is enabled, readings are scored asynchronously with the configured
 Workers AI `EVAL_MODEL` using `waitUntil()`. Runtime metrics and evaluation payloads
 are written directly to the D1 `eval_metrics` table; the current evaluator prompt

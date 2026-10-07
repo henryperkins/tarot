@@ -77,6 +77,6 @@ jobs:
 
       - name: Saved narrative regression gate (offline)
         run: |
-          echo "Saved samples check regression thresholds only; fresh primary-provider qualification runs before deployment."
+          echo "Saved samples check regression thresholds only; fresh Claude subscription qualification runs before deployment."
           node scripts/evaluation/computeNarrativeMetrics.js
           npm run gate:narrative

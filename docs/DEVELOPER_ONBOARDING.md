@@ -14,7 +14,7 @@ This guide is the current starting point for engineers working in the Tableu rep
 
 Common local variables include:
 
-- `ANTHROPIC_API_KEY` — enables the `claude-api` backend, which is tried first for readings, follow-up answers, suggested questions and journal summaries. `ANTHROPIC_MODEL` (default `claude-opus-5-5`), `ANTHROPIC_EFFORT` (reading effort, default `xhigh`) and `ANTHROPIC_TIMEOUT_MS` are non-secret settings in `wrangler.jsonc`.
+- `ANTHROPIC_API_KEY` — enables the public `claude-api` backend, which is tried first for readings, follow-up answers and journal summaries. Narrative QA gates use the owner's subscription instead. `ANTHROPIC_MODEL` (default `claude-opus-5-5`), `ANTHROPIC_EFFORT` (reading effort, default `xhigh`) and `ANTHROPIC_TIMEOUT_MS` are non-secret settings in `wrangler.jsonc`.
 - `MODAL_PROXY_TOKEN_ID` and `MODAL_PROXY_TOKEN_SECRET` — `modal-qwen` credentials (the reading fallback after Claude). Both are required together; the adapter forms the Bearer value as `ID.SECRET`. A partial or empty declared pair fails validation, even when legacy or fallback credentials exist. The legacy combined `MODAL_PROXY_TOKEN` works only when both pair fields are absent.
 - `MODAL_ENDPOINT_URL`, `MODAL_MODEL`, `MODAL_REASONING_EFFORT`, `MODAL_STREAM`, `MODAL_TEMPERATURE`, `MODAL_TOP_P`, and `MODAL_TIMEOUT_MS` — non-secret Modal settings from `wrangler.jsonc`
 - `OPENAI_API_KEY` — enables the native OpenAI Responses path in the `azure-gpt5` backend
@@ -33,13 +33,13 @@ Modal currently targets `https://henryperkins--ep-qwen3-8-max-vl-thinking-server
 
 Keep both credential parts in `.dev.vars` for local Worker development and in separately configured Worker secrets for authorized deployments. Never commit, log, or paste their values into command arguments. The configuration checker reads shell variables, then `.dev.vars`, then non-secret Wrangler defaults, and reports only names and sources.
 
-The narrative evaluator's default `production` environment profile combines exported shell variables with `wrangler.jsonc` settings; it does **not** load `.dev.vars`. Supply the token pair through the shell's secure environment before running:
+The narrative evaluator's default `production` environment profile combines exported shell variables with `wrangler.jsonc` settings; it does **not** load `.dev.vars`. Generation uses the existing Claude Code subscription login automatically (Opus 5.5, `xhigh`), without paid API credentials or local gateway setup:
 
 ```bash
-NARRATIVE_EVAL_BACKEND=claude-api npm run ci:narrative-check
+npm run ci:narrative-check
 ```
 
-The evaluator calls the selected provider directly. Its results do not verify the hosted fallback chain, request safety gate, or live reviewer flow.
+Missing subscription access fails without paid API fallback; paid backend overrides are rejected. Hosted runners require a private subscription gateway; see [subscription evals](claude-subscription.md#run-narrative-evals). The evaluator's results do not verify the public API fallback chain, request safety gate, or live reviewer flow.
 
 ## Repo Shape
 
@@ -67,7 +67,7 @@ Do not cross-import browser code into Worker code or Worker code into browser co
 - Backend: Cloudflare Workers with route handlers in `functions/api/`
 - Data: Cloudflare D1, KV, R2
 
-Narrative backends are attempted in this order: `claude-api` (Claude Opus 5.5 through the Anthropic Messages API when `ANTHROPIC_API_KEY` is set) → `modal-qwen` → `azure-gpt5` (native OpenAI Responses when `OPENAI_API_KEY` is set, otherwise Azure OpenAI Responses) → `local-composer`. Follow-up answers, suggested questions and journal summaries also try Claude first, then the Responses API.
+Public narrative backends are attempted in this order: `claude-api` (Claude Opus 5.5 through the Anthropic Messages API when `ANTHROPIC_API_KEY` is set) → `modal-qwen` → `azure-gpt5` (native OpenAI Responses when `OPENAI_API_KEY` is set, otherwise Azure OpenAI Responses) → `local-composer`. Follow-up answers and journal summaries also try Claude first, then the Responses API. Question suggestions use Workers AI with spread-shaped template fallback. Offline narrative and release gates always use the owner's Claude subscription.
 
 Runtime reading metrics and evaluation payloads are written to D1 `eval_metrics`. `METRICS_DB` is also active operational KV for media telemetry, daily media-usage counters, and card-video job metadata, with ongoing legacy `reading:*` compatibility archival. `R2_LOGS` stores generated/user media, journal-export caches, archives, and exports. GraphRAG passages are internally authored `Tableu Tarot Canon` content from `functions/lib/knowledgeBase.js`.
 

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { loadVisionDataset } from './lib/visionEvaluationDataset.js';
+import { resolveNarrativeEvalBackend } from './lib/subscriptionNarrative.js';
 
 export async function main() {
   const directory = process.env.VISION_EVAL_MANIFEST_DIR;
@@ -16,14 +17,8 @@ export async function main() {
   } else {
     console.log('Vision qualification not run: VISION_EVAL_MANIFEST_DIR is unset. Photo recognition and symbol quality remain unverified.');
   }
-  const backend = process.env.NARRATIVE_EVAL_BACKEND || 'claude-api';
-  if (!['claude-api', 'modal-qwen', 'azure-gpt5'].includes(backend)) {
-    throw new Error('Release narrative QA requires a live configured provider; local-composer is diagnostic only.');
-  }
-  if (backend === 'claude-api' && !process.env.ANTHROPIC_API_KEY) {
-    throw new Error('Release narrative QA requires ANTHROPIC_API_KEY for the primary Claude provider. Configure it as a build secret; alternate providers require an explicit NARRATIVE_EVAL_BACKEND override.');
-  }
-  const env = { ...process.env, NARRATIVE_EVAL_BACKEND: backend };
+  const backend = resolveNarrativeEvalBackend(process.env.NARRATIVE_EVAL_BACKEND, { requireLive: true });
+  const env = { ...process.env, NARRATIVE_EVAL_BACKEND: backend, TEXT_PROVIDER: 'claude-code' };
   const checks = ['test', 'test:deploy', 'lint:cloudflare', 'docs:check'];
   if (directory) checks.push('ci:vision-check');
   checks.push('ci:narrative-check');

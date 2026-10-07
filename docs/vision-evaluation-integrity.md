@@ -125,10 +125,10 @@ npm run ci:vision-check
 VISION_EVAL_MANIFEST_DIR=/private/corpus npm run ci:vision-check
 # Runs the same recognizer on declared photos. Symbol annotation gaps still fail.
 
-NARRATIVE_EVAL_BACKEND=claude-api npm run ci:release-check
-# Code checks and live narrative gate; reports vision as unrun when its variable is unset.
+npm run ci:release-check
+# Code checks and live Claude subscription gate; reports vision as unrun when its variable is unset.
 
-VISION_EVAL_MANIFEST_DIR=/private/corpus NARRATIVE_EVAL_BACKEND=claude-api npm run ci:release-check
+VISION_EVAL_MANIFEST_DIR=/private/corpus npm run ci:release-check
 # Also opts into strict vision qualification using the supplied corpus.
 ```
 

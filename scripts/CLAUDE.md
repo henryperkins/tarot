@@ -13,11 +13,16 @@ Run every command example in this file from the repository root. Use `python3` i
 - Narrative and vision changes require `npm run ci:narrative-check` and/or
   `npm run ci:vision-check`. They write under `data/evaluations`; use a detached
   verification worktree and record the candidate SHA, backend, and flagged samples.
+- Narrative-generation gates default to the owner's Claude subscription through
+  the existing CLI login (Opus 5.5, `xhigh`). Do not export paid API credentials
+  or select paid backends for gates. Local runs need no gateway configuration;
+  hosted runners use a private subscription gateway. Missing access fails the
+  gate without paid API fallback. Workers AI integrations stay as configured.
 - Use `NARRATIVE_EVAL_BACKEND=local-composer` for local proof when a live provider
   has not been authorized. Preserve thresholds; report unsupported samples and
   failed gates explicitly. A build or focused test is not a full QA gate.
 - The checked-in release path is `package.json` → `scripts/deploy.js`.
-  `npm run deploy` first runs `ci:release-check` (code checks and a live narrative provider required; vision qualification is optional), checks and applies pending remote D1 migrations, then builds
+  `npm run deploy` first runs `ci:release-check` (code checks and live Claude subscription generation required; vision qualification is optional), checks and applies pending remote D1 migrations, then builds
   the frontend and runs Wrangler deploy. `npm run deploy:skip-migrations` builds
   and deploys only after the same fresh QA, so apply migrations separately. `npm run deploy:dry-run`
   previews the script; production changes require `npm run deploy` or

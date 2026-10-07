@@ -97,20 +97,36 @@ Error responses omit upstream prompts, account details and credentials.
 
 ## Run narrative evals
 
-Export the gateway URL and token into the eval shell, then run:
+Narrative generation and release qualification always use the Claude subscription.
+With the existing Claude Code subscription login on this host, run directly:
 
 ```bash
-export TEXT_PROVIDER=claude-code
-export CLAUDE_CODE_GATEWAY_URL=http://127.0.0.1:8789
-# Export CLAUDE_CODE_GATEWAY_TOKEN from your private environment.
 npm run ci:narrative-check
+npm run ci:release-check
 ```
 
-The eval runner reads exported environment variables over Wrangler variables; it
-does not read `.dev.vars` or the service's `.env.local`. The automatic backend now
-selects Claude. Explicitly choosing a paid backend is rejected in subscription mode.
-`NARRATIVE_EVAL_BACKEND=local-composer` remains available for deterministic checks.
-Cloudflare's live model judge is separate from this offline deterministic gate.
+No gateway, API key, `TEXT_PROVIDER` export or additional login is needed when the
+host is already authenticated. The runner verifies subscription authentication,
+uses the same assembled reading prompts, and defaults to Opus 5.5 at `xhigh`.
+Missing login, usage limits and timeouts fail without paid API fallback. Explicit
+paid backend overrides are rejected even if their keys exist or the Worker uses
+`TEXT_PROVIDER=legacy`.
+
+The eval runner layers exported variables over Wrangler variables; it does not
+read `.dev.vars` or the service's `.env.local`. Export optional CLI model/effort
+settings to override their defaults. Samples record the actual returned model,
+authentication and local/gateway transport. `NARRATIVE_EVAL_BACKEND=local-composer`
+remains a deterministic diagnostic; release QA rejects it. Cloudflare's model
+judge retains its separate integration.
+
+Hosted runners that cannot access the owner's CLI login must use the private
+service above. Set `CLAUDE_CODE_GATEWAY_URL` and `CLAUDE_CODE_GATEWAY_TOKEN` in that
+runner's environment. GitHub's deploy step reads the URL from the repository
+variable and the token from its secret; Workers Builds needs its own private
+build settings. The gateway uses the host's subscription login; the bearer token
+is only a private service credential. A partial or unavailable gateway fails the
+gate without switching to the local CLI or a paid API. Public Worker inference
+settings remain independent of these evaluation-only settings.
 
 ## Optional later remote connection
 
