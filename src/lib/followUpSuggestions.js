@@ -224,7 +224,7 @@ const shouldUseCounts = (counts, cardCount) => {
  * @param {Array} reading - Array of card objects from the reading
  * @param {Object} themes - Theme analysis (elementCounts, reversalCount, etc.)
  * @param {Object} readingMeta - Reading metadata (spreadKey, etc.)
- * @returns {Array<{text: string, type: string, priority: number}>}
+ * @returns {Array<{label: string, text: string, type: string, priority: number}>}
  */
 export function generateFollowUpSuggestions(reading, themes, readingMeta, options = {}) {
   const suggestions = [];
@@ -285,9 +285,10 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
     ? themes.majorRatio
     : (cards.length > 0 ? majorCount / cards.length : 0);
 
-  const addSuggestion = ({ text, type, priority, anchorKey, triggerKey }) => {
+  const addSuggestion = ({ label, text, type, priority, anchorKey, triggerKey }) => {
     if (!text || !type) return;
     suggestions.push({
+      label,
       text,
       type,
       priority,
@@ -301,6 +302,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
     const reversedCard = cards.find((card) => isReversed(card));
     const cardName = getCardName(reversedCard);
     addSuggestion({
+      label: 'Explore this reversal',
       text: `What does ${cardName} reversed want me to acknowledge or release?`,
       type: 'reversal',
       priority: 1,
@@ -309,6 +311,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
     });
   } else if (reversalCount > 1) {
     addSuggestion({
+      label: 'Connect the reversals',
       text: 'What pattern links the reversed cards, and where is that energy blocked or internal?',
       type: 'reversal',
       priority: 1,
@@ -319,29 +322,29 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
   // 2. Spread-specific questions (with coverage across spreads)
   const spreadQuestions = {
     celtic: [
-      { text: 'How do the Challenge and Outcome positions connect?', anchorKey: 'challenge-outcome', priority: 2 },
-      { text: 'What do the Subconscious and Conscious positions say about each other?', anchorKey: 'subconscious-conscious', priority: 3 },
-      { text: 'How does the Near Future echo the Present?', anchorKey: 'near-future-present', priority: 3 }
+      { label: 'Connect challenge and outcome', text: 'How do the Challenge and Outcome positions connect?', anchorKey: 'challenge-outcome', priority: 2 },
+      { label: 'Connect conscious and subconscious', text: 'What do the Subconscious and Conscious positions say about each other?', anchorKey: 'subconscious-conscious', priority: 3 },
+      { label: 'Connect present and near future', text: 'How does the Near Future echo the Present?', anchorKey: 'near-future-present', priority: 3 }
     ],
     threeCard: [
-      { text: 'How does the Present bridge the Past and Future?', anchorKey: 'present-bridge', priority: 2 },
-      { text: 'What would shift the Future if I act now?', anchorKey: 'future-shift', priority: 3 }
+      { label: 'Connect past and future', text: 'How does the Present bridge the Past and Future?', anchorKey: 'present-bridge', priority: 2 },
+      { label: 'Explore how action shapes the future', text: 'What would shift the Future if I act now?', anchorKey: 'future-shift', priority: 3 }
     ],
     relationship: [
-      { text: 'How can I better understand the other person\'s perspective here?', anchorKey: 'them-perspective', priority: 2 },
-      { text: 'What shared lesson do the connection cards point to?', anchorKey: 'connection-lesson', priority: 3 }
+      { label: 'Understand their perspective', text: 'How can I better understand the other person\'s perspective here?', anchorKey: 'them-perspective', priority: 2 },
+      { label: 'Explore our shared lesson', text: 'What shared lesson do the connection cards point to?', anchorKey: 'connection-lesson', priority: 3 }
     ],
     decision: [
-      { text: 'Which path aligns more with my values and long-term direction?', anchorKey: 'path-values', priority: 2 },
-      { text: 'What clarifier matters most before choosing?', anchorKey: 'clarifier', priority: 3 }
+      { label: 'Compare my paths', text: 'Which path aligns more with my values and long-term direction?', anchorKey: 'path-values', priority: 2 },
+      { label: 'Clarify before choosing', text: 'What clarifier matters most before choosing?', anchorKey: 'clarifier', priority: 3 }
     ],
     single: [
-      { text: 'What specific action does this card suggest for today?', anchorKey: 'single-action', priority: 2 },
-      { text: 'What would change if I fully embodied this card?', anchorKey: 'single-embody', priority: 3 }
+      { label: 'Choose today\'s action', text: 'What specific action does this card suggest for today?', anchorKey: 'single-action', priority: 2 },
+      { label: 'Explore embodying this card', text: 'What would change if I fully embodied this card?', anchorKey: 'single-embody', priority: 3 }
     ],
     fiveCard: [
-      { text: 'How does the Support card help resolve the Challenge?', anchorKey: 'support-challenge', priority: 2 },
-      { text: 'What does the Hidden influence reveal about the Core?', anchorKey: 'hidden-core', priority: 3 }
+      { label: 'Use support for the challenge', text: 'How does the Support card help resolve the Challenge?', anchorKey: 'support-challenge', priority: 2 },
+      { label: 'Explore the hidden influence', text: 'What does the Hidden influence reveal about the Core?', anchorKey: 'hidden-core', priority: 3 }
     ]
   };
 
@@ -354,6 +357,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
   // 3. Elemental imbalance questions
   if (dominantElementEntry && dominantElementEntry.ratio >= 0.4 && dominantElementEntry.total >= 3) {
     addSuggestion({
+      label: `Explore ${dominantElement} energy`,
       text: `What does the strong ${dominantElement} energy suggest I need most right now?`,
       type: 'elemental',
       priority: 3,
@@ -367,6 +371,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
     .map(([element]) => element);
   if (missingElements.length > 0 && missingElements.length < 4) {
     addSuggestion({
+      label: `Explore missing ${missingElements[0]}`,
       text: `What might the absence of ${missingElements[0]} energy mean for this situation?`,
       type: 'elemental',
       priority: 4,
@@ -378,6 +383,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
   // 4. Major Arcana emphasis
   if (majorRatio >= 0.35 || majorCount >= 3) {
     addSuggestion({
+      label: 'Explore the life lesson',
       text: 'What life lesson do these Major Arcana cards emphasize?',
       type: 'archetype',
       priority: 2,
@@ -388,15 +394,15 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
   // 5. Suit-focused questions (when one suit dominates)
   if (dominantSuitEntry && dominantSuitEntry.ratio >= 0.4 && dominantSuitEntry.total >= 3) {
     const suitQuestions = {
-      Wands: 'What creative or passionate energy wants to be expressed?',
-      Cups: 'How can I better honor my emotional needs right now?',
-      Swords: 'What mental patterns or conversations need attention?',
-      Pentacles: 'What practical steps would ground this guidance?'
+      Wands: { label: 'Explore Wands creativity', text: 'What creative or passionate energy wants to be expressed?' },
+      Cups: { label: 'Explore Cups emotions', text: 'How can I better honor my emotional needs right now?' },
+      Swords: { label: 'Explore Swords patterns', text: 'What mental patterns or conversations need attention?' },
+      Pentacles: { label: 'Ground Pentacles guidance', text: 'What practical steps would ground this guidance?' }
     };
     const suitKey = dominantSuit;
     if (suitQuestions[suitKey]) {
       addSuggestion({
-        text: suitQuestions[suitKey],
+        ...suitQuestions[suitKey],
         type: 'suit',
         priority: 3,
         anchorKey: suitKey,
@@ -407,10 +413,9 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
 
   // 6. Question-focused
   if (typeof userQuestion === 'string' && userQuestion.trim().length > 10) {
-    const snippet = userQuestion.trim().slice(0, 36);
-    const suffix = userQuestion.trim().length > 36 ? '...' : '';
     addSuggestion({
-      text: `What is the most direct answer to my question about "${snippet}${suffix}"?`,
+      label: 'Clarify my question',
+      text: 'What is the clearest answer to my original question?',
       type: 'question',
       priority: 2,
       triggerKey: 'user-question'
@@ -428,6 +433,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
   const symbolPrompt = getSymbolFollowUpPrompt(symbolCards, themes);
   if (symbolPrompt) {
     addSuggestion({
+      label: 'Explore the symbols',
       text: symbolPrompt,
       type: 'symbol',
       priority: 4,
@@ -437,6 +443,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
 
   // 8. Shadow/challenge questions (fallback)
   addSuggestion({
+    label: 'Explore what is blocking me',
     text: 'What might be blocking me from moving forward?',
     type: 'shadow',
     priority: 5,
@@ -445,6 +452,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
 
   // 9. Action-oriented (fallback)
   addSuggestion({
+    label: 'Choose my next focus',
     text: 'What\'s the single most important thing I should focus on?',
     type: 'action',
     priority: 5,
@@ -454,6 +462,7 @@ export function generateFollowUpSuggestions(reading, themes, readingMeta, option
   // 10. Relationship between cards (multi-card)
   if (cards.length >= 2) {
     addSuggestion({
+      label: 'Connect the cards',
       text: 'How do these cards change each other\'s meaning when read together?',
       type: 'synthesis',
       priority: 4,

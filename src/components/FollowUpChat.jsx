@@ -4,7 +4,7 @@
  * Reusable chat body for follow-up questions about a tarot reading.
  */
 
-import { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
+import { memo, useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
 import { ChatCircle, PaperPlaneTilt, SpinnerGap, Lightning, Lock, X } from '@phosphor-icons/react';
 import { useReading } from '../contexts/ReadingContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -34,6 +34,10 @@ const ERROR_COPY = {
   dropped: `The connection closed before the reader answered. ${RETRY_HINT}`,
   generic: `The reader couldn't answer just now. ${RETRY_HINT}`
 };
+
+// Preserve answer nodes while drafting or disclosing ideas so the browser
+// keeps the reader's scroll position. Changed streaming content still renders.
+const FollowUpAnswer = memo(MarkdownRenderer);
 
 export default function FollowUpChat({
   variant = 'modal',
@@ -76,6 +80,7 @@ export default function FollowUpChat({
   const activeRequestRef = useRef(null);
   const logRef = useRef(null);
   const suggestionsRef = useRef(null);
+  const suggestionsToggleRef = useRef(null);
   const errorRef = useRef(null);
   const limitRef = useRef(null);
   const hadFocusRef = useRef(false);
@@ -114,6 +119,7 @@ export default function FollowUpChat({
   // question must not swap the composer for the limit notice before its answer lands.
   const localTurns = messages.filter(m => m.role === 'assistant' && !m.isStreaming && !m.isSystemMessage).length;
   const turnsUsed = serverTurn !== null ? serverTurn : localTurns;
+  const questionsLeft = Math.max(0, followUpLimit - turnsUsed);
   const canAskMore = turnsUsed < followUpLimit;
   const hasValidReading = Boolean(personalReading) && !personalReading.isError && !personalReading.isStreaming;
   const isFreeTier = effectiveTier === 'free';
@@ -247,7 +253,7 @@ export default function FollowUpChat({
     scrollToBottom(hasStreamingMessage || prefersReducedMotion ? 'auto' : 'smooth');
   }, [messages, isActive, isAtBottom, hasStreamingMessage, prefersReducedMotion, scrollToBottom]);
 
-  // A tapped suggestion, a failed first turn, or the composer giving way to the
+  // A failed first turn, hidden ideas, or the composer giving way to the
   // limit notice removes the focused control. Land focus somewhere meaningful
   // instead of letting it fall to <body>. The log is preferred over the textarea
   // so a phone keyboard doesn't rise over the answer.
@@ -258,15 +264,13 @@ export default function FollowUpChat({
     const active = document.activeElement;
     if (active && active !== document.body && active.isConnected) return;
     // Focus also falls to <body> when the person moves it away on purpose, such
-    // as dismissing the phone keyboard. Unless they asked for the suggestions,
+    // as dismissing the phone keyboard. Unless they selected a draft,
     // only rescue focus from a control that was removed or disabled.
     const lastFocused = lastFocusRef.current;
     if (!intent && lastFocused?.isConnected && !lastFocused.disabled) return;
-    const firstSuggestion = intent === 'suggestions'
-      ? suggestionsRef.current?.querySelector('button:not(:disabled)')
-      : null;
     const input = inputRef.current && !inputRef.current.disabled ? inputRef.current : null;
-    const target = firstSuggestion || errorRef.current || limitRef.current || logRef.current || input;
+    const target = (intent === 'composer' ? input : null)
+      || errorRef.current || limitRef.current || logRef.current || input || suggestionsToggleRef.current;
     target?.focus({ preventScroll: target === logRef.current });
   });
 
@@ -282,6 +286,28 @@ export default function FollowUpChat({
   useLayoutEffect(() => {
     fitComposer();
   }, [inputValue, isActive, canAskMore, fitComposer]);
+
+  // Place the caret with the committed draft, before another edit can begin.
+  useLayoutEffect(() => {
+    if (!isActive || focusIntentRef.current !== 'composer') return;
+    const input = inputRef.current;
+    if (!input || input.disabled) return;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+    focusIntentRef.current = null;
+  });
+
+  // Ideas and a growing draft resize the transcript without adding messages.
+  // Keep a reader at the latest answer there; preserve older reading positions.
+  useEffect(() => {
+    const conversation = conversationRef.current;
+    if (!isActive || !conversation || !messages.length || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(() => {
+      if (isAtBottom) scrollToBottom('auto');
+    });
+    observer.observe(conversation);
+    return () => observer.disconnect();
+  }, [isActive, messages.length, isAtBottom, scrollToBottom]);
 
   // Rewrap on width or text-size changes (rotation, breakpoint, 200% zoom). The
   // textarea exists only with a finished reading and while turns remain, so
@@ -631,8 +657,12 @@ export default function FollowUpChat({
 
   const handleSuggestionClick = (suggestion) => {
     if (!isLoading && canAskMore && isAuthenticated) {
-      askFollowUp(suggestion.text);
+      focusIntentRef.current = 'composer';
+      setInputValue(suggestion.text.slice(0, MAX_MESSAGE_LENGTH));
       setShowSuggestions(false);
+      setAnnouncement('Question added to your draft. Edit it, then send when you are ready.');
+      // Keep focus inside the trusted tap so mobile keyboards can open.
+      inputRef.current?.focus();
     }
   };
 
@@ -658,8 +688,12 @@ export default function FollowUpChat({
   };
 
   const canSend = isAuthenticated && !isLoading && Boolean(inputValue.trim());
-  const showSuggestionsToggle = messages.length > 0 && suggestions.length > 0 && !showSuggestions
-    && canAskMore && !isLoading && isAuthenticated;
+  const canChooseSuggestion = isAuthenticated && !isLoading && canAskMore;
+  const showIdeas = suggestions.length > 0 && canAskMore && !isLoading;
+  const visibleSuggestions = showSuggestions
+    ? suggestions
+    : messages.length === 0 && !inputValue.trim() ? suggestions.slice(0, 2) : [];
+  const suggestionsId = `${titleId}-suggestions`;
   const patternCount = (msg) => msg.journalContext?.patternsFound?.length || 0;
 
   return (
@@ -702,23 +736,6 @@ export default function FollowUpChat({
       )}
 
       <div className="follow-up-chat__scroll" ref={conversationRef} onScroll={handleConversationScroll}>
-      {/* Suggestions (initial or on-demand) */}
-      {(messages.length === 0 || showSuggestions) && (
-        <ul ref={suggestionsRef} className="follow-up-suggestions" aria-label="Suggested questions">
-          {suggestions.map((suggestion, idx) => (
-            <li key={idx}>
-            <button
-              type="button"
-              onClick={() => handleSuggestionClick(suggestion)}
-              disabled={isLoading || !canAskMore || !isAuthenticated}
-            >
-              {suggestion.text}
-            </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
       {/* Conversation history */}
       {messages.length > 0 && (
         <div
@@ -740,7 +757,7 @@ export default function FollowUpChat({
               // The reader's answer reads as prose on the page, not a boxed bubble.
               <div key={msg.id || idx} className="follow-up-log__answer">
                 {msg.content ? (
-                  <MarkdownRenderer content={msg.content} variant="compact" />
+                  <FollowUpAnswer content={msg.content} variant="compact" />
                 ) : msg.isStreaming ? (
                   <span className="inline-flex items-center gap-2 text-sm text-muted">
                     <SpinnerGap className="w-4 h-4 shrink-0 animate-spin" aria-hidden="true" />
@@ -781,33 +798,59 @@ export default function FollowUpChat({
         </div>
       )}
 
-      {/* Suggestions re-entry CTA */}
-      {showSuggestionsToggle && (
-        <div className="flex justify-start">
-          <button
-            type="button"
-            onClick={() => {
-              focusIntentRef.current = 'suggestions';
-              setShowSuggestions(true);
-              setSuggestionRotation((prev) => prev + 1);
-            }}
-            className="follow-up-chat__ghost-button"
-          >
-            Need ideas? Show suggestions
-          </button>
-        </div>
-      )}
       </div>
 
       <div className="follow-up-chat__footer">
+      {showIdeas && (
+        <div className={clsx('follow-up-ideas', showSuggestions && 'follow-up-ideas--expanded')}>
+          <div className="follow-up-ideas__controls">
+            <p id={`${titleId}-ideas-hint`}>Choose an idea to edit</p>
+            <button
+              ref={suggestionsToggleRef}
+              type="button"
+              disabled={!canChooseSuggestion}
+              aria-expanded={showSuggestions}
+              aria-controls={suggestionsId}
+              className="follow-up-chat__ghost-button"
+              onClick={() => {
+                setShowSuggestions((previous) => !previous);
+                if (!showSuggestions && messages.length > 0) setSuggestionRotation((previous) => previous + 1);
+              }}
+            >
+              {showSuggestions ? 'Hide ideas' : 'More ideas'}
+            </button>
+          </div>
+          <ul
+            id={suggestionsId}
+            ref={suggestionsRef}
+            className="follow-up-suggestions"
+            aria-label="Suggested questions"
+            hidden={visibleSuggestions.length === 0}
+          >
+            {visibleSuggestions.map((suggestion) => (
+              <li key={`${suggestion.type}-${suggestion.anchorKey}-${suggestion.triggerKey}`}>
+                <button
+                  type="button"
+                  disabled={!canChooseSuggestion}
+                  aria-label={`${suggestion.label}. ${suggestion.text}`}
+                  aria-describedby={`${titleId}-ideas-hint`}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                >
+                  {suggestion.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {/* Input form */}
       {canAskMore ? (
         <form onSubmit={handleSubmit} className="follow-up-composer">
-          <div className="follow-up-composer__label-row">
-            <label htmlFor={`${titleId}-question`} className="text-sm font-semibold">Your follow-up question</label>
-            <span className="follow-up-chat__usage">{turnsUsed}/{followUpLimit} used</span>
-          </div>
-          <div className="follow-up-composer__input-row">
+          <label htmlFor={`${titleId}-question`} className="sr-only">Your follow-up question</label>
+          {isAuthenticated && (
+            <p id={`${titleId}-allowance-hint`} className="sr-only">Limits reset for each reading.</p>
+          )}
+          <div className={clsx('follow-up-composer__input-row', canUseJournal && 'follow-up-composer__input-row--journal')}>
             {/* Read-only (not disabled) while the reader answers, so focus stays put. */}
             <textarea
               id={`${titleId}-question`}
@@ -820,13 +863,28 @@ export default function FollowUpChat({
               onKeyDown={handleKeyDown}
               placeholder={!isAuthenticated
                 ? 'Sign in to ask a follow-up'
-                : isLoading ? 'The reader is answering…' : 'Ask a follow-up question...'}
+                : isLoading ? 'The reader is answering…' : 'Ask a question'}
               disabled={!isAuthenticated}
               readOnly={isLoading}
               aria-disabled={isLoading || undefined}
-              aria-describedby={`${titleId}-hint ${titleId}-counter`}
+              aria-describedby={`${isDrawer ? '' : `${titleId}-hint `}${titleId}-counter${isAuthenticated ? ` ${titleId}-usage ${titleId}-allowance-hint` : ''}`}
               maxLength={MAX_MESSAGE_LENGTH}
             />
+
+            {canUseJournal && (
+              <label className="follow-up-chat__history-label" title="Use journal insights">
+                <input
+                  type="checkbox"
+                  aria-label="Use journal insights"
+                  checked={includeJournal}
+                  onChange={(e) => setIncludeJournal(e.target.checked)}
+                  onKeyDown={(e) => {
+                    // Choosing context must not implicitly submit the form.
+                    if (e.key === 'Enter') e.preventDefault();
+                  }}
+                />
+              </label>
+            )}
 
             {/* aria-disabled keeps the button focusable after a click-to-send. */}
             <button
@@ -839,9 +897,14 @@ export default function FollowUpChat({
               <PaperPlaneTilt className="w-5 h-5" weight="fill" aria-hidden="true" />
             </button>
           </div>
-          <div className="follow-up-composer__meta">
-            <p id={`${titleId}-hint`}>Shift+Enter for a new line</p>
-            <span id={`${titleId}-counter`} className="tabular-nums">
+          <div className="follow-up-composer__meta" data-empty={!inputValue.length} data-authenticated={isAuthenticated}>
+            {isAuthenticated && (
+              <span id={`${titleId}-usage`} className="follow-up-chat__usage">
+                {questionsLeft} {questionsLeft === 1 ? 'question' : 'questions'} left
+              </span>
+            )}
+            <p id={`${titleId}-hint`} className="follow-up-composer__keyboard-hint">Shift+Enter for a new line</p>
+            <span id={`${titleId}-counter`} className="follow-up-composer__counter tabular-nums">
               {inputValue.length}/{MAX_MESSAGE_LENGTH}
             </span>
           </div>
@@ -860,19 +923,6 @@ export default function FollowUpChat({
             </a>
           )}
         </div>
-      )}
-
-      {/* Journal toggle (Plus+ only) */}
-      {canUseJournal && (
-        <label className="follow-up-chat__history-label flex items-center gap-2 text-muted cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={includeJournal}
-            onChange={(e) => setIncludeJournal(e.target.checked)}
-          />
-          <Lightning className="w-3 h-3" weight="fill" aria-hidden="true" />
-          <span>Include insights from my journal history</span>
-        </label>
       )}
 
       {/* Journal upsell for free/auth'd users */}

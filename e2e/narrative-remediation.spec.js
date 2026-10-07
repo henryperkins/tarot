@@ -16,6 +16,7 @@ const handsets = [{ width: 320, height: 740 }, { width: 390, height: 844 }];
 const motions = ['no-preference', 'reduce'];
 const retainedDraft = 'Which boundary could I try tomorrow?';
 const finalAnswer = 'A small boundary can protect your energy while leaving room for care.';
+const originalQuestionDraft = 'What is the clearest answer to my original question?';
 const suggestionsIn = dialog => dialog.locator('[aria-label="Suggested questions"]').getByRole('button');
 
 async function withReading(page, options, check) {
@@ -58,19 +59,32 @@ async function expectFocusLoop(page, dialog) {
   await expect(controls.first()).toBeFocused();
 }
 
+async function expectComposerRow(input, history, send) {
+  const journalLabel = history.locator('..');
+  const controls = [input, journalLabel, send];
+  const boxes = await Promise.all(controls.map(control => control.boundingBox()));
+  for (const box of boxes) expect(box).not.toBeNull();
+  const sharedTop = Math.max(...boxes.map(box => box.y));
+  const sharedBottom = Math.min(...boxes.map(box => box.y + box.height));
+  expect(sharedBottom - sharedTop, 'Textarea, Journal, and Send must share one row').toBeGreaterThan(0);
+  await expectSeparateBoxes(input, journalLabel);
+  await expectSeparateBoxes(input, send);
+  await expectSeparateBoxes(journalLabel, send);
+}
+
 for (const viewport of [desktop, ...handsets]) {
   for (const motion of motions) {
     const tag = viewport.width < 769 ? ' @mobile' : '';
-    test(`A01 A02 A08 foreground, targets, and three close cycles at ${viewport.width}px ${motion}${tag}`, async ({ page }) => {
+    test(`A01 A02 A08 inline composer, foreground, targets, and three close cycles at ${viewport.width}px ${motion}${tag}`, async ({ page }) => {
       // This covers five opens and four closes, including a live response.
       // Normal-motion WebKit actionability waits accumulate across that flow.
       if (motion === 'no-preference') test.setTimeout(90000);
       await withReading(page, { viewport, motion }, async fixture => {
         const { dialog, opener } = await openChat(page);
-        const input = dialog.getByRole('textbox', { name: 'Follow-up question' });
+        const input = dialog.getByRole('textbox', { name: 'Your follow-up question', exact: true });
         const send = dialog.getByRole('button', { name: 'Send question' });
         const close = dialog.getByRole('button', { name: 'Close follow-up chat' });
-        const history = dialog.getByRole('checkbox', { name: 'Include insights from my journal history' });
+        const history = dialog.getByRole('checkbox', { name: 'Use journal insights', exact: true });
         // Handset Ask opens the composer; desktop Continue avoids summoning it.
         await expect(viewport.width < 769 ? input : close).toBeFocused();
         await expect(dialog).toHaveAttribute('aria-modal', 'true');
@@ -81,10 +95,23 @@ for (const viewport of [desktop, ...handsets]) {
         await expectTarget(send, 48);
         for (const suggestion of await suggestionsIn(dialog).all()) await expectTarget(suggestion);
         await expectTarget(history.locator('..'));
+        await expectComposerRow(input, history, send);
+        await expect(dialog.getByText('10 questions left', { exact: true })).toBeVisible();
         await expectNoHorizontalOverflow(page, '#mobile-followup-drawer');
         await expectFocusLoop(page, dialog);
         await input.fill(retainedDraft);
         await history.uncheck();
+        expect(fixture.requests.followup).toHaveLength(0);
+        await history.focus();
+        await history.press('Enter');
+        await expect(input).toHaveValue(retainedDraft);
+        await expect(input).toBeEditable();
+        expect(fixture.requests.followup).toHaveLength(0);
+        await history.press(' ');
+        await expect(history).toBeChecked();
+        await history.press(' ');
+        await expect(history).not.toBeChecked();
+        expect(fixture.requests.followup).toHaveLength(0);
         for (const closeMode of ['button', 'escape', 'backdrop']) {
           if (closeMode === 'button') await close.click();
           if (closeMode === 'escape') await page.keyboard.press('Escape');
@@ -102,6 +129,7 @@ for (const viewport of [desktop, ...handsets]) {
         expect(fixture.requests.followup[0].options.includeJournalContext).toBe(false);
         await fixture.emit('followup', 'delta', { text: 'A small boundary ' });
         await expect(dialog.getByRole('log')).toContainText('A small boundary');
+        await expect(dialog.getByText('10 questions left', { exact: true })).toBeVisible();
         await close.click();
         await fixture.emit('followup', 'done', { fullText: finalAnswer });
         await expectClosed(page, opener);
@@ -111,35 +139,62 @@ for (const viewport of [desktop, ...handsets]) {
         await expect(input).toBeEnabled();
         expect(fixture.requests.followup).toHaveLength(1);
         expect(fixture.requests.reading).toHaveLength(1);
-        await expect(dialog).toContainText('1/10');
+        await expect(dialog.getByText('9 questions left', { exact: true })).toBeVisible();
       });
     });
   }
 }
 
 for (const mobile of [false, true]) {
-  test(`A03 suggestions submit once by Enter, Space, and pointer${mobile ? ' @mobile' : ''}`, async ({ page }) => {
+  test(`A03 suggestions create editable drafts by Enter, Space, and pointer${mobile ? ' @mobile' : ''}`, async ({ page }, testInfo) => {
     await withReading(page, { viewport: mobile ? handsets[1] : desktop }, async fixture => {
       const { dialog } = await openChat(page);
+      const input = dialog.getByRole('textbox', { name: 'Your follow-up question', exact: true });
+      const send = dialog.getByRole('button', { name: 'Send question', exact: true });
       for (const [index, activation] of ['Enter', 'Space', 'pointer'].entries()) {
-        if (index) await dialog.getByRole('button', { name: 'Need ideas? Show suggestions' }).click();
         const suggestions = suggestionsIn(dialog);
-        await expect(suggestions).toHaveCount(4);
-        const suggestion = suggestions.first();
-        const question = (await suggestion.textContent()).trim();
-        await expect(suggestion).toHaveAccessibleName(question);
+        if (index) await dialog.getByRole('button', { name: 'More ideas', exact: true }).click();
+        await expect(suggestions).toHaveCount(index ? 4 : 2);
+        const suggestion = activation === 'pointer'
+          ? dialog.getByRole('button', { name: /^Clarify my question/ })
+          : suggestions.first();
+        const label = (await suggestion.innerText()).trim();
+        expect(label.length).toBeGreaterThan(0);
+        await expect(suggestion).toHaveAccessibleName(new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
         if (activation === 'pointer') await suggestion.click();
         else await suggestion.press(activation === 'Space' ? ' ' : activation);
+        // Pointer activation deliberately edits immediately, before any frame
+        // wait, so a deferred caret change cannot interfere with replacement.
+        let draft = originalQuestionDraft;
+        if (activation !== 'pointer') {
+          await expect(input).toBeFocused();
+          await expect(input).toHaveValue(/\S.+\?/);
+          draft = await input.inputValue();
+          expect(draft.length).toBeGreaterThan(label.length);
+          expect(fixture.requests.followup).toHaveLength(index);
+        }
+        const question = `${draft} What could I try tomorrow?`;
+        await input.fill(question);
+        const afterFill = await input.inputValue();
+        if (afterFill !== question) await testInfo.attach('suggestion-draft-edit', {
+          body: JSON.stringify({ activation, beforeFill: draft, intendedAfterFill: question, receivedAfterFill: afterFill }, null, 2),
+          contentType: 'application/json'
+        });
+        await expect(input).toHaveValue(question);
+        await expect(input).toBeFocused();
+        expect(fixture.requests.followup).toHaveLength(index);
+        if (index === 1) await input.press('Enter');
+        else await send.click();
         await expect.poll(() => fixture.requests.followup.length).toBe(index + 1);
         expect(fixture.requests.followup[index].followUpQuestion).toBe(question);
         expect(fixture.requests.followup[index].options.stream).toBe(true);
         expect(fixture.requests.followup[index].readingContext.narrative).toBe(NARRATIVE);
-        await expect(dialog.getByRole('textbox', { name: 'Follow-up question' })).toBeDisabled();
-        await expect(dialog.getByRole('button', { name: 'Send question' })).toBeDisabled();
+        await expect(input).toBeDisabled();
+        await expect(send).toBeDisabled();
         await page.keyboard.press('Enter');
         expect(fixture.requests.followup).toHaveLength(index + 1);
         await fixture.emit('followup', 'done', { fullText: `${finalAnswer} Turn ${index + 1}.` });
-        await expect(dialog.getByRole('textbox', { name: 'Follow-up question' })).toBeEnabled();
+        await expect(input).toBeEnabled();
       }
       const axe = await new AxeBuilder({ page }).include('#mobile-followup-drawer')
         .withRules(['aria-roles', 'aria-required-children', 'aria-required-parent', 'button-name', 'label']).analyze();
@@ -149,19 +204,110 @@ for (const mobile of [false, true]) {
   });
 }
 
+for (const mobile of [false, true]) {
+  test(`A03 expanding and hiding ideas retains the conversation and reading place${mobile ? ' @mobile' : ''}`, async ({ page }, testInfo) => {
+    await withReading(page, { viewport: mobile ? handsets[1] : desktop }, async fixture => {
+      const { dialog } = await openChat(page);
+      const input = dialog.getByRole('textbox', { name: 'Your follow-up question', exact: true });
+      const suggestions = suggestionsIn(dialog);
+      await expect(suggestions).toHaveCount(2);
+      await input.fill('What deserves a closer look?');
+      await input.press('Enter');
+      await fixture.emit('followup', 'done', {
+        fullText: `${Array.from({ length: 40 }, (_, index) => `Reflection ${index + 1} invites a patient pause.`).join('\n\n')}\n\n${finalAnswer}`
+      });
+      await expect(input).toBeEnabled();
+      const log = dialog.getByRole('log', { name: 'Conversation history', exact: true });
+      const conversation = await log.innerText();
+      const scroll = dialog.locator('.follow-up-chat__scroll');
+      await expect.poll(() => scroll.evaluate(node => node.scrollHeight - node.clientHeight)).toBeGreaterThan(100);
+      await input.fill(retainedDraft);
+      await log.evaluate(node => node.focus({ preventScroll: true }));
+      const waitForSettledPosition = async atBottom => {
+        await expect.poll(() => scroll.evaluate(async (node, expectBottom) => {
+          const composer = node.closest('.follow-up-chat').querySelector('textarea');
+          const geometry = () => [node.scrollTop, node.scrollHeight, node.clientHeight,
+            composer.clientWidth, composer.clientHeight, composer.scrollHeight];
+          const before = geometry();
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const after = geometry();
+          const bottomDistance = node.scrollHeight - node.clientHeight - node.scrollTop;
+          return before.every((value, index) => value === after[index])
+            && (expectBottom ? bottomDistance <= 2 : bottomDistance > 100);
+        }, atBottom)).toBe(true);
+      };
+      // Let the draft refit and the latest-answer pin finish before a native
+      // reading action establishes the position measured by the disclosure.
+      await waitForSettledPosition(true);
+      await log.press('PageUp');
+      await waitForSettledPosition(false);
+      const beforeExpansion = await scroll.evaluate(node => ({
+        scrollTop: node.scrollTop, scrollHeight: node.scrollHeight, clientHeight: node.clientHeight,
+        bottomDistance: node.scrollHeight - node.clientHeight - node.scrollTop,
+        activeElement: document.activeElement?.getAttribute('aria-label')
+      }));
+      const readingPlace = beforeExpansion.scrollTop;
+      expect(beforeExpansion.bottomDistance).toBeGreaterThan(100);
+
+      const more = dialog.getByRole('button', { name: 'More ideas', exact: true });
+      await expect(more).toHaveAttribute('aria-expanded', 'false');
+      await more.click();
+      const hide = dialog.getByRole('button', { name: 'Hide ideas', exact: true });
+      await expect(hide).toHaveAttribute('aria-expanded', 'true');
+      await expect(suggestions).toHaveCount(4);
+      await expect.poll(() => log.innerText()).toBe(conversation);
+      await expect(input).toHaveValue(retainedDraft);
+      const afterExpansion = await scroll.evaluate(node => ({
+        scrollTop: node.scrollTop, scrollHeight: node.scrollHeight, clientHeight: node.clientHeight,
+        bottomDistance: node.scrollHeight - node.clientHeight - node.scrollTop,
+        activeElement: document.activeElement?.textContent
+      }));
+      if (Math.abs(afterExpansion.scrollTop - readingPlace) > 2) {
+        await testInfo.attach('ideas-reading-position', {
+          body: JSON.stringify({ beforeExpansion, afterExpansion }, null, 2),
+          contentType: 'application/json'
+        });
+      }
+      expect(Math.abs(await scroll.evaluate(node => node.scrollTop) - readingPlace)).toBeLessThanOrEqual(2);
+
+      await hide.click();
+      await expect(more).toHaveAttribute('aria-expanded', 'false');
+      await expect(suggestions).toHaveCount(0);
+      await expect.poll(() => log.innerText()).toBe(conversation);
+      await expect(input).toHaveValue(retainedDraft);
+      expect(Math.abs(await scroll.evaluate(node => node.scrollTop) - readingPlace)).toBeLessThanOrEqual(2);
+      expect(fixture.requests.followup).toHaveLength(1);
+      expect(fixture.requests.reading).toHaveLength(1);
+
+      await more.click();
+      const clarifyQuestion = dialog.getByRole('button', { name: /^Clarify my question/ });
+      await clarifyQuestion.click();
+      await expect(input).toHaveValue(originalQuestionDraft);
+      await expect(input).toBeFocused();
+      await expect(input).toHaveJSProperty('selectionStart', originalQuestionDraft.length);
+      await expect(input).toHaveJSProperty('selectionEnd', originalQuestionDraft.length);
+      await expect(suggestions).toHaveCount(0);
+      expect(fixture.requests.followup).toHaveLength(1);
+    });
+  });
+}
+
 test('A02 responsive presentation retains draft, suggestions, preference and one stream', async ({ page }) => {
   await withReading(page, {}, async fixture => {
     const { dialog } = await openChat(page);
-    const input = dialog.getByRole('textbox', { name: 'Follow-up question' });
-    const history = dialog.getByRole('checkbox', { name: 'Include insights from my journal history' });
+    const input = dialog.getByRole('textbox', { name: 'Your follow-up question', exact: true });
+    const history = dialog.getByRole('checkbox', { name: 'Use journal insights', exact: true });
     await history.uncheck();
     await input.fill(retainedDraft);
+    await dialog.getByRole('button', { name: 'More ideas', exact: true }).click();
+    await expect(suggestionsIn(dialog)).toHaveCount(4);
     const initialQuestions = await suggestionsIn(dialog).allTextContents();
     for (const width of [768, 769, 390, 1440]) {
       await page.setViewportSize({ width, height: 844 });
       await expect(page.getByRole('dialog')).toHaveCount(1);
       await expect(input).toHaveValue(retainedDraft);
       await expect(history).not.toBeChecked();
+      await expect(dialog.getByRole('button', { name: 'Hide ideas', exact: true })).toHaveAttribute('aria-expanded', 'true');
       expect(await suggestionsIn(dialog).allTextContents()).toEqual(initialQuestions);
       await expectFocusLoop(page, dialog);
     }
@@ -194,7 +340,7 @@ test('A02 closing after its desktop opener disappears restores the narrative hea
 test('A03 composer preserves Enter, Shift+Enter, IME, 500-character and retry guards', async ({ page }) => {
   await withReading(page, {}, async fixture => {
     const { dialog } = await openChat(page);
-    const input = dialog.getByRole('textbox', { name: 'Follow-up question' });
+    const input = dialog.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     const send = dialog.getByRole('button', { name: 'Send question' });
     await input.fill('   ');
     await expect(send).toBeDisabled();
@@ -216,7 +362,7 @@ test('A03 composer preserves Enter, Shift+Enter, IME, 500-character and retry gu
     await input.press('Enter');
     await fixture.emit('followup', 'done', { fullText: finalAnswer });
     await expect(dialog.getByRole('log')).toContainText(finalAnswer);
-    await expect(dialog).toContainText('1/10');
+    await expect(dialog.getByText('9 questions left', { exact: true })).toBeVisible();
     expect(fixture.requests.followup).toHaveLength(2);
   });
 });
@@ -249,6 +395,7 @@ for (const signedOut of [false, true]) {
       const { dialog } = await openChat(page);
       if (signedOut) {
         await expect(dialog).toContainText('Sign in to ask follow-up questions');
+        await expect(dialog.getByText(/^\d+ questions? left$/)).toHaveCount(0);
         for (const suggestion of await suggestionsIn(dialog).all()) await expect(suggestion).toBeDisabled();
         await expect(dialog.getByRole('textbox')).toBeDisabled();
         await expect(dialog.getByRole('button', { name: 'Send question' })).toBeDisabled();
@@ -260,6 +407,7 @@ for (const signedOut of [false, true]) {
         await expect(dialog.getByRole('alert')).toContainText('limit');
         await expect(dialog).toContainText("You've used all 10 follow-up questions");
         await expect(dialog.getByRole('textbox')).toHaveCount(0);
+        await expect(dialog.getByRole('checkbox', { name: 'Use journal insights', exact: true })).toHaveCount(0);
         for (const suggestion of await suggestionsIn(dialog).all()) await expect(suggestion).toBeDisabled();
         expect(fixture.requests.followup).toHaveLength(1);
       }
@@ -322,7 +470,7 @@ for (const motion of motions) {
   test(`A05 short desktop has a real scroll region and reachable footer at 200% text ${motion}`, async ({ page }) => {
     await withReading(page, { viewport: { width: 1440, height: 500 }, motion }, async fixture => {
       const { dialog } = await openChat(page);
-      const input = dialog.getByRole('textbox', { name: 'Follow-up question' });
+      const input = dialog.getByRole('textbox', { name: 'Your follow-up question', exact: true });
       await input.fill(retainedDraft);
       await input.press('Enter');
       await fixture.emit('followup', 'done', { fullText: `${'A longer reflection deserves room to breathe.\n\n'.repeat(30)}The final reflection remains reachable.` });
@@ -353,7 +501,7 @@ for (const viewport of handsets) {
       await installSimulatedVisualViewport(page);
       await withReading(page, { viewport, motion }, async fixture => {
         const { dialog } = await openChat(page);
-        const input = dialog.getByRole('textbox', { name: 'Follow-up question' });
+        const input = dialog.getByRole('textbox', { name: 'Your follow-up question', exact: true });
         const send = dialog.getByRole('button', { name: 'Send question' });
         await page.addStyleTag({ content: ':root { font-size: 200% !important; }' });
         await page.evaluate(() => window.__setVisualViewport(340));
@@ -492,7 +640,8 @@ async function verifySkipLinks(page) {
     const target = page.locator(await link.getAttribute('href'));
     await expect(target, `${await link.textContent()} must target mounted content`).toHaveCount(1);
     await link.focus();
-    expect((await link.boundingBox()).y).toBeGreaterThanOrEqual(0);
+    // Native focus scrolling can settle after focus() resolves.
+    await expect.poll(async () => (await link.boundingBox()).y).toBeGreaterThanOrEqual(0);
     await link.press('Enter');
     await expect(target).toBeFocused();
     const box = await target.boundingBox();

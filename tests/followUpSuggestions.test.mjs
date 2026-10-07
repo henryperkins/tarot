@@ -4,6 +4,94 @@ import { describe, test } from 'node:test';
 import { generateFollowUpSuggestions } from '../src/lib/followUpSuggestions.js';
 
 describe('generateFollowUpSuggestions', () => {
+  describe('compact question labels', () => {
+    test('keeps the compact reversal label separate from the full card-specific question', () => {
+      const suggestions = generateFollowUpSuggestions([
+        { name: 'Six of Pentacles', suit: 'Pentacles', isReversed: true }
+      ], {}, {});
+      const reversal = suggestions.find(s => s.type === 'reversal');
+
+      assert.equal(reversal.label, 'Explore this reversal');
+      assert.equal(reversal.text, 'What does Six of Pentacles reversed want me to acknowledge or release?');
+      assert.equal(reversal.anchorKey, 'Six of Pentacles');
+      assert.equal(reversal.triggerKey, 'single-reversal');
+      assert.ok(reversal.label.length < reversal.text.length);
+    });
+
+    test('refers to the original question without quoting a truncated intention', () => {
+      const userQuestion = 'How can I transform the way I show up in my relationship while preserving my own needs?';
+      const question = generateFollowUpSuggestions([], {}, {}, { userQuestion })
+        .find(s => s.type === 'question');
+
+      assert.equal(question.text, 'What is the clearest answer to my original question?');
+      assert.equal(question.label, 'Clarify my question');
+      assert.equal(question.triggerKey, 'user-question');
+      assert.ok(!question.text.includes(userQuestion.slice(0, 36)), 'The submitted question should not contain a cut-off intention');
+      assert.ok(!question.text.includes('...'), 'The submitted question should remain complete');
+    });
+
+    test('distinguishes dominant and missing elemental context in compact labels', () => {
+      const suggestions = generateFollowUpSuggestions([], {
+        elementCounts: { Fire: 0, Water: 1, Air: 1, Earth: 3 }
+      }, {}, { limit: 20 });
+      const dominant = suggestions.find(s => s.triggerKey === 'dominant-element');
+      const missing = suggestions.find(s => s.triggerKey === 'missing-element');
+
+      assert.equal(dominant.label, 'Explore Earth energy');
+      assert.equal(dominant.anchorKey, 'Earth');
+      assert.ok(dominant.text.includes('strong Earth energy'));
+      assert.equal(missing.label, 'Explore missing Fire');
+      assert.equal(missing.anchorKey, 'Fire');
+      assert.ok(missing.text.includes('absence of Fire'));
+    });
+
+    test('gives every candidate a distinct compact action label across all spreads', () => {
+      const reading = [
+        { name: 'Six of Pentacles', suit: 'Pentacles', isReversed: true },
+        { name: 'Two of Pentacles', suit: 'Pentacles' },
+        { name: 'Ace of Pentacles', suit: 'Pentacles' }
+      ];
+      for (const spreadKey of ['celtic', 'threeCard', 'relationship', 'decision', 'single', 'fiveCard', 'general']) {
+        const suggestions = generateFollowUpSuggestions(reading, {}, { spreadKey }, {
+          userQuestion: 'How can I find a balance that supports me?', limit: 20
+        });
+        const labels = suggestions.map(s => s.label);
+        assert.equal(new Set(labels).size, suggestions.length, `${spreadKey} candidates need distinct labels`);
+        for (const suggestion of suggestions) {
+          assert.equal(typeof suggestion.label, 'string');
+          assert.ok(suggestion.label.length > 0 && suggestion.label.length <= 40, `${spreadKey} label should fit a compact control`);
+          assert.ok(!suggestion.label.includes('...'), 'Labels should be authored rather than clipped');
+          assert.notEqual(suggestion.label, suggestion.text, 'Selecting a compact label should retain a separate full question');
+        }
+      }
+    });
+
+    test('preserves contextual candidate selection when the rotation changes', () => {
+      const reading = [
+        { name: 'Six of Pentacles', suit: 'Pentacles', isReversed: true },
+        { name: 'Two of Pentacles', suit: 'Pentacles' },
+        { name: 'Ace of Pentacles', suit: 'Pentacles' }
+      ];
+      const meta = { spreadKey: 'relationship', userQuestion: 'How can I transform the way I show up in this relationship?' };
+      const selection = rotationIndex => generateFollowUpSuggestions(reading, {}, meta, {
+        rotationSeed: 'compact-label-contract', rotationIndex
+      }).map(({ type, anchorKey, triggerKey }) => ({ type, anchorKey, triggerKey }));
+
+      assert.deepEqual(selection(0), [
+        { type: 'reversal', anchorKey: 'Six of Pentacles', triggerKey: 'single-reversal' },
+        { type: 'suit', anchorKey: 'Pentacles', triggerKey: 'dominant-suit' },
+        { type: 'question', anchorKey: null, triggerKey: 'user-question' },
+        { type: 'spread', anchorKey: 'them-perspective', triggerKey: null }
+      ]);
+      assert.deepEqual(selection(1), [
+        { type: 'reversal', anchorKey: 'Six of Pentacles', triggerKey: 'single-reversal' },
+        { type: 'elemental', anchorKey: 'Earth', triggerKey: 'dominant-element' },
+        { type: 'spread', anchorKey: 'them-perspective', triggerKey: null },
+        { type: 'question', anchorKey: null, triggerKey: 'user-question' }
+      ]);
+    });
+  });
+
   describe('reversal-based suggestions', () => {
     test('generates card-specific question for single reversed card', () => {
       const reading = [
@@ -43,6 +131,7 @@ describe('generateFollowUpSuggestions', () => {
 
       const reversalSuggestion = suggestions.find(s => s.type === 'reversal');
       assert.ok(reversalSuggestion, 'Should generate reversal suggestion');
+      assert.equal(reversalSuggestion.label, 'Connect the reversals');
       assert.ok(reversalSuggestion.text.includes('pattern'), 'Should ask about pattern for multiple reversals');
       assert.ok(!reversalSuggestion.text.includes('Tower'), 'Should not name specific card for pattern question');
     });

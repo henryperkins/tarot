@@ -213,23 +213,33 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await expect(followUpButton).toBeVisible();
   });
 
-  test('suggested question submits and renders response', async ({ page }) => {
-    await mockAuth(page);
+  test('a suggested question stays an editable draft until Send is chosen', async ({ page }) => {
+    await mockAuth(page, 'plus');
     await mockTarotReading(page);
-    await mockFollowUp(page, { responseText: 'Mocked follow-up answer.' });
+    const requests = [];
+    await mockFollowUp(page, {
+      responseText: 'Mocked follow-up answer.',
+      onRequest: body => requests.push(body)
+    });
     await completeReading(page);
     await openFollowUpModal(page);
 
     const suggestionList = page.getByRole('list', { name: /suggested questions/i });
     const firstSuggestion = suggestionList.getByRole('button').first();
-    const suggestionText = (await firstSuggestion.textContent())?.trim();
-
     await firstSuggestion.click();
 
-    if (suggestionText) {
-      await expect(page.getByText(suggestionText)).toBeVisible();
-    }
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
+    await expect(input).toHaveValue(/\S.+\?/);
+    await expect(input).toBeFocused();
+    expect(requests).toHaveLength(0);
+    await expect(page.getByRole('log', { name: /conversation history/i })).toHaveCount(0);
+
+    const editedQuestion = 'What small step could I take tomorrow?';
+    await input.fill(editedQuestion);
+    await page.getByRole('button', { name: 'Send question', exact: true }).click();
     await expect(page.getByText('Mocked follow-up answer.')).toBeVisible();
+    expect(requests).toHaveLength(1);
+    expect(requests[0].followUpQuestion).toBe(editedQuestion);
   });
 
   test('free-form input submits and shows response', async ({ page }) => {
@@ -239,7 +249,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('Can you clarify the main lesson?');
     await input.press('Enter');
 
@@ -253,13 +263,13 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('First follow-up question.');
     await input.press('Enter');
 
     await expect(page.getByText('First follow-up response.')).toBeVisible();
     await expect(page.getByText(/used your follow-up question for this reading/i)).toBeVisible();
-    await expect(page.getByRole('textbox', { name: 'Follow-up question' })).toHaveCount(0);
+    await expect(page.getByRole('textbox', { name: 'Your follow-up question', exact: true })).toHaveCount(0);
   });
 
   test('composer keeps focus and stays until the answer lands', async ({ page }) => {
@@ -277,7 +287,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('Where should my attention go?');
     await input.press('Enter');
 
@@ -285,7 +295,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await expect(input).toBeDisabled();
     await expect(input).toBeFocused();
     await expect(page.getByText('Reflecting on your question…')).toBeVisible();
-    await expect(page.getByText('0/1 used', { exact: true })).toBeVisible();
+    await expect(page.getByText('1 question left', { exact: true })).toBeVisible();
 
     release();
     await expect(page.getByText('Held answer.')).toBeVisible();
@@ -294,7 +304,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
       .toContain('used your follow-up question for this reading');
   });
 
-  test('suggestions move focus to the conversation, never to the page body', async ({ page }) => {
+  test('keyboard-selected ideas focus the draft and stay reversible', async ({ page }) => {
     await mockAuth(page, 'plus');
     await mockTarotReading(page);
     await mockFollowUp(page, { responseText: 'Suggestion answer.' });
@@ -302,12 +312,21 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await openFollowUpModal(page);
 
     const suggestionList = page.getByRole('list', { name: /suggested questions/i });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await suggestionList.getByRole('button').first().press('Enter');
+    await expect(input).toBeFocused();
+    await expect(input).toHaveValue(/\S.+\?/);
+    await input.press('Enter');
     await expect(page.getByText('Suggestion answer.')).toBeVisible();
-    await expect(page.getByRole('log', { name: /conversation history/i })).toBeFocused();
 
-    await page.getByRole('button', { name: /show suggestions/i }).press('Enter');
-    await expect(suggestionList.getByRole('button').first()).toBeFocused();
+    const moreIdeas = page.getByRole('button', { name: 'More ideas', exact: true });
+    await moreIdeas.press('Enter');
+    await expect(page.getByRole('button', { name: 'Hide ideas', exact: true })).toBeFocused();
+    await expect(suggestionList.getByRole('button')).toHaveCount(4);
+    await page.getByRole('button', { name: 'Hide ideas', exact: true }).press('Enter');
+    await expect(moreIdeas).toBeFocused();
+    await expect(suggestionList).toHaveCount(0);
+    await expect(page.getByRole('log', { name: /conversation history/i })).toContainText('Suggestion answer.');
   });
 
   test('safety-gate JSON answer shows support resources without spending a turn', async ({ page }) => {
@@ -323,13 +342,13 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('A question that trips the safety gate');
     await input.press('Enter');
 
     await expect(page.getByRole('log', { name: /conversation history/i })).toContainText('988');
     await expect(page.getByRole('alert')).toHaveCount(0);
-    await expect(page.getByText('0/1 used', { exact: true })).toBeVisible();
+    await expect(page.getByText('1 question left', { exact: true })).toBeVisible();
     await expect(input).toBeEnabled();
   });
 
@@ -340,7 +359,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('Will this survive a dropped connection?');
     await input.press('Enter');
 
@@ -359,7 +378,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('Is anyone there?');
     await input.press('Enter');
 
@@ -385,7 +404,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('What needs more patience from me?');
     await input.press('Enter');
     await expect(page.getByText('Reflecting on your question…')).toBeVisible();
@@ -397,7 +416,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
 
     release();
     await expect(page.getByText('Worth the wait.')).toBeVisible();
-    await expect(page.getByText('1/3 used', { exact: true })).toBeVisible();
+    await expect(page.getByText('2 questions left', { exact: true })).toBeVisible();
   });
 
   test('focus stays where the person left it when an answer lands', async ({ page }) => {
@@ -415,7 +434,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('Where is my attention going?');
     await input.press('Enter');
     // Dismissing a phone keyboard blurs the composer without focusing anything else.
@@ -427,16 +446,18 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('BODY');
   });
 
-  test('the composer refits its draft when the width changes', async ({ page }) => {
+  test('the composer refits an uncapped draft when the width changes', async ({ page }) => {
     await mockAuth(page, 'plus');
     await mockTarotReading(page);
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
-    await input.fill('How can I keep steady attention on the work that matters most while other commitments pull me in different directions?');
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
+    await input.fill('How can I make time for rest tomorrow?');
+    const desktopHeight = await input.evaluate(el => el.clientHeight);
     await page.setViewportSize({ width: 390, height: 844 });
     // No keystroke after the resize: the resize observer alone has to refit the draft.
+    await expect.poll(() => input.evaluate(el => el.clientHeight)).toBeGreaterThan(desktopHeight);
     await expect.poll(() => input.evaluate(el => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(0);
   });
 
@@ -454,16 +475,16 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('First question');
     await input.press('Enter');
-    await expect(page.getByText('1/3 used', { exact: true })).toBeVisible();
+    await expect(page.getByText('2 questions left', { exact: true })).toBeVisible();
 
     await input.fill('Second question');
     await input.press('Enter');
     const log = page.getByRole('log', { name: /conversation history/i });
     await expect(log).toContainText('this answer may be incomplete');
-    await expect(page.getByText('2/3 used', { exact: true })).toBeVisible();
+    await expect(page.getByText('1 question left', { exact: true })).toBeVisible();
   });
 
   test('a final event without a trailing blank line still completes the answer', async ({ page }) => {
@@ -477,13 +498,13 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('Does the last event count?');
     await input.press('Enter');
 
     const log = page.getByRole('log', { name: /conversation history/i });
     await expect(log).toContainText('Whole answer.');
-    await expect(page.getByText('1/3 used', { exact: true })).toBeVisible();
+    await expect(page.getByText('2 questions left', { exact: true })).toBeVisible();
     await expect(log).not.toContainText('may be incomplete');
   });
 
@@ -502,11 +523,11 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const journalToggle = page.getByRole('checkbox', { name: /include insights from my journal history/i });
+    const journalToggle = page.getByRole('checkbox', { name: 'Use journal insights', exact: true });
     await expect(journalToggle).toBeVisible();
     await journalToggle.uncheck();
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('Test journal toggle.');
     await input.press('Enter');
 
@@ -524,6 +545,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
 
     const suggestionList = page.getByRole('list', { name: /suggested questions/i });
     await suggestionList.getByRole('button').first().click();
+    await page.getByRole('button', { name: 'Send question', exact: true }).click();
 
     const alert = page.getByRole('alert');
     await expect(alert).toContainText('Please sign in to ask follow-up questions.');
@@ -550,7 +572,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('Test SSE error handling');
     await input.press('Enter');
 
@@ -578,7 +600,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
       };
     });
     await openFollowUpModal(page);
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('A question for the first reading');
     await input.press('Enter');
     await expect.poll(() => page.evaluate(() => typeof window.__finishOldFollowup)).toBe('function');
@@ -593,7 +615,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await openFollowUpModal(page);
     await expect(input).toBeEnabled();
     await expect(input).toHaveValue('');
-    await expect(page.getByText('0/10 used', { exact: true })).toBeVisible();
+    await expect(page.getByText('10 questions left', { exact: true })).toBeVisible();
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
 
@@ -616,7 +638,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await completeReading(page);
     await openFollowUpModal(page);
 
-    const input = page.getByRole('textbox', { name: 'Follow-up question' });
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('Test non-OK SSE response');
     await input.press('Enter');
 
@@ -636,6 +658,6 @@ test.describe('Follow-up questions - Mobile @mobile', () => {
     await openFollowUpDrawer(page);
 
     await expect(page.getByRole('list', { name: /suggested questions/i })).toBeVisible();
-    await expect(page.getByRole('textbox', { name: 'Follow-up question' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Your follow-up question', exact: true })).toBeVisible();
   });
 });
