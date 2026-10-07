@@ -72,6 +72,20 @@ test('CLI parser accepts only complete successful output and captures actual mod
   assert.throws(() => parseClaudeOutput(`${output}\n${JSON.stringify({ type: 'assistant', message: { content: 'late data' } })}`), /complete/i);
 });
 
+test('CLI parser rejects mixed actual models and reports the assistant model without usage metadata', () => {
+  const init = { type: 'system', subtype: 'init', model: 'claude-opus-5-5' };
+  const assistant = { type: 'assistant', message: { model: 'claude-other-model' } };
+  const done = { type: 'result', subtype: 'success', is_error: false, result: 'An answer.', stop_reason: 'end_turn', usage: {} };
+  const encode = events => events.map(event => JSON.stringify(event)).join('\n');
+  assert.throws(() => parseClaudeOutput(encode([init, assistant, {
+    ...done, modelUsage: { 'claude-opus-5-5': {}, 'claude-other-model': {} }
+  }])), /multiple models/i);
+  assert.throws(() => parseClaudeOutput(encode([init, assistant, {
+    ...done, modelUsage: { 'claude-opus-5-5': {} }
+  }])), /multiple models/i);
+  assert.equal(parseClaudeOutput(encode([init, assistant, done])).model, 'claude-other-model');
+});
+
 test('queued requests expire and disconnected queued work never starts', async t => {
   let finish;
   let start;

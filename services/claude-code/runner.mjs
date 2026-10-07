@@ -62,11 +62,15 @@ function runProcess(executable, args, { env, cwd, input = '', signal }) {
 export function parseClaudeOutput(output, responseSchema) {
   let model;
   let result;
+  const actualModels = new Set();
   try {
     for (const line of output.split('\n').filter(line => line.trim())) {
       if (result) throw new Error();
       const event = JSON.parse(line);
       if (event.type === 'system' && event.subtype === 'init') model = event.model;
+      if (event.type === 'assistant' && typeof event.message?.model === 'string' && event.message.model) {
+        actualModels.add(event.message.model);
+      }
       if (event.type === 'result') {
         if (result) throw new Error();
         result = event;
@@ -81,8 +85,9 @@ export function parseClaudeOutput(output, responseSchema) {
     || (result.stop_reason && !['end_turn', 'stop_sequence'].includes(result.stop_reason) && !structuredCompletion)) {
     throw new Error('Claude Code request failed or returned an incomplete response.');
   }
-  const usedModels = Object.keys(result.modelUsage || {});
-  if (usedModels.length === 1) model = usedModels[0];
+  for (const usedModel of Object.keys(result.modelUsage || {})) actualModels.add(usedModel);
+  if (actualModels.size > 1) throw new Error('Claude returned output from multiple models.');
+  if (actualModels.size === 1) model = [...actualModels][0];
   return validateClaudeResult({
     provider: 'claude-code',
     text: typeof result.result === 'string' ? result.result.trim() : '',

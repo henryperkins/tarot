@@ -120,7 +120,9 @@ read `.dev.vars` or the service's `.env.local`. Qualification pins each request 
 `ANTHROPIC_MODEL` and `ANTHROPIC_EFFORT` (the production defaults apply when unset),
 with a 32,000-token output ceiling including thinking. CLI host model/effort
 defaults cannot override these pins. The runner disables the server-side advisor
-tool, and qualification rejects a response from a different model. Samples record
+tool, and qualification rejects a response from a different model. Both assistant
+events and terminal model usage must identify one actual model; mixed or
+contradictory model evidence fails before a response is returned. Samples record
 the actual returned model, requested settings, authentication and local/gateway
 transport. `NARRATIVE_EVAL_BACKEND=local-composer`
 remains a deterministic diagnostic; release QA rejects it. Cloudflare's model

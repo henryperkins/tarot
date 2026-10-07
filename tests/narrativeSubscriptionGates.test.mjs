@@ -10,6 +10,9 @@ import { resolveBackendId } from '../scripts/evaluation/runNarrativeSamples.js';
 import { runSubscriptionNarrative } from '../scripts/evaluation/lib/subscriptionNarrative.js';
 import { analyzeSpreadThemes } from '../functions/lib/spreadAnalysis.js';
 import { buildAzureGPT5Prompts } from '../functions/lib/narrativeBackends.js';
+import { createClaudeCodeServer } from '../services/claude-code/server.mjs';
+import { parseClaudeOutput } from '../services/claude-code/runner.mjs';
+import { once } from 'node:events';
 
 const apiSettings = {
   TEXT_PROVIDER: 'legacy', ANTHROPIC_API_KEY: 'must-not-use', OPENAI_API_KEY: 'must-not-use',
@@ -31,7 +34,7 @@ test('narrative evaluation rejects paid provider overrides and retains local dia
   assert.throws(() => resolveBackendId('unknown', {}), /Unknown backend/);
 });
 
-async function cliFixture(t, { authenticated = true, authMethod = 'claude.ai', failGeneration = false, block = false, returnedModel = 'claude-opus-5-5' } = {}) {
+async function cliFixture(t, { authenticated = true, authMethod = 'claude.ai', failGeneration = false, block = false, returnedModel = 'claude-opus-5-5', mixedModels = false } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), 'subscription-gate-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const executable = path.join(directory, 'claude.mjs');
@@ -55,7 +58,9 @@ if (args.includes('status')) {
   else if (${failGeneration}) process.exitCode = 1;
   else {
     console.log(JSON.stringify({ type: 'system', subtype: 'init', model: ${JSON.stringify(returnedModel)} }));
-    console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, stop_reason: 'end_turn', result: 'The Fool invites a curious first step into leadership.', usage: {} }));
+    if (${mixedModels}) console.log(JSON.stringify({ type: 'assistant', message: { model: 'claude-wrong-model' } }));
+    console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, stop_reason: 'end_turn', result: 'The Fool invites a curious first step into leadership.', usage: {},
+      modelUsage: ${JSON.stringify(mixedModels ? { 'claude-opus-5-5': {}, 'claude-wrong-model': {} } : {})} }));
   }
 }
 `, { mode: 0o700 });
@@ -110,6 +115,14 @@ test('the narrative CLI refuses samples answered by a different model', async t 
   const result = await cliFixture(t, { returnedModel: 'claude-wrong-model' });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /claude-wrong-model.*instead of claude-opus-5-5/);
+  await assert.rejects(readFile(result.output), { code: 'ENOENT' });
+  await assert.rejects(readFile(result.network), { code: 'ENOENT' });
+});
+
+test('the narrative CLI refuses mixed-model samples instead of trusting initialization', async t => {
+  const result = await cliFixture(t, { mixedModels: true });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /multiple models/i);
   await assert.rejects(readFile(result.output), { code: 'ENOENT' });
   await assert.rejects(readFile(result.network), { code: 'ENOENT' });
 });
@@ -185,6 +198,29 @@ test('gateway evaluation pins the production settings and rejects model substitu
     CLAUDE_CODE_MODEL: 'host-model', CLAUDE_CODE_EFFORT: 'low',
     CLAUDE_CODE_GATEWAY_URL: 'https://claude.example.test', CLAUDE_CODE_GATEWAY_TOKEN: 'test-gateway-token'
   }, await narrativePayload(), 'test'), /claude-wrong-model.*instead of claude-pinned-model/);
+});
+
+test('mixed-model CLI output fails qualification through the private gateway', async t => {
+  const token = 'test-gateway-token-'.repeat(3);
+  const output = [
+    { type: 'system', subtype: 'init', model: 'claude-opus-5-5' },
+    { type: 'assistant', message: { model: 'claude-wrong-model' } },
+    { type: 'result', subtype: 'success', is_error: false, stop_reason: 'end_turn', result: 'An answer.', usage: {},
+      modelUsage: { 'claude-opus-5-5': {}, 'claude-wrong-model': {} } }
+  ].map(event => JSON.stringify(event)).join('\n');
+  let captured;
+  const server = createClaudeCodeServer({ token, run: async input => {
+    captured = input;
+    return parseClaudeOutput(output);
+  } });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); });
+  await assert.rejects(runSubscriptionNarrative({ ...apiSettings,
+    CLAUDE_CODE_GATEWAY_URL: `http://127.0.0.1:${server.address().port}`, CLAUDE_CODE_GATEWAY_TOKEN: token
+  }, await narrativePayload(), 'test'), /Claude inference unavailable \(503\)/);
+  assert.equal(captured.model, 'claude-opus-5-5');
+  assert.equal(captured.maxOutputTokens, 32000);
 });
 
 test('a failed configured subscription gateway never falls back to local CLI or a paid API', async t => {
