@@ -1,0 +1,44 @@
+{
+  "files": [
+    {
+      "name": "actions-contract.md",
+      "path": "references/actions-contract.md"
+    },
+    {
+      "name": "capabilities-audit.md",
+      "path": "references/capabilities-audit.md"
+    },
+    {
+      "name": "migration-audit.md",
+      "path": "references/migration-audit.md"
+    },
+    {
+      "name": "tarot-actions-complete.yaml",
+      "path": "references/migration-source/tarot-actions-complete.yaml"
+    },
+    {
+      "name": "journal-gpt-behavior.md",
+      "path": "references/migration-source/journal-gpt-behavior.md"
+    },
+    {
+      "name": "Journal Actions implementation plan (INSTRUCTIONS.md)",
+      "path": "references/migration-source/INSTRUCTIONS.md"
+    },
+    {
+      "name": "ActionsGPT.md",
+      "path": "references/ActionsGPT.md"
+    },
+    {
+      "name": "Comprehensive Guide to AI Training for Tarot Card Interpretation Advanced Approaches and Rider-Waite-Specific Strategies.md",
+      "path": "references/Comprehensive Guide to AI Training for Tarot Card Interpretation Advanced Approaches and Rider-Waite-Specific Strategies.md"
+    },
+    {
+      "name": "Tarot Cards Quick Reference and Interpretation Guide.md",
+      "path": "references/Tarot Cards Quick Reference and Interpretation Guide.md"
+    },
+    {
+      "name": "gpt-knowledge-base.md",
+      "path": "references/gpt-knowledge-base.md"
+    }
+  ]
+}
