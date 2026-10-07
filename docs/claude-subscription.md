@@ -121,9 +121,11 @@ judge retains its separate integration.
 
 Hosted runners that cannot access the owner's CLI login must use the private
 service above. Set `CLAUDE_CODE_GATEWAY_URL` and `CLAUDE_CODE_GATEWAY_TOKEN` in that
-runner's environment. GitHub's deploy step reads the URL from the repository
-variable and the token from its secret; Workers Builds needs its own private
-build settings. The gateway uses the host's subscription login; the bearer token
+runner's environment. Workers Builds needs its own private build settings.
+GitHub Actions billing is permanently unavailable; production releases run
+`npm run deploy` locally with the existing CLI login. The GitHub deployment
+workflow is a manual reference and is not a release prerequisite.
+The gateway uses the host's subscription login; the bearer token
 is only a private service credential. A partial or unavailable gateway fails the
 gate without switching to the local CLI or a paid API. Public Worker inference
 settings remain independent of these evaluation-only settings.

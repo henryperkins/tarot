@@ -100,6 +100,7 @@
 - For Impeccable `audit`, `critique`, `polish`, `harden`, and `adapt`, follow the [review workflow](docs/local-reviewer-account.md#impeccable-review-workflows): check relevant guest and real signed-in Pro states, record authentication and tier coverage, and log out afterward. Cover other subscription states separately when affected.
 - Run `npm test` before pushing; for vision/narrative changes, also run `npm run ci:vision-check` or `npm run ci:narrative-check` and record results.
 - Gates that generate narratives use the owner's Claude subscription, never paid API credentials. `npm run ci:narrative-check` and `npm run ci:release-check` default to the existing Claude Code login (Opus 5.5, `xhigh`); no gateway setup is needed locally. Hosted runners use a private subscription gateway. Missing login or gateway access must fail without paid API fallback. Workers AI integrations keep their configured providers.
+- GitHub Actions billing is permanently unavailable. Use local verification and `npm run deploy` on the subscription-authenticated host for releases; GitHub Actions success is not a release prerequisite. Do not ask the user to remove the billing lock. Cloudflare Workers Builds is independent of Actions but requires its own private subscription gateway for live QA. Record local checks and verify the active Worker version and live assets after deployment.
 
 ## Commit & Pull Request Guidelines
 

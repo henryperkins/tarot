@@ -28,6 +28,11 @@ Run every command example in this file from the repository root. Use `python3` i
   previews the script; production changes require `npm run deploy` or
   `npm run migrations:apply`, while local migrations use
   `npm run migrations:apply:local`. Keep publication and cleanup separate.
+- GitHub Actions billing is permanently unavailable. The normal release path is
+  local `npm run deploy` on the subscription-authenticated host, with the same
+  fresh QA before remote changes. Do not make GitHub checks or billing recovery
+  a prerequisite. Preserve local evaluation evidence and verify the active
+  Worker version and live asset bytes after deployment.
 - Applied migrations are checksum-checked, ignoring line endings; `CI=true` or
   `--strict-migration-checks` refuses changed files. Never edit an applied
   migration. If a past edit is reviewed as schema-neutral, pin the recorded
@@ -38,12 +43,14 @@ Run every command example in this file from the repository root. Use `python3` i
   unrun. Supplied manifests must still pass validation and the existing quality
   thresholds. `ci:vision-check` remains available for separate vision evaluation;
   omitting it from a release does not qualify photo recognition or symbols.
-- The checked-in `.github/workflows/deploy.yml` also invokes `node scripts/deploy.js`.
+- The legacy `.github/workflows/deploy.yml` is manual-only and invokes the same
+  `node scripts/deploy.js`; it does not run on pushes or control normal releases.
   Cloudflare Workers Builds may be configured separately in the dashboard; if its
   build command is plain `npx wrangler deploy`, it bypasses `scripts/deploy.js`
   and its migration step. Confirm the external trigger and build command, apply
   migrations separately, and verify the built commit and active production
-  version before the next release.
+  version before the next release. Hosted live QA requires a private subscription
+  gateway; the local CLI login is unavailable to an ephemeral build container.
 - Use explicit staging allowlists in isolated worktrees. Keep unrelated dirty
   files, stashes, historical evidence, and local settings intact.
 

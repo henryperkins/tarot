@@ -55,11 +55,18 @@ existing Claude Code login automatically. Hosted runners require the private
 subscription gateway described in [subscription setup](claude-subscription.md#run-narrative-evals).
 No paid API key is required or used by these gates. The deployment step runs
 fresh subscription QA before any remote migration or rollout.
-Ordinary CI checks saved narrative samples offline; those samples do not qualify
-the current provider. This keeps each deployment to one fresh narrative batch,
-and GitHub preserves its evidence even if the deployment fails.
+Saved narrative samples can be checked offline; those samples do not qualify
+the current provider. Each deployment runs one fresh narrative batch and preserves
+its samples, metrics and review queue under `data/evaluations/runs/`.
 Missing subscription access fails release QA. Paid backend overrides are rejected;
 there is no paid API or local-composer fallback for qualification.
+
+GitHub Actions billing is permanently unavailable. Production releases run
+`npm run deploy` locally with the existing subscription login; GitHub checks and
+billing recovery are not prerequisites. The GitHub deployment workflow is
+manual-only. Cloudflare Workers Builds runs independently of Actions and needs
+private gateway access before it can qualify a release. Verify deployment through
+the active Worker version, live health and built asset bytes.
 
 Live narrative QA generates synthetic samples and consumes the owner's subscription
 allowance. Offline provider/route tests are not live model-quality evidence.
