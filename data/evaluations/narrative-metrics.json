@@ -1,14 +1,18 @@
 {
-  "generatedAt": "2026-04-24T02:07:23.302Z",
+  "generatedAt": "2026-10-07T23:23:59.774Z",
   "sourceFile": "data/evaluations/narrative-samples.json",
-  "totalSamples": 9,
+  "artifactsDirectory": "data/evaluations/runs/2026-10-07T23-23-59.772Z-rzvVai",
+  "totalSamples": 11,
   "spinePassRate": 1,
   "avgCardCoverage": 1,
   "deterministicLanguageCount": 0,
   "missingAgencyCount": 0,
   "hallucinationCount": 0,
+  "suitCountMismatchCount": 0,
   "harshToneCount": 0,
   "missingSupportiveToneCount": 0,
+  "questionNotAddressedCount": 0,
+  "templatedRepetitionCount": 0,
   "flaggedSampleCount": 0,
   "avgRubricScores": {
     "accuracy": 1,
@@ -31,10 +35,25 @@
       "cardCoverage": 1,
       "missingCards": [],
       "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 6,
+        "matchedTermCount": 6,
+        "ratio": 1
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 23,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
       "issueFlags": [],
       "issuesPresent": false,
       "rubric": {
@@ -58,10 +77,25 @@
       "cardCoverage": 1,
       "missingCards": [],
       "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 4,
+        "matchedTermCount": 3,
+        "ratio": 0.75
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 38,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
       "issueFlags": [],
       "issuesPresent": false,
       "rubric": {
@@ -78,17 +112,32 @@
       "question": "What should I know about launching my creative project this quarter?",
       "spine": {
         "isValid": true,
-        "totalSections": 4,
+        "totalSections": 5,
         "completeSections": 3,
-        "incompleteSections": 1
+        "incompleteSections": 2
       },
       "cardCoverage": 1,
       "missingCards": [],
       "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 4,
+        "matchedTermCount": 4,
+        "ratio": 1
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 45,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
       "issueFlags": [],
       "issuesPresent": false,
       "rubric": {
@@ -106,16 +155,31 @@
       "spine": {
         "isValid": true,
         "totalSections": 6,
-        "completeSections": 4,
-        "incompleteSections": 2
+        "completeSections": 3,
+        "incompleteSections": 3
       },
       "cardCoverage": 1,
       "missingCards": [],
       "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 3,
+        "matchedTermCount": 2,
+        "ratio": 0.6666666666666666
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 38,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
       "issueFlags": [],
       "issuesPresent": false,
       "rubric": {
@@ -132,17 +196,32 @@
       "question": "How can I stay centered while everything at home and work restructures at once?",
       "spine": {
         "isValid": true,
-        "totalSections": 6,
+        "totalSections": 8,
         "completeSections": 6,
-        "incompleteSections": 0
+        "incompleteSections": 2
       },
       "cardCoverage": 1,
       "missingCards": [],
       "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 6,
+        "matchedTermCount": 6,
+        "ratio": 1
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 85,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
       "issueFlags": [],
       "issuesPresent": false,
       "rubric": {
@@ -159,17 +238,32 @@
       "question": "I am at a decision point about whether to relocate or stay. Which path supports my growth?",
       "spine": {
         "isValid": true,
-        "totalSections": 8,
-        "completeSections": 7,
+        "totalSections": 9,
+        "completeSections": 8,
         "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
       "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 7,
+        "matchedTermCount": 5,
+        "ratio": 0.7142857142857143
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 57,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
       "issueFlags": [],
       "issuesPresent": false,
       "rubric": {
@@ -186,17 +280,32 @@
       "question": "What spiritual practice should I commit to this season to deepen my intuition?",
       "spine": {
         "isValid": true,
-        "totalSections": 4,
-        "completeSections": 4,
+        "totalSections": 5,
+        "completeSections": 5,
         "incompleteSections": 0
       },
       "cardCoverage": 1,
       "missingCards": [],
       "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 6,
+        "matchedTermCount": 4,
+        "ratio": 0.6666666666666666
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 45,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
       "issueFlags": [],
       "issuesPresent": false,
       "rubric": {
@@ -214,16 +323,115 @@
       "spine": {
         "isValid": true,
         "totalSections": 9,
-        "completeSections": 6,
-        "incompleteSections": 3
+        "completeSections": 7,
+        "incompleteSections": 2
       },
       "cardCoverage": 1,
       "missingCards": [],
       "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 7,
+        "matchedTermCount": 7,
+        "ratio": 1
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 57,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
+      "issueFlags": [],
+      "issuesPresent": false,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 1,
+        "agency": 1,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "relationship-hypothetical-collaborators",
+      "spreadKey": "relationship",
+      "spreadName": "Relationship Snapshot",
+      "question": "Two hypothetical collaborators are planning a project together. What could help them communicate well?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 5,
+        "completeSections": 3,
+        "incompleteSections": 2
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "suitCountMismatches": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 8,
+        "matchedTermCount": 8,
+        "ratio": 1
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 37,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
+      "issueFlags": [],
+      "issuesPresent": false,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 1,
+        "agency": 1,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "celtic-general-focused-week",
+      "spreadKey": "celtic",
+      "spreadName": "Celtic Cross (Classic 10-Card)",
+      "question": "What can help me have a focused week?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 9,
+        "completeSections": 7,
+        "incompleteSections": 2
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "suitCountMismatches": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 3,
+        "matchedTermCount": 3,
+        "ratio": 1
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 64,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
       "issueFlags": [],
       "issuesPresent": false,
       "rubric": {
@@ -240,17 +448,32 @@
       "question": "Como puedo sostener mi energia mientras apoyo a mi familia y mi trabajo?",
       "spine": {
         "isValid": true,
-        "totalSections": 4,
-        "completeSections": 3,
+        "totalSections": 5,
+        "completeSections": 4,
         "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
       "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 5,
+        "matchedTermCount": 4,
+        "ratio": 0.8
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 32,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
       "issueFlags": [],
       "issuesPresent": false,
       "rubric": {

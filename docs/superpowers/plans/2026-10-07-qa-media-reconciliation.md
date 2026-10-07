@@ -67,10 +67,10 @@
 
 **Interfaces:** Uses Task 1's preservation manifest and Task 2's qualified subscription path.
 
-- [ ] Retain the existing 19:46 run as historical evidence; generate a fresh run for the changed transport.
-- [ ] Run the full local release checks, build, scoped lint, docs checks, and Chromium/WebKit media verification.
-- [ ] Request whole-branch review, resolve material findings, and commit the reconciled changes.
+- [x] Retain the existing 19:46 run as historical evidence; generate a fresh run for the changed transport.
+- [x] Run the full local release checks, build, scoped lint, docs checks, and Chromium/WebKit media verification.
+- [x] Request whole-branch review, resolve material findings, and commit the reconciled changes.
 - [ ] Integrate the verified commit into local `master`, preserving loose files; keep publication distinct from reconciliation.
-- [ ] Verify archive hashes, clean merged worktrees, ancestry and exact tips before cleanup.
-- [ ] Remove redundant merged worktrees and local/remote branches; retain unique and archive refs.
+- [x] Verify archive hashes, clean merged worktrees, ancestry and exact tips before cleanup.
+- [x] Remove redundant merged worktrees and local/remote branches; retain unique and archive refs.
 - [ ] Verify final Git inventory, recoverability, and loose-file preservation.
