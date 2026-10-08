@@ -4,7 +4,7 @@
 
 **Goal:** Readings follow their own prompt contract. Card notes match each card's orientation and position, decision readings don't invent the querent's options, memories personalize without turning into a formula, dates and card imagery are correct, and the checks notice a reading that misses its length band.
 
-**Architecture:** Changes stay inside the existing prompt builders (`functions/lib/narrative/**`), card data (`functions/lib/imageryHooks.js`), personalization (`functions/lib/userMemory.js`, `functions/lib/userPersonalization.js`), the timing heuristic, the structural gate in `functions/api/tarot-reading.js`, the evaluator hint and the journal export (`src/lib/journalInsights.js`). New surface is limited to one optional request field (`decisionPaths`) and, if approved, one read of recent journal entries per reading.
+**Architecture:** Changes stay inside the existing prompt builders (`functions/lib/narrative/**`), card data (`functions/lib/imageryHooks.js`), personalization (`functions/lib/userMemory.js`, `functions/lib/userPersonalization.js`), the timing heuristic, the structural gate in `functions/api/tarot-reading.js`, the evaluator hint and the journal export (`src/lib/journalInsights.js`). New request fields are optional `decisionPaths` and an independent `timezone`; older callers remain supported. If approved, continuity adds one bounded read of recent journal entries per reading.
 
 **Tech stack:** Cloudflare Workers + D1, React/Vite, Node `node:test`.
 
@@ -29,8 +29,22 @@
 
 - A reversed card never receives an upright-only note, in any context.
 - Unnamed decision paths get no concrete content; named paths are sanitized like the question.
-- Memory selection never drops a note the current question actually needs.
+- Personal details match the same subject in the current reading. Eligible detail notes rank ahead of general and style notes; the configured note cap still applies.
 - Gate changes don't trigger provider fallbacks until the owner enables the floor.
+
+## Post-merge review coverage
+
+PR #103 merged this plan before its last seven review threads were addressed. The revisions below specify the fixes and regression cases; their task checkboxes remain open until implementation and validation.
+
+| Finding | Plan disposition |
+|---|---|
+| [Timezone without coordinates](https://github.com/henryperkins/tarot/pull/103#discussion_r4217280664) | Task 3 adds independent browser/schema/API timezone handling. The old timezone-only location is rejected, not silently accepted. |
+| [Reading date lost at the hard cap](https://github.com/henryperkins/tarot/pull/103#discussion_r4217335301) | Task 3 protects the date in both truncation branches and tests the real decision marker. |
+| [Personal details about the wrong subject](https://github.com/henryperkins/tarot/pull/103#discussion_r4217335292) | Task 9 compares detail/subject pairs in both directions and rejects ambiguous ownership. |
+| [Detail notes crowded out by general notes](https://github.com/henryperkins/tarot/pull/103#discussion_r4217332033) | Task 9 ranks eligible detail notes first and makes the cap's limit explicit. |
+| [Labels missing from contextual sources](https://github.com/henryperkins/tarot/pull/103#discussion_r4217335305) | Tasks 8/9 carry labels through source precedence, retrieval, fallback and memory selection. |
+| [Labels missing from provenance](https://github.com/henryperkins/tarot/pull/103#discussion_r4217335317) | Task 8 extends signals, bounded storage and UI summaries, checked after final truncation. |
+| [Duplicate Marseille rank context](https://github.com/henryperkins/tarot/pull/103#discussion_r4217335328) | Task 16 suppresses overlapping generic highlights/keys and deduplicates before passage caps. |
 
 ## Phase 0: Settle the open questions (read-only, needs the owner's OK)
 
@@ -127,7 +141,7 @@ async function buildDraw({ spreadKey, referenceTime, question, context, cards })
     userQuestion: question,
     referenceTime,
     subscriptionTier: 'pro',
-    location: { timezone: 'America/Chicago' }
+    timezone: 'America/Chicago' // independent of coordinates; added by Task 3
   });
   return buildEnhancedClaudePrompt({
     spreadInfo,
@@ -212,8 +226,15 @@ describe('major arcana imagery hooks', () => {
 
 ### Task 3: Give the model the date
 
-**Files:** `functions/lib/narrative/prompts/userPrompt.js` (after line 88); `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` (new `readingTime` and `timezone` params passed to `buildUserPrompt`); `functions/lib/narrativeBackends.js:709` (pass `payload.readingTime` and `payload.timezone`); `functions/api/tarot-reading.js` (`narrativePayload` at line 1170: `readingTime: new Date(startTime).toISOString()`, `timezone: sanitizedLocation?.timezone || null`); `functions/lib/ephemerisIntegration.js:177–186, 578–587`; `tests/ephemerisForecastEvents.test.mjs` (lines 112–151, 187). **Size:** S–M.
+**Files:** new `shared/readingTime.js`; `shared/contracts/readingSchema.js`; `src/contexts/ReadingContext.jsx` (request payload); `functions/api/tarot-reading.js` (request normalization, analysis options and `narrativePayload`); `functions/lib/spreadAnalysisOrchestrator.js` (forecast timezone); `functions/lib/narrativeBackends.js` (forwarding); `functions/lib/narrative/prompts/userPrompt.js`, `buildEnhancedClaudePrompt.js` and `truncation.js`; `functions/lib/ephemerisIntegration.js`; new `tests/readingDateContext.test.mjs`, existing `tests/readingSchema.test.mjs`, `tests/readingJob.test.mjs`, `tests/promptContextRetention.test.mjs` and `tests/ephemerisForecastEvents.test.mjs`. **Size:** M.
 
+**Interfaces:** `normalizeReadingTimezone(value) -> string | null` in `shared/readingTime.js`; optional request `timezone: optionalCleanString(64)`; `performSpreadAnalysis` consumes `options.referenceTime` and new `options.timezone`; the narrative payload and both prompt builders consume `readingTime` (ISO timestamp) and `timezone` (validated zone or null).
+
+- [ ] Write timezone propagation tests first. The current schema requires both coordinates in `location`, so a timezone-only location is rejected before sanitization; it is not an accepted request whose timezone silently disappears. Keep that coordinate contract and add the independent top-level field.
+- [ ] Implement `normalizeReadingTimezone`: accept only a nonempty string of at most 64 characters, trim it, and validate/canonicalize it with `new Intl.DateTimeFormat('en-US', { timeZone: value }).resolvedOptions().timeZone`. Return null for empty, non-string, overlong or unknown values; never use the Worker's ambient timezone.
+- [ ] The browser sends its validated `Intl.DateTimeFormat().resolvedOptions().timeZone` as top-level `timezone` even when location is disabled or geolocation permission is denied. Failure to obtain it leaves the field absent. This requires no coordinate lookup or additional permission.
+- [ ] Normalize the timezone before the coordinate guard in `tarot-reading.js`: the valid top-level value wins, otherwise use a valid `rawLocation?.timezone` for older callers, otherwise null. `sanitizedLocation` continues to require coordinates. Verify that both direct readings and the `startReadingJob` schema round trip retain the new field.
+- [ ] Compute `readingTime = new Date(startTime).toISOString()` once. Pass it as `referenceTime` to spread analysis and as `readingTime` to the narrator; pass the same independent timezone to both. In `spreadAnalysisOrchestrator.js`, use `options.timezone` for forecast labels, falling back to validated `options.location?.timezone` for legacy direct callers. Coordinate-dependent calculations still require a valid location.
 - [ ] Add a reading-date line in `userPrompt.js`:
 
 ```js
@@ -231,7 +252,7 @@ function formatReadingDate(readingTime, timezone) {
     try {
       return format(timezone);
     } catch {
-      // The request's timezone isn't validated; an unknown zone falls back to UTC.
+      // Defensive fallback for callers that bypass request normalization.
     }
   }
   return `${format('UTC')} (UTC; the querent's local date may differ)`;
@@ -242,8 +263,14 @@ const readingDate = formatReadingDate(promptOptions.readingTime, promptOptions.t
 if (readingDate) prompt += `**Reading Date**: ${readingDate}\n\n`;
 ```
 
-- [ ] Without a timezone, the forecast keeps "in about N days" and adds the UTC date, e.g. `(in about 4 days; Sat, Oct 10 UTC)`. Set a `utcDateLabel` in `describeForecastEvent` when `timezone` is missing and append it in `describeEventTiming`. Update the forecast tests that expect no label.
-- [ ] **Done when:** #4's rebuilt prompt says "Tuesday, October 6, 2026" and "New Moon in Libra (in 4 days; Sat, Oct 10)", an unknown timezone such as `Not/AZone` falls back to the UTC date with its caveat, and the forecast tests pass.
+- [ ] Whenever a valid `readingTime` was supplied, protect its exact trusted `**Reading Date**:` line during truncation. Extract it as a separate section before allocating context or cards, reserve its measured token cost, and restore it before derived card prose. Carry it through both the `<user_context>` reconstruction and the recursive `contextAllocated` branch; putting it only in `introRemainder` loses it after cards exhaust the budget. Account for it in the final hard-cap check too. If the date alone cannot fit, throw `RangeError('Reading date exceeds prompt budget.')` before invocation; the normal narrative-backend error path handles that attempt. Check that the final prompt still contains the exact protected date, and throw a `RangeError` before invocation if it is missing or if the final total exceeds the provider cap. Legacy direct builder calls without a valid `readingTime` keep their existing behavior. Do not call a provider with a dateless forecast or an over-cap prompt.
+- [ ] Without a timezone, the forecast keeps "in about N days" and adds the UTC date, e.g. `(in about 4 days; Sat, Oct 10 UTC)`. Set a `utcDateLabel` in `describeForecastEvent` when the normalized timezone is missing and append it in `describeEventTiming`. Update the forecast tests that expect no label.
+- [ ] **Done when:**
+  - at `2026-10-07T02:49:00Z`, a request with only top-level `timezone: 'America/Chicago'` and no location says "Tuesday, October 6, 2026" and "New Moon in Libra (in 4 days; Sat, Oct 10)";
+  - location-disabled and permission-denied browser requests still send the zone; the direct route and queued job preserve it;
+  - valid top-level timezone overrides a conflicting location zone; older coordinate-bearing requests still use their valid location zone; missing or unknown zones fall back to UTC with its caveat;
+  - a long forecast prompt using the real `**DECISION / TWO-PATH STRUCTURE**` marker retains the exact date under a 400-token hard cap, along with usable question context and the provider's total cap; repeat with and without `<user_context>` fields;
+  - an impossibly small date budget rejects that provider attempt before any provider call, and all forecast tests pass.
 
 ### Task 4: One closing instruction, and the same banned phrases as the evaluator
 
@@ -316,16 +343,22 @@ function resolveCardSpecificClause(entry, cardInfo = {}) {
 ### Task 8: Decision readings don't invent the options
 
 **Files:** `functions/lib/narrative/prompts/systemPrompt.js:100–115`, `functions/lib/narrative/prompts/cardBuilders.js:504–514`, `functions/lib/evaluation.js` (hint at 1027, user template, version at 26), and the evaluator version mentioned in `CLAUDE.md` and `docs/evaluation-system.md`. Optional labels also touch:
+
 - `shared/contracts/readingSchema.js:119`;
-- `functions/api/tarot-reading.js` (sanitizing at the request boundary, the crisis check at line 910, the eval-gate policy calls at 488 and 1143, the narrative payload, and `evalParams` in `finalizeReading`);
+- `functions/api/tarot-reading.js` (sanitizing at the request boundary, context sources, the crisis check at line 910, the eval-gate policy calls at 488 and 1143, the narrative payload, and `evalParams` in `finalizeReading`);
 - `functions/lib/narrativeBackends.js` (line 709 and `generateReadingFromAnalysis`);
 - `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` and `userPrompt.js` (forwarding);
-- `functions/lib/narrative/prompts/userContext.js:43` (`parseUserContext`);
+- `functions/lib/contextDetection.js` (`buildContextInferenceInput` and `resolveContextSelection`) and `functions/lib/spreadAnalysisOrchestrator.js` (retrieval);
+- `functions/lib/narrative/prompts/userContext.js` (`prepareUserContext`, `parseUserContext` and `summarizeUserContext`);
+- `functions/lib/narrative/sourceUsage.js`, `shared/readingSourceUsage.js` and `src/components/reading/complete/sourceUsageSummary.js`;
 - `functions/lib/narrative/prompts/truncation.js:465–490` (hard-cap rebuild);
 - `functions/lib/promptEngineering.js:410` (`buildReadingRedactionOptions`, called at `tarot-reading.js:460` and `narrativeBackends.js:746`) and the `buildPromptEngineeringPayload` call at `tarot-reading.js:596`;
-- the local fallback builder `functions/lib/narrative/spreads/decision.js` (`buildDecisionReading`).
+- the local fallback builder `functions/lib/narrative/spreads/decision.js` (`buildDecisionReading`);
+- tests in `tests/contextDetection.test.mjs`, `tests/readingContextPrecedence.test.mjs`, `tests/localComposerContextPriority.test.mjs`, `tests/promptContextRetention.test.mjs`, `tests/sourceUsageSummary.test.mjs` and the request/evaluation suites.
 
 **Size:** S for the rule, M for labels.
+
+**Interfaces for labels:** `decisionPaths` uses `{ a?, b? }` at the request and builder boundaries; prompt context and usage fields use `pathA`/`pathB`. Extend `prepareUserContext(userQuestion, reflectionsText, cardsInfo, inputStats = {}, decisionPaths = {})` with the fifth argument, preserving the existing input-stat argument. Forward labels through both builders and their direct-call fallback preparation; each prepared path field uses the 80-character limit and its original/sanitized lengths. Keep identical A/B labels as separate sources because their path identities differ.
 
 - [ ] Add a decision flow to the system prompt:
 
@@ -339,6 +372,8 @@ function resolveCardSpecificClause(entry, cardInfo = {}) {
 ```
 
 - [ ] Sanitize the labels once, at the request boundary in `tarot-reading.js`, with the same cleaning and injection filtering as the question (max 80 characters). The model prompt, the evaluator and the local fallback then all receive the same safe values; `optionalCleanString` alone only trims, drops empty strings and rejects values over the limit; it filters nothing.
+- [ ] Treat sanitized labels as current context throughout the pipeline. Add `decisionPaths` to `contextSources`, `buildContextInferenceInput` and `resolveContextSelection`; forward that object to spread analysis, prompt-builder retrieval and the local composer's context selection. Source precedence is a specific question, then reflections, then labels, then saved focus. A generic question such as "Which path fits?" must not suppress career evidence in "Accept the promotion". Use labels to break a current-source topic tie only after reflections; they never redirect a clearly specific question.
+- [ ] Build the GraphRAG query from the current question, relevant reflections and both labels, with a separately bounded share for labels so a long question/reflection cannot consume it. Include saved focus only when current sources contain no usable topic. Extend every current-topic check, including `generateReadingFromAnalysis`'s `hasCurrentTopic`, to recognize `decisionPaths`; otherwise the fallback can still reintroduce saved focus. Task 9 consumes these same labels for memory relevance and personal-detail matching.
 - [ ] Screen the labels like the question. The crisis check (`detectCrisisSignals`, line 910) and both `buildSelectiveEvalGatePolicy` calls read only the question and reflections today. Without the labels, crisis language placed only in a path label would skip the support response and reach the narrator as a choice to weigh, and a sensitive topic named only there wouldn't force the eval gate.
 - [ ] Forward `decisionPaths` through `buildEnhancedClaudePrompt` (a new parameter) and `buildUserPrompt` into `buildDecisionPromptCards`, which renders each path on its own because both labels are optional:
 
@@ -349,7 +384,8 @@ const describePath = (source, label) => (label ? renderUserContext(source, label
 out += `**Paths**: Path A: ${describePath('pathA', decisionPaths?.a)}; Path B: ${describePath('pathB', decisionPaths?.b)}.\n`;
 ```
 
-- [ ] Make `parseUserContext` recognize `pathA` and `pathB` (its source pattern becomes `question|reflections|card-\d+|pathA|pathB`), and have `truncateUserPromptSafely` restore them after hard-cap truncation. Today that step strips every line holding a `<user_context>` block and rebuilds every source other than the question and reflections as `Reflection for card N`; `pathA` would come back as card 1. Give the paths their own branch that re-renders the single `**Paths**:` line, using "no separate label" for a missing one.
+- [ ] Make `parseUserContext` recognize `pathA` and `pathB` (its source pattern becomes `question|reflections|card-\d+|pathA|pathB`), and have `truncateUserPromptSafely` restore them after hard-cap truncation. Today that step strips every line holding a `<user_context>` block and rebuilds every source other than the question and reflections as `Reflection for card N`; `pathA` would come back as card 1. Give the paths their own branch that re-renders the single `**Paths**:` line, using "no separate label" only for a genuinely missing one. A provided label wholly omitted for budget says "label omitted for budget"; partial labels retain their `<user_context>` representation and both path identities. Preserve Task 3's reading date when rebuilding the line.
+- [ ] Record text-free label provenance end to end. Add `pathA` and `pathB` to `USER_CONTEXT_FIELD_CONFIG` in `functions/lib/narrative/sourceUsage.js`, `USER_INPUT_KEYS` and the `fields` allowlist in `shared/readingSourceUsage.js`, and the source-usage summary's input labels and "Your question & notes" group. Capture original nonempty input lengths in `userContextInputStats.pathA`/`.pathB` before instruction filtering, then sanitized and included lengths and the existing omission/truncation flags for each label; never store its text in telemetry. Record provided/eligible signals before rendering, then compute used signals and field counts from the final prompt after all budget reductions. A supplied label filtered to empty uses `sanitized_empty`; a supplied label omitted for budget uses `removed_for_budget`; an absent label is not provided. A partial representation is used only when it retains usable text. Carry these bounded flags/counts through the response, evaluation record and journal snapshot. The local composer reports a label as used only when its rendered decision section includes it.
 - [ ] Extend the request schema: `decisionPaths: z.object({ a: optionalCleanString(80), b: optionalCleanString(80) }).optional()`.
 - [ ] Give the evaluator the same facts. Pass the sanitized labels, or at least which paths were named, through `evalParams` into the evaluator's user template. Append to the decision hint: "If the querent did not name a path, treat concrete content assigned to it as a coherence flaw." Bump `EVAL_PROMPT_VERSION` to `2.5.0`.
 - [ ] Carry the labels through the local fallback: `generateReadingFromAnalysis` passes them to `buildDecisionReading`, which uses them in place of the generic Path A and Path B wording.
@@ -362,7 +398,9 @@ out += `**Paths**: Path A: ${describePath('pathA', decisionPaths?.a)}; Path B: $
   - crisis language in a label alone returns the crisis response, and a sensitive topic in a label alone forces the eval gate;
   - a request naming only Path A renders A's label and "no separate label" for B;
   - a question that names both options, sent with empty fields, gets those options mapped rather than treated as unnamed;
-  - labels survive hard-cap truncation;
+  - rebuilt label blocks keep Path A/Path B identities under hard-cap truncation, including one-sided labels; wholly omitted labels have an honest budget placeholder and usage reason;
+  - a vague question with career labels and unrelated saved focus selects current career context, keeps the labels in its retrieval query, and selects a career memory; a specific question still wins over conflicting labels, and the local fallback suppresses unrelated saved focus;
+  - retained, partially retained, wholly omitted, sanitized-empty, missing and one-sided labels have matching provided/used flags and bounded field counts after `sanitizeSourceUsage`, persist into evaluation/journal snapshots, and display accurately in the usage summary; arbitrary telemetry keys and raw label text remain excluded;
   - the evaluator receives the labels;
   - the local fallback keeps labeled paths;
   - a name that appears only in a label is redacted from the stored evaluation payload and, with `PERSIST_PROMPTS=true`, from the persisted response;
@@ -370,67 +408,67 @@ out += `**Paths**: Path A: ${describePath('pathA', decisionPaths?.a)}; Path B: $
 
 ### Task 9: Memories that personalize without becoming a formula
 
-**Files:** `functions/lib/userMemory.js` (new `selectMemoriesForReading`; access stamping at 376), `functions/lib/userPersonalization.js:27, 236–245` (load every retained global memory for readings; the store keeps at most 100, and `getMemories` sorts by recency before its `LIMIT`), `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` (select before rendering), `functions/lib/narrative/prompts/userPrompt.js:37–47`, `tests/userMemory.test.mjs`. **Size:** M.
+**Files:** `functions/api/tarot-reading.js` (select candidates with the current inputs before building the payload), `functions/lib/userMemory.js` (new subject/detail extraction and selection; access stamping at 376), `functions/lib/userPersonalization.js:27, 236–245` (load every retained global memory for readings; the store keeps at most 100, and `getMemories` sorts by recency before its `LIMIT`), `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` (apply the same selector for direct callers before rendering), `functions/lib/narrative/prompts/userPrompt.js:37–47`, `tests/userMemory.test.mjs`. **Size:** M.
 
-- [ ] Select by relevance, not recency:
+**Interfaces:**
 
-```js
-// Tune these to the real phrasing found in Task 0.
-// Ages of one to three digits; "turns 3 cards" is not an age.
-const PERSONAL_DETAIL_PATTERN = /\b(?:\d{1,3}\s*(?:years?\s*old|y\/?o)|age[ds]?\s*\d{1,3}|turn(?:ed|ing|s)?\s+\d{1,3}\b(?!\s*cards?)|birthday)\b/i;
-// People other than the querent whom a detail can belong to.
-const RELATION_PATTERN = /\b(?:child(?:ren)?|kids?|son|daughter|partner|wife|husband|spouse|mother|mom|father|dad|parents?|sister|brother|grandmother|grandfather|friend|boss)\b/i;
-// Common words that don't make two texts share a subject.
-const IGNORED_TOKENS = new Set(['about', 'been', 'from', 'have', 'into', 'just', 'right', 'that', 'their', 'there', 'they', 'this', 'what', 'when', 'which', 'will', 'with', 'would', 'year', 'years', 'your']);
-const tokensOf = (text = '') => new Set((String(text).toLowerCase().match(/[a-z][a-z'-]{3,}/g) || []).filter((token) => !IGNORED_TOKENS.has(token)));
-const matchesOf = (pattern, text = '') => [...String(text).matchAll(new RegExp(pattern, 'gi'))].map(([match]) => match.toLowerCase());
-// Each personal detail as a comparable key: "age:33" or "birthday".
-const detailsOf = (text) => matchesOf(PERSONAL_DETAIL_PATTERN, text)
-  .map((match) => (match.includes('birthday') ? 'birthday' : `age:${match.match(/\d+/)[0]}`));
+- `extractPersonalDetailClaims(text, { displayName = '', source = 'memory' } = {}) -> { hasPersonalDetails, ambiguous, claims }`, where each claim is `{ kind: 'age' | 'birthday', value: number | null, subjectKey: string }`; birthdays use null. `source` is `question`, `reflections`, `pathA`, `pathB` or `memory`; the selector passes it explicitly for each field. `hasPersonalDetails` stays true whenever age/birthday text is detected, even when no owner can be resolved. `claims` contains only unambiguously attributed details, while `ambiguous` records any additional unsupported ownership. This pure helper is implemented and tested in `userMemory.js` before the selector.
+- `selectMemoriesForReading(memories, { userQuestion = '', reflectionsText = '', decisionPaths = {}, displayName = '', limit = 3 } = {}) -> memory[]`. The builder supplies the already sanitized labels from Task 8 and the querent's display name. Missing labels work before Task 15 is enabled. No new stored-memory schema is required.
 
-export function selectMemoriesForReading(memories, { userQuestion = '', reflectionsText = '', limit = 3 } = {}) {
-  if (!Array.isArray(memories) || memories.length === 0) return [];
-  const currentText = `${userQuestion} ${reflectionsText}`;
-  const currentTokens = tokensOf(currentText);
-  const currentDetails = new Set(detailsOf(currentText));
-  const currentPeople = new Set(matchesOf(RELATION_PATTERN, currentText));
-  return memories
-    .map((memory, index) => {
-      const terms = new Set([...(memory.keywords || []).map((keyword) => keyword.toLowerCase()), ...tokensOf(memory.text)]);
-      const overlap = [...terms].filter((term) => currentTokens.has(term)).length;
-      const details = detailsOf(memory.text);
-      const people = matchesOf(RELATION_PATTERN, memory.text);
-      // A matched detail counts like a shared subject, so the cap can't crowd it out.
-      return { memory, index, overlap, details, people, score: (overlap + details.length) * 2 + (memory.category === 'communication' ? 1 : 0) };
-    })
-    // A personal detail returns only when the querent raised the same one about the same person:
-    // every age or birthday in the note, and everyone else the note names, appears here too.
-    // Other notes need a shared subject, except communication-style notes, applied silently.
-    .filter(({ memory, overlap, details, people }) => (details.length > 0
-      ? details.every((detail) => currentDetails.has(detail)) && people.every((person) => currentPeople.has(person))
-      : overlap > 0 || memory.category === 'communication'))
-    .sort((a, b) => b.score - a.score || a.index - b.index)
-    .slice(0, limit)
-    .map(({ memory }) => memory);
-}
-```
-
+- [ ] Replace the whole-note relation-token subset check with detail/subject pairs. Extract claims separately from each question, reflection and path label, then compare the union with each memory's claims. Never join fields before attributing a detail: a child mentioned in one label must not become the owner of an age in another. A personal-detail memory must have at least one supported claim, no ambiguous claim, and an exact `(kind, value, subjectKey)` match for every claim in this reading, regardless of category or keyword overlap. Ambiguous current claims authorize nothing; other unambiguously attributed claims in the same field can still match.
+- [ ] Make subject attribution conservative and local to the clause containing each detail:
+  - Canonical `self` covers explicit first person (`I`, `me`, `my birthday`), `the user`/`the querent`, and an unambiguous mention of the supplied display name. A standalone current-input fragment such as "Turning 42" is self only when its source is not `memory` and there is no other possible subject in that fragment; an unattributed stored fragment such as "Turning 42" stays unknown.
+  - Explicit possessive relations get distinct keys (`relation:child`, `relation:partner`, `relation:mother`, etc.). Normalize grammatical variants and clear aliases (`kid`/`child`, `mom`/`mother`, `dad`/`father`); do not collapse `son` with `daughter`, `mother` with `parent`, or all relatives into a single other-person key. Named subjects use a case-normalized `name:<name>` key in both texts; a relation plus an explicit name uses the name key. A different named person never matches merely because both have the same role.
+  - Bind an age to its governing subject and a birthday to its possessive owner, including "my child's birthday" and "Alice's birthday". Keep claims separate across clauses: "I turn 42; my child turns 8" yields two different pairs. A relation mentioned in an unrelated clause does not change a self-owned detail.
+  - Return `ambiguous: true` when a personal detail has no supported owner, has competing owners, or refers to an unnamed plural/group whose members cannot be distinguished. Exclude that entire personal-detail memory. Never treat the absence of a relation word as proof of self ownership. Do not resolve ambiguous third-person pronouns from other fields or saved notes.
+  - An unnamed singular relation can match only the same unambiguous relation in the current reading. This is a role-level match, not proof of a person's identity; exclude it when either text identifies multiple people in that role. Record this limit in the tests rather than claiming general person recognition.
+- [ ] Recognize ages of one to three digits in "8 years old", "42-year-old", "42 y/o", "aged 100" and "turning 42", plus birthdays. "Turns 3 cards" is not an age. A birthday-only question does not authorize an age-bearing note; a note that contains two ages must match both owners and values, not just one shared number. Tune supported phrasing with Task 0 without committing real personal text.
+- [ ] Select and rank only after the privacy filter:
+  1. Eligible personal-detail notes come first, regardless of general-note token overlap or communication category. Within this tier rank by the number of distinct matched claims, then relevant token overlap, then stable input order.
+  2. Other notes require overlapping nontrivial tokens from the current question, reflections or labels, except communication-style notes, which may be selected with zero overlap and are applied silently. Tokenize text and string keywords identically with lowercased `[a-z][a-z'-]{3,}` words, deduplicate them, and ignore `about, been, from, have, into, just, right, that, their, there, they, this, what, when, which, will, with, would, year, years, your`. Keywords may improve relevance but cannot establish detail ownership.
+  3. Within that general tier rank by token overlap, using communication category only to break a tie, then stable input order. Apply a nonnegative integer cap last (default three); zero returns none, and an invalid limit returns none. Ignore malformed memory rows and non-string keywords instead of throwing. If more matching-detail notes exist than the cap, retain the highest-ranked ones. Do not promise to retain an unlimited number of needed notes.
 - [ ] Add usage rules to `buildReturningQuerentContext`:
 
 ```js
     '- Mention at most one remembered note, and only when it changes how a card applies to the current question.',
     '- Apply Communication Style notes silently; do not narrate them (avoid "since you like…").',
-    '- Do not restate personal details such as age unless the querent raised them in this reading.',
+    '- Do not restate personal details unless this reading raises the same detail about the same person; the question, reflections and named paths all count as current input.',
 ```
 
-- [ ] If `last_accessed_at` drives pruning, stamp it only on the selected memories.
-- [ ] **Done when:**
-  - unit tests cover ranking, the cap, zero-relevance exclusion and the personal-detail filter:
-    - the pattern catches "8 years old" and "aged 100" but not "turns 3 cards";
-    - a question about turning 33 admits a note about turning 33, but not notes about ages 8 or 100 even when they share other words, nor "my child turns 33";
-    - "my birthday" recalls the querent's own birthday note but not a partner's;
-    - a matched detail note isn't crowded out by three communication notes;
-  - a narrative sample seeded with Task 1's synthetic note ("Enjoys spotting patterns across a spread.") shows at most one callback and no "since you like".
+- [ ] Separate candidate loading from access stamping: add `markAccess` to `getMemories` (default true for existing callers), and have `resolveReadingPersonalizationContext` pass `markAccess: false` for its reading-candidate load. The reading route selects with the sanitized current inputs, stamps only those returned IDs using a user-scoped update, and forwards that same selected set. Direct prompt-builder callers apply the same pure selector without a database write. Rejected private notes and crowded-out candidates receive no access stamp.
+- [ ] **Done when:** the extractor and selector tests cover all rows below with synthetic text; assert both the admitted and excluded notes, not just the count:
+
+| Current reading | Stored note | Expected |
+|---|---|---|
+| "I turn 42 this year" | "I am 42 years old" | Admit |
+| "I turn 42 this year" | "I am 8 years old" / "I am aged 100" | Exclude, even with other shared words |
+| "My child turns 8" | "I am 8 years old" | Exclude (inverse direction) |
+| "I turn 42" | "My child turns 42" | Exclude |
+| "My birthday is approaching" | "My partner's birthday is approaching" | Exclude |
+| "My partner's birthday is approaching" | "My birthday is approaching" | Exclude (inverse direction) |
+| "My birthday is approaching" | "My birthday is approaching" | Admit |
+| "My birthday is approaching" | "My birthday is approaching; I am 42 years old" | Exclude the additional unraised age |
+| "My child's birthday is approaching" | "My child's birthday is approaching" | Admit |
+| "My kid turns 8" | "My child is 8 years old" | Admit canonical relation alias |
+| "Alice turns 42" | "Bob is 42 years old" | Exclude distinct names |
+| "My child Alice turns 8" | "My child Bob is 8 years old" | Exclude same role, different names |
+| "I turn 42", display name Alex | "Alex is 42 years old" | Admit known self alias; without that display name, exclude |
+| "My children turn 8" | "My child is 8 years old" | Exclude ambiguous plural ownership |
+| "Alice's birthday is approaching" | "ALICE's birthday is approaching" | Admit same normalized name |
+| "I turn 42; my child turns 8" | "I am 8 years old; my child is 42 years old" | Exclude swapped owners |
+| "I turn 42; my child turns 8" | "I am 42 years old; my child is 8 years old" | Admit both matching pairs |
+| "I turn 42; my child visits" | "I am 42 years old" | Admit; an unrelated relation is not the detail's owner |
+| A personal detail appears only in a sanitized Path A label | A note matching that detail and its owner | Admit; labels are current input |
+| Question "I turn 42"; Path A "My child could move" | "My child turns 42" | Exclude; subjects are not borrowed across fields |
+| No personal detail in question/reflections/labels | Any age/birthday note, including a communication note | Exclude |
+| "My birthday is approaching" | "Their birthday is approaching" / unattributed or ambiguous owner | Exclude |
+| "Turning 42" (current question) | "Turning 42" (unattributed stored note) | Exclude; source-aware attribution is required |
+| No supported age claim; only "turns 3 cards" | An age note | Exclude |
+| "I am a 42-year-old reader" / "I am 42 y/o" | "I am aged 42" | Admit equivalent age notation |
+| Career label, vague question, unrelated saved focus | Relevant career note | Admit through the label; saved focus does not drive selection |
+
+- [ ] Also test that one eligible detail note beats three high-overlap general notes and three communication notes; four eligible detail notes retain the best three deterministically; zero-relevance general notes are excluded; zero/invalid-limit, empty-input and malformed-row cases are safe; and only selected IDs receive access stamps.
+- [ ] Task 13's narrative sample seeded with Task 1's synthetic note ("Enjoys spotting patterns across a spread.") shows at most one callback and no "since you like".
 
 ### Task 10: A timing line that carries information
 
@@ -508,11 +546,18 @@ Mention at most one of these, only if it deepens this reading. Acknowledge a rep
 
 ### Task 16: Notice repeated numbers
 
-**Files:** `functions/lib/knowledgeGraph.js` (detector), `src/data/knowledgeGraphData.js` (rank themes), `functions/lib/knowledgeBase.js` (passages, per CLAUDE.md), `functions/lib/graphContext.js` (`buildGraphKeys` at 16) and `functions/lib/graphRAG.js` (`retrievePassages` at 204). **Size:** M.
+**Files:** `functions/lib/knowledgeGraph.js` (detector and highlights), `src/data/knowledgeGraphData.js` (rank themes), `functions/lib/knowledgeBase.js` (passages, per CLAUDE.md), `functions/lib/graphContext.js` (`buildGraphKeys`) and `functions/lib/graphRAG.js` (`retrievePassages`); tests in `tests/graphContext.test.mjs`, `tests/graphRAG.test.mjs` and `tests/graphRAGPatternCoverage.test.mjs`. **Size:** M.
 
-- [ ] Flag two or more Minor cards of the same rank (#4 drew two Twos in a decision spread) with a short highlight such as "Two Twos: pairs, balance and choice are in the foreground."
-- [ ] Make the new passages reachable. `retrievePassages` only fetches pattern types it dispatches by graph key, so add a `repeatedRanks` key in `buildGraphKeys` (alongside `marseilleRanks` at line 104) and a matching retrieval branch (next to the `marseille-numerology` dispatch at line 429).
-- [ ] **Done when:** a draw with two Twos gets the highlight and its passage appears in the prompt's reference block.
+**Interfaces:** generic `repeatedRanks` graph keys are an array of unique numeric Minor ranks 1–10; `getPassagesForPattern('repeated-rank', rank)` supplies their passages. Existing `marseilleRanks` and `marseille-numerology` passages keep their deck-specific meaning.
+
+- [ ] Flag two or more numbered Minor cards of the same rank (#4 drew two Twos in a decision spread) with a short highlight such as "Two Twos: pairs, balance and choice are in the foreground." Validate canonical Minor rank/suit data; a Major numbered II and court cards do not count as numeric pip-rank repeats.
+- [ ] Reuse deck-specific detection when it already covers that rank. `detectMarseillePipPatterns` produces `numerologyClusters`, `buildGraphKeys` exposes them as `marseilleRanks`, and retrieval already emits a `marseille-numerology` passage. Suppress the generic detector's highlight and graph key for each covered rank; do not suppress other distinct patterns in that draw.
+- [ ] Make the generic passages reachable through a `repeatedRanks` dispatch in `retrievePassages` and a `repeated-rank` branch in `getPassagesForPattern`. Defensively deduplicate there too: when both generic and Marseille keys name the same rank, retain the Marseille passage and discard the generic one before scoring/sorting and `maxPassages`. Normalize numeric rank keys so `2` and `'2'` cannot bypass this check. Repeated copies of a key produce at most one passage.
+- [ ] **Done when:**
+  - a Rider-Waite draw with two Twos gets one generic highlight and one reachable generic passage in the prompt reference block;
+  - the same Marseille draw gets one deck-specific highlight and one Marseille passage, with no generic duplicate;
+  - mixed generic/Marseille keys, duplicate keys and numeric/string keys still yield one rank passage before a small passage cap, leaving room for an unrelated eligible pattern;
+  - a single Two, a Major II paired with a Minor Two, and repeated courts do not generate a numeric repeated-rank passage; existing Thoth and Marseille pattern tests pass.
 
 ## Decisions for the owner
 
