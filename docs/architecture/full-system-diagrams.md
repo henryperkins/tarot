@@ -17,7 +17,7 @@ graph TB
         OpenAI["OpenAI native Responses<br/>azure-gpt5"]
         AzureOpenAI["Azure OpenAI Responses<br/>azure-gpt5 fallback"]
         Claude["Anthropic API<br/>Claude Opus 5.5"]
-        AuraTTS["Workers AI<br/>Deepgram Aura-2 TTS"]
+        ReaderTTS["ElevenLabs TTS<br/>Workers AI Aura-2 when unconfigured"]
         AzureSpeech["Azure Speech<br/>Client Tokens"]
         Stripe["Stripe<br/>Checkout, Portal, Webhooks"]
         EmailService["Email Service<br/>Quality Alerts"]
@@ -60,7 +60,7 @@ graph TB
     Worker -->|2. azure-gpt5: Azure fallback| AzureOpenAI
     Worker -->|3. fallback| Claude
     Worker -->|4. deterministic fallback| LocalComposer
-    Worker -->|TTS| AuraTTS
+    Worker -->|TTS| ReaderTTS
     Worker -->|Payments| Stripe
     Worker -->|Alerts| EmailService
     Worker -->|Diagnostics and replay| Sentry
@@ -206,7 +206,7 @@ graph TB
     end
 
     subgraph AudioAPIs["Audio APIs"]
-        TTSAPI["POST /api/tts<br>Deepgram Aura-2"]
+        TTSAPI["POST /api/tts<br>ElevenLabs or Workers AI Aura-2"]
         SpeechToken["GET /api/speech-token<br>Azure Speech Tokens"]
     end
 
@@ -754,7 +754,7 @@ graph LR
 
     subgraph OtherServices["Other Services"]
         Stripe["Stripe<br/>Checkout, Portal, Webhooks"]
-        AuraTTS["Workers AI Aura-2 TTS"]
+        ReaderTTS["ElevenLabs TTS<br/>Workers AI Aura-2 when unconfigured"]
         AzureSpeech["Azure Speech<br/>Client tokens"]
         Email["Email provider<br/>Quality alerts"]
     end
@@ -772,7 +772,7 @@ graph LR
     API --> Assets
     API --> Sentry
     API --> Stripe
-    API --> AuraTTS
+    API --> ReaderTTS
     API --> AzureSpeech
     API --> Email
 ```

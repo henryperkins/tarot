@@ -171,7 +171,7 @@ export function AudioControls({ className = '' }) {
                   : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
               }`}
             >
-              <span className="block font-semibold text-xs xs:text-sm">Deepgram</span>
+              <span className="block font-semibold text-xs xs:text-sm">Reader voice</span>
               <span className="block text-2xs xs:text-xs opacity-75">Clear</span>
             </button>
             <button
@@ -192,7 +192,7 @@ export function AudioControls({ className = '' }) {
         </div>
       )}
 
-      {/* Speed Control - only for the Deepgram provider */}
+      {/* Speed Control - applied by the reader voice player */}
       {voiceOn && ttsProvider === 'azure' && (
         <div className="mt-3 xs:mt-4 pt-3 xs:pt-4 border-t border-secondary/20">
           <div className="flex items-center gap-2 mb-2">

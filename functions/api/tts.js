@@ -7,6 +7,8 @@ import { getTtsLimits, reserveNarration, settleNarration, releaseNarration, MAX_
 const TTS_MODEL = '@cf/deepgram/aura-2-en';
 const TTS_PROVIDER = 'workers-ai-aura-2';
 const TTS_SPEAKER = 'cora';
+const ELEVENLABS_MODEL = 'eleven_v4';
+const ELEVENLABS_VOICE = 'EXAVITQu4vr4xnSDxMaL'; // Sarah
 const MAX_PIECE_CHARS = 1900;
 const MAX_REQUEST_BYTES = 512 * 1024;
 // Diagnostic heuristics for normally completed MP3 pieces that may be truncated.
@@ -14,15 +16,60 @@ const TYPICAL_BYTES_PER_CHAR = 390;
 const MIN_BYTES_PER_CHAR = 250;
 const MIN_CHECKED_CHARS = 100;
 
+function getNarrationProvider(env) {
+  const apiKey = typeof env?.ELEVENLABS_API_KEY === 'string' ? env.ELEVENLABS_API_KEY.trim() : '';
+  if (apiKey) {
+    const model = env.ELEVENLABS_MODEL_ID?.trim() || ELEVENLABS_MODEL;
+    const voice = env.ELEVENLABS_VOICE_ID?.trim() || ELEVENLABS_VOICE;
+    return {
+      id: 'elevenlabs', model, voice,
+      async synthesize(text, { signal, previousText, nextText }) {
+        // Native Worker fetch keeps credentials server-side and permits aborting
+        // both headers and audio bodies. Never retry a paid synthesis request.
+        let response;
+        try {
+          response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}/stream?output_format=mp3_44100_128`, {
+            method: 'POST',
+            headers: { 'xi-api-key': apiKey, 'content-type': 'application/json', accept: 'audio/mpeg' },
+            body: JSON.stringify({
+              text, model_id: model,
+              ...(previousText ? { previous_text: previousText } : {}),
+              ...(nextText ? { next_text: nextText } : {})
+            }),
+            signal
+          });
+        } catch {
+          throw new Error('Narration provider unavailable');
+        }
+        const contentType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase();
+        if (!response.ok || !response.body || !['audio/mpeg', 'audio/mp3'].includes(contentType)) {
+          try { void response.body?.cancel().catch(() => {}); } catch { /* Best effort. */ }
+          // Upstream error bodies can include private reading text. Discard them.
+          throw new Error('Narration provider returned no audio');
+        }
+        return response.body;
+      }
+    };
+  }
+  return env?.AI?.run ? {
+    id: TTS_PROVIDER, model: TTS_MODEL, voice: TTS_SPEAKER,
+    synthesize: text => env.AI.run(TTS_MODEL, { text, speaker: TTS_SPEAKER })
+  } : null;
+}
+
 /** One request is one narration, up to 64,000 characters, never silently cut.
  * Full readings stream ordered MP3 pieces; failed or cancelled synthesis does
  * not consume the monthly narration allowance. No local tone replaces speech.
  */
-export const onRequestGet = async ({ env }) => jsonResponse({
-  status: 'ok', provider: env?.AI?.run ? TTS_PROVIDER : 'unavailable',
-  model: TTS_MODEL, format: 'mp3', maxCharacters: MAX_NARRATION_CHARS,
-  timestamp: new Date().toISOString()
-});
+export const onRequestGet = async ({ env }) => {
+  const provider = getNarrationProvider(env);
+  return jsonResponse({
+    status: 'ok', provider: provider?.id || 'unavailable',
+    model: provider?.model || TTS_MODEL, voice: provider?.voice || TTS_SPEAKER,
+    format: 'mp3', maxCharacters: MAX_NARRATION_CHARS,
+    timestamp: new Date().toISOString()
+  });
+};
 
 async function readNarrationBody(request) {
   if (Number(request.headers?.get('content-length')) > MAX_REQUEST_BYTES) {
@@ -66,7 +113,8 @@ export const onRequestPost = async ({ request, env }) => {
     }
     const text = sanitizeText(body.text, { collapseWhitespace: false });
     if (!text) return jsonResponse({ error: 'The "text" field is required.' }, { status: 400 });
-    if (!env?.AI?.run) return jsonResponse({ error: 'Narration is temporarily unavailable. Please try again.', errorCode: 'SERVICE_UNAVAILABLE', retryable: true }, { status: 503 });
+    const provider = getNarrationProvider(env);
+    if (!provider) return jsonResponse({ error: 'Narration is temporarily unavailable. Please try again.', errorCode: 'SERVICE_UNAVAILABLE', retryable: true }, { status: 503 });
     const user = await getUserFromRequest(request, env);
     if (user?.auth_provider === 'api_key') {
       const apiLimit = await enforceApiCallLimit(env, user);
@@ -78,14 +126,14 @@ export const onRequestPost = async ({ request, env }) => {
       return jsonResponse({ ...accounting.payload, currentTier: subscription.tier }, { status: accounting.status, headers: accounting.retryAfter ? { 'retry-after': String(accounting.retryAfter) } : {} });
     }
     reservation = accounting.reservation;
-    const audio = await createNarrationStream(env, request, text, reservation);
+    const audio = await createNarrationStream(env, request, text, reservation, provider);
     if (new URL(request.url).searchParams.get('stream') === 'true') {
-      return new Response(audio, { headers: { 'content-type': 'audio/mpeg', 'cache-control': 'no-store', 'x-tts-provider': TTS_PROVIDER } });
+      return new Response(audio, { headers: { 'content-type': 'audio/mpeg', 'cache-control': 'no-store', 'x-tts-provider': provider.id } });
     }
     const bytes = new Uint8Array(await new Response(audio).arrayBuffer());
     let binary = '';
     for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    return jsonResponse({ audio: `data:audio/mpeg;base64,${btoa(binary)}`, provider: TTS_PROVIDER });
+    return jsonResponse({ audio: `data:audio/mpeg;base64,${btoa(binary)}`, provider: provider.id });
   } catch (error) {
     await releaseNarration(env, reservation).catch(() => {});
     return jsonResponse({ error: error.status ? error.message : 'Narration could not finish. Please try again.', errorCode: error.status === 413 ? 'NARRATION_TOO_LONG' : 'NARRATION_UNAVAILABLE', retryable: !error.status }, { status: error.status || 503 });
@@ -116,8 +164,9 @@ export function splitForSpeech(text) {
 }
 
 
-async function createNarrationStream(env, request, text, reservation) {
+async function createNarrationStream(env, request, text, reservation, provider) {
   const pieces = splitForSpeech(text);
+  const upstream = new AbortController();
   let activeReader;
   let cancelled = false;
   let finished = false;
@@ -135,10 +184,13 @@ async function createNarrationStream(env, request, text, reservation) {
   const timer = setTimeout(() => {
     cancelled = true;
     rejectDeadline(new Error('Narration timed out'));
+    upstream.abort();
+    cancelReader(activeReader);
   }, NARRATION_DEADLINE_MS);
   const abort = () => {
     cancelled = true;
     rejectDeadline(new Error('Narration cancelled'));
+    upstream.abort();
     cancelReader(activeReader);
   };
   request.signal?.addEventListener('abort', abort, { once: true });
@@ -147,11 +199,15 @@ async function createNarrationStream(env, request, text, reservation) {
     clearTimeout(timer);
     request.signal?.removeEventListener('abort', abort);
   };
-  const runPiece = async piece => {
+  const runPiece = async index => {
     if (cancelled || request.signal?.aborted) throw new Error('Narration cancelled');
     const pending = Promise.resolve().then(() => {
       if (cancelled || request.signal?.aborted) throw new Error('Narration cancelled');
-      return env.AI.run(TTS_MODEL, { text: piece, speaker: TTS_SPEAKER });
+      return provider.synthesize(pieces[index], {
+        signal: upstream.signal,
+        previousText: pieces[index - 1]?.slice(-500),
+        nextText: pieces[index + 1]?.slice(0, 500)
+      });
     });
     pending.then(stream => { if (cancelled) cancelReader(stream); }, () => {});
     const stream = await Promise.race([pending, deadline]);
@@ -159,14 +215,14 @@ async function createNarrationStream(env, request, text, reservation) {
     return stream;
   };
   let first;
-  try { first = await runPiece(pieces[0]); }
-  catch (error) { cancelled = true; cleanup(); throw error; }
+  try { first = await runPiece(0); }
+  catch (error) { cancelled = true; upstream.abort(); cleanup(); throw error; }
 
   return new ReadableStream({
     async start(controller) {
       try {
         for (const [index, piece] of pieces.entries()) {
-          const source = index === 0 ? first : await runPiece(piece);
+          const source = index === 0 ? first : await runPiece(index);
           activeReader = source.getReader();
           let bytes = 0;
           try {
@@ -182,7 +238,7 @@ async function createNarrationStream(env, request, text, reservation) {
           } finally { activeReader.releaseLock(); activeReader = null; }
           if (!bytes) throw new Error('Narration provider returned empty audio');
           if (cancelled) throw new Error('Narration cancelled');
-          if (piece.length >= MIN_CHECKED_CHARS && bytes < piece.length * MIN_BYTES_PER_CHAR) {
+          if (provider.id === TTS_PROVIDER && piece.length >= MIN_CHECKED_CHARS && bytes < piece.length * MIN_BYTES_PER_CHAR) {
             console.warn(`[tts] Aura-2 piece ${index + 1}/${pieces.length} returned ${bytes} bytes ` +
               `for ${piece.length} characters (usually about ${piece.length * TYPICAL_BYTES_PER_CHAR})`);
           }
@@ -192,6 +248,7 @@ async function createNarrationStream(env, request, text, reservation) {
         controller.close();
       } catch (error) {
         cancelled = true;
+        upstream.abort();
         cancelReader(activeReader);
         await releaseNarration(env, reservation).catch(() => {});
         try { controller.error(error); } catch { /* Consumer already cancelled. */ }

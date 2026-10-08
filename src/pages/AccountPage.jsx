@@ -1980,7 +1980,7 @@ export default function AccountPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Select voice engine">
               {[
-                { id: 'azure', label: 'Clear', desc: 'Deepgram' },
+                { id: 'azure', label: 'Clear', desc: 'Reader voice' },
                 { id: 'azure-sdk', label: 'Word-Sync', desc: 'Azure SDK' }
               ].map(engine => (
                 <button

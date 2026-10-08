@@ -144,13 +144,13 @@ export function useAudioController() {
     }
   }, [voiceOn, releaseSdkAudio]);
 
-  // /api/tts (Deepgram Aura-2) speak function; the player applies the speed
-  const speakWithAzure = useCallback(async (text, context = 'default', emotion = null) => {
+  // /api/tts reader voice; the player applies the speed.
+  const speakWithReaderVoice = useCallback(async (text, context = 'default', emotion = null) => {
     await speakText({
       text,
       enabled: voiceOn,
       context,
-      voice: 'nova', // Default voice for mystical tarot readings
+      voice: 'nova', // Legacy cache identity; the server selects the actual voice.
       speed: ttsSpeed,
       stream: context === 'full-reading',
       emotion
@@ -332,19 +332,19 @@ export function useAudioController() {
           : 'Narration unavailable.'
       );
 
-      console.log('[AudioController] Falling back to Azure REST API');
-      await speakWithAzure(text, context);
+      console.log('[AudioController] Falling back to reader voice');
+      await speakWithReaderVoice(text, context);
     }
-  }, [voiceOn, releaseSdkAudio, speakWithAzure]);
+  }, [voiceOn, releaseSdkAudio, speakWithReaderVoice]);
 
   // Unified speak function that routes to appropriate provider
   const speak = useCallback(async (text, context = 'default', emotion = null) => {
     if (ttsProvider === 'azure-sdk') {
       await speakWithSpeechSDK(text, context);
     } else {
-      await speakWithAzure(text, context, emotion);
+      await speakWithReaderVoice(text, context, emotion);
     }
-  }, [ttsProvider, speakWithSpeechSDK, speakWithAzure]);
+  }, [ttsProvider, speakWithSpeechSDK, speakWithReaderVoice]);
 
   const currentSpeakRef = useRef(speak);
   useEffect(() => { currentSpeakRef.current = speak; }, [speak]);

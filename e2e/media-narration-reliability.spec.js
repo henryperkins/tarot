@@ -25,7 +25,7 @@ for (const width of [1440, 390]) {
       try {
         await page.goto('/account');
         const engines = page.getByRole('radiogroup', { name: 'Select voice engine' });
-        const clear = engines.getByRole('radio', { name: 'Clear Deepgram' });
+        const clear = engines.getByRole('radio', { name: 'Clear Reader voice' });
         await expect(clear).toHaveAttribute('aria-checked', 'true');
         await expect(engines.getByRole('radio')).toHaveCount(2);
         await clear.focus();

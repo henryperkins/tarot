@@ -24,6 +24,7 @@ Common local variables include:
   - `AZURE_OPENAI_API_KEY`
   - `AZURE_OPENAI_GPT5_MODEL`
 - `VISION_PROOF_SECRET` when using the opt-in vision research flow
+- `ELEVENLABS_API_KEY` — enables ElevenLabs reading narration through the Worker. Optional `ELEVENLABS_VOICE_ID` (default Sarah, `EXAVITQu4vr4xnSDxMaL`) and `ELEVENLABS_MODEL_ID` (default `eleven_v4`) select the voice/model. Without the key, reader voice uses Workers AI Aura-2. See [narration safeguards](narration-safeguards.md).
 - `VITE_ENABLE_VISION_RESEARCH` — set to `true` only to expose the research UI; the default is `false`
 - Auth variables such as `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_AUDIENCE`, `AUTH0_USERINFO_URL`, and `APP_URL` when testing auth flows
 

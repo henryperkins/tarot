@@ -37,6 +37,7 @@ let ttsAbortController = null;
 let audioUnlocked = false;
 let unlockListenersRegistered = false;
 const TTS_CACHE_PREFIX = 'tts_cache_';
+const TTS_CACHE_VERSION = 'reader-eleven-v4';
 const TTS_CACHE_MAX_ENTRIES = 50;
 const TTS_CACHE_PURGE_THRESHOLD = 30;
 const TTS_CACHE_PURGE_TARGET = 20;
@@ -467,7 +468,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
         audioDataUri = streamResult.url;
         objectUrlForCleanup = streamResult.url;
         const headerProvider = response.headers.get('x-tts-provider');
-        provider = headerProvider || provider || 'workers-ai-aura-2';
+        provider = headerProvider || provider || 'server-tts';
         source = 'stream';
         if (isStaleRequest()) {
           revokeTrackedObjectUrl(streamResult.url);
@@ -785,7 +786,7 @@ async function playTtsStreamSegment(segment, requestId) {
 
   const streamResult = await buildStreamingAudioSource(response, controller?.signal);
   const headerProvider = response.headers.get('x-tts-provider');
-  const provider = headerProvider || 'workers-ai-aura-2';
+  const provider = headerProvider || 'server-tts';
   const source = 'stream';
 
   emitTTSState({
@@ -924,7 +925,7 @@ function finishTtsStreamQueue() {
   if (!ttsStreamActive) return;
   ttsStreamActive = false;
   ttsStreamFinalized = false;
-  const provider = currentTTSState.provider || 'workers-ai-aura-2';
+  const provider = currentTTSState.provider || 'server-tts';
   const context = currentTTSState.context || 'full-reading';
   emitTTSState({
     status: 'completed',
@@ -950,7 +951,7 @@ function generateCacheKey(text, context, voice, speed, format, emotion) {
   const speedKey = speed !== undefined ? speed : 'default';
   const formatKey = format && String(format).trim().length ? String(format).trim().toLowerCase() : 'default';
   const emotionKey = emotion && String(emotion).trim().length ? String(emotion).trim().toLowerCase() : 'default';
-  const content = `${text}|${context}|${voice}|${speedKey}|${formatKey}|${emotionKey}`;
+  const content = `${TTS_CACHE_VERSION}|${text}|${context}|${voice}|${speedKey}|${formatKey}|${emotionKey}`;
   return `${TTS_CACHE_PREFIX}${djb2Hash(content).toString(36)}`;
 }
 

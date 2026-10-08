@@ -1,10 +1,32 @@
 # Narration and media safeguards
 
 Apply migration 0034 before enabling server narration. Narration fails closed with
-503 if D1 accounting is unavailable. The default voice is Deepgram Aura-2 through
-Workers AI; stored Hume preferences migrate to that voice, and `/api/tts-hume`
+503 if D1 accounting is unavailable. Reader voice uses ElevenLabs when
+`ELEVENLABS_API_KEY` is configured; otherwise it uses Deepgram Aura-2 through
+Workers AI. Stored Hume preferences migrate to reader voice, and `/api/tts-hume`
 returns 410 without using a provider or an allowance unit. Word-Sync remains an
 independent Azure browser SDK option.
+
+## ElevenLabs setup
+
+Add `ELEVENLABS_API_KEY` to the ignored `.dev.vars` file for local development.
+The key is read only by the Worker and sent in ElevenLabs' `xi-api-key` header;
+it is never sent to the browser. For production, set the Worker secret
+with `wrangler secret put ELEVENLABS_API_KEY --config wrangler.jsonc`.
+
+Optional server settings select `ELEVENLABS_VOICE_ID` (default Sarah,
+`EXAVITQu4vr4xnSDxMaL`) and `ELEVENLABS_MODEL_ID` (default
+`eleven_v4`). The [ElevenLabs streaming endpoint](https://elevenlabs.io/docs/api-reference/text-to-speech/stream)
+returns MP3 at 44.1 kHz, 128 kbps. Neighboring text provides continuity between
+pieces. Browser speed controls change playback speed, so synthesis does not apply
+the speed a second time. Legacy browser voice fields do not select provider voices.
+
+`GET /api/tts` and `/api/health/tts` report the configured provider, model and voice
+without making a synthesis request; they do not prove upstream service health.
+When ElevenLabs is configured, failures return a retryable narration error rather
+than switching voices or retrying paid synthesis. Its upstream error bodies are
+discarded to keep reading text and credentials out of public errors. Existing
+cached snippets are invalidated once when upgrading the reader voice cache.
 
 ## Server narration units
 
@@ -27,8 +49,9 @@ reservation. There is no client-selected session or grouping ID to replay.
 
 A 120-second overall deadline covers provider calls and all audio bodies. Failure,
 request abort, body failure and consumer cancellation release the reservation;
-provider cancellation is best effort and cannot delay release. A Workers AI call
-that stalls before returning a stream cannot be reliably cancelled at the binding
+provider cancellation is best effort and cannot delay release. ElevenLabs fetch
+requests are aborted on cancellation or deadline, including while awaiting headers.
+A Workers AI call that stalls before returning a stream cannot be reliably cancelled at the binding
 boundary. It is never retried concurrently. A late returned body is cancelled.
 Delivery to the response stream means synthesis succeeded; monthly accounting
 cannot prove that a browser listened to every byte or that a disconnected network
