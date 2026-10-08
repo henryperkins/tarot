@@ -90,7 +90,7 @@ export function CoachTemplatePanel({
         <div className="mt-5 space-y-6">
           <section className="space-y-3" aria-labelledby={`${idPrefix}-save`}>
             <div className="flex flex-col gap-2">
-              <h3 id={`${idPrefix}-save`} className="text-xs uppercase tracking-[0.3em] text-accent/80">Save current setup</h3>
+              <h3 id={`${idPrefix}-save`} className="text-xs uppercase tracking-[0.3em] text-accent">Save current setup</h3>
               <form
                 className="flex flex-col gap-2 sm:flex-row"
                 onSubmit={event => {
@@ -109,22 +109,22 @@ export function CoachTemplatePanel({
                   autoComplete="off"
                   enterKeyHint="done"
                   data-initial-focus="save"
-                  className="flex-1 min-w-0 rounded-full border border-accent/20 bg-surface/70 px-3 py-2 text-sm text-main caret-accent focus:outline-none focus:ring-1 focus:ring-secondary/60"
+                  className="flex-1 min-h-touch min-w-0 rounded-full border border-accent/20 bg-surface/70 px-3 py-2 text-sm text-main caret-accent placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-secondary/60"
                 />
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center gap-1 rounded-full border border-secondary/60 bg-secondary/10 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                  className="inline-flex min-h-touch min-w-touch items-center justify-center gap-1 rounded-full border border-secondary/60 bg-secondary/10 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
                 >
                   <Sparkle className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                   Save
                 </button>
               </form>
-              <p className="text-2xs text-secondary/70">
+              <p className="text-2xs text-secondary">
                 {templates.length}/{maxTemplates} templates saved · oldest entry is replaced when you add more than {maxTemplates}.
               </p>
             </div>
             {templateStatus && (
-              <p className="text-xs text-secondary/80 break-words">{templateStatus}</p>
+              <p className="text-xs text-secondary break-words">{templateStatus}</p>
             )}
             {/* Always mounted, and off screen so an empty region leaves no gap,
                 so screen readers hear each save, update, and removal. */}
@@ -134,7 +134,7 @@ export function CoachTemplatePanel({
           </section>
 
           <section className="space-y-3" aria-labelledby={`${idPrefix}-saved`}>
-            <h3 id={`${idPrefix}-saved`} className="text-xs uppercase tracking-[0.3em] text-accent/80">Saved templates</h3>
+            <h3 id={`${idPrefix}-saved`} className="text-xs uppercase tracking-[0.3em] text-accent">Saved templates</h3>
             {templates.length === 0 ? (
               <p className="text-xs text-muted">
                 Nothing saved yet. Create a label above to store this blend for later.
@@ -164,13 +164,13 @@ export function CoachTemplatePanel({
                         onClick={() => handleApplyTemplate(template)}
                         aria-label={`Apply template ${template.label}`}
                         aria-describedby={summaryId}
-                        className="text-left min-w-0"
+                        className="min-h-touch min-w-0 text-left"
                       >
                         <span className="block text-sm font-semibold text-main break-words">{template.label}</span>
                         <span id={summaryId} className="block">
                           <span className="block text-xs text-muted">{summary}</span>
                           {template.customFocus && (
-                            <span className="mt-1 block text-xs text-secondary/80 break-words">{template.customFocus}</span>
+                            <span className="mt-1 block text-xs text-secondary break-words">{template.customFocus}</span>
                           )}
                           {template.savedQuestion && (
                             <span className="mt-2 block text-xs text-muted break-words">{template.savedQuestion}</span>
@@ -181,7 +181,7 @@ export function CoachTemplatePanel({
                         type="button"
                         onClick={() => handleRemove(template.id, index)}
                         aria-label={`Remove template ${template.label}`}
-                        className="self-start text-xs text-error hover:text-error/80 underline decoration-dotted"
+                        className="self-start inline-flex min-h-touch min-w-touch items-center px-2 text-xs text-error underline decoration-dotted hover:decoration-solid"
                       >
                         Remove
                       </button>
@@ -193,7 +193,7 @@ export function CoachTemplatePanel({
           </section>
 
           <section className="space-y-3" aria-labelledby={`${idPrefix}-recent`}>
-            <h3 id={`${idPrefix}-recent`} className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-accent/80">
+            <h3 id={`${idPrefix}-recent`} className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-accent">
               <ClockCounterClockwise className="h-4 w-4 text-secondary" aria-hidden="true" />
               Recent questions
             </h3>
@@ -206,7 +206,7 @@ export function CoachTemplatePanel({
                     <button
                       type="button"
                       onClick={() => handleApplyHistoryQuestion(item)}
-                      className="w-full text-left rounded-2xl border border-accent/20 bg-surface-muted/70 px-4 py-2 text-sm text-muted hover:border-secondary/50 transition break-words"
+                      className="w-full min-h-touch text-left rounded-2xl border border-accent/20 bg-surface-muted/70 px-4 py-2 text-sm text-muted hover:border-secondary/50 transition break-words"
                     >
                       {item.question}
                     </button>

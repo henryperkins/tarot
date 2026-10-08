@@ -272,12 +272,16 @@ export function GuidedIntentionCoachProvider({
     [topic, timeframe, depth, customFocus, questionSeed, selectedSpread]
   );
 
+  // An empty edited question belongs to the reader too; only automatic mode
+  // can fall back to the generated wording.
+  const currentQuestion = autoQuestionEnabled ? questionText || guidedQuestion : questionText;
+
   const questionQuality = useMemo(
-    () => scoreQuestion(questionText || guidedQuestion || ''),
-    [questionText, guidedQuestion]
+    () => scoreQuestion(currentQuestion),
+    [currentQuestion]
   );
 
-  const isManualQuestion = !autoQuestionEnabled && Boolean((questionText || '').trim());
+  const isManualQuestion = !autoQuestionEnabled;
 
   const qualityLevel = useMemo(
     () => getQualityLevel(questionQuality.score),
@@ -358,7 +362,7 @@ export function GuidedIntentionCoachProvider({
       setTemplateStatus('Add a template name first.');
       return;
     }
-    const trimmedQuestion = (questionText || guidedQuestion || '').trim();
+    const trimmedQuestion = currentQuestion.trim();
     if (!trimmedQuestion) {
       setTemplateStatus('Add or generate a question before saving.');
       return;
@@ -396,8 +400,7 @@ export function GuidedIntentionCoachProvider({
     }
   }, [
     newTemplateLabel,
-    questionText,
-    guidedQuestion,
+    currentQuestion,
     templates,
     topic,
     timeframe,
@@ -522,6 +525,18 @@ export function GuidedIntentionCoachProvider({
     announce(`Recent question applied. ${historyItem.question}`);
   }, [handleApplySuggestion, announce]);
 
+  const editQuestion = useCallback((text) => {
+    // Disabling generation also aborts any pending AI request in its effect.
+    // Future automatic questions require an explicit Remix or setting change.
+    setAutoQuestionEnabled(false);
+    setQuestionText(text.slice(0, USER_QUESTION_MAX_LENGTH));
+    setQuestionLoading(false);
+    setQuestionError('');
+    setPrefillSource(null);
+    pendingQuestionAnnouncementRef.current = null;
+    clearAstroForecast();
+  }, [clearAstroForecast]);
+
   const remixQuestion = useCallback(() => {
     setPrefillSource(null);
     setAutoQuestionEnabled(true);
@@ -576,7 +591,7 @@ export function GuidedIntentionCoachProvider({
   const handleApply = useCallback(async () => {
     // Every source is bounded, but an over-long question would only fail with
     // a 400 after the ritual, so trim it to the server contract here.
-    const finalQuestion = (questionText || guidedQuestion || '').slice(0, USER_QUESTION_MAX_LENGTH);
+    const finalQuestion = currentQuestion.slice(0, USER_QUESTION_MAX_LENGTH);
     if (!finalQuestion.trim()) return;
 
     const historyResult = recordCoachQuestion(finalQuestion, undefined, userId);
@@ -614,8 +629,7 @@ export function GuidedIntentionCoachProvider({
     onApply?.(finalQuestion);
     onClose?.();
   }, [
-    questionText,
-    guidedQuestion,
+    currentQuestion,
     userId,
     coachStats,
     personalization?.focusAreas,
@@ -911,6 +925,7 @@ export function GuidedIntentionCoachProvider({
     suggestedTopic,
     prefillSourceDescription,
     guidedQuestion,
+    currentQuestion,
     questionQuality,
     isManualQuestion,
     qualityLevel,
@@ -950,6 +965,7 @@ export function GuidedIntentionCoachProvider({
     releasePrefill,
     clearAstroForecast,
     announce,
+    editQuestion,
     remixQuestion,
     setCreativeMode,
     openTemplatePanel,

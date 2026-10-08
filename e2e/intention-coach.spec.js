@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 
+// These tests mock API responses; service workers can bypass page.route.
+test.use({ serviceWorkers: 'block' });
+
 const COACH_NAME = 'Shape a question with clarity';
 const TOPIC_PROMPT = 'What area do you want to explore?';
 
@@ -74,7 +77,16 @@ async function gotoReading(page) {
 }
 
 async function openCoachWithShortcut(page) {
+  // The spread can render before passive effects register the shortcut.
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await page.keyboard.press('Shift+G');
+  const coach = page.getByRole('dialog', { name: COACH_NAME });
+  await expect(coach).toBeVisible();
+  return coach;
+}
+
+async function openCoachWithButton(page) {
+  await page.getByRole('button', { name: /^Open guided (?:intention )?coach/ }).filter({ visible: true }).first().press('Enter');
   const coach = page.getByRole('dialog', { name: COACH_NAME });
   await expect(coach).toBeVisible();
   return coach;
@@ -95,13 +107,211 @@ function spreadNote(coach) {
 }
 
 function reviewQuestion(coach) {
-  return coach.getByText('Your Question', { exact: true }).locator('..').locator('p');
+  return coach.getByRole('textbox', { name: 'Your Question', exact: true, includeHidden: true });
 }
 
 // A review chip on the current step, read as "Type:" then its label.
 function contextChip(coach, type) {
   return coach.getByRole('tabpanel').getByText(`${type}:`, { exact: true }).locator('..');
 }
+
+for (const platform of ['desktop', 'handset @mobile']) {
+  test.describe(`Guided intention coach question editing — ${platform}`, () => {
+    test('edited wording survives reopening and reaches the reading and recent questions', async ({ page }) => {
+      await seedApp(page);
+      await gotoReading(page);
+      let coach = await openCoachWithButton(page);
+      await coach.getByRole('tab', { name: 'Depth' }).click();
+      const question = 'How can I make room for rest this week?\nWhat can I change in my daily routine?';
+      const field = coach.getByRole('textbox', { name: 'Your Question', exact: true });
+      await expect(field).not.toHaveValue('');
+      await field.fill(question);
+      await expect(field).toBeFocused();
+
+      await page.keyboard.press('Escape');
+      await expect(coach).toHaveCount(0);
+      coach = await openCoachWithButton(page);
+      await expect(coach.getByRole('textbox', { name: 'Your Question', exact: true })).toHaveValue(question);
+      await coach.getByRole('button', { name: 'Use question', exact: true }).click();
+
+      await expect(coach).toHaveCount(0);
+      await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(question);
+      await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tarot_coach_history_anon'))?.[0]?.question))
+        .toBe(question);
+    });
+
+    test('clearing the question leaves it empty until the user writes or remixes', async ({ page }) => {
+      await seedApp(page);
+      await gotoReading(page);
+      let coach = await openCoachWithButton(page);
+      await coach.getByRole('tab', { name: 'Depth' }).click();
+      let field = coach.getByRole('textbox', { name: 'Your Question', exact: true });
+      const useQuestion = coach.getByRole('button', { name: 'Use question', exact: true });
+      await field.fill('');
+      await expect(field).toHaveValue('');
+      await expect(useQuestion).toBeDisabled();
+      await field.fill('   ');
+      await expect(useQuestion).toBeDisabled();
+      await field.fill('');
+
+      await page.keyboard.press('Escape');
+      await expect(coach).toHaveCount(0);
+      coach = await openCoachWithButton(page);
+      field = coach.getByRole('textbox', { name: 'Your Question', exact: true });
+      await expect(field).toHaveValue('');
+      await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeDisabled();
+
+      await coach.getByRole('button', { name: 'Remix', exact: true }).click();
+      await expect(field).not.toHaveValue('');
+      await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeEnabled();
+    });
+
+    test('saving a template uses the edited question and rejects an empty one', async ({ page }) => {
+      await seedApp(page);
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      await coach.getByRole('tab', { name: 'Depth' }).click();
+      const field = coach.getByRole('textbox', { name: 'Your Question', exact: true });
+      const library = page.getByRole('dialog', { name: 'Template library' });
+      await field.fill('');
+      await coach.getByRole('button', { name: 'Save as template' }).click();
+      await library.getByRole('textbox', { name: 'Template name' }).fill('My own wording');
+      await library.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(library.getByRole('status')).toHaveText('Add or generate a question before saving.');
+      await library.getByRole('button', { name: 'Close template panel' }).click();
+
+      const question = 'What would help me feel grounded while I change roles at work?';
+      await field.fill(question);
+      await coach.getByRole('button', { name: 'Save as template' }).click();
+      await library.getByRole('textbox', { name: 'Template name' }).fill('My own wording');
+      await library.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(library.getByRole('status')).toHaveText('Template saved');
+      await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tarot_coach_templates_anon'))?.[0]?.savedQuestion))
+        .toBe(question);
+    });
+
+    test('editing during AI generation cancels the response and keeps the typed question', async ({ page }) => {
+      await seedApp(page, { user: PLUS_USER });
+      await page.addInitScript(() => {
+        // Verify cancellation through the pending fetch's AbortSignal as well
+        // as checking that the edited wording survives the delayed response.
+        window.__coachQuestionRequestAborted = false;
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = (input, options) => {
+          const url = typeof input === 'string' ? input : input.url;
+          if (url.endsWith('/api/generate-question')) {
+            options?.signal?.addEventListener('abort', () => {
+              window.__coachQuestionRequestAborted = true;
+            }, { once: true });
+          }
+          return originalFetch(input, options);
+        };
+      });
+      let releaseResponse;
+      let markStarted;
+      const responseReady = new Promise(resolve => { releaseResponse = resolve; });
+      const requestStarted = new Promise(resolve => { markStarted = resolve; });
+      await page.route('**/api/generate-question', async (route) => {
+        markStarted();
+        await responseReady;
+        await route.fulfill({ status: 200, json: {
+          question: 'What late AI wording could replace my edits?',
+          provider: 'workers-ai'
+        } }).catch(() => {});
+      });
+      try {
+        await gotoReading(page);
+        const coach = await openCoachWithButton(page);
+        await coach.getByRole('tab', { name: 'Depth' }).click();
+        await coach.getByRole('checkbox', { name: 'Personalize with AI' }).check();
+        await requestStarted;
+        const question = 'How can I choose a pace that supports my wellbeing this month?';
+        const field = coach.getByRole('textbox', { name: 'Your Question', exact: true });
+        await field.fill(question);
+        await expect.poll(() => page.evaluate(() => window.__coachQuestionRequestAborted)).toBe(true);
+        releaseResponse();
+        await expect(field).toHaveValue(question);
+        await coach.getByRole('button', { name: 'Use question', exact: true }).click();
+        await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(question);
+      } finally {
+        releaseResponse();
+      }
+    });
+  });
+}
+
+test.describe('Guided intention coach responsive review @mobile', () => {
+  test('enlarged text keeps the editor and footer reachable at 320px', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await seedApp(page);
+    await gotoReading(page);
+    const coach = await openCoachWithButton(page);
+    await coach.getByRole('tab', { name: 'Depth' }).press('Enter');
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      document.documentElement.style.fontSize = '32px';
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+
+    const field = coach.getByRole('textbox', { name: 'Your Question', exact: true });
+    await field.scrollIntoViewIfNeeded();
+    const geometry = await field.evaluate(element => {
+      let scroller = element.parentElement;
+      while (scroller && !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)) {
+        scroller = scroller.parentElement;
+      }
+      const fieldBox = element.getBoundingClientRect();
+      const scrollBox = scroller?.getBoundingClientRect();
+      const dialog = element.closest('[role="dialog"]');
+      return {
+        scrollHeight: scroller?.clientHeight || 0,
+        scrollOverflow: scroller.scrollWidth > scroller.clientWidth,
+        fieldInside: Boolean(scrollBox && fieldBox.top >= scrollBox.top - 1 && fieldBox.bottom <= scrollBox.bottom + 1),
+        documentOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        dialogOverflow: dialog.scrollWidth > dialog.clientWidth
+      };
+    });
+    expect(geometry.scrollHeight).toBeGreaterThan(100);
+    expect(geometry.fieldInside).toBe(true);
+    expect(geometry.documentOverflow).toBe(false);
+    expect(geometry.dialogOverflow).toBe(false);
+    expect(geometry.scrollOverflow).toBe(false);
+
+    const useQuestion = coach.getByRole('button', { name: 'Use question', exact: true });
+    const footerBox = await useQuestion.boundingBox();
+    expect(footerBox.x).toBeGreaterThanOrEqual(0);
+    expect(footerBox.x + footerBox.width).toBeLessThanOrEqual(320);
+    expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(568);
+    const question = 'How can I make room for rest this week?';
+    await field.fill(question);
+    await useQuestion.tap();
+    await expect(coach).toHaveCount(0);
+    await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(question);
+  });
+
+  test('review and template actions meet the 44px touch target', async ({ page }) => {
+    await seedApp(page, { user: PLUS_USER, templates: [TEMPLATE] });
+    await gotoReading(page);
+    const coach = await openCoachWithButton(page);
+    await coach.getByRole('tab', { name: 'Depth' }).press('Enter');
+
+    const shortTargets = dialog => dialog.evaluate(element => [...element.querySelectorAll('button,input,textarea')]
+      .filter(control => control.getClientRects().length && getComputedStyle(control).visibility !== 'hidden')
+      .map(control => {
+        const target = control.matches('input[type="checkbox"]') ? control.closest('label') : control;
+        const box = target.getBoundingClientRect();
+        return { name: control.getAttribute('aria-label') || target.textContent.trim(), width: box.width, height: box.height };
+      }).filter(target => target.width < 43.9 || target.height < 43.9));
+
+    expect(await shortTargets(coach)).toEqual([]);
+    await coach.getByRole('button', { name: 'Templates', exact: true }).press('Enter');
+    const library = page.getByRole('dialog', { name: 'Template library', exact: true });
+    expect(await shortTargets(library)).toEqual([]);
+    await page.keyboard.press('Escape');
+    await expect(library).toHaveCount(0);
+    await expect(coach).toBeVisible();
+  });
+});
 
 test.describe('Guided intention coach keyboard and layers', () => {
   test('arrow keys move focus and selection across the step tabs', async ({ page }) => {
@@ -263,7 +473,7 @@ test.describe('Guided intention coach keyboard and layers', () => {
     await library.getByRole('button', { name: `Apply template ${TEMPLATE.label}` }).click();
     await expect(library).toHaveCount(0);
     await expect(coach.getByRole('tab', { name: 'Depth' })).toHaveAttribute('aria-selected', 'true');
-    await expect(coach.getByText(TEMPLATE.savedQuestion, { exact: true })).toBeVisible();
+    await expect(reviewQuestion(coach)).toHaveValue(TEMPLATE.savedQuestion);
     await expect(coach.getByRole('status')).toContainText(`Template "${TEMPLATE.label}" applied.`);
   });
 
@@ -299,7 +509,7 @@ test.describe('Guided intention coach keyboard and layers', () => {
     const coach = await openCoachWithShortcut(page);
 
     await coach.getByRole('tab', { name: 'Depth' }).click();
-    await expect(coach.getByText(question, { exact: true })).toBeVisible();
+    await expect(reviewQuestion(coach)).toHaveValue(question);
   });
 
   test('signing in while the coach is open starts over for the new account', async ({ page }) => {
@@ -350,7 +560,7 @@ test.describe('Guided intention coach keyboard and layers', () => {
     await page.evaluate(() => localStorage.removeItem('tarot_coach_recommendation_anon'));
     coach = await openCoachWithShortcut(page);
     await coach.getByRole('tab', { name: 'Depth' }).click();
-    await expect(coach.getByText(question, { exact: true })).toHaveCount(0);
+    await expect(reviewQuestion(coach)).not.toHaveValue(question);
   });
 
   test('the icon-only Back button keeps its name in landscape', async ({ page }) => {
@@ -379,7 +589,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(coach.getByText(/we suggest exploring/i)).toHaveCount(0);
 
     await coach.getByRole('tab', { name: 'Depth' }).click();
-    await expect(reviewQuestion(coach)).toHaveText(DECISION_SHAPED);
+    await expect(reviewQuestion(coach)).toHaveValue(DECISION_SHAPED);
     await expect(contextChip(coach, 'Spread')).toHaveText(/^Spread:\s*Decision$/);
     // The spread is chosen on the page, so its chip is a label, not a button.
     await expect(coach.getByRole('button', { name: /^Spread:/ })).toHaveCount(0);
@@ -407,19 +617,19 @@ test.describe('Guided intention coach and the selected spread', () => {
     await selectSpread(page, /Five-Card Clarity/);
     let coach = await openCoachWithShortcut(page);
     await coach.getByRole('tab', { name: 'Depth' }).click();
-    const savedQuestion = await reviewQuestion(coach).innerText();
+    const savedQuestion = await reviewQuestion(coach).inputValue();
 
     await page.keyboard.press('Escape');
     await expect(coach).toHaveCount(0);
     await selectSpread(page, /Three-Card Story/);
     coach = await openCoachWithShortcut(page);
 
-    await expect(reviewQuestion(coach)).toHaveText(savedQuestion);
+    await expect(reviewQuestion(coach)).toHaveValue(savedQuestion);
     await coach.getByRole('tab', { name: 'Topic' }).click();
     await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
     await coach.getByRole('tab', { name: 'Depth' }).click();
     await coach.getByRole('button', { name: 'Remix', exact: true }).click();
-    await expect(reviewQuestion(coach)).not.toHaveText(savedQuestion);
+    await expect(reviewQuestion(coach)).not.toHaveValue(savedQuestion);
     await expect(contextChip(coach, 'Spread')).toHaveText(/^Spread:\s*Three-Card Story$/);
   });
 
@@ -429,7 +639,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await selectSpread(page, /Five-Card Clarity/);
     let coach = await openCoachWithShortcut(page);
     await coach.getByRole('tab', { name: 'Depth' }).click();
-    const savedQuestion = await reviewQuestion(coach).innerText();
+    const savedQuestion = await reviewQuestion(coach).inputValue();
     await page.keyboard.press('Escape');
     await expect(coach).toHaveCount(0);
     coach = await openCoachWithShortcut(page);
@@ -438,8 +648,8 @@ test.describe('Guided intention coach and the selected spread', () => {
     await coach.getByRole('radiogroup', { name: TOPIC_PROMPT })
       .getByRole('radio', { name: /^Career & Purpose/ }).click();
     await coach.getByRole('tab', { name: 'Depth' }).click();
-    await expect(reviewQuestion(coach)).not.toHaveText(savedQuestion);
-    await expect(reviewQuestion(coach)).toContainText('my career direction and purpose');
+    await expect(reviewQuestion(coach)).not.toHaveValue(savedQuestion);
+    await expect(reviewQuestion(coach)).toHaveValue(/my career direction and purpose/);
     await expect(contextChip(coach, 'Spread')).toHaveText(/^Spread:\s*Five-Card Clarity$/);
   });
 
@@ -459,7 +669,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     let coach = await openCoachWithShortcut(page);
     await coach.getByRole('tab', { name: 'Depth' }).click();
     await coach.getByRole('checkbox', { name: 'Personalize with AI' }).check();
-    await expect(reviewQuestion(coach)).toHaveText(savedQuestion);
+    await expect(reviewQuestion(coach)).toHaveValue(savedQuestion);
 
     await page.keyboard.press('Escape');
     await expect(coach).toHaveCount(0);
@@ -467,11 +677,11 @@ test.describe('Guided intention coach and the selected spread', () => {
     await coach.getByRole('tab', { name: 'Topic' }).click();
     await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
     await coach.getByRole('tab', { name: 'Depth' }).click();
-    await expect(reviewQuestion(coach)).toHaveText(savedQuestion);
+    await expect(reviewQuestion(coach)).toHaveValue(savedQuestion);
     expect(generations).toBe(1);
 
     await coach.getByRole('button', { name: 'Remix', exact: true }).click();
-    await expect(reviewQuestion(coach)).toHaveText('What new question could replace my saved intention?');
+    await expect(reviewQuestion(coach)).toHaveValue('What new question could replace my saved intention?');
     expect(generations).toBe(2);
   });
 
@@ -485,17 +695,17 @@ test.describe('Guided intention coach and the selected spread', () => {
     await coach.getByRole('button', { name: 'Templates', exact: true }).click();
     await library.getByRole('button', { name: `Apply template ${TEMPLATE.label}` }).click();
     await expect(library).toHaveCount(0);
-    await expect(reviewQuestion(coach)).toHaveText(TEMPLATE.savedQuestion);
+    await expect(reviewQuestion(coach)).toHaveValue(TEMPLATE.savedQuestion);
     await expect(contextChip(coach, 'Mode')).toHaveText(/^Mode:\s*Custom question$/);
     await expect(contextChip(coach, 'Spread')).toHaveCount(0);
 
     await coach.getByRole('tab', { name: 'Topic' }).click();
     await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
-    await expect(reviewQuestion(coach)).toHaveText(TEMPLATE.savedQuestion);
+    await expect(reviewQuestion(coach)).toHaveValue(TEMPLATE.savedQuestion);
 
     await coach.getByRole('tab', { name: 'Depth' }).click();
     await coach.getByRole('button', { name: 'Remix', exact: true }).click();
-    await expect(reviewQuestion(coach)).toHaveText(DECISION_SHAPED);
+    await expect(reviewQuestion(coach)).toHaveValue(DECISION_SHAPED);
     await expect(contextChip(coach, 'Spread')).toHaveText(/^Spread:\s*Decision$/);
   });
 
@@ -513,7 +723,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(note).toContainText(`follow that arc. ${STAYS_AS_WRITTEN}`);
 
     await coach.getByRole('tab', { name: 'Depth' }).click();
-    await expect(reviewQuestion(coach)).toHaveText(question);
+    await expect(reviewQuestion(coach)).toHaveValue(question);
     await expect(contextChip(coach, 'Mode')).toHaveText(/^Mode:\s*Custom question$/);
     await expect(contextChip(coach, 'Spread')).toHaveCount(0);
   });
