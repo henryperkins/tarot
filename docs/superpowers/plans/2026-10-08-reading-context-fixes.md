@@ -21,7 +21,7 @@
 
 - Node 24. Every task runs `npm test` and `npm run lint`. Record unit, narrative-gate, deploy and live results separately.
 - Prompt text changes need `npm run ci:narrative-check` on the owner's Claude subscription before merge. Don't lower thresholds; a local-composer pass doesn't prove a live provider.
-- The first task that changes prompt text bumps `READING_PROMPT_VERSION` (`functions/lib/promptVersioning.js:17`, `1.2.0` → `1.3.0`) with a `VERSION_HISTORY` entry, so `eval_metrics` can compare before and after.
+- Each PR that changes prompt text bumps `READING_PROMPT_VERSION` (`functions/lib/promptVersioning.js:17`) once, with a `VERSION_HISTORY` entry: Phase 1 takes `1.2.0` → `1.3.0`, Phase 2 `1.4.0`, and so on. `eval_metrics` can then tell each change set apart.
 - New D1 columns use additive migrations, applied before the code that reads them.
 - No production reads or writes without the owner's explicit OK. Fixtures use the four card draws with synthetic questions; don't commit the owner's questions, memories or readings.
 
@@ -113,7 +113,7 @@ async function buildDraw({ spreadKey, referenceTime, question, context, cards })
       card: base.name,
       orientation,
       meaning: orientation === 'Reversed' ? base.reversed : base.upright,
-      number: base.number,
+      number: base.number ?? null,
       suit: base.suit || null,
       rank: base.rank || null,
       rankValue: base.rankValue ?? null
@@ -208,7 +208,7 @@ describe('major arcana imagery hooks', () => {
 
 ### Task 3: Give the model the date
 
-**Files:** `functions/lib/narrative/prompts/userPrompt.js` (after line 88); `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` (new `readingTime` and `timezone` params passed to `buildUserPrompt`); `functions/lib/narrativeBackends.js:709` (pass `payload.readingTime` and `payload.timezone`); `functions/api/tarot-reading.js` (narrativePayload near line 1166: `readingTime: new Date(startTime).toISOString()`, `timezone: sanitizedLocation?.timezone || null`); `functions/lib/ephemerisIntegration.js:177–186, 578–587`; `tests/ephemerisForecastEvents.test.mjs` (lines 112–151, 187). **Size:** S–M.
+**Files:** `functions/lib/narrative/prompts/userPrompt.js` (after line 88); `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` (new `readingTime` and `timezone` params passed to `buildUserPrompt`); `functions/lib/narrativeBackends.js:709` (pass `payload.readingTime` and `payload.timezone`); `functions/api/tarot-reading.js` (`narrativePayload` at line 1170: `readingTime: new Date(startTime).toISOString()`, `timezone: sanitizedLocation?.timezone || null`); `functions/lib/ephemerisIntegration.js:177–186, 578–587`; `tests/ephemerisForecastEvents.test.mjs` (lines 112–151, 187). **Size:** S–M.
 
 - [ ] Add a reading-date line in `userPrompt.js`:
 
@@ -253,12 +253,12 @@ if (readingDate) prompt += `**Reading Date**: ${readingDate}\n\n`;
 
 **Files:** `functions/lib/narrative/prompts/graphRAGReferenceBlock.js:160`; check the fixtures in `tests/promptEngineering.test.mjs:833–957`. **Size:** S.
 
-- [ ] Replace "These passages provide archetypal context from respected tarot literature." with "These passages are Tableu's own tarot canon, written as background on these archetypes." Then add "Paraphrase; don't reuse their sentences."
+- [ ] Replace "These passages provide archetypal context from respected tarot literature." with "These passages are Tableu's own tarot canon, written as background on these archetypes." The same line already says not to quote them verbatim.
 - [ ] **Done when:** the GraphRAG tests pass.
 
 ### Task 6: Journal export fixes
 
-**Files:** `src/lib/journalInsights.js:1097–1100` and `:1188`. Move the copy at `src/components/journal/entry-card/EntryCard.primitives.js:20–22` into a new `src/lib/timingProfileCopy.js` and import it in both places. Tests go in `tests/journalInsights.test.mjs`. **Size:** S.
+**Files:** `src/lib/journalInsights.js:1097–1100` and `:1188`. Move `TIMING_SUMMARIES` from `src/components/journal/entry-card/EntryCard.primitives.js:19–23` into a new `src/lib/timingProfileCopy.js` and import it in both places. Tests go in `tests/journalInsights.test.mjs`. **Size:** S.
 
 - [ ] Frontmatter uses the local date, matching the header:
 
@@ -271,7 +271,7 @@ function formatFrontmatterDate(ts) {
 }
 ```
 
-- [ ] Key Themes prints `TIMING_PROFILE_COPY[themes.timingProfile]` instead of the raw slug.
+- [ ] Key Themes replaces its `Timing:` line, which prints the raw slug, with the matching `TIMING_SUMMARIES` entry; each entry already starts with "Timing:".
 - [ ] Note: `journalInsights.js` runs only in the browser (nothing under `functions/` imports it), so the local date getters use the querent's own timezone.
 - [ ] Test with `process.env.TZ = 'America/Chicago'`: an entry at `2026-10-08T01:48Z` exports `date: 2026-10-07` and contains no `developing-arc`.
 
@@ -318,6 +318,7 @@ function resolveCardSpecificClause(entry, cardInfo = {}) {
 - `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` and `userPrompt.js` (forwarding);
 - `functions/lib/narrative/prompts/userContext.js:43` (`parseUserContext`);
 - `functions/lib/narrative/prompts/truncation.js:465–490` (hard-cap rebuild);
+- `functions/lib/promptEngineering.js:410` (`buildReadingRedactionOptions`, called at `tarot-reading.js:460` and `narrativeBackends.js:746`);
 - the local fallback builder `functions/lib/narrative/spreads/decision.js` (`buildDecisionReading`).
 
 **Size:** S for the rule, M for labels.
@@ -333,7 +334,7 @@ function resolveCardSpecificClause(entry, cardInfo = {}) {
   }
 ```
 
-- [ ] Sanitize the labels once, at the request boundary in `tarot-reading.js`, with the same cleaning and injection filtering as the question (max 80 characters). The model prompt, the evaluator and the local fallback then all receive the same safe values; `optionalCleanString` alone only trims and caps length.
+- [ ] Sanitize the labels once, at the request boundary in `tarot-reading.js`, with the same cleaning and injection filtering as the question (max 80 characters). The model prompt, the evaluator and the local fallback then all receive the same safe values; `optionalCleanString` alone only trims, drops empty strings and rejects values over the limit; it filters nothing.
 - [ ] Forward `decisionPaths` through `buildEnhancedClaudePrompt` (a new parameter) and `buildUserPrompt` into `buildDecisionPromptCards`, which renders each path on its own because both labels are optional:
 
 ```js
@@ -343,10 +344,11 @@ const describePath = (source, label) => (label ? renderUserContext(source, label
 out += `**Paths**: Path A: ${describePath('pathA', decisionPaths?.a)}; Path B: ${describePath('pathB', decisionPaths?.b)}.\n`;
 ```
 
-- [ ] Make `parseUserContext` recognize `pathA` and `pathB`, and have `truncateUserPromptSafely` restore them after hard-cap truncation. Today that step strips every `<user_context>` line and restores only the question, reflections and card notes.
+- [ ] Make `parseUserContext` recognize `pathA` and `pathB`, and have `truncateUserPromptSafely` restore them after hard-cap truncation. Today that step strips every line holding a `<user_context>` block and rebuilds every source other than the question and reflections as `Reflection for card N`; `pathA` would come back as card 1. Give the paths their own branch that re-renders the single `**Paths**:` line, using "no separate label" for a missing one.
 - [ ] Extend the request schema: `decisionPaths: z.object({ a: optionalCleanString(80), b: optionalCleanString(80) }).optional()`.
 - [ ] Give the evaluator the same facts. Pass the sanitized labels, or at least which paths were named, through `evalParams` into the evaluator's user template. Append to the decision hint: "If the querent did not name a path, treat concrete content assigned to it as a coherence flaw." Bump `EVAL_PROMPT_VERSION` to `2.5.0`.
 - [ ] Carry the labels through the local fallback: `generateReadingFromAnalysis` passes them to `buildDecisionReading`, which uses them in place of the generic Path A and Path B wording.
+- [ ] Add both labels to the redaction sources: `buildReadingRedactionOptions` takes them as extra text sources, as it does memories. Stored prompts already replace every `<user_context>` block, but a name that appears only in a label ("Take Alice's offer") and is echoed by the reading would otherwise be stored unredacted: in the evaluation payload, whose redaction names come from these sources, and in the persisted response when `PERSIST_PROMPTS` is on.
 - [ ] **Done when:**
   - invariant 5 passes;
   - injection strings in labels are filtered;
@@ -355,6 +357,7 @@ out += `**Paths**: Path A: ${describePath('pathA', decisionPaths?.a)}; Path B: $
   - labels survive hard-cap truncation;
   - the evaluator receives the labels;
   - the local fallback keeps labeled paths;
+  - a name that appears only in a label is redacted from the stored evaluation payload and, with `PERSIST_PROMPTS=true`, from the persisted response;
   - the narrative check's decision samples assign no concrete content to unnamed paths.
 
 ### Task 9: Memories that personalize without becoming a formula
@@ -367,20 +370,24 @@ out += `**Paths**: Path A: ${describePath('pathA', decisionPaths?.a)}; Path B: $
 // Tune this to the real phrasing found in Task 0.
 // Ages of one to three digits; "turns 3 cards" is not an age.
 const PERSONAL_DETAIL_PATTERN = /\b(?:\d{1,3}\s*(?:years?\s*old|y\/?o)|age[ds]?\s*\d{1,3}|turn(?:ed|ing|s)?\s+\d{1,3}\b(?!\s*cards?)|birthday)\b/i;
-const tokensOf = (text = '') => new Set(String(text).toLowerCase().match(/[a-z][a-z'-]{3,}/g) || []);
+// Function words and the age words themselves don't count as a shared subject.
+const IGNORED_TOKENS = new Set(['about', 'aged', 'been', 'birthday', 'from', 'have', 'into', 'just', 'right', 'that', 'their', 'there', 'they', 'this', 'turn', 'turned', 'turning', 'turns', 'what', 'when', 'which', 'will', 'with', 'would', 'year', 'years', 'your']);
+const tokensOf = (text = '') => new Set((String(text).toLowerCase().match(/[a-z][a-z'-]{3,}/g) || []).filter((token) => !IGNORED_TOKENS.has(token)));
 
 export function selectMemoriesForReading(memories, { userQuestion = '', reflectionsText = '', limit = 3 } = {}) {
   if (!Array.isArray(memories) || memories.length === 0) return [];
   const currentText = `${userQuestion} ${reflectionsText}`;
   const currentTokens = tokensOf(currentText);
-  const allowPersonalDetails = PERSONAL_DETAIL_PATTERN.test(currentText);
+  const raisesPersonalDetail = PERSONAL_DETAIL_PATTERN.test(currentText);
   return memories
-    .filter((memory) => allowPersonalDetails || !PERSONAL_DETAIL_PATTERN.test(memory?.text || ''))
     .map((memory, index) => {
       const terms = new Set([...(memory.keywords || []).map((keyword) => keyword.toLowerCase()), ...tokensOf(memory.text)]);
       const overlap = [...terms].filter((term) => currentTokens.has(term)).length;
-      return { memory, index, score: overlap * 2 + (memory.category === 'communication' ? 1 : 0) };
+      return { memory, index, overlap, score: overlap * 2 + (memory.category === 'communication' ? 1 : 0) };
     })
+    // A personal-detail note returns only when this reading raises a personal detail and shares
+    // the note's subject, so mentioning one age doesn't unlock every other one.
+    .filter(({ memory, overlap }) => !PERSONAL_DETAIL_PATTERN.test(memory?.text || '') || (raisesPersonalDetail && overlap > 0))
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .slice(0, limit)
     .map(({ memory }) => memory);
@@ -397,16 +404,16 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 
 - [ ] If `last_accessed_at` drives pruning, stamp it only on the selected memories.
 - [ ] **Done when:**
-  - unit tests cover ranking, the cap and the personal-detail filter (it drops "8 years old" and "aged 100" and keeps "turns 3 cards");
+  - unit tests cover ranking, the cap and the personal-detail filter (it drops "8 years old" and "aged 100", keeps "turns 3 cards", and a question that mentions the querent's own age doesn't admit a note about someone else's);
   - a narrative sample seeded with Task 1's synthetic note ("Enjoys spotting patterns across a spread.") shows at most one callback and no "since you like".
 
 ### Task 10: A timing line that carries information
 
 **Files:** `functions/lib/pacingHeuristics.js:101–144`, `functions/lib/narrative/prompts/userPrompt.js:162–172`, a new test. **Size:** S.
 
-- [ ] Strip the trailing `(Card N)` suffix before matching named positions; the Celtic labels in `src/data/spreads.js` never match today. Then count every card, weighting named future positions ×2, and keep the 0.55 share threshold.
+- [ ] Compare suffix-free labels on both sides. The set lists the two Celtic positions with a `(Card N)` suffix and `src/data/spreads.js` has none, so they never match today; strip a trailing `(Card N)` from each set entry and from each card's position before comparing. Then count every card, weighting named future positions ×2, and keep the 0.55 share threshold.
 - [ ] Render the prompt line only for `near-term-tilt` and `longer-arc-tilt`. The journal keeps its existing copy.
-- [ ] **Done when:** a five-card draw can return a tilt (a 5,000-draw run returned `developing-arc` for 100% of five-card draws and 73% of decision draws) and invariant 7 passes.
+- [ ] **Done when:** a five-card draw can return a tilt (a 5,000-draw run returned `developing-arc` for 100% of five-card draws and 73% of decision draws), a Celtic draw counts its Near Future and Outcome cards as named positions, and invariant 7 passes.
 
 ### Task 11: Plain-language lens, no talk about the notes
 
@@ -421,7 +428,7 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 
 **Files:** `functions/api/tarot-reading.js:305–387` (`evaluateQualityGate`; pass `personalization`), `functions/lib/narrative/styleHelpers.js:214` (`resolveNarrativePreferenceContract`), the telemetry schema. **Size:** M.
 
-- [ ] Add `wordCount`, `lengthBand` and `lengthRatio` to `qualityMetrics`, using the depth-aware band (the quick decision band is 400–550).
+- [ ] Add `wordCount`, `lengthBand` and `lengthRatio` (`wordCount ÷ band.min`) to `qualityMetrics`, using the depth-aware band (decision bands: quick 400–550, standard 700–900).
 - [ ] Resolve the band from the same inputs the prompt used: `personalization` plus the accepted attempt's `variantPromptOverrides`, whose `lengthModifier` changes the target. Passing the already-resolved band into `evaluateQualityGate` is simplest, so generation and validation can't disagree.
 - [ ] Behind `QUALITY_GATE_LENGTH_FLOOR` (default off), add a quality issue when `wordCount < 0.75 × band.min`. A quality issue hands the reading to the next provider, so enable it only after a week of telemetry shows how often it fires.
 - [ ] **Done when:** telemetry is recorded, and #4's text gives about 0.60 against the standard band and 1.05 against the quick band.
@@ -443,7 +450,8 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 
 **Files:** new `functions/lib/recentDraws.js`, `functions/api/tarot-reading.js`, `functions/lib/narrative/prompts/userPrompt.js` (after the memory block), tests. **Size:** M–L.
 
-- [ ] Read up to 5 of the user's journal entries from the last 7 days (`spread_key`, `question`, `cards_json`, `request_id`).
+- [ ] Scope: model prompts only. The local composer bypasses `buildUserPrompt`, so a fallback reading carries no continuity note; that's acceptable for the last-resort path, and a test confirms it still renders.
+- [ ] Read up to 5 of the user's journal entries from the last 7 days (`spread_key`, `question`, `cards_json`, `request_id`). Skip a row whose `cards_json` is over 16 KB before parsing it (a real ten-card entry is about 2 KB), and use at most the spread's card count from the rest. `saveAppJournalEntry` caps neither the array nor its size, and these rows are parsed on every reading.
 - [ ] Time each entry by when it was generated, not when it was saved. Normal saves don't send `timestampMs`, so `created_at` is the moment someone clicked Save, possibly hours later. Join `inference_attempts.started_at` (or `eval_metrics.created_at`) on `request_id`, and fall back to `created_at` only when neither exists.
 - [ ] Treat those rows as untrusted. `saveAppJournalEntry` (`functions/lib/journalEntries.js`) stores `question` and `cards_json` from the client without the reading request's sanitizer or a length cap, so a crafted saved question could otherwise inject instructions into later readings.
   - Compare stored questions on the server only; the block below doesn't include their text.
@@ -490,9 +498,9 @@ Mention at most one of these, only if it deepens this reading. Acknowledge a rep
 
 1. Task 0.
 2. Task 1.
-3. Phase 1 (Tasks 2–6) as one PR, with the prompt version bump.
+3. Phase 1 (Tasks 2–6) as one PR, with its prompt version bump.
 4. Baseline narrative check (Task 13).
-5. Phase 2 (Tasks 7–11) as one PR.
+5. Phase 2 (Tasks 7–11) as one PR, with its own version bump.
 6. Narrative check again.
 7. Task 12 telemetry.
 8. Phase 4 once the decisions above are made.
