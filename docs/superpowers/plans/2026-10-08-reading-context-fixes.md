@@ -51,16 +51,20 @@ FROM journal_entries
 WHERE user_id = '<USER_ID>' AND created_at BETWEEN 1791244800 AND 1791504000
 ORDER BY created_at;
 
--- Evaluator results for the same requests
+-- Evaluator results for the same requests; reading_time is when each reading was generated
 SELECT request_id, provider, eval_mode, overall_score, reading_prompt_version,
+       unixepoch(created_at) AS reading_time,
        json_extract(payload, '$.eval.scores') AS scores
 FROM eval_metrics
 WHERE request_id IN ('<id1>', '<id2>', '<id3>', '<id4>');
 
--- Memories that existed by then; the 8 newest were injected into each reading
+-- Memories injected into one reading: run once per reading with its reading_time.
+-- journal_entries.created_at is the save time, which can follow a chat that added notes.
 SELECT category, text, keywords, datetime(created_at, 'unixepoch') AS created_utc
 FROM user_memories
-WHERE user_id = '<USER_ID>' AND scope = 'global' AND created_at <= 1791504000
+WHERE user_id = '<USER_ID>' AND scope = 'global'
+  AND created_at < <READING_TIME>
+  AND (expires_at IS NULL OR expires_at > <READING_TIME>)
 ORDER BY created_at DESC LIMIT 8;
 ```
 
@@ -68,7 +72,7 @@ ORDER BY created_at DESC LIMIT 8;
   - **#4 depth.** If `short`, #4 was on target (decision quick band 400–550): drop the length finding and keep only "three next steps instead of one". If `standard` or null, #4 missed its band and becomes Task 12's real failing case.
   - **Provider.** If #3 and #4 weren't Claude, judge Phase 2 on the current provider only. The data findings (Tasks 2, 3 and 7) stand regardless.
   - **Name.** If `used_inputs` lacks `displayName` for #2 and #3, the "name never used" finding is void; Task 4 still fixes the conflicting close.
-  - **Memories.** Confirm which stored notes produced the personal detail restated in #2 and #3 and the pattern-tracking callbacks, and whether any note mentions a workload (if so, drop that #4 finding). Use their phrasing, kept out of the repo, to tune Task 9's personal-detail filter. Memories deleted since won't appear.
+  - **Memories.** Confirm which stored notes produced the personal detail restated in #2 and #3 and the pattern-tracking callbacks, and whether any note mentions a workload (if so, drop that #4 finding). Use each reading's own result from the per-reading query, and keep the phrasing out of the repo when tuning Task 9's personal-detail filter. Memories deleted since won't appear, so the query can confirm a source but can't prove a note was absent.
 - [ ] Ask the owner two things: did the 10:28 PM re-ask follow a thin first reading, and what would Path A and Path B have been? These feed Tasks 14 and 15.
 
 ## Phase 1: Data and wording fixes (small; can land together)
@@ -92,8 +96,10 @@ const CARDS = new Map([...MAJOR_ARCANA, ...MINOR_ARCANA].map((card) => [card.nam
 
 async function buildDraw({ spreadKey, referenceTime, question, context, cards }) {
   const spreadInfo = SPREADS[spreadKey];
-  const cardsInfo = cards.map(([name, orientation], index) => {
+  // Appendix B marks reversed cards with R; unmarked cards are upright.
+  const cardsInfo = cards.map(([name, mark], index) => {
     const base = CARDS.get(name);
+    const orientation = mark === 'R' ? 'Reversed' : 'Upright';
     return {
       position: spreadInfo.positions[index],
       card: base.name,
@@ -135,7 +141,7 @@ async function buildDraw({ spreadKey, referenceTime, question, context, cards })
 - [ ] Add one `it()` per invariant. Each starts as `{ todo: 'Task N' }` and becomes a real test when its task lands:
   1. No user prompt contains `reins` (Task 2).
   2. Each user prompt has exactly one `Close with` instruction (Task 4).
-  3. Each user prompt has a `**Reading Date**:` line (Task 3).
+  3. A `**Reading Date**:` line appears in every user prompt (Task 3).
   4. #4's reversed Two of Swords block contains neither "removing the blindfold" nor "softens confusion", and #3's Lovers block contains no "choose what" (Task 7).
   5. Decision prompts carry the unnamed-paths rule (Task 8).
   6. The returning-querent block says "at most one remembered note" (Task 9).
@@ -202,18 +208,21 @@ describe('major arcana imagery hooks', () => {
 function formatReadingDate(readingTime, timezone) {
   const date = readingTime ? new Date(readingTime) : null;
   if (!date || Number.isNaN(date.getTime())) return '';
-  try {
-    const label = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone || 'UTC',
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }).format(date);
-    return timezone ? label : `${label} (UTC; the querent's local date may differ)`;
-  } catch {
-    return '';
+  const format = (timeZone) => new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }).format(date);
+  if (timezone) {
+    try {
+      return format(timezone);
+    } catch {
+      // The request's timezone isn't validated; an unknown zone falls back to UTC.
+    }
   }
+  return `${format('UTC')} (UTC; the querent's local date may differ)`;
 }
 
 // After the Question line:
@@ -222,7 +231,7 @@ if (readingDate) prompt += `**Reading Date**: ${readingDate}\n\n`;
 ```
 
 - [ ] Without a timezone, the forecast keeps "in about N days" and adds the UTC date, e.g. `(in about 4 days; Sat, Oct 10 UTC)`. Set a `utcDateLabel` in `describeForecastEvent` when `timezone` is missing and append it in `describeEventTiming`. Update the forecast tests that expect no label.
-- [ ] **Done when:** #4's rebuilt prompt says "Tuesday, October 6, 2026" and "New Moon in Libra (in 4 days; Sat, Oct 10)", and the forecast tests pass.
+- [ ] **Done when:** #4's rebuilt prompt says "Tuesday, October 6, 2026" and "New Moon in Libra (in 4 days; Sat, Oct 10)", an unknown timezone such as `Not/AZone` falls back to the UTC date with its caveat, and the forecast tests pass.
 
 ### Task 4: One closing instruction, and the same banned phrases as the evaluator
 
@@ -293,7 +302,7 @@ function resolveCardSpecificClause(entry, cardInfo = {}) {
 
 ### Task 8: Decision readings don't invent the options
 
-**Files:** `functions/lib/narrative/prompts/systemPrompt.js:100–115`, `functions/lib/narrative/prompts/cardBuilders.js:504–514`, `functions/lib/evaluation.js` (hint at 1027, version at 26), and the evaluator version mentioned in `CLAUDE.md` and `docs/evaluation-system.md`. Optional labels also touch `shared/contracts/readingSchema.js:119`, `functions/lib/narrative/prompts/userContext.js:14`, `functions/api/tarot-reading.js` and `functions/lib/narrativeBackends.js:709`. **Size:** S for the rule, M for labels.
+**Files:** `functions/lib/narrative/prompts/systemPrompt.js:100–115`, `functions/lib/narrative/prompts/cardBuilders.js:504–514`, `functions/lib/evaluation.js` (hint at 1027, user template, version at 26), and the evaluator version mentioned in `CLAUDE.md` and `docs/evaluation-system.md`. Optional labels also touch `shared/contracts/readingSchema.js:119`, `functions/lib/narrative/prompts/userContext.js:14`, `functions/api/tarot-reading.js` (narrative payload and `evalParams` in `finalizeReading`), `functions/lib/narrativeBackends.js` (line 709 and `generateReadingFromAnalysis`) and the local fallback builder `functions/lib/narrative/spreads/decision.js` (`buildDecisionReading`). **Size:** S for the rule, M for labels.
 
 - [ ] Add a decision flow to the system prompt:
 
@@ -301,19 +310,25 @@ function resolveCardSpecificClause(entry, cardInfo = {}) {
   } else if (spreadKey === 'decision') {
     lines.push(
       '',
-      'DECISION FLOW: Heart → Path A → Path B → Clarifier → Free will. Read each path through its card as the texture of that route, and give both paths comparable depth. If the cards favor one path, say so conditionally and name what would change it. If the querent has not named the paths, do not assign concrete content (roles, employers, places, people) to either one; describe each path\'s energy and invite the querent to map it onto their real options.'
+      'DECISION FLOW: Heart → Path A → Path B → Clarifier → Free will. Read each path through its card as the texture of that route, and give both paths comparable depth. If the cards favor one path, say so conditionally and name what would change it. For any path the querent has not named, do not assign concrete content (roles, employers, places, people); describe its energy and invite the querent to map it onto their real options.'
     );
   }
 ```
 
-- [ ] Add a paths line to the decision block in `cardBuilders.js`:
-  - When labels are present, render them with `renderUserContext('pathA', …)` and `renderUserContext('pathB', …)`, after sanitizing them in `prepareUserContext` like the question (max 80 characters).
-  - Otherwise: `**Paths**: The querent has not named Path A or Path B.`
+- [ ] Add a paths line to the decision block in `cardBuilders.js`, handling each path on its own because both labels are optional:
+  - Sanitize each label in `prepareUserContext` like the question (max 80 characters).
+  - A label that survives sanitizing renders with `renderUserContext('pathA', …)` or `renderUserContext('pathB', …)`.
+  - A missing or emptied label renders as "not named". Never call `renderUserContext` with `undefined`: `JSON.stringify(undefined)` returns `undefined`, so its `.replace` throws.
+  - With neither label: `**Paths**: The querent has not named Path A or Path B.`
 - [ ] Extend the request schema: `decisionPaths: z.object({ a: optionalCleanString(80), b: optionalCleanString(80) }).optional()`.
-- [ ] Evaluator hint: append "If the querent did not name the paths, treat concrete content assigned to either path as a coherence flaw." Bump `EVAL_PROMPT_VERSION` to `2.5.0`.
+- [ ] Give the evaluator the same facts. Pass the sanitized labels, or at least which paths were named, through `evalParams` into the evaluator's user template. Append to the decision hint: "If the querent did not name a path, treat concrete content assigned to it as a coherence flaw." Bump `EVAL_PROMPT_VERSION` to `2.5.0`.
+- [ ] Carry the labels through the local fallback: `generateReadingFromAnalysis` passes them to `buildDecisionReading`, which uses them in place of the generic Path A and Path B wording.
 - [ ] **Done when:**
   - invariant 5 passes;
   - injection strings in labels are filtered;
+  - a request naming only Path A renders A's label and marks B "not named";
+  - the evaluator receives the labels;
+  - the local fallback keeps labeled paths;
   - the narrative check's decision samples assign no concrete content to unnamed paths.
 
 ### Task 9: Memories that personalize without becoming a formula
@@ -362,7 +377,7 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 
 **Files:** `functions/lib/pacingHeuristics.js:101–144`, `functions/lib/narrative/prompts/userPrompt.js:162–172`, a new test. **Size:** S.
 
-- [ ] Strip ` (Card N)` before matching named positions; the Celtic labels in `src/data/spreads.js` never match today. Then count every card, weighting named future positions ×2, and keep the 0.55 share threshold.
+- [ ] Strip the trailing `(Card N)` suffix before matching named positions; the Celtic labels in `src/data/spreads.js` never match today. Then count every card, weighting named future positions ×2, and keep the 0.55 share threshold.
 - [ ] Render the prompt line only for `near-term-tilt` and `longer-arc-tilt`. The journal keeps its existing copy.
 - [ ] **Done when:** a five-card draw can return a tilt (a 5,000-draw run returned `developing-arc` for 100% of five-card draws and 73% of decision draws) and invariant 7 passes.
 
@@ -380,16 +395,18 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 **Files:** `functions/api/tarot-reading.js:305–387` (`evaluateQualityGate`; pass `personalization`), `functions/lib/narrative/styleHelpers.js:214` (`resolveNarrativePreferenceContract`), the telemetry schema. **Size:** M.
 
 - [ ] Add `wordCount`, `lengthBand` and `lengthRatio` to `qualityMetrics`, using the depth-aware band (the quick decision band is 400–550).
+- [ ] Resolve the band from the same inputs the prompt used: `personalization` plus the accepted attempt's `variantPromptOverrides`, whose `lengthModifier` changes the target. Passing the already-resolved band into `evaluateQualityGate` is simplest, so generation and validation can't disagree.
 - [ ] Behind `QUALITY_GATE_LENGTH_FLOOR` (default off), add a quality issue when `wordCount < 0.75 × band.min`. A quality issue hands the reading to the next provider, so enable it only after a week of telemetry shows how often it fires.
 - [ ] **Done when:** telemetry is recorded, and #4's text gives about 0.60 against the standard band and 1.05 against the quick band.
 
 ### Task 13: Narrative-gate coverage for these failure modes
 
-**Files:** `scripts/evaluation/runNarrativeSamples.js` (`SAMPLE_DEFINITIONS`). **Size:** S.
+**Files:** `scripts/evaluation/runNarrativeSamples.js` (`SAMPLE_DEFINITIONS` and `generateSampleImpl`). **Size:** S.
 
 - [ ] Add two samples, each with a synthetic question:
   - a decision spread with unnamed paths and a reversed Two of Swords clarifier (draw #4);
-  - a five-card wellbeing spread (draw #2).
+  - a five-card wellbeing spread (draw #2), seeded with Task 1's synthetic memory note.
+- [ ] Forward `sample.memories` into the `narrativePayload` built in `generateSampleImpl`. It forwards `personalization` but not memories today, so without this every run takes the no-memory path and can't test Task 9.
 - [ ] Run `npm run ci:narrative-check` before Phase 2 as a baseline, and again after. Record the SHA, backend and flagged samples.
 - [ ] On the two new samples (3 runs each), compare path balance, lens consistency, memory callbacks and "chapter" endings. This also tests the evaluation's causal claims.
 
@@ -400,6 +417,10 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 **Files:** new `functions/lib/recentDraws.js`, `functions/api/tarot-reading.js`, `functions/lib/narrative/prompts/userPrompt.js` (after the memory block), tests. **Size:** M–L.
 
 - [ ] Read up to 5 of the user's journal entries from the last 7 days (`created_at`, `spread_key`, `question`, `cards_json`).
+- [ ] Treat those rows as untrusted. `saveAppJournalEntry` (`functions/lib/journalEntries.js`) stores `question` and `cards_json` from the client without the reading request's sanitizer or a length cap, so a crafted saved question could otherwise inject instructions into later readings.
+  - Compare stored questions on the server only; the block below doesn't include their text.
+  - If stored text ever reaches the prompt, sanitize it through the same pipeline as the current question (`prepareUserContext` limits plus injection filtering) and render it inside a `<user_context source="recent-question">` boundary.
+  - Check stored card names and positions against the canonical deck and the spread definition before rendering them.
 - [ ] Detect the same question within 24 hours (normalized text), and cards that recur, especially in the same position.
 - [ ] Add a prompt block:
 
@@ -414,9 +435,10 @@ Mention at most one of these, only if it deepens this reading. Acknowledge a rep
 
 ### Task 15: Let the querent name both paths
 
-**Files:** `src/components/QuestionInput.jsx` (or `ReadingPreparation.jsx`), `src/contexts/ReadingContext.jsx` (request payload), `shared/coach/spreadQuestions.js:105` (hint), additive migration `migrations/0036_add_decision_paths.sql` (`decision_paths_json TEXT`), `functions/lib/journalEntries.js`, `src/lib/journalInsights.js` (export "Path A: … / Path B: …"). **Size:** M.
+**Files:** `src/components/QuestionInput.jsx` (or `ReadingPreparation.jsx`), `src/contexts/ReadingContext.jsx` (request payload), `shared/coach/spreadQuestions.js:105` (hint), additive migration `migrations/0036_add_decision_paths.sql` (`decision_paths_json TEXT`), `src/hooks/useSaveReading.js` (journal save request), `functions/lib/journalEntries.js` (insert), `functions/api/journal.js` (rows decoded for the app), `src/lib/journalInsights.js` (export "Path A: … / Path B: …"). **Size:** M.
 
 - [ ] Show two optional inputs (up to 80 characters each) only for the decision spread, and send them as `decisionPaths` (Task 8).
+- [ ] Carry the labels through the journal: send them from `useSaveReading.js`, store them in `journalEntries.js`, and decode them in `functions/api/journal.js`, so the export still has them after a reload.
 - [ ] Point the coach hint at the new fields. If a decision question names no options and the fields are empty, show a non-blocking nudge.
 
 ### Task 16: Notice repeated numbers
