@@ -13,7 +13,7 @@
 | # | When (local) | Spread | Problems traced to context |
 |---|---|---|---|
 | 1 | Oct 7, 8:48 PM | Decision, 5/5 reversed | Reversed Ace of Swords handed an upright "clarity" note; Path A's content invented |
-| 2 | Oct 7, 8:12 AM | Five-card, wellbeing | Age restated from memory; name never used |
+| 2 | Oct 7, 8:12 AM | Five-card, wellbeing | A personal detail restated from memory; name never used |
 | 3 | Oct 6, 10:28 PM | Decision | "Choose" notes stacked on the Path B card, then a strong tilt; three memory callbacks |
 | 4 | Oct 6, 9:49 PM | Decision | "Reins" from the Chariot hook; reversed Two of Swords read as release; "Friday" new moon (Saturday, Oct 10); ~420 words |
 
@@ -68,7 +68,7 @@ ORDER BY created_at DESC LIMIT 8;
   - **#4 depth.** If `short`, #4 was on target (decision quick band 400–550): drop the length finding and keep only "three next steps instead of one". If `standard` or null, #4 missed its band and becomes Task 12's real failing case.
   - **Provider.** If #3 and #4 weren't Claude, judge Phase 2 on the current provider only. The data findings (Tasks 2, 3 and 7) stand regardless.
   - **Name.** If `used_inputs` lacks `displayName` for #2 and #3, the "name never used" finding is void; Task 4 still fixes the conflicting close.
-  - **Memories.** Confirm where "at 33" and "you like tracking patterns" came from, and whether any note mentions a workload (if so, drop that #4 finding). Use the real phrasing to tune Task 9's personal-detail filter. Memories deleted since won't appear.
+  - **Memories.** Confirm which stored notes produced the personal detail restated in #2 and #3 and the pattern-tracking callbacks, and whether any note mentions a workload (if so, drop that #4 finding). Use their phrasing, kept out of the repo, to tune Task 9's personal-detail filter. Memories deleted since won't appear.
 - [ ] Ask the owner two things: did the 10:28 PM re-ask follow a thin first reading, and what would Path A and Path B have been? These feed Tasks 14 and 15.
 
 ## Phase 1: Data and wording fixes (small; can land together)
@@ -356,7 +356,7 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 - [ ] If `last_accessed_at` drives pruning, stamp it only on the selected memories.
 - [ ] **Done when:**
   - unit tests cover ranking, the cap and the personal-detail filter;
-  - a narrative sample seeded with a "likes tracking patterns" note shows at most one callback and no "since you like".
+  - a narrative sample seeded with Task 1's synthetic note ("Enjoys spotting patterns across a spread.") shows at most one callback and no "since you like".
 
 ### Task 10: A timing line that carries information
 
