@@ -3,6 +3,7 @@ import { NarrativePanel } from '../components/NarrativePanel';
 import { NarrativeReadingSurface } from '../components/NarrativeReadingSurface';
 import { useNarrationAutomation } from './useNarrationAutomation';
 import { getCardForDeck } from '../lib/cardLookup';
+import { buildCardLinkCatalog } from '../lib/narrativeCardLinks.js';
 import {
   getNarrativeBiasClass,
   getNarrativePhaseClass,
@@ -11,6 +12,7 @@ import {
 import {
   buildNarrativeHighlightPhrases,
   buildNarrativePanelModel,
+  buildSpreadCompanionCards,
   buildNarrativeSurfaceModel,
   buildNarrativeText,
   buildStoryArtCards,
@@ -95,6 +97,16 @@ export function useNarrativeReadingController({
       ...getCardForDeck(card, deckStyleId),
       position: spreadPositions?.[index] || `Position ${index + 1}`
     })), [reading, deckStyleId, spreadPositions, visibleCount]);
+  const spreadCards = useMemo(() => buildSpreadCompanionCards({
+    reading,
+    visibleCount,
+    spreadPositions,
+    deckStyleId,
+    revealedCards
+  }), [deckStyleId, reading, revealedCards, spreadPositions, visibleCount]);
+  const cardLinkCatalog = useMemo(() => (
+    buildCardLinkCatalog({ cards: spreadCards, deckStyle: deckStyleId })
+  ), [deckStyleId, spreadCards]);
   const { cinematicCard, cinematicPosition } = useMemo(() => (
     selectCinematicCard({ reading, visibleCount, spreadPositions })
   ), [reading, spreadPositions, visibleCount]);
@@ -270,10 +282,13 @@ export function useNarrativeReadingController({
     journalStatus,
     shouldShowJournalNudge,
     hasHeroStoryArt,
-    isMobileStableMode
+    isMobileStableMode,
+    spreadCards,
+    cardLinkCatalog
   }), [
     activeWordBoundary,
     canAutoNarrate,
+    cardLinkCatalog,
     displayName,
     emotionalTone,
     fullReadingText,
@@ -294,6 +309,7 @@ export function useNarrativeReadingController({
     shouldShowJournalNudge,
     shouldStreamNarrative,
     showVoicePrompt,
+    spreadCards,
     ttsProvider,
     ttsState,
     userQuestion,
@@ -346,6 +362,7 @@ export function useNarrativeReadingController({
 
   const panelCallbacks = useMemo(() => ({
     onRetryNarrative,
+    onSelectCard: onSelectInsightCard,
     onToggleNarrativeFocus: handleToggleNarrativeFocus,
     onNarrationStart: handleNarration,
     onStopNarration: handleNarrationStop,
@@ -376,6 +393,7 @@ export function useNarrativeReadingController({
     notifyCompletion,
     notifySectionEnter,
     onRetryNarrative,
+    onSelectInsightCard,
     saveReading,
     setShowVoicePrompt
   ]);

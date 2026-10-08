@@ -19,7 +19,10 @@ export function NarrativeBody({
   onSectionEnter,
   activeWordBoundary,
   narrativeAtmosphereClassName,
-  hasHeroStoryArt
+  hasHeroStoryArt,
+  cardLinks = null,
+  renderParagraphLead = null,
+  spreadCompanion = null
 }) {
   const streamClassName = `mt-6 sm:mt-8 ${hasHeroStoryArt ? 'glass-panel' : ''}`;
 
@@ -28,6 +31,8 @@ export function NarrativeBody({
       <NarrativeQuestionAnchor question={question} compact={isHandset} />
 
       <NarrativeSafetyNotice className={question ? 'mt-4' : ''} compact={isHandset} />
+
+      {spreadCompanion}
 
       <StreamingNarrative
         className={streamClassName}
@@ -47,6 +52,8 @@ export function NarrativeBody({
         wordBoundary={activeWordBoundary}
         withAtmosphere
         atmosphereClassName={narrativeAtmosphereClassName}
+        cardLinks={cardLinks}
+        renderParagraphLead={renderParagraphLead}
       />
     </div>
   );

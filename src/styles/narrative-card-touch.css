@@ -1,0 +1,436 @@
+/* The querent's cards beside their reading. When the text speaks about a
+   card, a reader's hand finds it: the card lifts toward the reader, takes a
+   candlelit rim, and the spot the words describe catches the light while the
+   rest of the artwork settles back. */
+
+:root {
+  --card-touch-light: 255 236 205;
+  --card-touch-veil: 12 9 18;
+  --card-touch-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --spread-rail-width: 8.5rem;
+}
+
+/* --- Card artwork ------------------------------------------------------- */
+
+/* WebKit crashes when one element transitions transform and filter together,
+   so the lift stays here and the desaturation of receding cards sits on the
+   image inside. */
+.card-touch {
+  position: relative;
+  display: block;
+  width: 100%;
+  transition:
+    transform 560ms var(--card-touch-ease),
+    opacity 360ms ease-out;
+}
+
+.card-touch__art {
+  position: relative;
+  display: block;
+  aspect-ratio: 100 / 172;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--bg-surface-muted);
+  box-shadow:
+    0 0 0 1px var(--border-warm),
+    0 10px 22px -14px rgb(0 0 0 / 0.75);
+  transition: box-shadow 560ms var(--card-touch-ease);
+}
+
+.card-touch__art--reversed {
+  transform: rotate(180deg);
+}
+
+.card-touch__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Plates sit inside prose, which spaces images as figures. */
+  margin: 0;
+  transition: filter 360ms ease-out;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.card-touch__light {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.card-touch__veil {
+  fill: rgb(var(--card-touch-veil));
+  opacity: 0;
+  transition: opacity 480ms ease-out;
+}
+
+.card-touch[data-lit] .card-touch__veil {
+  opacity: 0.5;
+}
+
+.card-touch__glow {
+  mix-blend-mode: screen;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: card-touch-light 720ms var(--card-touch-ease) both;
+}
+
+/* The moment of contact: candlelight flares where the hand lands, then
+   settles. */
+.card-touch__bloom {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--touch-x, 50%) var(--touch-y, 50%),
+    rgb(var(--card-touch-light) / 0.6) 0%,
+    rgb(var(--card-touch-light) / 0.18) 24%,
+    rgb(var(--card-touch-light) / 0) 52%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: card-touch-bloom 1200ms ease-out both;
+}
+
+@keyframes card-touch-light {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes card-touch-bloom {
+  0% {
+    opacity: 0;
+  }
+  24% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes card-touch-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* --- Spread companion: rail (wide) and row (narrow) --------------------- */
+
+.spread-companion__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.spread-companion__item {
+  min-width: 0;
+}
+
+.spread-companion__card {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.spread-companion__label {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-align: center;
+  text-transform: uppercase;
+  hyphens: auto;
+  overflow-wrap: break-word;
+  transition: color 360ms ease-out;
+}
+
+.spread-companion__orientation {
+  display: block;
+  margin-top: 0.125rem;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.spread-companion__item[data-state] .spread-companion__label {
+  color: rgb(var(--brand-primary-rgb));
+}
+
+/* The cards the reading isn't speaking about step back into the dark. */
+.spread-companion[data-focus] .spread-companion__card:not([data-state]) .card-touch {
+  opacity: 0.5;
+}
+
+.spread-companion[data-focus] .spread-companion__card:not([data-state]) .card-touch__image {
+  filter: saturate(0.6) brightness(0.82);
+}
+
+.spread-companion__card[data-state='warm'] .card-touch__art,
+.card-touch-plate[data-state='warm'] .card-touch__art {
+  box-shadow:
+    0 0 0 1px rgb(var(--brand-primary-rgb) / 0.55),
+    0 10px 22px -14px rgb(0 0 0 / 0.75);
+}
+
+.spread-companion__card[data-state='touched'] .card-touch {
+  transform: translateY(-6px);
+}
+
+.spread-companion__card[data-state='touched'] .card-touch__art,
+.card-touch-plate[data-state='touched'] .card-touch__art {
+  box-shadow:
+    0 0 0 1px rgb(var(--brand-primary-rgb) / 0.9),
+    0 18px 30px -16px rgb(var(--brand-primary-rgb) / 0.5),
+    0 8px 16px -8px rgb(0 0 0 / 0.7);
+}
+
+@media (hover: hover) {
+  .spread-companion__card:not([data-state='touched']):hover .card-touch {
+    transform: translateY(-3px);
+  }
+}
+
+/* Rail: the whole spread stays beside the text while it is read. */
+.spread-companion--rail {
+  display: none;
+}
+
+.spread-companion--rail .spread-companion__list {
+  display: grid;
+  grid-template-columns: repeat(var(--rail-cols, 1), minmax(0, 1fr));
+  gap: 1.125rem 0.75rem;
+  justify-items: center;
+}
+
+.spread-companion--rail .spread-companion__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.spread-companion--rail .spread-companion__card {
+  /* Fit the spread inside the viewport whatever its height; each row also
+     holds a label and a gap. Labels keep the full column width. */
+  width: clamp(2.25rem, calc(((100dvh - 8rem) / var(--rail-rows, 3) - var(--rail-label-room, 3.25rem)) / var(--card-ratio, 1.72)), 100%);
+}
+
+/* Two columns (four cards or more): tighter rows and quieter, sentence-case
+   labels so a ten-card spread still fits beside the text. */
+.spread-companion--rail[data-cols='2'] {
+  --rail-label-room: 3.75rem;
+}
+
+.spread-companion--rail[data-cols='2'] .spread-companion__list {
+  row-gap: 0.75rem;
+}
+
+.spread-companion--rail[data-cols='2'] .spread-companion__label {
+  margin-top: 0.375rem;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+/* Row: the spread opens the reading on narrower screens. */
+.spread-companion--row {
+  margin-top: 1.5rem;
+}
+
+.spread-companion--row .spread-companion__list {
+  display: flex;
+  gap: 0.875rem;
+  width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: 0.5rem 0.25rem 0.25rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.spread-companion--row .spread-companion__item {
+  flex: 0 0 auto;
+  width: clamp(3.25rem, calc((100vw - 4rem) / var(--row-count, 3) - 0.875rem), 4.75rem);
+  scroll-snap-align: center;
+}
+
+.spread-companion--row .spread-companion__card[data-state='touched'] .card-touch {
+  transform: translateY(-4px);
+}
+
+/* Plate: the card set into the paragraph that opens its passage. */
+.card-touch-plate {
+  float: left;
+  width: 4.75rem;
+  margin: 0.35em 1rem 0.5rem 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card-touch-plate[data-state='touched'] .card-touch {
+  transform: translateY(-3px);
+}
+
+.reading-plate-paragraph {
+  display: flow-root;
+}
+
+@media (min-width: 640px) {
+  .card-touch-plate {
+    width: 6rem;
+    margin-right: 1.25rem;
+  }
+}
+
+/* The scene clips its backdrop; clip (unlike hidden) creates no scroll
+   container, so the rail can stay in view. Older browsers keep hidden. */
+.scene-shell.scene-shell--reading {
+  overflow: hidden;
+  overflow: clip;
+}
+
+/* Wide screens: cards beside the text, the pair centered as one composition. */
+@media (min-width: 1180px) {
+  .narrative-panel__layout--wide-rail {
+    --spread-rail-width: 11.5rem;
+  }
+
+  .narrative-panel__layout--with-spread {
+    display: grid;
+    grid-template-columns: var(--spread-rail-width) minmax(0, 65ch);
+    column-gap: clamp(1.75rem, 3vw, 3rem);
+    justify-content: center;
+    align-items: start;
+  }
+
+  .narrative-panel__layout--with-spread > .narrative-panel__column {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+  }
+
+  .narrative-panel__layout--with-spread > .narrative-panel__after {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .spread-companion--rail {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    top: 5.5rem;
+    padding-top: 0.5rem;
+  }
+
+  .spread-companion--row,
+  .card-touch-plate {
+    display: none;
+  }
+}
+
+/* --- Linked text -------------------------------------------------------- */
+
+/* Described details are marked only in the passage being read. */
+.reading-imagery {
+  border-radius: 0.25rem;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.3em;
+  transition:
+    text-decoration-color 420ms ease-out,
+    background-color 260ms ease-out,
+    color 260ms ease-out;
+}
+
+[data-reading-active] .reading-imagery {
+  text-decoration-color: rgb(var(--brand-primary-rgb) / 0.7);
+}
+
+.reading-imagery[data-touch-hover] {
+  color: var(--text-main);
+  background-color: rgb(var(--brand-primary-rgb) / 0.14);
+  text-decoration-style: solid;
+  text-decoration-color: rgb(var(--brand-primary-rgb) / 0.95);
+}
+
+.reading-card-ref {
+  transition: background-color 260ms ease-out, box-shadow 260ms ease-out;
+}
+
+/* Hovering a card in the spread shows where the text speaks about it. */
+[data-spread-hover='0'] .reading-card-ref[data-card-index='0'],
+[data-spread-hover='1'] .reading-card-ref[data-card-index='1'],
+[data-spread-hover='2'] .reading-card-ref[data-card-index='2'],
+[data-spread-hover='3'] .reading-card-ref[data-card-index='3'],
+[data-spread-hover='4'] .reading-card-ref[data-card-index='4'],
+[data-spread-hover='5'] .reading-card-ref[data-card-index='5'],
+[data-spread-hover='6'] .reading-card-ref[data-card-index='6'],
+[data-spread-hover='7'] .reading-card-ref[data-card-index='7'],
+[data-spread-hover='8'] .reading-card-ref[data-card-index='8'],
+[data-spread-hover='9'] .reading-card-ref[data-card-index='9'],
+.reading-card-ref[data-touch-hover] {
+  background-color: rgb(var(--brand-primary-rgb) / 0.2);
+  box-shadow: 0 0 0 1px rgb(var(--brand-primary-rgb) / 0.45);
+}
+
+/* --- Calm and reduced motion -------------------------------------------- */
+
+[data-calm] .card-touch__glow,
+[data-calm] .card-touch__bloom {
+  mix-blend-mode: normal;
+}
+
+.spread-companion[data-calm][data-focus] .spread-companion__card:not([data-state]) .card-touch__image {
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-touch,
+  .card-touch__art,
+  .card-touch__image,
+  .card-touch__veil {
+    transition-duration: 160ms;
+  }
+
+  .spread-companion__card[data-state='touched'] .card-touch,
+  .spread-companion--row .spread-companion__card[data-state='touched'] .card-touch,
+  .card-touch-plate[data-state='touched'] .card-touch,
+  .spread-companion__card:hover .card-touch {
+    transform: none;
+  }
+
+  .card-touch__glow {
+    animation: card-touch-fade 200ms ease-out both;
+  }
+
+  .card-touch__bloom {
+    display: none;
+  }
+}
