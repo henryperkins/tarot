@@ -1,96 +1,42 @@
 import PropTypes from 'prop-types';
+import {
+  TABLEU_MARK_VIEWBOX, TABLEU_MARK_SIZE, TABLEU_LOGO_WIDTH,
+  tableuMarkPaths, tableuWordmarkPaths
+} from '../../shared/brand/tableuMark';
 
-/**
- * Tableu Logo Component
- *
- * Renders the Tableu logo SVG sprite in various formats.
- *
- * @param {Object} props
- * @param {'primary'|'icon'|'mono'|'dark'|'favicon'|'full'} props.variant - Logo variant to display
- * @param {number|string} props.size - Width/height in pixels (for square variants) or width (for full)
- * @param {string} props.className - Additional CSS classes
- * @param {string} props.color - Custom color override (CSS color value)
- * @param {string} props.ariaLabel - Accessible label for screen readers
- *
- * @example
- * <TableuLogo variant="primary" size={160} />
- * <TableuLogo variant="icon" size={48} className="header-logo" />
- * <TableuLogo variant="dark" size={200} />
- * <TableuLogo variant="favicon" size={32} />
- * <TableuLogo variant="full" size={300} /> // includes wordmark
- */
+/** The shared vector emblem and horizontal wordmark, colored by the active theme. */
 export function TableuLogo({
   variant = 'primary',
   size = 160,
   className = '',
   color,
-  ariaLabel = 'Tableu Logo',
-  outline = false,
-  glow = false,
-  useRaster = false,
-  rasterSrc = '/images/tableu-logo.png'
+  ariaLabel = 'Tableu',
+  decorative = false
 }) {
-  // Determine viewBox based on variant
-  const viewBoxMap = {
-    primary: '0 0 432 400',
-    icon: '0 0 432 400',
-    mono: '0 0 432 400',
-    dark: '0 0 432 400',
-    favicon: '60 20 320 400',
-    full: '0 0 432 500'
-  };
-
-  // Calculate dimensions
-  const viewBox = viewBoxMap[variant] || viewBoxMap.primary;
-  const [, , vbWidth, vbHeight] = viewBox.split(' ').map(Number);
-  const aspectRatio = vbHeight / vbWidth;
-
-  // For full logo with wordmark, treat size as width
-  const width = variant === 'full' ? size : size;
-  const height = variant === 'full' ? size * aspectRatio : size;
-
-  // Build style object
-  const style = color ? { color } : undefined;
-
-  const classes = [
-    'tableu-logo',
-    outline ? 'tableu-logo--outline' : null,
-    glow ? 'tableu-logo--glow' : null,
-    className
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  if (useRaster) {
-    const width = variant === 'full' ? size : size;
-    const height = variant === 'full' ? size * aspectRatio : size;
-    return (
-      <img
-        src={rasterSrc}
-        width={width}
-        height={height}
-        className={classes}
-        style={{ objectFit: 'contain', display: 'block', ...style }}
-        alt={ariaLabel}
-        loading="lazy"
-        decoding="async"
-      />
-    );
-  }
+  const full = variant === 'full';
+  const numericSize = typeof size === 'number';
+  const resolvedColor = color || (variant === 'mono' ? '#1A1A1A' : variant === 'dark' ? '#E8DAC3' : undefined);
 
   return (
     <svg
-      width={width}
-      height={height}
-      viewBox={viewBox}
-      overflow="visible"
+      width={size}
+      height={full ? (numericSize ? size * TABLEU_MARK_SIZE / TABLEU_LOGO_WIDTH : undefined) : size}
+      viewBox={full ? `0 0 ${TABLEU_LOGO_WIDTH} ${TABLEU_MARK_SIZE}` : TABLEU_MARK_VIEWBOX}
       preserveAspectRatio="xMidYMid meet"
-      className={classes}
-      style={style}
-      aria-label={ariaLabel}
-      role="img"
+      className={`tableu-logo ${className}`}
+      style={resolvedColor ? { color: resolvedColor } : undefined}
+      fill="currentColor"
+      aria-label={decorative ? undefined : ariaLabel}
+      aria-hidden={decorative ? 'true' : undefined}
+      role={decorative ? undefined : 'img'}
+      focusable="false"
     >
-      <use href={`#tableu-${variant}`} />
+      {tableuMarkPaths().map((path, index) => (
+        <path key={index} {...path} />
+      ))}
+      {full && tableuWordmarkPaths().map((path, index) => (
+        <path key={`wordmark-${index}`} {...path} />
+      ))}
     </svg>
   );
 }
@@ -101,8 +47,5 @@ TableuLogo.propTypes = {
   className: PropTypes.string,
   color: PropTypes.string,
   ariaLabel: PropTypes.string,
-  outline: PropTypes.bool,
-  glow: PropTypes.bool,
-  useRaster: PropTypes.bool,
-  rasterSrc: PropTypes.string
+  decorative: PropTypes.bool
 };

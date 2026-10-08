@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowCounterClockwise } from '@phosphor-icons/react';
+import { TableuLogo } from './TableuLogo';
+import { TABLEU_MARK_SIZE, TABLEU_LOGO_WIDTH } from '../../shared/brand/tableuMark';
 import { GlobalNav } from './GlobalNav';
 import { UserMenu } from './UserMenu';
 import { StepProgress } from './StepProgress';
@@ -125,11 +127,11 @@ export function Header({
                 marginBottom: isCompact ? '-8px' : '0',
               }}
             >
-              <img
-                src="/images/tableu-logo-new.png"
-                alt="Tableu - Tarot Reading Application"
-                className="mb-2 opacity-90 hover:opacity-100 transition-opacity"
-                style={{ height: logoHeight, width: 'auto' }}
+              <TableuLogo
+                variant="full"
+                size={logoHeight * TABLEU_LOGO_WIDTH / TABLEU_MARK_SIZE}
+                className="mb-2"
+                ariaLabel="Tableu"
               />
             </div>
             <h1 id="tableau-heading" className="sr-only">

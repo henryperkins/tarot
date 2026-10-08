@@ -743,9 +743,7 @@ export function DeckRitual({
                 variant="icon"
                 size={isSmallScreen ? 60 : 80}
                 className="opacity-80 group-hover:opacity-100 transition-opacity"
-                outline
-                glow
-                useRaster
+                decorative
               />
             </div>
 

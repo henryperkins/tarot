@@ -97,6 +97,7 @@ import { handleMcpOrOAuthRequest, isMcpOrOAuthPath } from '../../functions/lib/m
 
 // Share page OG meta tag injection
 import { loadShareRecord, loadShareEntries } from '../../functions/lib/shareData.js';
+import { replaceSocialMetadata } from '../../functions/lib/socialMetadata.js';
 
 /**
  * Build OG meta tags for a share link.
@@ -186,11 +187,8 @@ async function handleSharePageWithOgTags(request, env, token) {
     const baseUrl = `${url.protocol}//${url.host}`;
     const ogTags = buildShareOgMetaTags(token, shareRecord, entries, baseUrl);
 
-    // Inject OG tags into the <head> section
-    // Insert after the opening <head> tag or before </head>
-    if (html.includes('</head>')) {
-      html = html.replace('</head>', `${ogTags}\n  </head>`);
-    }
+    // Share previews replace the app shell's default social metadata.
+    html = replaceSocialMetadata(html, ogTags);
 
     // Return the modified HTML
     return new Response(html, {

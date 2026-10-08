@@ -721,31 +721,6 @@ body {
   overflow: visible;
 }
 
-.tableu-logo--outline .t-fill,
-.tableu-logo--outline .t-fill-stroke {
-  fill: transparent;
-}
-
-.tableu-logo--outline .t-fill-stroke,
-.tableu-logo--outline .t-stroke,
-.tableu-logo--outline .t-fill {
-  stroke: currentColor;
-}
-
-.tableu-logo--glow {
-  filter: drop-shadow(0 0 10px rgba(212, 184, 150, 0.5))
-    drop-shadow(0 0 22px rgba(212, 184, 150, 0.3));
-}
-
-@supports (color: color-mix(in srgb, red 50%, blue)) {
-  .tableu-logo--glow {
-    filter: drop-shadow(
-        0 0 10px color-mix(in srgb, currentColor 50%, transparent)
-      )
-      drop-shadow(0 0 22px color-mix(in srgb, currentColor 30%, transparent));
-  }
-}
-
 /* Light ambient colors defined in main :root block at top of file */
 
 .mobile-action-bar {
@@ -1200,14 +1175,6 @@ body {
     --spread-card-height-mobile: 16rem;
     padding: 0.85rem 0.95rem 1.1rem;
   }
-
-  .spread-card__title {
-    font-size: 0.975rem;
-  }
-
-  .spread-card__description {
-    font-size: 0.875rem;
-  }
 }
 
 /* mobile-sm (<= 360px): iPhone SE, older devices */
@@ -1215,14 +1182,6 @@ body {
   .spread-card {
     --spread-card-height-mobile: 15rem;
     padding: 0.75rem 0.85rem 1rem;
-  }
-
-  .spread-card__title {
-    font-size: 0.95rem;
-  }
-
-  .spread-card__description {
-    font-size: 0.85rem;
   }
 
   .spread-card__meta {
@@ -1376,13 +1335,6 @@ body {
   display: block;
   overflow-wrap: anywhere;
   min-width: 0;
-}
-
-.spread-card__description {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
 }
 
 .spread-card__preview {
@@ -1708,131 +1660,23 @@ textarea:focus-visible {
   }
 }
 
-/* Back: celestial sigil + suit medallion motif for selection cards */
+/* Branded card back: one quiet paper mark on a dark cloth-like surface. */
 .tarot-card-back {
   position: relative;
-  width: 100%;
-  height: 100%;
-  background:
-    radial-gradient(circle at 18% 16%, rgba(255, 214, 156, 0.26), transparent 58%),
-    radial-gradient(circle at 82% 10%, rgba(138, 118, 255, 0.22), transparent 52%),
-    radial-gradient(circle at 50% 90%, rgba(255, 186, 120, 0.2), transparent 60%),
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.06), transparent 52%),
-    linear-gradient(160deg, #140b1a 0%, #0b0a16 55%, #06060d 100%);
-  color: var(--brand-accent);
-  overflow: hidden;
-}
-
-.tarot-card-back::before,
-.tarot-card-back::after {
-  content: "";
-  position: absolute;
-  inset: 6%;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 214, 156, 0.28);
-  box-shadow: inset 0 0 16px rgba(255, 212, 167, 0.12);
-  pointer-events: none;
-}
-
-.tarot-card-back::after {
-  inset: 9%;
-  border-color: rgba(255, 214, 156, 0.16);
-  box-shadow: inset 0 0 22px rgba(127, 108, 255, 0.12);
-}
-
-.tarot-card-back__frame {
-  position: absolute;
-  inset: 3.5%;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 214, 156, 0.38);
-  box-shadow:
-    0 0 18px rgba(255, 214, 156, 0.18),
-    inset 0 0 12px rgba(6, 6, 13, 0.6);
-  pointer-events: none;
-}
-
-.tarot-card-back__inner {
-  position: absolute;
-  inset: 12%;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 214, 156, 0.18);
-  background:
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05), transparent 65%),
-    linear-gradient(180deg, rgba(12, 10, 22, 0.8), rgba(4, 4, 12, 0.9));
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 214, 156, 0.8);
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: linear-gradient(145deg, #28222b, #100e14 70%);
+  color: #D4B896;
 }
 
-.tarot-card-back__sigil {
-  position: relative;
-  width: 58%;
-  height: 58%;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 214, 156, 0.6);
-  box-shadow:
-    0 0 18px rgba(255, 214, 156, 0.3),
-    inset 0 0 18px rgba(255, 214, 156, 0.2);
-}
-
-.tarot-card-back__sigil-ring {
-  position: absolute;
-  inset: 12%;
-  border-radius: 999px;
-  border: 1px dashed rgba(255, 214, 156, 0.5);
-}
-
-.tarot-card-back__sigil-cross {
-  position: absolute;
-  inset: 22%;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 214, 156, 0.4);
-}
-
-.tarot-card-back__sigil-orbit {
-  position: absolute;
-  inset: 30%;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 214, 156, 0.65);
-  box-shadow: 0 0 10px rgba(255, 214, 156, 0.35);
-}
-
-.tarot-card-back__suits {
-  position: absolute;
-  bottom: 10%;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 12px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 214, 156, 0.2);
-  background: rgba(10, 10, 18, 0.6);
-  backdrop-filter: blur(6px);
-}
-
-.tarot-card-back__suit {
-  width: 18px;
-  height: 18px;
-  color: rgba(255, 214, 156, 0.75);
-  filter: drop-shadow(0 0 6px rgba(255, 214, 156, 0.5));
-}
-
-.tarot-card-back__suit--wand {
-  color: rgba(255, 196, 130, 0.9);
-}
-
-.tarot-card-back__suit--cup {
-  color: rgba(140, 196, 255, 0.85);
-}
-
-.tarot-card-back__suit--sword {
-  color: rgba(200, 200, 255, 0.85);
-}
-
-.tarot-card-back__suit--pentacle {
-  color: rgba(255, 214, 156, 0.9);
+.tarot-card-back .tarot-card-back__brand {
+  width: 82%;
+  height: 88%;
+  color: inherit;
 }
 
 .tarot-card-back--muted {

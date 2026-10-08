@@ -37,7 +37,8 @@ describe('OG Image Builder', () => {
 
     it('includes brand name', () => {
       const svg = buildOgImageSvg([sampleEntry], sampleShareRecord);
-      assert.match(svg, /MYSTIC TAROT/);
+      assert.match(svg, /TABLEU/);
+      assert.doesNotMatch(svg, /MYSTIC TAROT|mystictarot\.app/);
     });
 
     it('includes spread name', () => {
@@ -89,7 +90,7 @@ describe('OG Image Builder', () => {
 
     it('includes share token in footer', () => {
       const svg = buildOgImageSvg([sampleEntry], sampleShareRecord);
-      assert.match(svg, /mystictarot\.app\/share\/abc123xyz/);
+      assert.match(svg, /tarot\.lakefrontdev\.com\/share\/abc123xyz/);
     });
 
     it('includes share title when present', () => {
@@ -102,7 +103,14 @@ describe('OG Image Builder', () => {
       const svg = buildOgImageSvg([sampleEntry], recordWithoutTitle);
 
       assert.match(svg, /<svg/);
-      assert.match(svg, /mystictarot\.app\/share\/xyz789/);
+      assert.match(svg, /tarot\.lakefrontdev\.com\/share\/xyz789/);
+    });
+
+    it('uses the canonical site when no share token is available', () => {
+      const svg = buildOgImageSvg([sampleEntry], {});
+
+      assert.match(svg, />tarot\.lakefrontdev\.com<\/text>/);
+      assert.doesNotMatch(svg, /\/share\/undefined|\/share\/null/);
     });
 
     it('handles entry without question', () => {
@@ -153,17 +161,17 @@ describe('OG Image Builder', () => {
     it('uses correct colors for different suits', () => {
       const svg = buildOgImageSvg([sampleEntry], sampleShareRecord);
 
-      // Wands should have orange color (#f97316)
-      assert.match(svg, /#f97316/);
-      // Major Arcana (The Tower, The Star) should have gold color (#fbbf24)
-      assert.match(svg, /#fbbf24/);
+      // Wands use the established Wands Gold accent.
+      assert.match(svg, /#C9A876/);
+      // Major Arcana (The Tower, The Star) use Candlelit Brass.
+      assert.match(svg, /#D4B896/);
     });
 
     it('handles empty entries array', () => {
       const svg = buildOgImageSvg([], sampleShareRecord);
 
       assert.match(svg, /<svg/);
-      assert.match(svg, /MYSTIC TAROT/);
+      assert.match(svg, /TABLEU/);
     });
 
     it('handles null entries', () => {
@@ -197,6 +205,31 @@ describe('OG Image Builder', () => {
       // Should truncate to ~22 chars with ellipsis
       assert.match(svg, /This Is A Very Long\.\.\./);
     });
+
+    it('keeps markup-like content inert across every share field', () => {
+      const maliciousText = '<script>&"\'x';
+      const svg = buildOgImageSvg([{
+        ...sampleEntry,
+        spread: maliciousText,
+        question: maliciousText,
+        context: maliciousText,
+        cards: [{ name: maliciousText, position: maliciousText }],
+        themes: { suitFocus: maliciousText }
+      }], { title: maliciousText, token: maliciousText });
+
+      assert.doesNotMatch(svg, /<script>|<SCRIPT>/);
+      assert.match(svg, /&lt;script&gt;&amp;&quot;&apos;x/);
+      assert.match(svg, /CONTEXT: &lt;SCRIPT&gt;&amp;&quot;&apos;X/);
+      assert.match(svg, /tarot\.lakefrontdev\.com\/share\/&lt;script&gt;&amp;&quot;&apos;x/);
+    });
+
+    it('shows all five cards without an overflow label at the boundary', () => {
+      const cards = Array.from({ length: 5 }, (_, index) => ({ name: `Visible card ${index + 1}` }));
+      const svg = buildOgImageSvg([{ ...sampleEntry, cards }], sampleShareRecord);
+
+      assert.match(svg, /Visible card 5/);
+      assert.doesNotMatch(svg, /more cards/);
+    });
   });
 
   describe('buildErrorOgImage', () => {
@@ -210,7 +243,8 @@ describe('OG Image Builder', () => {
 
     it('includes brand name', () => {
       const svg = buildErrorOgImage('Test message');
-      assert.match(svg, /MYSTIC TAROT/);
+      assert.match(svg, /TABLEU/);
+      assert.doesNotMatch(svg, /MYSTIC TAROT|mystictarot\.app/);
     });
 
     it('includes error message', () => {

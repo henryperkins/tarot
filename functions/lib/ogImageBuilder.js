@@ -1,13 +1,16 @@
+import { tableuMarkMarkup } from '../../shared/brand/tableuMark.js';
+
 const DEFAULT_ERROR_MESSAGE = 'Reading not found';
 const SPREAD_MAX_LENGTH = 22;
 const NAME_MAX_LENGTH = 20;
+const SITE_DOMAIN = 'tarot.lakefrontdev.com';
 
 const SUIT_COLORS = {
-  wands: '#f97316',
-  cups: '#3b82f6',
-  swords: '#a855f7',
-  pentacles: '#22c55e',
-  coins: '#22c55e',
+  wands: '#C9A876',
+  cups: '#8B95A5',
+  swords: '#6B7280',
+  pentacles: '#8A9985',
+  coins: '#8A9985',
 };
 
 const XML_ESCAPES = {
@@ -44,9 +47,9 @@ function formatDate(timestamp) {
 }
 
 function getSuitColor(card) {
-  if (!card?.suit) return '#fbbf24';
+  if (!card?.suit) return '#D4B896';
   const suitKey = String(card.suit).toLowerCase();
-  return SUIT_COLORS[suitKey] || '#fbbf24';
+  return SUIT_COLORS[suitKey] || '#D4B896';
 }
 
 export function buildOgImageSvg(entries, shareRecord) {
@@ -70,7 +73,7 @@ export function buildOgImageSvg(entries, shareRecord) {
     ? escapeXml(truncate(shareRecord.title, 40))
     : '';
   const shareToken = shareRecord?.token ? escapeXml(shareRecord.token) : '';
-  const shareUrl = shareToken ? `mystictarot.app/share/${shareToken}` : 'mystictarot.app';
+  const shareUrl = shareToken ? `${SITE_DOMAIN}/share/${shareToken}` : SITE_DOMAIN;
   const entryCountLabel = safeEntries.length > 1 ? `${safeEntries.length} readings shared` : '';
   const entryCountText = entryCountLabel ? escapeXml(entryCountLabel) : '';
 
@@ -83,42 +86,43 @@ export function buildOgImageSvg(entries, shareRecord) {
     const positionLabel = truncate(position, 18);
     const color = getSuitColor(card);
     const x = 70 + index * 215;
-    const y = 150;
+    const y = 180;
 
     return `
     <g transform="translate(${x}, ${y})">
-      <rect width="180" height="260" rx="12" fill="#151725" stroke="#2a2f45" stroke-width="2" />
-      <rect x="12" y="12" width="156" height="236" rx="8" fill="#0b0c16" stroke="#2a2f45" stroke-width="1" />
-      <text x="90" y="190" fill="${color}" font-family="serif" font-size="18" text-anchor="middle" font-weight="600">${escapeXml(nameLabel)}</text>
-      <text x="90" y="215" fill="#a1a1aa" font-family="sans-serif" font-size="12" text-anchor="middle" letter-spacing="1">${escapeXml(positionLabel)}</text>
+      <rect width="180" height="250" rx="12" fill="#1C1A22" stroke="#625547" stroke-width="2" />
+      <rect x="12" y="12" width="156" height="226" rx="8" fill="#0F0E13" stroke="#3F3741" stroke-width="1" />
+      <path d="M60 70 H120" fill="none" stroke="${color}" stroke-width="3" />
+      <text x="90" y="155" fill="#E8E6E3" font-family="serif" font-size="18" text-anchor="middle" font-weight="600">${escapeXml(nameLabel)}</text>
+      <text x="90" y="184" fill="#CCC5B9" font-family="sans-serif" font-size="12" text-anchor="middle" letter-spacing="1">${escapeXml(positionLabel)}</text>
     </g>`;
   }).join('');
 
   const overflowMarkup = overflowCount
-    ? `<text x="70" y="430" fill="#9ca3af" font-family="sans-serif" font-size="14">+${overflowCount} more cards</text>`
+    ? `<text x="70" y="454" fill="#CCC5B9" font-family="sans-serif" font-size="14">+${overflowCount} more cards</text>`
     : '';
 
   const shareTitleMarkup = shareTitle
-    ? `<text x="60" y="110" fill="#e2e8f0" font-family="serif" font-size="24">${shareTitle}</text>`
+    ? `<text x="60" y="117" fill="#CCC5B9" font-family="serif" font-size="22">${shareTitle}</text>`
     : '';
   const entryCountMarkup = entryCountText
-    ? `<text x="1140" y="110" fill="#94a3b8" font-family="sans-serif" font-size="16" text-anchor="end">${entryCountText}</text>`
+    ? `<text x="1140" y="117" fill="#CCC5B9" font-family="sans-serif" font-size="16" text-anchor="end">${entryCountText}</text>`
     : '';
 
   const infoLines = [];
-  let infoY = 500;
+  let infoY = 483;
   if (themeLine) {
-    infoLines.push(`<text x="60" y="${infoY}" fill="#fbbf24" font-family="sans-serif" font-size="14" letter-spacing="2">THEME</text>`);
+    infoLines.push(`<text x="60" y="${infoY}" fill="#D4B896" font-family="sans-serif" font-size="14" letter-spacing="2">THEME</text>`);
     infoY += 20;
-    infoLines.push(`<text x="60" y="${infoY}" fill="#d1d5db" font-family="sans-serif" font-size="16">${themeLine}</text>`);
+    infoLines.push(`<text x="60" y="${infoY}" fill="#CCC5B9" font-family="sans-serif" font-size="16">${themeLine}</text>`);
     infoY += 30;
   }
   if (contextText) {
-    infoLines.push(`<text x="60" y="${infoY}" fill="#fbbf24" font-family="sans-serif" font-size="14" letter-spacing="2">CONTEXT: ${contextText}</text>`);
+    infoLines.push(`<text x="60" y="${infoY}" fill="#D4B896" font-family="sans-serif" font-size="14" letter-spacing="2">CONTEXT: ${contextText}</text>`);
     infoY += 30;
   }
   if (questionText) {
-    infoLines.push(`<text x="60" y="${infoY}" fill="#e5e7eb" font-family="sans-serif" font-size="20">${questionText}</text>`);
+    infoLines.push(`<text x="60" y="${infoY}" fill="#E8E6E3" font-family="sans-serif" font-size="20">${questionText}</text>`);
   }
   const infoMarkup = infoLines.join('\n  ');
 
@@ -126,25 +130,26 @@ export function buildOgImageSvg(entries, shareRecord) {
 <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#05060c"/>
-      <stop offset="100%" stop-color="#111827"/>
+      <stop offset="0%" stop-color="#1C1A22"/>
+      <stop offset="100%" stop-color="#0F0E13"/>
     </linearGradient>
   </defs>
   <rect width="100%" height="100%" fill="url(#bg)"/>
 
-  <text x="60" y="70" fill="#fbbf24" font-family="serif" font-size="28" letter-spacing="4">MYSTIC TAROT</text>
-  <text x="1140" y="70" fill="#9ca3af" font-family="sans-serif" font-size="18" text-anchor="end">${dateStr}</text>
+  <g transform="translate(60 26) scale(0.24)" color="#D4B896" fill="currentColor">${tableuMarkMarkup()}</g>
+  <text x="136" y="67" fill="#D4B896" font-family="serif" font-size="34" letter-spacing="5">TABLEU</text>
+  <text x="1140" y="67" fill="#CCC5B9" font-family="sans-serif" font-size="18" text-anchor="end">${dateStr}</text>
   ${shareTitleMarkup}
   ${entryCountMarkup}
 
-  <text x="60" y="150" fill="#f8fafc" font-family="serif" font-size="30">${spreadText}</text>
+  <text x="60" y="157" fill="#E8E6E3" font-family="serif" font-size="30">${spreadText}</text>
 
   ${cardMarkup}
   ${overflowMarkup}
 
   ${infoMarkup}
 
-  <text x="60" y="600" fill="#6b7280" font-family="sans-serif" font-size="14">${shareUrl}</text>
+  <text x="60" y="606" fill="#CCC5B9" font-family="sans-serif" font-size="14">${shareUrl}</text>
 </svg>`;
 }
 
@@ -154,13 +159,15 @@ export function buildErrorOgImage(message = DEFAULT_ERROR_MESSAGE) {
 <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#05060c"/>
-      <stop offset="100%" stop-color="#111827"/>
+      <stop offset="0%" stop-color="#1C1A22"/>
+      <stop offset="100%" stop-color="#0F0E13"/>
     </linearGradient>
   </defs>
   <rect width="100%" height="100%" fill="url(#bg)"/>
-  <text x="60" y="80" fill="#fbbf24" font-family="serif" font-size="32" letter-spacing="4">MYSTIC TAROT</text>
-  <text x="60" y="150" fill="#f8fafc" font-family="sans-serif" font-size="28">${safeMessage}</text>
-  <text x="60" y="200" fill="#94a3b8" font-family="sans-serif" font-size="18">Please check your share link and try again.</text>
+  <g transform="translate(60 26) scale(0.24)" color="#D4B896" fill="currentColor">${tableuMarkMarkup()}</g>
+  <text x="136" y="67" fill="#D4B896" font-family="serif" font-size="34" letter-spacing="5">TABLEU</text>
+  <text x="60" y="260" fill="#E8E6E3" font-family="serif" font-size="36">${safeMessage}</text>
+  <text x="60" y="310" fill="#CCC5B9" font-family="sans-serif" font-size="20">Please check your share link and try again.</text>
+  <text x="60" y="606" fill="#CCC5B9" font-family="sans-serif" font-size="14">${SITE_DOMAIN}</text>
 </svg>`;
 }
