@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isServerNarrationProvider } from '../../shared/narrationProviders.js';
 import {
   STREAM_AUTO_NARRATE_DEBOUNCE_MS,
   shouldScheduleAutoNarration
@@ -38,7 +39,7 @@ export function getCanAutoNarrate({
     && narrativePhase === 'complete'
     && !isReadingStreaming
     && !autoNarrationTriggered
-    && ttsProvider !== 'azure'
+    && !isServerNarrationProvider(ttsProvider)
   );
 }
 

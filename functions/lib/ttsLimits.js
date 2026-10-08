@@ -34,18 +34,6 @@ async function consumeAbuseLimit(db, identity, scope, max, windowSeconds = 60) {
   return { allowed: false, status: 429, retryAfter, payload: { error: 'Too many narration requests. Please wait a moment.', errorCode: 'RATE_LIMIT' } };
 }
 
-/** Token issuance has its own abuse limit, never a narration allowance debit. */
-export async function enforceSpeechTokenLimit(env, request, user) {
-  if (!env?.DB) return unavailable();
-  try {
-    const identity = await identityFor(request, user);
-    await env.DB.prepare('DELETE FROM narration_request_limits WHERE identity = ? AND window_key < ?').bind(identity, Math.floor(Date.now() / 60000) - 1).run();
-    return await consumeAbuseLimit(env.DB, identity, 'speech-token', 6);
-  } catch {
-    return unavailable();
-  }
-}
-
 /** Reserve one complete narration; D1 constraints serialize quota/concurrency. */
 export async function reserveNarration({ env, request, user, limits = getTtsLimits('free') }) {
   if (!env?.DB) return unavailable();

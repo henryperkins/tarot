@@ -5,7 +5,7 @@ import { onRequestPost as retiredHume } from '../functions/api/tts-hume.js';
 import { createD1 } from './helpers/d1Sqlite.mjs';
 
 const request = (text, stream = false, signal) => new Request(`https://example.test/api/tts${stream ? '?stream=true' : ''}`, {
-  method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '192.0.2.30' }, body: JSON.stringify({ text }), signal
+  method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '192.0.2.30' }, body: JSON.stringify({ text, provider: 'deepgram' }), signal
 });
 const used = DB => DB.rows('SELECT used, reserved FROM narration_monthly_usage');
 

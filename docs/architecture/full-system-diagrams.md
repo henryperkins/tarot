@@ -17,8 +17,7 @@ graph TB
         OpenAI["OpenAI native Responses<br/>azure-gpt5"]
         AzureOpenAI["Azure OpenAI Responses<br/>azure-gpt5 fallback"]
         Claude["Anthropic API<br/>Claude Opus 5.5"]
-        ReaderTTS["ElevenLabs TTS<br/>Workers AI Aura-2 when unconfigured"]
-        AzureSpeech["Azure Speech<br/>Client Tokens"]
+        ReaderTTS["User-selected narration<br/>ElevenLabs v4 / Sarah<br/>Deepgram Aura-2 / Cora"]
         Stripe["Stripe<br/>Checkout, Portal, Webhooks"]
         EmailService["Email Service<br/>Quality Alerts"]
         Sentry["Sentry<br/>Errors and sampled replay"]
@@ -64,7 +63,6 @@ graph TB
     Worker -->|Payments| Stripe
     Worker -->|Alerts| EmailService
     Worker -->|Diagnostics and replay| Sentry
-    Frontend --> AzureSpeech
     Worker --> CronVideo
     Worker --> CronDaily
     CronVideo --> KV_Metrics
@@ -146,7 +144,7 @@ graph TB
     subgraph Libs["Libraries (src/lib/)"]
         direction TB
         DeckLib["Deck<br>deck.js, cardLookup.js<br>cardInsights.js"]
-        AudioLib["Audio<br>audio.js, audioSpeechSDK.js"]
+        AudioLib["Audio<br>audio.js"]
         JournalLib["Journal<br>journalInsights.js"]
         CoachLib["Coach<br>intentionCoach.js, coachStorage.js<br>questionQuality.js, followUpSuggestions.js"]
         JourneyLib["Journey<br>archetypeJourney.js"]
@@ -206,8 +204,8 @@ graph TB
     end
 
     subgraph AudioAPIs["Audio APIs"]
-        TTSAPI["POST /api/tts<br>ElevenLabs or Workers AI Aura-2"]
-        SpeechToken["GET /api/speech-token<br>Azure Speech Tokens"]
+        TTSAPI["POST /api/tts<br>User-selected ElevenLabs or Deepgram<br>Shared monthly allowance"]
+        SpeechToken["GET /api/speech-token<br>Retired: 410"]
     end
 
     subgraph JournalAPIs["Journal APIs"]
@@ -754,8 +752,7 @@ graph LR
 
     subgraph OtherServices["Other Services"]
         Stripe["Stripe<br/>Checkout, Portal, Webhooks"]
-        ReaderTTS["ElevenLabs TTS<br/>Workers AI Aura-2 when unconfigured"]
-        AzureSpeech["Azure Speech<br/>Client tokens"]
+        ReaderTTS["User-selected narration<br/>ElevenLabs v4 / Sarah<br/>Deepgram Aura-2 / Cora"]
         Email["Email provider<br/>Quality alerts"]
     end
 
@@ -773,7 +770,6 @@ graph LR
     API --> Sentry
     API --> Stripe
     API --> ReaderTTS
-    API --> AzureSpeech
     API --> Email
 ```
 

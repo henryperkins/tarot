@@ -24,11 +24,11 @@ Common local variables include:
   - `AZURE_OPENAI_API_KEY`
   - `AZURE_OPENAI_GPT5_MODEL`
 - `VISION_PROOF_SECRET` when using the opt-in vision research flow
-- `ELEVENLABS_API_KEY` — enables ElevenLabs reading narration through the Worker. Optional `ELEVENLABS_VOICE_ID` (default Sarah, `EXAVITQu4vr4xnSDxMaL`) and `ELEVENLABS_MODEL_ID` (default `eleven_v4`) select the voice/model. Without the key, reader voice uses Workers AI Aura-2. See [narration safeguards](narration-safeguards.md).
+- `ELEVENLABS_API_KEY` — enables the ElevenLabs narration option through the Worker. Optional `ELEVENLABS_VOICE_ID` (default Sarah, `EXAVITQu4vr4xnSDxMaL`) and `ELEVENLABS_MODEL_ID` (default `eleven_v4`) select the voice/model. The separate Deepgram option uses Workers AI Aura-2 with Cora through the `AI` binding and needs no provider API key. Users choose an engine in Audio settings or the reading audio controls; both use the same monthly narration allowance. See [narration safeguards](narration-safeguards.md).
 - `VITE_ENABLE_VISION_RESEARCH` — set to `true` only to expose the research UI; the default is `false`
 - Auth variables such as `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_AUDIENCE`, `AUTH0_USERINFO_URL`, and `APP_URL` when testing auth flows
 
-`npm run config:check` validates selected provider and authentication variables; it is not a complete feature-secret audit. Set optional Stripe, Azure Speech, MCP/OAuth, email, media, and admin secrets only for the environments and routes that use them.
+`npm run config:check` validates selected provider and authentication variables; it is not a complete feature-secret audit. Set optional Stripe, MCP/OAuth, email, media, and admin secrets only for the environments and routes that use them.
 
 Modal currently targets `https://henryperkins--ep-qwen3-8-max-vl-thinking-server.us-west.modal.direct/v1` with model `Qwen/Qwen3.8-Max-VL-Thinking`, high reasoning effort, upstream streaming enabled, temperature `0.3`, and top-p `0.95`. Full readings leave `max_tokens` unset. Only callers that explicitly provide a `maxTokens` option apply a cap; a stale `MODAL_MAX_TOKENS` environment value is ignored. Upstream streaming is collected before a complete reading is returned and does not by itself enable user-visible token streaming.
 

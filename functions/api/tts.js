@@ -3,6 +3,7 @@ import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
 import { getTtsLimits, reserveNarration, settleNarration, releaseNarration, MAX_NARRATION_CHARS, NARRATION_DEADLINE_MS } from '../lib/ttsLimits.js';
+import { NARRATION_PROVIDERS, isServerNarrationProvider } from '../../shared/narrationProviders.js';
 
 const TTS_MODEL = '@cf/deepgram/aura-2-en';
 const TTS_PROVIDER = 'workers-ai-aura-2';
@@ -16,9 +17,11 @@ const TYPICAL_BYTES_PER_CHAR = 390;
 const MIN_BYTES_PER_CHAR = 250;
 const MIN_CHECKED_CHARS = 100;
 
-function getNarrationProvider(env) {
+function getNarrationProvider(env, requestedProvider) {
   const apiKey = typeof env?.ELEVENLABS_API_KEY === 'string' ? env.ELEVENLABS_API_KEY.trim() : '';
-  if (apiKey) {
+  const providerId = requestedProvider || (apiKey ? 'elevenlabs' : 'deepgram');
+  if (providerId === 'elevenlabs') {
+    if (!apiKey) return null;
     const model = env.ELEVENLABS_MODEL_ID?.trim() || ELEVENLABS_MODEL;
     const voice = env.ELEVENLABS_VOICE_ID?.trim() || ELEVENLABS_VOICE;
     return {
@@ -66,6 +69,14 @@ export const onRequestGet = async ({ env }) => {
   return jsonResponse({
     status: 'ok', provider: provider?.id || 'unavailable',
     model: provider?.model || TTS_MODEL, voice: provider?.voice || TTS_SPEAKER,
+    providers: NARRATION_PROVIDERS.map(({ id }) => {
+      const configured = getNarrationProvider(env, id);
+      return {
+        id, available: Boolean(configured),
+        model: configured?.model || (id === 'elevenlabs' ? env?.ELEVENLABS_MODEL_ID?.trim() || ELEVENLABS_MODEL : TTS_MODEL),
+        voice: configured?.voice || (id === 'elevenlabs' ? env?.ELEVENLABS_VOICE_ID?.trim() || ELEVENLABS_VOICE : TTS_SPEAKER)
+      };
+    }),
     format: 'mp3', maxCharacters: MAX_NARRATION_CHARS,
     timestamp: new Date().toISOString()
   });
@@ -113,7 +124,10 @@ export const onRequestPost = async ({ request, env }) => {
     }
     const text = sanitizeText(body.text, { collapseWhitespace: false });
     if (!text) return jsonResponse({ error: 'The "text" field is required.' }, { status: 400 });
-    const provider = getNarrationProvider(env);
+    if (Object.hasOwn(body, 'provider') && !isServerNarrationProvider(body.provider)) {
+      return jsonResponse({ error: 'Choose ElevenLabs or Deepgram for narration.', errorCode: 'INVALID_NARRATION_PROVIDER' }, { status: 400 });
+    }
+    const provider = getNarrationProvider(env, body.provider);
     if (!provider) return jsonResponse({ error: 'Narration is temporarily unavailable. Please try again.', errorCode: 'SERVICE_UNAVAILABLE', retryable: true }, { status: 503 });
     const user = await getUserFromRequest(request, env);
     if (user?.auth_provider === 'api_key') {

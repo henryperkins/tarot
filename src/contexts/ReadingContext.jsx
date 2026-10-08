@@ -13,6 +13,7 @@ import { formatReading } from '../lib/formatting';
 import { createReadingError, formatReadingFailure } from '../lib/readingErrors.js';
 import { readReadingJobEvents } from '../lib/readingJobStream.js';
 import { buildReadingRequestCard } from '../../shared/contracts/readingRequestCards.js';
+import { isServerNarrationProvider } from '../../shared/narrationProviders.js';
 import { computeRelationships } from '../lib/deck';
 import { buildSymbolElementCue } from '../lib/symbolElementBridge';
 import {
@@ -288,7 +289,7 @@ export function ReadingProvider({ children }) {
             voiceOn: voiceEnabled,
             ttsProvider: narrationProvider
         } = narrationSettingsRef.current;
-        if (!autoNarrateEnabled || !voiceEnabled || narrationProvider !== 'azure') {
+        if (!autoNarrateEnabled || !voiceEnabled || !isServerNarrationProvider(narrationProvider)) {
             narrationSuppressedRef.current = true;
             return;
         }
@@ -355,7 +356,7 @@ export function ReadingProvider({ children }) {
             autoNarrate: autoNarrateEnabled,
             ttsProvider: narrationProvider
         } = narrationSettingsRef.current;
-        const shouldTrackBuffer = autoNarrateEnabled && narrationProvider === 'azure';
+        const shouldTrackBuffer = autoNarrateEnabled && isServerNarrationProvider(narrationProvider);
         if (!shouldTrackBuffer && narrationSuppressedRef.current) {
             return;
         }
@@ -370,7 +371,7 @@ export function ReadingProvider({ children }) {
             voiceOn: voiceEnabled,
             ttsProvider: narrationProvider
         } = narrationSettingsRef.current;
-        const narrationEligible = autoNarrateEnabled && voiceEnabled && narrationProvider === 'azure';
+        const narrationEligible = autoNarrateEnabled && voiceEnabled && isServerNarrationProvider(narrationProvider);
 
         if (!narrationEligible || narrationInterruptedByUserRef.current) {
             narrationFallbackPendingRef.current = false;
@@ -458,7 +459,7 @@ export function ReadingProvider({ children }) {
         if (!resume) {
             resetStreamingNarration();
         }
-        const streamNarrationEnabled = autoNarrate && voiceOn && ttsProvider === 'azure';
+        const streamNarrationEnabled = autoNarrate && voiceOn && isServerNarrationProvider(ttsProvider);
         const isTtsBusy = isNarrationPlaybackBusy(ttsState?.status);
         if (!streamNarrationEnabled) {
             narrationSuppressedRef.current = true;
@@ -587,7 +588,7 @@ export function ReadingProvider({ children }) {
                     const narrationSettings = narrationSettingsRef.current;
                     const narrationEligible = narrationSettings.autoNarrate &&
                         narrationSettings.voiceOn &&
-                        narrationSettings.ttsProvider === 'azure';
+                        isServerNarrationProvider(narrationSettings.ttsProvider);
                     if (narrationEligible && !narrationInterruptedByUserRef.current) {
                         const queuedChars = narrationQueuedCharsRef.current;
                         const finalChars = finalText.length;
@@ -711,7 +712,7 @@ export function ReadingProvider({ children }) {
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
         if (inFlightReadingRef.current?.controller && !inFlightReadingRef.current.controller.signal.aborted) return;
         if (narrativePhase === 'complete' || personalReading?.isError) return;
-        if (ttsProvider === 'azure' && ttsState?.status === 'paused') {
+        if (isServerNarrationProvider(ttsProvider) && ttsState?.status === 'paused') {
             void resumeNarrationPlayback();
         }
         streamReadingJob({ jobId, jobToken, cursor, resume: true });
@@ -725,7 +726,7 @@ export function ReadingProvider({ children }) {
     ]);
 
     useEffect(() => {
-        const narrationDisabled = !voiceOn || !autoNarrate || ttsProvider !== 'azure';
+        const narrationDisabled = !voiceOn || !autoNarrate || !isServerNarrationProvider(ttsProvider);
         if (narrationDisabled) {
             const disabledByUserChoice = !voiceOn || !autoNarrate;
             if (isReadingStreamActive && disabledByUserChoice) {
@@ -751,7 +752,7 @@ export function ReadingProvider({ children }) {
             narrationFallbackTextRef.current = '';
             return;
         }
-        if (!autoNarrate || !voiceOn || ttsProvider !== 'azure') {
+        if (!autoNarrate || !voiceOn || !isServerNarrationProvider(ttsProvider)) {
             narrationFallbackPendingRef.current = false;
             narrationFallbackTextRef.current = '';
             return;

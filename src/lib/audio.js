@@ -1,11 +1,9 @@
 import { normalizeReadingText, prepareForTTS } from './formatting.js';
 import { djb2Hash } from './utils.js';
 import { safeStorage } from './safeStorage.js';
+import { normalizeTtsProvider } from '../../shared/narrationProviders.js';
 
-// Retired saved preferences use the regular narration path.
-export function normalizeTtsProvider(value) {
-  return value === 'azure-sdk' ? 'azure-sdk' : 'azure';
-}
+export { normalizeTtsProvider };
 
 let flipAudio = null;
 let ambienceAudio = null;
@@ -37,7 +35,7 @@ let ttsAbortController = null;
 let audioUnlocked = false;
 let unlockListenersRegistered = false;
 const TTS_CACHE_PREFIX = 'tts_cache_';
-const TTS_CACHE_VERSION = 'reader-eleven-v4';
+const TTS_CACHE_VERSION = 'reader-provider-choice-v1';
 const TTS_CACHE_MAX_ENTRIES = 50;
 const TTS_CACHE_PURGE_THRESHOLD = 30;
 const TTS_CACHE_PURGE_TARGET = 20;
@@ -329,6 +327,7 @@ async function buildStreamingAudioSource(response, signal, onError = () => {}) {
  * @param {Object} options
  * @param {string} options.text - Text to speak (can be Markdown)
  * @param {boolean} options.enabled - Whether TTS is enabled
+ * @param {string} [options.provider='elevenlabs'] - Selected narration provider
  * @param {string} [options.context='default'] - Reading context (card-reveal, full-reading, synthesis, etc.)
  * @param {string} [options.voice='verse'] - Voice name; the server currently uses one voice for all narration
  * @param {number} [options.speed] - Playback speed, applied by the player (1 is normal)
@@ -336,7 +335,7 @@ async function buildStreamingAudioSource(response, signal, onError = () => {}) {
  * @param {boolean} [options.stream=false] - Use streaming mode for progressive audio playback
  * @param {string} [options.emotion=null] - Emotion from GraphRAG analysis for voice styling
  */
-export async function speakText({ text, enabled, context = 'default', voice = 'verse', speed, format, stream = false, emotion = null }) {
+export async function speakText({ text, enabled, provider: requestedProvider = 'elevenlabs', context = 'default', voice = 'verse', speed, format, stream = false, emotion = null }) {
   ensureGlobalCleanupListeners();
 
   if (!enabled) {
@@ -353,6 +352,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
   }
 
   const narrationContext = context || 'default';
+  const selectedProvider = normalizeTtsProvider(requestedProvider);
   const normalizedText = normalizeReadingText(text);
   const ttsText = prepareForTTS(normalizedText);
 
@@ -377,7 +377,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
 
     // Check cache first (using normalized text for consistent keys)
     // Include speed and format in cache key to cache variations separately
-    const cacheKey = generateCacheKey(ttsText, context, voice, speed, format, emotion);
+    const cacheKey = generateCacheKey(ttsText, context, voice, speed, format, emotion, selectedProvider);
     const cachedAudio = getCachedAudio(cacheKey);
 
     let audioDataUri;
@@ -401,7 +401,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
     } else {
       // Fetch from API with normalized TTS text
       const url = stream ? '/api/tts?stream=true' : '/api/tts';
-      const requestBody = { text: ttsText, context, voice };
+      const requestBody = { text: ttsText, context, voice, provider: selectedProvider };
 
       // Add speed parameter if specified
       if (speed !== undefined) {
@@ -621,7 +621,7 @@ export async function speakText({ text, enabled, context = 'default', voice = 'v
   }
 }
 
-export function enqueueTTSChunk({ text, context = 'full-reading', voice = 'nova', speed, format, emotion = null }) {
+export function enqueueTTSChunk({ text, provider: requestedProvider = 'elevenlabs', context = 'full-reading', voice = 'nova', speed, format, emotion = null }) {
   if (!text || typeof text !== 'string') return false;
   ensureGlobalCleanupListeners();
 
@@ -636,7 +636,7 @@ export function enqueueTTSChunk({ text, context = 'full-reading', voice = 'nova'
     activeNarrationId = ttsStreamRequestId;
   }
 
-  ttsStreamQueue.push({ text: ttsText, context, voice, speed, format, emotion });
+  ttsStreamQueue.push({ text: ttsText, provider: normalizeTtsProvider(requestedProvider), context, voice, speed, format, emotion });
 
   if (!ttsStreamProcessing) {
     void processTtsStreamQueue();
@@ -718,7 +718,7 @@ async function processTtsStreamQueue() {
 async function playTtsStreamSegment(segment, requestId) {
   if (!segment || requestId <= cancelledUpToRequestId) return;
 
-  const { text, context = 'full-reading', voice = 'nova', speed, format, emotion } = segment;
+  const { text, provider: selectedProvider, context = 'full-reading', voice = 'nova', speed, format, emotion } = segment;
 
   if (!audioUnlocked) {
     const unlocked = await unlockAudio();
@@ -743,7 +743,7 @@ async function playTtsStreamSegment(segment, requestId) {
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   ttsStreamAbortController = controller;
 
-  const requestBody = { text, context, voice };
+  const requestBody = { text, context, voice, provider: selectedProvider };
   if (speed !== undefined) {
     requestBody.speed = speed;
   }
@@ -944,14 +944,14 @@ function finishTtsStreamQueue() {
 }
 
 /**
- * Generate a cache key from text, context, voice, speed, format, and emotion.
+ * Generate a cache key from text, provider, context, voice, speed, format, and emotion.
  * Uses djb2 hash to keep localStorage keys reasonable.
  */
-function generateCacheKey(text, context, voice, speed, format, emotion) {
+function generateCacheKey(text, context, voice, speed, format, emotion, provider) {
   const speedKey = speed !== undefined ? speed : 'default';
   const formatKey = format && String(format).trim().length ? String(format).trim().toLowerCase() : 'default';
   const emotionKey = emotion && String(emotion).trim().length ? String(emotion).trim().toLowerCase() : 'default';
-  const content = `${TTS_CACHE_VERSION}|${text}|${context}|${voice}|${speedKey}|${formatKey}|${emotionKey}`;
+  const content = `${TTS_CACHE_VERSION}|${provider}|${text}|${context}|${voice}|${speedKey}|${formatKey}|${emotionKey}`;
   return `${TTS_CACHE_PREFIX}${djb2Hash(content).toString(36)}`;
 }
 

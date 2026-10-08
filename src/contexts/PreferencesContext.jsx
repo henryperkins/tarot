@@ -122,14 +122,18 @@ export function PreferencesProvider({ children }) {
     safeStorage.setItem('tarot-auto-narrate', autoNarrate.toString());
   }, [autoNarrate]);
 
-  // Older saved engines migrate to the regular reader voice. Keep the safe
+  // Older saved engines migrate to ElevenLabs. Keep the safe
   // storage wrapper: blocked localStorage must not break preferences.
   const [ttsProviderState, setTtsProviderState] = useState(() => {
     return normalizeTtsProvider(safeStorage.getItem('tarot-tts-provider'));
   });
-  const setTtsProvider = (value) => {
-    setTtsProviderState(normalizeTtsProvider(value));
-  };
+  const setTtsProvider = useCallback((value) => {
+    const nextProvider = normalizeTtsProvider(value);
+    if (nextProvider !== ttsProviderState) {
+      stopTTS();
+      setTtsProviderState(nextProvider);
+    }
+  }, [ttsProviderState]);
 
   // Expose validated state value (alias for clarity)
   const ttsProvider = ttsProviderState;

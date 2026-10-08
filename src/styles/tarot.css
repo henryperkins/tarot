@@ -3758,7 +3758,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   }
 }
 
-/* TTS word highlight (Azure SDK word-boundary) */
+/* Narration word highlight */
 .narrative-tts-word {
   position: relative;
   color: var(--text-accent, var(--brand-accent));

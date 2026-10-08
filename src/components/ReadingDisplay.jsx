@@ -50,7 +50,6 @@ export function ReadingDisplay({
     const {
         // Audio
         ttsState,
-        wordBoundary,
         triggerCinematicSwell,
         showVoicePrompt,
         setShowVoicePrompt,
@@ -368,7 +367,6 @@ export function ReadingDisplay({
         autoNarrate,
         ttsProvider,
         ttsState,
-        wordBoundary,
         effectiveTier,
         isAuthenticated,
         autoGenerateVisualsEnabled,

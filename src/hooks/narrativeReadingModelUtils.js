@@ -1,5 +1,6 @@
 import { getOrientationMeaning } from '../lib/cardLookup.js';
 import { getNarrationLabels } from '../components/reading/narrative/narrationLabels.js';
+import { isServerNarrationProvider } from '../../shared/narrationProviders.js';
 
 export function getResolvedQuestion(userQuestion) {
   if (typeof userQuestion !== 'string') return 'General guidance';
@@ -240,7 +241,7 @@ export function buildNarrativePanelModel({
     },
     statusModel: {
       showNarrationStatus: hasNarrativeContext && narrationState !== 'idle' && narrationState !== 'completed',
-      showNarrationProgress: hasNarrativeContext && ttsProvider === 'azure' && (isNarrationPlaying || isNarrationPaused),
+      showNarrationProgress: hasNarrativeContext && isServerNarrationProvider(ttsProvider) && (isNarrationPlaying || isNarrationPaused),
       showNarrationTierLimit: ttsState?.status === 'error' && ttsState?.errorCode === 'TIER_LIMIT',
       showVoicePrompt: Boolean(showVoicePrompt),
       showJournalStatus: Boolean(journalStatus),

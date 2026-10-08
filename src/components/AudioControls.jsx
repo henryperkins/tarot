@@ -2,6 +2,8 @@ import { SpeakerHigh, SpeakerSlash, MusicNotes, Info, Waveform, Gauge } from '@p
 import { Tooltip } from './Tooltip';
 import { GlowToggle } from './GlowToggle';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { NARRATION_PROVIDERS } from '../../shared/narrationProviders.js';
+import { handleRadioGroupKeyDown } from '../lib/radioGroupKeyboard.js';
 
 /**
  * AudioControls - Unified audio settings panel
@@ -151,7 +153,7 @@ export function AudioControls({ className = '' }) {
             <Waveform className="h-4 w-4 text-accent" aria-hidden="true" />
             <span className="text-xs font-semibold text-accent uppercase tracking-wide">Voice Engine</span>
             <Tooltip
-              content="Reader voice uses your monthly narration allowance. Word Sync adds highlighting and uses separate request safeguards."
+              content="Choose ElevenLabs or Deepgram for your readings. Both use your monthly narration allowance."
               position="top"
               triggerClassName={infoButtonClass}
               ariaLabel="About voice engine options"
@@ -159,41 +161,36 @@ export function AudioControls({ className = '' }) {
               <Info className="h-3.5 w-3.5" />
             </Tooltip>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:gap-2" role="radiogroup" aria-label="Select voice engine">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={ttsProvider === 'azure'}
-              onClick={() => setTtsProvider('azure')}
-              className={`flex-1 min-h-cta px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
-                ttsProvider === 'azure'
-                  ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
-                  : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
-              }`}
-            >
-              <span className="block font-semibold text-xs xs:text-sm">Reader voice</span>
-              <span className="block text-2xs xs:text-xs opacity-75">Clear</span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={ttsProvider === 'azure-sdk'}
-              onClick={() => setTtsProvider('azure-sdk')}
-              className={`flex-1 min-h-cta px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
-                ttsProvider === 'azure-sdk'
-                  ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
-                  : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
-              }`}
-            >
-              <span className="block font-semibold text-xs xs:text-sm">Azure SDK</span>
-              <span className="block text-2xs xs:text-xs opacity-75">Word sync</span>
-            </button>
+          <div
+            className="flex flex-col gap-2 sm:flex-row sm:gap-2"
+            role="radiogroup"
+            aria-label="Select voice engine"
+            onKeyDown={event => handleRadioGroupKeyDown(event, NARRATION_PROVIDERS.map(engine => engine.id), setTtsProvider)}
+          >
+            {NARRATION_PROVIDERS.map(engine => (
+              <button
+                key={engine.id}
+                type="button"
+                role="radio"
+                tabIndex={ttsProvider === engine.id ? 0 : -1}
+                aria-checked={ttsProvider === engine.id}
+                onClick={() => setTtsProvider(engine.id)}
+                className={`flex-1 min-h-cta px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
+                  ttsProvider === engine.id
+                    ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
+                    : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
+                }`}
+              >
+                <span className="block font-semibold text-xs xs:text-sm">{engine.label}</span>
+                <span className="block text-2xs xs:text-xs opacity-75">{engine.description}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}
 
       {/* Speed Control - applied by the reader voice player */}
-      {voiceOn && ttsProvider === 'azure' && (
+      {voiceOn && (
         <div className="mt-3 xs:mt-4 pt-3 xs:pt-4 border-t border-secondary/20">
           <div className="flex items-center gap-2 mb-2">
             <Gauge className="h-4 w-4 text-accent" aria-hidden="true" />
@@ -207,7 +204,12 @@ export function AudioControls({ className = '' }) {
               <Info className="h-3.5 w-3.5" />
             </Tooltip>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:gap-2" role="radiogroup" aria-label="Select narration speed">
+          <div
+            className="flex flex-col gap-2 sm:flex-row sm:gap-2"
+            role="radiogroup"
+            aria-label="Select narration speed"
+            onKeyDown={event => handleRadioGroupKeyDown(event, [0.85, 1.0, 1.15], setTtsSpeed)}
+          >
             {[
               { value: 0.85, label: 'Slower', desc: 'Contemplative' },
               { value: 1.0, label: 'Normal', desc: 'Default' },
@@ -217,6 +219,7 @@ export function AudioControls({ className = '' }) {
                 key={opt.value}
                 type="button"
                 role="radio"
+                tabIndex={ttsSpeed === opt.value ? 0 : -1}
                 aria-checked={ttsSpeed === opt.value}
                 onClick={() => setTtsSpeed(opt.value)}
                 className={`flex-1 min-h-cta px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${

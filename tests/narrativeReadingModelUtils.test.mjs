@@ -2,11 +2,42 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import {
+  buildNarrativePanelModel,
   buildNarrativeText,
   buildStoryArtCards,
   deriveNarrativeVisibility,
   selectCinematicCard
 } from '../src/hooks/narrativeReadingModelUtils.js';
+
+describe('narration controls for server voices', () => {
+  for (const ttsProvider of ['elevenlabs', 'deepgram']) {
+    for (const status of ['playing', 'paused']) {
+      test(`${ttsProvider} offers progress and stop while ${status}`, () => {
+        const model = buildNarrativePanelModel({
+          personalReading: { raw: 'Finished reading.' },
+          fullReadingText: 'Finished reading.',
+          ttsProvider,
+          ttsState: { status },
+          narrativePhase: 'complete'
+        });
+        assert.equal(model.statusModel.showNarrationProgress, true);
+        assert.equal(model.controlsModel.showNarrationStop, true);
+      });
+    }
+  }
+
+  test('loading and completed narration have no progress control', () => {
+    for (const status of ['loading', 'completed']) {
+      const model = buildNarrativePanelModel({
+        personalReading: { raw: 'Finished reading.' },
+        fullReadingText: 'Finished reading.',
+        ttsProvider: 'elevenlabs',
+        ttsState: { status }
+      });
+      assert.equal(model.statusModel.showNarrationProgress, false);
+    }
+  });
+});
 
 describe('buildNarrativeText', () => {
   test('prefers markdown/raw text when available', () => {

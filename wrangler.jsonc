@@ -157,7 +157,6 @@
     // promptDebug. GPT_OWNER_TOKEN is never shared, so ownership fails closed
     // when it is unset — which is the default.
     "PROMPT_DEBUG_ENABLED": "true",
-    "ENABLE_SPEECH_TOKEN_DEBUG": "false",
     // -------------------------------------------------------------------------
     // Service-account auth for the Tableu Custom GPT / ChatGPT App.
     // When the GPT_SERVICE_TOKEN secret is set, requests bearing it
@@ -352,19 +351,13 @@
   // wrangler secret put AZURE_OPENAI_API_KEY
   // wrangler secret put AZURE_OPENAI_GPT5_MODEL
   //
-  // ElevenLabs reader voice (/api/tts), preferred when configured:
+  // ElevenLabs narration option (/api/tts, provider: elevenlabs):
   // wrangler secret put ELEVENLABS_API_KEY --config wrangler.jsonc
   // Optional non-secret settings: ELEVENLABS_VOICE_ID (default Sarah),
   // ELEVENLABS_MODEL_ID (default eleven_v4).
-  // Without this key, narration uses Workers AI Deepgram Aura-2.
+  // The separate Deepgram option (provider: deepgram) uses the AI binding,
+  // Aura-2 English and Cora; it requires no additional provider secret.
   // Story art uses Workers AI through the AI binding and needs no secret.
-  //
-  // Azure Speech Service (Neural TTS via Speech SDK - separate from OpenAI TTS)
-  // wrangler secret put AZURE_SPEECH_ENDPOINT  (e.g., https://fifteenmodels.cognitiveservices.azure.com/)
-  // wrangler secret put AZURE_SPEECH_KEY
-  //
-  // Azure Speech SDK (client-side token auth)
-  // wrangler secret put AZURE_SPEECH_REGION  (optional, defaults to eastus2)
   //
   // Other
   // wrangler secret put VISION_PROOF_SECRET

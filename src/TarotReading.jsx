@@ -269,16 +269,16 @@ export default function TarotReading() {
         fetch('/api/health/tts', { method: 'GET', cache: 'no-store' }).catch(() => null)
       ]);
       const anthropicAvailable = tarotHealth?.ok ?? false;
-      const azureAvailable = ttsHealth?.ok ?? false;
-      if (!anthropicAvailable || !azureAvailable) {
+      const narrationAvailable = ttsHealth?.ok ?? false;
+      if (!anthropicAvailable || !narrationAvailable) {
         if (showDegradedServiceBanner) {
           setApiHealthBanner({
             status: 'degraded',
             anthropic: anthropicAvailable,
-            azure: azureAvailable,
+            narration: narrationAvailable,
             message: 'Using local services' +
               (!anthropicAvailable ? ' (Claude unavailable)' : '') +
-              (!azureAvailable ? ' (narration voice unavailable)' : '')
+              (!narrationAvailable ? ' (narration voice unavailable)' : '')
           });
           setConnectionBanner({
             status: 'degraded',
@@ -996,7 +996,7 @@ export default function TarotReading() {
               ) : (
                 <>
                   {!apiHealthBanner.anthropic && <div>• Claude AI: Using local composer</div>}
-                  {!apiHealthBanner.azure && <div>• Azure TTS: Using local audio</div>}
+                  {!apiHealthBanner.narration && <div>• Reader voice: Narration temporarily unavailable</div>}
                   <div className="mt-1">All readings remain fully functional with local fallbacks.</div>
                 </>
               )}
