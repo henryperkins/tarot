@@ -211,7 +211,9 @@ export function MarkdownRenderer({
   wordBoundary = null,
   variant = 'default',
   headingBaseLevel = null,
-  className = ''
+  className = '',
+  extraRemarkPlugins = null,
+  renderParagraphLead = null
 }) {
   if (!content || typeof content !== 'string') {
     return null;
@@ -287,6 +289,11 @@ export function MarkdownRenderer({
   );
 
   const wrapperClassName = [styles.wrapper, className].filter(Boolean).join(' ');
+  const remarkPlugins = [
+    remarkGfm,
+    ...(hasHeadingContext ? [readHeadingContext] : []),
+    ...(Array.isArray(extraRemarkPlugins) ? extraRemarkPlugins : [])
+  ];
 
   return (
     // max-w-prose ensures 65-75 character line length for optimal readability
@@ -294,14 +301,17 @@ export function MarkdownRenderer({
     <div className={wrapperClassName}>
       <div className={styles.inner}>
         <ReactMarkdown
-          remarkPlugins={hasHeadingContext ? [remarkGfm, readHeadingContext] : [remarkGfm]}
+          remarkPlugins={remarkPlugins}
           skipHtml
           components={{
           ...headingComponents,
           p: ({ node: _node, ...props }) => {
             bumpBlockCursor();
+            // A caller may set something into the paragraph ahead of its text.
+            const lead = renderParagraphLead ? renderParagraphLead(props) : null;
             return (
-              <p {...props} className={styles.paragraph}>
+              <p {...props} className={lead ? `${styles.paragraph} reading-plate-paragraph` : styles.paragraph}>
+                {lead}
                 {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
               </p>
             );

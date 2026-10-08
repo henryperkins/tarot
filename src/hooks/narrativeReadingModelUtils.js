@@ -1,5 +1,6 @@
-import { getOrientationMeaning } from '../lib/cardLookup.js';
+import { getCardForDeck, getOrientationMeaning } from '../lib/cardLookup.js';
 import { getNarrationLabels } from '../components/reading/narrative/narrationLabels.js';
+import { extractShortLabel } from '../components/readingBoardUtils.js';
 
 export function getResolvedQuestion(userQuestion) {
   if (typeof userQuestion !== 'string') return 'General guidance';
@@ -27,6 +28,41 @@ export function buildNarrativeHighlightPhrases({ reading, visibleCount }) {
     .filter(Boolean);
 
   return Array.from(new Set(names));
+}
+
+// Each deck prints its cards at its own proportions, and some Thoth scans are
+// loose crops, so the reading frames card art at the deck's card shape.
+const CARD_FRAMES = { 'rws-1909': '100 / 172', 'thoth-a1': '3 / 5', 'marseille-classic': '16 / 31' };
+
+/**
+ * The revealed spread as the reading surface shows it beside the narrative:
+ * the selected deck's names and art, with canonical identity kept for matching.
+ */
+export function buildSpreadCompanionCards({ reading, visibleCount, spreadPositions = [], deckStyleId, revealedCards = null }) {
+  if (!Array.isArray(reading) || visibleCount === 0) return [];
+
+  return reading
+    .slice(0, visibleCount)
+    .map((card, index) => {
+      if (!card || (revealedCards && typeof revealedCards.has === 'function' && !revealedCards.has(index))) return null;
+      const deckCard = getCardForDeck(card, deckStyleId);
+      const position = spreadPositions[index] || `Position ${index + 1}`;
+      return {
+        index,
+        name: deckCard.name,
+        canonicalName: deckCard.canonicalName,
+        image: deckCard.image,
+        frame: CARD_FRAMES[deckStyleId] || CARD_FRAMES['rws-1909'],
+        isReversed: Boolean(card.isReversed),
+        number: deckCard.number ?? null,
+        suit: deckCard.suit ?? null,
+        rank: deckCard.rank ?? null,
+        rankValue: deckCard.rankValue ?? null,
+        positionLabel: extractShortLabel(position, 40) || position,
+        shortLabel: extractShortLabel(position, 28) || `Card ${index + 1}`
+      };
+    })
+    .filter(Boolean);
 }
 
 export function buildStoryArtCards({ reading, visibleCount, spreadPositions = [] }) {
@@ -189,7 +225,9 @@ export function buildNarrativePanelModel({
   journalStatus,
   shouldShowJournalNudge,
   hasHeroStoryArt,
-  isMobileStableMode
+  isMobileStableMode,
+  spreadCards = [],
+  cardLinkCatalog = null
 }) {
   const hasNarrativeContext = Boolean(personalReading && !isPersonalReadingError);
   const narrationState = ttsState?.status || 'idle';
@@ -229,6 +267,9 @@ export function buildNarrativePanelModel({
     isNarrativeFocus,
     ttsState,
     journalStatus,
+    spreadCards,
+    cardLinkCatalog,
+    isMobileStableMode: Boolean(isMobileStableMode),
     controlsModel: {
       show: hasNarrativeContext,
       canNarrate,
