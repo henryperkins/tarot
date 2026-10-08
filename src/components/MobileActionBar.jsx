@@ -3,7 +3,6 @@ import { Gear, Sparkle, ArrowsClockwise, ChatCircle } from '@phosphor-icons/reac
 import { useLandscape } from '../hooks/useLandscape';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { getReadingTableAction } from './readingBoardUtils';
-import { InstallApp } from './InstallApp';
 import {
   MOBILE_SETTINGS_DIALOG_ID,
   MOBILE_COACH_DIALOG_ID,
@@ -54,6 +53,7 @@ function ActionButton({
   const heightClass = variant === 'primary' && !isLandscape ? 'min-h-cta' : 'min-h-touch';
   const textSize = isLandscape ? 'text-xs' : 'text-sm';
   const nowrapClass = isLandscape ? 'whitespace-nowrap' : '';
+  const focusOffsetClass = isLandscape ? 'focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-surface)]' : '';
 
   return (
     <button
@@ -64,7 +64,6 @@ function ActionButton({
         onClick?.(event);
       }}
       data-reading-primary={readingTableAction || undefined}
-      data-mobile-primary={variant === 'primary' || undefined}
       onKeyDown={event => {
         if (readingTableAction && event.key === 'Enter' && event.repeat) event.preventDefault();
       }}
@@ -78,6 +77,7 @@ function ActionButton({
         gap-1.5
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
         ${nowrapClass}
+        ${focusOffsetClass}
         ${className}
       `}
     >
@@ -87,17 +87,26 @@ function ActionButton({
   );
 }
 
+function revealAction(group, action) {
+  if (!group?.isConnected || !action || !group.contains(action) || group.scrollWidth <= group.clientWidth) return;
+  const groupBounds = group.getBoundingClientRect();
+  const actionBounds = action.getBoundingClientRect();
+  const ringInset = 4;
+  if (actionBounds.right + ringInset > groupBounds.right) {
+    group.scrollLeft += Math.ceil(actionBounds.right + ringInset - groupBounds.right);
+  } else if (actionBounds.left - ringInset < groupBounds.left) {
+    group.scrollLeft += Math.floor(actionBounds.left - ringInset - groupBounds.left);
+  }
+}
+
 function revealFocusedAction(event) {
   const group = event.currentTarget;
   const action = event.target.closest('button');
-  if (!action || group.scrollWidth <= group.clientWidth) return;
-  const groupBounds = group.getBoundingClientRect();
-  const actionBounds = action.getBoundingClientRect();
-  if (actionBounds.right > groupBounds.right) {
-    group.scrollLeft += actionBounds.right - groupBounds.right;
-  } else if (actionBounds.left < groupBounds.left) {
-    group.scrollLeft += actionBounds.left - groupBounds.left;
-  }
+  revealAction(group, action);
+  // WebKit may dispatch focus before resized text updates scrollWidth.
+  requestAnimationFrame(() => {
+    if (document.activeElement === action) revealAction(group, action);
+  });
 }
 
 function MobileActionContents({
@@ -129,6 +138,7 @@ function MobileActionContents({
   coachDialogId = MOBILE_COACH_DIALOG_ID
 }) {
   const isLandscape = useLandscape();
+  const actionGroupRef = useRef(null);
   const readingLength = reading?.length || 0;
   const revealedCount = revealedCards?.size || 0;
   const allRevealed = readingLength > 0 && revealedCount === readingLength;
@@ -147,13 +157,33 @@ function MobileActionContents({
     isGenerating,
     isError
   }), [isShuffling, reading, revealedCount, allRevealed, needsNarrative, hasNarrative, isGenerating, isError]);
+
+  useEffect(() => {
+    const group = actionGroupRef.current;
+    if (!isLandscape || variant === 'inline' || !group) return undefined;
+    let frame;
+    const reveal = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => revealAction(group, document.activeElement?.closest('button')));
+    };
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(reveal) : null;
+    observer?.observe(group);
+    // Fonts and larger text can resize actions without resizing their scroller.
+    group.querySelectorAll('button').forEach(button => observer?.observe(button));
+    if (!observer) window.addEventListener('resize', reveal);
+    return () => {
+      observer?.disconnect();
+      cancelAnimationFrame(frame);
+      if (!observer) window.removeEventListener('resize', reveal);
+    };
+  }, [isLandscape, mode, variant]);
   const tableAction = getReadingTableAction({ isSpreadDealt, revealedCards: revealedCards || new Set(), totalCards: readingLength, positions: spreadPositions });
 
   // In landscape: tighter layout with smaller gaps
   const layoutClass = variant === 'inline'
     ? 'flex flex-col gap-2 w-full'
     : isLandscape
-      ? 'flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-none'
+      ? 'flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-none p-1'
       : 'flex flex-wrap gap-2';
 
   const actions = renderActions(mode, {
@@ -182,12 +212,7 @@ function MobileActionContents({
 
   if (variant === 'inline') return <div className={layoutClass}>{actions}</div>;
 
-  return (
-    <div className="mobile-action-layout">
-      <div className={`${layoutClass} mobile-action-tasks`} onFocus={isLandscape ? revealFocusedAction : undefined}>{actions}</div>
-      <InstallApp compact fallbackFocusSelector='[aria-label="Primary mobile actions"] [data-mobile-primary]:not(:disabled), [aria-label="Primary mobile actions"]:not(:has([data-mobile-primary]:not(:disabled)))' />
-    </div>
-  );
+  return <div ref={actionGroupRef} className={layoutClass} onFocus={isLandscape ? revealFocusedAction : undefined}>{actions}</div>;
 }
 
 function withStepContext(label, stepIndicatorLabel) {
@@ -280,7 +305,7 @@ function renderActions(mode, options) {
               className={`${widthClasses.coach} ${px}`}
               isLandscape={isLandscape}
             >
-              <span className="mobile-action-coach-label">Coach</span>
+              Coach
             </ActionButton>
           )}
           <ActionButton

@@ -69,6 +69,19 @@ function focusableElements(container) {
   });
 }
 
+export function restoreFocusTarget(target, { preventScroll = true } = {}) {
+  if (!target) return;
+  target.focus({ preventScroll: true });
+  if (preventScroll) return;
+  const bounds = target.getBoundingClientRect();
+  const viewportHeight = target.ownerDocument.defaultView.innerHeight;
+  // A page-sized fallback should keep the reader at the page end. Smaller
+  // controls can be brought back into view without jumping to the page top.
+  if (bounds.height <= viewportHeight && (bounds.top < 0 || bounds.bottom > viewportHeight)) {
+    target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+}
+
 /** Shared focus/scroll ownership; background isolation is opt-in. */
 export function useModalA11y(isOpen, {
   onClose,
@@ -85,6 +98,9 @@ export function useModalA11y(isOpen, {
   returnFocusRef = null,
   initialFocusSelector = null,
   fallbackFocusSelector = null,
+  fallbackFocusRef = null,
+  getFallbackFocus = null,
+  fallbackFocusPreventScroll = true,
   isolateBackground: shouldIsolateBackground = false
 } = {}) {
   const previousFocusRef = useRef(null);
@@ -94,7 +110,7 @@ export function useModalA11y(isOpen, {
   useBodyScrollLock(isOpen && lockScroll, { strategy: scrollLockStrategy });
 
   useClientLayoutEffect(() => {
-    optionsRef.current = { onClose, trapFocus, closeOnEscape, initialFocusSelector, fallbackFocusSelector };
+    optionsRef.current = { onClose, trapFocus, closeOnEscape, initialFocusSelector, fallbackFocusSelector, fallbackFocusRef, getFallbackFocus, fallbackFocusPreventScroll };
   });
 
   useClientLayoutEffect(() => {
@@ -173,10 +189,11 @@ export function useModalA11y(isOpen, {
         // invalidates this restoration, so it cannot steal its focus.
         restoreTimerRef.current = setTimeout(() => {
           if (modalRevision !== closeRevision) return;
-          const fallback = optionsRef.current.fallbackFocusSelector
-            ? document.querySelector(optionsRef.current.fallbackFocusSelector) : null;
+          const options = optionsRef.current;
+          const fallback = options.getFallbackFocus?.() || options.fallbackFocusRef?.current
+            || (options.fallbackFocusSelector ? document.querySelector(options.fallbackFocusSelector) : null);
           const target = isAvailable(opener) ? opener : isAvailable(fallback) ? fallback : topModal()?.container;
-          target?.focus({ preventScroll: true });
+          restoreFocusTarget(target, { preventScroll: target === fallback ? options.fallbackFocusPreventScroll : true });
           previousFocusRef.current = null;
         }, 0);
       }

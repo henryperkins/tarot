@@ -1,4 +1,5 @@
 import './GovernanceCritiquePage.css';
+import { InstallFooter } from '../components/InstallFooter';
 
 const LAYERS = [
   { label: 'prompt: no invented cards', soft: true },
@@ -345,6 +346,7 @@ export default function GovernanceCritiquePage() {
             <b>Two checkpoints shipped</b> - DP1 (early crisis routing, English-first), DP2 (selective enforcement)
           </span>
         </div>
+        <InstallFooter />
       </div>
     </main>
   );

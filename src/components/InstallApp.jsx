@@ -2,11 +2,12 @@ import { useCallback, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Export, Plus, X } from '@phosphor-icons/react';
 import { usePwaInstall } from '../hooks/usePwaInstall';
-import { createBackdropHandler, useModalA11y } from '../hooks/useModalA11y';
+import { createBackdropHandler, restoreFocusTarget, useModalA11y } from '../hooks/useModalA11y';
+import { useToast } from '../contexts/ToastContext';
+import { pwaInstallStore, shouldShowPwaInstall } from '../lib/pwaInstall';
+import '../styles/pwa-install.css';
 
-const DEFAULT_FOCUS_SELECTOR = '[aria-label="Primary navigation"] button';
-
-function HomeScreenInstructions({ onClose, returnFocusRef, fallbackFocusSelector }) {
+function HomeScreenInstructions({ onClose, onLater, onAlreadyAdded, returnFocusRef, fallbackFocusRef, getFallbackFocus, preventFocusScroll }) {
   const containerRef = useRef(null);
   const closeRef = useRef(null);
   const titleId = useId();
@@ -17,7 +18,9 @@ function HomeScreenInstructions({ onClose, returnFocusRef, fallbackFocusSelector
     containerRef,
     initialFocusRef: closeRef,
     returnFocusRef,
-    fallbackFocusSelector,
+    fallbackFocusRef,
+    getFallbackFocus,
+    fallbackFocusPreventScroll: preventFocusScroll,
     isolateBackground: true
   });
 
@@ -56,30 +59,58 @@ function HomeScreenInstructions({ onClose, returnFocusRef, fallbackFocusSelector
           <li>Keep <strong>Open as Web App</strong> on if shown, then tap <strong>Add</strong>.</li>
         </ol>
         <p className="mt-5 text-sm leading-relaxed text-muted">If the option is missing, scroll down in the Share menu and choose Edit Actions to add it.</p>
+        <div className="mt-6 flex flex-wrap gap-2 border-t border-secondary/30 pt-4">
+          <button
+            type="button"
+            onClick={onLater}
+            className="inline-flex min-h-touch flex-1 items-center justify-center rounded-xl border border-accent/30 bg-surface-muted px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+          >
+            Later
+          </button>
+          <button
+            type="button"
+            onClick={onAlreadyAdded}
+            className="inline-flex min-h-touch flex-1 items-center justify-center rounded-xl border border-accent/30 bg-surface-muted px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+          >
+            Already added
+          </button>
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-muted">Later pauses this reminder for seven days. Already added hides it on this browser.</p>
       </section>
     </div>,
     document.body
   );
 }
 
-export function InstallApp({ compact = false, fallbackFocusSelector = DEFAULT_FOCUS_SELECTOR }) {
-  const { canPrompt, isIOS, isInstalled, isPrompting, error, requestInstall } = usePwaInstall();
+export function InstallApp({ fallbackFocusRef, getFallbackFocus, preventFocusScroll = false }) {
+  const { canPrompt, isIOS, isInstalled, isPrompting, isSnoozed, hasAddedToHomeScreen, error, requestInstall, snoozeGuidance, dismissGuidance } = usePwaInstall();
+  const { publish } = useToast();
   const [showInstructions, setShowInstructions] = useState(false);
   const buttonRef = useRef(null);
   const installFocusRef = useRef(null);
   const closeInstructions = useCallback(() => setShowInstructions(false), []);
+  const handleGuidanceChoice = action => {
+    setShowInstructions(false);
+    const { persisted } = action();
+    if (persisted) return;
+    publish({
+      type: 'info',
+      title: 'Hidden for this visit',
+      description: 'Your browser could not save this choice. The install control may return when you reopen Tableu.'
+    });
+  };
 
   // Native prompts consume their button. Restore a keyboard user's place after
   // React removes it, unless they have already focused another control.
   useLayoutEffect(() => {
     if (isPrompting || !installFocusRef.current) return;
     const { ownedFocus } = installFocusRef.current;
-    const target = document.querySelector(fallbackFocusSelector) || document.querySelector(DEFAULT_FOCUS_SELECTOR);
+    const target = getFallbackFocus?.() || fallbackFocusRef?.current;
     installFocusRef.current = null;
     if (ownedFocus && document.activeElement === document.body && target?.isConnected) {
-      target.focus({ preventScroll: true });
+      restoreFocusTarget(target, { preventScroll: preventFocusScroll });
     }
-  }, [canPrompt, isPrompting, isInstalled, error, fallbackFocusSelector]);
+  }, [canPrompt, isPrompting, isInstalled, error, fallbackFocusRef, getFallbackFocus, preventFocusScroll]);
 
   const handleInstall = () => {
     if (isIOS) {
@@ -90,37 +121,51 @@ export function InstallApp({ compact = false, fallbackFocusSelector = DEFAULT_FO
     installFocusRef.current = {
       ownedFocus: document.activeElement === button
     };
-    requestInstall();
+    // requestInstall calls the native prompt before its first await, preserving
+    // this click's activation. Publish a transient error only for this request.
+    requestInstall().then(() => {
+      if (!pwaInstallStore.getSnapshot().error) return;
+      publish({
+        type: 'error',
+        title: 'Installation could not start',
+        description: 'You can add Tableu from your browser menu.'
+      });
+    });
   };
 
-  if (isInstalled || (!isIOS && !canPrompt && !isPrompting && !error)) return null;
+  if (!shouldShowPwaInstall({ isInstalled, isIOS, canPrompt, isPrompting, isSnoozed, hasAddedToHomeScreen })) return null;
 
   return (
-    <div data-pwa-install-slot={compact || undefined} className={`flex max-w-full flex-wrap items-center gap-2 ${compact ? 'h-11 w-11 shrink-0 self-end' : ''}`}>
-      {(isIOS || canPrompt || isPrompting) && (
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={handleInstall}
-          disabled={isPrompting}
-          aria-busy={isPrompting || undefined}
-          aria-haspopup={isIOS ? 'dialog' : undefined}
-          aria-label={isIOS ? 'Add to Home Screen' : 'Install Tableu'}
-          title={isIOS ? 'Add to Home Screen' : 'Install Tableu'}
-          data-pwa-install
-          className={`inline-flex min-h-touch items-center justify-center gap-2 rounded-lg text-muted transition-colors hover:bg-surface-muted hover:text-main disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main ${compact ? 'h-11 w-11' : 'px-2 py-2 text-sm font-medium'}`}
-        >
-          <span className="relative flex h-7 w-7 shrink-0 items-center justify-center" aria-hidden="true">
-            <svg viewBox="-10 -10 220 270" className="h-6 w-6">
-              <use href="#tableu-favicon" />
-            </svg>
-            <Plus weight="bold" className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 text-primary" />
-          </span>
-          {!compact && <span>{isIOS ? 'Home Screen' : 'Install Tableu'}</span>}
-        </button>
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={handleInstall}
+        disabled={isPrompting}
+        aria-busy={isPrompting || undefined}
+        aria-haspopup={isIOS ? 'dialog' : undefined}
+        aria-label={isIOS ? 'Add to Home Screen' : 'Install Tableu'}
+        title={isIOS ? 'Add to Home Screen' : 'Install Tableu'}
+        data-pwa-install
+        className="pwa-install-button inline-flex min-h-touch items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium text-accent disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+      >
+        <span className="relative flex h-7 w-7 shrink-0 items-center justify-center" aria-hidden="true">
+          <img src="/icons/icon-maskable-512.png" width="28" height="28" alt="" className="h-7 w-7 rounded-md" />
+          <Plus weight="bold" className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 text-primary" />
+        </span>
+        <span>{isIOS ? 'Home Screen' : 'Install Tableu'}</span>
+      </button>
+      {showInstructions && (
+        <HomeScreenInstructions
+          onClose={closeInstructions}
+          onLater={() => handleGuidanceChoice(snoozeGuidance)}
+          onAlreadyAdded={() => handleGuidanceChoice(dismissGuidance)}
+          returnFocusRef={buttonRef}
+          fallbackFocusRef={fallbackFocusRef}
+          getFallbackFocus={getFallbackFocus}
+          preventFocusScroll={preventFocusScroll}
+        />
       )}
-      {error && <p role="status" className={`text-sm text-muted ${compact ? 'absolute inset-x-4 bottom-full mb-2 ml-auto max-w-xs rounded-lg border border-secondary/40 bg-surface p-3 shadow-lg' : 'max-w-xs'}`}>{error}</p>}
-      {showInstructions && <HomeScreenInstructions onClose={closeInstructions} returnFocusRef={buttonRef} fallbackFocusSelector={fallbackFocusSelector} />}
-    </div>
+    </>
   );
 }

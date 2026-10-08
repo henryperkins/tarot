@@ -573,13 +573,6 @@ body {
   }
 }
 
-.app-shell {
-  /* Account for fixed mobile action bar when visible */
-  padding-bottom: calc(
-    1.5rem + var(--mobile-action-bar-height, 0px) + var(--keyboard-offset, 0px)
-  );
-}
-
 .pb-safe-action {
   padding-bottom: calc(
     max(1rem, var(--safe-pad-bottom, 0px)) +
@@ -755,15 +748,6 @@ body {
 
 /* Light ambient colors defined in main :root block at top of file */
 
-@supports (padding: max(0px)) {
-  .app-shell {
-    padding-bottom: calc(
-      1.5rem + var(--safe-pad-bottom, 0px) + var(--mobile-action-bar-height, 0px) +
-        var(--keyboard-offset, 0px)
-    );
-  }
-}
-
 .mobile-action-bar {
   position: fixed;
   left: 0;
@@ -776,24 +760,6 @@ body {
   backdrop-filter: blur(18px);
   border-top: 1px solid var(--accent-65, rgba(232, 218, 195, 0.65));
   transition: bottom var(--duration-fast, 180ms) ease-out;
-}
-
-.mobile-action-layout {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.5rem;
-}
-
-.mobile-action-tasks {
-  flex: 1;
-  min-width: 0;
-  container-type: inline-size;
-}
-
-@container (max-width: 16rem) {
-  .mobile-action-coach-label {
-    display: none;
-  }
 }
 
 .mobile-action-group {
@@ -893,14 +859,6 @@ body {
 
   .header-sticky__row {
     gap: 0.5rem;
-  }
-
-  /* Reduce spacing between content sections */
-  .app-shell {
-    padding-bottom: calc(
-      0.75rem + var(--safe-pad-bottom, 0px) +
-        var(--mobile-action-bar-height, 0px) + var(--keyboard-offset, 0px)
-    );
   }
 
   /* Smaller deck pile in landscape */

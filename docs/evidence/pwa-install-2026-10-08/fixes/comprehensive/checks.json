@@ -1,0 +1,151 @@
+{
+  "asset": "/assets/app-DBO6rHdL.js",
+  "unit": {
+    "passed": 2942,
+    "failed": 0,
+    "installStoreTests": 38,
+    "finalRaisedStyleRun": true,
+    "freshPrePushRun": {
+      "passed": 2942,
+      "failed": 0
+    }
+  },
+  "productionInstall": {
+    "status": "passed",
+    "cases": 75,
+    "passed": 75,
+    "failed": 0,
+    "server": "production preview",
+    "asset": "/assets/app-DBO6rHdL.js",
+    "workers": 1,
+    "durationMinutes": 4.4,
+    "sourceTestsAssertionsTimeoutsMediaSettingsUnchanged": true,
+    "precedingConcurrentRun": {
+      "passed": 72,
+      "failed": 3,
+      "causeEvidence": "WebKit frame waits exhausted preparation deadlines under concurrent rendering; all same cases passed unchanged in the isolated production run."
+    }
+  },
+  "webkitRepeatGate": {
+    "passed": 15,
+    "failed": 0,
+    "repeatsPerCase": 5,
+    "asset": "/assets/app-se2wwOEh.js",
+    "stage": "Before the final raised-surface visual refinement; same focus/ring logic."
+  },
+  "stateBrowserChecks": {
+    "passed": 72,
+    "failed": 0,
+    "server": "Vite frontend",
+    "engines": [
+      "Chromium",
+      "WebKit"
+    ],
+    "stage": "Before final raised-surface refinement; page state logic unchanged afterward."
+  },
+  "fullRepositoryE2E": {
+    "status": "complete; all three new parallel-run failures passed unchanged isolated checks",
+    "cases": 564,
+    "passed": 522,
+    "failed": 23,
+    "skipped": 19,
+    "cachedOriginalPrBaselineFailures": 20,
+    "newCasesRequiringIsolation": 3,
+    "sourceFrozen": true,
+    "server": "private Vite frontend",
+    "classification": "full-suite.json",
+    "followUp": {
+      "journalPreparationCases": {
+        "passed": 2,
+        "failed": 0,
+        "includedInProductionInstall75": true,
+        "testsAndAssertionsUnchanged": true,
+        "diagnostic": "Captured 14\u201315.5 second WebKit frame waits exhausted parallel preparation deadlines while the controls were mounted."
+      },
+      "accountThemeCase": {
+        "passed": 3,
+        "failed": 0,
+        "server": "same Vite5174 configuration as full run",
+        "workers": 1,
+        "durationSeconds": 33.5,
+        "testsUnchanged": true
+      },
+      "remainingFailedCases": 20,
+      "remainingFailuresMatchCachedOriginalPrHead": true
+    }
+  },
+  "build": {
+    "entry": "dist/assets/app-DBO6rHdL.js",
+    "rawBytes": 305166,
+    "gzipBytes": 101670,
+    "sha256": "c0f6b6559b273f79a1ed38fa1fa8c89c7b88f18b35526ef91990dad54afcbd19",
+    "reviewedPrRawBytes": 317317,
+    "baselineRawBytes": 300511,
+    "lazyGuide": "dist/assets/InstallApp-Cb4MJfeK.js",
+    "lazyInstallCSS": [
+      "InstallApp-Cnykkbsa.css"
+    ],
+    "freshPrePushReproducesVerifiedAsset": true
+  },
+  "scopedLint": {
+    "passed": true
+  },
+  "repositoryLint": {
+    "errors": 117,
+    "warnings": 36,
+    "allDiagnosticFilesUnchangedFromHead": true
+  },
+  "localProReview": {
+    "tier": "pro",
+    "status": "active",
+    "engine": "Chromium",
+    "viewport": "390x844",
+    "routes": [
+      "/pricing",
+      "/journal",
+      "/account",
+      "/journal/gallery"
+    ],
+    "fiveHitPointsPassedOnEach": true,
+    "logoutStatus": 200,
+    "asset": "/assets/app-DBO6rHdL.js"
+  },
+  "limitations": [
+    "No physical iOS/Android device installation or mobile screen reader testing.",
+    "Full repository lint retains 117 errors and 36 warnings, all in files unchanged from HEAD.",
+    "Full E2E run retains 20 reproduced original PR-head baseline failures; raw full results are preserved alongside unchanged isolated follow-up checks."
+  ],
+  "raisedStyleDetector": {
+    "findings": 0
+  },
+  "raisedButton": {
+    "contexts": 8,
+    "stateCaptures": 32,
+    "engines": [
+      "Chromium",
+      "WebKit"
+    ],
+    "themes": [
+      "dark",
+      "light"
+    ],
+    "viewports": [
+      "320x568",
+      "desktop"
+    ],
+    "minimumTextContrast": {
+      "dark": 6.323,
+      "light": 4.75
+    },
+    "geometryStableAcrossStates": true,
+    "pressedShadowCompresses": true,
+    "focusRingRetained": true
+  },
+  "layoutCaptures": {
+    "passed": 23,
+    "failed": 0,
+    "asset": "/assets/app-DBO6rHdL.js",
+    "finalPassPageErrors": 0,
+    "earlierResizeObserverWarningRecordedInMetrics": true
+  }
+}

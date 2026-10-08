@@ -9,10 +9,9 @@ import { ReadingProvider } from './contexts/ReadingContext.jsx';
 import { ToastProvider } from './contexts/ToastContext.jsx';
 import { AnimatedRoutes } from './components/AnimatedRoutes.jsx';
 import { SkipLink } from './components/SkipLink.jsx';
-import { InstallFooter } from './components/InstallFooter.jsx';
 import { initializePwaInstall } from './lib/pwaInstall';
 
-// Capture the browser's install offer before lazy routes mount their controls.
+// Observe install state from startup; routes without a host keep native offers.
 initializePwaInstall();
 
 // Queue early errors that occur before Sentry loads
@@ -85,7 +84,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <BrowserRouter>
                 <SkipLink />
                 <AnimatedRoutes />
-                <InstallFooter />
               </BrowserRouter>
             </ToastProvider>
           </ReadingProvider>

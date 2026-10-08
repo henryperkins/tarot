@@ -30,7 +30,7 @@ import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
 import { GlobalNav } from '../components/GlobalNav';
-import { InstallApp } from '../components/InstallApp';
+import { InstallFooter } from '../components/InstallFooter';
 import AuthModal from '../components/AuthModal';
 import { MobileInfoSection } from '../components/MobileInfoSection';
 import { useToast } from '../contexts/ToastContext';
@@ -741,13 +741,13 @@ export default function PricingPage() {
     measure();
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
     observer?.observe(bar);
-    window.addEventListener('resize', measure);
+    if (!observer) window.addEventListener('resize', measure);
     return () => {
       observer?.disconnect();
-      window.removeEventListener('resize', measure);
+      if (!observer) window.removeEventListener('resize', measure);
       page.style.removeProperty('--pricing-upgrade-height');
     };
-  }, [showMobileSticky, billingInterval]);
+  }, [showMobileSticky]);
 
   return (
     <div ref={pageRef} className="min-h-screen bg-main text-main">
@@ -761,7 +761,7 @@ export default function PricingPage() {
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 pb-[max(6rem,calc(var(--pricing-upgrade-height,0px)+1.5rem))] pt-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] pb-[max(6rem,calc(var(--pricing-upgrade-height,0px)+1.5rem))] pt-8">
         {/* Hero */}
         <section className="mb-10 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)] lg:items-center">
           <div className="min-w-0 space-y-6 [overflow-wrap:anywhere]">
@@ -1134,6 +1134,7 @@ export default function PricingPage() {
             {restoreLoading ? 'Restoring purchases…' : 'Restore purchases'}
           </button>
         </section>
+        <InstallFooter />
       </main>
 
       {/* Sticky mobile CTA */}
@@ -1163,7 +1164,6 @@ export default function PricingPage() {
                 )}
               </button>
             </div>
-            <InstallApp compact fallbackFocusSelector='[aria-label="Plan upgrade"] button:not([data-pwa-install]):not(:disabled), [aria-label="Plan upgrade"]:not(:has(button:not([data-pwa-install]):not(:disabled)))' />
           </div>
         </section>
       )}

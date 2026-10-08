@@ -7,5 +7,10 @@ export function usePwaInstall() {
     pwaInstallStore.getSnapshot,
     pwaInstallStore.getServerSnapshot
   );
-  return { ...snapshot, requestInstall: pwaInstallStore.requestInstall };
+  return {
+    ...snapshot,
+    requestInstall: pwaInstallStore.requestInstall,
+    snoozeGuidance: pwaInstallStore.snoozeGuidance,
+    dismissGuidance: pwaInstallStore.dismissGuidance
+  };
 }

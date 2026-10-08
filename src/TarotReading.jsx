@@ -10,6 +10,7 @@ import { formatReading } from './lib/formatting';
 import { readingMetadataFromEntry } from './lib/readingMetadata';
 import { QuickIntentionCard } from './components/QuickIntentionCard';
 import { Header } from './components/Header';
+import { InstallFooter } from './components/InstallFooter';
 import { OnboardingWizard } from './components/onboarding';
 import { PersonalizationBanner } from './components/PersonalizationBanner';
 import { GestureCoachOverlay } from './components/GestureCoachOverlay';
@@ -772,10 +773,10 @@ export default function TarotReading() {
   const connectionBg = connectionBanner?.status === 'offline'
     ? 'bg-error/10'
     : 'bg-primary/10';
-  const handsetPaddingBottom = isHandset && showSetupSection && !suppressFocusInterruptions
-    ? (isLandscape
-      ? 'max(6rem, calc(var(--mobile-action-bar-height, 0px) + 1rem))'
-      : 'max(8rem, calc(var(--mobile-action-bar-height, 0px) + 1.5rem))')
+  // The page owns dock clearance once, including its final install action.
+  // Stacking shell and main padding can scroll that action behind the header.
+  const handsetPaddingBottom = isHandset
+    ? `calc(${isLandscape ? '0.75rem' : '1.5rem'} + var(--mobile-action-bar-height, 0px) + var(--keyboard-offset, 0px))`
     : null;
   const mainContentSpacing = isLandscape
     ? 'pt-3 pb-24 lg:pb-8'
@@ -1084,6 +1085,7 @@ export default function TarotReading() {
             />
           </section>
         ))}
+        <InstallFooter />
       </main>
 
       {canShowFollowUp && (
