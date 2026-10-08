@@ -318,7 +318,7 @@ function resolveCardSpecificClause(entry, cardInfo = {}) {
 - `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` and `userPrompt.js` (forwarding);
 - `functions/lib/narrative/prompts/userContext.js:43` (`parseUserContext`);
 - `functions/lib/narrative/prompts/truncation.js:465–490` (hard-cap rebuild);
-- `functions/lib/promptEngineering.js:410` (`buildReadingRedactionOptions`, called at `tarot-reading.js:460` and `narrativeBackends.js:746`);
+- `functions/lib/promptEngineering.js:410` (`buildReadingRedactionOptions`, called at `tarot-reading.js:460` and `narrativeBackends.js:746`) and the `buildPromptEngineeringPayload` call at `tarot-reading.js:596`;
 - the local fallback builder `functions/lib/narrative/spreads/decision.js` (`buildDecisionReading`).
 
 **Size:** S for the rule, M for labels.
@@ -344,11 +344,13 @@ const describePath = (source, label) => (label ? renderUserContext(source, label
 out += `**Paths**: Path A: ${describePath('pathA', decisionPaths?.a)}; Path B: ${describePath('pathB', decisionPaths?.b)}.\n`;
 ```
 
-- [ ] Make `parseUserContext` recognize `pathA` and `pathB`, and have `truncateUserPromptSafely` restore them after hard-cap truncation. Today that step strips every line holding a `<user_context>` block and rebuilds every source other than the question and reflections as `Reflection for card N`; `pathA` would come back as card 1. Give the paths their own branch that re-renders the single `**Paths**:` line, using "no separate label" for a missing one.
+- [ ] Make `parseUserContext` recognize `pathA` and `pathB` (its source pattern becomes `question|reflections|card-\d+|pathA|pathB`), and have `truncateUserPromptSafely` restore them after hard-cap truncation. Today that step strips every line holding a `<user_context>` block and rebuilds every source other than the question and reflections as `Reflection for card N`; `pathA` would come back as card 1. Give the paths their own branch that re-renders the single `**Paths**:` line, using "no separate label" for a missing one.
 - [ ] Extend the request schema: `decisionPaths: z.object({ a: optionalCleanString(80), b: optionalCleanString(80) }).optional()`.
 - [ ] Give the evaluator the same facts. Pass the sanitized labels, or at least which paths were named, through `evalParams` into the evaluator's user template. Append to the decision hint: "If the querent did not name a path, treat concrete content assigned to it as a coherence flaw." Bump `EVAL_PROMPT_VERSION` to `2.5.0`.
 - [ ] Carry the labels through the local fallback: `generateReadingFromAnalysis` passes them to `buildDecisionReading`, which uses them in place of the generic Path A and Path B wording.
-- [ ] Add both labels to the redaction sources: `buildReadingRedactionOptions` takes them as extra text sources, as it does memories. Stored prompts already replace every `<user_context>` block, but a name that appears only in a label ("Take Alice's offer") and is echoed by the reading would otherwise be stored unredacted: in the evaluation payload, whose redaction names come from these sources, and in the persisted response when `PERSIST_PROMPTS` is on.
+- [ ] Add both labels to the redaction sources. Stored prompts already replace every `<user_context>` block, but a name that appears only in a label ("Take Alice's offer") and is echoed by the reading would otherwise be stored unredacted.
+  - `buildReadingRedactionOptions` takes the labels as extra text sources, as it does memories. Its result supplies the evaluation payload's redaction names.
+  - `finalizeReading` also passes that result (`readingRedactionOptions`) to `buildPromptEngineeringPayload` as `redactionOptions`. Today that call builds its options from the question, reflections and personalization alone, so with `PERSIST_PROMPTS` on, a name found only in a label or a memory survives redaction. Memory text is plain prompt text, not a `<user_context>` block, so it reaches the stored prompt as well as the response.
 - [ ] **Done when:**
   - invariant 5 passes;
   - injection strings in labels are filtered;
@@ -370,24 +372,30 @@ out += `**Paths**: Path A: ${describePath('pathA', decisionPaths?.a)}; Path B: $
 // Tune this to the real phrasing found in Task 0.
 // Ages of one to three digits; "turns 3 cards" is not an age.
 const PERSONAL_DETAIL_PATTERN = /\b(?:\d{1,3}\s*(?:years?\s*old|y\/?o)|age[ds]?\s*\d{1,3}|turn(?:ed|ing|s)?\s+\d{1,3}\b(?!\s*cards?)|birthday)\b/i;
-// Function words and the age words themselves don't count as a shared subject.
-const IGNORED_TOKENS = new Set(['about', 'aged', 'been', 'birthday', 'from', 'have', 'into', 'just', 'right', 'that', 'their', 'there', 'they', 'this', 'turn', 'turned', 'turning', 'turns', 'what', 'when', 'which', 'will', 'with', 'would', 'year', 'years', 'your']);
+// Common words that don't make two texts share a subject.
+const IGNORED_TOKENS = new Set(['about', 'been', 'from', 'have', 'into', 'just', 'right', 'that', 'their', 'there', 'they', 'this', 'what', 'when', 'which', 'will', 'with', 'would', 'year', 'years', 'your']);
 const tokensOf = (text = '') => new Set((String(text).toLowerCase().match(/[a-z][a-z'-]{3,}/g) || []).filter((token) => !IGNORED_TOKENS.has(token)));
+// Each personal detail as a comparable key: "age:33" or "birthday".
+const detailsOf = (text = '') => [...String(text).matchAll(new RegExp(PERSONAL_DETAIL_PATTERN, 'gi'))]
+  .map(([match]) => (/birthday/i.test(match) ? 'birthday' : `age:${match.match(/\d+/)[0]}`));
 
 export function selectMemoriesForReading(memories, { userQuestion = '', reflectionsText = '', limit = 3 } = {}) {
   if (!Array.isArray(memories) || memories.length === 0) return [];
   const currentText = `${userQuestion} ${reflectionsText}`;
   const currentTokens = tokensOf(currentText);
-  const raisesPersonalDetail = PERSONAL_DETAIL_PATTERN.test(currentText);
+  const currentDetails = new Set(detailsOf(currentText));
   return memories
     .map((memory, index) => {
       const terms = new Set([...(memory.keywords || []).map((keyword) => keyword.toLowerCase()), ...tokensOf(memory.text)]);
       const overlap = [...terms].filter((term) => currentTokens.has(term)).length;
-      return { memory, index, overlap, score: overlap * 2 + (memory.category === 'communication' ? 1 : 0) };
+      return { memory, index, overlap, details: detailsOf(memory.text), score: overlap * 2 + (memory.category === 'communication' ? 1 : 0) };
     })
-    // A personal-detail note returns only when this reading raises a personal detail and shares
-    // the note's subject, so mentioning one age doesn't unlock every other one.
-    .filter(({ memory, overlap }) => !PERSONAL_DETAIL_PATTERN.test(memory?.text || '') || (raisesPersonalDetail && overlap > 0))
+    // A note carrying a personal detail returns only when the querent raised that same detail here
+    // (the same age, or a birthday). Other notes need a shared subject, except communication-style
+    // notes, which are applied silently.
+    .filter(({ memory, overlap, details }) => (details.length > 0
+      ? details.every((detail) => currentDetails.has(detail))
+      : overlap > 0 || memory.category === 'communication'))
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .slice(0, limit)
     .map(({ memory }) => memory);
@@ -404,7 +412,7 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 
 - [ ] If `last_accessed_at` drives pruning, stamp it only on the selected memories.
 - [ ] **Done when:**
-  - unit tests cover ranking, the cap and the personal-detail filter (it drops "8 years old" and "aged 100", keeps "turns 3 cards", and a question that mentions the querent's own age doesn't admit a note about someone else's);
+  - unit tests cover ranking, the cap, zero-relevance exclusion and the personal-detail filter: the pattern catches "8 years old" and "aged 100" but not "turns 3 cards"; a question about turning 33 admits a note about turning 33 but not notes about ages 8 or 100, even when they share other words; and a birthday question can recall a birthday note;
   - a narrative sample seeded with Task 1's synthetic note ("Enjoys spotting patterns across a spread.") shows at most one callback and no "since you like".
 
 ### Task 10: A timing line that carries information
@@ -442,7 +450,7 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
   - a five-card wellbeing spread (draw #2), seeded with Task 1's synthetic memory note.
 - [ ] Forward `sample.memories` into the `narrativePayload` built in `generateSampleImpl`. It forwards `personalization` but not memories today, so without this every run takes the no-memory path and can't test Task 9.
 - [ ] Run `npm run ci:narrative-check` before Phase 2 as a baseline, and again after. Record the SHA, backend and flagged samples.
-- [ ] On the two new samples (3 runs each), compare path balance, lens consistency, memory callbacks and "chapter" endings. This also tests the evaluation's causal claims.
+- [ ] On the two new samples, compare path balance, lens consistency, memory callbacks and "chapter" endings across three runs. The runner generates each sample once per run and overwrites its output, so run `node scripts/evaluation/runNarrativeSamples.js --sample <id> --sample <id> --out <file>` three times, with a different `--out` file each time. This also tests the evaluation's causal claims.
 
 ## Phase 4: Practiced-reader features (owner decisions first)
 
@@ -452,7 +460,7 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 
 - [ ] Scope: model prompts only. The local composer bypasses `buildUserPrompt`, so a fallback reading carries no continuity note; that's acceptable for the last-resort path, and a test confirms it still renders.
 - [ ] Read up to 5 of the user's journal entries from the last 7 days (`spread_key`, `question`, `cards_json`, `request_id`). Skip a row whose `cards_json` is over 16 KB before parsing it (a real ten-card entry is about 2 KB), and use at most the spread's card count from the rest. `saveAppJournalEntry` caps neither the array nor its size, and these rows are parsed on every reading.
-- [ ] Time each entry by when it was generated, not when it was saved. Normal saves don't send `timestampMs`, so `created_at` is the moment someone clicked Save, possibly hours later. Join `inference_attempts.started_at` (or `eval_metrics.created_at`) on `request_id`, and fall back to `created_at` only when neither exists.
+- [ ] Time each entry by when it was generated, not when it was saved. Normal saves don't send `timestampMs`, so `created_at` is the moment someone clicked Save, possibly hours later. A reading can have several attempts, so aggregate first (`MIN(started_at) / 1000` per `request_id` where `task = 'reading'`, as in Task 0; `started_at` is in milliseconds) and join that, giving each entry one row before ordering by generation time and applying the limit. Fall back to `eval_metrics.created_at`, then to `created_at`.
 - [ ] Treat those rows as untrusted. `saveAppJournalEntry` (`functions/lib/journalEntries.js`) stores `question` and `cards_json` from the client without the reading request's sanitizer or a length cap, so a crafted saved question could otherwise inject instructions into later readings.
   - Compare stored questions on the server only; the block below doesn't include their text.
   - If stored text ever reaches the prompt, sanitize it through the same pipeline as the current question (`prepareUserContext` limits plus injection filtering) and render it inside a `<user_context source="recent-question">` boundary.
@@ -473,10 +481,11 @@ Mention at most one of these, only if it deepens this reading. Acknowledge a rep
 
 ### Task 15: Let the querent name both paths
 
-**Files:** `src/components/QuestionInput.jsx` (or `ReadingPreparation.jsx`), `src/contexts/ReadingContext.jsx` (request payload), `shared/coach/spreadQuestions.js:105` (hint), additive migration `migrations/0036_add_decision_paths.sql` (`decision_paths_json TEXT`), `src/hooks/useSaveReading.js` (journal save request), `functions/lib/journalEntries.js` (insert), `functions/api/journal.js` (rows decoded for the app), `src/lib/journalInsights.js` (export "Path A: … / Path B: …"). **Size:** M.
+**Files:** `src/components/QuestionInput.jsx` (or `ReadingPreparation.jsx`), `src/contexts/ReadingContext.jsx` (request payload), `shared/coach/spreadQuestions.js:105` (hint), additive migration `migrations/0036_add_decision_paths.sql` (`decision_paths_json TEXT`), `src/hooks/useSaveReading.js` (journal save request), `functions/lib/journalEntries.js` (insert), the readers with their own column lists and row decoders (`functions/api/journal.js`, `functions/api/journal/[id].js`, `functions/api/journal/search.js`), `src/lib/journalInsights.js` (export "Path A: … / Path B: …") and the PDF export `functions/api/journal-export/index.js`. **Size:** M.
 
 - [ ] Show two optional inputs (up to 80 characters each) only for the decision spread, and send them as `decisionPaths` (Task 8).
-- [ ] Carry the labels through the journal: send them from `useSaveReading.js`, store them in `journalEntries.js`, and decode them in `functions/api/journal.js`, so the export still has them after a reload.
+- [ ] Carry the labels through the journal: send them from `useSaveReading.js`, store them in `journalEntries.js`, and select and decode them in each reader above. A deep-linked entry (`/api/journal/:id`) replaces the cached copy, and server search lists its own rows in place of the cache, so a reader that drops the labels loses them from what the journal shows and exports. Show them in both exports.
+- [ ] Test that a decision entry keeps its labels after a reload, a deep link and a search, and that both exports print them.
 - [ ] Point the coach hint at the new fields. If a decision question names no options and the fields are empty, show a non-blocking nudge.
 
 ### Task 16: Notice repeated numbers
