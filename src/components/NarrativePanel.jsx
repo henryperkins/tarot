@@ -6,6 +6,16 @@ import {
   NarrationControls,
   NarrativeStatusStack
 } from './reading/narrative';
+import { NarrativeCardFocusProvider } from './reading/narrative/NarrativeCardFocus';
+import { SpreadCompanion, CardTouchPlate } from './reading/narrative/SpreadCompanion';
+import { railColumns } from './reading/narrative/spreadCompanionLayout';
+
+// Set the card into the paragraph that opens its passage.
+function renderCardPlate(paragraphProps) {
+  const intro = paragraphProps?.['data-card-intro'];
+  if (intro === undefined || intro === '') return null;
+  return <CardTouchPlate cardIndex={Number(intro)} />;
+}
 
 export function NarrativePanel({
   panelModel = {},
@@ -31,7 +41,10 @@ export function NarrativePanel({
     statusModel,
     controlsModel,
     ttsState,
-    journalStatus
+    journalStatus,
+    spreadCards = [],
+    cardLinkCatalog = null,
+    isMobileStableMode = false
   } = panelModel;
   const {
     onToggleNarrativeFocus,
@@ -48,7 +61,8 @@ export function NarrativePanel({
     onOpenJournal,
     onSaveReading,
     onRetryNarrative,
-    onUpgradeTier
+    onUpgradeTier,
+    onSelectCard
   } = callbacks;
 
   if (personalReading?.isError) {
@@ -75,60 +89,76 @@ export function NarrativePanel({
     );
   }
 
+  const hasSpread = spreadCards.length > 0;
+  const cardLinks = personalReading?.hasMarkdown ? cardLinkCatalog : null;
+  const layoutClassName = [
+    'narrative-panel__layout',
+    hasSpread ? 'narrative-panel__layout--with-spread' : null,
+    hasSpread && railColumns(spreadCards.length) > 1 ? 'narrative-panel__layout--wide-rail' : null
+  ].filter(Boolean).join(' ');
+
   return (
-    <div className={panelClassName}>
-      {/* One reading column keeps the title, question, notice, and prose on a shared edge. */}
-      <div className="mx-auto max-w-prose space-y-5 sm:space-y-6">
-        <NarrativePanelHeader
-          focusToggleAvailable={focusToggleAvailable}
-          isNarrativeFocus={isNarrativeFocus}
-          onToggleNarrativeFocus={onToggleNarrativeFocus}
-        />
-
-        <NarrativeBody
-          question={question}
-          isHandset={isHandset}
-          narrativeText={narrativeText}
-          personalReading={personalReading}
-          shouldStreamNarrative={shouldStreamNarrative}
-          isReadingStreaming={isReadingStreaming}
-          canAutoNarrate={canAutoNarrate}
-          onNarrationStart={onNarrationStart}
-          onNarrativeComplete={onNarrativeComplete}
-          displayName={displayName}
-          narrativeHighlightPhrases={narrativeHighlightPhrases}
-          emotionalTone={emotionalTone}
-          onHighlightPhrase={onHighlightPhrase}
-          onSectionEnter={onSectionEnter}
-          activeWordBoundary={activeWordBoundary}
-          narrativeAtmosphereClassName={narrativeAtmosphereClassName}
-          hasHeroStoryArt={hasHeroStoryArt}
-        />
-      </div>
-
-      <div className="mt-4 max-w-3xl mx-auto space-y-4">
-        <NarrativeStatusStack
-          statusModel={statusModel}
-          ttsState={ttsState}
-          journalStatus={journalStatus}
-          onUpgradeTier={onUpgradeTier}
-          onEnableVoice={onEnableVoice}
-          onDismissVoicePrompt={onDismissVoicePrompt}
-          onViewEntry={onViewJournalEntry}
-          onSaveFromNudge={onSaveFromNudge}
-          onDismissNudge={onDismissNudge}
-          controls={(
-            <NarrationControls
-              controlsModel={controlsModel}
-              onNarrate={onNarrationStart}
-              onStopNarration={onStopNarration}
-              onSaveReading={onSaveReading}
-              onOpenJournal={onOpenJournal}
+    <NarrativeCardFocusProvider cards={spreadCards} onSelectCard={onSelectCard} stable={isMobileStableMode}>
+      <div className={panelClassName}>
+        <div className={layoutClassName}>
+          {hasSpread ? <SpreadCompanion variant="rail" /> : null}
+          {/* One reading column keeps the title, question, notice, and prose on a shared edge. */}
+          <div className="narrative-panel__column mx-auto max-w-prose min-w-0 space-y-5 sm:space-y-6">
+            <NarrativePanelHeader
+              focusToggleAvailable={focusToggleAvailable}
+              isNarrativeFocus={isNarrativeFocus}
+              onToggleNarrativeFocus={onToggleNarrativeFocus}
             />
-          )}
-        />
+
+            <NarrativeBody
+              question={question}
+              isHandset={isHandset}
+              narrativeText={narrativeText}
+              personalReading={personalReading}
+              shouldStreamNarrative={shouldStreamNarrative}
+              isReadingStreaming={isReadingStreaming}
+              canAutoNarrate={canAutoNarrate}
+              onNarrationStart={onNarrationStart}
+              onNarrativeComplete={onNarrativeComplete}
+              displayName={displayName}
+              narrativeHighlightPhrases={narrativeHighlightPhrases}
+              emotionalTone={emotionalTone}
+              onHighlightPhrase={onHighlightPhrase}
+              onSectionEnter={onSectionEnter}
+              activeWordBoundary={activeWordBoundary}
+              narrativeAtmosphereClassName={narrativeAtmosphereClassName}
+              hasHeroStoryArt={hasHeroStoryArt}
+              cardLinks={cardLinks}
+              renderParagraphLead={cardLinks ? renderCardPlate : null}
+              spreadCompanion={hasSpread ? <SpreadCompanion variant="row" /> : null}
+            />
+          </div>
+
+          <div className="narrative-panel__after mt-4 max-w-3xl mx-auto space-y-4 min-w-0">
+            <NarrativeStatusStack
+              statusModel={statusModel}
+              ttsState={ttsState}
+              journalStatus={journalStatus}
+              onUpgradeTier={onUpgradeTier}
+              onEnableVoice={onEnableVoice}
+              onDismissVoicePrompt={onDismissVoicePrompt}
+              onViewEntry={onViewJournalEntry}
+              onSaveFromNudge={onSaveFromNudge}
+              onDismissNudge={onDismissNudge}
+              controls={(
+                <NarrationControls
+                  controlsModel={controlsModel}
+                  onNarrate={onNarrationStart}
+                  onStopNarration={onStopNarration}
+                  onSaveReading={onSaveReading}
+                  onOpenJournal={onOpenJournal}
+                />
+              )}
+            />
+          </div>
+        </div>
       </div>
-    </div>
+    </NarrativeCardFocusProvider>
   );
 }
 
@@ -153,7 +183,19 @@ NarrativePanel.propTypes = {
     statusModel: PropTypes.object,
     controlsModel: PropTypes.object,
     ttsState: PropTypes.object,
-    journalStatus: PropTypes.object
+    journalStatus: PropTypes.object,
+    spreadCards: PropTypes.arrayOf(PropTypes.shape({
+      index: PropTypes.number.isRequired,
+      name: PropTypes.string,
+      canonicalName: PropTypes.string,
+      image: PropTypes.string,
+      frame: PropTypes.string,
+      isReversed: PropTypes.bool,
+      positionLabel: PropTypes.string,
+      shortLabel: PropTypes.string
+    })),
+    cardLinkCatalog: PropTypes.object,
+    isMobileStableMode: PropTypes.bool
   }),
   callbacks: PropTypes.shape({
     onToggleNarrativeFocus: PropTypes.func,
@@ -170,6 +212,7 @@ NarrativePanel.propTypes = {
     onOpenJournal: PropTypes.func,
     onSaveReading: PropTypes.func,
     onRetryNarrative: PropTypes.func,
-    onUpgradeTier: PropTypes.func
+    onUpgradeTier: PropTypes.func,
+    onSelectCard: PropTypes.func
   })
 };

@@ -9,7 +9,10 @@ import {
 } from '../lib/highlightUtils';
 import { getSectionKeyFromHeading } from '../lib/narrativeSections';
 import { STREAM_AUTO_NARRATE_DEBOUNCE_MS } from '../lib/narrationStream.js';
+import { remarkCardLinks } from '../lib/narrativeCardLinks.js';
+import { useNarrativeReadingLine } from '../hooks/useNarrativeReadingLine';
 
+const NO_PHRASES = [];
 const LONG_MOBILE_WORD_THRESHOLD = 200;
 const LONG_DESKTOP_WORD_THRESHOLD = 600; // Guardrail for very long narratives on any device
 const BASE_WORD_DELAY = 45;
@@ -173,8 +176,14 @@ export function StreamingNarrative({
   withAtmosphere = false,
   atmosphereClassName = '',
   wordBoundary = null,
+  cardLinks = null,
+  renderParagraphLead = null,
 }) {
   const narrativeText = useMemo(() => (typeof text === 'string' ? text : ''), [text]);
+  const wrapperRef = useRef(null);
+  const cardLinkPlugins = useMemo(() => (
+    cardLinks ? [[remarkCardLinks, { catalog: cardLinks }]] : null
+  ), [cardLinks]);
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen();
   const wrapperClassName = className ? `narrative-stream ${className}` : 'narrative-stream';
@@ -455,6 +464,13 @@ export function StreamingNarrative({
     return buildTokenMeta(visibleWords, highlightRanges);
   }, [useMarkdown, visibleWords, highlightRanges]);
 
+  // Point the spread at whatever the reading has reached: the newest words
+  // while they arrive, then the passage at the reader's eye line.
+  useNarrativeReadingLine(wrapperRef, {
+    enabled: Boolean(cardLinks && useMarkdown),
+    isLive: Boolean(isReadingStreaming || (streamingActive && !isComplete))
+  });
+
   const streamingSuppressionMessage = isMarkdownMobileNarrative
     ? 'Markdown readings show instantly on small screens for smoother performance.'
     : 'Long readings show instantly on small screens.';
@@ -500,9 +516,11 @@ export function StreamingNarrative({
       <MarkdownRenderer
         className="narrative-stream__markdown"
         content={visibleText}
-        highlightPhrases={normalizedHighlightPhrases}
+        highlightPhrases={cardLinks ? NO_PHRASES : normalizedHighlightPhrases}
         wordBoundary={wordBoundary}
         headingBaseLevel={headingBaseLevel}
+        extraRemarkPlugins={cardLinkPlugins}
+        renderParagraphLead={cardLinks ? renderParagraphLead : null}
       />
     </div>
   ) : (
@@ -540,7 +558,7 @@ export function StreamingNarrative({
   );
 
   return (
-    <div className={wrapperClassName} aria-live="off">
+    <div ref={wrapperRef} className={wrapperClassName} aria-live="off">
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {narrationStatusMessage}
       </p>
