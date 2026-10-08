@@ -51,12 +51,20 @@ FROM journal_entries
 WHERE user_id = '<USER_ID>' AND created_at BETWEEN 1791244800 AND 1791504000
 ORDER BY created_at;
 
--- Evaluator results for the same requests; reading_time is when each reading was generated
+-- Evaluator results for the same requests. metrics_written is when this row was
+-- written, just after generation finished.
 SELECT request_id, provider, eval_mode, overall_score, reading_prompt_version,
-       unixepoch(created_at) AS reading_time,
+       unixepoch(created_at) AS metrics_written,
        json_extract(payload, '$.eval.scores') AS scores
 FROM eval_metrics
 WHERE request_id IN ('<id1>', '<id2>', '<id3>', '<id4>');
+
+-- When each reading started generating. Rows exist only for readings after
+-- migration 0035; for older readings use metrics_written as reading_time.
+SELECT request_id, MIN(started_at) / 1000 AS reading_time
+FROM inference_attempts
+WHERE request_id IN ('<id1>', '<id2>', '<id3>', '<id4>')
+GROUP BY request_id;
 
 -- Memories injected into one reading: run once per reading with its reading_time.
 -- journal_entries.created_at is the save time, which can follow a chat that added notes.
@@ -72,7 +80,7 @@ ORDER BY created_at DESC LIMIT 8;
   - **#4 depth.** If `short`, #4 was on target (decision quick band 400–550): drop the length finding and keep only "three next steps instead of one". If `standard` or null, #4 missed its band and becomes Task 12's real failing case.
   - **Provider.** If #3 and #4 weren't Claude, judge Phase 2 on the current provider only. The data findings (Tasks 2, 3 and 7) stand regardless.
   - **Name.** If `used_inputs` lacks `displayName` for #2 and #3, the "name never used" finding is void; Task 4 still fixes the conflicting close.
-  - **Memories.** Confirm which stored notes produced the personal detail restated in #2 and #3 and the pattern-tracking callbacks, and whether any note mentions a workload (if so, drop that #4 finding). Use each reading's own result from the per-reading query, and keep the phrasing out of the repo when tuning Task 9's personal-detail filter. Memories deleted since won't appear, so the query can confirm a source but can't prove a note was absent.
+  - **Memories.** Confirm which stored notes produced the personal detail restated in #2 and #3 and the pattern-tracking callbacks, and whether any note mentions a workload (if so, drop that #4 finding). Use each reading's own result from the per-reading query, and keep the phrasing out of the repo when tuning Task 9's personal-detail filter. Memories deleted since won't appear, so the query can confirm a source but can't prove a note was absent. When `metrics_written` stands in for the start time, a note saved in the few seconds between generation and that write also can't be ruled out.
 - [ ] Ask the owner two things: did the 10:28 PM re-ask follow a thin first reading, and what would Path A and Path B have been? These feed Tasks 14 and 15.
 
 ## Phase 1: Data and wording fixes (small; can land together)
@@ -264,6 +272,7 @@ function formatFrontmatterDate(ts) {
 ```
 
 - [ ] Key Themes prints `TIMING_PROFILE_COPY[themes.timingProfile]` instead of the raw slug.
+- [ ] Note: `journalInsights.js` runs only in the browser (nothing under `functions/` imports it), so the local date getters use the querent's own timezone.
 - [ ] Test with `process.env.TZ = 'America/Chicago'`: an entry at `2026-10-08T01:48Z` exports `date: 2026-10-07` and contains no `developing-arc`.
 
 ## Phase 2: Prompt behaviour (narrative gate required)
@@ -302,7 +311,16 @@ function resolveCardSpecificClause(entry, cardInfo = {}) {
 
 ### Task 8: Decision readings don't invent the options
 
-**Files:** `functions/lib/narrative/prompts/systemPrompt.js:100–115`, `functions/lib/narrative/prompts/cardBuilders.js:504–514`, `functions/lib/evaluation.js` (hint at 1027, user template, version at 26), and the evaluator version mentioned in `CLAUDE.md` and `docs/evaluation-system.md`. Optional labels also touch `shared/contracts/readingSchema.js:119`, `functions/lib/narrative/prompts/userContext.js:14`, `functions/api/tarot-reading.js` (narrative payload and `evalParams` in `finalizeReading`), `functions/lib/narrativeBackends.js` (line 709 and `generateReadingFromAnalysis`) and the local fallback builder `functions/lib/narrative/spreads/decision.js` (`buildDecisionReading`). **Size:** S for the rule, M for labels.
+**Files:** `functions/lib/narrative/prompts/systemPrompt.js:100–115`, `functions/lib/narrative/prompts/cardBuilders.js:504–514`, `functions/lib/evaluation.js` (hint at 1027, user template, version at 26), and the evaluator version mentioned in `CLAUDE.md` and `docs/evaluation-system.md`. Optional labels also touch:
+- `shared/contracts/readingSchema.js:119`;
+- `functions/api/tarot-reading.js` (sanitizing at the request boundary, the narrative payload, and `evalParams` in `finalizeReading`);
+- `functions/lib/narrativeBackends.js` (line 709 and `generateReadingFromAnalysis`);
+- `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` and `userPrompt.js` (forwarding);
+- `functions/lib/narrative/prompts/userContext.js:43` (`parseUserContext`);
+- `functions/lib/narrative/prompts/truncation.js:465–490` (hard-cap rebuild);
+- the local fallback builder `functions/lib/narrative/spreads/decision.js` (`buildDecisionReading`).
+
+**Size:** S for the rule, M for labels.
 
 - [ ] Add a decision flow to the system prompt:
 
@@ -310,36 +328,45 @@ function resolveCardSpecificClause(entry, cardInfo = {}) {
   } else if (spreadKey === 'decision') {
     lines.push(
       '',
-      'DECISION FLOW: Heart → Path A → Path B → Clarifier → Free will. Read each path through its card as the texture of that route, and give both paths comparable depth. If the cards favor one path, say so conditionally and name what would change it. For any path the querent has not named, do not assign concrete content (roles, employers, places, people); describe its energy and invite the querent to map it onto their real options.'
+      'DECISION FLOW: Heart → Path A → Path B → Clarifier → Free will. Read each path through its card as the texture of that route, and give both paths comparable depth. If the cards favor one path, say so conditionally and name what would change it. If a path has no label, use the question\'s wording when it names that option. For an option named nowhere, do not assign concrete content (roles, employers, places, people); describe its energy and invite the querent to map it onto their real options.'
     );
   }
 ```
 
-- [ ] Add a paths line to the decision block in `cardBuilders.js`, handling each path on its own because both labels are optional:
-  - Sanitize each label in `prepareUserContext` like the question (max 80 characters).
-  - A label that survives sanitizing renders with `renderUserContext('pathA', …)` or `renderUserContext('pathB', …)`.
-  - A missing or emptied label renders as "not named". Never call `renderUserContext` with `undefined`: `JSON.stringify(undefined)` returns `undefined`, so its `.replace` throws.
-  - With neither label: `**Paths**: The querent has not named Path A or Path B.`
+- [ ] Sanitize the labels once, at the request boundary in `tarot-reading.js`, with the same cleaning and injection filtering as the question (max 80 characters). The model prompt, the evaluator and the local fallback then all receive the same safe values; `optionalCleanString` alone only trims and caps length.
+- [ ] Forward `decisionPaths` through `buildEnhancedClaudePrompt` (a new parameter) and `buildUserPrompt` into `buildDecisionPromptCards`, which renders each path on its own because both labels are optional:
+
+```js
+// Labels are optional and already sanitized. Never pass undefined to renderUserContext:
+// JSON.stringify(undefined) returns undefined, so its .replace throws.
+const describePath = (source, label) => (label ? renderUserContext(source, label) : 'no separate label');
+out += `**Paths**: Path A: ${describePath('pathA', decisionPaths?.a)}; Path B: ${describePath('pathB', decisionPaths?.b)}.\n`;
+```
+
+- [ ] Make `parseUserContext` recognize `pathA` and `pathB`, and have `truncateUserPromptSafely` restore them after hard-cap truncation. Today that step strips every `<user_context>` line and restores only the question, reflections and card notes.
 - [ ] Extend the request schema: `decisionPaths: z.object({ a: optionalCleanString(80), b: optionalCleanString(80) }).optional()`.
 - [ ] Give the evaluator the same facts. Pass the sanitized labels, or at least which paths were named, through `evalParams` into the evaluator's user template. Append to the decision hint: "If the querent did not name a path, treat concrete content assigned to it as a coherence flaw." Bump `EVAL_PROMPT_VERSION` to `2.5.0`.
 - [ ] Carry the labels through the local fallback: `generateReadingFromAnalysis` passes them to `buildDecisionReading`, which uses them in place of the generic Path A and Path B wording.
 - [ ] **Done when:**
   - invariant 5 passes;
   - injection strings in labels are filtered;
-  - a request naming only Path A renders A's label and marks B "not named";
+  - a request naming only Path A renders A's label and "no separate label" for B;
+  - a question that names both options, sent with empty fields, gets those options mapped rather than treated as unnamed;
+  - labels survive hard-cap truncation;
   - the evaluator receives the labels;
   - the local fallback keeps labeled paths;
   - the narrative check's decision samples assign no concrete content to unnamed paths.
 
 ### Task 9: Memories that personalize without becoming a formula
 
-**Files:** `functions/lib/userMemory.js` (new `selectMemoriesForReading`; access stamping at 376), `functions/lib/userPersonalization.js:27, 236–245` (load up to 30 candidates for readings), `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` (select before rendering), `functions/lib/narrative/prompts/userPrompt.js:37–47`, `tests/userMemory.test.mjs`. **Size:** M.
+**Files:** `functions/lib/userMemory.js` (new `selectMemoriesForReading`; access stamping at 376), `functions/lib/userPersonalization.js:27, 236–245` (load every retained global memory for readings; the store keeps at most 100, and `getMemories` sorts by recency before its `LIMIT`), `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` (select before rendering), `functions/lib/narrative/prompts/userPrompt.js:37–47`, `tests/userMemory.test.mjs`. **Size:** M.
 
 - [ ] Select by relevance, not recency:
 
 ```js
 // Tune this to the real phrasing found in Task 0.
-const PERSONAL_DETAIL_PATTERN = /\b(?:\d{2}\s*(?:years?\s*old|y\/?o)|age[ds]?\s*\d{2}|turn(?:ed|ing|s)?\s+\d{2}|birthday)\b/i;
+// Ages of one to three digits; "turns 3 cards" is not an age.
+const PERSONAL_DETAIL_PATTERN = /\b(?:\d{1,3}\s*(?:years?\s*old|y\/?o)|age[ds]?\s*\d{1,3}|turn(?:ed|ing|s)?\s+\d{1,3}\b(?!\s*cards?)|birthday)\b/i;
 const tokensOf = (text = '') => new Set(String(text).toLowerCase().match(/[a-z][a-z'-]{3,}/g) || []);
 
 export function selectMemoriesForReading(memories, { userQuestion = '', reflectionsText = '', limit = 3 } = {}) {
@@ -370,7 +397,7 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 
 - [ ] If `last_accessed_at` drives pruning, stamp it only on the selected memories.
 - [ ] **Done when:**
-  - unit tests cover ranking, the cap and the personal-detail filter;
+  - unit tests cover ranking, the cap and the personal-detail filter (it drops "8 years old" and "aged 100" and keeps "turns 3 cards");
   - a narrative sample seeded with Task 1's synthetic note ("Enjoys spotting patterns across a spread.") shows at most one callback and no "since you like".
 
 ### Task 10: A timing line that carries information
@@ -416,12 +443,15 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 
 **Files:** new `functions/lib/recentDraws.js`, `functions/api/tarot-reading.js`, `functions/lib/narrative/prompts/userPrompt.js` (after the memory block), tests. **Size:** M–L.
 
-- [ ] Read up to 5 of the user's journal entries from the last 7 days (`created_at`, `spread_key`, `question`, `cards_json`).
+- [ ] Read up to 5 of the user's journal entries from the last 7 days (`spread_key`, `question`, `cards_json`, `request_id`).
+- [ ] Time each entry by when it was generated, not when it was saved. Normal saves don't send `timestampMs`, so `created_at` is the moment someone clicked Save, possibly hours later. Join `inference_attempts.started_at` (or `eval_metrics.created_at`) on `request_id`, and fall back to `created_at` only when neither exists.
 - [ ] Treat those rows as untrusted. `saveAppJournalEntry` (`functions/lib/journalEntries.js`) stores `question` and `cards_json` from the client without the reading request's sanitizer or a length cap, so a crafted saved question could otherwise inject instructions into later readings.
   - Compare stored questions on the server only; the block below doesn't include their text.
   - If stored text ever reaches the prompt, sanitize it through the same pipeline as the current question (`prepareUserContext` limits plus injection filtering) and render it inside a `<user_context source="recent-question">` boundary.
-  - Check stored card names and positions against the canonical deck and the spread definition before rendering them.
-- [ ] Detect the same question within 24 hours (normalized text), and cards that recur, especially in the same position.
+  - Check stored card names, positions and orientations (`Upright` or `Reversed` only) against the canonical deck and the spread definition before rendering them.
+  - Stored text rendered in a `<user_context>` block also needs the `parseUserContext` and truncation support Task 8 adds for path labels.
+- [ ] Detect a repeated question with its own query across the whole 24-hour window (normalized text), not just among the five rows above, so a busy day can't hide the repeat.
+- [ ] Detect cards that recur, especially in the same position.
 - [ ] Add a prompt block:
 
 ```text
