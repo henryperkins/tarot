@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 import {
   NARRATIVE, badgeContrast, createNarrativeFixture, expectForeground,
@@ -238,6 +238,7 @@ for (const mobile of [false, true]) {
       };
       // Let the draft refit and the latest-answer pin finish before a native
       // reading action establishes the position measured by the disclosure.
+      await scroll.evaluate(node => node.scrollTo({ top: node.scrollHeight, behavior: 'instant' }));
       await waitForSettledPosition(true);
       await log.press('PageUp');
       await waitForSettledPosition(false);

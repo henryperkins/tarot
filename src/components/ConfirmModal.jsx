@@ -1,6 +1,5 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
-import FocusTrap from 'focus-trap-react';
 import { Warning, X } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 
@@ -22,18 +21,18 @@ export function ConfirmModal({
   confirming = false,
   error = null,
   closeOnConfirm = true,
-  renderInPortal = false
+  renderInPortal = false,
+  fallbackFocusSelector = null
 }) {
   const cancelButtonRef = useRef(null);
   const modalRef = useRef(null);
 
-  // Use modal accessibility hook for scroll lock, escape key, and focus restoration
-  // trapFocus: false because FocusTrap library handles focus trapping
+  // One owner captures the opener, focuses, traps, and restores nested dialogs.
   useModalA11y(isOpen, {
     onClose,
     containerRef: modalRef,
-    trapFocus: false,
     initialFocusRef: cancelButtonRef,
+    fallbackFocusSelector,
   });
 
   if (!isOpen) return null;
@@ -62,74 +61,63 @@ export function ConfirmModal({
       className="fixed inset-0 z-auth flex items-stretch sm:items-center justify-center bg-main/70 backdrop-blur-sm animate-fade-in p-0 sm:p-4 pt-[max(0.75rem,var(--safe-pad-top))] pb-[max(0.75rem,var(--safe-pad-bottom))] pl-[max(0.75rem,var(--safe-pad-left))] pr-[max(0.75rem,var(--safe-pad-right))]"
       onClick={createBackdropHandler(onClose)}
     >
-      <FocusTrap
-        active={isOpen}
-        focusTrapOptions={{
-          initialFocus: () => cancelButtonRef.current,
-          escapeDeactivates: false,
-          clickOutsideDeactivates: false,
-          returnFocusOnDeactivate: false,
-          allowOutsideClick: true,
-        }}
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-modal-title"
+        className={`
+          relative w-full h-full max-w-none rounded-none border overflow-y-auto
+          ${variantStyles[variant]} shadow-2xl animate-slide-up
+          sm:h-auto sm:max-w-md sm:rounded-2xl
+        `}
       >
-        <div
-          ref={modalRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="confirm-modal-title"
-          className={`
-            relative w-full h-full max-w-none rounded-none border overflow-y-auto
-            ${variantStyles[variant]} shadow-2xl animate-slide-up
-            sm:h-auto sm:max-w-md sm:rounded-2xl
-          `}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 xs:top-4 xs:right-4 p-2 min-w-touch min-h-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted/50 rounded-full transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+          aria-label="Close"
         >
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 xs:top-4 xs:right-4 p-2 min-w-touch min-h-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted/50 rounded-full transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <X className="w-5 h-5" />
+        </button>
 
-          <div className="p-5 xs:p-6">
-            <div className="flex items-start gap-3 xs:gap-4 mb-4 pr-8">
-              <div className={`p-2 rounded-full shrink-0 ${variant === 'danger' ? 'bg-error/10' : 'bg-warning/10'}`}>
-                <Warning className={`w-5 h-5 xs:w-6 xs:h-6 ${variant === 'danger' ? 'text-error' : 'text-warning'}`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h2 id="confirm-modal-title" className="text-lg xs:text-xl font-serif text-main mb-2">
-                  {title}
-                </h2>
-                <p className="text-muted text-sm leading-relaxed">
-                  {message}
-                </p>
-              </div>
+        <div className="p-5 xs:p-6">
+          <div className="flex items-start gap-3 xs:gap-4 mb-4 pr-8">
+            <div className={`p-2 rounded-full shrink-0 ${variant === 'danger' ? 'bg-error/10' : 'bg-warning/10'}`}>
+              <Warning className={`w-5 h-5 xs:w-6 xs:h-6 ${variant === 'danger' ? 'text-error' : 'text-warning'}`} />
             </div>
-
-            <div className="flex flex-col-reverse xs:flex-row gap-2 xs:gap-3 xs:justify-end mt-6">
-              <button
-                ref={cancelButtonRef}
-                onClick={onClose}
-                className="w-full xs:w-auto px-4 py-2.5 min-h-touch rounded-lg border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition text-sm font-medium touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
-              >
-                {cancelText}
-              </button>
-              <button
-                onClick={handleConfirm}
-                disabled={confirming}
-                className={`w-full xs:w-auto px-4 py-2.5 min-h-touch rounded-lg border ${buttonStyles[variant]} transition text-sm font-medium touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${confirming ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                {confirmText}
-              </button>
-            </div>
-            {error && (
-              <p className="mt-3 text-sm text-error" role="alert">
-                {error}
+            <div className="flex-1 min-w-0">
+              <h2 id="confirm-modal-title" className="text-lg xs:text-xl font-serif text-main mb-2">
+                {title}
+              </h2>
+              <p className="text-muted text-sm leading-relaxed">
+                {message}
               </p>
-            )}
+            </div>
           </div>
+
+          <div className="flex flex-col-reverse xs:flex-row gap-2 xs:gap-3 xs:justify-end mt-6">
+            <button
+              ref={cancelButtonRef}
+              onClick={onClose}
+              className="w-full xs:w-auto px-4 py-2.5 min-h-touch rounded-lg border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition text-sm font-medium touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            >
+              {cancelText}
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={confirming}
+              className={`w-full xs:w-auto px-4 py-2.5 min-h-touch rounded-lg border ${buttonStyles[variant]} transition text-sm font-medium touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${confirming ? 'opacity-70 cursor-not-allowed' : ''}`}
+            >
+              {confirmText}
+            </button>
+          </div>
+          {error && (
+            <p className="mt-3 text-sm text-error" role="alert">
+              {error}
+            </p>
+          )}
         </div>
-      </FocusTrap>
+      </div>
     </div>
   );
 

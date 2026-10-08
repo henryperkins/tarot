@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 
 /**
  * Reading Visual Modals E2E Tests
@@ -147,8 +147,8 @@ async function drawCards(page) {
   await drawButton.scrollIntoViewIfNeeded();
   await drawButton.click({ force: true });
 
-  // ...where the ritual deck deals the spread.
-  const dealButton = page.getByRole('button', { name: /deal the cards/i }).first();
+  // ...where the reading board deals the spread.
+  const dealButton = page.getByRole('button', { name: /^Deal spread/ }).first();
   await expect(dealButton).toBeVisible({ timeout: 15000 });
   await dealButton.click({ force: true });
 }
@@ -195,7 +195,7 @@ async function waitForNarrativeComplete(page) {
 
 async function completeReading(page) {
   await selectSpread(page, 'One-Card');
-  const questionInput = page.locator('textarea').first();
+  const questionInput = page.locator('#question-input, #quick-intention').filter({ visible: true }).first();
   await questionInput.fill('What should I notice this week?');
   await drawCards(page);
   await waitForCardsDealt(page);

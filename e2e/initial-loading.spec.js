@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import { createNarrativeFixture, openSetup, QUESTION } from './helpers/narrativeFixtures.js';
 
 for (const platform of ['Chromium', 'WebKit @mobile']) {
@@ -8,12 +8,12 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
     test('onboarding defers sound and hidden spread artwork until the reading setup is needed', async ({ page }) => {
       const fixture = await createNarrativeFixture(page, { signedOut: true });
       const requests = [];
-      page.on('request', request => requests.push(new URL(request.url()).pathname));
+      page.on('request', request => requests.push({ path: new URL(request.url()).pathname, type: request.resourceType() }));
       try {
         await page.goto('/');
         await expect(page.getByRole('heading', { level: 2, name: 'Welcome to Tableu', exact: true })).toBeVisible();
         await page.waitForLoadState('networkidle');
-        expect(requests.filter(path => path.startsWith('/sounds/'))).toEqual([]);
+        expect(requests.filter(({ path, type }) => path.startsWith('/sounds/') && type !== 'script')).toEqual([]);
         const startupRequests = [...requests];
         await expect(page.locator('.follow-up-dialog')).toHaveCount(0);
 
@@ -23,8 +23,9 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         const artwork = page.getByRole('radiogroup', { name: 'Spread selection' }).locator('img').first();
         await expect.poll(() => artwork.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
         const artworkPath = new URL(await artwork.evaluate(image => image.currentSrc)).pathname;
-        expect(startupRequests).not.toContain(artworkPath);
-        expect(requests).toContain(artworkPath);
+        expect(startupRequests.filter(({ path, type }) => path === artworkPath && type === 'image')).toEqual([]);
+        expect(startupRequests.filter(({ path, type }) => type === 'image' && path.includes('/spread-art/'))).toEqual([]);
+        expect(requests.filter(({ path, type }) => path === artworkPath && type === 'image')).toHaveLength(1);
         await expect(page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first()).toBeVisible();
       } finally {
         await fixture.close();

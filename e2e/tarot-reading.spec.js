@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 
 // Keep the reading API fixtures visible to Playwright in production previews.
 test.use({ serviceWorkers: 'block' });

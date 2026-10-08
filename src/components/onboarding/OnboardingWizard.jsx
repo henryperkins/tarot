@@ -120,13 +120,18 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
 
   // Modal accessibility: useModalA11y handles scroll lock, escape key, and focus restoration.
   // Focus trapping is delegated to the FocusTrap library (trapFocus: false) because it provides
-  // more robust handling for complex modals with dynamic step content, where focusable elements
-  // change between steps. This matches the pattern used in GuidedIntentionCoach and ConfirmModal.
+  // robust containment for dynamic step content. useModalA11y is the sole initial-focus
+  // owner; the parent trap resumes containment without moving the nested dialog's
+  // restored opener. ConfirmModal owns its layer with useModalA11y.
   useModalA11y(isOpen, {
     onClose: () => handleSkipRequest(),
     containerRef: modalRef,
     trapFocus: false, // Disabled - FocusTrap library handles focus trapping
     initialFocusRef: closeButtonRef,
+    // Replay opens through a confirmation whose button disappears. Return to
+    // the stable header opener when that transient activation target is gone.
+    fallbackFocusSelector: '[aria-label="Replay tutorial"]',
+    fallbackFocusPreventScroll: true,
     closeOnEscape: !isExitConfirmOpen,
   });
 
@@ -426,7 +431,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
         <FocusTrap
           active={isOpen && !isExitConfirmOpen}
           focusTrapOptions={{
-            initialFocus: () => closeButtonRef.current,
+            initialFocus: false,
             escapeDeactivates: false,
             clickOutsideDeactivates: false,
             returnFocusOnDeactivate: false,
@@ -542,6 +547,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
         message={exitMessage}
         confirmText={exitConfirmText}
         cancelText="Stay here"
+        fallbackFocusSelector='[aria-label="Replay tutorial"]'
       />
     </>
   );

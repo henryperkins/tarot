@@ -514,20 +514,75 @@ export default function TarotReading() {
 
   const scrollQuickIntentionIntoView = useCallback(() => {
     if (!isHandset) return;
-    const target = quickIntentionCardRef.current || quickIntentionInputRef.current;
+    const target = quickIntentionInputRef.current;
     if (!target) return;
-
-    window.requestAnimationFrame(() => {
-      try {
-        target.scrollIntoView({
-          behavior: 'auto',
-          block: 'start'
-        });
-      } catch {
-        // Silently ignore scroll failures (e.g., Safari quirks)
-      }
-    });
+    const header = document.querySelector('.header-sticky');
+    const dock = document.querySelector('.mobile-action-bar');
+    const viewport = window.visualViewport;
+    const viewportTop = viewport?.offsetTop || 0;
+    const viewportBottom = viewportTop + (viewport?.height || window.innerHeight);
+    const headerBottom = header && getComputedStyle(header).position === 'sticky'
+      ? header.getBoundingClientRect().bottom : viewportTop;
+    const dockBox = dock?.getBoundingClientRect();
+    const top = Math.max(viewportTop, headerBottom) + 8;
+    const bottom = Math.min(viewportBottom, dockBox?.top ?? viewportBottom) - 8;
+    const box = target.getBoundingClientRect();
+    // A route entrance can temporarily move a fixed dock outside the viewport.
+    // Wait for its settled bounds rather than scrolling against invalid geometry.
+    if (bottom <= top || (dockBox && dockBox.bottom > window.innerHeight + 1)) return;
+    const delta = box.top < top ? box.top - top : box.bottom > bottom ? box.bottom - bottom : 0;
+    if (delta) window.scrollBy({ top: delta, behavior: 'instant' });
   }, [isHandset]);
+
+  useEffect(() => {
+    if (!isHandset) return undefined;
+    const field = quickIntentionInputRef.current;
+    if (!field) return undefined;
+    let frame = null;
+    let allowCorrection = false;
+    let settleUntil = 0;
+    const correct = () => {
+      frame = null;
+      if (!allowCorrection || document.activeElement !== field) return;
+      scrollQuickIntentionIntoView();
+      if (performance.now() < settleUntil) frame = requestAnimationFrame(correct);
+    };
+    const schedule = () => {
+      if (frame === null) frame = requestAnimationFrame(correct);
+    };
+    const focus = () => {
+      allowCorrection = true;
+      settleUntil = performance.now() + 600;
+      schedule();
+    };
+    const stop = () => {
+      allowCorrection = false;
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+    };
+    const resize = () => {
+      if (document.activeElement === field) focus();
+    };
+    const observer = new ResizeObserver(schedule);
+    [field, document.querySelector('.header-sticky'), document.querySelector('.mobile-action-bar')]
+      .filter(Boolean).forEach(element => observer.observe(element));
+    field.addEventListener('focus', focus);
+    field.addEventListener('blur', stop);
+    window.addEventListener('wheel', stop, { passive: true });
+    window.addEventListener('touchmove', stop, { passive: true });
+    window.addEventListener('resize', resize);
+    window.visualViewport?.addEventListener('resize', resize);
+    return () => {
+      stop();
+      observer.disconnect();
+      field.removeEventListener('focus', focus);
+      field.removeEventListener('blur', stop);
+      window.removeEventListener('wheel', stop);
+      window.removeEventListener('touchmove', stop);
+      window.removeEventListener('resize', resize);
+      window.visualViewport?.removeEventListener('resize', resize);
+    };
+  }, [isHandset, showSetupSection, scrollQuickIntentionIntoView]);
 
   // Bring the handset question card into view and pulse it briefly.
   const promptQuickIntention = useCallback(() => {

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import { createNarrativeFixture } from './helpers/narrativeFixtures.js';
 
 const entry = {
@@ -6,6 +6,55 @@ const entry = {
   cards: [{ name: 'The Fool', position: 'Present', orientation: 'Upright' }],
   question: 'What can I learn from this week?', personalReading: 'Make room for a fresh perspective.'
 };
+
+async function checkArcanaBoundaries(page, row) {
+  await row.evaluate(async element => {
+    await document.fonts.ready;
+    const dialog = element.closest('[role="dialog"]');
+    await Promise.allSettled((dialog?.getAnimations() || []).map(animation => animation.finished));
+    element.scrollIntoView({ block: 'center', behavior: 'instant' });
+    element.focus({ preventScroll: true });
+    await new Promise(resolve => {
+      let previous = '';
+      let stableFrames = 0;
+      const measure = () => {
+        const position = `${scrollX},${scrollY},${element.getBoundingClientRect().top}`;
+        stableFrames = position === previous ? stableFrames + 1 : 0;
+        previous = position;
+        if (stableFrames >= 12) resolve();
+        else requestAnimationFrame(measure);
+      };
+      requestAnimationFrame(measure);
+    });
+  });
+  const maximum = await row.evaluate(element => element.scrollWidth - element.clientWidth);
+  for (let index = 0; index < Math.ceil(maximum / 64) + 1; index += 1) await page.keyboard.press('ArrowRight');
+  await expect.poll(() => row.evaluate(element => element.scrollLeft)).toBe(maximum);
+  const documentScroll = await page.evaluate(() => [scrollX, scrollY]);
+  await page.keyboard.press('ArrowRight');
+  expect(await row.evaluate(element => element.scrollLeft)).toBe(maximum);
+  await expect(row).toBeFocused();
+  for (let index = 0; index < Math.ceil(maximum / 64) + 1; index += 1) await page.keyboard.press('ArrowLeft');
+  await expect.poll(() => row.evaluate(element => element.scrollLeft)).toBe(0);
+  await page.keyboard.press('ArrowLeft');
+  expect(await row.evaluate(element => element.scrollLeft)).toBe(0);
+  expect(await page.evaluate(() => [scrollX, scrollY])).toEqual(documentScroll);
+  expect(await row.evaluate(element => element.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'ArrowDown', bubbles: true, cancelable: true
+  })))).toBe(true);
+  const style = await row.getAttribute('style');
+  try {
+    await row.evaluate(element => { element.style.width = `${element.scrollWidth + 10}px`; element.style.maxWidth = 'none'; });
+    expect(await row.evaluate(element => element.scrollWidth - element.clientWidth)).toBe(0);
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowLeft');
+    expect(await row.evaluate(element => element.scrollLeft)).toBe(0);
+    await expect(row).toBeFocused();
+  } finally {
+    await row.evaluate((element, value) => value === null ? element.removeAttribute('style') : element.setAttribute('style', value), style);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
+}
 
 for (const platform of ['Chromium', 'WebKit @mobile']) {
   test.describe(`Startup hardening — ${platform}`, () => {
@@ -95,6 +144,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await row.focus();
         await page.keyboard.press('ArrowRight');
         await expect.poll(() => row.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+        for (const name of ['Major Arcana 0 to 10', 'Major Arcana 11 to 21']) await checkArcanaBoundaries(page, panel.getByRole('group', { name, exact: true }));
         for (const tab of await panel.getByRole('tab').all()) {
           await tab.focus();
           await tab.press('Enter');
@@ -110,6 +160,41 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await fixture.close();
       }
     });
+
+    for (const width of [390, 1280]) {
+      test(`journey streak tooltips retain valid DOM and keyboard behavior at ${width}px`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        const fixture = await createNarrativeFixture(page, { signedOut: true });
+        const nestingWarnings = [];
+        page.on('console', message => {
+          if (/cannot be a descendant|validateDOMNesting|cannot contain a nested/.test(message.text())) nestingWarnings.push(message.text());
+        });
+        await page.addInitScript(value => {
+          localStorage.setItem('tarot-onboarding-complete', 'true');
+          localStorage.setItem('tarot_journal', JSON.stringify([value]));
+        }, entry);
+        try {
+          await page.goto('/journal');
+          let surface = page.locator('aside');
+          if (width < 1024) {
+            surface = page.getByRole('region', { name: 'Journal insights and journey', exact: true });
+          }
+          const trigger = surface.getByRole('button', { name: 'About streak grace period', exact: true });
+          await trigger.focus();
+          await expect(surface.getByRole('tooltip')).toContainText('grace period');
+          await page.keyboard.press('Escape');
+          await expect(surface.getByRole('tooltip')).toBeHidden();
+          await expect(trigger).toBeFocused();
+          if (width < 1024) await expect(surface).toBeVisible();
+          await trigger.evaluate(element => element.blur());
+          await trigger.hover();
+          await expect(surface.getByRole('tooltip')).toBeVisible();
+          await page.mouse.move(0, 0);
+          await expect(surface.getByRole('tooltip')).toBeHidden();
+          expect(nestingWarnings).toEqual([]);
+        } finally { await fixture.close(); }
+      });
+    }
 
     test('the Arcana map exposes named rows and supports keyboard scrolling', async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 900 });
@@ -130,12 +215,20 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         expect(await first.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true);
         await page.keyboard.press('ArrowRight');
         await expect.poll(() => first.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+        await expect(first).toBeFocused();
+        await page.keyboard.press('ArrowLeft');
+        await expect.poll(() => first.evaluate(element => element.scrollLeft)).toBe(0);
         await page.keyboard.press('Tab');
         await expect(second).toBeFocused();
         await page.keyboard.press('ArrowRight');
         await expect.poll(() => second.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+        await expect(second).toBeFocused();
+        await page.keyboard.press('ArrowLeft');
+        await expect.poll(() => second.evaluate(element => element.scrollLeft)).toBe(0);
         await expect(first.getByRole('img', { name: 'The Fool: appeared 1 times', exact: true })).toHaveCount(1);
         expect(await first.getByRole('img').count() + await second.getByRole('img').count()).toBe(22);
+        await checkArcanaBoundaries(page, first);
+        await checkArcanaBoundaries(page, second);
       } finally {
         await fixture.close();
       }

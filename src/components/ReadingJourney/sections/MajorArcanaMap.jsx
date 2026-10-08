@@ -22,6 +22,14 @@ function getHeatColor(count, maxCount) {
   return 'rgb(var(--brand-primary-rgb) / 0.15)';
 }
 
+function handleRowKeyDown(event) {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+  event.preventDefault();
+  const row = event.currentTarget;
+  const delta = event.key === 'ArrowRight' ? 64 : -64;
+  row.scrollLeft = Math.max(0, Math.min(row.scrollWidth - row.clientWidth, row.scrollLeft + delta));
+}
+
 function MajorArcanaMap({ data = [] }) {
   // Build a lookup map by name and number
   const countMap = new Map();
@@ -62,6 +70,7 @@ function MajorArcanaMap({ data = [] }) {
           role="group"
           aria-label="Major Arcana 0 to 10"
           tabIndex={0}
+          onKeyDown={handleRowKeyDown}
           className="flex gap-0.5 xs:gap-1 justify-start overflow-x-auto pb-1 scrollbar-none rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring-color)]"
         >
           {ROMAN_NUMERALS.slice(0, 11).map((numeral, index) => {
@@ -90,6 +99,7 @@ function MajorArcanaMap({ data = [] }) {
           role="group"
           aria-label="Major Arcana 11 to 21"
           tabIndex={0}
+          onKeyDown={handleRowKeyDown}
           className="flex gap-0.5 xs:gap-1 justify-start overflow-x-auto pb-1 scrollbar-none rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring-color)]"
         >
           {ROMAN_NUMERALS.slice(11).map((numeral, i) => {

@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 
 const FINAL_TEXT = '## A grounded next step\n\nKeep one small commitment to yourself this week. Your choices remain your own.';
 

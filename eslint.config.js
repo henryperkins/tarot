@@ -15,6 +15,8 @@ export default [
       '.wrangler/**',
       '.worker/**',
       '.superpowers/**',
+      '.worktrees/**',
+      'output/**', // Saved browser evidence and historical source snapshots
       'public/**',
       'data/**',
       'venv/**',
@@ -109,6 +111,15 @@ export default [
     },
     rules: {
       'no-restricted-globals': 'off', // Allow Workers globals
+    },
+  },
+
+  // Classic WordPress block editors execute in the browser.
+  {
+    files: ['wp-content/**/*.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: { ...globals.browser },
     },
   },
 

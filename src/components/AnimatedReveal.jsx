@@ -5,7 +5,7 @@
  * using Sora-2 video generation. Integrates with the card flip sequence.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { animate, set } from '../lib/motionAdapter';
 import { getCanonicalCard, getOrientationMeaning } from '../lib/cardLookup';
@@ -441,7 +441,11 @@ function VideoPlayer({ videoData, prefersReducedMotion = false, onExpandedChange
   );
 }
 
-// Main component
+function getCardIdentity(card, position, question) {
+  const reversed = Boolean(card?.reversed ?? card?.isReversed);
+  return `${card?.name || ''}:${card?.number ?? ''}:${card?.suit ?? ''}:${reversed ? 'r' : 'u'}:${(position || '').trim()}:${(question || '').trim()}`;
+}
+
 export default function AnimatedReveal({
   card,
   position,
@@ -453,7 +457,7 @@ export default function AnimatedReveal({
   className = ''
 }) {
   const prefersReducedMotion = useReducedMotion();
-  const [style, setStyleRaw] = useState(DEFAULT_VIDEO_STYLE);
+  const [selectedStyle, setStyleRaw] = useState(DEFAULT_VIDEO_STYLE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [errorReason, setErrorReason] = useState(null);
@@ -476,12 +480,28 @@ export default function AnimatedReveal({
   const requestTokenRef = useRef(0);
   const normalizedQuestion = (question || '').trim();
   const normalizedPosition = (position || '').trim();
-  const isReversed = Boolean(card?.reversed ?? card?.isReversed);
-  const cardIdentity = `${card?.name || ''}:${card?.number ?? ''}:${card?.suit ?? ''}:${isReversed ? 'r' : 'u'}:${normalizedPosition}:${normalizedQuestion}`;
+  const cardIdentity = getCardIdentity(card, position, question);
+  const [previousCardIdentity, setPreviousCardIdentity] = useState(cardIdentity);
 
-  const config = getMediaTierConfig(userTier, {
+  // Clear card-owned media before rendering a new card; retain the chosen style.
+  if (previousCardIdentity !== cardIdentity) {
+    setPreviousCardIdentity(cardIdentity);
+    setVideoData(null);
+    setLoading(false);
+    setError(null);
+    setErrorReason(null);
+    setJobStatus(null);
+    setJobId(null);
+    setProgress(0);
+    setShowStylePicker(false);
+  }
+
+  const config = useMemo(() => getMediaTierConfig(userTier, {
     cardVideoStyles: VIDEO_STYLES.map((stylePreset) => stylePreset.id)
-  }).cardVideo;
+  }).cardVideo, [userTier]);
+  const style = config.styles?.includes(selectedStyle)
+    ? selectedStyle : (config.styles?.[0] || DEFAULT_VIDEO_STYLE);
+  if (style !== selectedStyle) setStyleRaw(style);
   const availableStyles = VIDEO_STYLES.filter(s => config.styles?.includes(s.id));
 
   const setStyle = useCallback((id) => {
@@ -500,14 +520,6 @@ export default function AnimatedReveal({
     }
     pollInFlightRef.current = false;
   }, []);
-
-  // Clamp style when tier changes make current selection unavailable
-  useEffect(() => {
-    const allowed = config.styles || [];
-    if (allowed.length > 0 && !allowed.includes(style)) {
-      setStyleRaw(allowed[0]);
-    }
-  }, [config.styles, style]);
 
   const cardMediaMeta = useCallback((overrides = {}) => {
     const canonicalCard = getCanonicalCard(card);
@@ -533,14 +545,6 @@ export default function AnimatedReveal({
 
   useEffect(() => {
     requestTokenRef.current += 1;
-    setVideoData(null);
-    setLoading(false);
-    setError(null);
-    setErrorReason(null);
-    setJobStatus(null);
-    setJobId(null);
-    setProgress(0);
-    setShowStylePicker(false);
     pollMetaRef.current = {
       startedAt: 0,
       errorCount: 0,
@@ -550,6 +554,7 @@ export default function AnimatedReveal({
     clearPolling();
 
     return () => {
+      requestTokenRef.current += 1;
       clearPolling();
     };
   }, [cardIdentity, clearPolling]);

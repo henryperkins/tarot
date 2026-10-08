@@ -48,6 +48,7 @@ import {
 const GuidedIntentionCoachContext = createContext(null);
 const REVIEW_STEP = STEPS.length - 1;
 const RESUMED_MESSAGE = 'Picked up where you left off.';
+const coachPrefsKey = userId => userId ? `${COACH_PREFS_KEY}_${userId}` : COACH_PREFS_KEY;
 
 /**
  * What the coach shows when it opens: the unfinished draft from a session that
@@ -66,7 +67,7 @@ function resolveOpeningState({ userId, suggestedTopic, prefillRecommendation }) 
   let timeframe = INTENTION_TIMEFRAME_OPTIONS[1].value;
   let depth = INTENTION_DEPTH_OPTIONS[1].value;
   try {
-    const saved = JSON.parse(localStorage.getItem(COACH_PREFS_KEY) || '{}');
+    const saved = JSON.parse(localStorage.getItem(coachPrefsKey(userId)) || '{}');
     const isRecent = saved.timestamp && (Date.now() - saved.timestamp) < TIMING.PREFS_EXPIRY;
     if (isRecent) {
       topic = saved.lastTopic || topic;
@@ -105,19 +106,27 @@ function resolveOpeningState({ userId, suggestedTopic, prefillRecommendation }) 
   };
 }
 
-export function GuidedIntentionCoachProvider({
+export function GuidedIntentionCoachProvider(props) {
+  const { user } = useAuth();
+  const { personalizationReady } = usePreferences();
+  // Owner-scoped preferences settle asynchronously; initialize once they belong
+  // to this owner, rather than pinning the previous account's suggested topic.
+  if (!props.isOpen || !personalizationReady) return null;
+  return <CoachSession key={user?.id || 'anon'} {...props} userId={user?.id || null} />;
+}
+
+function CoachSession({
   isOpen,
   selectedSpread,
   onClose,
   onApply,
   prefillRecommendation = null,
-  children
+  children,
+  userId
 }) {
   const { personalization } = usePreferences();
-  const { user } = useAuth();
   const { canUseAIQuestions } = useSubscription();
   const { publish: publishToast } = useToast();
-  const userId = user?.id || null;
 
   const focusAreaSuggestedTopic = useMemo(() => {
     if (!Array.isArray(personalization?.focusAreas)) return null;
@@ -154,8 +163,7 @@ export function GuidedIntentionCoachProvider({
   const [customFocus, setCustomFocus] = useState(openingState?.customFocus ?? '');
   const [useCreative, setUseCreative] = useState(openingState?.useCreative ?? false);
   const [questionText, setQuestionText] = useState(openingState?.questionText ?? '');
-  const [questionLoading, setQuestionLoading] = useState(false);
-  const [questionError, setQuestionError] = useState('');
+  const [generation, setGeneration] = useState(null);
   const [announcement, setAnnouncement] = useState('');
   // A resumed draft is the one thing a fresh mount has to say on its own.
   const [pendingAnnouncement, setPendingAnnouncement] = useState(
@@ -163,28 +171,41 @@ export function GuidedIntentionCoachProvider({
   );
   const [autoQuestionEnabled, setAutoQuestionEnabled] = useState(openingState?.autoQuestionEnabled ?? true);
   const [prefillSource, setPrefillSource] = useState(openingState?.prefillSource ?? null);
-  const [templates, setTemplates] = useState([]);
+  const [storageSnapshot] = useState(() => {
+    const snapshot = loadCoachStatsSnapshot(userId);
+    const insights = loadStoredJournalInsights(userId);
+    return {
+      templates: loadCoachTemplates(userId),
+      history: loadCoachHistory(undefined, userId),
+      stats: snapshot?.stats || insights?.stats || null,
+      meta: snapshot?.stats ? snapshot.meta || null : null
+    };
+  });
+  const [templates, setTemplates] = useState(storageSnapshot.templates);
   const [newTemplateLabel, setNewTemplateLabel] = useState('');
   const [templateStatus, setTemplateStatus] = useState('');
-  const [questionHistory, setQuestionHistory] = useState([]);
-  const [coachStats, setCoachStats] = useState(null);
-  const [coachStatsMeta, setCoachStatsMeta] = useState(null);
-  const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
-  const [suggestionsPage, setSuggestionsPage] = useState(0);
+  const [questionHistory, setQuestionHistory] = useState(storageSnapshot.history);
+  const coachStats = storageSnapshot.stats;
+  const coachStatsMeta = storageSnapshot.meta;
+  const personalizedSuggestions = useMemo(
+    () => buildPersonalizedSuggestions(coachStats, questionHistory, personalization?.focusAreas),
+    [coachStats, questionHistory, personalization?.focusAreas]
+  );
+  const [pageSelection, setPageSelection] = useState(null);
+  const suggestionsPage = pageSelection?.source === personalizedSuggestions
+    ? Math.min(pageSelection.page, Math.max(0, Math.ceil(personalizedSuggestions.length / SUGGESTIONS_PER_PAGE) - 1)) : 0;
+  const setSuggestionsPage = useCallback(value => {
+    setPageSelection({ source: personalizedSuggestions, page: typeof value === 'function' ? value(suggestionsPage) : value });
+  }, [personalizedSuggestions, suggestionsPage]);
   const [isSuggestionsExpanded, setSuggestionsExpanded] = useState(false);
   const [isTemplatePanelOpen, setTemplatePanelOpen] = useState(false);
   const [templatePanelIntent, setTemplatePanelIntent] = useState('browse');
   const [remixCount, setRemixCount] = useState(openingState?.remixCount ?? 0);
-  const [astroHighlights, setAstroHighlights] = useState([]);
-  const [astroWindowDays, setAstroWindowDays] = useState(null);
-  const [astroSource, setAstroSource] = useState(null);
+
   const timeoutRefs = useRef([]);
-  const hasInitializedRef = useRef(Boolean(openingState));
-  const sessionUserIdRef = useRef(userId);
   // Prefix for announcing the next generated question, set by explicit
   // actions (Remix, the AI toggle) and consumed once generation settles.
   const pendingQuestionAnnouncementRef = useRef(null);
-  const skipNextGenerationRef = useRef(false);
   const openingSnapshotRef = useRef(openingState);
   const draftSnapshotRef = useRef(null);
   const appliedRef = useRef(false);
@@ -211,9 +232,7 @@ export function GuidedIntentionCoachProvider({
   }, []);
 
   const clearAstroForecast = useCallback(() => {
-    setAstroHighlights([]);
-    setAstroWindowDays(null);
-    setAstroSource(null);
+    setGeneration(null);
   }, []);
 
   const scheduleTimeout = useCallback((callback, delay) => {
@@ -274,7 +293,18 @@ export function GuidedIntentionCoachProvider({
 
   // An empty edited question belongs to the reader too; only automatic mode
   // can fall back to the generated wording.
-  const currentQuestion = autoQuestionEnabled ? questionText || guidedQuestion : questionText;
+  const generationInputs = useMemo(() => ({
+    topic, timeframe, depth, customFocus, seed: questionSeed,
+    focusAreas: personalization?.focusAreas, spreadKey: selectedSpread,
+    useCreative, autoQuestionEnabled
+  }), [topic, timeframe, depth, customFocus, questionSeed, personalization?.focusAreas, selectedSpread, useCreative, autoQuestionEnabled]);
+  const activeGeneration = autoQuestionEnabled && useCreative && generation?.inputs === generationInputs ? generation : null;
+  const currentQuestion = autoQuestionEnabled ? activeGeneration?.question || guidedQuestion : questionText;
+  const questionLoading = autoQuestionEnabled && useCreative && !activeGeneration;
+  const questionError = activeGeneration?.error || '';
+  const astroHighlights = activeGeneration?.forecast?.highlights || [];
+  const astroWindowDays = activeGeneration?.forecast?.days || null;
+  const astroSource = activeGeneration?.forecast?.source || null;
 
   const questionQuality = useMemo(
     () => scoreQuestion(currentQuestion),
@@ -432,8 +462,6 @@ export function GuidedIntentionCoachProvider({
     } else {
       setAutoQuestionEnabled(true);
     }
-    setQuestionError('');
-    setQuestionLoading(false);
     setPrefillSource({
       source: 'template',
       label: template.label
@@ -491,8 +519,6 @@ export function GuidedIntentionCoachProvider({
     } else {
       setAutoQuestionEnabled(true);
     }
-    setQuestionError('');
-    setQuestionLoading(false);
     setPrefillSource({
       source: 'suggestion',
       label: suggestion.label
@@ -530,8 +556,6 @@ export function GuidedIntentionCoachProvider({
     // Future automatic questions require an explicit Remix or setting change.
     setAutoQuestionEnabled(false);
     setQuestionText(text.slice(0, USER_QUESTION_MAX_LENGTH));
-    setQuestionLoading(false);
-    setQuestionError('');
     setPrefillSource(null);
     pendingQuestionAnnouncementRef.current = null;
     clearAstroForecast();
@@ -540,7 +564,6 @@ export function GuidedIntentionCoachProvider({
   const remixQuestion = useCallback(() => {
     setPrefillSource(null);
     setAutoQuestionEnabled(true);
-    setQuestionError('');
     setRemixCount(count => count + 1);
     announceNextQuestion('New question');
   }, [announceNextQuestion]);
@@ -598,8 +621,6 @@ export function GuidedIntentionCoachProvider({
 
     if (historyResult?.history) {
       setQuestionHistory(historyResult.history);
-      setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, historyResult.history, personalization?.focusAreas));
-      setSuggestionsPage(0);
     }
 
     try {
@@ -609,7 +630,7 @@ export function GuidedIntentionCoachProvider({
         lastDepth: depth,
         timestamp: Date.now()
       };
-      localStorage.setItem(COACH_PREFS_KEY, JSON.stringify(prefs));
+      localStorage.setItem(coachPrefsKey(userId), JSON.stringify(prefs));
     } catch (error) {
       console.warn('Could not save coach preferences:', error);
     }
@@ -631,8 +652,6 @@ export function GuidedIntentionCoachProvider({
   }, [
     currentQuestion,
     userId,
-    coachStats,
-    personalization?.focusAreas,
     topic,
     timeframe,
     depth,
@@ -642,9 +661,8 @@ export function GuidedIntentionCoachProvider({
   ]);
 
   // Latest committed session, kept as a draft when the coach closes without
-  // applying a question (swipe, Escape, backdrop, close button). Declared
-  // before the opening effect below so that effect can clear it: in the commit
-  // that starts a new session, these values still belong to the old one.
+  // applying a question. Each owner has a separate mounted session and refs;
+  // disposal therefore snapshots only the previous owner's displayed wording.
   useEffect(() => {
     if (!isOpen) return;
     draftSnapshotRef.current = {
@@ -655,234 +673,63 @@ export function GuidedIntentionCoachProvider({
       customFocus,
       useCreative,
       remixCount,
-      questionText,
+      questionText: currentQuestion,
       autoQuestionEnabled,
       prefillSource
     };
   });
 
   useEffect(() => {
-    if (!isOpen) {
-      hasInitializedRef.current = false;
-      return;
-    }
-
-    // A session belongs to the account that opened it. If the account changes
-    // while the coach is open, the draft cleanup below has already kept the
-    // old session for the old account; start over as the new one.
-    if (hasInitializedRef.current && sessionUserIdRef.current === userId) {
-      return;
-    }
-
-    // Reopened without remounting, or the account changed. The generator's
-    // run in this same commit still sees the previous session and would
-    // overwrite the opening question queued here, so it sits that one run out.
-    hasInitializedRef.current = true;
-    sessionUserIdRef.current = userId;
-    skipNextGenerationRef.current = true;
-
-    const opening = resolveOpeningState({ userId, suggestedTopic, prefillRecommendation });
-    openingSnapshotRef.current = opening;
-    // Nothing of the new session has rendered yet, so nothing to keep if the
-    // coach closes before it does.
-    draftSnapshotRef.current = null;
-    setStep(opening.step);
-    setTopic(opening.topic);
-    setTimeframe(opening.timeframe);
-    setDepth(opening.depth);
-    setCustomFocus(opening.customFocus);
-    setUseCreative(opening.useCreative);
-    setRemixCount(opening.remixCount);
-    setQuestionText(opening.questionText);
-    setAutoQuestionEnabled(opening.autoQuestionEnabled);
-    setPrefillSource(opening.prefillSource);
-    setQuestionError('');
-    setQuestionLoading(false);
-    if (!opening.autoQuestionEnabled) {
-      clearAstroForecast();
-    }
-    if (opening.resumed) {
-      announce(RESUMED_MESSAGE);
-    }
-  }, [isOpen, suggestedTopic, prefillRecommendation, userId, clearAstroForecast, announce]);
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    appliedRef.current = false;
+    const opening = openingSnapshotRef.current;
     return () => {
       const session = draftSnapshotRef.current;
-      if (!appliedRef.current && session && !isUnchangedCoachSession(session, openingSnapshotRef.current)) {
+      if (!appliedRef.current && session && !isUnchangedCoachSession(session, opening)) {
         saveCoachDraft(userId, session);
       }
-      draftSnapshotRef.current = null;
     };
-  }, [isOpen, userId]);
+  }, [userId]);
 
+  // Only asynchronous creative generation lives in an effect. Guided wording,
+  // loading and forecast visibility come from the current session inputs.
   useEffect(() => {
-    if (!isOpen) return;
-    setTemplates(loadCoachTemplates(userId));
-    const history = loadCoachHistory(undefined, userId);
-    setQuestionHistory(history);
-    const insights = loadStoredJournalInsights(userId);
-    const snapshot = loadCoachStatsSnapshot(userId);
-    if (snapshot?.stats) {
-      setCoachStats(snapshot.stats);
-      setCoachStatsMeta(snapshot.meta || null);
-    } else {
-      setCoachStats(insights?.stats || null);
-      setCoachStatsMeta(null);
-    }
-  }, [isOpen, userId]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setPersonalizedSuggestions(buildPersonalizedSuggestions(coachStats, questionHistory, personalization?.focusAreas));
-    setSuggestionsPage(0);
-  }, [coachStats, questionHistory, isOpen, personalization?.focusAreas]);
-
-  useEffect(() => {
-    const totalPages = Math.max(0, Math.ceil(personalizedSuggestions.length / SUGGESTIONS_PER_PAGE) - 1);
-    setSuggestionsPage(prev => Math.min(prev, totalPages));
-  }, [personalizedSuggestions]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setTemplateStatus('');
-      setNewTemplateLabel('');
-      setTemplatePanelOpen(false);
-      setAnnouncement('');
-      setPendingAnnouncement(null);
-      setSuggestionsPage(0);
-      clearAllTimeouts();
-    }
-  }, [isOpen, clearAllTimeouts]);
-
-  useEffect(() => {
+    if (!autoQuestionEnabled) return undefined;
     const controller = new AbortController();
-    let timerId = null;
-    let isCancelled = false;
-
-    const safeSetState = (setter, value) => {
-      if (!isCancelled) setter(value);
-    };
-
-    // Speak the settled question only when an explicit action asked for it.
-    const settleAnnouncement = (buildMessage) => {
+    let cancelled = false;
+    const settleAnnouncement = (message) => {
       const prefix = pendingQuestionAnnouncementRef.current;
-      if (!prefix || isCancelled) return;
+      if (!prefix || cancelled) return;
       pendingQuestionAnnouncementRef.current = null;
-      announce(buildMessage(prefix));
+      announce(`${prefix}: ${message}`);
     };
-
-    if (!isOpen) {
-      setQuestionText('');
-      setAstroHighlights([]);
-      setAstroWindowDays(null);
-      setAstroSource(null);
-      return () => { isCancelled = true; };
-    }
-
-    if (skipNextGenerationRef.current) {
-      skipNextGenerationRef.current = false;
-      return () => { isCancelled = true; };
-    }
-
-    if (!autoQuestionEnabled) {
-      return () => { isCancelled = true; };
-    }
-
-    if (!useCreative) {
-      setQuestionLoading(false);
-      setQuestionError('');
-      setQuestionText(guidedQuestion);
-      setAstroHighlights([]);
-      setAstroWindowDays(null);
-      setAstroSource(null);
-      settleAnnouncement(prefix => `${prefix}: ${guidedQuestion}`);
-      return () => { isCancelled = true; };
-    }
-
-    setQuestionLoading(true);
-    setQuestionError('');
-
-    timerId = setTimeout(async () => {
-      try {
-        const { question: creative, source, forecast } = await buildCreativeQuestion({
-          topic,
-          timeframe,
-          depth,
-          customFocus,
-          seed: questionSeed,
-          focusAreas: personalization?.focusAreas,
-          spreadKey: selectedSpread
-        }, { signal: controller.signal, userId });
-
-        if (isCancelled || controller.signal.aborted) {
-          return;
-        }
-
-        if (creative) {
-          safeSetState(setQuestionText, creative);
-          const isLocalFallback = source === 'local' || source === 'local-fallback' || source === 'api-fallback' || source === 'local-template';
-          safeSetState(setQuestionError, isLocalFallback ? 'Using on-device generator for now.' : '');
-          settleAnnouncement(prefix => (isLocalFallback
-            ? `${prefix}: ${creative} Using on-device generator for now.`
-            : `${prefix}: ${creative}`));
-
-          if (forecast?.highlights?.length) {
-            safeSetState(setAstroHighlights, forecast.highlights);
-            safeSetState(setAstroWindowDays, forecast.days || (timeframe === 'season' ? 90 : 30));
-            safeSetState(setAstroSource, forecast.source || null);
-          } else {
-            safeSetState(setAstroHighlights, []);
-            safeSetState(setAstroWindowDays, null);
-            safeSetState(setAstroSource, null);
-          }
-        } else {
-          safeSetState(setQuestionText, guidedQuestion);
-          safeSetState(setQuestionError, 'Personalized mode is temporarily unavailable. Showing guided version.');
-          safeSetState(setAstroHighlights, []);
-          safeSetState(setAstroWindowDays, null);
-          safeSetState(setAstroSource, null);
-          settleAnnouncement(() => `Personalized mode is temporarily unavailable. Guided question: ${guidedQuestion}`);
-        }
-      } catch (error) {
-        if (error?.name === 'AbortError' || isCancelled) {
-          return;
-        }
-        safeSetState(setQuestionText, guidedQuestion);
-        safeSetState(setQuestionError, 'Personalized mode is temporarily unavailable. Showing guided version.');
-        safeSetState(setAstroHighlights, []);
-        safeSetState(setAstroWindowDays, null);
-        safeSetState(setAstroSource, null);
-        settleAnnouncement(() => `Personalized mode is temporarily unavailable. Guided question: ${guidedQuestion}`);
-      } finally {
-        if (!isCancelled && !controller.signal.aborted) {
-          safeSetState(setQuestionLoading, false);
-        }
+    const timer = setTimeout(async () => {
+      if (!useCreative) {
+        settleAnnouncement(guidedQuestion);
+        return;
       }
-    }, TIMING.CREATIVE_DEBOUNCE);
-
+      try {
+        const { question, source, forecast } = await buildCreativeQuestion(generationInputs, {
+          signal: controller.signal, userId
+        });
+        if (cancelled || controller.signal.aborted) return;
+        const local = ['local', 'local-fallback', 'api-fallback', 'local-template'].includes(source);
+        const error = !question
+          ? 'Personalized mode is temporarily unavailable. Showing guided version.'
+          : local ? 'Using on-device generator for now.' : '';
+        setGeneration({ inputs: generationInputs, question: question || guidedQuestion, error, forecast: question ? forecast : null });
+        settleAnnouncement(`${question || guidedQuestion}${error ? ` ${error}` : ''}`);
+      } catch (error) {
+        if (error?.name === 'AbortError' || cancelled) return;
+        const message = 'Personalized mode is temporarily unavailable. Showing guided version.';
+        setGeneration({ inputs: generationInputs, question: guidedQuestion, error: message, forecast: null });
+        settleAnnouncement(`${guidedQuestion} ${message}`);
+      }
+    }, useCreative ? TIMING.CREATIVE_DEBOUNCE : TIMING.ANNOUNCE_DELAY);
     return () => {
-      isCancelled = true;
-      if (timerId) clearTimeout(timerId);
+      cancelled = true;
+      clearTimeout(timer);
       controller.abort();
     };
-  }, [
-    guidedQuestion,
-    useCreative,
-    isOpen,
-    autoQuestionEnabled,
-    questionSeed,
-    topic,
-    timeframe,
-    depth,
-    customFocus,
-    personalization?.focusAreas,
-    selectedSpread,
-    userId,
-    announce
-  ]);
+  }, [autoQuestionEnabled, useCreative, generationInputs, guidedQuestion, userId, announce]);
 
   const value = {
     isOpen,
@@ -945,23 +792,15 @@ export function GuidedIntentionCoachProvider({
     setUseCreative,
     setAutoQuestionEnabled,
     setQuestionText,
-    setQuestionLoading,
-    setQuestionError,
     setPrefillSource,
     setTemplates,
     setNewTemplateLabel,
     setTemplateStatus,
     setQuestionHistory,
-    setCoachStats,
-    setCoachStatsMeta,
-    setPersonalizedSuggestions,
     setSuggestionsPage,
     setSuggestionsExpanded,
     setTemplatePanelOpen,
     setRemixCount,
-    setAstroHighlights,
-    setAstroWindowDays,
-    setAstroSource,
     releasePrefill,
     clearAstroForecast,
     announce,

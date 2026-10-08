@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 
 async function prepare(page, { theme = 'light', tier = null, status = 'active' } = {}) {
@@ -105,6 +105,18 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           // Read the last plan, then verify that the refund note still fits.
           await columns.evaluate(element => { element.scrollLeft = element.scrollWidth; });
         }
+        await page.evaluate(async () => {
+          await document.fonts.ready;
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        });
+        let previousHeight = null;
+        let stableMeasurements = 0;
+        await expect.poll(async () => {
+          const height = await scroll.evaluate(element => element.scrollHeight);
+          stableMeasurements = height === previousHeight ? stableMeasurements + 1 : 0;
+          previousHeight = height;
+          return stableMeasurements >= 3;
+        }, { intervals: [50] }).toBe(true);
         await scroll.focus();
         await expect(scroll).toBeFocused();
         await page.keyboard.press('End');

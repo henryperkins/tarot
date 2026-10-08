@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 // Override the origin for a built HTTP preview. Reading fixtures stream through
 // a local HTTP server; HTTPS smoke checks need a compatible fixture transport.
-const baseURL = process.env.INSTALL_BASE_URL || 'http://127.0.0.1:5173';
+const baseURL = process.env.INSTALL_BASE_URL || 'http://127.0.0.1:5193';
 
 export default defineConfig({
   testDir: './e2e',
@@ -17,7 +17,7 @@ export default defineConfig({
   outputDir: 'test-results/install',
   use: {
     baseURL,
-    reducedMotion: 'reduce',
+    contextOptions: { reducedMotion: 'reduce' },
     serviceWorkers: 'block',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure'
@@ -31,9 +31,9 @@ export default defineConfig({
     }
   ],
   webServer: process.env.INSTALL_BASE_URL ? undefined : {
-    command: 'npm run dev:frontend',
+    command: 'npm run dev:frontend -- --host 127.0.0.1 --port 5193 --strictPort',
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120000
   }
 });

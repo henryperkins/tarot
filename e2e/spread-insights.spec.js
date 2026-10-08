@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture, startReading, badgeContrast, expectTarget, expectNoHorizontalOverflow } from './helpers/narrativeFixtures.js';
 import { analyzeSpreadThemes, analyzeThreeCard } from '../functions/lib/spreadAnalysis.js';

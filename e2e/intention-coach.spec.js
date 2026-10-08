@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 
 // These tests mock API responses; service workers can bypass page.route.
 test.use({ serviceWorkers: 'block' });
@@ -227,6 +227,67 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await expect(library.getByRole('status')).toHaveText('Template saved');
       await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tarot_coach_templates_anon'))?.[0]?.savedQuestion))
         .toBe(question);
+    });
+
+    test('failed AI generation settles with an editable local question', async ({ page }) => {
+      await seedApp(page, { user: PLUS_USER });
+      let calls = 0;
+      await page.route('**/api/generate-question', route => {
+        calls += 1;
+        return route.fulfill({ status: 503, json: { error: 'Synthetic unavailable provider' } });
+      });
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      await coach.getByRole('tab', { name: 'Depth' }).click();
+      await coach.getByRole('checkbox', { name: 'Personalize with AI' }).check();
+      await expect.poll(() => calls).toBe(1);
+      const field = reviewQuestion(coach);
+      await expect(field).not.toHaveValue('');
+      await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeEnabled();
+      await expect(coach.locator('[aria-busy="true"]')).toHaveCount(0);
+      const wording = 'How can I preserve my deliberate wording after an unavailable provider?';
+      await field.fill(wording);
+      await coach.getByRole('button', { name: 'Use question', exact: true }).click();
+      await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(wording);
+      expect(calls).toBe(1);
+    });
+
+    test('a changed suggestion source resets a later page when the source shrinks', async ({ page }) => {
+      await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
+      await page.addInitScript(() => {
+        localStorage.setItem('tarot_coach_stats_snapshot_anon', JSON.stringify({ stats: {
+          frequentCards: [{ name: 'The Fool', count: 2 }, { name: 'The Sun', count: 2 }],
+          recentThemes: ['balance', 'rest'], contextBreakdown: [{ name: 'career', count: 2 }]
+        } }));
+        localStorage.setItem('tarot_coach_history_anon', JSON.stringify([{ id: 'recent', question: 'Which pace supports me today?', timestamp: Date.now() }]));
+        localStorage.setItem('tarot-personalization:suggestion-owner', JSON.stringify({ focusAreas: ['healing'] }));
+      });
+      let settleAuth;
+      const auth = new Promise(resolve => { settleAuth = resolve; });
+      await page.route('**/api/auth/me', async route => {
+        await auth;
+        await route.fulfill({ json: { user: { id: 'suggestion-owner', username: 'suggestion-reader', subscription_tier: 'free' } } });
+      });
+      try {
+        await gotoReading(page);
+        const coach = await openCoachWithShortcut(page);
+        const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+        const show = suggestions.getByRole('button', { name: 'Show', exact: true });
+        if (await show.count()) await show.click();
+        await suggestions.getByRole('button', { name: 'Next suggestions', exact: true }).click();
+        await expect(suggestions.getByText('Page 2 of 2', { exact: true })).toBeAttached();
+        settleAuth();
+        await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toHaveCount(0);
+        await expect.poll(async () => (
+          await suggestions.getByText('Healing & growth', { exact: true }).isVisible()
+          || await suggestions.getByText('1 suggestion ready. Tap to peek.', { exact: true }).isVisible()
+        )).toBe(true);
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        if (await show.count()) await show.click();
+        await expect(suggestions.getByRole('button', { name: 'Next suggestions', exact: true })).toHaveCount(0);
+        await expect(suggestions.getByText('Healing & growth', { exact: true })).toBeVisible();
+        await expect(suggestions.getByText('Career & money', { exact: true })).toHaveCount(0);
+      } finally { settleAuth(); }
     });
 
     test('editing during AI generation cancels the response and keeps the typed question', async ({ page }) => {
@@ -554,7 +615,12 @@ test.describe('Guided intention coach keyboard and layers', () => {
   });
 
   test('signing in while the coach is open starts over for the new account', async ({ page }) => {
-    await seedApp(page);
+    await seedApp(page, { focusAreas: ['career'] });
+    await page.addInitScript(() => localStorage.setItem('tarot-personalization:user-e2e', JSON.stringify({ focusAreas: ['healing'] })));
+    await page.route('**/api/auth/logout', route => route.fulfill({ json: { success: true } }));
+    await page.addInitScript(() => localStorage.setItem('tarot-coach-preferences', JSON.stringify({
+      lastTopic: 'career', lastTimeframe: 'season', lastDepth: 'deep', timestamp: Date.now()
+    })));
     // Registered after seedApp, so it wins: hold the session check until the
     // anonymous session has something in it.
     let signIn;
@@ -579,11 +645,23 @@ test.describe('Guided intention coach keyboard and layers', () => {
     await expect(page.getByRole('button', { name: 'Sign In' })).toHaveCount(0);
     await expect(coach.getByRole('tab', { name: 'Topic' })).toHaveAttribute('aria-selected', 'true');
 
-    // The anonymous session was not filed under the new account.
+    await expect(coach.getByRole('radiogroup', { name: TOPIC_PROMPT })
+      .getByRole('radio', { name: /^Career & Purpose/ })).toHaveAttribute('aria-checked', 'false');
+
+    await expect(coach.getByRole('radiogroup', { name: TOPIC_PROMPT })
+      .getByRole('radio', { name: /^Wellbeing/ })).toHaveAttribute('aria-checked', 'true');
     await page.keyboard.press('Escape');
     await expect(coach).toHaveCount(0);
     coach = await openCoachWithShortcut(page);
     await expect(coach.getByRole('tab', { name: 'Topic' })).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: /^User menu/ }).click();
+    await page.getByRole('menuitem', { name: 'Sign Out', exact: true }).click();
+    coach = await openCoachWithShortcut(page);
+    await expect(coach.getByRole('tab', { name: 'Timeframe' })).toHaveAttribute('aria-selected', 'true');
+    await coach.getByRole('tab', { name: 'Topic' }).click();
+    await expect(coach.getByRole('radiogroup', { name: TOPIC_PROMPT })
+      .getByRole('radio', { name: /^Career & Purpose/ })).toHaveAttribute('aria-checked', 'true');
   });
 
   test('an untouched session is not kept as a draft', async ({ page }) => {

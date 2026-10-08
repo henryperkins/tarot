@@ -24,6 +24,21 @@ function getRunMetaKey(userId) {
   return userId ? `${RUN_META_KEY_PREFIX}_${userId}` : null;
 }
 
+function loadRunMeta(userId) {
+  const empty = { lastAnalyzedAt: null, entriesProcessed: null };
+  const key = getRunMetaKey(userId);
+  if (!safeStorage.isAvailable || !key) return empty;
+  try {
+    const stored = JSON.parse(safeStorage.getItem(key) || 'null');
+    return stored && typeof stored === 'object'
+      ? { lastAnalyzedAt: stored.lastAnalyzedAt ?? null, entriesProcessed: stored.entriesProcessed ?? null }
+      : empty;
+  } catch (err) {
+    console.warn('Failed to parse stored run metadata', err);
+    return empty;
+  }
+}
+
 /**
  * Format a timestamp for display.
  */
@@ -49,43 +64,20 @@ function formatTimestampLabel(value) {
  */
 export function useArchetypeJourney(userId, enabled = true) {
   const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(null);
   const [isDisabled, setIsDisabled] = useState(false);
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState(null);
-  const [runMeta, setRunMeta] = useState({ lastAnalyzedAt: null, entriesProcessed: null });
+  const [runMeta, setRunMeta] = useState(() => loadRunMeta(userId));
+  const [runMetaOwner, setRunMetaOwner] = useState(userId);
   const reloadControllerRef = useRef(null);
   const fetchControllerRef = useRef(null);
 
-  // Load run metadata from user-scoped localStorage when userId changes
-  useEffect(() => {
-    if (!safeStorage.isAvailable) return;
-
-    // Clear metadata when no userId
-    if (!userId) {
-      setRunMeta({ lastAnalyzedAt: null, entriesProcessed: null });
-      return;
-    }
-
-    const key = getRunMetaKey(userId);
-    if (!key) return;
-
-    try {
-      const stored = JSON.parse(safeStorage.getItem(key) || 'null');
-      if (stored && typeof stored === 'object') {
-        setRunMeta({
-          lastAnalyzedAt: stored.lastAnalyzedAt ?? null,
-          entriesProcessed: stored.entriesProcessed ?? null
-        });
-      } else {
-        setRunMeta({ lastAnalyzedAt: null, entriesProcessed: null });
-      }
-    } catch (err) {
-      console.warn('Failed to parse stored run metadata', err);
-      setRunMeta({ lastAnalyzedAt: null, entriesProcessed: null });
-    }
-  }, [userId]);
+  if (runMetaOwner !== userId) {
+    setRunMetaOwner(userId);
+    setRunMeta(loadRunMeta(userId));
+  }
 
   const updateRunMeta = useCallback((incoming) => {
     // If incoming is null/undefined, reset the metadata
@@ -217,10 +209,7 @@ export function useArchetypeJourney(userId, enabled = true) {
   // Fetch analytics on mount when enabled
   useEffect(() => {
     // Don't fetch if not enabled
-    if (!enabled) {
-      setLoading(false);
-      return;
-    }
+    if (!enabled) return;
 
     // Abort any previous fetch
     if (fetchControllerRef.current) {
@@ -229,7 +218,9 @@ export function useArchetypeJourney(userId, enabled = true) {
 
     const controller = new AbortController();
     fetchControllerRef.current = controller;
-    loadAnalytics(controller.signal);
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) loadAnalytics(controller.signal);
+    });
 
     return () => {
       controller.abort();
@@ -305,7 +296,7 @@ export function useArchetypeJourney(userId, enabled = true) {
     currentStreak,
 
     // State
-    isLoading: loading,
+    isLoading: enabled && loading,
     error,
     isDisabled,
     isBackfilling,

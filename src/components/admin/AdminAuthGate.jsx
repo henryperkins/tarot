@@ -13,12 +13,13 @@ const STORAGE_KEY = 'admin_api_key';
  * @param {Function} props.children - Render prop: (apiKey) => ReactNode
  */
 export default function AdminAuthGate({ children }) {
-  const [apiKey, setApiKey] = useState('');
+  const [storedKey] = useState(() => sessionStorage.getItem(STORAGE_KEY) || '');
+  const [apiKey, setApiKey] = useState(storedKey);
   const [isChecking, setIsChecking] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [initialCheckDone, setInitialCheckDone] = useState(false);
+  const [initialCheckDone, setInitialCheckDone] = useState(!storedKey);
 
   const verifyKey = useCallback(async (key) => {
     if (!key) return false;
@@ -55,14 +56,15 @@ export default function AdminAuthGate({ children }) {
 
   // Auto-verify stored key on mount
   useEffect(() => {
-    const storedKey = sessionStorage.getItem(STORAGE_KEY);
-    if (storedKey) {
-      setApiKey(storedKey);
-      verifyKey(storedKey).finally(() => setInitialCheckDone(true));
-    } else {
-      setInitialCheckDone(true);
-    }
-  }, [verifyKey]);
+    if (!storedKey) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) verifyKey(storedKey).finally(() => {
+        if (!cancelled) setInitialCheckDone(true);
+      });
+    });
+    return () => { cancelled = true; };
+  }, [storedKey, verifyKey]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

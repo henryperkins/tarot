@@ -2,7 +2,7 @@
  * useJournalFilters - Manages filter state, filtered entries, and active filter chips
  */
 
-import { useDeferredValue, useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { useDeferredValue, useCallback, useMemo, useState, useEffect } from 'react';
 import { formatContextName } from '../lib/journalInsights';
 import {
   CONTEXT_FILTERS,
@@ -12,6 +12,11 @@ import {
   TIMEFRAME_LABELS
 } from '../lib/journal/constants';
 
+// One stable idle value keeps filteredEntries memoized while server search is off.
+const IDLE_SERVER_SEARCH = Object.freeze({
+  searchKey: null, status: 'idle', results: [], error: null, query: '', mode: 'exact'
+});
+
 export function useJournalFilters(entries, options = {}) {
   const { isAuthenticated = false, canUseCloudJournal = false } = options;
   const SERVER_SEARCH_THRESHOLD = 200;
@@ -20,23 +25,16 @@ export function useJournalFilters(entries, options = {}) {
 
   const [filters, setFiltersInternal] = useState(() => ({ ...DEFAULT_FILTERS }));
   const deferredQuery = useDeferredValue(filters.query);
-  const [serverSearch, setServerSearch] = useState({
-    status: 'idle',
-    results: [],
-    error: null,
-    query: '',
-    mode: 'exact'
-  });
+  const [serverSearchResult, setServerSearch] = useState(IDLE_SERVER_SEARCH);
   const [serverSearchNonce, setServerSearchNonce] = useState(0);
-  const lastServerSearchRef = useRef({ query: '', nonce: 0, filters: '' });
   const refreshServerSearch = useCallback(() => {
     setServerSearchNonce((prev) => prev + 1);
   }, []);
 
   // Capture timestamp when filters change (in event handler context, not during render)
-  const filterTimestampRef = useRef(0);
+  const [filterTimestamp, setFilterTimestamp] = useState(Date.now);
   const setFilters = useCallback((update) => {
-    filterTimestampRef.current = Date.now();
+    setFilterTimestamp(Date.now());
     setFiltersInternal(update);
   }, []);
 
@@ -81,45 +79,31 @@ export function useJournalFilters(entries, options = {}) {
     [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals]
   );
 
-  // filterTimestamp provides a stable reference for timeframe filtering
-  // The ref is updated via setFilters callback; initial value uses Date.now() which is
-  // acceptable for initial render as it provides correct filtering behavior
-  // eslint-disable-next-line react-hooks/purity -- Initial timestamp needed for first render
-  const filterTimestamp = filterTimestampRef.current || Date.now();
-
   const trimmedDeferredQuery = deferredQuery.trim();
   const shouldUseServerSearch = isAuthenticated
     && canUseCloudJournal
     && trimmedDeferredQuery.length >= SERVER_SEARCH_MIN_QUERY
     && entries?.length >= SERVER_SEARCH_THRESHOLD;
 
+  const searchKey = shouldUseServerSearch
+    ? JSON.stringify([trimmedDeferredQuery, serverFilterSignature, serverSearchNonce]) : null;
+  const serverSearch = !shouldUseServerSearch
+    ? IDLE_SERVER_SEARCH
+    : serverSearchResult.searchKey === searchKey
+      ? serverSearchResult
+      : { searchKey, status: 'loading', results: [], error: null, query: trimmedDeferredQuery, mode: 'exact' };
+
+  // Returning to a previous query starts fresh, including after a cleared search.
+  if (serverSearchResult.searchKey !== searchKey) setServerSearch(serverSearch);
+
   useEffect(() => {
-    if (!shouldUseServerSearch) {
-      if (serverSearch.status !== 'idle') {
-        setServerSearch({ status: 'idle', results: [], error: null, query: '', mode: 'exact' });
-      }
-      lastServerSearchRef.current = { query: '', nonce: 0, filters: '' };
-      return;
-    }
+    if (!shouldUseServerSearch) return;
 
     const query = trimmedDeferredQuery;
     if (!query) return;
 
-    const last = lastServerSearchRef.current;
-    if (last.query === query && last.nonce === serverSearchNonce && last.filters === serverFilterSignature) {
-      return;
-    }
-
-    lastServerSearchRef.current = { query, nonce: serverSearchNonce, filters: serverFilterSignature };
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-
-    setServerSearch((prev) => ({
-      ...prev,
-      status: 'loading',
-      error: null,
-      results: [],
-      query
-    }));
+    let cancelled = false;
 
     // Build URL with query and filters
     const urlParams = new URLSearchParams();
@@ -157,9 +141,11 @@ export function useJournalFilters(entries, options = {}) {
         return response.json();
       })
       .then((data) => {
+        if (cancelled) return;
         const normalizedResults = Array.isArray(data?.entries) ? data.entries : [];
         normalizedResults.sort((a, b) => (b?.ts || 0) - (a?.ts || 0));
         setServerSearch({
+          searchKey,
           status: 'success',
           results: normalizedResults,
           error: null,
@@ -168,8 +154,9 @@ export function useJournalFilters(entries, options = {}) {
         });
       })
       .catch((error) => {
-        if (error?.name === 'AbortError') return;
+        if (cancelled || error?.name === 'AbortError') return;
         setServerSearch({
+          searchKey,
           status: 'error',
           results: [],
           error: error?.message || 'Unable to search your full history.',
@@ -179,11 +166,12 @@ export function useJournalFilters(entries, options = {}) {
       });
 
     return () => {
+      cancelled = true;
       if (controller) {
         controller.abort();
       }
     };
-  }, [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, serverFilterSignature, serverSearch.status, serverSearchNonce, shouldUseServerSearch, trimmedDeferredQuery]);
+  }, [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, searchKey, shouldUseServerSearch, trimmedDeferredQuery]);
 
   const filteredEntries = useMemo(() => {
     if (shouldUseServerSearch) {

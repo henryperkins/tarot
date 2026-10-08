@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 
 for (const platform of ['Chromium', 'WebKit @mobile']) {
   test.describe(`Offline recovery — ${platform}`, () => {

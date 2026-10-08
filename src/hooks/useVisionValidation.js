@@ -24,11 +24,16 @@ export function useVisionValidation({ deckStyle = 'rws-1909' } = {}) {
   const pipelineRef = useRef(null);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
+  const [statusDeck, setStatusDeck] = useState(deckStyle);
+
+  if (statusDeck !== deckStyle) {
+    setStatusDeck(deckStyle);
+    setStatus('idle');
+    setError(null);
+  }
 
   useEffect(() => {
     pipelineRef.current = null;
-    setStatus('idle');
-    setError(null);
   }, [deckStyle]);
 
   const ensurePipeline = useCallback(async () => {

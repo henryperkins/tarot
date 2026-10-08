@@ -83,7 +83,11 @@ export async function createNarrativeFixture(page, options = {}) {
   // Keep fixture errors and interaction traces out of production telemetry.
   await page.route(/https:\/\/[^/]*sentry\.io\/.*\/envelope\//, route => route.fulfill({ json: {} }));
   await page.route('**/api/**', async route => {
-    const pathname = new URL(route.request().url()).pathname;
+    const requestUrl = new URL(route.request().url());
+    const pathname = requestUrl.pathname;
+    if (requestUrl.hostname.endsWith('.sentry.io') && /^\/api\/\d+\/envelope\/$/.test(pathname)) {
+      return route.fulfill({ json: {} });
+    }
     if (pathname === '/api/auth/me') return route.fulfill({
       status: options.signedOut ? 401 : 200,
       json: { user: options.signedOut ? null : {
@@ -108,8 +112,30 @@ export async function createNarrativeFixture(page, options = {}) {
       if (feedbackGate) await feedbackGate;
       return route.fulfill({ status: feedbackStatus, json: { ok: feedbackStatus === 200 } });
     }
+    if (pathname === '/api/generate-card-video' && new URL(route.request().url()).searchParams.get('capabilities') === 'true') {
+      return route.fulfill({ json: { enabled: false } });
+    }
+    if (route.request().method() === 'GET') {
+      const defaults = {
+        '/api/subscription': { subscription: { tier: 'pro', status: 'active', provider: 'stripe' } },
+        '/api/memories': { memories: [] },
+        '/api/share': { shares: [] },
+        '/api/journal/pattern-alerts': { alerts: [] }
+      };
+      if (defaults[pathname]) return route.fulfill({ json: defaults[pathname] });
+    }
+    if (pathname === '/api/archetype-journey/track' && route.request().method() === 'POST') {
+      return route.fulfill({ json: { success: true } });
+    }
     if (pathname === '/api/journal') return route.fulfill({ json: { entries: [] } });
-    return route.fulfill({ status: 200, json: { ok: true, entries: [], items: [] } });
+    if (pathname === '/api/media') return route.fulfill({ json: { media: [], items: [] } });
+    if (pathname === '/api/archetype-journey/preferences') {
+      return route.fulfill({ json: { preferences: { archetype_journey_enabled: false } } });
+    }
+    if (['/api/health/tarot-reading', '/api/health/tts', '/api/usage'].includes(pathname)) {
+      return route.fulfill({ json: { ok: true, entries: [], items: [] } });
+    }
+    throw new Error(`Unexpected narrative fixture API: ${pathname}`);
   });
   return {
     requests,
@@ -143,7 +169,7 @@ export async function createNarrativeFixture(page, options = {}) {
   };
 }
 
-export async function openSetup(page) {
+export async function openSetup(page, { url = '/' } = {}) {
   await page.addInitScript(() => {
     localStorage.setItem('tarot-onboarding-complete', 'true');
     localStorage.setItem('tarot-nudge-state', JSON.stringify({
@@ -151,12 +177,12 @@ export async function openSetup(page) {
       hasSeenJournalNudge: true, hasDismissedAccountNudge: true, journalSaveCount: 1
     }));
   });
-  await page.goto('/');
+  await page.goto(url);
   await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
 }
 
-export async function startReading(page, fixture, { complete = true } = {}) {
-  await openSetup(page);
+export async function startReading(page, fixture, { complete = true, setup = true } = {}) {
+  if (setup) await openSetup(page);
   await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
   await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
   await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();

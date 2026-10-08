@@ -363,3 +363,7 @@ The sidecar uses the existing three-card SVG fallback from [SpreadPatternThumbna
 - **Don't** encode status using color alone or replace focus rings with hover-only treatments.
 - **Don't** turn the light theme into a generic white dashboard; preserve the warm paper-and-brass hierarchy.
 - **Don't** dilute the approved focal hierarchy or accelerate ceremonial motion into generic app-speed transitions.
+
+### Journal card fan visibility
+
+Expanded card fans preserve the full rotated card and name within the section, including at 320px and with enlarged text. Reserve the measured card footprint around the bottom-center rotation origin. Intentional overlap remains; keyboard selection brings the active card forward. Section radius clipping must not crop the card edges or focus ring.

@@ -200,10 +200,18 @@ export function DeckRitual({
   const shouldShowToasts = !minimalUI;
   const [showCutSlider, setShowCutSlider] = useState(false);
   const [localCutIndex, setLocalCutIndex] = useState(cutIndex);
-  const [showCadenceReset, setShowCadenceReset] = useState(false);
-  const internalDeckRef = useRef(null);
-  // Use external ref if provided (for parent to coordinate ghost card animation)
-  const deckRef = externalDeckRef || internalDeckRef;
+  const [previousCutIndex, setPreviousCutIndex] = useState(cutIndex);
+  const [expiredCadenceReset, setExpiredCadenceReset] = useState(0);
+  const showCadenceReset = Boolean(knockCadenceResetAt) && knockCadenceResetAt !== expiredCadenceReset;
+  if (previousCutIndex !== cutIndex) {
+    setPreviousCutIndex(cutIndex);
+    setLocalCutIndex(cutIndex);
+  }
+  const deckRef = useRef(null);
+  const setDeckNode = useCallback(node => {
+    deckRef.current = node;
+    if (externalDeckRef) externalDeckRef.current = node;
+  }, [externalDeckRef]);
   const deckTimelineRef = useRef(null);
   const topCardRef = useRef(null);
   const topCardTimelineRef = useRef(null);
@@ -232,7 +240,7 @@ export function DeckRitual({
 
   const runDeckAnimation = useCallback((props, options = {}) => {
     if (prefersReducedMotion) return;
-    const node = deckRef?.current;
+    const node = deckRef.current;
     if (!node) return;
     if (deckTimelineRef.current?.pause) {
       deckTimelineRef.current.pause();
@@ -245,7 +253,7 @@ export function DeckRitual({
     }, 0);
     timeline.play();
     deckTimelineRef.current = timeline;
-  }, [deckRef, prefersReducedMotion, springEase]);
+  }, [prefersReducedMotion, springEase]);
 
   const runTopCardAnimation = useCallback((props, options = {}) => {
     if (prefersReducedMotion) return;
@@ -320,11 +328,6 @@ export function DeckRitual({
       layout.record();
     };
   }, [ripples, prefersReducedMotion]);
-
-  // Sync local cut index with prop
-  useEffect(() => {
-    setLocalCutIndex(cutIndex);
-  }, [cutIndex]);
 
   // Card stack visual offsets
   const stackCards = Array.from({ length: CARD_STACK_COUNT }, (_, i) => ({
@@ -607,12 +610,11 @@ export function DeckRitual({
 
   useEffect(() => {
     if (!knockCadenceResetAt) return;
-    setShowCadenceReset(true);
     if (cadenceResetTimerRef.current) {
       clearTimeout(cadenceResetTimerRef.current);
     }
     cadenceResetTimerRef.current = setTimeout(() => {
-      setShowCadenceReset(false);
+      setExpiredCadenceReset(knockCadenceResetAt);
       cadenceResetTimerRef.current = null;
     }, 1600);
     if (shouldShowToasts) {
@@ -667,7 +669,7 @@ export function DeckRitual({
       {/* The Deck - responsive sizing for different screen sizes */}
       <div className="relative flex justify-center" style={{ perspective: '1200px', WebkitPerspective: '1200px' }}>
         <div
-          ref={deckRef}
+          ref={setDeckNode}
           className={`deck-stack relative touch-manipulation ${isDeckPrimary ? 'cursor-pointer' : 'cursor-default opacity-70'}`}
           onClick={handleDeckTap}
           onTouchStart={handleTouchStart}

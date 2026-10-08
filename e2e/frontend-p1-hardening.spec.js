@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture, startReading, QUESTION } from './helpers/narrativeFixtures.js';
 
@@ -319,7 +319,8 @@ test('direct route visits receive descriptive titles, including trailing slashes
     ['/governance-critique', 'Governance Critique'], ['/reset-password', 'Reset Password'],
     ['/verify-email', 'Verify Email'], ['/share/p1-share', 'Shared Reading']
   ]) {
-    await page.goto(path);
+    await page.goto(path, { waitUntil: 'domcontentloaded', timeout: 10000 });
+    await expect(page.getByRole('status').filter({ hasText: 'Loading…' })).toHaveCount(0);
     await expect(page).toHaveTitle(`${title} — Tableu`);
   }
 });

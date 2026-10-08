@@ -34,6 +34,7 @@
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright test --config playwright.install.config.js",
     "test:e2e:journal": "playwright test --config playwright.journal.config.js",
+    "test:e2e:modals": "playwright test --config playwright.modals.config.js",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
@@ -78,7 +79,9 @@
     "prompts:view": "node scripts/viewPrompts.js",
     "prompts:stats": "node scripts/viewPrompts.js --stats",
     "prompts:export": "node scripts/viewPrompts.js --export",
-    "ci:release-check": "node scripts/evaluation/runReleaseChecks.js"
+    "ci:release-check": "node scripts/evaluation/runReleaseChecks.js",
+    "test:e2e:regressions": "playwright test --config playwright.regressions.config.js",
+    "test:e2e:production": "playwright test --config playwright.production.config.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

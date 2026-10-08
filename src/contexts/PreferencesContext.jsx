@@ -205,6 +205,7 @@ export function PreferencesProvider({ children }) {
     loadPersonalizationFromStorage(personalizationStorageKey, safeStorage)
   );
   const [loadedPersonalizationKey, setLoadedPersonalizationKey] = useState(null);
+  const [personalizationOwnerKey, setPersonalizationOwnerKey] = useState(personalizationStorageKey);
   const [personalizationExplicitFields, setPersonalizationExplicitFields] = useState(() => {
     const storedFields = loadPersonalizationExplicitFields(personalizationStorageKey, safeStorage);
     if (storedFields.length > 0) return storedFields;
@@ -217,18 +218,23 @@ export function PreferencesProvider({ children }) {
     if (authLoading || loadedPersonalizationKey === personalizationStorageKey) return;
 
     const nextKey = personalizationStorageKey;
-    personalizationKeyRef.current = nextKey;
-
-    const migrated = migrateLegacyPersonalization(nextKey, { userId });
-    const loadedPersonalization = migrated || loadPersonalizationFromStorage(nextKey, safeStorage);
-    const loadedExplicitFields = loadPersonalizationExplicitFields(nextKey, safeStorage);
-    setPersonalizationState(loadedPersonalization);
-    setPersonalizationExplicitFields(
-      loadedExplicitFields.length > 0
-        ? loadedExplicitFields
-        : derivePersonalizationExplicitFields(loadedPersonalization)
-    );
-    setLoadedPersonalizationKey(nextKey);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      personalizationKeyRef.current = nextKey;
+      const migrated = migrateLegacyPersonalization(nextKey, { userId });
+      const loadedPersonalization = migrated || loadPersonalizationFromStorage(nextKey, safeStorage);
+      const loadedExplicitFields = loadPersonalizationExplicitFields(nextKey, safeStorage);
+      setPersonalizationState(loadedPersonalization);
+      setPersonalizationExplicitFields(
+        loadedExplicitFields.length > 0
+          ? loadedExplicitFields
+          : derivePersonalizationExplicitFields(loadedPersonalization)
+      );
+      setLoadedPersonalizationKey(nextKey);
+      setPersonalizationOwnerKey(nextKey);
+    });
+    return () => { cancelled = true; };
   }, [authLoading, loadedPersonalizationKey, personalizationStorageKey, userId]);
 
   // Persist personalization changes
@@ -448,7 +454,7 @@ export function PreferencesProvider({ children }) {
 
   // --- Location Preferences ---
   // locationEnabled: session-level toggle for location-aware readings (not persisted)
-  const [locationEnabled, setLocationEnabled] = useState(false);
+  const [locationEnabled, setLocationEnabledState] = useState(false);
 
   // cachedLocation: transient location data (not persisted for privacy)
   const [cachedLocation, setCachedLocation] = useState(null);
@@ -465,12 +471,10 @@ export function PreferencesProvider({ children }) {
     setPersistLocationToJournalState(Boolean(value));
   }, []);
 
-  // Clear cached location when location is disabled
-  useEffect(() => {
-    if (!locationEnabled) {
-      setCachedLocation(null);
-    }
-  }, [locationEnabled]);
+  const setLocationEnabled = useCallback(value => {
+    setLocationEnabledState(Boolean(value));
+    if (!value) setCachedLocation(null);
+  }, []);
 
   const value = {
     theme,
@@ -496,6 +500,7 @@ export function PreferencesProvider({ children }) {
     prepareSectionsOpen,
     togglePrepareSection,
     // Personalization
+    personalizationReady: personalizationOwnerKey === personalizationStorageKey,
     personalization,
     personalizationExplicitFields,
     setDisplayName,

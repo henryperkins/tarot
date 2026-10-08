@@ -1,4 +1,10 @@
 import { defineConfig } from 'vite';
+import { realpathSync } from 'node:fs';
+import { relative, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const projectRoot = fileURLToPath(new URL('.', import.meta.url));
+const scratchDirectories = new Set(['.worktrees', '.superpowers', 'tmp', 'test-results', 'playwright-report']);
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
@@ -7,6 +13,10 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5000,
     allowedHosts: true,
+    watch: {
+      ignored: [watchedPath => relative(projectRoot, resolve(watchedPath)).split(sep)
+        .some(segment => scratchDirectories.has(segment))]
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8787',
@@ -17,6 +27,7 @@ export default defineConfig({
       }
     },
     fs: {
+      allow: ['.', realpathSync('./node_modules')],
       deny: ['venv/**', '.git/**']
     }
   },
@@ -28,9 +39,11 @@ export default defineConfig({
   build: {
     modulePreload: {
       // Dynamic route dependencies can point back to the already-running entry.
-      // WebKit otherwise fetches it again as a modulepreload.
+      // WebKit otherwise fetches it again as a modulepreload. Failed validation
+      // preloads also remain negatively cached across reloads in WebKit; import
+      // that small chunk directly so a real HTTP failure can recover on reload.
       resolveDependencies: (_filename, dependencies, { hostType }) => hostType === 'js'
-        ? dependencies.filter(dependency => !dependency.startsWith('assets/app-'))
+        ? dependencies.filter(dependency => !dependency.startsWith('assets/app-') && !dependency.startsWith('assets/readingSchema-'))
         : dependencies
     },
     rollupOptions: {

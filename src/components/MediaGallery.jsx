@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ArrowsClockwise,
   ArrowsOut,
@@ -46,6 +46,12 @@ export function MediaGallery({
   const isModalVariant = variant === 'modal';
   const [deletingId, setDeletingId] = useState(null);
   const [localError, setLocalError] = useState('');
+  const [errorSource, setErrorSource] = useState({ error, items });
+
+  if (errorSource.error !== error || errorSource.items !== items) {
+    setErrorSource({ error, items });
+    if (!error) setLocalError('');
+  }
 
   const sortedItems = useMemo(() => {
     return [...(Array.isArray(items) ? items : [])].sort((a, b) => {
@@ -64,12 +70,6 @@ export function MediaGallery({
     : sortedItems.length;
   const hiddenCount = Math.max(0, totalItemCount - visibleItems.length);
   const hasItems = visibleItems.length > 0;
-
-  useEffect(() => {
-    if (!error) {
-      setLocalError('');
-    }
-  }, [error, items]);
 
   const handleRefresh = useCallback(() => {
     setLocalError('');

@@ -47,6 +47,15 @@ export function AuthProvider({ children }) {
   const [routePathname, setRoutePathname] = useState(() => getCurrentPathname());
   const hasCompletedInitialCheckRef = useRef(false);
   const previousSkipAuthRef = useRef(shouldSkipAuthCheckForPath(routePathname));
+  const [settledRoute, setSettledRoute] = useState(routePathname);
+
+  if (settledRoute !== routePathname) {
+    setSettledRoute(routePathname);
+    if (shouldSkipAuthCheckForPath(routePathname)) {
+      setError(null);
+      setLoading(false);
+    }
+  }
 
   const checkAuth = useCallback(async (pathname = getCurrentPathname()) => {
     if (shouldSkipAuthCheckForPath(pathname)) {
@@ -115,17 +124,22 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const shouldSkipAuthCheck = shouldSkipAuthCheckForPath(routePathname);
     const skippedPreviousRoute = previousSkipAuthRef.current;
-    previousSkipAuthRef.current = shouldSkipAuthCheck;
 
     if (shouldSkipAuthCheck) {
-      setError(null);
-      setLoading(false);
+      previousSkipAuthRef.current = true;
       return;
     }
 
     if (!hasCompletedInitialCheckRef.current || skippedPreviousRoute) {
-      hasCompletedInitialCheckRef.current = true;
-      checkAuth(routePathname);
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (cancelled) return;
+        // A cancelled check must leave the skipped-route recheck pending.
+        previousSkipAuthRef.current = false;
+        hasCompletedInitialCheckRef.current = true;
+        checkAuth(routePathname);
+      });
+      return () => { cancelled = true; };
     }
   }, [checkAuth, routePathname]);
 

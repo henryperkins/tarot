@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
+import { createChunkFailurePreview } from './helpers/chunkFailurePreview.js';
 import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture, expectTarget, openSetup, QUESTION, startReading } from './helpers/narrativeFixtures.js';
 
@@ -118,16 +119,23 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       }
     });
 
-    test('failed validation gives reload recovery and preserves the question', async ({ page }) => {
-      await page.route(/\/assets\/readingSchema-[^/]+\.js(?:\?|$)/, route => route.abort('failed'), { times: 1 });
+    test('failed validation gives reload recovery and preserves the question', async ({ page }, testInfo) => {
       await openSetup(page);
       test.skip(!await page.locator('script[type="module"][src^="/assets/"]').count(), 'Production chunk failure.');
-      await startReading(page, fixture, { complete: false });
-      await expect(page.getByRole('alert')).toContainText('Check your connection, then reload this page. Your question is saved');
-      expect(fixture.requests.reading).toHaveLength(0);
-      await page.reload();
-      await expect(page.locator('#question-input, #quick-intention').filter({ visible: true }).first()).toHaveValue(QUESTION);
-      await startReading(page, fixture);
+      // Serve a real one-time HTTP failure. WebKit inspector interception caches
+      // blocked module URLs across reloads, unlike an ordinary server response.
+      const preview = await createChunkFailurePreview(testInfo.project.use.baseURL);
+      try {
+        await openSetup(page, { url: preview.origin });
+        await startReading(page, fixture, { complete: false, setup: false });
+        await expect(page.getByRole('alert')).toContainText('Check your connection, then reload this page. Your question is saved');
+        expect(preview.failures()).toBe(1);
+        expect(fixture.requests.reading).toHaveLength(0);
+        await page.reload();
+        await expect(page.locator('#question-input, #quick-intention').filter({ visible: true }).first()).toHaveValue(QUESTION);
+        await startReading(page, fixture, { setup: false });
+        expect(preview.failures()).toBe(1);
+      } finally { await preview.close(); }
     });
 
     for (const theme of ['dark', 'light']) {

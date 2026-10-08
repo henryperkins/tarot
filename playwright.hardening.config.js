@@ -2,10 +2,11 @@ import { defineConfig } from '@playwright/test';
 
 // The hardening regressions stub APIs and exercise real rendered components.
 // Override the origin to validate production assets on a running local Worker.
-const baseURL = process.env.HARDENING_BASE_URL || 'http://localhost:5173';
+const baseURL = process.env.HARDENING_BASE_URL || 'http://127.0.0.1:5192';
 
 export default defineConfig({
   testDir: './e2e',
+  outputDir: 'test-results/hardening',
   testMatch: [
     'account-plan-hardening.spec.js',
     'journal-filter-hardening.spec.js',
@@ -20,8 +21,8 @@ export default defineConfig({
   use: {
     baseURL,
     serviceWorkers: 'block',
-    reducedMotion: 'reduce',
-    trace: 'off',
+    contextOptions: { reducedMotion: 'reduce' },
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure'
   },
   projects: [
@@ -29,9 +30,9 @@ export default defineConfig({
     { name: 'webkit', use: { browserName: 'webkit' } }
   ],
   webServer: process.env.HARDENING_BASE_URL ? undefined : {
-    command: 'npm run dev:frontend',
+    command: 'npm run dev:frontend -- --host 127.0.0.1 --port 5192 --strictPort',
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120000
   }
 });

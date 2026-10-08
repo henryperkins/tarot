@@ -4,38 +4,48 @@
 
 import { useState, useCallback, useEffect } from 'react';
 
-export function useJournalSharing(isAuthenticated) {
+export function useJournalSharing(isAuthenticated, userId = null) {
   const [shareLinks, setShareLinks] = useState([]);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState('');
+  const [shareOwner, setShareOwner] = useState({ isAuthenticated, userId });
 
-  const fetchShareLinks = useCallback(async () => {
+  if (shareOwner.isAuthenticated !== isAuthenticated || shareOwner.userId !== userId) {
+    setShareOwner({ isAuthenticated, userId });
+    setShareLinks([]);
+    setShareError('');
+    setShareLoading(false);
+  }
+
+  const fetchShareLinks = useCallback(async (signal) => {
     if (!isAuthenticated) return;
     setShareLoading(true);
     setShareError('');
     try {
-      const response = await fetch('/api/share', { credentials: 'include' });
+      const response = await fetch('/api/share', { credentials: 'include', signal });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         throw new Error(payload.error || 'Unable to load share links');
       }
       const payload = await response.json();
+      if (signal?.aborted) return;
       setShareLinks(payload.shares || []);
     } catch (error) {
+      if (signal?.aborted || error?.name === 'AbortError') return;
       setShareError(error.message || 'Unable to load share links');
     } finally {
-      setShareLoading(false);
+      if (!signal?.aborted) setShareLoading(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchShareLinks();
-    } else {
-      setShareLinks([]);
-      setShareError('');
-    }
-  }, [isAuthenticated, fetchShareLinks]);
+    if (!isAuthenticated) return;
+    const controller = new AbortController();
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) fetchShareLinks(controller.signal);
+    });
+    return () => controller.abort();
+  }, [isAuthenticated, userId, fetchShareLinks]);
 
   const createShareLink = useCallback(
     async ({ scope = 'journal', entryId, entryIds, title, limit, expiresInHours } = {}) => {

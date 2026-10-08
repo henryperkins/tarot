@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import { createNarrativeFixture } from './helpers/narrativeFixtures.js';
 
 const MEMORY = { id: 'memory-fixture', text: 'A gentle next step 🌿 安心 أمان', category: 'general', source: 'user' };

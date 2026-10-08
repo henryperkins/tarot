@@ -23,9 +23,10 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   // Run the full E2E suite (all specs) against the Workers backend. The journal
-  // owner spec runs its own handlers and server (test:e2e:journal).
+  // owner spec runs its own handlers and server (test:e2e:journal), and the auth
+  // route harness imports Vite development modules unavailable from Workers.
   testMatch: ['**/*.spec.js'],
-  testIgnore: ['**/journal-owner.spec.js'],
+  testIgnore: ['**/journal-owner.spec.js', '**/auth-route-recheck.spec.js'],
 
   fullyParallel: false, // Sequential for full-stack tests to avoid port conflicts
   forbidOnly: !!process.env.CI,

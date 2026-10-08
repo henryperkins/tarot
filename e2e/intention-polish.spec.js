@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
-import { createNarrativeFixture, openSetup, startReading, openChat } from './helpers/narrativeFixtures.js';
+import { createNarrativeFixture, openSetup, startReading, openChat, installSimulatedVisualViewport } from './helpers/narrativeFixtures.js';
 
 for (const platform of ['Chromium', 'WebKit @mobile']) {
   test.describe(`Intention polish — ${platform}`, () => {
@@ -16,14 +16,14 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
     });
 
     for (const width of [390, 1440]) {
-      test(`examples insert editable text and announce each choice at ${width}px`, async ({ page, browserName }) => {
+      test(`examples insert editable text and announce each choice at ${width}px`, async ({ page, hasTouch }) => {
         await page.setViewportSize({ width, height: 1000 });
         await openSetup(page);
         const field = page.locator('#quick-intention,#question-input').filter({ visible: true }).first();
         await expect(field).toHaveValue('');
         await expect(field).toHaveAttribute('placeholder', 'In your own words…');
         const example = page.getByRole('button', { name: 'Try an example', exact: true });
-        if (browserName === 'webkit' && width === 390) await example.tap();
+        if (hasTouch && width === 390) await example.tap();
         else await example.press('Enter');
         const firstExample = await field.inputValue();
         expect(firstExample.length).toBeGreaterThan(0);
@@ -80,15 +80,77 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await page.setViewportSize({ width: 320, height: 568 });
       await openSetup(page);
       const field = page.locator('#quick-intention');
+      if (!await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+        await page.locator('.page-transition').evaluate(element => {
+          element.style.animation = 'none';
+          void element.offsetHeight;
+          element.style.animation = 'page-enter 280ms ease-out';
+        });
+      }
       await field.focus();
       await expect.poll(() => field.evaluate(el => {
         const fieldBox = el.getBoundingClientRect();
         const header = document.querySelector('.header-sticky');
         const headerBottom = getComputedStyle(header).position === 'sticky' ? header.getBoundingClientRect().bottom : 0;
         const dockTop = document.querySelector('.mobile-action-bar').getBoundingClientRect().top;
-        return fieldBox.top >= headerBottom && fieldBox.bottom <= dockTop;
+        const dock = document.querySelector('.mobile-action-bar').getBoundingClientRect();
+        return document.activeElement === el && fieldBox.top >= Math.max(0, headerBottom)
+          && fieldBox.bottom <= Math.min(innerHeight, dockTop)
+          && dock.top >= 0 && dock.bottom <= innerHeight + 1;
       })).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+    });
+
+    test('focused intention follows handset layout changes without undoing reader scrolling', async ({ page, browserName, isMobile }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await installSimulatedVisualViewport(page);
+      await openSetup(page);
+      const field = page.locator('#quick-intention');
+      const visible = () => field.evaluate(el => {
+        const box = el.getBoundingClientRect();
+        const header = document.querySelector('.header-sticky').getBoundingClientRect();
+        const dock = document.querySelector('.mobile-action-bar').getBoundingClientRect();
+        return document.activeElement === el && box.top >= Math.max(0, header.bottom)
+          && box.bottom <= Math.min(innerHeight, dock.top, (visualViewport?.offsetTop || 0) + (visualViewport?.height || innerHeight)) && dock.bottom <= innerHeight + 1;
+      });
+      await field.focus();
+      await expect.poll(visible).toBe(true);
+      await field.blur();
+      await field.focus();
+      await expect.poll(visible).toBe(true);
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = '20px';
+        document.documentElement.style.setProperty('--safe-pad-bottom', '24px');
+      });
+      await expect.poll(visible).toBe(true);
+      await page.setViewportSize({ width: 320, height: 568 });
+      await expect.poll(visible).toBe(true);
+      await page.setViewportSize({ width: 320, height: 640 });
+      await expect.poll(visible).toBe(true);
+      await page.evaluate(() => window.__setVisualViewport(480));
+      await expect.poll(visible).toBe(true);
+      await page.evaluate(() => window.__setVisualViewport(640));
+      await expect.poll(visible).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+      if (browserName === 'webkit' && isMobile) {
+        // Playwright cannot wheel in mobile WebKit. Exercise its touch-intent
+        // listener and native scrolling with a synthesized movement instead.
+        await page.evaluate(() => {
+          dispatchEvent(new Event('touchmove'));
+          scrollBy({ top: 180, behavior: 'instant' });
+        });
+      } else {
+        await page.mouse.wheel(0, 180);
+      }
+      await expect.poll(() => page.evaluate(async () => {
+        const position = scrollY;
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return position === scrollY;
+      })).toBe(true);
+      await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+      const position = await page.evaluate(() => scrollY);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      expect(await page.evaluate(() => scrollY)).toBe(position);
     });
 
     test('the question still reaches a completed reading and follow-up conversation', async ({ page }) => {

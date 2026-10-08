@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 
 /**
@@ -532,7 +532,7 @@ test.describe('Accessibility - Mobile @mobile', () => {
 // ============================================================================
 
 test.describe('Accessibility - Reduced Motion', () => {
-  test.use({ reducedMotion: 'reduce' });
+  test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(getTestSetupScript());

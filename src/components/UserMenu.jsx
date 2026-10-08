@@ -17,10 +17,21 @@ export function UserMenu({ condensed = false }) {
   const [journeyEnabled, setJourneyEnabled] = useState(null);
   const [journeyLoading, setJourneyLoading] = useState(false);
   const [journeyError, setJourneyError] = useState(null);
+  const [journeyOwner, setJourneyOwner] = useState(user?.id || null);
   const [tutorialResetOpen, setTutorialResetOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [emailDraft, setEmailDraft] = useState('');
   const dropdownRef = useRef(null);
   const triggerRef = useRef(null);
+
+  if (journeyOwner !== (user?.id || null)) {
+    setJourneyOwner(user?.id || null);
+    setEmailDraft('');
+    setShowAuthModal(false);
+    setJourneyEnabled(null);
+    setJourneyError(null);
+    setJourneyLoading(false);
+  }
 
   const closeDropdown = useCallback(() => {
     setShowDropdown(false);
@@ -128,18 +139,6 @@ export function UserMenu({ condensed = false }) {
     };
   }, [showDropdown, closeDropdown]);
 
-  useEffect(() => {
-    if (!showDropdown) return;
-    fetchJourneyPreference();
-  }, [showDropdown, fetchJourneyPreference]);
-
-  useEffect(() => {
-    if (isAuthenticated) return;
-    setJourneyEnabled(null);
-    setJourneyError(null);
-    setJourneyLoading(false);
-  }, [isAuthenticated]);
-
   // Get display name - show first initial on very small screens, truncated username on larger
   const getDisplayName = () => {
     if (!user?.username) return '';
@@ -161,7 +160,10 @@ export function UserMenu({ condensed = false }) {
           <div className="relative">
             <button
               ref={triggerRef}
-              onClick={() => setShowDropdown(!showDropdown)}
+              onClick={() => {
+                if (!showDropdown) fetchJourneyPreference();
+                setShowDropdown(!showDropdown);
+              }}
               className={`
                 flex items-center gap-1.5 sm:gap-2 min-h-touch
                 rounded-full border transition text-xs-plus font-semibold text-accent touch-manipulation
@@ -445,6 +447,8 @@ export function UserMenu({ condensed = false }) {
         <DeferredDialog
           component={AuthModal}
           title="sign in"
+          emailDraft={emailDraft}
+          onEmailDraftChange={setEmailDraft}
           isOpen
           onClose={() => setShowAuthModal(false)}
         />

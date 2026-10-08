@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 
 const entries = [
@@ -48,7 +48,7 @@ async function showSpread(page, width) {
   if (width < 1024) await page.getByRole('tab', { name: 'Spread', exact: true }).click();
 }
 
-test.use({ serviceWorkers: 'block', contextOptions: { reducedMotion: 'reduce' } });
+test.use({ serviceWorkers: 'block' });
 
 for (const width of [390, 1280]) {
   test.describe(`${width}px state transitions`, () => {
@@ -87,6 +87,73 @@ for (const width of [390, 1280]) {
       await signIn.click();
       await expect(dialog.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
       await expect(dialog.getByLabel('Email', { exact: true })).toHaveValue('reader@example.test');
+    });
+
+    test('auth sessions clear feedback and passwords while preserving only the email draft', async ({ page }) => {
+      await prepare(page);
+      let user = null;
+      let release;
+      let hold = false;
+      const gate = new Promise(resolve => { release = resolve; });
+      await page.route('**/api/auth/me', route => route.fulfill({ status: user ? 200 : 401, json: { user } }));
+      await page.route('**/api/auth/logout', route => { user = null; return route.fulfill({ json: { success: true } }); });
+      await page.route('**/api/auth/login', async route => {
+        if (hold) await gate;
+        return route.fulfill({ status: user ? 200 : 401, json: user ? { user } : { error: 'Fixture sign-in failed' } });
+      });
+      try {
+        await page.goto('/');
+        const opener = page.getByRole('button', { name: 'Sign In', exact: true }).filter({ visible: true }).first();
+        await opener.click();
+        const dialog = page.getByRole('dialog');
+        await dialog.getByLabel('Email', { exact: true }).fill('reader@example.test');
+        await dialog.getByLabel('Password', { exact: true }).fill('Reflection123');
+        await dialog.getByRole('button', { name: 'Sign In', exact: true }).click();
+        await expect(dialog.getByRole('alert')).toContainText('Fixture sign-in failed');
+        await dialog.getByRole('button', { name: 'Close dialog' }).click();
+        await opener.click();
+        await expect(dialog.getByLabel('Email', { exact: true })).toHaveValue('reader@example.test');
+        await expect(dialog.getByLabel('Password', { exact: true })).toHaveValue('');
+        await expect(dialog.getByLabel('Password', { exact: true })).toHaveAttribute('type', 'password');
+        await expect(dialog.getByRole('alert')).toHaveCount(0);
+        hold = true;
+        await dialog.getByLabel('Password', { exact: true }).fill('Reflection123');
+        await dialog.getByRole('button', { name: 'Sign In', exact: true }).click();
+        await dialog.getByRole('button', { name: 'Close dialog' }).click();
+        await opener.click();
+        release();
+        await expect(dialog.getByLabel('Email', { exact: true })).toHaveValue('reader@example.test');
+        await expect(dialog.getByRole('alert')).toHaveCount(0);
+        hold = false;
+        user = { id: 'auth-draft-reader', username: 'reader', email: 'reader@example.test' };
+        await dialog.getByLabel('Password', { exact: true }).fill('Reflection123');
+        await dialog.getByRole('button', { name: 'Sign In', exact: true }).click();
+        await expect(dialog).toBeHidden();
+        await page.getByRole('button', { name: 'User menu for reader', exact: true }).filter({ visible: true }).first().click();
+        await page.getByRole('menuitem', { name: 'Sign Out', exact: true }).click();
+        await opener.click();
+        await expect(dialog.getByLabel('Email', { exact: true })).toHaveValue('');
+      } finally { release(); }
+    });
+
+    test('Journal, Account and Pricing auth callers retain their local email fallback', async ({ page }) => {
+      await prepare(page);
+      await page.addInitScript(entries => localStorage.setItem('tarot_journal', JSON.stringify(entries)), entries);
+      for (const [path, label] of [['/journal', 'Sign in to sync'], ['/account', 'Sign in'], ['/pricing', 'Restore purchases']]) {
+        await page.goto(path);
+        const opener = page.getByRole('button', { name: label, exact: true }).filter({ visible: true }).first();
+        await opener.click();
+        const dialog = page.getByRole('dialog');
+        await dialog.getByLabel('Email', { exact: true }).fill('fallback@example.test');
+        await dialog.getByLabel('Password', { exact: true }).fill('Reflection123');
+        await dialog.getByRole('button', { name: 'Close dialog' }).click();
+        await expect(opener).toBeFocused();
+        await opener.click();
+        await expect(dialog.getByLabel('Email', { exact: true })).toHaveValue('fallback@example.test');
+        await expect(dialog.getByLabel('Password', { exact: true })).toHaveValue('');
+        await expect(dialog.getByLabel('Password', { exact: true })).toHaveAttribute('type', 'password');
+        await dialog.getByRole('button', { name: 'Close dialog' }).click();
+      }
     });
 
     test('shared card selection and notes stay synchronized through entry changes and refresh', async ({ page }) => {

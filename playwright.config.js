@@ -10,13 +10,15 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
+  outputDir: 'test-results/frontend',
 
   use: {
-    baseURL: 'http://localhost:5173',
-    trace: 'on-first-retry',
+    baseURL: 'http://127.0.0.1:5190',
+    serviceWorkers: 'block',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     // Disable animations for test stability - triggers useReducedMotion hook
-    reducedMotion: 'reduce',
+    contextOptions: { reducedMotion: 'reduce' },
   },
 
   projects: [
@@ -34,9 +36,9 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run dev:frontend',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
+    command: 'npm run dev:frontend -- --host 127.0.0.1 --port 5190 --strictPort',
+    url: 'http://127.0.0.1:5190',
+    reuseExistingServer: false,
     timeout: 120000,
   },
 });

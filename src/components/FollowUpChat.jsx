@@ -88,9 +88,11 @@ export default function FollowUpChat({
   const focusIntentRef = useRef(null);
   const isDrawer = variant === 'drawer';
 
-  useEffect(() => {
+  const [rotationOwner, setRotationOwner] = useState({ requestId: readingMeta?.requestId, sessionSeed });
+  if (rotationOwner.requestId !== readingMeta?.requestId || rotationOwner.sessionSeed !== sessionSeed) {
+    setRotationOwner({ requestId: readingMeta?.requestId, sessionSeed });
     setSuggestionRotation(0);
-  }, [readingMeta?.requestId, sessionSeed]);
+  }
 
   // Generate contextual suggestions
   const suggestions = useMemo(() =>
@@ -159,6 +161,7 @@ export default function FollowUpChat({
   // Reset chat state when reading changes (prevents stale context leaking across readings)
   // Use requestId as primary signal, sessionSeed as fallback for offline/error paths
   const resetKey = readingMeta?.requestId || sessionSeed || null;
+  const [hydrationSource, setHydrationSource] = useState({ resetKey, followUps: null });
   const prevResetKeyRef = useRef(resetKey);
   const followUpsKeyRef = useRef(resetKey);
 
@@ -186,6 +189,7 @@ export default function FollowUpChat({
       setIsAtBottom(true);
       setIsSlow(false);
       setAnnouncement('');
+      setHydrationSource({ resetKey, followUps: null });
       const preserveFollowUps =
         Array.isArray(followUps) &&
         followUps.length > 0 &&
@@ -200,10 +204,9 @@ export default function FollowUpChat({
   useEffect(() => () => activeRequestRef.current?.abort(), []);
 
   // Hydrate chat history from journal follow-ups when available.
-  useEffect(() => {
-    if (!Array.isArray(followUps) || followUps.length === 0) return;
-    if (messages.length > 0) return;
-
+  if (hydrationSource.resetKey === resetKey && hydrationSource.followUps !== followUps
+    && Array.isArray(followUps) && followUps.length > 0 && messages.length === 0) {
+    setHydrationSource({ resetKey, followUps });
     const hydratedMessages = [];
     const turnNumbers = [];
 
@@ -234,7 +237,7 @@ export default function FollowUpChat({
       const maxTurn = turnNumbers.length ? Math.max(...turnNumbers) : followUps.length;
       setServerTurn(maxTurn);
     }
-  }, [followUps, messages.length]);
+  }
 
   const scrollToBottom = useCallback((behavior = prefersReducedMotion ? 'auto' : 'smooth') => {
     if (conversationRef.current) {

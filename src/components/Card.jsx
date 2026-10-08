@@ -483,7 +483,6 @@ export function Card({
 
     // Mark animation as started immediately to prevent re-triggers
     animationStartedRef.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- lock state must start in sync with flip lifecycle
     setIsFlipAnimating(!prefersReducedMotion);
 
     let isActive = true;
