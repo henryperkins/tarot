@@ -117,6 +117,45 @@ function contextChip(coach, type) {
 
 for (const platform of ['desktop', 'handset @mobile']) {
   test.describe(`Guided intention coach question editing — ${platform}`, () => {
+    test('long questions stay fully expanded while editing and rewrapping', async ({ page }) => {
+      await seedApp(page);
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      await coach.getByRole('tab', { name: 'Depth' }).press('Enter');
+      await page.evaluate(() => document.fonts.ready);
+      const field = reviewQuestion(coach);
+      const question = Array.from({ length: 10 }, () =>
+        'How can I make room for rest this week while balancing my work, relationships, and the commitments I have already made?'
+      ).join('\n\n');
+      const fitsContent = () => field.evaluate(element => element.scrollHeight - element.clientHeight);
+
+      await field.fill(question);
+      await expect.poll(fitsContent).toBeLessThanOrEqual(1);
+      const originalHeight = await field.evaluate(element => element.clientHeight);
+      await field.press('Control+Home');
+      await field.pressSequentially('Today, ');
+      await field.press('Control+End');
+      await field.pressSequentially(' What support can I ask for?');
+      const editedQuestion = `Today, ${question} What support can I ask for?`;
+      await expect(field).toHaveValue(editedQuestion);
+      await expect.poll(fitsContent).toBeLessThanOrEqual(1);
+
+      await page.setViewportSize({ width: 320, height: 568 });
+      await page.evaluate(() => { document.documentElement.style.fontSize = '32px'; });
+      await expect.poll(fitsContent).toBeLessThanOrEqual(1);
+      expect(await field.evaluate(element => element.clientHeight)).toBeGreaterThan(originalHeight);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+
+      await field.fill('');
+      await expect.poll(() => field.evaluate(element => element.clientHeight)).toBeLessThan(originalHeight);
+      await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeDisabled();
+      await field.fill(editedQuestion);
+      await expect.poll(fitsContent).toBeLessThanOrEqual(1);
+      await coach.getByRole('button', { name: 'Use question', exact: true }).click();
+      await expect(coach).toHaveCount(0);
+      await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(editedQuestion);
+    });
+
     test('edited wording survives reopening and reaches the reading and recent questions', async ({ page }) => {
       await seedApp(page);
       await gotoReading(page);
@@ -266,13 +305,15 @@ test.describe('Guided intention coach responsive review @mobile', () => {
       return {
         scrollHeight: scroller?.clientHeight || 0,
         scrollOverflow: scroller.scrollWidth > scroller.clientWidth,
-        fieldInside: Boolean(scrollBox && fieldBox.top >= scrollBox.top - 1 && fieldBox.bottom <= scrollBox.bottom + 1),
+        fieldReachable: Boolean(scrollBox && fieldBox.bottom > scrollBox.top && fieldBox.top < scrollBox.bottom),
+        editorOverflow: element.scrollHeight > element.clientHeight + 1,
         documentOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
         dialogOverflow: dialog.scrollWidth > dialog.clientWidth
       };
     });
     expect(geometry.scrollHeight).toBeGreaterThan(100);
-    expect(geometry.fieldInside).toBe(true);
+    expect(geometry.fieldReachable).toBe(true);
+    expect(geometry.editorOverflow).toBe(false);
     expect(geometry.documentOverflow).toBe(false);
     expect(geometry.dialogOverflow).toBe(false);
     expect(geometry.scrollOverflow).toBe(false);

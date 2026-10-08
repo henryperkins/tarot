@@ -19,6 +19,7 @@ import { useLandscape } from '../../hooks/useLandscape';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useSwipeDismiss } from '../../hooks/useSwipeDismiss';
 import { useKeyboardOffset } from '../../hooks/useKeyboardOffset';
+import { useAutoGrow } from '../../hooks/useAutoGrow';
 import { Tooltip } from '../Tooltip';
 import {
   INTENTION_TOPIC_OPTIONS,
@@ -136,6 +137,8 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const isSmallScreen = useSmallScreen();
   const viewportOffset = useKeyboardOffset();
   const effectiveOffset = Math.max(0, viewportOffset);
+  const questionRows = isLandscape ? 2 : 3;
+  const questionInputRef = useAutoGrow(currentQuestion, questionRows, Infinity, isOpen && step === 2);
 
   const modalRef = useRef(null);
   const closeButtonRef = useRef(null);
@@ -536,15 +539,16 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
                 Your Question
               </label>
               <textarea
+                ref={questionInputRef}
                 id={questionInputId}
                 value={currentQuestion}
                 onChange={event => editQuestion(event.target.value)}
-                rows={isLandscape ? 2 : 3}
+                rows={questionRows}
                 maxLength={USER_QUESTION_MAX_LENGTH}
                 dir="auto"
                 aria-describedby={questionHelpId}
                 placeholder="Write your question in your own words…"
-                className="block w-full min-h-touch resize-y rounded-xl border border-secondary/40 bg-surface-muted/40 px-4 py-3 font-serif text-xl sm:text-2xl text-main leading-relaxed caret-accent placeholder:text-muted focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/60"
+                className="block w-full min-h-touch resize-none overflow-hidden rounded-xl border border-secondary/40 bg-surface-muted/40 px-4 py-3 font-serif text-xl sm:text-2xl text-main leading-relaxed caret-accent placeholder:text-muted focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/60"
               />
               <p id={questionHelpId} className="text-xs text-secondary">
                 Edit the wording before using your question.
