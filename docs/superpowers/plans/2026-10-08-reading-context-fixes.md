@@ -46,6 +46,7 @@ SELECT datetime(created_at, 'unixepoch') AS created_utc, spread_key, provider, r
        location_timezone,
        json_extract(user_preferences_json, '$.preferredSpreadDepth') AS depth,
        json_extract(user_preferences_json, '$.tarotExperience') AS experience,
+       json_extract(source_usage_json, '$.userContext.providedInputs') AS provided_inputs,
        json_extract(source_usage_json, '$.userContext.usedInputs') AS used_inputs
 FROM journal_entries
 WHERE user_id = '<USER_ID>' AND created_at BETWEEN 1791244800 AND 1791504000
@@ -77,7 +78,10 @@ ORDER BY created_at DESC LIMIT 8;
 ```
 
 - [ ] Record the answers here and apply them:
-  - **#4 depth.** If `short`, #4 was on target (decision quick band 400–550): drop the length finding and keep only "three next steps instead of one". If `standard` or null, #4 missed its band and becomes Task 12's real failing case.
+  - **#4 depth.** `source_usage_json` is recorded when the reading runs but says only whether a depth was sent, not which one. `user_preferences_json` is snapshotted when the entry is saved, so it shows the depth used only if the preference didn't change in between.
+    - If `depth` isn't in `provided_inputs`, the default standard band applied: #4 missed it and becomes Task 12's real failing case.
+    - If a depth was sent, use the saved `short` or `standard` once the owner confirms the setting didn't change before saving. `short` means #4 was on target (decision quick band 400–550): drop the length finding and keep only "three next steps instead of one". `standard` means it missed its band, as above.
+    - If the saved depth is null or the owner can't confirm it, leave the length finding open.
   - **Provider.** If #3 and #4 weren't Claude, judge Phase 2 on the current provider only. The data findings (Tasks 2, 3 and 7) stand regardless.
   - **Name.** If `used_inputs` lacks `displayName` for #2 and #3, the "name never used" finding is void; Task 4 still fixes the conflicting close.
   - **Memories.** Confirm which stored notes produced the personal detail restated in #2 and #3 and the pattern-tracking callbacks, and whether any note mentions a workload (if so, drop that #4 finding). Use each reading's own result from the per-reading query, and keep the phrasing out of the repo when tuning Task 9's personal-detail filter. Memories deleted since won't appear, so the query can confirm a source but can't prove a note was absent. When `metrics_written` stands in for the start time, a note saved in the few seconds between generation and that write also can't be ruled out.
@@ -313,7 +317,7 @@ function resolveCardSpecificClause(entry, cardInfo = {}) {
 
 **Files:** `functions/lib/narrative/prompts/systemPrompt.js:100–115`, `functions/lib/narrative/prompts/cardBuilders.js:504–514`, `functions/lib/evaluation.js` (hint at 1027, user template, version at 26), and the evaluator version mentioned in `CLAUDE.md` and `docs/evaluation-system.md`. Optional labels also touch:
 - `shared/contracts/readingSchema.js:119`;
-- `functions/api/tarot-reading.js` (sanitizing at the request boundary, the narrative payload, and `evalParams` in `finalizeReading`);
+- `functions/api/tarot-reading.js` (sanitizing at the request boundary, the crisis check at line 910, the eval-gate policy calls at 488 and 1143, the narrative payload, and `evalParams` in `finalizeReading`);
 - `functions/lib/narrativeBackends.js` (line 709 and `generateReadingFromAnalysis`);
 - `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js` and `userPrompt.js` (forwarding);
 - `functions/lib/narrative/prompts/userContext.js:43` (`parseUserContext`);
@@ -335,6 +339,7 @@ function resolveCardSpecificClause(entry, cardInfo = {}) {
 ```
 
 - [ ] Sanitize the labels once, at the request boundary in `tarot-reading.js`, with the same cleaning and injection filtering as the question (max 80 characters). The model prompt, the evaluator and the local fallback then all receive the same safe values; `optionalCleanString` alone only trims, drops empty strings and rejects values over the limit; it filters nothing.
+- [ ] Screen the labels like the question. The crisis check (`detectCrisisSignals`, line 910) and both `buildSelectiveEvalGatePolicy` calls read only the question and reflections today. Without the labels, crisis language placed only in a path label would skip the support response and reach the narrator as a choice to weigh, and a sensitive topic named only there wouldn't force the eval gate.
 - [ ] Forward `decisionPaths` through `buildEnhancedClaudePrompt` (a new parameter) and `buildUserPrompt` into `buildDecisionPromptCards`, which renders each path on its own because both labels are optional:
 
 ```js
@@ -354,6 +359,7 @@ out += `**Paths**: Path A: ${describePath('pathA', decisionPaths?.a)}; Path B: $
 - [ ] **Done when:**
   - invariant 5 passes;
   - injection strings in labels are filtered;
+  - crisis language in a label alone returns the crisis response, and a sensitive topic in a label alone forces the eval gate;
   - a request naming only Path A renders A's label and "no separate label" for B;
   - a question that names both options, sent with empty fields, gets those options mapped rather than treated as unnamed;
   - labels survive hard-cap truncation;
@@ -369,32 +375,39 @@ out += `**Paths**: Path A: ${describePath('pathA', decisionPaths?.a)}; Path B: $
 - [ ] Select by relevance, not recency:
 
 ```js
-// Tune this to the real phrasing found in Task 0.
+// Tune these to the real phrasing found in Task 0.
 // Ages of one to three digits; "turns 3 cards" is not an age.
 const PERSONAL_DETAIL_PATTERN = /\b(?:\d{1,3}\s*(?:years?\s*old|y\/?o)|age[ds]?\s*\d{1,3}|turn(?:ed|ing|s)?\s+\d{1,3}\b(?!\s*cards?)|birthday)\b/i;
+// People other than the querent whom a detail can belong to.
+const RELATION_PATTERN = /\b(?:child(?:ren)?|kids?|son|daughter|partner|wife|husband|spouse|mother|mom|father|dad|parents?|sister|brother|grandmother|grandfather|friend|boss)\b/i;
 // Common words that don't make two texts share a subject.
 const IGNORED_TOKENS = new Set(['about', 'been', 'from', 'have', 'into', 'just', 'right', 'that', 'their', 'there', 'they', 'this', 'what', 'when', 'which', 'will', 'with', 'would', 'year', 'years', 'your']);
 const tokensOf = (text = '') => new Set((String(text).toLowerCase().match(/[a-z][a-z'-]{3,}/g) || []).filter((token) => !IGNORED_TOKENS.has(token)));
+const matchesOf = (pattern, text = '') => [...String(text).matchAll(new RegExp(pattern, 'gi'))].map(([match]) => match.toLowerCase());
 // Each personal detail as a comparable key: "age:33" or "birthday".
-const detailsOf = (text = '') => [...String(text).matchAll(new RegExp(PERSONAL_DETAIL_PATTERN, 'gi'))]
-  .map(([match]) => (/birthday/i.test(match) ? 'birthday' : `age:${match.match(/\d+/)[0]}`));
+const detailsOf = (text) => matchesOf(PERSONAL_DETAIL_PATTERN, text)
+  .map((match) => (match.includes('birthday') ? 'birthday' : `age:${match.match(/\d+/)[0]}`));
 
 export function selectMemoriesForReading(memories, { userQuestion = '', reflectionsText = '', limit = 3 } = {}) {
   if (!Array.isArray(memories) || memories.length === 0) return [];
   const currentText = `${userQuestion} ${reflectionsText}`;
   const currentTokens = tokensOf(currentText);
   const currentDetails = new Set(detailsOf(currentText));
+  const currentPeople = new Set(matchesOf(RELATION_PATTERN, currentText));
   return memories
     .map((memory, index) => {
       const terms = new Set([...(memory.keywords || []).map((keyword) => keyword.toLowerCase()), ...tokensOf(memory.text)]);
       const overlap = [...terms].filter((term) => currentTokens.has(term)).length;
-      return { memory, index, overlap, details: detailsOf(memory.text), score: overlap * 2 + (memory.category === 'communication' ? 1 : 0) };
+      const details = detailsOf(memory.text);
+      const people = matchesOf(RELATION_PATTERN, memory.text);
+      // A matched detail counts like a shared subject, so the cap can't crowd it out.
+      return { memory, index, overlap, details, people, score: (overlap + details.length) * 2 + (memory.category === 'communication' ? 1 : 0) };
     })
-    // A note carrying a personal detail returns only when the querent raised that same detail here
-    // (the same age, or a birthday). Other notes need a shared subject, except communication-style
-    // notes, which are applied silently.
-    .filter(({ memory, overlap, details }) => (details.length > 0
-      ? details.every((detail) => currentDetails.has(detail))
+    // A personal detail returns only when the querent raised the same one about the same person:
+    // every age or birthday in the note, and everyone else the note names, appears here too.
+    // Other notes need a shared subject, except communication-style notes, applied silently.
+    .filter(({ memory, overlap, details, people }) => (details.length > 0
+      ? details.every((detail) => currentDetails.has(detail)) && people.every((person) => currentPeople.has(person))
       : overlap > 0 || memory.category === 'communication'))
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .slice(0, limit)
@@ -412,7 +425,11 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 
 - [ ] If `last_accessed_at` drives pruning, stamp it only on the selected memories.
 - [ ] **Done when:**
-  - unit tests cover ranking, the cap, zero-relevance exclusion and the personal-detail filter: the pattern catches "8 years old" and "aged 100" but not "turns 3 cards"; a question about turning 33 admits a note about turning 33 but not notes about ages 8 or 100, even when they share other words; and a birthday question can recall a birthday note;
+  - unit tests cover ranking, the cap, zero-relevance exclusion and the personal-detail filter:
+    - the pattern catches "8 years old" and "aged 100" but not "turns 3 cards";
+    - a question about turning 33 admits a note about turning 33, but not notes about ages 8 or 100 even when they share other words, nor "my child turns 33";
+    - "my birthday" recalls the querent's own birthday note but not a partner's;
+    - a matched detail note isn't crowded out by three communication notes;
   - a narrative sample seeded with Task 1's synthetic note ("Enjoys spotting patterns across a spread.") shows at most one callback and no "since you like".
 
 ### Task 10: A timing line that carries information
@@ -460,12 +477,12 @@ export function selectMemoriesForReading(memories, { userQuestion = '', reflecti
 
 - [ ] Scope: model prompts only. The local composer bypasses `buildUserPrompt`, so a fallback reading carries no continuity note; that's acceptable for the last-resort path, and a test confirms it still renders.
 - [ ] Read up to 5 of the user's journal entries from the last 7 days (`spread_key`, `question`, `cards_json`, `request_id`). Skip a row whose `cards_json` is over 16 KB before parsing it (a real ten-card entry is about 2 KB), and use at most the spread's card count from the rest. `saveAppJournalEntry` caps neither the array nor its size, and these rows are parsed on every reading.
-- [ ] Time each entry by when it was generated, not when it was saved. Normal saves don't send `timestampMs`, so `created_at` is the moment someone clicked Save, possibly hours later. A reading can have several attempts, so aggregate first (`MIN(started_at) / 1000` per `request_id` where `task = 'reading'`, as in Task 0; `started_at` is in milliseconds) and join that, giving each entry one row before ordering by generation time and applying the limit. Fall back to `eval_metrics.created_at`, then to `created_at`.
+- [ ] Time each entry by when it was generated, not when it was saved. Normal saves don't send `timestampMs`, so `created_at` is the moment someone clicked Save, possibly hours later. A reading can have several attempts, so aggregate first (`MIN(started_at) / 1000` per `request_id` where `task = 'reading'`, as in Task 0; `started_at` is in milliseconds) and join that, giving each entry one row before ordering by generation time and applying the limit. Fall back to `unixepoch(eval_metrics.created_at)` (that column is a datetime string, as Task 0's `metrics_written` handles), then to `created_at`, so every candidate is in Unix seconds.
 - [ ] Treat those rows as untrusted. `saveAppJournalEntry` (`functions/lib/journalEntries.js`) stores `question` and `cards_json` from the client without the reading request's sanitizer or a length cap, so a crafted saved question could otherwise inject instructions into later readings.
   - Compare stored questions on the server only; the block below doesn't include their text.
   - If stored text ever reaches the prompt, sanitize it through the same pipeline as the current question (`prepareUserContext` limits plus injection filtering) and render it inside a `<user_context source="recent-question">` boundary.
   - Check stored card names, positions and orientations (`Upright` or `Reversed` only) against the canonical deck and the spread definition before rendering them.
-  - Stored text rendered in a `<user_context>` block also needs the `parseUserContext` and truncation support Task 8 adds for path labels.
+  - Stored text rendered in a `<user_context>` block also needs parser and truncation support: add `recent-question` to `parseUserContext`'s source pattern and give it its own rebuild branch in `truncateUserPromptSafely`, as Task 8 does for path labels. Otherwise a hard-cap truncation drops it, or rebuilds it as a card reflection.
 - [ ] Detect a repeated question with its own query across the whole 24-hour window (normalized text), not just among the five rows above, so a busy day can't hide the repeat.
 - [ ] Detect cards that recur, especially in the same position.
 - [ ] Add a prompt block:
@@ -481,18 +498,21 @@ Mention at most one of these, only if it deepens this reading. Acknowledge a rep
 
 ### Task 15: Let the querent name both paths
 
-**Files:** `src/components/QuestionInput.jsx` (or `ReadingPreparation.jsx`), `src/contexts/ReadingContext.jsx` (request payload), `shared/coach/spreadQuestions.js:105` (hint), additive migration `migrations/0036_add_decision_paths.sql` (`decision_paths_json TEXT`), `src/hooks/useSaveReading.js` (journal save request), `functions/lib/journalEntries.js` (insert), the readers with their own column lists and row decoders (`functions/api/journal.js`, `functions/api/journal/[id].js`, `functions/api/journal/search.js`), `src/lib/journalInsights.js` (export "Path A: … / Path B: …") and the PDF export `functions/api/journal-export/index.js`. **Size:** M.
+**Files:** `src/components/QuestionInput.jsx` (or `ReadingPreparation.jsx`), `src/contexts/ReadingContext.jsx` (request payload), `shared/coach/spreadQuestions.js:105` (hint), additive migration `migrations/0036_add_decision_paths.sql` (`decision_paths_json TEXT`), `src/hooks/useSaveReading.js` (journal save request), `functions/lib/journalEntries.js` (insert), the readers with their own column lists and row decoders (`functions/api/journal.js`, `functions/api/journal/[id].js`, `functions/api/journal/search.js`), and every export that prints entries: `src/lib/journalInsights.js` (Markdown, "Path A: … / Path B: …"), `src/lib/pdfExport.js` (the in-app PDF behind `AccountPage.jsx` and `ReadingJourney/sections/ExportSection.jsx`) and the server PDF `functions/api/journal-export/index.js`. **Size:** M.
 
 - [ ] Show two optional inputs (up to 80 characters each) only for the decision spread, and send them as `decisionPaths` (Task 8).
-- [ ] Carry the labels through the journal: send them from `useSaveReading.js`, store them in `journalEntries.js`, and select and decode them in each reader above. A deep-linked entry (`/api/journal/:id`) replaces the cached copy, and server search lists its own rows in place of the cache, so a reader that drops the labels loses them from what the journal shows and exports. Show them in both exports.
-- [ ] Test that a decision entry keeps its labels after a reload, a deep link and a search, and that both exports print them.
+- [ ] Carry the labels through the journal: send them from `useSaveReading.js`, store them in `journalEntries.js`, and select and decode them in each reader above. A deep-linked entry (`/api/journal/:id`) replaces the cached copy, and server search lists its own rows in place of the cache, so a reader that drops the labels loses them from what the journal shows and exports. Print them in every export.
+- [ ] Validate the labels in `saveAppJournalEntry` with the same cleaning, injection filtering and 80-character limit as the reading request. `POST /api/journal` takes them straight from the client, without passing through `tarot-reading.js`.
+- [ ] Test that a decision entry keeps its labels after a reload, a deep link and a search; that the Markdown, in-app PDF and server PDF exports print them; and that a direct journal save with an over-long or injected label is rejected or cleaned.
 - [ ] Point the coach hint at the new fields. If a decision question names no options and the fields are empty, show a non-blocking nudge.
 
 ### Task 16: Notice repeated numbers
 
-**Files:** `functions/lib/knowledgeGraph.js` (detector), `src/data/knowledgeGraphData.js` (rank themes), `functions/lib/knowledgeBase.js` (passages, per CLAUDE.md). **Size:** M.
+**Files:** `functions/lib/knowledgeGraph.js` (detector), `src/data/knowledgeGraphData.js` (rank themes), `functions/lib/knowledgeBase.js` (passages, per CLAUDE.md), `functions/lib/graphContext.js` (`buildGraphKeys` at 16) and `functions/lib/graphRAG.js` (`retrievePassages` at 204). **Size:** M.
 
 - [ ] Flag two or more Minor cards of the same rank (#4 drew two Twos in a decision spread) with a short highlight such as "Two Twos: pairs, balance and choice are in the foreground."
+- [ ] Make the new passages reachable. `retrievePassages` only fetches pattern types it dispatches by graph key, so add a `repeatedRanks` key in `buildGraphKeys` (alongside `marseilleRanks` at line 104) and a matching retrieval branch (next to the `marseille-numerology` dispatch at line 429).
+- [ ] **Done when:** a draw with two Twos gets the highlight and its passage appears in the prompt's reference block.
 
 ## Decisions for the owner
 
