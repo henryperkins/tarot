@@ -3,6 +3,7 @@ import { Gear, Sparkle, ArrowsClockwise, ChatCircle } from '@phosphor-icons/reac
 import { useLandscape } from '../hooks/useLandscape';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { getReadingTableAction } from './readingBoardUtils';
+import { InstallApp } from './InstallApp';
 import {
   MOBILE_SETTINGS_DIALOG_ID,
   MOBILE_COACH_DIALOG_ID,
@@ -63,6 +64,7 @@ function ActionButton({
         onClick?.(event);
       }}
       data-reading-primary={readingTableAction || undefined}
+      data-mobile-primary={variant === 'primary' || undefined}
       onKeyDown={event => {
         if (readingTableAction && event.key === 'Enter' && event.repeat) event.preventDefault();
       }}
@@ -80,9 +82,22 @@ function ActionButton({
       `}
     >
       {Icon && <Icon className={isLandscape ? 'w-3.5 h-3.5' : 'w-4 h-4'} weight="fill" aria-hidden="true" />}
-      <span className={`${textSize} font-semibold`}>{children}</span>
+      <span className={`${textSize} min-w-0 font-semibold [overflow-wrap:anywhere]`}>{children}</span>
     </button>
   );
+}
+
+function revealFocusedAction(event) {
+  const group = event.currentTarget;
+  const action = event.target.closest('button');
+  if (!action || group.scrollWidth <= group.clientWidth) return;
+  const groupBounds = group.getBoundingClientRect();
+  const actionBounds = action.getBoundingClientRect();
+  if (actionBounds.right > groupBounds.right) {
+    group.scrollLeft += actionBounds.right - groupBounds.right;
+  } else if (actionBounds.left < groupBounds.left) {
+    group.scrollLeft += actionBounds.left - groupBounds.left;
+  }
 }
 
 function MobileActionContents({
@@ -141,31 +156,36 @@ function MobileActionContents({
       ? 'flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-none'
       : 'flex flex-wrap gap-2';
 
+  const actions = renderActions(mode, {
+    variant,
+    showUtilityButtons,
+    stepIndicatorLabel,
+    hasNarrative,
+    isLandscape,
+    showFollowUp,
+    isFollowUpOpen,
+    onOpenFollowUp,
+    isSettingsOpen,
+    isCoachOpen,
+    settingsDialogId,
+    coachDialogId,
+    onOpenSettings,
+    onOpenCoach,
+    onShuffle,
+    onDealNext,
+    onDealSpread,
+    tableAction,
+    onGenerateNarrative,
+    onSaveReading,
+    onNewReading
+  });
+
+  if (variant === 'inline') return <div className={layoutClass}>{actions}</div>;
+
   return (
-    <div className={layoutClass}>
-      {renderActions(mode, {
-        variant,
-        showUtilityButtons,
-        stepIndicatorLabel,
-        hasNarrative,
-        isLandscape,
-        showFollowUp,
-        isFollowUpOpen,
-        onOpenFollowUp,
-        isSettingsOpen,
-        isCoachOpen,
-        settingsDialogId,
-        coachDialogId,
-        onOpenSettings,
-        onOpenCoach,
-        onShuffle,
-        onDealNext,
-        onDealSpread,
-        tableAction,
-        onGenerateNarrative,
-        onSaveReading,
-        onNewReading
-      })}
+    <div className="mobile-action-layout">
+      <div className={`${layoutClass} mobile-action-tasks`} onFocus={isLandscape ? revealFocusedAction : undefined}>{actions}</div>
+      <InstallApp compact fallbackFocusSelector='[aria-label="Primary mobile actions"] [data-mobile-primary]:not(:disabled), [aria-label="Primary mobile actions"]:not(:has([data-mobile-primary]:not(:disabled)))' />
     </div>
   );
 }
@@ -200,12 +220,12 @@ function renderActions(mode, options) {
     onNewReading
   } = options;
 
-  // In landscape: smaller minimum widths to fit more buttons
+  // Landscape keeps labels on one line and scrolls actions that do not fit.
   const widthClasses = {
-    primary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-touch' : 'flex-1 min-w-[7.5rem]',
-    prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-touch' : 'flex-1 min-w-[6rem]',
-    secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-touch' : 'flex-1 min-w-[7.5rem]',
-    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-touch' : 'flex-1 min-w-[6.5rem]',
+    primary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,7.5rem)]',
+    prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,6rem)]',
+    secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,7.5rem)]',
+    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,6.5rem)]',
     icon: variant === 'inline' ? 'w-full' : 'flex-none min-w-touch',
     coach: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-none min-w-touch' : 'flex-none'
   };
@@ -260,7 +280,7 @@ function renderActions(mode, options) {
               className={`${widthClasses.coach} ${px}`}
               isLandscape={isLandscape}
             >
-              {isLandscape ? 'Coach' : 'Coach'}
+              <span className="mobile-action-coach-label">Coach</span>
             </ActionButton>
           )}
           <ActionButton
@@ -456,6 +476,7 @@ export function MobileActionBar({ isOverlayActive = false, ...props }) {
       ref={barRef}
       className={`mobile-action-bar ${isOverlayActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       aria-label="Primary mobile actions"
+      tabIndex={-1}
       style={barStyle}
       aria-hidden={isOverlayActive}
       inert={isOverlayActive}

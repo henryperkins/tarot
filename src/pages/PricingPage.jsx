@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Crown,
@@ -30,6 +30,7 @@ import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
 import { GlobalNav } from '../components/GlobalNav';
+import { InstallApp } from '../components/InstallApp';
 import AuthModal from '../components/AuthModal';
 import { MobileInfoSection } from '../components/MobileInfoSection';
 import { useToast } from '../contexts/ToastContext';
@@ -728,9 +729,28 @@ export default function PricingPage() {
   // Only show sticky CTA for confirmed free-tier users (not during loading)
   const showMobileSticky = !subscriptionLoading && effectiveTier === 'free';
   const headerRef = useResponsiveSticky();
+  const pageRef = useRef(null);
+  const upgradeBarRef = useRef(null);
+
+  // Reserve the dock's actual height when billing copy or larger text reflows.
+  useEffect(() => {
+    const page = pageRef.current;
+    const bar = upgradeBarRef.current;
+    if (!page || !bar) return undefined;
+    const measure = () => page.style.setProperty('--pricing-upgrade-height', `${bar.getBoundingClientRect().height}px`);
+    measure();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
+    observer?.observe(bar);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+      page.style.removeProperty('--pricing-upgrade-height');
+    };
+  }, [showMobileSticky, billingInterval]);
 
   return (
-    <div className="min-h-screen bg-main text-main">
+    <div ref={pageRef} className="min-h-screen bg-main text-main">
       {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
       <header
         ref={headerRef}
@@ -741,7 +761,7 @@ export default function PricingPage() {
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 pb-24 pt-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 pb-[max(6rem,calc(var(--pricing-upgrade-height,0px)+1.5rem))] pt-8">
         {/* Hero */}
         <section className="mb-10 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)] lg:items-center">
           <div className="min-w-0 space-y-6 [overflow-wrap:anywhere]">
@@ -1118,29 +1138,32 @@ export default function PricingPage() {
 
       {/* Sticky mobile CTA */}
       {showMobileSticky && (
-        <section aria-label="Plan upgrade" className="fixed inset-x-0 bottom-0 z-sticky-nav border-t border-secondary/40 bg-main/95 px-safe pt-3 pb-[max(0.75rem,var(--safe-pad-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.6)] lg:hidden">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0 text-xs text-muted">
-              <p className="font-semibold text-main">Upgrade to Plus</p>
-              <p>
-                {billingInterval === 'annual' && plusAnnualTotal && plusAnnualMonthly
-                  ? `$${plusAnnualTotal}/year ($${plusAnnualMonthly}/mo) · cancel anytime`
-                  : `$${plusMonthlyPrice}/month · cancel anytime`}
-              </p>
+        <section ref={upgradeBarRef} aria-label="Plan upgrade" tabIndex={-1} className="fixed inset-x-0 bottom-0 z-sticky-nav border-t border-secondary/40 bg-main/95 px-safe pt-3 pb-[max(0.75rem,var(--safe-pad-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.6)] lg:hidden">
+          <div className="mx-auto flex max-w-6xl items-end gap-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0 flex-[1_1_8rem] text-xs text-muted [overflow-wrap:anywhere]">
+                <p className="font-semibold text-main">Upgrade to Plus</p>
+                <p>
+                  {billingInterval === 'annual' && plusAnnualTotal && plusAnnualMonthly
+                    ? `$${plusAnnualTotal}/year ($${plusAnnualMonthly}/mo) · cancel anytime`
+                    : `$${plusMonthlyPrice}/month · cancel anytime`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleSelectTier('plus')}
+                disabled={loadingTier !== null}
+                className="inline-flex min-h-touch max-w-full shrink-0 items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-surface shadow-md hover:bg-accent/90 transition"
+              >
+                <span className="min-w-0 [overflow-wrap:anywhere]">Go Plus</span>
+                {loadingTier === 'plus' ? (
+                  <CircleNotch className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ArrowRight className="h-3.5 w-3.5" />
+                )}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => handleSelectTier('plus')}
-              disabled={loadingTier !== null}
-              className="inline-flex min-h-touch shrink-0 items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-surface shadow-md hover:bg-accent/90 transition"
-            >
-              Go Plus
-              {loadingTier === 'plus' ? (
-                <CircleNotch className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <ArrowRight className="h-3.5 w-3.5" />
-              )}
-            </button>
+            <InstallApp compact fallbackFocusSelector='[aria-label="Plan upgrade"] button:not([data-pwa-install]):not(:disabled), [aria-label="Plan upgrade"]:not(:has(button:not([data-pwa-install]):not(:disabled)))' />
           </div>
         </section>
       )}
