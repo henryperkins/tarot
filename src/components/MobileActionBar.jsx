@@ -53,6 +53,7 @@ function ActionButton({
   const heightClass = variant === 'primary' && !isLandscape ? 'min-h-cta' : 'min-h-touch';
   const textSize = isLandscape ? 'text-xs' : 'text-sm';
   const nowrapClass = isLandscape ? 'whitespace-nowrap' : '';
+  const focusOffsetClass = isLandscape ? 'focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-surface)]' : '';
 
   return (
     <button
@@ -76,13 +77,36 @@ function ActionButton({
         gap-1.5
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
         ${nowrapClass}
+        ${focusOffsetClass}
         ${className}
       `}
     >
       {Icon && <Icon className={isLandscape ? 'w-3.5 h-3.5' : 'w-4 h-4'} weight="fill" aria-hidden="true" />}
-      <span className={`${textSize} font-semibold`}>{children}</span>
+      <span className={`${textSize} min-w-0 font-semibold [overflow-wrap:anywhere]`}>{children}</span>
     </button>
   );
+}
+
+function revealAction(group, action) {
+  if (!group?.isConnected || !action || !group.contains(action) || group.scrollWidth <= group.clientWidth) return;
+  const groupBounds = group.getBoundingClientRect();
+  const actionBounds = action.getBoundingClientRect();
+  const ringInset = 4;
+  if (actionBounds.right + ringInset > groupBounds.right) {
+    group.scrollLeft += Math.ceil(actionBounds.right + ringInset - groupBounds.right);
+  } else if (actionBounds.left - ringInset < groupBounds.left) {
+    group.scrollLeft += Math.floor(actionBounds.left - ringInset - groupBounds.left);
+  }
+}
+
+function revealFocusedAction(event) {
+  const group = event.currentTarget;
+  const action = event.target.closest('button');
+  revealAction(group, action);
+  // WebKit may dispatch focus before resized text updates scrollWidth.
+  requestAnimationFrame(() => {
+    if (document.activeElement === action) revealAction(group, action);
+  });
 }
 
 function MobileActionContents({
@@ -114,6 +138,7 @@ function MobileActionContents({
   coachDialogId = MOBILE_COACH_DIALOG_ID
 }) {
   const isLandscape = useLandscape();
+  const actionGroupRef = useRef(null);
   const readingLength = reading?.length || 0;
   const revealedCount = revealedCards?.size || 0;
   const allRevealed = readingLength > 0 && revealedCount === readingLength;
@@ -132,42 +157,62 @@ function MobileActionContents({
     isGenerating,
     isError
   }), [isShuffling, reading, revealedCount, allRevealed, needsNarrative, hasNarrative, isGenerating, isError]);
+
+  useEffect(() => {
+    const group = actionGroupRef.current;
+    if (!isLandscape || variant === 'inline' || !group) return undefined;
+    let frame;
+    const reveal = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => revealAction(group, document.activeElement?.closest('button')));
+    };
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(reveal) : null;
+    observer?.observe(group);
+    // Fonts and larger text can resize actions without resizing their scroller.
+    group.querySelectorAll('button').forEach(button => observer?.observe(button));
+    if (!observer) window.addEventListener('resize', reveal);
+    return () => {
+      observer?.disconnect();
+      cancelAnimationFrame(frame);
+      if (!observer) window.removeEventListener('resize', reveal);
+    };
+  }, [isLandscape, mode, variant]);
   const tableAction = getReadingTableAction({ isSpreadDealt, revealedCards: revealedCards || new Set(), totalCards: readingLength, positions: spreadPositions });
 
   // In landscape: tighter layout with smaller gaps
   const layoutClass = variant === 'inline'
     ? 'flex flex-col gap-2 w-full'
     : isLandscape
-      ? 'flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-none'
+      ? 'flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-none p-1'
       : 'flex flex-wrap gap-2';
 
-  return (
-    <div className={layoutClass}>
-      {renderActions(mode, {
-        variant,
-        showUtilityButtons,
-        stepIndicatorLabel,
-        hasNarrative,
-        isLandscape,
-        showFollowUp,
-        isFollowUpOpen,
-        onOpenFollowUp,
-        isSettingsOpen,
-        isCoachOpen,
-        settingsDialogId,
-        coachDialogId,
-        onOpenSettings,
-        onOpenCoach,
-        onShuffle,
-        onDealNext,
-        onDealSpread,
-        tableAction,
-        onGenerateNarrative,
-        onSaveReading,
-        onNewReading
-      })}
-    </div>
-  );
+  const actions = renderActions(mode, {
+    variant,
+    showUtilityButtons,
+    stepIndicatorLabel,
+    hasNarrative,
+    isLandscape,
+    showFollowUp,
+    isFollowUpOpen,
+    onOpenFollowUp,
+    isSettingsOpen,
+    isCoachOpen,
+    settingsDialogId,
+    coachDialogId,
+    onOpenSettings,
+    onOpenCoach,
+    onShuffle,
+    onDealNext,
+    onDealSpread,
+    tableAction,
+    onGenerateNarrative,
+    onSaveReading,
+    onNewReading
+  });
+
+  if (variant === 'inline') return <div className={layoutClass}>{actions}</div>;
+
+  return <div ref={actionGroupRef} className={layoutClass} onFocus={isLandscape ? revealFocusedAction : undefined}>{actions}</div>;
 }
 
 function withStepContext(label, stepIndicatorLabel) {
@@ -200,12 +245,12 @@ function renderActions(mode, options) {
     onNewReading
   } = options;
 
-  // In landscape: smaller minimum widths to fit more buttons
+  // Landscape keeps labels on one line and scrolls actions that do not fit.
   const widthClasses = {
-    primary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-touch' : 'flex-1 min-w-[7.5rem]',
-    prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-touch' : 'flex-1 min-w-[6rem]',
-    secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-touch' : 'flex-1 min-w-[7.5rem]',
-    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-1 min-w-touch' : 'flex-1 min-w-[6.5rem]',
+    primary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,7.5rem)]',
+    prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,6rem)]',
+    secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,7.5rem)]',
+    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,6.5rem)]',
     icon: variant === 'inline' ? 'w-full' : 'flex-none min-w-touch',
     coach: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-none min-w-touch' : 'flex-none'
   };
@@ -260,7 +305,7 @@ function renderActions(mode, options) {
               className={`${widthClasses.coach} ${px}`}
               isLandscape={isLandscape}
             >
-              {isLandscape ? 'Coach' : 'Coach'}
+              Coach
             </ActionButton>
           )}
           <ActionButton
@@ -437,7 +482,9 @@ export function MobileActionBar({ isOverlayActive = false, ...props }) {
     let observer;
     if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(updateHeight);
-      observer.observe(barRef.current);
+      // Safe-area changes can resize only the padding, leaving the content box
+      // unchanged. Reserve the full dock height after those changes as well.
+      observer.observe(barRef.current, { box: 'border-box' });
     } else {
       window.addEventListener('resize', updateHeight);
     }
@@ -456,6 +503,7 @@ export function MobileActionBar({ isOverlayActive = false, ...props }) {
       ref={barRef}
       className={`mobile-action-bar ${isOverlayActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       aria-label="Primary mobile actions"
+      tabIndex={-1}
       style={barStyle}
       aria-hidden={isOverlayActive}
       inert={isOverlayActive}

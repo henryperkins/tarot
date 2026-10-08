@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { BookOpen, CaretLeft, Check, Funnel, SortAscending, LockKey } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { GlobalNav } from '../components/GlobalNav';
+import { InstallFooter } from '../components/InstallFooter';
 import { CardModal } from '../components/CardModal';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
@@ -209,9 +210,14 @@ export default function CardGalleryPage() {
   } = useJournal();
   const [selected, setSelected] = useState(null);
 
-  const [remoteStats, setRemoteStats] = useState(null);
-  const [remoteLoading, setRemoteLoading] = useState(false);
-  const [analyticsDisabled, setAnalyticsDisabled] = useState(false);
+  const statsOwner = isAuthenticated ? String(user?.id || '') : null;
+  const [remoteState, setRemoteState] = useState({
+    owner: statsOwner, stats: null, loading: isAuthenticated, analyticsDisabled: false
+  });
+  if (remoteState.owner !== statsOwner) {
+    setRemoteState({ owner: statsOwner, stats: null, loading: isAuthenticated, analyticsDisabled: false });
+  }
+  const { stats: remoteStats, loading: remoteLoading, analyticsDisabled } = remoteState;
   const [loadingFullHistory, setLoadingFullHistory] = useState(false);
   const pageRef = useRef(null);
   const headerRef = useRef(null);
@@ -261,13 +267,6 @@ export default function CardGalleryPage() {
     };
   }, []);
 
-  // Reset remote state when auth status or user changes to avoid cross-account leakage.
-  useEffect(() => {
-    setRemoteStats(null);
-    setRemoteLoading(false);
-    setAnalyticsDisabled(false);
-  }, [isAuthenticated, user?.id]);
-
   useEffect(() => {
     entriesLengthRef.current = entries.length;
   }, [entries.length]);
@@ -281,25 +280,22 @@ export default function CardGalleryPage() {
   }, [totalEntries]);
 
   useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    const controller = new AbortController();
     async function fetchStats() {
-      if (!isAuthenticated) return;
-
       try {
-        setRemoteLoading(true);
-        setAnalyticsDisabled(false);
-
         const res = await fetch('/api/archetype-journey/card-frequency', {
-          credentials: 'include'
+          credentials: 'include', signal: controller.signal
         });
-
+        if (controller.signal.aborted) return;
         if (res.status === 403) {
-          setAnalyticsDisabled(true);
-          setRemoteStats(null);
+          setRemoteState({ owner: statsOwner, stats: null, loading: false, analyticsDisabled: true });
           return;
         }
 
         if (res.ok) {
           const data = await res.json();
+          if (controller.signal.aborted) return;
           // Convert array to map for O(1) lookup
           const map = {};
           (data.cards || []).forEach(c => {
@@ -310,21 +306,21 @@ export default function CardGalleryPage() {
               card_name: cardName,
             };
           });
-          setRemoteStats(map);
+          setRemoteState({ owner: statsOwner, stats: map, loading: false, analyticsDisabled: false });
         } else {
           // Non-fatal: fall back to local computation.
-          setRemoteStats(null);
+          setRemoteState({ owner: statsOwner, stats: null, loading: false, analyticsDisabled: false });
         }
       } catch (err) {
+        if (controller.signal.aborted) return;
         console.error('Failed to load card stats', err);
-        setRemoteStats(null);
-      } finally {
-        setRemoteLoading(false);
+        setRemoteState({ owner: statsOwner, stats: null, loading: false, analyticsDisabled: false });
       }
     }
 
     fetchStats();
-  }, [isAuthenticated, user?.id]);
+    return () => controller.abort();
+  }, [isAuthenticated, statsOwner]);
 
   const localStats = useMemo(() => buildLocalCardStats(entries), [entries]);
 
@@ -475,7 +471,7 @@ export default function CardGalleryPage() {
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <main id="main-content" tabIndex={-1} className="max-w-7xl mx-auto pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] sm:pl-[max(1.5rem,var(--safe-pad-left))] sm:pr-[max(1.5rem,var(--safe-pad-right))] py-8">
         {/* Header */}
         <div className="mb-8">
           <button
@@ -665,6 +661,7 @@ export default function CardGalleryPage() {
             </button>
           </div>
         )}
+        <InstallFooter />
       </main>
 
       {selected?.card && (

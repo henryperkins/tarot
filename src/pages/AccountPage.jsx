@@ -29,6 +29,7 @@ import {
 } from '@phosphor-icons/react';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { GlobalNav } from '../components/GlobalNav';
+import { InstallFooter } from '../components/InstallFooter';
 import AuthModal from '../components/AuthModal';
 import { MemoryManager } from '../components/MemoryManager';
 import { useAuth } from '../contexts/AuthContext';
@@ -210,15 +211,26 @@ export default function AccountPage() {
   } = useJournal({ autoLoad: false });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
+  const accountOwner = isAuthenticated ? String(user?.id || '') : null;
 
   // Analytics preferences state (mirrored from UserMenu)
-  const [analyticsEnabled, setAnalyticsEnabled] = useState(null);
-  const [prefsLoading, setPrefsLoading] = useState(false);
-  const [prefsError, setPrefsError] = useState(null);
+  const [analyticsState, setAnalyticsState] = useState({
+    owner: accountOwner, enabled: null, loading: isAuthenticated, error: null
+  });
+  if (analyticsState.owner !== accountOwner) {
+    setAnalyticsState({ owner: accountOwner, enabled: null, loading: isAuthenticated, error: null });
+  }
+  const { enabled: analyticsEnabled, loading: prefsLoading, error: prefsError } = analyticsState;
 
   // Profile & password management
   const [profileEditing, setProfileEditing] = useState(false);
-  const [profileForm, setProfileForm] = useState({ username: '', email: '' });
+  const profileSource = JSON.stringify([accountOwner, user?.username || '', user?.email || '']);
+  const [profileSourceKey, setProfileSourceKey] = useState(profileSource);
+  const [profileForm, setProfileForm] = useState({ username: user?.username || '', email: user?.email || '' });
+  if (profileSourceKey !== profileSource) {
+    setProfileSourceKey(profileSource);
+    setProfileForm({ username: user?.username || '', email: user?.email || '' });
+  }
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState(null);
   const [profileSuccess, setProfileSuccess] = useState(null);
@@ -241,9 +253,12 @@ export default function AccountPage() {
   // Billing portal + usage dashboard
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState(null);
-  const [usageStatus, setUsageStatus] = useState(null);
-  const [usageLoading, setUsageLoading] = useState(false);
-  const [usageError, setUsageError] = useState(null);
+  const usageKey = JSON.stringify([accountOwner, tier]);
+  const [usageState, setUsageState] = useState({ key: usageKey, status: null, loading: isAuthenticated, error: null });
+  if (usageState.key !== usageKey) {
+    setUsageState({ key: usageKey, status: null, loading: isAuthenticated, error: null });
+  }
+  const { status: usageStatus, loading: usageLoading, error: usageError } = usageState;
 
   // Export + delete account
   const [exportLoading, setExportLoading] = useState(false);
@@ -255,11 +270,18 @@ export default function AccountPage() {
   const [journeyResetLoading, setJourneyResetLoading] = useState(false);
   const [journeyResetError, setJourneyResetError] = useState(null);
   const [tutorialResetOpen, setTutorialResetOpen] = useState(false);
-  const [highlightedSection, setHighlightedSection] = useState(null);
+  const [highlightHash, setHighlightHash] = useState(location.hash);
+  const [highlightedSection, setHighlightedSection] = useState(location.hash.slice(1) || null);
+  if (highlightHash !== location.hash) {
+    setHighlightHash(location.hash);
+    setHighlightedSection(location.hash.slice(1) || null);
+  }
 
   const journalEntriesRef = useRef(journalEntries);
   const hasMoreEntriesRef = useRef(hasMoreJournalEntries);
   const highlightTimeoutRef = useRef(null);
+  const analyticsRequestRef = useRef(null);
+  const usageRequestRef = useRef(null);
   const pageRef = useRef(null);
   const headerRef = useResponsiveSticky(!authLoading);
   const sectionNavRef = useRef(null);
@@ -315,14 +337,6 @@ export default function AccountPage() {
   }, [searchParams, setSearchParams, publish]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    setProfileForm({
-      username: user?.username || '',
-      email: user?.email || ''
-    });
-  }, [isAuthenticated, user?.username, user?.email]);
-
-  useEffect(() => {
     if (typeof document === 'undefined') return undefined;
     if (!location.hash) return undefined;
     const id = location.hash.replace('#', '');
@@ -333,7 +347,6 @@ export default function AccountPage() {
     if (highlightTimeoutRef.current) {
       clearTimeout(highlightTimeoutRef.current);
     }
-    setHighlightedSection(id);
     highlightTimeoutRef.current = setTimeout(() => {
       setHighlightedSection(null);
     }, 1600);
@@ -348,7 +361,10 @@ export default function AccountPage() {
       }
     });
 
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(highlightTimeoutRef.current);
+    };
   }, [location.hash, prefersReducedMotion]);
 
   useEffect(() => {
@@ -369,38 +385,39 @@ export default function AccountPage() {
 
   // No redirect - guests can access settings sections
 
-  const fetchAnalyticsPreference = useCallback(async (force = false) => {
-    if (!isAuthenticated || prefsLoading) return;
-    if (!force && analyticsEnabled !== null) return;
-    setPrefsLoading(true);
-    setPrefsError(null);
+  const fetchAnalyticsPreference = useCallback(async () => {
+    if (!isAuthenticated) return;
+    analyticsRequestRef.current?.abort();
+    const controller = new AbortController();
+    analyticsRequestRef.current = controller;
     try {
-      const response = await fetch('/api/archetype-journey/preferences', { credentials: 'include' });
+      const response = await fetch('/api/archetype-journey/preferences', { credentials: 'include', signal: controller.signal });
       const data = await response.json().catch(() => ({}));
+      if (controller.signal.aborted) return;
       if (response.status === 403) {
-        setAnalyticsEnabled(false);
+        setAnalyticsState({ owner: accountOwner, enabled: false, loading: false, error: null });
       } else if (response.ok) {
         const enabled = data?.preferences?.archetype_journey_enabled;
-        setAnalyticsEnabled(enabled === undefined ? null : Boolean(enabled));
+        setAnalyticsState({ owner: accountOwner, enabled: enabled === undefined ? null : Boolean(enabled), loading: false, error: null });
       } else {
-        setPrefsError('Could not load preference. Retry.');
-        setAnalyticsEnabled(null);
+        setAnalyticsState({ owner: accountOwner, enabled: null, loading: false, error: 'Could not load preference. Retry.' });
       }
     } catch {
-      setPrefsError('Could not load preference. Retry.');
-      setAnalyticsEnabled(null);
-    } finally {
-      setPrefsLoading(false);
+      if (controller.signal.aborted) return;
+      setAnalyticsState({ owner: accountOwner, enabled: null, loading: false, error: 'Could not load preference. Retry.' });
     }
-  }, [isAuthenticated, prefsLoading, analyticsEnabled]);
+  }, [isAuthenticated, accountOwner]);
 
   useEffect(() => {
-    fetchAnalyticsPreference();
+    void fetchAnalyticsPreference();
+    return () => analyticsRequestRef.current?.abort();
   }, [fetchAnalyticsPreference]);
 
   const handleRetryAnalytics = useCallback(() => {
-    fetchAnalyticsPreference(true);
-  }, [fetchAnalyticsPreference]);
+    if (prefsLoading) return;
+    setAnalyticsState(previous => ({ ...previous, loading: true, error: null }));
+    void fetchAnalyticsPreference();
+  }, [fetchAnalyticsPreference, prefsLoading]);
 
   // Fetch subscription details (renewal date, provider sync)
   useEffect(() => {
@@ -472,55 +489,63 @@ export default function AccountPage() {
     };
   }, [isAuthenticated, checkAuth]);
 
-  const fetchUsage = useCallback(async () => {
+  const requestUsage = useCallback(async () => {
     if (!isAuthenticated) return;
-    setUsageLoading(true);
-    setUsageError(null);
+    usageRequestRef.current?.abort();
+    const controller = new AbortController();
+    usageRequestRef.current = controller;
     try {
-      const response = await fetch('/api/usage', { credentials: 'include' });
+      const response = await fetch('/api/usage', { credentials: 'include', signal: controller.signal });
       const data = await response.json().catch(() => ({}));
+      if (controller.signal.aborted) return;
 
       if (!response.ok) {
         throw new Error(data.error || 'Unable to load usage');
       }
 
-      setUsageStatus(data);
+      setUsageState({ key: usageKey, status: data, loading: false, error: null });
     } catch (error) {
-      setUsageError(error.message || 'Unable to load usage');
-    } finally {
-      setUsageLoading(false);
+      if (controller.signal.aborted) return;
+      setUsageState(previous => ({ ...previous, key: usageKey, loading: false, error: error.message || 'Unable to load usage' }));
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, usageKey]);
+
+  const fetchUsage = useCallback(() => {
+    if (!isAuthenticated || usageLoading) return;
+    setUsageState(previous => ({ ...previous, loading: true, error: null }));
+    void requestUsage();
+  }, [isAuthenticated, requestUsage, usageLoading]);
 
   // Fetch usage status for the dashboard
   useEffect(() => {
-    if (!isAuthenticated) return;
-    fetchUsage();
-  }, [isAuthenticated, tier, fetchUsage]);
+    void requestUsage();
+    return () => usageRequestRef.current?.abort();
+  }, [requestUsage]);
 
   const toggleAnalytics = useCallback(async () => {
     if (analyticsEnabled === null || prefsLoading) return;
     const next = !analyticsEnabled;
-    setPrefsLoading(true);
-    setPrefsError(null);
-    
     // Optimistic update for responsive feel
-    setAnalyticsEnabled(next);
+    setAnalyticsState(previous => ({ ...previous, enabled: next, loading: true, error: null }));
+    analyticsRequestRef.current?.abort();
+    const controller = new AbortController();
+    analyticsRequestRef.current = controller;
     
     try {
       const response = await fetch('/api/archetype-journey/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        signal: controller.signal,
         body: JSON.stringify({ archetype_journey_enabled: next })
       });
+      if (controller.signal.aborted) return;
       if (!response.ok) {
-        // Revert on failure
-        setAnalyticsEnabled(!next);
         throw new Error('Failed to update preference');
       }
       const data = await response.json().catch(() => ({}));
-      setAnalyticsEnabled(data?.preferences?.archetype_journey_enabled ?? next);
+      if (controller.signal.aborted) return;
+      setAnalyticsState({ owner: accountOwner, enabled: data?.preferences?.archetype_journey_enabled ?? next, loading: false, error: null });
       
       publish({
         title: next ? 'Journey tracking enabled' : 'Journey tracking disabled',
@@ -530,16 +555,15 @@ export default function AccountPage() {
         type: 'success'
       });
     } catch {
-      setPrefsError('Failed to update');
+      if (controller.signal.aborted) return;
+      setAnalyticsState({ owner: accountOwner, enabled: !next, loading: false, error: 'Failed to update' });
       publish({
         title: 'Update failed',
         description: 'Could not save your preference. Please try again.',
         type: 'error'
       });
-    } finally {
-      setPrefsLoading(false);
     }
-  }, [analyticsEnabled, prefsLoading, publish]);
+  }, [accountOwner, analyticsEnabled, prefsLoading, publish]);
 
   const handleProfileSave = useCallback(async () => {
     if (profileSaving) return;
@@ -929,7 +953,7 @@ export default function AccountPage() {
     } finally {
       setVerificationSending(false);
     }
-  }, [user?.email, verificationSending, resendVerification, publish]);
+  }, [user, verificationSending, resendVerification, publish]);
 
   const handleLogout = async () => {
     await logout();
@@ -1164,7 +1188,7 @@ export default function AccountPage() {
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-4 py-8 space-y-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] py-8 space-y-6">
         {/* Page Title */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -2355,6 +2379,7 @@ export default function AccountPage() {
             Back to Reading
           </Link>
         </div>
+        <InstallFooter />
       </main>
     </div>
   );

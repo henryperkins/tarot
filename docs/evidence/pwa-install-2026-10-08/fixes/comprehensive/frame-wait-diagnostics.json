@@ -1,0 +1,800 @@
+{
+  "productionEntry": "app-DBO6rHdL.js",
+  "conditions": "Exact existing fixture using default WebKit/iPhone13 with no media override; two diagnostic workers concurrent with the four-worker full frontend suite. No source or spec edits. The bring-to-front experiment changed only page foreground before initial measurement.",
+  "diagnosticRender": {
+    "passed": 2,
+    "failed": 7,
+    "tests": 9
+  },
+  "bringToFront": {
+    "passed": 1,
+    "failed": 5,
+    "tests": 6
+  },
+  "findings": [
+    "Journal controls count was 1 after the first heavy frame update, but the new control inset grew the document 114px at 800px and 66px at 1024px, leaving the old scroll position before the updated end.",
+    "The initial 800px scroll-to-end plus two animation frames took 14,752ms. A second poll could not finish more heavy frames inside the 15s deadline.",
+    "Synchronous height and scroll operations took 0\u20131ms; individual animation-frame waits ranged from 0.475 to 7.996 seconds.",
+    "During failed late-offer samples, the document was visible and animations were running, but currentTime stayed 0 and startTime stayed null throughout 5s; the route transform stayed at Y=4px.",
+    "These preparation timeouts did not establish an install geometry or functional regression. The subsequent unchanged frozen production suite passed all 75 cases when run alone; see browser-verification-summary.json."
+  ],
+  "samples": [
+    {
+      "kind": "journal",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "sample": 1,
+      "height": 4434,
+      "remaining": 114,
+      "stableHeight": false,
+      "count": 1,
+      "visibility": "visible",
+      "owner": "HTML",
+      "y": 3320,
+      "h": 1000,
+      "reduce": false,
+      "transform": "none",
+      "animations": [],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "journal",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "sample": 1,
+      "height": 4347,
+      "remaining": 66,
+      "stableHeight": false,
+      "count": 1,
+      "visibility": "visible",
+      "owner": "HTML",
+      "y": 3513,
+      "h": 768,
+      "reduce": false,
+      "transform": "none",
+      "animations": [
+        {
+          "name": "floatGentle",
+          "currentTime": 23067,
+          "startTime": 3532,
+          "playState": "running"
+        },
+        {
+          "name": "floatGentle",
+          "currentTime": 23067,
+          "startTime": 3532,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "none",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "journal",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "sample": 1,
+      "height": 4434,
+      "remaining": 156,
+      "stableHeight": false,
+      "count": 1,
+      "visibility": "visible",
+      "owner": "HTML",
+      "y": 3278,
+      "h": 1000,
+      "reduce": false,
+      "transform": "none",
+      "animations": [],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "journal",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "sample": 1,
+      "height": 4347,
+      "remaining": 108,
+      "stableHeight": false,
+      "count": 1,
+      "visibility": "visible",
+      "owner": "HTML",
+      "y": 3471,
+      "h": 768,
+      "reduce": false,
+      "transform": "none",
+      "animations": [
+        {
+          "name": "floatGentle",
+          "currentTime": 14109,
+          "startTime": 2268,
+          "playState": "running"
+        },
+        {
+          "name": "floatGentle",
+          "currentTime": 14109,
+          "startTime": 2268,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "journal",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "sample": 1,
+      "height": 4434,
+      "remaining": 160,
+      "stableHeight": false,
+      "count": 1,
+      "visibility": "visible",
+      "owner": "HTML",
+      "y": 3274,
+      "h": 1000,
+      "reduce": false,
+      "transform": "none",
+      "animations": [],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "journal",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "sample": 1,
+      "height": 4347,
+      "remaining": 67,
+      "stableHeight": false,
+      "count": 1,
+      "visibility": "visible",
+      "owner": "HTML",
+      "y": 3512,
+      "h": 768,
+      "reduce": false,
+      "transform": "none",
+      "animations": [
+        {
+          "name": "floatGentle",
+          "currentTime": 18295,
+          "startTime": 2067,
+          "playState": "running"
+        },
+        {
+          "name": "floatGentle",
+          "currentTime": 18295,
+          "startTime": 2067,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "none",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [],
+      "lane": "diagnostic-render"
+    },
+    {
+      "kind": "journal",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "sample": 1,
+      "height": 4347,
+      "remaining": 66,
+      "phases": {
+        "heightRead": 0,
+        "scroll": 1,
+        "firstFrame": 692,
+        "secondFrame": 6788,
+        "finalHeight": 1
+      },
+      "stableHeight": false,
+      "count": 1,
+      "visibility": "visible",
+      "owner": "HTML",
+      "y": 3513,
+      "h": 768,
+      "reduce": false,
+      "transform": "none",
+      "animations": [
+        {
+          "name": "floatGentle",
+          "currentTime": 9010,
+          "startTime": 1763,
+          "playState": "running"
+        },
+        {
+          "name": "floatGentle",
+          "currentTime": 9010,
+          "startTime": 1763,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-front"
+    },
+    {
+      "kind": "journal",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "sample": 1,
+      "height": 4434,
+      "remaining": 114,
+      "phases": {
+        "heightRead": 0,
+        "scroll": 1,
+        "firstFrame": 475,
+        "secondFrame": 7996,
+        "finalHeight": 1
+      },
+      "stableHeight": false,
+      "count": 1,
+      "visibility": "visible",
+      "owner": "HTML",
+      "y": 3320,
+      "h": 1000,
+      "reduce": false,
+      "transform": "none",
+      "animations": [],
+      "lane": "diagnostic-front"
+    },
+    {
+      "kind": "journal",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "sample": 2,
+      "height": 4347,
+      "remaining": 0,
+      "phases": {
+        "heightRead": 0,
+        "scroll": 1,
+        "firstFrame": 4870,
+        "secondFrame": 4883,
+        "finalHeight": 1
+      },
+      "stableHeight": true,
+      "count": 1,
+      "visibility": "visible",
+      "owner": "HTML",
+      "y": 3579,
+      "h": 768,
+      "reduce": false,
+      "transform": "none",
+      "animations": [
+        {
+          "name": "floatGentle",
+          "currentTime": 18883,
+          "startTime": 1763,
+          "playState": "running"
+        },
+        {
+          "name": "floatGentle",
+          "currentTime": 18883,
+          "startTime": 1763,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-front"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "none",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [],
+      "lane": "diagnostic-front"
+    },
+    {
+      "kind": "journal",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "sample": 1,
+      "height": 4434,
+      "remaining": 114,
+      "phases": {
+        "heightRead": 0,
+        "scroll": 1,
+        "firstFrame": 609,
+        "secondFrame": 11637,
+        "finalHeight": 7
+      },
+      "stableHeight": false,
+      "count": 1,
+      "visibility": "visible",
+      "owner": "HTML",
+      "y": 3320,
+      "h": 1000,
+      "reduce": false,
+      "transform": "none",
+      "animations": [],
+      "lane": "diagnostic-front"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-front"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-front"
+    },
+    {
+      "kind": "journal",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "sample": 1,
+      "height": 4347,
+      "remaining": 111,
+      "phases": {
+        "heightRead": 0,
+        "scroll": 1,
+        "firstFrame": 1345,
+        "secondFrame": 12057,
+        "finalHeight": 3
+      },
+      "stableHeight": false,
+      "count": 1,
+      "visibility": "visible",
+      "owner": "HTML",
+      "y": 3468,
+      "h": 768,
+      "reduce": false,
+      "transform": "none",
+      "animations": [
+        {
+          "name": "floatGentle",
+          "currentTime": 12063,
+          "startTime": 3050,
+          "playState": "running"
+        },
+        {
+          "name": "floatGentle",
+          "currentTime": 12063,
+          "startTime": 3050,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-front"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-front"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-front"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [
+        {
+          "name": "page-enter",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        },
+        {
+          "name": "fadeIn",
+          "currentTime": 0,
+          "startTime": null,
+          "playState": "running"
+        }
+      ],
+      "lane": "diagnostic-front"
+    },
+    {
+      "kind": "lateoffer",
+      "transform": "none",
+      "visibility": "visible",
+      "reduce": false,
+      "animations": [],
+      "lane": "diagnostic-front"
+    }
+  ],
+  "finalFollowUp": {
+    "productionInstallPassed": 75,
+    "failed": 0,
+    "workers": 1,
+    "testsAndAssertionsUnchanged": true,
+    "record": "browser-verification-summary.json"
+  }
+}

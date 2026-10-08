@@ -1,0 +1,1367 @@
+[
+  {
+    "trial": 0,
+    "asset": "http://localhost:5173/assets/app-CNa8CycO.js",
+    "geometry": {
+      "active": "Draw cards",
+      "scrollLeft": 40,
+      "clientWidth": 472,
+      "scrollWidth": 903,
+      "viewport": {
+        "innerWidth": 568,
+        "innerHeight": 320,
+        "clientWidth": 568,
+        "clientHeight": 320,
+        "visualWidth": 568,
+        "visualHeight": 320,
+        "visualScale": 1
+      },
+      "landscape": true,
+      "fontSize": "32px",
+      "button": {
+        "x": 462.59375,
+        "y": 236,
+        "width": 440.046875,
+        "height": 44,
+        "top": 236,
+        "right": 902.640625,
+        "bottom": 280,
+        "left": 462.59375
+      },
+      "group": {
+        "x": 48,
+        "y": 228,
+        "width": 472,
+        "height": 60,
+        "top": 228,
+        "right": 520,
+        "bottom": 288,
+        "left": 48
+      },
+      "clearance": {
+        "top": 8,
+        "bottom": 8,
+        "left": 414.59375,
+        "right": -382.640625
+      }
+    },
+    "trace": [
+      {
+        "event": "initial",
+        "label": null,
+        "time": 903,
+        "active": null,
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "focusin-bubble",
+        "label": "Open guided intention coach",
+        "time": 926,
+        "active": "Open guided intention coach",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "focusin-document-after-react",
+        "label": "Open guided intention coach",
+        "time": 927,
+        "active": "Open guided intention coach",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "microtask",
+        "label": "Open guided intention coach",
+        "time": 927,
+        "active": "Open guided intention coach",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "focusin-bubble",
+        "label": "Draw cards",
+        "time": 936,
+        "active": "Draw cards",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "microtask",
+        "label": "Draw cards",
+        "time": 936,
+        "active": "Draw cards",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "js-scrollLeft-set-41",
+        "label": null,
+        "time": 936,
+        "active": "Draw cards",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "js-scrollLeft-after-set",
+        "label": null,
+        "time": 936,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 280.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 516.328125,
+          "bottom": 284,
+          "left": 280.296875
+        }
+      },
+      {
+        "event": "focusin-document-after-react",
+        "label": "Draw cards",
+        "time": 936,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 280.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 516.328125,
+          "bottom": 284,
+          "left": 280.296875
+        }
+      },
+      {
+        "event": "timeout100",
+        "label": "Open guided intention coach",
+        "time": 1026,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 280.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 516.328125,
+          "bottom": 284,
+          "left": 280.296875
+        }
+      },
+      {
+        "event": "timeout100",
+        "label": "Draw cards",
+        "time": 1036,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 280.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 516.328125,
+          "bottom": 284,
+          "left": 280.296875
+        }
+      },
+      {
+        "event": "scroll",
+        "label": null,
+        "time": 1152,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 280.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 516.328125,
+          "bottom": 284,
+          "left": 280.296875
+        }
+      },
+      {
+        "event": "raf1",
+        "label": "Open guided intention coach",
+        "time": 1212,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 903,
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 462.59375,
+          "y": 236,
+          "width": 440.046875,
+          "height": 44,
+          "top": 236,
+          "right": 902.640625,
+          "bottom": 280,
+          "left": 462.59375
+        }
+      },
+      {
+        "event": "raf1",
+        "label": "Draw cards",
+        "time": 1213,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 903,
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 462.59375,
+          "y": 236,
+          "width": 440.046875,
+          "height": 44,
+          "top": 236,
+          "right": 902.640625,
+          "bottom": 280,
+          "left": 462.59375
+        }
+      }
+    ]
+  },
+  {
+    "trial": 1,
+    "asset": "http://localhost:5173/assets/app-CNa8CycO.js",
+    "geometry": {
+      "active": "Draw cards",
+      "scrollLeft": 40,
+      "clientWidth": 472,
+      "scrollWidth": 903,
+      "viewport": {
+        "innerWidth": 568,
+        "innerHeight": 320,
+        "clientWidth": 568,
+        "clientHeight": 320,
+        "visualWidth": 568,
+        "visualHeight": 320,
+        "visualScale": 1
+      },
+      "landscape": true,
+      "fontSize": "32px",
+      "button": {
+        "x": 462.59375,
+        "y": 236,
+        "width": 440.046875,
+        "height": 44,
+        "top": 236,
+        "right": 902.640625,
+        "bottom": 280,
+        "left": 462.59375
+      },
+      "group": {
+        "x": 48,
+        "y": 228,
+        "width": 472,
+        "height": 60,
+        "top": 228,
+        "right": 520,
+        "bottom": 288,
+        "left": 48
+      },
+      "clearance": {
+        "top": 8,
+        "bottom": 8,
+        "left": 414.59375,
+        "right": -382.640625
+      }
+    },
+    "trace": [
+      {
+        "event": "initial",
+        "label": null,
+        "time": 880,
+        "active": null,
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "focusin-bubble",
+        "label": "Open guided intention coach",
+        "time": 901,
+        "active": "Open guided intention coach",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "focusin-document-after-react",
+        "label": "Open guided intention coach",
+        "time": 902,
+        "active": "Open guided intention coach",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "microtask",
+        "label": "Open guided intention coach",
+        "time": 902,
+        "active": "Open guided intention coach",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "focusin-bubble",
+        "label": "Draw cards",
+        "time": 909,
+        "active": "Draw cards",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "microtask",
+        "label": "Draw cards",
+        "time": 909,
+        "active": "Draw cards",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "js-scrollLeft-set-41",
+        "label": null,
+        "time": 909,
+        "active": "Draw cards",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "js-scrollLeft-after-set",
+        "label": null,
+        "time": 910,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 280.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 516.328125,
+          "bottom": 284,
+          "left": 280.296875
+        }
+      },
+      {
+        "event": "focusin-document-after-react",
+        "label": "Draw cards",
+        "time": 910,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 280.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 516.328125,
+          "bottom": 284,
+          "left": 280.296875
+        }
+      },
+      {
+        "event": "timeout100",
+        "label": "Open guided intention coach",
+        "time": 1002,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 280.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 516.328125,
+          "bottom": 284,
+          "left": 280.296875
+        }
+      },
+      {
+        "event": "scroll",
+        "label": null,
+        "time": 1005,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 280.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 516.328125,
+          "bottom": 284,
+          "left": 280.296875
+        }
+      },
+      {
+        "event": "raf1",
+        "label": "Open guided intention coach",
+        "time": 1077,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 903,
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 462.59375,
+          "y": 236,
+          "width": 440.046875,
+          "height": 44,
+          "top": 236,
+          "right": 902.640625,
+          "bottom": 280,
+          "left": 462.59375
+        }
+      },
+      {
+        "event": "raf1",
+        "label": "Draw cards",
+        "time": 1077,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 903,
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 462.59375,
+          "y": 236,
+          "width": 440.046875,
+          "height": 44,
+          "top": 236,
+          "right": 902.640625,
+          "bottom": 280,
+          "left": 462.59375
+        }
+      },
+      {
+        "event": "timeout100",
+        "label": "Draw cards",
+        "time": 1315,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 903,
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 462.59375,
+          "y": 236,
+          "width": 440.046875,
+          "height": 44,
+          "top": 236,
+          "right": 902.640625,
+          "bottom": 280,
+          "left": 462.59375
+        }
+      }
+    ]
+  },
+  {
+    "trial": 2,
+    "asset": "http://localhost:5173/assets/app-CNa8CycO.js",
+    "geometry": {
+      "active": "Draw cards",
+      "scrollLeft": 40,
+      "clientWidth": 472,
+      "scrollWidth": 903,
+      "viewport": {
+        "innerWidth": 568,
+        "innerHeight": 320,
+        "clientWidth": 568,
+        "clientHeight": 320,
+        "visualWidth": 568,
+        "visualHeight": 320,
+        "visualScale": 1
+      },
+      "landscape": true,
+      "fontSize": "32px",
+      "button": {
+        "x": 462.59375,
+        "y": 236,
+        "width": 440.046875,
+        "height": 44,
+        "top": 236,
+        "right": 902.640625,
+        "bottom": 280,
+        "left": 462.59375
+      },
+      "group": {
+        "x": 48,
+        "y": 228,
+        "width": 472,
+        "height": 60,
+        "top": 228,
+        "right": 520,
+        "bottom": 288,
+        "left": 48
+      },
+      "clearance": {
+        "top": 8,
+        "bottom": 8,
+        "left": 414.59375,
+        "right": -382.640625
+      }
+    },
+    "trace": [
+      {
+        "event": "initial",
+        "label": null,
+        "time": 805,
+        "active": null,
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "focusin-bubble",
+        "label": "Open guided intention coach",
+        "time": 812,
+        "active": "Open guided intention coach",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "focusin-document-after-react",
+        "label": "Open guided intention coach",
+        "time": 812,
+        "active": "Open guided intention coach",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "microtask",
+        "label": "Open guided intention coach",
+        "time": 812,
+        "active": "Open guided intention coach",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "focusin-bubble",
+        "label": "Draw cards",
+        "time": 817,
+        "active": "Draw cards",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "microtask",
+        "label": "Draw cards",
+        "time": 817,
+        "active": "Draw cards",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "js-scrollLeft-set-41",
+        "label": null,
+        "time": 817,
+        "active": "Draw cards",
+        "scrollLeft": 0,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 320.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 556.328125,
+          "bottom": 284,
+          "left": 320.296875
+        }
+      },
+      {
+        "event": "js-scrollLeft-after-set",
+        "label": null,
+        "time": 817,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 280.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 516.328125,
+          "bottom": 284,
+          "left": 280.296875
+        }
+      },
+      {
+        "event": "focusin-document-after-react",
+        "label": "Draw cards",
+        "time": 817,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 280.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 516.328125,
+          "bottom": 284,
+          "left": 280.296875
+        }
+      },
+      {
+        "event": "scroll",
+        "label": null,
+        "time": 866,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 512,
+        "group": {
+          "x": 48,
+          "y": 236,
+          "width": 472,
+          "height": 52,
+          "top": 236,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 280.296875,
+          "y": 240,
+          "width": 236.03125,
+          "height": 44,
+          "top": 240,
+          "right": 516.328125,
+          "bottom": 284,
+          "left": 280.296875
+        }
+      },
+      {
+        "event": "raf1",
+        "label": "Open guided intention coach",
+        "time": 907,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 903,
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 462.59375,
+          "y": 236,
+          "width": 440.046875,
+          "height": 44,
+          "top": 236,
+          "right": 902.640625,
+          "bottom": 280,
+          "left": 462.59375
+        }
+      },
+      {
+        "event": "raf1",
+        "label": "Draw cards",
+        "time": 907,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 903,
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 462.59375,
+          "y": 236,
+          "width": 440.046875,
+          "height": 44,
+          "top": 236,
+          "right": 902.640625,
+          "bottom": 280,
+          "left": 462.59375
+        }
+      },
+      {
+        "event": "timeout100",
+        "label": "Open guided intention coach",
+        "time": 1025,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 903,
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 462.59375,
+          "y": 236,
+          "width": 440.046875,
+          "height": 44,
+          "top": 236,
+          "right": 902.640625,
+          "bottom": 280,
+          "left": 462.59375
+        }
+      },
+      {
+        "event": "timeout100",
+        "label": "Draw cards",
+        "time": 1025,
+        "active": "Draw cards",
+        "scrollLeft": 40,
+        "clientWidth": 472,
+        "scrollWidth": 903,
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "button": {
+          "x": 462.59375,
+          "y": 236,
+          "width": 440.046875,
+          "height": 44,
+          "top": 236,
+          "right": 902.640625,
+          "bottom": 280,
+          "left": 462.59375
+        }
+      }
+    ]
+  }
+]

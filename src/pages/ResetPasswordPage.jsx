@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, LockKey, WarningCircle } from '@phosphor-icons/react';
 import { GlobalNav } from '../components/GlobalNav';
+import { InstallFooter } from '../components/InstallFooter';
 import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 
 export default function ResetPasswordPage() {
@@ -95,7 +96,7 @@ export default function ResetPasswordPage() {
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-xl px-4 py-10 short:py-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-xl pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] py-10 short:py-6">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -222,6 +223,7 @@ export default function ResetPasswordPage() {
             </Link>
           </div>
         </div>
+        <InstallFooter />
       </main>
     </div>
   );

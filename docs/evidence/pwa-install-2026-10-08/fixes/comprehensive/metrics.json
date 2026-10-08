@@ -1,0 +1,2225 @@
+{
+  "generatedAt": "2026-10-08T05:24:14.377Z",
+  "origin": "http://localhost:5173",
+  "asset": "/assets/app-DBO6rHdL.js",
+  "reducedMotion": "reduce",
+  "browserWarnings": [],
+  "priorCaptureDiagnostics": [
+    {
+      "asset": "/assets/app-DBO6rHdL.js",
+      "lane": "WebKit completed reading guide Escape844x390 text200",
+      "message": "ResizeObserver loop completed with undelivered notifications.",
+      "count": 1,
+      "note": "All UI, focus, hit-testing and unchanged-scroll assertions passed; the prior strict pageerror guard stopped before final metrics. Event phase and stack were not collected in that prior run."
+    }
+  ],
+  "authentication": "Signed-out guest; API fixture returns auth/me 401; populated journals use ten synthetic local entries.",
+  "serviceWorkers": "block",
+  "scrollMethod": "Wait for fonts, scroll to current document end, wait two animation frames, repeat until floating controls and document height settle; then verify all five button points.",
+  "limitations": [
+    "Browser engines are desktop Chromium and WebKit with an iPhone user agent/touch emulation, not physical devices.",
+    "This guest render pass uses synthetic native offers and does not verify physical-device installation or real Android/iOS offer timing.",
+    "This guest render pass does not include touch swiping or spoken screen-reader output; separate desktop native-install and Orca evidence is recorded in the parent review."
+  ],
+  "priorDiagnosticEvidence": {
+    "asset": "/assets/app-CNa8CycO.js",
+    "purpose": "WebKit stale scrollWidth reproductions before the source ring fix; these are diagnostic records rather than final screenshot lanes.",
+    "files": [
+      "webkit-ring-debug.json",
+      "webkit-ring-debug-trial0.png",
+      "webkit-ring-debug-trial1.png",
+      "webkit-ring-debug-trial2.png"
+    ]
+  },
+  "lanes": [
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "theme": "dark",
+      "route": "/",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Narrow reading dock and page-end install control",
+      "screenshot": "chromium-reading-320-dark.png",
+      "scroll": {
+        "attempts": 3,
+        "scrollY": 834,
+        "documentHeight": 1402,
+        "viewportHeight": 568,
+        "journalControlsInset": ""
+      },
+      "install": {
+        "bounds": {
+          "x": 85,
+          "y": 417.015625,
+          "width": 150,
+          "height": 46,
+          "top": 417.015625,
+          "right": 235,
+          "bottom": 463.015625,
+          "left": 85
+        },
+        "samplePoints": [
+          [
+            89,
+            440.015625
+          ],
+          [
+            231,
+            440.015625
+          ],
+          [
+            160,
+            421.015625
+          ],
+          [
+            160,
+            459.015625
+          ],
+          [
+            160,
+            440.015625
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "dock": {
+        "x": 0,
+        "y": 487,
+        "width": 320,
+        "height": 81
+      },
+      "coach": {
+        "x": 68,
+        "y": 500,
+        "width": 92,
+        "height": 52
+      },
+      "draw": {
+        "x": 168,
+        "y": 500,
+        "width": 136,
+        "height": 52
+      },
+      "horizontalOverflow": false,
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "theme": "light",
+      "route": "/",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Narrow reading dock and page-end install control",
+      "screenshot": "chromium-reading-320-light.png",
+      "scroll": {
+        "attempts": 3,
+        "scrollY": 834,
+        "documentHeight": 1402,
+        "viewportHeight": 568,
+        "journalControlsInset": ""
+      },
+      "install": {
+        "bounds": {
+          "x": 85,
+          "y": 417.015625,
+          "width": 150,
+          "height": 46,
+          "top": 417.015625,
+          "right": 235,
+          "bottom": 463.015625,
+          "left": 85
+        },
+        "samplePoints": [
+          [
+            89,
+            440.015625
+          ],
+          [
+            231,
+            440.015625
+          ],
+          [
+            160,
+            421.015625
+          ],
+          [
+            160,
+            459.015625
+          ],
+          [
+            160,
+            440.015625
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(245, 245, 245)"
+      },
+      "dock": {
+        "x": 0,
+        "y": 487,
+        "width": 320,
+        "height": 81
+      },
+      "coach": {
+        "x": 68,
+        "y": 500,
+        "width": 92,
+        "height": 52
+      },
+      "draw": {
+        "x": 168,
+        "y": 500,
+        "width": 136,
+        "height": 52
+      },
+      "horizontalOverflow": false,
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "route": "/pricing",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Free guest Pricing page-end control above measured upgrade dock",
+      "screenshot": "chromium-pricing-390-free.png",
+      "scroll": {
+        "attempts": 3,
+        "scrollY": 3273,
+        "documentHeight": 4117,
+        "viewportHeight": 844,
+        "journalControlsInset": ""
+      },
+      "install": {
+        "bounds": {
+          "x": 120,
+          "y": 702.34375,
+          "width": 150,
+          "height": 46,
+          "top": 702.34375,
+          "right": 270,
+          "bottom": 748.34375,
+          "left": 120
+        },
+        "samplePoints": [
+          [
+            124,
+            725.34375
+          ],
+          [
+            266,
+            725.34375
+          ],
+          [
+            195,
+            706.34375
+          ],
+          [
+            195,
+            744.34375
+          ],
+          [
+            195,
+            725.34375
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "dock": {
+        "x": 0,
+        "y": 775,
+        "width": 390,
+        "height": 69
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "route": "/journal",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Ten synthetic local guest journal entries; floating control overlap and keyboard focus",
+      "screenshot": "chromium-journal-390x844-10-entries.png",
+      "syntheticEntryCount": 10,
+      "scroll": {
+        "attempts": 5,
+        "scrollY": 4528,
+        "documentHeight": 5372,
+        "viewportHeight": 844,
+        "journalControlsInset": "114px"
+      },
+      "install": {
+        "bounds": {
+          "x": 120,
+          "y": 651.671875,
+          "width": 150,
+          "height": 46,
+          "top": 651.671875,
+          "right": 270,
+          "bottom": 697.671875,
+          "left": 120
+        },
+        "samplePoints": [
+          [
+            124,
+            674.671875
+          ],
+          [
+            266,
+            674.671875
+          ],
+          [
+            195,
+            655.671875
+          ],
+          [
+            195,
+            693.671875
+          ],
+          [
+            195,
+            674.671875
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "afterFocus": {
+        "bounds": {
+          "x": 120,
+          "y": 651.671875,
+          "width": 150,
+          "height": 46,
+          "top": 651.671875,
+          "right": 270,
+          "bottom": 697.671875,
+          "left": 120
+        },
+        "samplePoints": [
+          [
+            124,
+            674.671875
+          ],
+          [
+            266,
+            674.671875
+          ],
+          [
+            195,
+            655.671875
+          ],
+          [
+            195,
+            693.671875
+          ],
+          [
+            195,
+            674.671875
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "floatingFilters": {
+        "x": 273,
+        "y": 782,
+        "width": 101,
+        "height": 46
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "theme": "dark",
+      "route": "/journal",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Ten synthetic local guest journal entries; floating control overlap and keyboard focus",
+      "screenshot": "chromium-journal-800x1000-10-entries.png",
+      "syntheticEntryCount": 10,
+      "scroll": {
+        "attempts": 3,
+        "scrollY": 3434,
+        "documentHeight": 4434,
+        "viewportHeight": 1000,
+        "journalControlsInset": "114px"
+      },
+      "install": {
+        "bounds": {
+          "x": 626,
+          "y": 808.34375,
+          "width": 150,
+          "height": 46,
+          "top": 808.34375,
+          "right": 776,
+          "bottom": 854.34375,
+          "left": 626
+        },
+        "samplePoints": [
+          [
+            630,
+            831.34375
+          ],
+          [
+            772,
+            831.34375
+          ],
+          [
+            701,
+            812.34375
+          ],
+          [
+            701,
+            850.34375
+          ],
+          [
+            701,
+            831.34375
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "afterFocus": {
+        "bounds": {
+          "x": 626,
+          "y": 808.34375,
+          "width": 150,
+          "height": 46,
+          "top": 808.34375,
+          "right": 776,
+          "bottom": 854.34375,
+          "left": 626
+        },
+        "samplePoints": [
+          [
+            630,
+            831.34375
+          ],
+          [
+            772,
+            831.34375
+          ],
+          [
+            701,
+            812.34375
+          ],
+          [
+            701,
+            850.34375
+          ],
+          [
+            701,
+            831.34375
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "floatingFilters": {
+        "x": 683,
+        "y": 938,
+        "width": 101,
+        "height": 46
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "theme": "dark",
+      "route": "/journal",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Ten synthetic local guest journal entries; floating control overlap and keyboard focus",
+      "screenshot": "chromium-journal-1024x768-10-entries.png",
+      "syntheticEntryCount": 10,
+      "scroll": {
+        "attempts": 3,
+        "scrollY": 3579,
+        "documentHeight": 4347,
+        "viewportHeight": 768,
+        "journalControlsInset": "66.48px"
+      },
+      "install": {
+        "bounds": {
+          "x": 850,
+          "y": 623.765625,
+          "width": 150,
+          "height": 46,
+          "top": 623.765625,
+          "right": 1000,
+          "bottom": 669.765625,
+          "left": 850
+        },
+        "samplePoints": [
+          [
+            854,
+            646.765625
+          ],
+          [
+            996,
+            646.765625
+          ],
+          [
+            925,
+            627.765625
+          ],
+          [
+            925,
+            665.765625
+          ],
+          [
+            925,
+            646.765625
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "afterFocus": {
+        "bounds": {
+          "x": 850,
+          "y": 623.765625,
+          "width": 150,
+          "height": 46,
+          "top": 623.765625,
+          "right": 1000,
+          "bottom": 669.765625,
+          "left": 850
+        },
+        "samplePoints": [
+          [
+            854,
+            646.765625
+          ],
+          [
+            996,
+            646.765625
+          ],
+          [
+            925,
+            627.765625
+          ],
+          [
+            925,
+            665.765625
+          ],
+          [
+            925,
+            646.765625
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "floatingFilters": {
+        "x": 902.53125,
+        "y": 701.53125,
+        "width": 101,
+        "height": 46
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "theme": "dark",
+      "route": "/pricing",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Guide focus trap, choice persistence, and local focus restoration",
+      "action": "Later",
+      "screenshot": "chromium-guide-later-320-dark-focus.png",
+      "focusOrder": [
+        "Close home-screen instructions",
+        "Later",
+        "Already added",
+        "Close home-screen instructions"
+      ],
+      "rootInertWhileOpen": true,
+      "rootInertAfterClose": false,
+      "restoredFocus": {
+        "tag": "BUTTON",
+        "insideMain": true,
+        "text": "Restore purchases",
+        "bounds": {
+          "x": 16,
+          "y": 427.625,
+          "width": 106,
+          "height": 44,
+          "top": 427.625,
+          "right": 122,
+          "bottom": 471.625,
+          "left": 16
+        }
+      },
+      "preferences": {
+        "version": 1,
+        "hasAddedToHomeScreen": false,
+        "snoozedUntil": 1792041866039
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "theme": "light",
+      "route": "/pricing",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Guide focus trap, choice persistence, and local focus restoration",
+      "action": "Already added",
+      "screenshot": "chromium-guide-already-added-320-light-focus.png",
+      "focusOrder": [
+        "Close home-screen instructions",
+        "Later",
+        "Already added",
+        "Close home-screen instructions"
+      ],
+      "rootInertWhileOpen": true,
+      "rootInertAfterClose": false,
+      "restoredFocus": {
+        "tag": "BUTTON",
+        "insideMain": true,
+        "text": "Restore purchases",
+        "bounds": {
+          "x": 16,
+          "y": 427.625,
+          "width": 106,
+          "height": 44,
+          "top": 427.625,
+          "right": 122,
+          "bottom": 471.625,
+          "left": 16
+        }
+      },
+      "preferences": {
+        "version": 1,
+        "hasAddedToHomeScreen": true,
+        "snoozedUntil": 0
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "theme": "dark",
+      "route": "/",
+      "browserProfile": "Android native-offer fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "initialViewport": {
+        "width": 320,
+        "height": 568
+      },
+      "purpose": "Completed synthetic reading; 200% landscape footer clear of sticky workflow and measured reading dock",
+      "screenshot": "chromium-completed-reading-844x390-text200-dark-footer-focus.png",
+      "textScale": "200%",
+      "completedReadingFixture": true,
+      "syntheticNativeOfferCapturedByWarmHost": true,
+      "scroll": {
+        "attempts": 3,
+        "scrollY": 6966,
+        "documentHeight": 7356,
+        "viewportHeight": 390,
+        "journalControlsInset": ""
+      },
+      "install": {
+        "bounds": {
+          "x": 510,
+          "y": 167.046875,
+          "width": 286,
+          "height": 90,
+          "top": 167.046875,
+          "right": 796,
+          "bottom": 257.046875,
+          "left": 510
+        },
+        "samplePoints": [
+          [
+            514,
+            212.046875
+          ],
+          [
+            792,
+            212.046875
+          ],
+          [
+            653,
+            171.046875
+          ],
+          [
+            653,
+            253.046875
+          ],
+          [
+            653,
+            212.046875
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "afterFocus": {
+        "bounds": {
+          "x": 510,
+          "y": 167.046875,
+          "width": 286,
+          "height": 90,
+          "top": 167.046875,
+          "right": 796,
+          "bottom": 257.046875,
+          "left": 510
+        },
+        "samplePoints": [
+          [
+            514,
+            212.046875
+          ],
+          [
+            792,
+            212.046875
+          ],
+          [
+            653,
+            171.046875
+          ],
+          [
+            653,
+            253.046875
+          ],
+          [
+            653,
+            212.046875
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "dock": {
+        "x": 16,
+        "y": 281,
+        "width": 812,
+        "height": 109
+      },
+      "stickyHeader": {
+        "x": 0,
+        "y": 0,
+        "width": 844,
+        "height": 107.1875
+      },
+      "workflow": {
+        "x": 48,
+        "y": 9,
+        "width": 748,
+        "height": 89.1875
+      },
+      "measuredMainPaddingBottom": "133px",
+      "narrativeRequests": 1,
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "viewport": {
+        "width": 568,
+        "height": 320
+      },
+      "theme": "dark",
+      "route": "/",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Narrow landscape, 200% text, long labels, primary action focus ring",
+      "screenshot": "chromium-landscape-568x320-text200-dark-draw-focus.png",
+      "textScale": "200%",
+      "focus": {
+        "button": {
+          "x": 92,
+          "y": 236,
+          "width": 424,
+          "height": 44,
+          "top": 236,
+          "right": 516,
+          "bottom": 280,
+          "left": 92
+        },
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "clearance": {
+          "top": 8,
+          "bottom": 8,
+          "left": 44,
+          "right": 4
+        },
+        "groupPadding": "8px",
+        "ring": "rgb(28, 26, 34) 0px 0px 0px 2px, rgb(232, 218, 195) 0px 0px 0px 4px, rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px",
+        "scrollLeft": 398,
+        "scrollY": 0
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "viewport": {
+        "width": 568,
+        "height": 320
+      },
+      "theme": "light",
+      "route": "/",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Narrow landscape, 200% text, long labels, primary action focus ring",
+      "screenshot": "chromium-landscape-568x320-text200-light-draw-focus.png",
+      "textScale": "200%",
+      "focus": {
+        "button": {
+          "x": 92,
+          "y": 236,
+          "width": 424,
+          "height": 44,
+          "top": 236,
+          "right": 516,
+          "bottom": 280,
+          "left": 92
+        },
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "clearance": {
+          "top": 8,
+          "bottom": 8,
+          "left": 44,
+          "right": 4
+        },
+        "groupPadding": "8px",
+        "ring": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(138, 107, 59) 0px 0px 0px 4px, rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px",
+        "scrollLeft": 398,
+        "scrollY": 0
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "theme": "dark",
+      "route": "/",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Narrow reading dock and page-end install control",
+      "screenshot": "webkit-reading-320-dark.png",
+      "scroll": {
+        "attempts": 3,
+        "scrollY": 834,
+        "documentHeight": 1402,
+        "viewportHeight": 568,
+        "journalControlsInset": ""
+      },
+      "install": {
+        "bounds": {
+          "x": 83.78125,
+          "y": 416.984375,
+          "width": 152.421875,
+          "height": 46,
+          "top": 416.984375,
+          "right": 236.203125,
+          "bottom": 462.984375,
+          "left": 83.78125
+        },
+        "samplePoints": [
+          [
+            87.78125,
+            439.984375
+          ],
+          [
+            232.203125,
+            439.984375
+          ],
+          [
+            159.9921875,
+            420.984375
+          ],
+          [
+            159.9921875,
+            458.984375
+          ],
+          [
+            159.9921875,
+            439.984375
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "dock": {
+        "x": 0,
+        "y": 487,
+        "width": 320,
+        "height": 81
+      },
+      "coach": {
+        "x": 68,
+        "y": 500,
+        "width": 91.75,
+        "height": 52
+      },
+      "draw": {
+        "x": 167.75,
+        "y": 500,
+        "width": 136.25,
+        "height": 52
+      },
+      "horizontalOverflow": false,
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "theme": "light",
+      "route": "/",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Narrow reading dock and page-end install control",
+      "screenshot": "webkit-reading-320-light.png",
+      "scroll": {
+        "attempts": 3,
+        "scrollY": 834,
+        "documentHeight": 1402,
+        "viewportHeight": 568,
+        "journalControlsInset": ""
+      },
+      "install": {
+        "bounds": {
+          "x": 83.78125,
+          "y": 416.984375,
+          "width": 152.421875,
+          "height": 46,
+          "top": 416.984375,
+          "right": 236.203125,
+          "bottom": 462.984375,
+          "left": 83.78125
+        },
+        "samplePoints": [
+          [
+            87.78125,
+            439.984375
+          ],
+          [
+            232.203125,
+            439.984375
+          ],
+          [
+            159.9921875,
+            420.984375
+          ],
+          [
+            159.9921875,
+            458.984375
+          ],
+          [
+            159.9921875,
+            439.984375
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(245, 245, 245)"
+      },
+      "dock": {
+        "x": 0,
+        "y": 487,
+        "width": 320,
+        "height": 81
+      },
+      "coach": {
+        "x": 68,
+        "y": 500,
+        "width": 91.75,
+        "height": 52
+      },
+      "draw": {
+        "x": 167.75,
+        "y": 500,
+        "width": 136.25,
+        "height": 52
+      },
+      "horizontalOverflow": false,
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "route": "/pricing",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Free guest Pricing page-end control above measured upgrade dock",
+      "screenshot": "webkit-pricing-390-free.png",
+      "scroll": {
+        "attempts": 3,
+        "scrollY": 3273,
+        "documentHeight": 4117,
+        "viewportHeight": 844,
+        "journalControlsInset": ""
+      },
+      "install": {
+        "bounds": {
+          "x": 118.78125,
+          "y": 702.34375,
+          "width": 152.421875,
+          "height": 46,
+          "top": 702.34375,
+          "right": 271.203125,
+          "bottom": 748.34375,
+          "left": 118.78125
+        },
+        "samplePoints": [
+          [
+            122.78125,
+            725.34375
+          ],
+          [
+            267.203125,
+            725.34375
+          ],
+          [
+            194.9921875,
+            706.34375
+          ],
+          [
+            194.9921875,
+            744.34375
+          ],
+          [
+            194.9921875,
+            725.34375
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "dock": {
+        "x": 0,
+        "y": 775,
+        "width": 390,
+        "height": 69
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "route": "/journal",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Ten synthetic local guest journal entries; floating control overlap and keyboard focus",
+      "screenshot": "webkit-journal-390x844-10-entries.png",
+      "syntheticEntryCount": 10,
+      "scroll": {
+        "attempts": 3,
+        "scrollY": 4527,
+        "documentHeight": 5371,
+        "viewportHeight": 844,
+        "journalControlsInset": "114px"
+      },
+      "install": {
+        "bounds": {
+          "x": 118.78125,
+          "y": 652.171875,
+          "width": 152.421875,
+          "height": 46,
+          "top": 652.171875,
+          "right": 271.203125,
+          "bottom": 698.171875,
+          "left": 118.78125
+        },
+        "samplePoints": [
+          [
+            122.78125,
+            675.171875
+          ],
+          [
+            267.203125,
+            675.171875
+          ],
+          [
+            194.9921875,
+            656.171875
+          ],
+          [
+            194.9921875,
+            694.171875
+          ],
+          [
+            194.9921875,
+            675.171875
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "afterFocus": {
+        "bounds": {
+          "x": 118.78125,
+          "y": 652.171875,
+          "width": 152.421875,
+          "height": 46,
+          "top": 652.171875,
+          "right": 271.203125,
+          "bottom": 698.171875,
+          "left": 118.78125
+        },
+        "samplePoints": [
+          [
+            122.78125,
+            675.171875
+          ],
+          [
+            267.203125,
+            675.171875
+          ],
+          [
+            194.9921875,
+            656.171875
+          ],
+          [
+            194.9921875,
+            694.171875
+          ],
+          [
+            194.9921875,
+            675.171875
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "floatingFilters": {
+        "x": 273.890625,
+        "y": 782,
+        "width": 100.109375,
+        "height": 46
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "theme": "dark",
+      "route": "/journal",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Ten synthetic local guest journal entries; floating control overlap and keyboard focus",
+      "screenshot": "webkit-journal-800x1000-10-entries.png",
+      "syntheticEntryCount": 10,
+      "scroll": {
+        "attempts": 3,
+        "scrollY": 3434,
+        "documentHeight": 4434,
+        "viewportHeight": 1000,
+        "journalControlsInset": "114px"
+      },
+      "install": {
+        "bounds": {
+          "x": 623.578125,
+          "y": 807.84375,
+          "width": 152.421875,
+          "height": 46,
+          "top": 807.84375,
+          "right": 776,
+          "bottom": 853.84375,
+          "left": 623.578125
+        },
+        "samplePoints": [
+          [
+            627.578125,
+            830.84375
+          ],
+          [
+            772,
+            830.84375
+          ],
+          [
+            699.7890625,
+            811.84375
+          ],
+          [
+            699.7890625,
+            849.84375
+          ],
+          [
+            699.7890625,
+            830.84375
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "afterFocus": {
+        "bounds": {
+          "x": 623.578125,
+          "y": 807.84375,
+          "width": 152.421875,
+          "height": 46,
+          "top": 807.84375,
+          "right": 776,
+          "bottom": 853.84375,
+          "left": 623.578125
+        },
+        "samplePoints": [
+          [
+            627.578125,
+            830.84375
+          ],
+          [
+            772,
+            830.84375
+          ],
+          [
+            699.7890625,
+            811.84375
+          ],
+          [
+            699.7890625,
+            849.84375
+          ],
+          [
+            699.7890625,
+            830.84375
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "floatingFilters": {
+        "x": 683.890625,
+        "y": 938,
+        "width": 100.109375,
+        "height": 46
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "theme": "dark",
+      "route": "/journal",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Ten synthetic local guest journal entries; floating control overlap and keyboard focus",
+      "screenshot": "webkit-journal-1024x768-10-entries.png",
+      "syntheticEntryCount": 10,
+      "scroll": {
+        "attempts": 4,
+        "scrollY": 3579,
+        "documentHeight": 4347,
+        "viewportHeight": 768,
+        "journalControlsInset": "66.48px"
+      },
+      "install": {
+        "bounds": {
+          "x": 847.578125,
+          "y": 623.765625,
+          "width": 152.421875,
+          "height": 46,
+          "top": 623.765625,
+          "right": 1000,
+          "bottom": 669.765625,
+          "left": 847.578125
+        },
+        "samplePoints": [
+          [
+            851.578125,
+            646.765625
+          ],
+          [
+            996,
+            646.765625
+          ],
+          [
+            923.7890625,
+            627.765625
+          ],
+          [
+            923.7890625,
+            665.765625
+          ],
+          [
+            923.7890625,
+            646.765625
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "afterFocus": {
+        "bounds": {
+          "x": 847.578125,
+          "y": 623.765625,
+          "width": 152.421875,
+          "height": 46,
+          "top": 623.765625,
+          "right": 1000,
+          "bottom": 669.765625,
+          "left": 847.578125
+        },
+        "samplePoints": [
+          [
+            851.578125,
+            646.765625
+          ],
+          [
+            996,
+            646.765625
+          ],
+          [
+            923.7890625,
+            627.765625
+          ],
+          [
+            923.7890625,
+            665.765625
+          ],
+          [
+            923.7890625,
+            646.765625
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "floatingFilters": {
+        "x": 903.421875,
+        "y": 701.53125,
+        "width": 100.109375,
+        "height": 46
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "theme": "dark",
+      "route": "/pricing",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Guide focus trap, choice persistence, and local focus restoration",
+      "action": "Later",
+      "screenshot": "webkit-guide-later-320-dark-focus.png",
+      "focusOrder": [
+        "Close home-screen instructions",
+        "Later",
+        "Already added",
+        "Close home-screen instructions"
+      ],
+      "rootInertWhileOpen": true,
+      "rootInertAfterClose": false,
+      "restoredFocus": {
+        "tag": "BUTTON",
+        "insideMain": true,
+        "text": "Restore purchases",
+        "bounds": {
+          "x": 16,
+          "y": 427.625,
+          "width": 105.6875,
+          "height": 44,
+          "top": 427.625,
+          "right": 121.6875,
+          "bottom": 471.625,
+          "left": 16
+        }
+      },
+      "preferences": {
+        "version": 1,
+        "hasAddedToHomeScreen": false,
+        "snoozedUntil": 1792041893398
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "theme": "light",
+      "route": "/pricing",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Guide focus trap, choice persistence, and local focus restoration",
+      "action": "Already added",
+      "screenshot": "webkit-guide-already-added-320-light-focus.png",
+      "focusOrder": [
+        "Close home-screen instructions",
+        "Later",
+        "Already added",
+        "Close home-screen instructions"
+      ],
+      "rootInertWhileOpen": true,
+      "rootInertAfterClose": false,
+      "restoredFocus": {
+        "tag": "BUTTON",
+        "insideMain": true,
+        "text": "Restore purchases",
+        "bounds": {
+          "x": 16,
+          "y": 427.625,
+          "width": 105.6875,
+          "height": 44,
+          "top": 427.625,
+          "right": 121.6875,
+          "bottom": 471.625,
+          "left": 16
+        }
+      },
+      "preferences": {
+        "version": 1,
+        "hasAddedToHomeScreen": true,
+        "snoozedUntil": 0
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "theme": "dark",
+      "route": "/",
+      "browserProfile": "Android native-offer fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "initialViewport": {
+        "width": 320,
+        "height": 568
+      },
+      "purpose": "Completed synthetic reading; 200% landscape footer clear of sticky workflow and measured reading dock",
+      "screenshot": "webkit-completed-reading-844x390-text200-dark-footer-focus.png",
+      "textScale": "200%",
+      "completedReadingFixture": true,
+      "syntheticNativeOfferCapturedByWarmHost": true,
+      "scroll": {
+        "attempts": 4,
+        "scrollY": 7038,
+        "documentHeight": 7428,
+        "viewportHeight": 390,
+        "journalControlsInset": ""
+      },
+      "install": {
+        "bounds": {
+          "x": 497.515625,
+          "y": 167.046875,
+          "width": 298.484375,
+          "height": 90,
+          "top": 167.046875,
+          "right": 796,
+          "bottom": 257.046875,
+          "left": 497.515625
+        },
+        "samplePoints": [
+          [
+            501.515625,
+            212.046875
+          ],
+          [
+            792,
+            212.046875
+          ],
+          [
+            646.7578125,
+            171.046875
+          ],
+          [
+            646.7578125,
+            253.046875
+          ],
+          [
+            646.7578125,
+            212.046875
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "afterFocus": {
+        "bounds": {
+          "x": 497.515625,
+          "y": 167.046875,
+          "width": 298.484375,
+          "height": 90,
+          "top": 167.046875,
+          "right": 796,
+          "bottom": 257.046875,
+          "left": 497.515625
+        },
+        "samplePoints": [
+          [
+            501.515625,
+            212.046875
+          ],
+          [
+            792,
+            212.046875
+          ],
+          [
+            646.7578125,
+            171.046875
+          ],
+          [
+            646.7578125,
+            253.046875
+          ],
+          [
+            646.7578125,
+            212.046875
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "dock": {
+        "x": 16,
+        "y": 281,
+        "width": 812,
+        "height": 109
+      },
+      "stickyHeader": {
+        "x": 0.015625,
+        "y": 0,
+        "width": 843.984375,
+        "height": 107.1875
+      },
+      "workflow": {
+        "x": 48.015625,
+        "y": 9,
+        "width": 747.984375,
+        "height": 89.1875
+      },
+      "measuredMainPaddingBottom": "133px",
+      "narrativeRequests": 1,
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "theme": "dark",
+      "route": "/",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "initialViewport": {
+        "width": 320,
+        "height": 568
+      },
+      "purpose": "Completed reading enlarged landscape guide; Escape returns a visible hit-tested opener without post-close scrolling",
+      "screenshot": "webkit-completed-reading-guide-escape-844x390-text200-dark.png",
+      "textScale": "200%",
+      "completedReadingFixture": true,
+      "scroll": {
+        "attempts": 3,
+        "scrollY": 7038,
+        "documentHeight": 7428,
+        "viewportHeight": 390,
+        "journalControlsInset": ""
+      },
+      "beforeGuide": {
+        "bounds": {
+          "x": 493.171875,
+          "y": 167.046875,
+          "width": 302.828125,
+          "height": 90,
+          "top": 167.046875,
+          "right": 796,
+          "bottom": 257.046875,
+          "left": 493.171875
+        },
+        "samplePoints": [
+          [
+            497.171875,
+            212.046875
+          ],
+          [
+            792,
+            212.046875
+          ],
+          [
+            644.5859375,
+            171.046875
+          ],
+          [
+            644.5859375,
+            253.046875
+          ],
+          [
+            644.5859375,
+            212.046875
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "afterGuide": {
+        "bounds": {
+          "x": 493.171875,
+          "y": 167.046875,
+          "width": 302.828125,
+          "height": 90,
+          "top": 167.046875,
+          "right": 796,
+          "bottom": 257.046875,
+          "left": 493.171875
+        },
+        "samplePoints": [
+          [
+            497.171875,
+            212.046875
+          ],
+          [
+            792,
+            212.046875
+          ],
+          [
+            644.5859375,
+            171.046875
+          ],
+          [
+            644.5859375,
+            253.046875
+          ],
+          [
+            644.5859375,
+            212.046875
+          ]
+        ],
+        "sampleOrder": [
+          "left midpoint",
+          "right midpoint",
+          "top midpoint",
+          "bottom midpoint",
+          "center"
+        ],
+        "fiveHitPoints": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "inViewport": true,
+        "insideMain": true,
+        "rasterLoaded": true,
+        "border": "1px",
+        "background": "rgb(42, 39, 48)"
+      },
+      "scrollYBeforeGuide": 7038,
+      "scrollYAfterGuide": 7038,
+      "focusedOpenerRestored": true,
+      "postCloseScrollCommands": 0,
+      "rootInertAfterClose": false,
+      "narrativeRequests": 1,
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "viewport": {
+        "width": 568,
+        "height": 320
+      },
+      "theme": "dark",
+      "route": "/",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Narrow landscape, 200% text, long labels, primary action focus ring",
+      "screenshot": "webkit-landscape-568x320-text200-dark-draw-focus.png",
+      "textScale": "200%",
+      "focus": {
+        "button": {
+          "x": 75.59375,
+          "y": 236,
+          "width": 440.046875,
+          "height": 44,
+          "top": 236,
+          "right": 515.640625,
+          "bottom": 280,
+          "left": 75.59375
+        },
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "clearance": {
+          "top": 8,
+          "bottom": 8,
+          "left": 27.59375,
+          "right": 4.359375
+        },
+        "groupPadding": "8px",
+        "ring": "rgb(28, 26, 34) 0px 0px 0px 2px, rgb(232, 218, 195) 0px 0px 0px 4px, rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px",
+        "scrollLeft": 427,
+        "scrollY": 0
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "viewport": {
+        "width": 568,
+        "height": 320
+      },
+      "theme": "light",
+      "route": "/",
+      "browserProfile": "iOS guidance fixture",
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "purpose": "Narrow landscape, 200% text, long labels, primary action focus ring",
+      "screenshot": "webkit-landscape-568x320-text200-light-draw-focus.png",
+      "textScale": "200%",
+      "focus": {
+        "button": {
+          "x": 75.59375,
+          "y": 236,
+          "width": 440.046875,
+          "height": 44,
+          "top": 236,
+          "right": 515.640625,
+          "bottom": 280,
+          "left": 75.59375
+        },
+        "group": {
+          "x": 48,
+          "y": 228,
+          "width": 472,
+          "height": 60,
+          "top": 228,
+          "right": 520,
+          "bottom": 288,
+          "left": 48
+        },
+        "clearance": {
+          "top": 8,
+          "bottom": 8,
+          "left": 27.59375,
+          "right": 4.359375
+        },
+        "groupPadding": "8px",
+        "ring": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(138, 107, 59) 0px 0px 0px 4px, rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px",
+        "scrollLeft": 427,
+        "scrollY": 0
+      },
+      "pageErrors": [],
+      "nonfatalBrowserWarnings": []
+    }
+  ]
+}

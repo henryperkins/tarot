@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tableu-shell-v3';
+const CACHE_NAME = 'tableu-shell-v4';
 const OFFLINE_URL = '/offline.html';
 const PLACEHOLDER_IMAGE = '/images/cards/RWS1909_-_00_Fool.jpeg';
 const PRECACHE_URLS = [
@@ -8,6 +8,7 @@ const PRECACHE_URLS = [
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/icons/icon-maskable-512.png',
   PLACEHOLDER_IMAGE
 ];
 

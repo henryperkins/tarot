@@ -1,0 +1,41 @@
+/* A shallow raised surface; loaded with the eligible install control. */
+.pwa-install-button {
+  background-color: var(--bg-surface-muted);
+  background-image: linear-gradient(180deg, rgb(var(--brand-accent-rgb) / 0.08), transparent 70%);
+  border-color: rgb(var(--brand-accent-rgb) / 0.36);
+  border-top-color: rgb(var(--brand-accent-rgb) / 0.52);
+  --tw-shadow: inset 0 1px 0 rgb(var(--text-main-rgb) / 0.1),
+    inset 0 -1px 0 rgb(15 14 19 / 0.24),
+    0 2px 3px rgb(15 14 19 / 0.22),
+    0 8px 18px -5px rgb(15 14 19 / 0.4);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+    var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+:root.light .pwa-install-button {
+  --tw-shadow: inset 0 1px 0 rgb(var(--bg-surface-rgb) / 0.9),
+    inset 0 -1px 0 rgb(var(--brand-secondary-rgb) / 0.1),
+    0 2px 3px rgb(var(--brand-secondary-rgb) / 0.14),
+    0 8px 18px -5px rgb(var(--brand-secondary-rgb) / 0.22);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pwa-install-button:hover:not(:disabled) {
+    background-color: var(--bg-surface);
+    border-color: rgb(var(--brand-accent-rgb) / 0.6);
+  }
+}
+
+/* Match the themed surface's specificity so light mode also feels pressed. */
+.pwa-install-button:active:not(:disabled),
+:root.light .pwa-install-button:active:not(:disabled) {
+  --tw-shadow: inset 0 1px 2px rgb(var(--brand-secondary-rgb) / 0.16),
+    0 1px 3px rgb(var(--brand-secondary-rgb) / 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pwa-install-button {
+    transition: none;
+  }
+}

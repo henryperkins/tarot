@@ -1,0 +1,47 @@
+{
+  "productionEntry": "app-DBO6rHdL.js",
+  "productionInstall": {
+    "productionEntry": "app-DBO6rHdL.js",
+    "total": 75,
+    "passed": 75,
+    "failed": 0,
+    "skipped": 0,
+    "workers": 1,
+    "duration": "4.4 minutes",
+    "log": "install-production-alone.log",
+    "testChangesFromFullRun": "None. All geometry, hit-target, focus, Toast and motion assertions retained.",
+    "conditions": "No concurrent browser jobs. Default project context and media settings."
+  },
+  "fullFrontend": {
+    "total": 564,
+    "passed": 522,
+    "failed": 23,
+    "skipped": 19,
+    "workers": 4,
+    "knownCachedBaselineFailures": 20,
+    "novelFailures": 3,
+    "novelFailuresPassedUnchangedRecheck": 3,
+    "classification": "full-suite.json"
+  },
+  "existingAccountRecheck": {
+    "file": "responsive-adaptation.spec.js",
+    "project": "mobile",
+    "title": "enlarged text leaves pricing and account controls reachable and restores sticky navigation",
+    "lane": "Exact full-suite DEV5174 configuration, alone with one worker",
+    "repetitions": 3,
+    "passed": 3,
+    "failed": 0,
+    "durationSeconds": 33.5,
+    "log": "responsive-isolated.log",
+    "testChangesFromFullRun": "None. Both theme aria-checked assertions and all navigation, sizing and focus assertions retained."
+  },
+  "validation": {
+    "specEslint": "passed",
+    "specDiffCheck": "passed"
+  },
+  "limits": [
+    "Full frontend suite remains red because of known baseline failures and recorded full-run-only timing/interaction failures.",
+    "No physical iOS or Android install or keyboard device qualification is inferred from these browser tests.",
+    "Worker integration and journal owner suites are excluded by the repository frontend configuration."
+  ]
+}

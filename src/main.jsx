@@ -9,6 +9,10 @@ import { ReadingProvider } from './contexts/ReadingContext.jsx';
 import { ToastProvider } from './contexts/ToastContext.jsx';
 import { AnimatedRoutes } from './components/AnimatedRoutes.jsx';
 import { SkipLink } from './components/SkipLink.jsx';
+import { initializePwaInstall } from './lib/pwaInstall';
+
+// Observe install state from startup; routes without a host keep native offers.
+initializePwaInstall();
 
 // Queue early errors that occur before Sentry loads
 const earlyErrors = [];

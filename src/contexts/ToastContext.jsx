@@ -45,6 +45,8 @@ const VARIANTS = {
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
+  const [announcements, setAnnouncements] = useState({ polite: null, assertive: null });
+  const pendingAnnouncementsRef = useRef(new Map());
   const timersRef = useRef(new Map());
   const toastRefs = useRef(new Map());
   const positionsRef = useRef(new Map());
@@ -74,6 +76,13 @@ export function ToastProvider({ children }) {
   const removeToast = useCallback((id) => {
     recordPositions();
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    setAnnouncements(current => Object.fromEntries(Object.entries(current)
+      .map(([channel, announcement]) => [channel, announcement?.id === id ? null : announcement])));
+    pendingAnnouncementsRef.current.forEach((pending, channel) => {
+      if (pending.id !== id) return;
+      clearTimeout(pending.timer);
+      pendingAnnouncementsRef.current.delete(channel);
+    });
     const timeoutId = timersRef.current.get(id);
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -89,6 +98,20 @@ export function ToastProvider({ children }) {
     const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const ttl = typeof duration === 'number' ? duration : DEFAULT_DURATION[type] || 3600;
     setToasts((prev) => [...prev, { id, title, description, type, isLeaving: false }]);
+    // Clear this channel before its text mutation, including identical repeats.
+    // Coalesce rapid updates independently so an info message cannot cancel an
+    // error announcement. The delay gives the accessibility tree a blank frame.
+    const channel = type === 'error' ? 'assertive' : 'polite';
+    clearTimeout(pendingAnnouncementsRef.current.get(channel)?.timer);
+    setAnnouncements(current => ({ ...current, [channel]: null }));
+    const timer = setTimeout(() => {
+      pendingAnnouncementsRef.current.delete(channel);
+      setAnnouncements(current => ({
+        ...current,
+        [channel]: { id, text: [title, description].filter(Boolean).join('. ') }
+      }));
+    }, 100);
+    pendingAnnouncementsRef.current.set(channel, { id, timer });
     if (ttl !== Infinity) {
       const timeoutId = setTimeout(() => dismiss(id), ttl);
       timersRef.current.set(id, timeoutId);
@@ -97,6 +120,8 @@ export function ToastProvider({ children }) {
   }, [dismiss]);
 
   useEffect(() => () => {
+    pendingAnnouncementsRef.current.forEach(pending => clearTimeout(pending.timer));
+    pendingAnnouncementsRef.current.clear();
     timersRef.current.forEach(clearTimeout);
     timersRef.current.clear();
   }, []);
@@ -106,6 +131,14 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
+      {/* Mount empty regions before notifications arrive so assistive technology
+          can observe their text changes. Announce each notification only once. */}
+      <div aria-live="polite" aria-atomic="true" data-toast-announcer="polite" className="sr-only">
+        {announcements.polite && <span key={announcements.polite.id}>{announcements.polite.text}</span>}
+      </div>
+      <div aria-live="assertive" aria-atomic="true" data-toast-announcer="assertive" className="sr-only">
+        {announcements.assertive && <span key={announcements.assertive.id}>{announcements.assertive.text}</span>}
+      </div>
       <ToastViewport
         toasts={toasts}
         onDismiss={dismiss}
@@ -179,7 +212,6 @@ function ToastViewport({ toasts, onDismiss, onRemove, toastRefs, positionsRef })
 function ToastItem({ toast, onDismiss, onRemove, toastRefs }) {
   const Icon = ICONS[toast.type] || Info;
   const variant = VARIANTS[toast.type] || VARIANTS.info;
-  const role = toast.type === 'error' ? 'alert' : 'status';
   const prefersReducedMotion = useReducedMotion();
   const containerRef = useRef(null);
   const iconRef = useRef(null);
@@ -272,8 +304,10 @@ function ToastItem({ toast, onDismiss, onRemove, toastRefs }) {
   return (
     <div
       ref={setContainerRef}
-      role={role}
-      aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+      role="group"
+      aria-label={toast.title || 'Notification'}
+      data-toast
+      data-toast-type={toast.type}
       className={`pointer-events-auto w-full max-w-sm rounded-2xl border px-4 py-3 text-sm shadow-xl backdrop-blur ${variant.container}`}
     >
       <div className="flex items-start gap-3">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, CircleNotch, EnvelopeOpen, WarningCircle } from '@phosphor-icons/react';
 import { GlobalNav } from '../components/GlobalNav';
+import { InstallFooter } from '../components/InstallFooter';
 import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 
 export default function VerifyEmailPage() {
@@ -9,22 +10,25 @@ export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') || '';
 
-  const [status, setStatus] = useState(token ? 'pending' : 'missing');
-  const [message, setMessage] = useState('');
+  const [verification, setVerification] = useState({ token, status: 'pending', message: '' });
+  if (verification.token !== token) {
+    setVerification({ token, status: 'pending', message: '' });
+  }
+  const status = !token ? 'error' : verification.token === token ? verification.status : 'pending';
+  const message = !token
+    ? 'Verification link is missing a token. Request a new verification email from the sign-in dialog.'
+    : verification.token === token ? verification.message : '';
   const headerRef = useResponsiveSticky();
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error');
-      setMessage('Verification link is missing a token. Request a new verification email from the sign-in dialog.');
-      return;
-    }
+    if (!token) return undefined;
+    const controller = new AbortController();
 
     const verify = async () => {
-      setStatus('pending');
       try {
-        const response = await fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+        const response = await fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`, { signal: controller.signal });
         const data = await response.json().catch(() => ({}));
+        if (controller.signal.aborted) return;
 
         if (!response.ok) {
           const reason = data.error;
@@ -37,15 +41,15 @@ export default function VerifyEmailPage() {
           throw new Error(friendly || 'Unable to verify email');
         }
 
-        setStatus('success');
-        setMessage('Your email is confirmed. You can sign in and enable password recovery.');
+        setVerification({ token, status: 'success', message: 'Your email is confirmed. You can sign in and enable password recovery.' });
       } catch (err) {
-        setStatus('error');
-        setMessage(err.message || 'Unable to verify email');
+        if (controller.signal.aborted) return;
+        setVerification({ token, status: 'error', message: err.message || 'Unable to verify email' });
       }
     };
 
     verify();
+    return () => controller.abort();
   }, [token]);
 
   const renderStatusIcon = () => {
@@ -76,7 +80,7 @@ export default function VerifyEmailPage() {
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-xl px-4 py-10 short:py-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-xl pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] py-10 short:py-6">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -120,6 +124,7 @@ export default function VerifyEmailPage() {
             </Link>
           </div>
         </div>
+        <InstallFooter />
       </main>
     </div>
   );

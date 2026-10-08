@@ -1,0 +1,196 @@
+{
+  "origin": "http://localhost:8794",
+  "asset": "app-C37IMYFp.js",
+  "checks": [
+    {
+      "browser": "chromium",
+      "auth": "guest",
+      "path": "/pricing",
+      "beforeScroll": 3273,
+      "x": 120,
+      "y": 702.34375,
+      "width": 150,
+      "height": 46,
+      "afterScroll": 3273,
+      "focused": true,
+      "bodyUnlocked": true,
+      "backgroundInteractive": true,
+      "horizontalOverflow": 0,
+      "hitPoints": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "extraScrollAfterClose": false,
+      "upgradeDockCount": 1
+    },
+    {
+      "browser": "chromium",
+      "auth": "pro",
+      "path": "/pricing",
+      "beforeScroll": 3181,
+      "x": 120,
+      "y": 702.34375,
+      "width": 150,
+      "height": 46,
+      "afterScroll": 3181,
+      "focused": true,
+      "bodyUnlocked": true,
+      "backgroundInteractive": true,
+      "horizontalOverflow": 0,
+      "hitPoints": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "extraScrollAfterClose": false,
+      "upgradeDockCount": 0
+    },
+    {
+      "browser": "chromium",
+      "auth": "pro",
+      "path": "/journal",
+      "beforeScroll": 805,
+      "x": 120,
+      "y": 765.640625,
+      "width": 150,
+      "height": 46,
+      "afterScroll": 805,
+      "focused": true,
+      "bodyUnlocked": true,
+      "backgroundInteractive": true,
+      "horizontalOverflow": 0,
+      "hitPoints": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "extraScrollAfterClose": false
+    },
+    {
+      "browser": "webkit",
+      "auth": "guest",
+      "path": "/pricing",
+      "beforeScroll": 3273,
+      "x": 118.78125,
+      "y": 702.34375,
+      "width": 152.421875,
+      "height": 46,
+      "afterScroll": 3273,
+      "focused": true,
+      "bodyUnlocked": true,
+      "backgroundInteractive": true,
+      "horizontalOverflow": 0,
+      "hitPoints": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "extraScrollAfterClose": false,
+      "upgradeDockCount": 1
+    },
+    {
+      "browser": "webkit",
+      "auth": "pro",
+      "path": "/pricing",
+      "beforeScroll": 3181,
+      "x": 118.78125,
+      "y": 702.34375,
+      "width": 152.421875,
+      "height": 46,
+      "afterScroll": 3181,
+      "focused": true,
+      "bodyUnlocked": true,
+      "backgroundInteractive": true,
+      "horizontalOverflow": 0,
+      "hitPoints": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "extraScrollAfterClose": false,
+      "upgradeDockCount": 0
+    },
+    {
+      "browser": "webkit",
+      "auth": "pro",
+      "path": "/journal",
+      "beforeScroll": 805,
+      "x": 118.78125,
+      "y": 765.625,
+      "width": 152.421875,
+      "height": 46,
+      "afterScroll": 805,
+      "focused": true,
+      "bodyUnlocked": true,
+      "backgroundInteractive": true,
+      "horizontalOverflow": 0,
+      "hitPoints": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "extraScrollAfterClose": false
+    }
+  ],
+  "profiles": [
+    {
+      "browser": "chromium",
+      "auth": "guest",
+      "assetMatches": true,
+      "meStatus": 401,
+      "status": "passed",
+      "pageErrorCount": 0
+    },
+    {
+      "browser": "chromium",
+      "auth": "pro",
+      "assetMatches": true,
+      "loginStatus": 200,
+      "realProVerified": true,
+      "status": "passed",
+      "pageErrorCount": 0,
+      "logoutStatus": 200,
+      "afterLogoutMeStatus": 401,
+      "logoutVerified": true
+    },
+    {
+      "browser": "webkit",
+      "auth": "guest",
+      "assetMatches": true,
+      "meStatus": 401,
+      "status": "passed",
+      "pageErrorCount": 0
+    },
+    {
+      "browser": "webkit",
+      "auth": "pro",
+      "assetMatches": true,
+      "loginStatus": 200,
+      "realProVerified": true,
+      "status": "passed",
+      "pageErrorCount": 0,
+      "logoutStatus": 200,
+      "afterLogoutMeStatus": 401,
+      "logoutVerified": true
+    }
+  ],
+  "limits": [
+    "Local Worker only; no production authentication",
+    "Chromium/WebKit at390x844 with touch-first iPhone user agent",
+    "No reading generated; narrative requests blocked",
+    "Footer control captures exclude account identity"
+  ]
+}

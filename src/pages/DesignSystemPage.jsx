@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { CheckCircle, MoonStars, Sun, WarningCircle, XCircle } from '@phosphor-icons/react';
 import { GlobalNav } from '../components/GlobalNav';
+import { InstallFooter } from '../components/InstallFooter';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import { usePreferences } from '../contexts/PreferencesContext';
 import {
@@ -67,7 +68,7 @@ export default function DesignSystemPage() {
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-8 space-y-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] py-8 space-y-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-serif text-accent">Design System</h1>
@@ -240,6 +241,7 @@ export default function DesignSystemPage() {
             </div>
           </div>
         </section>
+        <InstallFooter />
       </main>
     </div>
   );

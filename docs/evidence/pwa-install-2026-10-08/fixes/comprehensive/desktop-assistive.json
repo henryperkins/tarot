@@ -1,0 +1,68 @@
+{
+  "chromeOfferAndOrca": {
+    "browser": "151.0.7922.34",
+    "screenReader": "Orca 50.2 / Linux AT-SPI",
+    "checks": [
+      {
+        "attempt": 1,
+        "checkedAt": "2026-10-08T05:20:58.864Z",
+        "speechUtterances": 1,
+        "focusInsideMain": true,
+        "activeTag": "BUTTON"
+      },
+      {
+        "attempt": 2,
+        "checkedAt": "2026-10-08T05:21:00.653Z",
+        "speechUtterances": 2,
+        "focusInsideMain": true,
+        "activeTag": "BUTTON"
+      }
+    ],
+    "asset": "/assets/app-DBO6rHdL.js",
+    "installability": {
+      "installabilityErrors": []
+    },
+    "manifest": {
+      "url": "http://localhost:5173/manifest.webmanifest",
+      "errors": []
+    },
+    "nativeOffers": [
+      {
+        "isTrusted": true,
+        "time": 461.30000001192093,
+        "defaultPrevented": false
+      }
+    ],
+    "installButtonAfterRealOffer": 0,
+    "speechOutput": [
+      "'Installation could not start. You can add Tableu from your browser menu.' {'established': False}",
+      "'Installation could not start. You can add Tableu from your browser menu.' {'established': False}"
+    ]
+  },
+  "desktopCdpInstall": {
+    "browser": "151.0.7922.34",
+    "platform": "Linux desktop Chrome for Testing",
+    "installMethod": "CDP PWA.install",
+    "asset": "/assets/app-DBO6rHdL.js",
+    "installability": {
+      "installabilityErrors": []
+    },
+    "installed": true,
+    "osState": {
+      "badgeCount": 0,
+      "fileHandlers": []
+    },
+    "appInstalledEvents": [],
+    "displayModeSetting": "standalone",
+    "launch": {
+      "attached": true
+    },
+    "appState": {
+      "standalone": true,
+      "url": "http://localhost:5173/journal",
+      "mainRendered": true,
+      "installButtonCount": 0
+    },
+    "uninstalled": true
+  }
+}

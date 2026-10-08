@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CaretLeft, Warning } from '@phosphor-icons/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GlobalNav } from './GlobalNav';
+import { InstallFooter } from './InstallFooter';
 import { ConfirmModal } from './ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -135,9 +136,10 @@ export default function Journal() {
   const [historyFiltersEl, setHistoryFiltersEl] = useState(null);
   const [historyFiltersInView, setHistoryFiltersInView] = useState(true);
   const [hasScrolled, setHasScrolled] = useState(false);
-  const [pendingHighlightEntryId, setPendingHighlightEntryId] = useState(null);
+  const [highlightNavigationKey, setHighlightNavigationKey] = useState(location.key);
+  const [pendingHighlightEntryId, setPendingHighlightEntryId] = useState(location.state?.highlightEntryId ?? null);
   const [highlightStatus, setHighlightStatus] = useState(null);
-  const [visibleCount, setVisibleCount] = useState(VISIBLE_ENTRY_BATCH);
+  const [entryVisibility, setEntryVisibility] = useState({ filterSignature, count: VISIBLE_ENTRY_BATCH });
   const [monthJump, setMonthJump] = useState('');
   const [journeyReady, setJourneyReady] = useState(false);
   const summaryRef = useRef(null);
@@ -145,7 +147,39 @@ export default function Journal() {
   const highlightRequestRef = useRef(0);
   const filteredEntriesRef = useRef(filteredEntries);
   const hasMoreServerEntriesRef = useRef(hasMoreServerEntries);
-  const [summaryInView, setSummaryInView] = useState(!isSmallSummary);
+  const [summaryVisibility, setSummaryVisibility] = useState({ small: isSmallSummary, seen: false });
+
+  // Capture new navigation requests before rendering; clearing router state must
+  // leave the pending highlight available until its scroll/highlight completes.
+  if (highlightNavigationKey !== location.key) {
+    setHighlightNavigationKey(location.key);
+    if (location.state?.highlightEntryId != null) {
+      setPendingHighlightEntryId(location.state.highlightEntryId);
+    }
+  }
+  if (summaryVisibility.small !== isSmallSummary) {
+    setSummaryVisibility({ small: isSmallSummary, seen: false });
+  }
+  const summaryInView = !isSmallSummary || summaryVisibility.seen;
+
+  // Filter changes reset pagination in the same render. Requested entries also
+  // extend the retained batch so they stay rendered after the highlight expires.
+  const highlightIndex = pendingHighlightEntryId == null ? -1 : filteredEntries.findIndex(
+    entry => String(entry?.id || '') === String(pendingHighlightEntryId)
+  );
+  const visibleCount = Math.max(
+    entryVisibility.filterSignature === filterSignature ? entryVisibility.count : VISIBLE_ENTRY_BATCH,
+    highlightIndex + 1
+  );
+  if (entryVisibility.filterSignature !== filterSignature || entryVisibility.count !== visibleCount) {
+    setEntryVisibility({ filterSignature, count: visibleCount });
+  }
+  const setVisibleCount = useCallback(update => {
+    setEntryVisibility(previous => ({
+      ...previous,
+      count: typeof update === 'function' ? update(previous.count) : update
+    }));
+  }, []);
 
   // Derived values
   const hasEntries = entries.length > 0;
@@ -189,7 +223,8 @@ export default function Journal() {
   const inlineSearchOlderLabel = hasLocalMoreEntries
     ? 'Show more results'
     : (filters.query.trim() ? 'Search older entries' : 'Load older entries');
-  const highlightBannerState = pendingHighlightEntryId ? (highlightStatus || 'loading') : null;
+  const highlightBannerState = pendingHighlightEntryId
+    ? (highlightIndex >= 0 ? 'found' : highlightStatus || 'loading') : null;
   const showHighlightBanner = Boolean(pendingHighlightEntryId) && highlightBannerState !== 'found';
   const showLoadMoreButton = hasMoreVisibleResults || (hasMoreServerEntries && !serverSearchEnabled);
   const loadMoreLabel = serverSearchEnabled
@@ -214,10 +249,6 @@ export default function Journal() {
         ...prev,
         query: prefillQuery,
       }));
-    }
-
-    if (highlightEntryId) {
-      setPendingHighlightEntryId(highlightEntryId);
     }
 
     // Clear the navigation state so back/forward doesn't keep re-applying.
@@ -283,15 +314,6 @@ export default function Journal() {
     return undefined;
   }, []);
 
-  // Reset visible count when filters change
-  useEffect(() => {
-    setVisibleCount(VISIBLE_ENTRY_BATCH);
-  }, [filterSignature]);
-
-  useEffect(() => {
-    setSummaryInView(!isSmallSummary);
-  }, [isSmallSummary]);
-
   useEffect(() => {
     filteredEntriesRef.current = filteredEntries;
   }, [filteredEntries]);
@@ -301,16 +323,13 @@ export default function Journal() {
   }, [hasMoreServerEntries]);
 
   useEffect(() => {
-    if (!summaryRef.current) return undefined;
-    if (!isSmallSummary) {
-      setSummaryInView(true);
-      return undefined;
-    }
+    if (!isSmallSummary || !summaryRef.current) return undefined;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            setSummaryInView(true);
+            setSummaryVisibility(previous => previous.small === isSmallSummary
+              ? { ...previous, seen: true } : previous);
           }
         });
       },
@@ -318,7 +337,7 @@ export default function Journal() {
     );
     observer.observe(summaryRef.current);
     return () => observer.disconnect();
-  }, [isSmallSummary]);
+  }, [isSmallSummary, showSummaryBand]);
 
   useEffect(() => {
     if (!historyFiltersEl || typeof IntersectionObserver === 'undefined') return undefined;
@@ -416,7 +435,8 @@ export default function Journal() {
     };
   }, [pendingHighlightEntryId, resolveHighlightEntry]);
 
-  // If an entry is requested, ensure it's rendered (increase visibleCount) and scroll it into view.
+  // The render-time batch includes requested entries; this effect owns DOM scroll
+  // and the brief highlight's expiry.
   useEffect(() => {
     if (!pendingHighlightEntryId) return undefined;
     if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
@@ -424,13 +444,7 @@ export default function Journal() {
     const targetId = String(pendingHighlightEntryId);
 
     const index = filteredEntries.findIndex((entry) => String(entry?.id || '') === targetId);
-    if (index >= 0 && index >= visibleCount) {
-      setVisibleCount((prev) => Math.max(prev, Math.min(filteredEntries.length, index + 1)));
-    }
-
     if (index < 0) return undefined;
-
-    setHighlightStatus('found');
 
     // Next tick: scroll to the entry container.
     const id = `journal-entry-${targetId}`;
@@ -754,7 +768,7 @@ export default function Journal() {
           </div>
         </header>
 
-        <main id="main-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto px-[min(1rem,4vw)] sm:px-6 pt-8 pb-[calc(2rem+var(--journal-controls-inset,0px))]">
+        <main id="main-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto pl-[max(min(1rem,4vw),var(--safe-pad-left))] pr-[max(min(1rem,4vw),var(--safe-pad-right))] sm:pl-[max(1.5rem,var(--safe-pad-left))] sm:pr-[max(1.5rem,var(--safe-pad-right))] pt-8 pb-[calc(2rem+var(--journal-controls-inset,0px))]">
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             {fromReading && (
@@ -1061,6 +1075,7 @@ export default function Journal() {
               )}
             </div>
           )}
+          <InstallFooter />
         </main>
 
         <JournalFloatingControls

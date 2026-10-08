@@ -82,7 +82,7 @@ export function useBodyScrollLock(isLocked, { strategy = 'fixed' } = {}) {
 
       // Restore scroll position (only needed for fixed strategy)
       if (strategy === 'fixed') {
-        window.scrollTo(0, capturedScrollY);
+        window.scrollTo({ top: capturedScrollY, left: 0, behavior: 'instant' });
       }
     };
   }, [isLocked, strategy]);

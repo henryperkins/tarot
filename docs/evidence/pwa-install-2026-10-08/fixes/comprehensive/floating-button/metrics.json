@@ -1,0 +1,1522 @@
+{
+  "generatedAt": "2026-10-08T05:21:25.818Z",
+  "origin": "http://localhost:5173",
+  "asset": "/assets/app-DBO6rHdL.js",
+  "reducedMotion": "reduce",
+  "authentication": "Signed-out guest fixture",
+  "scope": "Rendered button states; desktop offers are synthetic even in WebKit, so this does not assert native WebKit installation support.",
+  "limitations": [
+    "320px contexts emulate iPhone touch layout on desktop engines; pressed states use mouse down and release outside the target.",
+    "This render pass does not repeat the separate desktop native-install or spoken Orca checks."
+  ],
+  "lanes": [
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "profile": "mobile-320",
+      "theme": "dark",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "stylesheets": [
+        "/assets/index-6bxXNcHJ.css",
+        "/assets/TarotReading-C5NvIHkV.css",
+        "/assets/InstallApp-Cnykkbsa.css"
+      ],
+      "states": {
+        "default": {
+          "bounds": {
+            "x": 85,
+            "y": 417.015625,
+            "width": 150,
+            "height": 46,
+            "top": 417.015625,
+            "right": 235,
+            "bottom": 463.015625,
+            "left": 85
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(232, 230, 227, 0.1) 0px 1px 0px 0px inset, rgba(15, 14, 19, 0.24) 0px -1px 0px 0px inset, rgba(15, 14, 19, 0.22) 0px 2px 3px 0px, rgba(15, 14, 19, 0.4) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(42, 39, 48)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.52)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.36)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": false,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              57.2,
+              53.32000000000001,
+              59.760000000000005
+            ],
+            "atGradientTop": 6.322555948222593,
+            "atBase": 7.752204198079182,
+            "minimum": 6.322555948222593
+          }
+        },
+        "hover": {
+          "bounds": {
+            "x": 85,
+            "y": 417.015625,
+            "width": 150,
+            "height": 46,
+            "top": 417.015625,
+            "right": 235,
+            "bottom": 463.015625,
+            "left": 85
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(232, 230, 227, 0.1) 0px 1px 0px 0px inset, rgba(15, 14, 19, 0.24) 0px -1px 0px 0px inset, rgba(15, 14, 19, 0.22) 0px 2px 3px 0px, rgba(15, 14, 19, 0.4) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(42, 39, 48)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.52)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.36)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": false,
+          "hovered": true,
+          "active": false,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              57.2,
+              53.32000000000001,
+              59.760000000000005
+            ],
+            "atGradientTop": 6.322555948222593,
+            "atBase": 7.752204198079182,
+            "minimum": 6.322555948222593
+          }
+        },
+        "pressed": {
+          "bounds": {
+            "x": 85,
+            "y": 417.015625,
+            "width": 150,
+            "height": 46,
+            "top": 417.015625,
+            "right": 235,
+            "bottom": 463.015625,
+            "left": 85
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(168, 157, 146, 0.16) 0px 1px 2px 0px inset, rgba(168, 157, 146, 0.2) 0px 1px 3px 0px",
+          "backgroundColor": "rgb(42, 39, 48)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.52)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.36)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": false,
+          "hovered": true,
+          "active": true,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              57.2,
+              53.32000000000001,
+              59.760000000000005
+            ],
+            "atGradientTop": 6.322555948222593,
+            "atBase": 7.752204198079182,
+            "minimum": 6.322555948222593
+          }
+        },
+        "focus": {
+          "bounds": {
+            "x": 85,
+            "y": 417.015625,
+            "width": 150,
+            "height": 46,
+            "top": 417.015625,
+            "right": 235,
+            "bottom": 463.015625,
+            "left": 85
+          },
+          "boxShadow": "rgb(15, 14, 19) 0px 0px 0px 2px, rgb(232, 218, 195) 0px 0px 0px 4px, rgba(232, 230, 227, 0.1) 0px 1px 0px 0px inset, rgba(15, 14, 19, 0.24) 0px -1px 0px 0px inset, rgba(15, 14, 19, 0.22) 0px 2px 3px 0px, rgba(15, 14, 19, 0.4) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(42, 39, 48)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.52)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.36)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": true,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              57.2,
+              53.32000000000001,
+              59.760000000000005
+            ],
+            "atGradientTop": 6.322555948222593,
+            "atBase": 7.752204198079182,
+            "minimum": 6.322555948222593
+          }
+        }
+      },
+      "promptCalls": 0,
+      "dialogsOpened": 0,
+      "pageErrors": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "profile": "mobile-320",
+      "theme": "light",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "stylesheets": [
+        "/assets/index-6bxXNcHJ.css",
+        "/assets/TarotReading-C5NvIHkV.css",
+        "/assets/InstallApp-Cnykkbsa.css"
+      ],
+      "states": {
+        "default": {
+          "bounds": {
+            "x": 85,
+            "y": 417.015625,
+            "width": 150,
+            "height": 46,
+            "top": 417.015625,
+            "right": 235,
+            "bottom": 463.015625,
+            "left": 85
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(255, 255, 255, 0.9) 0px 1px 0px 0px inset, rgba(106, 87, 70, 0.1) 0px -1px 0px 0px inset, rgba(106, 87, 70, 0.14) 0px 2px 3px 0px, rgba(106, 87, 70, 0.22) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(245, 245, 245)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.52)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.36)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": false,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              236.44,
+              233.96,
+              230.12
+            ],
+            "atGradientTop": 4.74990792558657,
+            "atBase": 5.2310744413339805,
+            "minimum": 4.74990792558657
+          }
+        },
+        "hover": {
+          "bounds": {
+            "x": 85,
+            "y": 417.015625,
+            "width": 150,
+            "height": 46,
+            "top": 417.015625,
+            "right": 235,
+            "bottom": 463.015625,
+            "left": 85
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(255, 255, 255, 0.9) 0px 1px 0px 0px inset, rgba(106, 87, 70, 0.1) 0px -1px 0px 0px inset, rgba(106, 87, 70, 0.14) 0px 2px 3px 0px, rgba(106, 87, 70, 0.22) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(245, 245, 245)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.52)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.36)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": false,
+          "hovered": true,
+          "active": false,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              236.44,
+              233.96,
+              230.12
+            ],
+            "atGradientTop": 4.74990792558657,
+            "atBase": 5.2310744413339805,
+            "minimum": 4.74990792558657
+          }
+        },
+        "pressed": {
+          "bounds": {
+            "x": 85,
+            "y": 417.015625,
+            "width": 150,
+            "height": 46,
+            "top": 417.015625,
+            "right": 235,
+            "bottom": 463.015625,
+            "left": 85
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(106, 87, 70, 0.16) 0px 1px 2px 0px inset, rgba(106, 87, 70, 0.2) 0px 1px 3px 0px",
+          "backgroundColor": "rgb(245, 245, 245)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.52)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.36)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": false,
+          "hovered": true,
+          "active": true,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              236.44,
+              233.96,
+              230.12
+            ],
+            "atGradientTop": 4.74990792558657,
+            "atBase": 5.2310744413339805,
+            "minimum": 4.74990792558657
+          }
+        },
+        "focus": {
+          "bounds": {
+            "x": 85,
+            "y": 417.015625,
+            "width": 150,
+            "height": 46,
+            "top": 417.015625,
+            "right": 235,
+            "bottom": 463.015625,
+            "left": 85
+          },
+          "boxShadow": "rgb(250, 250, 250) 0px 0px 0px 2px, rgb(138, 107, 59) 0px 0px 0px 4px, rgba(255, 255, 255, 0.9) 0px 1px 0px 0px inset, rgba(106, 87, 70, 0.1) 0px -1px 0px 0px inset, rgba(106, 87, 70, 0.14) 0px 2px 3px 0px, rgba(106, 87, 70, 0.22) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(245, 245, 245)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.52)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.36)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": true,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              236.44,
+              233.96,
+              230.12
+            ],
+            "atGradientTop": 4.74990792558657,
+            "atBase": 5.2310744413339805,
+            "minimum": 4.74990792558657
+          }
+        }
+      },
+      "promptCalls": 0,
+      "dialogsOpened": 0,
+      "pageErrors": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "profile": "desktop-native",
+      "theme": "dark",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "stylesheets": [
+        "/assets/index-6bxXNcHJ.css",
+        "/assets/InstallApp-Cnykkbsa.css"
+      ],
+      "states": {
+        "default": {
+          "bounds": {
+            "x": 1048,
+            "y": 758.171875,
+            "width": 152,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1048
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(232, 230, 227, 0.1) 0px 1px 0px 0px inset, rgba(15, 14, 19, 0.24) 0px -1px 0px 0px inset, rgba(15, 14, 19, 0.22) 0px 2px 3px 0px, rgba(15, 14, 19, 0.4) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(42, 39, 48)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.52)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.36)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": false,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              57.2,
+              53.32000000000001,
+              59.760000000000005
+            ],
+            "atGradientTop": 6.322555948222593,
+            "atBase": 7.752204198079182,
+            "minimum": 6.322555948222593
+          }
+        },
+        "hover": {
+          "bounds": {
+            "x": 1048,
+            "y": 758.171875,
+            "width": 152,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1048
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(232, 230, 227, 0.1) 0px 1px 0px 0px inset, rgba(15, 14, 19, 0.24) 0px -1px 0px 0px inset, rgba(15, 14, 19, 0.22) 0px 2px 3px 0px, rgba(15, 14, 19, 0.4) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(28, 26, 34)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.6)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.6)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": false,
+          "hovered": true,
+          "active": false,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              44.32,
+              41.36,
+              46.88
+            ],
+            "atGradientTop": 7.540355782879226,
+            "atBase": 9.093360940179563,
+            "minimum": 7.540355782879226
+          }
+        },
+        "pressed": {
+          "bounds": {
+            "x": 1048,
+            "y": 758.171875,
+            "width": 152,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1048
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(168, 157, 146, 0.16) 0px 1px 2px 0px inset, rgba(168, 157, 146, 0.2) 0px 1px 3px 0px",
+          "backgroundColor": "rgb(28, 26, 34)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.6)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.6)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": false,
+          "hovered": true,
+          "active": true,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              44.32,
+              41.36,
+              46.88
+            ],
+            "atGradientTop": 7.540355782879226,
+            "atBase": 9.093360940179563,
+            "minimum": 7.540355782879226
+          }
+        },
+        "focus": {
+          "bounds": {
+            "x": 1048,
+            "y": 758.171875,
+            "width": 152,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1048
+          },
+          "boxShadow": "rgb(15, 14, 19) 0px 0px 0px 2px, rgb(232, 218, 195) 0px 0px 0px 4px, rgba(232, 230, 227, 0.1) 0px 1px 0px 0px inset, rgba(15, 14, 19, 0.24) 0px -1px 0px 0px inset, rgba(15, 14, 19, 0.22) 0px 2px 3px 0px, rgba(15, 14, 19, 0.4) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(42, 39, 48)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.52)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.36)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": true,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              57.2,
+              53.32000000000001,
+              59.760000000000005
+            ],
+            "atGradientTop": 6.322555948222593,
+            "atBase": 7.752204198079182,
+            "minimum": 6.322555948222593
+          }
+        }
+      },
+      "promptCalls": 0,
+      "dialogsOpened": 0,
+      "pageErrors": []
+    },
+    {
+      "engine": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "profile": "desktop-native",
+      "theme": "light",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "stylesheets": [
+        "/assets/index-6bxXNcHJ.css",
+        "/assets/InstallApp-Cnykkbsa.css"
+      ],
+      "states": {
+        "default": {
+          "bounds": {
+            "x": 1048,
+            "y": 758.171875,
+            "width": 152,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1048
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(255, 255, 255, 0.9) 0px 1px 0px 0px inset, rgba(106, 87, 70, 0.1) 0px -1px 0px 0px inset, rgba(106, 87, 70, 0.14) 0px 2px 3px 0px, rgba(106, 87, 70, 0.22) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(245, 245, 245)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.52)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.36)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": false,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              236.44,
+              233.96,
+              230.12
+            ],
+            "atGradientTop": 4.74990792558657,
+            "atBase": 5.2310744413339805,
+            "minimum": 4.74990792558657
+          }
+        },
+        "hover": {
+          "bounds": {
+            "x": 1048,
+            "y": 758.171875,
+            "width": 152,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1048
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(255, 255, 255, 0.9) 0px 1px 0px 0px inset, rgba(106, 87, 70, 0.1) 0px -1px 0px 0px inset, rgba(106, 87, 70, 0.14) 0px 2px 3px 0px, rgba(106, 87, 70, 0.22) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.6)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.6)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": false,
+          "hovered": true,
+          "active": false,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              245.64000000000001,
+              243.16000000000003,
+              239.32000000000002
+            ],
+            "atGradientTop": 5.158609907538267,
+            "atBase": 5.703079485338982,
+            "minimum": 5.158609907538267
+          }
+        },
+        "pressed": {
+          "bounds": {
+            "x": 1048,
+            "y": 758.171875,
+            "width": 152,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1048
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(106, 87, 70, 0.16) 0px 1px 2px 0px inset, rgba(106, 87, 70, 0.2) 0px 1px 3px 0px",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.6)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.6)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": false,
+          "hovered": true,
+          "active": true,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              245.64000000000001,
+              243.16000000000003,
+              239.32000000000002
+            ],
+            "atGradientTop": 5.158609907538267,
+            "atBase": 5.703079485338982,
+            "minimum": 5.158609907538267
+          }
+        },
+        "focus": {
+          "bounds": {
+            "x": 1048,
+            "y": 758.171875,
+            "width": 152,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1048
+          },
+          "boxShadow": "rgb(250, 250, 250) 0px 0px 0px 2px, rgb(138, 107, 59) 0px 0px 0px 4px, rgba(255, 255, 255, 0.9) 0px 1px 0px 0px inset, rgba(106, 87, 70, 0.1) 0px -1px 0px 0px inset, rgba(106, 87, 70, 0.14) 0px 2px 3px 0px, rgba(106, 87, 70, 0.22) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(245, 245, 245)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.52)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.36)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": true,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              236.44,
+              233.96,
+              230.12
+            ],
+            "atGradientTop": 4.74990792558657,
+            "atBase": 5.2310744413339805,
+            "minimum": 4.74990792558657
+          }
+        }
+      },
+      "promptCalls": 0,
+      "dialogsOpened": 0,
+      "pageErrors": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "profile": "mobile-320",
+      "theme": "dark",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "stylesheets": [
+        "/assets/index-6bxXNcHJ.css",
+        "/assets/TarotReading-C5NvIHkV.css",
+        "/assets/InstallApp-Cnykkbsa.css"
+      ],
+      "states": {
+        "default": {
+          "bounds": {
+            "x": 83.78125,
+            "y": 416.984375,
+            "width": 152.421875,
+            "height": 46,
+            "top": 416.984375,
+            "right": 236.203125,
+            "bottom": 462.984375,
+            "left": 83.78125
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(232, 230, 227, 0.1) 0px 1px 0px 0px inset, rgba(15, 14, 19, 0.24) 0px -1px 0px 0px inset, rgba(15, 14, 19, 0.22) 0px 2px 3px 0px, rgba(15, 14, 19, 0.4) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(42, 39, 48)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.52)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.36)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": false,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              57.2,
+              53.32000000000001,
+              59.760000000000005
+            ],
+            "atGradientTop": 6.322555948222593,
+            "atBase": 7.752204198079182,
+            "minimum": 6.322555948222593
+          }
+        },
+        "hover": {
+          "bounds": {
+            "x": 83.78125,
+            "y": 416.984375,
+            "width": 152.421875,
+            "height": 46,
+            "top": 416.984375,
+            "right": 236.203125,
+            "bottom": 462.984375,
+            "left": 83.78125
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(232, 230, 227, 0.1) 0px 1px 0px 0px inset, rgba(15, 14, 19, 0.24) 0px -1px 0px 0px inset, rgba(15, 14, 19, 0.22) 0px 2px 3px 0px, rgba(15, 14, 19, 0.4) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(42, 39, 48)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.52)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.36)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": false,
+          "hovered": true,
+          "active": false,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              57.2,
+              53.32000000000001,
+              59.760000000000005
+            ],
+            "atGradientTop": 6.322555948222593,
+            "atBase": 7.752204198079182,
+            "minimum": 6.322555948222593
+          }
+        },
+        "pressed": {
+          "bounds": {
+            "x": 83.78125,
+            "y": 416.984375,
+            "width": 152.421875,
+            "height": 46,
+            "top": 416.984375,
+            "right": 236.203125,
+            "bottom": 462.984375,
+            "left": 83.78125
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(168, 157, 146, 0.16) 0px 1px 2px 0px inset, rgba(168, 157, 146, 0.2) 0px 1px 3px 0px",
+          "backgroundColor": "rgb(42, 39, 48)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.52)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.36)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": false,
+          "hovered": true,
+          "active": true,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              57.2,
+              53.32000000000001,
+              59.760000000000005
+            ],
+            "atGradientTop": 6.322555948222593,
+            "atBase": 7.752204198079182,
+            "minimum": 6.322555948222593
+          }
+        },
+        "focus": {
+          "bounds": {
+            "x": 83.78125,
+            "y": 416.984375,
+            "width": 152.421875,
+            "height": 46,
+            "top": 416.984375,
+            "right": 236.203125,
+            "bottom": 462.984375,
+            "left": 83.78125
+          },
+          "boxShadow": "rgb(15, 14, 19) 0px 0px 0px 2px, rgb(232, 218, 195) 0px 0px 0px 4px, rgba(232, 230, 227, 0.1) 0px 1px 0px 0px inset, rgba(15, 14, 19, 0.24) 0px -1px 0px 0px inset, rgba(15, 14, 19, 0.22) 0px 2px 3px 0px, rgba(15, 14, 19, 0.4) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(42, 39, 48)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.52)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.36)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": true,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              57.2,
+              53.32000000000001,
+              59.760000000000005
+            ],
+            "atGradientTop": 6.322555948222593,
+            "atBase": 7.752204198079182,
+            "minimum": 6.322555948222593
+          }
+        }
+      },
+      "promptCalls": 0,
+      "dialogsOpened": 0,
+      "pageErrors": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "profile": "mobile-320",
+      "theme": "light",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "stylesheets": [
+        "/assets/index-6bxXNcHJ.css",
+        "/assets/TarotReading-C5NvIHkV.css",
+        "/assets/InstallApp-Cnykkbsa.css"
+      ],
+      "states": {
+        "default": {
+          "bounds": {
+            "x": 83.78125,
+            "y": 416.984375,
+            "width": 152.421875,
+            "height": 46,
+            "top": 416.984375,
+            "right": 236.203125,
+            "bottom": 462.984375,
+            "left": 83.78125
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(255, 255, 255, 0.9) 0px 1px 0px 0px inset, rgba(106, 87, 70, 0.1) 0px -1px 0px 0px inset, rgba(106, 87, 70, 0.14) 0px 2px 3px 0px, rgba(106, 87, 70, 0.22) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(245, 245, 245)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.52)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.36)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": false,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              236.44,
+              233.96,
+              230.12
+            ],
+            "atGradientTop": 4.74990792558657,
+            "atBase": 5.2310744413339805,
+            "minimum": 4.74990792558657
+          }
+        },
+        "hover": {
+          "bounds": {
+            "x": 83.78125,
+            "y": 416.984375,
+            "width": 152.421875,
+            "height": 46,
+            "top": 416.984375,
+            "right": 236.203125,
+            "bottom": 462.984375,
+            "left": 83.78125
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(255, 255, 255, 0.9) 0px 1px 0px 0px inset, rgba(106, 87, 70, 0.1) 0px -1px 0px 0px inset, rgba(106, 87, 70, 0.14) 0px 2px 3px 0px, rgba(106, 87, 70, 0.22) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(245, 245, 245)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.52)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.36)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": false,
+          "hovered": true,
+          "active": false,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              236.44,
+              233.96,
+              230.12
+            ],
+            "atGradientTop": 4.74990792558657,
+            "atBase": 5.2310744413339805,
+            "minimum": 4.74990792558657
+          }
+        },
+        "pressed": {
+          "bounds": {
+            "x": 83.78125,
+            "y": 416.984375,
+            "width": 152.421875,
+            "height": 46,
+            "top": 416.984375,
+            "right": 236.203125,
+            "bottom": 462.984375,
+            "left": 83.78125
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(106, 87, 70, 0.16) 0px 1px 2px 0px inset, rgba(106, 87, 70, 0.2) 0px 1px 3px 0px",
+          "backgroundColor": "rgb(245, 245, 245)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.52)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.36)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": false,
+          "hovered": true,
+          "active": true,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              236.44,
+              233.96,
+              230.12
+            ],
+            "atGradientTop": 4.74990792558657,
+            "atBase": 5.2310744413339805,
+            "minimum": 4.74990792558657
+          }
+        },
+        "focus": {
+          "bounds": {
+            "x": 83.78125,
+            "y": 416.984375,
+            "width": 152.421875,
+            "height": 46,
+            "top": 416.984375,
+            "right": 236.203125,
+            "bottom": 462.984375,
+            "left": 83.78125
+          },
+          "boxShadow": "rgb(250, 250, 250) 0px 0px 0px 2px, rgb(138, 107, 59) 0px 0px 0px 4px, rgba(255, 255, 255, 0.9) 0px 1px 0px 0px inset, rgba(106, 87, 70, 0.1) 0px -1px 0px 0px inset, rgba(106, 87, 70, 0.14) 0px 2px 3px 0px, rgba(106, 87, 70, 0.22) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(245, 245, 245)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.52)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.36)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": true,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": false,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              236.44,
+              233.96,
+              230.12
+            ],
+            "atGradientTop": 4.74990792558657,
+            "atBase": 5.2310744413339805,
+            "minimum": 4.74990792558657
+          }
+        }
+      },
+      "promptCalls": 0,
+      "dialogsOpened": 0,
+      "pageErrors": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "profile": "desktop-native",
+      "theme": "dark",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "stylesheets": [
+        "/assets/index-6bxXNcHJ.css",
+        "/assets/InstallApp-Cnykkbsa.css"
+      ],
+      "states": {
+        "default": {
+          "bounds": {
+            "x": 1049.75,
+            "y": 758.171875,
+            "width": 150.25,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1049.75
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(232, 230, 227, 0.1) 0px 1px 0px 0px inset, rgba(15, 14, 19, 0.24) 0px -1px 0px 0px inset, rgba(15, 14, 19, 0.22) 0px 2px 3px 0px, rgba(15, 14, 19, 0.4) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(42, 39, 48)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.52)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.36)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": false,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              57.2,
+              53.32000000000001,
+              59.760000000000005
+            ],
+            "atGradientTop": 6.322555948222593,
+            "atBase": 7.752204198079182,
+            "minimum": 6.322555948222593
+          }
+        },
+        "hover": {
+          "bounds": {
+            "x": 1049.75,
+            "y": 758.171875,
+            "width": 150.25,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1049.75
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(232, 230, 227, 0.1) 0px 1px 0px 0px inset, rgba(15, 14, 19, 0.24) 0px -1px 0px 0px inset, rgba(15, 14, 19, 0.22) 0px 2px 3px 0px, rgba(15, 14, 19, 0.4) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(28, 26, 34)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.6)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.6)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": false,
+          "hovered": true,
+          "active": false,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              44.32,
+              41.36,
+              46.88
+            ],
+            "atGradientTop": 7.540355782879226,
+            "atBase": 9.093360940179563,
+            "minimum": 7.540355782879226
+          }
+        },
+        "pressed": {
+          "bounds": {
+            "x": 1049.75,
+            "y": 758.171875,
+            "width": 150.25,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1049.75
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(168, 157, 146, 0.16) 0px 1px 2px 0px inset, rgba(168, 157, 146, 0.2) 0px 1px 3px 0px",
+          "backgroundColor": "rgb(28, 26, 34)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.6)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.6)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": false,
+          "hovered": true,
+          "active": true,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              44.32,
+              41.36,
+              46.88
+            ],
+            "atGradientTop": 7.540355782879226,
+            "atBase": 9.093360940179563,
+            "minimum": 7.540355782879226
+          }
+        },
+        "focus": {
+          "bounds": {
+            "x": 1049.75,
+            "y": 758.171875,
+            "width": 150.25,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1049.75
+          },
+          "boxShadow": "rgb(15, 14, 19) 0px 0px 0px 2px, rgb(232, 218, 195) 0px 0px 0px 4px, rgba(232, 230, 227, 0.1) 0px 1px 0px 0px inset, rgba(15, 14, 19, 0.24) 0px -1px 0px 0px inset, rgba(15, 14, 19, 0.22) 0px 2px 3px 0px, rgba(15, 14, 19, 0.4) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(42, 39, 48)",
+          "backgroundImage": "linear-gradient(rgba(232, 218, 195, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(232, 218, 195, 0.52)",
+          "borderBottomColor": "rgba(232, 218, 195, 0.36)",
+          "textColor": "rgb(212, 184, 150)",
+          "transform": "none",
+          "gradientAccentRGB": "232 218 195",
+          "focusVisible": true,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              57.2,
+              53.32000000000001,
+              59.760000000000005
+            ],
+            "atGradientTop": 6.322555948222593,
+            "atBase": 7.752204198079182,
+            "minimum": 6.322555948222593
+          }
+        }
+      },
+      "promptCalls": 0,
+      "dialogsOpened": 0,
+      "pageErrors": []
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "26.5",
+      "profile": "desktop-native",
+      "theme": "light",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "actualAsset": "/assets/app-DBO6rHdL.js",
+      "stylesheets": [
+        "/assets/index-6bxXNcHJ.css",
+        "/assets/InstallApp-Cnykkbsa.css"
+      ],
+      "states": {
+        "default": {
+          "bounds": {
+            "x": 1049.75,
+            "y": 758.171875,
+            "width": 150.25,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1049.75
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(255, 255, 255, 0.9) 0px 1px 0px 0px inset, rgba(106, 87, 70, 0.1) 0px -1px 0px 0px inset, rgba(106, 87, 70, 0.14) 0px 2px 3px 0px, rgba(106, 87, 70, 0.22) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(245, 245, 245)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.52)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.36)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": false,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              236.44,
+              233.96,
+              230.12
+            ],
+            "atGradientTop": 4.74990792558657,
+            "atBase": 5.2310744413339805,
+            "minimum": 4.74990792558657
+          }
+        },
+        "hover": {
+          "bounds": {
+            "x": 1049.75,
+            "y": 758.171875,
+            "width": 150.25,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1049.75
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(255, 255, 255, 0.9) 0px 1px 0px 0px inset, rgba(106, 87, 70, 0.1) 0px -1px 0px 0px inset, rgba(106, 87, 70, 0.14) 0px 2px 3px 0px, rgba(106, 87, 70, 0.22) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.6)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.6)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": false,
+          "hovered": true,
+          "active": false,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              245.64000000000001,
+              243.16000000000003,
+              239.32000000000002
+            ],
+            "atGradientTop": 5.158609907538267,
+            "atBase": 5.703079485338982,
+            "minimum": 5.158609907538267
+          }
+        },
+        "pressed": {
+          "bounds": {
+            "x": 1049.75,
+            "y": 758.171875,
+            "width": 150.25,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1049.75
+          },
+          "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(106, 87, 70, 0.16) 0px 1px 2px 0px inset, rgba(106, 87, 70, 0.2) 0px 1px 3px 0px",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.6)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.6)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": false,
+          "hovered": true,
+          "active": true,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              245.64000000000001,
+              243.16000000000003,
+              239.32000000000002
+            ],
+            "atGradientTop": 5.158609907538267,
+            "atBase": 5.703079485338982,
+            "minimum": 5.158609907538267
+          }
+        },
+        "focus": {
+          "bounds": {
+            "x": 1049.75,
+            "y": 758.171875,
+            "width": 150.25,
+            "height": 46,
+            "top": 758.171875,
+            "right": 1200,
+            "bottom": 804.171875,
+            "left": 1049.75
+          },
+          "boxShadow": "rgb(250, 250, 250) 0px 0px 0px 2px, rgb(138, 107, 59) 0px 0px 0px 4px, rgba(255, 255, 255, 0.9) 0px 1px 0px 0px inset, rgba(106, 87, 70, 0.1) 0px -1px 0px 0px inset, rgba(106, 87, 70, 0.14) 0px 2px 3px 0px, rgba(106, 87, 70, 0.22) 0px 8px 18px -5px",
+          "backgroundColor": "rgb(245, 245, 245)",
+          "backgroundImage": "linear-gradient(rgba(138, 107, 59, 0.08), rgba(0, 0, 0, 0) 70%)",
+          "borderTopColor": "rgba(138, 107, 59, 0.52)",
+          "borderBottomColor": "rgba(138, 107, 59, 0.36)",
+          "textColor": "rgb(125, 98, 59)",
+          "transform": "none",
+          "gradientAccentRGB": "138 107 59",
+          "focusVisible": true,
+          "hovered": false,
+          "active": false,
+          "hoverMedia": true,
+          "fiveHitPoints": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "inViewport": true,
+          "textContrast": {
+            "gradientTopRGB": [
+              236.44,
+              233.96,
+              230.12
+            ],
+            "atGradientTop": 4.74990792558657,
+            "atBase": 5.2310744413339805,
+            "minimum": 4.74990792558657
+          }
+        }
+      },
+      "promptCalls": 0,
+      "dialogsOpened": 0,
+      "pageErrors": []
+    }
+  ]
+}
