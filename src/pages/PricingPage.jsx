@@ -740,7 +740,8 @@ export default function PricingPage() {
     const measure = () => page.style.setProperty('--pricing-upgrade-height', `${bar.getBoundingClientRect().height}px`);
     measure();
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
-    observer?.observe(bar);
+    // Safe-area padding is part of the space covered by the fixed dock.
+    observer?.observe(bar, { box: 'border-box' });
     if (!observer) window.addEventListener('resize', measure);
     return () => {
       observer?.disconnect();

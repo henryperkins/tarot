@@ -482,7 +482,9 @@ export function MobileActionBar({ isOverlayActive = false, ...props }) {
     let observer;
     if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(updateHeight);
-      observer.observe(barRef.current);
+      // Safe-area changes can resize only the padding, leaving the content box
+      // unchanged. Reserve the full dock height after those changes as well.
+      observer.observe(barRef.current, { box: 'border-box' });
     } else {
       window.addEventListener('resize', updateHeight);
     }

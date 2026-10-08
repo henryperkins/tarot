@@ -57,19 +57,62 @@ test.describe('State ownership through effects', () => {
   });
 
   test('a deep-linked entry beyond the first batch stays rendered after its highlight expires', async ({ page }) => {
+    // Pause before navigation so rendering time cannot consume the brief highlight.
+    const started = Date.now();
+    await page.clock.install({ time: started - 60000 });
+    await page.clock.pauseAt(started);
     await prepare(page, null, journalEntries());
     await page.addInitScript(() => {
       history.replaceState({ usr: { highlightEntryId: 'effect-entry-14' }, key: 'entry-highlight', idx: 0 }, '');
     });
     await page.goto('/journal');
     const entry = page.locator('#journal-entry-effect-entry-14');
+    // React's route loader also uses timers; stop advancing once Journal mounts.
+    await expect.poll(async () => {
+      await page.clock.runFor(50);
+      return entry.count();
+    }, { intervals: [50] }).toBe(1);
+    await expect(entry).toHaveClass(/ring-primary\/35/);
+    await page.evaluate(() => document.fonts.ready);
+    await page.clock.runFor(50);
     await expect(entry).toBeInViewport();
     await expect(entry).toHaveClass(/ring-primary\/35/);
     await expect(page.locator('[id^="journal-entry-effect-entry-"]')).toHaveCount(15);
     await expect.poll(() => page.evaluate(() => history.state?.usr ?? null)).toBe(null);
     // The highlight's existing 3.2s expiry must not shrink its retained batch.
+    await page.clock.runFor(3200);
     await expect(entry).not.toHaveClass(/ring-primary\/35/, { timeout: 5000 });
     await expect(entry).toBeAttached();
+    await expect(page.locator('[id^="journal-entry-effect-entry-"]')).toHaveCount(15);
+  });
+
+  test('a journal highlight found after navigation changes filters clears the unavailable banner', async ({ page }) => {
+    await prepare(page, null, journalEntries());
+    await page.goto('/journal');
+    const entries = page.locator('[id^="journal-entry-effect-entry-"]');
+    await expect(entries).toHaveCount(10);
+    const search = page.getByPlaceholder('Search readings...');
+    await search.fill('Reflection 2');
+    await expect(entries).toHaveCount(1);
+
+    // Keep this Journal mounted while receiving a new navigation request. The
+    // requested entry only becomes a match once its prefilled query is applied.
+    await page.evaluate(() => {
+      const state = {
+        ...history.state,
+        usr: { prefillQuery: 'Reflection 15', highlightEntryId: 'effect-entry-14' },
+        key: 'filtered-entry-highlight'
+      };
+      history.pushState(state, '', '/journal');
+      dispatchEvent(new PopStateEvent('popstate', { state }));
+    });
+
+    const entry = page.locator('#journal-entry-effect-entry-14');
+    await expect(search).toHaveValue('Reflection 15');
+    await expect(entry).toBeAttached();
+    await expect(entry).toHaveClass(/ring-primary\/35/);
+    await expect(page.getByText("This entry isn't loaded yet.", { exact: true })).toHaveCount(0, { timeout: 1000 });
+    await expect(page.getByText('Loading entry...', { exact: true })).toHaveCount(0, { timeout: 1000 });
   });
 
   test('account preference and usage errors retry explicitly without restarting failed requests', async ({ page }) => {

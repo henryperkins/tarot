@@ -288,6 +288,82 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await expectInstallHitTarget(install, { scrollToEnd: false });
       });
 
+      test.describe('safe-area reflow', () => {
+        test.use({ isMobile: true, hasTouch: true });
+
+        test.describe('initial landscape viewport', () => {
+          test.use({ viewport: { width: 844, height: 390 } });
+
+          test('a fresh enlarged landscape reading leaves its page-end action above the dock', async ({ page }) => {
+            await page.addInitScript(() => {
+              window.addEventListener('DOMContentLoaded', () => {
+                document.documentElement.style.setProperty('font-size', '200%', 'important');
+                document.documentElement.style.setProperty('--safe-pad-bottom', '64px');
+              }, { once: true });
+            });
+            await page.goto('/');
+            const install = page.locator('main [data-pwa-footer]').getByRole('button', { name: 'Add to Home Screen', exact: true });
+            await page.evaluate(() => document.fonts.ready);
+            await expect.poll(() => install.evaluate(async button => {
+              scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
+              await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+              return document.querySelector('.mobile-action-bar').getBoundingClientRect().top - button.getBoundingClientRect().bottom;
+            }), { message: 'The freshly rendered install action must clear the dock before hit testing' }).toBeGreaterThanOrEqual(0);
+            await expectInstallHitTarget(install);
+            const bounds = await install.boundingBox();
+            const dock = page.getByRole('navigation', { name: 'Primary mobile actions', exact: true });
+            expect(bounds.y + bounds.height).toBeLessThanOrEqual((await dock.boundingBox()).y);
+          });
+        });
+
+        for (const textPercent of [100, 200]) {
+          test(`the page-end reading action stays clickable as landscape bottom padding grows (${textPercent}% text)`, async ({ page }) => {
+            await page.setViewportSize({ width: 320, height: 568 });
+            await startReading(page, fixture);
+            await page.setViewportSize({ width: 844, height: 390 });
+            await page.addStyleTag({ content: `html { font-size: ${textPercent}% !important; }` });
+            const dock = page.getByRole('navigation', { name: 'Primary mobile actions', exact: true });
+            const install = page.locator('main [data-pwa-footer]').getByRole('button', { name: 'Add to Home Screen', exact: true });
+            await expect(dock).toBeVisible();
+            await expectInstallHitTarget(install);
+
+            // Browser chrome can update the safe area after the orientation
+            // reflow. This changes dock padding without changing its content.
+            for (const safeBottom of [34, 64]) {
+              await page.evaluate(value => document.documentElement.style.setProperty('--safe-pad-bottom', `${value}px`), safeBottom);
+              await expectInstallHitTarget(install);
+              const bounds = await install.boundingBox();
+              expect(bounds.y + bounds.height).toBeLessThanOrEqual((await dock.boundingBox()).y);
+            }
+
+            await install.click();
+            await expect(page.getByRole('dialog', { name: 'Add Tableu to your Home Screen', exact: true })).toBeVisible();
+            await page.keyboard.press('Escape');
+            await expect(install).toBeFocused();
+            await expectInstallHitTarget(install, { scrollToEnd: false });
+          });
+
+          test(`the page-end pricing action stays clickable as bottom padding grows (${textPercent}% text)`, async ({ page }) => {
+            await page.setViewportSize({ width: 390, height: 844 });
+            await page.goto('/pricing');
+            await page.addStyleTag({ content: `html { font-size: ${textPercent}% !important; }` });
+            const dock = page.getByRole('region', { name: 'Plan upgrade', exact: true });
+            const install = page.locator('main [data-pwa-footer]').getByRole('button', { name: 'Add to Home Screen', exact: true });
+            await expect(dock).toBeVisible();
+            await expectInstallHitTarget(install);
+            await page.evaluate(() => document.documentElement.style.setProperty('--safe-pad-bottom', '100px'));
+            await expectInstallHitTarget(install);
+            const bounds = await install.boundingBox();
+            expect(bounds.y + bounds.height).toBeLessThanOrEqual((await dock.boundingBox()).y);
+            await install.click();
+            await expect(page.getByRole('dialog', { name: 'Add Tableu to your Home Screen', exact: true })).toBeVisible();
+            await page.keyboard.press('Escape');
+            await expect(install).toBeFocused();
+            await expectInstallHitTarget(install, { scrollToEnd: false });
+          });
+        }
+      });
+
       test('page-end installation respects landscape safe areas', async ({ page }) => {
         await page.setViewportSize({ width: 844, height: 390 });
         await page.goto('/journal');

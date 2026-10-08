@@ -133,7 +133,12 @@ export function InstallApp({ fallbackFocusRef, getFallbackFocus, preventFocusScr
     });
   };
 
-  if (!shouldShowPwaInstall({ isInstalled, isIOS, canPrompt, isPrompting, isSnoozed, hasAddedToHomeScreen })) return null;
+  if (!shouldShowPwaInstall({ isInstalled, isIOS, canPrompt, isPrompting, isSnoozed, hasAddedToHomeScreen })) {
+    // Another tab can hide an open guide. Require a new click when its reminder
+    // returns, while retaining this component for native-prompt focus recovery.
+    if (showInstructions) setShowInstructions(false);
+    return null;
+  }
 
   return (
     <>

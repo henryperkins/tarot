@@ -223,7 +223,8 @@ export default function Journal() {
   const inlineSearchOlderLabel = hasLocalMoreEntries
     ? 'Show more results'
     : (filters.query.trim() ? 'Search older entries' : 'Load older entries');
-  const highlightBannerState = pendingHighlightEntryId ? (highlightStatus || 'loading') : null;
+  const highlightBannerState = pendingHighlightEntryId
+    ? (highlightIndex >= 0 ? 'found' : highlightStatus || 'loading') : null;
   const showHighlightBanner = Boolean(pendingHighlightEntryId) && highlightBannerState !== 'found';
   const showLoadMoreButton = hasMoreVisibleResults || (hasMoreServerEntries && !serverSearchEnabled);
   const loadMoreLabel = serverSearchEnabled
