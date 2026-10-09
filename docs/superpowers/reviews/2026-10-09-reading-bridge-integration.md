@@ -89,8 +89,8 @@ embeddings were unavailable; zero samples used embedding-based scoring.
 Final preservation checks compared the original bridge HEAD, complete Git status
 and all 132 snapshotted file hashes/modes. The HEAD and 130 files were unchanged.
 Concurrent work updated the two existing bridge/handoff plans and added
-`2026-10-09-reading-cue-model-qualification.md` in the original worktree at 21:35
-UTC. Those documentation changes were left in place and preserved separately in
+`2026-10-09-reading-cue-model-qualification.md` in the original worktree. Those
+documentation changes were left in place and preserved separately in
 the recovery folder; they were not absorbed into this integration. Original
 application/configuration files were unchanged, and the beta listeners retained
 their original processes (`workerd` 217177 on 8787 and `MainThread` 217299 on
