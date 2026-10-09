@@ -138,9 +138,14 @@ export async function createReadingCueRelay({ caseData, candidate, aiAdapter, li
       } else {
         const narrativeBase = `/api/tarot-reading/jobs/${startData.jobId}`;
         const visualBase = `/api/tarot-reading/visuals/${startData.readingResultId}`;
-        const isNarrative = url.pathname === narrativeBase || url.pathname.startsWith(`${narrativeBase}/`);
-        const isVisual = url.pathname === visualBase || url.pathname.startsWith(`${visualBase}/`);
-        const suffix = isNarrative ? url.pathname.slice(narrativeBase.length) : isVisual ? url.pathname.slice(visualBase.length) : null;
+        const narrativeBases = [narrativeBase, `/api/tarot-reading/jobs/${encodeURIComponent(startData.jobId)}`];
+        const visualBases = [visualBase, `/api/tarot-reading/visuals/${encodeURIComponent(startData.readingResultId)}`];
+        // Match exact owned raw/canonical-encoded IDs without broad decoding:
+        // encoded slashes, double encoding and foreign IDs remain out of scope.
+        const matchedNarrative = narrativeBases.find(base => url.pathname === base || url.pathname.startsWith(`${base}/`));
+        const matchedVisual = visualBases.find(base => url.pathname === base || url.pathname.startsWith(`${base}/`));
+        const isNarrative = Boolean(matchedNarrative);
+        const suffix = matchedNarrative ? url.pathname.slice(matchedNarrative.length) : matchedVisual ? url.pathname.slice(matchedVisual.length) : null;
         if (suffix === null || !['', '/stream', '/status', '/cancel'].includes(suffix)) { response.writeHead(404).end(); return; }
         if ((suffix === '/cancel') !== (request.method === 'POST') || (!['GET', 'POST'].includes(request.method))) { response.writeHead(405).end(); return; }
         const headers = new Headers();

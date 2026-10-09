@@ -1,6 +1,6 @@
 /** Independent cue qualification through production provider, prompt, job scheduler and ledger. */
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve, join } from 'node:path';
+import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
+import { dirname, resolve, join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -38,11 +38,61 @@ export function createBoundedCueAdapter({ live = false, aiAdapter, budget, candi
   if (!DEFAULT_CUE_CANDIDATES.some(c => canonicalVisualCueJSON(c) === canonicalVisualCueJSON(candidate))) throw new Error('Unknown candidate configuration.');
   const registrations = new Map();
   const attempts = [];
+  const ownedWork = new Set();
   let fatalReason = null;
   const requestTemplate = { messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: '' }], stream: false,
     max_completion_tokens: 8192, reasoning_effort: candidate.effort, temperature: 0, response_format: structuredClone(responseFormat) };
   const { messages: _fixedMessages, ...fixedConfiguration } = requestTemplate;
   const expectedConfiguration = canonicalVisualCueJSON(fixedConfiguration);
+  async function executeRequest(model, input, { signal, registration, requestMetadata = {} } = {}) {
+    const key = registration && `${registration.runId}:${registration.caseId}:${registration.trialId || 'default'}`;
+    if (!key || !registrations.has(key) || canonicalVisualCueJSON(registrations.get(key)) !== canonicalVisualCueJSON(registration)) {
+      throw new Error('Unregistered cue session registration.');
+    }
+    const { messages, ...configuration } = input || {};
+    if (model !== candidate.model || canonicalVisualCueJSON(configuration) !== expectedConfiguration
+      || !Array.isArray(messages) || messages.length !== 2 || messages[0]?.role !== 'system'
+      || messages[0].content !== systemPrompt || messages[1]?.role !== 'user' || typeof messages[1].content !== 'string') {
+      throw new Error('Cue request configuration/schema mismatch.');
+    }
+    if (fatalReason) throw new Error('Global cue configuration failed; dispatch stopped.');
+    signal?.throwIfAborted();
+    if (!budget) throw new Error('Persistent round budget required before dispatch.');
+    let reserved;
+    try { reserved = await budget.reserve({ candidate, registration: { ...registration, ...requestMetadata }, request: input }); }
+    catch (error) { fatalReason = error.code === 'budget_exhausted' ? 'budget-exhausted' : 'budget-configuration'; throw new Error('Round budget stopped before dispatch.'); }
+    const attempt = { ...reserved, schemaSha256: cueDigest(responseFormat), inputMessagesSha256: cueDigest(messages) };
+    attempts.push(attempt);
+    // Hold unknown outcomes immediately on provider deadline/cancellation, even
+    // when a remote operation ignores AbortSignal and resolves later.
+    let abort;
+    try {
+      const operation = Promise.resolve().then(() => aiAdapter.run(model, input, { signal }));
+      const cancelled = new Promise((_, reject) => {
+        abort = () => reject(Object.assign(new Error('Visual annotation cancelled.'), { code: signal?.reason?.name === 'TimeoutError' || signal?.reason?.code === 'deadline_exceeded' ? 'timeout' : 'cancelled' }));
+        signal?.addEventListener('abort', abort, { once: true });
+        if (signal?.aborted) abort();
+      });
+      const result = await Promise.race([operation, cancelled]);
+      let outcome = 'accepted';
+      try {
+        const raw = result?.response ?? result?.choices?.[0]?.message?.content;
+        visualCueResponseSchema.parse(typeof raw === 'string' ? JSON.parse(raw) : raw);
+      } catch { outcome = 'rejected'; }
+      const settled = await budget.settle(reserved.id, { outcome, reason: outcome === 'rejected' ? 'quality_rejected' : null, usage: result?.usage, returnedModel: result?.model });
+      Object.assign(attempt, settled);
+      return result;
+    } catch (error) {
+      const reason = ['authorization', 'configuration', 'cancelled', 'timeout'].includes(error?.code) ? error.code : 'provider_error';
+      const fatal = ['authorization', 'configuration'].includes(reason);
+      if (fatal) fatalReason = reason;
+      Object.assign(attempt, await budget.settle(reserved.id, { outcome: 'failed', reason, usage: error?.usage,
+        returnedModel: error?.model, fatal }));
+      const safe = new Error('Visual annotation failed.'); safe.code = reason;
+      if (reason === 'cancelled') safe.name = 'AbortError';
+      throw safe;
+    } finally { signal?.removeEventListener('abort', abort); }
+  }
   const adapter = {
     attempts, requestTemplate, get fatalReason() { return fatalReason; },
     registerSession(registration) {
@@ -53,55 +103,16 @@ export function createBoundedCueAdapter({ live = false, aiAdapter, budget, candi
       registrations.set(key, record);
       return { run: (model, input, options = {}) => adapter.run(model, input, { ...options, registration: record }) };
     },
-    async run(model, input, { signal, registration, requestMetadata = {} } = {}) {
-      const key = registration && `${registration.runId}:${registration.caseId}:${registration.trialId || 'default'}`;
-      if (!key || !registrations.has(key) || canonicalVisualCueJSON(registrations.get(key)) !== canonicalVisualCueJSON(registration)) {
-        throw new Error('Unregistered cue session registration.');
-      }
-      const { messages, ...configuration } = input || {};
-      if (model !== candidate.model || canonicalVisualCueJSON(configuration) !== expectedConfiguration
-        || !Array.isArray(messages) || messages.length !== 2 || messages[0]?.role !== 'system'
-        || messages[0].content !== systemPrompt || messages[1]?.role !== 'user' || typeof messages[1].content !== 'string') {
-        throw new Error('Cue request configuration/schema mismatch.');
-      }
-      if (fatalReason) throw new Error('Global cue configuration failed; dispatch stopped.');
-      signal?.throwIfAborted();
-      if (!budget) throw new Error('Persistent round budget required before dispatch.');
-      let reserved;
-      try { reserved = await budget.reserve({ candidate, registration: { ...registration, ...requestMetadata }, request: input }); }
-      catch (error) { fatalReason = error.code === 'budget_exhausted' ? 'budget-exhausted' : 'budget-configuration'; throw new Error('Round budget stopped before dispatch.'); }
-      const attempt = { ...reserved, schemaSha256: cueDigest(responseFormat), inputMessagesSha256: cueDigest(messages) };
-      attempts.push(attempt);
-      // Hold unknown outcomes immediately on provider deadline/cancellation, even
-      // when a remote operation ignores AbortSignal and resolves later.
-      let abort;
-      try {
-        const operation = Promise.resolve().then(() => aiAdapter.run(model, input, { signal }));
-        const cancelled = new Promise((_, reject) => {
-          abort = () => reject(Object.assign(new Error('Visual annotation cancelled.'), { code: signal?.reason?.code === 'deadline_exceeded' ? 'timeout' : 'cancelled' }));
-          signal?.addEventListener('abort', abort, { once: true });
-          if (signal?.aborted) abort();
-        });
-        const result = await Promise.race([operation, cancelled]);
-        let outcome = 'accepted';
-        try {
-          const raw = result?.response ?? result?.choices?.[0]?.message?.content;
-          visualCueResponseSchema.parse(typeof raw === 'string' ? JSON.parse(raw) : raw);
-        } catch { outcome = 'rejected'; }
-        const settled = await budget.settle(reserved.id, { outcome, reason: outcome === 'rejected' ? 'quality_rejected' : null, usage: result?.usage, returnedModel: result?.model });
-        Object.assign(attempt, settled);
-        return result;
-      } catch (error) {
-        const reason = ['authorization', 'configuration', 'cancelled', 'timeout'].includes(error?.code) ? error.code : 'provider_error';
-        const fatal = ['authorization', 'configuration'].includes(reason);
-        if (fatal) fatalReason = reason;
-        Object.assign(attempt, await budget.settle(reserved.id, { outcome: 'failed', reason, usage: error?.usage,
-          returnedModel: error?.model, fatal }));
-        const safe = new Error('Visual annotation failed.'); safe.code = reason;
-        if (reason === 'cancelled') safe.name = 'AbortError';
-        throw safe;
-      } finally { signal?.removeEventListener('abort', abort); }
-    }
+    run(model, input, options) {
+      const work = executeRequest(model, input, options);
+      ownedWork.add(work);
+      work.then(() => ownedWork.delete(work), () => ownedWork.delete(work));
+      return work;
+    },
+    async drainSettlements() {
+      while (ownedWork.size) await Promise.allSettled([...ownedWork]);
+    },
+
   };
   return adapter;
 }
@@ -163,6 +174,10 @@ export async function createVisualCueSession({ caseData, candidate = DEFAULT_CUE
     },
     async finish() {
       await state.drain();
+      // Production deadlines can finish the job before adapter accounting I/O.
+      // Drain only the bounded race/settlement, never the losing remote promise.
+      await bounded.drainSettlements();
+      await state.drain();
       finished = true;
       const inferenceAttempts = db.rows('SELECT * FROM inference_attempts WHERE request_id = ? ORDER BY started_at, rowid', [binding.readingResultId]);
       // D1 rows lack requestSequence and may finish out of order (or share a
@@ -213,14 +228,45 @@ const relevantFiles = [
   'shared/contracts/generatedPassageAnnotations.js', 'shared/reading/visualCueLedger.js',
   'scripts/evaluation/lib/readingCueQualification.mjs', 'scripts/evaluation/fixtures/readingCuePricing.json',
   'scripts/evaluation/fixtures/readingCueQualification.json', 'src/data/cardGestureArtwork.js',
-  'src/data/cardGestureDetails/majors.js', 'src/data/cardGestureDetails/cupsPentacles.js', 'src/data/cardGestureDetails/wandsSwords.js'
+  'src/data/cardGestureDetails/majors.js', 'src/data/cardGestureDetails/cupsPentacles.js', 'src/data/cardGestureDetails/wandsSwords.js',
+  'package.json', 'package-lock.json', 'tests/helpers/d1Sqlite.mjs'
 ];
+/** Pin transitive local ESM imports/re-exports, including literal dynamic imports.
+ * Package versions are pinned separately by the package lock; runtime D1 SQL
+ * files are explicit roots because the existing helper loads them by directory.
+ */
+async function runtimeFileDigests(root, seedPaths) {
+  const pending = seedPaths.map(path => resolve(root, path));
+  const digests = new Map();
+  while (pending.length) {
+    const path = pending.pop();
+    if (digests.has(path)) continue;
+    const bytes = await readFile(path);
+    digests.set(path, cueDigest(bytes));
+    if (!/\.(?:[cm]?js|jsx|tsx?|json)$/.test(path)) continue;
+    const source = bytes.toString('utf8');
+    const imports = [
+      ...source.matchAll(/(?:^|\n)\s*(?:import|export)\s+(?:[^'";]*?\s+from\s*)?['"](\.[^'"]+)['"]/g),
+      ...source.matchAll(/\bimport\s*\(\s*['"](\.[^'"]+)['"]\s*\)/g)
+    ];
+    for (const match of imports) {
+      const dependency = resolve(dirname(path), match[1]);
+      if (!relative(root, dependency).startsWith('..')) pending.push(dependency);
+    }
+  }
+  return Object.fromEntries([...digests].map(([path, digest]) => {
+    const local = relative(root, path);
+    return [local.startsWith('..') ? path : local, digest];
+  }).sort(([left], [right]) => left.localeCompare(right)));
+}
 export async function createCueRunIdentity({ cases, phase, candidates = DEFAULT_CUE_CANDIDATES, repeats = 2, live = false,
   root = repositoryRoot, relevantPaths = relevantFiles, dispatchConfiguration = {}, catalog = [] } = {}) {
   const head = (await execute('git', ['rev-parse', 'HEAD'], { cwd: root })).stdout.trim();
+  const seedPaths = [...relevantPaths];
+  if (relevantPaths === relevantFiles) seedPaths.push(...(await readdir(resolve(root, 'migrations'))).filter(name => name.endsWith('.sql')).map(name => `migrations/${name}`));
+  const fileDigests = await runtimeFileDigests(root, seedPaths);
   const dirtyPaths = (await execute('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: root })).stdout.split('\n')
-    .filter(line => line && relevantPaths.some(path => line.slice(3) === path)).map(line => line.slice(3)).sort();
-  const fileDigests = Object.fromEntries(await Promise.all(relevantPaths.map(async path => [path, cueDigest(await readFile(resolve(root, path)))])));
+    .filter(line => line && Object.hasOwn(fileDigests, line.slice(3))).map(line => line.slice(3)).sort();
   const promptHashes = Object.fromEntries(cases.map(c => [c.id, cueDigest(buildVisualCuePrompt({ ...cueValidationContext(c), rawPrefix: c.raw, artworkEdition: c.artworkEdition || `identity:${c.deckStyle}` }))]));
   const identity = { head, dirtyPaths, fileDigests, phase, repeats, live, candidates, dispatchConfiguration, catalogSha256: cueDigest(catalog),
     manifestSha256: cases[0]?.labelProvenance?.manifestSha256, pricingSha256: cueDigest(CUE_PRICING_SNAPSHOT),

@@ -214,6 +214,9 @@ test('duplicate observations never dispatch or duplicate accepted cues', async (
 test('run identity is deterministic and dirty relevant bytes change it', async () => {
   const first = await createCueRunIdentity({ cases, phase: 'semantic' });
   assert.deepEqual(first, await createCueRunIdentity({ cases, phase: 'semantic' }));
+  for (const path of ['functions/lib/requestDeadline.js', 'functions/lib/readingVisualResults.js',
+    'shared/contracts/readingPassageAssociations.js', 'functions/lib/visualCueObserver.js',
+    'functions/lib/readingVisualJobs.js', 'package-lock.json']) assert.ok(first.fileDigests[path], path);
   const path = join(await temporary(), 'relevant.txt');
   await writeFile(path, 'first');
   const before = await createCueRunIdentity({ cases, phase: 'semantic', relevantPaths: [path] });
@@ -417,4 +420,108 @@ test('exposed request template mutation cannot weaken frozen output bound', asyn
   adapter.requestTemplate.max_completion_tokens = 100000;
   await assert.rejects(registered.run(candidate.model, adapter.requestTemplate), /configuration/i);
   assert.equal((await budget.snapshot()).attempts.length, 0);
+});
+
+test('actual visual client uses canonical encoded stream, snapshot recovery and reconnect routes', async () => {
+  const { readVisualJobEvents } = await import('../src/lib/readingVisualStream.js');
+  const relay = await createReadingCueRelay({ caseData: star, candidate, runId: 'encoded-client', schedule: 'burst' });
+  const requests = [];
+  let cutFirstStream = true;
+  const controller = new AbortController();
+  const fetchImpl = async (path, options) => {
+    requests.push(path);
+    const result = await fetch(new URL(path, relay.origin), options);
+    assert.equal(result.status, 200);
+    if (cutFirstStream && path.includes('/stream')) {
+      cutFirstStream = false;
+      const reader = result.body.getReader();
+      const first = await reader.read();
+      await reader.cancel();
+      return new Response(new ReadableStream({ start(stream) { stream.enqueue(first.value); stream.close(); } }), {
+        headers: { 'Content-Type': 'text/event-stream' }
+      });
+    }
+    return result;
+  };
+  try {
+    const events = readVisualJobEvents({ readingResultId: relay.startData.readingResultId,
+      visualJobToken: relay.startData.visualJobToken, fetchImpl, signal: controller.signal, retryDelay: 1, maxFailures: 2 });
+    assert.equal((await events.next()).value.event, 'snapshot');
+    assert.equal((await events.next()).value.event, 'snapshot');
+    const terminal = events.next();
+    relay.startSchedule();
+    assert.equal((await terminal).done, false);
+    await relay.completion;
+    for await (const _event of events) { /* Consume actual client terminal envelope. */ }
+    const encoded = encodeURIComponent(relay.startData.readingResultId);
+    assert.ok(requests.includes(`/api/tarot-reading/visuals/${encoded}`));
+    assert.ok(requests.filter(path => path.includes(`/visuals/${encoded}/stream`)).length >= 2);
+    const wrong = await fetch(`${relay.origin}/api/tarot-reading/visuals/${encodeURIComponent('cue:another-case')}`);
+    assert.equal(wrong.status, 404);
+    const doubleEncoded = await fetch(`${relay.origin}/api/tarot-reading/visuals/${encodeURIComponent(encoded)}`);
+    assert.equal(doubleEncoded.status, 404);
+  } finally { controller.abort(); await relay.close(); }
+});
+
+for (const stop of ['cancel', 'deadline']) {
+  test(`${stop} finish drains delayed settlement without waiting for abort-ignoring inference`, async () => {
+    const realBudget = await openCueRoundBudget({ path: join(await temporary(), 'round.json'), roundId: 'terminal-round' });
+    let release;
+    let settling;
+    let dispatch;
+    const gate = new Promise(resolve => { release = resolve; });
+    const settlementStarted = new Promise(resolve => { settling = resolve; });
+    const started = new Promise(resolve => { dispatch = resolve; });
+    const budget = { ...realBudget, async settle(...args) { settling(); await gate; return realBudget.settle(...args); } };
+    const session = await createVisualCueSession({ caseData: star, candidate, budget,
+      aiAdapter: fake(async () => { dispatch(); return new Promise(() => {}); }) });
+    session.env.VISUAL_CUE_TIMEOUT_MS = stop === 'deadline' ? 10 : 60000;
+    await session.observe(star.raw, { complete: true });
+    await started;
+    if (stop === 'cancel') await session.cancel();
+    await settlementStarted;
+    await session.state.drain();
+    let finished = false;
+    const reportPromise = session.finish().then(report => { finished = true; return report; });
+    await tick();
+    assert.equal(finished, false, 'immutable report must wait for owned accounting settlement');
+    release();
+    const report = await reportPromise;
+    assert.equal(report.attempts[0].outcome, 'failed');
+    assert.equal(report.attempts[0].reason, stop === 'deadline' ? 'timeout' : 'cancelled');
+    assert.equal(report.attempts[0].heldUsd, report.attempts[0].reservedUsd);
+    assert.equal(report.attempts[0].estimatedUsd, null);
+    assert.equal(report.jobAttemptRowsComplete, true);
+  });
+}
+
+test('identity follows runtime imports: dirty deadline/persistence bytes change it; output artifacts do not', async () => {
+  const { mkdir } = await import('node:fs/promises');
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const execute = promisify(execFile);
+  const root = await temporary();
+  await mkdir(join(root, 'functions/lib'), { recursive: true });
+  await mkdir(join(root, 'src/worker'), { recursive: true });
+  await writeFile(join(root, 'functions/lib/visualCueProvider.js'), "import './requestDeadline.js';\n");
+  await writeFile(join(root, 'src/worker/readingVisualJob.js'), "import '../../functions/lib/readingVisualResults.js';\n");
+  await writeFile(join(root, 'functions/lib/requestDeadline.js'), 'export const deadline = 1;\n');
+  await writeFile(join(root, 'functions/lib/readingVisualResults.js'), 'export const persistence = 1;\n');
+  await execute('git', ['init', '--quiet'], { cwd: root });
+  await execute('git', ['add', '.'], { cwd: root });
+  await execute('git', ['-c', 'user.name=Test', '-c', 'user.email=test@invalid', 'commit', '--quiet', '-m', 'fixture'], { cwd: root });
+  const options = { cases, root, phase: 'semantic', relevantPaths: ['functions/lib/visualCueProvider.js', 'src/worker/readingVisualJob.js'] };
+  const first = await createCueRunIdentity(options);
+  await writeFile(join(root, 'functions/lib/requestDeadline.js'), 'export const deadline = 2;\n');
+  const changed = await createCueRunIdentity(options);
+  assert.equal(first.head, changed.head);
+  assert.notEqual(first.digest, changed.digest);
+  assert.ok(changed.dirtyPaths.includes('functions/lib/requestDeadline.js'));
+  assert.notEqual(first.fileDigests['functions/lib/requestDeadline.js'], changed.fileDigests['functions/lib/requestDeadline.js']);
+  await writeFile(join(root, 'functions/lib/readingVisualResults.js'), 'export const persistence = 2;\n');
+  const persistence = await createCueRunIdentity(options);
+  assert.notEqual(changed.digest, persistence.digest);
+  assert.ok(persistence.dirtyPaths.includes('functions/lib/readingVisualResults.js'));
+  await writeFile(join(root, 'unrelated-output.json'), '{"receipt":true}');
+  assert.deepEqual(await createCueRunIdentity(options), persistence);
 });
