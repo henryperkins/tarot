@@ -23,7 +23,7 @@ test('edition dispatch never borrows scan coordinates; authored crops reverse on
     assert.ok(Math.abs(restored.y - detail.frame.y) < 1e-12);
     assert.equal(restored.zoom, detail.frame.zoom);
   }
-  for (const [name, id, x, y] of [['The Star', 'pool-pour', .725, .3], ['The Star', 'land-pour', .16, .275], ['The Hermit', 'lantern', .85, .768], ['Seven of Swords', 'two-swords', .252, .399], ['Wheel of Fortune', 'wheel', .516, .494]]) {
+  for (const [name, id, x, y] of [['The Star', 'pool-pour', .725, .3], ['The Star', 'land-pour', .16, .275], ['The Hermit', 'lantern', .85, .768], ['Seven of Swords', 'two-swords', .252, .41], ['Wheel of Fortune', 'wheel', .516, .494]]) {
     const upright = getVectorGestureDetails(name).find(detail => detail.id === id).frame;
     const reversed = projectGestureFrame(upright, true);
     assert.ok(Math.abs(reversed.x - x) < 1e-12);

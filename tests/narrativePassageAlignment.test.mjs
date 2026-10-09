@@ -218,3 +218,56 @@ test('closing quotation punctuation does not revoke an arrived literal cue', () 
   assert.ok(pool);
   assert.deepEqual(stream(`${prefix}”`).associations.find(cue => cue.id === pool.id), pool);
 });
+
+test('supported synthesis reuses established imagery without enriching arbitrary named pairs', () => {
+  const sample = fixture('gestures-five-card-creative-project.json');
+  const result = align(sample.reading, sample.cards);
+  const synthesis = result.associations.find(cue => cue.kind === 'relationship');
+  assert.deepEqual(synthesis.targets.map(target => target.detailIds), [['sprout'], ['cup']]);
+  const ungrounded = align('The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting.', spread('Ace of Wands', 'Queen of Cups'));
+  assert.ok(ungrounded.associations.every(cue => cue.targets.every(target => target.detailIds.length === 0)));
+  const unrelated = align('Ace of Wands. A hand offers a wand still sprouting leaves. Queen of Cups. She holds an ornate, covered cup. The Ace of Wands and Queen of Cups appear together.', spread('Ace of Wands', 'Queen of Cups'));
+  assert.ok(unrelated.associations.filter(cue => cue.kind === 'relationship').every(cue => cue.targets.every(target => target.detailIds.length === 0)));
+});
+
+test('recorded Celtic imagery establishes staffs once and returns to the lantern and scrum', () => {
+  const sample = fixture('gestures-celtic-deep-shift.json');
+  const result = align(sample.excerpt, sample.cards);
+  const staffs = result.associations.filter(cue => cue.kind === 'literal' && detailIds(cue).includes('staffs'));
+  assert.equal(staffs.length, 1);
+  assert.ok(result.associations.some(cue => cue.kind === 'interpretation' && detailIds(cue).includes('lantern')));
+  assert.ok(result.associations.some(cue => cue.kind === 'interpretation' && detailIds(cue).includes('staffs')));
+});
+
+test('expanded live details wait for a complete physical statement and remain stable while held', () => {
+  const cards = spread('The Fool');
+  const prefix = 'The Fool. A white dog leaps beside the traveler ';
+  const first = stream(prefix, cards);
+  assert.deepEqual(first.associations.flatMap(detailIds), [], 'future qualifiers have not arrived');
+  assert.equal(first.introductions[0].pending, true);
+  const raw = `${prefix}as a metaphor for companionship.`;
+  const closed = stream(raw, cards);
+  const dog = closed.associations.find(cue => detailIds(cue).includes('white-dog'));
+  assert.ok(dog, 'the physical description survives its interpretive explanation');
+  assert.equal(closed.introductions[0].pending, false);
+  let state = createGestureFocusState({ runId: 'live-reading', sourceRevision: 0, ...closed });
+  state = reduceGestureFocus(state, { type: 'PROGRESS', runId: 'live-reading', sourceRevision: 0, progress: { visibleEnd: raw.length, complete: false } });
+  state = reduceGestureFocus(state, { type: 'HOLD', runId: 'live-reading', sourceRevision: 0, selection: { kind: 'association', id: dog.id } });
+  const next = stream(`${raw} You can decide what that companionship means for you.`, cards);
+  assert.deepEqual(next.associations.find(cue => cue.id === dog.id), dog);
+  state = reduceGestureFocus(state, { type: 'SOURCE', source: { runId: 'live-reading', sourceRevision: 0, status: 'streaming' }, ...next });
+  assert.equal(state.held?.id, dog.id);
+  assert.equal(state.current?.id, dog.id);
+});
+
+test('a late qualifier cannot publish a premature expanded literal and the original Star cue keeps its cadence', () => {
+  const cards = spread('The Moon');
+  const prefix = 'The Moon. A crayfish ';
+  assert.deepEqual(stream(prefix, cards).associations.flatMap(detailIds), []);
+  assert.deepEqual(stream(`${prefix}does not emerge from the pool.`, cards).associations.flatMap(detailIds), []);
+  const starPrefix = 'The Star shows water pouring into a pool, ';
+  const pool = stream(starPrefix).associations.find(cue => detailIds(cue).includes('pool-pour'));
+  assert.ok(pool, 'the established eight-card rules retain their earlier physical cadence');
+  const next = stream(`${starPrefix}as a metaphor for memory.`);
+  assert.deepEqual(next.associations.find(cue => cue.id === pool.id), pool);
+});

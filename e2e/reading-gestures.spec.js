@@ -140,11 +140,14 @@ test('compact relationship and reduced-motion meaning @mobile', async ({ page })
   for (const width of [390, 375, 320]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 667 });
     await expect(windowArt(page)).toBeVisible();
-    const before = await windowArt(page).boundingBox();
+    // WebKit can briefly return no protocol quad after a viewport resize even
+    // though the visible stage has a valid DOM layout. Compare layout heights.
+    const beforeHeight = await windowArt(page).evaluate(element => element.getBoundingClientRect().height);
+    expect(beforeHeight).toBeGreaterThan(0);
     await phrase(page, 'drive-and-sensitivity').click();
     await expect(windowArt(page)).toBeVisible();
-    const paired = await windowArt(page).boundingBox();
-    expect(Math.abs(before.height - paired.height)).toBeLessThanOrEqual(1);
+    const pairedHeight = await windowArt(page).evaluate(element => element.getBoundingClientRect().height);
+    expect(Math.abs(beforeHeight - pairedHeight)).toBeLessThanOrEqual(1);
     await expect(currentCards(page)).toHaveCount(2);
     await phrase(page, 'ace-meaning').click();
     await expect(windowArt(page).locator('[data-gesture-art]')).toHaveCount(2);

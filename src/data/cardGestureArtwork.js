@@ -1,3 +1,7 @@
+import { MAJOR_ARTWORK } from './cardGestureDetails/majors.js';
+import { CUP_PENTACLE_ARTWORK } from './cardGestureDetails/cupsPentacles.js';
+import { WAND_SWORD_ARTWORK } from './cardGestureDetails/wandsSwords.js';
+
 /** Trusted authored overlays on the rendered upright plane; never source SVG markup. */
 export const CARD_GESTURE_PLANE = Object.freeze({ width: 1086, height: 1810 });
 const fiveCardDetails = {
@@ -23,7 +27,7 @@ const fiveCardDetails = {
   },
   'two-swords': {
     card: 'swords', x: .748, y: .601, rx: .13, ry: .24,
-    frame: { x: .748, y: .601, zoom: 1.30 },
+    frame: { x: .748, y: .59, zoom: .62 },
     spots: [
       { x: .696, y: .601, rx: .061, ry: .24 },
       { x: .800, y: .587, rx: .061, ry: .24 }
@@ -87,7 +91,9 @@ for (const [id, authored] of Object.entries(fiveCardDetails)) {
   const { card, x, y, rx, ry, spots, frame, traces = [] } = authored;
   (vectorDetails[cardNames[card]] ||= []).push(detail(id, [id.replaceAll('-', ' ')], spots || [{ x, y, rx, ry }], frame, traces.length ? { kind: 'finite', duration: 1800 } : undefined, traces));
 }
-/** Unsupported cards deliberately keep whole-card context without scan geometry. */
+Object.assign(vectorDetails, MAJOR_ARTWORK, CUP_PENTACLE_ARTWORK, WAND_SWORD_ARTWORK);
+
+/** Unknown cards deliberately keep whole-card context without guessed geometry. */
 export function getVectorGestureDetails(canonicalName) {
   return vectorDetails[canonicalName] || [];
 }

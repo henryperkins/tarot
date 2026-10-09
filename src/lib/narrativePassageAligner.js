@@ -7,6 +7,9 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
+import { MAJOR_RULES } from '../data/cardGestureDetails/majors.js';
+import { CUP_PENTACLE_RULES } from '../data/cardGestureDetails/cupsPentacles.js';
+import { WAND_SWORD_RULES } from '../data/cardGestureDetails/wandsSwords.js';
 import { getVectorGestureDetails } from '../data/cardGestureArtwork.js';
 import { getCanonicalCard } from './cardLookup.js';
 import { buildCardLinkCatalog, findCardMentions } from './narrativeCardLinks.js';
@@ -16,16 +19,18 @@ const VECTOR_EDITION = 'rws-immanuelle-vector';
 const parser = unified().use(remarkParse).use(remarkGfm);
 const WORD = /[\p{L}\p{N}_]/u;
 const OPAQUE = new Set(['link', 'linkReference', 'image', 'imageReference', 'code', 'inlineCode', 'html', 'delete']);
+const EXPANDED_RULES = { ...MAJOR_RULES, ...CUP_PENTACLE_RULES, ...WAND_SWORD_RULES };
 
 // A symbol label alone cannot establish a painted detail. These predicates
 // require a physical description in the same sentence and the right card.
 const LITERAL_RULES = {
+  ...EXPANDED_RULES,
   'The Star': [
     { id: 'pool-pour', match: /\bpool\b/giu, scene: /\b(?:pour\w*|flow\w*|water|pitcher\w*)\b/i, before: /\b(?:into|towards?|in|touches)\s+(?:(?:a|the)\s+)?$/i },
     { id: 'land-pour', match: /\bland\b/giu, scene: /\b(?:pour\w*|flow\w*|water|pitcher\w*)\b/i, before: /\b(?:onto|on|touches)\s+(?:the\s+)?$/i }
   ],
   'The Hermit': [{ id: 'lantern', match: /\blantern\b/giu, scene: /\b(?:holds?|holding|held|carr\w*|rais\w*|light\w*|glow\w*|shin\w*)\b/i }],
-  'Five of Wands': [{ id: 'staffs', match: /\b(?:staffs|staves|scrum)\b/giu, scene: /\b(?:figures?|men|rais\w*|hold\w*|cross\w*|clash\w*)\b/i }],
+  'Five of Wands': [{ id: 'staffs', match: /\b(?:staffs|staves|scrum)\b/giu, scene: /\b(?:figures?|people|men|swing\w*|rais\w*|hold\w*|cross\w*|clash\w*)\b/i }],
   'Ace of Wands': [
     { id: 'sprout', match: /\bsprouting leaves\b|\bsprouts?\b/giu, scene: /\b(?:wand|hand|cloud)\b/i },
     { id: 'castle', match: /\bcastle\b/giu, scene: /\b(?:hills?|distance|distant|landscape)\b/i }
@@ -42,6 +47,8 @@ const LITERAL_RULES = {
 // Returns require the corresponding literal detail earlier in this reading.
 // These are deliberately narrow English phrases, not general keyword triggers.
 const RETURNS = [
+  { name: 'The Hermit', ids: ['lantern'], match: /\blantern first\b/giu, named: true },
+  { name: 'Five of Wands', ids: ['staffs'], match: /\bstepping into the scrum\b/giu, crossContext: true },
   { name: 'The Star', ids: ['pool-pour'], match: /\b(?:emotional reservoir of memory|people back home)\b/giu },
   { name: 'The Star', ids: ['land-pour'], match: /\bthe other waters new ground\b/giu },
   { name: 'The Star', ids: ['pool-pour', 'land-pour'], match: /\bNeither pitcher gets dropped\b/giu, kind: 'balance' },
@@ -120,6 +127,36 @@ function sourceSpan(block, from, to, raw, complete) {
   return { start, end, quote: raw.slice(start, end) };
 }
 
+/**
+ * The new deck-wide rules require a closed, affirmative physical clause.
+ * Scene evidence must belong to that clause, not a nearby instruction or a
+ * later interpretation. Ambiguous personal/imagined descriptions stay prose.
+ * This is a conservative English boundary, not general semantic parsing.
+ */
+function expandedPhysicalClause(scene, from, to) {
+  const nonDepiction = /^\s*(?:metaphorically|figuratively|consider|imagine|envision|suppose|pretend|if|what if)\b/i;
+  if (nonDepiction.test(scene)) return null;
+  let start = 0;
+  let end = scene.length;
+  for (const boundary of scene.matchAll(/[,;]|\b(?:but|whereas)\b/giu)) {
+    if (boundary.index + boundary[0].length <= from) start = boundary.index + boundary[0].length;
+    else if (boundary.index >= to) { end = boundary.index; break; }
+    else return null;
+  }
+  let clause = scene.slice(start, end);
+  if (nonDepiction.test(clause)) return null;
+  const interpretation = clause.search(/\b(?:as a metaphor|metaphorically|figuratively|symboliz\w*|symbolis\w*|represent\w*|suggest\w*|remind\w*|invit\w*)\b/i);
+  if (interpretation >= 0) {
+    if (interpretation < to - start) return null;
+    clause = clause.slice(0, interpretation);
+  }
+  // These are grammatical subjects/negations inside the physical clause,
+  // never a list of abstract symbol meanings inferred from the whole sentence.
+  if (/\b(?:you|your|yours|we|our|ours|us|I|my|mine|me)\b/i.test(clause)) return null;
+  if (/\b(?:no|not|never|neither|without|cannot|\w+n['’]t)\b/i.test(clause)) return null;
+  return clause;
+}
+
 export function alignReadingPassages({
   rawText, cards = [], deckStyle = 'rws-1909', artworkEdition = cards?.[0]?.artworkEdition || 'unknown',
   userQuestion = '', querentReflections = null, sourceComplete = true
@@ -175,7 +212,16 @@ export function alignReadingPassages({
           const last = mentions.at(-1);
           const prefix = block.text.slice(sentence.offset, first.start);
           const start = /^The\s+$/i.test(prefix) ? sentence.offset : first.start;
-          add('relationship', sourceSpan(block, start, last.end, raw, sourceComplete), unique.map(index => target(index)));
+          const passage = sourceSpan(block, start, last.end, raw, sourceComplete);
+          // This explicit interpretation has two known image referents. Other
+          // named pairs retain identity; prior detail alone is not a license to
+          // carry arbitrary geometry into a new relationship.
+          const synthesis = /\bboth your drive and your sensitivity\b/i.test(sentence.text)
+            && unique.some(index => byIndex.get(index).canonicalName === 'Ace of Wands')
+            && unique.some(index => byIndex.get(index).canonicalName === 'Queen of Cups');
+          const meanings = { 'Ace of Wands': 'sprout', 'Queen of Cups': 'cup' };
+          const grounded = synthesis && passage && unique.every(index => established.get(index)?.get(meanings[byIndex.get(index).canonicalName]) <= passage.start);
+          add('relationship', passage, unique.map(index => target(index, grounded ? [meanings[byIndex.get(index).canonicalName]] : [])));
         } else {
           for (const mention of mentions) add('identity', mention.passage, [target(mention.card)]);
         }
@@ -185,6 +231,10 @@ export function alignReadingPassages({
       const literal = [];
       if (!block.heading) for (const index of possibleOwners) {
         const card = byIndex.get(index);
+        const expanded = Object.hasOwn(EXPANDED_RULES, card.canonicalName);
+        // Broad deck coverage waits for the statement's qualifiers. Existing
+        // eight-card choreography keeps its previously verified prefix timing.
+        if (expanded && !sentence.closed) continue;
         const available = new Set(supported(card.canonicalName).map(detail => detail.id));
         for (const rule of LITERAL_RULES[card.canonicalName] || []) {
           if (!available.has(rule.id)) continue;
@@ -199,14 +249,19 @@ export function alignReadingPassages({
             const sceneStart = preceding ? preceding.end - sentence.offset : 0;
             const sceneEnd = nextMention ? nextMention.start - sentence.offset : sentence.text.length;
             const scene = sentence.text.slice(sceneStart, sceneEnd);
-            if (!rule.scene.test(scene)) continue;
+            const physical = expanded ? expandedPhysicalClause(scene, match.index - sceneStart, match.index + match[0].length - sceneStart) : scene;
+            if (physical === null || !rule.scene.test(physical)) continue;
             if (rule.before && !rule.before.test(sentence.text.slice(sceneStart, match.index))) continue;
             const passage = sourceSpan(block, at, at + match[0].length, raw, sourceComplete);
             if (passage && !mentions.some(m => passage.start < m.passage.end && passage.end > m.passage.start)) literal.push({ passage, id: rule.id, index });
           }
         }
       }
+      const describedDetails = new Set();
       for (const { passage, id, index } of literal.sort((a, b) => a.passage.start - b.passage.start)) {
+        const key = `${index}:${id}`;
+        if (describedDetails.has(key)) continue;
+        describedDetails.add(key);
         add('literal', passage, [target(index, [id])]);
         const seen = established.get(index) || new Map();
         if (!seen.has(id)) seen.set(id, passage.end);
@@ -222,7 +277,8 @@ export function alignReadingPassages({
         if (eligible.length !== 1) continue;
         const index = eligible[0].index;
         const explicitContext = unique.length ? unique : context === null ? [] : [context];
-        if (explicitContext.length && !explicitContext.includes(index)) continue;
+        if (rule.named && !unique.includes(index)) continue;
+        if (explicitContext.length && !explicitContext.includes(index) && !(rule.crossContext && !unique.length)) continue;
         for (const match of sentence.text.matchAll(rule.match)) {
           const passage = sourceSpan(block, sentence.offset + match.index, sentence.offset + match.index + match[0].length, raw, sourceComplete);
           if (!passage || !rule.ids.every(id => established.get(index)?.get(id) <= passage.start)) continue;

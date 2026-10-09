@@ -438,7 +438,7 @@
 .gesture-companion { position: sticky; top: 1rem; align-self: start; width: 100%; color: var(--text-main); }
 .gesture-shelf { display: grid; grid-template-columns: repeat(var(--shelf-count), minmax(0, 1fr)); gap: 8px; list-style: none; margin: 0 0 18px; padding: 0; }
 .gesture-shelf li { min-width: 0; text-align: center; }
-.gesture-shelf-card { display: block; width: 100%; aspect-ratio: 3/5; min-height: 44px; background: none; border: 0; padding: 0; border-radius: 4px; cursor: pointer; }
+.gesture-shelf-card { display: block; width: 100%; max-width: 108px; margin-inline: auto; aspect-ratio: 3/5; min-height: 44px; background: none; border: 0; padding: 0; border-radius: 4px; cursor: pointer; }
 .gesture-shelf-card:disabled { cursor: default; }
 .gesture-shelf-label { display: block; min-height: 18px; font: 11px/1.5 Inter, sans-serif; margin-top: 5px; color: var(--text-muted); }
 .gesture-window { position: relative; width: 100%; height: 360px; overflow: hidden; isolation: isolate; }
@@ -457,6 +457,7 @@
 .gesture-art[data-held] .gesture-art__image, button:hover .gesture-art__image, button:focus-visible .gesture-art__image, .gesture-art[data-calm][data-active] .gesture-art__image { opacity: 1; filter: brightness(1); }
 .gesture-art__light, .gesture-art__water { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .gesture-art__light { opacity: .65; }
+.gesture-art__surround { fill: var(--bg-main); opacity: .3; }
 .gesture-art__water { opacity: var(--gesture-water-opacity, 0); mix-blend-mode: screen; }
 .gesture-art__trace { fill: none; stroke: #f8e6ad; stroke-width: 5; stroke-linecap: round; opacity: .32; }
 .gesture-art__flow, .gesture-art__rivulet { fill: none; stroke: #d2efff; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 28 18; animation: gesture-flow 1s linear infinite paused; }
@@ -477,8 +478,9 @@
   /* Auto margins disable flex cross-axis stretch; bound prose at text zoom. */
   .narrative-panel__layout:has(.gesture-companion) > .narrative-panel__column { width: 100%; max-width: 100%; overflow-wrap: anywhere; }
   .gesture-companion { top: 0; z-index: 3; padding: 10px 4px 0; background: var(--bg-surface); }
-  .gesture-shelf { max-width: 440px; margin: 0 auto 10px; gap: 8px; }
-  .gesture-shelf-card { height: 64px; width: 40px; margin: auto; }
+  .gesture-shelf { max-width: 440px; margin: 0 auto 10px; gap: 8px; grid-template-columns: repeat(var(--shelf-count), minmax(44px, 1fr)); overflow-x: auto; overscroll-behavior-x: contain; }
+  .gesture-shelf-card { height: 64px; width: 44px; margin: auto; }
+  .gesture-shelf-card > .gesture-art { width: 40px; margin-inline: auto; }
   .gesture-window { height: 106px; }
   .gesture-focus-card { max-width: 232px; }
   .gesture-focus-layer { gap: 10px; }
@@ -486,7 +488,7 @@
   .gesture-context { min-height: 26px; margin-top: 5px; text-align: center; }
 }
 @media (max-width: 359px) { .gesture-window { height: 96px; } .gesture-shelf { gap: 4px; } }
-@media (max-height: 600px) and (max-width: 1023px) { .gesture-window { height: 72px; } .gesture-shelf-card { height: 48px; width: 29px; } }
+@media (max-height: 600px) and (max-width: 1023px) { .gesture-window { height: 72px; } .gesture-shelf-card { height: 48px; } .gesture-shelf-card > .gesture-art { width: 29px; } }
 @media (prefers-reduced-motion: reduce) {
   .gesture-focus-layer, .gesture-art [data-gesture-water] { animation: none !important; }
   .gesture-art[data-dynamic='true'], .gesture-art__plane, .gesture-art__image, .gesture-shelf-card, .gesture-focus-card { transition: none; }
@@ -499,5 +501,7 @@
 .gesture-focus-card > .gesture-art { height: auto; aspect-ratio: 3/5; }
 @media (max-width: 1023px) { .narrative-panel__layout:has(.gesture-companion) { display: flex; gap: 18px; } .gesture-focus-card > .gesture-art { height: 100%; aspect-ratio: auto; } }
 
-.gesture-lab select, .gesture-lab button { min-height: 44px; border: 1px solid var(--border-warm); border-radius: 6px; background: var(--bg-surface-muted); color: var(--text-main); padding: 8px 12px; }
+.gesture-lab { min-inline-size: 0; }
+.gesture-lab > label, .gesture-lab > legend, .gesture-lab > output { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.gesture-lab select, .gesture-lab button { min-height: 44px; max-width: 100%; border: 1px solid var(--border-warm); border-radius: 6px; background: var(--bg-surface-muted); color: var(--text-main); padding: 8px 12px; }
 .gesture-lab :focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }

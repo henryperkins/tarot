@@ -43,8 +43,12 @@ function GestureArtwork({ card, gesture, presence, dynamic, motionOwner, crop, c
             <svg className="gesture-art__light" viewBox="0 0 1086 1810" aria-hidden="true" focusable="false">
               <defs>
                 <radialGradient id={`${id}-soft`}><stop offset="0" stopColor="white" /><stop offset=".56" stopColor="white" stopOpacity=".85" /><stop offset="1" stopColor="white" stopOpacity="0" /></radialGradient>
+                <radialGradient id={`${id}-surround-soft`}><stop offset="0" stopColor="black" /><stop offset=".56" stopColor="black" stopOpacity=".85" /><stop offset="1" stopColor="black" stopOpacity="0" /></radialGradient>
                 <mask id={`${id}-mask`}><rect width="1086" height="1810" fill="black" />{masks.map((spot, index) => <ellipse key={index} cx={spot.x * 1086} cy={spot.y * 1810} rx={spot.rx * 1086} ry={spot.ry * 1810} fill={`url(#${id}-soft)`} />)}</mask>
+                <mask id={`${id}-surround-mask`}><rect width="1086" height="1810" fill="white" />{masks.map((spot, index) => <ellipse key={index} cx={spot.x * 1086} cy={spot.y * 1810} rx={spot.rx * 1086} ry={spot.ry * 1810} fill={`url(#${id}-surround-soft)`} />)}</mask>
               </defs>
+              {/* Local contrast survives a fully bright base image and reduced motion. */}
+              <rect className="gesture-art__surround" width="1086" height="1810" mask={`url(#${id}-surround-mask)`} />
               <image href={card.image} width="1086" height="1810" preserveAspectRatio="none" mask={`url(#${id}-mask)`} />
               {details.flatMap(detail => detail.traces.map((path, index) => <path key={`${detail.id}-${index}`} data-gesture-finite d={path} className="gesture-art__trace" />))}
             </svg>

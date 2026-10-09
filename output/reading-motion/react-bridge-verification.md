@@ -1,8 +1,34 @@
 # Reading gesture React bridge verification
 
-The original bridge was verified October 9, 2026 on `codex/reading-gestures-react-bridge`, using Node 24.21.0, at implementation checkpoint `e373620`. The current passage-alignment repair is documented separately below; the original test counts, screenshots, auth review, and performance trace remain historical evidence for that bridge checkpoint. The earlier standalone HTML studies and recorded source fixtures remain available. No production deployment or live narrative generation was performed.
+The original bridge was verified October 9, 2026 on `codex/reading-gestures-react-bridge`, using Node 24.21.0, at implementation checkpoint `e373620`. The passage-alignment repair and subsequent full-deck refinement are documented separately below; the original test counts, screenshots, auth review, and performance trace remain historical evidence for that bridge checkpoint. The earlier standalone HTML studies and recorded source fixtures remain available. No production deployment or live narrative generation was performed.
 
-## Dynamic passage alignment repair — October 9, 2026
+## Full-deck refinement and independent critique — October 9, 2026
+
+The user authorized both critical preview review and continued detail expansion. The [independent critique](../../.impeccable/critique/2026-10-09T09-31-26Z__src-components-narrativepanel-jsx.md) assessed baseline `ad8c97c` before these changes. It identified disappearing held/reduced-motion illumination, ungrounded whole-card synthesis, a clipped reversed sword detail, undersized phone shelf targets, and missed Celtic imagery. The repairs preserve the recorded prose and the existing motion lifecycle.
+
+- A soft surrounding veil preserves localized contrast when the base card brightens, including reduced motion.
+- The exact Ace/Queen drive/sensitivity synthesis reuses the previously established sprout and cup; arbitrary pairs retain identity context.
+- The reversed Seven of Swords return includes both planted swords in 106px and short 72px stages. Phone shelf targets are at least 44px wide with unchanged artwork sizes.
+- The Celtic description establishes the staffs once; later lantern/scrum interpretations can return to their earlier literal details.
+- All 78 faces now have **151 authored details**. The 70-card expansion adds **140 static focal treatments**. There are 146 static details total, two Star living-water treatments, and three previously authored finite traces. No new continuous motion, segmentation pipeline, or figure animation was added.
+
+A second code review caught premature cue retraction and personal/negated imagery being treated as literal. The expanded 70-card rules now wait for a closed sentence, closed paragraph, or completed source and use affirmative physical evidence from the matching clause. Personal idioms, negation and imagined descriptions retain identity fallback. A physical depiction followed by its interpretation remains supported. The original eight cards keep their earlier prefix timing. These are conservative English rules, not a general semantic parser.
+
+Actual upright vector faces and new soft-region placements were inspected. Approximate focal ellipses do not certify every compact or reversed crop. Justice's scales and the Emperor's scepter were corrected during that inspection. The [per-card inventory](deck-gesture-coverage.md) records this boundary.
+
+The new [deck study](http://localhost:5174/__e2e/reading-gestures?study=deck&card=The+Fool&arrival=gentle) accepts `card` and `orientation=reversed`, uses the real dynamic aligner, and labels its text as authored visual probes. These are not evaluation samples or personalized readings. It cannot select the live job source. The original 97-, 183- and 904-word recorded studies remain unchanged.
+
+### Fresh verification
+
+- `npm test`: **3,058/3,058 passing**, across 515 suites. The 32 focused alignment/deck tests include all 140 new positive probes, artwork-edition and explicit-metaphor guards, actual personal/negated false-positive regressions, and held append stability. All 78 registry entries have bounded geometry and reversible coordinate projection. These are structural/selected-language checks, not every rendered orientation.
+- Dedicated browser suite: **27/27 passing** (23 Chromium, 4 mobile WebKit), including all six new deck/refinement checks and the earlier recorded/dynamic/lifecycle checks. The first run passed 26/27 checks; the existing compact WebKit test received a transient null protocol box while DOM geometry and its screenshot showed the intact 316×106 window. The test now compares actual DOM layout height, retaining positive-height, visibility, pairing, touch, text-resize and overflow checks. No product layout failure was demonstrated by that null result. Proceeding past it exposed a separate new lab-control overflow at 200% CSS text size: the longer deck option widened the fieldset. Lab-only wrapping/bounds repaired that overflow; the isolated full compact test then passed at 390, 375 and 320px, including enlarged text and browser touch/keyboard interaction.
+- `npm run build` passed. Built JavaScript contains no deck-lab title, recorded-lab title, or development artwork URLs. Scoped ESLint, documentation links and whitespace checks passed.
+- The final bounded headless trace observed 34 animation-frame callbacks, five intervals above 34ms, a maximum interval of 83.3ms and zero main-thread tasks above 50ms. This is not physical-handset or locked-frame-rate evidence.
+- Fresh visual inspection: Chromium 1100×1000 (Justice detail) and WebKit 390×844 (Queen of Wands cat), reduced motion, zero page errors, no horizontal overflow, and zero running animations. Existing repair evidence covers Star held contrast and the reversed sword return on a short phone. The independent review freshly exercised real guest and active Pro authentication with controlled recorded SSE, followed by logout; credentials and session state were not retained. This auth lane used the real local Worker plus the branch frontend through a loopback proxy, blocked service workers, and disabled Chromium local-network checks. It does not qualify production service-worker delivery or live model generation.
+
+[Deck detail on desktop](evidence/react-deck-desktop.png) and [a new detail on a phone](evidence/react-deck-phone.png) show the full-deck study. A single-card shelf is capped at 108px on desktop so the focus stage stays beside the prose. [Held Star contrast on desktop](evidence/react-detail-contrast-desktop.png) and [the reversed sword return on a short phone](evidence/react-swords-short-phone.png) document the visual repairs. Other subscription tiers, physical devices, native screen readers, and universal language coverage remain unverified. The production opt-in remains disabled. No merge or deployment is included.
+
+## Dynamic passage alignment repair — historical checkpoint, October 9, 2026
 
 The opted-in provider now accepts an absent sidecar and resolves associations from the actual live or hydrated Markdown source. [The shared contract](../../shared/contracts/readingPassageAssociations.js) validates exact UTF-16 passage ranges, spread occurrences, optional context, artwork details and introduction boundaries. [The aligner](../../src/lib/narrativePassageAligner.js) returns validation errors through `resolveDynamicPassages().invalid`; malformed data is not reported as a clean result.
 
@@ -34,7 +60,7 @@ Raw text and generation identity are tracked independently of formatted prose. A
 
 Arrived associations are inline `span` elements with `role="button"`, keyboard activation, focus indication and pressed state. The span permits normal paragraph wrapping. Partial delivered phrases remain readable before their complete activation target appears. Explicit inspection holds artwork while source delivery continues; pending automatic cues coalesce. Whole-card shelf inspection keeps identity separate from detail emphasis. React manages the crossfade nodes: departure lasts 300 ms and entrance 550 ms. Native local animation handles own finite glints and water slowdown, without per-frame React state updates.
 
-Eight cards have authored edition-specific details; the other 70 vector card faces have no authored detail geometry and retain whole-card context. The full collection contains 78 faces plus a back. Reversal rotates the common artwork plane once; supported details retain their card orientation.
+At the original bridge checkpoint, eight cards had authored edition-specific details and the other 70 retained whole-card context. The full-deck follow-up above supersedes that geometry count. The full collection contains 78 faces plus a back. Reversal rotates the common artwork plane once; supported details retain their card orientation.
 
 ## Portable preview and focused tests
 
@@ -98,7 +124,7 @@ The isolated performance test passed; frame timing varied under the broader run,
 
 ## Remaining limits and release state
 
-The sidecars remain authored for three recorded studies. The dynamic fallback adds validated associations for supported source constructions, but does not establish semantic coverage for every arbitrary narrative, the 70 unauthored card detail sets, or other artwork editions. Unsupported geometry and unrecognized wording retain prose and identity inspection without guessing detail positions.
+The sidecars remain authored for three recorded studies. The dynamic fallback adds validated associations for supported source constructions, but does not establish semantic coverage for every arbitrary narrative, all possible visual details, or other artwork editions. Unsupported geometry and unrecognized wording retain prose and identity inspection without guessing detail positions.
 
 Native background/BFCache behavior, physical handset smoothness, native text/page zoom, and screen-reader behavior beyond the tested accessibility semantics are not claimed. Free/Plus/inactive subscription states were not reviewed. No live narrative model was exercised. The feature branch began at `4c433b9`; foundation commit `eca5290` was imported as `9aa1ec1`. The bounded bridge is complete at the verified implementation checkpoint. This is a feature checkpoint, not a production release; no merge, deployment or live-Worker parity is asserted.
 
