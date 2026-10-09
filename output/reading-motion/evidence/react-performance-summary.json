@@ -1,0 +1,12 @@
+{
+  "lane": "headless Chromium mocked-auth controlled real SSE; emulated desktop",
+  "frames": 35,
+  "longFrameIntervals": 4,
+  "maximumIntervalMs": 50.100000000000364,
+  "scriptSeconds": 0.068847,
+  "taskSeconds": 0.25155700000000003,
+  "layoutSeconds": 0.003031,
+  "paintEvents": 76,
+  "longMainThreadTasks": 0,
+  "limitation": "Bounded browser measurement, no physical handset or GPU proof; frame intervals are observed, not compositor dropped-frame counts."
+}

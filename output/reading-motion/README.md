@@ -1,19 +1,35 @@
 # Reading imagery motion studies
 
-Design exploration for Tableu's personalized reading, October 8, 2026. These files are reviewable prototypes; they do not change the application or narrative service.
+Design exploration for Tableu's personalized reading, October 8–9, 2026. The standalone HTML studies remain reviewable prototypes. The feature branch also contains a React bridge in the existing application, behind a disabled-by-default study flag and a development-only fixture route. No production deployment or live narrative generation is part of this handoff.
 
 ## Start here
+
+- [React bridge verification and handoff](react-bridge-verification.md): existing application renderer/provider integration, controlled SSE tests, separate real guest/Pro auth evidence, screenshots, performance measurements and remaining limits.
+- [Recorded React fixture](http://localhost:5174/__e2e/reading-gestures?study=star&arrival=gentle): start `npm run dev:frontend -- --port 5174 --strictPort` from this feature branch. Default recorded mode needs no credentials. Keep `sourceMode=job-sse` within the controlled test fixture, because selecting it directly invokes the real generation entrypoint.
 
 - [Five cards in dialogue](five-card-dialogue.html): the next study, preserving the complete recorded Five-Card Clarity reading. A persistent shelf remembers the five introductions, while the main artwork accompanies literal details, their interpretations, the Ace/Queen synthesis, and returns to the two swords, collaborators, and wheel. Explicit inspection holds the artwork while text keeps arriving. [Full fixture and provenance](fixtures/gestures-five-card-creative-project.json).
 - [Personalized reading gestures](personalized-reading-gestures.html): the current study. A living illustration of The Star card accompanies the prose: authored masks and water paths follow the two painted streams, pool, and meadow rivulets while the figure, pitchers, and landscape remain still. Six authored moments awaken each pour, return to it for memory or reinvention, and briefly move both streams in unison at “Neither pitcher gets dropped,” before settling into stillness. Followed by a separately sourced Hermit/Five of Wands example. Preview instructions are below.
 - [Earlier Star study](star-reading-motion.html): preserves an actual generated paragraph and connects the Star's imagery to the reflection supplied with that evaluation sample.
 - [Design proposal and source findings](../../docs/superpowers/specs/2026-10-08-reading-imagery-motion.md): reading structure, interaction intent, integration considerations, and remaining questions.
-- [Production React bridge plan](../../docs/superpowers/plans/2026-10-09-reading-gestures-react-bridge.md): adapt the existing `feat/reading-card-touch` foundation, with source progress, semantic associations, explicit inspection priority, and artwork-specific detail geometry. This is an implementation plan; production application code is unchanged by this study.
+- [Production React bridge plan](../../docs/superpowers/plans/2026-10-09-reading-gestures-react-bridge.md): adapt the existing `feat/reading-card-touch` foundation, with source progress, semantic associations, explicit inspection priority, and artwork-specific detail geometry. The feature branch now implements the application bridge described in this plan; see the separate verification handoff for the checks performed and release limits.
 - [Sample excerpt and provenance](fixtures/three-card-transition.json): the exact question, reflection, spread, and 97-word paragraph used by the current study. This is a local evaluation fixture, not a private production reading.
 - [Related-card excerpt and provenance](fixtures/gestures-celtic-deep-shift.json): the complete 183-word “The Heart of It” section from the separate 23:23 Celtic Cross reading. Its timestamp and question stay distinct from the Star fixture's 23:47 qualification run.
 - [Earlier exploration](reading-with-you.html): **superseded** synthetic Hermit/Star example. Its resonance buttons and simplified card-by-card progression are historical exploration, not the current proposal.
 
 ## Preview
+
+For the React fixture and focused tests, use the feature branch checkout:
+
+```sh
+npm run dev:frontend -- --port 5174 --strictPort
+# Or run both focused specs; this config manages the dedicated fixture server.
+npx playwright test --config output/reading-motion/react-bridge.playwright.config.mjs
+```
+
+Open [the recorded Star route](http://localhost:5174/__e2e/reading-gestures?study=star&arrival=gentle). Lab selectors choose Star, Celtic or five-card, gentle/burst/complete arrival, and optional reflection. They remain separate from the reading controls. The development fixture and original SVG URLs are excluded from the production build.
+
+The following preview commands remain available for the standalone HTML studies:
+
 
 From the repository root, with Node.js installed:
 
