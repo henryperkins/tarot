@@ -1,0 +1,88 @@
+{
+  "id": "five-card-creative-project",
+  "generatedAt": "2026-10-07T23:23:59.556Z",
+  "referenceTime": "2026-09-23T14:04:00.000Z",
+  "sourceFile": "data/evaluations/narrative-samples.json",
+  "sourceFileSha256": "b30c506a81f7cb360fb457fc2bd4825059d558b3a1f8862d5f0ab23f383fbe49",
+  "sourceReadingSha256": "d3c52d35597669deb2bd4770d532934c47f775ba894c9b7a60974231b0eab91b",
+  "provenanceNote": "The checked-in source identifies this timestamp as generatedAt. It does not identify this sample as a qualification run.",
+  "backendLabel": "Claude Code (personal subscription)",
+  "model": "claude-opus-5-5",
+  "spreadKey": "fiveCard",
+  "spreadName": "Five-Card Clarity",
+  "deckStyle": "rws-1909",
+  "context": "decision",
+  "userQuestion": "What should I know about launching my creative project this quarter?",
+  "reflectionsText": "I feel momentum but keep second-guessing the tone and timing.",
+  "reading": "### Opening\n\nYou may know this feeling: something is ready to move, you can feel the pull forward, and an inner editor keeps asking whether the voice is right and whether now is really the moment. That's the tension this spread seems to circle as you ask about launching your creative project this quarter. It reads less like a stop sign and more like a sorting process.\n\nThe spread is neatly balanced, with one card from each suit (spark, mind, heart, and hands) and a single Major in the \"where this is heading\" seat. Two cards arrive reversed. I'm reading those as timing that may not be ripe yet: conditions to tend, not doors shut.\n\n### The Story\n\n**Ace of Wands (Upright), the core.** At the center is a clear yes to the creative impulse itself. The Rider-Waite-Smith image shows a hand from a cloud offering a wand that's still sprouting leaves, with rolling hills and a castle far off in the distance. That distance is worth noticing. The spark is alive, but the finished \"castle\" is further down the road. The momentum you named seems real. The live question may be how to carry a still-growing idea into public without waiting for it to look finished first.\n\n**Seven of Swords (Reversed), the challenge.** The traditional image shows a figure tiptoeing out of camp with five swords and leaving two behind, a plan carried off half-assembled. Reversed, through the timing lens, it can point to strategy that isn't quite ready for daylight. This might look like a launch plan that lives mostly in your head, or a description of the project you keep rewriting because you haven't said plainly what it is. The friction may sit less in the work and more in those two missing swords: the decisions you haven't made explicit yet.\n\n**Queen of Cups (Upright), the hidden influence.** Underneath the second-guessing there may be something more tender than doubt. The Queen sits at the sea's edge holding an ornate, covered cup with real devotion, attuned to what's inside and protective of it. Your worry about tone could be her voice: a sensitivity to how the work will feel to the people who receive it. That's a gift when it shapes the work and a drag when it turns into endless polishing. One question to sit with: when you hesitate over tone, does something feel emotionally off, or does the cup just feel too precious to uncover?\n\n**Three of Pentacles (Upright), the support.** If you're settling tone questions alone, this card offers another route. A craftsman stands in a cathedral talking plans over with a monk and a noble, and nobody in that scene is working solo or guessing at the design. Your help here looks like skilled collaboration: someone who knows the craft and someone closer to the audience. A quick review with two trusted people might settle more than another round of solo revision.\n\n**Wheel of Fortune (Reversed), the likely direction.** If things continue as they are, the Wheel reversed hints at a turn that's slow to come, with cycles that repeat instead of moving forward. Its classic image is all motion: a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other. Reversed, it can suggest the quarter's conditions aren't fully lined up yet, or that a loop of draft, doubt, and redraft is holding the wheel in place. The traditional wisdom here is to notice what's shifting and use it to reset a pattern rather than repeat it. Waiting alone won't guarantee a better moment, but changing the loop may shift the odds.\n\n### Putting It Together\n\nRead together, the spread's answer to your question about launching this quarter sounds something like this: the spark looks sound, the plan around it may be underbuilt, and the timing worry could partly be a tone worry in disguise. The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting. The two reversals point toward structure and readiness, and the Three of Pentacles points toward other people as the way to get unstuck. \"This quarter\" might mean a soft launch or a public date rather than everything at once.\n\nIf you enjoy astrological weather, the New Moon in Libra about two and a half weeks out makes a tidy symbolic checkpoint for naming a launch intention. Think of it as atmosphere, not a deadline.\n\n### Gentle Next Steps\n\n- **Write down the two missing swords.** List the two or three launch decisions still living in your head (date, platform, how you'll describe the project) and pick a placeholder answer for each.\n- **Ask for a tone check only.** Share a sample with one person who knows the craft and one who's closer to your audience, and ask just how it lands.\n- **Cap your revisions.** Give the piece you keep reworking a fixed number of passes. After that, it goes to feedback or it ships.\n- **Pick one small public step for the quarter.** A preview, an announcement, or a waitlist gives the wheel something to turn on before the full reveal.\n\n### Closing\n\nThe spark in this spread is clearly yours, and nothing here closes the window. It only suggests the timing may reward some groundwork first. How and when you launch is your call, and those choices are what shape where this goes.",
+  "sections": [
+    {
+      "heading": "Opening",
+      "body": "You may know this feeling: something is ready to move, you can feel the pull forward, and an inner editor keeps asking whether the voice is right and whether now is really the moment. That's the tension this spread seems to circle as you ask about launching your creative project this quarter. It reads less like a stop sign and more like a sorting process.\n\nThe spread is neatly balanced, with one card from each suit (spark, mind, heart, and hands) and a single Major in the \"where this is heading\" seat. Two cards arrive reversed. I'm reading those as timing that may not be ripe yet: conditions to tend, not doors shut."
+    },
+    {
+      "heading": "The Story",
+      "body": "**Ace of Wands (Upright), the core.** At the center is a clear yes to the creative impulse itself. The Rider-Waite-Smith image shows a hand from a cloud offering a wand that's still sprouting leaves, with rolling hills and a castle far off in the distance. That distance is worth noticing. The spark is alive, but the finished \"castle\" is further down the road. The momentum you named seems real. The live question may be how to carry a still-growing idea into public without waiting for it to look finished first.\n\n**Seven of Swords (Reversed), the challenge.** The traditional image shows a figure tiptoeing out of camp with five swords and leaving two behind, a plan carried off half-assembled. Reversed, through the timing lens, it can point to strategy that isn't quite ready for daylight. This might look like a launch plan that lives mostly in your head, or a description of the project you keep rewriting because you haven't said plainly what it is. The friction may sit less in the work and more in those two missing swords: the decisions you haven't made explicit yet.\n\n**Queen of Cups (Upright), the hidden influence.** Underneath the second-guessing there may be something more tender than doubt. The Queen sits at the sea's edge holding an ornate, covered cup with real devotion, attuned to what's inside and protective of it. Your worry about tone could be her voice: a sensitivity to how the work will feel to the people who receive it. That's a gift when it shapes the work and a drag when it turns into endless polishing. One question to sit with: when you hesitate over tone, does something feel emotionally off, or does the cup just feel too precious to uncover?\n\n**Three of Pentacles (Upright), the support.** If you're settling tone questions alone, this card offers another route. A craftsman stands in a cathedral talking plans over with a monk and a noble, and nobody in that scene is working solo or guessing at the design. Your help here looks like skilled collaboration: someone who knows the craft and someone closer to the audience. A quick review with two trusted people might settle more than another round of solo revision.\n\n**Wheel of Fortune (Reversed), the likely direction.** If things continue as they are, the Wheel reversed hints at a turn that's slow to come, with cycles that repeat instead of moving forward. Its classic image is all motion: a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other. Reversed, it can suggest the quarter's conditions aren't fully lined up yet, or that a loop of draft, doubt, and redraft is holding the wheel in place. The traditional wisdom here is to notice what's shifting and use it to reset a pattern rather than repeat it. Waiting alone won't guarantee a better moment, but changing the loop may shift the odds."
+    },
+    {
+      "heading": "Putting It Together",
+      "body": "Read together, the spread's answer to your question about launching this quarter sounds something like this: the spark looks sound, the plan around it may be underbuilt, and the timing worry could partly be a tone worry in disguise. The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting. The two reversals point toward structure and readiness, and the Three of Pentacles points toward other people as the way to get unstuck. \"This quarter\" might mean a soft launch or a public date rather than everything at once.\n\nIf you enjoy astrological weather, the New Moon in Libra about two and a half weeks out makes a tidy symbolic checkpoint for naming a launch intention. Think of it as atmosphere, not a deadline."
+    },
+    {
+      "heading": "Gentle Next Steps",
+      "body": "- **Write down the two missing swords.** List the two or three launch decisions still living in your head (date, platform, how you'll describe the project) and pick a placeholder answer for each.\n- **Ask for a tone check only.** Share a sample with one person who knows the craft and one who's closer to your audience, and ask just how it lands.\n- **Cap your revisions.** Give the piece you keep reworking a fixed number of passes. After that, it goes to feedback or it ships.\n- **Pick one small public step for the quarter.** A preview, an announcement, or a waitlist gives the wheel something to turn on before the full reveal."
+    },
+    {
+      "heading": "Closing",
+      "body": "The spark in this spread is clearly yours, and nothing here closes the window. It only suggests the timing may reward some groundwork first. How and when you launch is your call, and those choices are what shape where this goes."
+    }
+  ],
+  "cards": [
+    {
+      "position": "Core of the matter",
+      "card": "Ace of Wands",
+      "orientation": "Upright",
+      "meaning": "Inspiration, new energy, creative spark, potential for bold action",
+      "suit": "Wands",
+      "rank": "Ace",
+      "rankValue": 1
+    },
+    {
+      "position": "Challenge or tension",
+      "card": "Seven of Swords",
+      "orientation": "Reversed",
+      "meaning": "Exposure, consequences, call for transparency and integrity",
+      "suit": "Swords",
+      "rank": "Seven",
+      "rankValue": 7
+    },
+    {
+      "position": "Hidden / subconscious influence",
+      "card": "Queen of Cups",
+      "orientation": "Upright",
+      "meaning": "Compassion, empathy, emotional intelligence, intuition in flow",
+      "suit": "Cups",
+      "rank": "Queen",
+      "rankValue": 13
+    },
+    {
+      "position": "Support / helpful energy",
+      "card": "Three of Pentacles",
+      "orientation": "Upright",
+      "meaning": "Collaboration, skill development, building something of quality",
+      "suit": "Pentacles",
+      "rank": "Three",
+      "rankValue": 3
+    },
+    {
+      "position": "Likely direction on current path",
+      "card": "Wheel of Fortune",
+      "orientation": "Reversed",
+      "meaning": "Bad luck, resistance to change, breaking cycles",
+      "number": 10,
+      "suit": null,
+      "rank": null,
+      "rankValue": null
+    }
+  ]
+}

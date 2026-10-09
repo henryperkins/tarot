@@ -27,6 +27,8 @@
 #reading-gestures .g-paragraphs p{margin:0 0 22px}
 #reading-gestures .g-paragraphs strong{font-weight:600}
 #reading-gestures .g-phrase{border-radius:3px;transition:background-color .45s cubic-bezier(.16,1,.3,1);color:inherit}
+#reading-gestures .g-phrase[role=button]{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#reading-gestures .g-phrase:focus-visible{outline:2px solid var(--brass);outline-offset:3px;background:var(--wash)}
 #reading-gestures .g-phrase.is-associated{background:var(--wash)}
 #reading-gestures .g-word.is-unread{display:none}
 #reading-gestures .g-stage{position:sticky;top:18px;min-width:0;background:var(--paper);align-self:start;z-index:2}
@@ -52,7 +54,33 @@
 #reading-gestures .g-light.is-lit{opacity:.86}
 #reading-gestures .g-light.is-settled{opacity:.4}
 #reading-gestures .g-water{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:screen}
-#reading-gestures .g-water path{fill:none;stroke:#d8f0e4;stroke-width:12;stroke-linecap:round;opacity:0;filter:blur(1.3px)}
+#reading-gestures .g-water-layer{opacity:0;transition:opacity .45s cubic-bezier(.16,1,.3,1)}
+#reading-gestures .g-water-layer.is-active{opacity:1}
+#reading-gestures .g-water-layer.is-settling{opacity:0;transition:opacity 1.5s cubic-bezier(.16,1,.3,1)}
+#reading-gestures .g-water-layer.is-settled{opacity:0;transition:none}
+#reading-gestures .g-water-layer *{animation-play-state:paused!important}
+#reading-gestures .g-water-layer.is-active *,#reading-gestures .g-water-layer.is-settling *{animation-play-state:running!important}
+#reading-gestures .g-water .water-strand{fill:none;stroke:#c8edff;stroke-linecap:round;opacity:.88;filter:drop-shadow(0 0 3px rgba(180,235,255,.8))}
+#reading-gestures .g-water .ws-1{stroke-width:6;stroke-dasharray:28 18;--flow-cycle:-92;animation:g-flow-down .9s linear infinite}
+#reading-gestures .g-water .ws-2{stroke-width:8;stroke-dasharray:36 24;--flow-cycle:-120;animation:g-flow-down 1.15s linear infinite;stroke:#e8f8ff}
+#reading-gestures .g-water .ws-3{stroke-width:5;stroke-dasharray:24 16;--flow-cycle:-80;animation:g-flow-down .8s linear infinite}
+#reading-gestures .g-water .ws-4{stroke-width:7;stroke-dasharray:32 20;--flow-cycle:-104;animation:g-flow-down 1.05s linear infinite}
+#reading-gestures .g-water .rs-1{stroke-width:6;stroke-dasharray:32 20;--flow-cycle:-104;animation:g-flow-down .85s linear infinite}
+#reading-gestures .g-water .rs-2{stroke-width:8;stroke-dasharray:40 26;--flow-cycle:-132;animation:g-flow-down 1.05s linear infinite;stroke:#e8f8ff}
+#reading-gestures .g-water .rs-3{stroke-width:5;stroke-dasharray:26 18;--flow-cycle:-88;animation:g-flow-down .75s linear infinite}
+#reading-gestures .g-water .entry-splash{fill:none;stroke:#e0f6ff;stroke-width:4;opacity:.85;filter:drop-shadow(0 0 6px rgba(180,240,255,.9));animation:g-splash 1.2s ease-in-out infinite alternate}
+#reading-gestures .g-water .pool-wave{fill:none;stroke:#bceaff;stroke-width:3.5;opacity:0;transform-origin:285px 1455px;animation:g-ripple 3s cubic-bezier(.2,.7,.3,1) infinite;filter:drop-shadow(0 0 4px rgba(160,230,255,.5))}
+#reading-gestures .g-water .pw-1{animation-delay:0s}
+#reading-gestures .g-water .pw-2{animation-delay:.75s}
+#reading-gestures .g-water .pw-3{animation-delay:1.5s}
+#reading-gestures .g-water .pw-4{animation-delay:2.25s}
+#reading-gestures .g-water .rivulet-strand{fill:none;stroke:#bde9ff;stroke-width:6;stroke-linecap:round;stroke-dasharray:32 22;animation:g-flow-away 1.3s linear infinite;filter:drop-shadow(0 0 3px rgba(160,230,255,.6))}
+#reading-gestures .g-water-layer.is-memory .pool-wave{stroke:#d8f3ff;animation-duration:3.6s;filter:drop-shadow(0 0 6px rgba(190,240,255,.7))}
+#reading-gestures .g-water-layer.is-memory .water-strand{stroke:#e4f6ff;animation-duration:1.2s}
+@keyframes g-flow-down{from{stroke-dashoffset:0}to{stroke-dashoffset:var(--flow-cycle,-100)}}
+@keyframes g-flow-away{from{stroke-dashoffset:0}to{stroke-dashoffset:-108}}
+@keyframes g-splash{from{transform:scale(.92) translate(25px,110px);opacity:.6}to{transform:scale(1.08) translate(-25px,-110px);opacity:.95}}
+@keyframes g-ripple{0%{transform:scale(.18,.18);opacity:.95;stroke-width:5}45%{opacity:.8;stroke-width:4}85%{opacity:.3;stroke-width:2.5}100%{transform:scale(1.18,1.18);opacity:0;stroke-width:1.5}}
 #reading-gestures .g-focus{display:none;min-width:0;padding:0;border:0;background:none;border-radius:7px;position:relative}
 #reading-gestures .g-focus-window{height:136px;border-radius:7px;overflow:hidden;position:relative;background:none;display:grid;grid-template-columns:minmax(0,1fr);gap:5px;isolation:isolate}
 #reading-gestures .g-focus-window.is-pair{grid-template-columns:1fr 1fr}
@@ -62,12 +90,6 @@
 #reading-gestures .g-crop-layer img{width:100%;height:100%;display:block}
 #reading-gestures .g-source-plane{position:absolute;inset:0}
 #reading-gestures .g-source-plane.is-reversed{transform:rotate(180deg) translateZ(0)}
-#reading-gestures .g-timeline{display:block;width:100%;height:44px;margin:10px 0 0;appearance:none;background:none;cursor:ew-resize;opacity:.62;transition:opacity .35s cubic-bezier(.16,1,.3,1)}
-#reading-gestures .g-timeline:hover,#reading-gestures .g-timeline:focus{opacity:1}
-#reading-gestures .g-timeline::-webkit-slider-runnable-track{height:2px;background:var(--line)}
-#reading-gestures .g-timeline::-webkit-slider-thumb{appearance:none;width:8px;height:8px;border-radius:50%;background:var(--brass);margin-top:-3px}
-#reading-gestures .g-timeline::-moz-range-track{height:2px;background:var(--line)}
-#reading-gestures .g-timeline::-moz-range-thumb{width:8px;height:8px;border:0;border-radius:50%;background:var(--brass)}
 #reading-gestures .g-settings{border-top:1px solid var(--line);margin-top:32px;padding-top:12px}
 #reading-gestures summary{font-size:13px;min-height:44px;padding:8px 0;color:var(--muted)}
 #reading-gestures .g-settings-body{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:8px 0 16px;font-size:13px;color:var(--muted)}
@@ -99,7 +121,6 @@
  #reading-gestures .g-card-rack.is-pair{flex-direction:column}
  #reading-gestures .g-card-rack.is-pair .g-card{flex:0 0 auto;width:44px;padding:0 5px}
  #reading-gestures .g-focus{display:block}
- #reading-gestures .g-timeline{margin-top:0;height:44px}
  #reading-gestures h2{font-size:26px;margin-bottom:18px}
  #reading-gestures .g-paragraphs{font-size:16px;line-height:1.85;min-height:290px}
  #reading-gestures .g-prose{width:100%}
@@ -132,7 +153,6 @@
      <span class="g-focus-window" data-window></span>
     </button>
    </div>
-   <input class="g-timeline" type="range" min="0" max="5" step="1" value="0" data-timeline aria-label="Revisit a moment in the reading">
   </aside>
  </div>
  <span class="g-sr" data-status role="status"></span>
@@ -144,7 +164,7 @@
    <button data-action="all">Show full reading</button>
   </div>
   <div class="g-provenance" data-provenance></div>
-  <p class="g-provenance">Recorded passages with simulated streaming and hand-authored associations. The artwork accompanies the visible passage automatically. Touch the card to hold a connection; use the small timeline to revisit it. After the Star passage, touch either pitcher to return to its meaning. Keyboard: left and right revisit moments; space or enter holds or continues. Reduced motion keeps the same associations still.</p>
+  <p class="g-provenance">Recorded passages with simulated streaming and hand-authored associations. The artwork accompanies the visible passage automatically. Touch the card to hold a connection. After the Star passage, touch either pitcher to return to its meaning. Keyboard: left and right revisit moments; space or enter holds or continues. Reduced motion keeps the same associations still.</p>
  </details>
 </main>
 
@@ -164,7 +184,7 @@
   staffs:'radial-gradient(ellipse 48% 36% at 50% 51%, #000 20%, transparent 100%)'
  };
  masks.both=masks.pool+','+masks.land;
- const focal={pool:{x:.275,y:.70,zoom:1.4},land:{x:.84,y:.64,zoom:1.05},both:{x:.52,y:.64,zoom:1.02},lantern:{x:.15,y:.232,zoom:2.3},staffs:{x:.5,y:.49,zoom:1.08}};
+ const focal={pool:{x:.275,y:.70,zoom:1.4},land:{x:.84,y:.725,zoom:1.05},both:{x:.52,y:.725,zoom:1.02},lantern:{x:.15,y:.232,zoom:2.3},staffs:{x:.5,y:.49,zoom:1.08}};
  const cueSets={
   star:[
    {id:'arrival',card:'star',detail:null,phrase:'The Star',trigger:'The Star',label:'The Star',caption:'The Star · Future',touch:true},
@@ -188,13 +208,14 @@
   hermit:{name:'The Hermit',description:'In the Rider-Waite-Smith image',midpoint:'his lantern is held close and lights',end:'not the whole mountain.'},
   wands:{name:'Five of Wands',description:'On the card, five people',midpoint:'five people swing',end:'staffs in a chaotic scrum.'}
  };
- const state={example:'star',playing:false,started:false,complete:false,held:false,cursor:0,cue:null,pending:null,visible:false,lastGesture:-Infinity,delivered:-1,autoPaused:false,revealed:{}};
+ const state={example:'star',playing:false,started:false,complete:false,held:false,cursor:0,cue:null,pending:null,visible:false,artVisible:false,lastGesture:-Infinity,delivered:-1,autoPaused:false,revealed:{}};
  let words=[],phrases=[],cues=[],revealRanges={},streamTimer,gestureTimer,settleTimer,autoTimer;
  const animations=new Set();
+ const waterSettlements=new Map();
  const plain=md=>md.replace(/\*\*/g,'');
  function element(tag,className,text){const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node;}
   function animate(node,frames,options){
-   if(motion.matches||!node)return;
+   if(motion.matches||document.hidden||!node)return;
    const props=new Set();
    frames.forEach(f=>{
     Object.keys(f).forEach(k=>{
@@ -210,11 +231,16 @@
    animation.finished.then(clean,clean);
    return animation;
   }
- function cancelMotion(){animations.forEach(a=>a.cancel());animations.clear();}
+ function cancelMotion(){
+  animations.forEach(a=>a.cancel());animations.clear();
+  [...waterSettlements.keys()].forEach(stopWater);
+  setWater(null,null,'clear');
+ }
  function stopTimers(){clearTimeout(streamTimer);clearTimeout(gestureTimer);clearTimeout(settleTimer);clearTimeout(autoTimer);cancelMotion();}
  function updateControls(){
   root.dataset.held=String(state.held);root.dataset.playing=String(state.playing);root.dataset.complete=String(state.complete);
   $$('[data-rack] button,[data-art-touch]').forEach(n=>n.setAttribute('aria-pressed',String(state.held)));
+  phrases.forEach(node=>node.setAttribute('aria-pressed',String(state.held&&node.dataset.cue===state.cue?.id)));
  }
  function presenceFor(id){
   if(state.revealed[id])return 1;
@@ -239,36 +265,137 @@
    const presence=state.cue?presenceFor(state.cue.card):0;
    $('[data-stage-title]').style.opacity=presence;
    const introduced=presence>=.035;
-   $('[data-timeline]').style.visibility=introduced?'':'hidden';
    $('[data-art-touch]').style.visibility=introduced?'':'hidden';
+   phrases.forEach(node=>{
+    const available=[...node.children].some(word=>!word.classList.contains('is-unread'));
+    node.hidden=!available;node.tabIndex=available?0:-1;
+    node.setAttribute('aria-pressed',String(state.held&&node.dataset.cue===state.cue?.id));
+   });
   }
  function revealInspection(cue){
   [cue.card,cue.retain].filter(Boolean).forEach(id=>{state.revealed[id]=true;});
  }
  function pause(message){state.playing=false;clearTimeout(streamTimer);if(message)$('[data-status]').textContent=message;updateControls();}
- function waterLayer(){
-  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-  svg.setAttribute('viewBox','0 0 1086 1810');svg.setAttribute('aria-hidden','true');svg.classList.add('g-water');
-  // Follow the existing painted streams. These are light traces, not new imagery.
-  [['pool','M 289 1183 C 315 1207 298 1230 303 1270 C 301 1322 307 1383 307 1423'],['land','M 903 982 C 891 1011 913 1055 911 1108 C 911 1200 921 1370 922 1480']].forEach(([detail,d])=>{
-   const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',d);path.dataset.water=detail;svg.append(path);
-  });
-  return svg;
- }
- function setLight(image,detail,flow=false){
-  image.style.setProperty('--detail-mask',detail?masks[detail]:'none');
-  image.classList.toggle('is-lit',Boolean(detail));image.classList.remove('is-settled');
-  if(!detail)return;
-  if(flow&&!motion.matches){
-   animate(image,[{clipPath:'inset(0 0 50% 0)',opacity:.25},{clipPath:'inset(0 0 0 0)',opacity:.86}],{duration:1100,easing:'cubic-bezier(.22,.61,.36,1)'});
-   image.parentElement.querySelectorAll(`[data-water="${detail}"]`).forEach(path=>{
-    const length=path.getTotalLength();path.style.strokeDasharray=String(length);path.style.strokeDashoffset=String(length);
-    animate(path,[{strokeDashoffset:length,opacity:0},{strokeDashoffset:length,opacity:.6,offset:.12},{strokeDashoffset:0,opacity:.6,offset:.8},{strokeDashoffset:0,opacity:0}],{duration:1400,easing:'ease-in-out'});
-   });
-  }else if(!motion.matches){
-   animate(image,[{opacity:.35},{opacity:.86}],{duration:750,easing:'ease-out'});
+  let waterIdSeq=0;
+  function waterLayer(){
+   const id=++waterIdSeq;
+   // Trace the five painted blue rills, rather than adding a fan across the grass.
+   // Share their geometry with the narrow alpha mask so every strand and round cap fits.
+   const rivulets=[
+    'M 922 1465 C 916.9 1465 878.2 1463.5 871 1465 C 863.8 1466.5 859.8 1478.3 850 1480 C 840.2 1481.7 781.4 1481.4 773 1482 C 764.6 1482.6 768.5 1485.3 766 1486 C 763.5 1486.7 750.9 1488.2 748 1489 C 745.1 1489.8 739.9 1493.3 737 1494 C 734.1 1494.7 721.5 1495.4 719 1496 C 716.5 1496.6 714.9 1499.4 712 1500 C 709.1 1500.6 694 1500.7 690 1502 C 686 1503.3 676.1 1511.3 672 1513 C 667.9 1514.7 652.4 1517.2 649 1519 C 645.6 1520.8 640.5 1529.7 638 1531 C 635.5 1532.3 625.8 1531.6 624 1532 C 622.2 1532.4 620.4 1534.7 620 1535',
+    'M 922 1465 C 917.1 1465 880.7 1462.2 873 1465 C 865.3 1467.8 847.8 1489.5 845 1493 C 842.2 1496.5 845.7 1498.5 845 1500 C 844.3 1501.5 841.9 1506.5 838 1508 C 834.1 1509.5 810.2 1513.5 806 1515 C 801.8 1516.5 797.5 1522.2 796 1523 C 794.5 1523.8 793 1521.5 791 1523 C 789 1524.5 779.2 1536.1 776 1538 C 772.8 1539.9 761.8 1540.1 759 1542 C 756.2 1543.9 751.5 1554.9 748 1557 C 744.5 1559.1 727.3 1561.4 724 1563 C 720.7 1564.6 716.4 1572 715 1573 C 713.6 1574 711 1572.5 710 1573 C 709 1573.5 705.6 1576.3 705 1578 C 704.4 1579.7 704.5 1588.2 704 1590 C 703.5 1591.8 700.7 1594 700 1596 C 699.3 1598 699 1606.8 697 1610 C 695 1613.2 681.7 1625.3 680 1628 C 678.3 1630.7 680 1636.1 680 1637',
+    'M 966 1426 C 981 1429 1001 1420 1023 1422',
+    'M 922 1465 C 922.3 1464.7 920.5 1462.3 925 1462 C 929.5 1461.7 961.8 1461.5 967 1462 C 972.2 1462.5 973.9 1466.1 977 1467 C 980.1 1467.9 993.1 1470.9 998 1471 C 1002.9 1471.1 1023.2 1468.3 1026 1468',
+    'M 953 1505 C 954.5 1507.2 954.2 1508.3 953 1510 C 951.8 1511.7 944.2 1520.1 941 1522 C 937.8 1523.9 924.3 1527 921 1529 C 917.7 1531 909.3 1539.4 908 1542 C 906.7 1544.6 907 1552.7 908 1555 C 909 1557.3 915.1 1563.8 918 1565 C 920.9 1566.2 933.9 1565.9 937 1567 C 940.1 1568.1 947.1 1575.5 949 1576 M 961 1572 C 962.9 1573.7 973.1 1586.2 975 1589 C 976.9 1591.8 977.5 1596.9 980 1600 C 982.5 1603.1 998 1616.5 1000 1620 C 1002 1623.5 1000 1633.5 1000 1635'
+   ];
+   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+   svg.setAttribute('viewBox','0 0 1086 1810');svg.setAttribute('aria-hidden','true');svg.classList.add('g-water');
+   svg.innerHTML=`<defs>
+<clipPath id="sw-left-${id}"><path d="M 252 1215 C 265 1205 295 1205 304 1220 C 312 1260 308 1330 304 1435 C 290 1445 270 1445 260 1435 C 255 1330 248 1260 252 1215 Z"/></clipPath>
+<clipPath id="sw-pool-${id}"><path d="M 50 1250 Q 200 1255 350 1265 C 375 1270 380 1285 395 1300 L 400 1340 L 420 1370 L 475 1380 L 520 1350 L 550 1310 C 580 1315 620 1340 645 1390 C 675 1450 660 1490 620 1520 C 560 1560 480 1590 320 1615 L 50 1615 Z"/></clipPath>
+<clipPath id="sw-right-${id}"><path d="M 902 995 C 915 990 925 990 932 998 C 938 1030 940 1200 935 1475 C 920 1485 898 1485 888 1475 C 885 1200 892 1030 902 995 Z"/></clipPath>
+<mask id="sw-land-${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="1086" height="1810">${rivulets.map(d=>`<path d="${d}" fill="none" stroke="white" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</mask>
+</defs>
+<g class="g-water-layer" data-water="pool">
+ <g clip-path="url(#sw-left-${id})">
+  <path class="water-strand ws-1" d="M 264 1210 C 275 1260 268 1340 268 1435"/>
+  <path class="water-strand ws-2" d="M 276 1212 C 286 1265 280 1345 282 1440"/>
+  <path class="water-strand ws-3" d="M 288 1215 C 296 1265 292 1345 293 1440"/>
+  <path class="water-strand ws-4" d="M 298 1220 C 305 1270 302 1350 300 1435"/>
+ </g>
+ <g clip-path="url(#sw-pool-${id})">
+  <ellipse class="entry-splash" cx="285" cy="1440" rx="36" ry="16"/>
+  <ellipse class="pool-wave pw-1" cx="285" cy="1455" rx="260" ry="115"/>
+  <ellipse class="pool-wave pw-2" cx="285" cy="1455" rx="260" ry="115"/>
+  <ellipse class="pool-wave pw-3" cx="285" cy="1455" rx="260" ry="115"/>
+  <ellipse class="pool-wave pw-4" cx="285" cy="1455" rx="260" ry="115"/>
+ </g>
+</g>
+<g class="g-water-layer" data-water="land">
+ <g clip-path="url(#sw-right-${id})">
+  <path class="water-strand rs-1" d="M 906 1000 L 903 1475"/>
+  <path class="water-strand rs-2" d="M 916 995 L 915 1480"/>
+  <path class="water-strand rs-3" d="M 926 1000 L 928 1475"/>
+ </g>
+ <g mask="url(#sw-land-${id})">
+  ${rivulets.map(d=>`<path class="rivulet-strand" d="${d}"/>`).join('')}
+ </g>
+</g>`;
+   return svg;
   }
- }
+  function waterAnimations(layer){
+   return layer.getAnimations({subtree:true}).filter(animation=>animation.animationName&&animation.effect?.target!==layer);
+  }
+  function cancelWaterSettlement(layer){
+   const job=waterSettlements.get(layer);
+   if(job)cancelAnimationFrame(job.frame);
+   waterSettlements.delete(layer);
+  }
+  function stopWater(layer){
+   cancelWaterSettlement(layer);
+   waterAnimations(layer).forEach(animation=>animation.pause());
+   layer.classList.remove('is-active','is-settling','is-memory');
+   layer.classList.add('is-settled');
+  }
+  function waterCanMove(){return !motion.matches&&!document.hidden&&(state.visible||(state.held&&state.artVisible));}
+  function changeWaterRate(animation,rate){
+   if(animation.updatePlaybackRate)animation.updatePlaybackRate(rate);
+   else animation.playbackRate=rate;
+  }
+  function settleWater(layer){
+   if(!layer.classList.contains('is-active')&&!layer.classList.contains('is-settling'))return;
+   cancelWaterSettlement(layer);
+   if(!waterCanMove()){stopWater(layer);return;}
+   const rates=new Map(waterAnimations(layer).map(animation=>[animation,animation.playbackRate]));
+   const started=performance.now(),job={frame:0};
+   layer.classList.remove('is-active');layer.classList.add('is-settling');
+   waterSettlements.set(layer,job);
+   const slow=now=>{
+    if(!layer.isConnected||!waterCanMove()){stopWater(layer);return;}
+    const progress=Math.min(1,(now-started)/1500);
+    waterAnimations(layer).forEach(animation=>{
+     // New controls can appear when the handset detail window becomes visible.
+     const initial=rates.get(animation)??1;
+     if(!rates.has(animation))rates.set(animation,initial);
+     changeWaterRate(animation,initial*(1-progress)*(1-progress));
+    });
+    if(progress===1){stopWater(layer);return;}
+    job.frame=requestAnimationFrame(slow);
+   };
+   job.frame=requestAnimationFrame(slow);
+  }
+  function setWater(scope,detail,stateKind,held=false,cueId=null){
+   const layers=scope?[...scope.querySelectorAll('.g-water-layer')]:$$('.g-water-layer');
+   layers.forEach(layer=>{
+    const isTarget=detail==='both'?true:layer.dataset.water===detail;
+    if(stateKind==='active'){
+     if(isTarget&&waterCanMove()){
+      cancelWaterSettlement(layer);
+      layer.classList.remove('is-settling','is-settled');
+      layer.classList.toggle('is-memory',cueId==='memory');
+      layer.classList.add('is-active');
+      waterAnimations(layer).forEach(animation=>{changeWaterRate(animation,1);animation.play();});
+     }else{
+      stopWater(layer);
+     }
+    }else if(stateKind==='settle'){
+     if(!held)settleWater(layer);
+    }else if(stateKind==='clear'){
+     stopWater(layer);
+    }
+   });
+  }
+  function resumeHeldWater(){
+   if(!state.held||state.cue?.card!=='star'||!waterCanMove())return;
+   const detail=state.cue.balanced?'both':state.cue.detail;
+   if(detail)setWater(null,detail,'active',true,state.cue.id);
+  }
+  function setLight(image,detail){
+   image.style.setProperty('--detail-mask',detail?masks[detail]:'none');
+   image.classList.toggle('is-lit',Boolean(detail));image.classList.remove('is-settled');
+   if(!detail)return;
+   if(!motion.matches)animate(image,[{opacity:.35},{opacity:.86}],{duration:750,easing:'ease-out'});
+  }
   function drawRack(ids){
    const rack=$('[data-rack]');rack.replaceChildren();rack.classList.toggle('is-pair',ids.length>1);
    ids.forEach(id=>{
@@ -304,49 +431,64 @@
    layer.style.transform=`translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0) scale(${(iw/card.width).toFixed(5)})`;
    if(firstPosition){view.dataset.positioned='true';requestAnimationFrame(()=>requestAnimationFrame(()=>{layer.style.transition='';}));}
   }
- function drawFocus(cue,held){
-  const box=$('[data-window]'),configs=cue.pair?[['hermit','lantern'],['wands','staffs']]:[[cue.card,cue.detail]];
-  box.classList.toggle('is-pair',Boolean(cue.pair));
-  if(box.children.length!==configs.length||[...box.children].some((v,i)=>v.dataset.card!==configs[i][0]))box.replaceChildren(...configs.map(([card,detail])=>makeView(card,detail)));
-  configs.forEach(([card,detail],i)=>{
-   const view=box.children[i];view.dataset.detail=detail||'whole';positionView(view);
-   setLight(view.querySelector('.g-light'),detail,!held&&!cue.balanced&&(detail==='pool'||detail==='land'));
-  });
-  $('[data-art-touch]').setAttribute('aria-label',`${cue.pair?'The Hermit and Five of Wands':data.cards[cue.card].name}: ${cue.caption}. Hold or continue.`);
- }
- function applyCue(cue,held=false){
-  clearTimeout(gestureTimer);clearTimeout(settleTimer);cancelMotion();state.pending=null;state.cue=cue;state.lastGesture=performance.now();
-  const ids=state.example==='pair'?['hermit','wands']:[cue.card];
-  if($$('[data-rack] [data-card]').map(n=>n.dataset.card).join()!==ids.join())drawRack(ids);
-   $$('[data-rack] [data-card]').forEach(button=>{
-    const id=button.dataset.card;button.classList.toggle('is-current',id===cue.card||id===cue.retain);
-    if(id===cue.card&&cue.touch&&!held){
-     animate(button,[
-      {transform:'translate3d(0,0,0) rotateX(0deg) rotateY(0deg)',easing:'cubic-bezier(.16,1,.3,1)'},
-      {transform:'translate3d(0,-5px,0) rotateX(1.6deg) rotateY(-1.4deg)',offset:.36,easing:'cubic-bezier(.25,.1,.25,1)'},
-      {transform:'translate3d(0,0,0) rotateX(0deg) rotateY(0deg)'}
-     ],{duration:1100});
-     const art=button.querySelector('.g-card-art');
-     if(art){
-      animate(art,[
-       {boxShadow:'0 12px 24px rgb(0 0 0 / .18)',easing:'cubic-bezier(.16,1,.3,1)'},
-       {boxShadow:'0 18px 32px rgb(0 0 0 / .26)',offset:.36,easing:'cubic-bezier(.25,.1,.25,1)'},
-       {boxShadow:'0 12px 24px rgb(0 0 0 / .18)'}
+  function drawFocus(cue,held){
+   const box=$('[data-window]'),configs=cue.pair?[['hermit','lantern'],['wands','staffs']]:[[cue.card,cue.detail]];
+   box.classList.toggle('is-pair',Boolean(cue.pair));
+   if(box.children.length!==configs.length||[...box.children].some((v,i)=>v.dataset.card!==configs[i][0]))box.replaceChildren(...configs.map(([card,detail])=>makeView(card,detail)));
+   configs.forEach(([card,detail],i)=>{
+    const view=box.children[i];view.dataset.detail=detail||'whole';positionView(view);
+    setLight(view.querySelector('.g-light'),detail);
+   });
+   $('[data-art-touch]').setAttribute('aria-label',`${cue.pair?'The Hermit and Five of Wands':data.cards[cue.card].name}: ${cue.caption}. Hold or continue.`);
+  }
+  function applyCue(cue,held=false){
+   clearTimeout(gestureTimer);clearTimeout(settleTimer);cancelMotion();state.pending=null;state.cue=cue;state.lastGesture=performance.now();
+   const ids=state.example==='pair'?['hermit','wands']:[cue.card];
+   if($$('[data-rack] [data-card]').map(n=>n.dataset.card).join()!==ids.join())drawRack(ids);
+    $$('[data-rack] [data-card]').forEach(button=>{
+     const id=button.dataset.card;button.classList.toggle('is-current',id===cue.card||id===cue.retain);
+     if(id===cue.card&&cue.touch&&!held){
+      animate(button,[
+       {transform:'translate3d(0,0,0) rotateX(0deg) rotateY(0deg)',easing:'cubic-bezier(.16,1,.3,1)'},
+       {transform:'translate3d(0,-5px,0) rotateX(1.6deg) rotateY(-1.4deg)',offset:.36,easing:'cubic-bezier(.25,.1,.25,1)'},
+       {transform:'translate3d(0,0,0) rotateX(0deg) rotateY(0deg)'}
       ],{duration:1100});
+      const art=button.querySelector('.g-card-art');
+      if(art){
+       animate(art,[
+        {boxShadow:'0 12px 24px rgb(0 0 0 / .18)',easing:'cubic-bezier(.16,1,.3,1)'},
+        {boxShadow:'0 18px 32px rgb(0 0 0 / .26)',offset:.36,easing:'cubic-bezier(.25,.1,.25,1)'},
+        {boxShadow:'0 12px 24px rgb(0 0 0 / .18)'}
+       ],{duration:1100});
+      }
      }
-    }
-    const detail=cue.pair?(id==='hermit'?'lantern':'staffs'):id===cue.card?cue.detail:null;
-   setLight(button.querySelector('.g-light'),detail,!held&&!cue.balanced&&(detail==='pool'||detail==='land'));
-  });
-  $('[data-stage-title]').textContent=cue.pair?'The Hermit & Five of Wands':data.cards[cue.card].name;
-  $$('[data-spread] button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.spreadCard===cue.card||button.dataset.spreadCard===cue.retain)));
+     const detail=cue.pair?(id==='hermit'?'lantern':'staffs'):id===cue.card?cue.detail:null;
+    setLight(button.querySelector('.g-light'),detail);
+   });
+   $('[data-stage-title]').textContent=cue.pair?'The Hermit & Five of Wands':data.cards[cue.card].name;
+   $$('[data-spread] button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.spreadCard===cue.card||button.dataset.spreadCard===cue.retain)));
    drawFocus(cue,held);
    phrases.forEach(node=>node.classList.toggle('is-associated',node.dataset.cue===cue.id&&(cue.meaning||state.held)));
-   const index=cues.findIndex(c=>c.id===cue.id);
-   if(index>=0){$('[data-timeline]').value=index;$('[data-timeline]').setAttribute('aria-valuetext',cue.label);}
    root.dataset.cue=cue.id;root.dataset.detail=cue.detail||'identity';
+
+   // Living water motion for the Star card
+   if(cue.card==='star'&&!motion.matches){
+    const waterDetail=cue.balanced||cue.detail==='both'?'both':cue.detail;
+    if(waterDetail){
+     setWater(null,waterDetail,'active',held,cue.id);
+    }else{
+     setWater(null,null,'clear');
+    }
+   }else{
+    setWater(null,null,'clear');
+   }
+
    updateReveal();
-   if(!held)settleTimer=setTimeout(()=>{$$('.g-light.is-lit').forEach(n=>n.classList.add('is-settled'));if(!state.held)phrases.forEach(n=>n.classList.remove('is-associated'));},cue.balanced?2800:1900);
+   if(!held)settleTimer=setTimeout(()=>{
+    $$('.g-light.is-lit').forEach(n=>n.classList.add('is-settled'));
+    setWater(null,null,'settle',state.held);
+    if(!state.held)phrases.forEach(n=>n.classList.remove('is-associated'));
+   },cue.balanced?3200:2200);
   }
   function offerCue(cue){
    if(state.held)return;state.pending=cue;if(!state.visible)return;
@@ -358,8 +500,18 @@
    revealInspection(cue);state.held=true;state.autoPaused=false;pause('Connection held.');state.pending=null;applyCue(cue,true);updateControls();
   }
   function toggleHold(){
-   if(state.held){state.held=false;if(!state.complete)play();else{applyCue(state.cue);updateControls();$('[data-status]').textContent='Connection released.';}}
-   else hold();
+   if(!state.held){hold();return;}
+   state.held=false;clearTimeout(settleTimer);
+   $$('.g-light.is-lit').forEach(node=>node.classList.add('is-settled'));
+   phrases.forEach(node=>node.classList.remove('is-associated'));
+   setWater(null,null,'settle');
+   if(!state.complete){
+    state.playing=state.visible&&!document.hidden;state.autoPaused=!state.playing;
+    const latest=cues[state.delivered];
+    if(latest&&latest.id!==state.cue.id)offerCue(latest);
+    if(state.playing)tick();
+   }
+   updateControls();$('[data-status]').textContent='Connection released.';
   }
   function inspectIdentity(id){hold({id:'identity-'+id,card:id,detail:null,caption:`${data.cards[id].position} · ${data.cards[id].orientation}`});}
   function revisit(index){
@@ -385,13 +537,27 @@
    if(id&&id!==state.cue.card&&id!==state.cue.retain){inspectIdentity(id);return;}
    if(state.complete&&state.example==='star'&&event.detail>0&&(!id||id==='star')){
     const rect=node.getBoundingClientRect(),x=(event.clientX-rect.left)/rect.width,y=(event.clientY-rect.top)/rect.height;
-    revisit(y<.38?5:x<.5?3:4);return;
+    const index=y<.38?5:x<.5?3:4;
+    if(state.held&&state.cue.id===cues[index].id)toggleHold();else revisit(index);
+    return;
    }
    toggleHold();
   });
   node.addEventListener('keydown',event=>{
    if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();
    const i=Math.max(0,cues.findIndex(c=>c.id===state.cue.id));revisit(event.key==='Home'?0:event.key==='End'?cues.length-1:i+(event.key==='ArrowLeft'?-1:1));
+  });
+ }
+ function bindPhrase(node,cue){
+  const activate=()=>{
+   if(node.hidden)return;
+   if(state.cue?.id===cue.id)toggleHold();
+   else revisit(cues.findIndex(candidate=>candidate.id===cue.id));
+  };
+  node.addEventListener('click',activate);
+  node.addEventListener('keydown',event=>{
+   if(!['Enter',' '].includes(event.key))return;
+   event.preventDefault();if(!event.repeat)activate();
   });
  }
  function buildProse(sample){
@@ -410,14 +576,21 @@
   });
   let offset=0;
   sample.paragraphs.forEach(markdown=>{
-   const p=element('p');let strong=null;
+   const p=element('p');let strong=null,phrase=null;
    markdown.split(/(\*\*)/).forEach(part=>{
     if(part==='**'){if(strong)strong=null;else{strong=element('strong');p.append(strong);}return;}
     const parent=strong||p;
     for(const chunk of part.matchAll(/\S+\s*|^\s+/g)){
      const value=chunk[0],span=element('span','g-word',value),cue=cues.find(c=>offset<c.end&&offset+value.length>c.start);
-     if(cue){span.classList.add('g-phrase');span.dataset.cue=cue.id;phrases.push(span);}
-     words.push({span,end:offset+value.length});parent.append(span);offset+=value.length;
+     if(cue){
+      if(!phrase||phrase.dataset.cue!==cue.id||phrase.parentNode!==parent){
+       phrase=element('span','g-phrase');phrase.dataset.cue=cue.id;phrase.setAttribute('role','button');
+       phrase.setAttribute('aria-pressed','false');phrase.tabIndex=-1;phrase.hidden=true;
+       bindPhrase(phrase,cue);phrases.push(phrase);parent.append(phrase);
+      }
+      phrase.append(span);
+     }else{phrase=null;parent.append(span);}
+     words.push({span,end:offset+value.length});offset+=value.length;
     }
    });
    container.append(p);offset+=2;
@@ -438,7 +611,7 @@
    button.addEventListener('click',()=>inspectIdentity(cardId));spread.append(button);
   });
    buildProse(sample);words.forEach(w=>w.span.classList.add('is-unread'));drawRack(id==='star'?['star']:['hermit','wands']);
-   $('[data-timeline]').max=String(Math.max(0,cues.length-1));applyCue(cues[0],true);
+   applyCue(cues[0],true);
   $('[data-status]').textContent='Recorded reading ready.';
   const provenance=$('[data-provenance]');provenance.replaceChildren();
   provenance.append(element('p','',`Source: ${sample.source.sampleId} · generated ${sample.source.generatedAt}. ${sample.source.description}`));
@@ -475,26 +648,42 @@
  }
  $('[data-action="all"]').addEventListener('click',()=>{
   stopTimers();state.pending=null;state.held=false;state.started=true;state.complete=true;state.cursor=words.length;
-  words.forEach(w=>w.span.classList.remove('is-unread'));pause('Full recorded reading shown.');applyCue(cues[cues.length-1],true);
+  words.forEach(w=>w.span.classList.remove('is-unread'));pause('Full recorded reading shown.');applyCue(cues[cues.length-1]);
  });
  bindArt($('[data-art-touch]'));
- $('[data-timeline]').addEventListener('input',event=>revisit(Number(event.target.value)));
- $('[data-timeline]').addEventListener('focus',()=>hold());
  $('[data-reflection-toggle]').addEventListener('change',()=>{$('[data-reflection]').hidden=!$('[data-reflection-toggle]').checked;});
  $$('[data-example]').forEach(button=>button.addEventListener('click',()=>renderExample(button.dataset.example)));
  const resize=new ResizeObserver(()=>$$('.g-view').forEach(positionView));resize.observe($('[data-window]'));
   // Text arrival is not gaze. Only accompany a passage while its area is actually visible.
   const visible=new IntersectionObserver(entries=>{
    state.visible=entries[0].isIntersecting;
-   if(state.visible){scheduleAuto();if(state.autoPaused&&!state.held)play();else if(state.pending&&!state.held)offerCue(state.pending);}
-   else{clearTimeout(autoTimer);cancelMotion();if(state.playing){state.autoPaused=true;pause();}}
+   if(state.visible){scheduleAuto();if(state.autoPaused&&!state.held)play();else if(state.pending&&!state.held)offerCue(state.pending);else resumeHeldWater();}
+   else{clearTimeout(autoTimer);cancelMotion();if(state.playing){state.autoPaused=true;pause();}resumeHeldWater();}
   },{threshold:0});visible.observe($('.g-prose'));
+ const artworkVisible=new IntersectionObserver(entries=>{
+  state.artVisible=entries[0].isIntersecting;
+  if(state.held){if(waterCanMove())resumeHeldWater();else setWater(null,null,'clear');}
+ },{threshold:0});artworkVisible.observe($('.g-stage'));
  document.addEventListener('visibilitychange',()=>{
   if(document.hidden){if(state.playing){state.autoPaused=true;pause();}cancelMotion();}
-  else if(state.autoPaused&&state.visible&&!state.held)play();
+  else if(state.held)resumeHeldWater();
+  else if(state.autoPaused&&state.visible)play();
  });
- motion.addEventListener('change',()=>{cancelMotion();if(state.cue)applyCue(state.cue,true);});
- window.addEventListener('pagehide',stopTimers);
+ motion.addEventListener('change',()=>{
+  cancelMotion();if(state.cue)applyCue(state.cue,state.held);
+  if(state.complete&&!state.held){clearTimeout(settleTimer);setWater(null,null,'clear');$$('.g-light.is-lit').forEach(node=>node.classList.add('is-settled'));}
+ });
+ window.addEventListener('pagehide',event=>{
+  if(state.playing){state.autoPaused=true;pause();}
+  stopTimers();
+  if(!event.persisted){visible.disconnect();artworkVisible.disconnect();resize.disconnect();}
+ });
+ window.addEventListener('pageshow',event=>{
+  if(!event.persisted)return;
+  if(state.held)resumeHeldWater();
+  else if(state.autoPaused&&state.visible&&!document.hidden)play();
+  else scheduleAuto();
+ });
  renderExample('star');
 })();
 </script>
