@@ -1,12 +1,14 @@
 # Personalized reading: imagery and motion proposal
 
-**Date:** October 8, 2026
+**Date:** October 8, 2026; current study and bridge planning updated October 9.
 
 **Status:** Design exploration, with a playable fixture. Production implementation is not included.
 
-**Source baseline:** `ba009b346216c46597c60a4f07a5283cfc98d5cc`
+**Source baseline:** Original investigation: `ba009b346216c46597c60a4f07a5283cfc98d5cc`. The standalone study is preserved on `feat/reading-imagery-motion`; production planning also considers the separate `feat/reading-card-touch` experiment at `eca5290`.
 
-**Prototype:** [Current Star motion study and preview instructions](../../../output/reading-motion/README.md)
+**Prototype:** [Personalized reading gestures and preview instructions](../../../output/reading-motion/README.md)
+
+**Production follow-up:** [React bridge implementation plan](../plans/2026-10-09-reading-gestures-react-bridge.md). Planning does not merge the separate experiment or change production code.
 
 ## Purpose
 
@@ -32,7 +34,7 @@ In the current fixture, the Star's pitcher pouring into the pool becomes a way t
 
 Three-card readings progress through Past, Present, and Future while explaining the transitions. Relationship readings explore interplay. Celtic Cross guidance groups and revisits positions through Nucleus, Timeline, Consciousness, Staff, cross-checks, and synthesis; it is not ten independent descriptions.
 
-One recorded Celtic Cross sample (`celtic-deep-shift`) recalls Death's white horse when introducing the white horse in The Sun. Its synthesis returns to the Hermit's lantern and Temperance's cups. A future implementation needs to support returning to a prior card and indicating more than one card when the writing makes a relationship explicit. The current single-card study does not demonstrate those behaviors.
+One recorded Celtic Cross sample (`celtic-deep-shift`) recalls Death's white horse when introducing the white horse in The Sun. Its synthesis returns to the Hermit's lantern and Temperance's cups. A future implementation needs to support returning to a prior card and indicating more than one card when the writing makes a relationship explicit. The current study demonstrates a lantern-to-scrum relationship with the Hermit and Five of Wands reversed; general transitions across three to five cards remain unproven.
 
 ### Context constrains a valid gesture
 
@@ -51,9 +53,23 @@ Indicate only imagery actually supported by the selected artwork. Preserve drawn
 | A passage relates or revisits cards | Support a shared or returning emphasis, rather than advancing permanently to the next card | Preserve the reading's larger argument |
 | The reader inspects a phrase again | Replay or hold its association on hover, keyboard focus, or activation | Make connections available at the reader's pace |
 
-The final two-card behavior remains a design requirement to explore. In the current study the card touch is approximately 3px, imagery emphasis settles over roughly 0.4–1.2 seconds, and automatic cues clear after a short hold. These timings are prototype choices to evaluate, not production tokens or validated reading-speed defaults.
+The current two-card example preserves the Hermit while the Five of Wands emerges, returns to the lantern, and ends with both details visible. Touch, illumination, and settlement timings are prototype choices to evaluate, not production tokens or validated reading-speed defaults.
 
 ## Current motion study
+
+[personalized-reading-gestures.html](../../../output/reading-motion/personalized-reading-gestures.html) preserves the exact 97-word Star paragraph, question, reflection, and spread in the [23:47 fixture](../../../output/reading-motion/fixtures/three-card-transition.json). Its six authored moments acknowledge the card, identify each painted pour, reuse those details for memory and new ground, and briefly hold both at “Neither pitcher gets dropped.” Literal description establishes the detail; interpretation reuses its visual treatment.
+
+The related-card example uses the complete 183-word **The Heart of It** section in the [separate 23:23 fixture](../../../output/reading-motion/fixtures/gestures-celtic-deep-shift.json). It establishes the Hermit's lantern, introduces the reversed Five of Wands and its staffs, then returns to the lantern before holding their relationship. These are two recorded readings with distinct timestamps, not excerpts combined into one reading.
+
+Playback begins when the passage area enters the viewport. Artwork starts concealed, emerges almost imperceptibly with the card's introduction, becomes readable through its physical description, and rests at 0.74 base opacity with brightness 0.88. Hover, keyboard focus, and held inspection lift and brighten it; the independent illumination layer remains intact. Reduced motion uses immediate static associations after the card name arrives.
+
+The card itself supports hold/release and revisit, with a small timeline and native keyboard controls. The visible experience has no playback button, explanatory callouts, or repeated inspection links. A phone detail window keeps both Star pours legible and can retain the two-card relationship without covering the prose. Identity-only inspection shows a whole card without inventing a detail.
+
+Fast text arrivals coalesce cues, explicit inspection takes priority, and settled cues remain available after completion. There is no forced scrolling. Passage visibility gates the simulated stream; it does not establish where the reader is looking. Holding pauses this prototype's simulated word reveal. A production implementation must continue receiving server text independently of held visual inspection.
+
+The preview loads unmodified Immanuelle vector originals as SVG images and overlays authored masks and light traces. SVG paths are not semantic artwork layers. Geometry belongs to this artwork edition; its coordinates cannot be assumed correct for production RWS scans, Thoth, or Marseille. The complete 79-file deck is preserved with provenance under the study's assets, outside production assets.
+
+## Earlier Star study
 
 [star-reading-motion.html](../../../output/reading-motion/star-reading-motion.html) retains the exact 97-word Future paragraph from the `three-card-transition` sample, including its original wording. It shows the sample's question and reflection as context, then the existing **The Story** section and **Future: The Star (Upright)** position label.
 
@@ -65,12 +81,13 @@ The earlier [reading-with-you.html](../../../output/reading-motion/reading-with-
 
 ## Integration considerations
 
-These observations identify where implementation work would be needed; no production architecture or annotation contract has been approved here.
+These observations identify where implementation work would be needed. The [bridge plan](../plans/2026-10-09-reading-gestures-react-bridge.md) makes them concrete for a fixture-based React implementation, while generalized semantic tagging and production artwork promotion remain separate decisions.
 
 - [StreamingNarrative.jsx](../../../src/components/StreamingNarrative.jsx) currently tracks first phrase/section appearance. That event is different from the moment a person reads or revisits an interpretive passage. Some mobile, long Markdown, and reduced-motion paths also suppress client reveal.
 - [Narrative model utilities](../../../src/hooks/narrativeReadingModelUtils.js) preserve the narrative text and currently derive card-name highlight phrases. Card-name matching alone does not identify literal imagery or the passage's personal connection.
 - [Reading selection](../../../src/hooks/useReadingSelection.js) handles existing card-selection/pulse behavior; the narrative surface needs its own visible card context for a cue to be useful.
 - [ReadingContext.jsx](../../../src/contexts/ReadingContext.jsx) receives deltas and can replace text with snapshots or a completed result. Any future annotations must remain attached to the correct text through those updates, without replaying every cue on reconnect or final replacement.
+- The separate `feat/reading-card-touch` experiment already supplies Markdown annotation seams, a reading-focus provider, a companion, and a masked artwork renderer. Reconcile that work before building the React bridge; extend its boundaries rather than adding a competing focus system. Its keyword-derived details, live newest-block selection, and grouped Star pitchers do not yet demonstrate the accepted semantic sequence.
 - [Reading stream transport](../../../functions/lib/readingStream.js) can divide buffered text into chunks, including a default 160-character size. Transport boundaries are not semantic boundaries and cannot reliably determine when imagery is interpreted.
 - Arrival timing is not reading position. Automatic cues should yield to explicit inspection, and complete readings must retain the same connections for readers who arrive after generation or read at a different pace.
 
@@ -78,7 +95,7 @@ A future annotation design would need reliable card identity/spread index, suppo
 
 ## Questions for the next design pass
 
-1. How should the companion hold two related cards on a phone without covering the prose?
+1. How should the tested two-card phone composition extend to three to five cards, with returns and shared imagery, while protecting reading space?
 2. Which gestures can be subtle yet legible on the compact card, and when should a detail be enlarged?
 3. How should automatic emphasis follow reading progress without assuming gaze or forcing scroll movement?
 4. How should a reversal, another deck, a very short reading, or translated prose affect cue selection and placement?
@@ -86,4 +103,4 @@ A future annotation design would need reliable card identity/spread index, suppo
 
 ## Evidence and limits
 
-The [verification record](../../../output/reading-motion/verification.md) separates standalone mockup checks from repository tests. The prototype has no live model requests, authentication, subscription behavior, saving, or application integration. Its hand-authored associations demonstrate an interaction idea; they do not validate automated imagery recognition, personalization correctness, reading-position tracking, or production accessibility across assistive technologies and devices.
+The [current study README](../../../output/reading-motion/README.md#verification-record) records its actual checks; the [earlier verification record](../../../output/reading-motion/verification.md) applies to the earlier Star study. The prototype has no live model requests, authentication, subscription behavior, saving, or application integration. Its hand-authored associations demonstrate an interaction idea; they do not validate automated imagery recognition, personalization correctness, reading-position tracking, hardware compositing, or production accessibility across assistive technologies and devices.

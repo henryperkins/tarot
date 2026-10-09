@@ -1,0 +1,32 @@
+{
+  "id": "celtic-deep-shift",
+  "generatedAt": "2026-10-07T23:23:59.556Z",
+  "sourceFile": "data/evaluations/narrative-samples.json",
+  "sourceReadingSha256": "dc2700674033d8aeacdcf121a91d42c6b8ece140bac35059e8f2284d94a8babd",
+  "deckStyle": "rws-1909",
+  "userQuestion": "How can I stay centered while everything at home and work restructures at once?",
+  "reflectionsText": "It feels like multiple towers at the same time; I want to stay compassionate without losing momentum.",
+  "heading": "The Heart of It",
+  "excerpt": "**The Hermit** at the center is a useful answer to \"how do I stay centered.\" In the Rider-Waite-Smith image, his lantern is held close and lights only the next few steps, not the whole mountain. In career terms, this can look like a strategic retreat, though not necessarily a literal one. It might be twenty minutes before the inbox opens, where you decide for yourself what matters today before everyone else's restructuring tells you.\n\nCrossing him is **Five of Wands** reversed. On the card, five people swing staffs in a chaotic scrum. Read through Delayed Timing, the friction here may not have fully surfaced yet. Disagreements could still be circling: unclear roles, quiet resentment, conversations everyone is putting off.\n\nThat doesn't make avoidance the right move forever, and waiting won't necessarily make the tension resolve. It does raise a fair question: what needs to be in place before this friction can be named usefully? That could be clearer information, or your own read from the Hermit's lantern first. Knowing where you stand before stepping into the scrum is part of the work here.",
+  "cards": [
+    {
+      "position": "Present — core situation",
+      "card": "The Hermit",
+      "orientation": "Upright",
+      "meaning": "Soul-searching, introspection, inner guidance, solitude",
+      "number": 9,
+      "suit": null,
+      "rank": null,
+      "rankValue": null
+    },
+    {
+      "position": "Challenge — crossing / tension",
+      "card": "Five of Wands",
+      "orientation": "Reversed",
+      "meaning": "Avoidance of conflict, resentment, unproductive tension",
+      "suit": "Wands",
+      "rank": "Five",
+      "rankValue": 5
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+__pycache__/
+*.svg.part
+.download-runner.lock
+download.pid
+download-job.log
+download-job.json
+download-job.json.tmp
+download-status.json
+transfer-log.jsonl
