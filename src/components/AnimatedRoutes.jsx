@@ -20,6 +20,10 @@ const SpreadLayoutFixture = import.meta.env.DEV
   ? lazy(() => import('./SpreadLayoutFixture.jsx'))
   : null;
 
+const ReadingGesturesFixture = import.meta.env.DEV
+  ? lazy(() => import('./ReadingGesturesFixture.jsx'))
+  : null;
+
 // Minimal loading fallback for route transitions
 function RouteLoader() {
   return (
@@ -80,6 +84,9 @@ export function AnimatedRoutes() {
           <Route path="/reset-password" element={<PageTransition><ResetPasswordPage /></PageTransition>} />
           <Route path="/verify-email" element={<PageTransition><VerifyEmailPage /></PageTransition>} />
           <Route path="/auth/callback" element={<PageTransition><OAuthCallbackPage /></PageTransition>} />
+          {ReadingGesturesFixture && (
+            <Route path="/__e2e/reading-gestures" element={<ReadingGesturesFixture />} />
+          )}
           {SpreadLayoutFixture && (
             <Route path="/__e2e/spread-layout" element={<SpreadLayoutFixture />} />
           )}

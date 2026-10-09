@@ -46,6 +46,10 @@ export const SOURCE_USAGE = buildReadingUsageFixtures();
 // These are real, controllable SSE connections, not pre-completed route bodies.
 // They let tests close/reopen or resize while the same response is in flight.
 export async function createNarrativeFixture(page, options = {}) {
+  const narrative = options.narrative ?? NARRATIVE;
+  const question = options.question ?? QUESTION;
+  const jobId = options.jobId ?? 'fixture-reading';
+  const authMode = options.authMode ?? (options.signedOut ? 'guest' : 'mock-pro');
   const clients = { reading: new Set(), followup: new Set() };
   const requests = { reading: [], followup: [], feedback: [] };
   let eventId = 0;
@@ -75,7 +79,7 @@ export async function createNarrativeFixture(page, options = {}) {
     clients[kind].add(response);
     response.on('close', () => clients[kind].delete(response));
     send(response, 'meta', kind === 'reading'
-      ? { provider, requestId: 'narrative-remediation', sourceUsage }
+      ? { provider, requestId: 'narrative-remediation', sourceUsage, ...options.meta }
       : { provider: 'fixture', requestId: 'narrative-followup', turn: ++successfulFollowupStreams });
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -84,18 +88,19 @@ export async function createNarrativeFixture(page, options = {}) {
   await page.route(/https:\/\/[^/]*sentry\.io\/.*\/envelope\//, route => route.fulfill({ json: {} }));
   await page.route('**/api/**', async route => {
     const pathname = new URL(route.request().url()).pathname;
+    if (pathname === '/api/auth/me' && authMode === 'passthrough') return route.continue();
     if (pathname === '/api/auth/me') return route.fulfill({
-      status: options.signedOut ? 401 : 200,
-      json: { user: options.signedOut ? null : {
+      status: authMode === 'guest' ? 401 : 200,
+      json: { user: authMode === 'guest' ? null : {
         id: 'fixture-pro-user', email: 'fixture@example.invalid', username: 'fixture',
         subscription_tier: 'pro', subscription_status: 'active', subscription_provider: 'stripe'
       } }
     });
     if (pathname === '/api/tarot-reading/jobs') {
       requests.reading.push(route.request().postDataJSON());
-      return route.fulfill({ json: { jobId: 'fixture-reading', jobToken: 'local-fixture-token' } });
+      return route.fulfill({ json: { jobId, jobToken: 'local-fixture-token' } });
     }
-    if (pathname.endsWith('/stream')) return route.continue({ url: `${origin}/reading` });
+    if (pathname.startsWith('/api/tarot-reading/jobs/') && pathname.endsWith('/stream')) return route.continue({ url: `${origin}/reading` });
     if (pathname.endsWith('/cancel')) return route.fulfill({ json: { status: 'cancelled' } });
     if (pathname === '/api/reading-followup') {
       requests.followup.push(route.request().postDataJSON());
@@ -109,10 +114,14 @@ export async function createNarrativeFixture(page, options = {}) {
       return route.fulfill({ status: feedbackStatus, json: { ok: feedbackStatus === 200 } });
     }
     if (pathname === '/api/journal') return route.fulfill({ json: { entries: [] } });
+    if (authMode === 'passthrough') return route.continue();
     return route.fulfill({ status: 200, json: { ok: true, entries: [], items: [] } });
   });
   return {
     requests,
+    narrative,
+    question,
+    jobId,
     setFeedbackStatus(status) { feedbackStatus = status; },
     setFollowupStatus(status) { followupStatus = status; },
     holdFeedback() { feedbackGate = new Promise(resolve => { feedbackRelease = resolve; }); },
@@ -125,8 +134,9 @@ export async function createNarrativeFixture(page, options = {}) {
       }
     },
     async completeReading() {
-      await this.emit('reading', 'done', { fullText: NARRATIVE, requestId: 'narrative-remediation', provider, sourceUsage });
-      await expect(page.locator('.narrative-stream')).toContainText('What would enough look like today?');
+      await this.emit('reading', 'done', { fullText: narrative, requestId: 'narrative-remediation', provider, sourceUsage });
+      const ending = narrative.replace(/[*#_`]/g, '').trim().split(/\s+/).slice(-8).join(' ');
+      await expect(page.locator('.narrative-stream')).toContainText(ending);
       await expect(page.getByText('Narrative ready.', { exact: true })).toBeAttached();
       await page.evaluate(() => Promise.race([
         document.fonts.ready,
@@ -157,7 +167,7 @@ export async function openSetup(page) {
 
 export async function startReading(page, fixture, { complete = true } = {}) {
   await openSetup(page);
-  await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
+  await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(fixture.question || QUESTION);
   await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
   await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
   await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();

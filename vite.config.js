@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   plugins: [react()],
@@ -17,6 +19,9 @@ export default defineConfig({
       }
     },
     fs: {
+      // Linked worktrees may share installed packages. Permit their resolved
+      // assets (including the local reading fonts), not the parent repository.
+      allow: [fileURLToPath(new URL('.', import.meta.url)), realpathSync(fileURLToPath(new URL('./node_modules', import.meta.url)))],
       deny: ['venv/**', '.git/**']
     }
   },
