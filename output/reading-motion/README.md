@@ -13,6 +13,8 @@ Open [a fresh generated reading](http://localhost:5174/__e2e/reading-gestures?st
 
 Generated mode uses exact, validated quotations supplied alongside the reading. Literal details establish references for later interpretations, two-card connections, and optional question/reflection quotations. The conservative **dynamic** option exposes the automatic identity/literal fallback for comparison; it no longer contains memorized fixture returns. Text arrival and held inspection remain independent. Model output and structural acceptance are [recorded separately from semantic review](evidence/2026-10-09-generated-associations/README.md).
 
+The 15 generated examples used one request to write both prose and annotations. They remain historical evidence. The [corrected production direction](../../docs/superpowers/plans/2026-10-09-reading-gestures-react-bridge.md#independent-visual-cue-model-production-direction) keeps reading generation untouched: the application forwards completed passages to a separate visual-cue model, which returns associations only. That independent live observer and its transport are not implemented by the saved replay.
+
 The React study loads attributed WebP delivery copies of the same vector edition. Original SVGs and standalone studies remain intact. The feature remains opt-in; this repair does not enable production reading generation or deploy the app.
 
 

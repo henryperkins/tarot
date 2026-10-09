@@ -1,5 +1,7 @@
 # Personalized Reading Gestures React Bridge Implementation Plan
 
+> October 9 architecture correction: the reading model writes only the reading. A separate visual-cue model observes its immutable output through application orchestration. No animation instructions, detail catalog, annotation schema or routing/tool-call instructions are added to the reading prompt. The joint-generation experiment is historical evidence, not the production architecture. See the independent visual-cue model section below.
+
 > October 9 remediation update: the user authorized repairs following two outside reviews. See [the repair record](../reviews/2026-10-09-reading-gestures-remediation.md) for the current semantic source, scope and evidence. The original fixture-only/no-generation constraint below describes the earlier bridge milestone; the repair adds a bounded subscription-backed generation experiment and validated semantic metadata consumption. Production rollout remains gated.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -15,6 +17,34 @@
 **Scope and current evidence:** The standalone living Star, Hermit/Wands relationship, and [five-card dialogue](../../../output/reading-motion/five-card-dialogue.html) already exist. All three are inputs to Tasks 3–7, not future extraction work. Their study checks do not complete the React tasks. Implementation was subsequently approved. The execution record below distinguishes the completed opt-in bridge from full-deck and production rollout work.
 
 **Full-deck destination:** Any major, numbered minor, or court card can become the subject, return later, or participate in a relationship. There is no Star-only renderer, five-card whitelist, or linear unlock sequence. Every card must support whole-card emergence, focus, settlement, orientation, hold, and revisit through the same engine. The finished experience also needs supported imagery and an intentional motion treatment for every card in the adopted edition; some imagery may call for still illumination rather than moving a figure or symbol. Unsupported detail fallback keeps a reading usable during development but does not count as finished deck coverage. Task 4 proves the common path across all 78 identities; Task 8 records the remaining per-card work and gates a claim of full-deck completion.
+
+## Independent visual-cue model: production direction
+
+The user's requirement is to protect the reading model's attention and prompt budget. Reading generation remains responsible solely for the reading. The application forwards its output to a separately configured visual-cue model; the reading model is not asked to invoke, address or manage that model. Existing reading-oriented imagery guidance is distinct from visual-cue orchestration and is not removed by this decision.
+
+```text
+Reading model → application → unchanged prose → reader
+                          ↘ completed passages → visual-cue model
+                                                   ↓
+                          validated associations → artwork companion
+```
+
+The visual model receives immutable completed passages, the preceding context needed for cross-card relationships, the actual question/optional reflections, spread positions/orientations, edition-specific supported details, and previously accepted cue references. It returns only proposed associations with exact quotations and supported targets. It cannot rewrite the reading or request a rewrite to make an animation possible. An absent literal detail stays absent. The application owns the raw text in the document envelope; the visual model must not regenerate it.
+
+Use one in-flight annotation request and one latest pending source snapshot per reading. Completed sentences or paragraphs are candidates for scheduling; do not make a model request per token. New arrivals replace pending work, while completed results remain useful if their analyzed prefix still exactly matches the current reading. Budget, timeout and cancellation are independent of narrative generation. Regeneration or non-prefix replacement invalidates the old visual job and its results.
+
+The application binds each request/result to the reading run, source revision, analyzed prefix/end/hash, spread, artwork edition/catalog version, and ordered annotation sequence. Those identities come from the application, not the model. Exact-quote, occurrence, detail, earlier-literal and optional-context validation still apply. A separate model boundary does not by itself establish semantic quality.
+
+Reading delivery and completion never wait for annotations. A visual event/job lifecycle must permit valid cues to arrive after the narrative stream finishes. Late cues enrich the current visible association or become available for revisiting; they do not trigger an old animation backlog, force scrolling or interrupt held inspection. Failures leave the prose and safe existing inspection usable. Measure cue latency relative to available/visible passages before claiming the six-moment choreography works with live generation.
+
+### Implementation gaps, not completed work
+
+- The current saved-document consumer expects a complete annotation document ahead of the replayed text (`document.raw.startsWith(source.raw)`). An independent observer normally trails the stream. Update source binding to accept an exact analyzed prefix of the current raw text, with explicit run/revision ownership and stale-result tests; changing the prefix direction alone is insufficient.
+- The current reading SSE consumer terminates on narrative `done`. Add an independent visual-job lifecycle/transport and persistence path, rather than delaying reading completion or assuming late metadata can arrive on the closed connection.
+- Replace joint generation as the next evaluation method: freeze unmodified reading-only outputs, then annotate them through independent visual-model calls with separate prompt/configuration/provenance. Keep the existing 15 joint-generated examples unchanged and labelled historical; they do not validate this separated pipeline.
+- Keep annotation model/provider selection independent of the reading provider. No specific visual model or serving configuration is selected by this architecture note. Evaluate its latency and semantic quality on unaltered readings before enabling production.
+
+This section records the user's architecture correction and supersedes joint generation as the future direction. It does not claim that the observer service, live transport, or model selection is implemented.
 
 ## Global Constraints
 
