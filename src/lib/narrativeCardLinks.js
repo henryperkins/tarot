@@ -532,6 +532,10 @@ function setBlockData(node, properties) {
 export function remarkCardLinks(options = {}) {
   const catalog = options.catalog || null;
   return (tree) => {
+    if (options.authoredOnly || options.associations?.length) {
+      annotateAuthoredRanges(tree, options.associations || []);
+      return;
+    }
     if (!catalog) return;
     // Readings usually open with an overview that names every card; a card's
     // plate belongs with its own passage, not that summary.
@@ -617,4 +621,100 @@ export function readBlockFocus(element) {
     primary: Number.isInteger(primary) ? primary : null,
     touches
   };
+}
+
+/** Resolve authored metadata only against its exact recorded raw source. */
+export function resolveGestureSidecar({ sidecar, source, cards = [], artworkEdition } = {}) {
+  const result = { associations: [], introductions: [], invalid: [] };
+  const expected = sidecar?.expectedRaw;
+  if (typeof expected !== 'string' || typeof source?.raw !== 'string' || !source.runId || !expected.startsWith(source.raw)
+    || (['complete', 'completed'].includes(source.status) && source.raw !== expected)
+    || (artworkEdition && sidecar.artworkEdition && artworkEdition !== sidecar.artworkEdition)) {
+    result.invalid.push({ reason: 'source-or-edition-mismatch' });
+    return result;
+  }
+  const target = (value) => {
+    if (!value || !Number.isInteger(value.spreadIndex) || (value.detailIds !== undefined && (!Array.isArray(value.detailIds) || value.detailIds.some((id) => typeof id !== 'string')))) return null;
+    const card = cards.find((card, index) => (card.index ?? index) === value.spreadIndex);
+    const name = card && (getCanonicalCard(card)?.name || card.canonicalName || card.name || card.card);
+    return name === value.canonicalName ? { occurrenceId: `${source.runId}:${value.spreadIndex}`, detailIds: [...(value.detailIds || [])] } : null;
+  };
+  const rangeValid = (range) => range && Number.isInteger(range.start) && Number.isInteger(range.end)
+    && range.start >= 0 && range.end > range.start && range.end <= expected.length
+    && range.quote === expected.slice(range.start, range.end);
+  for (const association of sidecar.associations || []) {
+    const targets = (association.targets || []).map(target);
+    if (!association.id || !['identity', 'literal', 'interpretation', 'balance', 'relationship'].includes(association.kind)
+      || !targets.length || targets.some((value) => !value) || !rangeValid(association.passage)
+      || (association.meaningRange && !rangeValid(association.meaningRange))) {
+      result.invalid.push({ id: association.id, reason: 'invalid-association' });
+      continue;
+    }
+    if (association.passage.end > source.raw.length) continue;
+    const { personalContext, ...rest } = association;
+    const context = personalContext && (personalContext.type === 'recorded-fixture-context'
+      ? sidecar.recordedContext?.reflectionsText
+      : personalContext.type === 'question' ? source.question
+        : personalContext.type === 'card-reflection' ? cards.find((card, index) => (card.index ?? index) === personalContext.spreadIndex)?.reflection : null);
+    const validatedContext = typeof context === 'string' && typeof personalContext?.quote === 'string' && context.includes(personalContext.quote) ? personalContext : undefined;
+    result.associations.push({ ...rest, targets: association.kind === 'identity' ? targets.map((value) => ({ ...value, detailIds: [] })) : targets,
+      ...(validatedContext ? { personalContext: validatedContext } : {}) });
+  }
+  for (const introduction of sidecar.introductions || []) {
+    const resolved = target(introduction);
+    const boundaries = ['start', 'namedEnd', 'descriptionStart', 'midpoint', 'end'].map((key) => introduction[key]);
+    if (!resolved || boundaries.some((value) => !Number.isInteger(value) || value < 0 || value > expected.length)
+      || boundaries.some((value, index) => index > 0 && value < boundaries[index - 1])) {
+      result.invalid.push({ reason: 'invalid-introduction', spreadIndex: introduction.spreadIndex });
+      continue;
+    }
+    result.introductions.push({ ...introduction, occurrenceId: resolved.occurrenceId });
+  }
+  return result;
+}
+
+function annotateAuthoredRanges(tree, associations) {
+  const ranges = associations.map((association) => ({ ...association.passage, association }));
+  const overlapping = new Set();
+  for (const a of ranges) for (const b of ranges) if (a !== b && a.start < b.end && b.start < a.end) { overlapping.add(a); overlapping.add(b); }
+  const offsets = (node) => [node.position?.start?.offset, node.position?.end?.offset];
+  const sliceNode = (node, start, end) => {
+    const [from, to] = offsets(node);
+    if (from >= start && to <= end) return node;
+    if (node.type === 'text') {
+      // Decoded entities and escapes have no unambiguous character projection.
+      if (to - from !== node.value.length) return null;
+      return { ...node, value: node.value.slice(Math.max(start, from) - from, Math.min(end, to) - from),
+        position: { start: { ...node.position.start, offset: Math.max(start, from) }, end: { ...node.position.end, offset: Math.min(end, to) } } };
+    }
+    if (!['strong', 'emphasis', 'delete'].includes(node.type)) return null;
+    const children = node.children.filter((child) => { const [a, b] = offsets(child); return a < end && b > start; }).map((child) => sliceNode(child, start, end));
+    return children.length && children.every(Boolean) ? { ...node, children } : null;
+  };
+  const visit = (node) => {
+    if (['paragraph', 'heading'].includes(node.type)) {
+      const [from, to] = offsets(node);
+      for (const range of ranges.filter((value) => !overlapping.has(value) && value.start >= from && value.end <= to).sort((a,b) => b.start - a.start)) {
+        const selected = node.children.filter((child) => { const [a,b] = offsets(child); return a < range.end && b > range.start; });
+        const forbidden = (child) => !['text','strong','emphasis','delete'].includes(child.type) || child.children?.some(forbidden);
+        if (!selected.length || selected.some(forbidden)) continue;
+        const middle = selected.map((child) => sliceNode(child, range.start, range.end));
+        if (!middle.every(Boolean)) continue;
+        const [firstStart] = offsets(selected[0]);
+        const [,lastEnd] = offsets(selected.at(-1));
+        const before = firstStart < range.start ? sliceNode(selected[0], firstStart, range.start) : null;
+        const after = lastEnd > range.end ? sliceNode(selected.at(-1), range.end, lastEnd) : null;
+        if ((firstStart < range.start && !before) || (lastEnd > range.end && !after)) continue;
+        const wrapper = { type: 'gestureAssociation', data: { hName: 'span', hProperties: {
+          className: ['reading-gesture-association'], dataGestureId: range.association.id,
+          dataSourceStart: String(range.start), dataSourceEnd: String(range.end), dataGestureLabel: range.association.label || range.quote.replace(/[*_]/g, '')
+        } }, children: middle, position: { start: { offset: range.start }, end: { offset: range.end } } };
+        node.children.splice(node.children.indexOf(selected[0]), selected.length, ...[before, wrapper, after].filter(Boolean));
+      }
+      return;
+    }
+    if (['code', 'html', 'link', 'inlineCode'].includes(node.type)) return;
+    node.children?.forEach(visit);
+  };
+  visit(tree);
 }

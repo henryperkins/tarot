@@ -244,3 +244,63 @@ describe('remark plugin', () => {
     assert.equal(readBlockFocus(null), null);
   });
 });
+
+test('authored raw ranges preserve a whole emphasized phrase and reject changed source', async () => {
+  const { resolveGestureSidecar } = await import('../src/lib/narrativeCardLinks.js');
+  const raw = '🌟 The **Star** pours; The **Star** pours.';
+  const start = raw.lastIndexOf('The');
+  const sidecar = { expectedRaw: raw, associations: [{ id: 'second', kind: 'literal', targets: [{ spreadIndex: 0, canonicalName: 'The Star', detailIds: ['pool-pour'] }], passage: { start, end: raw.length, quote: raw.slice(start) } }], introductions: [] };
+  const cards = [{ index: 0, name: 'The Star' }];
+  const result = resolveGestureSidecar({ sidecar, source: { runId: 'run', raw }, cards });
+  assert.equal(result.associations[0].targets[0].occurrenceId, 'run:0');
+  const html = renderToStaticMarkup(createElement(Markdown, { remarkPlugins: [[remarkCardLinks, { associations: result.associations }]] }, raw));
+  assert.match(html, /data-gesture-id="second"[^>]*>The <strong>Star<\/strong> pours\.<\/span>/);
+  assert.equal(resolveGestureSidecar({ sidecar, source: { runId: 'run', raw: raw.replace('pours', 'waits') }, cards }).associations.length, 0);
+  assert.equal(resolveGestureSidecar({ sidecar, source: { runId: 'run', raw: raw.slice(0, -2) }, cards }).associations.length, 0);
+});
+
+test('authored association validation keeps optional context independent and occurrences distinct', async () => {
+  const { resolveGestureSidecar } = await import('../src/lib/narrativeCardLinks.js');
+  const raw = "L'étoile 🌟 revient. L'étoile 🌟 revient.";
+  const cards = [{ index: 0, name: 'The Star' }, { index: 1, name: 'The Star' }];
+  const sidecar = { expectedRaw: raw, associations: [{ id: 'return', kind: 'relationship', passage: { start: 0, end: raw.length, quote: raw }, targets: cards.map((card) => ({ spreadIndex: card.index, canonicalName: card.name, detailIds: ['pool-pour'] })), personalContext: { type: 'card-reflection', spreadIndex: 0, quote: 'nostalgic' } }], introductions: [{ spreadIndex: 0, canonicalName: 'The Star', start: 0, namedEnd: 2, descriptionStart: 3, midpoint: 8, end: raw.length }] };
+  const result = resolveGestureSidecar({ sidecar, source: { runId: 'translated', raw }, cards });
+  assert.deepEqual(result.associations[0].targets.map((target) => target.occurrenceId), ['translated:0', 'translated:1']);
+  assert.equal(result.associations[0].personalContext, undefined);
+  assert.equal(resolveGestureSidecar({ sidecar, source: { runId: 'translated', raw: raw.slice(0, 5) }, cards }).introductions.length, 1);
+  assert.equal(resolveGestureSidecar({ sidecar, source: { runId: 'translated', raw }, cards: [{ index: 0, name: 'The Moon' }] }).associations.length, 0);
+});
+
+test('authored annotations exclude code, HTML, links, cross-block and overlapping phrases', () => {
+  for (const raw of ['`The Star`', '<span>The Star</span>', '[The Star](https://example.com)', 'The Star\n\nreturns']) {
+    const associations = [{ id: 'excluded', passage: { start: 0, end: raw.length, quote: raw } }];
+    const html = renderToStaticMarkup(createElement(Markdown, { skipHtml: true, remarkPlugins: [[remarkCardLinks, { associations }]] }, raw));
+    assert.doesNotMatch(html, /data-gesture-id/);
+  }
+  const raw = 'The Star pours';
+  const associations = [ { id: 'a', passage: { start: 0, end: 8, quote: 'The Star' } }, { id: 'b', passage: { start: 4, end: 14, quote: 'Star pours' } } ];
+  assert.doesNotMatch(renderToStaticMarkup(createElement(Markdown, { remarkPlugins: [[remarkCardLinks, { associations }]] }, raw)), /data-gesture-id/);
+});
+
+test('recorded sidecars preserve raw fixtures, hash and independent detail targets', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { createHash } = await import('node:crypto');
+  const { resolveGestureSidecar } = await import('../src/lib/narrativeCardLinks.js');
+  const load = async (name) => JSON.parse(await readFile(new URL(`../output/reading-motion/fixtures/${name}.json`, import.meta.url), 'utf8'));
+  const sidecars = await load('gesture-sidecars');
+  for (const [key, file, count, cues] of [['star','three-card-transition',97,6],['related','gestures-celtic-deep-shift',183,6],['fiveCard','gestures-five-card-creative-project',904,25]]) {
+    const fixture = await load(file); const sidecar = sidecars[key]; const raw = fixture.reading || fixture.excerpt;
+    assert.equal(sidecar.expectedRaw, raw);
+    assert.equal(raw.replace(/[*_]/g, '').trim().split(/\s+/).length, count);
+    assert.equal(sidecar.associations.length, cues);
+    const resolved = resolveGestureSidecar({ sidecar, source: { runId: key, raw }, cards: fixture.cards });
+    assert.deepEqual(resolved.invalid, []);
+    assert.equal(resolved.associations.length, cues);
+  }
+  assert.equal(createHash('sha256').update(sidecars.fiveCard.expectedRaw).digest('hex'), 'd3c52d35597669deb2bd4770d532934c47f775ba894c9b7a60974231b0eab91b');
+  const cues = sidecars.fiveCard.associations;
+  assert.deepEqual(cues.find((cue) => cue.id === 'ace-meaning').targets[0].detailIds, ['sprout','castle']);
+  assert.deepEqual(cues.find((cue) => cue.id === 'drive-and-sensitivity').targets.map((target) => target.detailIds), [['sprout'],['cup']]);
+  assert.deepEqual(cues.find((cue) => cue.id === 'readiness').targets.map((target) => target.detailIds), [[],[]]);
+  assert.equal(sidecars.fiveCard.introductions.length, 5);
+});
