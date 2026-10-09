@@ -1,0 +1,34 @@
+{
+  "retrievedAt": "2026-10-09",
+  "sources": [
+    "https://developers.cloudflare.com/workers-ai/models/glm-5.3-flash/",
+    "https://developers.cloudflare.com/workers-ai/models/glm-5.3/",
+    "https://developers.cloudflare.com/workers-ai/platform/pricing/"
+  ],
+  "models": {
+    "@cf/zai-org/glm-5.3-flash": {
+      "contextWindowTokens": 1048576,
+      "inputUsdPerMillion": 0.15,
+      "outputUsdPerMillion": 0.5,
+      "cachedInputUsdPerMillion": 0.03,
+      "reasoningEfforts": [
+        "low",
+        "high",
+        "max"
+      ]
+    },
+    "@cf/zai-org/glm-5.3": {
+      "contextWindowTokens": 1048576,
+      "inputUsdPerMillion": 1.4,
+      "outputUsdPerMillion": 4.4,
+      "cachedInputUsdPerMillion": 0.26,
+      "reasoningEfforts": [
+        "low",
+        "high",
+        "max"
+      ]
+    }
+  },
+  "access": "Workers Paid or prepaid AI Gateway credits",
+  "method": "Official Cloudflare model/pricing documentation; reverify at live execution."
+}
