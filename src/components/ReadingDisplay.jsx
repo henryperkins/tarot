@@ -17,6 +17,7 @@ import { useReadingSelection } from '../hooks/useReadingSelection';
 import { useReadingMediaGallery } from '../hooks/useReadingMediaGallery';
 import { useNarrativeReadingController } from '../hooks/useNarrativeReadingController';
 import { getCardImage } from '../lib/cardLookup';
+import { readingGestureEdition, readingGesturesEnabled } from '../lib/readingGestureSettings';
 import { determineColorScript } from '../lib/colorScript';
 import { ReadingChrome } from './reading/ReadingChrome';
 import { ReadingSceneRouter } from './reading/ReadingSceneRouter';
@@ -41,7 +42,7 @@ export function ReadingDisplay({
     onCardModalChange,
     isMobileStableMode = false,
     gestureSource: gestureSourceOverride = null,
-    gestureStudyEnabled = false,
+    gestureStudyEnabled = readingGesturesEnabled(),
     gestureSidecar = null,
     manualInspectionStatus = null,
     artworkEdition = null
@@ -360,7 +361,8 @@ export function ReadingDisplay({
         gestureStudyEnabled,
         gestureSidecar,
         manualInspectionStatus: manualInspectionStatus || selectionInspectionStatus,
-        artworkEdition,
+        artworkEdition: readingGestureEdition({ enabled: gestureStudyEnabled, deckStyleId,
+            artworkEdition: artworkEdition || (gestureStudyEnabled ? (gestureSourceOverride || gestureSource)?.visualBinding?.artworkEdition : null) }),
         reading,
         deckStyleId,
         onSelectInsightCard: handleSelectInsightCard,
@@ -374,6 +376,7 @@ export function ReadingDisplay({
         emotionalTone,
         displayName,
         userQuestion,
+        reflections,
         highlightItems,
         isGenerating,
         voiceOn,

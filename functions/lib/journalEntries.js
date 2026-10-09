@@ -12,6 +12,7 @@ import { insertFollowUps, sanitizeFollowUps } from './journalFollowups.js';
 import { normalizeJournalContext } from './journalContext.js';
 import { safeJsonParse } from './utils.js';
 import { sanitizeSourceUsage } from '../../shared/readingSourceUsage.js';
+import { attachJournalVisualResult, loadJournalVisualResult } from './readingVisualResults.js';
 
 /**
  * Whether a D1/SQLite error is a unique-constraint failure on the given
@@ -60,6 +61,7 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
     context,
     provider,
     sessionSeed,
+    readingResultId,
     // Optional: original timestamp in milliseconds (used for migrations)
     timestampMs,
     // User preferences snapshot at time of reading (Phase 5.2)
@@ -88,12 +90,29 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
         requestId
       });
     }
+    let visualAttachment = null;
+    if (readingResultId) {
+      try {
+        const attachRes = await attachJournalVisualResult({
+          db: env.DB,
+          userId: user.id,
+          entryId: existing.id,
+          readingResultId
+        });
+        if (attachRes?.attached || existing) {
+          visualAttachment = await loadJournalVisualResult({ db: env.DB, userId: user.id, entryId: existing.id });
+        }
+      } catch (visualErr) {
+        console.warn(`[journal] Failed to attach visual result ${readingResultId}:`, visualErr);
+      }
+    }
     return {
       status: 200,
       body: {
         success: true,
         entry: { id: existing.id, ts: existing.created_at * 1000 },
-        deduplicated: true
+        deduplicated: true,
+        ...(visualAttachment ? { visual: visualAttachment } : {})
       }
     };
   };
@@ -224,11 +243,29 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
     });
   }
 
+  let visualAttachment = null;
+  if (readingResultId) {
+    try {
+      const attachRes = await attachJournalVisualResult({
+        db: env.DB,
+        userId: user.id,
+        entryId,
+        readingResultId
+      });
+      if (attachRes?.attached) {
+        visualAttachment = await loadJournalVisualResult({ db: env.DB, userId: user.id, entryId });
+      }
+    } catch (visualErr) {
+      console.warn(`[journal] Failed to attach visual result ${readingResultId}:`, visualErr);
+    }
+  }
+
   return {
     status: 201,
     body: {
       success: true,
-      entry: { id: entryId, ts: createdAt * 1000 }
+      entry: { id: entryId, ts: createdAt * 1000 },
+      ...(visualAttachment ? { visual: visualAttachment } : {})
     }
   };
 }

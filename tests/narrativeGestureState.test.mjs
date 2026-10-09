@@ -12,6 +12,34 @@ const initial = () => ({ ...createGestureFocusState({ runId: 'a', sourceRevision
 const event = (type, rest = {}) => ({ type, runId: 'a', sourceRevision: 0, ...rest });
 const advance = (state, end, ids) => reduceGestureFocus(state, event('PROGRESS', { progress: { visibleEnd: end, complete: false }, eligibleAssociationIds: ids, now: end }));
 
+test('revealed cards permit whole-card inspection without a language-dependent introduction or automatic focus', () => {
+  let state = createGestureFocusState({ runId: 'a', sourceRevision: 0, availableOccurrences: ['a:1'] });
+  state = advance(state, 100, []);
+  assert.deepEqual(state.introduced, []);
+  assert.equal(state.current, null);
+  assert.equal(state.phase, 'static');
+  state = reduceGestureFocus(state, event('HOLD', { selection: { kind: 'identity', occurrenceId: 'a:0' } }));
+  assert.equal(state.current, null);
+  state = reduceGestureFocus(state, event('HOLD', { selection: { kind: 'identity', occurrenceId: 'a:1' } }));
+  assert.deepEqual(state.current.targets, [{ occurrenceId: 'a:1', detailIds: [] }]);
+  state = reduceGestureFocus(state, { type: 'SOURCE', source: { runId: 'a', sourceRevision: 0, status: 'streaming' }, availableOccurrences: ['a:1'] });
+  assert.equal(state.held.occurrenceId, 'a:1');
+  state = reduceGestureFocus(state, { type: 'SOURCE', source: { runId: 'a', sourceRevision: 0, status: 'streaming' }, availableOccurrences: [] });
+  assert.equal(state.held, null);
+  assert.equal(state.current, null);
+});
+
+test('source replacements cannot inherit available occurrences or their identity hold', () => {
+  let state = createGestureFocusState({ runId: 'a', sourceRevision: 0, availableOccurrences: ['a:0'] });
+  state = reduceGestureFocus(state, event('HOLD', { selection: { kind: 'identity', occurrenceId: 'a:0' } }));
+  for (const source of [{ runId: 'b', sourceRevision: 0 }, { runId: 'a', sourceRevision: 1 }]) {
+    const replaced = reduceGestureFocus(state, { type: 'SOURCE', source: { ...source, status: 'streaming' } });
+    assert.deepEqual(replaced.availableOccurrences, []);
+    assert.equal(replaced.held, null);
+    assert.equal(replaced.current, null);
+  }
+});
+
 test('held inspection survives arriving text and release adopts only the latest cue', () => {
   let s = advance(initial(), 10, ['pool']);
   s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'pool' } }));

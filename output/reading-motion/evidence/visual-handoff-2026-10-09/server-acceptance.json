@@ -1,0 +1,195 @@
+{
+  "generatedAt": "2026-10-09T15:48:53.445Z",
+  "worktreeHead": "9250f4c27d0126d16fa3b455f0446ffdad74534f",
+  "implementationHashes": {
+    "functions/lib/readingJobs.js": "1b82db857da861954c66676aaa2ac7129dd9fe1c51038a7a9325ddd753cf6074",
+    "functions/lib/visualCueObserver.js": "99950a429130c7e70f754b23ca0cea3ed7c5255faf7f2260fc59229e164d8f6b",
+    "src/worker/readingJob.js": "be6fb692f7d7a9247dcf1c3887195225e05794ee14e2b6ed1b63479328e09fc2",
+    "src/worker/readingVisualJob.js": "6770c315677f48979de720f3e9c07fb0b13a237cf372710990dca4fdb34248a9",
+    "shared/reading/visualCueLedger.js": "93d5c3efc88e9bb4a79a066220278bc0ae3ce75b9e4e7aae128164762c15405b",
+    "shared/generation/visualCuePrompt.js": "719a9bce05738f6662f9c77a665174ff0c5cccaefc11db4cf9e3fc331806a433",
+    "scripts/evaluation/evaluateVisualCueHandoff.mjs": "fb4113a1cc29c05181a1fdb2cf543ed272b45c0f0873decbfbad4173116efd0f"
+  },
+  "evidenceKind": "controlled-deterministic-server-acceptance",
+  "adapter": {
+    "kind": "controlled deterministic exact-quote proposals",
+    "model": null,
+    "liveModelLatencyMeasured": false
+  },
+  "source": {
+    "path": "output/reading-motion/fixtures/three-card-transition.json",
+    "id": "three-card-transition",
+    "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265",
+    "fileSha256": "4bfece094adf66432ad2dec5210f8775dd261a666967e869fcc3333802f585eb",
+    "wordCount": 97,
+    "provenance": {
+      "kind": "local narrative evaluation fixture",
+      "sourceRun": "2026-10-07T23-47-19.908Z-5eqpUm",
+      "generatedAt": "2026-10-07T23:47:19.697Z",
+      "backendLabel": "Claude Code (personal subscription)",
+      "provider": "claude-code",
+      "model": "claude-opus-5-5",
+      "sourceSampleCount": 11,
+      "sourceReadingSha256": "d2c8ed592272268ea107d0b5dac6a807c373e35b9a7a8e387d9ac25b2f3f86df"
+    },
+    "note": "Unchanged reading-only 97-word excerpt. Request-only meaning/userReflection values satisfy the schema; they are not recorded narrative output."
+  },
+  "limitations": [
+    "In-memory Durable Object state and controlled scheduling; no deployed runtime, D1, network, or provider calls.",
+    "Direct job cases inject a normalized fixture context to isolate downstream contracts from the real-start context failure.",
+    "Paced SSE is a controlled transport test, not live generation or model latency evidence.",
+    "No browser visibility/adoption timing, semantic corpus qualification, saved-entry recovery, or device evidence is established here."
+  ],
+  "summary": {
+    "total": 8,
+    "passed": 3,
+    "failed": 5
+  },
+  "cases": [
+    {
+      "id": "real_request_preserves_spread_and_context",
+      "passed": false,
+      "expected": {
+        "cardNames": [
+          "Six of Cups",
+          "The Tower",
+          "The Star"
+        ],
+        "question": "How can I navigate the transition after leaving my hometown?",
+        "reflections": "Part of me is nostalgic while another part is ready for reinvention.",
+        "contextHash": "97e71c751995eb69f5ce60a80fcc2d7455f81cb125498d5a54cdda7d0cb1cd50"
+      },
+      "actual": {
+        "cardNames": [],
+        "question": "",
+        "reflections": "",
+        "contextHash": "3b264f8d30ebdbe05eb018193127adc653204c9ece90d796f53f2f2d4a291db6"
+      },
+      "failure": "Acceptance expectation did not match actual behavior."
+    },
+    {
+      "id": "paced-sse_completes_while_annotation_is_held",
+      "passed": true,
+      "expected": {
+        "narrativeStatus": "complete",
+        "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265",
+        "annotationUnresolved": true
+      },
+      "actual": {
+        "narrativeStatus": "complete",
+        "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265",
+        "annotationUnresolved": true
+      }
+    },
+    {
+      "id": "burst-sse_completes_while_annotation_is_held",
+      "passed": true,
+      "expected": {
+        "narrativeStatus": "complete",
+        "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265",
+        "annotationUnresolved": true
+      },
+      "actual": {
+        "narrativeStatus": "complete",
+        "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265",
+        "annotationUnresolved": true
+      }
+    },
+    {
+      "id": "final-json_completes_while_annotation_is_held",
+      "passed": true,
+      "expected": {
+        "narrativeStatus": "complete",
+        "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265",
+        "annotationUnresolved": true
+      },
+      "actual": {
+        "narrativeStatus": "complete",
+        "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265",
+        "annotationUnresolved": true
+      }
+    },
+    {
+      "id": "simultaneous_observation_single_flight_and_retained_commits",
+      "passed": false,
+      "expected": {
+        "startedBeforeRelease": 1,
+        "latestPending": true,
+        "maximumActive": 1,
+        "allRequestReceiptsRetained": true,
+        "acceptedCueCount": 3,
+        "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265"
+      },
+      "actual": {
+        "startedBeforeRelease": 3,
+        "latestPending": false,
+        "maximumActive": 3,
+        "allRequestReceiptsRetained": false,
+        "acceptedCueCount": 3,
+        "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265"
+      },
+      "failure": "Acceptance expectation did not match actual behavior."
+    },
+    {
+      "id": "replacement_during_commit_rejects_previous_source",
+      "passed": false,
+      "expected": {
+        "oldCommitRejected": true,
+        "bindingRevision": 1,
+        "ledgerBindingRevision": 1,
+        "oldIdentityRetained": false
+      },
+      "actual": {
+        "oldCommitRejected": false,
+        "bindingRevision": 1,
+        "ledgerBindingRevision": 0,
+        "oldIdentityRetained": true
+      },
+      "sourceReplacement": {
+        "kind": "Exact suffix of the same fixture, used only for replacement testing.",
+        "rawSha256": "deaaeb15becb0d813ec79b1f7d8d33726429ec37ec60cc2144357bef656fdc26"
+      },
+      "failure": "Acceptance expectation did not match actual behavior."
+    },
+    {
+      "id": "unregistered_request_cannot_commit",
+      "passed": false,
+      "expected": {
+        "rejected": true,
+        "receiptCount": 0,
+        "cueCount": 0
+      },
+      "actual": {
+        "rejected": false,
+        "receiptCount": 1,
+        "cueCount": 3
+      },
+      "failure": "Acceptance expectation did not match actual behavior."
+    },
+    {
+      "id": "ledger_and_completion_persist_before_publication",
+      "passed": false,
+      "expected": [
+        {
+          "event": "cues",
+          "durable": true
+        },
+        {
+          "event": "done",
+          "durable": true
+        }
+      ],
+      "actual": [
+        {
+          "event": "cues",
+          "durable": false
+        },
+        {
+          "event": "done",
+          "durable": false
+        }
+      ],
+      "failure": "Acceptance expectation did not match actual behavior."
+    }
+  ]
+}

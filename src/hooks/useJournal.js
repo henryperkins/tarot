@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { persistJournalInsights, clearJournalInsightsCache } from '../lib/journalInsights';
@@ -7,10 +7,14 @@ import { fetchJournalEntryById } from '../lib/journal/fetchEntryById';
 import { generateId } from '../lib/utils';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
 import { normalizeTimestamp } from '../../shared/journal/utils.js';
+import { readingGesturesEnabled } from '../lib/readingGestureSettings.js';
+import { visualStorageNamespace, writeVisualResume, removeVisualResume, patchVisualEntry,
+  persistJournalWithVisualFallback, VISUAL_SNAPSHOT_EVENT } from '../lib/readingVisualStorage.js';
 
 const LOCALSTORAGE_KEY = 'tarot_journal';
 const CACHE_KEY_PREFIX = 'tarot_journal_cache';
 const PAGE_SIZE = 25;
+const EMPTY_ENTRIES = [];
 
 /**
  * Get user-scoped cache key to prevent data leakage across accounts
@@ -58,9 +62,17 @@ function readLocalJournalArray(key) {
  * This provides backward compatibility while enabling cloud sync for auth users
  */
 export function useJournal({ autoLoad = true } = {}) {
+  const gestureStudyEnabled = readingGesturesEnabled();
   const { isAuthenticated, user } = useAuth();
   const { canUseCloudJournal } = useSubscription();
-  const [entries, setEntries] = useState([]);
+  const accountUserId = user?.id;
+  const [entryState, setEntryState] = useState({ namespace: visualStorageNamespace(isAuthenticated ? user?.id : null), entries: [] });
+  const entries = entryState.namespace === visualStorageNamespace(isAuthenticated ? user?.id : null) ? entryState.entries : EMPTY_ENTRIES;
+  const setEntries = useCallback(update => setEntryState(previous => {
+    const owner = visualStorageNamespace(isAuthenticated ? user?.id : null);
+    const current = previous.namespace === owner ? previous.entries : [];
+    return { namespace: owner, entries: typeof update === 'function' ? update(current) : update };
+  }), [isAuthenticated, user?.id]);
   const [loading, setLoading] = useState(autoLoad);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
@@ -78,6 +90,51 @@ export function useJournal({ autoLoad = true } = {}) {
 
   // Track previous user ID to detect account switches
   const prevUserIdRef = useRef(user?.id);
+  const namespace = visualStorageNamespace(isAuthenticated ? user?.id : null);
+  const namespaceRef = useRef(namespace);
+  useLayoutEffect(() => { namespaceRef.current = namespace; }, [namespace]);
+
+  useEffect(() => {
+    if (!gestureStudyEnabled) return undefined;
+    const receive = event => {
+      if (event.detail?.namespace !== namespace) return;
+      setEntries(previous => previous.map(entry => patchVisualEntry(entry, event.detail)));
+    };
+    window.addEventListener(VISUAL_SNAPSHOT_EVENT, receive);
+    return () => window.removeEventListener(VISUAL_SNAPSHOT_EVENT, receive);
+  }, [gestureStudyEnabled, namespace, setEntries]);
+
+  // Cloud entries may be saved before annotation completes. Their owned journal
+  // endpoint supplies the latest durable snapshot, without a private capability.
+  useEffect(() => {
+    if (!gestureStudyEnabled || !autoLoad || !isAuthenticated || !canUseCloudJournal) return undefined;
+    const pending = entries.filter(entry => entry.visual && !['complete', 'failed', 'error', 'expired', 'cancelled'].includes(entry.visual.status));
+    if (!pending.length) return undefined;
+    const controller = new AbortController();
+    let polling = false;
+    const timer = setInterval(async () => {
+      if (polling) return;
+      polling = true;
+      for (const entry of pending) {
+        try {
+          const response = await fetch(`/api/journal/${encodeURIComponent(entry.id)}?includeFollowups=true`, {
+            credentials: 'include', signal: controller.signal
+          });
+          if (!response.ok) continue;
+          const data = await response.json();
+          if (controller.signal.aborted || namespaceRef.current !== namespace || !data.entry) return;
+          setEntries(previous => {
+            const next = previous.map(existing => existing.id === entry.id
+              && existing.personalReading === data.entry.personalReading ? data.entry : existing);
+            try { localStorage.setItem(getCacheKey(user?.id), JSON.stringify(next)); } catch { /* Optional cache. */ }
+            return next;
+          });
+        } catch { /* Offline: retain the cached prose and retry on the next load. */ }
+      }
+      polling = false;
+    }, 3000);
+    return () => { clearInterval(timer); controller.abort(); };
+  }, [gestureStudyEnabled, autoLoad, entries, isAuthenticated, canUseCloudJournal, namespace, user?.id, setEntries]);
 
   const persistInsights = useCallback((entriesToPersist) => {
     const result = persistJournalInsights(entriesToPersist, user?.id);
@@ -108,7 +165,7 @@ export function useJournal({ autoLoad = true } = {}) {
       }
       prevUserIdRef.current = currentUserId;
     }
-  }, [user?.id]);
+  }, [user?.id, setEntries]);
 
   // Load entries on mount or when auth state changes
   useEffect(() => {
@@ -129,7 +186,7 @@ export function useJournal({ autoLoad = true } = {}) {
     return `/api/journal?${params.toString()}`;
   }, []);
 
-  const loadEntries = async () => {
+  async function loadEntries() {
     prefetchedOnceRef.current = false;
     setLoading(true);
     setError(null);
@@ -152,6 +209,7 @@ export function useJournal({ autoLoad = true } = {}) {
           }
 
           const data = await response.json();
+          if (namespaceRef.current !== namespace) return;
           const apiEntries = dedupeEntries(data.entries || []);
           setEntries(apiEntries);
           setPagination({
@@ -175,6 +233,7 @@ export function useJournal({ autoLoad = true } = {}) {
             persistInsights(apiEntries);
           }
         } catch (apiError) {
+          if (namespaceRef.current !== namespace) return;
           console.warn('API load failed, falling back to cache:', apiError);
           // Fallback to user-scoped cache
           if (typeof localStorage !== 'undefined') {
@@ -224,6 +283,7 @@ export function useJournal({ autoLoad = true } = {}) {
                 total: safeEntries.length
               });
             } catch (err) {
+      if (namespaceRef.current !== namespace) return;
               console.error('Failed to parse localStorage journal:', err);
               setEntries([]);
               if (typeof window !== 'undefined') {
@@ -249,6 +309,7 @@ export function useJournal({ autoLoad = true } = {}) {
         }
       }
     } catch (err) {
+      if (namespaceRef.current !== namespace) return;
       console.error('Failed to load journal entries:', err);
       setError(err.message);
       setEntries([]);
@@ -258,7 +319,7 @@ export function useJournal({ autoLoad = true } = {}) {
         total: 0
       });
     } finally {
-      setLoading(false);
+      if (namespaceRef.current === namespace) setLoading(false);
     }
   };
 
@@ -278,14 +339,15 @@ export function useJournal({ autoLoad = true } = {}) {
         throw new Error('Failed to load more entries');
       }
       const data = await response.json();
+      if (namespaceRef.current !== namespace) return { success: false, appended: 0 };
       const newEntries = Array.isArray(data?.entries) ? data.entries : [];
       setEntries((prev) => {
         const next = dedupeEntries([...(Array.isArray(prev) ? prev : []), ...newEntries]);
         if (typeof window !== 'undefined') {
           persistInsights(next);
-          if (user?.id) {
+          if (accountUserId) {
             try {
-              localStorage.setItem(getCacheKey(user.id), JSON.stringify(next));
+              localStorage.setItem(getCacheKey(accountUserId), JSON.stringify(next));
             } catch (quotaErr) {
               console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
             }
@@ -300,15 +362,16 @@ export function useJournal({ autoLoad = true } = {}) {
       });
       return { success: true, appended: newEntries.length };
     } catch (err) {
+      if (namespaceRef.current !== namespace) return { success: false, appended: 0 };
       if (!prefetch) {
         console.error('Failed to load more journal entries:', err);
         setError(err.message || 'Unable to load more entries');
       }
       return { success: false, appended: 0, error: err?.message || 'Unable to load more entries' };
     } finally {
-      setLoadingMore(false);
+      if (namespaceRef.current === namespace) setLoadingMore(false);
     }
-  }, [buildApiUrl, canUseCloudJournal, isAuthenticated, loadingMore, pagination.hasMore, pagination.nextCursor, pagination.total, persistInsights, user?.id]);
+  }, [buildApiUrl, canUseCloudJournal, isAuthenticated, loadingMore, pagination.hasMore, pagination.nextCursor, pagination.total, persistInsights, accountUserId, namespace, setEntries]);
 
   const fetchEntryById = useCallback(async (entryId, { includeFollowups = true } = {}) => {
     const userId = user?.id;
@@ -318,6 +381,7 @@ export function useJournal({ autoLoad = true } = {}) {
       canUseCloudJournal
     });
 
+    if (namespaceRef.current !== namespace) return { entry: null, status: 'skipped' };
     if (result.status !== 'found') {
       if (result.status === 'error') {
         console.error('Failed to fetch journal entry:', result?.message);
@@ -353,7 +417,7 @@ export function useJournal({ autoLoad = true } = {}) {
     });
 
     return result;
-  }, [canUseCloudJournal, isAuthenticated, persistInsights, user?.id]);
+  }, [canUseCloudJournal, isAuthenticated, persistInsights, user?.id, namespace, setEntries]);
 
   // Prefetch the next page on idle to reduce perceived latency on long histories
   useEffect(() => {
@@ -379,7 +443,7 @@ export function useJournal({ autoLoad = true } = {}) {
     return () => clearTimeout(timer);
   }, [canUseCloudJournal, isAuthenticated, loadMoreEntries, loading, loadingMore, pagination.hasMore]);
 
-  const saveEntry = async (entry) => {
+  const saveEntry = async (entry, { visualResume = null } = {}) => {
     setError(null);
 
     // Capture userId before async operations to avoid stale closure issues
@@ -407,13 +471,17 @@ export function useJournal({ autoLoad = true } = {}) {
         const newEntry = {
           id: data.entry.id,
           ts: data.entry.ts,
-          ...entry
+          ...entry,
+          ...data.entry,
+          ...(data.visual ? { visual: data.visual } : {})
         };
+        if (namespaceRef.current !== namespace) return { success: true, entry: newEntry };
 
         // If server detected a duplicate (same session_seed), skip local state
         // updates to keep client in sync with DB
         if (data.deduplicated) {
-          return { success: true, entry: newEntry, deduplicated: true };
+          const stored = await fetchJournalEntryById(data.entry.id, { isAuthenticated: true, canUseCloudJournal: true });
+          return { success: true, entry: stored.entry || { id: data.entry.id, ts: data.entry.ts }, deduplicated: true };
         }
 
         // Add to local state - prepend and dedupe in one pass
@@ -469,33 +537,21 @@ export function useJournal({ autoLoad = true } = {}) {
           ...entry
         };
 
-        setEntries(prev => {
-          const prevEntries = Array.isArray(prev) ? prev : [];
-          let next = dedupeEntries([newEntry, ...prevEntries]);
-
-          setPagination((prevPag) => ({
-            ...prevPag,
-            total: typeof prevPag?.total === 'number' ? prevPag.total + 1 : next.length
-          }));
-
-          // Limit to 100 entries in localStorage
-          if (next.length > 100) {
-            next = next.slice(0, 100);
-          }
-
-          try {
-            const localKey = getLocalJournalKey(isAuthenticated ? userId : null);
-            localStorage.setItem(localKey, JSON.stringify(next));
-            setLastLocalSaveAt(savedAt);
-          } catch (quotaErr) {
-            console.warn('localStorage quota exceeded, unable to persist journal:', quotaErr);
-          }
-
-          if (typeof window !== 'undefined') {
-            persistInsights(next);
-          }
-          return next;
-        });
+        // Persist synchronously before reporting success; another hook instance's
+        // entries may be stale, so merge with the actual scoped storage bucket.
+        const localKey = getLocalJournalKey(isAuthenticated ? userId : null);
+        const existing = readLocalJournalArray(localKey);
+        const duplicate = entry.sessionSeed && existing.find(item => item.sessionSeed === entry.sessionSeed);
+        if (duplicate) return { success: true, entry: duplicate, deduplicated: true };
+        const next = dedupeEntries([newEntry, ...existing]).slice(0, 100);
+        const persisted = persistJournalWithVisualFallback({ key: localKey, entries: next });
+        if (!persisted.ok) return { success: false, error: 'Your browser could not save this reading. Free some storage and try again.' };
+        if (gestureStudyEnabled && visualResume && entry.visualBinding) writeVisualResume({ namespace, binding: entry.visualBinding,
+          resumeHandle: visualResume, expiresAt: visualResume.expiresAt });
+        setEntries(persisted.entries);
+        setPagination({ hasMore: false, nextCursor: null, total: persisted.entries.length });
+        setLastLocalSaveAt(savedAt);
+        persistInsights(persisted.entries);
 
         return { success: true, entry: newEntry };
       }
@@ -549,9 +605,14 @@ export function useJournal({ autoLoad = true } = {}) {
           throw new Error('Failed to delete journal entry');
         }
 
+        if (namespaceRef.current !== namespace) return { success: true };
         // Remove from local state
         setEntries(prev => {
+          const removed = prev.find(entry => entry.id === entryId);
           const next = prev.filter(e => e.id !== entryId);
+          if (removed?.readingResultId && !next.some(entry => entry.readingResultId === removed.readingResultId)) {
+            removeVisualResume({ namespace, readingResultId: removed.readingResultId });
+          }
           setPagination((prevPag) => ({
             ...prevPag,
             total: typeof prevPag?.total === 'number' && prevPag.total > 0 ? prevPag.total - 1 : Math.max(0, next.length)
@@ -582,7 +643,11 @@ export function useJournal({ autoLoad = true } = {}) {
         }
 
         setEntries(prev => {
+          const removed = prev.find(entry => entry.id === entryId);
           const next = prev.filter(e => e.id !== entryId);
+          if (removed?.readingResultId && !next.some(entry => entry.readingResultId === removed.readingResultId)) {
+            removeVisualResume({ namespace, readingResultId: removed.readingResultId });
+          }
           setPagination((prevPag) => ({
             ...prevPag,
             total: typeof prevPag?.total === 'number' && prevPag.total > 0 ? prevPag.total - 1 : Math.max(0, next.length)

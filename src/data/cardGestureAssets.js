@@ -1,4 +1,4 @@
-import manifest from '../../public/images/cards/rws-vector/manifest.json';
+import manifest from '../../public/images/cards/rws-vector/manifest.json' with { type: 'json' };
 
 const normalize = name => String(name || '').replace(/^the /i, '').toLowerCase();
 const cards = new Map(manifest.cards.map(card => [normalize(card.name), card]));

@@ -1,6 +1,8 @@
 # Independent Visual Cue Handoff Implementation Plan
 
-> October 9 execution: the user authorized Tasks 1–2 only. Their ledger, source-prefix consumer and visibility-aware arrival behavior are implemented and verified; see the [execution record](../reviews/2026-10-09-reading-cue-ledger-arrival.md). Tasks 3–5 remain pending and production stays gated.
+> October 9 live development milestone: a fresh question now runs through the normal React reading, subscription-only Claude narrative service, independent Workers AI annotation, and durable source-bound cues. See the [live beta evidence and limitations](../reviews/2026-10-09-reading-gestures-live-beta.md) and [local command](../../dev-reading-gestures.md). This proves one live application path; the corpus and expiry/re-annotation checkboxes below remain open.
+
+> October 9 repair update: the user authorized comprehensive repair of the reviewed findings. Trusted ownership/source registration, serialized visual processing, complete independent transport, durable journal links, private local resume and static restored gestures are implemented locally. The six reproduced findings and two independent-review races are repaired; see the [repair and verification record](../reviews/2026-10-09-reading-visual-repairs.md). Task 5 controlled acceptance is implemented. Expired/unattached-source re-annotation and live model/corpus qualification remain open; production stays gated.
 
 > **For agentic workers:** Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` to execute the tasks. Unchecked steps below are planned work, not completed implementation.
 
@@ -116,10 +118,10 @@ Deleting an entry removes its link; deleting the last saved reference permits re
 
 **Interfaces:** `observeDeliveredReading({ binding, raw, deliveredEventId, complete, availableAt })` submits a snapshot after contract 3's boundary; `runAnnotation({ prompt, responseSchema, signal }) -> proposalResponse` is an explicitly configured independent model adapter. `ReadingVisualJob` serializes Task 1 commits. New binding `READING_VISUAL_JOBS` and a distinct appended DO migration belong to this task; no deployment is part of it.
 
-- [ ] Write accepted-vs-rejected/fallback source tests and burst-SSE/final-only cases. Hold a fake annotation promise unresolved and assert narrative deltas and `done` still finish. Assert one in-flight/one latest pending request; earlier accepted ledger entries survive coalescing.
-- [ ] Add eviction recovery, duplicate callback, cancellation, old recovery-epoch response, non-prefix final replacement, missing model configuration, and owner/capability isolation tests; run `node --test tests/visualCueObserver.test.mjs tests/readingVisualJob.test.mjs tests/readingJob.test.mjs` to confirm missing behavior.
-- [ ] Implement accepted-delivery observation and separate job state. Add `/api/tarot-reading/visuals/:readingResultId` GET snapshot, `/stream` GET resumable events, and `/cancel` POST routes in the new route handler. Authenticate each independently; result IDs alone are not credentials. Emit cumulative ledger snapshots so cursor gaps can recover safely. Narrative completion does not terminate this channel.
-- [ ] Verify source/schema instructions reach only the visual adapter; implement annotation prompt tests in `tests/visualCuePrompt.test.mjs`. Run those plus the three job test files; require unchanged reading-only request snapshots and passing recovery tests. Commit this task's paths.
+- [x] Write accepted-vs-rejected/fallback source tests and burst-SSE/final-only cases. Hold a fake annotation promise unresolved and assert narrative deltas and `done` still finish. Assert one in-flight/one latest pending request; earlier accepted ledger entries survive coalescing.
+- [x] Add eviction recovery, duplicate callback, cancellation, old recovery-epoch response, non-prefix final replacement, missing model configuration, and owner/capability isolation tests; run `node --test tests/visualCueObserver.test.mjs tests/readingVisualJob.test.mjs tests/readingJob.test.mjs` to confirm missing behavior.
+- [x] Implement accepted-delivery observation and separate job state. Add `/api/tarot-reading/visuals/:readingResultId` GET snapshot, `/stream` GET resumable events, and `/cancel` POST routes in the new route handler. Authenticate each independently; result IDs alone are not credentials. Emit cumulative ledger snapshots so cursor gaps can recover safely. Narrative completion does not terminate this channel.
+- [x] Verify source/schema instructions reach only the visual adapter; implement annotation prompt tests in `tests/visualCuePrompt.test.mjs`. Run those plus the three job test files; require unchanged reading-only source and passing recovery tests. Local verification completed; commits/publication remain pending.
 
 ### Task 4: Save immediately, attach durably, restore statically
 
@@ -127,10 +129,10 @@ Deleting an entry removes its link; deleting the last saved reference permits re
 
 **Interfaces:** `commitVisualResult({ binding, expectedLedgerRevision, ledger, status })` conditionally updates an existing owned result; `attachJournalVisualResult({ userId, entryId, readingResultId, savedSource })` validates the complete fingerprint and returns attachment state without gating the prose save on a model; `loadJournalVisualResult({ userId, entryId })` returns the latest validated snapshot. `useReadingVisualJob({ binding, resumeHandle, enabled })` owns the visual subscription independently of the cleared narrative-job ref.
 
-- [ ] Add database/service tests: save before first cue → complete visual work with client disconnected → restore newer ledger; duplicate session seed/different raw cannot attach; ownership mismatch, source revision conflict, deleted result and last-link deletion reject late updates. Use isolated test databases, not live migrations.
-- [ ] Add local storage tests: snapshot saved before cues, separate private resume record, account namespace switch, existing-entry-only late patch, offline/quota/expired capability fallback, no capability in exported/shared entry. Confirm these fail before implementation.
+- [x] Add database/service tests: save before first cue → complete visual work with client disconnected → restore newer ledger; duplicate session seed/different raw cannot attach; ownership mismatch, source revision conflict, deleted result and last-link deletion reject late updates. Use isolated test databases, not live migrations.
+- [x] Add local storage tests: snapshot saved before cues, separate private resume record, account namespace switch, existing-entry-only late patch, offline/quota/expired capability fallback, no capability in exported/shared entry. Confirm these fail before implementation.
 - [ ] Implement contract 4, including durable cloud links, result retention, attachment retry state, local snapshot updates and journal restore rendering. Keep canonical prose and its source identity together; explicitly reset playback/held state when hydrating.
-- [ ] Run `node --test tests/readingVisualResults.test.mjs tests/readingVisualStorage.test.mjs tests/journalEntriesService.test.mjs`; add controlled authenticated and local Playwright save/reload cases to the existing integration spec. Require immediate prose save, later cue recovery, no resurrected entries and zero automatic restored motion; commit this task's paths.
+- [x] Run `node --test tests/readingVisualResults.test.mjs tests/readingVisualStorage.test.mjs tests/journalEntriesService.test.mjs`; add controlled authenticated and local Playwright save/reload cases in `e2e/journal-visual-restoration.spec.js`. Require immediate prose save, later cue recovery, no resurrected entries and zero automatic restored motion. Local verification completed; commits/publication remain pending.
 
 ### Task 5: Separated-pipeline acceptance evidence
 
@@ -139,7 +141,7 @@ Deleting an entry removes its link; deleting the last saved reference permits re
 **Interface:** replay immutable reading-only outputs through the independent visual adapter and Task 3's delivery boundary, then consume the same cumulative snapshots in the browser. Preserve source hashes, prompt/model provenance, per-batch timings, validation rejections and retention outcomes. Do not overwrite historical joint-generation results.
 
 - [ ] Write end-to-end cases covering the five Review Focus conditions, plus fully translated identity fallback and whole-card-only unknown editions. Parameterize paced, burst and final-only delivery, delayed/out-of-order results, hidden/offscreen passages, held inspection, and reload while visual work remains pending.
-- [ ] Run controlled tests first: `npx playwright test --config output/reading-motion/react-bridge.playwright.config.mjs e2e/reading-visual-handoff.spec.js`. Report actual failures and what is mocked; do not treat these as live model latency evidence.
+- [x] Run controlled tests first: `npx playwright test --config output/reading-motion/react-bridge.playwright.config.mjs e2e/reading-visual-handoff.spec.js`. Report actual failures and what is mocked; do not treat these as live model latency evidence.
 - [ ] Once an independent visual model is explicitly configured, run the unchanged reading corpus through that adapter and report contract 3's timings and semantic findings, including misses. No joint prose+annotation generation or replay pacing may substitute for this measurement.
 - [ ] Run appropriate root tests, build, modified-path lint and docs checks before publishing implementation. Narrative gates use the existing subscription-only policy; preserve the documented baseline evaluator failure if still present. Finish with a source/runtime review and keep production rollout gated on the actual separated-model evidence.
 
@@ -155,3 +157,7 @@ The two fixes ship together with source/renderer integration and regressions. Th
 The development-only `sourceMode=visual-cues` fixture establishes its own application binding before prose, then accepts independent prose and ledger events through the real client helpers. Its controlled delivery tests do not implement or qualify the Task 3 server/model pipeline. SOURCE retains presentation reconciliation; CUES_ARRIVED handles metadata, and atomic renderer measurements gate selection. A shared latest-measurement reference prevents parent/child effect ordering from consuming an unplayed pending cue.
 
 For exact commands, fresh results, observed failures and remaining boundaries, see the [execution record](../reviews/2026-10-09-reading-cue-ledger-arrival.md).
+
+## Repair execution notes
+
+The [repair record](../reviews/2026-10-09-reading-visual-repairs.md) documents the implemented interfaces, controlled evidence and remaining qualification. Completed checkboxes describe local implementation/testing, not a deployment or published commit. Contract 4 remains partially open specifically for bounded visual re-annotation after expiry or failed attachment; valid pending cloud/local restores and static inspection are implemented. Task 5's broad corpus and live timing requirements remain distinct from passing controlled cases.

@@ -73,3 +73,116 @@ for (const terminal of ['done', 'error']) {
     assert.equal(job.nextEventId, 2);
   });
 }
+
+test('held fake annotation promise does not block narrative deltas or done', async () => {
+  const writes = [];
+  const observedSnapshots = [];
+  let resolveFakeAnnotation;
+  const fakeAnnotationPromise = new Promise(resolve => { resolveFakeAnnotation = resolve; });
+
+  const fakeVisualStub = {
+    fetch: async (url, options) => {
+      observedSnapshots.push(JSON.parse(options.body));
+      // Hold annotation promise unresolved during narrative delivery
+      return fakeAnnotationPromise.then(() => new Response(JSON.stringify({ ok: true })));
+    }
+  };
+
+  const env = {
+    READING_VISUAL_JOBS: {
+      get: () => fakeVisualStub,
+      idFromName: () => 'stub-id'
+    }
+  };
+
+  const job = new ReadingJob({
+    blockConcurrencyWhile: (callback) => callback(),
+    storage: { get: async () => null, put: async (...args) => writes.push(args), setAlarm: async () => {} },
+    waitUntil: () => {}
+  }, env);
+  await job.initialized;
+
+  const visualBinding = {
+    readingResultId: 'res-test-1',
+    sourceRevision: 0,
+    spreadHash: '0000000000000000000000000000000000000000000000000000000000000001',
+    contextHash: '0000000000000000000000000000000000000000000000000000000000000002',
+    artworkEdition: 'rws-immanuelle-vector',
+    catalogVersion: 'v1'
+  };
+
+  await job.handleStart(new Request('https://jobs/start', {
+    method: 'POST',
+    headers: { 'X-Job-Token': 'tok-123' },
+    body: JSON.stringify({
+      jobId: 'job-1',
+      payload: { cards: [{ name: 'The Star' }] },
+      visualBinding
+    })
+  }));
+
+  // Append deltas while fakeAnnotationPromise is still unresolved
+  job.appendEvent('delta', { text: 'Sentence one. ' });
+  job.appendEvent('delta', { text: 'Sentence two. ' });
+  job.appendEvent('done', { fullText: 'Sentence one. Sentence two. Final.' });
+
+  // Job reached complete status without waiting for visual annotation
+  assert.equal(job.job.status, 'complete');
+  assert.equal(job.textSoFar, 'Sentence one. Sentence two. Final.');
+  assert.equal(observedSnapshots.length, 3);
+  assert.equal(observedSnapshots[2].complete, true);
+
+  resolveFakeAnnotation();
+});
+
+test('non-prefix final replacement increments visualBinding sourceRevision', async () => {
+  const writes = [];
+  const observedSnapshots = [];
+
+  const fakeVisualStub = {
+    fetch: async (url, options) => {
+      observedSnapshots.push(JSON.parse(options.body));
+      return new Response(JSON.stringify({ ok: true }));
+    }
+  };
+
+  const env = {
+    READING_VISUAL_JOBS: {
+      get: () => fakeVisualStub,
+      idFromName: () => 'stub-id'
+    }
+  };
+
+  const job = new ReadingJob({
+    blockConcurrencyWhile: (callback) => callback(),
+    storage: { get: async () => null, put: async (...args) => writes.push(args), setAlarm: async () => {} },
+    waitUntil: () => {}
+  }, env);
+  await job.initialized;
+
+  const visualBinding = {
+    readingResultId: 'res-replace-1',
+    sourceRevision: 0,
+    spreadHash: '0000000000000000000000000000000000000000000000000000000000000001',
+    contextHash: '0000000000000000000000000000000000000000000000000000000000000002',
+    artworkEdition: 'rws-immanuelle-vector',
+    catalogVersion: 'v1'
+  };
+
+  await job.handleStart(new Request('https://jobs/start', {
+    method: 'POST',
+    headers: { 'X-Job-Token': 'tok-123' },
+    body: JSON.stringify({
+      jobId: 'job-1',
+      payload: { cards: [{ name: 'The Star' }] },
+      visualBinding
+    })
+  }));
+
+  job.appendEvent('delta', { text: 'Delivered initial prose.' });
+  // Final replacement: e.g. safe-fallback text that does NOT start with textSoFar
+  job.appendEvent('done', { fullText: 'Safe fallback substitution that replaces previous prose.' });
+
+  assert.equal(job.visualBinding.sourceRevision, 1);
+  assert.equal(observedSnapshots[1].binding.sourceRevision, 1);
+});

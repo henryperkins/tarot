@@ -44,6 +44,10 @@ export function NarrativeCardFocusProvider({
   const [sweep, setSweep] = useState({ key: null, step: 0 });
   const containerRef = useRef(null);
   const onSelectCardRef = useRef(onSelectCard);
+  // Revealed spread cards are available to inspect in every language. This is
+  // independent of a prose introduction and never creates an automatic cue.
+  const availableOccurrences = useMemo(() => cards.filter(card => card.inspectionAvailable)
+    .map(card => card.occurrenceId).filter(Boolean), [cards]);
   const baseResolved = useMemo(() => {
     if (!gestureStudyEnabled || !gestureSource) {
       return { associations: [], introductions: [], invalid: [] };
@@ -64,14 +68,14 @@ export function NarrativeCardFocusProvider({
   }, [gestureStudyEnabled, gestureSidecar, gestureSource, personalContext, cards]);
   const [gestureState, dispatch] = useReducer(reduceGestureFocus, null, () => createGestureFocusState({
     runId: gestureSource?.runId, sourceRevision: gestureSource?.sourceRevision,
-    ...baseResolved, completed: gestureSource?.kind === 'hydrate' && gestureSource?.status === 'complete'
+    ...baseResolved, availableOccurrences, completed: gestureSource?.kind === 'hydrate' && gestureSource?.status === 'complete'
   }));
   const { current: selectedPassage, held: heldSelection, runId: selectionRunId, sourceRevision: selectionRevision } = gestureState;
   const resolved = useMemo(() => retainHeldPassage({ resolved: baseResolved,
     state: { current: selectedPassage, held: heldSelection, runId: selectionRunId, sourceRevision: selectionRevision },
     source: { ...gestureSource, ...personalContext }, cards, artworkEdition: cards[0]?.artworkEdition
   }), [baseResolved, selectedPassage, heldSelection, selectionRunId, selectionRevision, gestureSource, personalContext, cards]);
-  const gestureRef = useRef({ source: gestureSource, state: gestureState, resolved });
+  const gestureRef = useRef({ source: gestureSource, state: gestureState, resolved, availableOccurrences });
   const registryArrivalRef = useRef({ resolved: null, revision: 0 });
   const measuredVisibilityRef = useRef(null);
   const studyEnabled = Boolean(
@@ -80,12 +84,12 @@ export function NarrativeCardFocusProvider({
     !resolved.invalid?.some((item) => item.reason === 'source-or-edition-mismatch')
   );
   useLayoutEffect(() => {
-    gestureRef.current = { source: gestureSource, state: gestureState, resolved, enabled: studyEnabled };
-  }, [gestureSource, gestureState, resolved, studyEnabled]);
+    gestureRef.current = { source: gestureSource, state: gestureState, resolved, availableOccurrences, enabled: studyEnabled };
+  }, [gestureSource, gestureState, resolved, availableOccurrences, studyEnabled]);
 
   useEffect(() => {
     if (!gestureSource || !gestureStudyEnabled) return;
-    dispatch({ type: 'SOURCE', source: { ...gestureSource, status: document.hidden ? 'paused' : gestureSource.status }, ...resolved });
+    dispatch({ type: 'SOURCE', source: { ...gestureSource, status: document.hidden ? 'paused' : gestureSource.status }, ...resolved, availableOccurrences });
     const previous = gestureRef.current.state;
     const measured = measuredVisibilityRef.current;
     const arrival = registryArrivalRef.current;
@@ -100,7 +104,7 @@ export function NarrativeCardFocusProvider({
       // new reducer state. Never overwrite them with the previous render's map.
       visibilitySnapshot: measured?.runId === gestureSource.runId && measured.sourceRevision === gestureSource.sourceRevision
         ? measured.visibilitySnapshot : {}, now: performance.now() });
-  }, [gestureSource, gestureStudyEnabled, resolved]);
+  }, [gestureSource, gestureStudyEnabled, resolved, availableOccurrences]);
   useEffect(() => {
     if (!studyEnabled) return undefined;
     const event = (type, values = {}) => dispatch({ type, runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision, now: performance.now(), ...values });
@@ -154,9 +158,10 @@ export function NarrativeCardFocusProvider({
       if (source) dispatch({ type: 'RELEASE', runId: source.runId, sourceRevision: source.sourceRevision, now: performance.now() });
     },
     reportProgress(progress) {
-      const { source, resolved: registry } = gestureRef.current;
+      const { source, resolved: registry, availableOccurrences: available } = gestureRef.current;
       if (!source || progress.runId !== source.runId || progress.sourceRevision !== source.sourceRevision) return;
-      dispatch({ type: 'SOURCE', source: { ...source, status: document.hidden ? 'paused' : source.status }, ...registry });
+      dispatch({ type: 'SOURCE', source: { ...source, status: document.hidden ? 'paused' : source.status },
+        ...registry, availableOccurrences: available });
       dispatch({ type: 'PROGRESS', ...progress, progress, now: performance.now() });
     },
     reportVisibility({ kind, id, visible }) {

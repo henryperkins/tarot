@@ -9,6 +9,8 @@ import remarkBreaks from 'remark-breaks';
 import { CaretUp, CaretDown } from '@phosphor-icons/react';
 import { JournalNarrativeIcon } from '../../../JournalIcons';
 import { styles, cn } from '../EntryCard.primitives';
+import { RestoredReadingGestures } from '../RestoredReadingGestures';
+import { hydrateEntryVisuals } from '../../../../utils/journalStorage';
 
 function getNarrativePreviewText(text, maxChars = 260) {
   if (!text || typeof text !== 'string') return '';
@@ -103,11 +105,21 @@ export const NarrativeSection = memo(function NarrativeSection({
   narrativeText,
   narrativeId,
   collapsible = true,
-  defaultExpanded = false
+  defaultExpanded = false,
+  entry = null,
+  gestureStudyEnabled = false
 }) {
   const [showNarrative, setShowNarrative] = useState(defaultExpanded);
 
   if (!narrativeText) return null;
+  const hasGestures = gestureStudyEnabled && hydrateEntryVisuals(entry).binding;
+  const reading = hasGestures ? <RestoredReadingGestures entry={entry} /> : (
+    <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-p:leading-relaxed [overflow-wrap:anywhere]">
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} skipHtml components={MARKDOWN_COMPONENTS}>
+        {narrativeText}
+      </ReactMarkdown>
+    </div>
+  );
 
   return (
     <section className={cn(styles.section, 'mt-4')}>
@@ -138,15 +150,7 @@ export const NarrativeSection = memo(function NarrativeSection({
             className={styles.sectionBody}
           >
             {showNarrative ? (
-              <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-headings:text-[color:var(--text-main)] prose-a:text-[color:var(--brand-primary)] prose-strong:text-[color:var(--text-main)] prose-p:leading-relaxed prose-li:leading-relaxed [overflow-wrap:anywhere]">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkBreaks]}
-                  skipHtml
-                  components={MARKDOWN_COMPONENTS}
-                >
-                  {narrativeText}
-                </ReactMarkdown>
-              </div>
+              reading
             ) : (
               <p className="text-sm leading-relaxed text-[color:var(--text-muted)] line-clamp-4">
                 {getNarrativePreviewText(narrativeText) || 'Tap to read the full narrative.'}
@@ -163,15 +167,7 @@ export const NarrativeSection = memo(function NarrativeSection({
             </div>
           </header>
           <div id={narrativeId} className={styles.sectionBody}>
-            <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-headings:text-[color:var(--text-main)] prose-a:text-[color:var(--brand-primary)] prose-strong:text-[color:var(--text-main)] prose-p:leading-relaxed prose-li:leading-relaxed [overflow-wrap:anywhere]">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkBreaks]}
-                skipHtml
-                components={MARKDOWN_COMPONENTS}
-              >
-                {narrativeText}
-              </ReactMarkdown>
-            </div>
+            {reading}
           </div>
         </>
       )}

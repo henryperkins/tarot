@@ -98,3 +98,25 @@ test('older or invalid cumulative snapshots cannot discard already accepted asso
   const rebound = advanceGestureSource(original, { visualBinding: { ...visualBinding, catalogVersion: '2' } });
   assert.equal(rebound.cueLedger, undefined);
 });
+
+test('authoritative narrative revision replaces an unrendered suffix even when the visible prefix still matches', () => {
+  const original = createGestureSource({ runId: visualBinding.readingResultId, raw: cueLedger.raw,
+    status: 'streaming', visualBinding, cueLedger });
+  const revised = { ...visualBinding, sourceRevision: 2 };
+  const next = advanceGestureSource(original, { raw: `${cueLedger.raw} New ending.`, kind: 'complete',
+    status: 'complete', visualBinding: revised });
+  assert.equal(next.sourceRevision, 2);
+  assert.equal(next.visualBinding, revised);
+  assert.equal(next.cueLedger, undefined);
+  assert.equal(advanceGestureSource(next, { visualBinding, cueLedger }).cueLedger, undefined);
+  const restored = advanceGestureSource(createGestureSource({ runId: visualBinding.readingResultId, visualBinding }),
+    { raw: next.raw, visualBinding: revised, kind: 'snapshot' });
+  assert.equal(restored.sourceRevision, 2);
+});
+
+test('foreign bindings and cue ledgers cannot assert authoritative revision changes', () => {
+  const original = createGestureSource({ runId: visualBinding.readingResultId, raw: cueLedger.raw, visualBinding, cueLedger });
+  const forged = { ...visualBinding, sourceRevision: 3, contextHash: 'f'.repeat(64) };
+  assert.equal(advanceGestureSource(original, { visualBinding: forged }).sourceRevision, 0);
+  assert.equal(advanceGestureSource(original, { cueLedger: { ...cueLedger, binding: forged } }).sourceRevision, 0);
+});

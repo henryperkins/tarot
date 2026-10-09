@@ -1,0 +1,1972 @@
+{
+  "config": {
+    "argv": [
+      "/home/ubuntu/.nvm/versions/node/v24.21.0/bin/node",
+      "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/node_modules/.bin/playwright",
+      "test",
+      "--config",
+      "output/reading-motion/react-bridge.playwright.config.mjs",
+      "--reporter=list,json"
+    ],
+    "configFile": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/output/reading-motion/react-bridge.playwright.config.mjs",
+    "rootDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e",
+        "testIgnore": [
+          "**/*.integration.spec.js",
+          "**/journal-owner.spec.js"
+        ],
+        "testMatch": [
+          "reading-gestures.spec.js",
+          "reading-gestures-lifecycle.spec.js",
+          "reading-gestures-dynamic.spec.js",
+          "reading-gestures-refinement.spec.js",
+          "reading-gestures-deck.spec.js",
+          "reading-gestures-generated.spec.js",
+          "reading-visual-handoff.spec.js",
+          "journal-visual-restoration.spec.js"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile",
+        "name": "mobile",
+        "testDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e",
+        "testIgnore": [
+          "**/*.integration.spec.js",
+          "**/journal-owner.spec.js"
+        ],
+        "testMatch": [
+          "reading-gestures.spec.js",
+          "reading-gestures-lifecycle.spec.js",
+          "reading-gestures-dynamic.spec.js",
+          "reading-gestures-refinement.spec.js",
+          "reading-gestures-deck.spec.js",
+          "reading-gestures-generated.spec.js",
+          "reading-visual-handoff.spec.js",
+          "journal-visual-restoration.spec.js"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run dev:frontend -- --port 5174 --strictPort",
+      "url": "http://localhost:5174",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "journal-visual-restoration.spec.js",
+      "file": "journal-visual-restoration.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "local pending save reload resumes cues and revisits statically (reduce)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7504,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:17:30.556Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "0f243ee97be1c6923f8a-e9cd8c37118e4c1fdef7",
+          "file": "journal-visual-restoration.spec.js",
+          "line": 39,
+          "column": 3
+        },
+        {
+          "title": "local pending save reload resumes cues and revisits statically (no-preference)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8167,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:17:38.155Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "0f243ee97be1c6923f8a-daf399734fdabb1fb168",
+          "file": "journal-visual-restoration.spec.js",
+          "line": 39,
+          "column": 3
+        },
+        {
+          "title": "cloud restore uses latest owned journal snapshot with static revisit",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 6033,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:17:46.335Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "0f243ee97be1c6923f8a-9ea67db19d0eec656368",
+          "file": "journal-visual-restoration.spec.js",
+          "line": 70,
+          "column": 1
+        },
+        {
+          "title": "restored gestures protect phone reading width @mobile",
+          "ok": true,
+          "tags": [
+            "mobile"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3060,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:52.991Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "0f243ee97be1c6923f8a-d74381490249c3643795",
+          "file": "journal-visual-restoration.spec.js",
+          "line": 88,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "reading-gestures-deck.spec.js",
+      "file": "reading-gestures-deck.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "deck study exposes all 78 vector faces and keeps synthetic prose distinct from recorded readings",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2333,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:17:52.383Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "fb5e4657b49d11e371bf-76e58de6c05a48a7b8e5",
+          "file": "reading-gestures-deck.spec.js",
+          "line": 16,
+          "column": 1
+        },
+        {
+          "title": "deck study allows keyboard detail inspection across the new suits",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2288,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:17:54.727Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "fb5e4657b49d11e371bf-0ca3b917b7b6d9b498e2",
+          "file": "reading-gestures-deck.spec.js",
+          "line": 41,
+          "column": 1
+        },
+        {
+          "title": "gentle deck arrival introduces a new detail and preserves inspection while the next paragraph arrives",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4501,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:17:57.023Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "fb5e4657b49d11e371bf-aa37b89af7dffb503751",
+          "file": "reading-gestures-deck.spec.js",
+          "line": 80,
+          "column": 1
+        },
+        {
+          "title": "reversed deck details remain usable and still on a reduced-motion phone @mobile",
+          "ok": true,
+          "tags": [
+            "mobile"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1949,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:56.161Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "fb5e4657b49d11e371bf-6b6973e56bf5591b2f6f",
+          "file": "reading-gestures-deck.spec.js",
+          "line": 62,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "reading-gestures-dynamic.spec.js",
+      "file": "reading-gestures-dynamic.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "dynamic SSE reserves emergence and preserves a held passage while later text arrives",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2533,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:01.538Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e894749dddd4dba22b0d-efcd2be3a8e5dbdbc1ae",
+          "file": "reading-gestures-dynamic.spec.js",
+          "line": 33,
+          "column": 1
+        },
+        {
+          "title": "dynamic literal ordering follows prose and metaphors or Markdown URLs add no water cues",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2546,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:04.084Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e894749dddd4dba22b0d-ea1ed6dd67222c288b01",
+          "file": "reading-gestures-dynamic.spec.js",
+          "line": 61,
+          "column": 1
+        },
+        {
+          "title": "dynamic card headings introduce cards and whole-card revisits stay on the shelf",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2523,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:06.642Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e894749dddd4dba22b0d-47ed3c3acc5b435f595c",
+          "file": "reading-gestures-dynamic.spec.js",
+          "line": 81,
+          "column": 1
+        },
+        {
+          "title": "a first sentence naming two cards retains their relationship without overlapping introductions",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2332,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:09.174Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e894749dddd4dba22b0d-a9928309d012340fd353",
+          "file": "reading-gestures-dynamic.spec.js",
+          "line": 103,
+          "column": 1
+        },
+        {
+          "title": "literal fallback preserves the reading without fabricating fixture-specific interpretive returns",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2539,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:11.515Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e894749dddd4dba22b0d-b3142f020f541904ddfc",
+          "file": "reading-gestures-dynamic.spec.js",
+          "line": 121,
+          "column": 1
+        },
+        {
+          "title": "dynamic hydrated relationships preserve static meaning on a reduced-motion phone @mobile",
+          "ok": true,
+          "tags": [
+            "mobile"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4841,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:58.125Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e894749dddd4dba22b0d-f14d02a0a46b3ff0dd8d",
+          "file": "reading-gestures-dynamic.spec.js",
+          "line": 140,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "reading-gestures-generated.spec.js",
+      "file": "reading-gestures-generated.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "SSE semantic metadata connects an independent interpretation and question while text keeps streaming",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3008,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:14.068Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9052125c451a9b9e2d5d-6738ab2c6b7950032e0d",
+          "file": "reading-gestures-generated.spec.js",
+          "line": 23,
+          "column": 1
+        },
+        {
+          "title": "replacement source revokes stale generated claims before exposing new text",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2850,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:17.083Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9052125c451a9b9e2d5d-f0c04dac650f6055c6a6",
+          "file": "reading-gestures-generated.spec.js",
+          "line": 45,
+          "column": 1
+        },
+        {
+          "title": "late semantic metadata preserves a held fallback phrase until the reader releases it",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3037,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:19.941Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9052125c451a9b9e2d5d-4c9cf38cbdc3a76b9de4",
+          "file": "reading-gestures-generated.spec.js",
+          "line": 59,
+          "column": 1
+        },
+        {
+          "title": "late cumulative cues select the visible passage after completion and a duplicate cannot restart it",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5777,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:22.986Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9052125c451a9b9e2d5d-c3e53736c3fef195a1ed",
+          "file": "reading-gestures-generated.spec.js",
+          "line": 132,
+          "column": 1
+        },
+        {
+          "title": "a second batch references the accepted literal while inspection and prose remain independent",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2332,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:28.773Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9052125c451a9b9e2d5d-8fe73dbee566821f02fe",
+          "file": "reading-gestures-generated.spec.js",
+          "line": 158,
+          "column": 1
+        },
+        {
+          "title": "fresh generated Spanish associations retain personal meaning with reduced motion on a phone @mobile",
+          "ok": true,
+          "tags": [
+            "mobile"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7107,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:20:02.984Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9052125c451a9b9e2d5d-55a473e833ab265ec5e3",
+          "file": "reading-gestures-generated.spec.js",
+          "line": 89,
+          "column": 1
+        },
+        {
+          "title": "late cumulative cues stay static and revisitable with reduced motion on a phone @mobile",
+          "ok": true,
+          "tags": [
+            "mobile"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2339,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:20:10.105Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9052125c451a9b9e2d5d-7d6a4ddc65e19aa761fb",
+          "file": "reading-gestures-generated.spec.js",
+          "line": 186,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "reading-gestures-lifecycle.spec.js",
+      "file": "reading-gestures-lifecycle.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "partial arrived text is accessible before the complete activation target",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2298,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:31.118Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a5619d66315e1e49c61d-06b65a0de9456e2b8219",
+          "file": "reading-gestures-lifecycle.spec.js",
+          "line": 41,
+          "column": 1
+        },
+        {
+          "title": "non-prefix SSE snapshot invalidates old hold and source revision",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2417,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:33.423Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a5619d66315e1e49c61d-c085b26c3b404337cdcf",
+          "file": "reading-gestures-lifecycle.spec.js",
+          "line": 60,
+          "column": 1
+        },
+        {
+          "title": "same-spread regeneration changes run and retains occurrence positions; terminal errors retain raw source",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2593,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:35.849Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a5619d66315e1e49c61d-abed876eecbc52840e3f",
+          "file": "reading-gestures-lifecycle.spec.js",
+          "line": 77,
+          "column": 1
+        },
+        {
+          "title": "held water owns actual handles, settles and responds to reduced motion and simulated visibility",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 6149,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:38.450Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a5619d66315e1e49c61d-312e65daa1d41e56cecb",
+          "file": "reading-gestures-lifecycle.spec.js",
+          "line": 100,
+          "column": 1
+        },
+        {
+          "title": "completed burst settles even when a timer wakes before its deadline",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7392,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:44.607Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a5619d66315e1e49c61d-3ee04f0fc8b6509bc2f4",
+          "file": "reading-gestures-lifecycle.spec.js",
+          "line": 133,
+          "column": 1
+        },
+        {
+          "title": "fast paired handoff leaves inert exits, bounded motion owners and intact keyboard focus",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2759,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:52.009Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a5619d66315e1e49c61d-36e61c62bd060e580c3e",
+          "file": "reading-gestures-lifecycle.spec.js",
+          "line": 148,
+          "column": 1
+        },
+        {
+          "title": "actual route departure pauses and return resumes the same source generation",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2545,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:54.777Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a5619d66315e1e49c61d-4ca63fcdd46a47551a0b",
+          "file": "reading-gestures-lifecycle.spec.js",
+          "line": 171,
+          "column": 1
+        },
+        {
+          "title": "bounded Chromium trace measures water while controlled SSE arrives",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3653,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "Gesture performance: {\"lane\":\"headless Chromium mocked-auth controlled real SSE; emulated desktop\",\"frames\":35,\"longFrameIntervals\":4,\"maximumIntervalMs\":50.100000000000364,\"scriptSeconds\":0.068014,\"taskSeconds\":0.107797,\"layoutSeconds\":0.001355,\"paintEvents\":9,\"longMainThreadTasks\":0,\"limitation\":\"Bounded browser measurement, no physical handset or GPU proof; frame intervals are observed, not compositor dropped-frame counts.\"}\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:18:57.332Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "gesture-performance-summary",
+                      "contentType": "application/json",
+                      "path": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results/reading-gestures-lifecycle-6dbc3-hile-controlled-SSE-arrives-chromium/attachments/gesture-performance-summary-ac9053711c34a3a68d7dd2174eaec5a0eda374e8.json"
+                    },
+                    {
+                      "name": "gesture-performance-trace",
+                      "contentType": "application/gzip",
+                      "path": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results/reading-gestures-lifecycle-6dbc3-hile-controlled-SSE-arrives-chromium/attachments/gesture-performance-trace-f102309769b367d43d8f2aa974be99ef97cc4d59.gz"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a5619d66315e1e49c61d-7c31cd66d3e1c116b86d",
+          "file": "reading-gestures-lifecycle.spec.js",
+          "line": 190,
+          "column": 1
+        },
+        {
+          "title": "source-driven card emergence is hidden before identity and perceptible around authored midpoint",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2256,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:00.992Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a5619d66315e1e49c61d-384733b8ac612a1bb27e",
+          "file": "reading-gestures-lifecycle.spec.js",
+          "line": 238,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "reading-gestures-refinement.spec.js",
+      "file": "reading-gestures-refinement.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "held and reduced-motion details remain distinguishable on bright artwork",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2786,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:03.258Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c807d615c100dd8e94c7-b8752ae79abc4366cfe1",
+          "file": "reading-gestures-refinement.spec.js",
+          "line": 9,
+          "column": 1
+        },
+        {
+          "title": "card names remain prose while the shelf and meaningful details stay keyboard accessible",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2134,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:06.056Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c807d615c100dd8e94c7-60b4456e2c1bea16ef20",
+          "file": "reading-gestures-refinement.spec.js",
+          "line": 86,
+          "column": 1
+        },
+        {
+          "title": "phone targets stay usable and both planted swords fit the return frame @mobile",
+          "ok": true,
+          "tags": [
+            "mobile"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3742,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:20:12.462Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c807d615c100dd8e94c7-22fe706f7fe65055c40e",
+          "file": "reading-gestures-refinement.spec.js",
+          "line": 56,
+          "column": 1
+        },
+        {
+          "title": "short phone frames retain the Emperor scepter and Justice scale extents @mobile",
+          "ok": true,
+          "tags": [
+            "mobile"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2739,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:20:16.214Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c807d615c100dd8e94c7-099b1b49383c937f6368",
+          "file": "reading-gestures-refinement.spec.js",
+          "line": 107,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "reading-gestures.spec.js",
+      "file": "reading-gestures.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "completed Star is static and every connection can be revisited without changing prose",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2768,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:08.202Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d0db4faa19fc816540f6-1337f9545f4e7108f686",
+          "file": "reading-gestures.spec.js",
+          "line": 18,
+          "column": 1
+        },
+        {
+          "title": "actual SSE advances raw/rendered text while a held pool remains and latest cue replaces backlog",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2550,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:10.980Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d0db4faa19fc816540f6-8175a676868bcde480d3",
+          "file": "reading-gestures.spec.js",
+          "line": 42,
+          "column": 1
+        },
+        {
+          "title": "five-card relationships and identity shelf preserve distinct targets",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3758,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:13.553Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d0db4faa19fc816540f6-1b8d12cd977476b6e13d",
+          "file": "reading-gestures.spec.js",
+          "line": 64,
+          "column": 1
+        },
+        {
+          "title": "Hermit and reversed Wands retain their relationship across a return",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2313,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:17.316Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d0db4faa19fc816540f6-599b8d9e80584fe01810",
+          "file": "reading-gestures.spec.js",
+          "line": 89,
+          "column": 1
+        },
+        {
+          "title": "five actual streamed introductions retain the same shelf nodes and prose position",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2629,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:19.636Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d0db4faa19fc816540f6-b46e845efe4338fd58a7",
+          "file": "reading-gestures.spec.js",
+          "line": 103,
+          "column": 1
+        },
+        {
+          "title": "missing WAAPI preserves static crop and accessible prose",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2210,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:22.271Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d0db4faa19fc816540f6-68d3125a6e8216e591ec",
+          "file": "reading-gestures.spec.js",
+          "line": 132,
+          "column": 1
+        },
+        {
+          "title": "compact relationship and reduced-motion meaning @mobile",
+          "ok": true,
+          "tags": [
+            "mobile"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 6286,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:20:18.966Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d0db4faa19fc816540f6-d61d5417907996c9b3d8",
+          "file": "reading-gestures.spec.js",
+          "line": 142,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "reading-visual-handoff.spec.js",
+      "file": "reading-visual-handoff.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "paced: independent late cues reach the completed reading through ReadingContext",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3133,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:24.493Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "controlled-delivery.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJtb2RlIjogInBhY2VkIiwKICAic2NvcGUiOiAibW9jayBQcm8gYXV0aDsgY29udHJvbGxlZCBqb2IgU1NFOyByZWFsIFJlYWRpbmdDb250ZXh0IGFuZCBnZXN0dXJlIHJlbmRlcmVyIiwKICAic291cmNlUnVuIjogIjIwMjYtMTAtMDdUMjMtNDctMTkuOTA4Wi01ZXFwVW0iLAogICJleGNlcnB0U2hhMjU2IjogIjFiM2VjMDJkMWFmN2E0ZWQwNGM1MjJhZTQ0YzUxMjE1MmUzOGE1NTI0ZTUxMTg3NTQyMDY0ZmZiNGU2ODMyNjUiLAogICJuYXJyYXRpdmVDb21wbGV0ZWRCZWZvcmVWaXN1YWxSZWxlYXNlIjogdHJ1ZSwKICAidmlzdWFsUmVxdWVzdHMiOiBbCiAgICB7CiAgICAgICJwYXRobmFtZSI6ICIvYXBpL3Rhcm90LXJlYWRpbmcvdmlzdWFscy9jb250cm9sbGVkLXZpc3VhbC1wYWNlZC9zdHJlYW0iLAogICAgICAibWV0aG9kIjogIkdFVCIKICAgIH0KICBdLAogICJvYnNlcnZlZFJ1bklkIjogImNvbnRyb2xsZWQtdmlzdWFsLXBhY2VkIgp9"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-a5a9ef8d06de2e7b21e5",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 63,
+          "column": 3
+        },
+        {
+          "title": "burst: independent late cues reach the completed reading through ReadingContext",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2941,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:27.634Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "controlled-delivery.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJtb2RlIjogImJ1cnN0IiwKICAic2NvcGUiOiAibW9jayBQcm8gYXV0aDsgY29udHJvbGxlZCBqb2IgU1NFOyByZWFsIFJlYWRpbmdDb250ZXh0IGFuZCBnZXN0dXJlIHJlbmRlcmVyIiwKICAic291cmNlUnVuIjogIjIwMjYtMTAtMDdUMjMtNDctMTkuOTA4Wi01ZXFwVW0iLAogICJleGNlcnB0U2hhMjU2IjogIjFiM2VjMDJkMWFmN2E0ZWQwNGM1MjJhZTQ0YzUxMjE1MmUzOGE1NTI0ZTUxMTg3NTQyMDY0ZmZiNGU2ODMyNjUiLAogICJuYXJyYXRpdmVDb21wbGV0ZWRCZWZvcmVWaXN1YWxSZWxlYXNlIjogdHJ1ZSwKICAidmlzdWFsUmVxdWVzdHMiOiBbCiAgICB7CiAgICAgICJwYXRobmFtZSI6ICIvYXBpL3Rhcm90LXJlYWRpbmcvdmlzdWFscy9jb250cm9sbGVkLXZpc3VhbC1idXJzdC9zdHJlYW0iLAogICAgICAibWV0aG9kIjogIkdFVCIKICAgIH0KICBdLAogICJvYnNlcnZlZFJ1bklkIjogImNvbnRyb2xsZWQtdmlzdWFsLWJ1cnN0Igp9"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-95ba13009c819630c5f5",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 63,
+          "column": 3
+        },
+        {
+          "title": "final-only: independent late cues reach the completed reading through ReadingContext",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2813,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:30.584Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "controlled-delivery.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJtb2RlIjogImZpbmFsLW9ubHkiLAogICJzY29wZSI6ICJtb2NrIFBybyBhdXRoOyBjb250cm9sbGVkIGpvYiBTU0U7IHJlYWwgUmVhZGluZ0NvbnRleHQgYW5kIGdlc3R1cmUgcmVuZGVyZXIiLAogICJzb3VyY2VSdW4iOiAiMjAyNi0xMC0wN1QyMy00Ny0xOS45MDhaLTVlcXBVbSIsCiAgImV4Y2VycHRTaGEyNTYiOiAiMWIzZWMwMmQxYWY3YTRlZDA0YzUyMmFlNDRjNTEyMTUyZTM4YTU1MjRlNTExODc1NDIwNjRmZmI0ZTY4MzI2NSIsCiAgIm5hcnJhdGl2ZUNvbXBsZXRlZEJlZm9yZVZpc3VhbFJlbGVhc2UiOiB0cnVlLAogICJ2aXN1YWxSZXF1ZXN0cyI6IFsKICAgIHsKICAgICAgInBhdGhuYW1lIjogIi9hcGkvdGFyb3QtcmVhZGluZy92aXN1YWxzL2NvbnRyb2xsZWQtdmlzdWFsLWZpbmFsLW9ubHkvc3RyZWFtIiwKICAgICAgIm1ldGhvZCI6ICJHRVQiCiAgICB9CiAgXSwKICAib2JzZXJ2ZWRSdW5JZCI6ICJjb250cm9sbGVkLXZpc3VhbC1maW5hbC1vbmx5Igp9"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-c7248a2c24ce3f4cc8ec",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 63,
+          "column": 3
+        },
+        {
+          "title": "reading-only delivery remains complete with no visual capability",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2688,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:33.406Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-291295d4492502070521",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 102,
+          "column": 1
+        },
+        {
+          "title": "a cue arriving ahead of prose waits for its exact source; duplicates and foreign results cannot replace it",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2812,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:36.100Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-f1e6fb3ad90b2ee88422",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 112,
+          "column": 1
+        },
+        {
+          "title": "clean visual EOF adopts the complete snapshot through fallback after narrative completion",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5003,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:38.919Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-2ff249e18ee3d4196064",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 136,
+          "column": 1
+        },
+        {
+          "title": "replacement prose rejects old visual results and reconnects with the new source revision",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2787,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:43.929Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-7b02f5219e3fe3002e12",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 149,
+          "column": 1
+        },
+        {
+          "title": "held inspection survives continuing prose and a cross-batch interpretation",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2922,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:46.723Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-a3e09e19df6b10e5faeb",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 167,
+          "column": 1
+        },
+        {
+          "title": "authoritative done revision replaces an unseen suffix and accepts only that revision",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2797,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:19:49.652Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-87b3996f1bc3a983c638",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 202,
+          "column": 1
+        },
+        {
+          "title": "late independent cues remain static and revisitable on a reduced-motion phone @mobile",
+          "ok": true,
+          "tags": [
+            "mobile"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3744,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:20:25.269Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "controlled-phone-diagnostics",
+                      "contentType": "application/json",
+                      "body": "eyJkaWFnbm9zdGljcyI6W10sInJlYWRpbmdSZXF1ZXN0cyI6MX0="
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-9dc6e44ba2bbe3758518",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 231,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-09T16:17:28.786Z",
+    "duration": 180425.58200000002,
+    "expected": 51,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

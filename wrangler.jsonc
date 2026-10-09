@@ -118,6 +118,10 @@
     // Suggested questions run on Workers AI; failures use the local templates.
     "QUESTION_MODEL": "@cf/zai-org/glm-5.3",
     "QUESTION_REASONING_EFFORT": "high",
+    // Visual cue generation is disabled unless BOTH are explicitly configured:
+    // VISUAL_CUE_PROVIDER=workers-ai and VISUAL_CUE_MODEL=<chosen Workers AI model>.
+    // This is independent of the reading model. VISUAL_CUE_TIMEOUT_MS defaults
+    // to 30000 (maximum 60000); no visual provider/model fallback is selected.
     // EVAL_TIMEOUT_MS bounds the async evaluation, which runs in waitUntil()
     // (30s budget after the response, shared with other background work);
     // 28s leaves room for the D1 write. EVAL_GATE_TIMEOUT_MS bounds the sync
@@ -289,6 +293,10 @@
       {
         "name": "READING_JOBS",
         "class_name": "ReadingJob"
+      },
+      {
+        "name": "READING_VISUAL_JOBS",
+        "class_name": "ReadingVisualJob"
       }
     ]
   },
@@ -297,6 +305,12 @@
       "tag": "reading-jobs-v1",
       "new_sqlite_classes": [
         "ReadingJob"
+      ]
+    },
+    {
+      "tag": "reading-visual-jobs-v1",
+      "new_sqlite_classes": [
+        "ReadingVisualJob"
       ]
     }
   ],

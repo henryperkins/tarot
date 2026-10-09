@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-09T16:55:09.324Z",
+  "question": "How can I make steady progress on a creative project while leaving enough space to rest?",
+  "checks": {
+    "realLocalProAuthentication": true,
+    "loggedOut": true
+  },
+  "limitations": [
+    "One synthetic fresh question; not corpus qualification.",
+    "Headless Chromium desktop and emulated phone; service workers blocked."
+  ],
+  "provider": "local-composer",
+  "outcome": "Failed live qualification: Worker rejected redirect:error and the app returned local-composer. Fixed with manual redirects and fail-closed 3xx handling."
+}

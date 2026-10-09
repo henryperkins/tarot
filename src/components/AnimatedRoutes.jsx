@@ -24,6 +24,10 @@ const ReadingGesturesFixture = import.meta.env.DEV
   ? lazy(() => import('./ReadingGesturesFixture.jsx'))
   : null;
 
+const JournalVisualFixture = import.meta.env.DEV
+  ? lazy(() => import('./JournalVisualFixture.jsx'))
+  : null;
+
 // Minimal loading fallback for route transitions
 function RouteLoader() {
   return (
@@ -86,6 +90,9 @@ export function AnimatedRoutes() {
           <Route path="/auth/callback" element={<PageTransition><OAuthCallbackPage /></PageTransition>} />
           {ReadingGesturesFixture && (
             <Route path="/__e2e/reading-gestures" element={<ReadingGesturesFixture />} />
+          )}
+          {JournalVisualFixture && (
+            <Route path="/__e2e/journal-visual" element={<JournalVisualFixture />} />
           )}
           {SpreadLayoutFixture && (
             <Route path="/__e2e/spread-layout" element={<SpreadLayoutFixture />} />

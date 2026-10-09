@@ -84,6 +84,8 @@ import * as journalExport from '../../functions/api/journal-export/index.js';
 import { handleScheduled } from '../../functions/lib/scheduled.js';
 import * as adminArchive from '../../functions/api/admin/archive.js';
 import { ReadingJob as ReadingJobBase } from './readingJob.js';
+import { ReadingVisualJob as ReadingVisualJobBase } from './readingVisualJob.js';
+import * as readingVisualJob from '../../functions/api/reading-visual-job.js';
 
 // Admin handlers
 import * as adminQualityStats from '../../functions/api/admin/quality-stats.js';
@@ -217,6 +219,9 @@ const routes = [
   { pattern: /^\/api\/tarot-reading\/jobs\/([^/]+)\/stream$/, handlers: tarotReadingJobStream, params: ['id'] },
   { pattern: /^\/api\/tarot-reading\/jobs\/([^/]+)\/cancel$/, handlers: tarotReadingJobCancel, params: ['id'] },
   { pattern: /^\/api\/tarot-reading\/jobs\/([^/]+)$/, handlers: tarotReadingJobStatus, params: ['id'] },
+  { pattern: /^\/api\/tarot-reading\/visuals\/([^/]+)\/stream$/, handlers: readingVisualJob, params: ['readingResultId'] },
+  { pattern: /^\/api\/tarot-reading\/visuals\/([^/]+)\/cancel$/, handlers: readingVisualJob, params: ['readingResultId'] },
+  { pattern: /^\/api\/tarot-reading\/visuals\/([^/]+)$/, handlers: readingVisualJob, params: ['readingResultId'] },
   { pattern: /^\/api\/tarot-reading\/draw$/, handlers: tarotReadingDraw },
   { pattern: /^\/api\/tarot-reading$/, handlers: tarotReading },
   { pattern: /^\/api\/reading-followup$/, handlers: readingFollowup },
@@ -537,3 +542,4 @@ const sentryHandler = Sentry.withSentry(
 export default instrument(sentryHandler, createTracingConfig());
 
 export const ReadingJob = instrumentDO(ReadingJobBase, createDOTracingConfig('ReadingJob'));
+export const ReadingVisualJob = instrumentDO(ReadingVisualJobBase, createDOTracingConfig('ReadingVisualJob'));

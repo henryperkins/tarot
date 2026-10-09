@@ -1,6 +1,6 @@
 # Personalized Reading Gestures React Bridge Implementation Plan
 
-> October 9 implementation update: Tasks 1–2 of the independent visual-cue handoff are implemented. The cumulative ledger accepts cross-batch literal references with stable IDs, and the React client selects late cues from measured visible passages while preserving inspection and finite deadlines. See the [repair and verification record](../reviews/2026-10-09-reading-cue-ledger-arrival.md). Tasks 3–5 remain pending; there is no production visual model/job/transport or pending-save persistence yet.
+> October 9 implementation update: Tasks 1–2 of the independent visual-cue handoff remain implemented. The subsequent Task 3–4 ownership, source, job-state, persistence and application-wiring findings have been repaired, with independent visual transport and static journal restoration exercised by controlled Task 5 checks. See the [repair and verification record](../reviews/2026-10-09-reading-visual-repairs.md). Bounded re-annotation after expiry/failed attachment and live visual-model qualification remain open. Production presentation stays gated.
 
 > October 9 handoff review: all four findings against `d0f2223` were verified on the unchanged runtime at `68ee6cf`. The next [independent visual-cue handoff plan](2026-10-09-reading-visual-cue-handoff.md) defines the cumulative ledger/stable IDs, visibility-aware cue-arrival transition, accepted-delivery observation point, and durable save/restore contracts. It supersedes the high-level handoff descriptions below where more precise. These are planned implementation requirements, not runtime fixes completed by this documentation update.
 
@@ -21,6 +21,8 @@
 **Scope and current evidence:** The standalone living Star, Hermit/Wands relationship, and [five-card dialogue](../../../output/reading-motion/five-card-dialogue.html) already exist. All three are inputs to Tasks 3–7, not future extraction work. Their study checks do not complete the React tasks. Implementation was subsequently approved. The execution record below distinguishes the completed opt-in bridge from full-deck and production rollout work.
 
 **Full-deck destination:** Any major, numbered minor, or court card can become the subject, return later, or participate in a relationship. There is no Star-only renderer, five-card whitelist, or linear unlock sequence. Every card must support whole-card emergence, focus, settlement, orientation, hold, and revisit through the same engine. The finished experience also needs supported imagery and an intentional motion treatment for every card in the adopted edition; some imagery may call for still illumination rather than moving a figure or symbol. Unsupported detail fallback keeps a reading usable during development but does not count as finished deck coverage. Task 4 proves the common path across all 78 identities; Task 8 records the remaining per-card work and gates a claim of full-deck completion.
+
+> October 9 development beta: ordinary readings and journal restoration now share a development-only gesture opt-in. The isolated runner uses the owner's Claude subscription for prose and independently configured Workers AI for cues. See the [beta command and boundaries](../../dev-reading-gestures.md). This adds a real application path; full corpus qualification and production activation remain separate.
 
 ## Independent visual-cue model: production direction
 
@@ -43,12 +45,12 @@ Reading delivery and completion never wait for annotations. Observe only accepte
 
 ### Independent pipeline progress and remaining gaps
 
-- Implemented client/contract seam: an application-bound cumulative `cueLedger` can trail delivered prose, with exact analyzed-prefix, result/revision, spread/context, edition and catalog binding checks. Cross-batch references, retries, replacement and late visible arrivals have regressions. Existing complete semantic documents retain their replay behavior. The host still needs to issue identities and publish snapshots through the independent visual job.
-- The current reading SSE consumer terminates on narrative `done`. Add an independent visual-job lifecycle/transport and persistence path, rather than delaying reading completion or assuming late metadata can arrive on the closed connection.
+- Implemented client/contract seam: an application-bound cumulative `cueLedger` can trail delivered prose, with exact analyzed-prefix, result/revision, spread/context, edition and catalog binding checks. Cross-batch references, retries, replacement and late visible arrivals have regressions. Existing complete semantic documents retain their replay behavior. The host now issues identities and publishes snapshots through the independent visual job; controlled source/arrival tests are recorded in the repair record.
+- The reading SSE consumer terminates on narrative `done`. The implemented independent visual-job lifecycle/transport and persistence path continues afterward without delaying prose completion.
 - Replace joint generation as the next evaluation method: freeze unmodified reading-only outputs, then annotate them through independent visual-model calls with separate prompt/configuration/provenance. Keep the existing 15 joint-generated examples unchanged and labelled historical; they do not validate this separated pipeline.
-- Keep annotation model/provider selection independent of the reading provider. No specific visual model or serving configuration is selected by this architecture note. Evaluate its latency and semantic quality on unaltered readings before enabling production.
+- Keep annotation model/provider selection independent of the reading provider. The development runner explicitly selects Workers AI GLM-5.3-Flash with low reasoning. This is a beta candidate, not a production quality qualification; evaluate latency and semantic quality on unaltered readings before enabling production.
 
-This section records the user's architecture correction and supersedes joint generation as the future direction. It does not claim that the observer service, live transport, or model selection is implemented.
+This section records the user's architecture correction and supersedes joint generation as the future direction. The observer service and independent transport are now implemented locally; candidate-model evidence and broader qualification remain distinct from those implementation claims.
 
 ## Recommended production policies — October 9 review
 

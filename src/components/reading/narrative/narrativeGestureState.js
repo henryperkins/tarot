@@ -27,9 +27,9 @@ function sameBinding(left, right) {
   return Boolean(left && right && bindingFields.every(key => left[key] === right[key]));
 }
 
-export function createGestureFocusState({ runId, sourceRevision, binding = null, visualBinding, associations = [], introductions = [], completed = false }) {
+export function createGestureFocusState({ runId, sourceRevision, binding = null, visualBinding, associations = [], introductions = [], availableOccurrences = [], completed = false }) {
   return withEligibility({
-    runId, sourceRevision, binding: visualBinding ?? binding, ledgerRevision: 0, associations, introductions,
+    runId, sourceRevision, binding: visualBinding ?? binding, ledgerRevision: 0, associations, introductions, availableOccurrences,
     current: completed ? associations.at(-1) ?? null : null, held: null, pending: null,
     introduced: completed ? introductions.map(({ occurrenceId }) => occurrenceId) : [],
     visibleEnd: completed ? Math.max(0, ...introductions.map(({ end }) => end), ...associations.map(({ passage }) => passage.end)) : 0,
@@ -94,16 +94,18 @@ export function reduceGestureFocus(state, event) {
   let next = state;
   switch (event.type) {
     case 'SOURCE': {
-      const { source, associations = [], introductions = [] } = event;
+      const { source, associations = [], introductions = [], availableOccurrences = [] } = event;
       const sourceBinding = source.visualBinding ?? source.binding;
       if (source.runId !== state.runId || source.sourceRevision !== state.sourceRevision
         || (state.binding && sourceBinding && !sameBinding(state.binding, sourceBinding))
         || (source.kind === 'hydrate' && source.status === 'complete' && !state.hydrated)) {
-        next = createGestureFocusState({ ...source, associations, introductions, completed: source.kind === 'hydrate' && source.status === 'complete' });
+        next = createGestureFocusState({ ...source, associations, introductions, availableOccurrences, completed: source.kind === 'hydrate' && source.status === 'complete' });
         next.reducedMotion = state.reducedMotion;
       } else {
-        const validOccurrences = new Set(introductions.map(({ occurrenceId }) => occurrenceId));
-        next = { ...state, binding: sourceBinding ?? state.binding, associations, introductions, status: source.status, introduced: state.introduced.filter(id => validOccurrences.has(id)) };
+        const introducedOccurrences = new Set(introductions.map(({ occurrenceId }) => occurrenceId));
+        const validOccurrences = new Set([...introducedOccurrences, ...availableOccurrences]);
+        next = { ...state, binding: sourceBinding ?? state.binding, associations, introductions, availableOccurrences,
+          status: source.status, introduced: state.introduced.filter(id => introducedOccurrences.has(id)) };
         // Legacy registry revisions and application ledger revisions are separate
         // sequences. Acquiring a binding must not discard an existing hold.
         if (!state.binding && sourceBinding) next.ledgerRevision = -1;
@@ -143,7 +145,7 @@ export function reduceGestureFocus(state, event) {
       if (JSON.stringify(selection) === JSON.stringify(state.held)) { next = release(state, now); break; }
       let current;
       if (selection.kind === 'association') current = state.associations.find(({ id, passage }) => id === selection.id && passage.end <= state.visibleEnd);
-      else if (state.introduced.includes(selection.occurrenceId)) current = { id: `identity-${selection.occurrenceId}`, kind: 'identity', targets: [{ occurrenceId: selection.occurrenceId, detailIds: [] }] };
+      else if (state.introduced.includes(selection.occurrenceId) || state.availableOccurrences.includes(selection.occurrenceId)) current = { id: `identity-${selection.occurrenceId}`, kind: 'identity', targets: [{ occurrenceId: selection.occurrenceId, detailIds: [] }] };
       if (current) next = consume({ ...state, held: selection, current, phase: 'held' }, [current.id]);
       break;
     }

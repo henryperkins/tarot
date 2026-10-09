@@ -41,10 +41,19 @@ export function createGestureSource({ runId, raw = '', status = 'idle', semantic
 export function advanceGestureSource(frame, update) {
   const { raw = frame.raw, kind = frame.kind, status = frame.status } = update;
   const appended = raw.startsWith(frame.raw);
-  const sourceRevision = frame.sourceRevision + (appended ? 0 : 1);
-  const candidate = Object.hasOwn(update, 'semanticDocument') ? update.semanticDocument : appended ? frame.semanticDocument : null;
+  const inferredRevision = frame.sourceRevision + (appended ? 0 : 1);
+  // Accepted narrative snapshots can replace text the throttled renderer never
+  // saw. Only that independently established binding may advance its revision;
+  // a cue ledger cannot establish identity or manufacture a source revision.
+  const authoritative = update.visualBinding;
+  const authoritativeRevision = authoritative?.sourceRevision;
+  const acceptsRevision = Number.isSafeInteger(authoritativeRevision) && authoritativeRevision >= inferredRevision
+    && sameVisualCueBinding({ ...frame.visualBinding, sourceRevision: authoritativeRevision }, authoritative);
+  const sourceRevision = acceptsRevision ? authoritativeRevision : inferredRevision;
+  const sameSource = appended && sourceRevision === frame.sourceRevision;
+  const candidate = Object.hasOwn(update, 'semanticDocument') ? update.semanticDocument : sameSource ? frame.semanticDocument : null;
   const document = boundDocument(candidate, raw, status);
-  const binding = boundVisualIdentity(Object.hasOwn(update, 'visualBinding') ? update.visualBinding : appended ? frame.visualBinding : null,
+  const binding = boundVisualIdentity(Object.hasOwn(update, 'visualBinding') ? update.visualBinding : sameSource ? frame.visualBinding : null,
     frame.runId, sourceRevision);
   const next = {
     runId: frame.runId, raw, sourceRevision, kind, status,

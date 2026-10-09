@@ -8,6 +8,7 @@
  * now decomposed into ~150 lines using extracted hooks and sub-components.
  */
 import { memo, useEffect, useId, useRef, useState } from 'react';
+import { readingGesturesEnabled } from '../../../lib/readingGestureSettings';
 import { useSmallScreen, SMALL_SCREEN_MAX } from '../../../hooks/useSmallScreen';
 import { InlineStatus } from '../../InlineStatus.jsx';
 import { useInlineStatus } from '../../../hooks/useInlineStatus';
@@ -44,7 +45,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   onDeleteShareLink,
   defaultExpanded = false,
   compact = false,
-  cardClass
+  cardClass,
+  gestureStudyEnabled = readingGesturesEnabled()
 }) {
   // Initialize expanded state - never expand if compact mode is on
   const [isExpanded, setIsExpanded] = useState(() => defaultExpanded && !compact);
@@ -199,6 +201,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({
               narrativeId={narrativeId}
               collapsible
               defaultExpanded={!isSmallScreen}
+              entry={entry}
+              gestureStudyEnabled={gestureStudyEnabled}
             />
           )}
 

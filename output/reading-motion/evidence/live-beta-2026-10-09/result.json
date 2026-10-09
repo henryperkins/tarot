@@ -1,0 +1,767 @@
+{
+  "date": "2026-10-09T17:04:36.622Z",
+  "question": "How can I make steady progress on a creative project while leaving enough space to rest?",
+  "checks": {
+    "realLocalProAuthentication": true,
+    "proseExactAndSourceBound": true,
+    "allCueQuotesMatchSource": true,
+    "liveCueDeliveredAndHeld": true,
+    "keyboardRelease": true,
+    "phoneNoOverflow": {
+      "width": 390,
+      "scrollWidth": 390
+    },
+    "reducedMotionRunningAnimations": 0,
+    "pageErrors": [],
+    "loggedOut": true,
+    "ownedSnapshotAndCompletedStreamMatchDurableSource": true,
+    "durableEvidenceRetrievalLoggedOut": true
+  },
+  "limitations": [
+    "One synthetic fresh question; not corpus qualification.",
+    "Headless Chromium desktop and emulated phone; service workers blocked."
+  ],
+  "provider": "claude-code",
+  "narrative": {
+    "raw": "### Opening\n\nYou might know the feeling. The project matters to you, and every time you sit down your head fills with rules about how much you ought to be getting done, until rest starts to feel like something you have to earn. These cards trace that loop pretty clearly.\n\nFor your question about steady creative progress with real room to rest, the spread moves from **Six of Swords** to **Eight of Swords** to **Ace of Pentacles** reversed. That's two Air cards stacking up mental energy, then an Earth card asking where all that thinking actually lands.\n\n### The Story\n\n**Past: Six of Swords.** A ferryman poles the boat toward calmer water while cloaked travelers huddle in the middle, swords still standing upright in the bow. It's a fitting image for how you may have arrived at this project. Maybe you were leaving something rougher behind, like a draining stretch or an old way of working, and brought a few of those swords along.\n\nIt's worth asking which of those blades are habits from that earlier chapter, such as the all-nighter or the \"only finished work counts\" rule, rather than things this project actually needs.\n\n**Present: Eight of Swords.** Here the Air doubles down. A blindfolded, loosely bound figure stands among swords planted in soggy ground. In the traditional image the swords don't fully close around her, so there's a way out that the blindfold hides.\n\nIn practice this can look like deciding you can't rest until you've hit some quota, then being too wound up to make much progress anyway. You end up neither creating nor resting. The soggy ground matters too: footing feels unreliable when there's no structure underneath, just swirling plans. The useful part is that a trap built from thoughts can be loosened.\n\n**Future: Ace of Pentacles, reversed.** Upright, a hand offers a pentacle from a cloud above a flowering garden with an open archway. It's a concrete seed, ready to plant. Reversed in the trajectory position, that seed hovers without being taken.\n\nThis might look like the project staying mostly an idea, or progress arriving in short, anxious sprints that never take root because nothing steady holds them. \"Hesitating to invest\" fits here, though the investment is less about money and more about time, energy, and your body's need for rest. On the current path, the garden is still there. The pentacle just never quite touches the soil.\n\n### Bringing It Together\n\nThe elemental shift is the clearest advice in this spread. Two Swords cards suggest the project may be living almost entirely in your head, where you plan, judge, and re-plan. Air without Earth tends to scatter. The Ace asks for something small and physical: a simple structure that makes both progress and rest concrete, so neither has to be argued for each day.\n\nSo to your question about steady progress *and* rest, this spread treats rest as part of the soil rather than the opposite of progress. With the New Moon in Libra arriving in about a day, it's a good moment for one balanced intention rather than an ambitious one. If the stuck feeling ever tips into something heavier than creative frustration, talking it through with someone you trust or a qualified professional can be part of that care too.\n\n### Gentle Next Steps\n\n- **Shrink the unit.** Try a session size so modest it feels almost silly, like 20 minutes, one page, or one sketch, and count showing up as the win.\n- **Book rest first.** Put one or two rest blocks on your calendar *before* the work blocks, so rest isn't whatever's left over.\n- **Name one sword.** Write down a single rule you've carried over from that Six of Swords boat, and ask whether it's actually true for this project.\n- **Leave a breadcrumb.** End each session with one sentence telling tomorrow-you where to start, so you're not walking back in blindfolded.\n\n### Closing\n\nThe Eight of Swords suggests the bindings may be looser than they feel, and the Ace is still being held out. How steadily this project grows, and how well you rest along the way, depends on the small choices you make about your time and attention, starting this week.",
+    "sha256": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa",
+    "cards": [
+      {
+        "position": "Past — influences that led here",
+        "card": "Six of Swords",
+        "canonicalName": "Six of Swords",
+        "canonicalKey": "six of swords",
+        "aliases": [],
+        "orientation": "Upright",
+        "meaning": "Transition, moving on, mental shift toward calmer waters",
+        "number": null,
+        "suit": "Swords",
+        "rank": "Six",
+        "rankValue": 6,
+        "userReflection": null
+      },
+      {
+        "position": "Present — where you stand now",
+        "card": "Eight of Swords",
+        "canonicalName": "Eight of Swords",
+        "canonicalKey": "eight of swords",
+        "aliases": [],
+        "orientation": "Upright",
+        "meaning": "Feeling trapped, limiting beliefs, mental imprisonment",
+        "number": null,
+        "suit": "Swords",
+        "rank": "Eight",
+        "rankValue": 8,
+        "userReflection": null
+      },
+      {
+        "position": "Future — trajectory if nothing shifts",
+        "card": "Ace of Pentacles",
+        "canonicalName": "Ace of Pentacles",
+        "canonicalKey": "ace of pentacles",
+        "aliases": [],
+        "orientation": "Reversed",
+        "meaning": "Blocked opportunity, short-term thinking, hesitating to invest",
+        "number": null,
+        "suit": "Pentacles",
+        "rank": "Ace",
+        "rankValue": 1,
+        "userReflection": null
+      }
+    ],
+    "inference": {
+      "requestId": "71284fe7-d533-4fa6-8f48-d7ff76f3ed9d",
+      "task": "reading",
+      "provider": "claude-code",
+      "requestedModel": null,
+      "actualModel": "claude-opus-5-5",
+      "state": "accepted",
+      "startedAt": 1791565483535,
+      "finishedAt": 1791565525355,
+      "latencyMs": 41820,
+      "evidence": "Exact request ID from the source-matched narrative Durable Object joins the accepted D1 inference attempt."
+    }
+  },
+  "visual": {
+    "model": "@cf/zai-org/glm-5.3-flash",
+    "reasoningEffort": "low",
+    "status": "complete",
+    "error": null,
+    "cues": [
+      {
+        "id": "vc:c1a01fc5c1dac43e71eeed84df1305799bc46df562e389b0eda016436f797397",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "canonicalName": "Six of Swords",
+            "detailIds": [
+              "boat-passengers",
+              "planted-swords"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 650,
+          "end": 730,
+          "quote": "cloaked travelers huddle in the middle, swords still standing upright in the bow"
+        },
+        "establishedBy": [],
+        "provenance": {
+          "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+          "requestSequence": 2,
+          "analyzedEnd": 4098,
+          "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+        }
+      },
+      {
+        "id": "vc:1e63bfa6ed2f9f92a9bcafa9c3d70caece9fdcde7b2b59c9e5bef8b90b99693e",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "canonicalName": "Six of Swords",
+            "detailIds": [
+              "planted-swords"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 902,
+          "end": 937,
+          "quote": "brought a few of those swords along"
+        },
+        "establishedBy": [
+          "vc:c1a01fc5c1dac43e71eeed84df1305799bc46df562e389b0eda016436f797397"
+        ],
+        "provenance": {
+          "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+          "requestSequence": 2,
+          "analyzedEnd": 4098,
+          "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+        }
+      },
+      {
+        "id": "vc:e174cae74a9fd9a023cc99a6e9d667af487b1b50b0c5628839f161a199f1be8c",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "canonicalName": "Eight of Swords",
+            "detailIds": [
+              "bindings",
+              "blindfold"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 1189,
+          "end": 1268,
+          "quote": "A blindfolded, loosely bound figure stands among swords planted in soggy ground"
+        },
+        "establishedBy": [],
+        "provenance": {
+          "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+          "requestSequence": 2,
+          "analyzedEnd": 4098,
+          "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+        }
+      },
+      {
+        "id": "vc:eb9667b408a2783bbac02791c4d4d40ca3c0af5e9cf7b393a7399b2a0d400d5d",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "canonicalName": "Eight of Swords",
+            "detailIds": [
+              "blindfold"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 1339,
+          "end": 1381,
+          "quote": "there's a way out that the blindfold hides"
+        },
+        "establishedBy": [
+          "vc:e174cae74a9fd9a023cc99a6e9d667af487b1b50b0c5628839f161a199f1be8c"
+        ],
+        "provenance": {
+          "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+          "requestSequence": 2,
+          "analyzedEnd": 4098,
+          "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+        }
+      },
+      {
+        "id": "vc:dc1b1adf80a6a7ecd93a5d4d70c0bd1cdcbca2630cadba38d83dadc3e5bf9ae9",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "Ace of Pentacles",
+            "detailIds": [
+              "garden-arch",
+              "offered-pentacle"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 1795,
+          "end": 1878,
+          "quote": "a hand offers a pentacle from a cloud above a flowering garden with an open archway"
+        },
+        "establishedBy": [],
+        "provenance": {
+          "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+          "requestSequence": 2,
+          "analyzedEnd": 4098,
+          "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+        }
+      },
+      {
+        "id": "vc:a7564f2321f3e314f600f5ba4f4a9a621d4bdf17b820dc893ad9f84276f3d98c",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "Ace of Pentacles",
+            "detailIds": [
+              "offered-pentacle"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 2338,
+          "end": 2385,
+          "quote": "The pentacle just never quite touches the soil."
+        },
+        "establishedBy": [
+          "vc:dc1b1adf80a6a7ecd93a5d4d70c0bd1cdcbca2630cadba38d83dadc3e5bf9ae9"
+        ],
+        "provenance": {
+          "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+          "requestSequence": 2,
+          "analyzedEnd": 4098,
+          "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+        }
+      },
+      {
+        "id": "vc:a8e754c7803a63c90d73e7450a816e002d80fb74d950306947df823f39b24b8a",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "canonicalName": "Eight of Swords",
+            "detailIds": [
+              "bindings"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 3860,
+          "end": 3901,
+          "quote": "the bindings may be looser than they feel"
+        },
+        "establishedBy": [
+          "vc:e174cae74a9fd9a023cc99a6e9d667af487b1b50b0c5628839f161a199f1be8c"
+        ],
+        "provenance": {
+          "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+          "requestSequence": 2,
+          "analyzedEnd": 4098,
+          "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+        }
+      },
+      {
+        "id": "vc:5222ccb6c5720309ced477c925438e5da30f97d9486a614659c0520c97ac1268",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "Ace of Pentacles",
+            "detailIds": [
+              "offered-pentacle"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 3907,
+          "end": 3938,
+          "quote": "the Ace is still being held out"
+        },
+        "establishedBy": [
+          "vc:dc1b1adf80a6a7ecd93a5d4d70c0bd1cdcbca2630cadba38d83dadc3e5bf9ae9"
+        ],
+        "provenance": {
+          "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+          "requestSequence": 2,
+          "analyzedEnd": 4098,
+          "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+        }
+      }
+    ],
+    "receipts": [
+      {
+        "batchId": "d32643ce-a0bf-4fd0-9e95-0e06541b1fe2",
+        "payloadDigest": "a6399b47c965d87f316cf76b3c9ca6b7bb6b10af3dc96bef7e0ff5c29d52abbd",
+        "requestSequence": 1,
+        "baseLedgerRevision": 0,
+        "analyzedEnd": 160,
+        "analyzedHash": "2236e10a92f7af2d18c3887745dc0c879f5fb3c69ace96100c779b67814f63dd",
+        "aliases": {},
+        "addedCueIds": [],
+        "rejected": []
+      },
+      {
+        "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+        "payloadDigest": "f7bed42ea68c90f24489efea59f5706c55ef23950d384117145f82b9098fcfd1",
+        "requestSequence": 2,
+        "baseLedgerRevision": 0,
+        "analyzedEnd": 4098,
+        "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa",
+        "aliases": {
+          "alias-1": "vc:c1a01fc5c1dac43e71eeed84df1305799bc46df562e389b0eda016436f797397",
+          "alias-2": "vc:1e63bfa6ed2f9f92a9bcafa9c3d70caece9fdcde7b2b59c9e5bef8b90b99693e",
+          "alias-3": "vc:e174cae74a9fd9a023cc99a6e9d667af487b1b50b0c5628839f161a199f1be8c",
+          "alias-4": "vc:eb9667b408a2783bbac02791c4d4d40ca3c0af5e9cf7b393a7399b2a0d400d5d",
+          "alias-5": "vc:dc1b1adf80a6a7ecd93a5d4d70c0bd1cdcbca2630cadba38d83dadc3e5bf9ae9",
+          "alias-6": "vc:a7564f2321f3e314f600f5ba4f4a9a621d4bdf17b820dc893ad9f84276f3d98c",
+          "alias-7": "vc:a8e754c7803a63c90d73e7450a816e002d80fb74d950306947df823f39b24b8a",
+          "alias-8": "vc:5222ccb6c5720309ced477c925438e5da30f97d9486a614659c0520c97ac1268"
+        },
+        "addedCueIds": [
+          "vc:c1a01fc5c1dac43e71eeed84df1305799bc46df562e389b0eda016436f797397",
+          "vc:1e63bfa6ed2f9f92a9bcafa9c3d70caece9fdcde7b2b59c9e5bef8b90b99693e",
+          "vc:e174cae74a9fd9a023cc99a6e9d667af487b1b50b0c5628839f161a199f1be8c",
+          "vc:eb9667b408a2783bbac02791c4d4d40ca3c0af5e9cf7b393a7399b2a0d400d5d",
+          "vc:dc1b1adf80a6a7ecd93a5d4d70c0bd1cdcbca2630cadba38d83dadc3e5bf9ae9",
+          "vc:a7564f2321f3e314f600f5ba4f4a9a621d4bdf17b820dc893ad9f84276f3d98c",
+          "vc:a8e754c7803a63c90d73e7450a816e002d80fb74d950306947df823f39b24b8a",
+          "vc:5222ccb6c5720309ced477c925438e5da30f97d9486a614659c0520c97ac1268"
+        ],
+        "rejected": []
+      }
+    ],
+    "binding": {
+      "readingResultId": "6cb5c895-e5ba-419c-ae3b-0cc6852c77a1",
+      "sourceRevision": 0,
+      "spreadHash": "c3a569ef993076a917d11b223662551950be099de6feb3dd0fcbc19d77a38493",
+      "contextHash": "ed0e36140692107c7d1c0375bdb0dadf2856cc3d6baf3e3250311e5ea2acfd58",
+      "artworkEdition": "rws-immanuelle-vector",
+      "catalogVersion": "v1"
+    },
+    "introductions": [
+      {
+        "spreadIndex": 0,
+        "canonicalName": "Six of Swords",
+        "start": 650,
+        "namedEnd": 650,
+        "descriptionStart": 650,
+        "midpoint": 690,
+        "end": 730
+      },
+      {
+        "spreadIndex": 1,
+        "canonicalName": "Eight of Swords",
+        "start": 1189,
+        "namedEnd": 1189,
+        "descriptionStart": 1189,
+        "midpoint": 1229,
+        "end": 1268
+      },
+      {
+        "spreadIndex": 2,
+        "canonicalName": "Ace of Pentacles",
+        "start": 1795,
+        "namedEnd": 1795,
+        "descriptionStart": 1795,
+        "midpoint": 1837,
+        "end": 1878
+      }
+    ],
+    "cueLedger": {
+      "version": 1,
+      "binding": {
+        "readingResultId": "6cb5c895-e5ba-419c-ae3b-0cc6852c77a1",
+        "sourceRevision": 0,
+        "spreadHash": "c3a569ef993076a917d11b223662551950be099de6feb3dd0fcbc19d77a38493",
+        "contextHash": "ed0e36140692107c7d1c0375bdb0dadf2856cc3d6baf3e3250311e5ea2acfd58",
+        "artworkEdition": "rws-immanuelle-vector",
+        "catalogVersion": "v1"
+      },
+      "ledgerRevision": 1,
+      "cues": [
+        {
+          "id": "vc:c1a01fc5c1dac43e71eeed84df1305799bc46df562e389b0eda016436f797397",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "canonicalName": "Six of Swords",
+              "detailIds": [
+                "boat-passengers",
+                "planted-swords"
+              ]
+            }
+          ],
+          "passage": {
+            "start": 650,
+            "end": 730,
+            "quote": "cloaked travelers huddle in the middle, swords still standing upright in the bow"
+          },
+          "establishedBy": [],
+          "provenance": {
+            "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+            "requestSequence": 2,
+            "analyzedEnd": 4098,
+            "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+          }
+        },
+        {
+          "id": "vc:1e63bfa6ed2f9f92a9bcafa9c3d70caece9fdcde7b2b59c9e5bef8b90b99693e",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "canonicalName": "Six of Swords",
+              "detailIds": [
+                "planted-swords"
+              ]
+            }
+          ],
+          "passage": {
+            "start": 902,
+            "end": 937,
+            "quote": "brought a few of those swords along"
+          },
+          "establishedBy": [
+            "vc:c1a01fc5c1dac43e71eeed84df1305799bc46df562e389b0eda016436f797397"
+          ],
+          "provenance": {
+            "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+            "requestSequence": 2,
+            "analyzedEnd": 4098,
+            "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+          }
+        },
+        {
+          "id": "vc:e174cae74a9fd9a023cc99a6e9d667af487b1b50b0c5628839f161a199f1be8c",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "canonicalName": "Eight of Swords",
+              "detailIds": [
+                "bindings",
+                "blindfold"
+              ]
+            }
+          ],
+          "passage": {
+            "start": 1189,
+            "end": 1268,
+            "quote": "A blindfolded, loosely bound figure stands among swords planted in soggy ground"
+          },
+          "establishedBy": [],
+          "provenance": {
+            "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+            "requestSequence": 2,
+            "analyzedEnd": 4098,
+            "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+          }
+        },
+        {
+          "id": "vc:eb9667b408a2783bbac02791c4d4d40ca3c0af5e9cf7b393a7399b2a0d400d5d",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "canonicalName": "Eight of Swords",
+              "detailIds": [
+                "blindfold"
+              ]
+            }
+          ],
+          "passage": {
+            "start": 1339,
+            "end": 1381,
+            "quote": "there's a way out that the blindfold hides"
+          },
+          "establishedBy": [
+            "vc:e174cae74a9fd9a023cc99a6e9d667af487b1b50b0c5628839f161a199f1be8c"
+          ],
+          "provenance": {
+            "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+            "requestSequence": 2,
+            "analyzedEnd": 4098,
+            "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+          }
+        },
+        {
+          "id": "vc:dc1b1adf80a6a7ecd93a5d4d70c0bd1cdcbca2630cadba38d83dadc3e5bf9ae9",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "canonicalName": "Ace of Pentacles",
+              "detailIds": [
+                "garden-arch",
+                "offered-pentacle"
+              ]
+            }
+          ],
+          "passage": {
+            "start": 1795,
+            "end": 1878,
+            "quote": "a hand offers a pentacle from a cloud above a flowering garden with an open archway"
+          },
+          "establishedBy": [],
+          "provenance": {
+            "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+            "requestSequence": 2,
+            "analyzedEnd": 4098,
+            "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+          }
+        },
+        {
+          "id": "vc:a7564f2321f3e314f600f5ba4f4a9a621d4bdf17b820dc893ad9f84276f3d98c",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "canonicalName": "Ace of Pentacles",
+              "detailIds": [
+                "offered-pentacle"
+              ]
+            }
+          ],
+          "passage": {
+            "start": 2338,
+            "end": 2385,
+            "quote": "The pentacle just never quite touches the soil."
+          },
+          "establishedBy": [
+            "vc:dc1b1adf80a6a7ecd93a5d4d70c0bd1cdcbca2630cadba38d83dadc3e5bf9ae9"
+          ],
+          "provenance": {
+            "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+            "requestSequence": 2,
+            "analyzedEnd": 4098,
+            "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+          }
+        },
+        {
+          "id": "vc:a8e754c7803a63c90d73e7450a816e002d80fb74d950306947df823f39b24b8a",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "canonicalName": "Eight of Swords",
+              "detailIds": [
+                "bindings"
+              ]
+            }
+          ],
+          "passage": {
+            "start": 3860,
+            "end": 3901,
+            "quote": "the bindings may be looser than they feel"
+          },
+          "establishedBy": [
+            "vc:e174cae74a9fd9a023cc99a6e9d667af487b1b50b0c5628839f161a199f1be8c"
+          ],
+          "provenance": {
+            "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+            "requestSequence": 2,
+            "analyzedEnd": 4098,
+            "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+          }
+        },
+        {
+          "id": "vc:5222ccb6c5720309ced477c925438e5da30f97d9486a614659c0520c97ac1268",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "canonicalName": "Ace of Pentacles",
+              "detailIds": [
+                "offered-pentacle"
+              ]
+            }
+          ],
+          "passage": {
+            "start": 3907,
+            "end": 3938,
+            "quote": "the Ace is still being held out"
+          },
+          "establishedBy": [
+            "vc:dc1b1adf80a6a7ecd93a5d4d70c0bd1cdcbca2630cadba38d83dadc3e5bf9ae9"
+          ],
+          "provenance": {
+            "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+            "requestSequence": 2,
+            "analyzedEnd": 4098,
+            "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+          }
+        }
+      ],
+      "introductions": [
+        {
+          "spreadIndex": 0,
+          "canonicalName": "Six of Swords",
+          "start": 650,
+          "namedEnd": 650,
+          "descriptionStart": 650,
+          "midpoint": 690,
+          "end": 730
+        },
+        {
+          "spreadIndex": 1,
+          "canonicalName": "Eight of Swords",
+          "start": 1189,
+          "namedEnd": 1189,
+          "descriptionStart": 1189,
+          "midpoint": 1229,
+          "end": 1268
+        },
+        {
+          "spreadIndex": 2,
+          "canonicalName": "Ace of Pentacles",
+          "start": 1795,
+          "namedEnd": 1795,
+          "descriptionStart": 1795,
+          "midpoint": 1837,
+          "end": 1878
+        }
+      ],
+      "receipts": [
+        {
+          "batchId": "d32643ce-a0bf-4fd0-9e95-0e06541b1fe2",
+          "payloadDigest": "a6399b47c965d87f316cf76b3c9ca6b7bb6b10af3dc96bef7e0ff5c29d52abbd",
+          "requestSequence": 1,
+          "baseLedgerRevision": 0,
+          "analyzedEnd": 160,
+          "analyzedHash": "2236e10a92f7af2d18c3887745dc0c879f5fb3c69ace96100c779b67814f63dd",
+          "aliases": {},
+          "addedCueIds": [],
+          "rejected": []
+        },
+        {
+          "batchId": "03812fab-3725-4ddc-a53f-8094769e7284",
+          "payloadDigest": "f7bed42ea68c90f24489efea59f5706c55ef23950d384117145f82b9098fcfd1",
+          "requestSequence": 2,
+          "baseLedgerRevision": 0,
+          "analyzedEnd": 4098,
+          "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa",
+          "aliases": {
+            "alias-1": "vc:c1a01fc5c1dac43e71eeed84df1305799bc46df562e389b0eda016436f797397",
+            "alias-2": "vc:1e63bfa6ed2f9f92a9bcafa9c3d70caece9fdcde7b2b59c9e5bef8b90b99693e",
+            "alias-3": "vc:e174cae74a9fd9a023cc99a6e9d667af487b1b50b0c5628839f161a199f1be8c",
+            "alias-4": "vc:eb9667b408a2783bbac02791c4d4d40ca3c0af5e9cf7b393a7399b2a0d400d5d",
+            "alias-5": "vc:dc1b1adf80a6a7ecd93a5d4d70c0bd1cdcbca2630cadba38d83dadc3e5bf9ae9",
+            "alias-6": "vc:a7564f2321f3e314f600f5ba4f4a9a621d4bdf17b820dc893ad9f84276f3d98c",
+            "alias-7": "vc:a8e754c7803a63c90d73e7450a816e002d80fb74d950306947df823f39b24b8a",
+            "alias-8": "vc:5222ccb6c5720309ced477c925438e5da30f97d9486a614659c0520c97ac1268"
+          },
+          "addedCueIds": [
+            "vc:c1a01fc5c1dac43e71eeed84df1305799bc46df562e389b0eda016436f797397",
+            "vc:1e63bfa6ed2f9f92a9bcafa9c3d70caece9fdcde7b2b59c9e5bef8b90b99693e",
+            "vc:e174cae74a9fd9a023cc99a6e9d667af487b1b50b0c5628839f161a199f1be8c",
+            "vc:eb9667b408a2783bbac02791c4d4d40ca3c0af5e9cf7b393a7399b2a0d400d5d",
+            "vc:dc1b1adf80a6a7ecd93a5d4d70c0bd1cdcbca2630cadba38d83dadc3e5bf9ae9",
+            "vc:a7564f2321f3e314f600f5ba4f4a9a621d4bdf17b820dc893ad9f84276f3d98c",
+            "vc:a8e754c7803a63c90d73e7450a816e002d80fb74d950306947df823f39b24b8a",
+            "vc:5222ccb6c5720309ced477c925438e5da30f97d9486a614659c0520c97ac1268"
+          ],
+          "rejected": []
+        }
+      ],
+      "raw": "### Opening\n\nYou might know the feeling. The project matters to you, and every time you sit down your head fills with rules about how much you ought to be getting done, until rest starts to feel like something you have to earn. These cards trace that loop pretty clearly.\n\nFor your question about steady creative progress with real room to rest, the spread moves from **Six of Swords** to **Eight of Swords** to **Ace of Pentacles** reversed. That's two Air cards stacking up mental energy, then an Earth card asking where all that thinking actually lands.\n\n### The Story\n\n**Past: Six of Swords.** A ferryman poles the boat toward calmer water while cloaked travelers huddle in the middle, swords still standing upright in the bow. It's a fitting image for how you may have arrived at this project. Maybe you were leaving something rougher behind, like a draining stretch or an old way of working, and brought a few of those swords along.\n\nIt's worth asking which of those blades are habits from that earlier chapter, such as the all-nighter or the \"only finished work counts\" rule, rather than things this project actually needs.\n\n**Present: Eight of Swords.** Here the Air doubles down. A blindfolded, loosely bound figure stands among swords planted in soggy ground. In the traditional image the swords don't fully close around her, so there's a way out that the blindfold hides.\n\nIn practice this can look like deciding you can't rest until you've hit some quota, then being too wound up to make much progress anyway. You end up neither creating nor resting. The soggy ground matters too: footing feels unreliable when there's no structure underneath, just swirling plans. The useful part is that a trap built from thoughts can be loosened.\n\n**Future: Ace of Pentacles, reversed.** Upright, a hand offers a pentacle from a cloud above a flowering garden with an open archway. It's a concrete seed, ready to plant. Reversed in the trajectory position, that seed hovers without being taken.\n\nThis might look like the project staying mostly an idea, or progress arriving in short, anxious sprints that never take root because nothing steady holds them. \"Hesitating to invest\" fits here, though the investment is less about money and more about time, energy, and your body's need for rest. On the current path, the garden is still there. The pentacle just never quite touches the soil.\n\n### Bringing It Together\n\nThe elemental shift is the clearest advice in this spread. Two Swords cards suggest the project may be living almost entirely in your head, where you plan, judge, and re-plan. Air without Earth tends to scatter. The Ace asks for something small and physical: a simple structure that makes both progress and rest concrete, so neither has to be argued for each day.\n\nSo to your question about steady progress *and* rest, this spread treats rest as part of the soil rather than the opposite of progress. With the New Moon in Libra arriving in about a day, it's a good moment for one balanced intention rather than an ambitious one. If the stuck feeling ever tips into something heavier than creative frustration, talking it through with someone you trust or a qualified professional can be part of that care too.\n\n### Gentle Next Steps\n\n- **Shrink the unit.** Try a session size so modest it feels almost silly, like 20 minutes, one page, or one sketch, and count showing up as the win.\n- **Book rest first.** Put one or two rest blocks on your calendar *before* the work blocks, so rest isn't whatever's left over.\n- **Name one sword.** Write down a single rule you've carried over from that Six of Swords boat, and ask whether it's actually true for this project.\n- **Leave a breadcrumb.** End each session with one sentence telling tomorrow-you where to start, so you're not walking back in blindfolded.\n\n### Closing\n\nThe Eight of Swords suggests the bindings may be looser than they feel, and the Ace is still being held out. How steadily this project grows, and how well you rest along the way, depends on the small choices you make about your time and attention, starting this week.",
+      "analyzedEnd": 4098,
+      "analyzedHash": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa"
+    },
+    "modelEvidence": {
+      "configuredModel": "@cf/zai-org/glm-5.3-flash",
+      "reportedActualModel": null,
+      "note": "Visual job stores the configured Workers AI model selection, but does not persist an actual-model identifier returned by the service."
+    }
+  },
+  "timing": {
+    "narrativeCompleteMs": 42853,
+    "visualTerminalMs": 57193,
+    "firstNarrativeResponseMs": 6534,
+    "visualEvents": [],
+    "serverVisualEvents": [
+      {
+        "event": "cues",
+        "eventId": 1,
+        "recordedAt": 1791565527386,
+        "status": "running",
+        "ledgerRevision": 0,
+        "timing": {
+          "availableAt": 1791565525377,
+          "annotationStartedAt": 1791565525471,
+          "annotationFinishedAt": 1791565527374,
+          "ledgerCommittedAt": 1791565527386
+        },
+        "annotationDurationMs": 1903,
+        "observationToAnnotationStartMs": 94,
+        "annotationToCommitMs": 12,
+        "addedCueIds": []
+      },
+      {
+        "event": "cues",
+        "eventId": 2,
+        "recordedAt": 1791565540060,
+        "status": "complete",
+        "ledgerRevision": 1,
+        "timing": {
+          "availableAt": 1791565525382,
+          "annotationStartedAt": 1791565527386,
+          "annotationFinishedAt": 1791565540044,
+          "ledgerCommittedAt": 1791565540060
+        },
+        "annotationDurationMs": 12658,
+        "observationToAnnotationStartMs": 2004,
+        "annotationToCommitMs": 16,
+        "addedCueIds": [
+          "vc:c1a01fc5c1dac43e71eeed84df1305799bc46df562e389b0eda016436f797397",
+          "vc:1e63bfa6ed2f9f92a9bcafa9c3d70caece9fdcde7b2b59c9e5bef8b90b99693e",
+          "vc:e174cae74a9fd9a023cc99a6e9d667af487b1b50b0c5628839f161a199f1be8c",
+          "vc:eb9667b408a2783bbac02791c4d4d40ca3c0af5e9cf7b393a7399b2a0d400d5d",
+          "vc:dc1b1adf80a6a7ecd93a5d4d70c0bd1cdcbca2630cadba38d83dadc3e5bf9ae9",
+          "vc:a7564f2321f3e314f600f5ba4f4a9a621d4bdf17b820dc893ad9f84276f3d98c",
+          "vc:a8e754c7803a63c90d73e7450a816e002d80fb74d950306947df823f39b24b8a",
+          "vc:5222ccb6c5720309ced477c925438e5da30f97d9486a614659c0520c97ac1268"
+        ]
+      },
+      {
+        "event": "done",
+        "eventId": 3,
+        "recordedAt": 1791565540060,
+        "status": "complete",
+        "ledgerRevision": 1
+      }
+    ]
+  },
+  "durableRetrieval": {
+    "method": "real-local-pro-session-without-capability-token",
+    "snapshotHttpStatus": 200,
+    "streamHttpStatus": 200,
+    "streamCursor": 0,
+    "streamEventTypes": [
+      "snapshot",
+      "done"
+    ],
+    "snapshotEqualsDurableLedger": true,
+    "streamEqualsDurableLedger": true,
+    "authoritativeRawSha256": "a6baff3a5f440e696b6cb4f4ce656d9ddaba77366e5d13427cbaf7d147862afa",
+    "spreadHashMatchesDrawnCards": true,
+    "contextHashMatchesQuestionAndReflections": true,
+    "sourceRevision": 0,
+    "ledgerRevision": 1,
+    "logoutHttpStatus": 200
+  }
+}

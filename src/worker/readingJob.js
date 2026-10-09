@@ -1,6 +1,7 @@
 import { onRequestPost as tarotReadingPost } from '../../functions/api/tarot-reading.js';
 import { formatSSEEvent } from '../../functions/lib/readingStream.js';
 import { jsonResponse } from '../../functions/lib/utils.js';
+import { observeDeliveredReading } from '../../functions/lib/visualCueObserver.js';
 
 const STREAM_HEADERS = {
   'Content-Type': 'text/event-stream',
@@ -71,6 +72,10 @@ export class ReadingJob {
     this.lastPersistAt = 0;
     this.cancelled = false;
     this.job = emptyJob();
+    this.readingResultId = null;
+    this.visualBinding = null;
+    this.visualJobToken = null;
+    this.visualInit = null;
     this.abortController = null;
     this.runningPromise = null;
     this.deletionScheduledAt = null;
@@ -78,6 +83,10 @@ export class ReadingJob {
       const stored = await this.state.storage.get('job');
       if (stored) {
         this.job = stored.job || this.job;
+        this.readingResultId = stored.readingResultId || null;
+        this.visualBinding = stored.visualBinding || null;
+        this.visualJobToken = stored.visualJobToken || null;
+        this.visualInit = stored.visualInit || null;
         this.events = Array.isArray(stored.events) ? stored.events : [];
         this.nextEventId = stored.nextEventId || (this.events.length + 1);
         this.textSoFar = typeof stored.textSoFar === 'string' ? stored.textSoFar : '';
@@ -142,6 +151,10 @@ export class ReadingJob {
 
     const payload = body?.payload;
     const jobId = body?.jobId;
+    this.readingResultId = body?.readingResultId || body?.visualBinding?.readingResultId || null;
+    this.visualBinding = body?.visualBinding || null;
+    this.visualJobToken = body?.visualJobToken || null;
+    this.visualInit = body?.visualInit || null;
     // Only in-Worker callers (readingJobs.startReadingJob, for the MCP tools)
     // send a principal; the public job-start route never does.
     const principalUserId = typeof body?.principal?.userId === 'string' && body.principal.userId
@@ -244,7 +257,8 @@ export class ReadingJob {
             formatSSEEvent('snapshot', {
               fullText: this.textSoFar,
               eventId: this.truncatedBeforeId,
-              truncated: true
+              truncated: true,
+              ...(this.visualBinding ? { visualBinding: this.visualBinding, readingResultId: this.readingResultId } : {})
             })
           ));
         }
@@ -555,6 +569,7 @@ export class ReadingJob {
       timestamp: Date.now()
     };
 
+    const previousText = this.textSoFar;
     if (eventType === 'delta' && typeof data?.text === 'string') {
       this.textSoFar += data.text;
     }
@@ -562,6 +577,13 @@ export class ReadingJob {
       this.textSoFar = data.fullText;
     }
 
+    if (this.visualBinding && eventType === 'done' && typeof data?.fullText === 'string'
+      && previousText && !data.fullText.startsWith(previousText)) {
+      this.visualBinding = { ...this.visualBinding, sourceRevision: this.visualBinding.sourceRevision + 1 };
+    }
+    if (this.visualBinding) {
+      entry.data = { ...data, visualBinding: this.visualBinding, readingResultId: this.readingResultId };
+    }
     this.events.push(entry);
     this.pruneEvents();
 
@@ -579,6 +601,16 @@ export class ReadingJob {
     this.job.updatedAt = Date.now();
     this.maybePersist(eventType);
     this.broadcast(entry);
+
+    // Observe only accepted outgoing raw prose. Optional visual initialization and
+    // annotation run independently and never delay reading delivery/completion.
+    if (this.visualBinding && (eventType === 'delta' || eventType === 'done')) {
+      this.state.waitUntil(observeDeliveredReading({
+        env: this.env, init: this.visualInit, binding: this.visualBinding,
+        raw: this.textSoFar, deliveredEventId: entry.id,
+        complete: eventType === 'done', availableAt: entry.timestamp
+      }).catch(() => null));
+    }
 
     if (eventType === 'done' || eventType === 'error') {
       this.closeSubscribers();
@@ -659,6 +691,10 @@ export class ReadingJob {
     if (!this.job.jobId) return;
     await this.state.storage.put('job', {
       job: this.job,
+      readingResultId: this.readingResultId,
+      visualBinding: this.visualBinding,
+      visualJobToken: this.visualJobToken,
+      visualInit: this.visualInit,
       events: this.events,
       nextEventId: this.nextEventId,
       textSoFar: this.textSoFar,

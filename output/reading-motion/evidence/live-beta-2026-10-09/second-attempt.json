@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-09T16:56:15.047Z",
+  "question": "How can I make steady progress on a creative project while leaving enough space to rest?",
+  "checks": {
+    "realLocalProAuthentication": true,
+    "loggedOut": true
+  },
+  "limitations": [
+    "One synthetic fresh question; not corpus qualification.",
+    "Headless Chromium desktop and emulated phone; service workers blocked."
+  ],
+  "outcome": "Invalid measurement: development Worker reloads occurred after launch while a concurrent build was running. No live-generation latency conclusion is drawn from the stalled job."
+}

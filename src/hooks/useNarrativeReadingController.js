@@ -51,6 +51,7 @@ export function useNarrativeReadingController({
   autoGenerateVisualsEnabled,
   cardVideoEnabled,
   userQuestion,
+  reflections,
   displayName,
   isHandset,
   isLandscape,
@@ -118,8 +119,10 @@ export function useNarrativeReadingController({
     deckStyleId,
     revealedCards,
     runId: gestureSource.runId,
-    artworkEdition
-  }), [artworkEdition, gestureSource.runId, deckStyleId, reading, revealedCards, spreadPositions, visibleCount]);
+    artworkEdition,
+    inspectionAvailable: gestureStudyEnabled,
+    reflections
+  }), [artworkEdition, gestureSource.runId, gestureStudyEnabled, deckStyleId, reading, reflections, revealedCards, spreadPositions, visibleCount]);
   const cardLinkCatalog = useMemo(() => (
     buildCardLinkCatalog({ cards: spreadCards, deckStyle: deckStyleId })
   ), [deckStyleId, spreadCards]);

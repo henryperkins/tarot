@@ -1,6 +1,7 @@
 import { getCardForDeck, getOrientationMeaning } from '../lib/cardLookup.js';
 import { getNarrationLabels } from '../components/reading/narrative/narrationLabels.js';
 import { extractShortLabel } from '../components/readingBoardUtils.js';
+import { getGestureArtworkAsset } from '../data/cardGestureAssets.js';
 
 export function getResolvedQuestion(userQuestion) {
   if (typeof userQuestion !== 'string') return 'General guidance';
@@ -38,7 +39,7 @@ const CARD_FRAMES = { 'rws-1909': '100 / 172', 'thoth-a1': '3 / 5', 'marseille-c
  * The revealed spread as the reading surface shows it beside the narrative:
  * the selected deck's names and art, with canonical identity kept for matching.
  */
-export function buildSpreadCompanionCards({ reading, visibleCount, spreadPositions = [], deckStyleId, revealedCards = null, runId = null, artworkEdition = null }) {
+export function buildSpreadCompanionCards({ reading, visibleCount, spreadPositions = [], deckStyleId, revealedCards = null, runId = null, artworkEdition = null, inspectionAvailable = false, reflections = null }) {
   if (!Array.isArray(reading) || visibleCount === 0) return [];
 
   return reading
@@ -47,14 +48,28 @@ export function buildSpreadCompanionCards({ reading, visibleCount, spreadPositio
       if (!card || (revealedCards && typeof revealedCards.has === 'function' && !revealedCards.has(index))) return null;
       const deckCard = getCardForDeck(card, deckStyleId);
       const position = spreadPositions[index] || `Position ${index + 1}`;
+      const vectorImage = deckStyleId === 'rws-1909' && artworkEdition === 'rws-immanuelle-vector'
+        ? getGestureArtworkAsset(deckCard.canonicalName, artworkEdition) : null;
+      // A visual binding cannot change the selected deck or attach RWS geometry
+      // to a scan from another edition. Unsupported editions remain whole-card.
+      const edition = artworkEdition === 'rws-immanuelle-vector' && !vectorImage
+        ? `identity:${deckStyleId}` : artworkEdition || (deckStyleId === 'rws-1909' ? 'rws-1909-scan' : null);
+      // Live and saved reflections are keyed by the original spread position,
+      // even when unrevealed cards are omitted. General notes cannot prove a
+      // card-specific reference, and duplicate card names never share notes.
+      const indexedReflection = reflections && typeof reflections === 'object' && Object.hasOwn(reflections, index)
+        ? reflections[index] : '';
+      const reflection = card.userReflection || card.reflection || indexedReflection;
       return {
         index,
         occurrenceId: runId ? `${runId}:${index}` : null,
-        artworkEdition: artworkEdition || (deckStyleId === 'rws-1909' ? 'rws-1909-scan' : null),
+        artworkEdition: edition,
+        inspectionAvailable: Boolean(inspectionAvailable),
+        userReflection: typeof reflection === 'string' ? reflection.trim() : '',
         name: deckCard.name,
         canonicalName: deckCard.canonicalName,
-        image: deckCard.image,
-        frame: CARD_FRAMES[deckStyleId] || CARD_FRAMES['rws-1909'],
+        image: vectorImage || deckCard.image,
+        frame: vectorImage ? '3 / 5' : CARD_FRAMES[deckStyleId] || CARD_FRAMES['rws-1909'],
         isReversed: Boolean(card.isReversed),
         number: deckCard.number ?? null,
         suit: deckCard.suit ?? null,

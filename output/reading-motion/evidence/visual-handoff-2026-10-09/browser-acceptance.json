@@ -1,0 +1,494 @@
+{
+  "config": {
+    "argv": [
+      "/home/ubuntu/.nvm/versions/node/v24.21.0/bin/node",
+      "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/node_modules/.bin/playwright",
+      "test",
+      "--config",
+      "output/reading-motion/react-bridge.playwright.config.mjs",
+      "e2e/reading-visual-handoff.spec.js",
+      "e2e/reading-gestures-generated.spec.js",
+      "--project=chromium",
+      "--grep",
+      "independent late cues|reading-only delivery|SSE semantic metadata|replacement source revokes|late semantic metadata",
+      "--reporter=list,json"
+    ],
+    "configFile": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/output/reading-motion/react-bridge.playwright.config.mjs",
+    "rootDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e",
+        "testIgnore": [
+          "**/*.integration.spec.js",
+          "**/journal-owner.spec.js"
+        ],
+        "testMatch": [
+          "reading-gestures.spec.js",
+          "reading-gestures-lifecycle.spec.js",
+          "reading-gestures-dynamic.spec.js",
+          "reading-gestures-refinement.spec.js",
+          "reading-gestures-deck.spec.js",
+          "reading-gestures-generated.spec.js",
+          "reading-visual-handoff.spec.js"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile",
+        "name": "mobile",
+        "testDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e",
+        "testIgnore": [
+          "**/*.integration.spec.js",
+          "**/journal-owner.spec.js"
+        ],
+        "testMatch": [
+          "reading-gestures.spec.js",
+          "reading-gestures-lifecycle.spec.js",
+          "reading-gestures-dynamic.spec.js",
+          "reading-gestures-refinement.spec.js",
+          "reading-gestures-deck.spec.js",
+          "reading-gestures-generated.spec.js",
+          "reading-visual-handoff.spec.js"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run dev:frontend -- --port 5174 --strictPort",
+      "url": "http://localhost:5174",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "reading-gestures-generated.spec.js",
+      "file": "reading-gestures-generated.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "SSE semantic metadata connects an independent interpretation and question while text keeps streaming",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3989,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T15:50:30.378Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9052125c451a9b9e2d5d-6738ab2c6b7950032e0d",
+          "file": "reading-gestures-generated.spec.js",
+          "line": 23,
+          "column": 1
+        },
+        {
+          "title": "replacement source revokes stale generated claims before exposing new text",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2804,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T15:50:34.459Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9052125c451a9b9e2d5d-f0c04dac650f6055c6a6",
+          "file": "reading-gestures-generated.spec.js",
+          "line": 45,
+          "column": 1
+        },
+        {
+          "title": "late semantic metadata preserves a held fallback phrase until the reader releases it",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3249,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T15:50:37.276Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9052125c451a9b9e2d5d-4c9cf38cbdc3a76b9de4",
+          "file": "reading-gestures-generated.spec.js",
+          "line": 59,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "reading-visual-handoff.spec.js",
+      "file": "reading-visual-handoff.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "paced: independent late cues reach the completed reading through ReadingContext",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 7868,
+                  "error": {
+                    "message": "Error: ReadingContext must keep an independent visual subscription after narrative completion\n\nReadingContext must keep an independent visual subscription after narrative completion\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate",
+                    "stack": "Error: ReadingContext must keep an independent visual subscription after narrative completion\n\nReadingContext must keep an independent visual subscription after narrative completion\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate\n    at /home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js:78:10",
+                    "location": {
+                      "file": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js",
+                      "column": 10,
+                      "line": 78
+                    },
+                    "snippet": "  76 |       await expect.poll(() => fixture.connected('visual'), {\n  77 |         message: 'ReadingContext must keep an independent visual subscription after narrative completion', timeout: 5000\n> 78 |       }).toBeGreaterThan(0);\n     |          ^\n  79 |\n  80 |       await fixture.emit('visual', 'cues', {\n  81 |         // Match ReadingVisualJob's current wire envelope. Do not give the"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js",
+                        "column": 10,
+                        "line": 78
+                      },
+                      "message": "Error: ReadingContext must keep an independent visual subscription after narrative completion\n\nReadingContext must keep an independent visual subscription after narrative completion\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate\n\n  76 |       await expect.poll(() => fixture.connected('visual'), {\n  77 |         message: 'ReadingContext must keep an independent visual subscription after narrative completion', timeout: 5000\n> 78 |       }).toBeGreaterThan(0);\n     |          ^\n  79 |\n  80 |       await fixture.emit('visual', 'cues', {\n  81 |         // Match ReadingVisualJob's current wire envelope. Do not give the\n    at /home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js:78:10"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T15:50:40.541Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "controlled-delivery.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJtb2RlIjogInBhY2VkIiwKICAic2NvcGUiOiAibW9jayBQcm8gYXV0aDsgY29udHJvbGxlZCBqb2IgU1NFOyByZWFsIFJlYWRpbmdDb250ZXh0IGFuZCBnZXN0dXJlIHJlbmRlcmVyIiwKICAic291cmNlUnVuIjogIjIwMjYtMTAtMDdUMjMtNDctMTkuOTA4Wi01ZXFwVW0iLAogICJleGNlcnB0U2hhMjU2IjogIjFiM2VjMDJkMWFmN2E0ZWQwNGM1MjJhZTQ0YzUxMjE1MmUzOGE1NTI0ZTUxMTg3NTQyMDY0ZmZiNGU2ODMyNjUiLAogICJuYXJyYXRpdmVDb21wbGV0ZWRCZWZvcmVWaXN1YWxSZWxlYXNlIjogdHJ1ZSwKICAidmlzdWFsUmVxdWVzdHMiOiBbXSwKICAib2JzZXJ2ZWRSdW5JZCI6ICIzYTY2NjkwZi1iY2NmLTQ2ZDAtYWRjNi1lNWE5MGUzN2Q5OGYiCn0="
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results/reading-visual-handoff-pac-0a4a9-ding-through-ReadingContext-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results/reading-visual-handoff-pac-0a4a9-ding-through-ReadingContext-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js",
+                    "column": 10,
+                    "line": 78
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-a5a9ef8d06de2e7b21e5",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 63,
+          "column": 3
+        },
+        {
+          "title": "burst: independent late cues reach the completed reading through ReadingContext",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 7818,
+                  "error": {
+                    "message": "Error: ReadingContext must keep an independent visual subscription after narrative completion\n\nReadingContext must keep an independent visual subscription after narrative completion\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate",
+                    "stack": "Error: ReadingContext must keep an independent visual subscription after narrative completion\n\nReadingContext must keep an independent visual subscription after narrative completion\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate\n    at /home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js:78:10",
+                    "location": {
+                      "file": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js",
+                      "column": 10,
+                      "line": 78
+                    },
+                    "snippet": "  76 |       await expect.poll(() => fixture.connected('visual'), {\n  77 |         message: 'ReadingContext must keep an independent visual subscription after narrative completion', timeout: 5000\n> 78 |       }).toBeGreaterThan(0);\n     |          ^\n  79 |\n  80 |       await fixture.emit('visual', 'cues', {\n  81 |         // Match ReadingVisualJob's current wire envelope. Do not give the"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js",
+                        "column": 10,
+                        "line": 78
+                      },
+                      "message": "Error: ReadingContext must keep an independent visual subscription after narrative completion\n\nReadingContext must keep an independent visual subscription after narrative completion\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate\n\n  76 |       await expect.poll(() => fixture.connected('visual'), {\n  77 |         message: 'ReadingContext must keep an independent visual subscription after narrative completion', timeout: 5000\n> 78 |       }).toBeGreaterThan(0);\n     |          ^\n  79 |\n  80 |       await fixture.emit('visual', 'cues', {\n  81 |         // Match ReadingVisualJob's current wire envelope. Do not give the\n    at /home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js:78:10"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T15:50:48.987Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "controlled-delivery.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJtb2RlIjogImJ1cnN0IiwKICAic2NvcGUiOiAibW9jayBQcm8gYXV0aDsgY29udHJvbGxlZCBqb2IgU1NFOyByZWFsIFJlYWRpbmdDb250ZXh0IGFuZCBnZXN0dXJlIHJlbmRlcmVyIiwKICAic291cmNlUnVuIjogIjIwMjYtMTAtMDdUMjMtNDctMTkuOTA4Wi01ZXFwVW0iLAogICJleGNlcnB0U2hhMjU2IjogIjFiM2VjMDJkMWFmN2E0ZWQwNGM1MjJhZTQ0YzUxMjE1MmUzOGE1NTI0ZTUxMTg3NTQyMDY0ZmZiNGU2ODMyNjUiLAogICJuYXJyYXRpdmVDb21wbGV0ZWRCZWZvcmVWaXN1YWxSZWxlYXNlIjogdHJ1ZSwKICAidmlzdWFsUmVxdWVzdHMiOiBbXSwKICAib2JzZXJ2ZWRSdW5JZCI6ICI5Mzg0MjMxNi0zZmY5LTQ0ZjgtYWJkYy03ODBmODBkNjM0YWIiCn0="
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results/reading-visual-handoff-bur-b560d-ding-through-ReadingContext-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results/reading-visual-handoff-bur-b560d-ding-through-ReadingContext-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js",
+                    "column": 10,
+                    "line": 78
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-95ba13009c819630c5f5",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 63,
+          "column": 3
+        },
+        {
+          "title": "final-only: independent late cues reach the completed reading through ReadingContext",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 7811,
+                  "error": {
+                    "message": "Error: ReadingContext must keep an independent visual subscription after narrative completion\n\nReadingContext must keep an independent visual subscription after narrative completion\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate",
+                    "stack": "Error: ReadingContext must keep an independent visual subscription after narrative completion\n\nReadingContext must keep an independent visual subscription after narrative completion\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate\n    at /home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js:78:10",
+                    "location": {
+                      "file": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js",
+                      "column": 10,
+                      "line": 78
+                    },
+                    "snippet": "  76 |       await expect.poll(() => fixture.connected('visual'), {\n  77 |         message: 'ReadingContext must keep an independent visual subscription after narrative completion', timeout: 5000\n> 78 |       }).toBeGreaterThan(0);\n     |          ^\n  79 |\n  80 |       await fixture.emit('visual', 'cues', {\n  81 |         // Match ReadingVisualJob's current wire envelope. Do not give the"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js",
+                        "column": 10,
+                        "line": 78
+                      },
+                      "message": "Error: ReadingContext must keep an independent visual subscription after narrative completion\n\nReadingContext must keep an independent visual subscription after narrative completion\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate\n\n  76 |       await expect.poll(() => fixture.connected('visual'), {\n  77 |         message: 'ReadingContext must keep an independent visual subscription after narrative completion', timeout: 5000\n> 78 |       }).toBeGreaterThan(0);\n     |          ^\n  79 |\n  80 |       await fixture.emit('visual', 'cues', {\n  81 |         // Match ReadingVisualJob's current wire envelope. Do not give the\n    at /home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js:78:10"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T15:50:57.487Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "controlled-delivery.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJtb2RlIjogImZpbmFsLW9ubHkiLAogICJzY29wZSI6ICJtb2NrIFBybyBhdXRoOyBjb250cm9sbGVkIGpvYiBTU0U7IHJlYWwgUmVhZGluZ0NvbnRleHQgYW5kIGdlc3R1cmUgcmVuZGVyZXIiLAogICJzb3VyY2VSdW4iOiAiMjAyNi0xMC0wN1QyMy00Ny0xOS45MDhaLTVlcXBVbSIsCiAgImV4Y2VycHRTaGEyNTYiOiAiMWIzZWMwMmQxYWY3YTRlZDA0YzUyMmFlNDRjNTEyMTUyZTM4YTU1MjRlNTExODc1NDIwNjRmZmI0ZTY4MzI2NSIsCiAgIm5hcnJhdGl2ZUNvbXBsZXRlZEJlZm9yZVZpc3VhbFJlbGVhc2UiOiB0cnVlLAogICJ2aXN1YWxSZXF1ZXN0cyI6IFtdLAogICJvYnNlcnZlZFJ1bklkIjogImYwNDAxMjAzLTJiYmYtNGI4OS1iZmNkLWE2NWJhNzQwZjRiMSIKfQ=="
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results/reading-visual-handoff-fin-1a9f3-ding-through-ReadingContext-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results/reading-visual-handoff-fin-1a9f3-ding-through-ReadingContext-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js",
+                    "column": 10,
+                    "line": 78
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-c7248a2c24ce3f4cc8ec",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 63,
+          "column": 3
+        },
+        {
+          "title": "reading-only delivery remains complete with no visual capability",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2920,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T15:51:06.030Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-291295d4492502070521",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 103,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-09T15:50:28.603Z",
+    "duration": 40547.357,
+    "expected": 4,
+    "skipped": 0,
+    "unexpected": 3,
+    "flaky": 0
+  }
+}

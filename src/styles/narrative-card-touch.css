@@ -435,7 +435,8 @@
   }
 }
 /* The opt-in reading companion keeps a stable stage as prose arrives. */
-.gesture-companion { position: sticky; top: 1rem; align-self: start; width: 100%; color: var(--text-main); }
+/* Header publishes its measured sticky height; fixture pages inherit zero. */
+.gesture-companion { position: sticky; top: calc(var(--sticky-header-height, 0px) + 1rem); align-self: start; width: 100%; color: var(--text-main); }
 .gesture-shelf { display: grid; grid-template-columns: repeat(var(--shelf-count), minmax(0, 1fr)); gap: 8px; list-style: none; margin: 0 0 18px; padding: 0; }
 .gesture-shelf li { min-width: 0; text-align: center; }
 .gesture-shelf-card { display: block; width: 100%; max-width: 108px; margin-inline: auto; aspect-ratio: 3/5; min-height: 44px; background: none; border: 0; padding: 0; border-radius: 4px; cursor: pointer; }
@@ -477,7 +478,7 @@
   .narrative-panel__layout:has(.gesture-companion) { display: flex; flex-direction: column; }
   /* Auto margins disable flex cross-axis stretch; bound prose at text zoom. */
   .narrative-panel__layout:has(.gesture-companion) > .narrative-panel__column { width: 100%; max-width: 100%; overflow-wrap: anywhere; }
-  .gesture-companion { top: 0; z-index: 3; padding: 10px 4px 0; background: var(--bg-surface); }
+  .gesture-companion { top: var(--sticky-header-height, 0px); z-index: 3; padding: 10px 4px 0; background: var(--bg-surface); }
   .gesture-shelf { max-width: 440px; margin: 0 auto 10px; gap: 8px; grid-template-columns: repeat(var(--shelf-count), minmax(44px, 1fr)); overflow-x: auto; overscroll-behavior-x: contain; }
   .gesture-shelf-card { height: 64px; width: 44px; margin: auto; }
   .gesture-shelf-card > .gesture-art { width: 40px; margin-inline: auto; }
@@ -506,3 +507,14 @@
 .gesture-lab > label, .gesture-lab > legend, .gesture-lab > output { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .gesture-lab select, .gesture-lab button { min-height: 44px; max-width: 100%; border: 1px solid var(--border-warm); border-radius: 6px; background: var(--bg-surface-muted); color: var(--text-main); padding: 8px 12px; }
 .gesture-lab :focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+
+/* Saved readings retain associations and manual revisit without arrival replay. */
+.restored-reading-gestures .gesture-focus-layer,
+.restored-reading-gestures .gesture-art [data-gesture-water],
+.restored-reading-gestures .reading-gesture-association { animation: none !important; }
+.restored-reading-gestures .gesture-art,
+.restored-reading-gestures .gesture-art__plane,
+.restored-reading-gestures .gesture-art__image,
+.restored-reading-gestures .gesture-shelf-card,
+.restored-reading-gestures .gesture-focus-card { transition: none !important; }
+.restored-reading-gestures .gesture-art__water { opacity: 0; }

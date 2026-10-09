@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "scope": {
+    "mode": "controlled-persistence-acceptance",
+    "database": "isolated in-memory sql.js SQLite with repository migrations and foreign keys enabled",
+    "adapter": "injected deterministic proposal; actual ReadingVisualJob and cue validator",
+    "durableObjectRuntime": "in-memory storage/waitUntil stand-in; no Cloudflare runtime or eviction simulation",
+    "httpRoute": "actual DELETE /api/journal/:id handler with a seeded synthetic session",
+    "saveAndRestore": "actual saveAppJournalEntry and loadJournalVisualResult helpers; POST/GET route handlers and browser not exercised",
+    "lateCommit": "direct commitVisualResult call after route deletion; in-flight cancellation not exercised",
+    "externalRequests": "forbidden; no live database or model calls",
+    "productionQualification": false
+  },
+  "summary": {
+    "total": 4,
+    "passed": 0,
+    "failed": 4,
+    "pass": false
+  },
+  "cases": [
+    {
+      "id": "completion_before_save",
+      "expected": {
+        "proseSaved": true,
+        "restoredStatus": "complete",
+        "restoredRevision": 1,
+        "restoredCueCount": 1
+      },
+      "actual": {
+        "proseSaved": true,
+        "restoredStatus": "pending",
+        "restoredRevision": 0,
+        "restoredCueCount": 0
+      },
+      "pass": false
+    },
+    {
+      "id": "unverified_result_id_claim_then_null_owner_completion",
+      "expected": {
+        "proseSaved": true,
+        "unverifiedAttachment": false,
+        "foreignLedgerVisible": false,
+        "savedProseUnchanged": true
+      },
+      "actual": {
+        "proseSaved": true,
+        "unverifiedAttachment": true,
+        "foreignLedgerVisible": true,
+        "savedProseUnchanged": true
+      },
+      "pass": false
+    },
+    {
+      "id": "dedup_attachment_matches_stored_prose",
+      "expected": {
+        "deduplicated": true,
+        "storedProseUnchanged": true,
+        "originalResultRetained": true,
+        "visualRawMatchesStoredProse": true
+      },
+      "actual": {
+        "deduplicated": true,
+        "storedProseUnchanged": true,
+        "originalResultRetained": false,
+        "visualRawMatchesStoredProse": false
+      },
+      "pass": false
+    },
+    {
+      "id": "journal_delete_route_removes_last_result_and_rejects_late_commit",
+      "expected": {
+        "httpStatus": 200,
+        "entryRemoved": true,
+        "linkRemoved": true,
+        "resultRemoved": true,
+        "lateCommitRejected": true
+      },
+      "actual": {
+        "httpStatus": 200,
+        "entryRemoved": true,
+        "linkRemoved": true,
+        "resultRemoved": false,
+        "lateCommitRejected": false
+      },
+      "pass": false
+    }
+  ]
+}
