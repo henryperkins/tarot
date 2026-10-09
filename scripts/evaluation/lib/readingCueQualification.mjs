@@ -250,7 +250,10 @@ function scoreTrial({ cases, ledgers, reviews, reviewer }) {
         if (!['supported', 'incorrect', 'uncertain'].includes(t.verdict) || t.verdict === 'uncertain') { missing(`Unresolved target review: ${c.id}/${q.id}`); valid = false; }
         if (t.verdict === 'incorrect') {
           semanticFailures.push({ code: 'incorrect-target', caseId: c.id, cueId: q.id,
-            spreadIndex: t.spreadIndex, detailId: t.detailId ?? null });
+            spreadIndex: t.spreadIndex, detailId: t.detailId ?? null, errorCategory: t.errorCategory ?? null });
+          if (!['wrong-card', 'wrong-detail'].includes(t.errorCategory)) {
+            missing(`Unresolved target error classification: ${c.id}/${q.id}`);
+          } else if (t.errorCategory === 'wrong-card') fail('wrong-card', c.id, q.id);
           valid = false;
         }
       }
@@ -347,6 +350,14 @@ export function scoreReadingCueRun({ cases, ledgers = [], adjudications = {}, ga
       .map(o => ({ trialId: trialIds[index], caseId: id, opportunityId: o.id })) : [{ trialId: trialIds[index], caseId: id, reason: 'missing-central-case' }];
   }));
   const trapCases = cases.filter(c => c.regressionPolarity === 'negative');
+  const questionOnlyCases = cases.filter(c => c.contextVariant === 'question-only');
+  const questionOnlyResults = trials.flatMap((t, index) => questionOnlyCases.flatMap(c => {
+    const counts = t.byCase[c.id];
+    if (!counts) return [];
+    const passed = gateQuality(counts);
+    return [{ trialId: trialIds[index], caseId: c.id, counts, passed,
+      reason: passed ? null : 'question-only-quality-threshold' }];
+  }));
   const semanticGates = {
     integrity: { passed: hardFailures.length === 0, failures: hardFailures },
     traps: { passed: trapCases.length === 22 && !hardFailures.some(f => f.code === 'negative-trap'), cases: trapCases.length },
@@ -356,7 +367,8 @@ export function scoreReadingCueRun({ cases, ledgers = [], adjudications = {}, ga
     categories: { passed: KINDS.every(k => byKind[k].requiredOpportunities > 0),
       unqualified: KINDS.filter(k => byKind[k].requiredOpportunities === 0) },
     context: { passed: !hardFailures.some(f => f.code.startsWith('fabricated-context'))
-      && cases.filter(c => c.contextVariant === 'question-only').length === 2 }
+      && questionOnlyCases.length === 2 && questionOnlyResults.every(result => result.passed),
+    variants: questionOnlyResults }
   };
   const incomplete = incompleteReasons.length > 0;
   const spanish = byLanguage.es;

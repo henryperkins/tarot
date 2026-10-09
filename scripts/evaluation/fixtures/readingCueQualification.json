@@ -11191,7 +11191,12 @@
         "non-rws-detail-leakage",
         "fabricated-context",
         "fabricated-context-relevance"
-      ]
+      ],
+      "incorrectTargetErrorCategories": [
+        "wrong-card",
+        "wrong-detail"
+      ],
+      "unclassifiedIncorrectTargets": "incomplete"
     },
     "traps": {
       "negativePassages": 22,
@@ -11219,7 +11224,11 @@
       "minimumSpanishCuePrecision": 0.95,
       "minimumSpanishTargetPrecision": 0.95,
       "minimumSpanishRequiredRecall": 0.8,
-      "otherwise": "identity-only"
+      "otherwise": "identity-only",
+      "minimumQuestionOnlyCuePrecision": 0.95,
+      "minimumQuestionOnlyTargetPrecision": 0.95,
+      "minimumQuestionOnlyRequiredRecall": 0.8,
+      "questionOnlyScopes": "each variant in each planned trial"
     },
     "continuity": {
       "crossBatchReferencesValid": true,
@@ -11268,5 +11277,5 @@
     "glm-5.3-flash-high",
     "glm-5.3-high"
   ],
-  "manifestSha256": "c29988a22a260c45777e193c47376778cd3d603e660f37f30f943ec8a8fd51c6"
+  "manifestSha256": "42071738c05223979622457bbc918215ba7e455d3d06bac170d969ae5ad799c3"
 }

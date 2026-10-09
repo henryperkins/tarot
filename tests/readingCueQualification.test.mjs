@@ -34,6 +34,25 @@ function score(cases, cues, reviews = cues.map((q, i) => review(cases[i] || case
   return scoreReadingCueRun({ cases, ledgers: cases.map(c => ({ caseId: c.id, raw: c.raw,
     cues: cues.filter(q => !q.caseId || q.caseId === c.id), receipts: [] })), adjudications: { reviewer, cues: reviews } });
 }
+async function perfectRun() {
+  const cases = await loadReadingCueCases({ root });
+  const ledgers = cases.map(c => ({ caseId: c.id, raw: c.raw, cues: c.opportunities.map(o => cue(c, o)) }));
+  const adjudications = { reviewer, cues: ledgers.flatMap(l => l.cues.map(q =>
+    review(cases.find(c => c.id === l.caseId), q))) };
+  return { cases, ledgers, adjudications };
+}
+function addIncorrectExtra(run, { wrongCard = false, errorCategory, caseId = 'star-2347-excerpt' } = {}) {
+  const c = run.cases.find(c => c.id === caseId);
+  const q = cue(c, c.opportunities.find(o => o.id.endsWith(':pool')), 'incorrect-extra');
+  q.passage.start--; q.passage.quote = c.raw.slice(q.passage.start, q.passage.end);
+  q.targets = wrongCard ? [{ spreadIndex: 1, canonicalName: 'The Tower', detailIds: ['lightning'] }]
+    : [{ spreadIndex: 2, canonicalName: 'The Star', detailIds: ['land-pour'] }];
+  run.ledgers.find(l => l.caseId === c.id).cues.push(q);
+  const target = { spreadIndex: wrongCard ? 1 : 2, detailId: wrongCard ? 'lightning' : 'land-pour', verdict: 'incorrect' };
+  if (errorCategory !== undefined) target.errorCategory = errorCategory;
+  run.adjudications.cues.push(review(c, q, { verdict: 'incorrect', targetVerdicts: [target] }));
+  return q;
+}
 
 test('loads exact frozen source without duplicating prose in the manifest', async () => {
   const cases = await loadReadingCueCases({ root });
@@ -116,7 +135,7 @@ test('valid but wrong-card target counts incorrect and fails integrity', async (
   const c = await starCase(); const q = cue(c, c.opportunities[1]);
   q.targets[0] = { spreadIndex: 1, canonicalName: 'The Tower', detailIds: ['lightning'] };
   const r = score([c], [q], [review(c, q, { verdict: 'incorrect', targetVerdicts: [
-    { spreadIndex: 1, detailId: 'lightning', verdict: 'incorrect' }] })]);
+    { spreadIndex: 1, detailId: 'lightning', verdict: 'incorrect', errorCategory: 'wrong-card' }] })]);
   assert.equal(r.counts.cuePrecision.numerator, 0);
   assert.equal(r.counts.targetPrecision.denominator, 1);
   assert.ok(r.hardFailures.some(f => f.code === 'wrong-card'));
@@ -269,9 +288,10 @@ test('a catalog-valid wrong detail affects precision without being a geometry in
   const c = await starCase(); const q = cue(c, c.opportunities[1]);
   q.targets[0].detailIds = ['land-pour'];
   const r = score([c], [q], [review(c, q, { verdict: 'incorrect', targetVerdicts: [
-    { spreadIndex: 2, detailId: 'land-pour', verdict: 'incorrect' }
+    { spreadIndex: 2, detailId: 'land-pour', verdict: 'incorrect', errorCategory: 'wrong-detail' }
   ] })]);
   assert.equal(r.hardFailures.length, 0);
+  assert.equal(r.incomplete, false);
   assert.equal(r.counts.targetPrecision.numerator, 0);
   assert.ok(r.semanticFailures.some(f => f.code === 'incorrect-target'));
 });
@@ -280,7 +300,7 @@ test('each emitted target contributes its own review even if its cue is inadequa
   const c = await starCase(); const q = cue(c, c.opportunities[5]);
   const r = score([c], [q], [review(c, q, { spanAdequate: false, targetVerdicts: [
     { spreadIndex: 2, detailId: 'pool-pour', verdict: 'supported' },
-    { spreadIndex: 2, detailId: 'land-pour', verdict: 'incorrect' }
+    { spreadIndex: 2, detailId: 'land-pour', verdict: 'incorrect', errorCategory: 'wrong-detail' }
   ] })]);
   assert.equal(r.counts.cuePrecision.numerator, 0);
   assert.equal(r.counts.targetPrecision.numerator, 1);
@@ -339,6 +359,78 @@ test('explicit mixed trial plan repeats only 12 primary cases and preserves 74 e
   assert.equal(missing.incomplete, true);
   assert.equal(missing.counts.requiredOpportunities, 396);
   assert.equal(missing.semanticPassed, false);
+});
+
+test('empty question-only variants cannot qualify through pooled recall', async () => {
+  const run = await perfectRun();
+  for (const c of run.cases.filter(c => c.contextVariant === 'question-only')) run.ledgers.find(l => l.caseId === c.id).cues = [];
+  const result = scoreReadingCueRun(run);
+  assert.equal(result.counts.requiredRecall.numerator, 207);
+  assert.equal(result.gates.overall.passed, true);
+  assert.equal(result.incomplete, false);
+  assert.equal(result.gates.context.passed, false);
+  assert.equal(result.semanticPassed, false);
+  assert.deepEqual(result.gates.context.variants.map(v => [v.counts.requiredRecall.numerator, v.counts.requiredRecall.denominator]), [[0, 6], [0, 25]]);
+});
+
+test('each question-only variant must meet precision despite otherwise passing metrics', async () => {
+  const run = await perfectRun();
+  addIncorrectExtra(run, { caseId: 'star-2347-excerpt-question-only', errorCategory: 'wrong-detail' });
+  const result = scoreReadingCueRun(run);
+  assert.equal(result.gates.overall.passed, true);
+  assert.equal(result.hardFailures.length, 0);
+  assert.equal(result.gates.context.passed, false);
+  assert.equal(result.semanticPassed, false);
+});
+
+test('explicit wrong-card adjudication catches extras beyond approved anchor boundaries', async () => {
+  const run = await perfectRun();
+  const extra = addIncorrectExtra(run, { wrongCard: true, errorCategory: 'wrong-card' });
+  assert.equal(extra.passage.quote, ' one pitcher into a pool');
+  const result = scoreReadingCueRun(run);
+  assert.equal(result.gates.overall.passed, true);
+  assert.equal(result.incomplete, false);
+  assert.ok(result.hardFailures.some(f => f.code === 'wrong-card' && f.cueId === extra.id));
+  assert.equal(result.semanticPassed, false);
+});
+
+test('classified registered wrong-detail extras remain ordinary precision errors below five percent', async () => {
+  const run = await perfectRun();
+  addIncorrectExtra(run, { errorCategory: 'wrong-detail' });
+  const result = scoreReadingCueRun(run);
+  assert.equal(result.hardFailures.length, 0);
+  assert.equal(result.incomplete, false);
+  assert.equal(result.semanticPassed, true);
+  assert.equal(result.counts.cuePrecision.numerator, 284);
+  assert.equal(result.counts.cuePrecision.denominator, 285);
+});
+
+test('missing and unknown incorrect-target classifications cannot certify precision', async () => {
+  for (const errorCategory of [undefined, 'unrecognized']) {
+    const run = await perfectRun();
+    addIncorrectExtra(run, { errorCategory });
+    const result = scoreReadingCueRun(run);
+    assert.equal(result.incomplete, true);
+    assert.equal(result.semanticPassed, false);
+    assert.ok(result.incompleteReasons.some(reason => reason.includes('target error classification')));
+  }
+});
+
+test('question-only gates apply separately to each planned repeat trial', async () => {
+  const run = await perfectRun();
+  const variants = run.cases.filter(c => c.contextVariant === 'question-only');
+  const expectedTrials = [{ trialId: 'first', caseIds: run.cases.map(c => c.id) },
+    { trialId: 'second', caseIds: variants.map(c => c.id) }];
+  for (const l of run.ledgers) l.trialId = 'first';
+  for (const a of run.adjudications.cues) a.trialId = 'first';
+  run.ledgers.push(...variants.map(c => ({ caseId: c.id, trialId: 'second', raw: c.raw, cues: [] })));
+  const result = scoreReadingCueRun({ ...run, expectedTrials });
+  assert.equal(result.gates.overall.passed, true);
+  assert.equal(result.incomplete, false);
+  assert.equal(result.gates.context.passed, false);
+  assert.equal(result.semanticPassed, false);
+  assert.deepEqual(result.gates.context.variants.map(v => [v.trialId, v.passed]),
+    [['first', true], ['first', true], ['second', false], ['second', false]]);
 });
 
 test('candidate ranking excludes unqualified runs then follows every declared tie-break', () => {
