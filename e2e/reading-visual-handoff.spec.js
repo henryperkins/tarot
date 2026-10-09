@@ -214,13 +214,14 @@ test('authoritative done revision replaces an unseen suffix and accepts only tha
     await fixture.emit('reading', 'delta', { text: prefix, visualBinding: binding });
     await expect(page.getByTestId('gesture-source-diagnostics')).toHaveAttribute('data-raw-length', String(prefix.length));
     await expect.poll(() => fixture.connected('visual')).toBeGreaterThan(0);
+    const beforeRevision = fixture.connectionGeneration('visual');
     // The client cannot infer the server's replaced, buffered suffix from this
     // valid shared prefix. Its source identity must follow the trusted event.
     await fixture.emit('reading', 'done', { fullText: raw, visualBinding: revisedBinding });
     await expect(page.getByTestId('gesture-source-diagnostics')).toHaveAttribute('data-source-revision', '1');
     // This controlled server does not replay snapshots on connection. Wait for
     // the new binding's subscription before releasing its saved cue envelope.
-    await expect.poll(() => fixture.requests.visual.filter(request => request.pathname.endsWith('/stream')).length).toBeGreaterThan(1);
+    await expect.poll(() => fixture.connected('visual', beforeRevision)).toBeGreaterThan(0);
     await fixture.emit('visual', 'cues', { binding, cueLedger: ledger, status: 'running' });
     await fixture.emit('visual', 'cues', { binding: revisedBinding, cueLedger: revised.ledger, status: 'running' });
     await expect(page.locator(`[data-gesture-id="${revised.ledger.cues[0].id}"]`)).toBeVisible();
