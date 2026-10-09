@@ -15,7 +15,7 @@ import { normalizeVisualSource, fingerprintVisualSource } from '../../shared/rea
 import { getVectorGestureDetails } from '../../src/data/cardGestureArtwork.js';
 import { initVisualJob } from './readingVisualJobs.js';
 import { registerVisualResult } from './readingVisualResults.js';
-import { visualCueProviderConfigured } from './visualCueProvider.js';
+import { getVisualCueReadiness } from './visualCueProvider.js';
 
 const DO_ORIGIN = 'https://reading-jobs';
 
@@ -58,7 +58,7 @@ export async function startReadingJob({ env, payload, principal = null, snapshot
   let visualJobToken = null;
   let visualBinding = null;
   let visualInit = null;
-  if (env.READING_VISUAL_JOBS && visualCueProviderConfigured(env)) {
+  if (env.READING_VISUAL_JOBS && getVisualCueReadiness(env).ready) {
     visualJobToken = crypto.randomUUID();
     const normalized = normalizeVisualSource(schemaResult.data);
     const { spreadHash, contextHash } = await fingerprintVisualSource(schemaResult.data);

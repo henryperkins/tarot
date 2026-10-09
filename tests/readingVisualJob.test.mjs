@@ -594,8 +594,8 @@ test('real start exposes retryable visual transport while optional initializatio
       userQuestion: fixture.userQuestion, reflectionsText: fixture.reflectionsText, deckStyle: fixture.deckStyle },
     waitUntil: promise => background.push(promise),
     env: {
-      VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/visual',
-      AI: { run: async () => ({ response: { proposals: [] } }) },
+      VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/model',
+      AI: { run: async () => { throw new Error('Initialization must not perform inference'); } },
       READING_JOBS: { idFromName: id => id, get: () => ({ fetch: async () => Response.json({ ok: true }) }) },
       READING_VISUAL_JOBS: { idFromName: id => id, get: () => ({ fetch: async (url, options) => {
         if (new URL(url).pathname === '/init') await gate;
@@ -617,4 +617,65 @@ test('real start exposes retryable visual transport while optional initializatio
   assert.equal(stream.status, 200);
   await stream.body.cancel();
   assert.equal((await job.fetch(new Request('https://visual/stream', { headers: { 'X-Visual-Token': 'wrong-token' } }))).status, 403);
+});
+
+test('accepted cues remain readable through snapshot and stream after provider configuration is removed', async t => {
+  let inferenceCalls = 0;
+  const env = { VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/model',
+    AI: { run: async () => { inferenceCalls++; return { response: LITERAL_RESPONSE }; } } };
+  const { job, waitUntilPromises, getStorage } = await createJob(t, { env });
+  const binding = await init(job);
+  await observe(job, binding, LITERAL_RAW, 1, true);
+  await Promise.all(waitUntilPromises);
+  assert.equal(inferenceCalls, 1);
+  assert.equal(job.status, 'complete');
+  assert.equal(job.ledger.cues.length, 1);
+  const accepted = structuredClone(job.ledger.cues);
+  const revision = job.ledger.ledgerRevision;
+  const stored = getStorage();
+  delete env.VISUAL_CUE_PROVIDER;
+  delete env.VISUAL_CUE_MODEL;
+  delete env.AI;
+  const { job: restored } = await createJob(t, { stored, env });
+  const headers = { 'X-Visual-Token': 'lifecycle-token' };
+  for (const target of [job, restored]) {
+    for (const path of ['snapshot', 'status']) {
+      const response = await target.fetch(new Request(`https://visual/${path}`, { headers }));
+      assert.equal(response.status, 200);
+      const data = await response.json();
+      assert.deepEqual(data.cues, accepted);
+      assert.equal(data.ledgerRevision, revision);
+    }
+    const response = await target.fetch(new Request('https://visual/stream', { headers }));
+    assert.equal(response.status, 200);
+    const stream = await response.text();
+    const data = JSON.parse(stream.split('\n').find(line => line.startsWith('data: ')).slice(6));
+    assert.deepEqual(data.cues, accepted);
+    assert.equal(data.ledgerRevision, revision);
+    assert.equal((await target.fetch(new Request('https://visual/snapshot'))).status, 401);
+    assert.equal((await target.fetch(new Request('https://visual/stream', { headers: { 'X-Visual-Token': 'wrong' } }))).status, 403);
+  }
+  assert.equal(inferenceCalls, 1, 'Reading accepted cues never starts new inference');
+});
+
+test('cold-start pending work without a provider fails without erasing accepted cues', async t => {
+  const { job, waitUntilPromises, getStorage } = await createJob(t, { runAnnotation: async () => LITERAL_RESPONSE });
+  const binding = await init(job);
+  await observe(job, binding, LITERAL_RAW, 1, true);
+  await Promise.all(waitUntilPromises);
+  const stored = getStorage();
+  const accepted = structuredClone(stored.ledger.cues);
+  stored.status = 'running';
+  stored.isComplete = false;
+  stored.authoritativeRaw = `${LITERAL_RAW} A later sentence.`;
+  stored.pendingSnapshot = { raw: stored.authoritativeRaw, complete: true, deliveredEventId: 2, availableAt: 1000 };
+  let inferenceCalls = 0;
+  const { job: recovered, waitUntilPromises: recovery } = await createJob(t, { stored,
+    env: { AI: { run: async () => { inferenceCalls++; return { response: LITERAL_RESPONSE }; } } } });
+  await Promise.all(recovery);
+  assert.equal(inferenceCalls, 0);
+  assert.equal(recovered.status, 'failed');
+  const response = await recovered.fetch(new Request('https://visual/snapshot', { headers: { 'X-Visual-Token': 'lifecycle-token' } }));
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).cues, accepted);
 });

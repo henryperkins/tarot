@@ -8,25 +8,37 @@ const responseSchema = z.toJSONSchema(z.object({
   proposals: z.array(visualCueProposalSchema).max(240)
 }).strict(), { target: 'draft-7' });
 
-/** Validate the independent annotation configuration before creating private job state. */
-export function visualCueProviderConfigured(env) {
-  return typeof env?.VISUAL_CUE_PROVIDER === 'string'
-    && env.VISUAL_CUE_PROVIDER.trim() === 'workers-ai'
-    && typeof env?.VISUAL_CUE_MODEL === 'string'
-    && env.VISUAL_CUE_MODEL.trim().length > 0
-    && typeof env?.AI?.run === 'function';
+const configString = value => typeof value === 'string' ? value.trim() : '';
+const readinessErrors = {
+  missing_provider: 'Visual model is not configured.',
+  missing_model: 'Visual model is not configured.',
+  unsupported_provider: 'Unsupported visual model provider.',
+  missing_ai_binding: 'Visual model binding is unavailable.',
+  invalid_effort: 'Invalid visual reasoning effort.'
+};
+
+/** Configuration only: never probes inference or gates access to saved cues. */
+export function getVisualCueReadiness(env) {
+  const provider = configString(env?.VISUAL_CUE_PROVIDER);
+  const model = configString(env?.VISUAL_CUE_MODEL);
+  if (!provider) return { ready: false, reason: 'missing_provider' };
+  if (!model) return { ready: false, reason: 'missing_model' };
+  if (provider !== 'workers-ai') return { ready: false, reason: 'unsupported_provider' };
+  if (typeof env?.AI?.run !== 'function') return { ready: false, reason: 'missing_ai_binding' };
+  const effort = env.VISUAL_CUE_REASONING_EFFORT;
+  if (model.startsWith('@cf/zai-org/glm-5.') && (
+    (effort != null && typeof effort !== 'string') || !['low', 'high', 'max'].includes(configString(effort) || 'low')
+  )) return { ready: false, reason: 'invalid_effort' };
+  return { ready: true, reason: null };
 }
 
 /** Independent, explicitly configured annotation only; never a narrative fallback. */
 export async function runVisualCueAnnotation({ env, prompt, signal }) {
-  const provider = env?.VISUAL_CUE_PROVIDER?.trim();
-  const model = env?.VISUAL_CUE_MODEL?.trim();
-  if (!provider || !model) throw new Error('Visual model is not configured.');
-  if (provider !== 'workers-ai') throw new Error('Unsupported visual model provider.');
-  if (typeof env?.AI?.run !== 'function') throw new Error('Visual model binding is unavailable.');
+  const readiness = getVisualCueReadiness(env);
+  if (!readiness.ready) throw new Error(readinessErrors[readiness.reason]);
+  const model = configString(env.VISUAL_CUE_MODEL);
   const glm = model.startsWith('@cf/zai-org/glm-5.');
-  const reasoningEffort = env.VISUAL_CUE_REASONING_EFFORT?.trim() || 'low';
-  if (glm && !['low', 'high', 'max'].includes(reasoningEffort)) throw new Error('Invalid visual reasoning effort.');
+  const reasoningEffort = configString(env.VISUAL_CUE_REASONING_EFFORT) || 'low';
   const configuredTimeout = Number(env.VISUAL_CUE_TIMEOUT_MS);
   const deadline = createDeadline({ signal, timeoutMs: Number.isFinite(configuredTimeout) && configuredTimeout > 0
     ? Math.min(configuredTimeout, 60000) : 30000 });

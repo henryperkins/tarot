@@ -1,9 +1,47 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { runVisualCueAnnotation } from '../functions/lib/visualCueProvider.js';
+import * as visualCueProvider from '../functions/lib/visualCueProvider.js';
 
 const prompt = { systemPrompt: 'Independent visual instructions.', userPrompt: 'Exact reading-only prose.' };
 const configured = run => ({ VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/model', AI: { run } });
+
+const readinessCases = [
+  ['missing provider', { VISUAL_CUE_PROVIDER: undefined }, 'missing_provider'],
+  ['blank provider', { VISUAL_CUE_PROVIDER: '  ' }, 'missing_provider'],
+  ['non-string provider', { VISUAL_CUE_PROVIDER: 7 }, 'missing_provider'],
+  ['missing model', { VISUAL_CUE_MODEL: undefined }, 'missing_model'],
+  ['blank model', { VISUAL_CUE_MODEL: '  ' }, 'missing_model'],
+  ['non-string model', { VISUAL_CUE_MODEL: {} }, 'missing_model'],
+  ['unsupported provider', { VISUAL_CUE_PROVIDER: 'narrative' }, 'unsupported_provider'],
+  ['missing AI binding', { AI: undefined }, 'missing_ai_binding'],
+  ['non-callable AI binding', { AI: { run: true } }, 'missing_ai_binding'],
+  ['invalid GLM effort', { VISUAL_CUE_REASONING_EFFORT: 'medium' }, 'invalid_effort'],
+  ['non-string GLM effort', { VISUAL_CUE_REASONING_EFFORT: 7 }, 'invalid_effort'],
+  ['default low effort', {}, null],
+  ['blank effort uses existing default', { VISUAL_CUE_REASONING_EFFORT: '  ' }, null],
+  ['explicit high effort', { VISUAL_CUE_REASONING_EFFORT: 'high' }, null],
+  ['explicit max effort', { VISUAL_CUE_REASONING_EFFORT: 'max' }, null],
+  ['whitespace around valid config', { VISUAL_CUE_PROVIDER: ' workers-ai ', VISUAL_CUE_MODEL: ' @cf/zai-org/glm-5.3-flash ', VISUAL_CUE_REASONING_EFFORT: ' high ' }, null],
+  ['non-GLM effort is not a GLM setting', { VISUAL_CUE_MODEL: '@cf/controlled/model', VISUAL_CUE_REASONING_EFFORT: 'medium' }, null]
+];
+
+for (const [name, overrides, reason] of readinessCases) {
+  test(`visual readiness: ${name}`, () => {
+    let calls = 0;
+    const env = { ...configured(() => { calls++; }), VISUAL_CUE_MODEL: '@cf/zai-org/glm-5.3-flash', ...overrides };
+    assert.equal(typeof visualCueProvider.getVisualCueReadiness, 'function');
+    assert.deepEqual(visualCueProvider.getVisualCueReadiness(env), { ready: reason === null, reason });
+    assert.equal(calls, 0, 'Readiness never probes inference');
+  });
+}
+
+test('visual readiness is unavailable without an environment or independent config', () => {
+  assert.equal(typeof visualCueProvider.getVisualCueReadiness, 'function');
+  for (const env of [undefined, null, {}, { OPENAI_API_KEY: 'unused', ANTHROPIC_API_KEY: 'unused' }]) {
+    assert.deepEqual(visualCueProvider.getVisualCueReadiness(env), { ready: false, reason: 'missing_provider' });
+  }
+});
 
 test('explicit Workers AI configuration sends only the independent prompt to the selected model', async () => {
   const calls = [];

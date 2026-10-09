@@ -2,6 +2,38 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { observeDeliveredReading } from '../functions/lib/visualCueObserver.js';
 
+const visualConfig = { VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/zai-org/glm-5.3-flash',
+  AI: { run: async () => { throw new Error('Observer must not perform inference directly'); } } };
+
+for (const [name, overrides] of [
+  ['missing provider', { VISUAL_CUE_PROVIDER: undefined }],
+  ['blank provider', { VISUAL_CUE_PROVIDER: '  ' }],
+  ['missing model', { VISUAL_CUE_MODEL: undefined }],
+  ['blank model', { VISUAL_CUE_MODEL: '  ' }],
+  ['unsupported provider', { VISUAL_CUE_PROVIDER: 'narrative' }],
+  ['missing AI binding', { AI: undefined }],
+  ['non-callable AI binding', { AI: { run: true } }],
+  ['invalid GLM effort', { VISUAL_CUE_REASONING_EFFORT: 'medium' }],
+  ['missing DO binding', { READING_VISUAL_JOBS: undefined }]
+]) {
+  test(`unavailable visual observation does no work: ${name}`, async () => {
+    let lookups = 0;
+    let fetches = 0;
+    let inferenceCalls = 0;
+    const binding = createBinding();
+    const env = { ...visualConfig, AI: { run: () => { inferenceCalls++; } },
+      READING_VISUAL_JOBS: { idFromName: id => { lookups++; return id; }, get: () => ({ fetch: async () => {
+        fetches++; return Response.json({ ok: true });
+      } }) }, ...overrides };
+    const result = await observeDeliveredReading({ env, binding, raw: 'Accepted prose.', deliveredEventId: 1,
+      init: { binding, visualToken: 'controlled', validationContext: { cards: [] } } });
+    assert.deepEqual(result, { ok: false, ignored: true });
+    assert.equal(lookups, 0);
+    assert.equal(fetches, 0, 'Neither initialization nor observation is dispatched');
+    assert.equal(inferenceCalls, 0);
+  });
+}
+
 function createBinding(readingResultId = 'res-1', sourceRevision = 0) {
   return {
     readingResultId,
@@ -26,6 +58,7 @@ test('observeDeliveredReading dispatches snapshot to visual job', async () => {
   };
 
   const env = {
+    ...visualConfig,
     READING_VISUAL_JOBS: {
       get: () => fakeStub,
       idFromName: () => 'stub-id'
@@ -60,6 +93,7 @@ test('burst-SSE and final-only JSON submit complete snapshot and coalesce', asyn
   };
 
   const env = {
+    ...visualConfig,
     READING_VISUAL_JOBS: {
       get: () => fakeStub,
       idFromName: () => 'stub-id'
@@ -89,6 +123,7 @@ test('non-prefix final replacement invalidates previous binding', async () => {
   };
 
   const env = {
+    ...visualConfig,
     READING_VISUAL_JOBS: {
       get: () => fakeStub,
       idFromName: () => 'stub-id'
@@ -121,7 +156,7 @@ test('observeDeliveredReading is a safe no-op if READING_VISUAL_JOBS is absent',
 test('observation initializes idempotently before delivery without exposing source in transport errors', async () => {
   const binding = createBinding();
   const paths = [];
-  const env = { READING_VISUAL_JOBS: { idFromName: id => id, get: () => ({ fetch: async url => {
+  const env = { ...visualConfig, READING_VISUAL_JOBS: { idFromName: id => id, get: () => ({ fetch: async url => {
     paths.push(new URL(url).pathname);
     return Response.json({ ok: true });
   } }) } };

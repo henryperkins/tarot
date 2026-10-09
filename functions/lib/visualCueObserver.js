@@ -12,6 +12,7 @@
  */
 
 import { initVisualJob } from './readingVisualJobs.js';
+import { getVisualCueReadiness } from './visualCueProvider.js';
 
 export async function observeDeliveredReading({
   env,
@@ -22,7 +23,7 @@ export async function observeDeliveredReading({
   complete = false,
   availableAt = Date.now()
 }) {
-  if (!env?.READING_VISUAL_JOBS || !binding?.readingResultId || typeof raw !== 'string') {
+  if (!env?.READING_VISUAL_JOBS || !binding?.readingResultId || typeof raw !== 'string' || !getVisualCueReadiness(env).ready) {
     return { ok: false, ignored: true };
   }
 
