@@ -1,3 +1,5 @@
+import { getVectorGestureDetails } from './cardGestureArtwork.js';
+
 /**
  * Hand-placed focal points on the 1909 Rider–Waite–Smith artwork.
  *
@@ -675,6 +677,8 @@ export const CARD_TOUCH_POINTS = {
 };
 
 /** Touch points for a canonical RWS card name, or an empty list. */
-export function getCardTouchPoints(canonicalName) {
+export function getCardTouchPoints(canonicalName, { artworkEdition = 'rws-1909-scan' } = {}) {
+  if (artworkEdition === 'rws-immanuelle-vector') return getVectorGestureDetails(canonicalName);
+  if (artworkEdition !== 'rws-1909-scan') return [];
   return CARD_TOUCH_POINTS[canonicalName] || [];
 }
