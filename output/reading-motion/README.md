@@ -1,5 +1,21 @@
 # Reading imagery motion studies
 
+## React bridge repairs and generated associations — October 9
+
+The current React study incorporates the [outside-review repairs](../../docs/superpowers/reviews/2026-10-09-reading-gestures-remediation.md). Earlier standalone studies below remain unchanged historical references.
+
+```bash
+cd /home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge
+npm run dev:frontend -- --port 5174 --strictPort
+```
+
+Open [a fresh generated reading](http://localhost:5174/__e2e/reading-gestures?study=generated&sample=new-home-rhythm&arrival=gentle) or [the Spanish example](http://localhost:5174/__e2e/reading-gestures?study=generated&sample=ritmo-compartido&arrival=complete). The original recorded Star, Celtic and five-card studies remain available from the lab selector. The generated corpus uses new synthetic questions; its prose is not presented as the original evaluation readings.
+
+Generated mode uses exact, validated quotations supplied alongside the reading. Literal details establish references for later interpretations, two-card connections, and optional question/reflection quotations. The conservative **dynamic** option exposes the automatic identity/literal fallback for comparison; it no longer contains memorized fixture returns. Text arrival and held inspection remain independent. Model output and structural acceptance are [recorded separately from semantic review](evidence/2026-10-09-generated-associations/README.md).
+
+The React study loads attributed WebP delivery copies of the same vector edition. Original SVGs and standalone studies remain intact. The feature remains opt-in; this repair does not enable production reading generation or deploy the app.
+
+
 Design exploration for Tableu's personalized reading, October 8–9, 2026. The standalone HTML studies remain reviewable prototypes. The feature branch also contains a React bridge in the existing application, behind a disabled-by-default study flag and a development-only fixture route. No production deployment or live narrative generation is part of this handoff.
 
 ## Start here

@@ -1,0 +1,273 @@
+{
+  "id": "new-home-rhythm",
+  "language": "en",
+  "userQuestion": "How can I find a sustainable rhythm after moving to a new city?",
+  "reflectionsText": "I miss familiar routines, but I also want room to explore.",
+  "cards": [
+    {
+      "card": "The Star",
+      "position": "Situation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "The Hermit",
+      "position": "Invitation",
+      "orientation": "Reversed"
+    },
+    {
+      "card": "Three of Pentacles",
+      "position": "Direction",
+      "orientation": "Upright"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Opening\n\nYou've moved to a new city and are asking how to find a rhythm that can last. These three cards invite you to hold what you miss alongside what you're curious to discover.\n\n## The Story\n\nIn the Situation position, The Star appears upright. A figure pours one pitcher into a pool and another onto the land. The pool might hold memory and the people back home, while the land could be the new ground you're beginning to know.\n\nThe Hermit, reversed, sits in the Invitation position. He holds up a lantern, yet reversed he may hint that solitude or searching has stretched a little long. Perhaps the lantern only needs to light the next few steps, not the whole map.\n\nIn the Direction position, the Three of Pentacles upright shows collaborators at work together. A rhythm may grow through shared effort rather than solo planning.\n\n## Putting It Together\n\nSince you miss familiar routines yet want room to explore, the pool and the land suggest you needn't choose; both can be watered. The Hermit's lantern might guide you toward the collaborators of the Three of Pentacles: people you see regularly, working on something shared.\n\n## Gentle Next Steps\n\n- Keep one anchoring routine from home, such as a weekly call.\n- Explore one new street, café, or park each week.\n- Try a recurring class, volunteer shift, or group where you contribute alongside others.\n\n## Closing\n\nA sustainable rhythm may arrive slowly, step by lit step, fed by both memory and discovery.",
+    "annotations": [
+      {
+        "id": "id-star",
+        "kind": "identity",
+        "quote": "The Star appears upright",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-pool",
+        "kind": "literal",
+        "quote": "pours one pitcher into a pool",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "pool-pour"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-land",
+        "kind": "literal",
+        "quote": "another onto the land",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "land-pour"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-pool",
+        "kind": "interpretation",
+        "quote": "The pool might hold memory and the people back home",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "pool-pour"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-pool"
+        ]
+      },
+      {
+        "id": "int-land",
+        "kind": "interpretation",
+        "quote": "the land could be the new ground you're beginning to know",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "land-pour"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-land"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "moving to a new city"
+        }
+      },
+      {
+        "id": "id-hermit",
+        "kind": "identity",
+        "quote": "The Hermit, reversed",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-lantern",
+        "kind": "literal",
+        "quote": "He holds up a lantern",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "lantern"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-lantern",
+        "kind": "interpretation",
+        "quote": "the lantern only needs to light the next few steps",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "lantern"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-lantern"
+        ]
+      },
+      {
+        "id": "id-three",
+        "kind": "identity",
+        "quote": "the Three of Pentacles upright",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-collab",
+        "kind": "literal",
+        "quote": "shows collaborators at work together",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "collaborators"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "bal-star",
+        "kind": "balance",
+        "quote": "the pool and the land suggest you needn't choose",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "pool-pour",
+              "land-pour"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-pool",
+          "lit-land"
+        ],
+        "personalContext": {
+          "type": "querent-reflection",
+          "quote": "I miss familiar routines, but I also want room to explore."
+        }
+      },
+      {
+        "id": "rel-lantern-collab",
+        "kind": "relationship",
+        "quote": "The Hermit's lantern might guide you toward the collaborators of the Three of Pentacles",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "lantern"
+            ]
+          },
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "collaborators"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-lantern",
+          "lit-collab"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:22:49.296Z",
+    "completedAt": "2026-10-09T12:23:36.019Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 3000,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 5310,
+      "output_tokens_details": {
+        "thinking_tokens": 3741
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 3000,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "6c9a6d2b57c1762280bfb251d4d4dc64ed45cb55465f7b6c4f031e706fbf8474",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Opening\\n\\nYou've moved to a new city and are asking how to find a rhythm that can last. These three cards invite you to hold what you miss alongside what you're curious to discover.\\n\\n## The Story\\n\\nIn the Situation position, The Star appears upright. A figure pours one pitcher into a pool and another onto the land. The pool might hold memory and the people back home, while the land could be the new ground you're beginning to know.\\n\\nThe Hermit, reversed, sits in the Invitation position. He holds up a lantern, yet reversed he may hint that solitude or searching has stretched a little long. Perhaps the lantern only needs to light the next few steps, not the whole map.\\n\\nIn the Direction position, the Three of Pentacles upright shows collaborators at work together. A rhythm may grow through shared effort rather than solo planning.\\n\\n## Putting It Together\\n\\nSince you miss familiar routines yet want room to explore, the pool and the land suggest you needn't choose; both can be watered. The Hermit's lantern might guide you toward the collaborators of the Three of Pentacles: people you see regularly, working on something shared.\\n\\n## Gentle Next Steps\\n\\n- Keep one anchoring routine from home, such as a weekly call.\\n- Explore one new street, café, or park each week.\\n- Try a recurring class, volunteer shift, or group where you contribute alongside others.\\n\\n## Closing\\n\\nA sustainable rhythm may arrive slowly, step by lit step, fed by both memory and discovery.\",\"annotations\":[{\"id\":\"id-star\",\"kind\":\"identity\",\"quote\":\"The Star appears upright\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"lit-pool\",\"kind\":\"literal\",\"quote\":\"pours one pitcher into a pool\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"pool-pour\"]}]},{\"id\":\"lit-land\",\"kind\":\"literal\",\"quote\":\"another onto the land\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"land-pour\"]}]},{\"id\":\"int-pool\",\"kind\":\"interpretation\",\"quote\":\"The pool might hold memory and the people back home\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"pool-pour\"]}],\"establishedBy\":[\"lit-pool\"]},{\"id\":\"int-land\",\"kind\":\"interpretation\",\"quote\":\"the land could be the new ground you're beginning to know\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"land-pour\"]}],\"establishedBy\":[\"lit-land\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"moving to a new city\"}},{\"id\":\"id-hermit\",\"kind\":\"identity\",\"quote\":\"The Hermit, reversed\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"lit-lantern\",\"kind\":\"literal\",\"quote\":\"He holds up a lantern\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"lantern\"]}]},{\"id\":\"int-lantern\",\"kind\":\"interpretation\",\"quote\":\"the lantern only needs to light the next few steps\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"lantern\"]}],\"establishedBy\":[\"lit-lantern\"]},{\"id\":\"id-three\",\"kind\":\"identity\",\"quote\":\"the Three of Pentacles upright\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"lit-collab\",\"kind\":\"literal\",\"quote\":\"shows collaborators at work together\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"collaborators\"]}]},{\"id\":\"bal-star\",\"kind\":\"balance\",\"quote\":\"the pool and the land suggest you needn't choose\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"pool-pour\",\"land-pour\"]}],\"establishedBy\":[\"lit-pool\",\"lit-land\"],\"personalContext\":{\"type\":\"querent-reflection\",\"quote\":\"I miss familiar routines, but I also want room to explore.\"}},{\"id\":\"rel-lantern-collab\",\"kind\":\"relationship\",\"quote\":\"The Hermit's lantern might guide you toward the collaborators of the Three of Pentacles\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"lantern\"]},{\"spreadIndex\":2,\"detailIds\":[\"collaborators\"]}],\"establishedBy\":[\"lit-lantern\",\"lit-collab\"]}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 12,
+    "acceptedAnnotations": 12,
+    "compiledCounts": {
+      "identity": 3,
+      "literal": 4,
+      "interpretation": 3,
+      "balance": 1,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 5,
+      "literal": 4,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 0
+    },
+    "personalContextCount": 2,
+    "introducedCards": 3,
+    "rawSha256": "0b62ecc242909657d01d6beed313664ab8c407d739533276f8696a7fcdd92929",
+    "wordCount": 255
+  },
+  "priorAttempts": [
+    {
+      "generationError": "Claude Code request failed. Check subscription login and usage limits.",
+      "generation": {
+        "startedAt": "2026-10-09T12:21:38.304Z",
+        "completedAt": "2026-10-09T12:21:38.922Z"
+      }
+    }
+  ]
+}

@@ -1,0 +1,237 @@
+{
+  "revision": "f6bcfcd17cc52dfe36cea65a286867f8a3e80c95",
+  "parameters": {
+    "study": "deck",
+    "card": "Nine of Wands",
+    "arrival": "complete",
+    "width": "390",
+    "height": "844",
+    "phrase": "head bandage",
+    "hold-at": "800",
+    "times": "400,1500"
+  },
+  "errors": [],
+  "records": [
+    {
+      "observedMs": 517,
+      "requestedMs": 400,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547091839-deck-390/0-400ms.png",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "98fdc666-a1c9-477c-b1db-f4efc697f7d5",
+        "sourceRevision": "0",
+        "sourceStatus": "complete",
+        "rawLength": "129",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "literal-0-82",
+        "phase": "static",
+        "pending": "",
+        "rect": {
+          "x": 37,
+          "y": 461,
+          "width": 316,
+          "height": 106,
+          "top": 461,
+          "right": 353,
+          "bottom": 567,
+          "left": 37
+        }
+      },
+      "focused": [
+        {
+          "focusCard": "true",
+          "occurrenceId": "98fdc666-a1c9-477c-b1db-f4efc697f7d5:0",
+          "details": "staff-barrier",
+          "label": "Artwork: Nine of Wands, upright"
+        }
+      ],
+      "phrases": [
+        {
+          "text": "Nine of Wands",
+          "id": "identity-0-3",
+          "pressed": "false",
+          "rect": {
+            "x": 33,
+            "y": 722.5245971679688,
+            "width": 149.09375,
+            "height": 50,
+            "top": 722.5245971679688,
+            "right": 182.09375,
+            "bottom": 772.5245971679688,
+            "left": 33
+          }
+        },
+        {
+          "text": "head bandage",
+          "id": "literal-0-37",
+          "pressed": "false",
+          "rect": {
+            "x": 178.046875,
+            "y": 770.5,
+            "width": 105.921875,
+            "height": 39,
+            "top": 770.5,
+            "right": 283.96875,
+            "bottom": 809.5,
+            "left": 178.046875
+          }
+        },
+        {
+          "text": "row of staffs",
+          "id": "literal-0-82",
+          "pressed": "false",
+          "associated": "true",
+          "rect": {
+            "x": 48.328125,
+            "y": 837.6875,
+            "width": 94.09375,
+            "height": 39,
+            "top": 837.6875,
+            "right": 142.421875,
+            "bottom": 876.6875,
+            "left": 48.328125
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Artwork: Nine of Wands, upright",
+          "disabled": false,
+          "rect": {
+            "x": 173,
+            "y": 364,
+            "width": 44,
+            "height": 64,
+            "top": 364,
+            "right": 217,
+            "bottom": 428,
+            "left": 173
+          }
+        }
+      ],
+      "reading": "Narrative ready.\n\nNine of Wands\n\nThe figure wears a head bandage wrapped across the forehead.\n\nA row of staffs stands upright behind the figure.",
+      "runningAnimations": 2
+    },
+    {
+      "observedMs": 1704,
+      "requestedMs": 1500,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547091839-deck-390/1-1500ms.png",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "98fdc666-a1c9-477c-b1db-f4efc697f7d5",
+        "sourceRevision": "0",
+        "sourceStatus": "complete",
+        "rawLength": "129",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "literal-0-37",
+        "phase": "held",
+        "pending": "",
+        "held": "true",
+        "rect": {
+          "x": 37,
+          "y": 461,
+          "width": 316,
+          "height": 106,
+          "top": 461,
+          "right": 353,
+          "bottom": 567,
+          "left": 37
+        }
+      },
+      "focused": [
+        {
+          "focusCard": "true",
+          "occurrenceId": "98fdc666-a1c9-477c-b1db-f4efc697f7d5:0",
+          "details": "head-bandage",
+          "label": "Artwork: Nine of Wands, upright"
+        }
+      ],
+      "phrases": [
+        {
+          "text": "Nine of Wands",
+          "id": "identity-0-3",
+          "pressed": "false",
+          "rect": {
+            "x": 33,
+            "y": 722.5,
+            "width": 149.09375,
+            "height": 50,
+            "top": 722.5,
+            "right": 182.09375,
+            "bottom": 772.5,
+            "left": 33
+          }
+        },
+        {
+          "text": "head bandage",
+          "id": "literal-0-37",
+          "pressed": "true",
+          "associated": "true",
+          "rect": {
+            "x": 178.046875,
+            "y": 770.5,
+            "width": 105.921875,
+            "height": 39,
+            "top": 770.5,
+            "right": 283.96875,
+            "bottom": 809.5,
+            "left": 178.046875
+          }
+        },
+        {
+          "text": "row of staffs",
+          "id": "literal-0-82",
+          "pressed": "false",
+          "rect": {
+            "x": 48.328125,
+            "y": 837.6875,
+            "width": 94.09375,
+            "height": 39,
+            "top": 837.6875,
+            "right": 142.421875,
+            "bottom": 876.6875,
+            "left": 48.328125
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Artwork: Nine of Wands, upright",
+          "disabled": false,
+          "rect": {
+            "x": 173,
+            "y": 364,
+            "width": 44,
+            "height": 64,
+            "top": 364,
+            "right": 217,
+            "bottom": 428,
+            "left": 173
+          }
+        }
+      ],
+      "reading": "Narrative ready.\n\nNine of Wands\n\nThe figure wears a head bandage wrapped across the forehead.\n\nA row of staffs stands upright behind the figure.",
+      "runningAnimations": 2
+    }
+  ]
+}

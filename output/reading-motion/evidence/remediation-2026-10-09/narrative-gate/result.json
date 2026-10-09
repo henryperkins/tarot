@@ -1,0 +1,71 @@
+{
+  "command": "npm run ci:narrative-check",
+  "status": "failed",
+  "exitCode": 1,
+  "generatedAt": "2026-10-09T12:40:58.896Z",
+  "run": "2026-10-09T12-40-59.116Z-f4MXXE",
+  "samples": 11,
+  "authentication": "personal-subscription",
+  "model": "claude-opus-5-5",
+  "reasoningEffort": "xhigh",
+  "apiFallback": false,
+  "failure": {
+    "sample": "wellbeing-marseille-reset",
+    "metric": "deterministic-language",
+    "match": "guaranteed",
+    "passage": "That improves the odds of relief, but it doesn't put relief on a guaranteed schedule.",
+    "disposition": "Existing lexical negation false positive; gate remains failed. Evaluator and narrative generator unchanged from reviewed revision."
+  },
+  "promptAssemblyCheck": {
+    "command": "node scripts/evaluation/verifyNarrativePromptAssembly.js",
+    "status": "passed",
+    "execution": "separate command because preceding failed gate short-circuited the package script"
+  },
+  "limitations": [
+    "No Workers AI binding: requested GraphRAG semantic scoring fell back to keyword scoring.",
+    "Direct subscription backend evaluation, not deployed Worker transport.",
+    "Initial symlinked-script setup reused stale copied samples; that setup run is discarded and excluded from these artifacts."
+  ],
+  "sourceFiles": [
+    {
+      "path": "scripts/evaluation/runNarrativeSamples.js",
+      "sha256": "94189d1d3b7b3abfb992d8f4f6861182e23baaaaa531d3164bb4e493947a1be9",
+      "unchangedFromF6bcfcd": true
+    },
+    {
+      "path": "scripts/evaluation/computeNarrativeMetrics.js",
+      "sha256": "c0196468ffc048a266818814ab3120efd054e5d66c4df0d51a97719168860596",
+      "unchangedFromF6bcfcd": true
+    },
+    {
+      "path": "scripts/evaluation/verifyNarrativeGate.js",
+      "sha256": "e7c97c35685e97463df8b4841c368b04100ba3ccdf431cd1964186881c2a37ef",
+      "unchangedFromF6bcfcd": true
+    },
+    {
+      "path": "scripts/evaluation/verifyNarrativePromptAssembly.js",
+      "sha256": "916576645fe36fcf7d77c49d468a8201455ebb8fb5d37bab659d68c6d23a1121",
+      "unchangedFromF6bcfcd": true
+    },
+    {
+      "path": "functions/lib/narrativeBuilder.js",
+      "sha256": "3262559813a661ab80619e2b2b38d02d548bb0c312d8c205d5fbf78c9f58e2de",
+      "unchangedFromF6bcfcd": true
+    },
+    {
+      "path": "functions/lib/narrativeBackends.js",
+      "sha256": "d1ddc9d0467fd4c4e5e9f4cbbde462d732858e2ffbc8a48b2eebec209c1724ac",
+      "unchangedFromF6bcfcd": true
+    },
+    {
+      "path": "functions/lib/readingQuality.js",
+      "sha256": "1930ae85e4d7bf81379e8cd78ac6bc7abff6a5794f9e6cfe530b5034717db1e2",
+      "unchangedFromF6bcfcd": true
+    }
+  ],
+  "preservedRecordedFixture": {
+    "path": "data/evaluations/narrative-samples.json",
+    "sha256": "b30c506a81f7cb360fb457fc2bd4825059d558b3a1f8862d5f0ab23f383fbe49",
+    "unchangedFromF6bcfcd": true
+  }
+}

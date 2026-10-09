@@ -4,7 +4,7 @@ import base from '../../playwright.config.js';
 export default {
   ...base,
   testDir: '../../e2e',
-  testMatch: ['reading-gestures.spec.js', 'reading-gestures-lifecycle.spec.js', 'reading-gestures-dynamic.spec.js', 'reading-gestures-refinement.spec.js', 'reading-gestures-deck.spec.js'],
+  testMatch: ['reading-gestures.spec.js', 'reading-gestures-lifecycle.spec.js', 'reading-gestures-dynamic.spec.js', 'reading-gestures-refinement.spec.js', 'reading-gestures-deck.spec.js', 'reading-gestures-generated.spec.js'],
   workers: 1,
   reporter: 'list',
   use: { ...base.use, baseURL: 'http://localhost:5174' },

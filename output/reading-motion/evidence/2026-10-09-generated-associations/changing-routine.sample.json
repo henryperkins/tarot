@@ -1,0 +1,452 @@
+{
+  "id": "changing-routine",
+  "language": "en",
+  "userQuestion": "How can I respond when a familiar routine no longer fits?",
+  "reflectionsText": "I am relieved by the possibility of change and uneasy about losing structure.",
+  "cards": [
+    {
+      "card": "Death",
+      "position": "Core",
+      "orientation": "Upright"
+    },
+    {
+      "card": "The Hanged Man",
+      "position": "Challenge",
+      "orientation": "Reversed"
+    },
+    {
+      "card": "Knight of Pentacles",
+      "position": "Hidden",
+      "orientation": "Reversed"
+    },
+    {
+      "card": "Queen of Wands",
+      "position": "Support",
+      "orientation": "Upright"
+    },
+    {
+      "card": "The World",
+      "position": "Direction",
+      "orientation": "Upright"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Opening\n\nWhen a familiar routine no longer fits, these cards invite you to hold both relief and unease, letting structure change shape rather than vanish.\n\n## The Story\n\nAt the core, Death upright shows a white rose on its banner and a sun between the towers. The white rose may speak to a clean ending, while the sun hints a new day is already forming.\n\nAs the challenge, The Hanged Man reversed shows a halo and a crossed leg. Reversed, that crossed leg may point to restlessness with waiting; the halo may ask what this pause has already shown you.\n\nHidden beneath, the Knight of Pentacles reversed holds a golden pentacle, with plowed fields behind him. Reversed, those furrows might reflect an old routine grown rigid.\n\nIn support, the Queen of Wands upright holds a sunflower, a black cat at her feet. Her sunflower may suggest warmth, and the black cat quiet self-trust, as you choose your own rhythm.\n\n## Putting It Together\n\nAs direction, The World upright shows a figure within a green wreath, holding two wands. The wreath may offer structure that encircles rather than confines. Its two wands, inside that circle, balance movement and form. Death and The World frame an ending that opens toward wholeness.\n\n## Gentle Next Steps\n\n- Name one part of your routine worth keeping, like the Knight's furrows.\n- Try one small new rhythm this week.\n- Notice where unease asks for support rather than stillness.\n\n## Closing\n\nChange and structure need not be opposites; you might let them hold each other.",
+    "annotations": [
+      {
+        "id": "death-identity",
+        "kind": "identity",
+        "quote": "Death upright",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "death-rose-literal",
+        "kind": "literal",
+        "quote": "a white rose on its banner",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "white-rose"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "death-sun-literal",
+        "kind": "literal",
+        "quote": "a sun between the towers",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "rising-sun"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "death-rose-interp",
+        "kind": "interpretation",
+        "quote": "The white rose may speak to a clean ending",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "white-rose"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "death-rose-literal"
+        ]
+      },
+      {
+        "id": "death-sun-interp",
+        "kind": "interpretation",
+        "quote": "the sun hints a new day is already forming",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "rising-sun"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "death-sun-literal"
+        ]
+      },
+      {
+        "id": "hanged-identity",
+        "kind": "identity",
+        "quote": "The Hanged Man reversed",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "hanged-literal",
+        "kind": "literal",
+        "quote": "a halo and a crossed leg",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "halo",
+              "crossed-leg"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "hanged-leg-interp",
+        "kind": "interpretation",
+        "quote": "that crossed leg may point to restlessness with waiting",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "crossed-leg"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "hanged-literal"
+        ]
+      },
+      {
+        "id": "hanged-halo-interp",
+        "kind": "interpretation",
+        "quote": "the halo may ask what this pause has already shown you",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "halo"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "hanged-literal"
+        ]
+      },
+      {
+        "id": "knight-identity",
+        "kind": "identity",
+        "quote": "Knight of Pentacles reversed",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "knight-pentacle-literal",
+        "kind": "literal",
+        "quote": "holds a golden pentacle",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "offered-pentacle"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "knight-fields-literal",
+        "kind": "literal",
+        "quote": "plowed fields behind him",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "plowed-fields"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "knight-fields-interp",
+        "kind": "interpretation",
+        "quote": "those furrows might reflect an old routine grown rigid",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "plowed-fields"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "knight-fields-literal"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "a familiar routine no longer fits"
+        }
+      },
+      {
+        "id": "queen-identity",
+        "kind": "identity",
+        "quote": "Queen of Wands upright",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "queen-sunflower-literal",
+        "kind": "literal",
+        "quote": "holds a sunflower",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "detailIds": [
+              "sunflower"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "queen-cat-literal",
+        "kind": "literal",
+        "quote": "a black cat at her feet",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "detailIds": [
+              "black-cat"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "queen-sunflower-interp",
+        "kind": "interpretation",
+        "quote": "Her sunflower may suggest warmth",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "detailIds": [
+              "sunflower"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "queen-sunflower-literal"
+        ]
+      },
+      {
+        "id": "queen-cat-interp",
+        "kind": "interpretation",
+        "quote": "the black cat quiet self-trust",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "detailIds": [
+              "black-cat"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "queen-cat-literal"
+        ]
+      },
+      {
+        "id": "world-identity",
+        "kind": "identity",
+        "quote": "The World upright",
+        "targets": [
+          {
+            "spreadIndex": 4,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "world-wreath-literal",
+        "kind": "literal",
+        "quote": "a figure within a green wreath",
+        "targets": [
+          {
+            "spreadIndex": 4,
+            "detailIds": [
+              "wreath"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "world-wands-literal",
+        "kind": "literal",
+        "quote": "holding two wands",
+        "targets": [
+          {
+            "spreadIndex": 4,
+            "detailIds": [
+              "two-wands"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "world-wreath-interp",
+        "kind": "interpretation",
+        "quote": "The wreath may offer structure that encircles rather than confines",
+        "targets": [
+          {
+            "spreadIndex": 4,
+            "detailIds": [
+              "wreath"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "world-wreath-literal"
+        ],
+        "personalContext": {
+          "type": "querent-reflection",
+          "quote": "uneasy about losing structure"
+        }
+      },
+      {
+        "id": "world-balance",
+        "kind": "balance",
+        "quote": "Its two wands, inside that circle, balance movement and form",
+        "targets": [
+          {
+            "spreadIndex": 4,
+            "detailIds": [
+              "two-wands",
+              "wreath"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "world-wands-literal",
+          "world-wreath-literal"
+        ]
+      },
+      {
+        "id": "death-world-relationship",
+        "kind": "relationship",
+        "quote": "Death and The World frame an ending that opens toward wholeness",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          },
+          {
+            "spreadIndex": 4,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "knight-furrows-return",
+        "kind": "interpretation",
+        "quote": "like the Knight's furrows",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "plowed-fields"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "knight-fields-literal"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:28:49.029Z",
+    "completedAt": "2026-10-09T12:30:13.937Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 1195,
+      "cache_read_input_tokens": 2052,
+      "output_tokens": 10527,
+      "output_tokens_details": {
+        "thinking_tokens": 7941
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 1195,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "71ae086073a49b3b7e7d85d00df32596ee016a31b9fc904c453ccb7fcf7d6ab3",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Opening\\n\\nWhen a familiar routine no longer fits, these cards invite you to hold both relief and unease, letting structure change shape rather than vanish.\\n\\n## The Story\\n\\nAt the core, Death upright shows a white rose on its banner and a sun between the towers. The white rose may speak to a clean ending, while the sun hints a new day is already forming.\\n\\nAs the challenge, The Hanged Man reversed shows a halo and a crossed leg. Reversed, that crossed leg may point to restlessness with waiting; the halo may ask what this pause has already shown you.\\n\\nHidden beneath, the Knight of Pentacles reversed holds a golden pentacle, with plowed fields behind him. Reversed, those furrows might reflect an old routine grown rigid.\\n\\nIn support, the Queen of Wands upright holds a sunflower, a black cat at her feet. Her sunflower may suggest warmth, and the black cat quiet self-trust, as you choose your own rhythm.\\n\\n## Putting It Together\\n\\nAs direction, The World upright shows a figure within a green wreath, holding two wands. The wreath may offer structure that encircles rather than confines. Its two wands, inside that circle, balance movement and form. Death and The World frame an ending that opens toward wholeness.\\n\\n## Gentle Next Steps\\n\\n- Name one part of your routine worth keeping, like the Knight's furrows.\\n- Try one small new rhythm this week.\\n- Notice where unease asks for support rather than stillness.\\n\\n## Closing\\n\\nChange and structure need not be opposites; you might let them hold each other.\",\"annotations\":[{\"id\":\"death-identity\",\"kind\":\"identity\",\"quote\":\"Death upright\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"death-rose-literal\",\"kind\":\"literal\",\"quote\":\"a white rose on its banner\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"white-rose\"]}]},{\"id\":\"death-sun-literal\",\"kind\":\"literal\",\"quote\":\"a sun between the towers\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"rising-sun\"]}]},{\"id\":\"death-rose-interp\",\"kind\":\"interpretation\",\"quote\":\"The white rose may speak to a clean ending\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"white-rose\"]}],\"establishedBy\":[\"death-rose-literal\"]},{\"id\":\"death-sun-interp\",\"kind\":\"interpretation\",\"quote\":\"the sun hints a new day is already forming\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"rising-sun\"]}],\"establishedBy\":[\"death-sun-literal\"]},{\"id\":\"hanged-identity\",\"kind\":\"identity\",\"quote\":\"The Hanged Man reversed\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"hanged-literal\",\"kind\":\"literal\",\"quote\":\"a halo and a crossed leg\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"halo\",\"crossed-leg\"]}]},{\"id\":\"hanged-leg-interp\",\"kind\":\"interpretation\",\"quote\":\"that crossed leg may point to restlessness with waiting\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"crossed-leg\"]}],\"establishedBy\":[\"hanged-literal\"]},{\"id\":\"hanged-halo-interp\",\"kind\":\"interpretation\",\"quote\":\"the halo may ask what this pause has already shown you\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"halo\"]}],\"establishedBy\":[\"hanged-literal\"]},{\"id\":\"knight-identity\",\"kind\":\"identity\",\"quote\":\"Knight of Pentacles reversed\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"knight-pentacle-literal\",\"kind\":\"literal\",\"quote\":\"holds a golden pentacle\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"offered-pentacle\"]}]},{\"id\":\"knight-fields-literal\",\"kind\":\"literal\",\"quote\":\"plowed fields behind him\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"plowed-fields\"]}]},{\"id\":\"knight-fields-interp\",\"kind\":\"interpretation\",\"quote\":\"those furrows might reflect an old routine grown rigid\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"plowed-fields\"]}],\"establishedBy\":[\"knight-fields-literal\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"a familiar routine no longer fits\"}},{\"id\":\"queen-identity\",\"kind\":\"identity\",\"quote\":\"Queen of Wands upright\",\"targets\":[{\"spreadIndex\":3,\"detailIds\":[]}]},{\"id\":\"queen-sunflower-literal\",\"kind\":\"literal\",\"quote\":\"holds a sunflower\",\"targets\":[{\"spreadIndex\":3,\"detailIds\":[\"sunflower\"]}]},{\"id\":\"queen-cat-literal\",\"kind\":\"literal\",\"quote\":\"a black cat at her feet\",\"targets\":[{\"spreadIndex\":3,\"detailIds\":[\"black-cat\"]}]},{\"id\":\"queen-sunflower-interp\",\"kind\":\"interpretation\",\"quote\":\"Her sunflower may suggest warmth\",\"targets\":[{\"spreadIndex\":3,\"detailIds\":[\"sunflower\"]}],\"establishedBy\":[\"queen-sunflower-literal\"]},{\"id\":\"queen-cat-interp\",\"kind\":\"interpretation\",\"quote\":\"the black cat quiet self-trust\",\"targets\":[{\"spreadIndex\":3,\"detailIds\":[\"black-cat\"]}],\"establishedBy\":[\"queen-cat-literal\"]},{\"id\":\"world-identity\",\"kind\":\"identity\",\"quote\":\"The World upright\",\"targets\":[{\"spreadIndex\":4,\"detailIds\":[]}]},{\"id\":\"world-wreath-literal\",\"kind\":\"literal\",\"quote\":\"a figure within a green wreath\",\"targets\":[{\"spreadIndex\":4,\"detailIds\":[\"wreath\"]}]},{\"id\":\"world-wands-literal\",\"kind\":\"literal\",\"quote\":\"holding two wands\",\"targets\":[{\"spreadIndex\":4,\"detailIds\":[\"two-wands\"]}]},{\"id\":\"world-wreath-interp\",\"kind\":\"interpretation\",\"quote\":\"The wreath may offer structure that encircles rather than confines\",\"targets\":[{\"spreadIndex\":4,\"detailIds\":[\"wreath\"]}],\"establishedBy\":[\"world-wreath-literal\"],\"personalContext\":{\"type\":\"querent-reflection\",\"quote\":\"uneasy about losing structure\"}},{\"id\":\"world-balance\",\"kind\":\"balance\",\"quote\":\"Its two wands, inside that circle, balance movement and form\",\"targets\":[{\"spreadIndex\":4,\"detailIds\":[\"two-wands\",\"wreath\"]}],\"establishedBy\":[\"world-wands-literal\",\"world-wreath-literal\"]},{\"id\":\"death-world-relationship\",\"kind\":\"relationship\",\"quote\":\"Death and The World frame an ending that opens toward wholeness\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]},{\"spreadIndex\":4,\"detailIds\":[]}]},{\"id\":\"knight-furrows-return\",\"kind\":\"interpretation\",\"quote\":\"like the Knight's furrows\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"plowed-fields\"]}],\"establishedBy\":[\"knight-fields-literal\"]}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 25,
+    "acceptedAnnotations": 25,
+    "compiledCounts": {
+      "identity": 5,
+      "literal": 9,
+      "interpretation": 9,
+      "balance": 1,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 6,
+      "literal": 7,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 1
+    },
+    "personalContextCount": 2,
+    "introducedCards": 5,
+    "modelLiteralReferences": 10,
+    "fallbackLiteralMatches": 7,
+    "rawSha256": "8865ab63b5d196b11001fd8cfb64cb7ddb0f8e1e916eacb6b643bc1b2935ed58",
+    "wordCount": 261
+  }
+}

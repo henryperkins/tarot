@@ -1,5 +1,7 @@
 # Personalized Reading Gestures React Bridge Implementation Plan
 
+> October 9 remediation update: the user authorized repairs following two outside reviews. See [the repair record](../reviews/2026-10-09-reading-gestures-remediation.md) for the current semantic source, scope and evidence. The original fixture-only/no-generation constraint below describes the earlier bridge milestone; the repair adds a bounded subscription-backed generation experiment and validated semantic metadata consumption. Production rollout remains gated.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a React bridge that can spotlight any of the deck's 78 cards, proving its streaming, imagery, emergence, hold, relationship, and revisit behavior with the three existing recorded studies before production rollout.

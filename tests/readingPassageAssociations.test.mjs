@@ -332,7 +332,7 @@ describe('alignReadingPassages dynamic passage alignment', () => {
     }
   });
 
-  test('aligns five-card reading discovering multi-card relationships and returns', async () => {
+  test('aligns five-card reading discovering named multi-card relationships', async () => {
     const fixture = JSON.parse(
       await readFile(
         new URL('../output/reading-motion/fixtures/gestures-five-card-creative-project.json', import.meta.url),

@@ -20,6 +20,12 @@ const validate = (association, options = {}, payload = {}) => validatePassageAss
 }, { rawText, cards, ...options });
 
 describe('passage contract rejects unsupported associations before exposure', () => {
+  test('an explicitly absent recorded reflection preserves the passage and removes only its optional context', () => {
+    const result = validate(cue({ personalContext: { type: 'recorded-fixture-context', quote: 'nostalgic' } }), {}, { recordedContext: null });
+    assert.equal(result.associations.length, 1);
+    assert.equal(result.associations[0].personalContext, undefined);
+    assert.equal(result.valid, true);
+  });
   test('strips a personal claim when its supplied context is absent', () => {
     for (const type of ['question', 'card-reflection', 'querent-reflection', 'recorded-fixture-context']) {
       const result = validate(cue({ personalContext: { type, spreadIndex: 0, quote: 'nostalgic' } }));

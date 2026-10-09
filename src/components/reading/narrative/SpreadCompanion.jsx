@@ -3,6 +3,7 @@ import { CardTouchArt } from './CardTouchArt';
 import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './NarrativeCardFocus';
 import { railColumns } from './spreadCompanionLayout';
 import '../../../styles/narrative-card-touch.css';
+import { getVectorGestureFrames } from '../../../data/cardGestureArtwork.js';
 import { getCardPresence } from './narrativeGestureState.js';
 
 function cardLabel(card) {
@@ -133,7 +134,7 @@ function GestureCompanion({ focus, api }) {
         if (!card) return null;
         const introduction = introductions.find(item => item.occurrenceId === target.occurrenceId);
         const presence = getCardPresence({ introduction, visibleEnd: state.visibleEnd, inspected: Boolean(state.held), reducedMotion: calm });
-        const frameIds = target.detailIds.length > 1 && association.targets.length === 1 && card.canonicalName !== 'The Star' ? target.detailIds : [target.detailIds];
+        const frameIds = getVectorGestureFrames(card.canonicalName, target.detailIds, { paired: association.targets.length > 1 });
         return <button key={target.occurrenceId} type="button" className="gesture-focus-card"
           data-focus-card data-occurrence-id={target.occurrenceId} data-details={target.detailIds.join(' ')}
           tabIndex={departing || !state.introduced.includes(target.occurrenceId) ? -1 : 0} disabled={departing || !state.introduced.includes(target.occurrenceId)}

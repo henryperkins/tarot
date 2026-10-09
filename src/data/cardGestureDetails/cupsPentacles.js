@@ -170,7 +170,7 @@ const entries = {
   'Four of Pentacles': [
     anchor('clutched-coin', ['clutched pentacle', 'coin against his chest'],
       [[.48, .517, .14, .095]], { x: .49, y: .52, zoom: 1.85 },
-      /\b(?:clutched pentacle|(?:coin|pentacle) (?:against|at) (?:his|the) chest)\b/giu, /\b(?:hands|arms|hold\w*|clutch\w*|figure)\b/i,
+      /\b(?:clutched pentacle|(?:coin|pentacle) (?:against|at|to) (?:his|the) chest)\b/giu, /\b(?:hands|arms|hold\w*|clutch\w*|figure)\b/i,
       'The seated figure holds a coin against his chest with both arms.'),
     anchor('coins-underfoot', ['coins under his feet', 'pentacles beneath his feet'],
       [[.332, .819, .12, .055], [.576, .821, .12, .055]], { x: .455, y: .82, zoom: 1.50 },

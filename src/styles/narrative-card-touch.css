@@ -456,8 +456,8 @@
 .gesture-art__image { display: block; width: 100%; height: 100%; opacity: .74; filter: brightness(.88); transition: opacity 140ms ease-out, filter 140ms ease-out; }
 .gesture-art[data-held] .gesture-art__image, button:hover .gesture-art__image, button:focus-visible .gesture-art__image, .gesture-art[data-calm][data-active] .gesture-art__image { opacity: 1; filter: brightness(1); }
 .gesture-art__light, .gesture-art__water { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.gesture-art__light { opacity: .65; }
-.gesture-art__surround { fill: var(--bg-main); opacity: .3; }
+.gesture-art__light { opacity: .9; }
+.gesture-art__surround { fill: var(--bg-main); opacity: .52; }
 .gesture-art__water { opacity: var(--gesture-water-opacity, 0); mix-blend-mode: screen; }
 .gesture-art__trace { fill: none; stroke: #f8e6ad; stroke-width: 5; stroke-linecap: round; opacity: .32; }
 .gesture-art__flow, .gesture-art__rivulet { fill: none; stroke: #d2efff; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 28 18; animation: gesture-flow 1s linear infinite paused; }
@@ -466,7 +466,7 @@
 .gesture-shelf-card, .gesture-focus-card { transition: transform 140ms ease-out, box-shadow 140ms ease-out; }
 .gesture-shelf-card:enabled:hover, .gesture-shelf-card:focus-visible, .gesture-focus-card:hover, .gesture-focus-card:focus-visible { transform: translate3d(0, -3px, 0); box-shadow: 0 16px 32px rgb(0 0 0 / .26); }
 .gesture-shelf-card:focus-visible, .gesture-focus-card:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 3px; }
-.reading-gesture-association { display: inline; border: 0; border-radius: 3px; margin: 0; padding: 10px 0; background: none; color: inherit; font: inherit; line-height: inherit; text-align: inherit; cursor: pointer; text-decoration: underline dotted; text-decoration-color: rgb(var(--brand-primary-rgb) / .48); text-underline-offset: .2em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.reading-gesture-association { display: inline; border: 0; border-radius: 3px; margin: 0; padding: 10px 0; background: none; color: inherit; font: inherit; line-height: inherit; text-align: inherit; cursor: pointer; text-decoration: underline dotted; text-decoration-color: rgb(var(--brand-primary-rgb) / .32); text-underline-offset: .2em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 .reading-gesture-association[data-associated] { background: rgb(var(--brand-primary-rgb) / .08); text-decoration-color: var(--brand-primary); }
 .reading-gesture-association:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
 @keyframes gesture-arrive { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
@@ -488,9 +488,10 @@
   .gesture-context { min-height: 26px; margin-top: 5px; text-align: center; }
 }
 @media (max-width: 359px) { .gesture-window { height: 96px; } .gesture-shelf { gap: 4px; } }
-@media (max-height: 600px) and (max-width: 1023px) { .gesture-window { height: 72px; } .gesture-shelf-card { height: 48px; } .gesture-shelf-card > .gesture-art { width: 29px; } }
+@media (max-height: 600px) and (max-width: 1023px) { .gesture-window { height: 72px; } .gesture-shelf-card { height: 48px; } .gesture-shelf-card > .gesture-art { width: 29px; } .gesture-art[data-crop] .gesture-art__plane { transform: translate(-50%, -50%) scale(var(--crop-zoom-short)) translate(var(--crop-x), var(--crop-y)); } }
 @media (prefers-reduced-motion: reduce) {
   .gesture-focus-layer, .gesture-art [data-gesture-water] { animation: none !important; }
+  .reading-gesture-association { transition: none !important; animation: none !important; }
   .gesture-art[data-dynamic='true'], .gesture-art__plane, .gesture-art__image, .gesture-shelf-card, .gesture-focus-card { transition: none; }
   .gesture-shelf-card:hover, .gesture-shelf-card:focus-visible, .gesture-focus-card:hover, .gesture-focus-card:focus-visible { transform: none; }
   .gesture-art__water { opacity: 0; }

@@ -1,6 +1,6 @@
 import { useId, useMemo, useRef } from 'react';
 import { getCardTouchPoints } from '../../../data/cardTouchPoints.js';
-import { getVectorGestureDetails, projectGestureFrame } from '../../../data/cardGestureArtwork.js';
+import { getVectorGestureDetails, getVectorGestureFrame } from '../../../data/cardGestureArtwork.js';
 import { useCardGestureMotion } from './useCardGestureMotion.js';
 
 // The light layer's coordinate box follows the RWS artwork's proportions
@@ -24,7 +24,7 @@ function GestureArtwork({ card, gesture, presence, dynamic, motionOwner, crop, c
   const details = useMemo(() => card.artworkEdition === 'rws-immanuelle-vector'
     ? getVectorGestureDetails(card.canonicalName).filter(({ id }) => gesture.detailIds.includes(id)) : [], [card.canonicalName, card.artworkEdition, gesture.detailIds]);
   const motion = useMemo(() => ({ details }), [details]);
-  const frame = crop && details.length === 1 ? projectGestureFrame(details[0].frame, card.isReversed) : { x: .5, y: .5, zoom: .39 };
+  const frame = crop ? getVectorGestureFrame(card.canonicalName, details.map(detail => detail.id), card.isReversed) : { x: .5, y: .5, zoom: .39, shortZoom: .39 };
   const masks = details.flatMap(detail => detail.maskSpots);
   useCardGestureMotion({ elementRef: root, runId: gesture.runId, sourceRevision: gesture.sourceRevision,
     associationId: gesture.associationId, gesture: motion, phase: gesture.phase,
@@ -35,7 +35,7 @@ function GestureArtwork({ card, gesture, presence, dynamic, motionOwner, crop, c
       data-active={gesture.active ? 'true' : undefined}
       data-dynamic={dynamic ? 'true' : undefined}
       data-calm={calm ? 'true' : undefined} data-crop={crop ? 'true' : undefined}
-      style={{ '--presence': presence, visibility: presence > 0 ? 'visible' : 'hidden', '--crop-x': `${(0.5 - frame.x) * 100}%`, '--crop-y': `${(0.5 - frame.y) * 100}%`, '--crop-zoom': frame.zoom }}>
+      style={{ '--presence': presence, visibility: presence > 0 ? 'visible' : 'hidden', '--crop-x': `${(0.5 - frame.x) * 100}%`, '--crop-y': `${(0.5 - frame.y) * 100}%`, '--crop-zoom': frame.zoom, '--crop-zoom-short': frame.shortZoom }}>
       <span className="gesture-art__plane">
         <span className="gesture-art__upright" data-reversed={card.isReversed ? 'true' : undefined}>
           <img className="gesture-art__image" src={card.image} alt="" decoding="async" draggable="false" />
@@ -44,8 +44,8 @@ function GestureArtwork({ card, gesture, presence, dynamic, motionOwner, crop, c
               <defs>
                 <radialGradient id={`${id}-soft`}><stop offset="0" stopColor="white" /><stop offset=".56" stopColor="white" stopOpacity=".85" /><stop offset="1" stopColor="white" stopOpacity="0" /></radialGradient>
                 <radialGradient id={`${id}-surround-soft`}><stop offset="0" stopColor="black" /><stop offset=".56" stopColor="black" stopOpacity=".85" /><stop offset="1" stopColor="black" stopOpacity="0" /></radialGradient>
-                <mask id={`${id}-mask`}><rect width="1086" height="1810" fill="black" />{masks.map((spot, index) => <ellipse key={index} cx={spot.x * 1086} cy={spot.y * 1810} rx={spot.rx * 1086} ry={spot.ry * 1810} fill={`url(#${id}-soft)`} />)}</mask>
-                <mask id={`${id}-surround-mask`}><rect width="1086" height="1810" fill="white" />{masks.map((spot, index) => <ellipse key={index} cx={spot.x * 1086} cy={spot.y * 1810} rx={spot.rx * 1086} ry={spot.ry * 1810} fill={`url(#${id}-surround-soft)`} />)}</mask>
+                <mask id={`${id}-mask`}><rect width="1086" height="1810" fill="black" />{masks.map((spot, index) => <ellipse key={index} cx={spot.x * 1086} cy={spot.y * 1810} rx={spot.rx * 1086} ry={spot.ry * 1810} transform={spot.rotation ? `rotate(${spot.rotation} ${spot.x * 1086} ${spot.y * 1810})` : undefined} fill={`url(#${id}-soft)`} />)}</mask>
+                <mask id={`${id}-surround-mask`}><rect width="1086" height="1810" fill="white" />{masks.map((spot, index) => <ellipse key={index} cx={spot.x * 1086} cy={spot.y * 1810} rx={spot.rx * 1086} ry={spot.ry * 1810} transform={spot.rotation ? `rotate(${spot.rotation} ${spot.x * 1086} ${spot.y * 1810})` : undefined} fill={`url(#${id}-surround-soft)`} />)}</mask>
               </defs>
               {/* Local contrast survives a fully bright base image and reduced motion. */}
               <rect className="gesture-art__surround" width="1086" height="1810" mask={`url(#${id}-surround-mask)`} />

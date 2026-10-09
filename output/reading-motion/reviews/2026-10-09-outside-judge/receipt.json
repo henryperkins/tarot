@@ -1,0 +1,52 @@
+{
+  "started": "2026-10-09T11:53:22.460Z",
+  "completed": "2026-10-09T12:06:20.822Z",
+  "model": "claude-opus-5-5",
+  "effort": "xhigh",
+  "authentication": "verified existing personal subscription",
+  "provider": "claude-code",
+  "assistantTurns": 175,
+  "toolCalls": 91,
+  "permissionDenials": [
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_0133XwYKK5V3SCqm2DbZUa3G",
+      "tool_input": {
+        "command": "ls snapshot && ls snapshot/src/components/reading/narrative/ && ls snapshot/src/data/cardGestureDetails/ | head -50 && ls snapshot/output/reading-motion/fixtures snapshot/output/reading-motion/assets/rws-immanuelle | head -50 && grep '^diff --git' update.patch | awk '{print $3}' && echo ---- && grep '^diff --git' bridge.patch | awk '{print $3}' | head -200",
+        "description": "Survey snapshot layout and files changed in patches"
+      }
+    },
+    {
+      "tool_name": "Bash",
+      "tool_use_id": "toolu_01LhLvjbaK2eD7TaY9s5tdNr",
+      "tool_input": {
+        "command": "node probe.mjs '{\"rawText\":\"If things keep moving as they are, the trajectory leans toward The Star. A figure kneels under a large star, pouring one pitcher into a pool and the other onto the land. That image speaks almost directly to your reflection. One hand tends the emotional reservoir of memory and the people back home, and the other waters new ground. Neither pitcher gets dropped.\",\"cards\":[\"Six of Cups\",\"The Tower\",\"The Star\"],\"sourceComplete\":true}' | node -e 'let s=\"\";process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const r=JSON.parse(s);console.log(r.associations.map(a=>a.kind+\" | \"+a.passage.quote+\" | \"+a.targets.map(t=>t.canonicalName+\":\"+t.detailIds.join(\"+\")).join(\",\")).join(\"\\n\"))})'",
+        "description": "Probe exact fixture Star passage and summarize cues"
+      }
+    }
+  ],
+  "usage": {
+    "input_tokens": 118,
+    "cache_creation_input_tokens": 233680,
+    "cache_read_input_tokens": 8396166,
+    "output_tokens": 52698,
+    "output_tokens_details": {
+      "thinking_tokens": 34440
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 233680,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "reviewedCommit": "f6bcfcd17cc52dfe36cea65a286867f8a3e80c95",
+  "report": "judge-report.md"
+}

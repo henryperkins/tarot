@@ -1,0 +1,327 @@
+{
+  "id": "ritmo-compartido",
+  "language": "es",
+  "userQuestion": "¿Cómo puedo encontrar un ritmo más amable al comenzar a convivir?",
+  "reflectionsText": "Quiero cuidar el vínculo sin abandonar mis propios espacios.",
+  "cards": [
+    {
+      "card": "Temperance",
+      "position": "Situation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Four of Wands",
+      "position": "Invitation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "The Hermit",
+      "position": "Direction",
+      "orientation": "Reversed"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Apertura\n\nComenzar a convivir es aprender un compás nuevo. Buscas un ritmo más amable, y tu deseo de cuidar el vínculo sin abandonar tus propios espacios ya marca el tono de esta tirada.\n\n## La historia\n\nEn la situación aparece la Templanza. El agua corre entre las copas, y la figura apoya un pie en el agua. Ese flujo continuo sugiere que la convivencia puede ajustarse poco a poco, sin vaciar ninguna de las dos copas.\n\nComo invitación llega el Cuatro de Bastos. Cuelga una guirnalda de flores, y dos celebrantes alzan sus ramos. Quizá la invitación sea festejar lo que ya están construyendo.\n\nEn la dirección, El Ermitaño aparece invertido. Su farol alumbra los próximos pasos. Invertido, podría invitarte a notar si tu propia luz se va apagando o si, al revés, se encierra en aislamiento.\n\n## Uniendo todo\n\nLa Templanza y el Cuatro de Bastos dialogan: el equilibrio diario también merece celebración. Ese pie en el agua habla de estar presente sin disolverte, y la guirnalda recuerda que el hogar compartido puede adornarse con gestos sencillos.\n\n## Próximos pasos suaves\n\n- Podrías acordar ratos de soledad, como quien enciende su farol solo para unos pasos.\n- Celebren pequeños logros: una cena, un rincón terminado.\n- Conversen sin prisa sobre lo que cada uno necesita.\n\n## Cierre\n\nNo hace falta elegir entre el vínculo y tu espacio. El agua que fluye entre las copas y el pie apoyado conviven en la misma escena; quizá tú también puedas habitar ambos.",
+    "annotations": [
+      {
+        "id": "id-temperance",
+        "kind": "identity",
+        "quote": "aparece la Templanza",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-cup-stream",
+        "kind": "literal",
+        "quote": "El agua corre entre las copas",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "cup-stream"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-two-feet",
+        "kind": "literal",
+        "quote": "apoya un pie en el agua",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "two-feet"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-cup-stream",
+        "kind": "interpretation",
+        "quote": "la convivencia puede ajustarse poco a poco",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "cup-stream"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-cup-stream"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "un ritmo más amable"
+        }
+      },
+      {
+        "id": "id-four-wands",
+        "kind": "identity",
+        "quote": "llega el Cuatro de Bastos",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-garland",
+        "kind": "literal",
+        "quote": "Cuelga una guirnalda de flores",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "garland"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-celebrants",
+        "kind": "literal",
+        "quote": "dos celebrantes alzan sus ramos",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "celebrants"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-celebrants",
+        "kind": "interpretation",
+        "quote": "festejar lo que ya están construyendo",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "celebrants"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-celebrants"
+        ]
+      },
+      {
+        "id": "id-hermit",
+        "kind": "identity",
+        "quote": "El Ermitaño aparece invertido",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-lantern",
+        "kind": "literal",
+        "quote": "Su farol alumbra los próximos pasos",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "lantern"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-lantern-light",
+        "kind": "interpretation",
+        "quote": "si tu propia luz se va apagando",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "lantern"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-lantern"
+        ],
+        "personalContext": {
+          "type": "querent-reflection",
+          "quote": "sin abandonar mis propios espacios"
+        }
+      },
+      {
+        "id": "rel-temperance-four",
+        "kind": "relationship",
+        "quote": "La Templanza y el Cuatro de Bastos dialogan",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          },
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "int-two-feet",
+        "kind": "interpretation",
+        "quote": "Ese pie en el agua habla de estar presente sin disolverte",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "two-feet"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-two-feet"
+        ],
+        "personalContext": {
+          "type": "querent-reflection",
+          "quote": "cuidar el vínculo sin abandonar mis propios espacios"
+        }
+      },
+      {
+        "id": "int-garland",
+        "kind": "interpretation",
+        "quote": "la guirnalda recuerda que el hogar compartido puede adornarse",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "garland"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-garland"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "al comenzar a convivir"
+        }
+      },
+      {
+        "id": "int-lantern-steps",
+        "kind": "interpretation",
+        "quote": "como quien enciende su farol solo para unos pasos",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "lantern"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-lantern"
+        ]
+      },
+      {
+        "id": "bal-temperance",
+        "kind": "balance",
+        "quote": "El agua que fluye entre las copas y el pie apoyado conviven en la misma escena",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "cup-stream",
+              "two-feet"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-cup-stream",
+          "lit-two-feet"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:30:20.890Z",
+    "completedAt": "2026-10-09T12:31:24.575Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 974,
+      "cache_read_input_tokens": 2052,
+      "output_tokens": 7785,
+      "output_tokens_details": {
+        "thinking_tokens": 5627
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 974,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "0aa421d3deea23351965ef0bc4890555b3699a82480744aac8b215f32c41c104",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Apertura\\n\\nComenzar a convivir es aprender un compás nuevo. Buscas un ritmo más amable, y tu deseo de cuidar el vínculo sin abandonar tus propios espacios ya marca el tono de esta tirada.\\n\\n## La historia\\n\\nEn la situación aparece la Templanza. El agua corre entre las copas, y la figura apoya un pie en el agua. Ese flujo continuo sugiere que la convivencia puede ajustarse poco a poco, sin vaciar ninguna de las dos copas.\\n\\nComo invitación llega el Cuatro de Bastos. Cuelga una guirnalda de flores, y dos celebrantes alzan sus ramos. Quizá la invitación sea festejar lo que ya están construyendo.\\n\\nEn la dirección, El Ermitaño aparece invertido. Su farol alumbra los próximos pasos. Invertido, podría invitarte a notar si tu propia luz se va apagando o si, al revés, se encierra en aislamiento.\\n\\n## Uniendo todo\\n\\nLa Templanza y el Cuatro de Bastos dialogan: el equilibrio diario también merece celebración. Ese pie en el agua habla de estar presente sin disolverte, y la guirnalda recuerda que el hogar compartido puede adornarse con gestos sencillos.\\n\\n## Próximos pasos suaves\\n\\n- Podrías acordar ratos de soledad, como quien enciende su farol solo para unos pasos.\\n- Celebren pequeños logros: una cena, un rincón terminado.\\n- Conversen sin prisa sobre lo que cada uno necesita.\\n\\n## Cierre\\n\\nNo hace falta elegir entre el vínculo y tu espacio. El agua que fluye entre las copas y el pie apoyado conviven en la misma escena; quizá tú también puedas habitar ambos.\",\"annotations\":[{\"id\":\"id-temperance\",\"kind\":\"identity\",\"quote\":\"aparece la Templanza\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"lit-cup-stream\",\"kind\":\"literal\",\"quote\":\"El agua corre entre las copas\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"cup-stream\"]}]},{\"id\":\"lit-two-feet\",\"kind\":\"literal\",\"quote\":\"apoya un pie en el agua\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"two-feet\"]}]},{\"id\":\"int-cup-stream\",\"kind\":\"interpretation\",\"quote\":\"la convivencia puede ajustarse poco a poco\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"cup-stream\"]}],\"establishedBy\":[\"lit-cup-stream\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"un ritmo más amable\"}},{\"id\":\"id-four-wands\",\"kind\":\"identity\",\"quote\":\"llega el Cuatro de Bastos\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"lit-garland\",\"kind\":\"literal\",\"quote\":\"Cuelga una guirnalda de flores\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"garland\"]}]},{\"id\":\"lit-celebrants\",\"kind\":\"literal\",\"quote\":\"dos celebrantes alzan sus ramos\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"celebrants\"]}]},{\"id\":\"int-celebrants\",\"kind\":\"interpretation\",\"quote\":\"festejar lo que ya están construyendo\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"celebrants\"]}],\"establishedBy\":[\"lit-celebrants\"]},{\"id\":\"id-hermit\",\"kind\":\"identity\",\"quote\":\"El Ermitaño aparece invertido\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"lit-lantern\",\"kind\":\"literal\",\"quote\":\"Su farol alumbra los próximos pasos\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"lantern\"]}]},{\"id\":\"int-lantern-light\",\"kind\":\"interpretation\",\"quote\":\"si tu propia luz se va apagando\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"lantern\"]}],\"establishedBy\":[\"lit-lantern\"],\"personalContext\":{\"type\":\"querent-reflection\",\"quote\":\"sin abandonar mis propios espacios\"}},{\"id\":\"rel-temperance-four\",\"kind\":\"relationship\",\"quote\":\"La Templanza y el Cuatro de Bastos dialogan\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]},{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"int-two-feet\",\"kind\":\"interpretation\",\"quote\":\"Ese pie en el agua habla de estar presente sin disolverte\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"two-feet\"]}],\"establishedBy\":[\"lit-two-feet\"],\"personalContext\":{\"type\":\"querent-reflection\",\"quote\":\"cuidar el vínculo sin abandonar mis propios espacios\"}},{\"id\":\"int-garland\",\"kind\":\"interpretation\",\"quote\":\"la guirnalda recuerda que el hogar compartido puede adornarse\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"garland\"]}],\"establishedBy\":[\"lit-garland\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"al comenzar a convivir\"}},{\"id\":\"int-lantern-steps\",\"kind\":\"interpretation\",\"quote\":\"como quien enciende su farol solo para unos pasos\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"lantern\"]}],\"establishedBy\":[\"lit-lantern\"]},{\"id\":\"bal-temperance\",\"kind\":\"balance\",\"quote\":\"El agua que fluye entre las copas y el pie apoyado conviven en la misma escena\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"cup-stream\",\"two-feet\"]}],\"establishedBy\":[\"lit-cup-stream\",\"lit-two-feet\"]}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 16,
+    "acceptedAnnotations": 16,
+    "compiledCounts": {
+      "identity": 3,
+      "literal": 5,
+      "interpretation": 6,
+      "balance": 1,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 0,
+      "literal": 0,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 0
+    },
+    "personalContextCount": 4,
+    "introducedCards": 3,
+    "modelLiteralReferences": 5,
+    "fallbackLiteralMatches": 0,
+    "rawSha256": "ea23537347d8d0301f419c9a70e933b5475222b14778cc52d677829ce1b71e48",
+    "wordCount": 251
+  }
+}

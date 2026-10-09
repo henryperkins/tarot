@@ -22,7 +22,7 @@ test('deck study exposes all 78 vector faces and keeps synthetic prose distinct 
   await expect(page.getByText('Synthetic descriptions of painted details; this is not a recorded or personalized reading.', { exact: true })).toBeVisible();
   await expect(page.getByText('Your Personalized Narrative', { exact: true })).toHaveCount(0);
   await expect(page.getByTestId('recorded-reflection')).toHaveCount(0);
-  await expect(page.locator('[data-gesture-shelf] img')).toHaveAttribute('src', /major-00-fool\.svg$/);
+  await expect(page.locator('[data-gesture-shelf] img')).toHaveAttribute('src', /major-00-fool\.webp$/);
   await expect.poll(() => page.locator('[data-gesture-shelf] img').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
   await expect(phrase(page, /white dog/)).toBeVisible();
   await phrase(page, /white dog/).click();
@@ -34,7 +34,7 @@ test('deck study exposes all 78 vector faces and keeps synthetic prose distinct 
   await expect(phrase(page, /sprouting leaves/)).toBeVisible();
   await phrase(page, /sprouting leaves/).click();
   await expect(current(page)).toHaveAttribute('data-details', 'sprout');
-  await expect(page.locator('[data-gesture-shelf] img')).toHaveAttribute('src', /wands-01\.svg$/);
+  await expect(page.locator('[data-gesture-shelf] img')).toHaveAttribute('src', /wands-01\.webp$/);
   expect(jobs).toEqual([]);
 });
 
@@ -50,13 +50,13 @@ test('deck study allows keyboard detail inspection across the new suits', async 
   await page.getByRole('combobox', { name: 'Card', exact: true }).selectOption('Ace of Cups');
   await phrase(page, /dove/).click();
   await expect(current(page)).toHaveAttribute('data-details', 'descending-dove');
-  await expect(page.locator('[data-gesture-shelf] img')).toHaveAttribute('src', /cups-01\.svg$/);
+  await expect(page.locator('[data-gesture-shelf] img')).toHaveAttribute('src', /cups-01\.webp$/);
   await page.getByRole('combobox', { name: 'Card', exact: true }).selectOption('Four of Pentacles');
   const physical = page.locator('[data-gesture-id]').filter({ hasText: /pentacle/ }).last();
   await expect(physical).toBeVisible();
   await physical.click();
   await expect(current(page)).toHaveAttribute('data-details', /.+/);
-  await expect(page.locator('[data-gesture-shelf] img')).toHaveAttribute('src', /pentacles-04\.svg$/);
+  await expect(page.locator('[data-gesture-shelf] img')).toHaveAttribute('src', /pentacles-04\.webp$/);
 });
 
 test('reversed deck details remain usable and still on a reduced-motion phone @mobile', async ({ page }) => {

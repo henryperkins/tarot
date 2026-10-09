@@ -44,20 +44,6 @@ const LITERAL_RULES = {
   'Wheel of Fortune': [{ id: 'wheel', match: /\b(?:great )?wheel\b/giu, scene: /\b(?:sphinx|snake|Anubis)\b/i }]
 };
 
-// Returns require the corresponding literal detail earlier in this reading.
-// These are deliberately narrow English phrases, not general keyword triggers.
-const RETURNS = [
-  { name: 'The Hermit', ids: ['lantern'], match: /\blantern first\b/giu, named: true },
-  { name: 'Five of Wands', ids: ['staffs'], match: /\bstepping into the scrum\b/giu, crossContext: true },
-  { name: 'The Star', ids: ['pool-pour'], match: /\b(?:emotional reservoir of memory|people back home)\b/giu },
-  { name: 'The Star', ids: ['land-pour'], match: /\bthe other waters new ground\b/giu },
-  { name: 'The Star', ids: ['pool-pour', 'land-pour'], match: /\bNeither pitcher gets dropped\b/giu, kind: 'balance' },
-  { name: 'Seven of Swords', ids: ['two-swords'], match: /\b(?:Write down the |those )?two missing swords\b/giu },
-  { name: 'Three of Pentacles', ids: ['collaborators'], match: /\bAsk for a tone check only\b/giu },
-  { name: 'Wheel of Fortune', ids: ['wheel'], match: /\bgives the wheel something to turn on\b/giu },
-  { name: 'Ace of Wands', ids: ['sprout'], match: /\bThe spark in this spread\b/giu, kind: 'identity' }
-];
-
 /** Keep raw offsets while excluding Markdown nodes the renderer cannot annotate. */
 function proseBlocks(raw) {
   const blocks = [];
@@ -128,17 +114,20 @@ function sourceSpan(block, from, to, raw, complete) {
 }
 
 /**
- * The new deck-wide rules require a closed, affirmative physical clause.
- * Scene evidence must belong to that clause, not a nearby instruction or a
- * later interpretation. Ambiguous personal/imagined descriptions stay prose.
- * This is a conservative English boundary, not general semantic parsing.
+ * All cards use the same conservative physical-clause boundary. A closed
+ * sentence supplies negation/qualifiers before any detail is published.
+ * Observation language ("you see him holding...") is distinct from assigning
+ * the image to the reader ("you hold..."). Commas within adjective lists are
+ * not clause boundaries. This English fallback makes no interpretive claims.
  */
-function expandedPhysicalClause(scene, from, to) {
-  const nonDepiction = /^\s*(?:metaphorically|figuratively|consider|imagine|envision|suppose|pretend|if|what if)\b/i;
-  if (nonDepiction.test(scene)) return null;
+function physicalClause(scene, from, to, sentence) {
+  const nonDepiction = /^\s*(?:metaphorically|figuratively|consider|imagine|envision|suppose|pretend|if|what if|let)\b/i;
+  if (nonDepiction.test(sentence) || nonDepiction.test(scene)) return null;
   let start = 0;
   let end = scene.length;
-  for (const boundary of scene.matchAll(/[,;]|\b(?:but|whereas)\b/giu)) {
+  // Split only a new clause or explicit qualifier, not "ornate, covered cup".
+  const boundaries = /;|\b(?:but|whereas)\b|\b(?:and|while)\s+(?=(?:you|your|we|our|I|my)\b)|,(?=\s*(?:(?:and|or)\s+)?(?:you|your|we|our|I|my|a|an|the|not|no|never|without|remind\w*|suggest\w*|symboli[sz]\w*|represent\w*)\b)/giu;
+  for (const boundary of scene.matchAll(boundaries)) {
     if (boundary.index + boundary[0].length <= from) start = boundary.index + boundary[0].length;
     else if (boundary.index >= to) { end = boundary.index; break; }
     else return null;
@@ -150,9 +139,10 @@ function expandedPhysicalClause(scene, from, to) {
     if (interpretation < to - start) return null;
     clause = clause.slice(0, interpretation);
   }
-  // These are grammatical subjects/negations inside the physical clause,
-  // never a list of abstract symbol meanings inferred from the whole sentence.
-  if (/\b(?:you|your|yours|we|our|ours|us|I|my|mine|me)\b/i.test(clause)) return null;
+  // Remove only affirmative observation framing. "You do not see..." and
+  // "you see yourself..." still fail the pronoun/negation checks below.
+  clause = clause.replace(/^\s*(?:(?:in|on) (?:the|this) (?:card|image|picture|artwork),?\s*)?you\s+(?:(?:can|may|will)\s+)?(?:see|notice|observe)\s+/i, '');
+  if (/\b(?:you|your|yours|yourself|yourselves|we|our|ours|ourselves|us|I|my|mine|myself|me)\b/i.test(clause)) return null;
   if (/\b(?:no|not|never|neither|without|cannot|\w+n['’]t)\b/i.test(clause)) return null;
   return clause;
 }
@@ -172,7 +162,6 @@ export function alignReadingPassages({
   const catalog = buildCardLinkCatalog({ cards: normalized, deckStyle });
   if (!catalog) return empty;
   const introductions = new Map();
-  const established = new Map();
   const candidates = [];
   let context = null;
   const supported = name => artworkEdition === VECTOR_EDITION
@@ -213,15 +202,9 @@ export function alignReadingPassages({
           const prefix = block.text.slice(sentence.offset, first.start);
           const start = /^The\s+$/i.test(prefix) ? sentence.offset : first.start;
           const passage = sourceSpan(block, start, last.end, raw, sourceComplete);
-          // This explicit interpretation has two known image referents. Other
-          // named pairs retain identity; prior detail alone is not a license to
-          // carry arbitrary geometry into a new relationship.
-          const synthesis = /\bboth your drive and your sensitivity\b/i.test(sentence.text)
-            && unique.some(index => byIndex.get(index).canonicalName === 'Ace of Wands')
-            && unique.some(index => byIndex.get(index).canonicalName === 'Queen of Cups');
-          const meanings = { 'Ace of Wands': 'sprout', 'Queen of Cups': 'cup' };
-          const grounded = synthesis && passage && unique.every(index => established.get(index)?.get(meanings[byIndex.get(index).canonicalName]) <= passage.start);
-          add('relationship', passage, unique.map(index => target(index, grounded ? [meanings[byIndex.get(index).canonicalName]] : [])));
+          // Naming cards together establishes only identity. Detail-bearing
+          // interpretation belongs to a validated semantic association source.
+          add('relationship', passage, unique.map(index => target(index)));
         } else {
           for (const mention of mentions) add('identity', mention.passage, [target(mention.card)]);
         }
@@ -231,10 +214,8 @@ export function alignReadingPassages({
       const literal = [];
       if (!block.heading) for (const index of possibleOwners) {
         const card = byIndex.get(index);
-        const expanded = Object.hasOwn(EXPANDED_RULES, card.canonicalName);
-        // Broad deck coverage waits for the statement's qualifiers. Existing
-        // eight-card choreography keeps its previously verified prefix timing.
-        if (expanded && !sentence.closed) continue;
+        // Never publish a detail before its possible negation has arrived.
+        if (!sentence.closed) continue;
         const available = new Set(supported(card.canonicalName).map(detail => detail.id));
         for (const rule of LITERAL_RULES[card.canonicalName] || []) {
           if (!available.has(rule.id)) continue;
@@ -249,7 +230,7 @@ export function alignReadingPassages({
             const sceneStart = preceding ? preceding.end - sentence.offset : 0;
             const sceneEnd = nextMention ? nextMention.start - sentence.offset : sentence.text.length;
             const scene = sentence.text.slice(sceneStart, sceneEnd);
-            const physical = expanded ? expandedPhysicalClause(scene, match.index - sceneStart, match.index + match[0].length - sceneStart) : scene;
+            const physical = physicalClause(scene, match.index - sceneStart, match.index + match[0].length - sceneStart, sentence.text);
             if (physical === null || !rule.scene.test(physical)) continue;
             if (rule.before && !rule.before.test(sentence.text.slice(sceneStart, match.index))) continue;
             const passage = sourceSpan(block, at, at + match[0].length, raw, sourceComplete);
@@ -263,27 +244,9 @@ export function alignReadingPassages({
         if (describedDetails.has(key)) continue;
         describedDetails.add(key);
         add('literal', passage, [target(index, [id])]);
-        const seen = established.get(index) || new Map();
-        if (!seen.has(id)) seen.set(id, passage.end);
-        established.set(index, seen);
         const intro = introductions.get(index);
         if (intro?.pending) Object.assign(intro, { pending: false, descriptionStart: Math.max(intro.namedEnd, passage.start),
           midpoint: Math.max(intro.namedEnd, passage.start), end: Math.max(intro.namedEnd, passage.end) });
-      }
-      // Interpretive returns can cross section boundaries, but must refer back
-      // to a unique, already established detail in this exact reading.
-      for (const rule of RETURNS) {
-        const eligible = normalized.filter(card => card.canonicalName === rule.name);
-        if (eligible.length !== 1) continue;
-        const index = eligible[0].index;
-        const explicitContext = unique.length ? unique : context === null ? [] : [context];
-        if (rule.named && !unique.includes(index)) continue;
-        if (explicitContext.length && !explicitContext.includes(index) && !(rule.crossContext && !unique.length)) continue;
-        for (const match of sentence.text.matchAll(rule.match)) {
-          const passage = sourceSpan(block, sentence.offset + match.index, sentence.offset + match.index + match[0].length, raw, sourceComplete);
-          if (!passage || !rule.ids.every(id => established.get(index)?.get(id) <= passage.start)) continue;
-          add(rule.kind || 'interpretation', passage, [target(index, rule.kind === 'identity' ? [] : rule.ids)]);
-        }
       }
       if (unique.length === 1) context = unique[0];
       else if (unique.length > 1) context = null;

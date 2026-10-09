@@ -1,0 +1,3751 @@
+{
+  "generatedAt": "2026-10-09T12:23:02.706Z",
+  "worktreeHead": "f6bcfcd17cc52dfe36cea65a286867f8a3e80c95",
+  "sourceRevisionNote": "Working-tree files may differ from HEAD; sourceHashes identify the actual evaluated implementations.",
+  "provenance": {
+    "recordedPath": "data/evaluations/narrative-samples.json",
+    "recordedGeneratedAt": "2026-10-07T23:23:59.556Z",
+    "recordedSha256": "b30c506a81f7cb360fb457fc2bd4825059d558b3a1f8862d5f0ab23f383fbe49",
+    "corpusPath": "scripts/evaluation/fixtures/gestureAlignmentCases.json",
+    "corpusSha256": "c63101da50e5afa7b1f9dd51d338bef863acb81c5f4d512b27135a970c5d3d6a",
+    "method": "Hand-labelled supported detail mentions selected from the original recorded prose, plus independent synthetic positive and negative passages. No CARD_GESTURE_*_EXAMPLES or runtime rule predicates were used to generate expected answers. Detail IDs identify the authored artwork regions, not all imagery mentioned in a reading. The selected recorded labels are not an exhaustive precision audit."
+  },
+  "interpretationPolicy": "Current dynamic fallback is intentionally literal/identity-only. Zero interpretation or personal-context associations is not evidence that the full semantic product requirement is fulfilled; generated association documents need their own evaluation.",
+  "limitations": [
+    "Recorded gold is a selected set of supported physical-detail mentions, not an exhaustive literal or interpretation annotation. Unadjudicated outputs are listed, not counted automatically as false positives.",
+    "Independent passages were authored for this review, separately from runtime EXAMPLES, and frozen before measuring. They are synthetic and not unseen live model generations.",
+    "RWS recordings are evaluated with the supported vector edition selected. Thoth and Marseille retain their original edition and should yield identity-only accompaniment.",
+    "The Spanish RWS reading is included in the overall denominator and also separable from the English-only fallback result.",
+    "This evaluates completed text alignment only, not streaming timing, mask geometry, physical devices, motion perception, or generated semantic associations.",
+    "Baseline comparison, when supplied, uses its own imported rule modules and the same fixed recorded and independent corpus."
+  ],
+  "current": {
+    "label": "working-tree",
+    "sourceHashes": {
+      "lib/narrativePassageAligner.js": "aac3bbc1c0907e85d89762fb814d319f0789bc48db4f5ab7f4df4169bf0b1115",
+      "data/cardGestureDetails/majors.js": "a128c1631088772d22f237b1d5df69d57e34932438063646428e194d1c7c7c4d",
+      "data/cardGestureDetails/cupsPentacles.js": "06e7f467897bb9dff1cef1cef76ca4ba08562a21d37b5e62a094af8b3957e9d4",
+      "data/cardGestureDetails/wandsSwords.js": "da04323bc6c12777520410a7c1aa711ee037ae32a34df69a3b618ea4f947b1cb",
+      "data/cardGestureArtwork.js": "abd37df11dff1e61550e498db5a27d24fef7f2024487d68959970aefab0a7480"
+    },
+    "summary": {
+      "recorded": {
+        "samples": 11,
+        "identityExpected": 51,
+        "identityMatched": 51,
+        "selectedLiteralExpected": 41,
+        "selectedLiteralMatched": 23,
+        "selectedLiteralRecall": 0.561,
+        "englishRwsSelectedExpected": 36,
+        "englishRwsSelectedMatched": 23,
+        "englishRwsSelectedRecall": 0.6389,
+        "unadjudicatedLiteralMentions": 0,
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      "independent": {
+        "passages": 46,
+        "positivePassages": 24,
+        "negativePassages": 22,
+        "expectedDetails": 24,
+        "truePositives": 14,
+        "falseNegatives": 10,
+        "falsePositives": 0,
+        "recall": 0.5833,
+        "precision": 1,
+        "negativePassagesWithFalsePositive": 0,
+        "identityExpected": 46,
+        "identityMatched": 46
+      }
+    },
+    "samples": [
+      {
+        "id": "single-new-role",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 1,
+        "identityMatched": 1,
+        "cards": [
+          {
+            "card": "The Fool",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 2,
+        "selectedLiteralMatched": 0,
+        "selectedMentions": [
+          {
+            "card": "The Fool",
+            "detailId": "cliff-edge",
+            "quote": "The figure stands at the cliff's edge with the sun rising behind",
+            "start": 638,
+            "end": 702,
+            "matched": false
+          },
+          {
+            "card": "The Fool",
+            "detailId": "white-dog",
+            "quote": "The small dog at the figure's heels",
+            "start": 895,
+            "end": 930,
+            "matched": false
+          }
+        ],
+        "emittedLiteralMentions": [],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "three-card-transition",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 3,
+        "identityMatched": 3,
+        "cards": [
+          {
+            "card": "Six of Cups",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "The Tower",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Star",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 2
+          }
+        ],
+        "selectedLiteralExpected": 5,
+        "selectedLiteralMatched": 3,
+        "selectedMentions": [
+          {
+            "card": "Six of Cups",
+            "detailId": "flower-offering",
+            "quote": "a child handing another a cup filled with flowers",
+            "start": 767,
+            "end": 816,
+            "matched": true
+          },
+          {
+            "card": "Six of Cups",
+            "detailId": "courtyard",
+            "quote": "a cup filled with flowers in a sunlit courtyard",
+            "start": 791,
+            "end": 838,
+            "matched": false
+          },
+          {
+            "card": "The Tower",
+            "detailId": "lightning",
+            "quote": "Here's the lightning: a strike to the tower's crown",
+            "start": 1417,
+            "end": 1468,
+            "matched": false
+          },
+          {
+            "card": "The Star",
+            "detailId": "pool-pour",
+            "quote": "pouring water into a pool with one pitcher",
+            "start": 2338,
+            "end": 2380,
+            "matched": true
+          },
+          {
+            "card": "The Star",
+            "detailId": "land-pour",
+            "quote": "onto the land with the other",
+            "start": 2385,
+            "end": 2413,
+            "matched": true
+          }
+        ],
+        "emittedLiteralMentions": [
+          {
+            "card": "Six of Cups",
+            "detailId": "flower-offering",
+            "quote": "cup filled with flowers",
+            "start": 793,
+            "end": 816
+          },
+          {
+            "card": "The Star",
+            "detailId": "pool-pour",
+            "quote": "pool",
+            "start": 2359,
+            "end": 2363
+          },
+          {
+            "card": "The Star",
+            "detailId": "land-pour",
+            "quote": "land",
+            "start": 2394,
+            "end": 2398
+          }
+        ],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "five-card-creative-project",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 5,
+        "identityMatched": 5,
+        "cards": [
+          {
+            "card": "Ace of Wands",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 2
+          },
+          {
+            "card": "Seven of Swords",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 2
+          },
+          {
+            "card": "Queen of Cups",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Three of Pentacles",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Wheel of Fortune",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          }
+        ],
+        "selectedLiteralExpected": 7,
+        "selectedLiteralMatched": 7,
+        "selectedMentions": [
+          {
+            "card": "Ace of Wands",
+            "detailId": "sprout",
+            "quote": "a wand that's still sprouting leaves",
+            "start": 815,
+            "end": 851,
+            "matched": true
+          },
+          {
+            "card": "Ace of Wands",
+            "detailId": "castle",
+            "quote": "rolling hills and a castle far off in the distance",
+            "start": 858,
+            "end": 908,
+            "matched": true
+          },
+          {
+            "card": "Seven of Swords",
+            "detailId": "carried",
+            "quote": "a figure tiptoeing out of camp with five swords",
+            "start": 1244,
+            "end": 1291,
+            "matched": true
+          },
+          {
+            "card": "Seven of Swords",
+            "detailId": "two-swords",
+            "quote": "leaving two behind",
+            "start": 1296,
+            "end": 1314,
+            "matched": true
+          },
+          {
+            "card": "Queen of Cups",
+            "detailId": "cup",
+            "quote": "holding an ornate, covered cup",
+            "start": 1895,
+            "end": 1925,
+            "matched": true
+          },
+          {
+            "card": "Three of Pentacles",
+            "detailId": "collaborators",
+            "quote": "A craftsman stands in a cathedral talking plans over with a monk and a noble",
+            "start": 2456,
+            "end": 2532,
+            "matched": true
+          },
+          {
+            "card": "Wheel of Fortune",
+            "detailId": "wheel",
+            "quote": "a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other",
+            "start": 3037,
+            "end": 3133,
+            "matched": true
+          }
+        ],
+        "emittedLiteralMentions": [
+          {
+            "card": "Ace of Wands",
+            "detailId": "sprout",
+            "quote": "sprouting leaves",
+            "start": 835,
+            "end": 851
+          },
+          {
+            "card": "Ace of Wands",
+            "detailId": "castle",
+            "quote": "castle",
+            "start": 878,
+            "end": 884
+          },
+          {
+            "card": "Seven of Swords",
+            "detailId": "carried",
+            "quote": "five swords",
+            "start": 1280,
+            "end": 1291
+          },
+          {
+            "card": "Seven of Swords",
+            "detailId": "two-swords",
+            "quote": "leaving two behind",
+            "start": 1296,
+            "end": 1314
+          },
+          {
+            "card": "Queen of Cups",
+            "detailId": "cup",
+            "quote": "ornate, covered cup",
+            "start": 1906,
+            "end": 1925
+          },
+          {
+            "card": "Three of Pentacles",
+            "detailId": "collaborators",
+            "quote": "A craftsman",
+            "start": 2456,
+            "end": 2467
+          },
+          {
+            "card": "Wheel of Fortune",
+            "detailId": "wheel",
+            "quote": "great wheel",
+            "start": 3039,
+            "end": 3050
+          }
+        ],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 1,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "relationship-checkin",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 3,
+        "identityMatched": 3,
+        "cards": [
+          {
+            "card": "Queen of Cups",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Knight of Swords",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Two of Cups",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 1
+          }
+        ],
+        "selectedLiteralExpected": 4,
+        "selectedLiteralMatched": 2,
+        "selectedMentions": [
+          {
+            "card": "Queen of Cups",
+            "detailId": "cup",
+            "quote": "this Queen sits on her throne at the edge of the sea, eyes on an ornate covered cup",
+            "start": 557,
+            "end": 640,
+            "matched": true
+          },
+          {
+            "card": "Knight of Swords",
+            "detailId": "raised-sword",
+            "quote": "charges forward with his sword raised",
+            "start": 1360,
+            "end": 1397,
+            "matched": false
+          },
+          {
+            "card": "Two of Cups",
+            "detailId": "exchanged-cups",
+            "quote": "two figures facing each other at eye level, each holding a cup",
+            "start": 2227,
+            "end": 2289,
+            "matched": false
+          },
+          {
+            "card": "Two of Cups",
+            "detailId": "winged-lion",
+            "quote": "with a caduceus and winged lion's head between them",
+            "start": 2291,
+            "end": 2342,
+            "matched": true
+          }
+        ],
+        "emittedLiteralMentions": [
+          {
+            "card": "Queen of Cups",
+            "detailId": "cup",
+            "quote": "ornate covered cup",
+            "start": 622,
+            "end": 640
+          },
+          {
+            "card": "Two of Cups",
+            "detailId": "winged-lion",
+            "quote": "winged lion",
+            "start": 2311,
+            "end": 2322
+          }
+        ],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "celtic-deep-shift",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 10,
+        "identityMatched": 10,
+        "cards": [
+          {
+            "card": "The Hermit",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Five of Wands",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Death",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Temperance",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "The Emperor",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "The Moon",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Strength",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Eight of Pentacles",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Nine of Swords",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Sun",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          }
+        ],
+        "selectedLiteralExpected": 10,
+        "selectedLiteralMatched": 7,
+        "selectedMentions": [
+          {
+            "card": "The Hermit",
+            "detailId": "lantern",
+            "quote": "his lantern is held close and lights only the next few steps",
+            "start": 816,
+            "end": 876,
+            "matched": true
+          },
+          {
+            "card": "Five of Wands",
+            "detailId": "staffs",
+            "quote": "five people swing staffs in a chaotic scrum",
+            "start": 1203,
+            "end": 1246,
+            "matched": true
+          },
+          {
+            "card": "Death",
+            "detailId": "rising-sun",
+            "quote": "a sun is rising between two towers",
+            "start": 2108,
+            "end": 2142,
+            "matched": false
+          },
+          {
+            "card": "Temperance",
+            "detailId": "cup-stream",
+            "quote": "The angel pours water between two cups",
+            "start": 2385,
+            "end": 2423,
+            "matched": true
+          },
+          {
+            "card": "Temperance",
+            "detailId": "two-feet",
+            "quote": "with one foot on land and one in water",
+            "start": 2425,
+            "end": 2463,
+            "matched": false
+          },
+          {
+            "card": "The Emperor",
+            "detailId": "ram-throne",
+            "quote": "The stone throne and ram's heads",
+            "start": 3163,
+            "end": 3195,
+            "matched": true
+          },
+          {
+            "card": "The Moon",
+            "detailId": "dog-wolf",
+            "quote": "a winding path runs between a dog and a wolf",
+            "start": 3284,
+            "end": 3328,
+            "matched": true
+          },
+          {
+            "card": "Strength",
+            "detailId": "lion",
+            "quote": "The woman's hand rests on the lion's jaw",
+            "start": 4157,
+            "end": 4197,
+            "matched": true
+          },
+          {
+            "card": "Strength",
+            "detailId": "gentle-hands",
+            "quote": "The woman's hand rests on the lion's jaw",
+            "start": 4157,
+            "end": 4197,
+            "matched": false
+          },
+          {
+            "card": "The Sun",
+            "detailId": "white-horse",
+            "quote": "the child riding unguarded on a white horse",
+            "start": 5688,
+            "end": 5731,
+            "matched": true
+          }
+        ],
+        "emittedLiteralMentions": [
+          {
+            "card": "The Hermit",
+            "detailId": "lantern",
+            "quote": "lantern",
+            "start": 820,
+            "end": 827
+          },
+          {
+            "card": "Five of Wands",
+            "detailId": "staffs",
+            "quote": "staffs",
+            "start": 1221,
+            "end": 1227
+          },
+          {
+            "card": "Temperance",
+            "detailId": "cup-stream",
+            "quote": "water between two cups",
+            "start": 2401,
+            "end": 2423
+          },
+          {
+            "card": "The Emperor",
+            "detailId": "ram-throne",
+            "quote": "ram's heads",
+            "start": 3184,
+            "end": 3195
+          },
+          {
+            "card": "The Moon",
+            "detailId": "dog-wolf",
+            "quote": "dog and a wolf",
+            "start": 3314,
+            "end": 3328
+          },
+          {
+            "card": "Strength",
+            "detailId": "lion",
+            "quote": "lion",
+            "start": 4187,
+            "end": 4191
+          },
+          {
+            "card": "The Sun",
+            "detailId": "white-horse",
+            "quote": "white horse",
+            "start": 5720,
+            "end": 5731
+          }
+        ],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 1,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "decision-crossroads-long-reflections",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 5,
+        "identityMatched": 5,
+        "cards": [
+          {
+            "card": "The Lovers",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Two of Wands",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Six of Swords",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Justice",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "The Fool",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 1
+          }
+        ],
+        "selectedLiteralExpected": 8,
+        "selectedLiteralMatched": 4,
+        "selectedMentions": [
+          {
+            "card": "The Lovers",
+            "detailId": "angel",
+            "quote": "Two figures stand beneath an angel",
+            "start": 900,
+            "end": 934,
+            "matched": true
+          },
+          {
+            "card": "Two of Wands",
+            "detailId": "globe",
+            "quote": "A figure on castle battlements holds a globe",
+            "start": 1397,
+            "end": 1441,
+            "matched": true
+          },
+          {
+            "card": "Six of Swords",
+            "detailId": "boat-passengers",
+            "quote": "a boat ferries cloaked travelers over calm water",
+            "start": 2100,
+            "end": 2148,
+            "matched": false
+          },
+          {
+            "card": "Six of Swords",
+            "detailId": "planted-swords",
+            "quote": "with swords standing in the bow",
+            "start": 2149,
+            "end": 2180,
+            "matched": false
+          },
+          {
+            "card": "Justice",
+            "detailId": "scales",
+            "quote": "holds scales in one hand",
+            "start": 3141,
+            "end": 3165,
+            "matched": true
+          },
+          {
+            "card": "Justice",
+            "detailId": "upright-sword",
+            "quote": "a sword in the other",
+            "start": 3170,
+            "end": 3190,
+            "matched": false
+          },
+          {
+            "card": "The Fool",
+            "detailId": "cliff-edge",
+            "quote": "stands at a cliff's edge",
+            "start": 3478,
+            "end": 3502,
+            "matched": false
+          },
+          {
+            "card": "The Fool",
+            "detailId": "white-dog",
+            "quote": "with a small dog at his heels",
+            "start": 3525,
+            "end": 3554,
+            "matched": true
+          }
+        ],
+        "emittedLiteralMentions": [
+          {
+            "card": "The Lovers",
+            "detailId": "angel",
+            "quote": "angel",
+            "start": 929,
+            "end": 934
+          },
+          {
+            "card": "Two of Wands",
+            "detailId": "globe",
+            "quote": "globe",
+            "start": 1436,
+            "end": 1441
+          },
+          {
+            "card": "Justice",
+            "detailId": "scales",
+            "quote": "scales",
+            "start": 3147,
+            "end": 3153
+          },
+          {
+            "card": "The Fool",
+            "detailId": "white-dog",
+            "quote": "small dog",
+            "start": 3532,
+            "end": 3541
+          }
+        ],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "spiritual-thoth-ritual",
+        "originalDeckStyle": "thoth-a1",
+        "evaluatedArtworkEdition": "thoth-a1",
+        "identityExpected": 3,
+        "identityMatched": 3,
+        "cards": [
+          {
+            "card": "The Hierophant",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The High Priestess",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Star",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 0,
+        "selectedLiteralMatched": 0,
+        "selectedMentions": [],
+        "emittedLiteralMentions": [],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "wellbeing-marseille-reset",
+        "originalDeckStyle": "marseille-classic",
+        "evaluatedArtworkEdition": "marseille-classic",
+        "identityExpected": 5,
+        "identityMatched": 5,
+        "cards": [
+          {
+            "card": "Four of Swords",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Ten of Wands",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Temperance",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Six of Pentacles",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Sun",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 0,
+        "selectedLiteralMatched": 0,
+        "selectedMentions": [],
+        "emittedLiteralMentions": [],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "relationship-hypothetical-collaborators",
+        "originalDeckStyle": "marseille-classic",
+        "evaluatedArtworkEdition": "marseille-classic",
+        "identityExpected": 3,
+        "identityMatched": 3,
+        "cards": [
+          {
+            "card": "Page of Swords",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Five of Cups",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Two of Pentacles",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 0,
+        "selectedLiteralMatched": 0,
+        "selectedMentions": [],
+        "emittedLiteralMentions": [],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "celtic-general-focused-week",
+        "originalDeckStyle": "thoth-a1",
+        "evaluatedArtworkEdition": "thoth-a1",
+        "identityExpected": 10,
+        "identityMatched": 10,
+        "cards": [
+          {
+            "card": "Eight of Pentacles",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Five of Cups",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Moon",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Six of Cups",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Ace of Swords",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Eight of Cups",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Hermit",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Three of Wands",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Nine of Swords",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Four of Wands",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 0,
+        "selectedLiteralMatched": 0,
+        "selectedMentions": [],
+        "emittedLiteralMentions": [],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 3,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "non-english-spanish",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 3,
+        "identityMatched": 3,
+        "cards": [
+          {
+            "card": "The Hermit",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Eight of Cups",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Sun",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 5,
+        "selectedLiteralMatched": 0,
+        "selectedMentions": [
+          {
+            "card": "The Hermit",
+            "detailId": "lantern",
+            "quote": "con la linterna en alto y la estrella de seis puntas dentro",
+            "start": 827,
+            "end": 886,
+            "matched": false
+          },
+          {
+            "card": "Eight of Cups",
+            "detailId": "stacked-cups",
+            "quote": "ocho copas apiladas bajo la luna",
+            "start": 1398,
+            "end": 1430,
+            "matched": false
+          },
+          {
+            "card": "Eight of Cups",
+            "detailId": "departing-traveler",
+            "quote": "el viajero se aleja de ocho copas apiladas",
+            "start": 1375,
+            "end": 1417,
+            "matched": false
+          },
+          {
+            "card": "The Sun",
+            "detailId": "white-horse",
+            "quote": "el niño descalzo sobre el caballo blanco",
+            "start": 2081,
+            "end": 2121,
+            "matched": false
+          },
+          {
+            "card": "The Sun",
+            "detailId": "sunflowers",
+            "quote": "los girasoles y el sol con rostro",
+            "start": 2123,
+            "end": 2156,
+            "matched": false
+          }
+        ],
+        "emittedLiteralMentions": [],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      }
+    ],
+    "independent": [
+      {
+        "id": "star-pool-observation",
+        "card": "The Star",
+        "text": "The Star appears here. Look at the water spilling from her left jug into the pool.",
+        "expected": [
+          "pool-pour"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Star",
+            "detailId": "pool-pour",
+            "quote": "pool",
+            "start": 77,
+            "end": 81
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "star-land-observation",
+        "card": "The Star",
+        "text": "The Star appears here. Water runs from the second vessel onto the land beside her bent knee.",
+        "expected": [
+          "land-pour"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Star",
+            "detailId": "land-pour",
+            "quote": "land",
+            "start": 66,
+            "end": 70
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "hermit-lantern-observation",
+        "card": "The Hermit",
+        "text": "The Hermit raises his lantern above a snowy slope; a small light sits inside its frame.",
+        "expected": [
+          "lantern"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Hermit",
+            "detailId": "lantern",
+            "quote": "lantern",
+            "start": 22,
+            "end": 29
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "queen-cup-observation",
+        "card": "Queen of Cups",
+        "text": "The Queen of Cups is seated beside the water, holding her covered cup in both hands.",
+        "expected": [
+          "cup"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "Queen of Cups",
+            "detailId": "cup",
+            "quote": "covered cup",
+            "start": 58,
+            "end": 69
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "ace-wand-growth-observation",
+        "card": "Ace of Wands",
+        "text": "The Ace of Wands shows a hand clutching a branch; fresh leaves sprout along its sides.",
+        "expected": [
+          "sprout"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "sprout"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "seven-swords-behind-observation",
+        "card": "Seven of Swords",
+        "text": "The Seven of Swords leaves two upright blades behind the departing figure, planted beside the tents.",
+        "expected": [
+          "two-swords"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "two-swords"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "three-pentacles-work-observation",
+        "card": "Three of Pentacles",
+        "text": "The Three of Pentacles places a stoneworker under an arch, discussing a plan with two visitors.",
+        "expected": [
+          "collaborators"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "collaborators"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "wheel-emblems-observation",
+        "card": "Wheel of Fortune",
+        "text": "The Wheel of Fortune has a sphinx seated atop its orange wheel and a snake descending to the left.",
+        "expected": [
+          "wheel"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "Wheel of Fortune",
+            "detailId": "wheel",
+            "quote": "wheel",
+            "start": 57,
+            "end": 62
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "fool-dog-observation",
+        "card": "The Fool",
+        "text": "The Fool's small dog springs up beside the traveler's legs, close to the edge.",
+        "expected": [
+          "white-dog"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Fool",
+            "detailId": "white-dog",
+            "quote": "small dog",
+            "start": 11,
+            "end": 20
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "fool-cliff-observation",
+        "card": "The Fool",
+        "text": "The Fool stands near a cliff's edge with his head tilted upward.",
+        "expected": [
+          "cliff-edge"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "cliff-edge"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "magician-wand-observation",
+        "card": "The Magician",
+        "text": "The Magician lifts a short white wand high above his head while his other hand points down.",
+        "expected": [
+          "raised-wand"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "raised-wand"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "priestess-scroll-observation",
+        "card": "The High Priestess",
+        "text": "The High Priestess holds a scroll across her lap, half covered by a fold of cloth.",
+        "expected": [
+          "scroll"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The High Priestess",
+            "detailId": "scroll",
+            "quote": "scroll",
+            "start": 27,
+            "end": 33
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "empress-wheat-observation",
+        "card": "The Empress",
+        "text": "The Empress sits behind tall stalks of wheat in the foreground.",
+        "expected": [
+          "wheat"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Empress",
+            "detailId": "wheat",
+            "quote": "wheat",
+            "start": 39,
+            "end": 44
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "lovers-angel-observation",
+        "card": "The Lovers",
+        "text": "The Lovers has an angel suspended above the pair, spreading its red wings across the sky.",
+        "expected": [
+          "angel"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Lovers",
+            "detailId": "angel",
+            "quote": "angel",
+            "start": 18,
+            "end": 23
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "temperance-stream-observation",
+        "card": "Temperance",
+        "text": "Temperance is pouring water between two cups, with a narrow stream linking the vessels.",
+        "expected": [
+          "cup-stream"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "Temperance",
+            "detailId": "cup-stream",
+            "quote": "water between two cups",
+            "start": 22,
+            "end": 44
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "moon-crayfish-observation",
+        "card": "The Moon",
+        "text": "The Moon shows a crayfish climbing out of the dark pool toward the path.",
+        "expected": [
+          "crayfish"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Moon",
+            "detailId": "crayfish",
+            "quote": "crayfish",
+            "start": 17,
+            "end": 25
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "sun-horse-observation",
+        "card": "The Sun",
+        "text": "The Sun has a child sitting bareback on a white horse in front of the wall.",
+        "expected": [
+          "white-horse"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Sun",
+            "detailId": "white-horse",
+            "quote": "white horse",
+            "start": 42,
+            "end": 53
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "four-pentacles-coin-observation",
+        "card": "Four of Pentacles",
+        "text": "The Four of Pentacles shows a seated man hugging a large coin against his chest.",
+        "expected": [
+          "clutched-coin"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "clutched-coin"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "six-swords-passengers-observation",
+        "card": "Six of Swords",
+        "orientation": "Reversed",
+        "text": "The Six of Swords is reversed. In the image, a woman and child sit together in the boat while the ferryman stands behind them.",
+        "expected": [
+          "boat-passengers"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "Six of Swords",
+            "detailId": "boat-passengers",
+            "quote": "woman and child",
+            "start": 47,
+            "end": 62
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "two-cups-exchange-observation",
+        "card": "Two of Cups",
+        "text": "The Two of Cups shows a man and woman offering their cups toward each other.",
+        "expected": [
+          "exchanged-cups"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "exchanged-cups"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "nine-wands-watch-observation",
+        "card": "Nine of Wands",
+        "text": "The Nine of Wands depicts a bandaged man gripping one staff before a row of eight more.",
+        "expected": [
+          "head-bandage"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "head-bandage"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "knight-swords-weapon-observation",
+        "card": "Knight of Swords",
+        "text": "The Knight of Swords gallops to the left, his sword lifted high over the horse's neck.",
+        "expected": [
+          "raised-sword"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "raised-sword"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "two-swords-blades-observation",
+        "card": "Two of Swords",
+        "text": "The Two of Swords depicts crossed blades held in front of a seated woman's shoulders.",
+        "expected": [
+          "crossed-swords"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "crossed-swords"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "justice-scales-observation",
+        "card": "Justice",
+        "text": "Justice balances a pair of scales in her left hand.",
+        "expected": [
+          "scales"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "Justice",
+            "detailId": "scales",
+            "quote": "scales",
+            "start": 27,
+            "end": 33
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "star-reader-idiom",
+        "card": "The Star",
+        "text": "The Star suggests pooling your resources before you land a new job.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "star-reader-pour",
+        "card": "The Star",
+        "text": "The Star asks whether you are pouring energy into a pool of someone else's expectations.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "star-hypothetical",
+        "card": "The Star",
+        "text": "Imagine The Star pouring water into a pool that belongs to you.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "star-negated-late",
+        "card": "The Star",
+        "text": "The Star's pitcher pours into a pool only in your imagined version of the scene.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "hermit-reader-metaphor",
+        "card": "The Hermit",
+        "text": "The Hermit asks you to let your lantern light the next career decision.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "hermit-negated-observation",
+        "card": "The Hermit",
+        "text": "The Hermit has no lantern shining in this imagined scene.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "queen-negated-observation",
+        "card": "Queen of Cups",
+        "text": "The Queen of Cups does not hold a covered cup here.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "queen-reader-metaphor",
+        "card": "Queen of Cups",
+        "text": "The Queen of Cups suggests that your covered cup is held shut by anxiety.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "ace-reader-metaphor",
+        "card": "Ace of Wands",
+        "text": "The Ace of Wands reminds you that your plans are sprouts asking for a steady hand.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "wheel-reader-metaphor",
+        "card": "Wheel of Fortune",
+        "text": "The Wheel of Fortune asks whether the wheel of your routine needs a new direction.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "fool-conditional-scene",
+        "card": "The Fool",
+        "text": "The Fool is about beginnings. If a small dog leapt beside the figure, it would change this imagined scene.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "fool-negated-dog",
+        "card": "The Fool",
+        "text": "The Fool has no small dog beside his heels in this hypothetical redesign.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "magician-reader-metaphor",
+        "card": "The Magician",
+        "text": "The Magician invites you to raise a wand above your doubts.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "priestess-negative",
+        "card": "The High Priestess",
+        "text": "The High Priestess does not hold a scroll in her lap.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "empress-figurative-field",
+        "card": "The Empress",
+        "text": "The Empress says your field of wheat grows when you make room for rest.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "temperance-negated-flow",
+        "card": "Temperance",
+        "text": "Temperance is not pouring water between two cups.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "moon-hypothetical-creature",
+        "card": "The Moon",
+        "text": "The Moon invites you to imagine a crayfish emerging from a pool.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "sun-reader-metaphor",
+        "card": "The Sun",
+        "text": "The Sun asks you to ride your white horse toward a kinder working week.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "four-pentacles-negated",
+        "card": "Four of Pentacles",
+        "text": "The Four of Pentacles does not clutch a coin to his chest in this altered drawing.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "six-swords-reader-imagery",
+        "card": "Six of Swords",
+        "text": "The Six of Swords asks you to imagine a woman and child in a boat as a way to think about transition.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "two-swords-negated",
+        "card": "Two of Swords",
+        "text": "The Two of Swords has no crossed swords before the seated figure.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "justice-reader-idiom",
+        "card": "Justice",
+        "text": "Justice asks you to hold the scales of ambition and rest in balance.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      }
+    ]
+  },
+  "baseline": {
+    "label": "f6bcfcd",
+    "sourceHashes": {
+      "lib/narrativePassageAligner.js": "e020c735d91f96eda8f129da9d9e0366af9c1c61c113769307836bb5496cf490",
+      "data/cardGestureDetails/majors.js": "45ae5e32ec5541125056a3a9c0ab099b2731ca74d1b91ef25d1e30178577223e",
+      "data/cardGestureDetails/cupsPentacles.js": "42bae5bf912a21cd59adaa50a67ca0cd3c9617a70fea2bec598805a06c7f4e87",
+      "data/cardGestureDetails/wandsSwords.js": "859c55217f926742ea9bf31dd305fbb127e06f018d5fdc67a518664ad2eb0219",
+      "data/cardGestureArtwork.js": "6ec5f66402e496367b43f58bce6776178cb2d3092cd62aeae89c6fdaa04494c7"
+    },
+    "summary": {
+      "recorded": {
+        "samples": 11,
+        "identityExpected": 51,
+        "identityMatched": 51,
+        "selectedLiteralExpected": 41,
+        "selectedLiteralMatched": 22,
+        "selectedLiteralRecall": 0.5366,
+        "englishRwsSelectedExpected": 36,
+        "englishRwsSelectedMatched": 22,
+        "englishRwsSelectedRecall": 0.6111,
+        "unadjudicatedLiteralMentions": 0,
+        "interpretationAssociations": 6,
+        "personalContextAssociations": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      "independent": {
+        "passages": 46,
+        "positivePassages": 24,
+        "negativePassages": 22,
+        "expectedDetails": 24,
+        "truePositives": 12,
+        "falseNegatives": 12,
+        "falsePositives": 8,
+        "recall": 0.5,
+        "precision": 0.6,
+        "negativePassagesWithFalsePositive": 8,
+        "identityExpected": 46,
+        "identityMatched": 46
+      }
+    },
+    "samples": [
+      {
+        "id": "single-new-role",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 1,
+        "identityMatched": 1,
+        "cards": [
+          {
+            "card": "The Fool",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 2,
+        "selectedLiteralMatched": 0,
+        "selectedMentions": [
+          {
+            "card": "The Fool",
+            "detailId": "cliff-edge",
+            "quote": "The figure stands at the cliff's edge with the sun rising behind",
+            "start": 638,
+            "end": 702,
+            "matched": false
+          },
+          {
+            "card": "The Fool",
+            "detailId": "white-dog",
+            "quote": "The small dog at the figure's heels",
+            "start": 895,
+            "end": 930,
+            "matched": false
+          }
+        ],
+        "emittedLiteralMentions": [],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "three-card-transition",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 3,
+        "identityMatched": 3,
+        "cards": [
+          {
+            "card": "Six of Cups",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "The Tower",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Star",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 2
+          }
+        ],
+        "selectedLiteralExpected": 5,
+        "selectedLiteralMatched": 3,
+        "selectedMentions": [
+          {
+            "card": "Six of Cups",
+            "detailId": "flower-offering",
+            "quote": "a child handing another a cup filled with flowers",
+            "start": 767,
+            "end": 816,
+            "matched": true
+          },
+          {
+            "card": "Six of Cups",
+            "detailId": "courtyard",
+            "quote": "a cup filled with flowers in a sunlit courtyard",
+            "start": 791,
+            "end": 838,
+            "matched": false
+          },
+          {
+            "card": "The Tower",
+            "detailId": "lightning",
+            "quote": "Here's the lightning: a strike to the tower's crown",
+            "start": 1417,
+            "end": 1468,
+            "matched": false
+          },
+          {
+            "card": "The Star",
+            "detailId": "pool-pour",
+            "quote": "pouring water into a pool with one pitcher",
+            "start": 2338,
+            "end": 2380,
+            "matched": true
+          },
+          {
+            "card": "The Star",
+            "detailId": "land-pour",
+            "quote": "onto the land with the other",
+            "start": 2385,
+            "end": 2413,
+            "matched": true
+          }
+        ],
+        "emittedLiteralMentions": [
+          {
+            "card": "Six of Cups",
+            "detailId": "flower-offering",
+            "quote": "cup filled with flowers",
+            "start": 793,
+            "end": 816
+          },
+          {
+            "card": "The Star",
+            "detailId": "pool-pour",
+            "quote": "pool",
+            "start": 2359,
+            "end": 2363
+          },
+          {
+            "card": "The Star",
+            "detailId": "land-pour",
+            "quote": "land",
+            "start": 2394,
+            "end": 2398
+          }
+        ],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "five-card-creative-project",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 5,
+        "identityMatched": 5,
+        "cards": [
+          {
+            "card": "Ace of Wands",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 2
+          },
+          {
+            "card": "Seven of Swords",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 2
+          },
+          {
+            "card": "Queen of Cups",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Three of Pentacles",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Wheel of Fortune",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          }
+        ],
+        "selectedLiteralExpected": 7,
+        "selectedLiteralMatched": 7,
+        "selectedMentions": [
+          {
+            "card": "Ace of Wands",
+            "detailId": "sprout",
+            "quote": "a wand that's still sprouting leaves",
+            "start": 815,
+            "end": 851,
+            "matched": true
+          },
+          {
+            "card": "Ace of Wands",
+            "detailId": "castle",
+            "quote": "rolling hills and a castle far off in the distance",
+            "start": 858,
+            "end": 908,
+            "matched": true
+          },
+          {
+            "card": "Seven of Swords",
+            "detailId": "carried",
+            "quote": "a figure tiptoeing out of camp with five swords",
+            "start": 1244,
+            "end": 1291,
+            "matched": true
+          },
+          {
+            "card": "Seven of Swords",
+            "detailId": "two-swords",
+            "quote": "leaving two behind",
+            "start": 1296,
+            "end": 1314,
+            "matched": true
+          },
+          {
+            "card": "Queen of Cups",
+            "detailId": "cup",
+            "quote": "holding an ornate, covered cup",
+            "start": 1895,
+            "end": 1925,
+            "matched": true
+          },
+          {
+            "card": "Three of Pentacles",
+            "detailId": "collaborators",
+            "quote": "A craftsman stands in a cathedral talking plans over with a monk and a noble",
+            "start": 2456,
+            "end": 2532,
+            "matched": true
+          },
+          {
+            "card": "Wheel of Fortune",
+            "detailId": "wheel",
+            "quote": "a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other",
+            "start": 3037,
+            "end": 3133,
+            "matched": true
+          }
+        ],
+        "emittedLiteralMentions": [
+          {
+            "card": "Ace of Wands",
+            "detailId": "sprout",
+            "quote": "sprouting leaves",
+            "start": 835,
+            "end": 851
+          },
+          {
+            "card": "Ace of Wands",
+            "detailId": "castle",
+            "quote": "castle",
+            "start": 878,
+            "end": 884
+          },
+          {
+            "card": "Seven of Swords",
+            "detailId": "carried",
+            "quote": "five swords",
+            "start": 1280,
+            "end": 1291
+          },
+          {
+            "card": "Seven of Swords",
+            "detailId": "two-swords",
+            "quote": "leaving two behind",
+            "start": 1296,
+            "end": 1314
+          },
+          {
+            "card": "Queen of Cups",
+            "detailId": "cup",
+            "quote": "ornate, covered cup",
+            "start": 1906,
+            "end": 1925
+          },
+          {
+            "card": "Three of Pentacles",
+            "detailId": "collaborators",
+            "quote": "A craftsman",
+            "start": 2456,
+            "end": 2467
+          },
+          {
+            "card": "Wheel of Fortune",
+            "detailId": "wheel",
+            "quote": "great wheel",
+            "start": 3039,
+            "end": 3050
+          }
+        ],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 4,
+        "personalContextAssociations": 0,
+        "namedRelationships": 1,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "relationship-checkin",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 3,
+        "identityMatched": 3,
+        "cards": [
+          {
+            "card": "Queen of Cups",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Knight of Swords",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Two of Cups",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 1
+          }
+        ],
+        "selectedLiteralExpected": 4,
+        "selectedLiteralMatched": 2,
+        "selectedMentions": [
+          {
+            "card": "Queen of Cups",
+            "detailId": "cup",
+            "quote": "this Queen sits on her throne at the edge of the sea, eyes on an ornate covered cup",
+            "start": 557,
+            "end": 640,
+            "matched": true
+          },
+          {
+            "card": "Knight of Swords",
+            "detailId": "raised-sword",
+            "quote": "charges forward with his sword raised",
+            "start": 1360,
+            "end": 1397,
+            "matched": false
+          },
+          {
+            "card": "Two of Cups",
+            "detailId": "exchanged-cups",
+            "quote": "two figures facing each other at eye level, each holding a cup",
+            "start": 2227,
+            "end": 2289,
+            "matched": false
+          },
+          {
+            "card": "Two of Cups",
+            "detailId": "winged-lion",
+            "quote": "with a caduceus and winged lion's head between them",
+            "start": 2291,
+            "end": 2342,
+            "matched": true
+          }
+        ],
+        "emittedLiteralMentions": [
+          {
+            "card": "Queen of Cups",
+            "detailId": "cup",
+            "quote": "ornate covered cup",
+            "start": 622,
+            "end": 640
+          },
+          {
+            "card": "Two of Cups",
+            "detailId": "winged-lion",
+            "quote": "winged lion",
+            "start": 2311,
+            "end": 2322
+          }
+        ],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "celtic-deep-shift",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 10,
+        "identityMatched": 10,
+        "cards": [
+          {
+            "card": "The Hermit",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Five of Wands",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Death",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Temperance",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "The Emperor",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "The Moon",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Strength",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Eight of Pentacles",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Nine of Swords",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Sun",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          }
+        ],
+        "selectedLiteralExpected": 10,
+        "selectedLiteralMatched": 7,
+        "selectedMentions": [
+          {
+            "card": "The Hermit",
+            "detailId": "lantern",
+            "quote": "his lantern is held close and lights only the next few steps",
+            "start": 816,
+            "end": 876,
+            "matched": true
+          },
+          {
+            "card": "Five of Wands",
+            "detailId": "staffs",
+            "quote": "five people swing staffs in a chaotic scrum",
+            "start": 1203,
+            "end": 1246,
+            "matched": true
+          },
+          {
+            "card": "Death",
+            "detailId": "rising-sun",
+            "quote": "a sun is rising between two towers",
+            "start": 2108,
+            "end": 2142,
+            "matched": false
+          },
+          {
+            "card": "Temperance",
+            "detailId": "cup-stream",
+            "quote": "The angel pours water between two cups",
+            "start": 2385,
+            "end": 2423,
+            "matched": true
+          },
+          {
+            "card": "Temperance",
+            "detailId": "two-feet",
+            "quote": "with one foot on land and one in water",
+            "start": 2425,
+            "end": 2463,
+            "matched": false
+          },
+          {
+            "card": "The Emperor",
+            "detailId": "ram-throne",
+            "quote": "The stone throne and ram's heads",
+            "start": 3163,
+            "end": 3195,
+            "matched": true
+          },
+          {
+            "card": "The Moon",
+            "detailId": "dog-wolf",
+            "quote": "a winding path runs between a dog and a wolf",
+            "start": 3284,
+            "end": 3328,
+            "matched": true
+          },
+          {
+            "card": "Strength",
+            "detailId": "lion",
+            "quote": "The woman's hand rests on the lion's jaw",
+            "start": 4157,
+            "end": 4197,
+            "matched": true
+          },
+          {
+            "card": "Strength",
+            "detailId": "gentle-hands",
+            "quote": "The woman's hand rests on the lion's jaw",
+            "start": 4157,
+            "end": 4197,
+            "matched": false
+          },
+          {
+            "card": "The Sun",
+            "detailId": "white-horse",
+            "quote": "the child riding unguarded on a white horse",
+            "start": 5688,
+            "end": 5731,
+            "matched": true
+          }
+        ],
+        "emittedLiteralMentions": [
+          {
+            "card": "The Hermit",
+            "detailId": "lantern",
+            "quote": "lantern",
+            "start": 820,
+            "end": 827
+          },
+          {
+            "card": "Five of Wands",
+            "detailId": "staffs",
+            "quote": "staffs",
+            "start": 1221,
+            "end": 1227
+          },
+          {
+            "card": "Temperance",
+            "detailId": "cup-stream",
+            "quote": "water between two cups",
+            "start": 2401,
+            "end": 2423
+          },
+          {
+            "card": "The Emperor",
+            "detailId": "ram-throne",
+            "quote": "ram's heads",
+            "start": 3184,
+            "end": 3195
+          },
+          {
+            "card": "The Moon",
+            "detailId": "dog-wolf",
+            "quote": "dog and a wolf",
+            "start": 3314,
+            "end": 3328
+          },
+          {
+            "card": "Strength",
+            "detailId": "lion",
+            "quote": "lion",
+            "start": 4187,
+            "end": 4191
+          },
+          {
+            "card": "The Sun",
+            "detailId": "white-horse",
+            "quote": "white horse",
+            "start": 5720,
+            "end": 5731
+          }
+        ],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 2,
+        "personalContextAssociations": 0,
+        "namedRelationships": 1,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "decision-crossroads-long-reflections",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 5,
+        "identityMatched": 5,
+        "cards": [
+          {
+            "card": "The Lovers",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Two of Wands",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "Six of Swords",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Justice",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 1
+          },
+          {
+            "card": "The Fool",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 8,
+        "selectedLiteralMatched": 3,
+        "selectedMentions": [
+          {
+            "card": "The Lovers",
+            "detailId": "angel",
+            "quote": "Two figures stand beneath an angel",
+            "start": 900,
+            "end": 934,
+            "matched": true
+          },
+          {
+            "card": "Two of Wands",
+            "detailId": "globe",
+            "quote": "A figure on castle battlements holds a globe",
+            "start": 1397,
+            "end": 1441,
+            "matched": true
+          },
+          {
+            "card": "Six of Swords",
+            "detailId": "boat-passengers",
+            "quote": "a boat ferries cloaked travelers over calm water",
+            "start": 2100,
+            "end": 2148,
+            "matched": false
+          },
+          {
+            "card": "Six of Swords",
+            "detailId": "planted-swords",
+            "quote": "with swords standing in the bow",
+            "start": 2149,
+            "end": 2180,
+            "matched": false
+          },
+          {
+            "card": "Justice",
+            "detailId": "scales",
+            "quote": "holds scales in one hand",
+            "start": 3141,
+            "end": 3165,
+            "matched": true
+          },
+          {
+            "card": "Justice",
+            "detailId": "upright-sword",
+            "quote": "a sword in the other",
+            "start": 3170,
+            "end": 3190,
+            "matched": false
+          },
+          {
+            "card": "The Fool",
+            "detailId": "cliff-edge",
+            "quote": "stands at a cliff's edge",
+            "start": 3478,
+            "end": 3502,
+            "matched": false
+          },
+          {
+            "card": "The Fool",
+            "detailId": "white-dog",
+            "quote": "with a small dog at his heels",
+            "start": 3525,
+            "end": 3554,
+            "matched": false
+          }
+        ],
+        "emittedLiteralMentions": [
+          {
+            "card": "The Lovers",
+            "detailId": "angel",
+            "quote": "angel",
+            "start": 929,
+            "end": 934
+          },
+          {
+            "card": "Two of Wands",
+            "detailId": "globe",
+            "quote": "globe",
+            "start": 1436,
+            "end": 1441
+          },
+          {
+            "card": "Justice",
+            "detailId": "scales",
+            "quote": "scales",
+            "start": 3147,
+            "end": 3153
+          }
+        ],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "spiritual-thoth-ritual",
+        "originalDeckStyle": "thoth-a1",
+        "evaluatedArtworkEdition": "thoth-a1",
+        "identityExpected": 3,
+        "identityMatched": 3,
+        "cards": [
+          {
+            "card": "The Hierophant",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The High Priestess",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Star",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 0,
+        "selectedLiteralMatched": 0,
+        "selectedMentions": [],
+        "emittedLiteralMentions": [],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "wellbeing-marseille-reset",
+        "originalDeckStyle": "marseille-classic",
+        "evaluatedArtworkEdition": "marseille-classic",
+        "identityExpected": 5,
+        "identityMatched": 5,
+        "cards": [
+          {
+            "card": "Four of Swords",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Ten of Wands",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Temperance",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Six of Pentacles",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Sun",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 0,
+        "selectedLiteralMatched": 0,
+        "selectedMentions": [],
+        "emittedLiteralMentions": [],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "relationship-hypothetical-collaborators",
+        "originalDeckStyle": "marseille-classic",
+        "evaluatedArtworkEdition": "marseille-classic",
+        "identityExpected": 3,
+        "identityMatched": 3,
+        "cards": [
+          {
+            "card": "Page of Swords",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Five of Cups",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Two of Pentacles",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 0,
+        "selectedLiteralMatched": 0,
+        "selectedMentions": [],
+        "emittedLiteralMentions": [],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "celtic-general-focused-week",
+        "originalDeckStyle": "thoth-a1",
+        "evaluatedArtworkEdition": "thoth-a1",
+        "identityExpected": 10,
+        "identityMatched": 10,
+        "cards": [
+          {
+            "card": "Eight of Pentacles",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Five of Cups",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Moon",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Six of Cups",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Ace of Swords",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Eight of Cups",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Hermit",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Three of Wands",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Nine of Swords",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Four of Wands",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 0,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 0,
+        "selectedLiteralMatched": 0,
+        "selectedMentions": [],
+        "emittedLiteralMentions": [],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 3,
+        "unsupportedEditionDetailLeaks": 0
+      },
+      {
+        "id": "non-english-spanish",
+        "originalDeckStyle": "rws-1909",
+        "evaluatedArtworkEdition": "rws-immanuelle-vector",
+        "identityExpected": 3,
+        "identityMatched": 3,
+        "cards": [
+          {
+            "card": "The Hermit",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 1,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "Eight of Cups",
+            "orientation": "Upright",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 0
+          },
+          {
+            "card": "The Sun",
+            "orientation": "Reversed",
+            "introduced": true,
+            "selectedLiteralExpected": 2,
+            "selectedLiteralMatched": 0
+          }
+        ],
+        "selectedLiteralExpected": 5,
+        "selectedLiteralMatched": 0,
+        "selectedMentions": [
+          {
+            "card": "The Hermit",
+            "detailId": "lantern",
+            "quote": "con la linterna en alto y la estrella de seis puntas dentro",
+            "start": 827,
+            "end": 886,
+            "matched": false
+          },
+          {
+            "card": "Eight of Cups",
+            "detailId": "stacked-cups",
+            "quote": "ocho copas apiladas bajo la luna",
+            "start": 1398,
+            "end": 1430,
+            "matched": false
+          },
+          {
+            "card": "Eight of Cups",
+            "detailId": "departing-traveler",
+            "quote": "el viajero se aleja de ocho copas apiladas",
+            "start": 1375,
+            "end": 1417,
+            "matched": false
+          },
+          {
+            "card": "The Sun",
+            "detailId": "white-horse",
+            "quote": "el niño descalzo sobre el caballo blanco",
+            "start": 2081,
+            "end": 2121,
+            "matched": false
+          },
+          {
+            "card": "The Sun",
+            "detailId": "sunflowers",
+            "quote": "los girasoles y el sol con rostro",
+            "start": 2123,
+            "end": 2156,
+            "matched": false
+          }
+        ],
+        "emittedLiteralMentions": [],
+        "unadjudicatedLiteralMentions": [],
+        "interpretationAssociations": 0,
+        "personalContextAssociations": 0,
+        "namedRelationships": 0,
+        "unsupportedEditionDetailLeaks": 0
+      }
+    ],
+    "independent": [
+      {
+        "id": "star-pool-observation",
+        "card": "The Star",
+        "text": "The Star appears here. Look at the water spilling from her left jug into the pool.",
+        "expected": [
+          "pool-pour"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Star",
+            "detailId": "pool-pour",
+            "quote": "pool",
+            "start": 77,
+            "end": 81
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "star-land-observation",
+        "card": "The Star",
+        "text": "The Star appears here. Water runs from the second vessel onto the land beside her bent knee.",
+        "expected": [
+          "land-pour"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Star",
+            "detailId": "land-pour",
+            "quote": "land",
+            "start": 66,
+            "end": 70
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "hermit-lantern-observation",
+        "card": "The Hermit",
+        "text": "The Hermit raises his lantern above a snowy slope; a small light sits inside its frame.",
+        "expected": [
+          "lantern"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Hermit",
+            "detailId": "lantern",
+            "quote": "lantern",
+            "start": 22,
+            "end": 29
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "queen-cup-observation",
+        "card": "Queen of Cups",
+        "text": "The Queen of Cups is seated beside the water, holding her covered cup in both hands.",
+        "expected": [
+          "cup"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "Queen of Cups",
+            "detailId": "cup",
+            "quote": "covered cup",
+            "start": 58,
+            "end": 69
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "ace-wand-growth-observation",
+        "card": "Ace of Wands",
+        "text": "The Ace of Wands shows a hand clutching a branch; fresh leaves sprout along its sides.",
+        "expected": [
+          "sprout"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "Ace of Wands",
+            "detailId": "sprout",
+            "quote": "sprout",
+            "start": 63,
+            "end": 69
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "seven-swords-behind-observation",
+        "card": "Seven of Swords",
+        "text": "The Seven of Swords leaves two upright blades behind the departing figure, planted beside the tents.",
+        "expected": [
+          "two-swords"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "two-swords"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "three-pentacles-work-observation",
+        "card": "Three of Pentacles",
+        "text": "The Three of Pentacles places a stoneworker under an arch, discussing a plan with two visitors.",
+        "expected": [
+          "collaborators"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "collaborators"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "wheel-emblems-observation",
+        "card": "Wheel of Fortune",
+        "text": "The Wheel of Fortune has a sphinx seated atop its orange wheel and a snake descending to the left.",
+        "expected": [
+          "wheel"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "Wheel of Fortune",
+            "detailId": "wheel",
+            "quote": "wheel",
+            "start": 57,
+            "end": 62
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "fool-dog-observation",
+        "card": "The Fool",
+        "text": "The Fool's small dog springs up beside the traveler's legs, close to the edge.",
+        "expected": [
+          "white-dog"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "white-dog"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "fool-cliff-observation",
+        "card": "The Fool",
+        "text": "The Fool stands near a cliff's edge with his head tilted upward.",
+        "expected": [
+          "cliff-edge"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "cliff-edge"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "magician-wand-observation",
+        "card": "The Magician",
+        "text": "The Magician lifts a short white wand high above his head while his other hand points down.",
+        "expected": [
+          "raised-wand"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "raised-wand"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "priestess-scroll-observation",
+        "card": "The High Priestess",
+        "text": "The High Priestess holds a scroll across her lap, half covered by a fold of cloth.",
+        "expected": [
+          "scroll"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The High Priestess",
+            "detailId": "scroll",
+            "quote": "scroll",
+            "start": 27,
+            "end": 33
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "empress-wheat-observation",
+        "card": "The Empress",
+        "text": "The Empress sits behind tall stalks of wheat in the foreground.",
+        "expected": [
+          "wheat"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Empress",
+            "detailId": "wheat",
+            "quote": "wheat",
+            "start": 39,
+            "end": 44
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "lovers-angel-observation",
+        "card": "The Lovers",
+        "text": "The Lovers has an angel suspended above the pair, spreading its red wings across the sky.",
+        "expected": [
+          "angel"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Lovers",
+            "detailId": "angel",
+            "quote": "angel",
+            "start": 18,
+            "end": 23
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "temperance-stream-observation",
+        "card": "Temperance",
+        "text": "Temperance is pouring water between two cups, with a narrow stream linking the vessels.",
+        "expected": [
+          "cup-stream"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "cup-stream"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "moon-crayfish-observation",
+        "card": "The Moon",
+        "text": "The Moon shows a crayfish climbing out of the dark pool toward the path.",
+        "expected": [
+          "crayfish"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Moon",
+            "detailId": "crayfish",
+            "quote": "crayfish",
+            "start": 17,
+            "end": 25
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "sun-horse-observation",
+        "card": "The Sun",
+        "text": "The Sun has a child sitting bareback on a white horse in front of the wall.",
+        "expected": [
+          "white-horse"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Sun",
+            "detailId": "white-horse",
+            "quote": "white horse",
+            "start": 42,
+            "end": 53
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "four-pentacles-coin-observation",
+        "card": "Four of Pentacles",
+        "text": "The Four of Pentacles shows a seated man hugging a large coin against his chest.",
+        "expected": [
+          "clutched-coin"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "clutched-coin"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "six-swords-passengers-observation",
+        "card": "Six of Swords",
+        "orientation": "Reversed",
+        "text": "The Six of Swords is reversed. In the image, a woman and child sit together in the boat while the ferryman stands behind them.",
+        "expected": [
+          "boat-passengers"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "boat-passengers"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "two-cups-exchange-observation",
+        "card": "Two of Cups",
+        "text": "The Two of Cups shows a man and woman offering their cups toward each other.",
+        "expected": [
+          "exchanged-cups"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "exchanged-cups"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "nine-wands-watch-observation",
+        "card": "Nine of Wands",
+        "text": "The Nine of Wands depicts a bandaged man gripping one staff before a row of eight more.",
+        "expected": [
+          "head-bandage"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "head-bandage"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "knight-swords-weapon-observation",
+        "card": "Knight of Swords",
+        "text": "The Knight of Swords gallops to the left, his sword lifted high over the horse's neck.",
+        "expected": [
+          "raised-sword"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "raised-sword"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "two-swords-blades-observation",
+        "card": "Two of Swords",
+        "text": "The Two of Swords depicts crossed blades held in front of a seated woman's shoulders.",
+        "expected": [
+          "crossed-swords"
+        ],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 1,
+        "truePositives": 0,
+        "falseNegatives": [
+          "crossed-swords"
+        ],
+        "falsePositives": []
+      },
+      {
+        "id": "justice-scales-observation",
+        "card": "Justice",
+        "text": "Justice balances a pair of scales in her left hand.",
+        "expected": [
+          "scales"
+        ],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "Justice",
+            "detailId": "scales",
+            "quote": "scales",
+            "start": 27,
+            "end": 33
+          }
+        ],
+        "expectedCount": 1,
+        "truePositives": 1,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "star-reader-idiom",
+        "card": "The Star",
+        "text": "The Star suggests pooling your resources before you land a new job.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "star-reader-pour",
+        "card": "The Star",
+        "text": "The Star asks whether you are pouring energy into a pool of someone else's expectations.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Star",
+            "detailId": "pool-pour",
+            "quote": "pool",
+            "start": 52,
+            "end": 56
+          }
+        ],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": [
+          "pool-pour"
+        ]
+      },
+      {
+        "id": "star-hypothetical",
+        "card": "The Star",
+        "text": "Imagine The Star pouring water into a pool that belongs to you.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Star",
+            "detailId": "pool-pour",
+            "quote": "pool",
+            "start": 38,
+            "end": 42
+          }
+        ],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": [
+          "pool-pour"
+        ]
+      },
+      {
+        "id": "star-negated-late",
+        "card": "The Star",
+        "text": "The Star's pitcher pours into a pool only in your imagined version of the scene.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Star",
+            "detailId": "pool-pour",
+            "quote": "pool",
+            "start": 32,
+            "end": 36
+          }
+        ],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": [
+          "pool-pour"
+        ]
+      },
+      {
+        "id": "hermit-reader-metaphor",
+        "card": "The Hermit",
+        "text": "The Hermit asks you to let your lantern light the next career decision.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Hermit",
+            "detailId": "lantern",
+            "quote": "lantern",
+            "start": 32,
+            "end": 39
+          }
+        ],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": [
+          "lantern"
+        ]
+      },
+      {
+        "id": "hermit-negated-observation",
+        "card": "The Hermit",
+        "text": "The Hermit has no lantern shining in this imagined scene.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "The Hermit",
+            "detailId": "lantern",
+            "quote": "lantern",
+            "start": 18,
+            "end": 25
+          }
+        ],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": [
+          "lantern"
+        ]
+      },
+      {
+        "id": "queen-negated-observation",
+        "card": "Queen of Cups",
+        "text": "The Queen of Cups does not hold a covered cup here.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "Queen of Cups",
+            "detailId": "cup",
+            "quote": "covered cup",
+            "start": 34,
+            "end": 45
+          }
+        ],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": [
+          "cup"
+        ]
+      },
+      {
+        "id": "queen-reader-metaphor",
+        "card": "Queen of Cups",
+        "text": "The Queen of Cups suggests that your covered cup is held shut by anxiety.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "Queen of Cups",
+            "detailId": "cup",
+            "quote": "covered cup",
+            "start": 37,
+            "end": 48
+          }
+        ],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": [
+          "cup"
+        ]
+      },
+      {
+        "id": "ace-reader-metaphor",
+        "card": "Ace of Wands",
+        "text": "The Ace of Wands reminds you that your plans are sprouts asking for a steady hand.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [
+          {
+            "card": "Ace of Wands",
+            "detailId": "sprout",
+            "quote": "sprouts",
+            "start": 49,
+            "end": 56
+          }
+        ],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": [
+          "sprout"
+        ]
+      },
+      {
+        "id": "wheel-reader-metaphor",
+        "card": "Wheel of Fortune",
+        "text": "The Wheel of Fortune asks whether the wheel of your routine needs a new direction.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "fool-conditional-scene",
+        "card": "The Fool",
+        "text": "The Fool is about beginnings. If a small dog leapt beside the figure, it would change this imagined scene.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "fool-negated-dog",
+        "card": "The Fool",
+        "text": "The Fool has no small dog beside his heels in this hypothetical redesign.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "magician-reader-metaphor",
+        "card": "The Magician",
+        "text": "The Magician invites you to raise a wand above your doubts.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "priestess-negative",
+        "card": "The High Priestess",
+        "text": "The High Priestess does not hold a scroll in her lap.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "empress-figurative-field",
+        "card": "The Empress",
+        "text": "The Empress says your field of wheat grows when you make room for rest.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "temperance-negated-flow",
+        "card": "Temperance",
+        "text": "Temperance is not pouring water between two cups.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "moon-hypothetical-creature",
+        "card": "The Moon",
+        "text": "The Moon invites you to imagine a crayfish emerging from a pool.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "sun-reader-metaphor",
+        "card": "The Sun",
+        "text": "The Sun asks you to ride your white horse toward a kinder working week.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "four-pentacles-negated",
+        "card": "Four of Pentacles",
+        "text": "The Four of Pentacles does not clutch a coin to his chest in this altered drawing.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "six-swords-reader-imagery",
+        "card": "Six of Swords",
+        "text": "The Six of Swords asks you to imagine a woman and child in a boat as a way to think about transition.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "two-swords-negated",
+        "card": "Two of Swords",
+        "text": "The Two of Swords has no crossed swords before the seated figure.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      },
+      {
+        "id": "justice-reader-idiom",
+        "card": "Justice",
+        "text": "Justice asks you to hold the scales of ambition and rest in balance.",
+        "expected": [],
+        "identityMatched": true,
+        "actual": [],
+        "expectedCount": 0,
+        "truePositives": 0,
+        "falseNegatives": [],
+        "falsePositives": []
+      }
+    ]
+  }
+}

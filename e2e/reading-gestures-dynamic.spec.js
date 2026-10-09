@@ -78,7 +78,7 @@ test('dynamic literal ordering follows prose and metaphors or Markdown URLs add 
   } finally { await fixture.close(); }
 });
 
-test('dynamic card headings introduce cards and a later named return remains inspectable', async ({ page }) => {
+test('dynamic card headings introduce cards and whole-card revisits stay on the shelf', async ({ page }) => {
   const first = '### Future — The Star\n\nA figure pours water from one pitcher into a pool.\n\n';
   const middle = '### Present — The Tower\n\nA sudden change invites you to reconsider the structures you rely on.\n\n';
   const last = '### Putting It Together\n\nReturn to The Star when you need a reminder that renewal takes time.';
@@ -92,7 +92,8 @@ test('dynamic card headings introduce cards and a later named return remains ins
     await expect(shelf(page).nth(1)).toHaveAttribute('data-introduced', 'true');
     const returned = page.locator('.narrative-stream p').filter({ hasText: 'Return to The Star' }).locator('[data-gesture-id]');
     await expect(returned).toHaveCount(1);
-    await returned.click();
+    await expect(returned).not.toHaveAttribute('role', 'button');
+    await shelf(page).nth(2).locator('button').click();
     await expect(currentCards(page)).toHaveAttribute('aria-label', /The Star/);
     await expect(currentCards(page)).toHaveAttribute('data-details', '');
     await fixture.completeReading();
@@ -117,7 +118,7 @@ test('a first sentence naming two cards retains their relationship without overl
   } finally { await fixture.close(); }
 });
 
-test('the recorded five-card reading dynamically retains synthesis and an image return in next steps', async ({ page }) => {
+test('literal fallback preserves the reading without fabricating fixture-specific interpretive returns', async ({ page }) => {
   const fixture = await createNarrativeFixture(page, { narrative: fiveCard.reading, question: fiveCard.userQuestion });
   try {
     await open(page, 'study=five-card&sourceMode=job-sse');
@@ -130,10 +131,9 @@ test('the recorded five-card reading dynamically retains synthesis and an image 
     await expect(currentCards(page).nth(0)).toHaveAttribute('aria-label', /Ace of Wands/);
     await expect(currentCards(page).nth(1)).toHaveAttribute('aria-label', /Queen of Cups/);
     const returnPhrase = page.locator('.narrative-stream li').filter({ hasText: 'Write down the two missing swords' }).locator('[data-gesture-id]');
-    await expect(returnPhrase).toHaveCount(1);
-    await returnPhrase.click();
-    await expect(currentCards(page)).toHaveAttribute('data-details', 'two-swords');
-    await expect(currentCards(page).locator('[data-reversed]')).toHaveAttribute('data-reversed', 'true');
+    await expect(returnPhrase).toHaveCount(0);
+    await expect(currentCards(page).nth(0)).toHaveAttribute('data-details', '');
+    await expect(currentCards(page).nth(1)).toHaveAttribute('data-details', '');
   } finally { await fixture.close(); }
 });
 

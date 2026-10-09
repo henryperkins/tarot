@@ -130,40 +130,38 @@ test('a committed held association keeps the same source span and selection as m
   assert.equal(state.current?.id, pool.id);
 });
 
-test('the recorded Star passage connects both literal pours with grounded later interpretation', () => {
+test('recorded Star imagery stays literal until a semantic association source supplies interpretation', () => {
   const sample = fixture('three-card-transition.json');
   const result = align(sample.excerpt, sample.cards);
-  const memory = result.associations.find((association) => association.passage.start >= sample.excerpt.indexOf('One hand tends') && detailIds(association).includes('pool-pour'));
-  const ground = result.associations.find((association) => association.passage.start >= sample.excerpt.indexOf('the other waters new ground') && detailIds(association).includes('land-pour'));
-  assert.ok(memory, 'previously described pool returns for memory');
-  assert.ok(ground, 'previously described land returns for new ground');
-  assert.notEqual(memory.kind, 'literal', 'memory must not be mislabeled as a physical feature');
-  assert.notEqual(ground.kind, 'literal', 'new ground is an interpretation of the described pour');
+  assert.deepEqual(result.associations.filter(cue => cue.kind === 'literal').flatMap(detailIds), ['pool-pour', 'land-pour']);
+  assert.ok(result.associations.every(cue => cue.kind !== 'interpretation' && cue.kind !== 'balance'));
+  assert.ok(result.associations.every(cue => !cue.personalContext));
 });
 
-test('the recorded five-card reading retains all introductions, synthesis, and grounded next-step returns', () => {
+test('the recorded five-card reading retains introductions and named relationships without memorized returns', () => {
   const sample = fixture('gestures-five-card-creative-project.json');
   const result = align(sample.reading, sample.cards);
-  assert.deepEqual(result.introductions.map((intro) => intro.spreadIndex).sort(), [0, 1, 2, 3, 4]);
+  assert.deepEqual(result.introductions.map(intro => intro.spreadIndex).sort(), [0, 1, 2, 3, 4]);
   const synthesisStart = sample.reading.indexOf('The Ace of Wands and Queen of Cups suggest');
-  assert.ok(result.associations.some((association) => association.kind === 'relationship' && association.passage.start <= synthesisStart && association.passage.end > synthesisStart && association.targets.some((target) => target.spreadIndex === 0) && association.targets.some((target) => target.spreadIndex === 2)), 'Ace and Queen retain the drive/sensitivity relationship');
+  const pair = result.associations.find(cue => cue.kind === 'relationship' && cue.passage.start <= synthesisStart && cue.passage.end > synthesisStart);
+  assert.deepEqual(pair?.targets.map(target => target.spreadIndex), [0, 2]);
+  assert.deepEqual(pair.targets.flatMap(target => target.detailIds), []);
   const stepsStart = sample.reading.indexOf('### Gentle Next Steps');
-  for (const [spreadIndex, detailId] of [[1, 'two-swords'], [3, 'collaborators'], [4, 'wheel']]) {
-    assert.ok(result.associations.some((association) => association.passage.start > stepsStart && association.targets.some((target) => target.spreadIndex === spreadIndex && target.detailIds.includes(detailId))), `next steps return to ${detailId}`);
-  }
-  const closingStart = sample.reading.indexOf('### Closing');
-  assert.ok(result.associations.some((association) => association.passage.start > closingStart && association.kind === 'identity' && association.targets.some((target) => target.spreadIndex === 0)), 'closing spark recalls the previously established Ace identity');
+  assert.ok(result.associations.filter(cue => cue.passage.start > stepsStart).every(cue => detailIds(cue).length === 0));
+  assert.ok(result.associations.every(cue => cue.kind !== 'interpretation' && cue.kind !== 'balance'));
 });
 
-test('later names in the same sentence do not retract a committed literal or turn it into a relationship', () => {
+test('a future named card cannot lend ownership or scene evidence to an earlier detail', () => {
   const cards = spread('The Star', 'The Hermit');
   const prefix = 'The Star shows water pouring into a pool, ';
-  const first = stream(prefix, cards).associations.find(cue => detailIds(cue).includes('pool-pour'));
-  assert.ok(first);
-  const next = stream(`${prefix}and The Hermit holds a lantern.`, cards);
-  assert.deepEqual(next.associations.find(cue => cue.id === first.id), first);
-  assert.ok(next.associations.some(cue => detailIds(cue).includes('lantern')));
-  assert.ok(next.associations.every(cue => cue.kind !== 'relationship'));
+  assert.deepEqual(stream(prefix, cards).associations, [], 'an open sentence can still acquire negation');
+  const closed = stream(`${prefix}and The Hermit holds a lantern.`, cards);
+  assert.deepEqual(closed.associations.filter(cue => cue.kind === 'literal').map(cue => [cue.targets[0].canonicalName, ...detailIds(cue)]), [
+    ['The Star', 'pool-pour'], ['The Hermit', 'lantern']
+  ]);
+  assert.ok(closed.associations.every(cue => cue.kind !== 'relationship'));
+  const wrongOwner = align('The Star describes a lantern, and The Hermit holds a staff.', cards);
+  assert.deepEqual(wrongOwner.associations.flatMap(detailIds), []);
 });
 
 test('a nearby physical verb does not turn figurative pool and land into artwork nouns', () => {
@@ -219,24 +217,22 @@ test('closing quotation punctuation does not revoke an arrived literal cue', () 
   assert.deepEqual(stream(`${prefix}”`).associations.find(cue => cue.id === pool.id), pool);
 });
 
-test('supported synthesis reuses established imagery without enriching arbitrary named pairs', () => {
-  const sample = fixture('gestures-five-card-creative-project.json');
-  const result = align(sample.reading, sample.cards);
-  const synthesis = result.associations.find(cue => cue.kind === 'relationship');
-  assert.deepEqual(synthesis.targets.map(target => target.detailIds), [['sprout'], ['cup']]);
-  const ungrounded = align('The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting.', spread('Ace of Wands', 'Queen of Cups'));
-  assert.ok(ungrounded.associations.every(cue => cue.targets.every(target => target.detailIds.length === 0)));
-  const unrelated = align('Ace of Wands. A hand offers a wand still sprouting leaves. Queen of Cups. She holds an ornate, covered cup. The Ace of Wands and Queen of Cups appear together.', spread('Ace of Wands', 'Queen of Cups'));
-  assert.ok(unrelated.associations.filter(cue => cue.kind === 'relationship').every(cue => cue.targets.every(target => target.detailIds.length === 0)));
+test('named pairs never inherit geometry just because their images were described earlier', () => {
+  for (const ending of [
+    'The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting.',
+    'The Ace of Wands and Queen of Cups appear together.'
+  ]) {
+    const result = align(`Ace of Wands. A hand offers a wand still sprouting leaves. Queen of Cups. She holds an ornate, covered cup. ${ending}`, spread('Ace of Wands', 'Queen of Cups'));
+    assert.deepEqual(result.associations.filter(cue => cue.kind === 'literal').flatMap(detailIds), ['sprout', 'cup']);
+    assert.ok(result.associations.filter(cue => cue.kind === 'relationship').every(cue => cue.targets.every(target => target.detailIds.length === 0)));
+  }
 });
 
-test('recorded Celtic imagery establishes staffs once and returns to the lantern and scrum', () => {
+test('the recorded Celtic physical clauses survive qualifiers without interpreting later metaphors', () => {
   const sample = fixture('gestures-celtic-deep-shift.json');
   const result = align(sample.excerpt, sample.cards);
-  const staffs = result.associations.filter(cue => cue.kind === 'literal' && detailIds(cue).includes('staffs'));
-  assert.equal(staffs.length, 1);
-  assert.ok(result.associations.some(cue => cue.kind === 'interpretation' && detailIds(cue).includes('lantern')));
-  assert.ok(result.associations.some(cue => cue.kind === 'interpretation' && detailIds(cue).includes('staffs')));
+  assert.deepEqual(result.associations.filter(cue => cue.kind === 'literal').flatMap(detailIds), ['lantern', 'staffs']);
+  assert.ok(result.associations.every(cue => cue.kind !== 'interpretation'));
 });
 
 test('expanded live details wait for a complete physical statement and remain stable while held', () => {
@@ -260,14 +256,51 @@ test('expanded live details wait for a complete physical statement and remain st
   assert.equal(state.current?.id, dog.id);
 });
 
-test('a late qualifier cannot publish a premature expanded literal and the original Star cue keeps its cadence', () => {
-  const cards = spread('The Moon');
-  const prefix = 'The Moon. A crayfish ';
-  assert.deepEqual(stream(prefix, cards).associations.flatMap(detailIds), []);
-  assert.deepEqual(stream(`${prefix}does not emerge from the pool.`, cards).associations.flatMap(detailIds), []);
-  const starPrefix = 'The Star shows water pouring into a pool, ';
-  const pool = stream(starPrefix).associations.find(cue => detailIds(cue).includes('pool-pour'));
-  assert.ok(pool, 'the established eight-card rules retain their earlier physical cadence');
-  const next = stream(`${starPrefix}as a metaphor for memory.`);
-  assert.deepEqual(next.associations.find(cue => cue.id === pool.id), pool);
+test('all cards wait for late qualifiers, then preserve closed physical associations', () => {
+  for (const [name, prefix, ending] of [
+    ['The Moon', 'A crayfish ', 'does not emerge from the pool.'],
+    ['The Hermit', 'A lantern ', 'is not held by the figure.'],
+    ['Queen of Cups', 'Her covered cup ', 'is not held in either hand.']
+  ]) {
+    const cards = spread(name);
+    assert.deepEqual(stream(`${name}. ${prefix}`, cards).associations.flatMap(detailIds), []);
+    assert.deepEqual(stream(`${name}. ${prefix}${ending}`, cards).associations.flatMap(detailIds), []);
+  }
+  const prefix = 'The Star shows water pouring into a pool, ';
+  assert.deepEqual(stream(prefix).associations.flatMap(detailIds), []);
+  const closed = `${prefix}as a metaphor for memory.`;
+  const pool = stream(closed).associations.find(cue => detailIds(cue).includes('pool-pour'));
+  assert.ok(pool);
+  assert.deepEqual(stream(`${closed} Take that at your own pace.`).associations.find(cue => cue.id === pool.id), pool);
+});
+
+test('one physical-clause guard protects the original cards without rejecting observation or adjective lists', () => {
+  const positive = [
+    ['Queen of Cups', 'She holds an ornate, covered cup.', 'cup'],
+    ['The Hermit', 'You see him holding a lantern.', 'lantern'],
+    ['The Hermit', 'In the picture, you can see him holding a lantern.', 'lantern'],
+    ['The Hermit', 'His lantern is held close and lights only the next few steps, not the whole mountain.', 'lantern'],
+    ['The Star', 'The figure pours one pitcher into a pool and the other onto the land.', 'pool-pour'],
+    ['Five of Wands', 'On the card, five people swing staffs in a chaotic scrum.', 'staffs']
+  ];
+  for (const [name, prose, expected] of positive) {
+    const result = align(`${name}. ${prose}`, spread(name));
+    assert.ok(result.associations.some(cue => detailIds(cue).includes(expected)), `${name}: ${prose}`);
+  }
+  const negative = [
+    ['The Hermit', 'You do not hold a lantern here.'],
+    ['The Hermit', 'You see yourself holding a lantern.'],
+    ['The Hermit', 'Let your own lantern light the way.'],
+    ['The Hermit', 'There is no lantern held here.'],
+    ['The Hermit', 'Imagine him holding a lantern.'],
+    ['Five of Wands', 'There is no clash of staves.'],
+    ['Queen of Cups', 'She does not hold an ornate, covered cup.'],
+    ['The Star', 'You are pouring energy into a pool of other people’s needs.'],
+    ['The Star', 'Imagine The Star pouring water into a pool.'],
+    ['Ace of Wands', 'Your wand is still sprouting leaves as a metaphor for ambition.'],
+    ['Seven of Swords', 'Your figure carries five swords in the imagined camp.'],
+    ['Three of Pentacles', 'There is no craftsman in this cathedral.'],
+    ['Wheel of Fortune', 'The great wheel does not bear a sphinx.']
+  ];
+  for (const [name, prose] of negative) assert.deepEqual(align(`${name}. ${prose}`, spread(name)).associations.flatMap(detailIds), [], `${name}: ${prose}`);
 });

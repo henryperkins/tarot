@@ -1,0 +1,322 @@
+{
+  "id": "rest-and-courage",
+  "language": "en",
+  "userQuestion": "How can I make space for rest while preparing for a demanding month?",
+  "reflectionsText": "",
+  "cards": [
+    {
+      "card": "Nine of Wands",
+      "position": "Situation",
+      "orientation": "Reversed"
+    },
+    {
+      "card": "Four of Swords",
+      "position": "Invitation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "The Sun",
+      "position": "Direction",
+      "orientation": "Upright"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Opening\n\nYou're asking how to make space for rest while preparing for a demanding month. These cards trace a path from bracing yourself toward something steadier and warmer.\n\n## The Story\n\nIn the Situation sits the Nine of Wands, reversed. Here, a head bandage and a row of staffs suggest someone who has been on guard. Reversed, that bandage might speak to fatigue from guarding too long, and the staffs may feel less like support than a fence you keep checking.\n\nThe Invitation is the Four of Swords, upright. Joined hands rest in prayer, and three swords hang on the wall above. Those hanging swords aren't discarded; they simply wait while rest happens.\n\nThe Sun, upright, offers Direction. A white horse and bright sunflowers share the scene, suggesting a pace that is open and unhurried.\n\n## Putting It Together\n\nThe staffs you've been guarding and the swords set on the wall may be the same preparation in two forms: one gripped, one placed within reach. Your plans can stay ready without being carried every hour.\n\n## Gentle Next Steps\n\nYou might choose one task to set down each evening as a deliberate pause. Like those sunflowers, consider what turns you toward warmth—daylight, a walk, a slow meal—and protect it as firmly as work.\n\n## Closing\n\nBetween the joined hands and the waiting swords, there is room to breathe before the month begins.",
+    "annotations": [
+      {
+        "id": "id-nine-wands",
+        "kind": "identity",
+        "quote": "Nine of Wands",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-head-bandage",
+        "kind": "literal",
+        "quote": "head bandage",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "head-bandage"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-staffs",
+        "kind": "literal",
+        "quote": "row of staffs",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "staff-barrier"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-bandage-fatigue",
+        "kind": "interpretation",
+        "quote": "that bandage might speak to fatigue from guarding too long",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "head-bandage"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-head-bandage"
+        ]
+      },
+      {
+        "id": "int-staffs-fence",
+        "kind": "interpretation",
+        "quote": "the staffs may feel less like support than a fence you keep checking",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "staff-barrier"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-staffs"
+        ]
+      },
+      {
+        "id": "id-four-swords",
+        "kind": "identity",
+        "quote": "Four of Swords",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-praying-hands",
+        "kind": "literal",
+        "quote": "Joined hands rest in prayer",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "praying-hands"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-hanging-swords",
+        "kind": "literal",
+        "quote": "three swords hang on the wall above",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "hanging-swords"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-swords-wait",
+        "kind": "interpretation",
+        "quote": "Those hanging swords aren't discarded; they simply wait while rest happens",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "hanging-swords"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-hanging-swords"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "make space for rest"
+        }
+      },
+      {
+        "id": "id-sun",
+        "kind": "identity",
+        "quote": "The Sun",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-white-horse",
+        "kind": "literal",
+        "quote": "A white horse",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "white-horse"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-sunflowers",
+        "kind": "literal",
+        "quote": "bright sunflowers",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "sunflowers"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-sun-pace",
+        "kind": "interpretation",
+        "quote": "suggesting a pace that is open and unhurried",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "white-horse",
+              "sunflowers"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-white-horse",
+          "lit-sunflowers"
+        ]
+      },
+      {
+        "id": "rel-staffs-swords",
+        "kind": "relationship",
+        "quote": "The staffs you've been guarding and the swords set on the wall",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "staff-barrier"
+            ]
+          },
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "hanging-swords"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-staffs",
+          "lit-hanging-swords"
+        ]
+      },
+      {
+        "id": "int-sunflowers-warmth",
+        "kind": "interpretation",
+        "quote": "Like those sunflowers, consider what turns you toward warmth",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "sunflowers"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-sunflowers"
+        ]
+      },
+      {
+        "id": "bal-hands-swords",
+        "kind": "balance",
+        "quote": "Between the joined hands and the waiting swords",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "praying-hands",
+              "hanging-swords"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-praying-hands",
+          "lit-hanging-swords"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:27:04.662Z",
+    "completedAt": "2026-10-09T12:28:48.999Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 979,
+      "cache_read_input_tokens": 2052,
+      "output_tokens": 5845,
+      "output_tokens_details": {
+        "thinking_tokens": 3944
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 979,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "2e4f5eb051e6b1529afdbf6be2f590a376d631c4aff641963a41f802f1a6bc62",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Opening\\n\\nYou're asking how to make space for rest while preparing for a demanding month. These cards trace a path from bracing yourself toward something steadier and warmer.\\n\\n## The Story\\n\\nIn the Situation sits the Nine of Wands, reversed. Here, a head bandage and a row of staffs suggest someone who has been on guard. Reversed, that bandage might speak to fatigue from guarding too long, and the staffs may feel less like support than a fence you keep checking.\\n\\nThe Invitation is the Four of Swords, upright. Joined hands rest in prayer, and three swords hang on the wall above. Those hanging swords aren't discarded; they simply wait while rest happens.\\n\\nThe Sun, upright, offers Direction. A white horse and bright sunflowers share the scene, suggesting a pace that is open and unhurried.\\n\\n## Putting It Together\\n\\nThe staffs you've been guarding and the swords set on the wall may be the same preparation in two forms: one gripped, one placed within reach. Your plans can stay ready without being carried every hour.\\n\\n## Gentle Next Steps\\n\\nYou might choose one task to set down each evening as a deliberate pause. Like those sunflowers, consider what turns you toward warmth—daylight, a walk, a slow meal—and protect it as firmly as work.\\n\\n## Closing\\n\\nBetween the joined hands and the waiting swords, there is room to breathe before the month begins.\",\"annotations\":[{\"id\":\"id-nine-wands\",\"kind\":\"identity\",\"quote\":\"Nine of Wands\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"lit-head-bandage\",\"kind\":\"literal\",\"quote\":\"head bandage\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"head-bandage\"]}]},{\"id\":\"lit-staffs\",\"kind\":\"literal\",\"quote\":\"row of staffs\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"staff-barrier\"]}]},{\"id\":\"int-bandage-fatigue\",\"kind\":\"interpretation\",\"quote\":\"that bandage might speak to fatigue from guarding too long\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"head-bandage\"]}],\"establishedBy\":[\"lit-head-bandage\"]},{\"id\":\"int-staffs-fence\",\"kind\":\"interpretation\",\"quote\":\"the staffs may feel less like support than a fence you keep checking\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"staff-barrier\"]}],\"establishedBy\":[\"lit-staffs\"]},{\"id\":\"id-four-swords\",\"kind\":\"identity\",\"quote\":\"Four of Swords\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"lit-praying-hands\",\"kind\":\"literal\",\"quote\":\"Joined hands rest in prayer\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"praying-hands\"]}]},{\"id\":\"lit-hanging-swords\",\"kind\":\"literal\",\"quote\":\"three swords hang on the wall above\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"hanging-swords\"]}]},{\"id\":\"int-swords-wait\",\"kind\":\"interpretation\",\"quote\":\"Those hanging swords aren't discarded; they simply wait while rest happens\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"hanging-swords\"]}],\"establishedBy\":[\"lit-hanging-swords\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"make space for rest\"}},{\"id\":\"id-sun\",\"kind\":\"identity\",\"quote\":\"The Sun\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"lit-white-horse\",\"kind\":\"literal\",\"quote\":\"A white horse\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"white-horse\"]}]},{\"id\":\"lit-sunflowers\",\"kind\":\"literal\",\"quote\":\"bright sunflowers\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"sunflowers\"]}]},{\"id\":\"int-sun-pace\",\"kind\":\"interpretation\",\"quote\":\"suggesting a pace that is open and unhurried\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"white-horse\",\"sunflowers\"]}],\"establishedBy\":[\"lit-white-horse\",\"lit-sunflowers\"]},{\"id\":\"rel-staffs-swords\",\"kind\":\"relationship\",\"quote\":\"The staffs you've been guarding and the swords set on the wall\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"staff-barrier\"]},{\"spreadIndex\":1,\"detailIds\":[\"hanging-swords\"]}],\"establishedBy\":[\"lit-staffs\",\"lit-hanging-swords\"]},{\"id\":\"int-sunflowers-warmth\",\"kind\":\"interpretation\",\"quote\":\"Like those sunflowers, consider what turns you toward warmth\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"sunflowers\"]}],\"establishedBy\":[\"lit-sunflowers\"]},{\"id\":\"bal-hands-swords\",\"kind\":\"balance\",\"quote\":\"Between the joined hands and the waiting swords\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"praying-hands\",\"hanging-swords\"]}],\"establishedBy\":[\"lit-praying-hands\",\"lit-hanging-swords\"]}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 16,
+    "acceptedAnnotations": 16,
+    "compiledCounts": {
+      "identity": 3,
+      "literal": 6,
+      "interpretation": 5,
+      "balance": 1,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 3,
+      "literal": 1,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 0
+    },
+    "personalContextCount": 1,
+    "introducedCards": 3,
+    "modelLiteralReferences": 6,
+    "fallbackLiteralMatches": 1,
+    "rawSha256": "7682891f0a8c89c5a11ecbf6078fdb4f321aeb0ae76141bcaeeb06f40d697d99",
+    "wordCount": 233
+  }
+}

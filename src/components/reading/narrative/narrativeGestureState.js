@@ -1,4 +1,5 @@
 const ACTIVE_MS = 1800;
+const SETTLING_MS = 1500;
 
 export function getCardPresence({ introduction, visibleEnd = 0, inspected = false, reducedMotion = false }) {
   if (inspected) return 1;
@@ -37,7 +38,7 @@ function adopt(state, id, now = 0) {
 }
 
 function release(state, now) {
-  const next = { ...state, held: null, phase: state.current ? 'settling' : 'static', activeUntil: now + 1500 };
+  const next = { ...state, held: null, phase: state.current ? 'settling' : 'static', activeUntil: now + SETTLING_MS };
   return next.pending && next.passageVisibility[next.pending] === true ? adopt(next, next.pending, now) : next;
 }
 
@@ -105,8 +106,11 @@ export function reduceGestureFocus(state, event) {
     case 'STATUS': next = { ...state, status: event.status }; break;
     case 'MOTION': next = { ...state, reducedMotion: event.reducedMotion }; break;
     case 'TICK':
-      if (!state.held && state.phase === 'active' && now >= state.activeUntil) next = { ...state, phase: 'settling', activeUntil: now + 1500 };
-      else if (!state.held && state.phase === 'settling' && now >= state.activeUntil) next = { ...state, phase: 'static' };
+      if (!state.held && state.phase === 'active' && now >= state.activeUntil) {
+        // Background throttling must not buy an already elapsed cue more motion.
+        const settlingUntil = state.activeUntil + SETTLING_MS;
+        next = { ...state, phase: now >= settlingUntil ? 'static' : 'settling', activeUntil: settlingUntil };
+      } else if (!state.held && state.phase === 'settling' && now >= state.activeUntil) next = { ...state, phase: 'static' };
       break;
     default: return state;
   }

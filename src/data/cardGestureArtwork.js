@@ -102,3 +102,24 @@ export function projectGestureFrame(frame, reversed = false) {
   if (!frame) return undefined;
   return { ...frame, x: reversed ? 1 - frame.x : frame.x, y: reversed ? 1 - frame.y : frame.y };
 }
+
+/** Artwork composition belongs to the edition registry, not the shared renderer. */
+const sharedFrames = {
+  'The Star': [{ detailIds: ['pool-pour', 'land-pour'], frame: { x: .55, y: .70, zoom: .82 } }]
+};
+export function getVectorGestureFrames(canonicalName, detailIds, { paired = false } = {}) {
+  const shared = sharedFrames[canonicalName]?.find(group => group.detailIds.length === detailIds.length && group.detailIds.every(id => detailIds.includes(id)));
+  return shared || paired || detailIds.length < 2 ? [detailIds] : detailIds.map(id => [id]);
+}
+export function getVectorGestureFrame(canonicalName, detailIds, reversed = false) {
+  const details = getVectorGestureDetails(canonicalName).filter(detail => detailIds.includes(detail.id));
+  const shared = sharedFrames[canonicalName]?.find(group => group.detailIds.length === detailIds.length && group.detailIds.every(id => detailIds.includes(id)));
+  const frame = shared?.frame || (details.length === 1 ? details[0].frame : { x: .5, y: .5, zoom: .39 });
+  // The short handset stage is 72px high. Fit the supported detail's authored
+  // extents inside it with six pixels of breathing room rather than clipping
+  // tall objects such as the Emperor's scepter or Justice's hanging scales.
+  const spots = details.flatMap(detail => detail.maskSpots);
+  const extent = Math.max(0, ...spots.map(spot => Math.abs(spot.y - frame.y) + spot.ry));
+  const shortZoom = Math.min(frame.zoom, 66 / ((extent ? 2 * extent : 1) * 266.667));
+  return { ...projectGestureFrame(frame, reversed), shortZoom };
+}

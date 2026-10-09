@@ -130,6 +130,21 @@ test('held water owns actual handles, settles and responds to reduced motion and
   } finally { await fixture.close(); }
 });
 
+test('completed burst settles even when a timer wakes before its deadline', async ({ page }) => {
+  // Browser timers truncate fractional delays. Make that early wake observable
+  // without relying on the machine happening to hit the sub-millisecond race.
+  await page.addInitScript(() => {
+    const schedule = window.setTimeout.bind(window);
+    window.setTimeout = (callback, delay, ...args) => schedule(callback,
+      delay > 1000 && delay <= 1800 ? delay - 50 : delay, ...args);
+  });
+  await open(page, 'arrival=burst&associations=authored');
+  await expect(diagnostics(page)).toHaveAttribute('data-source-status', 'complete');
+  await expect(windowArt(page)).toHaveAttribute('data-association', 'balance');
+  await expect(windowArt(page)).toHaveAttribute('data-phase', 'static', { timeout: 6000 });
+  await expect.poll(() => runningWater(page)).toBe(0);
+});
+
 test('fast paired handoff leaves inert exits, bounded motion owners and intact keyboard focus', async ({ page }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));

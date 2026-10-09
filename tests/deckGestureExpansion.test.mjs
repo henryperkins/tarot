@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { getAllCards } from '../src/lib/cardLookup.js';
 import { getVectorGestureDetails, projectGestureFrame } from '../src/data/cardGestureArtwork.js';
@@ -77,5 +78,33 @@ test('physical detail and its following interpretation can share a sentence', ()
   ]) {
     const result = alignReadingPassages({ rawText: `The Fool. ${prose}`, cards: [{ index: 0, name: 'The Fool' }], artworkEdition: edition });
     assert.ok(result.associations.some(cue => cue.targets[0].detailIds.includes('white-dog')), prose);
+  }
+});
+
+
+test('outside-review prose retains supported literal paraphrases without borrowing authored example sentences', () => {
+  const probes = JSON.parse(readFileSync(new URL('./fixtures/reading-gesture-review-probes.json', import.meta.url), 'utf8'));
+  assert.equal(probes.samples.length, 2);
+  for (const sample of probes.samples) {
+    const cards = sample.cards.map((name, index) => ({ name, index }));
+    const aligned = alignReadingPassages({ rawText: sample.rawText, cards, artworkEdition: edition });
+    assert.deepEqual(aligned.errors, [], sample.id);
+    const actual = aligned.associations.filter(cue => cue.kind === 'literal').flatMap(cue => cue.targets.flatMap(target => target.detailIds.map(id => `${target.spreadIndex}:${id}`)));
+    assert.deepEqual(new Set(actual), new Set(sample.expectedDetails.map(([index, id]) => `${index}:${id}`)), sample.id);
+    assert.ok(aligned.associations.every(cue => cue.kind !== 'interpretation' && cue.kind !== 'balance'), sample.id);
+    for (const cue of aligned.associations) assert.equal(sample.rawText.slice(cue.passage.start, cue.passage.end), cue.passage.quote);
+  }
+});
+
+test('supported paraphrases remain unlit when negated or addressed as personal metaphors', () => {
+  for (const [name, prose] of [
+    ['The Fool', 'No small dog leaps at the traveler’s heels.'],
+    ['The Magician', 'You raise a wand toward the sky when you imagine your power.'],
+    ['Four of Pentacles', 'He does not clutch a coin to his chest.'],
+    ['Six of Swords', 'There is no woman and child seated in the boat.'],
+    ['Temperance', 'You are pouring water between two cups as a metaphor for work.']
+  ]) {
+    const result = alignReadingPassages({ rawText: `${name}. ${prose}`, cards: [{ name, index: 0 }], artworkEdition: edition });
+    assert.deepEqual(result.associations.flatMap(cue => cue.targets.flatMap(target => target.detailIds)), [], `${name}: ${prose}`);
   }
 });

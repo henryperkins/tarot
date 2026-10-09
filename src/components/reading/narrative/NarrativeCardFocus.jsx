@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useReducer, useLayoutEffect } from 'react';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { resolveGestureSidecar } from '../../../lib/narrativeCardLinks.js';
-import { resolveDynamicPassages } from '../../../lib/narrativePassageAligner.js';
+import { resolveNarrativePassages } from '../../../lib/generatedNarrativePassages.js';
+import { retainHeldPassage, withPassageArtwork } from '../../../lib/retainHeldPassage.js';
 import { createGestureFocusState, reduceGestureFocus } from './narrativeGestureState.js';
+import { scheduleGestureDeadline } from './scheduleGestureDeadline.js';
 
 /**
  * Which spread cards the reading is speaking about right now.
@@ -42,28 +44,33 @@ export function NarrativeCardFocusProvider({
   const [sweep, setSweep] = useState({ key: null, step: 0 });
   const containerRef = useRef(null);
   const onSelectCardRef = useRef(onSelectCard);
-  const resolved = useMemo(() => {
+  const baseResolved = useMemo(() => {
     if (!gestureStudyEnabled || !gestureSource) {
       return { associations: [], introductions: [], invalid: [] };
     }
-    if (gestureSidecar) {
-      return resolveGestureSidecar({
+    const resolved = gestureSidecar
+      ? resolveGestureSidecar({
         sidecar: gestureSidecar,
         source: { ...gestureSource, ...personalContext },
         cards,
         artworkEdition: cards[0]?.artworkEdition
-      });
-    }
-    return resolveDynamicPassages({
+      })
+      : resolveNarrativePassages({
       source: { ...gestureSource, ...personalContext },
       cards,
       artworkEdition: cards[0]?.artworkEdition
-    });
+      });
+    return withPassageArtwork(resolved, cards, cards[0]?.artworkEdition);
   }, [gestureStudyEnabled, gestureSidecar, gestureSource, personalContext, cards]);
   const [gestureState, dispatch] = useReducer(reduceGestureFocus, null, () => createGestureFocusState({
     runId: gestureSource?.runId, sourceRevision: gestureSource?.sourceRevision,
-    ...resolved, completed: gestureSource?.kind === 'hydrate' && gestureSource?.status === 'complete'
+    ...baseResolved, completed: gestureSource?.kind === 'hydrate' && gestureSource?.status === 'complete'
   }));
+  const { current: selectedPassage, held: heldSelection, runId: selectionRunId, sourceRevision: selectionRevision } = gestureState;
+  const resolved = useMemo(() => retainHeldPassage({ resolved: baseResolved,
+    state: { current: selectedPassage, held: heldSelection, runId: selectionRunId, sourceRevision: selectionRevision },
+    source: { ...gestureSource, ...personalContext }, cards, artworkEdition: cards[0]?.artworkEdition
+  }), [baseResolved, selectedPassage, heldSelection, selectionRunId, selectionRevision, gestureSource, personalContext, cards]);
   const gestureRef = useRef({ source: gestureSource, state: gestureState, resolved });
   const studyEnabled = Boolean(
     gestureStudyEnabled &&
@@ -77,6 +84,15 @@ export function NarrativeCardFocusProvider({
   useEffect(() => {
     if (!gestureSource || !gestureStudyEnabled) return;
     dispatch({ type: 'SOURCE', source: { ...gestureSource, status: document.hidden ? 'paused' : gestureSource.status }, ...resolved });
+    const previous = gestureRef.current.state;
+    // Metadata and hold release can change annotation IDs without new text.
+    // Reconcile only text already reported visible, never raw arrival alone.
+    if (previous.runId === gestureSource.runId && previous.sourceRevision === gestureSource.sourceRevision) {
+      dispatch({ type: 'PROGRESS', runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision,
+        progress: { visibleEnd: previous.visibleEnd, complete: previous.completed }, now: performance.now(),
+        eligibleAssociationIds: resolved.associations.filter(cue => cue.passage.end <= previous.visibleEnd
+          && previous.passageVisibility[cue.id] === true).map(cue => cue.id) });
+    }
   }, [gestureSource, gestureStudyEnabled, resolved]);
   useEffect(() => {
     if (!studyEnabled) return undefined;
@@ -97,8 +113,9 @@ export function NarrativeCardFocusProvider({
   }, [studyEnabled, manualInspectionStatus, gestureSource]);
   useEffect(() => {
     if (!studyEnabled || !['active', 'settling'].includes(gestureState.phase) || gestureState.held) return undefined;
-    const timeout = window.setTimeout(() => dispatch({ type: 'TICK', runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision, now: performance.now() }), Math.max(0, gestureState.activeUntil - performance.now()));
-    return () => window.clearTimeout(timeout);
+    return scheduleGestureDeadline(gestureState.activeUntil, now => dispatch({
+      type: 'TICK', runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision, now
+    }));
   }, [studyEnabled, gestureState.phase, gestureState.activeUntil, gestureState.held, gestureSource?.runId, gestureSource?.sourceRevision]);
 
   useEffect(() => {

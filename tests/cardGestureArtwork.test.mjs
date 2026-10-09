@@ -49,3 +49,17 @@ test('manifest contains 78 distinct present faces, excluding back', async () => 
   for (const face of faces) { assert.ok(face.width > 0); assert.ok(face.height > 0); }
   await Promise.all(files.map(file => access(new URL(file, root))));
 });
+
+test('multi-detail composition follows artwork metadata and short screens retain supported extents', async () => {
+  const { getVectorGestureFrames, getVectorGestureFrame } = await import('../src/data/cardGestureArtwork.js');
+  assert.deepEqual(getVectorGestureFrames('The Star', ['pool-pour', 'land-pour']), [['pool-pour', 'land-pour']]);
+  assert.deepEqual(getVectorGestureFrames('Ace of Wands', ['sprout', 'castle']), [['sprout'], ['castle']]);
+  assert.deepEqual(getVectorGestureFrames('Ace of Wands', ['sprout', 'castle'], { paired: true }), [['sprout', 'castle']]);
+  for (const [name, id] of [['The Emperor', 'scepter'], ['Justice', 'scales']]) {
+    const detail = getVectorGestureDetails(name).find(item => item.id === id);
+    const frame = getVectorGestureFrame(name, [id]);
+    assert.ok(frame.shortZoom < frame.zoom);
+    for (const spot of detail.maskSpots) assert.ok((Math.abs(spot.y - frame.y) + spot.ry) * 266.667 * frame.shortZoom <= 33.001);
+    assert.equal(getVectorGestureFrame(name, [id], true).shortZoom, frame.shortZoom);
+  }
+});

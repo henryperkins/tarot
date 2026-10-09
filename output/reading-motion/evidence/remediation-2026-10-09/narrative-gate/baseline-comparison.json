@@ -1,0 +1,33 @@
+{
+  "baseline": "f6bcfcd",
+  "scratch": "/tmp/tableu-f6-metrics-parity-00kkalfx",
+  "sourceFileCount": 29,
+  "commands": [
+    {
+      "command": [
+        "node",
+        "scripts/evaluation/computeNarrativeMetrics.js",
+        "--in",
+        "fresh-samples.json",
+        "--metrics-out",
+        "fresh-metrics.json",
+        "--review-out",
+        "fresh-review.csv"
+      ],
+      "exitCode": 0,
+      "stdout": "Narrative metrics written to fresh-metrics.json.\nNarrative evidence saved to runs/2026-10-09T12-42-49.105Z-XdcV6m.\nNarrative review queue updated with 1 flagged sample(s).\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "node",
+        "scripts/evaluation/verifyNarrativeGate.js",
+        "fresh-metrics.json"
+      ],
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "Narrative gate failed: Deterministic language issues 1 > limit 0; Flagged samples 1 > limit 0\nFlagged narrative sample: {\"id\":\"wellbeing-marseille-reset\",\"issues\":[\"deterministic-language\"],\"deterministicLanguageMatches\":[\"guaranteed\"],\"hallucinatedCards\":[],\"missingCards\":[],\"suitCountMismatches\":[]}\nNarrative metrics: fresh-metrics.json\nNarrative evidence directory: runs/2026-10-09T12-42-49.105Z-XdcV6m\n"
+    }
+  ],
+  "metricsIdenticalExcludingPathsAndTimestamp": true
+}

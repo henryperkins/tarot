@@ -5,11 +5,11 @@
  */
 const rows = {
   'The Fool': [
-    { id: 'white-dog', terms: ['white dog'], spot: [.80, .735, .13, .11], crop: [.79, .73, 1.55], match: /\b(?:little )?white dog\b/giu, scene: /\b(?:leap\w*|bark\w*|heels?|feet|beside)\b/i, text: 'A little white dog leaps beside the traveler’s heels.' },
+    { id: 'white-dog', terms: ['white dog'], spot: [.80, .735, .13, .11], crop: [.79, .73, 1.55], match: /\b(?:(?:little|small) (?:white )?dog|white dog)\b/giu, scene: /\b(?:leap\w*|bark\w*|heels?|feet|beside)\b/i, text: 'A little white dog leaps beside the traveler’s heels.' },
     { id: 'cliff-edge', terms: ['cliff edge'], spot: [.46, .815, .31, .10], crop: [.47, .79, 1.12], match: /\b(?:cliff edge|edge of (?:a|the) cliff)\b/giu, scene: /\b(?:stands?|standing|steps?|feet|traveler)\b/i, text: 'The traveler stands at the cliff edge, with one foot close to the drop.' }
   ],
   'The Magician': [
-    { id: 'raised-wand', terms: ['raised wand', 'wand held aloft'], spot: [.175, .135, .075, .11], crop: [.175, .15, 1.9], match: /\b(?:raised wand|wand held aloft)\b/giu, scene: /\b(?:hand|holds?|sky|above)\b/i, text: 'His hand holds a raised wand toward the sky.' },
+    { id: 'raised-wand', terms: ['raised wand', 'wand held aloft'], spot: [.175, .135, .075, .11], crop: [.175, .15, 1.9], match: /\b(?:raised wand|wand held aloft|rais(?:es?|ing) (?:a|the|his) wand)\b/giu, scene: /\b(?:hand|holds?|rais(?:es?|ing)|sky|above)\b/i, text: 'His hand holds a raised wand toward the sky.' },
     { id: 'table-tools', terms: ['four tools', 'tools on the table'], spot: [.32, .59, .26, .10], crop: [.32, .58, 1.25], match: /\b(?:four tools|tools on the table)\b/giu, scene: /\b(?:table|cup|sword|pentacle|wand)\b/i, text: 'Four tools rest on the table: a cup, sword, pentacle, and wand.' }
   ],
   'The High Priestess': [
@@ -53,7 +53,7 @@ const rows = {
     { id: 'rising-sun', terms: ['sun between the towers'], spot: [.86, .365, .085, .075], crop: [.85, .36, 2], match: /\bsun (?:rises? )?between (?:the |two )?towers\b/giu, scene: /\b(?:horizon|distance|rises?|towers)\b/i, text: 'In the distance, the sun rises between two towers on the horizon.' }
   ],
   'Temperance': [
-    { id: 'cup-stream', terms: ['water between the cups'], spot: [.485, .42, .15, .09], crop: [.485, .42, 1.65], match: /\bwater (?:flows? |passes? )?between (?:the )?(?:two )?cups\b/giu, scene: /\b(?:angel|pours?|flows?|passes?|tilt\w*)\b/i, text: 'The angel pours water between the two cups.' },
+    { id: 'cup-stream', terms: ['water between the cups'], spot: [.485, .42, .15, .09], crop: [.485, .42, 1.65], match: /\bwater (?:flows? |passes? )?between (?:the )?(?:two )?cups\b/giu, scene: /\b(?:angel|pour(?:s|ing)?|flow(?:s|ing)?|pass(?:es|ing)?|tilt\w*)\b/i, text: 'The angel pours water between the two cups.' },
     { id: 'two-feet', terms: ['one foot in water'], spots: [[.49, .83, .09, .07], [.635, .79, .10, .06]], crop: [.56, .815, 1.5], match: /\bone foot in (?:the )?water\b/giu, scene: /\b(?:other|land|shore|ground)\b/i, text: 'One foot in water and the other on land place the angel across both surfaces.' }
   ],
   'The Devil': [

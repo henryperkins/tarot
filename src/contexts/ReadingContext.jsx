@@ -553,6 +553,7 @@ export function ReadingProvider({ children }) {
 
                 if (eventType === 'meta') {
                     streamMeta = data;
+                    if (Object.hasOwn(data, 'semanticDocument')) updateGestureSource(runId, { semanticDocument: data.semanticDocument });
                     if (data?.themes !== undefined) {
                         setThemes(data.themes || null);
                     }
@@ -586,11 +587,13 @@ export function ReadingProvider({ children }) {
                     if (typeof data.fullText === 'string') {
                         streamedText = data.fullText;
                         sourceKind = 'snapshot';
+                        if (Object.hasOwn(data, 'semanticDocument')) updateGestureSource(runId, { raw: streamedText, kind: sourceKind, semanticDocument: data.semanticDocument });
                         flushStreamedText(true);
                     }
                 } else if (eventType === 'delta') {
                     sourceKind = 'append';
                     streamedText += data.text || '';
+                    if (Object.hasOwn(data, 'semanticDocument')) updateGestureSource(runId, { raw: streamedText, kind: sourceKind, semanticDocument: data.semanticDocument });
                     flushStreamedText();
                     appendNarrationBuffer(data.text || '');
                 } else if (eventType === 'reasoning') {
@@ -648,16 +651,18 @@ export function ReadingProvider({ children }) {
                         narrationFallbackTextRef.current = '';
                     }
 
-                    updateGestureSource(runId, { raw: finalRaw, kind: 'complete', status: 'complete' });
+                    updateGestureSource(runId, { raw: finalRaw, kind: 'complete', status: 'complete',
+                        ...(Object.hasOwn(data, 'semanticDocument') ? { semanticDocument: data.semanticDocument } : {}) });
                     setNarrativePhase('polishing');
                     setSrAnnouncement('Your reading is ready.');
 
-                    const formatted = formatReading(finalText);
+                    const formatted = formatReading(finalRaw);
                     formatted.isError = false;
                     formatted.isStreaming = false;
                     formatted.isServerStreamed = true;
                     formatted.provider = data.provider || streamMeta?.provider || 'local-composer';
                     formatted.requestId = data.requestId || streamMeta?.requestId || null;
+                    if (gestureSourceRef.current?.semanticDocument) formatted.semanticDocument = gestureSourceRef.current.semanticDocument;
                     setPersonalReading(formatted);
                     setIsReadingStreamActive(false);
                     setNarrativePhase('complete');

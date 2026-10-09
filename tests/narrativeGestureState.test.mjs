@@ -116,9 +116,19 @@ test('visibility and status cancel motion without creating an arrival backlog', 
   s = reduceGestureFocus(s, event('STATUS', { status: 'streaming' }));
   assert.equal(s.canMove, true);
   s = reduceGestureFocus(s, event('TICK', { now: 5000 }));
-  assert.equal(s.phase, 'settling');
+  assert.equal(s.phase, 'static');
   s = reduceGestureFocus(s, event('MOTION', { reducedMotion: true }));
   assert.equal(s.canMove, false);
+});
+
+test('a delayed active deadline preserves the settling deadline and skips elapsed motion', () => {
+  const active = advance(initial(), 10, ['pool']);
+  const settling = reduceGestureFocus(active, event('TICK', { now: active.activeUntil + 100 }));
+  assert.equal(settling.phase, 'settling');
+  assert.equal(settling.activeUntil, active.activeUntil + 1500);
+  const finished = reduceGestureFocus(active, event('TICK', { now: active.activeUntil + 1500 }));
+  assert.equal(finished.phase, 'static');
+  assert.equal(finished.canMove, false);
 });
 
 test('all 78 identities in both orientations share introduction, hold, revisit and cleanup', () => {

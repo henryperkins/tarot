@@ -1,0 +1,306 @@
+{
+  "id": "speaking-clearly",
+  "language": "en",
+  "userQuestion": "How can I explain an unpopular idea with care?",
+  "reflectionsText": "I rush when I feel misunderstood.",
+  "cards": [
+    {
+      "card": "Knight of Swords",
+      "position": "Situation",
+      "orientation": "Reversed"
+    },
+    {
+      "card": "Queen of Swords",
+      "position": "Invitation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Page of Cups",
+      "position": "Direction",
+      "orientation": "Upright"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Opening\n\nYou asked how to explain an unpopular idea with care, and you noticed that you rush when you feel misunderstood. These three cards offer ways to slow the pace without softening the idea itself.\n\n## The Story\n\nIn the Situation, the Knight of Swords appears reversed. He rides a charging horse with a raised sword. Reversed, that headlong charge may echo the rush you named: conviction racing ahead before listeners have caught up.\n\nAs the Invitation, the Queen of Swords sits upright. She holds an upright sword and extends an open hand. Her blade stays steady, while the open hand suggests making room for response. Perhaps your idea can stay as clear as that blade while your manner stays welcoming.\n\nIn the Direction, the Page of Cups holds a fish in the cup, with waves behind him. That fish may hint at offering a surprising idea with curiosity rather than defense.\n\n## Putting It Together\n\nWhere the Knight's raised sword leads with momentum, the Queen's upright sword holds still. The same clarity, held rather than swung, may be easier for others to receive.\n\n## Gentle Next Steps\n\n- When you feel misunderstood, pause before adding more arguments.\n- State your idea plainly, then ask what others are hearing.\n- Let curiosity, like the Page's fish, soften the exchange.\n\n## Closing\n\nYour idea can stay sharp and still arrive gently.",
+    "annotations": [
+      {
+        "id": "id-knight",
+        "kind": "identity",
+        "quote": "Knight of Swords",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-knight-horse",
+        "kind": "literal",
+        "quote": "rides a charging horse",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "charging-horse"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-knight-sword",
+        "kind": "literal",
+        "quote": "with a raised sword",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "raised-sword"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-knight-rush",
+        "kind": "interpretation",
+        "quote": "that headlong charge may echo the rush you named",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "charging-horse"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-knight-horse"
+        ],
+        "personalContext": {
+          "type": "querent-reflection",
+          "quote": "I rush when I feel misunderstood."
+        }
+      },
+      {
+        "id": "id-queen",
+        "kind": "identity",
+        "quote": "Queen of Swords",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-queen-sword",
+        "kind": "literal",
+        "quote": "holds an upright sword",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "upright-sword"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-queen-hand",
+        "kind": "literal",
+        "quote": "extends an open hand",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "open-hand"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-queen-hand",
+        "kind": "interpretation",
+        "quote": "the open hand suggests making room for response",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "open-hand"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-queen-hand"
+        ]
+      },
+      {
+        "id": "int-queen-blade",
+        "kind": "interpretation",
+        "quote": "your idea can stay as clear as that blade",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "upright-sword"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-queen-sword"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "explain an unpopular idea"
+        }
+      },
+      {
+        "id": "id-page",
+        "kind": "identity",
+        "quote": "Page of Cups",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-page-fish",
+        "kind": "literal",
+        "quote": "holds a fish in the cup",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "fish-in-cup"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-page-waves",
+        "kind": "literal",
+        "quote": "with waves behind him",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "sea-waves"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-page-fish",
+        "kind": "interpretation",
+        "quote": "offering a surprising idea with curiosity rather than defense",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "fish-in-cup"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-page-fish"
+        ]
+      },
+      {
+        "id": "rel-knight-queen-swords",
+        "kind": "relationship",
+        "quote": "Where the Knight's raised sword leads with momentum, the Queen's upright sword holds still",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "raised-sword"
+            ]
+          },
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "upright-sword"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-knight-sword",
+          "lit-queen-sword"
+        ]
+      },
+      {
+        "id": "int-page-fish-step",
+        "kind": "interpretation",
+        "quote": "Let curiosity, like the Page's fish, soften the exchange",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "fish-in-cup"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-page-fish"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:29:38.094Z",
+    "completedAt": "2026-10-09T12:30:20.880Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 995,
+      "cache_read_input_tokens": 2052,
+      "output_tokens": 5157,
+      "output_tokens_details": {
+        "thinking_tokens": 3350
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 995,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "9efbc1726836c2cd5448572e6fd143c9442173efb02becf7ca040364910bf200",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Opening\\n\\nYou asked how to explain an unpopular idea with care, and you noticed that you rush when you feel misunderstood. These three cards offer ways to slow the pace without softening the idea itself.\\n\\n## The Story\\n\\nIn the Situation, the Knight of Swords appears reversed. He rides a charging horse with a raised sword. Reversed, that headlong charge may echo the rush you named: conviction racing ahead before listeners have caught up.\\n\\nAs the Invitation, the Queen of Swords sits upright. She holds an upright sword and extends an open hand. Her blade stays steady, while the open hand suggests making room for response. Perhaps your idea can stay as clear as that blade while your manner stays welcoming.\\n\\nIn the Direction, the Page of Cups holds a fish in the cup, with waves behind him. That fish may hint at offering a surprising idea with curiosity rather than defense.\\n\\n## Putting It Together\\n\\nWhere the Knight's raised sword leads with momentum, the Queen's upright sword holds still. The same clarity, held rather than swung, may be easier for others to receive.\\n\\n## Gentle Next Steps\\n\\n- When you feel misunderstood, pause before adding more arguments.\\n- State your idea plainly, then ask what others are hearing.\\n- Let curiosity, like the Page's fish, soften the exchange.\\n\\n## Closing\\n\\nYour idea can stay sharp and still arrive gently.\",\"annotations\":[{\"id\":\"id-knight\",\"kind\":\"identity\",\"quote\":\"Knight of Swords\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"lit-knight-horse\",\"kind\":\"literal\",\"quote\":\"rides a charging horse\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"charging-horse\"]}]},{\"id\":\"lit-knight-sword\",\"kind\":\"literal\",\"quote\":\"with a raised sword\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"raised-sword\"]}]},{\"id\":\"int-knight-rush\",\"kind\":\"interpretation\",\"quote\":\"that headlong charge may echo the rush you named\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"charging-horse\"]}],\"establishedBy\":[\"lit-knight-horse\"],\"personalContext\":{\"type\":\"querent-reflection\",\"quote\":\"I rush when I feel misunderstood.\"}},{\"id\":\"id-queen\",\"kind\":\"identity\",\"quote\":\"Queen of Swords\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"lit-queen-sword\",\"kind\":\"literal\",\"quote\":\"holds an upright sword\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"upright-sword\"]}]},{\"id\":\"lit-queen-hand\",\"kind\":\"literal\",\"quote\":\"extends an open hand\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"open-hand\"]}]},{\"id\":\"int-queen-hand\",\"kind\":\"interpretation\",\"quote\":\"the open hand suggests making room for response\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"open-hand\"]}],\"establishedBy\":[\"lit-queen-hand\"]},{\"id\":\"int-queen-blade\",\"kind\":\"interpretation\",\"quote\":\"your idea can stay as clear as that blade\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"upright-sword\"]}],\"establishedBy\":[\"lit-queen-sword\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"explain an unpopular idea\"}},{\"id\":\"id-page\",\"kind\":\"identity\",\"quote\":\"Page of Cups\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"lit-page-fish\",\"kind\":\"literal\",\"quote\":\"holds a fish in the cup\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"fish-in-cup\"]}]},{\"id\":\"lit-page-waves\",\"kind\":\"literal\",\"quote\":\"with waves behind him\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"sea-waves\"]}]},{\"id\":\"int-page-fish\",\"kind\":\"interpretation\",\"quote\":\"offering a surprising idea with curiosity rather than defense\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"fish-in-cup\"]}],\"establishedBy\":[\"lit-page-fish\"]},{\"id\":\"rel-knight-queen-swords\",\"kind\":\"relationship\",\"quote\":\"Where the Knight's raised sword leads with momentum, the Queen's upright sword holds still\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"raised-sword\"]},{\"spreadIndex\":1,\"detailIds\":[\"upright-sword\"]}],\"establishedBy\":[\"lit-knight-sword\",\"lit-queen-sword\"]},{\"id\":\"int-page-fish-step\",\"kind\":\"interpretation\",\"quote\":\"Let curiosity, like the Page's fish, soften the exchange\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"fish-in-cup\"]}],\"establishedBy\":[\"lit-page-fish\"]}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 15,
+    "acceptedAnnotations": 15,
+    "compiledCounts": {
+      "identity": 3,
+      "literal": 6,
+      "interpretation": 5,
+      "balance": 0,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 6,
+      "literal": 6,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 0
+    },
+    "personalContextCount": 2,
+    "introducedCards": 3,
+    "modelLiteralReferences": 6,
+    "fallbackLiteralMatches": 5,
+    "rawSha256": "28df08409ee746c61f4ae097d049c5616b850173ea3fedba045719a22525e8b1",
+    "wordCount": 231
+  }
+}

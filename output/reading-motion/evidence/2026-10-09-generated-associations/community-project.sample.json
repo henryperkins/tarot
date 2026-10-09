@@ -1,0 +1,408 @@
+{
+  "id": "community-project",
+  "language": "en",
+  "userQuestion": "How can our community project gain momentum without burning people out?",
+  "reflectionsText": "We have many ideas, but meetings keep getting longer.",
+  "cards": [
+    {
+      "card": "The Magician",
+      "position": "Core",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Five of Wands",
+      "position": "Challenge",
+      "orientation": "Reversed"
+    },
+    {
+      "card": "Temperance",
+      "position": "Hidden",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Four of Wands",
+      "position": "Support",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Wheel of Fortune",
+      "position": "Direction",
+      "orientation": "Reversed"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Opening\n\nYou want momentum without exhaustion, and you've noticed meetings lengthening while ideas multiply. These cards look at pace, focus, and shared joy.\n\n## The Story\n\nAt the core is The Magician, upright. He holds a raised wand while four tools lie on the table. Your group already has resources; perhaps the question is which single idea deserves to be raised first, letting the other tools wait.\n\nThe challenge is the Five of Wands, reversed. Its staffs cross in a crowded scrum. Reversed, the clash may have gone quiet rather than resolved, perhaps hiding inside long meetings where every idea is waved at once.\n\nHidden beneath is Temperance, upright. Water flows between the cups, and one foot rests in water. Pouring while keeping balanced footing suggests momentum can be measured rather than forced.\n\nSupport comes from the Four of Wands, upright. A garland hangs overhead as two celebrants lift bouquets. Marking small wins could be part of what sustains people.\n\nIn the direction position, the Wheel of Fortune appears reversed. Its central wheel, read reversed, might invite you to set your own rhythm rather than wait for luck to turn.\n\n## Putting It Together\n\nThe Magician and Temperance together suggest focus poured gradually: one raised wand, one measured stream at a time.\n\n## Gentle Next Steps\n\n- Pick one idea to raise this season; keep a visible list for the rest.\n- Timebox meetings and end each with a brief celebration.\n\n## Closing\n\nMomentum may grow from rhythm more than force.",
+    "annotations": [
+      {
+        "id": "id-magician",
+        "kind": "identity",
+        "quote": "The Magician, upright",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-magician-wand",
+        "kind": "literal",
+        "quote": "He holds a raised wand",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "raised-wand"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-magician-tools",
+        "kind": "literal",
+        "quote": "four tools lie on the table",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "table-tools"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-magician-wand",
+        "kind": "interpretation",
+        "quote": "which single idea deserves to be raised first",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "raised-wand"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-magician-wand"
+        ],
+        "personalContext": {
+          "type": "querent-reflection",
+          "quote": "We have many ideas"
+        }
+      },
+      {
+        "id": "int-magician-tools",
+        "kind": "interpretation",
+        "quote": "letting the other tools wait",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "table-tools"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-magician-tools"
+        ]
+      },
+      {
+        "id": "id-five",
+        "kind": "identity",
+        "quote": "Five of Wands, reversed",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-five-staffs",
+        "kind": "literal",
+        "quote": "Its staffs cross in a crowded scrum",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "staffs"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-five-staffs",
+        "kind": "interpretation",
+        "quote": "hiding inside long meetings where every idea is waved at once",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "staffs"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-five-staffs"
+        ],
+        "personalContext": {
+          "type": "querent-reflection",
+          "quote": "meetings keep getting longer"
+        }
+      },
+      {
+        "id": "id-temperance",
+        "kind": "identity",
+        "quote": "Temperance, upright",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-temp-stream",
+        "kind": "literal",
+        "quote": "Water flows between the cups",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "cup-stream"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-temp-foot",
+        "kind": "literal",
+        "quote": "one foot rests in water",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "two-feet"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "bal-temp",
+        "kind": "balance",
+        "quote": "Pouring while keeping balanced footing suggests momentum can be measured",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "cup-stream",
+              "two-feet"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-temp-stream",
+          "lit-temp-foot"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "gain momentum"
+        }
+      },
+      {
+        "id": "id-four",
+        "kind": "identity",
+        "quote": "Four of Wands, upright",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-four-garland",
+        "kind": "literal",
+        "quote": "A garland hangs overhead",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "detailIds": [
+              "garland"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-four-celebrants",
+        "kind": "literal",
+        "quote": "two celebrants lift bouquets",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "detailIds": [
+              "celebrants"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-four",
+        "kind": "interpretation",
+        "quote": "Marking small wins could be part of what sustains people",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "detailIds": [
+              "garland",
+              "celebrants"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-four-garland",
+          "lit-four-celebrants"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "without burning people out"
+        }
+      },
+      {
+        "id": "id-wheel",
+        "kind": "identity",
+        "quote": "Wheel of Fortune appears reversed",
+        "targets": [
+          {
+            "spreadIndex": 4,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-wheel",
+        "kind": "literal",
+        "quote": "Its central wheel",
+        "targets": [
+          {
+            "spreadIndex": 4,
+            "detailIds": [
+              "wheel"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-wheel",
+        "kind": "interpretation",
+        "quote": "set your own rhythm rather than wait for luck to turn",
+        "targets": [
+          {
+            "spreadIndex": 4,
+            "detailIds": [
+              "wheel"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-wheel"
+        ]
+      },
+      {
+        "id": "rel-magician-temperance",
+        "kind": "relationship",
+        "quote": "one raised wand, one measured stream at a time",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "raised-wand"
+            ]
+          },
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "cup-stream"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-magician-wand",
+          "lit-temp-stream"
+        ]
+      },
+      {
+        "id": "int-four-steps",
+        "kind": "interpretation",
+        "quote": "end each with a brief celebration",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "detailIds": [
+              "celebrants"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-four-celebrants"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:24:57.083Z",
+    "completedAt": "2026-10-09T12:26:06.722Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 1151,
+      "cache_read_input_tokens": 2052,
+      "output_tokens": 8275,
+      "output_tokens_details": {
+        "thinking_tokens": 5936
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 1151,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "f8f2d26e3a2d05391a43b08ae32ceeeb116d02561dc79b352acfeebd95d6b0e3",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Opening\\n\\nYou want momentum without exhaustion, and you've noticed meetings lengthening while ideas multiply. These cards look at pace, focus, and shared joy.\\n\\n## The Story\\n\\nAt the core is The Magician, upright. He holds a raised wand while four tools lie on the table. Your group already has resources; perhaps the question is which single idea deserves to be raised first, letting the other tools wait.\\n\\nThe challenge is the Five of Wands, reversed. Its staffs cross in a crowded scrum. Reversed, the clash may have gone quiet rather than resolved, perhaps hiding inside long meetings where every idea is waved at once.\\n\\nHidden beneath is Temperance, upright. Water flows between the cups, and one foot rests in water. Pouring while keeping balanced footing suggests momentum can be measured rather than forced.\\n\\nSupport comes from the Four of Wands, upright. A garland hangs overhead as two celebrants lift bouquets. Marking small wins could be part of what sustains people.\\n\\nIn the direction position, the Wheel of Fortune appears reversed. Its central wheel, read reversed, might invite you to set your own rhythm rather than wait for luck to turn.\\n\\n## Putting It Together\\n\\nThe Magician and Temperance together suggest focus poured gradually: one raised wand, one measured stream at a time.\\n\\n## Gentle Next Steps\\n\\n- Pick one idea to raise this season; keep a visible list for the rest.\\n- Timebox meetings and end each with a brief celebration.\\n\\n## Closing\\n\\nMomentum may grow from rhythm more than force.\",\"annotations\":[{\"id\":\"id-magician\",\"kind\":\"identity\",\"quote\":\"The Magician, upright\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"lit-magician-wand\",\"kind\":\"literal\",\"quote\":\"He holds a raised wand\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"raised-wand\"]}]},{\"id\":\"lit-magician-tools\",\"kind\":\"literal\",\"quote\":\"four tools lie on the table\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"table-tools\"]}]},{\"id\":\"int-magician-wand\",\"kind\":\"interpretation\",\"quote\":\"which single idea deserves to be raised first\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"raised-wand\"]}],\"establishedBy\":[\"lit-magician-wand\"],\"personalContext\":{\"type\":\"querent-reflection\",\"quote\":\"We have many ideas\"}},{\"id\":\"int-magician-tools\",\"kind\":\"interpretation\",\"quote\":\"letting the other tools wait\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"table-tools\"]}],\"establishedBy\":[\"lit-magician-tools\"]},{\"id\":\"id-five\",\"kind\":\"identity\",\"quote\":\"Five of Wands, reversed\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"lit-five-staffs\",\"kind\":\"literal\",\"quote\":\"Its staffs cross in a crowded scrum\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"staffs\"]}]},{\"id\":\"int-five-staffs\",\"kind\":\"interpretation\",\"quote\":\"hiding inside long meetings where every idea is waved at once\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"staffs\"]}],\"establishedBy\":[\"lit-five-staffs\"],\"personalContext\":{\"type\":\"querent-reflection\",\"quote\":\"meetings keep getting longer\"}},{\"id\":\"id-temperance\",\"kind\":\"identity\",\"quote\":\"Temperance, upright\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"lit-temp-stream\",\"kind\":\"literal\",\"quote\":\"Water flows between the cups\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"cup-stream\"]}]},{\"id\":\"lit-temp-foot\",\"kind\":\"literal\",\"quote\":\"one foot rests in water\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"two-feet\"]}]},{\"id\":\"bal-temp\",\"kind\":\"balance\",\"quote\":\"Pouring while keeping balanced footing suggests momentum can be measured\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"cup-stream\",\"two-feet\"]}],\"establishedBy\":[\"lit-temp-stream\",\"lit-temp-foot\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"gain momentum\"}},{\"id\":\"id-four\",\"kind\":\"identity\",\"quote\":\"Four of Wands, upright\",\"targets\":[{\"spreadIndex\":3,\"detailIds\":[]}]},{\"id\":\"lit-four-garland\",\"kind\":\"literal\",\"quote\":\"A garland hangs overhead\",\"targets\":[{\"spreadIndex\":3,\"detailIds\":[\"garland\"]}]},{\"id\":\"lit-four-celebrants\",\"kind\":\"literal\",\"quote\":\"two celebrants lift bouquets\",\"targets\":[{\"spreadIndex\":3,\"detailIds\":[\"celebrants\"]}]},{\"id\":\"int-four\",\"kind\":\"interpretation\",\"quote\":\"Marking small wins could be part of what sustains people\",\"targets\":[{\"spreadIndex\":3,\"detailIds\":[\"garland\",\"celebrants\"]}],\"establishedBy\":[\"lit-four-garland\",\"lit-four-celebrants\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"without burning people out\"}},{\"id\":\"id-wheel\",\"kind\":\"identity\",\"quote\":\"Wheel of Fortune appears reversed\",\"targets\":[{\"spreadIndex\":4,\"detailIds\":[]}]},{\"id\":\"lit-wheel\",\"kind\":\"literal\",\"quote\":\"Its central wheel\",\"targets\":[{\"spreadIndex\":4,\"detailIds\":[\"wheel\"]}]},{\"id\":\"int-wheel\",\"kind\":\"interpretation\",\"quote\":\"set your own rhythm rather than wait for luck to turn\",\"targets\":[{\"spreadIndex\":4,\"detailIds\":[\"wheel\"]}],\"establishedBy\":[\"lit-wheel\"]},{\"id\":\"rel-magician-temperance\",\"kind\":\"relationship\",\"quote\":\"one raised wand, one measured stream at a time\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"raised-wand\"]},{\"spreadIndex\":2,\"detailIds\":[\"cup-stream\"]}],\"establishedBy\":[\"lit-magician-wand\",\"lit-temp-stream\"]},{\"id\":\"int-four-steps\",\"kind\":\"interpretation\",\"quote\":\"end each with a brief celebration\",\"targets\":[{\"spreadIndex\":3,\"detailIds\":[\"celebrants\"]}],\"establishedBy\":[\"lit-four-celebrants\"]}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 21,
+    "acceptedAnnotations": 21,
+    "compiledCounts": {
+      "identity": 5,
+      "literal": 8,
+      "interpretation": 6,
+      "balance": 1,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 5,
+      "literal": 6,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 1
+    },
+    "personalContextCount": 4,
+    "introducedCards": 5,
+    "modelLiteralReferences": 8,
+    "fallbackLiteralMatches": 6,
+    "rawSha256": "6b08d7bec17e436dd3fa75bb5f6393a27f003a458e78c5b7c8dc4133a0fc7825",
+    "wordCount": 252
+  }
+}

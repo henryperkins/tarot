@@ -27,6 +27,9 @@ function GesturePhrase({ node: _node, children, ...props }) {
   const id = props['data-gesture-id'];
   if (!id || !focus?.studyEnabled) return <span {...props}>{children}</span>;
   const association = focus.associations.find((item) => item.id === id);
+  // Identity establishes presence automatically; the shelf already offers
+  // whole-card inspection without turning every card name into a control.
+  if (association?.kind === 'identity') return <span {...props} className="reading-gesture-identity">{children}</span>;
   const held = focus.gestureState.held?.kind === 'association' && focus.gestureState.held.id === id;
   const associated = focus.gestureState.current?.id === id && (held || association?.kind !== 'identity');
   return (

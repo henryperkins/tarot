@@ -1,0 +1,68 @@
+{
+  "provenance": {
+    "source": "output/reading-motion/reviews/2026-10-09-outside-judge/investigation-results.json",
+    "reviewedRevision": "f6bcfcd17cc52dfe36cea65a286867f8a3e80c95",
+    "scope": "Exact independently authored prose from outside review, preserved before rule repair. These now form regression cases, not a held-out deck-wide recall evaluation. Expected details cover only explicit supported nouns; no implicit interpretation is asserted."
+  },
+  "samples": [
+    {
+      "id": "judge-independent-temperance-description",
+      "rawText": "### Temperance\n\nTemperance sits in the present position. An angel stands with one foot in the water and the other on the shore, pouring water between two cups in a steady stream. That steady pour is the pace you have been looking for at work. Keeping one foot in the water is how you stay connected to feeling while the other foot keeps you grounded.\n\n### The Tower\n\nThe Tower follows. Lightning strikes the top of the tower and the crown is knocked loose, while two figures fall. The falling crown is the old title you were holding onto.",
+      "cards": [
+        "Temperance",
+        "The Tower"
+      ],
+      "expectedDetails": [
+        [
+          0,
+          "two-feet"
+        ],
+        [
+          0,
+          "cup-stream"
+        ]
+      ]
+    },
+    {
+      "id": "judge-independent-five-card-description",
+      "rawText": "**The Fool (Upright), the past.** The Fool steps toward the edge of a cliff with a small dog at his heels and a white rose in his hand.\n\n**The Magician (Upright), the present.** The Magician raises a wand toward the sky with one hand and points to the earth with the other; a cup, a sword, a pentacle and a wand lie on the table before him.\n\n**Eight of Cups (Upright), the challenge.** A cloaked figure walks away from eight stacked cups toward the mountains under a waning moon.\n\n**Four of Pentacles (Reversed), the support.** A crowned man clutches a coin to his chest, with another on his crown and two beneath his feet.\n\n**Six of Swords (Upright), the outcome.** A ferryman poles a boat across the water, carrying a woman and child, with six swords standing upright in the bow.",
+      "cards": [
+        "The Fool",
+        "The Magician",
+        "Eight of Cups",
+        "Four of Pentacles",
+        "Six of Swords"
+      ],
+      "expectedDetails": [
+        [
+          0,
+          "cliff-edge"
+        ],
+        [
+          0,
+          "white-dog"
+        ],
+        [
+          1,
+          "raised-wand"
+        ],
+        [
+          2,
+          "stacked-cups"
+        ],
+        [
+          3,
+          "clutched-coin"
+        ],
+        [
+          4,
+          "boat-passengers"
+        ],
+        [
+          4,
+          "planted-swords"
+        ]
+      ]
+    }
+  ]
+}

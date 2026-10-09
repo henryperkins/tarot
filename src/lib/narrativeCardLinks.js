@@ -7,6 +7,8 @@
  * uses it as a remark plugin and Node tests call it directly.
  */
 import { getCardTouchPoints } from '../data/cardTouchPoints.js';
+import { getVectorGestureDetails } from '../data/cardGestureArtwork.js';
+import { validatePassageAssociationsPayload } from '../../shared/contracts/readingPassageAssociations.js';
 import { getCanonicalCard } from './cardLookup.js';
 import { getDeckAlias, THOTH_COURT_ALIASES, MARSEILLE_COURT_ALIASES } from '../../shared/vision/deckAssets.js';
 
@@ -623,54 +625,24 @@ export function readBlockFocus(element) {
   };
 }
 
-/** Resolve authored metadata only against its exact recorded raw source. */
+/** Resolve recorded sidecars through the same contract as generated passages. */
 export function resolveGestureSidecar({ sidecar, source, cards = [], artworkEdition } = {}) {
-  const result = { associations: [], introductions: [], invalid: [] };
-  const expected = sidecar?.expectedRaw;
-  if (typeof expected !== 'string' || typeof source?.raw !== 'string' || !source.runId || !expected.startsWith(source.raw)
-    || (['complete', 'completed'].includes(source.status) && source.raw !== expected)
-    || (artworkEdition && sidecar.artworkEdition && artworkEdition !== sidecar.artworkEdition)) {
-    result.invalid.push({ reason: 'source-or-edition-mismatch' });
-    return result;
+  if (!source?.runId || typeof source.raw !== 'string' || typeof sidecar?.expectedRaw !== 'string') {
+    return { associations: [], introductions: [], invalid: [{ reason: 'source-or-edition-mismatch' }] };
   }
-  const target = (value) => {
-    if (!value || !Number.isInteger(value.spreadIndex) || (value.detailIds !== undefined && (!Array.isArray(value.detailIds) || value.detailIds.some((id) => typeof id !== 'string')))) return null;
-    const card = cards.find((card, index) => (card.index ?? index) === value.spreadIndex);
-    const name = card && (getCanonicalCard(card)?.name || card.canonicalName || card.name || card.card);
-    return name === value.canonicalName ? { occurrenceId: `${source.runId}:${value.spreadIndex}`, detailIds: [...(value.detailIds || [])] } : null;
+  const normalized = cards.map((card, index) => ({ ...card, index: card.index ?? index,
+    canonicalName: getCanonicalCard(card)?.name || card.canonicalName || card.name || card.card }));
+  const checked = validatePassageAssociationsPayload(sidecar, {
+    rawText: source.raw, sourceComplete: ['complete', 'completed'].includes(source.status), cards: normalized,
+    artworkEdition, getSupportedDetails: (name, edition) => edition === 'rws-immanuelle-vector' ? getVectorGestureDetails(name) : [],
+    userQuestion: source.question || source.userQuestion || '', reflections: source.reflectionsText || source.reflections || ''
+  });
+  if (!checked.payload) return { associations: [], introductions: [], invalid: [{ reason: 'source-or-edition-mismatch' }, ...checked.errors] };
+  return {
+    associations: checked.associations.map(cue => ({ ...cue, targets: cue.targets.map(target => ({ ...target, occurrenceId: `${source.runId}:${target.spreadIndex}` })) })),
+    introductions: checked.introductions.map(intro => ({ ...intro, occurrenceId: `${source.runId}:${intro.spreadIndex}` })),
+    invalid: checked.errors
   };
-  const rangeValid = (range) => range && Number.isInteger(range.start) && Number.isInteger(range.end)
-    && range.start >= 0 && range.end > range.start && range.end <= expected.length
-    && range.quote === expected.slice(range.start, range.end);
-  for (const association of sidecar.associations || []) {
-    const targets = (association.targets || []).map(target);
-    if (!association.id || !['identity', 'literal', 'interpretation', 'balance', 'relationship'].includes(association.kind)
-      || !targets.length || targets.some((value) => !value) || !rangeValid(association.passage)
-      || (association.meaningRange && !rangeValid(association.meaningRange))) {
-      result.invalid.push({ id: association.id, reason: 'invalid-association' });
-      continue;
-    }
-    if (association.passage.end > source.raw.length) continue;
-    const { personalContext, ...rest } = association;
-    const context = personalContext && (personalContext.type === 'recorded-fixture-context'
-      ? sidecar.recordedContext?.reflectionsText
-      : personalContext.type === 'question' ? source.question
-        : personalContext.type === 'card-reflection' ? cards.find((card, index) => (card.index ?? index) === personalContext.spreadIndex)?.reflection : null);
-    const validatedContext = typeof context === 'string' && typeof personalContext?.quote === 'string' && context.includes(personalContext.quote) ? personalContext : undefined;
-    result.associations.push({ ...rest, targets: association.kind === 'identity' ? targets.map((value) => ({ ...value, detailIds: [] })) : targets,
-      ...(validatedContext ? { personalContext: validatedContext } : {}) });
-  }
-  for (const introduction of sidecar.introductions || []) {
-    const resolved = target(introduction);
-    const boundaries = ['start', 'namedEnd', 'descriptionStart', 'midpoint', 'end'].map((key) => introduction[key]);
-    if (!resolved || boundaries.some((value) => !Number.isInteger(value) || value < 0 || value > expected.length)
-      || boundaries.some((value, index) => index > 0 && value < boundaries[index - 1])) {
-      result.invalid.push({ reason: 'invalid-introduction', spreadIndex: introduction.spreadIndex });
-      continue;
-    }
-    result.introductions.push({ ...introduction, occurrenceId: resolved.occurrenceId });
-  }
-  return result;
 }
 
 function annotateAuthoredRanges(tree, associations) {
@@ -713,7 +685,7 @@ function annotateAuthoredRanges(tree, associations) {
         const after = lastEnd > range.end ? sliceNode(selected.at(-1), range.end, lastEnd) : undefined;
         if (before === null || after === null) continue;
         const wrapper = { type: 'gestureAssociation', data: { hName: 'span', hProperties: {
-          className: ['reading-gesture-association'], dataGestureId: range.association.id,
+          className: [range.association.kind === 'identity' ? 'reading-gesture-identity' : 'reading-gesture-association'], dataGestureId: range.association.id,
           dataSourceStart: String(range.start), dataSourceEnd: String(range.end), dataGestureLabel: range.association.label || range.quote.replace(/[*_]/g, '')
         } }, children: middle.filter(Boolean), position: { start: { offset: range.start }, end: { offset: range.end } } };
         node.children.splice(node.children.indexOf(selected[0]), selected.length, ...[before, wrapper, after].filter(Boolean));

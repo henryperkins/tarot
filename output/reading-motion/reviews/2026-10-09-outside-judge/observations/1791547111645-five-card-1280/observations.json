@@ -1,0 +1,2596 @@
+{
+  "revision": "f6bcfcd17cc52dfe36cea65a286867f8a3e80c95",
+  "parameters": {
+    "study": "five-card",
+    "arrival": "burst",
+    "width": "1280",
+    "height": "1000",
+    "times": "0,1500,3000,5000,8000,12000,16000,20000"
+  },
+  "errors": [],
+  "records": [
+    {
+      "observedMs": 159,
+      "requestedMs": 0,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547111645-five-card-1280/0-0ms.png",
+      "viewport": {
+        "width": 1280,
+        "height": 1000,
+        "scrollWidth": 1280,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "242c96ad-e1b0-4f5c-a30a-65a224fd3c8a",
+        "sourceRevision": "0",
+        "sourceStatus": "streaming",
+        "rawLength": "0",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "",
+        "phase": "static",
+        "pending": "",
+        "rect": {
+          "x": 161,
+          "y": 345.671875,
+          "width": 340,
+          "height": 360,
+          "top": 345.671875,
+          "right": 501,
+          "bottom": 705.671875,
+          "left": 161
+        }
+      },
+      "focused": [],
+      "phrases": [],
+      "shelf": [
+        {
+          "label": "Core of the matter: Ace of Wands, upright",
+          "disabled": true,
+          "rect": {
+            "x": 161,
+            "y": 202,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 202,
+            "right": 222.59375,
+            "bottom": 304.65625,
+            "left": 161
+          }
+        },
+        {
+          "label": "Challenge or tension: Seven of Swords, reversed",
+          "disabled": true,
+          "rect": {
+            "x": 230.59375,
+            "y": 202,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 202,
+            "right": 292.1875,
+            "bottom": 304.65625,
+            "left": 230.59375
+          }
+        },
+        {
+          "label": "Hidden: Queen of Cups, upright",
+          "disabled": true,
+          "rect": {
+            "x": 300.1875,
+            "y": 202,
+            "width": 61.609375,
+            "height": 102.671875,
+            "top": 202,
+            "right": 361.796875,
+            "bottom": 304.671875,
+            "left": 300.1875
+          }
+        },
+        {
+          "label": "Support: Three of Pentacles, upright",
+          "disabled": true,
+          "rect": {
+            "x": 369.796875,
+            "y": 202,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 202,
+            "right": 431.390625,
+            "bottom": 304.65625,
+            "left": 369.796875
+          }
+        },
+        {
+          "label": "Likely direction on current path: Wheel of Fortune, reversed",
+          "disabled": true,
+          "rect": {
+            "x": 439.390625,
+            "y": 202,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 202,
+            "right": 500.984375,
+            "bottom": 304.65625,
+            "left": 439.390625
+          }
+        }
+      ],
+      "reading": "Your reading is still being prepared.",
+      "runningAnimations": 1
+    },
+    {
+      "observedMs": 1823,
+      "requestedMs": 1500,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547111645-five-card-1280/1-1500ms.png",
+      "viewport": {
+        "width": 1280,
+        "height": 1000,
+        "scrollWidth": 1280,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "242c96ad-e1b0-4f5c-a30a-65a224fd3c8a",
+        "sourceRevision": "0",
+        "sourceStatus": "streaming",
+        "rawLength": "1075",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "",
+        "phase": "static",
+        "pending": "literal-0-878",
+        "rect": {
+          "x": 161,
+          "y": 381.671875,
+          "width": 340,
+          "height": 360,
+          "top": 381.671875,
+          "right": 501,
+          "bottom": 741.671875,
+          "left": 161
+        }
+      },
+      "focused": [],
+      "phrases": [
+        {
+          "text": "Ace of Wands",
+          "id": "identity-0-655",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1007.734375,
+            "width": 120.171875,
+            "height": 41,
+            "top": 1007.734375,
+            "right": 661.171875,
+            "bottom": 1048.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "sprouting leaves",
+          "id": "literal-0-835",
+          "pressed": "false",
+          "rect": {
+            "x": 870.5625,
+            "y": 1079.734375,
+            "width": 137.890625,
+            "height": 41,
+            "top": 1079.734375,
+            "right": 1008.453125,
+            "bottom": 1120.734375,
+            "left": 870.5625
+          }
+        },
+        {
+          "text": "castle",
+          "id": "literal-0-878",
+          "pressed": "false",
+          "rect": {
+            "x": 630.171875,
+            "y": 1115.734375,
+            "width": 50.09375,
+            "height": 41,
+            "top": 1115.734375,
+            "right": 680.265625,
+            "bottom": 1156.734375,
+            "left": 630.171875
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Core of the matter: Ace of Wands, upright",
+          "disabled": false,
+          "rect": {
+            "x": 161,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 222.59375,
+            "bottom": 340.65625,
+            "left": 161
+          }
+        },
+        {
+          "label": "Challenge or tension: Seven of Swords, reversed",
+          "disabled": true,
+          "rect": {
+            "x": 230.59375,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 292.1875,
+            "bottom": 340.65625,
+            "left": 230.59375
+          }
+        },
+        {
+          "label": "Hidden: Queen of Cups, upright",
+          "disabled": true,
+          "rect": {
+            "x": 300.1875,
+            "y": 238,
+            "width": 61.609375,
+            "height": 102.671875,
+            "top": 238,
+            "right": 361.796875,
+            "bottom": 340.671875,
+            "left": 300.1875
+          }
+        },
+        {
+          "label": "Support: Three of Pentacles, upright",
+          "disabled": true,
+          "rect": {
+            "x": 369.796875,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 431.390625,
+            "bottom": 340.65625,
+            "left": 369.796875
+          }
+        },
+        {
+          "label": "Likely direction on current path: Wheel of Fortune, reversed",
+          "disabled": true,
+          "rect": {
+            "x": 439.390625,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 500.984375,
+            "bottom": 340.65625,
+            "left": 439.390625
+          }
+        }
+      ],
+      "reading": "Your reading is still being prepared.\n\nOpening\n\nYou may know this feeling: something is ready to move, you can feel the pull forward, and an inner editor keeps asking whether the voice is right and whether now is really the moment. That's the tension this spread seems to circle as you ask about launching your creative project this quarter. It reads less like a stop sign and more like a sorting process.\n\nThe spread is neatly balanced, with one card from each suit (spark, mind, heart, and hands) and a single Major in the \"where this is heading\" seat. Two cards arrive reversed. I'm reading those as timing that may not be ripe yet: conditions to tend, not doors shut.\n\n✦\nThe Story\n\nAce of Wands (Upright), the core. At the center is a clear yes to the creative impulse itself. The Rider-Waite-Smith image shows a hand from a cloud offering a wand that's still sprouting leaves, with rolling hills and a castle far off in the distance. That distance is worth noticing. The spark is alive, but the finished \"castle\" is further down the road. The momentum you named seems real. The live question may be",
+      "runningAnimations": 2
+    },
+    {
+      "observedMs": 3624,
+      "requestedMs": 3000,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547111645-five-card-1280/2-3000ms.png",
+      "viewport": {
+        "width": 1280,
+        "height": 1000,
+        "scrollWidth": 1280,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "242c96ad-e1b0-4f5c-a30a-65a224fd3c8a",
+        "sourceRevision": "0",
+        "sourceStatus": "streaming",
+        "rawLength": "2192",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "",
+        "phase": "static",
+        "pending": "literal-2-1906",
+        "rect": {
+          "x": 161,
+          "y": 381.671875,
+          "width": 340,
+          "height": 360,
+          "top": 381.671875,
+          "right": 501,
+          "bottom": 741.671875,
+          "left": 161
+        }
+      },
+      "focused": [],
+      "phrases": [
+        {
+          "text": "Ace of Wands",
+          "id": "identity-0-655",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1007.734375,
+            "width": 120.171875,
+            "height": 41,
+            "top": 1007.734375,
+            "right": 661.171875,
+            "bottom": 1048.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "sprouting leaves",
+          "id": "literal-0-835",
+          "pressed": "false",
+          "rect": {
+            "x": 870.5625,
+            "y": 1079.734375,
+            "width": 137.890625,
+            "height": 41,
+            "top": 1079.734375,
+            "right": 1008.453125,
+            "bottom": 1120.734375,
+            "left": 870.5625
+          }
+        },
+        {
+          "text": "castle",
+          "id": "literal-0-878",
+          "pressed": "false",
+          "rect": {
+            "x": 630.171875,
+            "y": 1115.734375,
+            "width": 50.09375,
+            "height": 41,
+            "top": 1115.734375,
+            "right": 680.265625,
+            "bottom": 1156.734375,
+            "left": 630.171875
+          }
+        },
+        {
+          "text": "Seven of Swords",
+          "id": "identity-1-1171",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1311.734375,
+            "width": 145.703125,
+            "height": 41,
+            "top": 1311.734375,
+            "right": 686.703125,
+            "bottom": 1352.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "five swords",
+          "id": "literal-1-1280",
+          "pressed": "false",
+          "rect": {
+            "x": 891.5625,
+            "y": 1347.734375,
+            "width": 95.984375,
+            "height": 41,
+            "top": 1347.734375,
+            "right": 987.546875,
+            "bottom": 1388.734375,
+            "left": 891.5625
+          }
+        },
+        {
+          "text": "leaving two behind",
+          "id": "literal-1-1296",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1347.734375,
+            "width": 548.71875,
+            "height": 77,
+            "top": 1347.734375,
+            "right": 1089.71875,
+            "bottom": 1424.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "those two missing swords",
+          "id": "interpretation-1-1661",
+          "pressed": "false",
+          "rect": {
+            "x": 560.546875,
+            "y": 1563.734375,
+            "width": 215.328125,
+            "height": 41,
+            "top": 1563.734375,
+            "right": 775.875,
+            "bottom": 1604.734375,
+            "left": 560.546875
+          }
+        },
+        {
+          "text": "Queen of Cups",
+          "id": "identity-2-1735",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1651.734375,
+            "width": 129.34375,
+            "height": 41,
+            "top": 1651.734375,
+            "right": 670.34375,
+            "bottom": 1692.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "The Queen",
+          "id": "identity-2-1862",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1723.734375,
+            "width": 90.625,
+            "height": 41,
+            "top": 1723.734375,
+            "right": 631.625,
+            "bottom": 1764.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "ornate, covered cup",
+          "id": "literal-2-1906",
+          "pressed": "false",
+          "rect": {
+            "x": 912.9375,
+            "y": 1723.734375,
+            "width": 168.421875,
+            "height": 41,
+            "top": 1723.734375,
+            "right": 1081.359375,
+            "bottom": 1764.734375,
+            "left": 912.9375
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Core of the matter: Ace of Wands, upright",
+          "disabled": false,
+          "rect": {
+            "x": 161,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 222.59375,
+            "bottom": 340.65625,
+            "left": 161
+          }
+        },
+        {
+          "label": "Challenge or tension: Seven of Swords, reversed",
+          "disabled": false,
+          "rect": {
+            "x": 230.59375,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 292.1875,
+            "bottom": 340.65625,
+            "left": 230.59375
+          }
+        },
+        {
+          "label": "Hidden: Queen of Cups, upright",
+          "disabled": false,
+          "rect": {
+            "x": 300.1875,
+            "y": 238,
+            "width": 61.609375,
+            "height": 102.671875,
+            "top": 238,
+            "right": 361.796875,
+            "bottom": 340.671875,
+            "left": 300.1875
+          }
+        },
+        {
+          "label": "Support: Three of Pentacles, upright",
+          "disabled": true,
+          "rect": {
+            "x": 369.796875,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 431.390625,
+            "bottom": 340.65625,
+            "left": 369.796875
+          }
+        },
+        {
+          "label": "Likely direction on current path: Wheel of Fortune, reversed",
+          "disabled": true,
+          "rect": {
+            "x": 439.390625,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 500.984375,
+            "bottom": 340.65625,
+            "left": 439.390625
+          }
+        }
+      ],
+      "reading": "Your reading is still being prepared.\n\nOpening\n\nYou may know this feeling: something is ready to move, you can feel the pull forward, and an inner editor keeps asking whether the voice is right and whether now is really the moment. That's the tension this spread seems to circle as you ask about launching your creative project this quarter. It reads less like a stop sign and more like a sorting process.\n\nThe spread is neatly balanced, with one card from each suit (spark, mind, heart, and hands) and a single Major in the \"where this is heading\" seat. Two cards arrive reversed. I'm reading those as timing that may not be ripe yet: conditions to tend, not doors shut.\n\n✦\nThe Story\n\nAce of Wands (Upright), the core. At the center is a clear yes to the creative impulse itself. The Rider-Waite-Smith image shows a hand from a cloud offering a wand that's still sprouting leaves, with rolling hills and a castle far off in the distance. That distance is worth noticing. The spark is alive, but the finished \"castle\" is further down the road. The momentum you named seems real. The live question may be how to carry a still-growing idea into public without waiting for it to look finished first.\n\nSeven of Swords (Reversed), the challenge. The traditional image shows a figure tiptoeing out of camp with five swords and leaving two behind, a plan carried off half-assembled. Reversed, through the timing lens, it can point to strategy that isn't quite ready for daylight. This might look like a launch plan that lives mostly in your head, or a description of the project you keep rewriting because you haven't said plainly what it is. The friction may sit less in the work and more in those two missing swords: the decisions you haven't made explicit yet.\n\nQueen of Cups (Upright), the hidden influence. Underneath the second-guessing there may be something more tender than doubt. The Queen sits at the sea's edge holding an ornate, covered cup with real devotion, attuned to what's inside and protective of it. Your worry about tone could be her voice: a sensitivity to how the work will feel to the people who receive it. That's a gift when it shapes the work and a drag when it turns into endless polishing.",
+      "runningAnimations": 2
+    },
+    {
+      "observedMs": 6170,
+      "requestedMs": 5000,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547111645-five-card-1280/3-5000ms.png",
+      "viewport": {
+        "width": 1280,
+        "height": 1000,
+        "scrollWidth": 1280,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "242c96ad-e1b0-4f5c-a30a-65a224fd3c8a",
+        "sourceRevision": "0",
+        "sourceStatus": "streaming",
+        "rawLength": "3726",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "",
+        "phase": "static",
+        "pending": "literal-4-3039",
+        "rect": {
+          "x": 161,
+          "y": 381.671875,
+          "width": 340,
+          "height": 360,
+          "top": 381.671875,
+          "right": 501,
+          "bottom": 741.671875,
+          "left": 161
+        }
+      },
+      "focused": [],
+      "phrases": [
+        {
+          "text": "Ace of Wands",
+          "id": "identity-0-655",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1007.734375,
+            "width": 120.171875,
+            "height": 41,
+            "top": 1007.734375,
+            "right": 661.171875,
+            "bottom": 1048.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "sprouting leaves",
+          "id": "literal-0-835",
+          "pressed": "false",
+          "rect": {
+            "x": 870.5625,
+            "y": 1079.734375,
+            "width": 137.890625,
+            "height": 41,
+            "top": 1079.734375,
+            "right": 1008.453125,
+            "bottom": 1120.734375,
+            "left": 870.5625
+          }
+        },
+        {
+          "text": "castle",
+          "id": "literal-0-878",
+          "pressed": "false",
+          "rect": {
+            "x": 630.171875,
+            "y": 1115.734375,
+            "width": 50.09375,
+            "height": 41,
+            "top": 1115.734375,
+            "right": 680.265625,
+            "bottom": 1156.734375,
+            "left": 630.171875
+          }
+        },
+        {
+          "text": "Seven of Swords",
+          "id": "identity-1-1171",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1311.734375,
+            "width": 145.703125,
+            "height": 41,
+            "top": 1311.734375,
+            "right": 686.703125,
+            "bottom": 1352.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "five swords",
+          "id": "literal-1-1280",
+          "pressed": "false",
+          "rect": {
+            "x": 891.5625,
+            "y": 1347.734375,
+            "width": 95.984375,
+            "height": 41,
+            "top": 1347.734375,
+            "right": 987.546875,
+            "bottom": 1388.734375,
+            "left": 891.5625
+          }
+        },
+        {
+          "text": "leaving two behind",
+          "id": "literal-1-1296",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1347.734375,
+            "width": 548.71875,
+            "height": 77,
+            "top": 1347.734375,
+            "right": 1089.71875,
+            "bottom": 1424.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "those two missing swords",
+          "id": "interpretation-1-1661",
+          "pressed": "false",
+          "rect": {
+            "x": 560.546875,
+            "y": 1563.734375,
+            "width": 215.328125,
+            "height": 41,
+            "top": 1563.734375,
+            "right": 775.875,
+            "bottom": 1604.734375,
+            "left": 560.546875
+          }
+        },
+        {
+          "text": "Queen of Cups",
+          "id": "identity-2-1735",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1651.734375,
+            "width": 129.34375,
+            "height": 41,
+            "top": 1651.734375,
+            "right": 670.34375,
+            "bottom": 1692.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "The Queen",
+          "id": "identity-2-1862",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1723.734375,
+            "width": 90.625,
+            "height": 41,
+            "top": 1723.734375,
+            "right": 631.625,
+            "bottom": 1764.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "ornate, covered cup",
+          "id": "literal-2-1906",
+          "pressed": "false",
+          "rect": {
+            "x": 912.9375,
+            "y": 1723.734375,
+            "width": 168.421875,
+            "height": 41,
+            "top": 1723.734375,
+            "right": 1081.359375,
+            "bottom": 1764.734375,
+            "left": 912.9375
+          }
+        },
+        {
+          "text": "Three of Pentacles",
+          "id": "identity-3-2338",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1991.734375,
+            "width": 162.25,
+            "height": 41,
+            "top": 1991.734375,
+            "right": 703.25,
+            "bottom": 2032.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "A craftsman",
+          "id": "literal-3-2456",
+          "pressed": "false",
+          "rect": {
+            "x": 933.828125,
+            "y": 2027.734375,
+            "width": 99.984375,
+            "height": 41,
+            "top": 2027.734375,
+            "right": 1033.8125,
+            "bottom": 2068.734375,
+            "left": 933.828125
+          }
+        },
+        {
+          "text": "Wheel of Fortune",
+          "id": "identity-4-2812",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 2259.734375,
+            "width": 148.890625,
+            "height": 41,
+            "top": 2259.734375,
+            "right": 689.890625,
+            "bottom": 2300.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "the Wheel",
+          "id": "identity-4-2897",
+          "pressed": "false",
+          "rect": {
+            "x": 644.34375,
+            "y": 2295.734375,
+            "width": 83.625,
+            "height": 41,
+            "top": 2295.734375,
+            "right": 727.96875,
+            "bottom": 2336.734375,
+            "left": 644.34375
+          }
+        },
+        {
+          "text": "great wheel",
+          "id": "literal-4-3039",
+          "pressed": "false",
+          "rect": {
+            "x": 665.0625,
+            "y": 2367.734375,
+            "width": 97.984375,
+            "height": 41,
+            "top": 2367.734375,
+            "right": 763.046875,
+            "bottom": 2408.734375,
+            "left": 665.0625
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Core of the matter: Ace of Wands, upright",
+          "disabled": false,
+          "rect": {
+            "x": 161,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 222.59375,
+            "bottom": 340.65625,
+            "left": 161
+          }
+        },
+        {
+          "label": "Challenge or tension: Seven of Swords, reversed",
+          "disabled": false,
+          "rect": {
+            "x": 230.59375,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 292.1875,
+            "bottom": 340.65625,
+            "left": 230.59375
+          }
+        },
+        {
+          "label": "Hidden: Queen of Cups, upright",
+          "disabled": false,
+          "rect": {
+            "x": 300.1875,
+            "y": 238,
+            "width": 61.609375,
+            "height": 102.671875,
+            "top": 238,
+            "right": 361.796875,
+            "bottom": 340.671875,
+            "left": 300.1875
+          }
+        },
+        {
+          "label": "Support: Three of Pentacles, upright",
+          "disabled": false,
+          "rect": {
+            "x": 369.796875,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 431.390625,
+            "bottom": 340.65625,
+            "left": 369.796875
+          }
+        },
+        {
+          "label": "Likely direction on current path: Wheel of Fortune, reversed",
+          "disabled": false,
+          "rect": {
+            "x": 439.390625,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 500.984375,
+            "bottom": 340.65625,
+            "left": 439.390625
+          }
+        }
+      ],
+      "reading": "Your reading is still being prepared.\n\nOpening\n\nYou may know this feeling: something is ready to move, you can feel the pull forward, and an inner editor keeps asking whether the voice is right and whether now is really the moment. That's the tension this spread seems to circle as you ask about launching your creative project this quarter. It reads less like a stop sign and more like a sorting process.\n\nThe spread is neatly balanced, with one card from each suit (spark, mind, heart, and hands) and a single Major in the \"where this is heading\" seat. Two cards arrive reversed. I'm reading those as timing that may not be ripe yet: conditions to tend, not doors shut.\n\n✦\nThe Story\n\nAce of Wands (Upright), the core. At the center is a clear yes to the creative impulse itself. The Rider-Waite-Smith image shows a hand from a cloud offering a wand that's still sprouting leaves, with rolling hills and a castle far off in the distance. That distance is worth noticing. The spark is alive, but the finished \"castle\" is further down the road. The momentum you named seems real. The live question may be how to carry a still-growing idea into public without waiting for it to look finished first.\n\nSeven of Swords (Reversed), the challenge. The traditional image shows a figure tiptoeing out of camp with five swords and leaving two behind, a plan carried off half-assembled. Reversed, through the timing lens, it can point to strategy that isn't quite ready for daylight. This might look like a launch plan that lives mostly in your head, or a description of the project you keep rewriting because you haven't said plainly what it is. The friction may sit less in the work and more in those two missing swords: the decisions you haven't made explicit yet.\n\nQueen of Cups (Upright), the hidden influence. Underneath the second-guessing there may be something more tender than doubt. The Queen sits at the sea's edge holding an ornate, covered cup with real devotion, attuned to what's inside and protective of it. Your worry about tone could be her voice: a sensitivity to how the work will feel to the people who receive it. That's a gift when it shapes the work and a drag when it turns into endless polishing. One question to sit with: when you hesitate over tone, does something feel emotionally off, or does the cup just feel too precious to uncover?\n\nThree of Pentacles (Upright), the support. If you're settling tone questions alone, this card offers another route. A craftsman stands in a cathedral talking plans over with a monk and a noble, and nobody in that scene is working solo or guessing at the design. Your help here looks like skilled collaboration: someone who knows the craft and someone closer to the audience. A quick review with two trusted people might settle more than another round of solo revision.\n\nWheel of Fortune (Reversed), the likely direction. If things continue as they are, the Wheel reversed hints at a turn that's slow to come, with cycles that repeat instead of moving forward. Its classic image is all motion: a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other. Reversed, it can suggest the quarter's conditions aren't fully lined up yet, or that a loop of draft, doubt, and redraft is holding the wheel in place. The traditional wisdom here is to notice what's shifting and use it to reset a pattern rather than repeat it. Waiting alone won't guarantee a better moment, but changing the loop may shift the odds.\n\n✦\nPutting It Together\n\nRead together, the spread's answer to your question about launching this quarter sounds something like this: the spark looks sound, the plan around it may be underbuilt, and the timing worry could partly be a tone",
+      "runningAnimations": 3
+    },
+    {
+      "observedMs": 8814,
+      "requestedMs": 8000,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547111645-five-card-1280/4-8000ms.png",
+      "viewport": {
+        "width": 1280,
+        "height": 1000,
+        "scrollWidth": 1280,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "242c96ad-e1b0-4f5c-a30a-65a224fd3c8a",
+        "sourceRevision": "0",
+        "sourceStatus": "complete",
+        "rawLength": "5163",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "",
+        "phase": "static",
+        "pending": "identity-0-4935",
+        "rect": {
+          "x": 161,
+          "y": 381.671875,
+          "width": 340,
+          "height": 360,
+          "top": 381.671875,
+          "right": 501,
+          "bottom": 741.671875,
+          "left": 161
+        }
+      },
+      "focused": [],
+      "phrases": [
+        {
+          "text": "Ace of Wands",
+          "id": "identity-0-655",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1007.734375,
+            "width": 120.171875,
+            "height": 41,
+            "top": 1007.734375,
+            "right": 661.171875,
+            "bottom": 1048.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "sprouting leaves",
+          "id": "literal-0-835",
+          "pressed": "false",
+          "rect": {
+            "x": 870.5625,
+            "y": 1079.734375,
+            "width": 137.890625,
+            "height": 41,
+            "top": 1079.734375,
+            "right": 1008.453125,
+            "bottom": 1120.734375,
+            "left": 870.5625
+          }
+        },
+        {
+          "text": "castle",
+          "id": "literal-0-878",
+          "pressed": "false",
+          "rect": {
+            "x": 630.171875,
+            "y": 1115.734375,
+            "width": 50.09375,
+            "height": 41,
+            "top": 1115.734375,
+            "right": 680.265625,
+            "bottom": 1156.734375,
+            "left": 630.171875
+          }
+        },
+        {
+          "text": "Seven of Swords",
+          "id": "identity-1-1171",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1311.734375,
+            "width": 145.703125,
+            "height": 41,
+            "top": 1311.734375,
+            "right": 686.703125,
+            "bottom": 1352.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "five swords",
+          "id": "literal-1-1280",
+          "pressed": "false",
+          "rect": {
+            "x": 891.5625,
+            "y": 1347.734375,
+            "width": 95.984375,
+            "height": 41,
+            "top": 1347.734375,
+            "right": 987.546875,
+            "bottom": 1388.734375,
+            "left": 891.5625
+          }
+        },
+        {
+          "text": "leaving two behind",
+          "id": "literal-1-1296",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1347.734375,
+            "width": 548.71875,
+            "height": 77,
+            "top": 1347.734375,
+            "right": 1089.71875,
+            "bottom": 1424.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "those two missing swords",
+          "id": "interpretation-1-1661",
+          "pressed": "false",
+          "rect": {
+            "x": 560.546875,
+            "y": 1563.734375,
+            "width": 215.328125,
+            "height": 41,
+            "top": 1563.734375,
+            "right": 775.875,
+            "bottom": 1604.734375,
+            "left": 560.546875
+          }
+        },
+        {
+          "text": "Queen of Cups",
+          "id": "identity-2-1735",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1651.734375,
+            "width": 129.34375,
+            "height": 41,
+            "top": 1651.734375,
+            "right": 670.34375,
+            "bottom": 1692.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "The Queen",
+          "id": "identity-2-1862",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1723.734375,
+            "width": 90.625,
+            "height": 41,
+            "top": 1723.734375,
+            "right": 631.625,
+            "bottom": 1764.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "ornate, covered cup",
+          "id": "literal-2-1906",
+          "pressed": "false",
+          "rect": {
+            "x": 912.9375,
+            "y": 1723.734375,
+            "width": 168.421875,
+            "height": 41,
+            "top": 1723.734375,
+            "right": 1081.359375,
+            "bottom": 1764.734375,
+            "left": 912.9375
+          }
+        },
+        {
+          "text": "Three of Pentacles",
+          "id": "identity-3-2338",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1991.734375,
+            "width": 162.25,
+            "height": 41,
+            "top": 1991.734375,
+            "right": 703.25,
+            "bottom": 2032.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "A craftsman",
+          "id": "literal-3-2456",
+          "pressed": "false",
+          "rect": {
+            "x": 933.828125,
+            "y": 2027.734375,
+            "width": 99.984375,
+            "height": 41,
+            "top": 2027.734375,
+            "right": 1033.8125,
+            "bottom": 2068.734375,
+            "left": 933.828125
+          }
+        },
+        {
+          "text": "Wheel of Fortune",
+          "id": "identity-4-2812",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 2259.734375,
+            "width": 148.890625,
+            "height": 41,
+            "top": 2259.734375,
+            "right": 689.890625,
+            "bottom": 2300.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "the Wheel",
+          "id": "identity-4-2897",
+          "pressed": "false",
+          "rect": {
+            "x": 644.34375,
+            "y": 2295.734375,
+            "width": 83.625,
+            "height": 41,
+            "top": 2295.734375,
+            "right": 727.96875,
+            "bottom": 2336.734375,
+            "left": 644.34375
+          }
+        },
+        {
+          "text": "great wheel",
+          "id": "literal-4-3039",
+          "pressed": "false",
+          "rect": {
+            "x": 665.0625,
+            "y": 2367.734375,
+            "width": 97.984375,
+            "height": 41,
+            "top": 2367.734375,
+            "right": 763.046875,
+            "bottom": 2408.734375,
+            "left": 665.0625
+          }
+        },
+        {
+          "text": "The Ace of Wands and Queen of Cups",
+          "id": "relationship-0-2-3745",
+          "pressed": "false",
+          "rect": {
+            "x": 776.234375,
+            "y": 2833.328125,
+            "width": 319.125,
+            "height": 41,
+            "top": 2833.328125,
+            "right": 1095.359375,
+            "bottom": 2874.328125,
+            "left": 776.234375
+          }
+        },
+        {
+          "text": "Three of Pentacles",
+          "id": "identity-3-3909",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 2905.328125,
+            "width": 572.265625,
+            "height": 77,
+            "top": 2905.328125,
+            "right": 1113.265625,
+            "bottom": 2982.328125,
+            "left": 541
+          }
+        },
+        {
+          "text": "Write down the two missing swords",
+          "id": "interpretation-1-4295",
+          "pressed": "false",
+          "rect": {
+            "x": 568.984375,
+            "y": 3278.921875,
+            "width": 309.953125,
+            "height": 41,
+            "top": 3278.921875,
+            "right": 878.9375,
+            "bottom": 3319.921875,
+            "left": 568.984375
+          }
+        },
+        {
+          "text": "Ask for a tone check only",
+          "id": "interpretation-3-4491",
+          "pressed": "false",
+          "rect": {
+            "x": 568.984375,
+            "y": 3398.921875,
+            "width": 217.5,
+            "height": 41,
+            "top": 3398.921875,
+            "right": 786.484375,
+            "bottom": 3439.921875,
+            "left": 568.984375
+          }
+        },
+        {
+          "text": "gives the wheel something to turn on",
+          "id": "interpretation-4-4860",
+          "pressed": "false",
+          "rect": {
+            "x": 782.671875,
+            "y": 3630.921875,
+            "width": 307.484375,
+            "height": 41,
+            "top": 3630.921875,
+            "right": 1090.15625,
+            "bottom": 3671.921875,
+            "left": 782.671875
+          }
+        },
+        {
+          "text": "The spark in this spread",
+          "id": "identity-0-4935",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 3808.515625,
+            "width": 201.328125,
+            "height": 41,
+            "top": 3808.515625,
+            "right": 742.328125,
+            "bottom": 3849.515625,
+            "left": 541
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Core of the matter: Ace of Wands, upright",
+          "disabled": false,
+          "rect": {
+            "x": 161,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 222.59375,
+            "bottom": 340.65625,
+            "left": 161
+          }
+        },
+        {
+          "label": "Challenge or tension: Seven of Swords, reversed",
+          "disabled": false,
+          "rect": {
+            "x": 230.59375,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 292.1875,
+            "bottom": 340.65625,
+            "left": 230.59375
+          }
+        },
+        {
+          "label": "Hidden: Queen of Cups, upright",
+          "disabled": false,
+          "rect": {
+            "x": 300.1875,
+            "y": 238,
+            "width": 61.609375,
+            "height": 102.671875,
+            "top": 238,
+            "right": 361.796875,
+            "bottom": 340.671875,
+            "left": 300.1875
+          }
+        },
+        {
+          "label": "Support: Three of Pentacles, upright",
+          "disabled": false,
+          "rect": {
+            "x": 369.796875,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 431.390625,
+            "bottom": 340.65625,
+            "left": 369.796875
+          }
+        },
+        {
+          "label": "Likely direction on current path: Wheel of Fortune, reversed",
+          "disabled": false,
+          "rect": {
+            "x": 439.390625,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 500.984375,
+            "bottom": 340.65625,
+            "left": 439.390625
+          }
+        }
+      ],
+      "reading": "Narrative ready.\n\nOpening\n\nYou may know this feeling: something is ready to move, you can feel the pull forward, and an inner editor keeps asking whether the voice is right and whether now is really the moment. That's the tension this spread seems to circle as you ask about launching your creative project this quarter. It reads less like a stop sign and more like a sorting process.\n\nThe spread is neatly balanced, with one card from each suit (spark, mind, heart, and hands) and a single Major in the \"where this is heading\" seat. Two cards arrive reversed. I'm reading those as timing that may not be ripe yet: conditions to tend, not doors shut.\n\n✦\nThe Story\n\nAce of Wands (Upright), the core. At the center is a clear yes to the creative impulse itself. The Rider-Waite-Smith image shows a hand from a cloud offering a wand that's still sprouting leaves, with rolling hills and a castle far off in the distance. That distance is worth noticing. The spark is alive, but the finished \"castle\" is further down the road. The momentum you named seems real. The live question may be how to carry a still-growing idea into public without waiting for it to look finished first.\n\nSeven of Swords (Reversed), the challenge. The traditional image shows a figure tiptoeing out of camp with five swords and leaving two behind, a plan carried off half-assembled. Reversed, through the timing lens, it can point to strategy that isn't quite ready for daylight. This might look like a launch plan that lives mostly in your head, or a description of the project you keep rewriting because you haven't said plainly what it is. The friction may sit less in the work and more in those two missing swords: the decisions you haven't made explicit yet.\n\nQueen of Cups (Upright), the hidden influence. Underneath the second-guessing there may be something more tender than doubt. The Queen sits at the sea's edge holding an ornate, covered cup with real devotion, attuned to what's inside and protective of it. Your worry about tone could be her voice: a sensitivity to how the work will feel to the people who receive it. That's a gift when it shapes the work and a drag when it turns into endless polishing. One question to sit with: when you hesitate over tone, does something feel emotionally off, or does the cup just feel too precious to uncover?\n\nThree of Pentacles (Upright), the support. If you're settling tone questions alone, this card offers another route. A craftsman stands in a cathedral talking plans over with a monk and a noble, and nobody in that scene is working solo or guessing at the design. Your help here looks like skilled collaboration: someone who knows the craft and someone closer to the audience. A quick review with two trusted people might settle more than another round of solo revision.\n\nWheel of Fortune (Reversed), the likely direction. If things continue as they are, the Wheel reversed hints at a turn that's slow to come, with cycles that repeat instead of moving forward. Its classic image is all motion: a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other. Reversed, it can suggest the quarter's conditions aren't fully lined up yet, or that a loop of draft, doubt, and redraft is holding the wheel in place. The traditional wisdom here is to notice what's shifting and use it to reset a pattern rather than repeat it. Waiting alone won't guarantee a better moment, but changing the loop may shift the odds.\n\n✦\nPutting It Together\n\nRead together, the spread's answer to your question about launching this quarter sounds something like this: the spark looks sound, the plan around it may be underbuilt, and the timing worry could partly be a tone worry in disguise. The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting. The two reversals point toward structure and readiness, and the Three of Pentacles points toward other people as the way to get unstuck. \"This quarter\" might mean a soft launch or a public date rather than everything at once.\n\nIf you enjoy astrological weather, the New Moon in Libra about two and a half weeks out makes a tidy symbolic checkpoint for naming a launch intention. Think of it as atmosphere, not a deadline.\n\n✦\nGentle Next Steps\nWrite down the two missing swords. List the two or three launch decisions still living in your head (date, platform, how you'll describe the project) and pick a placeholder answer for each.\nAsk for a tone check only. Share a sample with one person who knows the craft and one who's closer to your audience, and ask just how it lands.\nCap your revisions. Give the piece you keep reworking a fixed number of passes. After that, it goes to feedback or it ships.\nPick one small public step for the quarter. A preview, an announcement, or a waitlist gives the wheel something to turn on before the full reveal.\n✦\nClosing\n\nThe spark in this spread is clearly yours, and nothing here closes the window. It only suggests the timing may reward some groundwork first. How and when you launch is your call, and those choices are what shape where this goes.",
+      "runningAnimations": 1
+    },
+    {
+      "observedMs": 12831,
+      "requestedMs": 12000,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547111645-five-card-1280/5-12000ms.png",
+      "viewport": {
+        "width": 1280,
+        "height": 1000,
+        "scrollWidth": 1280,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "242c96ad-e1b0-4f5c-a30a-65a224fd3c8a",
+        "sourceRevision": "0",
+        "sourceStatus": "complete",
+        "rawLength": "5163",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "",
+        "phase": "static",
+        "pending": "identity-0-4935",
+        "rect": {
+          "x": 161,
+          "y": 381.671875,
+          "width": 340,
+          "height": 360,
+          "top": 381.671875,
+          "right": 501,
+          "bottom": 741.671875,
+          "left": 161
+        }
+      },
+      "focused": [],
+      "phrases": [
+        {
+          "text": "Ace of Wands",
+          "id": "identity-0-655",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1007.734375,
+            "width": 120.171875,
+            "height": 41,
+            "top": 1007.734375,
+            "right": 661.171875,
+            "bottom": 1048.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "sprouting leaves",
+          "id": "literal-0-835",
+          "pressed": "false",
+          "rect": {
+            "x": 870.5625,
+            "y": 1079.734375,
+            "width": 137.890625,
+            "height": 41,
+            "top": 1079.734375,
+            "right": 1008.453125,
+            "bottom": 1120.734375,
+            "left": 870.5625
+          }
+        },
+        {
+          "text": "castle",
+          "id": "literal-0-878",
+          "pressed": "false",
+          "rect": {
+            "x": 630.171875,
+            "y": 1115.734375,
+            "width": 50.09375,
+            "height": 41,
+            "top": 1115.734375,
+            "right": 680.265625,
+            "bottom": 1156.734375,
+            "left": 630.171875
+          }
+        },
+        {
+          "text": "Seven of Swords",
+          "id": "identity-1-1171",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1311.734375,
+            "width": 145.703125,
+            "height": 41,
+            "top": 1311.734375,
+            "right": 686.703125,
+            "bottom": 1352.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "five swords",
+          "id": "literal-1-1280",
+          "pressed": "false",
+          "rect": {
+            "x": 891.5625,
+            "y": 1347.734375,
+            "width": 95.984375,
+            "height": 41,
+            "top": 1347.734375,
+            "right": 987.546875,
+            "bottom": 1388.734375,
+            "left": 891.5625
+          }
+        },
+        {
+          "text": "leaving two behind",
+          "id": "literal-1-1296",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1347.734375,
+            "width": 548.71875,
+            "height": 77,
+            "top": 1347.734375,
+            "right": 1089.71875,
+            "bottom": 1424.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "those two missing swords",
+          "id": "interpretation-1-1661",
+          "pressed": "false",
+          "rect": {
+            "x": 560.546875,
+            "y": 1563.734375,
+            "width": 215.328125,
+            "height": 41,
+            "top": 1563.734375,
+            "right": 775.875,
+            "bottom": 1604.734375,
+            "left": 560.546875
+          }
+        },
+        {
+          "text": "Queen of Cups",
+          "id": "identity-2-1735",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1651.734375,
+            "width": 129.34375,
+            "height": 41,
+            "top": 1651.734375,
+            "right": 670.34375,
+            "bottom": 1692.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "The Queen",
+          "id": "identity-2-1862",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1723.734375,
+            "width": 90.625,
+            "height": 41,
+            "top": 1723.734375,
+            "right": 631.625,
+            "bottom": 1764.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "ornate, covered cup",
+          "id": "literal-2-1906",
+          "pressed": "false",
+          "rect": {
+            "x": 912.9375,
+            "y": 1723.734375,
+            "width": 168.421875,
+            "height": 41,
+            "top": 1723.734375,
+            "right": 1081.359375,
+            "bottom": 1764.734375,
+            "left": 912.9375
+          }
+        },
+        {
+          "text": "Three of Pentacles",
+          "id": "identity-3-2338",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1991.734375,
+            "width": 162.25,
+            "height": 41,
+            "top": 1991.734375,
+            "right": 703.25,
+            "bottom": 2032.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "A craftsman",
+          "id": "literal-3-2456",
+          "pressed": "false",
+          "rect": {
+            "x": 933.828125,
+            "y": 2027.734375,
+            "width": 99.984375,
+            "height": 41,
+            "top": 2027.734375,
+            "right": 1033.8125,
+            "bottom": 2068.734375,
+            "left": 933.828125
+          }
+        },
+        {
+          "text": "Wheel of Fortune",
+          "id": "identity-4-2812",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 2259.734375,
+            "width": 148.890625,
+            "height": 41,
+            "top": 2259.734375,
+            "right": 689.890625,
+            "bottom": 2300.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "the Wheel",
+          "id": "identity-4-2897",
+          "pressed": "false",
+          "rect": {
+            "x": 644.34375,
+            "y": 2295.734375,
+            "width": 83.625,
+            "height": 41,
+            "top": 2295.734375,
+            "right": 727.96875,
+            "bottom": 2336.734375,
+            "left": 644.34375
+          }
+        },
+        {
+          "text": "great wheel",
+          "id": "literal-4-3039",
+          "pressed": "false",
+          "rect": {
+            "x": 665.0625,
+            "y": 2367.734375,
+            "width": 97.984375,
+            "height": 41,
+            "top": 2367.734375,
+            "right": 763.046875,
+            "bottom": 2408.734375,
+            "left": 665.0625
+          }
+        },
+        {
+          "text": "The Ace of Wands and Queen of Cups",
+          "id": "relationship-0-2-3745",
+          "pressed": "false",
+          "rect": {
+            "x": 776.234375,
+            "y": 2833.328125,
+            "width": 319.125,
+            "height": 41,
+            "top": 2833.328125,
+            "right": 1095.359375,
+            "bottom": 2874.328125,
+            "left": 776.234375
+          }
+        },
+        {
+          "text": "Three of Pentacles",
+          "id": "identity-3-3909",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 2905.328125,
+            "width": 572.265625,
+            "height": 77,
+            "top": 2905.328125,
+            "right": 1113.265625,
+            "bottom": 2982.328125,
+            "left": 541
+          }
+        },
+        {
+          "text": "Write down the two missing swords",
+          "id": "interpretation-1-4295",
+          "pressed": "false",
+          "rect": {
+            "x": 568.984375,
+            "y": 3278.921875,
+            "width": 309.953125,
+            "height": 41,
+            "top": 3278.921875,
+            "right": 878.9375,
+            "bottom": 3319.921875,
+            "left": 568.984375
+          }
+        },
+        {
+          "text": "Ask for a tone check only",
+          "id": "interpretation-3-4491",
+          "pressed": "false",
+          "rect": {
+            "x": 568.984375,
+            "y": 3398.921875,
+            "width": 217.5,
+            "height": 41,
+            "top": 3398.921875,
+            "right": 786.484375,
+            "bottom": 3439.921875,
+            "left": 568.984375
+          }
+        },
+        {
+          "text": "gives the wheel something to turn on",
+          "id": "interpretation-4-4860",
+          "pressed": "false",
+          "rect": {
+            "x": 782.671875,
+            "y": 3630.921875,
+            "width": 307.484375,
+            "height": 41,
+            "top": 3630.921875,
+            "right": 1090.15625,
+            "bottom": 3671.921875,
+            "left": 782.671875
+          }
+        },
+        {
+          "text": "The spark in this spread",
+          "id": "identity-0-4935",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 3808.515625,
+            "width": 201.328125,
+            "height": 41,
+            "top": 3808.515625,
+            "right": 742.328125,
+            "bottom": 3849.515625,
+            "left": 541
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Core of the matter: Ace of Wands, upright",
+          "disabled": false,
+          "rect": {
+            "x": 161,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 222.59375,
+            "bottom": 340.65625,
+            "left": 161
+          }
+        },
+        {
+          "label": "Challenge or tension: Seven of Swords, reversed",
+          "disabled": false,
+          "rect": {
+            "x": 230.59375,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 292.1875,
+            "bottom": 340.65625,
+            "left": 230.59375
+          }
+        },
+        {
+          "label": "Hidden: Queen of Cups, upright",
+          "disabled": false,
+          "rect": {
+            "x": 300.1875,
+            "y": 238,
+            "width": 61.609375,
+            "height": 102.671875,
+            "top": 238,
+            "right": 361.796875,
+            "bottom": 340.671875,
+            "left": 300.1875
+          }
+        },
+        {
+          "label": "Support: Three of Pentacles, upright",
+          "disabled": false,
+          "rect": {
+            "x": 369.796875,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 431.390625,
+            "bottom": 340.65625,
+            "left": 369.796875
+          }
+        },
+        {
+          "label": "Likely direction on current path: Wheel of Fortune, reversed",
+          "disabled": false,
+          "rect": {
+            "x": 439.390625,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 500.984375,
+            "bottom": 340.65625,
+            "left": 439.390625
+          }
+        }
+      ],
+      "reading": "Narrative ready.\n\nOpening\n\nYou may know this feeling: something is ready to move, you can feel the pull forward, and an inner editor keeps asking whether the voice is right and whether now is really the moment. That's the tension this spread seems to circle as you ask about launching your creative project this quarter. It reads less like a stop sign and more like a sorting process.\n\nThe spread is neatly balanced, with one card from each suit (spark, mind, heart, and hands) and a single Major in the \"where this is heading\" seat. Two cards arrive reversed. I'm reading those as timing that may not be ripe yet: conditions to tend, not doors shut.\n\n✦\nThe Story\n\nAce of Wands (Upright), the core. At the center is a clear yes to the creative impulse itself. The Rider-Waite-Smith image shows a hand from a cloud offering a wand that's still sprouting leaves, with rolling hills and a castle far off in the distance. That distance is worth noticing. The spark is alive, but the finished \"castle\" is further down the road. The momentum you named seems real. The live question may be how to carry a still-growing idea into public without waiting for it to look finished first.\n\nSeven of Swords (Reversed), the challenge. The traditional image shows a figure tiptoeing out of camp with five swords and leaving two behind, a plan carried off half-assembled. Reversed, through the timing lens, it can point to strategy that isn't quite ready for daylight. This might look like a launch plan that lives mostly in your head, or a description of the project you keep rewriting because you haven't said plainly what it is. The friction may sit less in the work and more in those two missing swords: the decisions you haven't made explicit yet.\n\nQueen of Cups (Upright), the hidden influence. Underneath the second-guessing there may be something more tender than doubt. The Queen sits at the sea's edge holding an ornate, covered cup with real devotion, attuned to what's inside and protective of it. Your worry about tone could be her voice: a sensitivity to how the work will feel to the people who receive it. That's a gift when it shapes the work and a drag when it turns into endless polishing. One question to sit with: when you hesitate over tone, does something feel emotionally off, or does the cup just feel too precious to uncover?\n\nThree of Pentacles (Upright), the support. If you're settling tone questions alone, this card offers another route. A craftsman stands in a cathedral talking plans over with a monk and a noble, and nobody in that scene is working solo or guessing at the design. Your help here looks like skilled collaboration: someone who knows the craft and someone closer to the audience. A quick review with two trusted people might settle more than another round of solo revision.\n\nWheel of Fortune (Reversed), the likely direction. If things continue as they are, the Wheel reversed hints at a turn that's slow to come, with cycles that repeat instead of moving forward. Its classic image is all motion: a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other. Reversed, it can suggest the quarter's conditions aren't fully lined up yet, or that a loop of draft, doubt, and redraft is holding the wheel in place. The traditional wisdom here is to notice what's shifting and use it to reset a pattern rather than repeat it. Waiting alone won't guarantee a better moment, but changing the loop may shift the odds.\n\n✦\nPutting It Together\n\nRead together, the spread's answer to your question about launching this quarter sounds something like this: the spark looks sound, the plan around it may be underbuilt, and the timing worry could partly be a tone worry in disguise. The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting. The two reversals point toward structure and readiness, and the Three of Pentacles points toward other people as the way to get unstuck. \"This quarter\" might mean a soft launch or a public date rather than everything at once.\n\nIf you enjoy astrological weather, the New Moon in Libra about two and a half weeks out makes a tidy symbolic checkpoint for naming a launch intention. Think of it as atmosphere, not a deadline.\n\n✦\nGentle Next Steps\nWrite down the two missing swords. List the two or three launch decisions still living in your head (date, platform, how you'll describe the project) and pick a placeholder answer for each.\nAsk for a tone check only. Share a sample with one person who knows the craft and one who's closer to your audience, and ask just how it lands.\nCap your revisions. Give the piece you keep reworking a fixed number of passes. After that, it goes to feedback or it ships.\nPick one small public step for the quarter. A preview, an announcement, or a waitlist gives the wheel something to turn on before the full reveal.\n✦\nClosing\n\nThe spark in this spread is clearly yours, and nothing here closes the window. It only suggests the timing may reward some groundwork first. How and when you launch is your call, and those choices are what shape where this goes.",
+      "runningAnimations": 1
+    },
+    {
+      "observedMs": 16858,
+      "requestedMs": 16000,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547111645-five-card-1280/6-16000ms.png",
+      "viewport": {
+        "width": 1280,
+        "height": 1000,
+        "scrollWidth": 1280,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "242c96ad-e1b0-4f5c-a30a-65a224fd3c8a",
+        "sourceRevision": "0",
+        "sourceStatus": "complete",
+        "rawLength": "5163",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "",
+        "phase": "static",
+        "pending": "identity-0-4935",
+        "rect": {
+          "x": 161,
+          "y": 381.671875,
+          "width": 340,
+          "height": 360,
+          "top": 381.671875,
+          "right": 501,
+          "bottom": 741.671875,
+          "left": 161
+        }
+      },
+      "focused": [],
+      "phrases": [
+        {
+          "text": "Ace of Wands",
+          "id": "identity-0-655",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1007.734375,
+            "width": 120.171875,
+            "height": 41,
+            "top": 1007.734375,
+            "right": 661.171875,
+            "bottom": 1048.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "sprouting leaves",
+          "id": "literal-0-835",
+          "pressed": "false",
+          "rect": {
+            "x": 870.5625,
+            "y": 1079.734375,
+            "width": 137.890625,
+            "height": 41,
+            "top": 1079.734375,
+            "right": 1008.453125,
+            "bottom": 1120.734375,
+            "left": 870.5625
+          }
+        },
+        {
+          "text": "castle",
+          "id": "literal-0-878",
+          "pressed": "false",
+          "rect": {
+            "x": 630.171875,
+            "y": 1115.734375,
+            "width": 50.09375,
+            "height": 41,
+            "top": 1115.734375,
+            "right": 680.265625,
+            "bottom": 1156.734375,
+            "left": 630.171875
+          }
+        },
+        {
+          "text": "Seven of Swords",
+          "id": "identity-1-1171",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1311.734375,
+            "width": 145.703125,
+            "height": 41,
+            "top": 1311.734375,
+            "right": 686.703125,
+            "bottom": 1352.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "five swords",
+          "id": "literal-1-1280",
+          "pressed": "false",
+          "rect": {
+            "x": 891.5625,
+            "y": 1347.734375,
+            "width": 95.984375,
+            "height": 41,
+            "top": 1347.734375,
+            "right": 987.546875,
+            "bottom": 1388.734375,
+            "left": 891.5625
+          }
+        },
+        {
+          "text": "leaving two behind",
+          "id": "literal-1-1296",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1347.734375,
+            "width": 548.71875,
+            "height": 77,
+            "top": 1347.734375,
+            "right": 1089.71875,
+            "bottom": 1424.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "those two missing swords",
+          "id": "interpretation-1-1661",
+          "pressed": "false",
+          "rect": {
+            "x": 560.546875,
+            "y": 1563.734375,
+            "width": 215.328125,
+            "height": 41,
+            "top": 1563.734375,
+            "right": 775.875,
+            "bottom": 1604.734375,
+            "left": 560.546875
+          }
+        },
+        {
+          "text": "Queen of Cups",
+          "id": "identity-2-1735",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1651.734375,
+            "width": 129.34375,
+            "height": 41,
+            "top": 1651.734375,
+            "right": 670.34375,
+            "bottom": 1692.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "The Queen",
+          "id": "identity-2-1862",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1723.734375,
+            "width": 90.625,
+            "height": 41,
+            "top": 1723.734375,
+            "right": 631.625,
+            "bottom": 1764.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "ornate, covered cup",
+          "id": "literal-2-1906",
+          "pressed": "false",
+          "rect": {
+            "x": 912.9375,
+            "y": 1723.734375,
+            "width": 168.421875,
+            "height": 41,
+            "top": 1723.734375,
+            "right": 1081.359375,
+            "bottom": 1764.734375,
+            "left": 912.9375
+          }
+        },
+        {
+          "text": "Three of Pentacles",
+          "id": "identity-3-2338",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1991.734375,
+            "width": 162.25,
+            "height": 41,
+            "top": 1991.734375,
+            "right": 703.25,
+            "bottom": 2032.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "A craftsman",
+          "id": "literal-3-2456",
+          "pressed": "false",
+          "rect": {
+            "x": 933.828125,
+            "y": 2027.734375,
+            "width": 99.984375,
+            "height": 41,
+            "top": 2027.734375,
+            "right": 1033.8125,
+            "bottom": 2068.734375,
+            "left": 933.828125
+          }
+        },
+        {
+          "text": "Wheel of Fortune",
+          "id": "identity-4-2812",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 2259.734375,
+            "width": 148.890625,
+            "height": 41,
+            "top": 2259.734375,
+            "right": 689.890625,
+            "bottom": 2300.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "the Wheel",
+          "id": "identity-4-2897",
+          "pressed": "false",
+          "rect": {
+            "x": 644.34375,
+            "y": 2295.734375,
+            "width": 83.625,
+            "height": 41,
+            "top": 2295.734375,
+            "right": 727.96875,
+            "bottom": 2336.734375,
+            "left": 644.34375
+          }
+        },
+        {
+          "text": "great wheel",
+          "id": "literal-4-3039",
+          "pressed": "false",
+          "rect": {
+            "x": 665.0625,
+            "y": 2367.734375,
+            "width": 97.984375,
+            "height": 41,
+            "top": 2367.734375,
+            "right": 763.046875,
+            "bottom": 2408.734375,
+            "left": 665.0625
+          }
+        },
+        {
+          "text": "The Ace of Wands and Queen of Cups",
+          "id": "relationship-0-2-3745",
+          "pressed": "false",
+          "rect": {
+            "x": 776.234375,
+            "y": 2833.328125,
+            "width": 319.125,
+            "height": 41,
+            "top": 2833.328125,
+            "right": 1095.359375,
+            "bottom": 2874.328125,
+            "left": 776.234375
+          }
+        },
+        {
+          "text": "Three of Pentacles",
+          "id": "identity-3-3909",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 2905.328125,
+            "width": 572.265625,
+            "height": 77,
+            "top": 2905.328125,
+            "right": 1113.265625,
+            "bottom": 2982.328125,
+            "left": 541
+          }
+        },
+        {
+          "text": "Write down the two missing swords",
+          "id": "interpretation-1-4295",
+          "pressed": "false",
+          "rect": {
+            "x": 568.984375,
+            "y": 3278.921875,
+            "width": 309.953125,
+            "height": 41,
+            "top": 3278.921875,
+            "right": 878.9375,
+            "bottom": 3319.921875,
+            "left": 568.984375
+          }
+        },
+        {
+          "text": "Ask for a tone check only",
+          "id": "interpretation-3-4491",
+          "pressed": "false",
+          "rect": {
+            "x": 568.984375,
+            "y": 3398.921875,
+            "width": 217.5,
+            "height": 41,
+            "top": 3398.921875,
+            "right": 786.484375,
+            "bottom": 3439.921875,
+            "left": 568.984375
+          }
+        },
+        {
+          "text": "gives the wheel something to turn on",
+          "id": "interpretation-4-4860",
+          "pressed": "false",
+          "rect": {
+            "x": 782.671875,
+            "y": 3630.921875,
+            "width": 307.484375,
+            "height": 41,
+            "top": 3630.921875,
+            "right": 1090.15625,
+            "bottom": 3671.921875,
+            "left": 782.671875
+          }
+        },
+        {
+          "text": "The spark in this spread",
+          "id": "identity-0-4935",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 3808.515625,
+            "width": 201.328125,
+            "height": 41,
+            "top": 3808.515625,
+            "right": 742.328125,
+            "bottom": 3849.515625,
+            "left": 541
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Core of the matter: Ace of Wands, upright",
+          "disabled": false,
+          "rect": {
+            "x": 161,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 222.59375,
+            "bottom": 340.65625,
+            "left": 161
+          }
+        },
+        {
+          "label": "Challenge or tension: Seven of Swords, reversed",
+          "disabled": false,
+          "rect": {
+            "x": 230.59375,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 292.1875,
+            "bottom": 340.65625,
+            "left": 230.59375
+          }
+        },
+        {
+          "label": "Hidden: Queen of Cups, upright",
+          "disabled": false,
+          "rect": {
+            "x": 300.1875,
+            "y": 238,
+            "width": 61.609375,
+            "height": 102.671875,
+            "top": 238,
+            "right": 361.796875,
+            "bottom": 340.671875,
+            "left": 300.1875
+          }
+        },
+        {
+          "label": "Support: Three of Pentacles, upright",
+          "disabled": false,
+          "rect": {
+            "x": 369.796875,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 431.390625,
+            "bottom": 340.65625,
+            "left": 369.796875
+          }
+        },
+        {
+          "label": "Likely direction on current path: Wheel of Fortune, reversed",
+          "disabled": false,
+          "rect": {
+            "x": 439.390625,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 500.984375,
+            "bottom": 340.65625,
+            "left": 439.390625
+          }
+        }
+      ],
+      "reading": "Narrative ready.\n\nOpening\n\nYou may know this feeling: something is ready to move, you can feel the pull forward, and an inner editor keeps asking whether the voice is right and whether now is really the moment. That's the tension this spread seems to circle as you ask about launching your creative project this quarter. It reads less like a stop sign and more like a sorting process.\n\nThe spread is neatly balanced, with one card from each suit (spark, mind, heart, and hands) and a single Major in the \"where this is heading\" seat. Two cards arrive reversed. I'm reading those as timing that may not be ripe yet: conditions to tend, not doors shut.\n\n✦\nThe Story\n\nAce of Wands (Upright), the core. At the center is a clear yes to the creative impulse itself. The Rider-Waite-Smith image shows a hand from a cloud offering a wand that's still sprouting leaves, with rolling hills and a castle far off in the distance. That distance is worth noticing. The spark is alive, but the finished \"castle\" is further down the road. The momentum you named seems real. The live question may be how to carry a still-growing idea into public without waiting for it to look finished first.\n\nSeven of Swords (Reversed), the challenge. The traditional image shows a figure tiptoeing out of camp with five swords and leaving two behind, a plan carried off half-assembled. Reversed, through the timing lens, it can point to strategy that isn't quite ready for daylight. This might look like a launch plan that lives mostly in your head, or a description of the project you keep rewriting because you haven't said plainly what it is. The friction may sit less in the work and more in those two missing swords: the decisions you haven't made explicit yet.\n\nQueen of Cups (Upright), the hidden influence. Underneath the second-guessing there may be something more tender than doubt. The Queen sits at the sea's edge holding an ornate, covered cup with real devotion, attuned to what's inside and protective of it. Your worry about tone could be her voice: a sensitivity to how the work will feel to the people who receive it. That's a gift when it shapes the work and a drag when it turns into endless polishing. One question to sit with: when you hesitate over tone, does something feel emotionally off, or does the cup just feel too precious to uncover?\n\nThree of Pentacles (Upright), the support. If you're settling tone questions alone, this card offers another route. A craftsman stands in a cathedral talking plans over with a monk and a noble, and nobody in that scene is working solo or guessing at the design. Your help here looks like skilled collaboration: someone who knows the craft and someone closer to the audience. A quick review with two trusted people might settle more than another round of solo revision.\n\nWheel of Fortune (Reversed), the likely direction. If things continue as they are, the Wheel reversed hints at a turn that's slow to come, with cycles that repeat instead of moving forward. Its classic image is all motion: a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other. Reversed, it can suggest the quarter's conditions aren't fully lined up yet, or that a loop of draft, doubt, and redraft is holding the wheel in place. The traditional wisdom here is to notice what's shifting and use it to reset a pattern rather than repeat it. Waiting alone won't guarantee a better moment, but changing the loop may shift the odds.\n\n✦\nPutting It Together\n\nRead together, the spread's answer to your question about launching this quarter sounds something like this: the spark looks sound, the plan around it may be underbuilt, and the timing worry could partly be a tone worry in disguise. The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting. The two reversals point toward structure and readiness, and the Three of Pentacles points toward other people as the way to get unstuck. \"This quarter\" might mean a soft launch or a public date rather than everything at once.\n\nIf you enjoy astrological weather, the New Moon in Libra about two and a half weeks out makes a tidy symbolic checkpoint for naming a launch intention. Think of it as atmosphere, not a deadline.\n\n✦\nGentle Next Steps\nWrite down the two missing swords. List the two or three launch decisions still living in your head (date, platform, how you'll describe the project) and pick a placeholder answer for each.\nAsk for a tone check only. Share a sample with one person who knows the craft and one who's closer to your audience, and ask just how it lands.\nCap your revisions. Give the piece you keep reworking a fixed number of passes. After that, it goes to feedback or it ships.\nPick one small public step for the quarter. A preview, an announcement, or a waitlist gives the wheel something to turn on before the full reveal.\n✦\nClosing\n\nThe spark in this spread is clearly yours, and nothing here closes the window. It only suggests the timing may reward some groundwork first. How and when you launch is your call, and those choices are what shape where this goes.",
+      "runningAnimations": 1
+    },
+    {
+      "observedMs": 20814,
+      "requestedMs": 20000,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547111645-five-card-1280/7-20000ms.png",
+      "viewport": {
+        "width": 1280,
+        "height": 1000,
+        "scrollWidth": 1280,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "242c96ad-e1b0-4f5c-a30a-65a224fd3c8a",
+        "sourceRevision": "0",
+        "sourceStatus": "complete",
+        "rawLength": "5163",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "",
+        "phase": "static",
+        "pending": "identity-0-4935",
+        "rect": {
+          "x": 161,
+          "y": 381.671875,
+          "width": 340,
+          "height": 360,
+          "top": 381.671875,
+          "right": 501,
+          "bottom": 741.671875,
+          "left": 161
+        }
+      },
+      "focused": [],
+      "phrases": [
+        {
+          "text": "Ace of Wands",
+          "id": "identity-0-655",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1007.734375,
+            "width": 120.171875,
+            "height": 41,
+            "top": 1007.734375,
+            "right": 661.171875,
+            "bottom": 1048.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "sprouting leaves",
+          "id": "literal-0-835",
+          "pressed": "false",
+          "rect": {
+            "x": 870.5625,
+            "y": 1079.734375,
+            "width": 137.890625,
+            "height": 41,
+            "top": 1079.734375,
+            "right": 1008.453125,
+            "bottom": 1120.734375,
+            "left": 870.5625
+          }
+        },
+        {
+          "text": "castle",
+          "id": "literal-0-878",
+          "pressed": "false",
+          "rect": {
+            "x": 630.171875,
+            "y": 1115.734375,
+            "width": 50.09375,
+            "height": 41,
+            "top": 1115.734375,
+            "right": 680.265625,
+            "bottom": 1156.734375,
+            "left": 630.171875
+          }
+        },
+        {
+          "text": "Seven of Swords",
+          "id": "identity-1-1171",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1311.734375,
+            "width": 145.703125,
+            "height": 41,
+            "top": 1311.734375,
+            "right": 686.703125,
+            "bottom": 1352.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "five swords",
+          "id": "literal-1-1280",
+          "pressed": "false",
+          "rect": {
+            "x": 891.5625,
+            "y": 1347.734375,
+            "width": 95.984375,
+            "height": 41,
+            "top": 1347.734375,
+            "right": 987.546875,
+            "bottom": 1388.734375,
+            "left": 891.5625
+          }
+        },
+        {
+          "text": "leaving two behind",
+          "id": "literal-1-1296",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1347.734375,
+            "width": 548.71875,
+            "height": 77,
+            "top": 1347.734375,
+            "right": 1089.71875,
+            "bottom": 1424.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "those two missing swords",
+          "id": "interpretation-1-1661",
+          "pressed": "false",
+          "rect": {
+            "x": 560.546875,
+            "y": 1563.734375,
+            "width": 215.328125,
+            "height": 41,
+            "top": 1563.734375,
+            "right": 775.875,
+            "bottom": 1604.734375,
+            "left": 560.546875
+          }
+        },
+        {
+          "text": "Queen of Cups",
+          "id": "identity-2-1735",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1651.734375,
+            "width": 129.34375,
+            "height": 41,
+            "top": 1651.734375,
+            "right": 670.34375,
+            "bottom": 1692.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "The Queen",
+          "id": "identity-2-1862",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1723.734375,
+            "width": 90.625,
+            "height": 41,
+            "top": 1723.734375,
+            "right": 631.625,
+            "bottom": 1764.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "ornate, covered cup",
+          "id": "literal-2-1906",
+          "pressed": "false",
+          "rect": {
+            "x": 912.9375,
+            "y": 1723.734375,
+            "width": 168.421875,
+            "height": 41,
+            "top": 1723.734375,
+            "right": 1081.359375,
+            "bottom": 1764.734375,
+            "left": 912.9375
+          }
+        },
+        {
+          "text": "Three of Pentacles",
+          "id": "identity-3-2338",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 1991.734375,
+            "width": 162.25,
+            "height": 41,
+            "top": 1991.734375,
+            "right": 703.25,
+            "bottom": 2032.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "A craftsman",
+          "id": "literal-3-2456",
+          "pressed": "false",
+          "rect": {
+            "x": 933.828125,
+            "y": 2027.734375,
+            "width": 99.984375,
+            "height": 41,
+            "top": 2027.734375,
+            "right": 1033.8125,
+            "bottom": 2068.734375,
+            "left": 933.828125
+          }
+        },
+        {
+          "text": "Wheel of Fortune",
+          "id": "identity-4-2812",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 2259.734375,
+            "width": 148.890625,
+            "height": 41,
+            "top": 2259.734375,
+            "right": 689.890625,
+            "bottom": 2300.734375,
+            "left": 541
+          }
+        },
+        {
+          "text": "the Wheel",
+          "id": "identity-4-2897",
+          "pressed": "false",
+          "rect": {
+            "x": 644.34375,
+            "y": 2295.734375,
+            "width": 83.625,
+            "height": 41,
+            "top": 2295.734375,
+            "right": 727.96875,
+            "bottom": 2336.734375,
+            "left": 644.34375
+          }
+        },
+        {
+          "text": "great wheel",
+          "id": "literal-4-3039",
+          "pressed": "false",
+          "rect": {
+            "x": 665.0625,
+            "y": 2367.734375,
+            "width": 97.984375,
+            "height": 41,
+            "top": 2367.734375,
+            "right": 763.046875,
+            "bottom": 2408.734375,
+            "left": 665.0625
+          }
+        },
+        {
+          "text": "The Ace of Wands and Queen of Cups",
+          "id": "relationship-0-2-3745",
+          "pressed": "false",
+          "rect": {
+            "x": 776.234375,
+            "y": 2833.328125,
+            "width": 319.125,
+            "height": 41,
+            "top": 2833.328125,
+            "right": 1095.359375,
+            "bottom": 2874.328125,
+            "left": 776.234375
+          }
+        },
+        {
+          "text": "Three of Pentacles",
+          "id": "identity-3-3909",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 2905.328125,
+            "width": 572.265625,
+            "height": 77,
+            "top": 2905.328125,
+            "right": 1113.265625,
+            "bottom": 2982.328125,
+            "left": 541
+          }
+        },
+        {
+          "text": "Write down the two missing swords",
+          "id": "interpretation-1-4295",
+          "pressed": "false",
+          "rect": {
+            "x": 568.984375,
+            "y": 3278.921875,
+            "width": 309.953125,
+            "height": 41,
+            "top": 3278.921875,
+            "right": 878.9375,
+            "bottom": 3319.921875,
+            "left": 568.984375
+          }
+        },
+        {
+          "text": "Ask for a tone check only",
+          "id": "interpretation-3-4491",
+          "pressed": "false",
+          "rect": {
+            "x": 568.984375,
+            "y": 3398.921875,
+            "width": 217.5,
+            "height": 41,
+            "top": 3398.921875,
+            "right": 786.484375,
+            "bottom": 3439.921875,
+            "left": 568.984375
+          }
+        },
+        {
+          "text": "gives the wheel something to turn on",
+          "id": "interpretation-4-4860",
+          "pressed": "false",
+          "rect": {
+            "x": 782.671875,
+            "y": 3630.921875,
+            "width": 307.484375,
+            "height": 41,
+            "top": 3630.921875,
+            "right": 1090.15625,
+            "bottom": 3671.921875,
+            "left": 782.671875
+          }
+        },
+        {
+          "text": "The spark in this spread",
+          "id": "identity-0-4935",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 3808.515625,
+            "width": 201.328125,
+            "height": 41,
+            "top": 3808.515625,
+            "right": 742.328125,
+            "bottom": 3849.515625,
+            "left": 541
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Core of the matter: Ace of Wands, upright",
+          "disabled": false,
+          "rect": {
+            "x": 161,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 222.59375,
+            "bottom": 340.65625,
+            "left": 161
+          }
+        },
+        {
+          "label": "Challenge or tension: Seven of Swords, reversed",
+          "disabled": false,
+          "rect": {
+            "x": 230.59375,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 292.1875,
+            "bottom": 340.65625,
+            "left": 230.59375
+          }
+        },
+        {
+          "label": "Hidden: Queen of Cups, upright",
+          "disabled": false,
+          "rect": {
+            "x": 300.1875,
+            "y": 238,
+            "width": 61.609375,
+            "height": 102.671875,
+            "top": 238,
+            "right": 361.796875,
+            "bottom": 340.671875,
+            "left": 300.1875
+          }
+        },
+        {
+          "label": "Support: Three of Pentacles, upright",
+          "disabled": false,
+          "rect": {
+            "x": 369.796875,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 431.390625,
+            "bottom": 340.65625,
+            "left": 369.796875
+          }
+        },
+        {
+          "label": "Likely direction on current path: Wheel of Fortune, reversed",
+          "disabled": false,
+          "rect": {
+            "x": 439.390625,
+            "y": 238,
+            "width": 61.59375,
+            "height": 102.65625,
+            "top": 238,
+            "right": 500.984375,
+            "bottom": 340.65625,
+            "left": 439.390625
+          }
+        }
+      ],
+      "reading": "Narrative ready.\n\nOpening\n\nYou may know this feeling: something is ready to move, you can feel the pull forward, and an inner editor keeps asking whether the voice is right and whether now is really the moment. That's the tension this spread seems to circle as you ask about launching your creative project this quarter. It reads less like a stop sign and more like a sorting process.\n\nThe spread is neatly balanced, with one card from each suit (spark, mind, heart, and hands) and a single Major in the \"where this is heading\" seat. Two cards arrive reversed. I'm reading those as timing that may not be ripe yet: conditions to tend, not doors shut.\n\n✦\nThe Story\n\nAce of Wands (Upright), the core. At the center is a clear yes to the creative impulse itself. The Rider-Waite-Smith image shows a hand from a cloud offering a wand that's still sprouting leaves, with rolling hills and a castle far off in the distance. That distance is worth noticing. The spark is alive, but the finished \"castle\" is further down the road. The momentum you named seems real. The live question may be how to carry a still-growing idea into public without waiting for it to look finished first.\n\nSeven of Swords (Reversed), the challenge. The traditional image shows a figure tiptoeing out of camp with five swords and leaving two behind, a plan carried off half-assembled. Reversed, through the timing lens, it can point to strategy that isn't quite ready for daylight. This might look like a launch plan that lives mostly in your head, or a description of the project you keep rewriting because you haven't said plainly what it is. The friction may sit less in the work and more in those two missing swords: the decisions you haven't made explicit yet.\n\nQueen of Cups (Upright), the hidden influence. Underneath the second-guessing there may be something more tender than doubt. The Queen sits at the sea's edge holding an ornate, covered cup with real devotion, attuned to what's inside and protective of it. Your worry about tone could be her voice: a sensitivity to how the work will feel to the people who receive it. That's a gift when it shapes the work and a drag when it turns into endless polishing. One question to sit with: when you hesitate over tone, does something feel emotionally off, or does the cup just feel too precious to uncover?\n\nThree of Pentacles (Upright), the support. If you're settling tone questions alone, this card offers another route. A craftsman stands in a cathedral talking plans over with a monk and a noble, and nobody in that scene is working solo or guessing at the design. Your help here looks like skilled collaboration: someone who knows the craft and someone closer to the audience. A quick review with two trusted people might settle more than another round of solo revision.\n\nWheel of Fortune (Reversed), the likely direction. If things continue as they are, the Wheel reversed hints at a turn that's slow to come, with cycles that repeat instead of moving forward. Its classic image is all motion: a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other. Reversed, it can suggest the quarter's conditions aren't fully lined up yet, or that a loop of draft, doubt, and redraft is holding the wheel in place. The traditional wisdom here is to notice what's shifting and use it to reset a pattern rather than repeat it. Waiting alone won't guarantee a better moment, but changing the loop may shift the odds.\n\n✦\nPutting It Together\n\nRead together, the spread's answer to your question about launching this quarter sounds something like this: the spark looks sound, the plan around it may be underbuilt, and the timing worry could partly be a tone worry in disguise. The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting. The two reversals point toward structure and readiness, and the Three of Pentacles points toward other people as the way to get unstuck. \"This quarter\" might mean a soft launch or a public date rather than everything at once.\n\nIf you enjoy astrological weather, the New Moon in Libra about two and a half weeks out makes a tidy symbolic checkpoint for naming a launch intention. Think of it as atmosphere, not a deadline.\n\n✦\nGentle Next Steps\nWrite down the two missing swords. List the two or three launch decisions still living in your head (date, platform, how you'll describe the project) and pick a placeholder answer for each.\nAsk for a tone check only. Share a sample with one person who knows the craft and one who's closer to your audience, and ask just how it lands.\nCap your revisions. Give the piece you keep reworking a fixed number of passes. After that, it goes to feedback or it ships.\nPick one small public step for the quarter. A preview, an announcement, or a waitlist gives the wheel something to turn on before the full reveal.\n✦\nClosing\n\nThe spark in this spread is clearly yours, and nothing here closes the window. It only suggests the timing may reward some groundwork first. How and when you launch is your call, and those choices are what shape where this goes.",
+      "runningAnimations": 1
+    }
+  ]
+}

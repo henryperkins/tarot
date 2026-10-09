@@ -1,0 +1,149 @@
+[
+  {
+    "study": "star",
+    "card": "",
+    "width": 1280,
+    "height": 1000,
+    "pageWidth": 1280,
+    "scrollWidth": 1280,
+    "resources": [
+      {
+        "file": "cups-06.webp",
+        "encodedBodySize": 378514,
+        "decodedBodySize": 378514,
+        "transferSize": 0,
+        "duration": 11.5
+      },
+      {
+        "file": "major-16-tower.webp",
+        "encodedBodySize": 208410,
+        "decodedBodySize": 208410,
+        "transferSize": 0,
+        "duration": 11
+      },
+      {
+        "file": "major-17-star.webp",
+        "encodedBodySize": 392164,
+        "decodedBodySize": 392164,
+        "transferSize": 0,
+        "duration": 11.299999982118607
+      }
+    ],
+    "animations": 0,
+    "identityButtons": 0,
+    "stageHeight": 360,
+    "screenshot": "star-recorded-1280x1000.png"
+  },
+  {
+    "study": "five-card",
+    "card": "",
+    "width": 390,
+    "height": 844,
+    "pageWidth": 390,
+    "scrollWidth": 390,
+    "resources": [
+      {
+        "file": "wands-01.webp",
+        "encodedBodySize": 226284,
+        "decodedBodySize": 226284,
+        "transferSize": 0,
+        "duration": 9
+      },
+      {
+        "file": "swords-07.webp",
+        "encodedBodySize": 231090,
+        "decodedBodySize": 231090,
+        "transferSize": 0,
+        "duration": 9.800000011920929
+      },
+      {
+        "file": "cups-13.webp",
+        "encodedBodySize": 283030,
+        "decodedBodySize": 283030,
+        "transferSize": 0,
+        "duration": 10.599999994039536
+      },
+      {
+        "file": "pentacles-03.webp",
+        "encodedBodySize": 344882,
+        "decodedBodySize": 344882,
+        "transferSize": 0,
+        "duration": 13.399999976158142
+      },
+      {
+        "file": "major-10-wheel-of-fortune.webp",
+        "encodedBodySize": 405216,
+        "decodedBodySize": 405216,
+        "transferSize": 0,
+        "duration": 13.799999982118607
+      }
+    ],
+    "animations": 0,
+    "identityButtons": 0,
+    "stageHeight": 106,
+    "screenshot": "five-card-recorded-390x844.png"
+  },
+  {
+    "study": "deck",
+    "card": "The Emperor",
+    "width": 375,
+    "height": 568,
+    "pageWidth": 375,
+    "scrollWidth": 375,
+    "resources": [
+      {
+        "file": "major-04-emperor.webp",
+        "encodedBodySize": 426806,
+        "decodedBodySize": 426806,
+        "transferSize": 0,
+        "duration": 5.600000023841858
+      }
+    ],
+    "animations": 0,
+    "identityButtons": 0,
+    "stageHeight": 72,
+    "screenshot": "deck-The-Emperor-375x568.png"
+  },
+  {
+    "study": "deck",
+    "card": "Justice",
+    "width": 375,
+    "height": 568,
+    "pageWidth": 375,
+    "scrollWidth": 375,
+    "resources": [
+      {
+        "file": "major-11-justice.webp",
+        "encodedBodySize": 382614,
+        "decodedBodySize": 382614,
+        "transferSize": 0,
+        "duration": 6.5
+      }
+    ],
+    "animations": 0,
+    "identityButtons": 0,
+    "stageHeight": 72,
+    "screenshot": "deck-Justice-375x568.png"
+  },
+  {
+    "study": "deck",
+    "card": "Two of Swords",
+    "width": 1280,
+    "height": 1000,
+    "pageWidth": 1280,
+    "scrollWidth": 1280,
+    "resources": [
+      {
+        "file": "swords-02.webp",
+        "encodedBodySize": 201520,
+        "decodedBodySize": 201520,
+        "transferSize": 0,
+        "duration": 4.899999976158142
+      }
+    ],
+    "animations": 0,
+    "identityButtons": 0,
+    "stageHeight": 360,
+    "screenshot": "deck-Two-of-Swords-1280x1000.png"
+  }
+]

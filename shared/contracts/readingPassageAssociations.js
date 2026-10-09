@@ -89,7 +89,7 @@ export const passageAssociationsPayloadSchema = z.object({
   expectedRaw: z.string().optional(),
   associations: z.array(passageAssociationSchema).default([]),
   introductions: z.array(cardIntroductionSchema).default([]),
-  recordedContext: z.record(z.unknown()).optional(),
+  recordedContext: z.record(z.unknown()).nullish(),
   metadata: z.record(z.unknown()).optional()
 });
 

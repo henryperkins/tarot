@@ -18,16 +18,12 @@ import star from '../../output/reading-motion/fixtures/three-card-transition.jso
 import celtic from '../../output/reading-motion/fixtures/gestures-celtic-deep-shift.json';
 import fiveCard from '../../output/reading-motion/fixtures/gestures-five-card-creative-project.json';
 import sidecars from '../../output/reading-motion/fixtures/gesture-sidecars.json';
-import vectorManifest from '../../output/reading-motion/assets/rws-immanuelle/manifest.json';
+import { getGestureArtworkAsset } from '../data/cardGestureAssets.js';
+import generatedReadings from '../../output/reading-motion/fixtures/generated-gesture-readings.json';
 
 const STUDIES = { star, celtic, 'five-card': fiveCard };
 const SIDECAR_KEYS = { star: 'star', celtic: 'related', 'five-card': 'fiveCard' };
 const ALL_CARDS = [...MAJOR_ARCANA, ...MINOR_ARCANA];
-const normalizeCardName = name => name.replace(/^the /i, '').toLowerCase();
-const VECTOR_FILES = Object.fromEntries(vectorManifest.cards.flatMap(asset => {
-  const card = ALL_CARDS.find(candidate => normalizeCardName(candidate.name) === normalizeCardName(asset.name));
-  return card ? [[card.name, asset.filename]] : [];
-}));
 // Authored literal probes for the earlier eight treatments, not fixture excerpts.
 const EARLIER_PROBES = {
   'The Star': ['A figure pours one pitcher into a pool.', 'The other pitcher pours water onto the land.'],
@@ -54,18 +50,20 @@ const EMPTY_INSPECTIONS = [];
 
 export function ReadingGesturesFixture() {
   const [params, setParams] = useSearchParams();
-  const studyKey = params.get('study') === 'deck' ? 'deck' : STUDIES[params.get('study')] ? params.get('study') : 'star';
+  const studyKey = params.get('study') === 'generated' && generatedReadings.samples.length ? 'generated' : params.get('study') === 'deck' ? 'deck' : STUDIES[params.get('study')] ? params.get('study') : 'star';
   const isDeck = studyKey === 'deck';
+  const isGenerated = studyKey === 'generated';
+  const generatedSample = generatedReadings.samples.find(sample => sample.id === params.get('sample')) || generatedReadings.samples[0];
   const deckCard = ALL_CARDS.find(card => card.name === params.get('card')) || ALL_CARDS[0];
   const orientation = params.get('orientation') === 'reversed' ? 'Reversed' : 'Upright';
   const arrival = ['gentle', 'burst', 'complete'].includes(params.get('arrival')) ? params.get('arrival') : 'gentle';
-  const sourceMode = !isDeck && params.get('sourceMode') === 'job-sse' ? 'job-sse' : 'recorded';
-  const associationMode = isDeck || params.get('associations') === 'dynamic' ? 'dynamic' : 'authored';
+  const sourceMode = !isDeck && !isGenerated && params.get('sourceMode') === 'job-sse' ? 'job-sse' : 'recorded';
+  const associationMode = isGenerated && params.get('associations') !== 'dynamic' ? 'generated' : isDeck || params.get('associations') === 'dynamic' ? 'dynamic' : 'authored';
   const reflection = !isDeck && params.get('reflection') !== 'off';
-  const fixture = useMemo(() => isDeck ? deckFixture(deckCard, orientation) : STUDIES[studyKey], [deckCard, isDeck, orientation, studyKey]);
+  const fixture = useMemo(() => isDeck ? deckFixture(deckCard, orientation) : isGenerated ? generatedSample : STUDIES[studyKey], [deckCard, isDeck, isGenerated, generatedSample, orientation, studyKey]);
   const originalSidecar = sidecars[SIDECAR_KEYS[studyKey]];
   const sidecar = useMemo(() => !originalSidecar ? null : reflection ? originalSidecar : { ...originalSidecar, recordedContext: null }, [originalSidecar, reflection]);
-  const raw = isDeck ? fixture.reading : sidecar.expectedRaw;
+  const raw = isDeck ? fixture.reading : isGenerated ? fixture.document.raw : sidecar.expectedRaw;
   const context = useReading();
   const [restart, setRestart] = useState(0);
   const [recordedSource, setRecordedSource] = useState(() => createGestureSource({ runId: crypto.randomUUID() }));
@@ -77,7 +75,7 @@ export function ReadingGesturesFixture() {
     name: card.card,
     isReversed: card.orientation === 'Reversed'
   })), [fixture]);
-  const key = `${studyKey}:${arrival}:${sourceMode}:${isDeck ? `${deckCard.name}:${orientation}` : ''}:${restart}`;
+  const key = `${studyKey}:${arrival}:${sourceMode}:${isDeck ? `${deckCard.name}:${orientation}` : isGenerated ? generatedSample.id : ''}:${restart}`;
   const { setSelectedSpread, setReading, setUserQuestion, setRevealedCards, generatePersonalReading } = context;
 
   useEffect(() => {
@@ -123,45 +121,48 @@ export function ReadingGesturesFixture() {
     return () => clearTimeout(timer);
   }, [cards, context.reading, context.isGenerating, generatePersonalReading, key, seeded, sourceMode]);
 
-  const source = sourceMode === 'job-sse' ? context.gestureSource || recordedSource : recordedSource;
+  const baseSource = sourceMode === 'job-sse' ? context.gestureSource || recordedSource : recordedSource;
+  const source = useMemo(() => isGenerated && associationMode === 'generated' ? { ...baseSource, semanticDocument: fixture.document } : baseSource, [associationMode, baseSource, fixture, isGenerated]);
   const personalReading = sourceMode === 'job-sse' ? context.personalReading : {
     ...formatReading(source.raw), isStreaming: source.status === 'streaming', isServerStreamed: true
   };
   const spreadCards = useMemo(() => buildSpreadCompanionCards({
     reading: cards, visibleCount: cards.length, spreadPositions: fixture.cards.map(card => card.position),
     deckStyleId: 'rws-1909', revealedCards: new Set(cards.map((_, index) => index)), runId: source.runId, artworkEdition: 'rws-immanuelle-vector'
-  }).map(card => ({ ...card, shortLabel: isDeck ? 'Artwork' : POSITION_LABELS[studyKey][card.index], frame: '3 / 5', image: `/output/reading-motion/assets/rws-immanuelle/${VECTOR_FILES[card.canonicalName || card.name]}` })), [cards, fixture, isDeck, source.runId, studyKey]);
+  }).map(card => ({ ...card, shortLabel: isDeck ? 'Artwork' : isGenerated ? fixture.cards[card.index].position : POSITION_LABELS[studyKey][card.index], frame: '3 / 5', image: getGestureArtworkAsset(card.canonicalName || card.name) })), [cards, fixture, isDeck, isGenerated, source.runId, studyKey]);
   const panelModel = buildNarrativePanelModel({
     personalReading: { ...personalReading, hasMarkdown: true }, narrativeText: personalReading?.isError ? personalReading.raw : source.raw,
     isPersonalReadingError: Boolean(personalReading?.isError), isReadingStreaming: source.status === 'streaming',
     narrativePhase: source.status === 'complete' ? 'complete' : 'streaming',
     userQuestion: fixture.userQuestion, isHandset: window.innerWidth < 640,
     shouldStreamNarrative: false, narrativeHighlightPhrases: [], ttsState: { status: 'idle' },
-    gestureSource: source, gestureStudyEnabled: true, gestureSidecar: associationMode === 'dynamic' ? null : sidecar,
+    gestureSource: source, gestureStudyEnabled: true, gestureSidecar: associationMode === 'authored' ? sidecar : null,
+    personalContext: { question: fixture.userQuestion, reflectionsText: reflection ? fixture.reflectionsText : '' },
     spreadCards, manualInspectionStatus: EMPTY_INSPECTIONS,
     cardLinkCatalog: buildCardLinkCatalog({ cards: spreadCards, deckStyle: 'rws-1909' })
   });
-  panelModel.sectionHeading = isDeck || studyKey === 'five-card' ? null : { heading: fixture.heading || fixture.section, position: fixture.positionLabel };
+  panelModel.sectionHeading = isDeck || isGenerated || studyKey === 'five-card' ? null : { heading: fixture.heading || fixture.section, position: fixture.positionLabel };
   const change = (name, value) => setParams(previous => { const next = new URLSearchParams(previous); next.set(name, value); return next; });
   return (
     <main className="min-h-screen px-3 py-4" data-testid="reading-gestures-fixture">
       <fieldset className="gesture-lab mb-6 flex flex-wrap items-center gap-3 border border-secondary/30 p-3" aria-label="Gesture fixture lab">
-        <legend>{isDeck ? 'Deck detail study lab' : 'Recorded reading gesture lab'}</legend>
-        <label>Study <select value={studyKey} onChange={event => change('study', event.target.value)}><option value="star">Star</option><option value="celtic">Celtic</option><option value="five-card">Five-card</option><option value="deck">Deck detail study</option></select></label>
+        <legend>{isDeck ? 'Deck detail study lab' : isGenerated ? 'Generated association study lab' : 'Recorded reading gesture lab'}</legend>
+        <label>Study <select value={studyKey} onChange={event => change('study', event.target.value)}><option value="star">Star</option><option value="celtic">Celtic</option><option value="five-card">Five-card</option><option value="deck">Deck detail study</option><option value="generated" disabled={!generatedReadings.samples.length}>Generated readings</option></select></label>
+        {isGenerated && <label>Reading <select value={generatedSample.id} onChange={event => change('sample', event.target.value)}>{generatedReadings.samples.map(sample => <option key={sample.id} value={sample.id}>{sample.id}</option>)}</select></label>}
         {isDeck && <>
           <label>Card <select value={deckCard.name} onChange={event => change('card', event.target.value)}>{ALL_CARDS.map(card => <option key={card.name} value={card.name}>{card.name}</option>)}</select></label>
           <label>Orientation <select value={orientation.toLowerCase()} onChange={event => change('orientation', event.target.value)}><option value="upright">Upright</option><option value="reversed">Reversed</option></select></label>
         </>}
         <label>Arrival <select value={arrival} onChange={event => change('arrival', event.target.value)}><option>gentle</option><option>burst</option><option>complete</option></select></label>
         {!isDeck && <>
-          <label>Source mode <select value={sourceMode} onChange={event => change('sourceMode', event.target.value)}><option>recorded</option><option>job-sse</option></select></label>
-          <label>Associations <select value={associationMode} onChange={event => change('associations', event.target.value)}><option>authored</option><option>dynamic</option></select></label>
+          {!isGenerated && <label>Source mode <select value={sourceMode} onChange={event => change('sourceMode', event.target.value)}><option>recorded</option><option>job-sse</option></select></label>}
+          <label>Associations <select value={associationMode} onChange={event => change('associations', event.target.value)}>{isGenerated ? <option>generated</option> : <option>authored</option>}<option>dynamic</option></select></label>
           <label>Reflection <select value={reflection ? 'on' : 'off'} onChange={event => change('reflection', event.target.value)}><option>on</option><option>off</option></select></label>
         </>}
         <button type="button" onClick={() => setRestart(previous => previous + 1)}>Restart study</button>
         <output data-testid="gesture-source-diagnostics" data-association-mode={associationMode} data-run-id={source.runId} data-source-revision={source.sourceRevision} data-source-status={source.status} data-raw-length={source.raw.length} data-selection-calls={selectionCalls}>{isDeck ? 'authored probe' : sourceMode}: {source.raw.length} characters</output>
       </fieldset>
-      {reflection && <aside className="mx-auto mb-4 max-w-5xl text-sm text-muted" data-testid="recorded-reflection"><p>Recorded general reflection: {fixture.reflectionsText}</p></aside>}
+      {reflection && <aside className="mx-auto mb-4 max-w-5xl text-sm text-muted" data-testid="recorded-reflection"><p>{isGenerated ? 'Supplied reflection' : 'Recorded general reflection'}: {fixture.reflectionsText}</p></aside>}
       {isDeck ? <DeckVisualProbe panelModel={panelModel} onSelectCard={recordSelection} /> : <NarrativePanel panelModel={panelModel} callbacks={{ onNarrativeComplete: noop, onHighlightPhrase: noop, onSectionEnter: noop, onSelectCard: recordSelection }} />}
     </main>
   );

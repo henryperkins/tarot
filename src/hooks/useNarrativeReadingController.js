@@ -86,6 +86,7 @@ export function useNarrativeReadingController({
   const [hydratedRunId] = useState(() => crypto.randomUUID());
   const hydratedSource = useMemo(() => createGestureSource({
     runId: hydratedRunId,
+    semanticDocument: personalReading?.semanticDocument,
     raw: personalReading?.isError ? '' : (personalReading?.raw || personalReading?.normalized || ''),
     status: personalReading?.isError ? 'error' : personalReading?.isStreaming ? 'streaming' : personalReading ? 'complete' : 'idle'
   }), [hydratedRunId, personalReading]);

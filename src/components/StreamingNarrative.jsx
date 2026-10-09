@@ -409,7 +409,7 @@ export function StreamingNarrative({
     }), { threshold: 0 });
     elements.forEach((element) => observer.observe(element));
     return () => observer.disconnect();
-  }, [visibleText, focus?.studyEnabled, focusApi]);
+  }, [visibleText, associations, focus?.studyEnabled, focusApi]);
 
   useEffect(() => {
     if (!onHighlightPhrase) return;

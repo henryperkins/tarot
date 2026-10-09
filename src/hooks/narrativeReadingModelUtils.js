@@ -233,6 +233,7 @@ export function buildNarrativePanelModel({
   gestureSource = null,
   gestureStudyEnabled = false,
   gestureSidecar = null,
+  personalContext = null,
   manualInspectionStatus = null
 }) {
   const hasNarrativeContext = Boolean(personalReading && !isPersonalReadingError);
@@ -259,6 +260,7 @@ export function buildNarrativePanelModel({
     gestureSource,
     gestureStudyEnabled,
     gestureSidecar,
+    personalContext,
     manualInspectionStatus,
     question,
     isHandset,

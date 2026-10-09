@@ -87,12 +87,9 @@ export const WAND_SWORD_ARTWORK = {
   'Two of Swords': [
     focal('blindfold', ['blindfold', 'covered eyes'], .484, .381, .074, .028, 2.3),
     focal('crossed-swords', ['crossed swords', 'two raised swords'], .495, .285, .42, .19, 1.05, [
-      { x: .17, y: .195, rx: .11, ry: .10 },
-      { x: .315, y: .307, rx: .105, ry: .10 },
-      { x: .43, y: .412, rx: .09, ry: .085 },
-      { x: .815, y: .197, rx: .105, ry: .10 },
-      { x: .68, y: .308, rx: .105, ry: .10 },
-      { x: .559, y: .415, rx: .085, ry: .08 }
+      // Continuous illumination follows each blade instead of six bright spots.
+      { x: .26, y: .285, rx: .05, ry: .22, rotation: -35 },
+      { x: .73, y: .285, rx: .05, ry: .22, rotation: 35 }
     ])
   ],
   'Three of Swords': [
@@ -225,7 +222,7 @@ export const WAND_SWORD_RULES = {
     { id: 'departing-figures', match: /\b(?:departing figures|two figures walking away)\b/giu, scene: /\b(?:shore|backs?|walk\w*|turned|distance)\b/i }
   ],
   'Six of Swords': [
-    { id: 'boat-passengers', match: /\b(?:two passengers|seated passengers)\b/giu, scene: /\b(?:boat|ferry|sit\w*|seated|cloaked)\b/i },
+    { id: 'boat-passengers', match: /\b(?:two passengers|seated passengers|woman and (?:a |her )?child)\b/giu, scene: /\b(?:boat|ferry|sit\w*|seated|cloaked)\b/i },
     { id: 'planted-swords', match: /\b(?:six swords|upright swords)\b/giu, scene: /\b(?:boat|bow|planted|stand\w*)\b/i }
   ],
   'Eight of Swords': [

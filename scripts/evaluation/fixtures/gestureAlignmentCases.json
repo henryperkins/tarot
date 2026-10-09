@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "method": "Hand-labelled supported detail mentions selected from the original recorded prose, plus independent synthetic positive and negative passages. No CARD_GESTURE_*_EXAMPLES or runtime rule predicates were used to generate expected answers. Detail IDs identify the authored artwork regions, not all imagery mentioned in a reading. The selected recorded labels are not an exhaustive precision audit.",
+  "recorded": {
+    "single-new-role": [
+      ["The Fool", "cliff-edge", "The figure stands at the cliff's edge with the sun rising behind"],
+      ["The Fool", "white-dog", "The small dog at the figure's heels"]
+    ],
+    "three-card-transition": [
+      ["Six of Cups", "flower-offering", "a child handing another a cup filled with flowers"],
+      ["Six of Cups", "courtyard", "a cup filled with flowers in a sunlit courtyard"],
+      ["The Tower", "lightning", "Here's the lightning: a strike to the tower's crown"],
+      ["The Star", "pool-pour", "pouring water into a pool with one pitcher"],
+      ["The Star", "land-pour", "onto the land with the other"]
+    ],
+    "five-card-creative-project": [
+      ["Ace of Wands", "sprout", "a wand that's still sprouting leaves"],
+      ["Ace of Wands", "castle", "rolling hills and a castle far off in the distance"],
+      ["Seven of Swords", "carried", "a figure tiptoeing out of camp with five swords"],
+      ["Seven of Swords", "two-swords", "leaving two behind"],
+      ["Queen of Cups", "cup", "holding an ornate, covered cup"],
+      ["Three of Pentacles", "collaborators", "A craftsman stands in a cathedral talking plans over with a monk and a noble"],
+      ["Wheel of Fortune", "wheel", "a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other"]
+    ],
+    "relationship-checkin": [
+      ["Queen of Cups", "cup", "this Queen sits on her throne at the edge of the sea, eyes on an ornate covered cup"],
+      ["Knight of Swords", "raised-sword", "charges forward with his sword raised"],
+      ["Two of Cups", "exchanged-cups", "two figures facing each other at eye level, each holding a cup"],
+      ["Two of Cups", "winged-lion", "with a caduceus and winged lion's head between them"]
+    ],
+    "celtic-deep-shift": [
+      ["The Hermit", "lantern", "his lantern is held close and lights only the next few steps"],
+      ["Five of Wands", "staffs", "five people swing staffs in a chaotic scrum"],
+      ["Death", "rising-sun", "a sun is rising between two towers"],
+      ["Temperance", "cup-stream", "The angel pours water between two cups"],
+      ["Temperance", "two-feet", "with one foot on land and one in water"],
+      ["The Emperor", "ram-throne", "The stone throne and ram's heads"],
+      ["The Moon", "dog-wolf", "a winding path runs between a dog and a wolf"],
+      ["Strength", "lion", "The woman's hand rests on the lion's jaw"],
+      ["Strength", "gentle-hands", "The woman's hand rests on the lion's jaw"],
+      ["The Sun", "white-horse", "the child riding unguarded on a white horse"]
+    ],
+    "decision-crossroads-long-reflections": [
+      ["The Lovers", "angel", "Two figures stand beneath an angel"],
+      ["Two of Wands", "globe", "A figure on castle battlements holds a globe"],
+      ["Six of Swords", "boat-passengers", "a boat ferries cloaked travelers over calm water"],
+      ["Six of Swords", "planted-swords", "with swords standing in the bow"],
+      ["Justice", "scales", "holds scales in one hand"],
+      ["Justice", "upright-sword", "a sword in the other"],
+      ["The Fool", "cliff-edge", "stands at a cliff's edge"],
+      ["The Fool", "white-dog", "with a small dog at his heels"]
+    ],
+    "non-english-spanish": [
+      ["The Hermit", "lantern", "con la linterna en alto y la estrella de seis puntas dentro"],
+      ["Eight of Cups", "stacked-cups", "ocho copas apiladas bajo la luna"],
+      ["Eight of Cups", "departing-traveler", "el viajero se aleja de ocho copas apiladas"],
+      ["The Sun", "white-horse", "el niño descalzo sobre el caballo blanco"],
+      ["The Sun", "sunflowers", "los girasoles y el sol con rostro"]
+    ]
+  },
+  "independent": [
+    { "id": "star-pool-observation", "card": "The Star", "text": "The Star appears here. Look at the water spilling from her left jug into the pool.", "expected": ["pool-pour"] },
+    { "id": "star-land-observation", "card": "The Star", "text": "The Star appears here. Water runs from the second vessel onto the land beside her bent knee.", "expected": ["land-pour"] },
+    { "id": "hermit-lantern-observation", "card": "The Hermit", "text": "The Hermit raises his lantern above a snowy slope; a small light sits inside its frame.", "expected": ["lantern"] },
+    { "id": "queen-cup-observation", "card": "Queen of Cups", "text": "The Queen of Cups is seated beside the water, holding her covered cup in both hands.", "expected": ["cup"] },
+    { "id": "ace-wand-growth-observation", "card": "Ace of Wands", "text": "The Ace of Wands shows a hand clutching a branch; fresh leaves sprout along its sides.", "expected": ["sprout"] },
+    { "id": "seven-swords-behind-observation", "card": "Seven of Swords", "text": "The Seven of Swords leaves two upright blades behind the departing figure, planted beside the tents.", "expected": ["two-swords"] },
+    { "id": "three-pentacles-work-observation", "card": "Three of Pentacles", "text": "The Three of Pentacles places a stoneworker under an arch, discussing a plan with two visitors.", "expected": ["collaborators"] },
+    { "id": "wheel-emblems-observation", "card": "Wheel of Fortune", "text": "The Wheel of Fortune has a sphinx seated atop its orange wheel and a snake descending to the left.", "expected": ["wheel"] },
+    { "id": "fool-dog-observation", "card": "The Fool", "text": "The Fool's small dog springs up beside the traveler's legs, close to the edge.", "expected": ["white-dog"] },
+    { "id": "fool-cliff-observation", "card": "The Fool", "text": "The Fool stands near a cliff's edge with his head tilted upward.", "expected": ["cliff-edge"] },
+    { "id": "magician-wand-observation", "card": "The Magician", "text": "The Magician lifts a short white wand high above his head while his other hand points down.", "expected": ["raised-wand"] },
+    { "id": "priestess-scroll-observation", "card": "The High Priestess", "text": "The High Priestess holds a scroll across her lap, half covered by a fold of cloth.", "expected": ["scroll"] },
+    { "id": "empress-wheat-observation", "card": "The Empress", "text": "The Empress sits behind tall stalks of wheat in the foreground.", "expected": ["wheat"] },
+    { "id": "lovers-angel-observation", "card": "The Lovers", "text": "The Lovers has an angel suspended above the pair, spreading its red wings across the sky.", "expected": ["angel"] },
+    { "id": "temperance-stream-observation", "card": "Temperance", "text": "Temperance is pouring water between two cups, with a narrow stream linking the vessels.", "expected": ["cup-stream"] },
+    { "id": "moon-crayfish-observation", "card": "The Moon", "text": "The Moon shows a crayfish climbing out of the dark pool toward the path.", "expected": ["crayfish"] },
+    { "id": "sun-horse-observation", "card": "The Sun", "text": "The Sun has a child sitting bareback on a white horse in front of the wall.", "expected": ["white-horse"] },
+    { "id": "four-pentacles-coin-observation", "card": "Four of Pentacles", "text": "The Four of Pentacles shows a seated man hugging a large coin against his chest.", "expected": ["clutched-coin"] },
+    { "id": "six-swords-passengers-observation", "card": "Six of Swords", "orientation": "Reversed", "text": "The Six of Swords is reversed. In the image, a woman and child sit together in the boat while the ferryman stands behind them.", "expected": ["boat-passengers"] },
+    { "id": "two-cups-exchange-observation", "card": "Two of Cups", "text": "The Two of Cups shows a man and woman offering their cups toward each other.", "expected": ["exchanged-cups"] },
+    { "id": "nine-wands-watch-observation", "card": "Nine of Wands", "text": "The Nine of Wands depicts a bandaged man gripping one staff before a row of eight more.", "expected": ["head-bandage"] },
+    { "id": "knight-swords-weapon-observation", "card": "Knight of Swords", "text": "The Knight of Swords gallops to the left, his sword lifted high over the horse's neck.", "expected": ["raised-sword"] },
+    { "id": "two-swords-blades-observation", "card": "Two of Swords", "text": "The Two of Swords depicts crossed blades held in front of a seated woman's shoulders.", "expected": ["crossed-swords"] },
+    { "id": "justice-scales-observation", "card": "Justice", "text": "Justice balances a pair of scales in her left hand.", "expected": ["scales"] },
+    { "id": "star-reader-idiom", "card": "The Star", "text": "The Star suggests pooling your resources before you land a new job.", "expected": [] },
+    { "id": "star-reader-pour", "card": "The Star", "text": "The Star asks whether you are pouring energy into a pool of someone else's expectations.", "expected": [] },
+    { "id": "star-hypothetical", "card": "The Star", "text": "Imagine The Star pouring water into a pool that belongs to you.", "expected": [] },
+    { "id": "star-negated-late", "card": "The Star", "text": "The Star's pitcher pours into a pool only in your imagined version of the scene.", "expected": [] },
+    { "id": "hermit-reader-metaphor", "card": "The Hermit", "text": "The Hermit asks you to let your lantern light the next career decision.", "expected": [] },
+    { "id": "hermit-negated-observation", "card": "The Hermit", "text": "The Hermit has no lantern shining in this imagined scene.", "expected": [] },
+    { "id": "queen-negated-observation", "card": "Queen of Cups", "text": "The Queen of Cups does not hold a covered cup here.", "expected": [] },
+    { "id": "queen-reader-metaphor", "card": "Queen of Cups", "text": "The Queen of Cups suggests that your covered cup is held shut by anxiety.", "expected": [] },
+    { "id": "ace-reader-metaphor", "card": "Ace of Wands", "text": "The Ace of Wands reminds you that your plans are sprouts asking for a steady hand.", "expected": [] },
+    { "id": "wheel-reader-metaphor", "card": "Wheel of Fortune", "text": "The Wheel of Fortune asks whether the wheel of your routine needs a new direction.", "expected": [] },
+    { "id": "fool-conditional-scene", "card": "The Fool", "text": "The Fool is about beginnings. If a small dog leapt beside the figure, it would change this imagined scene.", "expected": [] },
+    { "id": "fool-negated-dog", "card": "The Fool", "text": "The Fool has no small dog beside his heels in this hypothetical redesign.", "expected": [] },
+    { "id": "magician-reader-metaphor", "card": "The Magician", "text": "The Magician invites you to raise a wand above your doubts.", "expected": [] },
+    { "id": "priestess-negative", "card": "The High Priestess", "text": "The High Priestess does not hold a scroll in her lap.", "expected": [] },
+    { "id": "empress-figurative-field", "card": "The Empress", "text": "The Empress says your field of wheat grows when you make room for rest.", "expected": [] },
+    { "id": "temperance-negated-flow", "card": "Temperance", "text": "Temperance is not pouring water between two cups.", "expected": [] },
+    { "id": "moon-hypothetical-creature", "card": "The Moon", "text": "The Moon invites you to imagine a crayfish emerging from a pool.", "expected": [] },
+    { "id": "sun-reader-metaphor", "card": "The Sun", "text": "The Sun asks you to ride your white horse toward a kinder working week.", "expected": [] },
+    { "id": "four-pentacles-negated", "card": "Four of Pentacles", "text": "The Four of Pentacles does not clutch a coin to his chest in this altered drawing.", "expected": [] },
+    { "id": "six-swords-reader-imagery", "card": "Six of Swords", "text": "The Six of Swords asks you to imagine a woman and child in a boat as a way to think about transition.", "expected": [] },
+    { "id": "two-swords-negated", "card": "Two of Swords", "text": "The Two of Swords has no crossed swords before the seated figure.", "expected": [] },
+    { "id": "justice-reader-idiom", "card": "Justice", "text": "Justice asks you to hold the scales of ambition and rest in balance.", "expected": [] }
+  ]
+}

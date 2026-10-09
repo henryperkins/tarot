@@ -1,0 +1,287 @@
+{
+  "id": "friendship-repair",
+  "language": "en",
+  "userQuestion": "What can I bring to a conversation with a friend after a misunderstanding?",
+  "reflectionsText": "I want to listen without pretending I was not hurt.",
+  "cards": [
+    {
+      "card": "Three of Swords",
+      "position": "Situation",
+      "orientation": "Reversed"
+    },
+    {
+      "card": "Two of Cups",
+      "position": "Invitation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Strength",
+      "position": "Direction",
+      "orientation": "Upright"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Opening\n\nYou're wondering what you can bring to a conversation with a friend after a misunderstanding, and you've already named something tender: you want to listen without pretending you weren't hurt. Here are some reflections to hold beside it.\n\n## The Story\n\nThe Three of Swords, reversed, describes the Situation. A red heart is pierced by three swords while rain falls around it. Reversed, this may point to a hurt that is beginning to ease, still present but perhaps no longer the whole weather of the friendship.\n\nThe Two of Cups, upright, appears as the Invitation. Two figures exchange cups, and above them hovers a winged lion's head. This card invites reciprocity: each person both offers and receives.\n\nStrength, upright, shows the Direction. A woman rests her hands at the lion's mouth, meeting its power without force.\n\n## Putting It Together\n\nThe pierced heart doesn't need to be hidden for the cups to be shared. Strength suggests holding your hurt the way those calm hands hold the lion: acknowledged, steady, and not in charge of the conversation. Perhaps the winged lion over the cups and Strength's lion together hint that strong feeling can belong inside a caring exchange.\n\n## Gentle Next Steps\n\n- Before you meet, try putting one feeling into a single sentence.\n- Consider offering a question you truly want answered, rather than a verdict.\n- If things grow heated, you might pause and slow down.\n\n## Closing\n\nYou can bring both your listening and your hurt. Neither has to cancel the other.",
+    "annotations": [
+      {
+        "id": "id-three-swords",
+        "kind": "identity",
+        "quote": "Three of Swords",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-pierced-heart",
+        "kind": "literal",
+        "quote": "A red heart is pierced by three swords",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "pierced-heart"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-rain",
+        "kind": "literal",
+        "quote": "rain falls around it",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "rain"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-rain-friendship",
+        "kind": "interpretation",
+        "quote": "no longer the whole weather of the friendship",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "rain"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-rain"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "conversation with a friend"
+        }
+      },
+      {
+        "id": "id-two-cups",
+        "kind": "identity",
+        "quote": "Two of Cups",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-exchanged-cups",
+        "kind": "literal",
+        "quote": "Two figures exchange cups",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "exchanged-cups"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-winged-lion",
+        "kind": "literal",
+        "quote": "above them hovers a winged lion's head",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "winged-lion"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-reciprocity",
+        "kind": "interpretation",
+        "quote": "each person both offers and receives",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "exchanged-cups"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-exchanged-cups"
+        ]
+      },
+      {
+        "id": "id-strength",
+        "kind": "identity",
+        "quote": "Strength",
+        "occurrence": 0,
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-strength-hands",
+        "kind": "literal",
+        "quote": "rests her hands at the lion's mouth",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "gentle-hands",
+              "lion"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "rel-heart-cups",
+        "kind": "relationship",
+        "quote": "The pierced heart doesn't need to be hidden for the cups to be shared",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "pierced-heart"
+            ]
+          },
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "exchanged-cups"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-pierced-heart",
+          "lit-exchanged-cups"
+        ],
+        "personalContext": {
+          "type": "querent-reflection",
+          "quote": "listen without pretending I was not hurt"
+        }
+      },
+      {
+        "id": "int-calm-hands",
+        "kind": "interpretation",
+        "quote": "those calm hands hold the lion",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "gentle-hands",
+              "lion"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-strength-hands"
+        ]
+      },
+      {
+        "id": "rel-two-lions",
+        "kind": "relationship",
+        "quote": "the winged lion over the cups and Strength's lion",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "winged-lion"
+            ]
+          },
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "lion"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-winged-lion",
+          "lit-strength-hands"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:26:06.741Z",
+    "completedAt": "2026-10-09T12:28:49.019Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 986,
+      "cache_read_input_tokens": 2052,
+      "output_tokens": 7672,
+      "output_tokens_details": {
+        "thinking_tokens": 5937
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 986,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "afd8caa9861978e3f5bc88086a65d296e8394ac861311a43e5e2a9d342b0f31c",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Opening\\n\\nYou're wondering what you can bring to a conversation with a friend after a misunderstanding, and you've already named something tender: you want to listen without pretending you weren't hurt. Here are some reflections to hold beside it.\\n\\n## The Story\\n\\nThe Three of Swords, reversed, describes the Situation. A red heart is pierced by three swords while rain falls around it. Reversed, this may point to a hurt that is beginning to ease, still present but perhaps no longer the whole weather of the friendship.\\n\\nThe Two of Cups, upright, appears as the Invitation. Two figures exchange cups, and above them hovers a winged lion's head. This card invites reciprocity: each person both offers and receives.\\n\\nStrength, upright, shows the Direction. A woman rests her hands at the lion's mouth, meeting its power without force.\\n\\n## Putting It Together\\n\\nThe pierced heart doesn't need to be hidden for the cups to be shared. Strength suggests holding your hurt the way those calm hands hold the lion: acknowledged, steady, and not in charge of the conversation. Perhaps the winged lion over the cups and Strength's lion together hint that strong feeling can belong inside a caring exchange.\\n\\n## Gentle Next Steps\\n\\n- Before you meet, try putting one feeling into a single sentence.\\n- Consider offering a question you truly want answered, rather than a verdict.\\n- If things grow heated, you might pause and slow down.\\n\\n## Closing\\n\\nYou can bring both your listening and your hurt. Neither has to cancel the other.\",\"annotations\":[{\"id\":\"id-three-swords\",\"kind\":\"identity\",\"quote\":\"Three of Swords\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"lit-pierced-heart\",\"kind\":\"literal\",\"quote\":\"A red heart is pierced by three swords\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"pierced-heart\"]}]},{\"id\":\"lit-rain\",\"kind\":\"literal\",\"quote\":\"rain falls around it\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"rain\"]}]},{\"id\":\"int-rain-friendship\",\"kind\":\"interpretation\",\"quote\":\"no longer the whole weather of the friendship\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"rain\"]}],\"establishedBy\":[\"lit-rain\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"conversation with a friend\"}},{\"id\":\"id-two-cups\",\"kind\":\"identity\",\"quote\":\"Two of Cups\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"lit-exchanged-cups\",\"kind\":\"literal\",\"quote\":\"Two figures exchange cups\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"exchanged-cups\"]}]},{\"id\":\"lit-winged-lion\",\"kind\":\"literal\",\"quote\":\"above them hovers a winged lion's head\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"winged-lion\"]}]},{\"id\":\"int-reciprocity\",\"kind\":\"interpretation\",\"quote\":\"each person both offers and receives\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"exchanged-cups\"]}],\"establishedBy\":[\"lit-exchanged-cups\"]},{\"id\":\"id-strength\",\"kind\":\"identity\",\"quote\":\"Strength\",\"occurrence\":0,\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"lit-strength-hands\",\"kind\":\"literal\",\"quote\":\"rests her hands at the lion's mouth\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"gentle-hands\",\"lion\"]}]},{\"id\":\"rel-heart-cups\",\"kind\":\"relationship\",\"quote\":\"The pierced heart doesn't need to be hidden for the cups to be shared\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"pierced-heart\"]},{\"spreadIndex\":1,\"detailIds\":[\"exchanged-cups\"]}],\"establishedBy\":[\"lit-pierced-heart\",\"lit-exchanged-cups\"],\"personalContext\":{\"type\":\"querent-reflection\",\"quote\":\"listen without pretending I was not hurt\"}},{\"id\":\"int-calm-hands\",\"kind\":\"interpretation\",\"quote\":\"those calm hands hold the lion\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"gentle-hands\",\"lion\"]}],\"establishedBy\":[\"lit-strength-hands\"]},{\"id\":\"rel-two-lions\",\"kind\":\"relationship\",\"quote\":\"the winged lion over the cups and Strength's lion\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"winged-lion\"]},{\"spreadIndex\":2,\"detailIds\":[\"lion\"]}],\"establishedBy\":[\"lit-winged-lion\",\"lit-strength-hands\"]}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 13,
+    "acceptedAnnotations": 13,
+    "compiledCounts": {
+      "identity": 3,
+      "literal": 5,
+      "interpretation": 3,
+      "balance": 0,
+      "relationship": 2
+    },
+    "fallbackCounts": {
+      "identity": 5,
+      "literal": 3,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 0
+    },
+    "personalContextCount": 2,
+    "introducedCards": 3,
+    "modelLiteralReferences": 6,
+    "fallbackLiteralMatches": 3,
+    "rawSha256": "07923d202e2fa5a4c30102b860a5e73daef42ad8083612dbd736d2d8a7b10ca8",
+    "wordCount": 256
+  }
+}

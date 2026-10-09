@@ -23,7 +23,11 @@ test('completed Star is static and every connection can be revisited without cha
   const raw = await reading(page).locator('.narrative-stream__markdown p').last().textContent();
   expect(raw).toBe(star.expectedRaw);
   await expect(windowArt(page)).toHaveAttribute('data-phase', 'static');
-  for (const [id, detail] of [['arrival', ''], ['pool', 'pool-pour'], ['land', 'land-pour'], ['memory', 'pool-pour'], ['ground', 'land-pour'], ['balance', 'pool-pour land-pour']]) {
+  await expect(phrase(page, 'arrival')).not.toHaveAttribute('role', 'button');
+  await page.locator('[data-gesture-shelf] button').nth(2).click();
+  await expect(currentCards(page).first()).toHaveAttribute('data-details', '');
+  await page.keyboard.press('Escape');
+  for (const [id, detail] of [['pool', 'pool-pour'], ['land', 'land-pour'], ['memory', 'pool-pour'], ['ground', 'land-pour'], ['balance', 'pool-pour land-pour']]) {
     await phrase(page, id).click();
     await expect(windowArt(page)).toHaveAttribute('data-association', id);
     await expect(currentCards(page).first()).toHaveAttribute('data-details', detail);
@@ -48,6 +52,8 @@ test('actual SSE advances raw/rendered text while a held pool remains and latest
     await expect(page.getByTestId('gesture-source-diagnostics')).toHaveAttribute('data-raw-length', String(star.expectedRaw.length));
     await expect(reading(page)).toContainText('Neither pitcher gets dropped');
     await expect(windowArt(page)).toHaveAttribute('data-association', 'pool');
+    // A delivered cue becomes eligible only after its passage is actually visible.
+    await phrase(page, 'balance').scrollIntoViewIfNeeded();
     await page.keyboard.press('Escape');
     await expect(windowArt(page)).toHaveAttribute('data-association', 'balance');
     await fixture.completeReading();
@@ -58,7 +64,7 @@ test('actual SSE advances raw/rendered text while a held pool remains and latest
 test('five-card relationships and identity shelf preserve distinct targets', async ({ page }) => {
   await open(page, 'study=five-card&arrival=complete');
   await expect(page.locator('[data-gesture-shelf] button')).toHaveCount(5);
-  for (const association of sidecars.fiveCard.associations) {
+  for (const association of sidecars.fiveCard.associations.filter(cue => cue.kind !== 'identity')) {
     const id = association.id;
     await phrase(page, id).click();
     await expect(windowArt(page)).toHaveAttribute('data-association', id);
@@ -83,7 +89,7 @@ test('five-card relationships and identity shelf preserve distinct targets', asy
 test('Hermit and reversed Wands retain their relationship across a return', async ({ page }) => {
   await open(page, 'study=celtic&arrival=complete');
   await expect(reading(page).locator('.narrative-stream__markdown p')).toHaveCount(3);
-  for (const association of sidecars.related.associations) {
+  for (const association of sidecars.related.associations.filter(cue => cue.kind !== 'identity')) {
     await phrase(page, association.id).click();
     await expect(windowArt(page)).toHaveAttribute('data-association', association.id);
     for (let index = 0; index < association.targets.length; index++) {
@@ -137,35 +143,41 @@ test('compact relationship and reduced-motion meaning @mobile', async ({ page })
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await open(page, 'study=five-card&arrival=complete&reflection=off');
   await expect(page.getByTestId('recorded-reflection')).toHaveCount(0);
+  const tapPhrase = async target => {
+    // Tap an actual visible text line on touch devices; the full multiline
+    // bounding box can include space occupied by the sticky companion.
+    await target.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    const visiblePoint = () => target.evaluate(element => {
+      const shelfBottom = document.querySelector('.gesture-companion').getBoundingClientRect().bottom;
+      return [...element.getClientRects()].map(rect => ({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }))
+        .find(({ x, y }) => y > shelfBottom && y < innerHeight && element.contains(document.elementFromPoint(x, y))) || null;
+    });
+    await expect.poll(visiblePoint).not.toBeNull();
+    const point = await visiblePoint();
+    await page.touchscreen.tap(point.x, point.y);
+  };
   for (const width of [390, 375, 320]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 667 });
     await expect(windowArt(page)).toBeVisible();
     // WebKit can briefly return no protocol quad after a viewport resize even
     // though the visible stage has a valid DOM layout. Compare layout heights.
-    const beforeHeight = await windowArt(page).evaluate(element => element.getBoundingClientRect().height);
-    expect(beforeHeight).toBeGreaterThan(0);
-    await phrase(page, 'drive-and-sensitivity').click();
+    // Wait for the resized breakpoint, not merely the stage's visibility.
+    // WebKit may report the previous 106px layout once after moving to 320px.
+    const expectedHeight = width < 359 ? 96 : 106;
+    await expect.poll(() => windowArt(page).evaluate(element => element.getBoundingClientRect().height)).toBe(expectedHeight);
+    const beforeHeight = expectedHeight;
+    await tapPhrase(phrase(page, 'drive-and-sensitivity'));
     await expect(windowArt(page)).toBeVisible();
-    const pairedHeight = await windowArt(page).evaluate(element => element.getBoundingClientRect().height);
-    expect(Math.abs(beforeHeight - pairedHeight)).toBeLessThanOrEqual(1);
+    await expect.poll(() => windowArt(page).evaluate(element => element.getBoundingClientRect().height)).toBe(beforeHeight);
     await expect(currentCards(page)).toHaveCount(2);
-    await phrase(page, 'ace-meaning').click();
+    await tapPhrase(phrase(page, 'ace-meaning'));
     await expect(windowArt(page).locator('[data-gesture-art]')).toHaveCount(2);
     await expectNoHorizontalOverflow(page);
     expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === 'running' && animation.effect?.target?.closest('[data-gesture-window]')).length)).toBe(0);
   }
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
   const zoomedPhrase = phrase(page, 'drive-and-sensitivity');
-  await zoomedPhrase.scrollIntoViewIfNeeded();
-  // A long inline phrase can exceed the space below the sticky artwork at 200%.
-  // Tap an actual visible line, as a reader would, rather than its full box's center.
-  const point = await zoomedPhrase.evaluate(element => {
-    const shelfBottom = document.querySelector('.gesture-companion').getBoundingClientRect().bottom;
-    return [...element.getClientRects()].map(rect => ({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }))
-      .find(({ x, y }) => y > shelfBottom && y < innerHeight && element.contains(document.elementFromPoint(x, y))) || null;
-  });
-  expect(point).not.toBeNull();
-  await page.touchscreen.tap(point.x, point.y);
+  await tapPhrase(zoomedPhrase);
   await expect(currentCards(page)).toHaveCount(2);
   await expect(zoomedPhrase).toHaveAttribute('aria-pressed', 'true');
   await zoomedPhrase.focus();
