@@ -48,3 +48,53 @@ test('a replacement can explicitly supply new semantic metadata while late misma
   frame = advanceGestureSource(frame, { semanticDocument: { ...replacement, raw: 'Stale text.' } });
   assert.equal(frame.semanticDocument, undefined);
 });
+
+const visualBinding = { readingResultId: 'visual-reading', sourceRevision: 0, spreadHash: 'a'.repeat(64),
+  contextHash: 'b'.repeat(64), artworkEdition: 'rws-immanuelle-vector', catalogVersion: '1' };
+const cueLedger = { version: 1, binding: visualBinding, ledgerRevision: 1, raw: 'The Star pours.',
+  analyzedEnd: 15, analyzedHash: 'c'.repeat(64), cues: [], introductions: [], receipts: [] };
+
+test('a bound analyzed prefix survives later prose and live completion without becoming hydration', () => {
+  let frame = createGestureSource({ runId: visualBinding.readingResultId, raw: cueLedger.raw,
+    status: 'streaming', visualBinding });
+  frame = advanceGestureSource(frame, { raw: `${cueLedger.raw} Memory remains.`, cueLedger });
+  assert.equal(frame.cueLedger, cueLedger);
+  frame = advanceGestureSource(frame, { status: 'complete', kind: 'complete' });
+  assert.equal(frame.cueLedger, cueLedger);
+  assert.equal(frame.kind, 'complete');
+  assert.equal(frame.visualBinding, visualBinding);
+});
+
+test('ledger attachment requires independent matching identity and exact prefix, never snapshot self-assertion', () => {
+  const base = { runId: visualBinding.readingResultId, raw: `${cueLedger.raw} More prose.`, status: 'complete' };
+  assert.equal(createGestureSource({ ...base, cueLedger }).cueLedger, undefined);
+  for (const binding of [
+    { ...visualBinding, readingResultId: 'old-result' }, { ...visualBinding, sourceRevision: 2 },
+    { ...visualBinding, spreadHash: 'd'.repeat(64) }, { ...visualBinding, contextHash: 'e'.repeat(64) },
+    { ...visualBinding, artworkEdition: 'other' }, { ...visualBinding, catalogVersion: '2' }
+  ]) {
+    assert.equal(createGestureSource({ ...base, visualBinding, cueLedger: { ...cueLedger, binding } }).cueLedger, undefined);
+  }
+  assert.equal(createGestureSource({ ...base, visualBinding, cueLedger: { ...cueLedger, raw: 'Different text.' } }).cueLedger, undefined);
+  assert.equal(createGestureSource({ ...base, visualBinding, cueLedger: { ...cueLedger, analyzedEnd: 7 } }).cueLedger, undefined);
+});
+
+test('replacement retires a ledger and delayed old results cannot reattach even to a matching prefix', () => {
+  const original = createGestureSource({ runId: visualBinding.readingResultId, raw: `${cueLedger.raw} Old ending.`,
+    status: 'streaming', visualBinding, cueLedger });
+  const replaced = advanceGestureSource(original, { raw: `${cueLedger.raw} New ending.`, kind: 'snapshot' });
+  assert.equal(replaced.sourceRevision, 1);
+  assert.equal(replaced.cueLedger, undefined);
+  assert.equal(replaced.visualBinding, undefined);
+  assert.equal(advanceGestureSource(replaced, { visualBinding, cueLedger }).cueLedger, undefined);
+});
+
+test('older or invalid cumulative snapshots cannot discard already accepted associations', () => {
+  const currentLedger = { ...cueLedger, ledgerRevision: 2 };
+  const original = createGestureSource({ runId: visualBinding.readingResultId, raw: cueLedger.raw,
+    status: 'streaming', visualBinding, cueLedger: currentLedger });
+  assert.equal(advanceGestureSource(original, { cueLedger }).cueLedger, currentLedger);
+  assert.equal(advanceGestureSource(original, { cueLedger: { ...cueLedger, binding: { ...visualBinding, readingResultId: 'stale' } } }).cueLedger, currentLedger);
+  const rebound = advanceGestureSource(original, { visualBinding: { ...visualBinding, catalogVersion: '2' } });
+  assert.equal(rebound.cueLedger, undefined);
+});

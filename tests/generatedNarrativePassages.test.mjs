@@ -38,3 +38,38 @@ test('partial semantic coverage still introduces other explicitly named spread c
   assert.ok(result.associations.some(cue => cue.kind === 'identity' && cue.targets[0].spreadIndex === 1));
   assert.ok(result.associations.some(cue => cue.kind === 'interpretation'));
 });
+
+const binding = { readingResultId: 'bound-reading', sourceRevision: 0, spreadHash: 'a'.repeat(64), contextHash: 'b'.repeat(64),
+  artworkEdition: 'rws-immanuelle-vector', catalogVersion: '1' };
+const acceptedCues = document.annotations.map(annotation => ({
+  id: `vc:${annotation.id}`, kind: annotation.kind,
+  passage: { start: raw.indexOf(annotation.quote), end: raw.indexOf(annotation.quote) + annotation.quote.length, quote: annotation.quote },
+  targets: annotation.targets.map(target => ({ ...target, canonicalName: 'The Star' })),
+  ...(annotation.personalContext ? { personalContext: annotation.personalContext } : {})
+}));
+const ledger = { version: 1, binding, ledgerRevision: 2, raw, analyzedEnd: raw.length, analyzedHash: 'c'.repeat(64),
+  cues: acceptedCues, introductions: [{ spreadIndex: 0, canonicalName: 'The Star', start: 0, namedEnd: 0,
+    descriptionStart: 0, midpoint: 11, end: 22 }], receipts: [] };
+
+test('a verified cumulative ledger resolves late prefix interpretations after prose completion', () => {
+  const source = { runId: binding.readingResultId, sourceRevision: 0, raw: `${raw} Another paragraph.`, status: 'complete',
+    visualBinding: binding, cueLedger: ledger, question: '¿Cómo dar un nuevo comienzo?' };
+  const result = resolveNarrativePassages({ source, cards });
+  assert.deepEqual(result.associations.map(cue => cue.id), ['vc:water', 'vc:beginning']);
+  assert.equal(result.associations[1].personalContext.quote, 'nuevo comienzo');
+  assert.equal(result.associations[0].targets[0].occurrenceId, 'bound-reading:0');
+  assert.equal(result.ledgerRevision, 2);
+  assert.equal(result.binding, binding);
+  const noReflection = resolveNarrativePassages({ source: { ...source, question: '' }, cards });
+  assert.equal(noReflection.associations[1].id, 'vc:beginning');
+  assert.equal(noReflection.associations[1].personalContext, undefined);
+});
+
+test('unbound, replaced, wrong-edition and mismatched cumulative cues never reach the registry', () => {
+  const source = { runId: binding.readingResultId, sourceRevision: 0, raw, status: 'complete', visualBinding: binding, cueLedger: ledger };
+  for (const change of [{ visualBinding: undefined }, { runId: 'other' }, { sourceRevision: 1 },
+    { visualBinding: { ...binding, catalogVersion: 'changed' } }, { raw: 'Different reading' }]) {
+    assert.equal(resolveNarrativePassages({ source: { ...source, ...change }, cards }).associations.some(cue => cue.id.startsWith('vc:')), false);
+  }
+  assert.equal(resolveNarrativePassages({ source, cards, artworkEdition: 'other' }).associations.some(cue => cue.id.startsWith('vc:')), false);
+});

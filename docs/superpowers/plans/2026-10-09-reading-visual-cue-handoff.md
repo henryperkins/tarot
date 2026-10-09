@@ -1,5 +1,7 @@
 # Independent Visual Cue Handoff Implementation Plan
 
+> October 9 execution: the user authorized Tasks 1–2 only. Their ledger, source-prefix consumer and visibility-aware arrival behavior are implemented and verified; see the [execution record](../reviews/2026-10-09-reading-cue-ledger-arrival.md). Tasks 3–5 remain pending and production stays gated.
+
 > **For agentic workers:** Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` to execute the tasks. Unchecked steps below are planned work, not completed implementation.
 
 **Goal:** Make independent visual annotations accumulate, select the right visible passage, and survive reading completion and journal restoration without changing or delaying the narrative.
@@ -90,12 +92,12 @@ Deleting an entry removes its link; deleting the last saved reference permits re
 
 **Files:** create `shared/contracts/visualCueBatches.js`, `shared/reading/visualCueLedger.js`, `tests/visualCueLedger.test.mjs`; modify `shared/contracts/generatedPassageAnnotations.js` and `tests/generatedPassageAnnotations.test.mjs` only as needed for cumulative validation.
 
-**Interface:** `createVisualCueLedger(binding) -> CueLedger`; `applyVisualCueBatch({ ledger, issuedRequest, response, authoritativeRaw, validationContext }) -> { ledger, addedCueIds, rejected, duplicate }`. `response` is proposal-only model output. Context includes the exact spread, supported edition details, question/reflections. Persist receipts even if all proposals reject, so retries remain deterministic.
+**Interface:** `createVisualCueLedger(binding) -> CueLedger`; `await applyVisualCueBatch({ ledger, issuedRequest, response, authoritativeRaw, validationContext }) -> { ledger, addedCueIds, rejected, duplicate }`. The apply operation is asynchronous for native SHA-256 hashing; creation remains synchronous. `response` is proposal-only model output. Context includes the exact spread, supported edition details, question/reflections. Persist receipts even if all proposals reject, so retries remain deterministic.
 
-- [ ] Write cases `cross_batch_literal_return`, `same_batch_retry`, `equivalent_new_batch`, `conflicting_retry`, `accepted_span_overlap`, `rejected_literal_dependency`, `growing_prefix_keeps_ids`, and `replaced_source_rejects_old_result`. Assert batch 2's return retains the batch 1 literal ID, identical retries add zero IDs and leave ledger revision unchanged, and rejection leaves prior cues byte-identical.
-- [ ] Run `node --test tests/visualCueLedger.test.mjs`; confirm the missing contract fails before implementation.
-- [ ] Implement the ledger, ID mapping, deterministic overlap handling and cumulative compilation specified in contract 1.
-- [ ] Run `node --test tests/visualCueLedger.test.mjs tests/generatedPassageAnnotations.test.mjs tests/readingPassageAssociationValidation.test.mjs`; require all pass, then commit this task's paths.
+- [x] Write cases `cross_batch_literal_return`, `same_batch_retry`, `equivalent_new_batch`, `conflicting_retry`, `accepted_span_overlap`, `rejected_literal_dependency`, `growing_prefix_keeps_ids`, and `replaced_source_rejects_old_result`. Assert batch 2's return retains the batch 1 literal ID, identical retries add zero IDs and leave ledger revision unchanged, and rejection leaves prior cues byte-identical.
+- [x] Run `node --test tests/visualCueLedger.test.mjs`; confirm the missing contract fails before implementation.
+- [x] Implement the ledger, ID mapping, deterministic overlap handling and cumulative compilation specified in contract 1.
+- [x] Run `node --test tests/visualCueLedger.test.mjs tests/generatedPassageAnnotations.test.mjs tests/readingPassageAssociationValidation.test.mjs`; require all pass, then commit this task's paths.
 
 ### Task 2: Visibility-aware cue arrival
 
@@ -103,10 +105,10 @@ Deleting an entry removes its link; deleting the last saved reference permits re
 
 **Interface:** consume Task 1's cumulative snapshot and `addedCueIds`; dispatch `CUES_ARRIVED` with `{ binding, runId: binding.readingResultId, sourceRevision: binding.sourceRevision, ledgerRevision, associations, introductions, addedCueIds, visibilitySnapshot, now }`. Keep `SOURCE`/`PROGRESS` responsible for prose lifecycle. Accept a lagging analyzed prefix only through verified binding, not by flipping a string-prefix comparison alone.
 
-- [ ] Add the reproduced `[earlierVisible, laterOffscreen]` case: `current.id === earlierVisible.id`, with no offscreen pending cue. Add held arrival/release with changed visibility; duplicate-after-settlement preserving `activeUntil`; delayed observer registration; skipped older visible cues; source replacement; and static restored/reduced-motion cases.
-- [ ] Run the three Node test files above and confirm the new arrival assertions fail before implementation.
-- [ ] Implement contract 2 and bridge newly registered source ranges to current visibility. Preserve accepted/fallback held associations through registry changes until explicit release.
-- [ ] Run those Node files and the generated browser spec using the existing React-bridge Playwright config; require no focus theft, prose change, backlog or hydrated motion. Commit this task's paths.
+- [x] Add the reproduced `[earlierVisible, laterOffscreen]` case: `current.id === earlierVisible.id`, with no offscreen pending cue. Add held arrival/release with changed visibility; duplicate-after-settlement preserving `activeUntil`; delayed observer registration; skipped older visible cues; source replacement; and static restored/reduced-motion cases.
+- [x] Run the three Node test files above and confirm the new arrival assertions fail before implementation.
+- [x] Implement contract 2 and bridge newly registered source ranges to current visibility. Preserve accepted/fallback held associations through registry changes until explicit release.
+- [x] Run those Node files and the generated browser spec using the existing React-bridge Playwright config; require no focus theft, prose change, backlog or hydrated motion. Commit this task's paths.
 
 ### Task 3: Accepted-delivery observation and independent visual job
 
@@ -141,6 +143,15 @@ Deleting an entry removes its link; deleting the last saved reference permits re
 - [ ] Once an independent visual model is explicitly configured, run the unchanged reading corpus through that adapter and report contract 3's timings and semantic findings, including misses. No joint prose+annotation generation or replay pacing may substitute for this measurement.
 - [ ] Run appropriate root tests, build, modified-path lint and docs checks before publishing implementation. Narrative gates use the existing subscription-only policy; preserve the documented baseline evaluator failure if still present. Finish with a source/runtime review and keep production rollout gated on the actual separated-model evidence.
 
-## Review verification for this plan update
+## Pre-implementation review evidence (`68ee6cf`)
 
 Runtime at `68ee6cf` is unchanged from the reviewed `d0f2223`; only the parent plan changed between them. Fresh read-only probes reproduced the cross-batch reference rejection and late-visible selection issue. Source inspection verified accepted-response buffering, narrative job cleanup, omitted journal semantics and the plain journal renderer. `node --test tests/narrativeGestureSource.test.mjs tests/generatedPassageAnnotations.test.mjs tests/narrativeGestureState.test.mjs` passed 25 existing tests. Those tests do not cover the newly specified contracts; none of the unchecked implementation tasks above is claimed complete.
+
+
+## Tasks 1–2 execution notes
+
+The two fixes ship together with source/renderer integration and regressions. The ledger reuses the existing compiler with accepted literal dependencies; it does not modify the historical document compiler or its per-batch limit. Cumulative state retains exact analyzed `raw`, source binding, immutable cues, introductions and batch receipts. The host must look up active requests and serialize/durably commit the returned state before publication.
+
+The development-only `sourceMode=visual-cues` fixture establishes its own application binding before prose, then accepts independent prose and ledger events through the real client helpers. Its controlled delivery tests do not implement or qualify the Task 3 server/model pipeline. SOURCE retains presentation reconciliation; CUES_ARRIVED handles metadata, and atomic renderer measurements gate selection. A shared latest-measurement reference prevents parent/child effect ordering from consuming an unplayed pending cue.
+
+For exact commands, fresh results, observed failures and remaining boundaries, see the [execution record](../reviews/2026-10-09-reading-cue-ledger-arrival.md).

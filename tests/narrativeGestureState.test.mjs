@@ -163,7 +163,7 @@ test('unreported passages wait for visibility and settled reentry does not repla
   let s = createGestureFocusState({ runId: 'a', sourceRevision: 0, associations, introductions });
   s = advance(s, 30, []);
   assert.equal(s.current, null);
-  assert.equal(s.pending, 'balance');
+  assert.equal(s.pending, null);
   s = reduceGestureFocus(s, event('VISIBLE', { kind: 'passage', id: 'balance', visible: true }));
   assert.equal(s.current.id, 'balance');
   assert.equal(s.canMove, true);
@@ -179,9 +179,215 @@ test('unknown passage never enables automatic motion and hydration visibility st
   s = advance(s, 10, ['pool']);
   assert.equal(s.current, null);
   assert.equal(s.canMove, false);
-  assert.equal(s.pending, 'pool');
+  assert.equal(s.pending, null);
   s = createGestureFocusState({ runId: 'a', sourceRevision: 0, associations, introductions, completed: true });
   s = reduceGestureFocus(s, event('VISIBLE', { kind: 'passage', id: 'balance', visible: true }));
   assert.equal(s.phase, 'static');
   assert.equal(s.canMove, false);
+});
+
+const binding = { readingResultId: 'a', sourceRevision: 0, spreadHash: 'spread', contextHash: 'context', artworkEdition: 'rws', catalogVersion: '1' };
+const arrival = (rest = {}) => event('CUES_ARRIVED', {
+  binding, ledgerRevision: 1, associations, introductions,
+  addedCueIds: associations.map(({ id }) => id), visibilitySnapshot: {}, now: 100, ...rest
+});
+const deliveredWithoutCues = () => advance(createGestureFocusState({ runId: 'a', sourceRevision: 0 }), 30, []);
+
+test('late batch selects the earlier visible cue instead of a later offscreen cue', () => {
+  const before = deliveredWithoutCues();
+  const s = reduceGestureFocus(before, arrival({ visibilitySnapshot: { pool: true, ground: false, balance: false } }));
+  assert.equal(s.current?.id, 'pool');
+  assert.equal(s.pending, null);
+  assert.equal(s.visibleEnd, before.visibleEnd);
+  assert.equal(s.phase, 'active');
+});
+
+test('cue arrival preserves held inspection and release recomputes changed visibility', () => {
+  let s = advance({ ...initial(), passageVisibility: { pool: true, ground: false, balance: false } }, 10, ['pool']);
+  s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'pool' } }));
+  s = advance(s, 30, []);
+  s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { pool: true, ground: true, balance: false } }));
+  assert.equal(s.held?.id, 'pool');
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.pending, 'ground');
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: false, ground: false, balance: true }, now: 150 }));
+  s = reduceGestureFocus(s, event('RELEASE', { now: 200 }));
+  assert.equal(s.current.id, 'balance');
+  assert.equal(s.pending, null);
+});
+
+test('duplicate and older ledger arrivals preserve settled state and deadlines exactly', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true } }));
+  s = reduceGestureFocus(s, event('TICK', { now: 10000 }));
+  assert.equal(s.phase, 'static');
+  const repeated = reduceGestureFocus(s, arrival({ now: 12000, visibilitySnapshot: { balance: true } }));
+  assert.equal(repeated, s);
+  assert.equal(reduceGestureFocus(s, arrival({ ledgerRevision: 0 })), s);
+});
+
+test('an active visible cue keeps its deadline while newer visible candidates coalesce', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ associations: associations.slice(0, 1), addedCueIds: ['pool'], visibilitySnapshot: { pool: true } }));
+  const deadline = s.activeUntil;
+  s = reduceGestureFocus(s, arrival({ ledgerRevision: 2, visibilitySnapshot: { ground: true, balance: true }, now: 200 }));
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.activeUntil, deadline);
+  assert.equal(s.pending, 'balance');
+  s = reduceGestureFocus(s, event('TICK', { now: deadline }));
+  assert.equal(s.current.id, 'balance');
+  assert.equal(s.pending, null);
+  s = reduceGestureFocus(s, event('TICK', { now: 10000 }));
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: false, ground: true, balance: false }, now: 11000 }));
+  assert.equal(s.current.id, 'balance');
+  assert.equal(s.phase, 'static');
+});
+
+test('new cue registration defers without visibility and atomically chooses the latest visible passage', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival());
+  assert.equal(s.current, null);
+  assert.equal(s.pending, null);
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: true, ground: true, balance: false }, now: 200 }));
+  assert.equal(s.current.id, 'ground');
+  assert.equal(s.pending, null);
+});
+
+test('late passed cues remain available for explicit revisit while an unseen future cue can play', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: false, ground: false, balance: false }, passedCueIds: ['pool'] }));
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: true, ground: false, balance: false }, now: 150 }));
+  assert.equal(s.current, null);
+  s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'pool' } }));
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.phase, 'held');
+  s = reduceGestureFocus(s, event('RELEASE'));
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: false, balance: true }, now: 200 }));
+  assert.equal(s.current.id, 'balance');
+  assert.equal(s.phase, 'active');
+});
+
+test('cue arrival never plays a visible but not fully rendered passage', () => {
+  let s = advance(createGestureFocusState({ runId: 'a', sourceRevision: 0 }), 10, []);
+  s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { pool: false, ground: true, balance: true } }));
+  assert.equal(s.current, null);
+  assert.equal(s.visibleEnd, 10);
+  s = advance(s, 20, ['ground']);
+  assert.equal(s.current.id, 'ground');
+});
+
+test('source binding replacement clears playback history and rejects the old binding', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true } }));
+  const replacement = { ...binding, contextHash: 'other-context' };
+  s = reduceGestureFocus(s, { type: 'SOURCE', source: { runId: 'a', sourceRevision: 0, binding: replacement, status: 'streaming' }, associations, introductions });
+  assert.equal(s.current, null);
+  assert.equal(s.ledgerRevision, 0);
+  assert.equal(reduceGestureFocus(s, arrival({ ledgerRevision: 2 })), s);
+  s = advance(s, 30, []);
+  s = reduceGestureFocus(s, arrival({ binding: replacement, visibilitySnapshot: { pool: true } }));
+  assert.equal(s.current.id, 'pool');
+});
+
+test('late restored and reduced-motion cues update static meaning without automatic deadlines', () => {
+  for (const hydrate of [false, true]) {
+    let s = createGestureFocusState({ runId: 'a', sourceRevision: 0, completed: hydrate });
+    s = advance(s, 30, []);
+    if (!hydrate) s = reduceGestureFocus(s, event('MOTION', { reducedMotion: true }));
+    s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { pool: true, ground: true, balance: false } }));
+    assert.equal(s.current?.id, 'ground');
+    assert.equal(s.phase, 'static');
+    assert.equal(s.canMove, false);
+    assert.equal(s.activeUntil, 0);
+    assert.equal(s.pending, null);
+  }
+});
+
+test('live completion accepts useful late visible cues and is not mistaken for hydration', () => {
+  let s = deliveredWithoutCues();
+  s = reduceGestureFocus(s, { type: 'SOURCE', source: { runId: 'a', sourceRevision: 0, status: 'complete', kind: 'complete' }, associations: [], introductions: [] });
+  s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { pool: true } }));
+  assert.equal(s.current?.id, 'pool');
+  assert.equal(s.phase, 'active');
+});
+
+test('held fallback association survives a same-binding cumulative registry replacement', () => {
+  let s = advance(initial(), 10, ['pool']);
+  s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'pool' } }));
+  s = reduceGestureFocus(s, arrival({ associations: associations.slice(1), addedCueIds: ['ground', 'balance'] }));
+  assert.equal(s.held?.id, 'pool');
+  assert.equal(s.current.id, 'pool');
+  s = reduceGestureFocus(s, event('RELEASE'));
+  assert.equal(s.held, null);
+});
+
+test('legacy registry arrival stays usable without fabricating a visual binding', () => {
+  const s = reduceGestureFocus(deliveredWithoutCues(), arrival({ binding: undefined, visibilitySnapshot: { pool: true } }));
+  assert.equal(s.current?.id, 'pool');
+  assert.equal(s.binding, null);
+});
+
+test('SOURCE accepts visualBinding and never lets an unbound arrival mutate its registry', () => {
+  let s = deliveredWithoutCues();
+  s = reduceGestureFocus(s, { type: 'SOURCE', source: { runId: 'a', sourceRevision: 0, visualBinding: binding, status: 'streaming' }, associations: [], introductions: [] });
+  assert.deepEqual(s.binding, binding);
+  assert.equal(reduceGestureFocus(s, arrival({ binding: undefined })), s);
+  s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { pool: true } }));
+  assert.equal(s.current.id, 'pool');
+});
+
+test('restoration of the same result clears held inspection and old automatic deadlines', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true } }));
+  s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'pool' } }));
+  s = reduceGestureFocus(s, { type: 'SOURCE', source: { runId: 'a', sourceRevision: 0, binding, status: 'complete', kind: 'hydrate' }, associations, introductions });
+  assert.equal(s.held, null);
+  assert.equal(s.pending, null);
+  assert.equal(s.phase, 'static');
+  assert.equal(s.activeUntil, 0);
+});
+
+test('reduced-motion arrival during modal inspection leaves no pending playback', () => {
+  let s = deliveredWithoutCues();
+  s = reduceGestureFocus(s, event('MOTION', { reducedMotion: true }));
+  s = reduceGestureFocus(s, event('INSPECTION', { kind: 'modal', active: true }));
+  s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { ground: true } }));
+  assert.equal(s.current, null);
+  assert.equal(s.pending, null);
+  s = reduceGestureFocus(s, event('INSPECTION', { kind: 'modal', active: false }));
+  assert.equal(s.current.id, 'ground');
+  assert.equal(s.phase, 'static');
+});
+
+test('adopting the first visual binding resets legacy revisions while preserving held fallback and consumed cues', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ binding: undefined, ledgerRevision: 8, visibilitySnapshot: { pool: true } }));
+  s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'pool' } }));
+  const consumed = s.consumedCueIds;
+  const deadline = s.activeUntil;
+  s = reduceGestureFocus(s, { type: 'SOURCE', source: { runId: 'a', sourceRevision: 0, visualBinding: binding, status: 'streaming' }, associations, introductions });
+  s = reduceGestureFocus(s, arrival({ ledgerRevision: 0, addedCueIds: [], visibilitySnapshot: { pool: true } }));
+  assert.equal(s.ledgerRevision, 0);
+  assert.equal(s.held?.id, 'pool');
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.activeUntil, deadline);
+  assert.deepEqual(s.consumedCueIds, consumed);
+  s = reduceGestureFocus(s, arrival({ ledgerRevision: 1, visibilitySnapshot: { ground: true } }));
+  assert.equal(s.ledgerRevision, 1);
+  assert.equal(s.pending, 'ground');
+  assert.equal(s.held?.id, 'pool');
+});
+
+test('late arrival updates the clock used when a modal releases focus after prose stopped', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), event('INSPECTION', { kind: 'modal', active: true, now: 100 }));
+  s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { pool: true }, now: 10000 }));
+  s = reduceGestureFocus(s, event('INSPECTION', { kind: 'modal', active: false }));
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.phase, 'active');
+  assert.equal(s.activeUntil, 11800);
+});
+
+test('an unplayed pending cue can become visible again during inspection without being consumed', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true } }));
+  s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'pool' } }));
+  for (const visible of [true, false, true]) {
+    s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { balance: visible }, now: 200 }));
+  }
+  assert.equal(s.pending, 'balance');
+  assert.equal(s.consumedCueIds.includes('balance'), false);
+  s = reduceGestureFocus(s, event('RELEASE', { now: 300 }));
+  assert.equal(s.current.id, 'balance');
 });

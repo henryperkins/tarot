@@ -20,6 +20,7 @@ import fiveCard from '../../output/reading-motion/fixtures/gestures-five-card-cr
 import sidecars from '../../output/reading-motion/fixtures/gesture-sidecars.json';
 import { getGestureArtworkAsset } from '../data/cardGestureAssets.js';
 import generatedReadings from '../../output/reading-motion/fixtures/generated-gesture-readings.json';
+import { canonicalVisualCueJSON, hashVisualCueText } from '../../shared/contracts/visualCueBatches.js';
 
 const STUDIES = { star, celtic, 'five-card': fiveCard };
 const SIDECAR_KEYS = { star: 'star', celtic: 'related', 'five-card': 'fiveCard' };
@@ -57,7 +58,7 @@ export function ReadingGesturesFixture() {
   const deckCard = ALL_CARDS.find(card => card.name === params.get('card')) || ALL_CARDS[0];
   const orientation = params.get('orientation') === 'reversed' ? 'Reversed' : 'Upright';
   const arrival = ['gentle', 'burst', 'complete'].includes(params.get('arrival')) ? params.get('arrival') : 'gentle';
-  const sourceMode = !isDeck && !isGenerated && params.get('sourceMode') === 'job-sse' ? 'job-sse' : 'recorded';
+  const sourceMode = !isDeck && !isGenerated && ['job-sse', 'visual-cues'].includes(params.get('sourceMode')) ? params.get('sourceMode') : 'recorded';
   const associationMode = isGenerated && params.get('associations') !== 'dynamic' ? 'generated' : isDeck || params.get('associations') === 'dynamic' ? 'dynamic' : 'authored';
   const reflection = !isDeck && params.get('reflection') !== 'off';
   const fixture = useMemo(() => isDeck ? deckFixture(deckCard, orientation) : isGenerated ? generatedSample : STUDIES[studyKey], [deckCard, isDeck, isGenerated, generatedSample, orientation, studyKey]);
@@ -99,6 +100,33 @@ export function ReadingGesturesFixture() {
     }, arrival === 'burst' ? 180 : 90);
     return () => clearInterval(timer);
   }, [arrival, raw, key, sourceMode]);
+
+  useEffect(() => {
+    if (sourceMode !== 'visual-cues') return undefined;
+    let cancelled = false;
+    // Controlled, fixture-only transport for the independent client seam. The
+    // host establishes identity before prose; cue events cannot supply it.
+    const deliver = event => {
+      const { raw: deliveredRaw, status, kind, cueLedger } = event.detail || {};
+      setRecordedSource(previous => advanceGestureSource(previous, {
+        ...(typeof deliveredRaw === 'string' ? { raw: deliveredRaw } : {}),
+        ...(status ? { status } : {}), ...(kind ? { kind } : {}), ...(cueLedger ? { cueLedger } : {})
+      }));
+    };
+    Promise.all([
+      hashVisualCueText(canonicalVisualCueJSON(fixture.cards)),
+      hashVisualCueText(canonicalVisualCueJSON({ question: fixture.userQuestion, reflection: reflection ? fixture.reflectionsText : '' }))
+    ]).then(([spreadHash, contextHash]) => {
+      if (cancelled) return;
+      const runId = crypto.randomUUID();
+      setRecordedSource(createGestureSource({ runId, status: 'streaming', visualBinding: {
+        readingResultId: runId, sourceRevision: 0, spreadHash, contextHash,
+        artworkEdition: 'rws-immanuelle-vector', catalogVersion: 'fixture-v1'
+      } }));
+      window.addEventListener('reading-visual-fixture', deliver);
+    });
+    return () => { cancelled = true; window.removeEventListener('reading-visual-fixture', deliver); };
+  }, [fixture, key, reflection, sourceMode]);
 
   useEffect(() => {
     if (sourceMode !== 'job-sse') return;
@@ -155,12 +183,14 @@ export function ReadingGesturesFixture() {
         </>}
         <label>Arrival <select value={arrival} onChange={event => change('arrival', event.target.value)}><option>gentle</option><option>burst</option><option>complete</option></select></label>
         {!isDeck && <>
-          {!isGenerated && <label>Source mode <select value={sourceMode} onChange={event => change('sourceMode', event.target.value)}><option>recorded</option><option>job-sse</option></select></label>}
+          {!isGenerated && <label>Source mode <select value={sourceMode} onChange={event => change('sourceMode', event.target.value)}><option>recorded</option><option>job-sse</option><option>visual-cues</option></select></label>}
           <label>Associations <select value={associationMode} onChange={event => change('associations', event.target.value)}>{isGenerated ? <option>generated</option> : <option>authored</option>}<option>dynamic</option></select></label>
           <label>Reflection <select value={reflection ? 'on' : 'off'} onChange={event => change('reflection', event.target.value)}><option>on</option><option>off</option></select></label>
         </>}
         <button type="button" onClick={() => setRestart(previous => previous + 1)}>Restart study</button>
-        <output data-testid="gesture-source-diagnostics" data-association-mode={associationMode} data-run-id={source.runId} data-source-revision={source.sourceRevision} data-source-status={source.status} data-raw-length={source.raw.length} data-selection-calls={selectionCalls}>{isDeck ? 'authored probe' : sourceMode}: {source.raw.length} characters</output>
+        <output data-testid="gesture-source-diagnostics" data-association-mode={associationMode} data-run-id={source.runId} data-source-revision={source.sourceRevision} data-source-status={source.status} data-raw-length={source.raw.length} data-selection-calls={selectionCalls}
+          data-visual-binding={source.visualBinding ? JSON.stringify(source.visualBinding) : undefined}
+          data-ledger-revision={source.cueLedger?.ledgerRevision}>{isDeck ? 'authored probe' : sourceMode}: {source.raw.length} characters</output>
       </fieldset>
       {reflection && <aside className="mx-auto mb-4 max-w-5xl text-sm text-muted" data-testid="recorded-reflection"><p>{isGenerated ? 'Supplied reflection' : 'Recorded general reflection'}: {fixture.reflectionsText}</p></aside>}
       {isDeck ? <DeckVisualProbe panelModel={panelModel} onSelectCard={recordSelection} /> : <NarrativePanel panelModel={panelModel} callbacks={{ onNarrativeComplete: noop, onHighlightPhrase: noop, onSectionEnter: noop, onSelectCard: recordSelection }} />}

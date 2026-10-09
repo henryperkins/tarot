@@ -403,13 +403,36 @@ export function StreamingNarrative({
   useEffect(() => {
     const root = wrapperRef.current;
     if (!root || !focus?.studyEnabled || !focusApi) return undefined;
-    const elements = root.querySelectorAll('[data-gesture-id]');
-    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
-      focusApi.reportVisibility({ kind: 'passage', id: entry.target.dataset.gestureId, visible: entry.isIntersecting });
-    }), { threshold: 0 });
+    const elements = [...root.querySelectorAll('[data-gesture-id]')];
+    let observing = true;
+    const visibilitySnapshot = {};
+    const passed = new Set();
+    const measure = (element, rect, visible) => {
+      const id = element.dataset.gestureId;
+      visibilitySnapshot[id] = visible;
+      // A late annotation above the viewport is revisitable, not a queued
+      // arrival. An unseen future span below it can still play on first entry.
+      if (!visible && rect.bottom <= 0) passed.add(id);
+    };
+    const report = () => observing && focusApi.reportPassageVisibility({ runId: gestureSource.runId,
+      sourceRevision: gestureSource.sourceRevision, visibilitySnapshot: { ...visibilitySnapshot }, passedCueIds: [...passed] });
+    // Measure the entire registered set before choosing a cue. Per-entry
+    // dispatch would let observer ordering select an older visible passage.
+    elements.forEach(element => {
+      const rect = element.getBoundingClientRect();
+      measure(element, rect, rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight
+        && rect.right > 0 && rect.left < window.innerWidth);
+    });
+    report();
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => measure(entry.target, entry.boundingClientRect, entry.isIntersecting && entry.intersectionRatio > 0));
+      report();
+    // The positive threshold reports entry after an initial zero-area edge
+    // intersection, even when isIntersecting itself remains true.
+    }, { threshold: [0, 0.01] });
     elements.forEach((element) => observer.observe(element));
-    return () => observer.disconnect();
-  }, [visibleText, associations, focus?.studyEnabled, focusApi]);
+    return () => { observing = false; observer.disconnect(); };
+  }, [visibleText, associations, focus?.studyEnabled, focusApi, gestureSource?.runId, gestureSource?.sourceRevision]);
 
   useEffect(() => {
     if (!onHighlightPhrase) return;

@@ -72,6 +72,8 @@ export function NarrativeCardFocusProvider({
     source: { ...gestureSource, ...personalContext }, cards, artworkEdition: cards[0]?.artworkEdition
   }), [baseResolved, selectedPassage, heldSelection, selectionRunId, selectionRevision, gestureSource, personalContext, cards]);
   const gestureRef = useRef({ source: gestureSource, state: gestureState, resolved });
+  const registryArrivalRef = useRef({ resolved: null, revision: 0 });
+  const measuredVisibilityRef = useRef(null);
   const studyEnabled = Boolean(
     gestureStudyEnabled &&
     gestureSource &&
@@ -85,18 +87,23 @@ export function NarrativeCardFocusProvider({
     if (!gestureSource || !gestureStudyEnabled) return;
     dispatch({ type: 'SOURCE', source: { ...gestureSource, status: document.hidden ? 'paused' : gestureSource.status }, ...resolved });
     const previous = gestureRef.current.state;
-    // Metadata and hold release can change annotation IDs without new text.
-    // Reconcile only text already reported visible, never raw arrival alone.
-    if (previous.runId === gestureSource.runId && previous.sourceRevision === gestureSource.sourceRevision) {
-      dispatch({ type: 'PROGRESS', runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision,
-        progress: { visibleEnd: previous.visibleEnd, complete: previous.completed }, now: performance.now(),
-        eligibleAssociationIds: resolved.associations.filter(cue => cue.passage.end <= previous.visibleEnd
-          && previous.passageVisibility[cue.id] === true).map(cue => cue.id) });
-    }
+    const measured = measuredVisibilityRef.current;
+    const arrival = registryArrivalRef.current;
+    if (arrival.resolved !== resolved) { arrival.resolved = resolved; arrival.revision += 1; }
+    // Metadata never advances rendered prose. New spans without measurements
+    // wait for StreamingNarrative's atomic visibility snapshot after registration.
+    dispatch({ type: 'CUES_ARRIVED', runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision,
+      binding: gestureSource.visualBinding, ledgerRevision: gestureSource.visualBinding ? resolved.ledgerRevision ?? 0 : arrival.revision,
+      associations: resolved.associations, introductions: resolved.introductions,
+      addedCueIds: resolved.associations.filter(cue => !previous.associations.some(prior => prior.id === cue.id)).map(cue => cue.id),
+      // Child effects may have measured this commit before React publishes the
+      // new reducer state. Never overwrite them with the previous render's map.
+      visibilitySnapshot: measured?.runId === gestureSource.runId && measured.sourceRevision === gestureSource.sourceRevision
+        ? measured.visibilitySnapshot : {}, now: performance.now() });
   }, [gestureSource, gestureStudyEnabled, resolved]);
   useEffect(() => {
     if (!studyEnabled) return undefined;
-    const event = (type, values = {}) => dispatch({ type, runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision, ...values });
+    const event = (type, values = {}) => dispatch({ type, runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision, now: performance.now(), ...values });
     event('MOTION', { reducedMotion: calm });
     const visibility = () => event('STATUS', { status: document.hidden ? 'paused' : gestureSource.status });
     visibility();
@@ -108,7 +115,7 @@ export function NarrativeCardFocusProvider({
     for (const kind of ['modal', 'card-detail']) {
       const intent = (Array.isArray(manualInspectionStatus) ? manualInspectionStatus : EMPTY_INSPECTIONS).find((record) => record.kind === kind);
       dispatch({ type: 'INSPECTION', runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision,
-        kind, active: Boolean(intent?.active), occurrenceId: intent?.occurrenceId });
+        kind, active: Boolean(intent?.active), occurrenceId: intent?.occurrenceId, now: performance.now() });
     }
   }, [studyEnabled, manualInspectionStatus, gestureSource]);
   useEffect(() => {
@@ -147,19 +154,24 @@ export function NarrativeCardFocusProvider({
       if (source) dispatch({ type: 'RELEASE', runId: source.runId, sourceRevision: source.sourceRevision, now: performance.now() });
     },
     reportProgress(progress) {
-      const { source, state, resolved: registry } = gestureRef.current;
+      const { source, resolved: registry } = gestureRef.current;
       if (!source || progress.runId !== source.runId || progress.sourceRevision !== source.sourceRevision) return;
-      const ids = registry.associations.filter((item) => item.passage.end <= progress.visibleEnd && state.passageVisibility[item.id] === true).map(({ id }) => id);
       dispatch({ type: 'SOURCE', source: { ...source, status: document.hidden ? 'paused' : source.status }, ...registry });
-      dispatch({ type: 'PROGRESS', ...progress, progress, eligibleAssociationIds: ids, now: performance.now() });
+      dispatch({ type: 'PROGRESS', ...progress, progress, now: performance.now() });
     },
     reportVisibility({ kind, id, visible }) {
       const { source } = gestureRef.current;
-      if (source) dispatch({ type: 'VISIBLE', runId: source.runId, sourceRevision: source.sourceRevision, kind, id, visible });
+      if (source) dispatch({ type: 'VISIBLE', runId: source.runId, sourceRevision: source.sourceRevision, kind, id, visible, now: performance.now() });
+    },
+    reportPassageVisibility({ runId, sourceRevision, visibilitySnapshot, passedCueIds }) {
+      const { source } = gestureRef.current;
+      if (!source || source.runId !== runId || source.sourceRevision !== sourceRevision) return;
+      measuredVisibilityRef.current = { runId, sourceRevision, visibilitySnapshot };
+      dispatch({ type: 'VISIBILITY', runId, sourceRevision, visibilitySnapshot, passedCueIds, now: performance.now() });
     },
     reportInspection({ kind, active, occurrenceId }) {
       const { source } = gestureRef.current;
-      if (source) dispatch({ type: 'INSPECTION', runId: source.runId, sourceRevision: source.sourceRevision, kind, active, occurrenceId });
+      if (source) dispatch({ type: 'INSPECTION', runId: source.runId, sourceRevision: source.sourceRevision, kind, active, occurrenceId, now: performance.now() });
     },
     setScrollFocus(next) {
       setScrollFocus((previous) => (sameFocus(previous, next) ? previous : next));
