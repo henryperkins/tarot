@@ -11,6 +11,9 @@ import { getPlatformProxy } from 'wrangler';
 import { hashPassword } from '../functions/lib/auth.js';
 import { createClaudeCodeServer } from '../services/claude-code/server.mjs';
 import { buildSubscriptionEnv, runClaudeCode, verifySubscriptionLogin } from '../services/claude-code/runner.mjs';
+import { createCodexSubscriptionServer } from '../services/codex-subscription/server.mjs';
+import { runCodexSubscription, verifyCodexSubscriptionLogin } from '../services/codex-subscription/runner.mjs';
+import { CODEX_SUBSCRIPTION_DEFAULT_MODEL, CODEX_SUBSCRIPTION_DEFAULT_EFFORT } from '../shared/inference/codexSubscription.js';
 import { parseJsoncConfig } from './deploy.js';
 import { developmentConfig, developmentEnvironment, developmentPaths, FRONTEND_PORT,
   GATEWAY_PORT, localMigrationArguments, parseDevelopmentOptions, resolveDevelopmentOwner, validateLocalReviewer, VISUAL_MODEL,
@@ -67,11 +70,15 @@ async function seedReviewer(paths, credentials, config, ownerEmail) {
 
 export async function main(argv = process.argv.slice(2)) {
   const options = parseDevelopmentOptions(argv);
-  const prefix = 'CLAUDE_CODE';
+  const codex = options.provider === 'codex-subscription';
+  const prefix = codex ? 'CODEX_SUBSCRIPTION' : 'CLAUDE_CODE';
   const credentials = validateLocalReviewer(JSON.parse(await readFile(credentialPath, 'utf8')));
-  const hostEnv = { ...buildSubscriptionEnv(process.env),
-    CLAUDE_CODE_MODEL: 'claude-opus-5-5', CLAUDE_CODE_EFFORT: 'xhigh' };
-  await verifySubscriptionLogin({ hostEnv, signal: AbortSignal.timeout(30000) });
+  const hostEnv = { ...buildSubscriptionEnv(process.env), ...(codex ? {
+    CODEX_SUBSCRIPTION_MODEL: process.env.CODEX_SUBSCRIPTION_MODEL || CODEX_SUBSCRIPTION_DEFAULT_MODEL,
+    CODEX_SUBSCRIPTION_EFFORT: process.env.CODEX_SUBSCRIPTION_EFFORT || CODEX_SUBSCRIPTION_DEFAULT_EFFORT
+  } : { CLAUDE_CODE_MODEL: 'claude-opus-5-5', CLAUDE_CODE_EFFORT: 'xhigh' }) };
+  const verifyLogin = codex ? verifyCodexSubscriptionLogin : verifySubscriptionLogin;
+  await verifyLogin({ hostEnv, signal: AbortSignal.timeout(30000) });
   const base = parseJsoncConfig(await readFile(path.join(root, 'wrangler.jsonc'), 'utf8'));
   const config = developmentConfig(base, { root, ownerUserId: credentials.userId,
     provider: options.provider, accountId: process.env.CLOUDFLARE_ACCOUNT_ID });
@@ -156,8 +163,9 @@ export async function main(argv = process.argv.slice(2)) {
     if (buildCode !== 0) throw new Error('Local asset build failed. Check the private build.log.');
 
     // Only the sanitized, subscription-authenticated environment reaches inference.
-    gateway = createClaudeCodeServer({ token,
-      run: (input, requestOptions) => runClaudeCode(input, { ...requestOptions, hostEnv }) });
+    const createGateway = codex ? createCodexSubscriptionServer : createClaudeCodeServer;
+    const run = codex ? runCodexSubscription : runClaudeCode;
+    gateway = createGateway({ token, run: (input, requestOptions) => run(input, { ...requestOptions, hostEnv }) });
     const gatewayCounts = new Map();
     gateway.on('request', (request, response) => {
       // Bounded diagnostic vocabulary: never print URLs, headers or request bodies.

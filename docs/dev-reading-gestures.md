@@ -7,6 +7,13 @@ npm run dev:reading-gestures -- --check
 npm run dev:reading-gestures
 ```
 
+To use the host's Codex ChatGPT login for the reading instead:
+
+```bash
+npm run dev:reading-gestures -- --provider codex-subscription --check
+npm run dev:reading-gestures -- --provider codex-subscription
+```
+
 The default owner is the private reviewer account. To use your own existing
 account in this isolated beta, add `--owner-email your-local-account@example.com`.
 The runner resolves an active local account before starting inference; it does
@@ -21,13 +28,17 @@ that normal password account in its separate local database. A browser login to
 the Worker origin also supplies the same-host session cookie to the Vite preview.
 Guest readings cannot spend the owner's subscription.
 
-The runner checks the Claude subscription login, then starts its private service
-in process on loopback port 8789, using Opus 5.5 at `xhigh`. Explicit selection
-with `--provider claude-code` is also supported. The independent visual candidate is explicitly
+The runner checks the selected subscription login, then starts its private service
+in process on loopback port 8789. Claude remains the default: Opus 5.5 at `xhigh`.
+Codex uses `gpt-6.1-sol` at `high`; host settings `CODEX_SUBSCRIPTION_MODEL` and
+`CODEX_SUBSCRIPTION_EFFORT` can select another supported model and effort.
+See [Codex subscription setup](codex-subscription.md) for authentication and
+standalone gateway details. The independent visual candidate is explicitly
 `@cf/zai-org/glm-5.3-flash` on Workers AI, with `low` reasoning effort and a
 60-second deadline.
-Reading prose arrives after generation and assessment complete. Visual cues are
-observed independently from delivered prose and can arrive after the reading finishes.
+The Codex beta enables live passage delivery from app-server. Completed sentences
+arrive during generation; requests requiring the existing full-reading assessment
+remain buffered. Visual cues are observed independently from delivered prose.
 Cloudflare credentials or a Wrangler login with Workers AI access are required.
 Starting the service itself performs no model generation. Generating a reading
 uses the subscription and the separately billed Workers AI integration.

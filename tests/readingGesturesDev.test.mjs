@@ -28,32 +28,31 @@ test('local owner selection resolves an existing active account and refuses abse
 
 test('beta provider selection rejects unknown or incomplete options before starting services', () => {
   assert.deepEqual(parseDevelopmentOptions([]), { check: false, provider: 'claude-code', ownerEmail: null });
-  assert.deepEqual(parseDevelopmentOptions(['--provider', 'claude-code', '--owner-email', 'Owner@example.invalid', '--check']),
-    { check: true, provider: 'claude-code', ownerEmail: 'owner@example.invalid' });
-  for (const argv of [['--provider'], ['--provider', 'openai'], ['--provider', 'codex-subscription'], ['--owner-email'],
-    ['--owner-email', 'invalid'], ['--unknown'], ['--provider', 'claude-code', '--provider', 'claude-code']]) {
+  assert.deepEqual(parseDevelopmentOptions(['--provider', 'codex-subscription', '--owner-email', 'Owner@example.invalid', '--check']),
+    { check: true, provider: 'codex-subscription', ownerEmail: 'owner@example.invalid' });
+  for (const argv of [['--provider'], ['--provider', 'openai'], ['--owner-email'],
+    ['--owner-email', 'invalid'], ['--unknown'], ['--provider', 'claude-code', '--provider', 'codex-subscription']]) {
     assert.throws(() => parseDevelopmentOptions(argv));
   }
 });
 
-test('Claude beta config selects its owner and gateway without inheriting other provider settings', () => {
+test('Codex beta config selects its owner and gateway without inheriting Claude or paid provider settings', () => {
   const config = developmentConfig({ vars: { TEXT_PROVIDER: 'legacy',
     CODEX_SUBSCRIPTION_MODEL: 'untrusted-override', CODEX_SUBSCRIPTION_OWNER_USER_ID: 'production-owner',
     CLAUDE_CODE_OWNER_USER_ID: 'claude-owner', CLAUDE_CODE_TIMEOUT_MS: '1',
     OPENAI_API_KEY: 'paid', VISUAL_CUE_PROVIDER: 'other' } },
-  { root: '/worktree', ownerUserId: 'local-owner', provider: 'claude-code' });
-  assert.equal(config.vars.TEXT_PROVIDER, 'claude-code');
-  assert.equal(config.vars.CLAUDE_CODE_OWNER_USER_ID, 'local-owner');
-  assert.equal(config.vars.CLAUDE_CODE_GATEWAY_URL, 'http://127.0.0.1:8789');
-  assert.equal(config.vars.CLAUDE_CODE_TIMEOUT_MS, '300000');
-  assert.equal(config.vars.CODEX_SUBSCRIPTION_OWNER_USER_ID, undefined);
-  assert.equal(config.vars.CODEX_SUBSCRIPTION_GATEWAY_URL, undefined);
-  assert.equal(config.vars.CODEX_SUBSCRIPTION_STREAMING_ENABLED, undefined);
+  { root: '/worktree', ownerUserId: 'local-owner', provider: 'codex-subscription' });
+  assert.equal(config.vars.TEXT_PROVIDER, 'codex-subscription');
+  assert.equal(config.vars.CODEX_SUBSCRIPTION_OWNER_USER_ID, 'local-owner');
+  assert.equal(config.vars.CODEX_SUBSCRIPTION_GATEWAY_URL, 'http://127.0.0.1:8789');
+  assert.equal(config.vars.CODEX_SUBSCRIPTION_TIMEOUT_MS, '300000');
+  assert.equal(config.vars.CODEX_SUBSCRIPTION_STREAMING_ENABLED, 'true');
+  assert.equal(config.vars.CLAUDE_CODE_OWNER_USER_ID, undefined);
+  assert.equal(config.vars.CLAUDE_CODE_TIMEOUT_MS, undefined);
   assert.equal(config.vars.OPENAI_API_KEY, undefined);
   assert.equal(config.vars.CODEX_SUBSCRIPTION_MODEL, undefined);
   assert.equal(config.vars.VISUAL_CUE_PROVIDER, 'workers-ai');
   assert.throws(() => developmentConfig({}, { root: '/worktree', ownerUserId: 'owner', provider: 'openai' }));
-  assert.throws(() => developmentConfig({}, { root: '/worktree', ownerUserId: 'owner', provider: 'codex-subscription' }));
 });
 
 test('development children exclude paid credentials and host overrides', () => {

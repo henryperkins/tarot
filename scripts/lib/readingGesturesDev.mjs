@@ -7,7 +7,7 @@ export const WORKER_PORT = 8787;
 export const FRONTEND_PORT = 5175;
 export const GATEWAY_PORT = 8789;
 export const LOCAL_DATABASE_ID = 'f91366fb-46cf-4f25-9cca-e14576087735';
-const SUBSCRIPTION_PROVIDERS = ['claude-code'];
+const SUBSCRIPTION_PROVIDERS = ['claude-code', 'codex-subscription'];
 
 export function parseDevelopmentOptions(argv) {
   const options = { check: false, provider: 'claude-code', ownerEmail: null };
@@ -15,13 +15,13 @@ export function parseDevelopmentOptions(argv) {
   for (let index = 0; index < argv.length; index++) {
     const flag = argv[index];
     if (!['--check', '--provider', '--owner-email'].includes(flag) || seen.has(flag)) {
-      throw new Error('Usage: npm run dev:reading-gestures -- [--check] [--provider claude-code] [--owner-email local-account-email]');
+      throw new Error('Usage: npm run dev:reading-gestures -- [--check] [--provider claude-code|codex-subscription] [--owner-email local-account-email]');
     }
     seen.add(flag);
     if (flag === '--check') options.check = true;
     else if (flag === '--provider') {
       options.provider = argv[++index];
-      if (!SUBSCRIPTION_PROVIDERS.includes(options.provider)) throw new Error('Select claude-code.');
+      if (!SUBSCRIPTION_PROVIDERS.includes(options.provider)) throw new Error('Select claude-code or codex-subscription.');
     } else {
       const email = argv[++index];
       if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -80,7 +80,7 @@ export function developmentViteConfig(base, { privateDirectory }) {
 export function developmentConfig(base, { root, ownerUserId, accountId, provider = 'claude-code' }) {
   if (!ownerUserId) throw new Error('A local owner is required.');
   if (!SUBSCRIPTION_PROVIDERS.includes(provider)) throw new Error('Invalid local subscription provider.');
-  const prefix = 'CLAUDE_CODE';
+  const prefix = provider === 'codex-subscription' ? 'CODEX_SUBSCRIPTION' : 'CLAUDE_CODE';
   const safeVars = Object.fromEntries(Object.entries(base.vars || {})
     .filter(([key]) => !/(?:API_KEY|TOKEN|SECRET|PASSWORD|SENTRY|OTEL|_ENDPOINT|_URL|CLAUDE_CODE|CODEX_SUBSCRIPTION)/.test(key)));
   return {
@@ -99,6 +99,7 @@ export function developmentConfig(base, { root, ownerUserId, accountId, provider
       [`${prefix}_GATEWAY_URL`]: `http://127.0.0.1:${GATEWAY_PORT}`,
       [`${prefix}_OWNER_USER_ID`]: ownerUserId,
       [`${prefix}_TIMEOUT_MS`]: '300000',
+      ...(provider === 'codex-subscription' ? { CODEX_SUBSCRIPTION_STREAMING_ENABLED: 'true' } : {}),
       VISUAL_CUE_PROVIDER: 'workers-ai',
       VISUAL_CUE_MODEL: VISUAL_MODEL,
       VISUAL_CUE_REASONING_EFFORT: 'low',
