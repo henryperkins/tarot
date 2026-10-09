@@ -9,6 +9,11 @@ import { loadJournalVisualResult, updateVisualResultSource } from '../functions/
 import { createD1 } from './helpers/d1Sqlite.mjs';
 import { seedUser, seedSession } from './helpers/journalFixtures.mjs';
 
+const configuredVisual = {
+  VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/visual',
+  AI: { run: async () => ({ response: { proposals: [] } }) }
+};
+
 const cards = [{ name: 'The Star', upright: 'Hope', reversed: 'Doubt', number: 17 }, { name: 'The Tower', upright: 'Change', reversed: 'Delay', number: 16 }];
 const reflections = { 0: '  Memory is important.  ', 1: 'Ready for change.' };
 const payload = {
@@ -26,7 +31,7 @@ test('generation and actual saved card/reflection shapes share exact occurrence 
 
 test('non-RWS decks keep identity edition and cannot receive vector detail geometry', async () => {
   let body;
-  const env = { READING_JOBS: { idFromName: x => x, get: () => ({ fetch: async (_url, init) => { body = JSON.parse(init.body); return new Response('{}'); } }) },
+  const env = { ...configuredVisual, READING_JOBS: { idFromName: x => x, get: () => ({ fetch: async (_url, init) => { body = JSON.parse(init.body); return new Response('{}'); } }) },
     READING_VISUAL_JOBS: { idFromName: x => x, get: () => ({ fetch: async () => new Response('{}') }) } };
   await startReadingJob({ env, payload: { ...payload, deckStyle: 'thoth-a1' } });
   assert.equal(body.visualBinding.artworkEdition, 'identity:thoth-a1');
@@ -37,7 +42,7 @@ test('stalled optional visual initialization cannot block the narrative start or
   let narrativeStarted = false;
   let visualStarted = false;
   const scheduled = [];
-  const env = { READING_JOBS: { idFromName: x => x, get: () => ({ fetch: async () => { narrativeStarted = true; return new Response('{}'); } }) },
+  const env = { ...configuredVisual, READING_JOBS: { idFromName: x => x, get: () => ({ fetch: async () => { narrativeStarted = true; return new Response('{}'); } }) },
     READING_VISUAL_JOBS: { idFromName: x => x, get: () => ({ fetch: () => { visualStarted = true; return new Promise(() => {}); } }) } };
   const started = await startReadingJob({ env, payload, waitUntil: task => scheduled.push(task) });
   assert.equal(started.ok, true);
@@ -50,7 +55,7 @@ test('public start derives visual owner from authenticated session without becom
   const db = await createD1(); t.after(() => db.sqlite.close());
   await seedUser(db, { id: 'owner' }); await seedSession(db, { id: 'owner-session', userId: 'owner' });
   let body;
-  const env = { DB: db, READING_JOBS: { idFromName: x => x, get: () => ({ fetch: async (_url, init) => { body = JSON.parse(init.body); return new Response('{}'); } }) },
+  const env = { ...configuredVisual, DB: db, READING_JOBS: { idFromName: x => x, get: () => ({ fetch: async (_url, init) => { body = JSON.parse(init.body); return new Response('{}'); } }) },
     READING_VISUAL_JOBS: { idFromName: x => x, get: () => ({ fetch: async () => new Response('{}') }) } };
   const response = await onRequestPost({ env, request: new Request('https://test.invalid/api/tarot-reading/jobs', {
     method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: 'session=owner-session' },
@@ -66,7 +71,7 @@ test('immediate save attaches trusted identity while optional visual initializat
   const db = await createD1(); t.after(() => db.sqlite.close());
   await seedUser(db, { id: 'owner' });
   let body;
-  const env = { DB: db, READING_JOBS: { idFromName: x => x, get: () => ({ fetch: async (_url, init) => { body = JSON.parse(init.body); return new Response('{}'); } }) },
+  const env = { ...configuredVisual, DB: db, READING_JOBS: { idFromName: x => x, get: () => ({ fetch: async (_url, init) => { body = JSON.parse(init.body); return new Response('{}'); } }) },
     READING_VISUAL_JOBS: { idFromName: x => x, get: () => ({ fetch: () => new Promise(() => {}) }) } };
   const started = await startReadingJob({ env, payload, ownerUserId: 'owner', waitUntil: () => {} });
   const raw = 'The Star and The Tower offer perspective.';
