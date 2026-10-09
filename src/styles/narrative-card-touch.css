@@ -434,3 +434,66 @@
     display: none;
   }
 }
+/* The opt-in reading companion keeps a stable stage as prose arrives. */
+.gesture-companion { position: sticky; top: 1rem; align-self: start; width: 100%; color: var(--text-main); }
+.gesture-shelf { display: grid; grid-template-columns: repeat(var(--shelf-count), minmax(0, 1fr)); gap: 8px; list-style: none; margin: 0 0 18px; padding: 0; }
+.gesture-shelf li { min-width: 0; text-align: center; }
+.gesture-shelf-card { display: block; width: 100%; aspect-ratio: 3/5; min-height: 44px; background: none; border: 0; padding: 0; border-radius: 4px; cursor: pointer; }
+.gesture-shelf-card:disabled { cursor: default; }
+.gesture-shelf-label { display: block; min-height: 18px; font: 11px/1.5 Inter, sans-serif; margin-top: 5px; color: var(--text-muted); }
+.gesture-window { position: relative; width: 100%; height: 360px; overflow: hidden; isolation: isolate; }
+.gesture-focus-layer { position: absolute; inset: 0; display: flex; justify-content: center; gap: 12px; animation: gesture-arrive 550ms cubic-bezier(.16, 1, .3, 1) both; }
+.gesture-focus-layer--departing { animation: gesture-depart 300ms ease-out both; pointer-events: none; z-index: -1; }
+.gesture-focus-card { display: flex; gap: 6px; flex: 1 1 0; min-width: 0; max-width: 216px; border: 0; padding: 0; background: none; cursor: pointer; overflow: hidden; border-radius: 5px; }
+.gesture-focus-layer[data-pair] .gesture-focus-card { max-width: 50%; }
+.gesture-context { min-height: 44px; margin-top: 12px; font-size: 12px; line-height: 1.5; color: var(--text-muted); text-wrap: balance; }
+.gesture-art { display: block; position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 4px; opacity: var(--presence, 1); }
+.gesture-art__plane { position: absolute; inset: 0; transition: transform 550ms cubic-bezier(.16, 1, .3, 1); }
+.gesture-art__upright { display: block; position: relative; width: 100%; height: 100%; }
+.gesture-art__upright[data-reversed] { transform: rotate(180deg); }
+.gesture-art__image { display: block; width: 100%; height: 100%; opacity: .74; filter: brightness(.88); transition: opacity 140ms ease-out, filter 140ms ease-out; }
+.gesture-art[data-held] .gesture-art__image, button:hover .gesture-art__image, button:focus-visible .gesture-art__image, .gesture-art[data-calm][data-active] .gesture-art__image { opacity: 1; filter: brightness(1); }
+.gesture-art__light, .gesture-art__water { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.gesture-art__light { opacity: .65; }
+.gesture-art__water { opacity: var(--gesture-water-opacity, 0); mix-blend-mode: screen; }
+.gesture-art__trace { fill: none; stroke: #f8e6ad; stroke-width: 5; stroke-linecap: round; opacity: .32; }
+.gesture-art__flow, .gesture-art__rivulet { fill: none; stroke: #d2efff; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 28 18; animation: gesture-flow 1s linear infinite paused; }
+.gesture-art__rivulet { stroke-width: 6; stroke-dasharray: 32 22; animation-duration: 1.3s; }
+.gesture-art__ripple { fill: none; stroke: #c4eaff; stroke-width: 3.5; opacity: 0; transform-origin: 285px 1455px; animation: gesture-ripple 3s cubic-bezier(.2, .7, .3, 1) infinite paused; }
+.gesture-shelf-card, .gesture-focus-card { transition: transform 140ms ease-out, box-shadow 140ms ease-out; }
+.gesture-shelf-card:enabled:hover, .gesture-shelf-card:focus-visible, .gesture-focus-card:hover, .gesture-focus-card:focus-visible { transform: translate3d(0, -3px, 0); box-shadow: 0 16px 32px rgb(0 0 0 / .26); }
+.gesture-shelf-card:focus-visible, .gesture-focus-card:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 3px; }
+.reading-gesture-association { display: inline; border: 0; border-radius: 3px; margin: 0; padding: 10px 0; background: none; color: inherit; font: inherit; line-height: inherit; text-align: inherit; cursor: pointer; text-decoration: underline dotted; text-decoration-color: rgb(var(--brand-primary-rgb) / .48); text-underline-offset: .2em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.reading-gesture-association[data-associated] { background: rgb(var(--brand-primary-rgb) / .08); text-decoration-color: var(--brand-primary); }
+.reading-gesture-association:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+@keyframes gesture-arrive { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@keyframes gesture-depart { to { opacity: 0; } }
+@keyframes gesture-flow { to { stroke-dashoffset: -92; } }
+@keyframes gesture-ripple { 0% { transform: scale(.03); opacity: 0; } 15% { opacity: .7; } 85% { opacity: .1; } 100% { transform: scale(1); opacity: 0; } }
+@media (max-width: 1023px) {
+  .narrative-panel__layout:has(.gesture-companion) { display: flex; flex-direction: column; }
+  .gesture-companion { top: 0; z-index: 3; padding: 10px 4px 0; background: var(--bg-surface); }
+  .gesture-shelf { max-width: 440px; margin: 0 auto 10px; gap: 8px; }
+  .gesture-shelf-card { height: 64px; width: 40px; margin: auto; }
+  .gesture-window { height: 106px; }
+  .gesture-focus-card { max-width: 232px; }
+  .gesture-focus-layer { gap: 10px; }
+  .gesture-art[data-crop] .gesture-art__plane { width: 160px; height: 266.667px; left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%) scale(var(--crop-zoom)) translate(var(--crop-x), var(--crop-y)); }
+  .gesture-context { min-height: 26px; margin-top: 5px; text-align: center; }
+}
+@media (max-width: 359px) { .gesture-window { height: 96px; } .gesture-shelf { gap: 4px; } }
+@media (max-height: 600px) and (max-width: 1023px) { .gesture-window { height: 72px; } .gesture-shelf-card { height: 48px; width: 29px; } }
+@media (prefers-reduced-motion: reduce) {
+  .gesture-focus-layer, .gesture-art [data-gesture-water] { animation: none !important; }
+  .gesture-art__plane, .gesture-art__image, .gesture-shelf-card, .gesture-focus-card { transition: none; }
+  .gesture-shelf-card:hover, .gesture-shelf-card:focus-visible, .gesture-focus-card:hover, .gesture-focus-card:focus-visible { transform: none; }
+  .gesture-art__water { opacity: 0; }
+}
+
+.narrative-panel__layout:has(.gesture-companion) { display: grid; grid-template-columns: minmax(250px, 340px) minmax(0, 68ch); gap: 40px; max-width: 1120px; margin-inline: auto; }
+.gesture-focus-card { align-items: center; }
+.gesture-focus-card > .gesture-art { height: auto; aspect-ratio: 3/5; }
+@media (max-width: 1023px) { .narrative-panel__layout:has(.gesture-companion) { display: flex; gap: 18px; } .gesture-focus-card > .gesture-art { height: 100%; aspect-ratio: auto; } }
+
+.gesture-lab select, .gesture-lab button { min-height: 44px; border: 1px solid var(--border-warm); border-radius: 6px; background: var(--bg-surface-muted); color: var(--text-main); padding: 8px 12px; }
+.gesture-lab :focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }

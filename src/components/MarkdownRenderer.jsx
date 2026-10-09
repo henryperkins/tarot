@@ -1,12 +1,45 @@
-import { Children, cloneElement, isValidElement } from 'react';
+import { Children, cloneElement, isValidElement, createContext, useContext, memo, createElement } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './reading/narrative/NarrativeCardFocus';
 import {
   normalizeHighlightPhrases,
   passesWordBoundary
 } from '../lib/highlightUtils';
 
+// Keep renderer identities stable while a streamed prefix grows. A fresh
+// inline component type would remount its paragraph and discard keyboard focus.
+const MarkdownComponentsContext = createContext(null);
+const STABLE_COMPONENTS = Object.fromEntries(
+  ['span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'strong', 'em', 'ul', 'ol', 'li', 'blockquote', 'a', 'code', 'pre', 'hr', 'table', 'thead', 'th', 'td'].map(tag => [tag, function MarkdownElement(props) {
+    const renderers = useContext(MarkdownComponentsContext);
+    if (renderers[tag]) return renderers[tag](props);
+    const { node: _node, ...nativeProps } = props;
+    return createElement(tag, nativeProps);
+  }])
+);
+
 const BLOCK_SEPARATOR = '\n\n';
+
+function GesturePhrase({ node: _node, children, ...props }) {
+  const focus = useNarrativeCardFocus();
+  const api = useNarrativeCardFocusApi();
+  const id = props['data-gesture-id'];
+  if (!id || !focus?.studyEnabled) return <span {...props}>{children}</span>;
+  const association = focus.associations.find((item) => item.id === id);
+  const held = focus.gestureState.held?.kind === 'association' && focus.gestureState.held.id === id;
+  const associated = focus.gestureState.current?.id === id && (held || association?.kind !== 'identity');
+  return (
+    <span {...props} role="button" tabIndex={0} className="reading-gesture-association" aria-pressed={held}
+      data-associated={associated ? 'true' : undefined} aria-label={props['data-gesture-label']}
+      onClick={() => api.holdAssociation(id)} onKeyDown={(event) => {
+        if (event.key === 'Escape') api.releaseAssociation();
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); api.holdAssociation(id); }
+      }}>
+      {children}
+    </span>
+  );
+}
 
 const STYLE_VARIANTS = {
   default: {
@@ -205,7 +238,7 @@ function highlightChildren(children, phrases, textCursor, ttsRange, nextKey) {
   });
 }
 
-export function MarkdownRenderer({
+export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   highlightPhrases = [],
   wordBoundary = null,
@@ -295,15 +328,8 @@ export function MarkdownRenderer({
     ...(Array.isArray(extraRemarkPlugins) ? extraRemarkPlugins : [])
   ];
 
-  return (
-    // max-w-prose ensures 65-75 character line length for optimal readability
-    // Using calc for very small screens to prevent text touching edges
-    <div className={wrapperClassName}>
-      <div className={styles.inner}>
-        <ReactMarkdown
-          remarkPlugins={remarkPlugins}
-          skipHtml
-          components={{
+  const components = {
+          span: GesturePhrase,
           ...headingComponents,
           p: ({ node: _node, ...props }) => {
             bumpBlockCursor();
@@ -416,11 +442,23 @@ export function MarkdownRenderer({
           td: ({ node: _node, ...props }) => (
             <td {...props} className={styles.td} />
           )
-          }}
+  };
+
+  return (
+    // max-w-prose ensures 65-75 character line length for optimal readability
+    // Using calc for very small screens to prevent text touching edges
+    <div className={wrapperClassName}>
+      <div className={styles.inner}>
+        <MarkdownComponentsContext.Provider value={components}>
+        <ReactMarkdown
+          remarkPlugins={remarkPlugins}
+          skipHtml
+          components={STABLE_COMPONENTS}
         >
           {content}
         </ReactMarkdown>
+        </MarkdownComponentsContext.Provider>
       </div>
     </div>
   );
-}
+});

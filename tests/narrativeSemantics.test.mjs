@@ -12,6 +12,7 @@ let NarrativeBody;
 let NarrativePanelHeader;
 let SpreadPatterns;
 let FeedbackPanel;
+let CardTouchArt;
 
 before(async () => {
   server = await createServer({
@@ -27,6 +28,17 @@ before(async () => {
   ({ NarrativePanelHeader } = await server.ssrLoadModule('/src/components/reading/narrative/NarrativePanelHeader.jsx'));
   ({ SpreadPatterns } = await server.ssrLoadModule('/src/components/SpreadPatterns.jsx'));
   ({ FeedbackPanel } = await server.ssrLoadModule('/src/components/FeedbackPanel.jsx'));
+  ({ CardTouchArt } = await server.ssrLoadModule('/src/components/reading/narrative/CardTouchArt.jsx'));
+});
+
+test('unsupported artwork editions retain whole-card context without vector details', () => {
+  const markup = render(CardTouchArt, {
+    card: { canonicalName: 'The Star', image: '/images/star.webp', artworkEdition: 'unknown', isReversed: true },
+    gesture: { detailIds: ['pool-pour'], phase: 'held' }, crop: true, motionOwner: false
+  });
+  assert.match(markup, /src="\/images\/star.webp"/);
+  assert.match(markup, /data-reversed="true"/);
+  assert.doesNotMatch(markup, /<svg|data-water-detail|<mask/);
 });
 
 after(async () => {

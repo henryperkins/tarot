@@ -1,5 +1,7 @@
-import { useId } from 'react';
+import { useId, useMemo, useRef } from 'react';
 import { getCardTouchPoints } from '../../../data/cardTouchPoints.js';
+import { getVectorGestureDetails, projectGestureFrame } from '../../../data/cardGestureArtwork.js';
+import { useCardGestureMotion } from './useCardGestureMotion.js';
 
 // The light layer's coordinate box follows the RWS artwork's proportions
 // (about 0.59), so a spot's radius reads as a circle on the card.
@@ -11,9 +13,66 @@ const BOX_HEIGHT = 170;
  * and lit where the reading describes something drawn on it. The image and
  * its light rotate together when the card is reversed.
  */
-export function CardTouchArt({ card, state = null, touches = [], touchKey = '', calm = false }) {
+export function CardTouchArt({ card, state = null, touches = [], touchKey = '', calm = false, gesture = null, presence = 1, motionOwner = false, crop = false }) {
+  if (gesture) return <GestureArtwork card={card} gesture={gesture} presence={presence} motionOwner={motionOwner} crop={crop} calm={calm} />;
+  return <LegacyCardTouchArt card={card} state={state} touches={touches} touchKey={touchKey} calm={calm} />;
+}
+
+function GestureArtwork({ card, gesture, presence, motionOwner, crop, calm }) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
-  const points = touches.length ? getCardTouchPoints(card.canonicalName).filter((point) => touches.includes(point.id)) : [];
+  const root = useRef(null);
+  const details = useMemo(() => card.artworkEdition === 'rws-immanuelle-vector'
+    ? getVectorGestureDetails(card.canonicalName).filter(({ id }) => gesture.detailIds.includes(id)) : [], [card.canonicalName, card.artworkEdition, gesture.detailIds]);
+  const motion = useMemo(() => ({ details }), [details]);
+  const frame = crop && details.length === 1 ? projectGestureFrame(details[0].frame, card.isReversed) : { x: .5, y: .5, zoom: .39 };
+  const masks = details.flatMap(detail => detail.maskSpots);
+  useCardGestureMotion({ elementRef: root, runId: gesture.runId, sourceRevision: gesture.sourceRevision,
+    associationId: gesture.associationId, gesture: motion, phase: gesture.phase,
+    reducedMotion: calm, canMove: motionOwner && gesture.canMove });
+  return (
+    <span ref={root} data-gesture-art data-gesture-owner={motionOwner ? card.occurrenceId : undefined}
+      data-card-name={card.canonicalName} className="gesture-art" data-held={gesture.held ? 'true' : undefined}
+      data-active={gesture.active ? 'true' : undefined}
+      data-calm={calm ? 'true' : undefined} data-crop={crop ? 'true' : undefined}
+      style={{ '--presence': presence, visibility: presence > 0 ? 'visible' : 'hidden', '--crop-x': `${(0.5 - frame.x) * 100}%`, '--crop-y': `${(0.5 - frame.y) * 100}%`, '--crop-zoom': frame.zoom }}>
+      <span className="gesture-art__plane">
+        <span className="gesture-art__upright" data-reversed={card.isReversed ? 'true' : undefined}>
+          <img className="gesture-art__image" src={card.image} alt="" decoding="async" draggable="false" />
+          {masks.length > 0 && <>
+            <svg className="gesture-art__light" viewBox="0 0 1086 1810" aria-hidden="true" focusable="false">
+              <defs>
+                <radialGradient id={`${id}-soft`}><stop offset="0" stopColor="white" /><stop offset=".56" stopColor="white" stopOpacity=".85" /><stop offset="1" stopColor="white" stopOpacity="0" /></radialGradient>
+                <mask id={`${id}-mask`}><rect width="1086" height="1810" fill="black" />{masks.map((spot, index) => <ellipse key={index} cx={spot.x * 1086} cy={spot.y * 1810} rx={spot.rx * 1086} ry={spot.ry * 1810} fill={`url(#${id}-soft)`} />)}</mask>
+              </defs>
+              <image href={card.image} width="1086" height="1810" preserveAspectRatio="none" mask={`url(#${id}-mask)`} />
+              {details.flatMap(detail => detail.traces.map((path, index) => <path key={`${detail.id}-${index}`} data-gesture-finite d={path} className="gesture-art__trace" />))}
+            </svg>
+            <svg className="gesture-art__water" viewBox="0 0 1086 1810" aria-hidden="true" focusable="false">
+              {details.filter(detail => detail.motionRecipe?.kind === 'water').map(detail => {
+                const recipe = detail.motionRecipe;
+                const prefix = `${id}-${detail.id}`;
+                return <g key={detail.id} data-water-detail={detail.id}>
+                  <defs>
+                    <clipPath id={`${prefix}-stream`}><path d={recipe.clips.stream} /></clipPath>
+                    {recipe.clips.pool && <clipPath id={`${prefix}-pool`}><path d={recipe.clips.pool} /></clipPath>}
+                    {recipe.rivulets && <mask id={`${prefix}-land`}><rect width="1086" height="1810" fill="black" />{recipe.rivulets.map((path, index) => <path key={index} d={path} fill="none" stroke="white" strokeWidth={recipe.rivuletMaskWidth} strokeLinecap="round" />)}</mask>}
+                  </defs>
+                  <g clipPath={`url(#${prefix}-stream)`}>{recipe.streams.map((path, index) => <path key={index} d={path} data-gesture-water className="gesture-art__flow" style={{ animationDuration: `${.9 + index * .12}s` }} />)}</g>
+                  {recipe.ripples && <g clipPath={`url(#${prefix}-pool)`}>{[0, 1, 2, 3].map(index => <ellipse key={index} data-gesture-water className="gesture-art__ripple" {...recipe.ripples[0]} style={{ animationDelay: `${index * -.75}s` }} />)}</g>}
+                  {recipe.rivulets && <g mask={`url(#${prefix}-land)`}>{recipe.rivulets.map((path, index) => <path key={index} d={path} data-gesture-water className="gesture-art__rivulet" />)}</g>}
+                </g>;
+              })}
+            </svg>
+          </>}
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function LegacyCardTouchArt({ card, state, touches, touchKey, calm }) {
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const points = touches.length ? getCardTouchPoints(card.canonicalName, { artworkEdition: card.artworkEdition }).filter((point) => touches.includes(point.id)) : [];
   const spots = points.flatMap((point, order) => point.spots.map(([x, y, r], index) => ({
     key: `${point.id}-${index}`,
     order,

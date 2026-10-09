@@ -11,6 +11,7 @@ import { getSectionKeyFromHeading } from '../lib/narrativeSections';
 import { STREAM_AUTO_NARRATE_DEBOUNCE_MS } from '../lib/narrationStream.js';
 import { remarkCardLinks } from '../lib/narrativeCardLinks.js';
 import { useNarrativeReadingLine } from '../hooks/useNarrativeReadingLine';
+import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './reading/narrative/NarrativeCardFocus';
 
 const NO_PHRASES = [];
 const LONG_MOBILE_WORD_THRESHOLD = 200;
@@ -178,12 +179,16 @@ export function StreamingNarrative({
   wordBoundary = null,
   cardLinks = null,
   renderParagraphLead = null,
+  gestureSource = null,
+  onVisibleSourceProgress = null,
 }) {
   const narrativeText = useMemo(() => (typeof text === 'string' ? text : ''), [text]);
   const wrapperRef = useRef(null);
-  const cardLinkPlugins = useMemo(() => (
-    cardLinks ? [[remarkCardLinks, { catalog: cardLinks }]] : null
-  ), [cardLinks]);
+  const focus = useNarrativeCardFocus();
+  const focusApi = useNarrativeCardFocusApi();
+  const studyEnabled = focus?.studyEnabled;
+  const studyRequested = focus?.studyRequested;
+  const associations = focus?.associations;
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen();
   const wrapperClassName = className ? `narrative-stream ${className}` : 'narrative-stream';
@@ -296,7 +301,9 @@ export function StreamingNarrative({
     }
   }, []);
 
-  // Clear timers and reset refs when text changes (side effects that must stay in useEffect)
+  // A source append belongs to the same reading; previously reported sections
+  // and narration must not fire again for each transport flush.
+  const callbackScope = gestureSource ? `${gestureSource.runId}:${gestureSource.sourceRevision}` : narrativeText;
   useEffect(() => {
     clearTimer();
     clearNarrationTimer();
@@ -304,7 +311,7 @@ export function StreamingNarrative({
     narrationTriggeredRef.current = false;
     triggeredHighlightRef.current = new Set();
     triggeredSectionRef.current = new Set();
-  }, [narrativeText, clearTimer, clearNarrationTimer]);
+  }, [callbackScope, clearTimer, clearNarrationTimer]);
 
   // Notify completion when all content is visible
   // This effect only calls external callback, no setState
@@ -376,6 +383,33 @@ export function StreamingNarrative({
     if (!visibleWords.length) return '';
     return visibleWords.join('');
   }, [visibleWords]);
+  // Raw-source progress belongs to the prose actually committed here. Formatting
+  // mismatches fail closed rather than guessing offsets from normalized text.
+  const visibleSourceEnd = gestureSource?.raw?.startsWith(visibleText) ? visibleText.length : null;
+  const cardLinkPlugins = useMemo(() => (
+    cardLinks || studyRequested ? [[remarkCardLinks, { catalog: cardLinks,
+      associations: studyEnabled && visibleSourceEnd !== null ? associations.filter((item) => item.passage.end <= visibleSourceEnd) : [],
+      authoredOnly: Boolean(studyRequested)
+    }]] : null
+  ), [cardLinks, studyEnabled, studyRequested, associations, visibleSourceEnd]);
+  useEffect(() => {
+    if (!gestureSource || visibleSourceEnd === null) return;
+    const progress = { runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision, visibleEnd: visibleSourceEnd,
+      complete: !isReadingStreaming && visibleSourceEnd === gestureSource.raw.length,
+      mode: isReadingStreaming ? 'server' : streamingActive ? 'typing' : 'instant' };
+    (onVisibleSourceProgress || focusApi?.reportProgress)?.(progress);
+  }, [gestureSource, visibleSourceEnd, isReadingStreaming, streamingActive, onVisibleSourceProgress, focusApi]);
+
+  useEffect(() => {
+    const root = wrapperRef.current;
+    if (!root || !focus?.studyEnabled || !focusApi) return undefined;
+    const elements = root.querySelectorAll('[data-gesture-id]');
+    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
+      focusApi.reportVisibility({ kind: 'passage', id: entry.target.dataset.gestureId, visible: entry.isIntersecting });
+    }), { threshold: 0 });
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [visibleText, focus?.studyEnabled, focusApi]);
 
   useEffect(() => {
     if (!onHighlightPhrase) return;
@@ -467,7 +501,7 @@ export function StreamingNarrative({
   // Point the spread at whatever the reading has reached: the newest words
   // while they arrive, then the passage at the reader's eye line.
   useNarrativeReadingLine(wrapperRef, {
-    enabled: Boolean(cardLinks && useMarkdown),
+    enabled: Boolean(cardLinks && useMarkdown && !studyRequested),
     isLive: Boolean(isReadingStreaming || (streamingActive && !isComplete))
   });
 

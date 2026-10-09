@@ -22,7 +22,9 @@ export function NarrativeBody({
   hasHeroStoryArt,
   cardLinks = null,
   renderParagraphLead = null,
-  spreadCompanion = null
+  spreadCompanion = null,
+  gestureSource = null,
+  sectionHeading = null
 }) {
   const streamClassName = `mt-6 sm:mt-8 ${hasHeroStoryArt ? 'glass-panel' : ''}`;
 
@@ -33,6 +35,11 @@ export function NarrativeBody({
       <NarrativeSafetyNotice className={question ? 'mt-4' : ''} compact={isHandset} />
 
       {spreadCompanion}
+
+      {sectionHeading && <div className="mt-6">
+        <h3 className="font-serif text-xl text-main">{sectionHeading.heading}</h3>
+        {sectionHeading.position && <h4 className="mt-2 font-serif text-lg text-main">{sectionHeading.position}</h4>}
+      </div>}
 
       <StreamingNarrative
         className={streamClassName}
@@ -54,6 +61,7 @@ export function NarrativeBody({
         atmosphereClassName={narrativeAtmosphereClassName}
         cardLinks={cardLinks}
         renderParagraphLead={renderParagraphLead}
+        gestureSource={gestureSource}
       />
     </div>
   );

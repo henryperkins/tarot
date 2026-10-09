@@ -44,7 +44,13 @@ export function NarrativePanel({
     journalStatus,
     spreadCards = [],
     cardLinkCatalog = null,
-    isMobileStableMode = false
+    isMobileStableMode = false,
+    gestureStudyEnabled = false,
+    gestureSidecar = null,
+    gestureSource = null,
+    manualInspectionStatus,
+    personalContext = null,
+    sectionHeading = null
   } = panelModel;
   const {
     onToggleNarrativeFocus,
@@ -89,8 +95,8 @@ export function NarrativePanel({
     );
   }
 
-  const hasSpread = spreadCards.length > 0;
-  const cardLinks = personalReading?.hasMarkdown ? cardLinkCatalog : null;
+  const hasSpread = gestureStudyEnabled && spreadCards.length > 0;
+  const cardLinks = gestureStudyEnabled && personalReading?.hasMarkdown ? cardLinkCatalog : null;
   const layoutClassName = [
     'narrative-panel__layout',
     hasSpread ? 'narrative-panel__layout--with-spread' : null,
@@ -98,7 +104,10 @@ export function NarrativePanel({
   ].filter(Boolean).join(' ');
 
   return (
-    <NarrativeCardFocusProvider cards={spreadCards} onSelectCard={onSelectCard} stable={isMobileStableMode}>
+    <NarrativeCardFocusProvider key={gestureSource ? `${gestureSource.runId}:${gestureSource.sourceRevision}` : 'ordinary'}
+      cards={spreadCards} onSelectCard={onSelectCard} stable={isMobileStableMode}
+      gestureStudyEnabled={gestureStudyEnabled} gestureSidecar={gestureSidecar} gestureSource={gestureSource}
+      manualInspectionStatus={manualInspectionStatus} personalContext={personalContext || { question }}>
       <div className={panelClassName}>
         <div className={layoutClassName}>
           {hasSpread ? <SpreadCompanion variant="rail" /> : null}
@@ -129,8 +138,10 @@ export function NarrativePanel({
               narrativeAtmosphereClassName={narrativeAtmosphereClassName}
               hasHeroStoryArt={hasHeroStoryArt}
               cardLinks={cardLinks}
-              renderParagraphLead={cardLinks ? renderCardPlate : null}
+              renderParagraphLead={cardLinks && !gestureSidecar ? renderCardPlate : null}
               spreadCompanion={hasSpread ? <SpreadCompanion variant="row" /> : null}
+              gestureSource={gestureSource}
+              sectionHeading={sectionHeading}
             />
           </div>
 
