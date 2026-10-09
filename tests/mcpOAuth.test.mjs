@@ -12,12 +12,14 @@ const { MemoryKV } = await import('./helpers/memoryKv.mjs');
 const { getOAuthApi } = await import('@cloudflare/workers-oauth-provider');
 const { buildOAuthProviderOptions, handleMcpOrOAuthRequest, isMcpOrOAuthPath } = await import('../functions/lib/mcp/oauthProvider.js');
 const { enforceRegistrationRateLimit } = await import('../functions/lib/mcp/registrationLimit.js');
+const { profileIdFor } = await import('../functions/lib/mcp/tools/profile.js');
+const { hashPassword } = await import('../functions/lib/auth.js');
 
 const ORIGIN = 'https://tarot.example';
 const RESOURCE = `${ORIGIN}/mcp`;
 const REDIRECT = 'https://chatgpt.com/connector_platform_oauth_redirect';
 
-async function setup({ allowed = 'user-1' } = {}) {
+async function setup({ allowed = 'user-1', mode } = {}) {
   const d1 = await createD1();
   await seedUser(d1, { id: 'user-1', username: 'henry' });
   await seedSession(d1, { id: 'session-1', userId: 'user-1' });
@@ -27,7 +29,9 @@ async function setup({ allowed = 'user-1' } = {}) {
     DB: d1,
     OAUTH_KV: new MemoryKV(),
     MCP_RESOURCE_URL: RESOURCE,
-    MCP_ALLOWED_USER_IDS: allowed
+    MCP_ALLOWED_USER_IDS: allowed,
+    ...(mode ? { MCP_ACCESS_MODE: mode } : {}),
+    RATELIMIT: new MemoryKV()
   };
   const ctx = { waitUntil() {}, passThroughOnException() {} };
   const call = (path, init = {}) => handleMcpOrOAuthRequest(new Request(`${ORIGIN}${path}`, init), env, ctx);
@@ -179,7 +183,7 @@ describe('linking the owner', () => {
     const profile = await mcp(call, token.access_token, {
       jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'get_profile', arguments: {} }
     });
-    assert.equal((await profile.json()).result.structuredContent.id, 'user-1');
+    assert.equal((await profile.json()).result.structuredContent.id, await profileIdFor('user-1'));
   });
 
   it('asks a signed-out visitor to sign in first', async () => {
@@ -189,21 +193,27 @@ describe('linking the owner', () => {
     const response = await call(authorizePath(client.client_id, challenge));
 
     assert.equal(response.status, 200);
-    assert.match(await response.text(), /Sign in to Tableu to continue/);
-    assert.equal(response.headers.get('set-cookie'), null);
+    const html = await response.text();
+    assert.match(html, /Sign in to connect ChatGPT/);
+    assert.match(html, /name="email"[^>]*autocomplete="username"/);
+    assert.match(html, /name="password"[^>]*autocomplete="current-password"/);
+    assert.match(html, /href="https:\/\/tarot\.example\/privacy"/);
+    assert.match(response.headers.get('set-cookie'), /^tableu_oauth_csrf=[0-9a-f]{64}; HttpOnly; SameSite=Strict/);
+    assert.doesNotMatch(response.headers.get('set-cookie'), /session=/);
     assert.equal(response.headers.get('x-frame-options'), 'DENY');
     assert.equal(response.headers.get('referrer-policy'), 'same-origin');
     assert.equal(response.headers.get('cache-control'), 'no-store');
   });
 
-  it('refuses an account that is not allowlisted, showing its id', async () => {
+  it('refuses an account that is not allowlisted without revealing ids or configuration', async () => {
     const { call } = await setup();
     const { client } = await registerClient(call);
     const { challenge } = await pkce();
     const { response, html } = await openConsent(call, authorizePath(client.client_id, challenge), 'session-2');
 
     assert.equal(response.status, 403);
-    assert.match(html, /<code>user-2<\/code>/);
+    assert.match(html, /isn't able to connect to ChatGPT yet/);
+    assert.doesNotMatch(html, /user-2|MCP_ALLOWED_USER_IDS/);
     assert.doesNotMatch(html, /name="decision"/);
   });
 
@@ -406,5 +416,135 @@ describe('client registration', () => {
     assert.equal((await enforceRegistrationRateLimit({}, request)).status, 503);
     const broken = { DB: { prepare() { throw new Error('D1 unavailable'); }, batch() {} } };
     assert.equal((await enforceRegistrationRateLimit(broken, request)).status, 503);
+  });
+});
+
+
+async function setPassword(d1, userId, password) {
+  const { hash, salt } = await hashPassword(password);
+  await d1.prepare('UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?').bind(hash, salt, userId).run();
+}
+
+async function openSignIn(call, path) {
+  const response = await call(path);
+  const html = await response.text();
+  return {
+    response,
+    html,
+    csrf: /name="csrf" value="([0-9a-f]+)"/.exec(html)?.[1],
+    csrfCookie: cookieFrom(response, 'tableu_oauth_csrf')
+  };
+}
+
+function postSignIn(call, path, { email, password, csrf, csrfCookie, origin = ORIGIN, ip = '198.51.100.9' }) {
+  return call(path, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      ...(csrfCookie ? { cookie: `tableu_oauth_csrf=${csrfCookie}` } : {}),
+      ...(origin ? { origin } : {}),
+      'cf-connecting-ip': ip
+    },
+    body: new URLSearchParams({ intent: 'signin', email, password, ...(csrf ? { csrf } : {}) }).toString()
+  });
+}
+
+async function authorizeFor(call) {
+  const { client } = await registerClient(call);
+  const { verifier, challenge } = await pkce();
+  return { client, verifier, path: authorizePath(client.client_id, challenge) };
+}
+
+describe('public access mode', () => {
+  it('links any active personal account when public', async () => {
+    const { call } = await setup({ allowed: '', mode: 'public' });
+    const { client, verifier, path } = await authorizeFor(call);
+    const consent = await openConsent(call, path, 'session-2');
+    assert.equal(consent.response.status, 200);
+    assert.match(consent.html, /@guest/);
+
+    const approved = await postDecision(call, path, { decision: 'allow', csrf: consent.csrf, csrfCookie: consent.csrfCookie, session: 'session-2' });
+    const code = new URL(approved.headers.get('location')).searchParams.get('code');
+    const token = await exchangeCode(call, { clientId: client.client_id, code, verifier });
+    const listed = await mcp(call, token.access_token);
+    assert.equal(listed.status, 200);
+  });
+
+  it('turns everything off, including existing tokens, when the mode is off', async () => {
+    const { call, env } = await setup({ mode: 'public' });
+    const { token } = await linkOwner(call);
+    env.MCP_ACCESS_MODE = 'off';
+
+    assert.equal((await mcp(call, token.access_token)).status, 401);
+    const { path } = await authorizeFor(call);
+    const { response, html } = await openConsent(call, path);
+    assert.equal(response.status, 403);
+    assert.match(html, /Connecting is paused/);
+  });
+
+  it('fails closed on an unrecognized mode', async () => {
+    const { call } = await setup({ mode: 'pubic' });
+    const { path } = await authorizeFor(call);
+    const { response } = await openConsent(call, path);
+    assert.equal(response.status, 403);
+  });
+});
+
+describe('signing in on the connection page', () => {
+  it('signs in with email and password, then shows the consent page', async () => {
+    const { call, d1 } = await setup();
+    await setPassword(d1, 'user-1', 'correct horse battery');
+    const { path } = await authorizeFor(call);
+    const form = await openSignIn(call, path);
+
+    const signedIn = await postSignIn(call, path, {
+      email: 'User.1@example.com', password: 'correct horse battery', csrf: form.csrf, csrfCookie: form.csrfCookie
+    });
+    assert.equal(signedIn.status, 303);
+    assert.equal(signedIn.headers.get('location'), `${ORIGIN}${path}`);
+    const session = cookieFrom(signedIn, 'session');
+    assert.ok(session, 'a session cookie is set');
+    assert.match(signedIn.headers.get('set-cookie'), /tableu_oauth_csrf=;/, 'the sign-in CSRF cookie is cleared');
+
+    const consent = await call(path, { headers: { cookie: `session=${session}` } });
+    assert.equal(consent.status, 200);
+    assert.match(await consent.text(), /Connect ChatGPT to Tableu/);
+  });
+
+  it('shows an error for a wrong password, then rate limits repeated failures', async () => {
+    const { call, d1 } = await setup();
+    await setPassword(d1, 'user-1', 'correct horse battery');
+    const { path } = await authorizeFor(call);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const form = await openSignIn(call, path);
+      const failed = await postSignIn(call, path, { email: 'user.1@example.com', password: 'wrong', csrf: form.csrf, csrfCookie: form.csrfCookie });
+      assert.equal(failed.status, 401);
+      const html = await failed.text();
+      assert.match(html, /don&#39;t match a Tableu account/);
+      assert.match(html, /value="user\.1@example\.com"/, 'the email is kept');
+      assert.equal(cookieFrom(failed, 'session'), undefined);
+    }
+    const form = await openSignIn(call, path);
+    const limited = await postSignIn(call, path, { email: 'user.1@example.com', password: 'correct horse battery', csrf: form.csrf, csrfCookie: form.csrfCookie });
+    assert.equal(limited.status, 429);
+    assert.ok(Number(limited.headers.get('retry-after')) > 0);
+    assert.equal(cookieFrom(limited, 'session'), undefined);
+  });
+
+  it('refuses a sign-in without the CSRF cookie or from another origin', async () => {
+    const { call, d1 } = await setup();
+    await setPassword(d1, 'user-1', 'correct horse battery');
+    const { path } = await authorizeFor(call);
+    const form = await openSignIn(call, path);
+
+    const noCookie = await postSignIn(call, path, { email: 'user.1@example.com', password: 'correct horse battery', csrf: form.csrf });
+    const foreign = await postSignIn(call, path, {
+      email: 'user.1@example.com', password: 'correct horse battery', csrf: form.csrf, csrfCookie: form.csrfCookie, origin: 'https://evil.example'
+    });
+    for (const response of [noCookie, foreign]) {
+      assert.equal(response.status, 403);
+      assert.equal(cookieFrom(response, 'session'), undefined);
+    }
   });
 });

@@ -1,14 +1,16 @@
-# ChatGPT MCP endpoint (owner-only)
+# ChatGPT MCP endpoint
 
 Type: runbook
 Status: active
-Last reviewed: 2026-09-29
+Last reviewed: 2026-10-09
 
 The Tableu ChatGPT plugin reaches the backend through an MCP endpoint on the
 main Worker, `https://tarot.lakefrontdev.com/mcp`, protected by OAuth 2.1 that
-Tableu issues itself. This version is private: only accounts listed in the
-`MCP_ALLOWED_USER_IDS` secret can link, and every write lands in the linked
-account's own journal.
+Tableu issues itself. The `MCP_ACCESS_MODE` var decides who can link: `public`
+(any active personal account, the setting for the public listing), `allowlist`
+(only ids in the `MCP_ALLOWED_USER_IDS` secret) or `off`. Every write lands in
+the linked account's own journal. The public listing steps are in
+[public-listing.md](public-listing.md).
 
 Design: `docs/superpowers/specs/2026-09-22-chatgpt-mcp-journal-design.md`.
 
@@ -60,7 +62,8 @@ Design: `docs/superpowers/specs/2026-09-22-chatgpt-mcp-journal-design.md`.
 |---|---|---|
 | `OAUTH_KV` | KV binding | OAuth clients, grants and tokens. Id in `wrangler.jsonc`. |
 | `MCP_RESOURCE_URL` | var | `https://tarot.lakefrontdev.com/mcp`. Tokens are bound to exactly this resource. |
-| `MCP_ALLOWED_USER_IDS` | secret | Comma-separated Tableu user ids allowed to link. Unset means nobody can link. |
+| `MCP_ACCESS_MODE` | var | `public`, `allowlist` (default when unset) or `off`. An unrecognized value counts as `off`. Checked on every consent and every `/mcp` request. |
+| `MCP_ALLOWED_USER_IDS` | secret | Allowlist mode only: comma-separated Tableu user ids allowed to link. Unset means nobody can link. |
 | Migration `0030` | D1 | `journal_entries.idempotency_key` plus its partial unique index. Applied by the deploy script. |
 | Migration `0031` | D1 | `oauth_registration_counters` for atomic per-address hourly DCR admission on `DB`. Applied by the deploy script; missing storage makes registration return 503. |
 
@@ -96,7 +99,8 @@ a successful newer build alone does not prove it is the version serving traffic.
 OAuth grants and clients use `OAUTH_KV`; registration
 admission uses D1. Counters retain the current and previous hourly buckets,
 with older buckets removed on the next registration attempt. While
-`MCP_ALLOWED_USER_IDS` is unset, the endpoint is live but nobody can link.
+`MCP_ACCESS_MODE` is `allowlist` and `MCP_ALLOWED_USER_IDS` is unset, the
+endpoint is live but nobody can link.
 Never deploy from a working tree with uncommitted `wrangler.jsonc` changes.
 
 ### After deploy
@@ -140,8 +144,12 @@ Never deploy from a working tree with uncommitted `wrangler.jsonc` changes.
 
 ## Kill switch and rollback
 
-- `npx wrangler secret delete MCP_ALLOWED_USER_IDS` stops all linking and
-  rejects existing tokens on the next request.
+- Set `MCP_ACCESS_MODE` to `off` in `wrangler.jsonc` and deploy, or change the
+  var on the Worker in the Cloudflare dashboard: linking stops and existing
+  tokens are rejected on the next request. Setting it back restores access
+  without relinking, as long as the grants haven't expired.
+- In allowlist mode, `npx wrangler secret delete MCP_ALLOWED_USER_IDS` has the
+  same effect.
 - To roll back the code, revert the PR. Migrations 0030 and 0031 are additive;
   leave them in place.
 
@@ -228,8 +236,9 @@ for a run:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| The consent page asks you to sign in | No Tableu session in that browser | Sign in, then **Continue** |
-| 403 "This account can't connect to ChatGPT" | The account isn't allowlisted | Add its id to `MCP_ALLOWED_USER_IDS` |
+| The consent page asks you to sign in | No Tableu session in that browser | Sign in with email and password on that page; accounts that use Google or another provider sign in on Tableu, then select **Continue** |
+| 403 "This account can't connect to ChatGPT" | Allowlist mode, and the account isn't listed | Add its id to `MCP_ALLOWED_USER_IDS`, or use public mode |
+| 403 "Connecting is paused" | `MCP_ACCESS_MODE` is `off` or unrecognized | Set it to `public` or `allowlist` |
 | ChatGPT keeps asking to link again | Allowlist changed, account deactivated, or token lacks `tableu` | Check the allowlist and account, then link again |
 | `invalid_redirect_uri` on registration | Redirect URI isn't a ChatGPT callback or loopback | Register from ChatGPT or a local tool |
 | 429 on `/oauth/register` | More than 10 registrations an hour from one address | Wait for the next hour |
