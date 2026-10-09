@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture, startReading } from './helpers/narrativeFixtures.js';
 
@@ -379,7 +379,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       });
 
       for (const viewport of [{ width: 390, height: 844 }, { width: 800, height: 1000 }, { width: 1024, height: 768 }]) {
-        test(`populated journal leaves its page-end install button clickable at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+        test(`populated journal leaves its page-end install button clickable at ${viewport.width}×${viewport.height}`, async ({ page }, testInfo) => {
           await page.setViewportSize(viewport);
           await page.addInitScript(entry => localStorage.setItem('tarot_journal', JSON.stringify(
             Array.from({ length: 10 }, (_, index) => ({ ...entry, id: `${entry.id}-${index}`, ts: entry.ts - index * 60_000 }))
@@ -389,17 +389,24 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await page.evaluate(() => document.fonts.ready);
           const install = page.locator('main.journal-page [data-pwa-footer]').getByRole('button', { name: 'Add to Home Screen', exact: true });
           let previousHeight = 0;
-          await expect.poll(async () => {
-            const end = await page.evaluate(async () => {
-              scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
-              await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-              return { height: document.documentElement.scrollHeight, remaining: document.documentElement.scrollHeight - innerHeight - scrollY };
-            });
-            const stableHeight = end.height === previousHeight;
-            previousHeight = end.height;
-            return stableHeight && end.remaining <= 1
-              && await page.getByRole('button', { name: 'Jump to journal filters', exact: true }).count() === 1;
-          }, { timeout: 15000, message: 'The loaded journal must reach its stable end with floating controls mounted' }).toBe(true);
+          const measurements = [];
+          try {
+            await expect.poll(async () => {
+              const end = await page.evaluate(async () => {
+                scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                return { height: document.documentElement.scrollHeight, remaining: document.documentElement.scrollHeight - innerHeight - scrollY };
+              });
+              const stableHeight = end.height === previousHeight;
+              previousHeight = end.height;
+              const floatingCount = await page.getByRole('button', { name: 'Jump to journal filters', exact: true }).count();
+              measurements.push({ ...end, stableHeight, floatingCount });
+              return stableHeight && end.remaining <= 1 && floatingCount === 1;
+            }, { timeout: 15000, message: 'The loaded journal must reach its stable end with floating controls mounted' }).toBe(true);
+          } catch (error) {
+            await testInfo.attach('page-end-measurements', { body: JSON.stringify(measurements), contentType: 'application/json' });
+            throw error;
+          }
           await expect(page.getByRole('button', { name: 'Jump to journal filters', exact: true })).toBeInViewport();
           // The floating controls reserve their space after the first scroll.
           // Reach the current page end after that measurement has settled.
@@ -543,6 +550,8 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await save.locator('span').evaluate(element => { element.textContent = 'Save this reading in your personal journal'; });
           await next.locator('span').evaluate(element => { element.textContent = 'Start a new reading for your next reflection'; });
           const tasks = save.locator('..');
+          await page.evaluate(() => document.fonts.ready);
+          await expect.poll(() => tasks.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true);
           await tasks.evaluate(element => { element.scrollLeft = element.scrollWidth; });
           expect(await tasks.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
           expect((await save.boundingBox()).x).toBeLessThan((await tasks.boundingBox()).x);

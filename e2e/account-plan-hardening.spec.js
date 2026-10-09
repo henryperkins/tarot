@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 
 // These account and billing states are scoped API fixtures, not real authentication.
 async function prepare(page, { tier = null, status = 'active' } = {}) {

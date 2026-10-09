@@ -44,7 +44,7 @@ function useDynamicLogoSize(baseSize = 120, factor = 0.15, debounceMs = 100) {
 }
 
 export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel, isComplete = false, onViewReading }) {
-    const rasterLogoSize = useDynamicLogoSize(120, 0.15);
+    const logoSize = useDynamicLogoSize(120, 0.15);
     const shouldReduceMotion = useReducedMotion();
     const scopeRootRef = useRef(null);
     const buttonRef = useRef(null);
@@ -163,12 +163,9 @@ export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel, isCom
                     <div className="absolute inset-0 flex items-center justify-center p-4">
                         <TableuLogo
                             variant="icon"
-                            size={rasterLogoSize}
+                            size={logoSize}
                             className="opacity-90 group-hover:opacity-100 transition-opacity duration-300"
-                            outline
-                            glow
-                            useRaster
-                            ariaLabel="Tableu deck - tap to draw"
+                            decorative
                         />
                     </div>
                 </div>

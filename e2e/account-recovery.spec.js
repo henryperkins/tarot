@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import { createNarrativeFixture } from './helpers/narrativeFixtures.js';
 
 const PASSWORD = 'Grounded🌿أمان安心42';

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 
 const token = 'share-note-hardening';
@@ -57,7 +57,7 @@ async function expectUsableControl(locator) {
 }
 
 test.describe('Shared note hardening', () => {
-  test.use({ serviceWorkers: 'block', reducedMotion: 'reduce' });
+  test.use({ serviceWorkers: 'block', contextOptions: { reducedMotion: 'reduce' } });
 
   for (const [width, height, textScale, theme] of [
     [390, 844, 1, 'light'],

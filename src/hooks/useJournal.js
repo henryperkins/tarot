@@ -64,8 +64,8 @@ function readLocalJournalArray(key) {
 export function useJournal({ autoLoad = true } = {}) {
   const gestureStudyEnabled = readingGesturesEnabled();
   const { isAuthenticated, user } = useAuth();
+  const userId = user?.id;
   const { canUseCloudJournal } = useSubscription();
-  const accountUserId = user?.id;
   const [entryState, setEntryState] = useState({ namespace: visualStorageNamespace(isAuthenticated ? user?.id : null), entries: [] });
   const entries = entryState.namespace === visualStorageNamespace(isAuthenticated ? user?.id : null) ? entryState.entries : EMPTY_ENTRIES;
   const setEntries = useCallback(update => setEntryState(previous => {
@@ -167,15 +167,6 @@ export function useJournal({ autoLoad = true } = {}) {
     }
   }, [user?.id, setEntries]);
 
-  // Load entries on mount or when auth state changes
-  useEffect(() => {
-    if (!autoLoad && isAuthenticated) {
-      return;
-    }
-    loadEntries();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadEntries is stable, avoid infinite loop
-  }, [isAuthenticated, canUseCloudJournal, autoLoad, user?.id]);
-
   const buildApiUrl = useCallback((cursor) => {
     const params = new URLSearchParams();
     params.set('limit', String(PAGE_SIZE));
@@ -186,7 +177,7 @@ export function useJournal({ autoLoad = true } = {}) {
     return `/api/journal?${params.toString()}`;
   }, []);
 
-  async function loadEntries() {
+  const loadEntries = useCallback(async () => {
     prefetchedOnceRef.current = false;
     setLoading(true);
     setError(null);
@@ -224,7 +215,7 @@ export function useJournal({ autoLoad = true } = {}) {
 
           // Update user-scoped cache
           if (typeof localStorage !== 'undefined') {
-            const cacheKey = getCacheKey(user?.id);
+            const cacheKey = getCacheKey(userId);
             try {
               localStorage.setItem(cacheKey, JSON.stringify(apiEntries));
             } catch (quotaErr) {
@@ -237,7 +228,7 @@ export function useJournal({ autoLoad = true } = {}) {
           console.warn('API load failed, falling back to cache:', apiError);
           // Fallback to user-scoped cache
           if (typeof localStorage !== 'undefined') {
-            const cacheKey = getCacheKey(user?.id);
+            const cacheKey = getCacheKey(userId);
             const cached = localStorage.getItem(cacheKey);
             if (cached) {
               const parsedCache = dedupeEntries(JSON.parse(cached));
@@ -267,7 +258,7 @@ export function useJournal({ autoLoad = true } = {}) {
             persistInsights([]);
           }
         } else {
-          const localKey = getLocalJournalKey(isAuthenticated ? user?.id : null);
+          const localKey = getLocalJournalKey(isAuthenticated ? userId : null);
           const stored = localStorage.getItem(localKey);
           if (stored) {
             try {
@@ -283,7 +274,7 @@ export function useJournal({ autoLoad = true } = {}) {
                 total: safeEntries.length
               });
             } catch (err) {
-      if (namespaceRef.current !== namespace) return;
+              if (namespaceRef.current !== namespace) return;
               console.error('Failed to parse localStorage journal:', err);
               setEntries([]);
               if (typeof window !== 'undefined') {
@@ -321,7 +312,17 @@ export function useJournal({ autoLoad = true } = {}) {
     } finally {
       if (namespaceRef.current === namespace) setLoading(false);
     }
-  };
+  }, [buildApiUrl, canUseCloudJournal, isAuthenticated, persistInsights, userId, namespace, setEntries]);
+
+  // Load only for the committed owner; canceled setup must not start a request.
+  useEffect(() => {
+    if (!autoLoad && isAuthenticated) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) loadEntries();
+    });
+    return () => { cancelled = true; };
+  }, [autoLoad, isAuthenticated, loadEntries]);
 
   const loadMoreEntries = useCallback(async ({ prefetch = false } = {}) => {
     if (!isAuthenticated || !canUseCloudJournal) return { success: false, appended: 0 };
@@ -345,9 +346,9 @@ export function useJournal({ autoLoad = true } = {}) {
         const next = dedupeEntries([...(Array.isArray(prev) ? prev : []), ...newEntries]);
         if (typeof window !== 'undefined') {
           persistInsights(next);
-          if (accountUserId) {
+          if (userId) {
             try {
-              localStorage.setItem(getCacheKey(accountUserId), JSON.stringify(next));
+              localStorage.setItem(getCacheKey(userId), JSON.stringify(next));
             } catch (quotaErr) {
               console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
             }
@@ -371,7 +372,7 @@ export function useJournal({ autoLoad = true } = {}) {
     } finally {
       if (namespaceRef.current === namespace) setLoadingMore(false);
     }
-  }, [buildApiUrl, canUseCloudJournal, isAuthenticated, loadingMore, pagination.hasMore, pagination.nextCursor, pagination.total, persistInsights, accountUserId, namespace, setEntries]);
+  }, [buildApiUrl, canUseCloudJournal, isAuthenticated, loadingMore, pagination.hasMore, pagination.nextCursor, pagination.total, persistInsights, userId, namespace, setEntries]);
 
   const fetchEntryById = useCallback(async (entryId, { includeFollowups = true } = {}) => {
     const userId = user?.id;
@@ -443,11 +444,36 @@ export function useJournal({ autoLoad = true } = {}) {
     return () => clearTimeout(timer);
   }, [canUseCloudJournal, isAuthenticated, loadMoreEntries, loading, loadingMore, pagination.hasMore]);
 
-  const saveEntry = async (entry, { visualResume = null } = {}) => {
-    setError(null);
+  /**
+   * Track card appearances for archetype journey analytics
+   */
+  const trackCardAppearances = useCallback(async (cards, timestamp, entryId, themes) => {
+    if (!isAuthenticated) {
+      return; // Only track for authenticated users
+    }
 
-    // Capture userId before async operations to avoid stale closure issues
-    const userId = user?.id;
+    try {
+      await fetch('/api/archetype-journey/track', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          cards,
+          timestamp,
+          entryId,
+          themes
+        })
+      });
+      // Silent failure - don't block reading save if tracking fails
+    } catch (err) {
+      console.warn('Failed to track card appearances:', err);
+    }
+  }, [isAuthenticated]);
+
+  const saveEntry = useCallback(async (entry, { visualResume = null } = {}) => {
+    setError(null);
 
     try {
       if (isAuthenticated && canUseCloudJournal) {
@@ -560,35 +586,7 @@ export function useJournal({ autoLoad = true } = {}) {
       setError(err.message);
       return { success: false, error: err.message };
     }
-  };
-
-  /**
-   * Track card appearances for archetype journey analytics
-   */
-  const trackCardAppearances = async (cards, timestamp, entryId, themes) => {
-    if (!isAuthenticated) {
-      return; // Only track for authenticated users
-    }
-
-    try {
-      await fetch('/api/archetype-journey/track', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          cards,
-          timestamp,
-          entryId,
-          themes
-        })
-      });
-      // Silent failure - don't block reading save if tracking fails
-    } catch (err) {
-      console.warn('Failed to track card appearances:', err);
-    }
-  };
+  }, [canUseCloudJournal, isAuthenticated, persistInsights, trackCardAppearances, userId, gestureStudyEnabled, namespace, setEntries]);
 
   const deleteEntry = async (entryId) => {
     setError(null);

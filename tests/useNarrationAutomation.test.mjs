@@ -7,27 +7,29 @@ import {
 } from '../src/hooks/useNarrationAutomation.js';
 
 describe('getCanAutoNarrate', () => {
-  test('allows auto narration only for completed non-streaming non-azure readings', () => {
-    const result = getCanAutoNarrate({
-      voiceOn: true,
-      autoNarrate: true,
-      narrativePhase: 'complete',
-      isReadingStreaming: false,
-      autoNarrationTriggered: false,
-      ttsProvider: 'azure-sdk'
-    });
+  test('leaves completed ElevenLabs and Deepgram narration to ReadingContext', () => {
+    for (const ttsProvider of ['elevenlabs', 'deepgram']) {
+      const result = getCanAutoNarrate({
+        voiceOn: true,
+        autoNarrate: true,
+        narrativePhase: 'complete',
+        isReadingStreaming: false,
+        autoNarrationTriggered: false,
+        ttsProvider
+      });
 
-    assert.equal(result, true);
+      assert.equal(result, false);
+    }
   });
 
-  test('blocks auto narration while streaming, after trigger, or for azure provider', () => {
+  test('blocks auto narration while streaming or after a previous trigger', () => {
     assert.equal(getCanAutoNarrate({
       voiceOn: true,
       autoNarrate: true,
       narrativePhase: 'complete',
       isReadingStreaming: true,
       autoNarrationTriggered: false,
-      ttsProvider: 'azure-sdk'
+      ttsProvider: 'elevenlabs'
     }), false);
 
     assert.equal(getCanAutoNarrate({
@@ -36,17 +38,9 @@ describe('getCanAutoNarrate', () => {
       narrativePhase: 'complete',
       isReadingStreaming: false,
       autoNarrationTriggered: true,
-      ttsProvider: 'azure-sdk'
+      ttsProvider: 'deepgram'
     }), false);
 
-    assert.equal(getCanAutoNarrate({
-      voiceOn: true,
-      autoNarrate: true,
-      narrativePhase: 'complete',
-      isReadingStreaming: false,
-      autoNarrationTriggered: false,
-      ttsProvider: 'azure'
-    }), false);
   });
 });
 

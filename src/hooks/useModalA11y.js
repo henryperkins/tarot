@@ -192,7 +192,11 @@ export function useModalA11y(isOpen, {
           const options = optionsRef.current;
           const fallback = options.getFallbackFocus?.() || options.fallbackFocusRef?.current
             || (options.fallbackFocusSelector ? document.querySelector(options.fallbackFocusSelector) : null);
-          const target = isAvailable(opener) ? opener : isAvailable(fallback) ? fallback : topModal()?.container;
+          // A closing confirmation can leave body as the activation target of
+          // its successor. Body cannot receive focus; prefer a supplied stable
+          // fallback while preserving real nested openers.
+          const usableOpener = isAvailable(opener) && opener !== document.body && opener !== document.documentElement;
+          const target = usableOpener ? opener : isAvailable(fallback) ? fallback : topModal()?.container;
           restoreFocusTarget(target, { preventScroll: target === fallback ? options.fallbackFocusPreventScroll : true });
           previousFocusRef.current = null;
         }, 0);

@@ -105,7 +105,9 @@ function DashboardContent({ apiKey, onLogout }) {
   // Fetch data on mount and when days changes
   useEffect(() => {
     const controller = new AbortController();
-    fetchData(controller.signal);
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) fetchData(controller.signal);
+    });
     return () => controller.abort();
   }, [fetchData]);
 

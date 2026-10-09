@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import { createNarrativeFixture, startReading, QUESTION, expectNoHorizontalOverflow } from './helpers/narrativeFixtures.js';
 
 test.use({ serviceWorkers: 'block' });

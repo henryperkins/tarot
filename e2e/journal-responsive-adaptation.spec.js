@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import { createNarrativeFixture, openSetup, startReading, QUESTION, NARRATIVE } from './helpers/narrativeFixtures.js';
 
 const entry = {
@@ -154,7 +154,7 @@ async function measureJournalHeading(page, heading) {
 }
 
 test.describe('Journal saved Markdown themes', () => {
-  test.use({ viewport: { width: 390, height: 900 }, serviceWorkers: 'block', reducedMotion: 'reduce' });
+  test.use({ viewport: { width: 390, height: 900 }, serviceWorkers: 'block', contextOptions: { reducedMotion: 'reduce' } });
   test.setTimeout(60000);
 
   for (const theme of ['light', 'dark']) {

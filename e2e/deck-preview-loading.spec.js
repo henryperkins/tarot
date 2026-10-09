@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import { createNarrativeFixture, openSetup } from './helpers/narrativeFixtures.js';
 
 const DECK_IMAGE = /\/(rider|Thoth|marseille)[^/]*\.(?:jpeg|webp|avif)(?:\?|$)/;

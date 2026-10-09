@@ -169,6 +169,7 @@ export default function ShareReading() {
       value: root.style.getPropertyValue(property),
       priority: root.style.getPropertyPriority(property)
     }));
+    let focusFrame = null;
     const measure = () => {
       const maxPinnedHeight = window.innerHeight * 0.4;
       const headerHeight = header.getBoundingClientRect().height;
@@ -187,15 +188,39 @@ export default function ShareReading() {
       page.style.setProperty('--share-footer-height', `${reservedFooterHeight}px`);
       root.style.scrollPaddingTop = `${(pinHeader ? headerHeight : 0) + (pinTabs ? tabsHeight : 0) + gap}px`;
       root.style.scrollPaddingBottom = `${reservedFooterHeight + gap}px`;
+
+      // Resizing text can pin chrome again after the browser has revealed focus.
+      // Keep the focused control clear of the newly measured pinned regions.
+      if (focusFrame !== null) cancelAnimationFrame(focusFrame);
+      focusFrame = requestAnimationFrame(() => {
+        // Let native focus scrolling finish before applying chrome clearance.
+        focusFrame = requestAnimationFrame(() => {
+          focusFrame = null;
+          const focused = document.activeElement;
+          if (!page.contains(focused) || header.contains(focused) || tabs?.contains(focused)
+            || footer?.contains(focused) || !focused.matches('input, textarea, button, a[href], [tabindex]')) return;
+          const bounds = focused.getBoundingClientRect();
+          const top = (pinHeader ? headerHeight : 0) + (pinTabs ? tabsHeight : 0) + gap;
+          const bottom = window.innerHeight - reservedFooterHeight - gap;
+          if (bounds.height <= bottom - top) {
+            const offset = bounds.bottom > bottom ? bounds.bottom - bottom
+              : bounds.top < top ? bounds.top - top : 0;
+            if (offset) window.scrollBy({ top: offset, behavior: 'instant' });
+          }
+        });
+      });
     };
     measure();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
     // Safe-area padding can change the border box without changing content size.
-    [header, tabs, footer].filter(Boolean).forEach(element => observer?.observe(element, { box: 'border-box' }));
+    [page, header, tabs, footer].filter(Boolean).forEach(element => observer?.observe(element, { box: 'border-box' }));
     window.addEventListener('resize', measure);
+    page.addEventListener('focusin', measure);
     return () => {
       observer?.disconnect();
+      if (focusFrame !== null) cancelAnimationFrame(focusFrame);
       window.removeEventListener('resize', measure);
+      page.removeEventListener('focusin', measure);
       [header, tabs, footer].filter(Boolean).forEach(element => element.style.removeProperty('position'));
       page.style.removeProperty('--share-header-height');
       page.style.removeProperty('--share-footer-height');

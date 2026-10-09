@@ -532,7 +532,7 @@ export default function JourneyMobileSheet({
                   <Fire className="h-4 w-4 text-[color:var(--text-accent)]" />
                   {currentStreak}
                 </p>
-                <p className="text-2xs text-muted flex items-center justify-center gap-1">
+                <div className="text-2xs text-muted flex items-center justify-center gap-1">
                   streak
                   <Tooltip
                     content={streakGraceTooltip}
@@ -542,7 +542,7 @@ export default function JourneyMobileSheet({
                   >
                     <Info className="h-3 w-3" />
                   </Tooltip>
-                </p>
+                </div>
               </div>
             )}
           </div>

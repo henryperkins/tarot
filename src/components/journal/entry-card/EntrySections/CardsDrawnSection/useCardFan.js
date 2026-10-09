@@ -44,7 +44,7 @@ const ROTATION_MAP = {
  * @param {number} containerWidth - Available container width
  * @returns {{ x: number, y: number, rotation: number, scale: number, zIndex: number }}
  */
-export function getArcPosition(index, total, containerWidth = 360) {
+export function getArcPosition(index, total, containerWidth = 360, footprint = { width: 64, height: 102 }) {
   if (total === 1) {
     return { x: 0, y: 0, rotation: 0, scale: 1, zIndex: 10 };
   }
@@ -74,7 +74,12 @@ export function getArcPosition(index, total, containerWidth = 360) {
   // Use most of the container width for larger spreads
   const padding = total > 7 ? 8 : 16;
   const availableWidth = Math.max(safeContainerWidth - padding * 2, cardWidth);
-  const maxOffset = Math.min(availableWidth / 2, totalFanWidth / 2);
+  // Reserve rotated extents, including the name below the thumbnail. The
+  // transform rotates around bottom center, so height contributes to width.
+  const edgeScaleForBounds = total > 7 ? 0.90 : EDGE_SCALE;
+  const radians = halfArc * Math.PI / 180;
+  const edgeExtent = edgeScaleForBounds * (footprint.width / 2 * Math.cos(radians) + footprint.height * Math.sin(radians));
+  const maxOffset = Math.max(0, Math.min(safeContainerWidth / 2 - edgeExtent - 4, availableWidth / 2, totalFanWidth / 2));
   const x = normalizedPos * maxOffset;
 
   // Scale: slightly smaller at edges, more reduction for large spreads

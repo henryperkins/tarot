@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import FocusTrap from 'focus-trap-react';
 import { X, Eye, EyeSlash } from '@phosphor-icons/react';
@@ -18,12 +18,14 @@ function normalizeMode(mode) {
   return ['login', 'register', 'forgot'].includes(mode) ? mode : 'login';
 }
 
-export default function AuthModal({ isOpen, onClose, initialMode = 'login', returnFocusRef }) {
-  const { register, login, requestPasswordReset, resendVerification, startOAuth, error: authError } = useAuth();
+export default function AuthModal({ isOpen, onClose, initialMode = 'login', returnFocusRef, emailDraft, onEmailDraftChange }) {
+  const { register, login, requestPasswordReset, resendVerification, startOAuth } = useAuth();
   const isSmallScreen = useSmallScreen();
   const [mode, setMode] = useState(() => normalizeMode(initialMode));
   const [previousOpening, setPreviousOpening] = useState({ isOpen, initialMode });
-  const [email, setEmail] = useState('');
+  const [localEmail, setLocalEmail] = useState('');
+  const email = emailDraft ?? localEmail;
+  const setEmail = onEmailDraftChange || setLocalEmail;
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -34,6 +36,26 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
   const [success, setSuccess] = useState('');
   const modalRef = useRef(null);
   const firstInputRef = useRef(null);
+
+  const sessionRef = useRef(0);
+  const timersRef = useRef(new Set());
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      sessionRef.current += 1;
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, [isOpen]);
+
+  const scheduleSession = (callback, delay) => {
+    const session = sessionRef.current;
+    const timer = setTimeout(() => {
+      timersRef.current.delete(timer);
+      if (session === sessionRef.current) callback();
+    }, delay);
+    timersRef.current.add(timer);
+  };
 
   // Use modal accessibility hook for scroll lock, escape key, and focus restoration
   // trapFocus: false because FocusTrap library handles focus trapping
@@ -52,6 +74,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
       setMode(normalizeMode(initialMode));
       setError('');
       setSuccess('');
+      setPassword('');
+      setConfirmPassword('');
+      setUsername('');
+      setLoading(false);
       setShowPassword(false);
       setShowConfirmPassword(false);
     }
@@ -68,17 +94,20 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
   const handleOAuthStart = async (provider) => {
     setError('');
     setSuccess('');
+    const session = sessionRef.current;
     setLoading(true);
     try {
       const result = await startOAuth('/account', provider);
+      if (session !== sessionRef.current) return;
       if (!result.success) {
         setError(result.error || 'Unable to start social login');
         return;
       }
     } catch (err) {
+      if (session !== sessionRef.current) return;
       setError(err?.message || 'Unable to start social login');
     } finally {
-      setLoading(false);
+      if (session === sessionRef.current) setLoading(false);
     }
   };
 
@@ -86,6 +115,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
     e.preventDefault();
     setError('');
     setSuccess('');
+    const session = sessionRef.current;
     setLoading(true);
 
     try {
@@ -107,10 +137,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
         }
 
         const result = await register(email, username, password);
+        if (session !== sessionRef.current) return;
 
         if (result.success) {
           setSuccess('Account created successfully!');
-          setTimeout(() => {
+          scheduleSession(() => {
             onClose();
           }, 1500);
         } else {
@@ -123,9 +154,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
         }
 
         const result = await requestPasswordReset(email);
+        if (session !== sessionRef.current) return;
         if (result.success) {
           setSuccess('If this email is registered, you will receive a reset link shortly.');
-          setTimeout(() => {
+          scheduleSession(() => {
             changeMode('login');
             setPassword('');
             setConfirmPassword('');
@@ -142,10 +174,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
         }
 
         const result = await login(email, password);
+        if (session !== sessionRef.current) return;
 
         if (result.success) {
           setSuccess('Logged in successfully!');
-          setTimeout(() => {
+          scheduleSession(() => {
             onClose();
           }, 1000);
         } else {
@@ -153,9 +186,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
         }
       }
     } catch (err) {
+      if (session !== sessionRef.current) return;
       setError(err.message || 'An error occurred');
     } finally {
-      setLoading(false);
+      if (session === sessionRef.current) setLoading(false);
     }
   };
 
@@ -168,18 +202,21 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
       return;
     }
 
+    const session = sessionRef.current;
     setLoading(true);
     try {
       const result = await resendVerification(email);
+      if (session !== sessionRef.current) return;
       if (result.success) {
         setSuccess('If this email is registered, a verification email is on the way.');
       } else {
         setError(result.error || 'Unable to send verification email');
       }
     } catch (err) {
+      if (session !== sessionRef.current) return;
       setError(err.message || 'Unable to send verification email');
     } finally {
-      setLoading(false);
+      if (session === sessionRef.current) setLoading(false);
     }
   };
 
@@ -219,7 +256,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
     transition-colors
   `;
 
-  const errorId = error || authError ? 'auth-error' : undefined;
+  const errorId = error ? 'auth-error' : undefined;
   const overlayClasses = [
     'fixed inset-0 z-auth flex justify-center bg-main/90 backdrop-blur-sm animate-fade-in overflow-y-auto px-safe pt-safe pb-safe',
     isSmallScreen ? 'items-start px-4 py-8' : 'items-center p-4',
@@ -327,7 +364,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
                     placeholder="you@example.com"
                     required
                     disabled={loading}
-                    aria-invalid={Boolean(error || authError)}
+                    aria-invalid={Boolean(error)}
                   />
                 </div>
 
@@ -383,7 +420,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
                         required
                         disabled={loading}
                         minLength={8}
-                        aria-invalid={Boolean(error || authError)}
+                        aria-invalid={Boolean(error)}
                         aria-describedby={mode === 'register' ? 'password-hint' : undefined}
                       />
                       <button
@@ -487,13 +524,13 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
               </div>
 
             {/* Error message */}
-            {(error || authError) && (
+            {(error) && (
               <div
                 id="auth-error"
                 role="alert"
                 className="mt-4 p-3 bg-error/10 border border-error/40 rounded-lg"
               >
-                <p className="text-sm text-error">{error || authError}</p>
+                <p className="text-sm text-error">{error}</p>
               </div>
             )}
 

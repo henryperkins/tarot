@@ -31,7 +31,7 @@ flowchart TB
             API_Jobs["Reading Job API (tarot-reading-job-start/status/stream/cancel.js) –<br/>/jobs start/status/stream/cancel"]
             API_Followup["Follow-up Q&A (reading-followup.js)"]
             API_TTS["Text-to-Speech (tts.js)"]
-            API_SpeechToken["Speech Token (speech-token.js)"]
+            API_SpeechToken["Retired Speech Token (speech-token.js) – 410"]
             API_Journal["Journal Entries (journal.js & variants)"]
             API_Feedback["Feedback (feedback.js)"]
             API_Memories["Memories & Usage (memories.js, usage.js)"]
@@ -75,17 +75,15 @@ flowchart TB
         ModalQwen["Modal Qwen<br/>Chat Completions"]
         AzureGPT5["azure-gpt5<br/>OpenAI native Responses or Azure OpenAI Responses"]
         Claude["Anthropic API<br/>Claude Opus 5.5"]
-        AzureOpenAI["Azure OpenAI – TTS"]
-        AzureSpeech["Azure Speech Service – client TTS"]
+        ReaderTTS["User-selected narration<br/>ElevenLabs v4 / Sarah<br/>Deepgram Aura-2 / Cora"]
     end
     Worker -->|1. narrative| ModalQwen
     Worker -->|2. narrative| AzureGPT5
     Worker -->|3. fallback| Claude
     Worker -->|4. deterministic fallback| LocalComposer
-    Worker -->|TTS generation| AzureOpenAI
+    Worker -->|TTS generation and shared allowance| ReaderTTS
     Worker -->|Create sessions, Portal| StripeAPI
     Worker <-->|Stripe Webhook| StripeAPI
-    Frontend -->|Speech audio fetch| AzureSpeech
     Frontend <-->|API calls (REST & SSE)| Worker
     Worker --> Assets["Static Assets (binding to /dist)"]
     Frontend --> Assets

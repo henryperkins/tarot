@@ -364,7 +364,8 @@ export function JournalFilters({
     }
   };
 
-  const handleMapAction = (id) => {
+  const handleMapAction = (event) => {
+    const id = event.currentTarget.dataset.filterId;
     if (id === 'query') {
       const el = searchInputRef.current;
       scrollToControl(el);
@@ -665,7 +666,8 @@ export function JournalFilters({
                     <button
                       key={node.id}
                       type="button"
-                      onClick={() => handleMapAction(node.id)}
+                      data-filter-id={node.id}
+                      onClick={handleMapAction}
                       disabled={node.disabled}
                       aria-label={`Edit ${node.label} filter`}
                       className={`group absolute text-left ${FOCUS_RING_DEFAULT} ${
@@ -722,7 +724,8 @@ export function JournalFilters({
                   <button
                     key={node.id}
                     type="button"
-                    onClick={() => handleMapAction(node.id)}
+                    data-filter-id={node.id}
+                    onClick={handleMapAction}
                     disabled={node.disabled}
                     aria-label={`Edit ${node.label} filter`}
                     className={`min-w-[150px] flex-1 rounded-xl border px-4 py-3 text-left backdrop-blur-md snap-start ${FOCUS_RING_DEFAULT} ${

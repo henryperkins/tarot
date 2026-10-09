@@ -45,7 +45,6 @@ export function useNarrativeReadingController({
   autoNarrate,
   ttsProvider,
   ttsState,
-  wordBoundary,
   effectiveTier,
   isAuthenticated,
   autoGenerateVisualsEnabled,
@@ -207,9 +206,6 @@ export function useNarrativeReadingController({
     handleNarrationButtonClick,
     handleVoicePromptEnable
   });
-  const activeWordBoundary = ttsProvider === 'azure-sdk' && ttsState?.status === 'playing'
-    ? wordBoundary
-    : null;
   const narrativeAtmosphereClassName = useMemo(() => (
     [narrativeAtmosphereClasses, beatClassName].filter(Boolean).join(' ')
   ), [beatClassName, narrativeAtmosphereClasses]);
@@ -297,7 +293,7 @@ export function useNarrativeReadingController({
     canAutoNarrate,
     narrativeHighlightPhrases,
     narrativeAtmosphereClassName,
-    activeWordBoundary,
+    activeWordBoundary: null,
     ttsState,
     ttsProvider,
     showVoicePrompt,
@@ -313,7 +309,6 @@ export function useNarrativeReadingController({
     gestureStudyEnabled,
     gestureSidecar,
     manualInspectionStatus,
-    activeWordBoundary,
     canAutoNarrate,
     cardLinkCatalog,
     displayName,

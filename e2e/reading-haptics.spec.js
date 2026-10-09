@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 import { createNarrativeFixture, openSetup, QUESTION } from './helpers/narrativeFixtures.js';
 
 async function openRitual(page) {

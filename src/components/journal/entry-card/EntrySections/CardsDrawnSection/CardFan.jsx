@@ -21,14 +21,21 @@ export const CardFan = memo(function CardFan({
   reduceMotion
 }) {
   const containerRef = useRef(null);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const [geometry, setGeometry] = useState({ width: 0, cardWidth: 64, cardHeight: 102 });
+  const footprint = { width: geometry.cardWidth, height: geometry.cardHeight };
 
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const updateWidth = () => {
-      setContainerWidth(container.offsetWidth);
+      const buttons = [...container.querySelectorAll('button')];
+      const next = {
+        width: container.offsetWidth,
+        cardWidth: Math.max(52, ...buttons.map(button => button.offsetWidth)),
+        cardHeight: Math.max(78, ...buttons.map(button => button.offsetHeight))
+      };
+      setGeometry(previous => previous.width === next.width && previous.cardWidth === next.cardWidth && previous.cardHeight === next.cardHeight ? previous : next);
     };
 
     updateWidth();
@@ -39,14 +46,26 @@ export const CardFan = memo(function CardFan({
 
     const observer = new ResizeObserver(updateWidth);
     observer.observe(container);
+    container.querySelectorAll('button').forEach(button => observer.observe(button));
     return () => observer.disconnect();
-  }, []);
+  }, [cards]);
 
   const getStackMotion = useCallback((index) => {
     const stackCount = Math.min(cards.length, 5);
     const stackIndex = Math.min(index, stackCount - 1);
     return getCardStackOffset(stackIndex, stackCount);
-  }, [cards.length]);
+  }, [cards]);
+
+  const positions = cards.map((_, index) => getArcPosition(index, cards.length, geometry.width, footprint));
+  const bounds = positions.map(pos => {
+    const angle = Math.abs(pos.rotation) * Math.PI / 180;
+    return {
+      top: pos.y + pos.scale * (geometry.cardHeight * Math.cos(angle) + geometry.cardWidth / 2 * Math.sin(angle)),
+      bottom: Math.max(0, pos.scale * geometry.cardWidth / 2 * Math.sin(angle) - pos.y)
+    };
+  });
+  const bottomInset = Math.max(0, ...bounds.map(bound => bound.bottom)) + 4;
+  const containerHeight = Math.max(geometry.cardHeight, ...bounds.map(bound => bound.top)) + bottomInset + 4;
 
   const renderCard = (card, index) => {
     const { isReversed, label } = getOrientationState(card);
@@ -54,7 +73,7 @@ export const CardFan = memo(function CardFan({
     const cardLabel = getCardAriaLabel(card, label);
     const tabIndex = cards.length === 1 ? 0 : (index === activeIndex ? 0 : -1);
     const isActive = index === activeIndex;
-    const arcPos = getArcPosition(index, cards.length, containerWidth);
+    const arcPos = positions[index];
     const stackMotion = getStackMotion(index);
     const transformX = Number.isFinite(arcPos?.x) ? arcPos.x : stackMotion.x;
     const transformY = Number.isFinite(arcPos?.y) ? -arcPos.y : stackMotion.y;
@@ -64,11 +83,12 @@ export const CardFan = memo(function CardFan({
     return (
       <div
         key={`${card?.name || 'card'}-${index}`}
-        className="absolute left-1/2 bottom-0 hover:!z-50 focus-within:!z-50"
+        className="absolute left-1/2 hover:!z-50 focus-within:!z-50"
         style={{
+          bottom: bottomInset,
           zIndex: isActive ? (arcPos.zIndex || 1) + 20 : (arcPos.zIndex || 1),
           transformOrigin: 'center bottom',
-          transform: `translateX(${transformX}px) translateY(${transformY}px) rotate(${rotation}deg) scale(${scale})`,
+          transform: `translateX(calc(${transformX}px - 50%)) translateY(${transformY}px) rotate(${rotation}deg) scale(${scale})`,
           opacity: 1,
           transition: reduceMotion
             ? 'none'
@@ -85,7 +105,6 @@ export const CardFan = memo(function CardFan({
             'hover:shadow-[0_20px_40px_-20px_rgba(0,0,0,0.6)]',
             isActive && 'shadow-[0_20px_40px_-20px_rgba(0,0,0,0.6)]'
           )}
-          style={{ transform: 'translateX(-50%)' }}
           tabIndex={tabIndex}
           onKeyDown={(event) => onCardKeyDown(event, index)}
           onClick={() => onCardSelect(index)}
@@ -157,8 +176,6 @@ export const CardFan = memo(function CardFan({
     );
   }
 
-  const arcRise = cards.length > 7 ? 32 : 24;
-  const containerHeight = EXPANDED_THUMB_SIZE.height + arcRise + 10;
 
   return (
     <div

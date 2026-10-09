@@ -1,12 +1,12 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 
 /**
  * Journal Filters E2E Tests
  *
  * Verifies:
- * - Desktop: filters appear in Journal History and are reachable via "Find a reading" + a floating "Filters" button
+ * - Desktop: filters appear in Journal History and are reachable via "Jump to journal filters" + a floating "Filters" button
  * - Desktop: sticky rail (Reading Journey) stays visible while scrolling
- * - Mobile: filters render in Journal History (compact) and "Advanced filters" reveals filter-map shortcuts
+ * - Mobile: filters render in Journal History (compact) and "More filters" reveals filter-map shortcuts
  * - Filter functionality: context/spread/deck/timeframe/reversal/search
  * - Entry counts update correctly
  * - Load more works after filtering
@@ -14,6 +14,7 @@ import { test, expect } from '@playwright/test';
 
 // Helper to seed localStorage with mock journal entries
 async function seedJournalEntries(page, entries) {
+  await page.clock.install({ time: new Date('2026-10-08T12:00:00Z') });
   await page.addInitScript((entriesJson) => {
     localStorage.setItem('tarot_journal', entriesJson);
   }, JSON.stringify(entries));
@@ -27,7 +28,7 @@ function generateMockEntries(count = 15) {
   const decks = ['rws-1909', 'thoth', 'marseille'];
 
   const DAY_MS = 24 * 60 * 60 * 1000;
-  const now = Date.now();
+  const now = Date.parse('2026-10-08T12:00:00Z');
 
   return Array.from({ length: count }, (_, i) => {
     // Distribute entries: first 5 within 30 days, next 5 within 90 days, rest older
@@ -79,7 +80,7 @@ test.describe('Journal Filters - Desktop @desktop', () => {
   });
 
   test('filters appear in journal history', async ({ page }) => {
-    const mainFilters = page.locator('#history section[aria-label="Focus your journal"]');
+    const mainFilters = page.locator('#history section[aria-label="Journal filters"]');
     await expect(mainFilters).toBeVisible();
 
     // Should only render one filters surface (no duplicate rail filters)
@@ -99,8 +100,9 @@ test.describe('Journal Filters - Desktop @desktop', () => {
     await expect(journeyHeading).toBeInViewport();
   });
 
-  test('"Find a reading" jumps to history filters', async ({ page }) => {
-    const jumpButton = page.getByRole('button', { name: /find a reading/i });
+  test('"Jump to journal filters" jumps to history filters', async ({ page }) => {
+    await page.evaluate(() => window.scrollTo({ top: 2500, behavior: 'instant' }));
+    const jumpButton = page.getByRole('button', { name: 'Jump to journal filters' });
     await expect(jumpButton).toBeVisible();
 
     await jumpButton.click();
@@ -109,11 +111,15 @@ test.describe('Journal Filters - Desktop @desktop', () => {
     await expect(filtersAnchor).toBeInViewport();
 
     const searchInput = filtersAnchor.getByPlaceholder('Search readings...');
-    await expect(searchInput).toBeVisible();
+    await expect(searchInput).toBeFocused();
   });
 
   test('floating "Filters" button appears after scroll and jumps back to filters', async ({ page }) => {
-    await page.evaluate(() => window.scrollTo(0, 2500));
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
 
     const floatingButton = page.getByRole('button', { name: 'Jump to journal filters' });
     await expect(floatingButton).toBeVisible();
@@ -135,8 +141,9 @@ test.describe('Journal Filters - Mobile @mobile', () => {
     await page.waitForSelector('[id="history"]', { timeout: 10000 });
   });
 
-  test('"Find a reading" jumps to history filters', async ({ page }) => {
-    const jumpButton = page.getByRole('button', { name: /find a reading/i });
+  test('"Jump to journal filters" jumps to history filters', async ({ page }) => {
+    await page.evaluate(() => window.scrollTo({ top: 2500, behavior: 'instant' }));
+    const jumpButton = page.getByRole('button', { name: 'Jump to journal filters' });
     await expect(jumpButton).toBeVisible();
 
     await jumpButton.click();
@@ -145,22 +152,23 @@ test.describe('Journal Filters - Mobile @mobile', () => {
     await expect(filtersAnchor).toBeInViewport();
 
     const searchInput = filtersAnchor.getByPlaceholder('Search readings...');
-    await expect(searchInput).toBeVisible();
+    await expect(searchInput).toBeFocused();
   });
 
   test('main content has compact filters', async ({ page }) => {
-    const mainFilters = page.locator('#history section[aria-label="Focus your journal"]');
+    const mainFilters = page.locator('#history section[aria-label="Journal filters"]');
     await expect(mainFilters).toBeVisible();
 
-    const advancedToggle = mainFilters.getByRole('button', { name: /advanced filters/i });
+    const advancedToggle = mainFilters.getByRole('button', { name: /more filters/i });
     await expect(advancedToggle).toBeVisible();
   });
 
-  test('advanced filters reveals filter map shortcuts', async ({ page }) => {
-    await page.getByRole('button', { name: /find a reading/i }).click();
+  test('more filters reveals filter map shortcuts', async ({ page }) => {
+    await page.evaluate(() => window.scrollTo({ top: 2500, behavior: 'instant' }));
+    await page.getByRole('button', { name: 'Jump to journal filters' }).click();
 
-    const mainFilters = page.locator('#history section[aria-label="Focus your journal"]');
-    const advancedToggle = mainFilters.getByRole('button', { name: /advanced filters/i });
+    const mainFilters = page.locator('#history section[aria-label="Journal filters"]');
+    const advancedToggle = mainFilters.getByRole('button', { name: /more filters/i });
 
     await advancedToggle.click();
     await expect(advancedToggle).toHaveAttribute('aria-expanded', 'true');
@@ -170,10 +178,11 @@ test.describe('Journal Filters - Mobile @mobile', () => {
   });
 
   test('filter map can open the timeframe dropdown', async ({ page }) => {
-    await page.getByRole('button', { name: /find a reading/i }).click();
+    await page.evaluate(() => window.scrollTo({ top: 2500, behavior: 'instant' }));
+    await page.getByRole('button', { name: 'Jump to journal filters' }).click();
 
-    const mainFilters = page.locator('#history section[aria-label="Focus your journal"]');
-    const advancedToggle = mainFilters.getByRole('button', { name: /advanced filters/i });
+    const mainFilters = page.locator('#history section[aria-label="Journal filters"]');
+    const advancedToggle = mainFilters.getByRole('button', { name: /more filters/i });
 
     await advancedToggle.click();
     await expect(advancedToggle).toHaveAttribute('aria-expanded', 'true');
@@ -183,6 +192,8 @@ test.describe('Journal Filters - Mobile @mobile', () => {
 
     const option30d = page.getByRole('option', { name: '30 days' });
     await expect(option30d).toBeVisible();
+    await option30d.click();
+    await expect(page.locator('[id^="journal-entry-mock-entry-"]')).toHaveCount(5);
   });
 });
 
@@ -196,110 +207,72 @@ test.describe('Filter Functionality @desktop', () => {
     await page.waitForSelector('[id="history"]', { timeout: 10000 });
   });
 
-  test('entry count badge updates when filtering', async ({ page }) => {
-    // Find the entry count badge
-    const countBadge = page.locator('#history').locator('text=/Showing \\d+ of \\d+/');
-    await expect(countBadge).toBeVisible();
-
-    const initialText = await countBadge.textContent();
-
-    // Apply a context filter by clicking the Context dropdown
-    const contextDropdown = page.locator('#history').getByRole('button', { name: 'Context', exact: true });
-    await contextDropdown.click();
-
-    // Select "Love" option
-    await page.getByRole('option', { name: 'Love' }).click();
-
-    // Close dropdown (multi-select stays open by design)
+  const articles = page => page.locator('[id^="journal-entry-mock-entry-"]');
+  const expectIds = async (page, ids) => {
+    await expect.poll(() => articles(page).evaluateAll(elements => elements.map(el => Number(el.id.split('-').at(-1))).sort((a, b) => a - b))).toEqual(ids);
+    await expect(page.getByText(`Filtered: ${ids.length}`, { exact: true })).toBeVisible();
+    await expect(page.getByText('Loaded: 15 of 15', { exact: true })).toBeVisible();
+  };
+  const select = async (page, label, option) => {
+    await page.locator('#history').getByRole('button', { name: label, exact: true }).click();
+    await page.getByRole('option', { name: option, exact: true }).click();
     await page.keyboard.press('Escape');
+  };
 
-    // Count should have changed (filtered to only "love" context entries)
-    // With 15 entries cycling through 6 contexts, ~2-3 will be "love"
-    await expect(countBadge).not.toHaveText(initialText);
+  test('entry count badge updates when filtering', async ({ page }) => {
+    await expect(page.getByText('Filtered: 15', { exact: true })).toBeVisible();
+    await expect(articles(page)).toHaveCount(10);
+    await select(page, 'Context', 'Love');
+    await expectIds(page, [0, 6, 12]);
   });
 
   test('search filter works', async ({ page }) => {
-    const searchInput = page.locator('#history').getByPlaceholder('Search readings...');
-    const countBadge = page.locator('#history').locator('text=/Showing \\d+ of \\d+/');
-
-    // Get initial count
-    const initialText = await countBadge.textContent();
-
-    // Search for something specific that will filter results
-    await searchInput.fill('entry 1');
-
-    // Wait for the count to change (debounced filter applied)
-    await expect(async () => {
-      const newText = await countBadge.textContent();
-      expect(newText).not.toBe(initialText);
-    }).toPass({ timeout: 2000 });
-
-    // Should find entries with "entry 1" in question text
-    const countText = await countBadge.textContent();
-    expect(countText).toMatch(/Showing \d+ of \d+/);
+    const search = page.getByPlaceholder('Search readings...');
+    await search.fill('entry 1');
+    await expectIds(page, [0, 9, 10, 11, 12, 13, 14]);
+    await search.fill('');
+    await expect(articles(page)).toHaveCount(10);
+    await expect(page.getByText('Filtered: 15', { exact: true })).toBeVisible();
   });
 
   test('timeframe filter works', async ({ page }) => {
-    const countBadge = page.locator('#history').locator('text=/Showing \\d+ of \\d+/');
-    const initialText = await countBadge.textContent();
-
-    // Click timeframe dropdown
-    const timeframeDropdown = page.locator('#history').getByRole('button', { name: 'Timeframe', exact: true });
-    await timeframeDropdown.click();
-
-    // Select "30 days" - should filter to only 5 entries (those within 30 days)
-    await page.getByRole('option', { name: '30 days' }).click();
-
-    // Count should change (mock data has 5 entries within 30 days, 5 within 90, 5 older)
-    await expect(countBadge).not.toHaveText(initialText);
+    await select(page, 'Timeframe', '30 days');
+    await expectIds(page, [0, 1, 2, 3, 4]);
   });
 
   test('reversals toggle filter works', async ({ page }) => {
-    // Find and click the Reversals toggle
-    const reversalsToggle = page.locator('#history').getByRole('button', { name: 'Reversals', exact: true });
-    await reversalsToggle.click();
-
-    // Button should now show active state (has check mark)
-    const checkIcon = reversalsToggle.locator('svg');
-    await expect(checkIcon).toBeVisible();
-
-    // Entry count should update to show only entries with reversed cards
-    const countBadge = page.locator('#history').locator('text=/Showing \\d+ of \\d+/');
-    await expect(countBadge).toBeVisible();
+    const reversals = page.locator('#history').getByRole('button', { name: 'Reversals', exact: true });
+    await reversals.click();
+    await expect(reversals).toHaveAttribute('aria-pressed', 'true');
+    await expectIds(page, [0, 4, 8, 12]);
   });
 
   test('reset clears all filters', async ({ page }) => {
-    const searchInput = page.locator('#history').getByPlaceholder('Search readings...');
-
-    // Apply some filters
-    await searchInput.fill('test');
-
-    // Click reset button
-    const resetButton = page.locator('#history').getByRole('button', { name: /reset|clear/i }).first();
-    await resetButton.click();
-
-    // Search should be cleared
-    await expect(searchInput).toHaveValue('');
+    await select(page, 'Context', 'Love');
+    await select(page, 'Timeframe', '30 days');
+    await page.getByRole('button', { name: 'Reversals', exact: true }).click();
+    await expectIds(page, [0]);
+    await page.getByPlaceholder('Search readings...').fill('test');
+    await page.locator('#history').getByRole('button', { name: 'Reset view', exact: true }).click();
+    await expect(page.getByPlaceholder('Search readings...')).toHaveValue('');
+    await expect(page.getByText('Filtered: 15', { exact: true })).toBeVisible();
+    await expect(articles(page)).toHaveCount(10);
   });
 
   test('load more button works after filtering', async ({ page }) => {
-    // With 15 entries and batch size of 10, load more should exist
-    const loadMoreButton = page.getByRole('button', { name: /load \d+ more/i });
-    await expect(loadMoreButton).toBeVisible();
-
-    const countBadge = page.locator('#history').locator('text=/Showing \\d+ of \\d+/');
-    const initialText = await countBadge.textContent();
-    const initialShowing = parseInt(initialText.match(/Showing (\d+)/)?.[1] || '0');
-
-    // Click load more
-    await loadMoreButton.click();
-
-    // Should show more entries
-    await expect(async () => {
-      const newText = await countBadge.textContent();
-      const newShowing = parseInt(newText.match(/Showing (\d+)/)?.[1] || '0');
-      expect(newShowing).toBeGreaterThan(initialShowing);
-    }).toPass();
+    await expect(articles(page)).toHaveCount(10);
+    await page.getByRole('button', { name: 'Load 5 more', exact: true }).click();
+    await expect(articles(page)).toHaveCount(15);
+    await expect(page.getByText('Filtered: 15', { exact: true })).toBeVisible();
+    const search = page.getByPlaceholder('Search readings...');
+    await search.fill('test');
+    await expect(articles(page)).toHaveCount(10);
+    await page.getByRole('button', { name: 'Load 5 more', exact: true }).click();
+    await expect(articles(page)).toHaveCount(15);
+    await select(page, 'Context', 'Love');
+    await expectIds(page, [0, 6, 12]);
+    await page.locator('#history').getByRole('button', { name: 'Reset view', exact: true }).click();
+    await expect(articles(page)).toHaveCount(10);
   });
 });
 

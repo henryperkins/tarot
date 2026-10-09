@@ -1,8 +1,12 @@
 # Azure Text-to-Speech Complete Reference
 
 Type: reference
-Status: active reference
-Last reviewed: 2026-04-23
+Status: archived reference
+Last reviewed: 2026-10-08
+
+Azure narration has been retired. The application now provides user-selectable
+ElevenLabs and Deepgram narration; see [narration safeguards](narration-safeguards.md)
+for the current setup. This reference remains as historical provider documentation.
 
 Compiled from Microsoft Azure documentation (January 2026).
 

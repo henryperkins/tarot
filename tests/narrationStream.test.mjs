@@ -82,7 +82,6 @@ describe('auto-narration debounce scheduling', () => {
     isReadingStreaming: true,
     isPersonalReadingError: false,
     autoNarrationTriggered: false,
-    ttsProvider: 'azure-sdk',
     ttsStatus: 'idle'
   };
 
@@ -104,4 +103,16 @@ describe('auto-narration debounce scheduling', () => {
 
     assert.equal(shouldSchedule, false);
   });
+
+  for (const ttsProvider of ['elevenlabs', 'deepgram', 'azure-sdk', 'azure', 'hume']) {
+    it(`${ttsProvider} uses the completed-reading narration owner without scheduling a second request`, () => {
+      const shouldSchedule = shouldScheduleAutoNarration({
+        ...baseOptions,
+        isReadingStreaming: false,
+        narrativeText: 'A complete screened reading with ample narrative text. '.repeat(20),
+        ttsProvider
+      });
+      assert.equal(shouldSchedule, false);
+    });
+  }
 });

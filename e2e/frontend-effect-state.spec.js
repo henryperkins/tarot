@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 
 const READER = {
   id: 'effect-state-reader', username: 'Reader', email: 'reader@example.invalid',
@@ -56,6 +56,43 @@ test.describe('State ownership through effects', () => {
     await expect(entries).toHaveCount(10);
   });
 
+  test('repeating a full-history query waits for its new result instead of reusing a previous answer', async ({ page }) => {
+    await prepare(page, READER);
+    const entries = journalEntries(200);
+    await page.route('**/api/journal?*', route => route.fulfill({
+      json: { entries, pagination: { hasMore: false, total: entries.length } }
+    }));
+    let searchRequests = 0;
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/journal/search?*', async route => {
+      searchRequests += 1;
+      const repeated = searchRequests > 1;
+      if (repeated) await gate;
+      await route.fulfill({ json: { entries: [{
+        ...entries[0], id: repeated ? 'new-search-answer' : 'old-search-answer',
+        question: repeated ? 'Alpha refreshed result' : 'Alpha cached result'
+      }] } });
+    });
+    try {
+      await page.goto('/journal');
+      const search = page.getByPlaceholder('Search readings...');
+      await search.fill('alpha');
+      await expect(page.locator('#journal-entry-old-search-answer')).toBeVisible();
+      await search.fill('');
+      await expect(page.locator('#journal-entry-effect-entry-0')).toBeVisible();
+      await search.fill('alpha');
+      await expect.poll(() => searchRequests).toBe(2);
+      await expect(page.getByText('Searching your full journal history...', { exact: true })).toBeVisible();
+      await expect(page.locator('#journal-entry-old-search-answer')).toHaveCount(0);
+      release();
+      await expect(page.locator('#journal-entry-new-search-answer')).toBeVisible();
+      expect(searchRequests).toBe(2);
+    } finally {
+      release();
+    }
+  });
+
   test('a deep-linked entry beyond the first batch stays rendered after its highlight expires', async ({ page }) => {
     // Pause before navigation so rendering time cannot consume the brief highlight.
     const started = Date.now();
@@ -85,6 +122,85 @@ test.describe('State ownership through effects', () => {
     await expect(entry).toBeAttached();
     await expect(page.locator('[id^="journal-entry-effect-entry-"]')).toHaveCount(15);
   });
+
+  for (const editedFilter of [false, true]) {
+    test(`unrelated journal rerenders preserve reader scroll and highlight expiry ${editedFilter ? 'after a filter edit' : 'with idle search'}`, async ({ page }) => {
+      const started = Date.now();
+      await page.clock.install({ time: started - 60000 });
+      await page.clock.pauseAt(started);
+      await prepare(page, null, journalEntries());
+      await page.addInitScript(() => {
+        history.replaceState({ usr: { highlightEntryId: 'effect-entry-14' }, key: 'scroll-highlight', idx: 0 }, '');
+        const scrollIntoView = Element.prototype.scrollIntoView;
+        window.journalHighlightScrolls = 0;
+        Element.prototype.scrollIntoView = function (...args) {
+          if (this.id === 'journal-entry-effect-entry-14') window.journalHighlightScrolls += 1;
+          return scrollIntoView.apply(this, args);
+        };
+      });
+      await page.goto('/journal');
+      const entry = page.locator('#journal-entry-effect-entry-14');
+      await expect.poll(async () => {
+        await page.clock.runFor(50);
+        return entry.count();
+      }, { intervals: [50] }).toBe(1);
+      await page.evaluate(() => document.fonts.ready);
+      await page.clock.runFor(50);
+      await expect(entry).toHaveClass(/ring-primary\/35/);
+      await expect(entry).toBeInViewport();
+
+      if (editedFilter) {
+        const search = page.getByPlaceholder('Search readings...');
+        await search.fill('Reflection 1');
+        await expect(page.locator('[id^="journal-entry-effect-entry-"]')).toHaveCount(7);
+        await page.clock.runFor(50);
+        await expect(entry).toBeInViewport();
+        // Finish editing before the reader scrolls away; otherwise the browser
+        // can scroll back to the focused input when scope content changes size.
+        await search.evaluate(input => input.blur());
+      }
+
+      // Let startup work settle, then move away from the deep-link target. The
+      // scope controls update Journal's state without changing history filters.
+      await page.clock.runFor(650);
+      // Manual scrolling removes the floating controls and changes page height.
+      // Establish the baseline after that reflow without consuming highlight time.
+      await page.evaluate(() => window.scrollTo({ top: 100, behavior: 'instant' }));
+      let previousHeight = null;
+      let stableMeasurements = 0;
+      await expect.poll(async () => {
+        const height = await page.evaluate(() => document.documentElement.scrollHeight);
+        stableMeasurements = height === previousHeight ? stableMeasurements + 1 : 0;
+        previousHeight = height;
+        return stableMeasurements >= 3;
+      }, { intervals: [50] }).toBe(true);
+      const readerScrollY = await page.evaluate(() => {
+        window.scrollTo({ top: 100, behavior: 'instant' });
+        return window.scrollY;
+      });
+      expect(readerScrollY).toBe(100);
+      const highlightScrolls = await page.evaluate(() => window.journalHighlightScrolls);
+      expect(highlightScrolls).toBeGreaterThan(0);
+      for (const [index, scope] of ['All time', 'This month', 'All time', 'This month'].entries()) {
+        const control = page.locator('#history').getByRole('button', { name: scope, exact: true });
+        // Avoid Playwright's automatic scroll-to-control so only application
+        // effects can move the reader's chosen position during this assertion.
+        await control.evaluate(button => button.click());
+        await expect(control).toHaveAttribute('aria-pressed', 'true');
+        await page.clock.runFor(650);
+        expect.soft(await page.evaluate(() => window.journalHighlightScrolls)).toBe(highlightScrolls);
+        // Scope copy can cause a few pixels of native scroll anchoring, while
+        // restarting the deep-link scroll pulls the reader hundreds of pixels.
+        expect.soft(Math.abs(await page.evaluate(() => window.scrollY) - readerScrollY)).toBeLessThan(8);
+        if (index < 3) await expect(entry).toHaveClass(/ring-primary\/35/);
+      }
+
+      // The original 3.2s lifetime has elapsed even with repeated unrelated
+      // updates; each rerender must not restart the highlight's expiry timer.
+      await expect(entry).not.toHaveClass(/ring-primary\/35/, { timeout: 1000 });
+      await expect(entry).toBeAttached();
+    });
+  }
 
   test('a journal highlight found after navigation changes filters clears the unavailable banner', async ({ page }) => {
     await prepare(page, null, journalEntries());

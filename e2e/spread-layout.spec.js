@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 
 const VIEWPORTS = [
   { width: 390, height: 844 },

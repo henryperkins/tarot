@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Moon, User } from '@phosphor-icons/react';
+import { User } from '@phosphor-icons/react';
+import { TableuLogo } from '../../TableuLogo';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { useLandscape } from '../../../hooks/useLandscape';
@@ -47,22 +48,22 @@ export function WelcomeStep({ onNext }) {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex min-w-0 flex-col h-full [overflow-wrap:anywhere]">
       {/* Hero - simplified */}
       <div
         className={`text-center ${isLandscape ? 'mb-3' : 'mb-6'} ${
           prefersReducedMotion ? '' : 'animate-fade-in-up'
         }`}
       >
-        <Moon
-          className={`mx-auto text-accent ${isLandscape ? 'w-12 h-12 mb-2' : 'w-16 h-16 mb-4'}`}
-          weight="duotone"
-          aria-hidden="true"
+        <TableuLogo
+          size={isLandscape ? 48 : 64}
+          className={`mx-auto ${isLandscape ? 'mb-2' : 'mb-4'}`}
+          decorative
         />
-        <h2 className={`font-serif text-main ${isLandscape ? 'text-2xl mb-1' : 'text-3xl mb-2'}`}>
+        <h2 className={`font-serif leading-tight text-balance text-main ${isLandscape ? 'text-2xl mb-1' : 'text-3xl mb-2'}`}>
           Welcome to Tableu
         </h2>
-        <p className="text-muted text-sm">A space for reflection, clarity, and insight</p>
+        <p className="mx-auto max-w-[45ch] text-muted text-base leading-relaxed text-pretty">A space for reflection, clarity, and insight</p>
       </div>
 
       {/* Consolidated inputs - all visible, no accordions */}
@@ -74,7 +75,7 @@ export function WelcomeStep({ onNext }) {
         >
           <label
             htmlFor="welcome-name"
-            className="flex items-center gap-2 text-sm text-accent mb-2"
+            className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-accent mb-2"
           >
             <User className="w-4 h-4" weight="duotone" aria-hidden="true" />
             What should we call you?
@@ -97,14 +98,14 @@ export function WelcomeStep({ onNext }) {
           className={prefersReducedMotion ? '' : 'animate-fade-in-up'}
           style={{ animationDelay: '0.2s' }}
         >
-          <p className="text-sm text-accent mb-2">Tarot experience</p>
-          <div className="flex gap-2">
+          <p className="text-sm font-medium text-accent mb-2">Tarot experience</p>
+          <div className="flex flex-wrap gap-2">
             {EXPERIENCE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => setExperience(opt.value)}
-                className={`flex-1 min-h-touch py-3 px-2 rounded-xl text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                className={`flex-1 basis-24 min-h-touch py-3 px-2 rounded-xl text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                   experience === opt.value
                     ? 'bg-accent text-surface'
                     : 'bg-surface border border-secondary/30 text-muted hover:border-accent/50'
@@ -122,17 +123,17 @@ export function WelcomeStep({ onNext }) {
           className={prefersReducedMotion ? '' : 'animate-fade-in-up'}
           style={{ animationDelay: '0.3s' }}
         >
-          <p className="text-sm text-accent">Reading tone</p>
-          <p className="text-xs text-muted mb-2">
+          <p className="text-sm font-medium text-accent">Reading tone</p>
+          <p className="text-sm leading-normal text-muted mt-1 mb-2 text-pretty">
             Changes how direct the reading sounds, not the card meanings.
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {TONE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => setTone(opt.value)}
-                className={`flex-1 min-h-touch py-2.5 px-2 rounded-xl text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                className={`flex-1 basis-24 min-h-touch py-2.5 px-2 rounded-xl text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                   tone === opt.value
                     ? 'bg-accent text-surface'
                     : 'bg-surface border border-secondary/30 text-muted hover:border-accent/50'
@@ -141,7 +142,7 @@ export function WelcomeStep({ onNext }) {
               >
                 <span className="block text-sm font-semibold">{opt.label}</span>
                 <span
-                  className={`block text-2xs ${
+                  className={`block text-xs leading-normal mt-1 ${
                     tone === opt.value ? 'text-surface' : 'text-muted'
                   }`}
                 >
@@ -150,7 +151,7 @@ export function WelcomeStep({ onNext }) {
                 </button>
             ))}
           </div>
-          <p className="text-xs text-muted mt-2">{tonePreview}</p>
+          <p className="text-sm leading-normal text-muted mt-3 text-pretty">{tonePreview}</p>
         </div>
       </div>
 

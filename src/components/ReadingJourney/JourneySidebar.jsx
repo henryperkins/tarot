@@ -451,7 +451,7 @@ export default function JourneySidebar({
                 <Fire className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" />
                 {currentStreak}
               </p>
-              <p className="text-xs text-muted flex items-center justify-center gap-1">
+              <div className="text-xs text-muted flex items-center justify-center gap-1">
                 streak
                 <Tooltip
                   content={streakGraceTooltip}
@@ -461,7 +461,7 @@ export default function JourneySidebar({
                 >
                   <Info className="h-3 w-3" />
                 </Tooltip>
-              </p>
+              </div>
             </div>
           )}
           {reversalRateSample > 0 && (

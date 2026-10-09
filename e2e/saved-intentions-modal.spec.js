@@ -1,11 +1,9 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-test.describe('Saved intentions modal @desktop', () => {
+test.describe('Saved intentions modal', () => {
   test('confirms before using or deleting an intention', async ({ page }) => {
-    test.skip(test.info().project.name.includes('mobile'), 'Desktop-only for this flow');
-
     const question = 'E2E saved intention for nested modal focus';
 
     // Match the anonymous storage fixture without relying on a running Worker

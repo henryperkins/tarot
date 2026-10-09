@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 
 const PROMPT = 'What would you like to understand?';
 const FIRST_EXAMPLE = 'What should I focus on this week to feel grounded?';

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/frontendTest.js';
 
 // The shared suite defaults to reduced motion. Exercise real entrance animations
 // here: Playwright's toBeVisible() alone also passes for an opacity-zero ancestor.
@@ -57,7 +57,7 @@ for (const size of [
   { name: 'phone @mobile', viewport: { width: 390, height: 844 } }
 ]) {
   test.describe(`Page visibility - ${size.name}`, () => {
-    test.use({ viewport: size.viewport, reducedMotion: 'no-preference', serviceWorkers: 'block' });
+    test.use({ viewport: size.viewport, contextOptions: { reducedMotion: 'no-preference' }, serviceWorkers: 'block' });
 
     test.beforeEach(async ({ page }) => {
       // These are frontend navigation tests; no account or backend is required.
