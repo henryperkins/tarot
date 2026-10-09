@@ -118,3 +118,103 @@ test('abort and timeout bound an unresponsive binding and suppress late output',
   await assert.rejects(runVisualCueAnnotation({ prompt,
     env: { ...configured(() => new Promise(() => {})), VISUAL_CUE_TIMEOUT_MS: '5' } }), { name: 'TimeoutError' });
 });
+
+test('metadata wrapper retains model usage and timing outside the strict proposal envelope', async () => {
+  assert.equal(typeof visualCueProvider.runVisualCueAnnotationWithMetadata, 'function');
+  const before = Date.now();
+  const result = await visualCueProvider.runVisualCueAnnotationWithMetadata({ prompt, env: {
+    ...configured(async () => ({ response: { proposals: [] }, model: '@cf/returned/model',
+      usage: { prompt_tokens: 12, completion_tokens: 8, prompt_tokens_details: { cached_tokens: 4 }, completion_tokens_details: { reasoning_tokens: 6 } } })),
+    VISUAL_CUE_MODEL: '@cf/zai-org/glm-5.3-flash', VISUAL_CUE_REASONING_EFFORT: 'high'
+  } });
+  assert.deepEqual(result.response, { proposals: [] });
+  assert.deepEqual(Object.keys(result.metadata).sort(), ['provider', 'requestedModel', 'returnedModel', 'reasoningEffort', 'usage', 'startedAtMs', 'finishedAtMs', 'outcome', 'reason'].sort());
+  assert.equal(result.metadata.provider, 'workers-ai');
+  assert.equal(result.metadata.requestedModel, '@cf/zai-org/glm-5.3-flash');
+  assert.equal(result.metadata.returnedModel, '@cf/returned/model');
+  assert.equal(result.metadata.reasoningEffort, 'high');
+  assert.deepEqual(result.metadata.usage, { status: 'known', inputTokens: 12, outputTokens: 8, totalTokens: 20,
+    cacheReadInputTokens: 4, cacheCreationInputTokens: null, reasoningTokens: 6 });
+  assert.equal(result.metadata.outcome, 'accepted');
+  assert.equal(result.metadata.reason, null);
+  assert.ok(result.metadata.startedAtMs >= before);
+  assert.ok(result.metadata.finishedAtMs >= result.metadata.startedAtMs);
+  assert.ok(result.metadata.finishedAtMs <= Date.now());
+});
+
+test('metadata never fabricates returned model, usage or irrelevant reasoning effort', async () => {
+  assert.equal(typeof visualCueProvider.runVisualCueAnnotationWithMetadata, 'function');
+  const { response, metadata } = await visualCueProvider.runVisualCueAnnotationWithMetadata({ prompt,
+    env: { ...configured(async () => ({ response: { proposals: [] } })), VISUAL_CUE_REASONING_EFFORT: 'high' } });
+  assert.deepEqual(response, { proposals: [] });
+  assert.equal(metadata.returnedModel, null);
+  assert.equal(metadata.reasoningEffort, null);
+  assert.deepEqual(metadata.usage, { status: 'unknown', inputTokens: null, outputTokens: null, totalTokens: null,
+    cacheReadInputTokens: null, cacheCreationInputTokens: null, reasoningTokens: null });
+});
+
+for (const [name, raw] of [['malformed JSON', 'private user@example.com malformed output'], ['wrong envelope', { proposals: [], usage: { secret: 'private' } }]]) {
+  test(`billed ${name} retains sanitized rejection metadata`, async () => {
+    assert.equal(typeof visualCueProvider.runVisualCueAnnotationWithMetadata, 'function');
+    await assert.rejects(visualCueProvider.runVisualCueAnnotationWithMetadata({ prompt,
+      env: configured(async () => ({ response: raw, model: 'private user@example.com', usage: { input_tokens: 12, output_tokens: 8, secret: 'private' } })) }), error => {
+      assert.equal(error.visualCueAttempt.outcome, 'rejected');
+      assert.equal(error.visualCueAttempt.reason, 'quality_rejected');
+      assert.equal(error.visualCueAttempt.returnedModel, null);
+      assert.equal(error.visualCueAttempt.usage.totalTokens, 20);
+      assert.ok(!JSON.stringify(error.visualCueAttempt).includes('private'));
+      assert.ok(!JSON.stringify(error.visualCueAttempt).includes('user@example.com'));
+      assert.ok(!JSON.stringify(error.visualCueAttempt).includes('secret'));
+      return true;
+    });
+  });
+}
+
+test('provider failures retain safe counts without retaining upstream error text', async () => {
+  assert.equal(typeof visualCueProvider.runVisualCueAnnotationWithMetadata, 'function');
+  const upstream = Object.assign(new Error('private user@example.com credential'), {
+    model: '@cf/returned/model', usage: { input_tokens: 12, cached_input_tokens: 4 }, secret: 'private'
+  });
+  await assert.rejects(visualCueProvider.runVisualCueAnnotationWithMetadata({ prompt,
+    env: configured(async () => { throw upstream; }) }), error => {
+    assert.equal(error.visualCueAttempt.outcome, 'failed');
+    assert.equal(error.visualCueAttempt.reason, 'provider_error');
+    assert.equal(error.visualCueAttempt.returnedModel, '@cf/returned/model');
+    assert.equal(error.visualCueAttempt.usage.status, 'partial');
+    assert.equal(error.visualCueAttempt.usage.cacheReadInputTokens, 4);
+    assert.ok(!JSON.stringify(error.visualCueAttempt).includes('private'));
+    return true;
+  });
+});
+
+for (const reason of ['timeout', 'cancelled']) {
+  test(`${reason} after dispatch retains one failed attempt with unknown usage`, async () => {
+    assert.equal(typeof visualCueProvider.runVisualCueAnnotationWithMetadata, 'function');
+    const controller = new AbortController();
+    let started;
+    const operation = visualCueProvider.runVisualCueAnnotationWithMetadata({ prompt, signal: controller.signal,
+      env: { ...configured(() => { started = true; return new Promise(() => {}); }), VISUAL_CUE_TIMEOUT_MS: '5' } });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(started, true);
+    if (reason === 'cancelled') controller.abort();
+    await assert.rejects(operation, error => {
+      assert.equal(error.visualCueAttempt.outcome, 'failed');
+      assert.equal(error.visualCueAttempt.reason, reason);
+      assert.equal(error.visualCueAttempt.usage.status, 'unknown');
+      assert.equal(error.visualCueAttempt.usage.totalTokens, null);
+      return true;
+    });
+  });
+}
+
+test('configuration failure and pre-dispatch cancellation attach no fictitious attempt', async () => {
+  assert.equal(typeof visualCueProvider.runVisualCueAnnotationWithMetadata, 'function');
+  const controller = new AbortController();
+  controller.abort();
+  for (const options of [{ env: {} }, { env: configured(() => assert.fail('No dispatch expected')), signal: controller.signal }]) {
+    await assert.rejects(visualCueProvider.runVisualCueAnnotationWithMetadata({ prompt, ...options }), error => {
+      assert.equal(error.visualCueAttempt, undefined);
+      return true;
+    });
+  }
+});

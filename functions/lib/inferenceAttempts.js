@@ -1,17 +1,20 @@
 /** Safe operational provenance for logical provider calls, never a billing estimate. */
 const REASONS = new Set(['provider_error', 'timeout', 'cancelled', 'incomplete', 'refusal', 'quality_rejected', 'empty_response', 'safety_blocked', 'unknown']);
-function identifier(value) {
+export function normalizeInferenceIdentifier(value) {
   return typeof value === 'string' && /^[A-Za-z0-9@._:/-]{1,160}$/.test(value) ? value : null;
 }
 const tokenCount = (value) => Number.isSafeInteger(value) && value >= 0 ? value : null;
 
 export function normalizeInferenceUsage(usage) {
-  const inputTokens = tokenCount(usage?.input_tokens ?? usage?.prompt_tokens);
-  const outputTokens = tokenCount(usage?.output_tokens ?? usage?.completion_tokens);
-  const totalTokens = tokenCount(usage?.total_tokens) ?? (inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null);
-  const cacheReadInputTokens = tokenCount(usage?.cache_read_input_tokens);
-  const cacheCreationInputTokens = tokenCount(usage?.cache_creation_input_tokens);
-  const reasoningTokens = tokenCount(usage?.output_tokens_details?.reasoning_tokens ?? usage?.completion_tokens_details?.reasoning_tokens);
+  const inputTokens = tokenCount(usage?.inputTokens ?? usage?.input_tokens ?? usage?.prompt_tokens);
+  const outputTokens = tokenCount(usage?.outputTokens ?? usage?.output_tokens ?? usage?.completion_tokens);
+  const totalTokens = tokenCount(usage?.totalTokens ?? usage?.total_tokens) ?? (inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null);
+  // Cache and reasoning counts are subsets, not additions to input/output totals.
+  const cacheReadInputTokens = tokenCount(usage?.cacheReadInputTokens ?? usage?.cache_read_input_tokens
+    ?? usage?.cached_input_tokens ?? usage?.input_tokens_details?.cached_tokens ?? usage?.prompt_tokens_details?.cached_tokens);
+  const cacheCreationInputTokens = tokenCount(usage?.cacheCreationInputTokens ?? usage?.cache_creation_input_tokens);
+  const reasoningTokens = tokenCount(usage?.reasoningTokens ?? usage?.reasoning_output_tokens
+    ?? usage?.output_tokens_details?.reasoning_tokens ?? usage?.completion_tokens_details?.reasoning_tokens);
   const counts = [inputTokens, outputTokens, totalTokens, cacheReadInputTokens, cacheCreationInputTokens, reasoningTokens];
   return { status: inputTokens !== null && outputTokens !== null ? 'known' : counts.some((count) => count !== null) ? 'partial' : 'unknown', inputTokens, outputTokens, totalTokens, cacheReadInputTokens, cacheCreationInputTokens, reasoningTokens };
 }
@@ -43,9 +46,9 @@ export async function recordInferenceAttempt(env, attempt) {
         started_at, finished_at, latency_ms
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO NOTHING
-    `).bind(identifier(attempt.id) || crypto.randomUUID(), identifier(attempt.requestId) || 'unknown',
-      identifier(attempt.task) || 'unknown', identifier(attempt.provider) || 'unknown',
-      identifier(attempt.requestedModel), identifier(attempt.model), state,
+    `).bind(normalizeInferenceIdentifier(attempt.id) || crypto.randomUUID(), normalizeInferenceIdentifier(attempt.requestId) || 'unknown',
+      normalizeInferenceIdentifier(attempt.task) || 'unknown', normalizeInferenceIdentifier(attempt.provider) || 'unknown',
+      normalizeInferenceIdentifier(attempt.requestedModel), normalizeInferenceIdentifier(attempt.model), state,
       attempt.reason ? (REASONS.has(attempt.reason) ? attempt.reason : 'unknown') : null,
       usage.status, usage.inputTokens, usage.outputTokens, usage.totalTokens,
       usage.cacheReadInputTokens, usage.cacheCreationInputTokens, usage.reasoningTokens,

@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { ReadingVisualJob } from '../src/worker/readingVisualJob.js';
 import { createVisualCueLedger } from '../shared/reading/visualCueLedger.js';
 import { hashVisualCueText } from '../shared/contracts/visualCueBatches.js';
+import { createD1 } from './helpers/d1Sqlite.mjs';
 
 function createBinding(readingResultId = 'res-1', sourceRevision = 0) {
   return {
@@ -678,4 +679,196 @@ test('cold-start pending work without a provider fails without erasing accepted 
   const response = await recovered.fetch(new Request('https://visual/snapshot', { headers: { 'X-Visual-Token': 'lifecycle-token' } }));
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).cues, accepted);
+});
+
+test('real dispatch usage remains private while equivalent proposals retain one accepted cue', async t => {
+  const DB = await createD1();
+  t.after(() => DB.sqlite.close());
+  const { job, waitUntilPromises, getStorage } = await createJob(t, { env: {
+    DB, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/requested/model',
+    AI: { run: async () => ({ response: LITERAL_RESPONSE, model: '@cf/returned/model',
+      usage: { input_tokens: 12, output_tokens: 8, cached_input_tokens: 4, reasoning_output_tokens: 6 } }) }
+  } });
+  const binding = await init(job);
+  await observe(job, binding, LITERAL_RAW, 1);
+  await Promise.all(waitUntilPromises);
+  const accepted = structuredClone(job.ledger.cues);
+  const firstRequest = structuredClone(job.requestRegistry[0]);
+  await observe(job, binding, `${LITERAL_RAW} A later sentence.`, 2, true);
+  await Promise.all(waitUntilPromises);
+  const rows = DB.rows('SELECT * FROM inference_attempts ORDER BY rowid');
+  assert.equal(rows.length, 2, 'Every actual dispatch has an independent private attempt');
+  assert.notEqual(rows[0].id, rows[1].id);
+  for (const row of rows) {
+    assert.equal(row.request_id, binding.readingResultId);
+    assert.equal(row.task, 'visual-cues');
+    assert.equal(row.provider, 'workers-ai');
+    assert.equal(row.requested_model, '@cf/requested/model');
+    assert.equal(row.model, '@cf/returned/model');
+    assert.equal(row.state, 'accepted');
+    assert.equal(row.usage_status, 'known');
+    assert.equal(row.total_tokens, 20);
+    assert.equal(row.cache_read_input_tokens, 4);
+    assert.equal(row.reasoning_tokens, 6);
+    assert.ok(row.finished_at >= row.started_at);
+  }
+  assert.deepEqual(job.ledger.cues, accepted, 'Equivalent proposal does not add or rewrite a cue');
+  assert.equal(job.ledger.receipts.length, 2);
+  const replay = await job.commitBatch({ issuedRequest: firstRequest, response: LITERAL_RESPONSE, recoveryEpoch: job.recoveryEpoch });
+  assert.equal(replay.result.duplicate, true);
+  assert.equal(DB.rows('SELECT * FROM inference_attempts').length, 2, 'Commit replay is not a dispatch');
+  const snapshot = await (await job.fetch(new Request('https://visual/snapshot', { headers: { 'X-Visual-Token': 'lifecycle-token' } }))).json();
+  for (const value of [snapshot, job.events, getStorage()]) {
+    const serialized = JSON.stringify(value);
+    assert.ok(!serialized.includes('inputTokens'));
+    assert.ok(!serialized.includes('returnedModel'));
+    assert.ok(!serialized.includes('@cf/returned/model'));
+  }
+});
+
+test('structurally rejected proposals do not erase provider success or billed usage', async t => {
+  const DB = await createD1();
+  t.after(() => DB.sqlite.close());
+  const { job, waitUntilPromises } = await createJob(t, { env: {
+    DB, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/requested/model',
+    AI: { run: async () => ({ response: { proposals: [{ ...LITERAL_RESPONSE.proposals[0], providerMetadata: 'forbidden' }] },
+      usage: { prompt_tokens: 12, completion_tokens: 8 } }) }
+  } });
+  const binding = await init(job);
+  await observe(job, binding, LITERAL_RAW, 1, true);
+  await Promise.all(waitUntilPromises);
+  assert.equal(job.status, 'complete');
+  assert.equal(job.ledger.cues.length, 0);
+  assert.equal(job.ledger.receipts[0].rejected[0].code, 'invalid-proposal');
+  const rows = DB.rows('SELECT * FROM inference_attempts');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].state, 'accepted');
+  assert.equal(rows[0].reason, null);
+  assert.equal(rows[0].total_tokens, 20);
+});
+
+test('billed malformed JSON is recorded once and retrying the same source records a new dispatch', async t => {
+  const DB = await createD1();
+  t.after(() => DB.sqlite.close());
+  let calls = 0;
+  const { job, waitUntilPromises } = await createJob(t, { env: {
+    DB, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/requested/model',
+    AI: { run: async () => ({ response: ++calls === 1 ? 'private malformed user@example.com' : LITERAL_RESPONSE,
+      model: '@cf/returned/model', usage: { input_tokens: 12, output_tokens: 8 } }) }
+  } });
+  const binding = await init(job);
+  await observe(job, binding, LITERAL_RAW, 1, true);
+  await Promise.all(waitUntilPromises);
+  assert.equal(job.status, 'failed');
+  assert.equal(job.ledger.cues.length, 0);
+  await observe(job, binding, LITERAL_RAW, 2, true);
+  await Promise.all(waitUntilPromises);
+  assert.equal(job.status, 'complete');
+  assert.equal(job.ledger.cues.length, 1);
+  const rows = DB.rows('SELECT * FROM inference_attempts ORDER BY rowid');
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].state, 'rejected');
+  assert.equal(rows[0].reason, 'quality_rejected');
+  assert.equal(rows[0].model, '@cf/returned/model');
+  assert.equal(rows[0].total_tokens, 20);
+  assert.equal(rows[1].state, 'accepted');
+  assert.equal(rows[1].total_tokens, 20);
+  assert.ok(!JSON.stringify([rows, job.envelope(), job.events]).includes('user@example.com'));
+});
+
+for (const reason of ['timeout', 'cancelled']) {
+  test(`real ${reason} dispatch is recorded once even when its callback resolves late`, async t => {
+    const DB = await createD1();
+    t.after(() => DB.sqlite.close());
+    let release;
+    const { job, waitUntilPromises } = await createJob(t, { env: {
+      DB, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/requested/model',
+      VISUAL_CUE_TIMEOUT_MS: reason === 'timeout' ? '5' : '1000',
+      AI: { run: () => new Promise(resolve => { release = resolve; }) }
+    } });
+    const binding = await init(job);
+    await observe(job, binding, LITERAL_RAW, 1, true);
+    await until(() => release);
+    if (reason === 'cancelled') await job.fetch(new Request('https://visual/cancel', { headers: { 'X-Visual-Token': 'lifecycle-token' } }));
+    await Promise.all(waitUntilPromises);
+    release({ response: LITERAL_RESPONSE, usage: { input_tokens: 12, output_tokens: 8 } });
+    await new Promise(resolve => setImmediate(resolve));
+    const rows = DB.rows('SELECT * FROM inference_attempts');
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].state, 'failed');
+    assert.equal(rows[0].reason, reason);
+    assert.equal(rows[0].usage_status, 'unknown');
+    assert.equal(rows[0].total_tokens, null);
+    assert.equal(job.ledger.cues.length, 0);
+    assert.equal(job.status, reason === 'cancelled' ? 'cancelled' : 'failed');
+  });
+}
+
+test('metadata wrapper adapters are unwrapped before ledger validation', async t => {
+  const DB = await createD1();
+  t.after(() => DB.sqlite.close());
+  const { job, waitUntilPromises } = await createJob(t, { env: { DB }, runAnnotation: () => ({
+    response: LITERAL_RESPONSE,
+    metadata: { provider: 'workers-ai', requestedModel: '@cf/requested/model', returnedModel: '@cf/returned/model',
+      reasoningEffort: null, usage: { status: 'known', inputTokens: 12, outputTokens: 8, totalTokens: 20,
+        cacheReadInputTokens: null, cacheCreationInputTokens: null, reasoningTokens: null },
+      startedAtMs: 1000, finishedAtMs: 1100, outcome: 'accepted', reason: null }
+  }) });
+  const binding = await init(job);
+  await observe(job, binding, LITERAL_RAW, 1, true);
+  await Promise.all(waitUntilPromises);
+  assert.equal(job.ledger.cues.length, 1);
+  assert.equal(job.ledger.receipts[0].rejected.length, 0);
+  const rows = DB.rows('SELECT * FROM inference_attempts');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].model, '@cf/returned/model');
+  assert.equal(rows[0].total_tokens, 20);
+  assert.equal(rows[0].latency_ms, 100);
+});
+
+test('metadata-free adapters remain compatible and unknown usage never derives from prose length', async t => {
+  const DB = await createD1();
+  t.after(() => DB.sqlite.close());
+  const { job, waitUntilPromises } = await createJob(t, { env: { DB, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/unused/model' },
+    runAnnotation: () => LITERAL_RESPONSE });
+  const binding = await init(job);
+  await observe(job, binding, LITERAL_RAW, 1, true);
+  await Promise.all(waitUntilPromises);
+  assert.equal(job.status, 'complete');
+  assert.equal(job.ledger.cues.length, 1);
+  const rows = DB.rows('SELECT * FROM inference_attempts');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].provider, 'unknown');
+  assert.equal(rows[0].requested_model, null);
+  assert.equal(rows[0].model, null);
+  assert.equal(rows[0].usage_status, 'unknown');
+  assert.equal(rows[0].input_tokens, null);
+  assert.equal(rows[0].output_tokens, null);
+  assert.equal(rows[0].total_tokens, null);
+});
+
+test('metadata-free adapter failure still records its dispatched attempt', async t => {
+  const DB = await createD1();
+  t.after(() => DB.sqlite.close());
+  const { job, waitUntilPromises } = await createJob(t, { env: { DB },
+    runAnnotation: () => { throw new Error('private provider failure'); } });
+  const binding = await init(job);
+  await observe(job, binding, LITERAL_RAW, 1, true);
+  await Promise.all(waitUntilPromises);
+  const rows = DB.rows('SELECT * FROM inference_attempts');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].state, 'failed');
+  assert.equal(rows[0].usage_status, 'unknown');
+  assert.ok(!JSON.stringify([rows, job.envelope()]).includes('private provider failure'));
+});
+
+test('unconfigured annotation never records an inference that was not dispatched', async t => {
+  const DB = await createD1();
+  t.after(() => DB.sqlite.close());
+  const { job, waitUntilPromises } = await createJob(t, { env: { DB } });
+  const binding = await init(job);
+  await observe(job, binding, LITERAL_RAW, 1, true);
+  await Promise.all(waitUntilPromises);
+  assert.equal(job.status, 'failed');
+  assert.equal(DB.rows('SELECT * FROM inference_attempts').length, 0);
 });

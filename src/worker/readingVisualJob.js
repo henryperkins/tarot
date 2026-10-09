@@ -1,4 +1,5 @@
-import { runVisualCueAnnotation } from '../../functions/lib/visualCueProvider.js';
+import { runVisualCueAnnotationWithMetadata } from '../../functions/lib/visualCueProvider.js';
+import { inferAttemptReason, recordInferenceAttempt } from '../../functions/lib/inferenceAttempts.js';
 import { formatSSEEvent } from '../../functions/lib/readingStream.js';
 import { jsonResponse } from '../../functions/lib/utils.js';
 import { commitVisualResult, expireVisualResult, loadVisualResultState, registerVisualResult, updateVisualResultSource } from '../../functions/lib/readingVisualResults.js';
@@ -294,10 +295,32 @@ export class ReadingVisualJob {
     const prompt = buildVisualCuePrompt({ rawPrefix, cards: this.validationContext?.cards ?? [],
       artworkEdition: this.binding?.artworkEdition, priorAcceptedCues,
       question: this.validationContext?.question, reflections: this.validationContext?.reflections });
-    if (this.runAnnotationAdapter) return this.runAnnotationAdapter({
-      prompt, responseSchema: visualCueResponseSchema, signal, env: this.env
+    const id = crypto.randomUUID();
+    const requestId = this.binding?.readingResultId;
+    const startedAtMs = Date.now();
+    // One row per dispatch, independent of cue acceptance and commit replay.
+    const recordAttempt = metadata => recordInferenceAttempt(this.env, {
+      id, requestId, task: 'visual-cues', provider: metadata?.provider ?? 'unknown',
+      requestedModel: metadata?.requestedModel ?? null, model: metadata?.returnedModel ?? null,
+      usage: metadata?.usage ?? null, startedAtMs: metadata?.startedAtMs ?? startedAtMs,
+      finishedAtMs: metadata?.finishedAtMs ?? Date.now(), state: metadata?.outcome ?? 'accepted',
+      reason: metadata?.reason ?? null
     });
-    return runVisualCueAnnotation({ env: this.env, prompt, signal });
+    let result;
+    try {
+      result = await (this.runAnnotationAdapter
+        ? this.runAnnotationAdapter({ prompt, responseSchema: visualCueResponseSchema, signal, env: this.env })
+        : runVisualCueAnnotationWithMetadata({ env: this.env, prompt, signal }));
+    } catch (error) {
+      if (error?.visualCueAttempt || this.runAnnotationAdapter) await recordAttempt(error?.visualCueAttempt ?? {
+        outcome: 'failed', reason: inferAttemptReason(error, signal)
+      });
+      throw error;
+    }
+    const wrapped = result && Object.hasOwn(result, 'response') && Object.hasOwn(result, 'metadata');
+    await recordAttempt(wrapped ? result.metadata : null);
+    // Only proposal data reaches the ledger and its public snapshots.
+    return wrapped ? result.response : result;
   }
 
   registeredRequest(issuedRequest) {

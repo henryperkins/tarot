@@ -89,6 +89,9 @@ test('held fake annotation promise does not block narrative deltas or done', asy
   };
 
   const env = {
+    VISUAL_CUE_PROVIDER: 'workers-ai',
+    VISUAL_CUE_MODEL: '@cf/controlled/model',
+    AI: { run: () => assert.fail('Narrative delivery must never dispatch annotation inference') },
     READING_VISUAL_JOBS: {
       get: () => fakeVisualStub,
       idFromName: () => 'stub-id'
@@ -147,6 +150,9 @@ test('non-prefix final replacement increments visualBinding sourceRevision', asy
   };
 
   const env = {
+    VISUAL_CUE_PROVIDER: 'workers-ai',
+    VISUAL_CUE_MODEL: '@cf/controlled/model',
+    AI: { run: () => assert.fail('Narrative delivery must never dispatch annotation inference') },
     READING_VISUAL_JOBS: {
       get: () => fakeVisualStub,
       idFromName: () => 'stub-id'
