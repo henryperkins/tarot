@@ -1,3 +1,4 @@
+import { createGestureSource, advanceGestureSource } from '../lib/narrativeGestureSource.js';
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTarotState } from '../hooks/useTarotState';
@@ -83,6 +84,20 @@ export function ReadingProvider({ children }) {
 
     // 4. Reading Generation State
     const [personalReading, setPersonalReading] = useState(null);
+    const [gestureSource, setGestureSource] = useState(null);
+    const gestureSourceRef = useRef(null);
+    const updateGestureSource = useCallback((runId, update) => {
+        if (!gestureSourceRef.current || gestureSourceRef.current.runId !== runId) return;
+        const next = advanceGestureSource(gestureSourceRef.current, update);
+        gestureSourceRef.current = next;
+        setGestureSource(next);
+    }, []);
+    const beginGestureSource = useCallback((runId = crypto.randomUUID()) => {
+        const next = createGestureSource({ runId });
+        gestureSourceRef.current = next;
+        setGestureSource(next);
+        return runId;
+    }, []);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isReadingStreamActive, setIsReadingStreamActive] = useState(false);
     const [narrativePhase, setNarrativePhase] = useState('idle');
@@ -274,13 +289,14 @@ export function ReadingProvider({ children }) {
 
     const pauseReadingStream = useCallback((message = 'Finishing your narrative in the background.', { preserveNarration = true } = {}) => {
         setIsReadingStreamActive(false);
+        updateGestureSource(gestureSourceRef.current?.runId, { status: 'paused' });
         setSrAnnouncement(message);
         if (preserveNarration) {
             pauseNarrationPlayback();
             return;
         }
         resetNarrationStream();
-    }, [pauseNarrationPlayback, resetNarrationStream]);
+    }, [pauseNarrationPlayback, resetNarrationStream, updateGestureSource]);
 
     const flushNarrationBuffer = useCallback((force = false) => {
         const {
@@ -443,6 +459,9 @@ export function ReadingProvider({ children }) {
         }
 
         const controller = new AbortController();
+        const runId = readingJobRef.current.runId || gestureSourceRef.current?.runId || crypto.randomUUID();
+        if (gestureSourceRef.current?.runId !== runId) beginGestureSource(runId);
+        updateGestureSource(runId, { status: 'streaming' });
         inFlightReadingRef.current = { controller, jobId };
 
         const isActiveRequest = () =>
@@ -472,9 +491,11 @@ export function ReadingProvider({ children }) {
         }
 
         let streamedText = resume
-            ? (personalReading?.raw || personalReading?.normalized || '')
+            ? (gestureSourceRef.current?.raw || personalReading?.raw || personalReading?.normalized || '')
             : '';
         let streamMeta = null;
+        let sourceKind = 'append';
+        let flushTimer = null;
 
         try {
             let lastFlush = 0;
@@ -488,9 +509,20 @@ export function ReadingProvider({ children }) {
                 if (!isActiveRequest()) return;
                 const now = Date.now();
                 if (!force && now - lastFlush < 120) {
+                    if (flushTimer === null) {
+                        flushTimer = setTimeout(() => {
+                            flushTimer = null;
+                            flushStreamedText(true);
+                        }, 120 - (now - lastFlush));
+                    }
                     return;
                 }
+                if (flushTimer !== null) {
+                    clearTimeout(flushTimer);
+                    flushTimer = null;
+                }
                 lastFlush = now;
+                updateGestureSource(runId, { raw: streamedText, kind: sourceKind, status: 'streaming' });
                 const formatted = formatReading(streamedText);
                 formatted.isError = false;
                 formatted.isStreaming = true;
@@ -553,9 +585,11 @@ export function ReadingProvider({ children }) {
                 } else if (eventType === 'snapshot') {
                     if (typeof data.fullText === 'string') {
                         streamedText = data.fullText;
+                        sourceKind = 'snapshot';
                         flushStreamedText(true);
                     }
                 } else if (eventType === 'delta') {
+                    sourceKind = 'append';
                     streamedText += data.text || '';
                     flushStreamedText();
                     appendNarrationBuffer(data.text || '');
@@ -570,7 +604,8 @@ export function ReadingProvider({ children }) {
                         }
                     }
                 } else if (eventType === 'done') {
-                    const finalText = (data.fullText || streamedText || '').trim();
+                    const finalRaw = typeof data.fullText === 'string' ? data.fullText : streamedText;
+                    const finalText = finalRaw.trim();
                     if (!finalText) {
                         throw new Error('Empty reading returned');
                     }
@@ -613,6 +648,7 @@ export function ReadingProvider({ children }) {
                         narrationFallbackTextRef.current = '';
                     }
 
+                    updateGestureSource(runId, { raw: finalRaw, kind: 'complete', status: 'complete' });
                     setNarrativePhase('polishing');
                     setSrAnnouncement('Your reading is ready.');
 
@@ -663,6 +699,7 @@ export function ReadingProvider({ children }) {
                 return;
             }
 
+            updateGestureSource(runId, { raw: streamedText, status: 'error' });
             settleNarrationAfterStreamFailure(streamedText);
             const errorMsg =
                 typeof error?.message === 'string' && error.message.trim()
@@ -679,6 +716,7 @@ export function ReadingProvider({ children }) {
             setIsGenerating(false);
             clearReadingJob();
         } finally {
+            if (flushTimer !== null) clearTimeout(flushTimer);
             if (inFlightReadingRef.current?.controller === controller) {
                 inFlightReadingRef.current = null;
                 setIsReadingStreamActive(false);
@@ -690,6 +728,8 @@ export function ReadingProvider({ children }) {
         ttsProvider,
         ttsState?.status,
         clearReadingJob,
+        beginGestureSource,
+        updateGestureSource,
         deckStyleId,
         personalReading,
         pauseReadingStream,
@@ -814,6 +854,7 @@ export function ReadingProvider({ children }) {
                 jobId: parsed.jobId,
                 jobToken: parsed.jobToken,
                 cursor,
+                runId: parsed.runId || crypto.randomUUID(),
                 readingKey: parsed.readingKey || null
             };
             resumeReadingStreamIfEligible();
@@ -903,6 +944,7 @@ export function ReadingProvider({ children }) {
 
         cancelInFlightReading();
         resetStreamingNarration();
+        const runId = beginGestureSource();
         const startController = new AbortController();
         inFlightReadingRef.current = { controller: startController, sessionSeed };
 
@@ -1075,6 +1117,7 @@ export function ReadingProvider({ children }) {
                 jobId,
                 jobToken,
                 cursor: 0,
+                runId,
                 readingKey
             });
 
@@ -1084,6 +1127,8 @@ export function ReadingProvider({ children }) {
                 console.debug('generatePersonalReading aborted');
                 return;
             }
+            if (gestureSourceRef.current?.runId !== runId) return;
+            updateGestureSource(runId, { status: 'error' });
             console.error('generatePersonalReading error:', error);
             const errorMsg =
                 typeof error?.message === 'string' && error.message.trim()
@@ -1129,7 +1174,9 @@ export function ReadingProvider({ children }) {
         persistLocationToJournal,
         buildReadingKey,
         setReadingJob,
-        streamReadingJob
+        streamReadingJob,
+        beginGestureSource,
+        updateGestureSource
     ]);
 
     // --- Logic: Analysis Highlights ---
@@ -1342,7 +1389,7 @@ export function ReadingProvider({ children }) {
         dealNext,
         revealCard,
         revealAll,
-        personalReading, setPersonalReading,
+        personalReading, setPersonalReading, gestureSource,
         isGenerating, setIsGenerating,
         isReadingStreamActive,
         narrativePhase, setNarrativePhase,
@@ -1370,6 +1417,7 @@ export function ReadingProvider({ children }) {
         revealCard,
         revealAll,
         personalReading,
+        gestureSource,
         isGenerating,
         isReadingStreamActive,
         narrativePhase,

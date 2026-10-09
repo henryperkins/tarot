@@ -1,4 +1,5 @@
-import { createElement, useCallback, useEffect, useMemo } from 'react';
+import { createGestureSource } from '../lib/narrativeGestureSource.js';
+import { createElement, useCallback, useEffect, useMemo, useState } from 'react';
 import { NarrativePanel } from '../components/NarrativePanel';
 import { NarrativeReadingSurface } from '../components/NarrativeReadingSurface';
 import { useNarrationAutomation } from './useNarrationAutomation';
@@ -28,6 +29,11 @@ export function useNarrativeReadingController({
   visibleCount,
   spreadPositions,
   personalReading,
+  gestureSource: suppliedGestureSource = null,
+  gestureStudyEnabled = false,
+  gestureSidecar = null,
+  manualInspectionStatus = null,
+  artworkEdition = null,
   isReadingStreamActive,
   narrativePhase,
   themes,
@@ -77,6 +83,13 @@ export function useNarrativeReadingController({
   beatClassName = '',
   isMobileStableMode = false
 }) {
+  const [hydratedRunId] = useState(() => crypto.randomUUID());
+  const hydratedSource = useMemo(() => createGestureSource({
+    runId: hydratedRunId,
+    raw: personalReading?.isError ? '' : (personalReading?.raw || personalReading?.normalized || ''),
+    status: personalReading?.isError ? 'error' : personalReading?.isStreaming ? 'streaming' : personalReading ? 'complete' : 'idle'
+  }), [hydratedRunId, personalReading]);
+  const gestureSource = suppliedGestureSource || hydratedSource;
   const resolvedQuestion = useMemo(() => getResolvedQuestion(userQuestion), [userQuestion]);
   const isPersonalReadingError = Boolean(personalReading?.isError);
   const isReadingStreaming = Boolean(isReadingStreamActive || personalReading?.isStreaming);
@@ -102,8 +115,10 @@ export function useNarrativeReadingController({
     visibleCount,
     spreadPositions,
     deckStyleId,
-    revealedCards
-  }), [deckStyleId, reading, revealedCards, spreadPositions, visibleCount]);
+    revealedCards,
+    runId: gestureSource.runId,
+    artworkEdition
+  }), [artworkEdition, gestureSource.runId, deckStyleId, reading, revealedCards, spreadPositions, visibleCount]);
   const cardLinkCatalog = useMemo(() => (
     buildCardLinkCatalog({ cards: spreadCards, deckStyle: deckStyleId })
   ), [deckStyleId, spreadCards]);
@@ -257,6 +272,10 @@ export function useNarrativeReadingController({
   }, [persistMediaRecord, resolvedQuestion, setHasHeroStoryArt, storyArtCards]);
 
   const panelModel = useMemo(() => buildNarrativePanelModel({
+    gestureSource,
+    gestureStudyEnabled,
+    gestureSidecar,
+    manualInspectionStatus,
     personalReading,
     isPersonalReadingError,
     isReadingStreaming,
@@ -286,6 +305,10 @@ export function useNarrativeReadingController({
     spreadCards,
     cardLinkCatalog
   }), [
+    gestureSource,
+    gestureStudyEnabled,
+    gestureSidecar,
+    manualInspectionStatus,
     activeWordBoundary,
     canAutoNarrate,
     cardLinkCatalog,

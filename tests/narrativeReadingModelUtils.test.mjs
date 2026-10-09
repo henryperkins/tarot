@@ -3,6 +3,7 @@ import { describe, test } from 'node:test';
 
 import {
   buildNarrativeText,
+  buildNarrativePanelModel,
   buildSpreadCompanionCards,
   buildStoryArtCards,
   deriveNarrativeVisibility,
@@ -171,4 +172,26 @@ describe('deriveNarrativeVisibility', () => {
     assert.equal(state.shouldShowSpreadInsights, false);
     assert.equal(state.focusToggleAvailable, true);
   });
+});
+
+
+test('gesture companion identities use run and spread occurrence with explicit artwork edition', () => {
+  const input = { reading: [{ name: 'The Star', number: 17 }, { name: 'The Star', number: 17 }], visibleCount: 2, deckStyleId: 'rws-1909', runId: 'run-a' };
+  const cards = buildSpreadCompanionCards(input);
+  assert.deepEqual(cards.map(card => card.occurrenceId), ['run-a:0', 'run-a:1']);
+  assert.equal(cards[0].artworkEdition, 'rws-1909-scan');
+  assert.equal(buildSpreadCompanionCards({ ...input, artworkEdition: 'rws-immanuelle-vector' })[0].artworkEdition, 'rws-immanuelle-vector');
+  assert.equal(buildSpreadCompanionCards({ ...input, deckStyleId: 'thoth-a1' })[0].artworkEdition, null);
+  assert.equal(buildSpreadCompanionCards({ ...input, runId: 'run-b' })[0].occurrenceId, 'run-b:0');
+});
+
+test('panel model retains exact source and defaults gesture study to disabled', () => {
+  const source = { runId: 'run-a', raw: '  The Star pours.\n', sourceRevision: 0, kind: 'hydrate', status: 'complete' };
+  const sidecar = { regions: [] };
+  const ordinary = buildNarrativePanelModel({ personalReading: { raw: source.raw }, gestureSource: source });
+  assert.equal(ordinary.gestureStudyEnabled, false);
+  assert.equal(ordinary.gestureSource, source);
+  const fixture = buildNarrativePanelModel({ gestureSource: source, gestureStudyEnabled: true, gestureSidecar: sidecar, manualInspectionStatus: 'inspected' });
+  assert.equal(fixture.gestureSidecar, sidecar);
+  assert.equal(fixture.manualInspectionStatus, 'inspected');
 });

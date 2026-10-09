@@ -39,7 +39,12 @@ export function ReadingDisplay({
     followUpAutoFocus = true,
     suppressInterruptions = false,
     onCardModalChange,
-    isMobileStableMode = false
+    isMobileStableMode = false,
+    gestureSource: gestureSourceOverride = null,
+    gestureStudyEnabled = false,
+    gestureSidecar = null,
+    manualInspectionStatus = null,
+    artworkEdition = null
 }) {
     const { saveReading, isSaving } = useSaveReading();
     const { publish: publishToast } = useToast();
@@ -96,6 +101,7 @@ export function ReadingDisplay({
 
         // Reading Generation & UI
         personalReading,
+        gestureSource,
         isGenerating,
         isReadingStreamActive,
         narrativePhase,
@@ -234,6 +240,7 @@ export function ReadingDisplay({
 
     const {
         selectedCardData,
+        manualInspectionStatus: selectionInspectionStatus,
         narrativeMentionPulse,
         activeFocusedCardData,
         recentlyClosedIndex,
@@ -349,6 +356,11 @@ export function ReadingDisplay({
         narrativeAtmosphereClasses,
         narrativeModel
     } = useNarrativeReadingController({
+        gestureSource: gestureSourceOverride || gestureSource,
+        gestureStudyEnabled,
+        gestureSidecar,
+        manualInspectionStatus: manualInspectionStatus || selectionInspectionStatus,
+        artworkEdition,
         reading,
         deckStyleId,
         onSelectInsightCard: handleSelectInsightCard,

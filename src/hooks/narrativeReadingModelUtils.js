@@ -38,7 +38,7 @@ const CARD_FRAMES = { 'rws-1909': '100 / 172', 'thoth-a1': '3 / 5', 'marseille-c
  * The revealed spread as the reading surface shows it beside the narrative:
  * the selected deck's names and art, with canonical identity kept for matching.
  */
-export function buildSpreadCompanionCards({ reading, visibleCount, spreadPositions = [], deckStyleId, revealedCards = null }) {
+export function buildSpreadCompanionCards({ reading, visibleCount, spreadPositions = [], deckStyleId, revealedCards = null, runId = null, artworkEdition = null }) {
   if (!Array.isArray(reading) || visibleCount === 0) return [];
 
   return reading
@@ -49,6 +49,8 @@ export function buildSpreadCompanionCards({ reading, visibleCount, spreadPositio
       const position = spreadPositions[index] || `Position ${index + 1}`;
       return {
         index,
+        occurrenceId: runId ? `${runId}:${index}` : null,
+        artworkEdition: artworkEdition || (deckStyleId === 'rws-1909' ? 'rws-1909-scan' : null),
         name: deckCard.name,
         canonicalName: deckCard.canonicalName,
         image: deckCard.image,
@@ -227,7 +229,11 @@ export function buildNarrativePanelModel({
   hasHeroStoryArt,
   isMobileStableMode,
   spreadCards = [],
-  cardLinkCatalog = null
+  cardLinkCatalog = null,
+  gestureSource = null,
+  gestureStudyEnabled = false,
+  gestureSidecar = null,
+  manualInspectionStatus = null
 }) {
   const hasNarrativeContext = Boolean(personalReading && !isPersonalReadingError);
   const narrationState = ttsState?.status || 'idle';
@@ -250,6 +256,10 @@ export function buildNarrativePanelModel({
 
   return {
     panelClassName,
+    gestureSource,
+    gestureStudyEnabled,
+    gestureSidecar,
+    manualInspectionStatus,
     question,
     isHandset,
     personalReading,
