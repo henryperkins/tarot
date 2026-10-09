@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { NarrativePanel } from './NarrativePanel';
 import { useReading } from '../contexts/ReadingContext';
@@ -39,6 +39,8 @@ export function ReadingGesturesFixture() {
   const [restart, setRestart] = useState(0);
   const [recordedSource, setRecordedSource] = useState(() => createGestureSource({ runId: crypto.randomUUID() }));
   const [seeded, setSeeded] = useState(null);
+  const [selectionCalls, setSelectionCalls] = useState(0);
+  const recordSelection = useCallback(() => setSelectionCalls(count => count + 1), []);
   const cards = useMemo(() => fixture.cards.map(card => ({
     ...[...MAJOR_ARCANA, ...MINOR_ARCANA].find(candidate => candidate.name === card.card),
     name: card.card,
@@ -119,10 +121,10 @@ export function ReadingGesturesFixture() {
         <label>Source mode <select value={sourceMode} onChange={event => change('sourceMode', event.target.value)}><option>recorded</option><option>job-sse</option></select></label>
         <label>Reflection <select value={reflection ? 'on' : 'off'} onChange={event => change('reflection', event.target.value)}><option>on</option><option>off</option></select></label>
         <button type="button" onClick={() => setRestart(previous => previous + 1)}>Restart study</button>
-        <output data-testid="gesture-source-diagnostics" data-run-id={source.runId} data-source-revision={source.sourceRevision} data-source-status={source.status} data-raw-length={source.raw.length}>{sourceMode}: {source.raw.length} characters</output>
+        <output data-testid="gesture-source-diagnostics" data-run-id={source.runId} data-source-revision={source.sourceRevision} data-source-status={source.status} data-raw-length={source.raw.length} data-selection-calls={selectionCalls}>{sourceMode}: {source.raw.length} characters</output>
       </fieldset>
       {reflection && <aside className="mx-auto mb-4 max-w-5xl text-sm text-muted" data-testid="recorded-reflection"><p>Recorded general reflection: {fixture.reflectionsText}</p></aside>}
-      <NarrativePanel panelModel={panelModel} callbacks={{ onNarrativeComplete: noop, onHighlightPhrase: noop, onSectionEnter: noop }} />
+      <NarrativePanel panelModel={panelModel} callbacks={{ onNarrativeComplete: noop, onHighlightPhrase: noop, onSectionEnter: noop, onSelectCard: recordSelection }} />
     </main>
   );
 }

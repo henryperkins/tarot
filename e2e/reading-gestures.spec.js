@@ -105,6 +105,7 @@ test('five actual streamed introductions retain the same shelf nodes and prose p
     for (let index = 0; index < source.introductions.length; index++) {
       const intro = source.introductions[index];
       const scroll = await page.evaluate(() => scrollY);
+      const focused = await page.evaluate(() => document.activeElement?.tagName);
       await fixture.emit('reading', 'delta', { text: source.expectedRaw.slice(end, intro.end) });
       end = intro.end;
       await expect(shelf.nth(index)).toHaveAttribute('data-introduced', 'true');
@@ -113,6 +114,8 @@ test('five actual streamed introductions retain the same shelf nodes and prose p
         await expect(shelf.nth(earlier).locator('button')).toBeEnabled();
       }
       expect(await page.evaluate(() => scrollY)).toBe(scroll);
+      expect(await page.evaluate(() => document.activeElement?.tagName)).toBe(focused);
+      await expect(page.getByTestId('gesture-source-diagnostics')).toHaveAttribute('data-selection-calls', '0');
     }
     await fixture.completeReading();
     await expect(reading(page).locator('h3')).toHaveCount(5);
@@ -136,8 +139,10 @@ test('compact relationship and reduced-motion meaning @mobile', async ({ page })
   await expect(page.getByTestId('recorded-reflection')).toHaveCount(0);
   for (const width of [390, 375, 320]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 667 });
+    await expect(windowArt(page)).toBeVisible();
     const before = await windowArt(page).boundingBox();
     await phrase(page, 'drive-and-sensitivity').click();
+    await expect(windowArt(page)).toBeVisible();
     const paired = await windowArt(page).boundingBox();
     expect(Math.abs(before.height - paired.height)).toBeLessThanOrEqual(1);
     await expect(currentCards(page)).toHaveCount(2);
@@ -146,4 +151,23 @@ test('compact relationship and reduced-motion meaning @mobile', async ({ page })
     await expectNoHorizontalOverflow(page);
     expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === 'running' && animation.effect?.target?.closest('[data-gesture-window]')).length)).toBe(0);
   }
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  const zoomedPhrase = phrase(page, 'drive-and-sensitivity');
+  await zoomedPhrase.scrollIntoViewIfNeeded();
+  // A long inline phrase can exceed the space below the sticky artwork at 200%.
+  // Tap an actual visible line, as a reader would, rather than its full box's center.
+  const point = await zoomedPhrase.evaluate(element => {
+    const shelfBottom = document.querySelector('.gesture-companion').getBoundingClientRect().bottom;
+    return [...element.getClientRects()].map(rect => ({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }))
+      .find(({ x, y }) => y > shelfBottom && y < innerHeight && element.contains(document.elementFromPoint(x, y))) || null;
+  });
+  expect(point).not.toBeNull();
+  await page.touchscreen.tap(point.x, point.y);
+  await expect(currentCards(page)).toHaveCount(2);
+  await expect(zoomedPhrase).toHaveAttribute('aria-pressed', 'true');
+  await zoomedPhrase.focus();
+  await page.keyboard.press('Enter');
+  await expect(zoomedPhrase).toHaveAttribute('aria-pressed', 'false');
+  await expectNoHorizontalOverflow(page);
+  await expect(reading(page)).toContainText('both your drive and your sensitivity');
 });

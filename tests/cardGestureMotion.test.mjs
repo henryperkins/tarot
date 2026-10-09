@@ -61,3 +61,26 @@ test('settled owner pauses replacement water handles without replaying loops', (
   assert.equal(replacement.playbackRate, 0);
   controller.dispose();
 });
+test('held water reacquires CSS handles created after preference restoration within bounded frames', () => {
+  let frame, frames = 0, time = 0;
+  const controls = [];
+  const controller = createCardGestureMotionController({ getWaterAnimations: () => controls, now: () => time, requestFrame: cb => { frame = cb; frames++; return frames; }, cancelFrame() {} });
+  const gesture = { id: 'pool', motionRecipes: [{ kind: 'water' }] };
+  controller.sync({ gesture, phase: 'held', canMove: true, reducedMotion: true });
+  controller.sync({ gesture, phase: 'held', canMove: true, reducedMotion: false });
+  assert.equal(typeof frame, 'function', 'restoration must await CSS handle recreation');
+  const recreated = { playbackRate: 0, play() { this.playing = true; }, pause() { this.playing = false; } };
+  controls.push(recreated);
+  let pending = frame;
+  for (let index = 0; index < 10 && pending; index++) { frame = undefined; time += 16; pending(); pending = frame; }
+  assert.equal(recreated.playing, true); assert.equal(recreated.playbackRate, 1);
+  assert.ok(frames <= 3, 'water discovery must not become an endless focus loop');
+  controller.sync({ gesture, phase: 'held', canMove: false });
+  assert.equal(recreated.playing, false);
+  controller.sync({ gesture, phase: 'held', canMove: true });
+  const staleFrame = frame;
+  controller.sync({ gesture, phase: 'held', canMove: false });
+  staleFrame();
+  assert.equal(recreated.playing, false, 'cancelled discovery cannot revive outgoing controls');
+  controller.dispose();
+});

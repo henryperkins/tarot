@@ -4,16 +4,20 @@ const recipesFor = gesture => gesture?.motionRecipes || (gesture?.details || [])
 
 /** Owns only this presentation's handles. Source scheduling remains in the provider. */
 export function createCardGestureMotionController({ startFinite = () => [], getWaterAnimations = () => [], requestFrame = cb => globalThis.requestAnimationFrame?.(cb), cancelFrame = id => globalThis.cancelAnimationFrame?.(id), now = () => performance.now(), setWaterOpacity = () => {} } = {}) {
-  let disposed = false, frame, finite = [], identity, finiteStarted = false, finiteAt, settlingAt, settled = false, current;
+  let disposed = false, frame, finite = [], identity, finiteStarted = false, finiteAt, settlingAt, settled = false, discoveryFrames = 0, current;
   const water = new Set();
   const stopFinite = () => { finite.forEach(handle => { handle.cancel?.(); handle.stop?.(); }); finite = []; finiteAt = undefined; };
   const collect = () => { (getWaterAnimations() || []).forEach(handle => water.add(handle)); return [...water]; };
   const cancelTick = () => { if (frame !== undefined) cancelFrame(frame); frame = undefined; };
-  const stop = () => { cancelTick(); stopFinite(); collect().forEach(handle => handle.pause?.()); water.clear(); settlingAt = undefined; setWaterOpacity(0); };
+  const stop = () => { discoveryFrames = 0; cancelTick(); stopFinite(); collect().forEach(handle => handle.pause?.()); water.clear(); settlingAt = undefined; setWaterOpacity(0); };
   const tick = () => {
     frame = undefined;
     if (disposed || !current) return;
     const time = now();
+    if (discoveryFrames > 0) {
+      discoveryFrames--;
+      collect().forEach(handle => { handle.playbackRate = 1; handle.play?.(); });
+    }
     if (finiteAt !== undefined && time - finiteAt >= 1800) stopFinite();
     if (settlingAt !== undefined) {
       const progress = Math.min(1, Math.max(0, (time - settlingAt) / 1500));
@@ -22,7 +26,7 @@ export function createCardGestureMotionController({ startFinite = () => [], getW
       setWaterOpacity(rate);
       if (progress === 1) { settlingAt = undefined; settled = true; }
     }
-    if (finiteAt !== undefined || settlingAt !== undefined) frame = requestFrame(tick);
+    if (finiteAt !== undefined || settlingAt !== undefined || discoveryFrames > 0) frame = requestFrame(tick);
   };
   return {
     sync(next) {
@@ -33,15 +37,22 @@ export function createCardGestureMotionController({ startFinite = () => [], getW
       const recipes = recipesFor(next.gesture);
       if (!next.canMove || next.reducedMotion || !['active', 'held', 'settling'].includes(next.phase) || !recipes.length) { stop(); return; }
       if (next.phase === 'settling') {
+        discoveryFrames = 0;
         if (settled) collect().forEach(handle => { handle.playbackRate = 0; handle.pause?.(); });
         if (!settled && settlingAt === undefined && water.size) settlingAt = now();
       } else {
         settlingAt = undefined; settled = false;
-        if (recipes.some(recipe => recipe.kind === 'water')) { collect().forEach(handle => { handle.playbackRate = 1; handle.play?.(); }); setWaterOpacity(1); }
+        if (recipes.some(recipe => recipe.kind === 'water')) {
+          // Media queries can recreate paused CSS handles after this effect.
+          // Three local frames discover the fresh controls without a perpetual RAF loop.
+          discoveryFrames = 3;
+          collect().forEach(handle => { handle.playbackRate = 1; handle.play?.(); });
+          setWaterOpacity(1);
+        }
         if (!finiteStarted && recipes.some(recipe => recipe.kind === 'finite')) { finiteStarted = true; finite = startFinite(recipes) || []; finiteAt = finite.length ? now() : undefined; }
       }
       cancelTick();
-      if (finiteAt !== undefined || settlingAt !== undefined) frame = requestFrame(tick);
+      if (finiteAt !== undefined || settlingAt !== undefined || discoveryFrames > 0) frame = requestFrame(tick);
     },
     dispose() { if (disposed) return; stop(); disposed = true; current = undefined; }
   };
