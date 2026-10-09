@@ -1,14 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { secureDevelopmentServer } from './scripts/lib/developmentServerSecurity.mjs';
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    host: '0.0.0.0',
+  server: secureDevelopmentServer({
     port: 5000,
-    allowedHosts: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8787',
@@ -24,7 +23,7 @@ export default defineConfig({
       allow: [fileURLToPath(new URL('.', import.meta.url)), realpathSync(fileURLToPath(new URL('./node_modules', import.meta.url)))],
       deny: ['venv/**', '.git/**']
     }
-  },
+  }),
   optimizeDeps: {
     // Keep dependency scanning on browser entrypoints only.
     // Broad src globs pull the Cloudflare worker graph into the frontend optimizer.

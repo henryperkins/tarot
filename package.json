@@ -10,6 +10,7 @@
     "dev:frontend": "vite --port 5173",
     "dev:workers": "wrangler dev --config wrangler.jsonc --live-reload",
     "dev:claude": "node --env-file-if-exists=services/claude-code/.env.local services/claude-code/server.mjs",
+    "dev:reading-gestures": "node scripts/dev-reading-gestures.mjs",
     "build": "vite build",
     "build:all": "vite build",
     "build:frontend": "vite build",
