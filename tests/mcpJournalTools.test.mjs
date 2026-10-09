@@ -57,10 +57,11 @@ describe('save_reading_to_journal', () => {
     const ctx = await session();
     const drawn = await drawAndFinish(ctx);
 
-    const saved = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken, context: 'self' });
+    const saved = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, context: 'self' });
 
     assert.equal(saved.isError, undefined);
     assert.equal(saved.structuredContent.outcome, 'saved');
+    assert.deepEqual(Object.keys(saved.structuredContent.entry), ['id'], 'no timestamps or other internal fields');
     const [row] = entries(ctx.d1);
     assert.equal(row.id, saved.structuredContent.entry.id);
     assert.equal(row.user_id, 'user-1');
@@ -86,8 +87,8 @@ describe('save_reading_to_journal', () => {
   it('answers already_saved when the same job is saved again', async () => {
     const ctx = await session();
     const drawn = await drawAndFinish(ctx);
-    const first = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
-    const second = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
+    const first = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId });
+    const second = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId });
 
     assert.equal(second.structuredContent.outcome, 'already_saved');
     assert.equal(second.structuredContent.entry.id, first.structuredContent.entry.id);
@@ -98,8 +99,8 @@ describe('save_reading_to_journal', () => {
     const ctx = await session();
     const drawn = await drawAndFinish(ctx);
     const [a, b] = await Promise.all([
-      ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken }),
-      ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken })
+      ctx.call('save_reading_to_journal', { jobId: drawn.jobId }),
+      ctx.call('save_reading_to_journal', { jobId: drawn.jobId })
     ]);
     assert.deepEqual([a.structuredContent.outcome, b.structuredContent.outcome].sort(), ['already_saved', 'saved']);
     assert.equal(entries(ctx.d1).length, 1);
@@ -109,7 +110,7 @@ describe('save_reading_to_journal', () => {
     const ctx = await session();
     const drawn = await drawAndFinish(ctx);
     const fieldsOnly = await ctx.call('save_reading_to_journal', readingFieldsFor(drawn));
-    const mixed = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken, spread: 'x' });
+    const mixed = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, spread: 'x' });
     const empty = await ctx.call('save_reading_to_journal', {});
 
     for (const result of [fieldsOnly, mixed, empty]) {
@@ -122,7 +123,7 @@ describe('save_reading_to_journal', () => {
   it('refuses a reading that has not finished', async () => {
     const ctx = await session({ runReading: hangingRunner() });
     const drawn = (await ctx.call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
-    const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
+    const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId });
     assert.equal(result.isError, true);
     assert.match(result.content[0].text, /^Not saved: the reading has not finished/);
   });
@@ -130,7 +131,7 @@ describe('save_reading_to_journal', () => {
   it('refuses a crisis safety response', async () => {
     const ctx = await session({ runReading: readingRunner({ reading: 'Please reach out…', provider: 'safety-gate', gateReason: 'crisis_gate' }) });
     const drawn = await drawAndFinish(ctx);
-    const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
+    const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId });
     assert.equal(result.isError, true);
     assert.match(result.content[0].text, /safety message, not a reading/);
     assert.equal(entries(ctx.d1).length, 0);
@@ -169,7 +170,7 @@ describe('save_reading_to_journal', () => {
   it('refuses a reading that the safety check held back', async () => {
     const ctx = await session({ runReading: readingRunner({ reading: '## A Moment of Reflection', provider: 'safe-fallback', gateReason: 'tone_lt_2' }) });
     const drawn = await drawAndFinish(ctx);
-    const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
+    const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId });
     assert.equal(result.isError, true);
     assert.equal(result.content[0].text, "Not saved: Tableu's safety check held back this reading, so there is no reading to save");
     assert.equal(entries(ctx.d1).length, 0);
@@ -178,7 +179,7 @@ describe('save_reading_to_journal', () => {
   it('saves a reading whose first streamed draft failed the quality gate', async () => {
     const ctx = await session({ runReading: readingRunner({ reading: NARRATIVE, requestId: 'req-save-1', gateReason: 'quality_gate_streaming' }) });
     const drawn = await drawAndFinish(ctx);
-    const saved = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
+    const saved = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId });
     assert.equal(saved.structuredContent.outcome, 'saved');
     assert.equal(entries(ctx.d1)[0].narrative, NARRATIVE);
   });
@@ -188,7 +189,7 @@ describe('save_reading_to_journal', () => {
     const drawn = await drawAndFinish(ctx);
     ctx.jobs.instances.get(drawn.jobId).object.job.expiresAt = Date.now() - 1;
 
-    const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
+    const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId });
 
     assert.equal(result.isError, true);
     assert.equal(result.content[0].text, 'Not saved: this reading can no longer be saved. Readings started in ChatGPT are kept for 24 hours after they are written.');
@@ -198,16 +199,17 @@ describe('save_reading_to_journal', () => {
   it('refuses accounts below Plus', async () => {
     const ctx = await session({ user: { ...OWNER, subscription_tier: 'free', subscription_status: 'inactive' } });
     const drawn = await drawAndFinish(ctx);
-    const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
+    const result = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId });
     assert.equal(result.isError, true);
-    assert.match(result.content[0].text, /^Not saved: Cloud journal sync requires an active Plus or Pro subscription/);
+    assert.match(result.content[0].text, /^Not saved: saving readings to the Tableu journal isn't included with this account\./);
+    assert.doesNotMatch(result.content[0].text, /plus|pro\b|subscri|upgrade/i, 'plan-gated features are explained without naming or promoting plans');
   });
 });
 
 describe('add_reflection_to_journal_entry', () => {
   async function savedReading(ctx, extra) {
     const drawn = await drawAndFinish(ctx, extra);
-    const saved = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId, jobToken: drawn.jobToken });
+    const saved = await ctx.call('save_reading_to_journal', { jobId: drawn.jobId });
     return { drawn, entryId: saved.structuredContent.entry.id };
   }
 
@@ -220,9 +222,9 @@ describe('add_reflection_to_journal_entry', () => {
     const onReading = await ctx.call('add_reflection_to_journal_entry', { entryId, text: 'gentle overall', scope: 'reading' });
 
     assert.equal(onCard.structuredContent.outcome, 'added');
-    assert.equal(onCard.structuredContent.key, '1');
+    assert.equal('key' in onCard.structuredContent, false, 'the storage key stays server-side');
     assert.equal(onCard.structuredContent.target.cardIndex, 1);
-    assert.equal(onReading.structuredContent.key, 'Overall');
+    assert.equal(onReading.structuredContent.target.scope, 'reading');
     const stored = JSON.parse(ctx.d1.rows('SELECT reflections_json FROM journal_entries')[0].reflections_json);
     assert.deepEqual(stored, { 1: 'this one is me', Overall: 'gentle overall' });
   });
@@ -241,8 +243,8 @@ describe('add_reflection_to_journal_entry', () => {
     const knight = await ctx.call('add_reflection_to_journal_entry', {
       entryId: 'thoth-entry', text: 'Knight note', scope: 'card', card: 'Knight of Wands', position: 'Present'
     });
-    assert.equal(prince.structuredContent.key, '0');
-    assert.equal(knight.structuredContent.key, '1');
+    assert.equal(prince.structuredContent.target.cardIndex, 0);
+    assert.equal(knight.structuredContent.target.cardIndex, 1);
     assert.equal(prince.structuredContent.target.card, 'Prince of Wands');
     assert.equal(knight.structuredContent.target.card, 'Knight of Wands');
 
@@ -255,8 +257,8 @@ describe('add_reflection_to_journal_entry', () => {
     });
     assert.equal(princeRetry.structuredContent.outcome, 'already_present');
     assert.equal(knightRetry.structuredContent.outcome, 'already_present');
-    assert.equal(princeRetry.structuredContent.key, '0');
-    assert.equal(knightRetry.structuredContent.key, '1');
+    assert.equal(princeRetry.structuredContent.target.cardIndex, 0);
+    assert.equal(knightRetry.structuredContent.target.cardIndex, 1);
     const [row] = ctx.d1.rows('SELECT cards_json, reflections_json FROM journal_entries WHERE id = ?', ['thoth-entry']);
     assert.deepEqual(JSON.parse(row.cards_json).map((card) => card.name), ['Knight of Wands', 'King of Wands']);
     assert.deepEqual(JSON.parse(row.reflections_json), { 0: 'Prince note', 1: 'Knight note' });

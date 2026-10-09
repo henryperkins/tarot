@@ -102,12 +102,9 @@ const startInput = z.object({
 }).strict();
 
 // jobId alone identifies a job: the MCP paths serve it only to the account
-// that started it. jobToken is still returned and accepted so clients that
-// learned the earlier contract keep working, but it is never checked.
-const DEPRECATED_TOKEN = 'Deprecated and ignored; send only jobId.';
+// that started it.
 const jobRef = {
-  jobId: z.string().min(1),
-  jobToken: z.string().min(1).optional().describe(DEPRECATED_TOKEN)
+  jobId: z.string().min(1)
 };
 const jobRefInput = z.object(jobRef).strict();
 const waitInput = z.object({
@@ -140,17 +137,15 @@ const statusOutput = z.object({
   seed: z.string().optional(),
   reading: z.string().optional(),
   supportMessage: z.string().optional(),
-  requestId: z.string().nullable().optional(),
   themes: themesOutput.optional(),
   gateBlocked: z.boolean().optional(),
-  gateReason: z.string().nullable().optional(),
+  gateReason: z.enum(['crisis_gate', 'withheld']).optional(),
   error: z.string().optional(),
   timedOut: z.boolean().optional()
 });
 
 const drawOutput = z.object({
   jobId: z.string(),
-  jobToken: z.string().optional().describe(DEPRECATED_TOKEN),
   status: z.literal('running'),
   spreadInfo: spreadInfoOutputSchema,
   cardsInfo: z.array(publicCardSchema),
@@ -160,7 +155,6 @@ const drawOutput = z.object({
 
 const startOutput = z.object({
   jobId: z.string(),
-  jobToken: z.string().optional().describe(DEPRECATED_TOKEN),
   status: z.literal('running')
 });
 
@@ -171,6 +165,26 @@ const cancelOutput = z.object({
 
 function jobStatus(status) {
   return status === 'complete' || status === 'error' ? status : 'running';
+}
+
+export const READING_LIMIT_MESSAGE =
+  "This Tableu account has used all of its readings for this month, so this reading wasn't written. More become available when the monthly allowance resets.";
+export const PLAN_FEATURE_MESSAGE =
+  "That spread or option isn't included with this Tableu account, so the reading wasn't written. A different spread may work.";
+const UNAVAILABLE_MESSAGE = 'The reading could not be written. Please try again later.';
+// Plan and purchase wording never reaches ChatGPT: tool results must not
+// promote upgrades or display plans. They may say a feature isn't included.
+const COMMERCE_WORDING = /\b(upgrade|subscri\w*|pricing|checkout|plus|pro plan)\b/i;
+
+/** Model-facing text for a failed reading job. */
+export function readingErrorText({ error, errorCode } = {}) {
+  if (errorCode === 'reading_limit_reached') return READING_LIMIT_MESSAGE;
+  if (errorCode === 'plan_feature_unavailable') return PLAN_FEATURE_MESSAGE;
+  const text = typeof error === 'string' ? error.trim() : '';
+  if (!text) return 'The reading failed.';
+  if (/monthly reading limit/i.test(text)) return READING_LIMIT_MESSAGE;
+  if (!COMMERCE_WORDING.test(text)) return text;
+  return /\brequires?\b/i.test(text) ? PLAN_FEATURE_MESSAGE : UNAVAILABLE_MESSAGE;
 }
 
 function toThemeSummary(themes) {
@@ -199,7 +213,7 @@ export function toCompactStatus(data) {
     cardsInfo: Array.isArray(snapshot.cardsInfo) ? snapshot.cardsInfo : []
   };
   if (snapshot.seed) compact.seed = String(snapshot.seed);
-  if (status === 'error') compact.error = data?.error || 'The reading failed.';
+  if (status === 'error') compact.error = readingErrorText({ error: data?.error, errorCode: data?.errorCode });
   if (status !== 'complete') return compact;
 
   const result = data?.result;
@@ -207,7 +221,6 @@ export function toCompactStatus(data) {
   if (outcome === READING_OUTCOME.EMPTY) {
     return { ...compact, status: 'error', error: 'The reading finished without any text.' };
   }
-  compact.requestId = result.requestId ?? null;
   if (outcome === READING_OUTCOME.READING) {
     compact.reading = result.reading;
     const themes = toThemeSummary(data.meta?.themes);
@@ -219,7 +232,9 @@ export function toCompactStatus(data) {
     compact.gateReason = 'crisis_gate';
     if (typeof result.reading === 'string' && result.reading.trim()) compact.supportMessage = result.reading;
   } else {
-    compact.gateReason = result.gateReason ?? null;
+    // The internal gate reason is diagnostic; ChatGPT only needs to know the
+    // reading was held back.
+    compact.gateReason = 'withheld';
   }
   return compact;
 }
@@ -236,7 +251,7 @@ function statusText(compact) {
     return 'The reading is still being written; call wait_for_tarot_reading again with the same jobId; do not start a new reading.';
   }
   if (compact.reading !== undefined) {
-    return `The reading is complete (requestId ${compact.requestId ?? 'unknown'}). Present the narrative in \`reading\` with the cards: ${describeCards(compact.cardsInfo)}.`;
+    return `The reading is complete. Present the narrative in \`reading\` with the cards: ${describeCards(compact.cardsInfo)}.`;
   }
   if (compact.gateReason === 'crisis_gate') {
     return 'Tableu did not write a reading: the question or reflections suggested the person may be in crisis, so it returned a support message in `supportMessage` instead. Set the cards aside and put their safety first: respond with care and share that support information. Do not interpret the cards, and do not offer to save this.';
@@ -247,7 +262,7 @@ function statusText(compact) {
 function lookupFailure(result) {
   if (result.status === 404) return fail('Reading job not found.');
   if (result.status === 410) return fail('This reading job has expired.');
-  return fail(`Could not check the reading: ${result.error || 'the reading service is unavailable.'}`);
+  return fail(`Could not check the reading: ${result.error ? readingErrorText({ error: result.error }) : 'the reading service is unavailable.'}`);
 }
 
 /**
@@ -310,12 +325,11 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
           seed
         }
       });
-      if (!started.ok) return fail(`Not started: ${started.error}`);
+      if (!started.ok) return fail(`Not started: ${readingErrorText({ error: started.error, errorCode: started.code })}`);
 
       return ok(
         {
           jobId: started.jobId,
-          jobToken: started.jobToken,
           status: 'running',
           spreadInfo: drawn.spreadInfo,
           cardsInfo,
@@ -381,10 +395,10 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
           seed: null
         }
       });
-      if (!started.ok) return fail(`Not started: ${started.error}`);
+      if (!started.ok) return fail(`Not started: ${readingErrorText({ error: started.error, errorCode: started.code })}`);
 
       return ok(
-        { jobId: started.jobId, jobToken: started.jobToken, status: 'running' },
+        { jobId: started.jobId, status: 'running' },
         'Reading started. Call wait_for_tarot_reading with this jobId.'
       );
     }
