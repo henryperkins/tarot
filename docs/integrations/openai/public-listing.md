@@ -72,11 +72,12 @@ Submitting for review and publishing after approval are owner actions. After
 publication, OpenAI rescans the server daily; tool changes can be held for
 review.
 
-## Open owner decisions
+## Owner decisions (2026-10-09)
 
-- **Ages 13–17.** The guidelines require apps to suit users aged 13–17, while
-  the Terms and Privacy Policy say Tableu is for adults 18 and older.
-- **Countries** for the listing.
+- **Ages.** Tableu is for people 13 and older; anyone under 18 needs a parent
+  or guardian's permission (Terms §1, Privacy §8). This matches the guideline
+  that apps suit users aged 13–17.
+- **Countries.** Every country where ChatGPT offers plugins (`countries: []`).
 
 ## Kill switch
 
