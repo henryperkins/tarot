@@ -1,3 +1,4 @@
+import { emitCueTiming } from '../lib/readingCueTimingProbe.js';
 import { useState, useEffect, useRef } from 'react';
 import { canonicalVisualCueJSON, sameVisualCueBinding } from '../../shared/contracts/visualCueBatches.js';
 import { boundVisualCueLedger } from '../lib/narrativeGestureSource.js';
@@ -42,6 +43,10 @@ export function useReadingVisualJob({ readingResultId, visualBinding, visualJobT
       const cueLedger = changed ? ledger : prior.cueLedger;
       if (!changed && status === prior.status) return;
       const next = { key, binding, cueLedger, ledgerRevision: cueLedger.ledgerRevision, status, error };
+      if (changed) for (const cue of cueLedger.cues) emitCueTiming('cue-adoption', {
+        runId: readingResultId, sourceRevision: binding.sourceRevision, cueId: cue.id,
+        start: cue.passage.start, end: cue.passage.end, ledgerRevision: cueLedger.ledgerRevision
+      });
       accepted.current = next;
       setSnapshot(next);
       latest.current.onBatch?.(next);
@@ -53,7 +58,18 @@ export function useReadingVisualJob({ readingResultId, visualBinding, visualJobT
           if (controller.signal.aborted || !sameVisualCueBinding(data?.binding, binding)) continue;
           status = data.status || (event === 'done' ? 'complete' : event === 'error' ? 'failed' : 'running');
           error = status === 'failed' ? 'Visual accompaniment is unavailable.' : null;
+          if (data.timing) emitCueTiming('cue-server-timing', {
+            runId: readingResultId, sourceRevision: binding.sourceRevision, eventId: data.eventId,
+            ledgerRevision: data.ledgerRevision, serverAvailableAt: data.timing.availableAt,
+            serverAnnotationStartedAt: data.timing.annotationStartedAt,
+            serverAnnotationFinishedAt: data.timing.annotationFinishedAt,
+            serverLedgerCommittedAt: data.timing.ledgerCommittedAt
+          });
           const ledger = data.cueLedger;
+          if (sameVisualCueBinding(ledger?.binding, binding)) for (const cue of ledger.cues || []) emitCueTiming('cue-receipt', {
+            runId: readingResultId, sourceRevision: binding.sourceRevision, eventId: data.eventId, cueId: cue.id,
+            start: cue.passage?.start, end: cue.passage?.end, ledgerRevision: ledger.ledgerRevision
+          });
           if (sameVisualCueBinding(ledger?.binding, binding)
             && Number.isSafeInteger(ledger.ledgerRevision)
             && (!received.current || ledger.ledgerRevision >= received.current.cueLedger.ledgerRevision)) {

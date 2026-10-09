@@ -1,3 +1,4 @@
+import { cueTimingProbeActive } from '../lib/readingCueTimingProbe.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { NarrativePanel } from './NarrativePanel';
@@ -61,10 +62,11 @@ export function ReadingGesturesFixture() {
   const sourceMode = !isDeck && !isGenerated && ['job-sse', 'visual-cues'].includes(params.get('sourceMode')) ? params.get('sourceMode') : 'recorded';
   const associationMode = isGenerated && params.get('associations') !== 'dynamic' ? 'generated' : isDeck || params.get('associations') === 'dynamic' ? 'dynamic' : 'authored';
   const reflection = !isDeck && params.get('reflection') !== 'off';
-  const fixture = useMemo(() => isDeck ? deckFixture(deckCard, orientation) : isGenerated ? generatedSample : STUDIES[studyKey], [deckCard, isDeck, isGenerated, generatedSample, orientation, studyKey]);
+  const qualificationCase = cueTimingProbeActive() ? globalThis.__cueQualificationCase : null;
+  const fixture = useMemo(() => qualificationCase || (isDeck ? deckFixture(deckCard, orientation) : isGenerated ? generatedSample : STUDIES[studyKey]), [qualificationCase, deckCard, isDeck, isGenerated, generatedSample, orientation, studyKey]);
   const originalSidecar = sidecars[SIDECAR_KEYS[studyKey]];
   const sidecar = useMemo(() => !originalSidecar ? null : reflection ? originalSidecar : { ...originalSidecar, recordedContext: null }, [originalSidecar, reflection]);
-  const raw = isDeck ? fixture.reading : isGenerated ? fixture.document.raw : sidecar.expectedRaw;
+  const raw = qualificationCase ? qualificationCase.raw : isDeck ? fixture.reading : isGenerated ? fixture.document.raw : sidecar.expectedRaw;
   const context = useReading();
   const [restart, setRestart] = useState(0);
   const [recordedSource, setRecordedSource] = useState(() => createGestureSource({ runId: crypto.randomUUID() }));
@@ -188,7 +190,7 @@ export function ReadingGesturesFixture() {
           <label>Reflection <select value={reflection ? 'on' : 'off'} onChange={event => change('reflection', event.target.value)}><option>on</option><option>off</option></select></label>
         </>}
         <button type="button" onClick={() => setRestart(previous => previous + 1)}>Restart study</button>
-        <output data-testid="gesture-source-diagnostics" data-association-mode={associationMode} data-run-id={source.runId} data-source-revision={source.sourceRevision} data-source-status={source.status} data-raw-length={source.raw.length} data-selection-calls={selectionCalls}
+        <output data-testid="gesture-source-diagnostics" data-qualification-case={qualificationCase?.id} data-qualification-spread={qualificationCase?.spreadKey} data-association-mode={associationMode} data-run-id={source.runId} data-source-revision={source.sourceRevision} data-source-status={source.status} data-raw-length={source.raw.length} data-selection-calls={selectionCalls}
           data-visual-binding={source.visualBinding ? JSON.stringify(source.visualBinding) : undefined}
           data-ledger-revision={source.cueLedger?.ledgerRevision}>{isDeck ? 'authored probe' : sourceMode}: {source.raw.length} characters</output>
       </fieldset>

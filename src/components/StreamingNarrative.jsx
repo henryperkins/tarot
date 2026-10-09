@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { cueTimingProbeActive, emitCueTiming, emitCueSourceDigest, remarkCueSourcePositions } from '../lib/readingCueTimingProbe.js';
+import { useCallback, useLayoutEffect, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight } from '@phosphor-icons/react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -390,8 +391,15 @@ export function StreamingNarrative({
     cardLinks || studyRequested ? [[remarkCardLinks, { catalog: cardLinks,
       associations: studyEnabled && visibleSourceEnd !== null ? associations.filter((item) => item.passage.end <= visibleSourceEnd) : [],
       authoredOnly: Boolean(studyRequested)
-    }]] : null
-  ), [cardLinks, studyEnabled, studyRequested, associations, visibleSourceEnd]);
+    }], ...(cueTimingProbeActive() ? [[remarkCueSourcePositions, { raw: visibleText }]] : [])] : null
+  ), [cardLinks, studyEnabled, studyRequested, associations, visibleSourceEnd, visibleText]);
+  useLayoutEffect(() => {
+    if (!gestureSource || visibleSourceEnd === null) return;
+    const complete = !isReadingStreaming && visibleSourceEnd === gestureSource.raw.length;
+    emitCueTiming('source-render', { runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision,
+      end: visibleSourceEnd, complete, mode: isReadingStreaming ? 'server' : streamingActive ? 'typing' : 'instant' });
+    if (complete) void emitCueSourceDigest({ runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision, raw: visibleText });
+  }, [gestureSource, visibleSourceEnd, isReadingStreaming, streamingActive, visibleText]);
   useEffect(() => {
     if (!gestureSource || visibleSourceEnd === null) return;
     const progress = { runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision, visibleEnd: visibleSourceEnd,

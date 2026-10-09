@@ -107,6 +107,12 @@ export async function createNarrativeFixture(page, options = {}) {
         subscription_tier: 'pro', subscription_status: 'active', subscription_provider: 'stripe'
       } }
     });
+    if (options.relayOrigin && (pathname === '/api/tarot-reading/jobs' || pathname.startsWith('/api/tarot-reading/jobs/') || pathname.startsWith('/api/tarot-reading/visuals/'))) {
+      if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(options.relayOrigin)) throw new Error('Relay must be owned loopback');
+      if (pathname === '/api/tarot-reading/jobs') requests.reading.push(route.request().postDataJSON());
+      if (pathname.startsWith('/api/tarot-reading/visuals/')) requests.visual.push({ pathname, method: route.request().method() });
+      return route.continue({ url: `${options.relayOrigin}${pathname}${requestUrl.search}` });
+    }
     if (pathname === '/api/tarot-reading/jobs') {
       requests.reading.push(route.request().postDataJSON());
       return route.fulfill({ json: { jobId, jobToken: 'local-fixture-token', ...options.startData } });

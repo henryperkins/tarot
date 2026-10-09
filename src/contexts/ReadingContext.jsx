@@ -1,3 +1,4 @@
+import { emitCueTiming } from '../lib/readingCueTimingProbe.js';
 import { createGestureSource, advanceGestureSource } from '../lib/narrativeGestureSource.js';
 import { useReadingVisualJob } from '../hooks/useReadingVisualJob.js';
 import { useAuth } from './AuthContext';
@@ -615,6 +616,13 @@ export function ReadingProvider({ children }) {
                 }
             })) {
                 if (!isActiveRequest()) return;
+                emitCueTiming('narrative-receipt', { runId,
+                    sourceRevision: data?.visualBinding?.sourceRevision ?? streamVisualBinding?.sourceRevision ?? 0,
+                    eventId: data?.eventId, eventType,
+                    start: eventType === 'delta' ? streamedText.length : 0,
+                    end: eventType === 'delta' ? streamedText.length + (data?.text?.length || 0)
+                        : typeof data?.fullText === 'string' ? data.fullText.length : streamedText.length,
+                    complete: eventType === 'done' });
                 updateCursor(data?.eventId);
                 if (data?.visualBinding) streamVisualBinding = data.visualBinding;
 

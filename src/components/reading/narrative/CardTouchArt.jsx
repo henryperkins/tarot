@@ -1,3 +1,4 @@
+import { cueTimingProbeActive } from '../../../lib/readingCueTimingProbe.js';
 import { useId, useMemo, useRef } from 'react';
 import { getCardTouchPoints } from '../../../data/cardTouchPoints.js';
 import { getVectorGestureDetails, getVectorGestureFrame } from '../../../data/cardGestureArtwork.js';
@@ -32,6 +33,9 @@ function GestureArtwork({ card, gesture, presence, dynamic, motionOwner, crop, c
   return (
     <span ref={root} data-gesture-art data-gesture-owner={motionOwner ? card.occurrenceId : undefined}
       data-card-name={card.canonicalName} className="gesture-art" data-held={gesture.held ? 'true' : undefined}
+      data-cue-detail-ids={cueTimingProbeActive() ? details.map(detail => detail.id).join(' ') : undefined}
+      data-cue-detail-geometry={cueTimingProbeActive() ? JSON.stringify(details.flatMap(detail => detail.maskSpots.map(spot => [detail.id, spot.x, spot.y]))) : undefined}
+      data-cue-association={cueTimingProbeActive() ? gesture.associationId : undefined}
       data-active={gesture.active ? 'true' : undefined}
       data-dynamic={dynamic ? 'true' : undefined}
       data-calm={calm ? 'true' : undefined} data-crop={crop ? 'true' : undefined}
