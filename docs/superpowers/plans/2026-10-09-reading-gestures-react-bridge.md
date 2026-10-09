@@ -46,6 +46,24 @@ Reading delivery and completion never wait for annotations. A visual event/job l
 
 This section records the user's architecture correction and supersedes joint generation as the future direction. It does not claim that the observer service, live transport, or model selection is implemented.
 
+## Recommended production policies — October 9 review
+
+These recommendations answer the five production choices raised after the separate-model decision. They distinguish existing study behavior from proposed rollout work; they do not represent implemented production changes or user approval of every recommendation.
+
+| Decision | Recommendation | Current evidence / remaining work |
+| --- | --- | --- |
+| Arbitrary reading associations | Incremental server-side semantic observation by the separate visual model. Feed completed passages while prose continues; retain strict identity/literal alignment as a fallback. | This is a streaming form of the proposed post-processing pass, not a requirement to wait for the whole reading. Preserve the reading model's prompt budget. The independent observer and late-result transport remain to be built. |
+| Artwork delivery | Hybrid: optimized base images with authored SVG masks/traces, requesting only the drawn spread's assets. Keep source vectors for authoring. | The React study already uses 78 attributed WebP derivatives: 22,814,590 bytes total versus 271,597,936 source SVG bytes. Recorded three-/five-card image bodies are 979,088 / 1,490,502 bytes. Larger supported spreads may load more cards. Neither a blanket SVGO savings percentage nor a universal overlay byte cap has been established. R2 is not a prerequisite for this format; serving/caching must be verified at rollout. |
+| Thoth / Marseille | Whole-card accompaniment: correct selected artwork, labels, orientation, shelf availability, focus, relationships at card level, and revisit. | Detail support belongs to a validated artwork-edition registry. The current vector coordinates must not transfer to another RWS edition, Thoth or Marseille by card-name similarity. Selective non-RWS majors are a separate later authoring scope. |
+| Localized readings | Use the same independent visual model with exact source-language quotations and canonical spread/detail IDs. Maintain safe whole-card availability if annotations are absent or rejected. | Two historical Spanish joint-generated examples validate contract mechanics, not an independent multilingual production service. Translated card aliases may help identity matching; a noun dictionary does not establish imagery ownership, negation or cross-card meaning. |
+| Persistent personal context | One compact question disclosure within the companion, closed by default, exposing the exact question and optional general/card-position reflections. | Current UI only displays the active cue's optional context quotation. Add an accessible popover/drawer; use keyboard/touch activation and appropriate dismissal/focus return. Avoid a hover-only tooltip, automatic opening or another sticky row competing with the prose. |
+
+**Multilingual fallback gap verified in this review:** at `d0f2223`, the dynamic aligner returns zero introductions and zero cues for `El Ermitaño sostiene un farol que ilumina el camino.`, while `The Hermit holds a lantern.` yields an identity introduction and literal cue. The opt-in shelf hides/disables occurrences without introductions. Therefore “plain prose with whole-card shelf presence” is not a guaranteed current fallback. Before rollout, provide quiet whole-card availability from already-revealed spread state when no validated introduction is available, independently of language matching. Keep availability separate from automatic passage focus: do not fabricate a description timestamp or reveal undrawn cards.
+
+**Rendering qualification:** the current detail renderer references the same base URL in an image element and an SVG image for localized illumination. The payload evidence shows URL reuse, not a proof of one decoded surface or negligible painting cost. Profile decode/memory/painting on target handsets before changing the layering or claiming compositing guarantees. Hybrid assets address payload size; they do not by themselves settle the rendering budget.
+
+**Personal-context behavior:** the disclosure remains under reader control and does not move prose when closed. Preserve the full source wording inside it; do not invent a reflection or have the visual model paraphrase the question. Context quotes can still appear locally with relevant cues, but they are not the only access to the original question. Verify long questions, absent reflections, card-specific notes, keyboard focus and short phone viewports when this UI is implemented.
+
 ## Global Constraints
 
 - “Preserve its current prose, headings, section structure, and interpretive depth.” Do not rewrite recorded or generated readings to fit animation.
