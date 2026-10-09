@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useReducer, useLayoutEffect } from 'react';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { resolveGestureSidecar } from '../../../lib/narrativeCardLinks.js';
+import { resolveDynamicPassages } from '../../../lib/narrativePassageAligner.js';
 import { createGestureFocusState, reduceGestureFocus } from './narrativeGestureState.js';
 
 /**
@@ -41,15 +42,34 @@ export function NarrativeCardFocusProvider({
   const [sweep, setSweep] = useState({ key: null, step: 0 });
   const containerRef = useRef(null);
   const onSelectCardRef = useRef(onSelectCard);
-  const resolved = useMemo(() => gestureStudyEnabled && gestureSidecar && gestureSource
-    ? resolveGestureSidecar({ sidecar: gestureSidecar, source: { ...gestureSource, ...personalContext }, cards, artworkEdition: cards[0]?.artworkEdition })
-    : { associations: [], introductions: [], invalid: [] }, [gestureStudyEnabled, gestureSidecar, gestureSource, personalContext, cards]);
+  const resolved = useMemo(() => {
+    if (!gestureStudyEnabled || !gestureSource) {
+      return { associations: [], introductions: [], invalid: [] };
+    }
+    if (gestureSidecar) {
+      return resolveGestureSidecar({
+        sidecar: gestureSidecar,
+        source: { ...gestureSource, ...personalContext },
+        cards,
+        artworkEdition: cards[0]?.artworkEdition
+      });
+    }
+    return resolveDynamicPassages({
+      source: { ...gestureSource, ...personalContext },
+      cards,
+      artworkEdition: cards[0]?.artworkEdition
+    });
+  }, [gestureStudyEnabled, gestureSidecar, gestureSource, personalContext, cards]);
   const [gestureState, dispatch] = useReducer(reduceGestureFocus, null, () => createGestureFocusState({
     runId: gestureSource?.runId, sourceRevision: gestureSource?.sourceRevision,
     ...resolved, completed: gestureSource?.kind === 'hydrate' && gestureSource?.status === 'complete'
   }));
   const gestureRef = useRef({ source: gestureSource, state: gestureState, resolved });
-  const studyEnabled = Boolean(gestureStudyEnabled && gestureSource && gestureSidecar && !resolved.invalid?.some((item) => item.reason === 'source-or-edition-mismatch'));
+  const studyEnabled = Boolean(
+    gestureStudyEnabled &&
+    gestureSource &&
+    !resolved.invalid?.some((item) => item.reason === 'source-or-edition-mismatch')
+  );
   useLayoutEffect(() => {
     gestureRef.current = { source: gestureSource, state: gestureState, resolved, enabled: studyEnabled };
   }, [gestureSource, gestureState, resolved, studyEnabled]);

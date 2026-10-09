@@ -30,6 +30,7 @@ export function ReadingGesturesFixture() {
   const studyKey = STUDIES[params.get('study')] ? params.get('study') : 'star';
   const arrival = ['gentle', 'burst', 'complete'].includes(params.get('arrival')) ? params.get('arrival') : 'gentle';
   const sourceMode = params.get('sourceMode') === 'job-sse' ? 'job-sse' : 'recorded';
+  const associationMode = params.get('associations') === 'dynamic' ? 'dynamic' : 'authored';
   const reflection = params.get('reflection') !== 'off';
   const fixture = STUDIES[studyKey];
   const originalSidecar = sidecars[SIDECAR_KEYS[studyKey]];
@@ -106,7 +107,7 @@ export function ReadingGesturesFixture() {
     narrativePhase: source.status === 'complete' ? 'complete' : 'streaming',
     userQuestion: fixture.userQuestion, isHandset: window.innerWidth < 640,
     shouldStreamNarrative: false, narrativeHighlightPhrases: [], ttsState: { status: 'idle' },
-    gestureSource: source, gestureStudyEnabled: true, gestureSidecar: sidecar,
+    gestureSource: source, gestureStudyEnabled: true, gestureSidecar: associationMode === 'dynamic' ? null : sidecar,
     spreadCards, manualInspectionStatus: EMPTY_INSPECTIONS,
     cardLinkCatalog: buildCardLinkCatalog({ cards: spreadCards, deckStyle: 'rws-1909' })
   });
@@ -119,9 +120,10 @@ export function ReadingGesturesFixture() {
         <label>Study <select value={studyKey} onChange={event => change('study', event.target.value)}><option value="star">Star</option><option value="celtic">Celtic</option><option value="five-card">Five-card</option></select></label>
         <label>Arrival <select value={arrival} onChange={event => change('arrival', event.target.value)}><option>gentle</option><option>burst</option><option>complete</option></select></label>
         <label>Source mode <select value={sourceMode} onChange={event => change('sourceMode', event.target.value)}><option>recorded</option><option>job-sse</option></select></label>
+        <label>Associations <select value={associationMode} onChange={event => change('associations', event.target.value)}><option>authored</option><option>dynamic</option></select></label>
         <label>Reflection <select value={reflection ? 'on' : 'off'} onChange={event => change('reflection', event.target.value)}><option>on</option><option>off</option></select></label>
         <button type="button" onClick={() => setRestart(previous => previous + 1)}>Restart study</button>
-        <output data-testid="gesture-source-diagnostics" data-run-id={source.runId} data-source-revision={source.sourceRevision} data-source-status={source.status} data-raw-length={source.raw.length} data-selection-calls={selectionCalls}>{sourceMode}: {source.raw.length} characters</output>
+        <output data-testid="gesture-source-diagnostics" data-association-mode={associationMode} data-run-id={source.runId} data-source-revision={source.sourceRevision} data-source-status={source.status} data-raw-length={source.raw.length} data-selection-calls={selectionCalls}>{sourceMode}: {source.raw.length} characters</output>
       </fieldset>
       {reflection && <aside className="mx-auto mb-4 max-w-5xl text-sm text-muted" data-testid="recorded-reflection"><p>Recorded general reflection: {fixture.reflectionsText}</p></aside>}
       <NarrativePanel panelModel={panelModel} callbacks={{ onNarrativeComplete: noop, onHighlightPhrase: noop, onSectionEnter: noop, onSelectCard: recordSelection }} />

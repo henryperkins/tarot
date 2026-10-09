@@ -448,6 +448,8 @@
 .gesture-focus-layer[data-pair] .gesture-focus-card { max-width: 50%; }
 .gesture-context { min-height: 44px; margin-top: 12px; font-size: 12px; line-height: 1.5; color: var(--text-muted); text-wrap: balance; }
 .gesture-art { display: block; position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 4px; opacity: var(--presence, 1); }
+.gesture-art[data-dynamic='true'] { transition: opacity 550ms cubic-bezier(.16, 1, .3, 1); }
+.gesture-art[data-dynamic='true'][data-calm] { transition: none; }
 .gesture-art__plane { position: absolute; inset: 0; transition: transform 550ms cubic-bezier(.16, 1, .3, 1); }
 .gesture-art__upright { display: block; position: relative; width: 100%; height: 100%; }
 .gesture-art__upright[data-reversed] { transform: rotate(180deg); }
@@ -487,7 +489,7 @@
 @media (max-height: 600px) and (max-width: 1023px) { .gesture-window { height: 72px; } .gesture-shelf-card { height: 48px; width: 29px; } }
 @media (prefers-reduced-motion: reduce) {
   .gesture-focus-layer, .gesture-art [data-gesture-water] { animation: none !important; }
-  .gesture-art__plane, .gesture-art__image, .gesture-shelf-card, .gesture-focus-card { transition: none; }
+  .gesture-art[data-dynamic='true'], .gesture-art__plane, .gesture-art__image, .gesture-shelf-card, .gesture-focus-card { transition: none; }
   .gesture-shelf-card:hover, .gesture-shelf-card:focus-visible, .gesture-focus-card:hover, .gesture-focus-card:focus-visible { transform: none; }
   .gesture-art__water { opacity: 0; }
 }

@@ -13,12 +13,12 @@ const BOX_HEIGHT = 170;
  * and lit where the reading describes something drawn on it. The image and
  * its light rotate together when the card is reversed.
  */
-export function CardTouchArt({ card, state = null, touches = [], touchKey = '', calm = false, gesture = null, presence = 1, motionOwner = false, crop = false }) {
-  if (gesture) return <GestureArtwork card={card} gesture={gesture} presence={presence} motionOwner={motionOwner} crop={crop} calm={calm} />;
+export function CardTouchArt({ card, state = null, touches = [], touchKey = '', calm = false, gesture = null, presence = 1, dynamic = false, motionOwner = false, crop = false }) {
+  if (gesture) return <GestureArtwork card={card} gesture={gesture} presence={presence} dynamic={dynamic} motionOwner={motionOwner} crop={crop} calm={calm} />;
   return <LegacyCardTouchArt card={card} state={state} touches={touches} touchKey={touchKey} calm={calm} />;
 }
 
-function GestureArtwork({ card, gesture, presence, motionOwner, crop, calm }) {
+function GestureArtwork({ card, gesture, presence, dynamic, motionOwner, crop, calm }) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const root = useRef(null);
   const details = useMemo(() => card.artworkEdition === 'rws-immanuelle-vector'
@@ -33,6 +33,7 @@ function GestureArtwork({ card, gesture, presence, motionOwner, crop, calm }) {
     <span ref={root} data-gesture-art data-gesture-owner={motionOwner ? card.occurrenceId : undefined}
       data-card-name={card.canonicalName} className="gesture-art" data-held={gesture.held ? 'true' : undefined}
       data-active={gesture.active ? 'true' : undefined}
+      data-dynamic={dynamic ? 'true' : undefined}
       data-calm={calm ? 'true' : undefined} data-crop={crop ? 'true' : undefined}
       style={{ '--presence': presence, visibility: presence > 0 ? 'visible' : 'hidden', '--crop-x': `${(0.5 - frame.x) * 100}%`, '--crop-y': `${(0.5 - frame.y) * 100}%`, '--crop-zoom': frame.zoom }}>
       <span className="gesture-art__plane">

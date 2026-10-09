@@ -259,6 +259,48 @@ test('authored raw ranges preserve a whole emphasized phrase and reject changed 
   assert.equal(resolveGestureSidecar({ sidecar, source: { runId: 'run', raw: raw.slice(0, -2) }, cards }).associations.length, 0);
 });
 
+test('authored content ranges inside emphasis remain interactive without swallowing their formatting', () => {
+  const raw = '## **The Star**\n\nShe pours into the *pool*.';
+  const associations = [['star', 'The Star'], ['pool', 'pool']].map(([id, quote]) => {
+    const start = raw.indexOf(quote);
+    return { id, passage: { start, end: start + quote.length, quote } };
+  });
+  const html = renderToStaticMarkup(createElement(Markdown, {
+    remarkPlugins: [[remarkCardLinks, { associations, authoredOnly: true }]]
+  }, raw));
+  assert.match(html, /<h2><span[^>]*data-gesture-id="star"[^>]*><strong>The Star<\/strong><\/span><\/h2>/);
+  assert.match(html, /She pours into the <span[^>]*data-gesture-id="pool"[^>]*><em>pool<\/em><\/span>\./);
+  assert.doesNotMatch(html, /<(?:strong|em)><\/(?:strong|em)>/);
+});
+
+test('authored ranges crossing nested emphasis preserve exact text and all styles', () => {
+  const raw = 'A wand with sprouting **leaves** beside a ***covered cup***.';
+  const associations = [['sprout', 'sprouting **leaves'], ['cup', 'covered cup']].map(([id, quote]) => {
+    const start = raw.indexOf(quote);
+    return { id, passage: { start, end: start + quote.length, quote } };
+  });
+  const html = renderToStaticMarkup(createElement(Markdown, {
+    remarkPlugins: [[remarkCardLinks, { associations, authoredOnly: true }]]
+  }, raw));
+  assert.match(html, /data-gesture-id="sprout"[^>]*>sprouting <strong>leaves<\/strong><\/span>/);
+  assert.match(html, /data-gesture-id="cup"[^>]*><em><strong>covered cup<\/strong><\/em><\/span>/);
+  assert.equal(html.replace(/<[^>]+>/g, ''), 'A wand with sprouting leaves beside a covered cup.');
+});
+
+test('separate authored ranges within one emphasis node preserve text once and exclude linked content', () => {
+  const raw = '**pool and land**; **[The Star](https://example.com)**; *`cup`*.';
+  const associations = [['pool', 'pool'], ['land', 'land'], ['link', 'The Star'], ['code', 'cup']].map(([id, quote]) => {
+    const start = raw.indexOf(quote);
+    return { id, passage: { start, end: start + quote.length, quote } };
+  });
+  const html = renderToStaticMarkup(createElement(Markdown, {
+    remarkPlugins: [[remarkCardLinks, { associations, authoredOnly: true }]]
+  }, raw));
+  assert.match(html, /data-gesture-id="pool"[^>]*><strong>pool<\/strong><\/span><strong> and <\/strong><span[^>]*data-gesture-id="land"[^>]*><strong>land<\/strong><\/span>/);
+  assert.doesNotMatch(html, /data-gesture-id="(?:link|code)"/);
+  assert.equal(html.replace(/<[^>]+>/g, ''), 'pool and land; The Star; cup.');
+});
+
 test('authored association validation keeps optional context independent and occurrences distinct', async () => {
   const { resolveGestureSidecar } = await import('../src/lib/narrativeCardLinks.js');
   const raw = "L'étoile 🌟 revient. L'étoile 🌟 revient.";

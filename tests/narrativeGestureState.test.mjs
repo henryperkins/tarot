@@ -86,6 +86,17 @@ test('presence follows literal description progress and static reduced meaning',
   assert.equal(at(20, true), 1);
 });
 
+test('dynamic introductions remain quiet until committed without blocking inspection or reduced motion', () => {
+  const introduction = { start: 0, namedEnd: 8, descriptionStart: 8, midpoint: 8, end: 8, pending: true, dynamic: true };
+  const presence = (options = {}) => getCardPresence({ introduction, visibleEnd: 8, ...options });
+  assert.equal(presence({ visibleEnd: 7 }), 0);
+  assert.equal(presence(), .035);
+  assert.equal(presence({ visibleEnd: 80 }), .035);
+  assert.equal(presence({ inspected: true }), 1);
+  assert.equal(presence({ reducedMotion: true }), 1);
+  assert.equal(presence({ introduction: { ...introduction, pending: false } }), 1);
+});
+
 test('replacement clears stale hold and ignores stale progress', () => {
   let s = advance(initial(), 10, ['pool']);
   s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'pool' } }));

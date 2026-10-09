@@ -1,10 +1,34 @@
 # Reading gesture React bridge verification
 
-Verified October 9, 2026 on the feature branch `codex/reading-gestures-react-bridge`, using Node 24.21.0. The verified implementation checkpoint is `e373620` (final documentation follows in a separate commit). This handoff documents the application bridge and its development fixture route. The earlier standalone HTML studies and recorded source fixtures remain available. No production deployment or live narrative generation was performed.
+The original bridge was verified October 9, 2026 on `codex/reading-gestures-react-bridge`, using Node 24.21.0, at implementation checkpoint `e373620`. The current passage-alignment repair is documented separately below; the original test counts, screenshots, auth review, and performance trace remain historical evidence for that bridge checkpoint. The earlier standalone HTML studies and recorded source fixtures remain available. No production deployment or live narrative generation was performed.
+
+## Dynamic passage alignment repair — October 9, 2026
+
+The opted-in provider now accepts an absent sidecar and resolves associations from the actual live or hydrated Markdown source. [The shared contract](../../shared/contracts/readingPassageAssociations.js) validates exact UTF-16 passage ranges, spread occurrences, optional context, artwork details and introduction boundaries. [The aligner](../../src/lib/narrativePassageAligner.js) returns validation errors through `resolveDynamicPassages().invalid`; malformed data is not reported as a clean result.
+
+This fallback provides whole-card identity for the canonical 78-card roster. Literal and interpretive detail rules are deliberately limited to reviewed English constructions for the eight cards with authored vector geometry: The Star, The Hermit, Five of Wands, Ace of Wands, Seven of Swords, Queen of Cups, Three of Pentacles, and Wheel of Fortune. A literal rule requires descriptive context for the matching card. Later interpretations require that the corresponding detail was established earlier in the same reading. Unrecognized wording keeps ordinary prose and available identity inspection. Other or unspecified artwork editions receive no vector detail geometry, and an individual card edition cannot be overridden by a spread-level edition. This is a bounded deterministic aligner, not universal understanding of an arbitrary reading.
+
+The repair addresses dropped heading introductions, paired introductions, later named returns, and cue ordering. Source-order cues feed the focus engine; artwork-registry order no longer chooses the last detail. Markdown code, links, image metadata and HTML are excluded from annotation. Visible ranges inside strong/emphasis markup remain interactive without losing text or formatting. Figurative language such as “pool your resources” and “land a new role” does not establish painted pours. The aligner does not infer a personal association from word overlap. Supplied context references must match their actual source, and absent optional reflection text removes the local context reference while preserving the valid card/passage association.
+
+Streaming distinguishes a known source boundary from an unfinished prefix. Trailing incomplete words do not become available cues; committed cues keep stable IDs and ranges across appends. A dynamic introduction carries `dynamic` and `pending` state. After the name becomes available, pending artwork stays at quiet presence until a supported descriptive detail or a completed description block establishes its arrival; source completion resolves remaining identity introductions. It then emerges over 550 ms. Inspection selects full presence, and reduced motion retains static full presence without that transition. Authored sidecars still use their known description midpoint curve. Dynamic alignment does not predict the midpoint of future text.
+
+Contract validation also distinguishes `sourceComplete` from a streaming prefix: future associations are unavailable until their text arrives, supplied expected text can validate future authored ranges, and ranges beyond a complete source are rejected. Duplicate association IDs are rejected before availability filtering so a future collision cannot overwrite held inspection. Unsupported detail IDs are removed through edition-aware validation; the dynamic fallback retains whole-card identity where no supported detail rule exists.
+
+### Repair verification status
+
+Final repair verification on October 9, 2026:
+
+- `npm test`: **3,049/3,049 passing**, across 515 suites. The focused contract/alignment/renderer/state run passed 91 tests, including regressions first observed failing. All 11 recorded evaluation samples have zero alignment validation errors; this checks structure and selected semantic cases, not exhaustive interpretation accuracy.
+- Dedicated Playwright configuration: **21/21 passing** (19 Chromium, 2 mobile WebKit), including six no-sidecar dynamic tests alongside the 15 authored/lifecycle tests. Dynamic checks cover controlled SSE emergence, held continuity, source ordering, opaque Markdown, card headings, paired introductions, five-card returns, and reduced-motion phone behavior. Browser authentication remains mocked in this lane; no fresh real-auth review was needed or performed for these repairs.
+- `npm run build` passed in 17.53 seconds. Scoped ESLint passed with `--max-warnings 0`; documentation and whitespace checks passed. `unified` and `remark-parse` are explicit dependencies at their existing locked versions.
+- A separate canonical-name check exercised all **78 cards** through named headings with unknown-edition identity fallback, with zero failures. Seven-character incremental checks on the Star and five-card recorded sources found no changed or withdrawn committed cues. Soft-line-break and closing-quotation boundaries have dedicated regressions.
+- Dynamic desktop (Chromium, 1100×1000, held Star pool) and phone (WebKit, 390×844, reduced-motion Ace/Queen pair) were captured and visually inspected. Both had readable artwork/prose and zero horizontal overflow or page errors; the phone stage stayed 106px with zero running stage animations. These repair screenshots were temporary local inspection artifacts, not replacements for the historical captures below.
+
+The no-sidecar browser path is `associations=dynamic`. The final bounded headless trace observed 32 animation frames, nine frame intervals above 34ms, a maximum interval of 83.3ms, and no main-thread task above 50ms. These observations do not establish locked 60fps or physical-handset performance. No production deployment, live generation, narrative-generation gate, or new authentication/tier qualification was performed. The historical verification tables below remain evidence for the original bridge checkpoint.
 
 ## Scope and implementation
 
-The bridge uses the existing `NarrativePanel`, Markdown renderer, reading context, spread companion, and artwork renderer. The study flag defaults to disabled. The fixture supplies explicit recorded sidecars and the `rws-immanuelle-vector` artwork edition; ordinary readings keep functional prose and card inspection without requiring sidecars.
+The original bridge uses the existing `NarrativePanel`, Markdown renderer, reading context, spread companion, and artwork renderer. The study flag defaults to disabled. Its authored fixture mode supplies explicit recorded sidecars and the `rws-immanuelle-vector` artwork edition; ordinary readings keep functional prose and card inspection without requiring sidecars. The dynamic fallback described above remains behind the same opt-in gate.
 
 Raw text and generation identity are tracked independently of formatted prose. Append, reconnect, pause and completion retain the run identity; non-prefix replacement increments the source revision, and regeneration creates a new identity. A deferred flush fixes the case where a final short delta arrived during the 120 ms batching interval and otherwise remained undisplayed.
 
@@ -20,7 +44,7 @@ From the repository root on this feature branch:
 npm run dev:frontend -- --port 5174 --strictPort
 ```
 
-Open [the recorded Star fixture](http://localhost:5174/__e2e/reading-gestures?study=star&arrival=gentle). Default recorded mode requires no credentials. The lab supports `study=star|celtic|five-card`, `arrival=gentle|burst|complete`, and `reflection=off`; restart and discrete selectors remain outside the reading surface. Star and Celtic headings are separate from their exact excerpt source so raw offsets remain valid. Five-card retains the complete reading and headings.
+Open [the recorded Star fixture](http://localhost:5174/__e2e/reading-gestures?study=star&arrival=gentle), or [the Star with dynamic alignment and no sidecar](http://localhost:5174/__e2e/reading-gestures?study=star&arrival=gentle&associations=dynamic). Default recorded mode requires no credentials. The lab supports `study=star|celtic|five-card`, `arrival=gentle|burst|complete`, `associations=authored|dynamic`, and `reflection=off`; restart and discrete selectors remain outside the reading surface. The dynamic option changes association resolution, while keeping recorded source delivery. Star and Celtic headings are separate from their exact excerpt source so raw offsets remain valid. Five-card retains the complete reading and headings.
 
 Run the focused suites with the dedicated configuration, which starts or reuses the fixture server on port 5174:
 
@@ -30,7 +54,7 @@ npx playwright test --config output/reading-motion/react-bridge.playwright.confi
 
 `sourceMode=job-sse` invokes the actual reading generation entrypoint after seeding the public Tarot setters. Use this mode through the controlled test fixture. Selecting it outside those tests can start a live backend job. The helper replaces reading responses with recorded, controllable SSE and separately selects mocked Pro, guest or passthrough authentication.
 
-## Verification lanes
+## Original bridge verification lanes
 
 | Lane | Evidence | Qualification |
 | --- | --- | --- |
@@ -74,7 +98,7 @@ The isolated performance test passed; frame timing varied under the broader run,
 
 ## Remaining limits and release state
 
-The sidecars are authored for three recorded studies. This work does not generate production annotations or establish coverage for arbitrary narratives, 70 unauthored card detail sets, or other artwork editions. Unsupported geometry and source mismatch retain ordinary prose rather than guessing detail positions.
+The sidecars remain authored for three recorded studies. The dynamic fallback adds validated associations for supported source constructions, but does not establish semantic coverage for every arbitrary narrative, the 70 unauthored card detail sets, or other artwork editions. Unsupported geometry and unrecognized wording retain prose and identity inspection without guessing detail positions.
 
 Native background/BFCache behavior, physical handset smoothness, native text/page zoom, and screen-reader behavior beyond the tested accessibility semantics are not claimed. Free/Plus/inactive subscription states were not reviewed. No live narrative model was exercised. The feature branch began at `4c433b9`; foundation commit `eca5290` was imported as `9aa1ec1`. The bounded bridge is complete at the verified implementation checkpoint. This is a feature checkpoint, not a production release; no merge, deployment or live-Worker parity is asserted.
 
@@ -93,4 +117,4 @@ The real-auth lane used fresh contexts with service workers blocked to prevent t
 
 Fetch and select `codex/reading-gestures-react-bridge`, install repository dependencies with `npm ci`, and install test browsers with `npx playwright install chromium webkit` if needed. All recorded fixtures, original SVG artwork and authored sidecars are checked in. Private reviewer credentials are intentionally excluded; a machine without the local reviewer account must record its own real-auth coverage gap.
 
-The [execution plan](../../docs/superpowers/plans/2026-10-09-reading-gestures-react-bridge.md) records implementation decisions and historical test-order exceptions. The [78-card inventory](deck-gesture-coverage.md) distinguishes authored and visually inspected details from structural roster coverage. The next authorized milestone should choose the production passage-association contract, then expand deliberate imagery treatments using that same occurrence/edition/focus engine. Before enabling it for ordinary readings, validate all promoted orientations/compact views, larger spreads, optimized artwork decode/memory, and actual handset/assistive-technology behavior.
+The [execution plan](../../docs/superpowers/plans/2026-10-09-reading-gestures-react-bridge.md) records implementation decisions, the dynamic alignment follow-up, and historical test-order exceptions. The [78-card inventory](deck-gesture-coverage.md) distinguishes authored and visually inspected details from structural roster coverage. The contract and conservative fallback now provide the continuation seam; broader language/semantic coverage and deliberate imagery treatments still need validation through the same occurrence/edition/focus engine. Before enabling it for ordinary readings, validate all promoted orientations/compact views, larger spreads, optimized artwork decode/memory, and actual handset/assistive-technology behavior.

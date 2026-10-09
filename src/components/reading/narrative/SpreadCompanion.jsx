@@ -139,7 +139,7 @@ function GestureCompanion({ focus, api }) {
           tabIndex={departing || !state.introduced.includes(target.occurrenceId) ? -1 : 0} disabled={departing || !state.introduced.includes(target.occurrenceId)}
           aria-label={cardLabel(card)} aria-pressed={Boolean(state.held)}
           onClick={() => state.held ? api.releaseAssociation() : association.id.startsWith('identity-') ? api.holdCard(target.occurrenceId) : api.holdAssociation(association.id)}>
-          {frameIds.map((ids, index) => <CardTouchArt key={index} card={card} crop presence={presence} calm={calm}
+          {frameIds.map((ids, index) => <CardTouchArt key={index} card={card} crop presence={presence} dynamic={introduction?.dynamic} calm={calm}
             motionOwner={!departing && index === 0}
             gesture={{ runId: source.runId, sourceRevision: source.sourceRevision, associationId: association.id,
               detailIds: Array.isArray(ids) ? ids : [ids], phase: departing ? 'static' : state.phase,
@@ -154,13 +154,14 @@ function GestureCompanion({ focus, api }) {
       {cards.map(card => {
         const introduced = state.introduced.includes(card.occurrenceId);
         const selected = current?.targets.some(target => target.occurrenceId === card.occurrenceId);
-        const presence = getCardPresence({ introduction: introductions.find(item => item.occurrenceId === card.occurrenceId), visibleEnd: state.visibleEnd,
+        const introduction = introductions.find(item => item.occurrenceId === card.occurrenceId);
+        const presence = getCardPresence({ introduction, visibleEnd: state.visibleEnd,
           inspected: state.held?.occurrenceId === card.occurrenceId, reducedMotion: calm });
         return <li key={card.occurrenceId} data-introduced={introduced ? 'true' : 'false'}>
           <button type="button" className="gesture-shelf-card" aria-label={cardLabel(card)} disabled={!introduced}
             data-occurrence-id={card.occurrenceId} aria-current={selected ? 'true' : undefined}
             onKeyDown={event => moveShelfFocus(event, card.occurrenceId)} onClick={() => api.holdCard(card.occurrenceId)}>
-            <CardTouchArt card={card} presence={presence} calm={calm} gesture={{ runId: source.runId, sourceRevision: source.sourceRevision,
+            <CardTouchArt card={card} presence={presence} dynamic={introduction?.dynamic} calm={calm} gesture={{ runId: source.runId, sourceRevision: source.sourceRevision,
               associationId: 'shelf', detailIds: [], phase: 'static', held: state.held?.occurrenceId === card.occurrenceId, active: selected, canMove: false }} />
           </button><span className="gesture-shelf-label">{card.shortLabel}</span>
         </li>;

@@ -138,7 +138,7 @@ export function NarrativePanel({
               narrativeAtmosphereClassName={narrativeAtmosphereClassName}
               hasHeroStoryArt={hasHeroStoryArt}
               cardLinks={cardLinks}
-              renderParagraphLead={cardLinks && !gestureSidecar ? renderCardPlate : null}
+              renderParagraphLead={cardLinks && !gestureSidecar && !gestureStudyEnabled ? renderCardPlate : null}
               spreadCompanion={hasSpread ? <SpreadCompanion variant="row" /> : null}
               gestureSource={gestureSource}
               sectionHeading={sectionHeading}

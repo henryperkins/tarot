@@ -4,6 +4,7 @@ export function getCardPresence({ introduction, visibleEnd = 0, inspected = fals
   if (inspected) return 1;
   if (!introduction || visibleEnd < introduction.namedEnd) return 0;
   if (reducedMotion) return 1;
+  if (introduction.pending) return .035;
   const { start, namedEnd, descriptionStart, midpoint, end } = introduction;
   if (visibleEnd < descriptionStart) {
     return Math.max(0.0001, 0.035 * ((visibleEnd - start) / Math.max(1, descriptionStart - start)) ** 2);

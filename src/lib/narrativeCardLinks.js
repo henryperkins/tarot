@@ -680,16 +680,23 @@ function annotateAuthoredRanges(tree, associations) {
   const offsets = (node) => [node.position?.start?.offset, node.position?.end?.offset];
   const sliceNode = (node, start, end) => {
     const [from, to] = offsets(node);
+    if (from >= end || to <= start) return undefined;
     if (from >= start && to <= end) return node;
+    const position = { start: { ...node.position.start, offset: Math.max(start, from) }, end: { ...node.position.end, offset: Math.min(end, to) } };
     if (node.type === 'text') {
       // Decoded entities and escapes have no unambiguous character projection.
       if (to - from !== node.value.length) return null;
       return { ...node, value: node.value.slice(Math.max(start, from) - from, Math.min(end, to) - from),
-        position: { start: { ...node.position.start, offset: Math.max(start, from) }, end: { ...node.position.end, offset: Math.min(end, to) } } };
+        position };
     }
     if (!['strong', 'emphasis', 'delete'].includes(node.type)) return null;
     const children = node.children.filter((child) => { const [a, b] = offsets(child); return a < end && b > start; }).map((child) => sliceNode(child, start, end));
-    return children.length && children.every(Boolean) ? { ...node, children } : null;
+    if (children.includes(null)) return null;
+    // An exact visible phrase can end before a Markdown closing delimiter.
+    // Delimiter-only remainders carry no text and are safely absent, whereas
+    // null means an unsupported projection and must reject the annotation.
+    const content = children.filter(Boolean);
+    return content.length ? { ...node, children: content, position } : undefined;
   };
   const visit = (node) => {
     if (['paragraph', 'heading'].includes(node.type)) {
@@ -699,16 +706,16 @@ function annotateAuthoredRanges(tree, associations) {
         const forbidden = (child) => !['text','strong','emphasis','delete'].includes(child.type) || child.children?.some(forbidden);
         if (!selected.length || selected.some(forbidden)) continue;
         const middle = selected.map((child) => sliceNode(child, range.start, range.end));
-        if (!middle.every(Boolean)) continue;
+        if (middle.includes(null) || !middle.some(Boolean)) continue;
         const [firstStart] = offsets(selected[0]);
         const [,lastEnd] = offsets(selected.at(-1));
-        const before = firstStart < range.start ? sliceNode(selected[0], firstStart, range.start) : null;
-        const after = lastEnd > range.end ? sliceNode(selected.at(-1), range.end, lastEnd) : null;
-        if ((firstStart < range.start && !before) || (lastEnd > range.end && !after)) continue;
+        const before = firstStart < range.start ? sliceNode(selected[0], firstStart, range.start) : undefined;
+        const after = lastEnd > range.end ? sliceNode(selected.at(-1), range.end, lastEnd) : undefined;
+        if (before === null || after === null) continue;
         const wrapper = { type: 'gestureAssociation', data: { hName: 'span', hProperties: {
           className: ['reading-gesture-association'], dataGestureId: range.association.id,
           dataSourceStart: String(range.start), dataSourceEnd: String(range.end), dataGestureLabel: range.association.label || range.quote.replace(/[*_]/g, '')
-        } }, children: middle, position: { start: { offset: range.start }, end: { offset: range.end } } };
+        } }, children: middle.filter(Boolean), position: { start: { offset: range.start }, end: { offset: range.end } } };
         node.children.splice(node.children.indexOf(selected[0]), selected.length, ...[before, wrapper, after].filter(Boolean));
       }
       return;
