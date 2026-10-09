@@ -110,3 +110,37 @@ for (const variant of ['modified', 'extra', 'symlink', 'different output']) {
     if (variant === 'different output') assert.equal(readFileSync(output, 'utf8'), 'existing output');
   });
 }
+
+test('public 1.0.2 package rebuilds from its lock without internal fields or plan language', (t) => {
+  const v2Path = join(root, 'docs/integrations/openai/submission/1.0.2');
+  const v2Lock = JSON.parse(readFileSync(join(v2Path, 'package-lock.json'), 'utf8'));
+  const output = join(scratch(t), 'plugin-1.0.2.zip');
+  const result = JSON.parse(execFileSync('python3', [script, '--version', '1.0.2', '--output', output], { encoding: 'utf8' }));
+  assert.equal(result.files, Object.keys(v2Lock.files).length);
+  assert.equal(sha256(readFileSync(output)), v2Lock.archive.sha256);
+
+  const v2Source = resolve(v2Path, v2Lock.sourceDirectory);
+  const manifest = JSON.parse(readFileSync(join(v2Source, '.codex-plugin/plugin.json'), 'utf8'));
+  assert.equal(manifest.version, '1.0.2');
+  assert.equal(manifest.name, lock.name, 'the plugin identity is unchanged');
+  const review = manifest.extensions['com.openai'].review;
+  assert.equal(review.commerce, false);
+  assert.deepEqual(manifest.extensions['com.openai'].publication.countries, [], 'available in every country');
+  assert.equal(review.test_cases.positive.length, 5);
+  assert.equal(review.test_cases.negative.length, 3);
+  assert.deepEqual(JSON.parse(readFileSync(join(v2Source, '.mcp.json'), 'utf8')).mcpServers.tableu.url, 'https://tarot.lakefrontdev.com/mcp');
+
+  const textMembers = Object.keys(v2Lock.files).filter((name) => /\.(md|json|yaml)$/.test(name));
+  for (const name of textMembers) {
+    const text = readFileSync(join(v2Source, name), 'utf8');
+    assert.doesNotMatch(text, /jobToken|requestId/, name);
+    if (name !== '.codex-plugin/plugin.json') {
+      assert.doesNotMatch(text, /\b(Seeker|Enlightened|Mystic)\b|\$\d|readings\/month/, `${name} carries no plan or pricing details`);
+    }
+  }
+  const index = JSON.parse(readFileSync(join(v2Source, 'skills/instructions/lookup/knowledge-index.json'), 'utf8'));
+  for (const file of index.files) {
+    assert.ok(v2Lock.files[`skills/instructions/${file.path}`], `${file.path} is packaged`);
+  }
+  assert.equal(Object.keys(v2Lock.files).some((name) => /migration|ActionsGPT|capabilities-audit/.test(name)), false);
+});

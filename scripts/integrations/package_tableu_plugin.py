@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Rebuild the preserved Tableu 1.0.1 upload from its locked source files."""
+"""Build a Tableu plugin upload from its versioned, locked source files.
+
+Each version lives in docs/integrations/openai/submission/<version>/ with a
+package-lock.json that pins every member and the archive itself. 1.0.1 is
+the preserved October 1 upload; later versions add their own source and lock.
+"""
 
 import argparse
 import hashlib
@@ -11,17 +16,17 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PACKAGE = ROOT / 'docs/integrations/openai/submission/1.0.1'
+SUBMISSIONS = ROOT / 'docs/integrations/openai/submission'
+DEFAULT_VERSION = '1.0.1'
 
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def build(source, lock):
+def inventory(source):
     if source.is_symlink() or not source.is_dir():
         raise ValueError('Source must be a regular directory, not a symlink')
-    expected = lock['files']
     actual = set()
     for path in source.rglob('*'):
         if path.is_symlink():
@@ -30,7 +35,12 @@ def build(source, lock):
             actual.add(path.relative_to(source).as_posix())
         elif not path.is_dir():
             raise ValueError('Source contains a special file')
-    if actual != set(expected):
+    return actual
+
+
+def assemble(source, lock):
+    expected = lock['files']
+    if inventory(source) != set(expected):
         raise ValueError('Source inventory differs from package-lock.json')
 
     output = io.BytesIO()
@@ -51,9 +61,15 @@ def build(source, lock):
             archive.writestr(entry, data,
                              compresslevel=lock['archive']['compressionLevel'])
 
-    data = output.getvalue()
+    return output.getvalue()
+
+
+def build(source, lock):
+    data = assemble(source, lock)
+    expected = lock['files']
     if len(data) != lock['archive']['bytes'] or digest(data) != lock['archive']['sha256']:
-        raise ValueError('Archive differs from the preserved 1.0.1 ZIP; check Python/zlib compatibility')
+        raise ValueError('Archive differs from the locked ' + lock['version']
+                         + ' ZIP; check Python/zlib compatibility')
     with ZipFile(io.BytesIO(data)) as archive:
         if archive.testzip() is not None:
             raise ValueError('Archive integrity check failed')
@@ -63,14 +79,59 @@ def build(source, lock):
     return data
 
 
+def write_lock(package, name, version, timestamp):
+    """Pin a new version's source: member checksums plus the archive bytes."""
+    lock_path = package / 'package-lock.json'
+    if lock_path.exists():
+        raise ValueError('A lock already exists for ' + version + '; versions are immutable once locked')
+    source = package / 'source' / name
+    files = {}
+    for relative in sorted(inventory(source)):
+        data = (source / relative).read_bytes()
+        files[relative] = {'bytes': len(data), 'sha256': digest(data)}
+    lock = {
+        'name': name,
+        'version': version,
+        'sourceDirectory': './source/' + name,
+        'archive': {
+            'filename': name + '-' + version + '.zip',
+            'bytes': 0,
+            'sha256': '',
+            'compression': 'deflate',
+            'compressionLevel': 6,
+            'timestamp': timestamp,
+            'unixMode': '100644'
+        },
+        'files': files
+    }
+    data = assemble(source, lock)
+    lock['archive']['bytes'] = len(data)
+    lock['archive']['sha256'] = digest(data)
+    with lock_path.open('x') as handle:
+        handle.write(json.dumps(lock, indent=2) + '\n')
+    return lock
+
+
 def main():
-    lock = json.loads((PACKAGE / 'package-lock.json').read_text())
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source', type=Path,
-                        default=PACKAGE / lock['sourceDirectory'])
-    parser.add_argument('--output', type=Path,
-                        default=ROOT / 'dist/plugins' / lock['archive']['filename'])
+    parser.add_argument('--version', default=DEFAULT_VERSION,
+                        help='Submission version directory to build (default: %(default)s)')
+    parser.add_argument('--source', type=Path)
+    parser.add_argument('--output', type=Path)
+    parser.add_argument('--write-lock', metavar='NAME',
+                        help='Create package-lock.json for a new version whose source is source/NAME')
+    parser.add_argument('--timestamp', metavar='YYYY-MM-DD',
+                        help='Fixed member timestamp for --write-lock')
     args = parser.parse_args()
+    package = SUBMISSIONS / args.version
+    if args.write_lock:
+        if not args.timestamp:
+            raise ValueError('--write-lock needs --timestamp')
+        year, month, day = (int(part) for part in args.timestamp.split('-'))
+        write_lock(package, args.write_lock, args.version, [year, month, day, 0, 0, 0])
+    lock = json.loads((package / 'package-lock.json').read_text())
+    args.source = args.source or package / lock['sourceDirectory']
+    args.output = args.output or ROOT / 'dist/plugins' / lock['archive']['filename']
     source = args.source.absolute()
     output = args.output.absolute()
     if source.resolve() == output.resolve() or source.resolve() in output.resolve().parents:

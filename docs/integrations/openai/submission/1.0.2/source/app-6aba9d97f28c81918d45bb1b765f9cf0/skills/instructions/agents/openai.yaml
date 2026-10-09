@@ -1,0 +1,4 @@
+interface:
+  default_prompt: Interpret the cards I drew in a three-card spread
+  display_name: Tableu
+  short_description: Interpret tarot cards and reflect with Tableu.

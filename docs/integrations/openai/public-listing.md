@@ -49,7 +49,7 @@ python3 scripts/integrations/package_tableu_plugin.py --version 1.0.2
 
 The ZIP lands in `dist/plugins/`. Before uploading, compare the draft's saved
 test cases with the ZIP's: an upload replaces them and resets attestations.
-Countries are omitted, which keeps the draft's existing targeting.
+The package sets `countries: []`, so the listing has no country restriction.
 
 ### 4. Review details
 

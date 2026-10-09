@@ -1,0 +1,4 @@
+# Preserve the exact imported ZIP members, including line endings.
+source/** -text
+# The imported Markdown uses two-space hard line breaks.
+source/**/*.md whitespace=-blank-at-eol
