@@ -152,6 +152,9 @@ test('1.0.3 cancels in one message and ships the maintained plugin instructions'
   const cancel = manifest.extensions['com.openai'].review.test_cases.positive.find((testCase) => /cancel_tarot_reading/.test(testCase.tools_triggered));
   assert.match(cancel.prompt, /Celtic Cross[\s\S]*check its status[\s\S]*cancel it/);
   assert.doesNotMatch(cancel.description, /setup prompt/i, 'no separate setup message');
+  assert.equal(cancel.tools_triggered, 'draw_tarot_reading, get_tarot_reading_status, cancel_tarot_reading');
+  assert.match(cancel.expected_behavior, /status to return running and the cancellation to return cancelled/);
+  assert.match(cancel.expected_behavior, /inconclusive/);
   for (const [maintained, packaged] of [['SKILL.md', 'skills/instructions/SKILL.md'], ['references/actions-contract.md', 'skills/instructions/references/actions-contract.md']]) {
     assert.equal(readFileSync(join(root, 'docs/integrations/openai/plugin', maintained), 'utf8'), readFileSync(join(v3Source, packaged), 'utf8'), maintained);
   }

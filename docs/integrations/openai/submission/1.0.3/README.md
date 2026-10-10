@@ -1,12 +1,14 @@
 # Tableu 1.0.3 submission package
 
-The public-release package, 1.0.2, with one review change: test case 4 now
+The public-release package, 1.0.2, with review fixes. Test case 4 now
 starts, checks and cancels a Celtic Cross reading in a single message. As two
 messages, the reading, which takes about a minute, usually finished before the
-follow-up arrived, so the cancellation could not be observed. The tool
-contract's header now names both packages. Everything else is unchanged,
-including instructions 0.29.0, the two references, `commerce: false` and
-`countries: []`.
+follow-up arrived, so the cancellation could not be observed. The reading
+guide no longer tells ChatGPT to write its own reading after a backend reading
+fails or is withheld, labels app-only features as the app's, and no longer
+suggests claiming a card's history. The tool contract's header names both
+packages. Everything else is unchanged, including instructions 0.29.0,
+`commerce: false` and `countries: []`.
 
 The package does not set `review.demo_recording_url`, so the portal keeps its
 saved demo link. Set it in a new version once the recording is hosted.
