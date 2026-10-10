@@ -6,7 +6,7 @@ export function installCueBrowserCollector(config) {
     viewport: { width: innerWidth, height: innerHeight }, motionPreference: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduce' : 'no-preference',
     clockDomain: 'browser performance.now', narrativeEvents: [], serverTimingEvents: [], renderEvents: [], passageEvents: [], passageIntervals: [],
     cueReceipts: [], cueAdoptions: [], stageAdoptions: [], detailExposures: [], heldIntervals: [], readerSteps: [],
-    sourceProjectionErrors: [], sourceDigests: [], layout: { proseStart: null, maxProseStartDriftPx: 0, maxOverflowPx: 0 }, unexpectedScrolls: [], samplingGaps: [], visibilityEvents: [], completionAt: null, window: { start: null, end: null }, truncated: false };
+    sourceProjectionErrors: [], sourceDigests: [], layout: { proseStart: null, maxProseStartDriftPx: 0, maxOverflowPx: 0 }, unexpectedScrolls: [], samplingGaps: [], visibilityEvents: [], completionAt: null, window: { start: null, end: null, completed: false, endReason: null, readerEnabled: config.reader !== false }, truncated: false };
   const append = (name, item) => { if (report[name].length < limit) report[name].push(item); else report.truncated = true; };
   const anchors = config.opportunities.flatMap(o => o.anchors.map((a, index) => ({ opportunityId: o.id, anchorIndex: index, start: a.start, end: a.end })));
   const openPassages = new Map(); const openExposures = new Map();
@@ -30,6 +30,10 @@ export function installCueBrowserCollector(config) {
   function endWindow(at, reason = 'reader-endpoint') {
     if (report.window.end !== null) return;
     report.window.end = at;
+    report.window.endReason = reason;
+    report.window.completed = report.window.readerEnabled && reason === 'reader-endpoint'
+      && Number.isFinite(report.window.start) && Number.isFinite(report.scheduledEndpoint)
+      && at === report.scheduledEndpoint && at > report.window.start;
     for (const p of openPassages.values()) close(p, at, reason);
     openPassages.clear();
     for (const e of openExposures.values()) close(e, at, reason);

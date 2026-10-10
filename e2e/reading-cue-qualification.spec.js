@@ -52,6 +52,7 @@ for (const deliveryMode of ['paced', 'burst', 'final-only']) {
       expect(result.browser.layout.maxProseStartDriftPx).toBe(0);
       expect(result.browser.layout.maxOverflowPx).toBe(0);
       expect(result.browser.window.end).toBe(result.browser.scheduledEndpoint);
+      expect(result.browser.window).toMatchObject({ completed: true, endReason: 'reader-endpoint', readerEnabled: true });
       expect(result.browser.completionAt).toBeLessThan(result.browser.window.end);
       const score = scoreCueBrowserReport({ report: result.browser, opportunities: star.opportunities,
         cues: result.server.ledger.cues, offline: true });
@@ -59,6 +60,7 @@ for (const deliveryMode of ['paced', 'burst', 'final-only']) {
       expect(score.availability.denominator).toBe(6);
       if (deliveryMode !== 'paced') {
         expect(score.availability.numerator).toBe(6);
+        expect(score.availability.passed).toBe(true);
         expect(score.accompaniment.passed).toBe(false);
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -66,6 +68,27 @@ for (const deliveryMode of ['paced', 'burst', 'final-only']) {
     } finally { await session.close(); }
   });
 }
+
+test('early finish preserves automatic diagnostics but cannot qualify a censored window', async ({ page }) => {
+  const session = await open(page, 'early-finish-censored', { deliveryMode: 'final-only' });
+  try {
+    await sourceReady(page);
+    await expect(page.locator('[data-gesture-id]')).toHaveCount(6);
+    const result = await session.finish();
+    expect(result.sameSnapshot).toBe(true);
+    expect(result.browser.measurementValid).toBe(true);
+    expect(result.browser.window).toMatchObject({ completed: false, endReason: 'scenario-end-censored', readerEnabled: true });
+    expect(result.browser.window.end).toBeLessThan(result.browser.scheduledEndpoint);
+    const score = scoreCueBrowserReport({ report: result.browser, opportunities: star.opportunities,
+      cues: result.server.ledger.cues, offline: true });
+    expect(score.availability.numerator).toBe(6);
+    expect(score.availability.denominator).toBe(6);
+    expect(score.qualificationEligible).toBe(false);
+    expect(score.availability.passed).toBe(false);
+    expect(score.accompaniment.passed).toBe(false);
+    await writeFile(join(session.outputDir, 'scores.json'), JSON.stringify(score, null, 2), { flag: 'wx' });
+  } finally { await session.close(); }
+});
 
 test('missing cues retain independent opportunities and upstream JSON observer is measured separately', async ({ page }) => {
   const session = await open(page, 'upstream-json-empty', { deliveryMode: 'final-only', sourceMode: 'json',

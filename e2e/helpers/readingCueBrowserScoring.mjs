@@ -57,9 +57,16 @@ export function scoreCueBrowserReport({ report, opportunities, cues = [], matche
     : introduced.size >= 3 && exposed.some(o => o.kind === 'relationship' && o.targets.some(t => t.spreadIndex === 0)
       && o.targets.some(t => t.spreadIndex === 2)) && exposed.some(o => o.kind === 'interpretation');
   const p95Ms = lags.length ? lags[Math.ceil(lags.length * .95) - 1] : null;
-  return { offlineStructuralControl: offline, excludedLifecycleOpportunities: report.lane === 'automatic' ? 0 : opportunities.length, rows,
+  // Diagnostic rows/exposures survive early finish, but neither gate may
+  // qualify without affirmative evidence of the full independent window.
+  const window = report.window;
+  const qualificationEligible = report.measurementValid === true && report.truncated === false
+    && report.lane === 'automatic' && window.completed === true && window.readerEnabled === true
+    && window.endReason === 'reader-endpoint' && Number.isFinite(window.start)
+    && Number.isFinite(report.scheduledEndpoint) && window.end === report.scheduledEndpoint && window.end > window.start;
+  return { qualificationEligible, offlineStructuralControl: offline, excludedLifecycleOpportunities: report.lane === 'automatic' ? 0 : opportunities.length, rows,
     availability: { numerator, denominator, value: denominator ? numerator / denominator : null,
       wilson95: wilsonInterval(numerator, denominator), p95Ms,
-      passed: report.measurementValid !== false && !report.truncated && report.lane === 'automatic' && denominator > 0 && numerator / denominator >= .8 && p95Ms !== null && p95Ms <= 10000 },
-    accompaniment: { passed: report.measurementValid !== false && !report.truncated && Boolean(passed), qualifiedExposures, minimumExposureMs: 600 } };
+      passed: qualificationEligible && denominator > 0 && numerator / denominator >= .8 && p95Ms !== null && p95Ms <= 10000 },
+    accompaniment: { passed: qualificationEligible && Boolean(passed), qualifiedExposures, minimumExposureMs: 600 } };
 }

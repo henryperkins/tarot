@@ -91,3 +91,65 @@ test('source projection is inert when disabled and preserves parser-proven forma
     assert.equal(text.value.slice(start - Number(leaf.data.hProperties.dataCueSourceStart), end - 2), expected);
   }
 });
+
+function completedStarReport() {
+  const kinds = ['identity', 'literal', 'literal', 'interpretation', 'interpretation', 'balance'];
+  const opportunities = kinds.map((kind, i) => ({ id: `o${i}`, required: true, kind,
+    targets: [{ spreadIndex: 2, detailIds: i === 0 ? [] : i === 5 ? ['pool-pour', 'land-pour'] : [i % 2 ? 'pool-pour' : 'land-pour'] }],
+    anchors: [{ start: i * 10, end: i * 10 + 5 }] }));
+  const cues = opportunities.map((o, i) => ({ id: `c${i}`, kind: o.kind, targets: o.targets, passage: o.anchors[0] }));
+  const report = { caseId: 'star-2347-excerpt', lane: 'automatic', measurementValid: true, truncated: false,
+    scheduledEndpoint: 10000, window: { start: 0, end: 10000, completed: true, endReason: 'reader-endpoint', readerEnabled: true },
+    passageIntervals: opportunities.map(o => ({ opportunityId: o.id, start: 0, end: 10000 })),
+    passageEvents: opportunities.map(o => ({ opportunityId: o.id, receivedAt: 0 })),
+    cueReceipts: cues.map(c => ({ cueId: c.id, at: 10 })), cueAdoptions: cues.map(c => ({ cueId: c.id, at: 20 })),
+    detailExposures: cues.map((c, i) => ({ cueId: c.id, start: 100 + 650 * i, end: 700 + 650 * i,
+      origin: 'automatic', targets: c.targets, passageVisible: true })) };
+  return { report, opportunities, cues, matches: opportunities.map((o, i) => ({ opportunityId: o.id, cueId: cues[i].id })) };
+}
+
+test('only a positively valid completed automatic window can qualify both gates', () => {
+  const input = completedStarReport();
+  const full = scoreCueBrowserReport(input);
+  assert.equal(full.availability.passed, true);
+  assert.equal(full.accompaniment.passed, true);
+  input.report.window = { ...input.report.window, end: 4100, completed: false, endReason: 'scenario-end-censored' };
+  const early = scoreCueBrowserReport(input);
+  assert.equal(early.availability.numerator, 6);
+  assert.equal(early.availability.denominator, 6);
+  assert.equal(early.accompaniment.qualifiedExposures.length, 6);
+  assert.equal(early.availability.passed, false);
+  assert.equal(early.accompaniment.passed, false);
+});
+
+test('missing, inconsistent or invalid completion evidence fails closed without discarding diagnostics', () => {
+  for (const mutate of [
+    r => { delete r.window.completed; },
+    r => { delete r.window.endReason; },
+    r => { delete r.window.readerEnabled; },
+    r => { delete r.scheduledEndpoint; },
+    r => { r.window.end = 4100; },
+    r => { r.window.endReason = 'scenario-end-censored'; },
+    r => { r.window.readerEnabled = false; },
+    r => { r.measurementValid = false; },
+    r => { delete r.measurementValid; },
+    r => { r.truncated = true; }
+  ]) {
+    const input = completedStarReport(); mutate(input.report);
+    const score = scoreCueBrowserReport(input);
+    assert.equal(score.availability.numerator, 6);
+    assert.equal(score.availability.passed, false);
+    assert.equal(score.accompaniment.passed, false);
+  }
+});
+
+test('completed lifecycle, held, static and restored reports cannot qualify automatic gates', () => {
+  for (const lane of ['lifecycle', 'held', 'static', 'restored']) {
+    const input = completedStarReport(); input.report.lane = lane;
+    const score = scoreCueBrowserReport(input);
+    assert.equal(score.availability.denominator, 0);
+    assert.equal(score.excludedLifecycleOpportunities, 6);
+    assert.equal(score.availability.passed, false);
+    assert.equal(score.accompaniment.passed, false);
+  }
+});
