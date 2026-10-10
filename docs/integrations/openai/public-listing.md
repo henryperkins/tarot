@@ -17,7 +17,7 @@ The endpoint itself is described in [chatgpt-mcp.md](chatgpt-mcp.md).
 | Sign-in must be transparent and reliable on desktop and mobile | The connection page has its own email and password form, sharing the website's login rate limit, so linking works inside ChatGPT's sign-in window. Accounts that use another sign-in method can still sign in on Tableu and continue. The page links the privacy policy and terms and says how to disconnect. |
 | No upgrades, plan displays or purchases | Limit and plan-gated errors reach ChatGPT as neutral text ("…isn't included with this Tableu account"). The instructions forbid mentioning plans, prices or upgrades, and the bundled knowledge no longer lists plans. The manifest declares `commerce: false`. |
 | Tool results carry only what the request needs | Removed request ids, the legacy job token, entry timestamps, reflection storage keys and internal safety-check reasons. `get_profile` returns an opaque id derived from the account instead of the internal user id; OpenAI's profile convention requires a stable id. |
-| Clear, current package | Upload package 1.0.2 (instructions 0.29.0) bundles only the reading guide and the tool contract, dropping the retired GPT Actions material and two off-topic references. |
+| Clear, current package | Upload package 1.0.3 (instructions 0.29.0). It bundles only the reading guide and the tool contract, without the retired GPT Actions material or off-topic references, and its cancellation test case runs in one message. |
 
 ## Steps
 
@@ -35,16 +35,17 @@ Worker). No migration is needed. Then check:
 In the Developer Portal, open the Tableu plugin, then **MCPs → the existing
 server → Issues → Rescan**. In ChatGPT, reconnect the developer app (the
 profile id changed, so ChatGPT may treat it as a new account) and start a new
-conversation. Confirm:
+conversation. If ChatGPT still shows old tool definitions, open the app's
+plugin settings and choose **Refresh tools**. Confirm:
 
 - `get_tarot_reading_status` accepts `jobId` alone (no `jobToken` field);
 - `start_tarot_reading` accepts cards without meanings;
 - tool results contain no `requestId`, `jobToken` or entry timestamp.
 
-### 3. Upload package 1.0.2
+### 3. Upload package 1.0.3
 
 ```sh
-python3 scripts/integrations/package_tableu_plugin.py --version 1.0.2
+python3 scripts/integrations/package_tableu_plugin.py --version 1.0.3
 ```
 
 The ZIP lands in `dist/plugins/`. Before uploading, compare the draft's saved
@@ -53,16 +54,22 @@ The package sets `countries: []`, so the listing has no country restriction.
 
 ### 4. Review details
 
-- **Reviewer credentials.** Enter the `openai_reviewer` email and password in
+- **Reviewer credentials.** In the plugin's **… → Edit review information →
+  Reviewer credentials**, enter the `openai_reviewer` email and password in
   the portal's secure fields, with this sign-in note: "When ChatGPT opens the
   Tableu page, sign in with this email and password, then choose Allow." The
   account is Pro, email-verified, has no MFA, and has sample journal entries.
   Its existing ChatGPT links expire on 2026-10-28; a fresh sign-in creates a
   new one.
 - **Test cases.** Run the five positive and three negative cases from the
-  package with the reviewer account, in fresh conversations, and keep notes.
+  package with the reviewer account, one fresh conversation at a time, and
+  keep notes. With several Tableu accounts connected, ChatGPT writes with the
+  primary one unless the prompt names another, and chat memory can carry one
+  test into the next.
 - **Demo video.** Record those same cases on desktop, plus linking and one
-  reading on mobile, and paste an accessible URL into the portal.
+  reading on mobile. The portal shows the video link read-only: it comes from
+  the package's `review.demo_recording_url`, so host the recording at an
+  accessible URL and set it in a new package version.
 - **Declarations.** Commerce: none (`commerce: false` is in the package).
   Confirm countries, then complete the owner attestations.
 
