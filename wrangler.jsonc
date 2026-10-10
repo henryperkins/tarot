@@ -179,6 +179,10 @@
     "GPT_SERVICE_TIER": "plus",
     // Canonical OAuth resource for the ChatGPT MCP endpoint.
     "MCP_RESOURCE_URL": "https://tarot.lakefrontdev.com/mcp",
+    // Who can link ChatGPT: public (any active personal account), allowlist
+    // (only MCP_ALLOWED_USER_IDS) or off (kill switch: existing tokens stop
+    // working too). Unrecognized values count as off.
+    "MCP_ACCESS_MODE": "public",
     // -------------------------------------------------------------------------
     // Vision validation backend settings (server-side only; UI still pins clip-default)
     // -------------------------------------------------------------------------

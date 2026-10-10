@@ -1,5 +1,13 @@
 # Tableu plugin 0.28.2: files to apply
 
+> **Superseded.** `SKILL.md` and `references/actions-contract.md` here are now
+> the 0.29.0 instructions, identical to the copies in the locked
+> [1.0.2 package](../submission/1.0.2/README.md). Release by building and
+> uploading a locked submission package
+> ([public listing runbook](../public-listing.md)), not by editing a package
+> by hand. The steps below are the historical 0.28.2 install; don't use them to
+> publish these files under an old version.
+
 These files carry the Tableu ChatGPT plugin's instructions for the live MCP
 tools. The rest of the package, including its reference guides and assets, is
 not stored in this public repository.

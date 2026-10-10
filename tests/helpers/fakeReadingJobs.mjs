@@ -79,12 +79,13 @@ export function readingRunner({
   themes = { dominantSuit: 'Cups' },
   gateReason = null,
   status = 200,
+  errorBody = {},
   calls = []
 } = {}) {
   return async (context) => {
     calls.push(context);
     if (status !== 200) {
-      return new Response(JSON.stringify({ error: reading }), {
+      return new Response(JSON.stringify({ error: reading, ...errorBody }), {
         status,
         headers: { 'content-type': 'application/json' }
       });

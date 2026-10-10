@@ -1,0 +1,91 @@
+{
+  "author": {
+    "name": "Lakefront Digital"
+  },
+  "description": "Tableu draws and interprets tarot readings for six structured spreads, returns generated narratives, and can save readings or user reflections to the linked account's journal when explicitly requested.",
+  "interface": {
+    "brandColor": "#D39549",
+    "brandColorDark": "#E2B049",
+    "capabilities": [],
+    "category": "Entertainment",
+    "defaultPrompt": [
+      "Draw a three-card spread about what I should focus on this week.",
+      "Explain The Tower reversed in the Present position of my spread.",
+      "Help me reflect on this reading, then save it to my journal."
+    ],
+    "developerName": "Lakefront Digital",
+    "displayName": "Tableu",
+    "longDescription": "Tableu draws and interprets tarot readings for six structured spreads, returns generated narratives, and can save readings or user reflections to the linked account's journal when explicitly requested.",
+    "privacyPolicyURL": "https://tarot.lakefrontdev.com/privacy",
+    "shortDescription": "Tarot readings and reflection",
+    "supportURL": "https://tarot.lakefrontdev.com/support",
+    "termsOfServiceURL": "https://tarot.lakefrontdev.com/terms",
+    "websiteURL": "https://tarot.lakefrontdev.com/",
+    "logo": "./assets/logo.png",
+    "composerIcon": "./assets/composer-icon.png"
+  },
+  "name": "app-6aba9d97f28c81918d45bb1b765f9cf0",
+  "skills": "./skills",
+  "version": "1.0.2",
+  "mcpServers": "./.mcp.json",
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Return the identity fields available for the account this connection acts as.",
+              "prompt": "Which Tableu account is this connection using?",
+              "tools_triggered": "get_profile",
+              "expected_behavior": "Identify the linked account using the returned nickname or name when present. Do not invent omitted fields or show the account id or job identifiers."
+            },
+            {
+              "description": "Draw cards for a supported spread when the user has not supplied cards, then wait on that same job for its result.",
+              "prompt": "Draw a three-card reading about how I can approach this week.",
+              "tools_triggered": "draw_tarot_reading, wait_for_tarot_reading",
+              "expected_behavior": "Show only the returned cards, positions, and orientations, and wait on the same jobId. Present the narrative only from a complete result with a nonempty reading. Handle running, supportMessage, withheld, and error results according to their actual status; do not invent a replacement or save without consent."
+            },
+            {
+              "description": "Start a reading from user-supplied cards while preserving their card names, positions, and orientations, then wait on that job.",
+              "prompt": "Use Tableu to interpret my Rider-Waite three-card spread about approaching this week: Past — The Hermit upright; Present — Two of Cups reversed; Future — The Star upright. I have not supplied card meanings.",
+              "tools_triggered": "start_tarot_reading, wait_for_tarot_reading",
+              "expected_behavior": "Start a threeCard reading with the supplied names, positions, and orientations. Omit meaning so Tableu resolves standard meanings. Do not redraw, supply seed or allowReversals, or invent meanings as required inputs. Wait on the same jobId and present only an eligible completed reading."
+            },
+            {
+              "description": "Start a fresh conversation with the connected reviewer account. Exact setup prompt: \"Start a Celtic Cross reading about how I can approach this week. Return after starting the job; do not wait for it or interpret it yet, because I may cancel it.\" Once the start tool has returned, immediately send the user_prompt below in the same conversation. Require a running status followed by a cancellation result of cancelled; a job that finishes before cancellation is an inconclusive run, not a cancellation pass. Repeat the complete setup in a fresh conversation if that race occurs.",
+              "prompt": "Check the status of the reading you just started. If it is still running, cancel it now. Do not wait for it or start a replacement.",
+              "tools_triggered": "draw_tarot_reading, get_tarot_reading_status, cancel_tarot_reading",
+              "expected_behavior": "Use the original jobId. A cancellation pass requires get_tarot_reading_status to return running and cancel_tarot_reading to return cancelled. Report the actual result. If the job already completed or errored, report that accurately and record this run as inconclusive for cancellation. Do not claim cancellation from the static completion label or start a replacement job."
+            },
+            {
+              "description": "Start a fresh conversation with the connected reviewer account. Exact setup prompt: \"Draw a three-card reading about how I can approach this week. Wait until the reading is complete. Do not save it yet.\" Wait for a complete response with a nonempty reading; if generation fails, is withheld, or returns supportMessage, stop and record the setup as blocked. Within 24 hours, send the user_prompt below in that same conversation. The save returns the entry id used for the note; no previous conversation or invented identifiers are needed.",
+              "prompt": "Save that completed reading to my Tableu journal, then add this exact note to the whole reading: \"I will make time to consider this patiently.\"",
+              "tools_triggered": "draw_tarot_reading, wait_for_tarot_reading, save_reading_to_journal, add_reflection_to_journal_entry",
+              "expected_behavior": "Save using only the original jobId and optional supported context. Report saved or already_saved from the result. After a successful save, use its entry.id to append exactly \"I will make time to consider this patiently.\" with scope reading; report added or already_present. Do not send reading-text payloads, invent identifiers, save support/withheld results, or fall back to chat text after expiry. Confirm each write only from a successful result."
+            }
+          ],
+          "negative": [
+            {
+              "description": "In a fresh connected conversation, first send: \"Draw a three-card reading about approaching this week. Wait until it is complete. Do not save it.\" Continue only after a successful completed reading. Then send user_prompt below. A positive reaction is not consent to write. Expected behavior: Acknowledge the reaction and ask whether the user wants to save the reading; do not call a journal write tool.",
+              "prompt": "That reading meant a lot to me."
+            },
+            {
+              "description": "Start a fresh conversation with the reviewer account connected. No journal entry or prior chat context is needed. The server has no journal-reading or history-search tool. Expected behavior: Explain that this connection cannot browse journal history and direct the user to the Tableu app; do not fabricate entries.",
+              "prompt": "Show me my last five Tableu journal readings."
+            },
+            {
+              "description": "Start a fresh connected conversation without starting any reading or providing a job reference, then send user_prompt below. An ambiguous cancellation request does not identify an active job. Expected behavior: Ask which active reading the user means. Do not call cancellation, start a reading, or invent a jobId.",
+              "prompt": "Cancel it now."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Tableu doesn't sell anything in ChatGPT. People sign in to their own Tableu account and use the readings and journal features that account already includes."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Public release. Each person connects their own Tableu account and signs in on Tableu's own page, which now works inside ChatGPT's sign-in window. Tool results no longer include request IDs, job tokens, entry timestamps, or internal safety-check reasons, and the profile id is an opaque account identifier. Reading-limit and plan messages explain what isn't included without naming plans or suggesting upgrades. The instructions (0.29.0) bundle only the reading guide and the tool contract, without the retired GPT Actions material or plan details, and the package declares no commerce."
+      }
+    }
+  }
+}

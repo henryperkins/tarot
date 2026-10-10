@@ -4,6 +4,7 @@ import { after, describe, it } from 'node:test';
 import { CfWorkerJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/cfworker-provider.js';
 
 import { connectMcpClient } from './helpers/mcpClient.mjs';
+import { profileIdFor } from '../functions/lib/mcp/tools/profile.js';
 
 const OWNER = Object.freeze({
   id: 'user-1',
@@ -44,7 +45,9 @@ describe('get_profile', () => {
     const client = await connect();
     const result = await client.callTool({ name: 'get_profile', arguments: {} });
 
-    assert.deepEqual(result.structuredContent, { id: 'user-1', name: 'henry', nickname: 'Tableu · @henry' });
+    assert.deepEqual(result.structuredContent, { id: await profileIdFor('user-1'), name: 'henry', nickname: 'Tableu · @henry' });
+    assert.match(result.structuredContent.id, /^acct_[A-Za-z0-9_-]{32}$/, 'opaque, not the internal account id');
+    assert.equal(JSON.stringify(result).includes('user-1'), false);
     assert.deepEqual(JSON.parse(result.content[0].text), result.structuredContent);
   });
 
@@ -58,7 +61,8 @@ describe('get_profile', () => {
     const client = await connect({ ...OWNER, id: 'user-9', username: null, full_name: null });
     const { structuredContent, isError } = await client.callTool({ name: 'get_profile', arguments: {} });
     assert.equal(isError, undefined);
-    assert.deepEqual(structuredContent, { id: 'user-9' });
+    assert.deepEqual(structuredContent, { id: await profileIdFor('user-9') });
+    assert.notEqual(structuredContent.id, await profileIdFor('user-1'), 'unique per account');
   });
 });
 
@@ -90,7 +94,8 @@ describe('advertised input contracts', () => {
     assert.equal(valid.save_reading_to_journal({}), false);
     assert.equal(valid.save_reading_to_journal({ spread: 'x', personalReading: 'y', requestId: 'z' }), false);
     assert.equal(valid.save_reading_to_journal({ jobId: 'job-1' }), true);
-    assert.equal(valid.save_reading_to_journal({ jobId: 'job-1', jobToken: 'legacy', context: 'self' }), true);
+    assert.equal(valid.save_reading_to_journal({ jobId: 'job-1', context: 'self' }), true);
+    assert.equal(valid.save_reading_to_journal({ jobId: 'job-1', jobToken: 'legacy' }), false);
   });
 
   it('require a card for a card note, and only then', async () => {

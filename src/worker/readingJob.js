@@ -42,6 +42,8 @@ function emptyJob() {
     meta: null,
     result: null,
     error: null,
+    // Machine-readable reason for a failed job, when the reading service gave one.
+    errorCode: null,
     startedAt: null,
     // Set only for jobs started by the MCP tools (in-Worker callers).
     principalUserId: null,
@@ -348,6 +350,7 @@ export class ReadingJob {
       snapshot: this.job.snapshot ?? null,
       result: this.job.result,
       error: this.job.error,
+      errorCode: this.job.errorCode ?? null,
       meta: { themes: this.job.meta?.themes ?? null }
     });
   }
@@ -421,9 +424,13 @@ export class ReadingJob {
         payload = null;
       }
       const message = payload?.message || payload?.error || 'Failed to generate reading.';
+      let code = typeof payload?.code === 'string' ? payload.code : null;
+      if (!code && payload?.tierLimited === true) {
+        code = response.status === 429 ? 'reading_limit_reached' : 'plan_feature_unavailable';
+      }
       this.appendEvent('error', {
         message,
-        ...(typeof payload?.code === 'string' ? { code: payload.code } : {}),
+        ...(code ? { code } : {}),
         ...(payload?.retryable === true ? { retryable: true } : {})
       });
       return;
@@ -568,6 +575,7 @@ export class ReadingJob {
     if (eventType === 'error') {
       this.job.status = 'error';
       this.job.error = data?.message || 'Streaming error.';
+      this.job.errorCode = typeof data?.code === 'string' ? data.code : null;
       this.job.expiresAt = Date.now() + (this.job.retentionMs || JOB_TTL_MS);
     }
 

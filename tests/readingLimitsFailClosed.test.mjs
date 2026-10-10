@@ -57,6 +57,7 @@ describe('enforceReadingLimit failure mode by credential type', () => {
     );
 
     assert.equal(result.allowed, false, 'an unmeterable machine credential must not be served');
+    assert.equal(result.unavailable, true, 'a tracking outage is not an exhausted allowance');
   });
 
   it('denies an API-key caller when usage tracking fails', async () => {
