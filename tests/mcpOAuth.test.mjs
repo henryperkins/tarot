@@ -482,6 +482,25 @@ describe('public access mode', () => {
     assert.match(html, /Connecting is paused/);
   });
 
+  it('shows the paused page before any sign-in when the mode is off', async () => {
+    const { call, env, d1 } = await setup({ mode: 'public' });
+    await setPassword(d1, 'user-1', 'correct horse battery');
+    const { path } = await authorizeFor(call);
+    env.MCP_ACCESS_MODE = 'off';
+
+    const opened = await call(path);
+    const html = await opened.text();
+    assert.equal(opened.status, 403);
+    assert.match(html, /Connecting is paused/);
+    assert.doesNotMatch(html, /name="password"/, 'no password is asked for');
+
+    const posted = await postSignIn(call, path, {
+      email: 'user.1@example.com', password: 'correct horse battery', csrf: 'token', csrfCookie: 'token'
+    });
+    assert.equal(posted.status, 403);
+    assert.equal(cookieFrom(posted, 'session'), undefined, 'the password is not checked and no session starts');
+  });
+
   it('fails closed on an unrecognized mode', async () => {
     const { call } = await setup({ mode: 'pubic' });
     const { path } = await authorizeFor(call);

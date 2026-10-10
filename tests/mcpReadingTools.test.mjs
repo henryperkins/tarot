@@ -73,6 +73,20 @@ describe('draw_tarot_reading', () => {
     assert.equal(first.structuredContent.seed, second.structuredContent.seed);
     assert.deepEqual(replay.structuredContent.cardsInfo, first.structuredContent.cardsInfo, 'the returned seed replays cards and orientations');
     assert.equal(replay.structuredContent.seed, first.structuredContent.seed);
+    assert.equal(first.structuredContent.allowReversals, true);
+  });
+
+  it('returns the reversal setting so an all-upright draw replays exactly', async () => {
+    const { call } = await session();
+    const withReversals = await call('draw_tarot_reading', { spreadInfo: THREE, seed: 'rose' });
+    assert.ok(withReversals.structuredContent.cardsInfo.some((card) => card.orientation === 'Reversed'), 'this seed draws a reversal by default');
+
+    const upright = await call('draw_tarot_reading', { spreadInfo: THREE, seed: 'rose', allowReversals: false });
+    assert.equal(upright.structuredContent.allowReversals, false);
+    assert.ok(upright.structuredContent.cardsInfo.every((card) => card.orientation === 'Upright'));
+    const { seed, allowReversals } = upright.structuredContent;
+    const replay = await call('draw_tarot_reading', { spreadInfo: THREE, seed, allowReversals });
+    assert.deepEqual(replay.structuredContent.cardsInfo, upright.structuredContent.cardsInfo);
   });
 
   it('accepts the uint32 boundaries and rejects invalid decimal replay seeds before starting a job', async () => {

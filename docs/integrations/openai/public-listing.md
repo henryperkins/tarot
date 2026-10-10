@@ -2,7 +2,7 @@
 
 Type: runbook
 Status: active
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-10
 
 This is the path from the owner-only connection to a public directory
 listing. It follows OpenAI's [submission guide](https://developers.openai.com/plugins/deploy/submission)
@@ -17,7 +17,7 @@ The endpoint itself is described in [chatgpt-mcp.md](chatgpt-mcp.md).
 | Sign-in must be transparent and reliable on desktop and mobile | The connection page has its own email and password form, sharing the website's login rate limit, so linking works inside ChatGPT's sign-in window. Accounts that use another sign-in method can still sign in on Tableu and continue. The page links the privacy policy and terms and says how to disconnect. |
 | No upgrades, plan displays or purchases | Limit and plan-gated errors reach ChatGPT as neutral text ("…isn't included with this Tableu account"). The instructions forbid mentioning plans, prices or upgrades, and the bundled knowledge no longer lists plans. The manifest declares `commerce: false`. |
 | Tool results carry only what the request needs | Removed request ids, the legacy job token, entry timestamps, reflection storage keys and internal safety-check reasons. `get_profile` returns an opaque id derived from the account instead of the internal user id; OpenAI's profile convention requires a stable id. |
-| Clear, current package | Upload package 1.0.2 (instructions 0.29.0) drops the retired GPT Actions material. |
+| Clear, current package | Upload package 1.0.2 (instructions 0.29.0) bundles only the reading guide and the tool contract, dropping the retired GPT Actions material and two off-topic references. |
 
 ## Steps
 

@@ -62,6 +62,8 @@ wrangler.toml.local
 
 # MCP configuration with credentials
 .mcp.json
+# ChatGPT plugin packages ship a public MCP descriptor (no credentials)
+!docs/integrations/openai/submission/*/source/*/.mcp.json
 
 # Claude Code local overrides (personal, not shared)
 CLAUDE.local.md

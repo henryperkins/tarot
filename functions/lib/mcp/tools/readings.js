@@ -150,6 +150,7 @@ const drawOutput = z.object({
   spreadInfo: spreadInfoOutputSchema,
   cardsInfo: z.array(publicCardSchema),
   seed: z.string(),
+  allowReversals: z.boolean(),
   deckStyle: z.string()
 });
 
@@ -281,7 +282,7 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
     {
       title: 'Draw a tarot reading',
       description:
-        "Draws cards on the Tableu backend for one of the six spreads and starts writing the reading. Returns the drawn cards at once, with a jobId; then call wait_for_tarot_reading. Use only when the user has not supplied cards, and never invent cards. Uses one reading from the user's quota. A phrase seed is deterministic; pass the returned decimal seed back to replay the exact cards and orientations.",
+        "Draws cards on the Tableu backend for one of the six spreads and starts writing the reading. Returns the drawn cards at once, with a jobId; then call wait_for_tarot_reading. Use only when the user has not supplied cards, and never invent cards. Uses one reading from the user's quota. A phrase seed is deterministic; pass the returned decimal seed and allowReversals back, with the same spread and deck, to replay the exact cards and orientations.",
       inputSchema: drawInput,
       outputSchema: drawOutput,
       annotations: WRITE,
@@ -325,7 +326,7 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
           seed
         }
       });
-      if (!started.ok) return fail(`Not started: ${readingErrorText({ error: started.error, errorCode: started.code })}`);
+      if (!started.ok) return fail(`Not started: ${readingErrorText({ error: started.error })}`);
 
       return ok(
         {
@@ -334,6 +335,7 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
           spreadInfo: drawn.spreadInfo,
           cardsInfo,
           seed,
+          allowReversals: input.allowReversals !== false,
           deckStyle: drawn.deckStyle
         },
         `Drew ${cardsInfo.length} card${cardsInfo.length === 1 ? '' : 's'} for ${drawn.spreadInfo.name}: ${describeCards(cardsInfo)}. The reading is being written; call wait_for_tarot_reading with this jobId.`
@@ -395,7 +397,7 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
           seed: null
         }
       });
-      if (!started.ok) return fail(`Not started: ${readingErrorText({ error: started.error, errorCode: started.code })}`);
+      if (!started.ok) return fail(`Not started: ${readingErrorText({ error: started.error })}`);
 
       return ok(
         { jobId: started.jobId, status: 'running' },

@@ -85,6 +85,9 @@ def write_lock(package, name, version, timestamp):
     if lock_path.exists():
         raise ValueError('A lock already exists for ' + version + '; versions are immutable once locked')
     source = package / 'source' / name
+    manifest = json.loads((source / '.codex-plugin/plugin.json').read_text())
+    if manifest.get('name') != name or manifest.get('version') != version:
+        raise ValueError('.codex-plugin/plugin.json must name ' + name + ' ' + version)
     files = {}
     for relative in sorted(inventory(source)):
         data = (source / relative).read_bytes()

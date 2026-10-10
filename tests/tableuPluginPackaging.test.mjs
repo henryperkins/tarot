@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import yaml from 'js-yaml';
@@ -139,8 +139,39 @@ test('public 1.0.2 package rebuilds from its lock without internal fields or pla
     }
   }
   const index = JSON.parse(readFileSync(join(v2Source, 'skills/instructions/lookup/knowledge-index.json'), 'utf8'));
+  assert.deepEqual(index.files.map((file) => file.name).sort(), ['actions-contract.md', 'gpt-knowledge-base.md']);
   for (const file of index.files) {
     assert.ok(v2Lock.files[`skills/instructions/${file.path}`], `${file.path} is packaged`);
   }
-  assert.equal(Object.keys(v2Lock.files).some((name) => /migration|ActionsGPT|capabilities-audit/.test(name)), false);
+  assert.equal(Object.keys(v2Lock.files).some((name) => /migration|ActionsGPT|capabilities-audit|AI Training|Quick Reference and/.test(name)), false);
+});
+
+test('ignore rules leave no locked package file out of a commit', (t) => {
+  const members = [];
+  for (const version of ['1.0.1', '1.0.2']) {
+    const path = join(root, 'docs/integrations/openai/submission', version);
+    const versionLock = JSON.parse(readFileSync(join(path, 'package-lock.json'), 'utf8'));
+    const sourceDir = relative(root, resolve(path, versionLock.sourceDirectory));
+    for (const name of Object.keys(versionLock.files)) members.push(`${sourceDir}/${name}`);
+  }
+  const ignored = spawnSync('git', ['check-ignore', '--no-index', '--stdin'], { cwd: root, input: members.join('\n'), encoding: 'utf8' });
+  if (ignored.error || ignored.status === 128) {
+    t.skip('not a git checkout');
+    return;
+  }
+  assert.equal(ignored.stdout, '', 'these package files are ignored by git');
+});
+
+test('refuses to lock a version whose manifest names another version', (t) => {
+  const dir = scratch(t);
+  const scriptCopy = join(dir, 'scripts/integrations/package_tableu_plugin.py');
+  mkdirSync(dirname(scriptCopy), { recursive: true });
+  cpSync(script, scriptCopy);
+  const pkg = join(dir, 'docs/integrations/openai/submission/9.9.9');
+  cpSync(source, join(pkg, 'source', lock.name), { recursive: true });
+
+  const result = spawnSync('python3', [scriptCopy, '--version', '9.9.9', '--write-lock', lock.name, '--timestamp', '2026-10-10'], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /must name app-\S+ 9\.9\.9/);
+  assert.equal(existsSync(join(pkg, 'package-lock.json')), false);
 });

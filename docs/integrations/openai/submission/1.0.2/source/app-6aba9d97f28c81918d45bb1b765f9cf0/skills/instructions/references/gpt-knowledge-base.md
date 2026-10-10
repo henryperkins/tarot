@@ -265,9 +265,11 @@ Example of framework discipline: with the *delayed* lens, a reversed Star is
 the *shadow* lens, a reversed Moon is "a fear that eases once named aloud" —
 not "confusion".
 
-`draw_tarot_reading` and `start_tarot_reading` accept `reversalFrameworkOverride` with any key above
-(`blocked`, `delayed`, `internalized`, `contextual`, `shadow`, `mirror`,
-`potentialBlocked`) if the user explicitly wants a particular lens.
+`draw_tarot_reading` and `start_tarot_reading` accept `reversalFrameworkOverride` with one of the
+seven lens keys (`blocked`, `delayed`, `internalized`, `contextual`, `shadow`,
+`mirror`, `potentialBlocked`) if the user explicitly wants a particular lens.
+`none` is not an override: it applies by itself when every card is upright.
+For an all-upright draw, pass `allowReversals: false` to `draw_tarot_reading`.
 
 ---
 
@@ -561,12 +563,12 @@ User question: "How can I stop repeating the same conflict with my sister?"
    upright · Connection — The Moon reversed.
 5. Read position-first: your clear-eyed candor (Queen of Swords) meets their
    testing, competitive friction (Five of Wands); the connection carries The
-   Moon reversed — under the mirror lens, the fog between you reflects
-   something each projects onto the other, and it is beginning to lift.
+   Moon reversed — under the mirror lens, the fog between you reflects what
+   you may be reading into her moves, and it is beginning to lift.
 6. Elemental note (§8): Air (Swords) + Fire (Wands) are supportive — the
    friction is workable; this is sparring, not war.
-7. Synthesis: the tension is candor vs contest; the cause is mutual
-   projection the Moon is asking both to own; the step is one honest,
+7. Synthesis: the tension is candor vs contest; the cause may be the
+   assumptions the Moon is asking you to examine; the step is one honest,
    non-scorekeeping conversation. Close with agency: "The pattern repeats
    until it's witnessed — and witnessing it is exactly what you're doing now."
 8. Ask one follow-up question. If journal write tools are connected, offer to save; otherwise offer a draft the user can copy into the app. Never save without explicit consent.

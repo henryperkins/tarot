@@ -2,7 +2,7 @@
 
 Type: runbook
 Status: active
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-10
 
 The Tableu ChatGPT plugin reaches the backend through an MCP endpoint on the
 main Worker, `https://tarot.lakefrontdev.com/mcp`, protected by OAuth 2.1 that
@@ -21,9 +21,12 @@ Design: `docs/superpowers/specs/2026-09-22-chatgpt-mcp-journal-design.md`.
   which wraps `@cloudflare/workers-oauth-provider`. Every other path is
   unchanged.
 - **Consent.** `/oauth/authorize` is the consent page (`consent.js`). It uses
-  the normal Tableu session cookie and only lets allowlisted accounts approve.
+  the normal Tableu session cookie, or signs the person in with email and
+  password on the page, and lets an account approve when `MCP_ACCESS_MODE`
+  allows it. While the mode is `off` it answers "Connecting is paused" before
+  asking anyone to sign in.
 - **`/mcp`.** `mcpHandler.js` checks the token's `tableu` scope, the
-  allowlist, and that the account is active. Then it serves the tools
+  access mode, and that the account is active. Then it serves the tools
   statelessly.
 - **Service layer.** The tools call service functions with that user:
   `readingJobs.js`, `journalEntries.js` and `journalReflections.js`.
@@ -105,14 +108,16 @@ Never deploy from a working tree with uncommitted `wrangler.jsonc` changes.
 
 ### After deploy
 
-1. **Find your user id.** Sign in to Tableu in your browser. Run
-   `npx @modelcontextprotocol/inspector`, choose **Streamable HTTP**, and enter
-   `https://tarot.lakefrontdev.com/mcp`, then start the OAuth flow. The consent
-   page refuses you, because the allowlist is empty, and shows your
-   **Account ID**. Run `npx wrangler secret put MCP_ALLOWED_USER_IDS` and paste
-   the ID.
-2. **Link.** Link again from MCP Inspector, then choose **Allow**. List the
-   tools (there are eight) and call `get_profile`; it returns your id.
+1. **Allowlist mode only: list your account.** Skip this in public mode. While
+   signed in to Tableu, open `https://tarot.lakefrontdev.com/api/auth/me` and
+   copy `user.id` (the D1 `users` table has it too). Run
+   `npx wrangler secret put MCP_ALLOWED_USER_IDS` and paste it. The refusal
+   page doesn't show ids.
+2. **Link.** Run `npx @modelcontextprotocol/inspector`, choose **Streamable
+   HTTP**, enter `https://tarot.lakefrontdev.com/mcp`, and start the OAuth
+   flow. Sign in on the Tableu page if asked, then choose **Allow**. List the
+   tools (there are eight) and call `get_profile`: its nickname names your
+   account, and its `id` is an opaque profile id, not the account id.
 3. **Connect ChatGPT.**
    - Turn on **Developer mode** under Settings → Security and login.
    - Go to [ChatGPT Plugins](https://chatgpt.com/plugins), press **+**, and
@@ -120,16 +125,16 @@ Never deploy from a working tree with uncommitted `wrangler.jsonc` changes.
      `https://tarot.lakefrontdev.com/mcp` and OAuth authentication.
    - Link it: sign in to Tableu if asked, then choose **Allow**.
    - Copy the app's id from the browser URL; it starts with `plugin_asdk_app_`.
-4. **Update the plugin** to 0.28.0 with the files in
-   [plugin/](plugin/README.md).
+4. **Upload the plugin package** as described in
+   [public-listing.md](public-listing.md).
 
 ## Verify the account
 
-1. `get_profile` in ChatGPT, the id on the consent page, and the allowlist
-   entry must match.
+1. The consent page and `get_profile` in ChatGPT must name the same account
+   (`@username`).
 2. After the first save, run
    `npx wrangler d1 execute mystic-tarot-db --remote --command "SELECT user_id FROM journal_entries WHERE id = '<entry id>'"`.
-   It must print the same id.
+   It must print your account id (`user.id` from `/api/auth/me`).
 
 ## End-to-end check from ChatGPT
 
@@ -193,13 +198,13 @@ adapter is retired and must not be installed for either suite.
 5. Run MCP Inspector against `http://localhost:8787/mcp` and start OAuth.
    Confirm discovery advertises `resource: http://localhost:8787/mcp` and
    localhost authorization/token endpoints. The browser's consent navigation
-   must show the Tableu consent or account-refusal page, not the React app shell.
-   Find your local account id on the refusal page. Add or update only
-   `MCP_ALLOWED_USER_IDS=<id>` in `.dev.vars`, preserving other local values,
-   and restart Wrangler.
+   must show the Tableu sign-in or consent page, not the React app shell. The
+   local config inherits `MCP_ACCESS_MODE=public`, so any local account can
+   link. Find your local account id at `http://localhost:8787/api/auth/me`
+   (`user.id`).
 6. Give this test account an active Plus subscription **in local D1 only**.
    Registration defaults to Free, which cannot save to the cloud journal.
-   Substitute the account id from the local consent page:
+   Substitute that account id:
 
    ```bash
    npx wrangler d1 execute mystic-tarot-db --local --config wrangler.dev-local.jsonc --command "UPDATE users SET subscription_tier = 'plus', subscription_status = 'active' WHERE id = '<LOCAL_USER_ID>' RETURNING id, subscription_tier, subscription_status;"
@@ -208,8 +213,8 @@ adapter is retired and must not be installed for either suite.
    Expected: exactly that account id, `plus`, and `active`. Never change this
    fixture command to `--remote`. Refresh the app's session view by signing out
    and in again before checking journal rendering.
-7. Reconnect Inspector, approve consent, and call `get_profile`; the id must
-   match the local account. Exercise draw, wait, save and reflection against
+7. Reconnect Inspector, approve consent, and call `get_profile`; its nickname
+   must name the local account. Exercise draw, wait, save and reflection against
    localhost. Local tokens and account ids must not be used against production.
 
 When you're done, delete `wrangler.dev-local.jsonc`, and never commit it or
@@ -239,7 +244,7 @@ for a run:
 | The consent page asks you to sign in | No Tableu session in that browser | Sign in with email and password on that page; accounts that use Google or another provider sign in on Tableu, then select **Continue** |
 | 403 "This account can't connect to ChatGPT" | Allowlist mode, and the account isn't listed | Add its id to `MCP_ALLOWED_USER_IDS`, or use public mode |
 | 403 "Connecting is paused" | `MCP_ACCESS_MODE` is `off` or unrecognized | Set it to `public` or `allowlist` |
-| ChatGPT keeps asking to link again | Allowlist changed, account deactivated, or token lacks `tableu` | Check the allowlist and account, then link again |
+| ChatGPT keeps asking to link again | Access mode or allowlist changed, account deactivated, or token lacks `tableu` | Check the mode, allowlist and account, then link again |
 | `invalid_redirect_uri` on registration | Redirect URI isn't a ChatGPT callback or loopback | Register from ChatGPT or a local tool |
 | 429 on `/oauth/register` | More than 10 registrations an hour from one address | Wait for the next hour |
 | 503 on `/oauth/register` | D1 admission unavailable, including a missing migration 0031 | Check the DB binding and migration status; restore admission storage before retrying |

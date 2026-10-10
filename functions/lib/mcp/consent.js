@@ -231,6 +231,10 @@ export async function handleAuthorize(request, env) {
     return page(400, "This link can't be used", '<p>The authorization request is incomplete or names an unknown client. Start linking again from ChatGPT.</p>');
   }
 
+  // The kill switch answers before any sign-in, so no password is asked for
+  // or checked while connecting is paused.
+  if (getMcpAccessMode(env) === 'off') return notAllowedPage(env);
+
   const user = await signedInUser(request, env);
 
   if (request.method === 'GET') {

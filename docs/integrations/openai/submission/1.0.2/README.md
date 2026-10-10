@@ -7,7 +7,9 @@ and changes:
 - the instructions and tool contract for public use: each person connects
   their own account, no job tokens or request ids, and no plans, prices or
   upgrades in replies;
-- a bundled knowledge base without plan details or the retired GPT Actions;
+- two bundled references only, the reading guide and the tool contract,
+  without plan details, the retired GPT Actions, the AI-training essay or the
+  pasted note collection;
 - no legacy migration references;
 - `commerce: false`, with a description, `countries: []` (no country restriction), and new release notes.
 

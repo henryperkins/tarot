@@ -84,7 +84,7 @@
       },
       "publication": {
         "countries": [],
-        "release_notes": "Public release. Each person connects their own Tableu account and signs in on Tableu's own page, which now works inside ChatGPT's sign-in window. Tool results no longer include request IDs, job tokens, entry timestamps, or internal safety-check reasons, and the profile id is an opaque account identifier. Reading-limit and plan messages explain what isn't included without naming plans or suggesting upgrades. The instructions (0.29.0) drop the retired GPT Actions material and plan details from the bundled references, and the package declares no commerce."
+        "release_notes": "Public release. Each person connects their own Tableu account and signs in on Tableu's own page, which now works inside ChatGPT's sign-in window. Tool results no longer include request IDs, job tokens, entry timestamps, or internal safety-check reasons, and the profile id is an opaque account identifier. Reading-limit and plan messages explain what isn't included without naming plans or suggesting upgrades. The instructions (0.29.0) bundle only the reading guide and the tool contract, without the retired GPT Actions material or plan details, and the package declares no commerce."
       }
     }
   }
