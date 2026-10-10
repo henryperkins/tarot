@@ -2,6 +2,8 @@
 
 Status: **not ready for release; production stays disabled.** This record maps every remediation task and gate to its evidence and its open limit on the candidate below. It authorizes no inference, spending, migration, deployment, commit or push.
 
+This is the pre-consolidation candidate and evidence record. The user subsequently requested Step 1 consolidation; current review-branch identity and fresh integration checks are in the [consolidation report](2026-10-10-reading-review-consolidation.md). The acceptance gaps below remain open.
+
 ## Candidate identity
 
 - **Source:** checkout `/home/ubuntu/.codex/worktrees/d970/tarot`, branch `codex/reading-cue-qualification-20261009`, HEAD `f24487d` (no upstream; nothing staged or committed by this work), plus the uncommitted remediation changes of Tasks 1–14.

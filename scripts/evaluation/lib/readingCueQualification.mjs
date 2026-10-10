@@ -10,6 +10,13 @@ const DEFAULT_ROOT = resolve(import.meta.dirname, '../../..');
 // Task 7 regression freeze (2026-10-10): the independent labels of the preserved r2
 // manifest (readingCueQualification.json) with artwork pins refreshed after Task 12.
 const DEFAULT_MANIFEST = 'scripts/evaluation/fixtures/readingCueQualification.regression-20261010.json';
+// Frozen labels describe the October 7 corpus. Later narrative evaluations may
+// replace the current corpus; only this exact historical source has an archive.
+const ARCHIVED_CORPUS = {
+  path: 'data/evaluations/narrative-samples.json',
+  sha256: 'b30c506a81f7cb360fb457fc2bd4825059d558b3a1f8862d5f0ab23f383fbe49',
+  archivePath: 'scripts/evaluation/fixtures/readingCueSources/narrative-samples.20261007.json'
+};
 const sha = text => createHash('sha256').update(text).digest('hex');
 const canonical = value => JSON.stringify(sortJSON(value));
 function sortJSON(value) {
@@ -68,9 +75,15 @@ export async function loadReadingCueCases({ root = DEFAULT_ROOT, manifest = DEFA
     // Mutable review documents retain their frozen provenance hashes. Runtime
     // inputs, source fixtures, catalog/registry, and artwork remain byte-pinned.
     if (source.path.startsWith('docs/')) continue;
-    const bytes = await readFile(sourcePath(root, source.path));
-    if (sha(bytes) !== source.sha256) throw new Error(`Source file hash mismatch: ${source.path}`);
-    sources.set(source.path, { bytes, sha256: source.sha256 });
+    let resolvedPath = source.path;
+    let bytes = await readFile(sourcePath(root, resolvedPath));
+    if (sha(bytes) !== source.sha256 && source.path === ARCHIVED_CORPUS.path
+      && source.sha256 === ARCHIVED_CORPUS.sha256) {
+      resolvedPath = ARCHIVED_CORPUS.archivePath;
+      bytes = await readFile(sourcePath(root, resolvedPath));
+    }
+    if (sha(bytes) !== source.sha256) throw new Error(`Source file hash mismatch: ${resolvedPath}`);
+    sources.set(source.path, { bytes, sha256: source.sha256, resolvedPath });
   }
   const cases = [];
   for (const entry of data.cases) {
@@ -86,7 +99,8 @@ export async function loadReadingCueCases({ root = DEFAULT_ROOT, manifest = DEFA
       }
     }
     cases.push({ ...entry, raw, labelProvenance: { reviewer: data.reviewer, labelRevision: data.labelRevision,
-      status: data.status, complete: data.complete, manifestSha256, labelContentSha256: data.labelContentSha256 } });
+      status: data.status, complete: data.complete, manifestSha256, labelContentSha256: data.labelContentSha256,
+      resolvedSourcePath: source.resolvedPath } });
   }
   validateReadingCueCases(cases, { requireVariantParents: true });
   return cases;

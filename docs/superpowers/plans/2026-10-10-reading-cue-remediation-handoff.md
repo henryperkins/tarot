@@ -1,5 +1,7 @@
 # Reading-cue remediation: resume prompt
 
+Consolidation update: continue source work on `codex/reading-review-consolidation-20261010` in `/home/ubuntu/tarot/.worktrees/reading-review-consolidation-20261010`. The [consolidation report](../reviews/2026-10-10-reading-review-consolidation.md) records the source checkpoint, master merge and fresh checks. Original qualification/beta checkouts and execution evidence remain preserved. The dated task history below retains its original source and authorization context.
+
 Updated on 2026-10-10 after the user selected **Show both briefly**. The execution ledger has advanced beyond the original 04:18 UTC handoff snapshot: reviewed changes have been integrated and visible turn-taking is being tested. Read the current `W/progress.md` table and latest dated entry first; historical run results below retain their original scope. Do not interrupt another session’s active tests or change their frozen source.
 
 Continue the local/offline implementation and verification of the 16-task checklist. The user previously said **Resume**; the latest request was **Provide a hand off prompt**. Resume the existing work, preserve unrelated edits and historical evidence, and finish all independent authorized work. Report required external gates plainly; do not manufacture full qualification.
