@@ -81,6 +81,7 @@ review.
 
 ## Kill switch
 
-Set `MCP_ACCESS_MODE` to `off` (in `wrangler.jsonc`, or on the Worker in the
-Cloudflare dashboard). Linking stops and every existing token is refused on
-its next request.
+Set `MCP_ACCESS_MODE` to `off` in `wrangler.jsonc` and deploy, or, to stop at
+once, change the variable on the Worker in the Cloudflare dashboard. The next
+deploy restores whatever `wrangler.jsonc` says, so commit `off` there too.
+Linking stops and every existing token is refused on its next request.

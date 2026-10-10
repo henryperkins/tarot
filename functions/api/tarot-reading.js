@@ -1092,7 +1092,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       console.log(`[${requestId}] Reading limit exceeded: ${readingLimitResult.used}/${readingLimitResult.limit}`);
       return jsonResponse({
         error: readingLimitResult.message,
-        code: 'reading_limit_reached',
+        code: readingLimitResult.unavailable ? 'usage_tracking_unavailable' : 'reading_limit_reached',
         tierLimited: true,
         currentTier: subscriptionTier,
         accountTier: subscription.tier,

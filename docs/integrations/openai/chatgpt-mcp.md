@@ -151,7 +151,8 @@ Never deploy from a working tree with uncommitted `wrangler.jsonc` changes.
 
 - Set `MCP_ACCESS_MODE` to `off` in `wrangler.jsonc` and deploy, or change the
   var on the Worker in the Cloudflare dashboard: linking stops and existing
-  tokens are rejected on the next request. Setting it back restores access
+  tokens are rejected on the next request. A dashboard change lasts until the
+  next deploy, which restores the `wrangler.jsonc` value. Setting it back restores access
   without relinking, as long as the grants haven't expired.
 - In allowlist mode, `npx wrangler secret delete MCP_ALLOWED_USER_IDS` has the
   same effect.

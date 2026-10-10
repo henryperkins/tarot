@@ -176,6 +176,7 @@ export async function enforceReadingLimit(env, request, user, subscription, requ
           used: 0,
           limit: limit === Infinity ? null : limit,
           resetAt,
+          unavailable: true,
           message: 'Usage tracking is temporarily unavailable. Please retry shortly.'
         };
       }

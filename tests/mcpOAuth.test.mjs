@@ -551,6 +551,18 @@ describe('signing in on the connection page', () => {
     assert.equal(cookieFrom(limited, 'session'), undefined);
   });
 
+  it('answers a password attempt for an account without a password like a wrong password', async () => {
+    const { call, d1 } = await setup();
+    await d1.prepare("UPDATE users SET password_hash = '', password_salt = '', auth_provider = 'google' WHERE id = 'user-1'").run();
+    const { path } = await authorizeFor(call);
+    const form = await openSignIn(call, path);
+
+    const response = await postSignIn(call, path, { email: 'user.1@example.com', password: 'anything', csrf: form.csrf, csrfCookie: form.csrfCookie });
+    assert.equal(response.status, 401);
+    assert.match(await response.text(), /don&#39;t match a Tableu account/);
+    assert.equal(cookieFrom(response, 'session'), undefined);
+  });
+
   it('refuses a sign-in without the CSRF cookie or from another origin', async () => {
     const { call, d1 } = await setup();
     await setPassword(d1, 'user-1', 'correct horse battery');

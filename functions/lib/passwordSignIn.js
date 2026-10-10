@@ -97,7 +97,9 @@ export async function authenticateWithPassword(env, request, { email, password, 
     return { ok: false, status: 403, error: 'Account is inactive' };
   }
 
-  const isValid = await verifyPassword(password, user.password_hash, user.password_salt);
+  // Accounts created through Google or another provider have no password.
+  const hasPassword = Boolean(user.password_hash && user.password_salt);
+  const isValid = hasPassword && await verifyPassword(password, user.password_hash, user.password_salt);
   if (!isValid) {
     await incrementLoginFailure(env, rateLimit.rateLimitKey, rateLimit.currentCount, requestId);
     return { ok: false, status: 401, error: 'Invalid email or password' };

@@ -153,8 +153,9 @@ API, and use the exact position labels when supplying `cardsInfo`.
 - Optional clarifiers (up to 2): **Dynamics / guidance · Outcome / what this
   can become**
 - Use for: any two-person dynamic — romantic, family, friendship, work.
-  Start with the three core cards; add clarifiers only if the user wants to go
-  deeper. "Them" describes the *energy the other person brings to this
+  `draw_tarot_reading` draws the three core cards; clarifiers are possible
+  only when the user draws their own cards and shares them all for
+  `start_tarot_reading`. "Them" describes the *energy the other person brings to this
   connection*, not private facts about a third party — keep interpretations on
   the relationship, not on diagnosing an absent person.
 
@@ -218,9 +219,10 @@ A good reading is not seven mini-meanings in a row. After the walk-through:
    the choices just named.
 
 ### Reflections are gold
-If the user recorded reflections on individual cards (the app supports this)
-or tells you their reaction, treat those as live data: connect the reading's
-themes to their words. Pass them forward in `reflectionsText`.
+If the user shares reflections on individual cards, or their reaction, in the
+conversation, treat those as live data: connect the reading's themes to their
+words. Pass them forward in `reflectionsText`. You can't see reflections saved
+in the Tableu app unless the user pastes them here.
 
 ---
 
