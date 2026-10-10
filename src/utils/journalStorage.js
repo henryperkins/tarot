@@ -1,11 +1,8 @@
-import { publicVisualSnapshot } from '../lib/readingVisualStorage.js';
+import { displayEntryVisual, publicVisualSnapshot } from '../lib/readingVisualStorage.js';
 
 /** Validate restored metadata against the immutable saved prose before use. */
 export function hydrateEntryVisuals(entry) {
-  const candidate = entry?.visual || entry?.visualSnapshot;
-  const binding = entry?.visualBinding || candidate?.binding || candidate?.snapshot?.binding;
-  const cueLedger = candidate?.snapshot || candidate?.cueLedger || (candidate?.version === 1 ? candidate : null);
-  const visual = publicVisualSnapshot({ binding, cueLedger, status: candidate?.status || 'pending', raw: entry?.personalReading });
+  const visual = displayEntryVisual(entry);
   const snapshot = visual?.snapshot || null;
   return { hasVisuals: Boolean(snapshot?.cues?.length || snapshot?.introductions?.length),
     readingResultId: visual?.readingResultId || null, binding: visual?.binding || null,

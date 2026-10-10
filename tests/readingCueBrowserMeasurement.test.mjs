@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { remarkCueSourcePositions } from '../src/lib/readingCueTimingProbe.js';
-import { buildIndependentReadingSchedule, scoreCueBrowserReport } from '../e2e/helpers/readingCueBrowserScoring.mjs';
+import { buildIndependentReadingSchedule, scoreCueBrowserReport, traceCueBrowserOpportunities } from '../e2e/helpers/readingCueBrowserScoring.mjs';
+import { buildIdealCueArrivalSchedule } from '../e2e/helpers/readingCueBrowserSession.mjs';
+import { loadReadingCueCases } from '../scripts/evaluation/lib/readingCueQualification.mjs';
 
 test('exact source projection preserves overlapping opportunities and rejects decoded leaves', () => {
   const tree = { type: 'root', children: [{ type: 'paragraph', children: [
@@ -152,4 +154,46 @@ test('completed lifecycle, held, static and restored reports cannot qualify auto
     assert.equal(score.availability.passed, false);
     assert.equal(score.accompaniment.passed, false);
   }
+});
+
+test('frozen source-active-phase schedule has a compatible Star control and a bounded five-card limitation', async () => {
+  const cases = await loadReadingCueCases();
+  const star = cases.find(c => c.id === 'star-2347-excerpt');
+  const five = cases.find(c => c.id === 'five-card-creative-project');
+  const make = c => buildIdealCueArrivalSchedule(c, { mode: 'source-active-phase', activeMs: 1800 });
+  const starSchedule = make(star);
+  assert.deepEqual(starSchedule.releases.map(r => r.atMs), [0, 1800, 3600, 5400, 7200, 9000]);
+  assert.equal(starSchedule.expectedMaxLagMs, 7000);
+  assert.ok(starSchedule.releases.every(r => r.atMs >= r.sourceAtMs && r.expectedSourceLagMs <= 10000));
+  const fiveSchedule = make(five);
+  assert.equal(fiveSchedule.expectedMaxLagMs, 13760);
+  assert.equal(fiveSchedule.expectedP95LagMs, 13560);
+  assert.equal(fiveSchedule.releases.find(r => r.expectedSourceLagMs > 10000).opportunityId, 'five-card-creative-project:pentacles-group');
+  const readerAligned = buildIdealCueArrivalSchedule(star, { mode: 'reader-aligned', activeMs: 1800 });
+  assert.equal(readerAligned.releases[1].atMs, 7000);
+  assert.ok(readerAligned.expectedP95LagMs > 10000);
+  assert.notDeepEqual(readerAligned.releases, starSchedule.releases);
+});
+
+test('opportunity traces distinguish actual consumed-without-selection, wrong geometry and short dwell', () => {
+  const input = completedStarReport();
+  input.report.stageAdoptions = input.cues.slice(1).map(c => ({ cueId: c.id, origin: 'automatic', at: 20 }));
+  input.report.playbackStates = [{ at: 20, currentCueId: 'c1', consumedCueIds: ['c0', 'c1'],
+    associations: input.cues.map(c => ({ id: c.id, passage: c.passage })), passageVisibility: { c0: true, c1: true } }];
+  input.report.detailExposures.shift();
+  input.report.detailExposures[0].targets = [{ spreadIndex: 2, detailIds: ['wrong'] }];
+  input.report.detailExposures[1].end -= 1;
+  const score = scoreCueBrowserReport(input);
+  const rows = traceCueBrowserOpportunities({ ...input, score });
+  assert.equal(rows[0].classification, 'selection-or-coalescing');
+  assert.equal(rows[0].consumedWithoutSelection, true);
+  assert.equal(rows[0].source.receivedAt, 0);
+  assert.equal(rows[0].receipt.at, 10);
+  assert.equal(rows[0].ledgerAdoption.at, 20);
+  assert.equal(rows[1].classification, 'renderer-visibility');
+  assert.equal(rows[1].selected, true);
+  assert.equal(rows[1].exposures[0].exactTargets, false);
+  assert.equal(rows[2].classification, 'inadequate-dwell');
+  assert.equal(rows[2].exposures[0].qualifyingOverlapMs, 599);
+  assert.equal(rows[3].classification, 'qualified');
 });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveNarrativePassages } from '../src/lib/generatedNarrativePassages.js';
+import { resolveNarrativePassages, measureNarrativePassage } from '../src/lib/generatedNarrativePassages.js';
 
 const cards = [{ index: 0, canonicalName: 'The Star', artworkEdition: 'rws-immanuelle-vector' }];
 const raw = 'La Estrella vierte agua. Esta corriente puede acompañar tu nuevo comienzo.';
@@ -72,4 +72,49 @@ test('unbound, replaced, wrong-edition and mismatched cumulative cues never reac
     assert.equal(resolveNarrativePassages({ source: { ...source, ...change }, cards }).associations.some(cue => cue.id.startsWith('vc:')), false);
   }
   assert.equal(resolveNarrativePassages({ source, cards, artworkEdition: 'other' }).associations.some(cue => cue.id.startsWith('vc:')), false);
+});
+
+
+// DOM layout cannot run in Node. The browser regression exercises actual Range
+// geometry; these fixtures bound the renderer's full-source visibility decision.
+test('passage eligibility uses all nonempty source rects instead of padded wrapper geometry', () => {
+  const rect = (top, bottom, left = 20, right = 100) => ({ top, bottom, left, right, width: right - left, height: bottom - top });
+  const document = { hidden: false, defaultView: { innerWidth: 300, innerHeight: 200,
+    getComputedStyle: () => ({ opacity: '1', visibility: 'visible', display: 'inline', overflowX: 'visible', overflowY: 'visible' }) },
+    elementFromPoint: () => element, createRange: () => ({ selectNodeContents() {}, getClientRects: () => rects }) };
+  const element = { ownerDocument: document, nodeType: 1, parentElement: null, contains: hit => hit === element,
+    getBoundingClientRect: () => rect(190, 250) };
+  let rects = [rect(203, 224), rect(239, 260)];
+  assert.equal(measureNarrativePassage(element).visible, false);
+  rects = [rect(178, 199), rect(214, 235)];
+  assert.equal(measureNarrativePassage(element).visible, false);
+  rects = [rect(130, 151), rect(166, 187)];
+  assert.equal(measureNarrativePassage(element).visible, true);
+  document.hidden = true;
+  assert.equal(measureNarrativePassage(element).visible, false);
+  document.hidden = false;
+  rects = [rect(-60, -39), rect(-24, -3)];
+  assert.deepEqual(measureNarrativePassage(element), { visible: false, passed: true });
+  rects = [];
+  assert.deepEqual(measureNarrativePassage(element), { visible: false, passed: false });
+});
+
+test('ancestor clipping, hiding and actual occlusion reject quoted-source visibility', () => {
+  const rect = { top: 20, bottom: 40, left: 20, right: 100, width: 80, height: 20 };
+  let style = { opacity: '1', visibility: 'visible', display: 'block', overflowX: 'visible', overflowY: 'visible' };
+  let hit;
+  const document = { hidden: false, defaultView: { innerWidth: 300, innerHeight: 200, getComputedStyle: () => style },
+    elementFromPoint: () => hit, createRange: () => ({ selectNodeContents() {}, getClientRects: () => [rect] }) };
+  const parent = { nodeType: 1, parentElement: null, getBoundingClientRect: () => ({ top: 0, bottom: 30, left: 0, right: 300 }) };
+  const element = { ownerDocument: document, nodeType: 1, parentElement: parent, contains: node => node === element, getBoundingClientRect: () => rect };
+  hit = element;
+  assert.equal(measureNarrativePassage(element).visible, true);
+  style = { ...style, overflowY: 'hidden' };
+  assert.equal(measureNarrativePassage(element).visible, false);
+  style = { ...style, overflowY: 'visible', visibility: 'hidden' };
+  assert.equal(measureNarrativePassage(element).visible, false);
+  style = { ...style, visibility: 'visible', opacity: '0' };
+  assert.equal(measureNarrativePassage(element).visible, false);
+  style = { ...style, opacity: '1' }; hit = { contains: () => false };
+  assert.equal(measureNarrativePassage(element).visible, false);
 });

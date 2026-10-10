@@ -11,6 +11,7 @@ import {
 import { getSectionKeyFromHeading } from '../lib/narrativeSections';
 import { STREAM_AUTO_NARRATE_DEBOUNCE_MS } from '../lib/narrationStream.js';
 import { remarkCardLinks } from '../lib/narrativeCardLinks.js';
+import { measureNarrativePassage } from '../lib/generatedNarrativePassages.js';
 import { useNarrativeReadingLine } from '../hooks/useNarrativeReadingLine';
 import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './reading/narrative/NarrativeCardFocus';
 
@@ -413,33 +414,44 @@ export function StreamingNarrative({
     if (!root || !focus?.studyEnabled || !focusApi) return undefined;
     const elements = [...root.querySelectorAll('[data-gesture-id]')];
     let observing = true;
-    const visibilitySnapshot = {};
-    const passed = new Set();
-    const measure = (element, rect, visible) => {
-      const id = element.dataset.gestureId;
-      visibilitySnapshot[id] = visible;
-      // A late annotation above the viewport is revisitable, not a queued
-      // arrival. An unseen future span below it can still play on first entry.
-      if (!visible && rect.bottom <= 0) passed.add(id);
+    let frame = null;
+    const measure = () => {
+      if (!observing) return;
+      const visibilitySnapshot = {};
+      const passedCueIds = [];
+      // Registration is source-owned. IntersectionObserver only wakes this
+      // exact quote measurement; wrapper intersection never grants eligibility.
+      for (const element of elements) {
+        const { visible, passed } = measureNarrativePassage(element);
+        const id = element.dataset.gestureId;
+        visibilitySnapshot[id] = visible;
+        if (passed) passedCueIds.push(id);
+      }
+      focusApi.reportPassageVisibility({ runId: gestureSource.runId,
+        sourceRevision: gestureSource.sourceRevision, visibilitySnapshot, passedCueIds });
     };
-    const report = () => observing && focusApi.reportPassageVisibility({ runId: gestureSource.runId,
-      sourceRevision: gestureSource.sourceRevision, visibilitySnapshot: { ...visibilitySnapshot }, passedCueIds: [...passed] });
-    // Measure the entire registered set before choosing a cue. Per-entry
-    // dispatch would let observer ordering select an older visible passage.
-    elements.forEach(element => {
-      const rect = element.getBoundingClientRect();
-      measure(element, rect, rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight
-        && rect.right > 0 && rect.left < window.innerWidth);
-    });
-    report();
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => measure(entry.target, entry.boundingClientRect, entry.isIntersecting && entry.intersectionRatio > 0));
-      report();
-    // The positive threshold reports entry after an initial zero-area edge
-    // intersection, even when isIntersecting itself remains true.
-    }, { threshold: [0, 0.01] });
-    elements.forEach((element) => observer.observe(element));
-    return () => { observing = false; observer.disconnect(); };
+    const schedule = () => {
+      if (frame !== null || !observing) return;
+      frame = requestAnimationFrame(() => { frame = null; measure(); });
+    };
+    measure();
+    const observer = new IntersectionObserver(schedule, { threshold: [0, .01, 1] });
+    elements.forEach(element => observer.observe(element));
+    // Source text can enter while its padded/multiline wrapper remains at the
+    // same observer threshold. Scroll/layout events must remeasure its rects.
+    window.addEventListener('scroll', schedule, { passive: true, capture: true });
+    window.addEventListener('resize', schedule);
+    document.addEventListener('visibilitychange', schedule);
+    const resizeObserver = new ResizeObserver(schedule);
+    resizeObserver.observe(root);
+    return () => {
+      observing = false;
+      observer.disconnect(); resizeObserver.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', schedule, true);
+      window.removeEventListener('resize', schedule);
+      document.removeEventListener('visibilitychange', schedule);
+    };
   }, [visibleText, associations, focus?.studyEnabled, focusApi, gestureSource?.runId, gestureSource?.sourceRevision]);
 
   useEffect(() => {

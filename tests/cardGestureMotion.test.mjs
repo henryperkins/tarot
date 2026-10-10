@@ -84,3 +84,33 @@ test('held water reacquires CSS handles created after preference restoration wit
   assert.equal(recreated.playing, false, 'cancelled discovery cannot revive outgoing controls');
   controller.dispose();
 });
+test('hidden or offscreen ownership closes handles and visibility, reconnect or preference restoration never replays a finite trace', () => {
+  let time = 0, frame, starts = 0, stops = 0, pauses = 0, opacity;
+  const water = { playbackRate: 1, play() { this.playing = true; }, pause() { pauses++; this.playing = false; } };
+  const controller = createCardGestureMotionController({
+    startFinite: () => { starts++; return [{ cancel() { stops++; } }]; }, getWaterAnimations: () => [water],
+    now: () => time, requestFrame: cb => { frame = cb; return 1; }, cancelFrame() {}, setWaterOpacity: value => { opacity = value; }
+  });
+  const gesture = { associationId: 'held', details: [{ motionRecipe: { kind: 'finite' } }, { motionRecipe: { kind: 'water' } }] };
+  controller.sync({ gesture, phase: 'held', canMove: true });
+  assert.equal(starts, 1); assert.equal(water.playing, true); assert.equal(opacity, 1);
+  // Hidden page or offscreen stage: every owned handle stops at once.
+  controller.sync({ gesture, phase: 'held', canMove: false });
+  assert.equal(stops, 1); assert.equal(water.playing, false); assert.equal(opacity, 0);
+  // Visible again, an SSE reconnect re-sync and a restored motion preference keep the same presentation identity.
+  controller.sync({ gesture, phase: 'held', canMove: true });
+  controller.sync({ gesture: { ...gesture }, phase: 'held', canMove: true });
+  controller.sync({ gesture, phase: 'held', canMove: true, reducedMotion: true });
+  assert.equal(water.playing, false);
+  controller.sync({ gesture, phase: 'held', canMove: true, reducedMotion: false });
+  assert.equal(starts, 1, 'finite traces play once per presentation');
+  assert.equal(water.playing, true, 'held water may resume only while owned and visible');
+  // Release settles water within 1500 ms and the settled presentation stays still.
+  controller.sync({ gesture, phase: 'settling', canMove: true });
+  time += 1500; frame();
+  assert.equal(water.playbackRate, 0); assert.equal(water.playing, false);
+  controller.sync({ gesture, phase: 'static', canMove: true });
+  assert.equal(starts, 1); assert.equal(water.playing, false);
+  controller.dispose();
+  assert.ok(pauses >= 3);
+});

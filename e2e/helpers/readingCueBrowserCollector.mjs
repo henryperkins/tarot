@@ -6,6 +6,7 @@ export function installCueBrowserCollector(config) {
     viewport: { width: innerWidth, height: innerHeight }, motionPreference: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduce' : 'no-preference',
     clockDomain: 'browser performance.now', narrativeEvents: [], serverTimingEvents: [], renderEvents: [], passageEvents: [], passageIntervals: [],
     cueReceipts: [], cueAdoptions: [], stageAdoptions: [], detailExposures: [], heldIntervals: [], readerSteps: [],
+    playbackStates: [], playbackProbe: { method: 'fixture-only committed React root reducer inspection', found: false },
     sourceProjectionErrors: [], sourceDigests: [], layout: { proseStart: null, maxProseStartDriftPx: 0, maxOverflowPx: 0 }, unexpectedScrolls: [], samplingGaps: [], visibilityEvents: [], completionAt: null, window: { start: null, end: null, completed: false, endReason: null, readerEnabled: config.reader !== false }, truncated: false };
   const append = (name, item) => { if (report[name].length < limit) report[name].push(item); else report.truncated = true; };
   const anchors = config.opportunities.flatMap(o => o.anchors.map((a, index) => ({ opportunityId: o.id, anchorIndex: index, start: a.start, end: a.end })));
@@ -14,6 +15,36 @@ export function installCueBrowserCollector(config) {
   let lastFrameAt = null; let frameProjectionCache = null; let frameFragments = null; let frameSyntax = null;
   let source = null; let expectedScroll = 0; let scrollGrace = 0;
   const revisions = new Map();
+  let playbackKey = '';
+  function observeCommittedPlayback(now) {
+    // Read-only fixture diagnostic. Never infer selection from a transport adoption.
+    // Follow the committed root, rather than inspecting an arbitrary alternate fiber.
+    const host = document.querySelector('.gesture-companion');
+    const fiberKey = host && Object.keys(host).find(k => k.startsWith('__reactFiber$'));
+    let root = fiberKey && host[fiberKey];
+    while (root?.return) root = root.return;
+    const current = root?.stateNode?.current;
+    if (!current) return;
+    const pending = [current]; let provider;
+    while (pending.length) {
+      const fiber = pending.pop();
+      if (fiber.type?.name === 'NarrativeCardFocusProvider') { provider = fiber; break; }
+      if (fiber.sibling) pending.push(fiber.sibling);
+      if (fiber.child) pending.push(fiber.child);
+    }
+    let hook = provider?.memoizedState;
+    while (hook && !Array.isArray(hook.memoizedState?.consumedCueIds)) hook = hook.next;
+    const state = hook?.memoizedState;
+    if (!state) return;
+    report.playbackProbe.found = true;
+    const value = { runId: state.runId, sourceRevision: state.sourceRevision, ledgerRevision: state.ledgerRevision,
+      visibleEnd: state.visibleEnd, currentCueId: state.current?.id ?? null, pendingCueId: state.pending,
+      consumedCueIds: state.consumedCueIds, passageVisibility: state.passageVisibility,
+      phase: state.phase, activeUntil: state.activeUntil, held: Boolean(state.held), status: state.status,
+      reducedMotion: state.reducedMotion, associations: state.associations.map(a => ({ id: a.id, passage: a.passage })) };
+    const signature = JSON.stringify(value);
+    if (signature !== playbackKey) { append('playbackStates', { at: now, ...structuredClone(value) }); playbackKey = signature; }
+  }
   const key = a => `${a.opportunityId}:${a.anchorIndex}`;
   const close = (entry, at, reason) => { entry.end = at; entry.endReason = reason; };
   function closeVisibleIntervals(at, reason) {
@@ -177,6 +208,7 @@ export function installCueBrowserCollector(config) {
       closeVisibleIntervals(lastFrameAt, 'unobserved-frame-gap');
     }
     lastFrameAt = now;
+    observeCommittedPlayback(now);
     if (report.window.start !== null && now >= report.scheduledEndpoint) endWindow(report.scheduledEndpoint);
     reader(now);
     const prose = document.querySelector('.narrative-stream__text');

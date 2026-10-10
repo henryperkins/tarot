@@ -77,7 +77,8 @@ const rows = {
     { id: 'raised-arms', terms: ['raised arms'], spot: [.51, .69, .40, .15], crop: [.51, .69, 1], match: /\b(?:raised arms|arms raised)\b/giu, scene: /\b(?:figures?|coffins?|people|rise|rising)\b/i, text: 'The figures rise from their coffins with arms raised.' }
   ],
   'The World': [
-    { id: 'wreath', terms: ['green wreath'], spots: [[.15, .47, .075, .32], [.845, .47, .065, .31], [.50, .11, .31, .065], [.50, .80, .32, .08]], crop: [.50, .47, .83], match: /\b(?:green |oval )?wreath\b/giu, scene: /\b(?:surround\w*|dancer|figure|oval|ribbon)\b/i, text: 'An oval wreath surrounds the dancer, with red ribbons at its ends.' },
+    // The oval spans the card; the 106px compact stage frames all of it (Task 12).
+    { id: 'wreath', terms: ['green wreath'], spots: [[.15, .47, .075, .32], [.845, .47, .065, .31], [.50, .11, .31, .065], [.50, .80, .32, .08]], crop: [.50, .455, .48], match: /\b(?:green |oval )?wreath\b/giu, scene: /\b(?:surround\w*|dancer|figure|oval|ribbon)\b/i, text: 'An oval wreath surrounds the dancer, with red ribbons at its ends.' },
     { id: 'two-wands', terms: ['two wands'], spots: [[.26, .47, .045, .10], [.745, .42, .05, .085]], crop: [.50, .46, 1.05], match: /\btwo wands\b/giu, scene: /\b(?:holds?|hands?|dancer)\b/i, text: 'The dancer holds two wands, one in each hand.' }
   ]
 };
@@ -85,7 +86,8 @@ const rows = {
 export const MAJOR_ARTWORK = Object.fromEntries(Object.entries(rows).map(([name, details]) => [name, details.map(row => {
   const maskSpots = (row.spots || [row.spot]).map(([x, y, rx, ry]) => ({ x, y, rx, ry }));
   const [x, y, zoom] = row.crop;
-  return { id: row.id, terms: row.terms, maskSpots, spots: maskSpots.map(spot => [spot.x, spot.y, spot.rx]), frame: { x, y, zoom }, traces: [] };
+  // Intentional static illumination: these painted details stay still.
+  return { id: row.id, terms: row.terms, maskSpots, spots: maskSpots.map(spot => [spot.x, spot.y, spot.rx]), frame: { x, y, zoom }, traces: [], treatment: 'static' };
 })]));
 export const MAJOR_RULES = Object.fromEntries(Object.entries(rows).map(([name, details]) => [name, details.map(({ id, match, scene }) => ({ id, match, scene }))]));
 export const MAJOR_EXAMPLES = Object.entries(rows).flatMap(([card, details]) => details.map(row => ({ card, detailId: row.id, text: row.text })));

@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { z } from 'zod';
+import { createVisualCueAdmissionError, isVisualCueAdmissionError, createTrustedVisualCueBinding, captureVisualCueUsageEvidence, captureVisualCueUndispatchedReservation } from '../../../functions/lib/visualCueAdmission.js';
+import { normalizeInferenceUsage, normalizeInferenceIdentifier } from '../../../functions/lib/inferenceAttempts.js';
 import { ReadingVisualJob } from '../../../src/worker/readingVisualJob.js';
 import { getVectorGestureDetails } from '../../../src/data/cardGestureArtwork.js';
 import { buildVisualCuePrompt } from '../../../shared/generation/visualCuePrompt.js';
@@ -25,7 +27,12 @@ export const DEFAULT_CUE_CANDIDATES = Object.freeze([
 ]);
 const schema = z.toJSONSchema(z.object({ proposals: z.array(visualCueProposalSchema).max(240) }).strict(), { target: 'draft-7' });
 const responseFormat = { type: 'json_schema', json_schema: { name: 'visual_cues', schema, strict: true } };
-const systemPrompt = buildVisualCuePrompt({}).systemPrompt;
+// The builder owns edition-specific instructions. Freeze the exact system
+// prompt for each trusted registered edition rather than one global string.
+const systemPromptFor = artworkEdition => buildVisualCuePrompt({ artworkEdition }).systemPrompt;
+// The user prompt opens by naming its edition; it must name the registered one too.
+const editionLineFor = artworkEdition => buildVisualCuePrompt({ artworkEdition }).userPrompt.split('\n', 1)[0];
+const systemPrompt = systemPromptFor(undefined);
 export const OFFLINE_CUE_ADAPTER = Object.freeze({ offline: true, async run() {
   return { response: '{"proposals":[]}', usage: { prompt_tokens: 0, completion_tokens: 0 } };
 } });
@@ -36,38 +43,89 @@ export function createBoundedCueAdapter({ live = false, aiAdapter, budget, candi
   if (live && (aiAdapter?.liveConfigured !== true || budget?.mode !== 'live'
     || !aiAdapter.availableModels?.includes(candidate?.model))) throw new Error('Explicit live adapter/catalog and persistent live round budget required.');
   if (!DEFAULT_CUE_CANDIDATES.some(c => canonicalVisualCueJSON(c) === canonicalVisualCueJSON(candidate))) throw new Error('Unknown candidate configuration.');
+  candidate = structuredClone(candidate);
   const registrations = new Map();
   const attempts = [];
+  const admissions = [];
   const ownedWork = new Set();
   let fatalReason = null;
-  const requestTemplate = { messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: '' }], stream: false,
+  const requestTemplate = { messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: editionLineFor(undefined) }], stream: false,
     max_completion_tokens: 8192, reasoning_effort: candidate.effort, temperature: 0, response_format: structuredClone(responseFormat) };
   const { messages: _fixedMessages, ...fixedConfiguration } = requestTemplate;
   const expectedConfiguration = canonicalVisualCueJSON(fixedConfiguration);
-  async function executeRequest(model, input, { signal, registration, requestMetadata = {} } = {}) {
+  async function executeRequest(model, input, { signal, registration, requestMetadata = {}, dispatchObserver } = {}) {
+    const rejectAdmission = async reason => {
+      if (reason === 'configuration') fatalReason = reason;
+      const record = budget?.recordAdmission ? await budget.recordAdmission({ candidate, registration: registration || {}, request: input || {}, reason })
+        : { candidateId: candidate.id, reason };
+      admissions.push(record);
+      throw createVisualCueAdmissionError(reason);
+    };
     const key = registration && `${registration.runId}:${registration.caseId}:${registration.trialId || 'default'}`;
     if (!key || !registrations.has(key) || canonicalVisualCueJSON(registrations.get(key)) !== canonicalVisualCueJSON(registration)) {
-      throw new Error('Unregistered cue session registration.');
+      return rejectAdmission('configuration');
     }
     const { messages, ...configuration } = input || {};
     if (model !== candidate.model || canonicalVisualCueJSON(configuration) !== expectedConfiguration
       || !Array.isArray(messages) || messages.length !== 2 || messages[0]?.role !== 'system'
-      || messages[0].content !== systemPrompt || messages[1]?.role !== 'user' || typeof messages[1].content !== 'string') {
-      throw new Error('Cue request configuration/schema mismatch.');
+      || messages[0].content !== systemPromptFor(registration.artworkEdition) || messages[1]?.role !== 'user' || typeof messages[1].content !== 'string'
+      || messages[1].content.split('\n', 1)[0] !== editionLineFor(registration.artworkEdition)) {
+      return rejectAdmission('configuration');
     }
-    if (fatalReason) throw new Error('Global cue configuration failed; dispatch stopped.');
-    signal?.throwIfAborted();
-    if (!budget) throw new Error('Persistent round budget required before dispatch.');
+    if (fatalReason) return rejectAdmission('round-halted');
+    if (signal?.aborted) return rejectAdmission('cancelled-before-dispatch');
+    if (!budget) return rejectAdmission('configuration');
     let reserved;
-    try { reserved = await budget.reserve({ candidate, registration: { ...registration, ...requestMetadata }, request: input }); }
-    catch (error) { fatalReason = error.code === 'budget_exhausted' ? 'budget-exhausted' : 'budget-configuration'; throw new Error('Round budget stopped before dispatch.'); }
+    try { reserved = await budget.reserve({ candidate, registration: { ...registration, ...requestMetadata }, request: input, signal }); }
+    catch (error) {
+      const reason = isVisualCueAdmissionError(error) ? error.reason : 'configuration';
+      admissions.push({ candidateId: candidate.id, registration: structuredClone(registration), reason });
+      if (['call-cap', 'round-halted', 'configuration'].includes(reason)) fatalReason = reason;
+      throw isVisualCueAdmissionError(error) ? error : createVisualCueAdmissionError(reason);
+    }
+    if (signal?.aborted) {
+      const record = await budget.withdrawUndispatched(reserved.id, captureVisualCueUndispatchedReservation(reserved.id));
+      admissions.push(record);
+      throw createVisualCueAdmissionError('cancelled-before-dispatch');
+    }
     const attempt = { ...reserved, schemaSha256: cueDigest(responseFormat), inputMessagesSha256: cueDigest(messages) };
     attempts.push(attempt);
     // Hold unknown outcomes immediately on provider deadline/cancellation, even
     // when a remote operation ignores AbortSignal and resolves later.
     let abort;
+    let captured = null;
+    let evidence = null;
+    let correctionStarted = false;
+    const appendCorrection = () => {
+      if (!evidence || correctionStarted || attempt.outcome === 'reserved' || attempt.estimatedUsd !== null || captured.usage.status !== 'known') return;
+      correctionStarted = true;
+      const work = budget.appendUsageEvidence(reserved.id, { evidence, evidenceId: `provider-capture:${reserved.id}` });
+      ownedWork.add(work);
+      work.then(() => ownedWork.delete(work), () => ownedWork.delete(work));
+    };
+    const capture = value => {
+      captured = { model: normalizeInferenceIdentifier(value?.model), usage: normalizeInferenceUsage(value?.usage) };
+      evidence = captureVisualCueUsageEvidence({ requestSha256: reserved.requestSha256, requestedModel: model,
+        usage: captured.usage, returnedModel: captured.model });
+      dispatchObserver?.provenance(captured);
+      appendCorrection();
+    };
     try {
-      const operation = Promise.resolve().then(() => aiAdapter.run(model, input, { signal }));
+      const operation = (async () => {
+        dispatchObserver?.dispatched();
+        return aiAdapter.run(model, input, { signal });
+      })().then(result => { capture(result); return result; }, error => {
+        // A losing transport can reject after cancellation already finalized
+        // the attempt. Its terminal classification still owns a round halt.
+        if (['authorization', 'configuration'].includes(error?.code)) {
+          fatalReason ||= error.code;
+          const work = budget.halt();
+          ownedWork.add(work);
+          work.then(() => ownedWork.delete(work), () => ownedWork.delete(work));
+        }
+        capture(error);
+        throw error;
+      });
       const cancelled = new Promise((_, reject) => {
         abort = () => reject(Object.assign(new Error('Visual annotation cancelled.'), { code: signal?.reason?.name === 'TimeoutError' || signal?.reason?.code === 'deadline_exceeded' ? 'timeout' : 'cancelled' }));
         signal?.addEventListener('abort', abort, { once: true });
@@ -81,27 +139,35 @@ export function createBoundedCueAdapter({ live = false, aiAdapter, budget, candi
       } catch { outcome = 'rejected'; }
       const settled = await budget.settle(reserved.id, { outcome, reason: outcome === 'rejected' ? 'quality_rejected' : null, usage: result?.usage, returnedModel: result?.model });
       Object.assign(attempt, settled);
+      if (signal?.aborted) {
+        const reason = signal.reason?.code === 'deadline_exceeded' ? 'timeout' : 'cancelled';
+        Object.assign(attempt, await budget.annotate(reserved.id, { outcome: 'failed', reason }));
+        const error = new Error('Visual annotation cancelled.'); error.code = reason; throw error;
+      }
       return result;
     } catch (error) {
       const reason = ['authorization', 'configuration', 'cancelled', 'timeout'].includes(error?.code) ? error.code : 'provider_error';
       const fatal = ['authorization', 'configuration'].includes(reason);
       if (fatal) fatalReason = reason;
-      Object.assign(attempt, await budget.settle(reserved.id, { outcome: 'failed', reason, usage: error?.usage,
-        returnedModel: error?.model, fatal }));
+      Object.assign(attempt, await budget.settle(reserved.id, { outcome: 'failed', reason, usage: captured?.usage ?? error?.usage,
+        returnedModel: captured?.model ?? error?.model, fatal }));
+      appendCorrection();
       const safe = new Error('Visual annotation failed.'); safe.code = reason;
+      safe.usage = captured?.usage ?? normalizeInferenceUsage(error?.usage);
+      safe.model = captured?.model ?? normalizeInferenceIdentifier(error?.model);
       if (reason === 'cancelled') safe.name = 'AbortError';
       throw safe;
     } finally { signal?.removeEventListener('abort', abort); }
   }
   const adapter = {
-    attempts, requestTemplate, get fatalReason() { return fatalReason; },
+    attempts, admissions, requestTemplate, get fatalReason() { return fatalReason; },
     registerSession(registration) {
       if (!registration?.runId || !registration?.caseId) throw new Error('Explicit run/case registration required.');
       const key = `${registration.runId}:${registration.caseId}:${registration.trialId || 'default'}`;
       if (registrations.has(key)) throw new Error('Duplicate session registration.');
       const record = structuredClone(registration);
       registrations.set(key, record);
-      return { run: (model, input, options = {}) => adapter.run(model, input, { ...options, registration: record }) };
+      return createTrustedVisualCueBinding((model, input, options = {}) => adapter.run(model, input, { ...options, registration: record }));
     },
     run(model, input, options) {
       const work = executeRequest(model, input, options);
@@ -143,13 +209,13 @@ export async function createVisualCueSession({ caseData, candidate = DEFAULT_CUE
   const token = `local:${binding.readingResultId}`;
   const bounded = createBoundedCueAdapter({ aiAdapter, live, budget, candidate });
   const registration = { runId, caseId: caseData.id, trialId, readingResultId: binding.readingResultId,
-    sourceSha256: cueDigest(caseData.raw), bindingSha256: cueDigest(binding) };
+    sourceSha256: cueDigest(caseData.raw), bindingSha256: cueDigest(binding), artworkEdition: binding.artworkEdition };
   const registered = bounded.registerSession(registration);
   const env = { DB: db, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: candidate.model,
     VISUAL_CUE_REASONING_EFFORT: candidate.effort, VISUAL_CUE_TIMEOUT_MS: 60000,
-    AI: { run: (model, input, options) => registered.run(model, input, { ...options,
+    AI: createTrustedVisualCueBinding((model, input, options) => registered.run(model, input, { ...options,
       requestMetadata: job?.inFlightRequest ? { ...Object.fromEntries(['analyzedEnd', 'analyzedHash', 'requestSequence', 'batchId'].map(key => [key, job.inFlightRequest[key]])),
-        bindingSha256: cueDigest(job.inFlightRequest.binding), sourceRevision: job.inFlightRequest.binding.sourceRevision } : {} }) } };
+        bindingSha256: cueDigest(job.inFlightRequest.binding), sourceRevision: job.inFlightRequest.binding.sourceRevision } : {} })) };
   const job = new ReadingVisualJob(state, env);
   await job.initialized;
   const initialized = await job.fetch(new Request('https://cue-local/init', { method: 'POST', body: JSON.stringify({ binding,
@@ -194,7 +260,8 @@ export async function createVisualCueSession({ caseData, candidate = DEFAULT_CUE
         cachedTokens: attempt.usage?.cacheReadInputTokens ?? null, reasoningTokens: attempt.usage?.reasoningTokens ?? null })).sort();
       const jobAttemptRowsComplete = canonicalVisualCueJSON(recorded) === canonicalVisualCueJSON(dispatched);
       return structuredClone({ caseId: caseData.id, candidateId: candidate.id, trialId, runId, binding: job.binding, status: job.status,
-        ledger: job.ledger, requests: job.requestRegistry, observations, attempts: bounded.attempts, inferenceAttempts,
+        ledger: job.ledger, requests: job.requestRegistry, observations, attempts: bounded.attempts, admissions: bounded.admissions, inferenceAttempts,
+        admissionComplete: bounded.admissions.length === 0,
         jobAttemptRowsComplete, accountingComplete: jobAttemptRowsComplete && bounded.attempts.every(a => a.estimatedUsd !== null),
         inferenceReconciliation: 'per-job metadata multiset; no unsafe ordinal request pairing',
         authoritativeRawSha256: cueDigest(job.authoritativeRaw), authoritativeRawLength: job.authoritativeRaw.length,
@@ -221,13 +288,14 @@ export function buildCueDeliverySchedule(raw, scenario = 'paced') {
 }
 
 const relevantFiles = [
+  'scripts/evaluation/runReadingCueQualificationRound.mjs',
   'scripts/evaluation/lib/visualCueEvaluationHarness.mjs', 'scripts/evaluation/lib/visualCueEvaluationBudget.mjs',
   'scripts/evaluation/lib/visualCueEvaluationRelay.mjs', 'scripts/evaluation/evaluateReadingCueModel.mjs',
   'functions/lib/visualCueProvider.js', 'functions/lib/inferenceAttempts.js', 'src/worker/readingVisualJob.js',
   'src/worker/readingJob.js', 'shared/generation/visualCuePrompt.js', 'shared/contracts/visualCueBatches.js',
   'shared/contracts/generatedPassageAnnotations.js', 'shared/reading/visualCueLedger.js',
   'scripts/evaluation/lib/readingCueQualification.mjs', 'scripts/evaluation/fixtures/readingCuePricing.json',
-  'scripts/evaluation/fixtures/readingCueQualification.json', 'src/data/cardGestureArtwork.js',
+  'scripts/evaluation/fixtures/readingCueQualification.regression-20261010.json', 'src/data/cardGestureArtwork.js',
   'src/data/cardGestureDetails/majors.js', 'src/data/cardGestureDetails/cupsPentacles.js', 'src/data/cardGestureDetails/wandsSwords.js',
   'package.json', 'package-lock.json', 'tests/helpers/d1Sqlite.mjs'
 ];
@@ -269,8 +337,11 @@ export async function createCueRunIdentity({ cases, phase, candidates = DEFAULT_
     .filter(line => line && Object.hasOwn(fileDigests, line.slice(3))).map(line => line.slice(3)).sort();
   const promptHashes = Object.fromEntries(cases.map(c => [c.id, cueDigest(buildVisualCuePrompt({ ...cueValidationContext(c), rawPrefix: c.raw, artworkEdition: c.artworkEdition || `identity:${c.deckStyle}` }))]));
   const identity = { head, dirtyPaths, fileDigests, phase, repeats, live, candidates, dispatchConfiguration, catalogSha256: cueDigest(catalog),
-    manifestSha256: cases[0]?.labelProvenance?.manifestSha256, pricingSha256: cueDigest(CUE_PRICING_SNAPSHOT),
+    manifestSha256: cases[0]?.labelProvenance?.manifestSha256 ?? null, pricingSha256: cueDigest(CUE_PRICING_SNAPSHOT),
+    // systemPromptSha256 is the default (RWS vector) edition; the map beside it covers each case edition.
     schemaSha256: cueDigest(responseFormat), systemPromptSha256: cueDigest(systemPrompt), promptHashes,
+    systemPromptSha256ByEdition: Object.fromEntries([...new Set(cases.map(c => c.artworkEdition || `identity:${c.deckStyle}`))].sort()
+      .map(edition => [edition, cueDigest(systemPromptFor(edition))])),
     sources: cases.map(c => ({ caseId: c.id, rawSha256: cueDigest(c.raw), cardsSha256: cueDigest(c.cards),
       contextSha256: cueDigest({ question: c.question, reflections: c.reflections }), provenance: c.provenance })) };
   return { ...identity, digest: cueDigest(identity) };
@@ -283,17 +354,19 @@ export async function runReadingCueEvaluation({ manifest, phase = 'all', live = 
   candidates = candidates.map(c => typeof c === 'string' ? DEFAULT_CUE_CANDIDATES.find(item => item.id === c) : c);
   if (!candidates.length || candidates.some(c => !c || !DEFAULT_CUE_CANDIDATES.some(item => canonicalVisualCueJSON(item) === canonicalVisualCueJSON(c)))
     || new Set(candidates.map(c => c.id)).size !== candidates.length) throw new Error('Unknown/duplicate cue candidate configuration.');
+  candidates = structuredClone(candidates);
+  if (manifest && typeof manifest === 'object') manifest = structuredClone(manifest);
   if (live && (!aiAdapter?.liveConfigured || (!budget && (!roundBudgetPath || !roundId)))) throw new Error('Explicit live adapter and shared round budget required.');
   if (!live && aiAdapter && !aiAdapter.offline) throw new Error('Explicit offline adapter required.');
   aiAdapter ??= OFFLINE_CUE_ADAPTER;
   const cases = await loadReadingCueCases({ manifest });
-  const frozenManifest = manifest && typeof manifest === 'object' ? manifest : JSON.parse(await readFile(manifest || resolve(repositoryRoot, 'scripts/evaluation/fixtures/readingCueQualification.json'), 'utf8'));
+  const frozenManifest = manifest && typeof manifest === 'object' ? manifest : JSON.parse(await readFile(manifest || resolve(repositoryRoot, 'scripts/evaluation/fixtures/readingCueQualification.regression-20261010.json'), 'utf8'));
   candidates.sort((a, b) => frozenManifest.candidateOrder.indexOf(a.id) - frozenManifest.candidateOrder.indexOf(b.id));
   const expectedTrials = [{ trialId: 'repeat-1', caseIds: cases.map(c => c.id) },
     { trialId: 'repeat-2', caseIds: cases.filter(c => ['recorded-reading', 'recorded-excerpt'].includes(c.provenance.sourceKind)).map(c => c.id) }];
   const semanticPlan = candidates.flatMap(candidate => expectedTrials.flatMap(trial => trial.caseIds.map(caseId => ({ candidateId: candidate.id, caseId, trialId: trial.trialId }))));
-  const timingPlan = candidates.flatMap(c => ['star-2347-excerpt', 'five-card-creative-project'].flatMap(caseId => ['paced', 'burst', 'final-only'].map(scenario => ({ candidateId: c.id, caseId, scenario,
-    schedule: buildCueDeliverySchedule(cases.find(item => item.id === caseId).raw, scenario).map(({ text: _text, fullText: _fullText, ...event }) => event) }))));
+  const timingPlan = phase === 'semantic' ? [] : candidates.flatMap(c => ['star-2347-excerpt', 'five-card-creative-project'].flatMap(caseId => ['paced', 'burst', 'final-only'].map(scenario => ({ candidateId: c.id, caseId, scenario,
+    ...(cases.some(item => item.id === caseId) ? { schedule: buildCueDeliverySchedule(cases.find(item => item.id === caseId).raw, scenario).map(({ text: _text, fullText: _fullText, ...event }) => event) } : { skipReason: 'missing-required-timing-case', schedule: [] }) }))));
   const dispatchConfiguration = { concurrency, maxCalls, maxEstimatedUsd, order: 'manifest candidate blocks; repeat-1 all cases then repeat-2 primary cases',
     semanticPlan, timingPlan, deadlineMs: 60000, maxCompletionTokens: 8192, temperature: 0 };
   const identity = await createCueRunIdentity({ cases, phase, candidates, repeats, live, dispatchConfiguration, catalog: aiAdapter.availableModels || candidates.map(c => c.model) });
@@ -333,6 +406,7 @@ export async function runReadingCueEvaluation({ manifest, phase = 'all', live = 
     }
     if (phase !== 'semantic') {
       for (const plan of timingPlan) {
+        if (plan.skipReason) { report.timing.push({ ...plan, status: 'incomplete', reason: plan.skipReason }); continue; }
         if (fatal) { report.timing.push({ ...plan, status: 'incomplete', reason: fatal }); continue; }
         const { createReadingCueRelay } = await import('./visualCueEvaluationRelay.mjs');
         const relay = await createReadingCueRelay({ caseData: cases.find(c => c.id === plan.caseId), candidate: candidates.find(c => c.id === plan.candidateId),
@@ -360,7 +434,10 @@ export async function runReadingCueEvaluation({ manifest, phase = 'all', live = 
   // Model outputs still require independently blinded adjudication and real browser evidence.
   report.ranking = rankReadingCueCandidates(report.scores, frozenManifest.candidateOrder);
   report.incompleteReasons = ['independent-output-adjudication-required', 'browser-timing-and-accompaniment-unmeasured',
-    ...(!live ? ['offline-fake-not-model-quality-evidence'] : []), ...(fatal ? [fatal] : [])];
+    ...(!live ? ['offline-fake-not-model-quality-evidence'] : []), ...(fatal ? [fatal] : []),
+    ...(!report.budget.measuredCostComplete ? ['accounting-usage-incomplete'] : []),
+    ...(report.budget.admissions?.some(a => !a.allowed) ? ['budget-admission-incomplete'] : []),
+    ...(report.semantic.some(r => !r.analysisComplete) ? ['model-analysis-incomplete'] : [])];
   await writeFile(join(outputDir, 'report.json'), JSON.stringify(report, null, 2), { flag: 'wx' });
   return report;
 }

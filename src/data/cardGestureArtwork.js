@@ -7,7 +7,8 @@ export const CARD_GESTURE_PLANE = Object.freeze({ width: 1086, height: 1810 });
 const fiveCardDetails = {
   sprout: {
     card: 'ace', x: .408, y: .34, rx: .17, ry: .30,
-    frame: { x: .40, y: .30, zoom: 1.35 },
+    // Centred on the leaves so the topmost sprout stays inside the compact stage.
+    frame: { x: .385, y: .235, zoom: 1.25 },
     spots: [
       { x: .408, y: .36, rx: .080, ry: .31 },
       { x: .369, y: .10, rx: .13, ry: .09 },
@@ -75,8 +76,12 @@ const landWater = {
   streams: ['M906 1000 L903 1475', 'M916 995 L915 1480', 'M926 1000 L928 1475'],
   rivulets, rivuletMaskWidth: 14
 };
+// Each detail declares its treatment. Static illumination is the deliberate
+// choice for a still painted detail; only authored recipes add bounded motion
+// (finite 1800 ms traces, held water that settles in 1500 ms). Reduced motion
+// keeps every treatment's static illumination.
 function detail(id, terms, maskSpots, frame, motionRecipe, traces = []) {
-  return { id, terms, maskSpots, spots: maskSpots.map(({ x, y, rx }) => [x, y, rx]), frame, traces, motionRecipe };
+  return { id, terms, maskSpots, spots: maskSpots.map(({ x, y, rx }) => [x, y, rx]), frame, traces, motionRecipe, treatment: motionRecipe?.kind ?? 'static' };
 }
 const vectorDetails = {
   'The Star': [

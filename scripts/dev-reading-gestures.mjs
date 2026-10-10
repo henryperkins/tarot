@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
-import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,7 +16,7 @@ import { runCodexSubscription, verifyCodexSubscriptionLogin } from '../services/
 import { CODEX_SUBSCRIPTION_DEFAULT_MODEL, CODEX_SUBSCRIPTION_DEFAULT_EFFORT } from '../shared/inference/codexSubscription.js';
 import { parseJsoncConfig } from './deploy.js';
 import { developmentConfig, developmentEnvironment, developmentPaths, FRONTEND_PORT,
-  GATEWAY_PORT, localMigrationArguments, parseDevelopmentOptions, resolveDevelopmentOwner, validateLocalReviewer, VISUAL_MODEL,
+  GATEWAY_PORT, localMigrationArguments, parseDevelopmentOptions, resolveDevelopmentOwner, validateIsolation, validateLocalReviewer, VISUAL_MODEL,
   workerArguments, WORKER_PORT } from './lib/readingGesturesDev.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -70,28 +70,50 @@ async function seedReviewer(paths, credentials, config, ownerEmail) {
 
 export async function main(argv = process.argv.slice(2)) {
   const options = parseDevelopmentOptions(argv);
+  // An isolated run owns explicit ports, a new private directory and database,
+  // and has no unbudgeted Workers AI binding; the ordinary beta keeps its defaults.
+  const isolation = options.isolated ? validateIsolation({ databaseId: randomUUID(),
+    ...JSON.parse(await readFile(options.isolated, 'utf8')) }) : null;
+  // Launching stays disabled until the run is isolated from the protected beta in
+  // every respect: it still builds into and serves the checkout's dist directory,
+  // shares the beta's dev-registry worker name and has no isolated login path.
+  // Real Pro probes need a reviewed live mode of the Task 13 validation runtime.
+  if (isolation && !options.check) {
+    throw new Error('Isolated launch is disabled until it no longer shares dist/, the dev registry or the reviewer login with the protected beta. Use --check to inspect the isolated configuration.');
+  }
   const codex = options.provider === 'codex-subscription';
   const prefix = codex ? 'CODEX_SUBSCRIPTION' : 'CLAUDE_CODE';
-  const credentials = validateLocalReviewer(JSON.parse(await readFile(credentialPath, 'utf8')));
+  // A parse error message can quote file content; never surface any of the private file.
+  let reviewer;
+  try { reviewer = JSON.parse(await readFile(credentialPath, 'utf8')); } catch {
+    throw new Error('The local reviewer credential file is missing or is not valid JSON.');
+  }
+  const credentials = validateLocalReviewer(reviewer);
   const hostEnv = { ...buildSubscriptionEnv(process.env), ...(codex ? {
     CODEX_SUBSCRIPTION_MODEL: process.env.CODEX_SUBSCRIPTION_MODEL || CODEX_SUBSCRIPTION_DEFAULT_MODEL,
     CODEX_SUBSCRIPTION_EFFORT: process.env.CODEX_SUBSCRIPTION_EFFORT || CODEX_SUBSCRIPTION_DEFAULT_EFFORT
   } : { CLAUDE_CODE_MODEL: 'claude-opus-5-5', CLAUDE_CODE_EFFORT: 'xhigh' }) };
   const verifyLogin = codex ? verifyCodexSubscriptionLogin : verifySubscriptionLogin;
   await verifyLogin({ hostEnv, signal: AbortSignal.timeout(30000) });
+  const ports = isolation?.ports ?? { worker: WORKER_PORT, frontend: FRONTEND_PORT, gateway: GATEWAY_PORT, inspector: 9235 };
   const base = parseJsoncConfig(await readFile(path.join(root, 'wrangler.jsonc'), 'utf8'));
   const config = developmentConfig(base, { root, ownerUserId: credentials.userId,
-    provider: options.provider, accountId: process.env.CLOUDFLARE_ACCOUNT_ID });
-  if (!config.account_id) throw new Error('A Cloudflare account is required for the independent visual model.');
+    provider: options.provider, accountId: process.env.CLOUDFLARE_ACCOUNT_ID, isolation });
+  if (!isolation && !config.account_id) throw new Error('A Cloudflare account is required for the independent visual model.');
   if (options.check) {
     console.log('Subscription login and local reviewer prerequisites passed. No inference or database changes were made.');
     if (options.ownerEmail) console.log('The selected owner account will be resolved in the isolated database at startup.');
-    console.log(`Visual candidate: ${VISUAL_MODEL}. Its live access and cue quality still need verification.`);
+    if (isolation) console.log(`Isolated frontend proxies /api to its own Worker: http://localhost:${ports.worker}`);
+    console.log(isolation ? 'Isolated run: visual annotation stays disabled until a budget-gated transport is authorized.'
+      : `Visual candidate: ${VISUAL_MODEL}. Its live access and cue quality still need verification.`);
     return;
   }
-  for (const port of [WORKER_PORT, FRONTEND_PORT, GATEWAY_PORT, 9235]) await requireFreePort(port);
+  for (const port of Object.values(ports)) await requireFreePort(port);
+  if (isolation && (await readdir(isolation.privateDirectory).catch(error => error.code === 'ENOENT' ? [] : Promise.reject(error))).length) {
+    throw new Error('An isolated run needs a new or empty private directory.');
+  }
 
-  const paths = developmentPaths(root);
+  const paths = developmentPaths(root, isolation);
   for (const directory of [paths.directory, paths.logs, paths.state]) {
     await mkdir(directory, { recursive: true, mode: 0o700 });
     await chmod(directory, 0o700);
@@ -100,7 +122,7 @@ export async function main(argv = process.argv.slice(2)) {
   await writeFile(paths.config, JSON.stringify(config, null, 2), { mode: 0o600 });
   await writeFile(paths.vars, `${prefix}_GATEWAY_TOKEN=${token}\n`, { mode: 0o600 });
   await chmod(paths.vars, 0o600);
-  await writeFile(paths.frontendConfig, `import base from ${JSON.stringify(pathToFileURL(path.join(root, 'vite.config.js')).href)};\nimport { developmentViteConfig } from ${JSON.stringify(pathToFileURL(path.join(root, 'scripts/lib/readingGesturesDev.mjs')).href)};\nexport default developmentViteConfig(base, { privateDirectory: ${JSON.stringify(paths.directory)} });\n`, { mode: 0o600 });
+  await writeFile(paths.frontendConfig, `import base from ${JSON.stringify(pathToFileURL(path.join(root, 'vite.config.js')).href)};\nimport { developmentViteConfig } from ${JSON.stringify(pathToFileURL(path.join(root, 'scripts/lib/readingGesturesDev.mjs')).href)};\nexport default developmentViteConfig(base, { privateDirectory: ${JSON.stringify(paths.directory)}, port: ${ports.frontend}${isolation ? `, workerPort: ${ports.worker}` : ''} });\n`, { mode: 0o600 });
 
   const children = new Set();
   const logs = new Set();
@@ -179,17 +201,18 @@ export async function main(argv = process.argv.slice(2)) {
     });
     await new Promise((resolve, reject) => {
       gateway.once('error', reject);
-      gateway.listen(GATEWAY_PORT, '127.0.0.1', resolve);
+      gateway.listen(ports.gateway, '127.0.0.1', resolve);
     });
-    const worker = launch(wrangler, workerArguments(paths), 'worker', workerEnv);
+    const worker = launch(wrangler, workerArguments(paths, isolation), 'worker', workerEnv);
     worker.once('close', () => { if (!stopping) { process.exitCode = 1; void stop(); } });
-    await waitFor(`http://127.0.0.1:${WORKER_PORT}/api/auth/me`, worker);
+    await waitFor(`http://127.0.0.1:${ports.worker}/api/auth/me`, worker);
     const frontend = launch(vite, [root, '--config', paths.frontendConfig], 'frontend', frontendEnv, root);
     frontend.once('close', () => { if (!stopping) { process.exitCode = 1; void stop(); } });
-    await waitFor(`http://127.0.0.1:${FRONTEND_PORT}/`, frontend);
-    console.log(`Reading gestures beta: http://localhost:${FRONTEND_PORT}/`);
-    console.log(`Real local login/API: http://localhost:${WORKER_PORT}/ — sign in to the selected local owner account.`);
-    console.log(`Narrative: ${options.provider} (${hostEnv[`${prefix}_MODEL`]}, ${hostEnv[`${prefix}_EFFORT`]}). Visual candidate: ${VISUAL_MODEL}.`);
+    await waitFor(`http://127.0.0.1:${ports.frontend}/`, frontend);
+    console.log(`Reading gestures ${isolation ? 'isolated run' : 'beta'}: http://localhost:${ports.frontend}/`);
+    console.log(`Real local login/API: http://localhost:${ports.worker}/ — sign in to the selected local owner account.`);
+    console.log(`Narrative: ${options.provider} (${hostEnv[`${prefix}_MODEL`]}, ${hostEnv[`${prefix}_EFFORT`]}). ${isolation
+      ? 'Visual annotation disabled (no budget-gated transport).' : `Visual candidate: ${VISUAL_MODEL}.`}`);
     console.log(`Private state and logs: ${paths.directory}. Ctrl+C stops only this runner's processes.`);
     await stopped;
   } finally {

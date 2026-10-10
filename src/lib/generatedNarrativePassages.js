@@ -49,3 +49,38 @@ export function resolveNarrativePassages({ source, cards = [], artworkEdition } 
     ...(ledger ? { binding: ledger.binding, ledgerRevision: ledger.ledgerRevision } : {})
   };
 }
+
+/** Measure the rendered quote, excluding the interactive wrapper's padding. */
+export function measureNarrativePassage(element) {
+  const doc = element.ownerDocument;
+  const view = doc.defaultView;
+  const range = doc.createRange();
+  range.selectNodeContents(element);
+  const rects = [...range.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0);
+  const passed = rects.length > 0 && rects.every(rect => rect.bottom <= 0);
+  if (!rects.length || doc.hidden) return { visible: false, passed };
+  const bounds = { left: 0, right: view.innerWidth, top: 0, bottom: view.innerHeight };
+  let opacity = 1;
+  for (let node = element; node?.nodeType === 1; node = node.parentElement) {
+    const style = view.getComputedStyle(node);
+    opacity *= Number(style.opacity);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || node.inert) {
+      return { visible: false, passed };
+    }
+    if (/(hidden|clip|scroll|auto)/.test(`${style.overflowX} ${style.overflowY}`)) {
+      const clip = node.getBoundingClientRect();
+      if (/(hidden|clip|scroll|auto)/.test(style.overflowX)) {
+        bounds.left = Math.max(bounds.left, clip.left); bounds.right = Math.min(bounds.right, clip.right);
+      }
+      if (/(hidden|clip|scroll|auto)/.test(style.overflowY)) {
+        bounds.top = Math.max(bounds.top, clip.top); bounds.bottom = Math.min(bounds.bottom, clip.bottom);
+      }
+    }
+  }
+  const visible = opacity > .01 && rects.every(rect => {
+    if (rect.left < bounds.left || rect.right > bounds.right || rect.top < bounds.top || rect.bottom > bounds.bottom) return false;
+    const hit = doc.elementFromPoint((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2);
+    return Boolean(hit && (element.contains(hit) || hit.contains(element)));
+  });
+  return { visible, passed };
+}

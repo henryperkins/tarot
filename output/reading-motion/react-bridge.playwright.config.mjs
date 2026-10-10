@@ -13,7 +13,10 @@ export default {
   ...(qualification ? { projects: [{ name: 'cue-qualification', use: { browserName: 'chromium', viewport: { width: 1100, height: 1000 }, contextOptions: { reducedMotion: 'no-preference' } } }], timeout: 420000, retries: 0, outputDir: process.env.CUE_EVIDENCE_DIR || 'test-results/cue-qualification' } : {}),
   reporter: 'list',
   // Controlled API routes must not escape interception through the app's SW.
-  use: { ...base.use, baseURL: 'http://localhost:5174', serviceWorkers: 'block' },
+  // Trace recording during the long frame-polled reader wait produced >100 ms
+  // unobserved frames in the measured page (0/60 s without it, 9/60 s with it),
+  // so timing qualification never records a Playwright trace.
+  use: { ...base.use, baseURL: 'http://localhost:5174', serviceWorkers: 'block', ...(qualification ? { trace: 'off' } : {}) },
   webServer: qualification ? undefined : {
     ...base.webServer,
     command: 'VITE_READING_GESTURES=true npm run dev:frontend -- --port 5174 --strictPort',

@@ -10,7 +10,7 @@ import { safeJsonParse } from '../../lib/utils.js';
 import { sanitizeSourceUsage } from '../../../shared/readingSourceUsage.js';
 import { deleteFollowUpsByEntry, loadFollowUpsByEntry } from '../../lib/journalFollowups.js';
 import { EXTRACTION_VERSION } from '../../lib/coachSuggestion.js';
-import { deleteJournalVisualLink, loadJournalVisualResult } from '../../lib/readingVisualResults.js';
+import { deleteJournalVisualLink, loadJournalVisualResult, loadJournalVisualState } from '../../lib/readingVisualResults.js';
 
 function isMissingColumnError(err) {
   const message = String(err?.message || err || '');
@@ -167,11 +167,15 @@ export async function onRequestGet(context) {
 
     try {
       const visualResult = await loadJournalVisualResult({ db: env.DB, userId: user.id, entryId: entry.id });
-      if (visualResult) {
-        parsedEntry.visual = visualResult;
-      }
-    } catch (visualErr) {
-      console.warn(`[${requestId}] [journal] Failed to load visual result for entry ${entry.id}:`, visualErr);
+      if (visualResult) parsedEntry.visual = visualResult;
+    } catch {
+      console.warn(`[${requestId}] [journal] Visual snapshot unavailable`);
+    }
+    try {
+      const visualState = await loadJournalVisualState({ db: env.DB, userId: user.id, entryId: entry.id });
+      if (visualState) parsedEntry.visualState = visualState;
+    } catch {
+      console.warn(`[${requestId}] [journal] Visual state unavailable`);
     }
 
     return new Response(

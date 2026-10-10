@@ -130,3 +130,23 @@ test('immediate save attaches trusted identity while optional visual initializat
   const restored = await loadJournalVisualResult({ db, userId: 'owner', entryId: saved.body.entry.id });
   assert.equal(restored.finalRaw, raw);
 });
+
+
+test('overall and legacy reflection notes bind context deterministically without changing absent-note parity', async () => {
+  const base = { cards: payload.cardsInfo, question: 'What now?', reflections };
+  const original = await fingerprintVisualSource(base);
+  assert.notEqual((await fingerprintVisualSource({ ...base, reflections: { ...reflections, Overall: 'One whole reading note.' } })).contextHash, original.contextHash);
+  assert.notEqual((await fingerprintVisualSource({ ...base, reflections: { ...reflections, Past: 'A legacy note.' } })).contextHash, original.contextHash);
+  const a = normalizeVisualSource({ ...base, reflections: { Overall: 'Whole', Future: 'Future note', Past: 'Past note' } });
+  const b = normalizeVisualSource({ ...base, reflections: { Past: 'Past note', Overall: 'Whole', Future: 'Future note' } });
+  assert.equal(a.reflections, b.reflections);
+  assert.match(a.reflections, /Whole/);
+  assert.match(a.reflections, /Past note/);
+});
+
+test('saved numeric notes take precedence over obsolete embedded card notes', async () => {
+  const source = { cards: [{ name: 'The Star', userReflection: 'Old note' }], reflections: { 0: 'New note' } };
+  assert.equal(normalizeVisualSource(source).cards[0].userReflection, 'New note');
+  assert.notEqual((await fingerprintVisualSource(source)).contextHash,
+    (await fingerprintVisualSource({ ...source, reflections: { 0: 'Another saved note' } })).contextHash);
+});

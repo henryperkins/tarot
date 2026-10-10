@@ -10,7 +10,7 @@
 function anchor(id, terms, regions, frame, match, scene, text) {
   const maskSpots = regions.map(([x, y, rx, ry]) => ({ x, y, rx, ry }));
   return {
-    artwork: { id, terms, maskSpots, spots: maskSpots.map(({ x, y, rx }) => [x, y, rx]), frame, traces: [] },
+    artwork: { id, terms, maskSpots, spots: maskSpots.map(({ x, y, rx }) => [x, y, rx]), frame, traces: [], treatment: 'static' },
     rule: { id, match, scene },
     text
   };

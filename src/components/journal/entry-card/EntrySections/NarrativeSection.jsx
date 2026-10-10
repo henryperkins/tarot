@@ -2,14 +2,14 @@
  * NarrativeSection.jsx
  * Collapsible section displaying the full reading narrative (markdown).
  */
-import { memo, useState } from 'react';
+import { memo, useReducer, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { CaretUp, CaretDown } from '@phosphor-icons/react';
 import { JournalNarrativeIcon } from '../../../JournalIcons';
 import { styles, cn } from '../EntryCard.primitives';
-import { RestoredReadingGestures } from '../RestoredReadingGestures';
+import { RestoredReadingGestures, SavedVisualRecovery } from '../RestoredReadingGestures';
 import { hydrateEntryVisuals } from '../../../../utils/journalStorage';
 
 function getNarrativePreviewText(text, maxChars = 260) {
@@ -107,13 +107,20 @@ export const NarrativeSection = memo(function NarrativeSection({
   collapsible = true,
   defaultExpanded = false,
   entry = null,
-  gestureStudyEnabled = false
+  gestureStudyEnabled = false,
+  onRetryVisuals = null
 }) {
   const [showNarrative, setShowNarrative] = useState(defaultExpanded);
+  // Private resume handles live outside React state; re-read them after changes.
+  const [handleRevision, handlesChanged] = useReducer(revision => revision + 1, 0);
 
   if (!narrativeText) return null;
   const hasGestures = gestureStudyEnabled && hydrateEntryVisuals(entry).binding;
-  const reading = hasGestures ? <RestoredReadingGestures entry={entry} /> : (
+  // Saved-visual status/action sits beside the readable prose, with or without cues.
+  const recovery = gestureStudyEnabled && entry ? (
+    <SavedVisualRecovery entry={entry} onRetry={onRetryVisuals} handleRevision={handleRevision} onHandlesChanged={handlesChanged} />
+  ) : null;
+  const reading = hasGestures ? <RestoredReadingGestures entry={entry} onHandlesChanged={handlesChanged} /> : (
     <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-p:leading-relaxed [overflow-wrap:anywhere]">
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} skipHtml components={MARKDOWN_COMPONENTS}>
         {narrativeText}
@@ -150,7 +157,7 @@ export const NarrativeSection = memo(function NarrativeSection({
             className={styles.sectionBody}
           >
             {showNarrative ? (
-              reading
+              <>{recovery}{reading}</>
             ) : (
               <p className="text-sm leading-relaxed text-[color:var(--text-muted)] line-clamp-4">
                 {getNarrativePreviewText(narrativeText) || 'Tap to read the full narrative.'}
@@ -167,6 +174,7 @@ export const NarrativeSection = memo(function NarrativeSection({
             </div>
           </header>
           <div id={narrativeId} className={styles.sectionBody}>
+            {recovery}
             {reading}
           </div>
         </>

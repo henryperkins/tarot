@@ -1,8 +1,20 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import { createNarrativeFixture } from './helpers/narrativeFixtures.js';
 import { applyVisualCueBatch, createVisualCueLedger } from '../shared/reading/visualCueLedger.js';
 import { hashVisualCueText } from '../shared/contracts/visualCueBatches.js';
+import { acceptedLedger, createRecoveryBackend as createBackend, sourceBinding, STAR as RECOVERY_STAR, starEntry } from './helpers/journalVisualRecoveryBridge.mjs';
+
+// Every recovery lane fails on an unexpected page error. The only allowed one is
+// the duplicate-tab init script touching localStorage from its about:blank page.
+const backends = [];
+const createRecoveryBackend = async (...args) => { const backend = await createBackend(...args); backends.push(backend); return backend; };
+const EXPECTED_PAGE_ERROR = /SecurityError: Failed to read the 'localStorage' property from 'Window'/;
+test.afterEach(async ({ page: _page }, testInfo) => {
+  const unexpected = backends.splice(0).flatMap(backend => backend.pageErrors).filter(error => !EXPECTED_PAGE_ERROR.test(error));
+  if (testInfo.status === testInfo.expectedStatus && unexpected.length) throw new Error(`Unexpected page errors: ${unexpected.join(' | ')}`);
+});
 
 const star = JSON.parse(fs.readFileSync(new URL('../output/reading-motion/fixtures/three-card-transition.json', import.meta.url)));
 const binding = { readingResultId: 'controlled-journal-star', sourceRevision: 0,
@@ -19,7 +31,16 @@ async function completedLedger() {
   return result.ledger;
 }
 
+// Phone layouts start with the narrative collapsed; expand only when needed.
+async function expandNarrative(page) {
+  const toggle = page.getByRole('button', { name: 'Reading narrative' }).first();
+  await expect(toggle).toBeVisible();
+  if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+}
+
 async function inspectStatic(page, cue) {
+  await expandNarrative(page);
   const restored = page.getByTestId('restored-reading-gestures');
   await expect(restored).toBeVisible();
   const phrase = page.locator(`[data-gesture-id="${cue.id}"]`);
@@ -48,10 +69,15 @@ for (const reducedMotion of ['reduce', 'no-preference']) {
       expect(stored).toContain(star.excerpt.slice(0, 40));
       expect(stored).not.toContain('controlled-private-resume');
       expect(stored).not.toContain('visualJobToken');
+      await expandNarrative(page);
       await expect.poll(() => fixture.connected('visual')).toBeGreaterThan(0);
+      // Task 11: pending original work resumes; status only, no inference action.
+      await expect(page.getByTestId('saved-visual-recovery')).toHaveAttribute('data-recovery-phase', 'pending');
+      await expect(page.getByRole('button', { name: 'Retry card connections' })).toHaveCount(0);
       const beforeReload = fixture.connectionGeneration('visual');
       await page.reload();
       await expect(page.getByTestId('journal-count')).toHaveText('1');
+      await expandNarrative(page);
       // A pre-reload server socket may outlive its document until close fires.
       // Wait for a new accepted connection, not merely a nonempty client set.
       await expect.poll(() => fixture.connected('visual', beforeReload)).toBeGreaterThan(0);
@@ -63,6 +89,9 @@ for (const reducedMotion of ['reduce', 'no-preference']) {
       expect(latest.visual.ledgerRevision).toBe(1);
       await page.reload();
       await inspectStatic(page, ledger.cues[0]);
+      await expect(page.getByRole('button', { name: 'Retry card connections' })).toHaveCount(0);
+      // Mount, save, reload and stream reconnect never request annotation work.
+      expect(fixture.requests.visual.every(request => request.method === 'GET')).toBe(true);
     } finally { await fixture.close(); }
   });
 }
@@ -96,8 +125,543 @@ test('restored gestures protect phone reading width @mobile', async ({ page }) =
   }, { binding, ledger, star });
   try {
     await page.goto('/__e2e/journal-visual');
-    await page.getByRole('button', { name: 'Reading narrative' }).click();
+    await expandNarrative(page);
     await inspectStatic(page, ledger.cues[0]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   } finally { await fixture.close(); }
+});
+
+// ---------------------------------------------------------------------------
+// Task 11: saved-visual recovery through the real /journal parent, entry card
+// and journal hook. Backend: real Task 9/10 handlers + in-process SQLite D1 +
+// real ReadingVisualJob DO class (journalVisualRecoveryBridge.mjs). MOCKED:
+// provider receipts, fixture users/tiers/sessions, trusted guest identity and
+// the guest principal cookie jar. Motion follows the project (normal/reduced).
+// ---------------------------------------------------------------------------
+
+const FAKE_ORIGINAL = { readingResultId: 'expired-original', sourceRevision: 0, spreadHash: 'c'.repeat(64), contextHash: 'd'.repeat(64),
+  artworkEdition: 'rws-immanuelle-vector', catalogVersion: 'v1' };
+const pendingOriginal = () => ({ readingResultId: FAKE_ORIGINAL.readingResultId, visualBinding: FAKE_ORIGINAL,
+  visual: { readingResultId: FAKE_ORIGINAL.readingResultId, binding: FAKE_ORIGINAL, status: 'pending', sourceRevision: 0, ledgerRevision: 0, snapshot: null } });
+const sha256 = text => createHash('sha256').update(text).digest('hex');
+const recoveryOf = card => card.getByTestId('saved-visual-recovery');
+const retryOf = card => card.getByRole('button', { name: 'Retry card connections' });
+const READY = 'Card connections are ready.';
+const UNAVAILABLE = 'Your reading is saved. Card connections are unavailable.';
+
+async function prepareJournal(page, { key = 'tarot_journal', entries = [] } = {}) {
+  await page.context().addInitScript(({ key, entries }) => {
+    localStorage.setItem('tarot-onboarding-complete', 'true');
+    // Seed once per browser context; reloads and second tabs keep app writes.
+    if (!localStorage.getItem('__task11_seeded')) {
+      localStorage.setItem('__task11_seeded', 'true');
+      if (entries.length) localStorage.setItem(key, JSON.stringify(entries));
+    }
+    const automaticAdoptions = [];
+    let last = '';
+    const sample = () => {
+      for (const stage of document.querySelectorAll('[data-testid="restored-reading-gestures"] [data-gesture-window]')) {
+        const cueId = stage.dataset.association;
+        const origin = stage.dataset.held === 'true' ? 'explicit' : stage.dataset.phase === 'static' ? 'static' : 'automatic';
+        const sampleKey = `${cueId}:${origin}:${stage.dataset.phase}`;
+        // Same classification as the qualification browser collector.
+        if (cueId && origin === 'automatic' && sampleKey !== last) automaticAdoptions.push({ cueId, phase: stage.dataset.phase, at: performance.now() });
+        last = sampleKey;
+      }
+      requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+    window.__journalCueMonitor = { automaticAdoptions };
+  }, { key, entries });
+}
+
+const entryCard = (page, id) => page.locator(`[id="journal-entry-${id}"] article`);
+async function openEntry(page, id) {
+  const card = entryCard(page, id);
+  await expect(card).toBeVisible({ timeout: 20000 });
+  const toggle = card.locator('button[aria-controls]:not([aria-haspopup])').first();
+  if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+  const narrative = card.getByRole('button', { name: 'Reading narrative' });
+  await expect(narrative).toBeVisible();
+  if (await narrative.getAttribute('aria-expanded') === 'false') await narrative.click();
+  return card;
+}
+
+async function motionReport(page, testInfo, label) {
+  const report = await page.evaluate(() => ({ reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+    automaticAdoptions: window.__journalCueMonitor?.automaticAdoptions || [] }));
+  await testInfo.attach(`motion-${label}.json`, { body: JSON.stringify({ project: testInfo.project.name, ...report }, null, 2), contentType: 'application/json' });
+  expect(report.reducedMotion).toBe(testInfo.project.use?.contextOptions?.reducedMotion === 'reduce');
+  expect(report.automaticAdoptions).toEqual([]);
+}
+
+const focusCards = restored => restored.locator('[data-gesture-window] .gesture-focus-layer:not(.gesture-focus-layer--departing) [data-focus-card]');
+// Zero running animations while held; a failure names each one for diagnosis.
+// The app's global reduced-motion rule (src/styles/tarot.css) clamps every
+// transition to 0.01ms; WebKit reports those instantaneous style changes as
+// running CSSTransitions at currentTime 0. They are not motion, so only that
+// exact clamp is excluded; any real-duration animation or transition fails.
+const runningAnimations = restored => restored.evaluate(root => root.getAnimations({ subtree: true })
+  .filter(animation => animation.playState === 'running' && !(typeof CSSTransition !== 'undefined'
+    && animation instanceof CSSTransition && Number(animation.effect?.getTiming?.().duration) <= 0.01)).map(animation => {
+    const target = animation.effect?.target;
+    const timing = animation.effect?.getTiming?.() || {};
+    return { type: animation.constructor?.name || 'Animation', name: animation.animationName || animation.transitionProperty || null,
+      target: target ? [target.tagName?.toLowerCase(), String(target.className?.baseVal ?? target.className ?? '').trim().split(/\s+/).slice(0, 2).join('.'),
+        target.hasAttribute?.('data-gesture-finite') ? 'finite' : '', target.hasAttribute?.('data-gesture-water') ? 'water' : ''].filter(Boolean).join(' ') : null,
+      currentTime: Math.round(Number(animation.currentTime) || 0), duration: timing.duration ?? null, iterations: timing.iterations ?? null };
+  }));
+async function inspectRecovered(page, card) {
+  const restored = card.getByTestId('restored-reading-gestures');
+  const stage = restored.locator('[data-gesture-window]');
+  await expect(restored).toBeVisible();
+  await expect(stage).not.toHaveAttribute('data-phase', /active|settling/);
+  // Literal, then the grounded same-card pair, each held and released by keyboard.
+  for (const [quote, details] of [['one pitcher into a pool', ['pool-pour']], ['Neither pitcher gets dropped.', ['land-pour', 'pool-pour']]]) {
+    await restored.locator('[data-gesture-id]').filter({ hasText: quote }).first().click();
+    await expect(stage).toHaveAttribute('data-held', 'true');
+    await expect(stage).toHaveAttribute('data-phase', 'held');
+    await expect.poll(async () => (await focusCards(restored).first().getAttribute('data-details') || '').split(' ').filter(Boolean).sort()).toEqual(details);
+    expect(await runningAnimations(restored)).toEqual([]);
+    await page.keyboard.press('Escape');
+    await expect(stage).not.toHaveAttribute('data-held', 'true');
+  }
+  // Whole-card identity inspection from the shelf.
+  await restored.locator('[data-gesture-shelf] button').nth(2).click();
+  await expect(stage).toHaveAttribute('data-held', 'true');
+  await expect(focusCards(restored).first()).toHaveAttribute('data-details', '');
+  await page.keyboard.press('Escape');
+  await expect(stage).not.toHaveAttribute('data-held', 'true');
+  await expect(restored.locator('.narrative-stream__text')).toHaveText(RECOVERY_STAR.excerpt);
+}
+
+async function privateValues(page) {
+  return page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('tarot_visual_resume:'))
+    .flatMap(key => { const record = JSON.parse(localStorage.getItem(key)); return [record.visualJobToken, record.visualJobId, record.attemptId].filter(Boolean); }));
+}
+async function expectNoPrivateExposure(page, values, journalKey) {
+  const exposed = await page.evaluate(({ values, journalKey }) => {
+    const journal = localStorage.getItem(journalKey) || '';
+    const dom = document.documentElement.outerHTML;
+    return values.filter(value => journal.includes(value) || dom.includes(value));
+  }, { values, journalKey });
+  expect(exposed).toEqual([]);
+}
+// The journal shows its user chip only below the sm breakpoint; cross it if needed.
+async function signOut(page) {
+  const visibleMenu = () => page.locator('button[aria-label^="User menu for"]').filter({ visible: true }).first();
+  let restore = null;
+  if (!await visibleMenu().count()) {
+    restore = page.viewportSize();
+    await page.setViewportSize({ width: restore.width >= 640 ? 600 : 800, height: restore.height });
+  }
+  // Header re-renders can close the menu; reopen until the sign-out click lands.
+  await expect(async () => {
+    const item = page.getByRole('menuitem', { name: 'Sign Out' });
+    if (!await item.isVisible()) await visibleMenu().click({ timeout: 2000 });
+    await item.click({ timeout: 2000 });
+  }).toPass({ timeout: 20000 });
+  await expect(page.locator('button[aria-label^="User menu for"]')).toHaveCount(0);
+  if (restore) await page.setViewportSize(restore);
+}
+const ownerLeftovers = (page, userId) => page.evaluate(id => Object.keys(localStorage)
+  .filter(key => key === `tarot_journal_cache_${id}` || key.startsWith(`tarot_visual_resume:user:${id}`)), userId);
+
+const storedEntry = (page, key, id) => page.evaluate(({ key, id }) => JSON.parse(localStorage.getItem(key) || '[]').find(item => item.id === id) || null, { key, id });
+
+test('guest local expiry: one explicit retry restores static cues that survive reload', async ({ page }, testInfo) => {
+  const backend = await createRecoveryBackend(page.context());
+  const entry = starEntry({ id: 'guest-star', ...pendingOriginal() });
+  try {
+    await prepareJournal(page, { entries: [entry] });
+    await page.goto('/journal');
+    const card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'eligible');
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(UNAVAILABLE);
+    expect(backend.retryPosts()).toHaveLength(0);
+    expect(backend.transportRequests()).toHaveLength(0);
+    // Keyboard activation of the explicit action.
+    await retryOf(card).focus();
+    await page.keyboard.press('Enter');
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(READY, { timeout: 20000 });
+    await expect(recoveryOf(card).getByRole('status')).toBeFocused();
+    expect(backend.retryPosts().map(item => item.path)).toEqual(['/api/tarot-reading/visual-retry']);
+    expect(backend.transportRequests().every(item => item.method === 'GET')).toBe(true);
+    expect(backend.providerCalls()).toBe(1);
+    await inspectRecovered(page, card);
+    const stored = await storedEntry(page, 'tarot_journal', entry.id);
+    expect(sha256(stored.personalReading)).toBe(sha256(entry.personalReading));
+    expect(stored.visualState).toMatchObject({ attachmentStatus: 'attached', retryStatus: 'complete' });
+    expect(Object.keys(stored.visualState).sort()).toEqual(['attachmentStatus', 'reason', 'retryStatus', 'sourceFingerprint', 'stateVersion']);
+    expect(await privateValues(page)).toEqual([]);
+    await motionReport(page, testInfo, 'after-retry');
+    await page.reload();
+    const reloaded = await openEntry(page, entry.id);
+    await expect(reloaded.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').first()).toBeVisible();
+    await expect(recoveryOf(reloaded)).toHaveCount(0);
+    await inspectRecovered(page, reloaded);
+    expect(backend.retryPosts()).toHaveLength(1);
+    expect(backend.providerCalls()).toBe(1);
+    await motionReport(page, testInfo, 'after-reload');
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('signed-in local entitlement lane: a free account retries once through authenticated local admission', async ({ page }, testInfo) => {
+  const backend = await createRecoveryBackend(page.context());
+  try {
+    backend.setSession(await backend.seedAccount({ id: 'free-reader', tier: 'free' }));
+    const entry = starEntry({ id: 'free-star', ...pendingOriginal() });
+    await prepareJournal(page, { key: 'tarot_journal_free-reader', entries: [entry] });
+    await page.goto('/journal');
+    const card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'eligible');
+    let values = [];
+    // A rapid double activation still produces one explicit request.
+    await retryOf(card).dblclick();
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(READY, { timeout: 20000 });
+    values = await privateValues(page);
+    expect(backend.retryPosts().map(item => item.path)).toEqual(['/api/tarot-reading/visual-retry']);
+    expect(backend.providerCalls()).toBe(1);
+    expect(backend.db.rows('SELECT admission_scope FROM visual_retry_claims').map(row => row.admission_scope)).toEqual(['user:free-reader']);
+    await inspectRecovered(page, card);
+    await expectNoPrivateExposure(page, values, 'tarot_journal_free-reader');
+    await motionReport(page, testInfo, 'free-local');
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('cloud failed attachment survives reload and repairs a same-owner registration without inference', async ({ page }, testInfo) => {
+  const backend = await createRecoveryBackend(page.context());
+  try {
+    backend.setSession(await backend.seedAccount({ id: 'plus-reader' }));
+    const entry = starEntry({ id: 'cloud-repair' });
+    await backend.seedCloudEntry({ userId: 'plus-reader', entry, registered: true });
+    await prepareJournal(page);
+    await page.goto('/journal');
+    let card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'eligible');
+    await page.reload();
+    card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(UNAVAILABLE);
+    expect(backend.retryPosts()).toHaveLength(0);
+    // The repair completes without a pending phase; keyboard activation must still
+    // end on an announced, focused status rather than on <body>.
+    await retryOf(card).focus();
+    await page.keyboard.press('Enter');
+    await expect(card.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').first()).toBeVisible({ timeout: 20000 });
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(READY);
+    await expect(recoveryOf(card).getByRole('status')).toBeFocused();
+    expect(backend.retryPosts().map(item => item.path)).toEqual(['/api/journal/cloud-repair/visual-retry']);
+    expect(backend.providerCalls()).toBe(0);
+    await page.reload();
+    card = await openEntry(page, entry.id);
+    await expect(card.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').first()).toBeVisible();
+    await expect(recoveryOf(card)).toHaveCount(0);
+    expect(backend.db.rows('SELECT narrative FROM journal_entries')[0].narrative).toBe(entry.personalReading);
+    expect(backend.retryPosts()).toHaveLength(1);
+    await motionReport(page, testInfo, 'cloud-repair');
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('cloud entry saved while original cues were pending shows status and resumes by polling, never by retry', async ({ page }, testInfo) => {
+  const backend = await createRecoveryBackend(page.context());
+  try {
+    backend.setSession(await backend.seedAccount({ id: 'plus-pending' }));
+    const entry = starEntry({ id: 'cloud-pending' });
+    const { binding } = await backend.seedCloudEntry({ userId: 'plus-pending', entry, pendingOriginal: true });
+    await prepareJournal(page);
+    await page.goto('/journal');
+    const card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'pending');
+    await expect(recoveryOf(card).getByRole('status')).toHaveText('Your reading is saved. Card connections are being prepared.');
+    await expect(retryOf(card)).toHaveCount(0);
+    expect(await backend.completeOriginal({ userId: 'plus-pending', entry, binding })).toEqual({ ok: true });
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(READY, { timeout: 20000 });
+    await expect(card.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').first()).toBeVisible();
+    expect(backend.retryPosts()).toHaveLength(0);
+    expect(backend.providerCalls()).toBe(0);
+    expect(backend.requests.filter(item => item.path === '/api/journal/cloud-pending').length).toBeGreaterThan(0);
+    await motionReport(page, testInfo, 'cloud-pending');
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('duplicate tabs share one server claim and one dispatch and converge on static cues', async ({ page, context }, testInfo) => {
+  const backend = await createRecoveryBackend(context);
+  const entry = starEntry({ id: 'tabs-star', ...pendingOriginal() });
+  try {
+    await prepareJournal(page, { entries: [entry] });
+    await page.goto('/journal');
+    const first = await openEntry(page, entry.id);
+    const second = await context.newPage();
+    await second.goto('/journal');
+    const other = await openEntry(second, entry.id);
+    const gate = backend.holdNext('POST', /visual-retry$/);
+    await retryOf(first).click();
+    await gate.reachedPromise;
+    await retryOf(other).click();
+    await expect(recoveryOf(other).getByRole('status')).toHaveText(READY, { timeout: 20000 });
+    gate.release();
+    await expect(first.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').first()).toBeVisible({ timeout: 20000 });
+    expect(backend.retryPosts()).toHaveLength(2);
+    expect(backend.providerCalls()).toBe(1);
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(1);
+    await motionReport(page, testInfo, 'tab-a');
+    await motionReport(second, testInfo, 'tab-b');
+    await second.close();
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('a rejected successor keeps the cached cues and the exhausted status survives reload', async ({ page }, testInfo) => {
+  const backend = await createRecoveryBackend(page.context(), { provider: 'reject' });
+  const base = starEntry({ id: 'cached-star' });
+  const binding = await sourceBinding(base, 'cached-original');
+  const ledger = await acceptedLedger(binding, base.personalReading);
+  const entry = { ...base, readingResultId: binding.readingResultId, visualBinding: binding,
+    visual: { readingResultId: binding.readingResultId, binding, status: 'expired', sourceRevision: 0, ledgerRevision: ledger.ledgerRevision, snapshot: ledger } };
+  try {
+    await prepareJournal(page, { entries: [entry] });
+    await page.goto('/journal');
+    let card = await openEntry(page, entry.id);
+    const cached = card.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').filter({ hasText: 'one pitcher into a pool' });
+    await expect(cached).toBeVisible();
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'eligible');
+    await retryOf(card).click();
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable', { timeout: 20000 });
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(UNAVAILABLE);
+    await expect(retryOf(card)).toHaveCount(0);
+    await expect(cached).toBeVisible();
+    expect((await storedEntry(page, 'tarot_journal', entry.id)).visual.snapshot.cues.map(cue => cue.id)).toEqual(ledger.cues.map(cue => cue.id));
+    await page.reload();
+    card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
+    await expect(retryOf(card)).toHaveCount(0);
+    const restored = card.getByTestId('restored-reading-gestures');
+    await restored.locator('[data-gesture-id]').filter({ hasText: 'one pitcher into a pool' }).click();
+    await expect(focusCards(restored).first()).toHaveAttribute('data-details', 'pool-pour');
+    await page.keyboard.press('Escape');
+    expect(backend.retryPosts()).toHaveLength(1);
+    expect(backend.providerCalls()).toBe(1);
+    expect(backend.db.rows('SELECT retry_status FROM visual_retry_claims')[0].retry_status).toBe('exhausted');
+    await motionReport(page, testInfo, 'rejected-successor');
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('deleting an entry while its retry response is pending cannot resurrect it or keep a private handle', async ({ page }) => {
+  const backend = await createRecoveryBackend(page.context());
+  try {
+    backend.setSession(await backend.seedAccount({ id: 'free-delete', tier: 'free' }));
+    const entry = starEntry({ id: 'delete-star', ...pendingOriginal() });
+    await prepareJournal(page, { key: 'tarot_journal_free-delete', entries: [entry] });
+    await page.goto('/journal');
+    const card = await openEntry(page, entry.id);
+    const gate = backend.holdNext('POST', /visual-retry$/);
+    await retryOf(card).click();
+    await gate.reachedPromise;
+    await card.getByRole('button', { name: 'Open entry actions' }).click();
+    await page.getByRole('menuitem', { name: 'Delete entry' }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(entryCard(page, entry.id)).toHaveCount(0);
+    gate.release();
+    await backend.settle();
+    await page.waitForTimeout(500);
+    expect(await storedEntry(page, 'tarot_journal_free-delete', entry.id)).toBeNull();
+    expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.includes(':entry:')))).toEqual([]);
+    await expect(entryCard(page, entry.id)).toHaveCount(0);
+    expect(backend.retryPosts()).toHaveLength(1);
+    expect(backend.providerCalls()).toBeLessThanOrEqual(1);
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('switching accounts while a cloud retry response is pending writes nothing for either owner', async ({ page }) => {
+  const backend = await createRecoveryBackend(page.context());
+  try {
+    backend.setSession(await backend.seedAccount({ id: 'plus-switch' }));
+    const entry = starEntry({ id: 'switch-star' });
+    await backend.seedCloudEntry({ userId: 'plus-switch', entry });
+    await prepareJournal(page);
+    await page.goto('/journal');
+    const card = await openEntry(page, entry.id);
+    expect(await page.evaluate(() => localStorage.getItem('tarot_journal_cache_plus-switch'))).not.toBeNull();
+    const gate = backend.holdNext('POST', /visual-retry$/);
+    await retryOf(card).click();
+    await gate.reachedPromise;
+    await signOut(page);
+    await expect(entryCard(page, entry.id)).toHaveCount(0);
+    gate.release();
+    await backend.settle();
+    await page.waitForTimeout(500);
+    // Neither the signed-out owner's journal cache nor any private handle is recreated.
+    expect(await ownerLeftovers(page, 'plus-switch')).toEqual([]);
+    expect(await page.evaluate(() => localStorage.getItem('tarot_journal'))).toBeNull();
+    expect(backend.retryPosts()).toHaveLength(1);
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('leaving the journal and signing out while a retry response is pending leaves nothing for the old owner', async ({ page }) => {
+  const backend = await createRecoveryBackend(page.context());
+  try {
+    backend.setSession(await backend.seedAccount({ id: 'plus-leave' }));
+    const entry = starEntry({ id: 'leave-star' });
+    await backend.seedCloudEntry({ userId: 'plus-leave', entry });
+    await prepareJournal(page);
+    await page.goto('/journal');
+    const card = await openEntry(page, entry.id);
+    const gate = backend.holdNext('POST', /visual-retry$/);
+    await retryOf(card).click();
+    await gate.reachedPromise;
+    // Client-side navigation unmounts the journal while the response is in flight.
+    await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Reading' }).first().click();
+    await expect(page).toHaveURL(/\/$/);
+    await signOut(page);
+    await expect(page.locator('button[aria-label^="User menu for"]')).toHaveCount(0);
+    gate.release();
+    await backend.settle();
+    await page.waitForTimeout(500);
+    expect(await ownerLeftovers(page, 'plus-leave')).toEqual([]);
+    expect(backend.retryPosts()).toHaveLength(1);
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('replacing the saved source while the retry response is pending patches nothing', async ({ page }) => {
+  const backend = await createRecoveryBackend(page.context());
+  const entry = starEntry({ id: 'replace-star', ...pendingOriginal() });
+  try {
+    await prepareJournal(page, { entries: [entry] });
+    await page.goto('/journal');
+    const card = await openEntry(page, entry.id);
+    const gate = backend.holdNext('POST', /visual-retry$/);
+    await retryOf(card).click();
+    await gate.reachedPromise;
+    // Another tab edits the saved context of this entry.
+    await page.evaluate(id => {
+      const entries = JSON.parse(localStorage.getItem('tarot_journal'));
+      localStorage.setItem('tarot_journal', JSON.stringify(entries.map(item => item.id === id ? { ...item, reflections: { Overall: 'Edited elsewhere' } } : item)));
+    }, entry.id);
+    gate.release();
+    await expect(recoveryOf(card).getByRole('status')).toHaveText('Your reading changed while card connections were being checked.', { timeout: 20000 });
+    const stored = await storedEntry(page, 'tarot_journal', entry.id);
+    expect(stored.visualState).toBeUndefined();
+    expect(stored.reflections).toEqual({ Overall: 'Edited elsewhere' });
+    expect(stored.personalReading).toBe(entry.personalReading);
+    expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.includes(':entry:')))).toEqual([]);
+    expect(backend.retryPosts()).toHaveLength(1);
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('without annotation configuration an explicit retry makes no inference and leaves status only, across reload', async ({ page }) => {
+  const backend = await createRecoveryBackend(page.context(), { configured: false });
+  const entry = starEntry({ id: 'unconfigured-star', ...pendingOriginal() });
+  try {
+    await prepareJournal(page, { entries: [entry] });
+    await page.goto('/journal');
+    let card = await openEntry(page, entry.id);
+    await retryOf(card).click();
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable', { timeout: 20000 });
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(UNAVAILABLE);
+    await expect(retryOf(card)).toHaveCount(0);
+    await page.reload();
+    card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
+    await expect(retryOf(card)).toHaveCount(0);
+    expect(backend.retryPosts()).toHaveLength(1);
+    expect(backend.providerCalls()).toBe(0);
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(0);
+    await expect(card.locator('.narrative-stream__text, .prose').first()).toContainText('Neither pitcher gets dropped.');
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('cloud without annotation configuration keeps status-only unavailability across reload', async ({ page }) => {
+  const backend = await createRecoveryBackend(page.context(), { configured: false });
+  try {
+    backend.setSession(await backend.seedAccount({ id: 'plus-unconfigured' }));
+    const entry = starEntry({ id: 'cloud-unconfigured' });
+    await backend.seedCloudEntry({ userId: 'plus-unconfigured', entry });
+    await prepareJournal(page);
+    await page.goto('/journal');
+    let card = await openEntry(page, entry.id);
+    await retryOf(card).click();
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable', { timeout: 20000 });
+    await page.reload();
+    card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
+    await expect(retryOf(card)).toHaveCount(0);
+    expect(backend.retryPosts()).toHaveLength(1);
+    expect(backend.providerCalls()).toBe(0);
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('offline and storage-quota failures keep prose readable and a later explicit retry reuses the one dispatch', async ({ page }, testInfo) => {
+  const backend = await createRecoveryBackend(page.context());
+  const entry = starEntry({ id: 'quota-star', ...pendingOriginal() });
+  try {
+    await prepareJournal(page, { entries: [entry] });
+    await page.goto('/journal');
+    const card = await openEntry(page, entry.id);
+    backend.failNext('POST', /visual-retry$/);
+    await retryOf(card).click();
+    await expect(recoveryOf(card).getByRole('status')).toHaveText('Your reading is saved. Card connections could not be reached. Try again when you are online.');
+    await expect(retryOf(card)).toBeVisible();
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(0);
+    // Private storage is full: the server claim exists, the client stores nothing.
+    await page.evaluate(() => {
+      window.__task11SetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function setItem(key, value) {
+        if (String(key).includes(':entry:')) throw new DOMException('Quota exceeded', 'QuotaExceededError');
+        return window.__task11SetItem.call(this, key, value);
+      };
+    });
+    await retryOf(card).click();
+    await expect(recoveryOf(card).getByRole('status')).toHaveText('Your reading is saved, but this device could not store card connection progress.');
+    await expect(retryOf(card)).toBeVisible();
+    expect((await storedEntry(page, 'tarot_journal', entry.id)).visualState).toBeUndefined();
+    await backend.settle();
+    expect(backend.providerCalls()).toBe(1);
+    await page.evaluate(() => { Storage.prototype.setItem = window.__task11SetItem; });
+    await retryOf(card).click();
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(READY, { timeout: 20000 });
+    await expect(card.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').first()).toBeVisible();
+    expect(backend.providerCalls()).toBe(1);
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(1);
+    expect(backend.retryPosts()).toHaveLength(3);
+    expect((await storedEntry(page, 'tarot_journal', entry.id)).personalReading).toBe(entry.personalReading);
+    await motionReport(page, testInfo, 'quota');
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
 });

@@ -1,0 +1,3107 @@
+{
+  "version": 1,
+  "roundId": "reading-cue-qualification-20261010-task6",
+  "historicalHead": "f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+  "documentationStartingHead": "f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+  "privateArchiveReference": "tableu/reading-cue-remediation/20261010-closeout",
+  "privateArchiveRoot": "/home/ubuntu/.local/share/tableu/reading-cue-remediation/20261010-closeout",
+  "policy": "Directories 0700; files 0600. Authorized private storage required. Historical absolute paths are provenance only; resolve archive-relative paths here.",
+  "artifacts": [
+    {
+      "relativePath": "temporary-handoff/HANDOFF-20261010.md",
+      "sha256": "1040f03fa57107e71331272eceaab14e9284ebcbaec61204faddcedbfc204d85",
+      "provenance": "historical temporary handoff / HANDOFF-20261010.md",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/HANDOFF-20261010.md"
+    },
+    {
+      "relativePath": "temporary-handoff/authentication-preflight.json",
+      "sha256": "111dcedb6e6ce57f6c4802c5fa2ef6a0278348be8c8a64b7790eef363b316bcc",
+      "provenance": "historical temporary handoff / authentication-preflight.json",
+      "privacy": "restricted-authentication-metadata",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/authentication-preflight.json"
+    },
+    {
+      "relativePath": "temporary-handoff/beta-preservation-check.md",
+      "sha256": "522cff4da49e536277eb406cca5715e92ed2f3929c63e32201499f268b7cf4fb",
+      "provenance": "historical temporary handoff / beta-preservation-check.md",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/beta-preservation-check.md"
+    },
+    {
+      "relativePath": "temporary-handoff/codex-cli-preflight-audit.md",
+      "sha256": "2a215c6574ab37a895562176cd4ec995ed6c9410d68c2d7bf3461f80700e312f",
+      "provenance": "historical temporary handoff / codex-cli-preflight-audit.md",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/codex-cli-preflight-audit.md"
+    },
+    {
+      "relativePath": "temporary-handoff/expiry-reannotation-audit.md",
+      "sha256": "13966c00334b7ed96f9dc7d4d262ff871a7cf03326cfd4873a7aedec3677c054",
+      "provenance": "historical temporary handoff / expiry-reannotation-audit.md",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/expiry-reannotation-audit.md"
+    },
+    {
+      "relativePath": "temporary-handoff/fresh-probe-preflight.md",
+      "sha256": "f6eec2de52b51a6735d98ae98c80fd9a125038b5b5ebb887b54c0f64fa9b55bd",
+      "provenance": "historical temporary handoff / fresh-probe-preflight.md",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/fresh-probe-preflight.md"
+    },
+    {
+      "relativePath": "temporary-handoff/iphone-voiceover-validation-prep.md",
+      "sha256": "776643056223f7be5512d722ec83248bfd75fdb2ea2943abbe2f5c0430f81dad",
+      "provenance": "historical temporary handoff / iphone-voiceover-validation-prep.md",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/iphone-voiceover-validation-prep.md"
+    },
+    {
+      "relativePath": "temporary-handoff/label-review/build-labels.mjs",
+      "sha256": "c85e269821c792d1a0a9158316b87fd9c00c24424d2609e6251e676d9a7fd743",
+      "provenance": "historical temporary handoff / label-review/build-labels.mjs",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/label-review/build-labels.mjs"
+    },
+    {
+      "relativePath": "temporary-handoff/label-review/labels-r2.json",
+      "sha256": "b9b9f17d3d5fdee9e82886dfa3257506aace1a5b632f4af9adf86ba24d6f53ab",
+      "provenance": "historical temporary handoff / label-review/labels-r2.json",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/label-review/labels-r2.json"
+    },
+    {
+      "relativePath": "temporary-handoff/label-review/labels.json",
+      "sha256": "6c6338a87811d47d288a988adf09417824f2c32cb99af698de358875475fbef6",
+      "provenance": "historical temporary handoff / label-review/labels.json",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/label-review/labels.json"
+    },
+    {
+      "relativePath": "temporary-handoff/label-review/reviewer-notes-r2.md",
+      "sha256": "e7caf5f72097be25dedc0d1b4f1b05ccb5d3c9f342a4b2c320eea649d8b3d65b",
+      "provenance": "historical temporary handoff / label-review/reviewer-notes-r2.md",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/label-review/reviewer-notes-r2.md"
+    },
+    {
+      "relativePath": "temporary-handoff/label-review/reviewer-notes.md",
+      "sha256": "568bc94d13e1f9a3404931e5b547eb2a1b3d654fb7c93e39028df0a8ada9029c",
+      "provenance": "historical temporary handoff / label-review/reviewer-notes.md",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/label-review/reviewer-notes.md"
+    },
+    {
+      "relativePath": "temporary-handoff/label-review/revise-labels-r2.mjs",
+      "sha256": "12f35345168465265ca792dd77709a86d5fc1a1212b59c2bfd4a71f5009b89a3",
+      "provenance": "historical temporary handoff / label-review/revise-labels-r2.mjs",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/label-review/revise-labels-r2.mjs"
+    },
+    {
+      "relativePath": "temporary-handoff/label-review/validation-r2.json",
+      "sha256": "40ea200ee5f680ee1c18db40d5c812d2c1ffbae1cb931614812ea67314b05307",
+      "provenance": "historical temporary handoff / label-review/validation-r2.json",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/label-review/validation-r2.json"
+    },
+    {
+      "relativePath": "temporary-handoff/label-review/validation.json",
+      "sha256": "3485d7a4e90d12f69eb2d585f5a52518a74a0d344d9f4dca9cdb62adaa31481e",
+      "provenance": "historical temporary handoff / label-review/validation.json",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/label-review/validation.json"
+    },
+    {
+      "relativePath": "temporary-handoff/live-manifest.json",
+      "sha256": "029da431311235bf18ada495b7878b7f0010c5f4ffc7f34edaf3b91867ed043c",
+      "provenance": "historical temporary handoff / live-manifest.json",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/live-manifest.json"
+    },
+    {
+      "relativePath": "temporary-handoff/model-availability.json",
+      "sha256": "e6b9b15c77b8186738a5c9ff1e2231fece8d5ee03efe58c7f9c734a5eef9be72",
+      "provenance": "historical temporary handoff / model-availability.json",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/model-availability.json"
+    },
+    {
+      "relativePath": "temporary-handoff/pricing-snapshot.json",
+      "sha256": "65d4890c341ffcac95894c75c65c939e87a7c57646277a9191182d859c78ba52",
+      "provenance": "historical temporary handoff / pricing-snapshot.json",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/pricing-snapshot.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task-2-baseline-loader.mjs",
+      "sha256": "44b86d1b32cda5baf71e1f21aa0df4d87a10229d04e621ff05cc2b34768e74f5",
+      "provenance": "historical temporary handoff / task-2-baseline-loader.mjs",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-2-baseline-loader.mjs"
+    },
+    {
+      "relativePath": "temporary-handoff/task-2-baseline-reading-job.log",
+      "sha256": "f223c1b04e2042202b47dd59c41550575602413a072058967622722483281174",
+      "provenance": "historical temporary handoff / task-2-baseline-reading-job.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-2-baseline-reading-job.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-2-final-focused.log",
+      "sha256": "bd63e515725935d495aa26bd98971cffe68e54458e37bfe9c3b4f1ae2da9f648",
+      "provenance": "historical temporary handoff / task-2-final-focused.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-2-final-focused.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-2-final-full-test.log",
+      "sha256": "bc3a7332649cd57b28bd514d80b924269d434bb8bec5ead55a4e658f84433024",
+      "provenance": "historical temporary handoff / task-2-final-full-test.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-2-final-full-test.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-2-full-test.log",
+      "sha256": "cf4e8ea5eec51e085e8e0f04f934b47fe61742026a1816383fe1a573e8f1651e",
+      "provenance": "historical temporary handoff / task-2-full-test.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-2-full-test.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-2-green.log",
+      "sha256": "ae20d9888b3b22e9c777d6732267c128087af4a5d40631b8f559a979490346b8",
+      "provenance": "historical temporary handoff / task-2-green.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-2-green.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-2-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "historical temporary handoff / task-2-lint.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-2-lint.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-2-red.log",
+      "sha256": "c9f2ffb4e8f2406da966172b4f0731ec1533ce7704c6190e3fba363a3abd1bdb",
+      "provenance": "historical temporary handoff / task-2-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-2-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-counts-red.log",
+      "sha256": "0be9a9c8fae70957f7b933ff764c86262ad747f7cbef6639d2be11234d9d0f8f",
+      "provenance": "historical temporary handoff / task-3-counts-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-counts-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-edge-red.log",
+      "sha256": "cf41fa966832901662fcad03668e7ad3f949be44a3f1beacc205e5f577c4a875",
+      "provenance": "historical temporary handoff / task-3-edge-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-edge-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-final-focused.log",
+      "sha256": "d1b64966108c27e229e12ee50c6273c375e8327b07d248ae9af3a21443cc39bc",
+      "provenance": "historical temporary handoff / task-3-final-focused.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-final-focused.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-final-full-test.log",
+      "sha256": "ff36288bb9bb0e398d1147dbee04defa3e20693048beb1e59a24c0468022b3e0",
+      "provenance": "historical temporary handoff / task-3-final-full-test.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-final-full-test.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-final-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "historical temporary handoff / task-3-final-lint.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-final-lint.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-fix-1-final-focused.log",
+      "sha256": "5b146234ba3b7b22f900be532ab38a68cac1dcd7005c55bf7c2e1d73982ff099",
+      "provenance": "historical temporary handoff / task-3-fix-1-final-focused.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-fix-1-final-focused.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-fix-1-green.log",
+      "sha256": "a0ec45a4ff67bf892b1f8dede4dbb00698601234553fe7ad117bbbd02dbd3683",
+      "provenance": "historical temporary handoff / task-3-fix-1-green.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-fix-1-green.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-fix-1-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "historical temporary handoff / task-3-fix-1-lint.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-fix-1-lint.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-fix-1-red.log",
+      "sha256": "4ad7a748f4cd7f578ef1646eac3320d849ef635a2728f553f9bfed0d63c61d85",
+      "provenance": "historical temporary handoff / task-3-fix-1-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-fix-1-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-full-test.log",
+      "sha256": "8f4bbc4f1cd78275884139a3e051785884afb609e372915769ede7d85d17fadc",
+      "provenance": "historical temporary handoff / task-3-full-test.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-full-test.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-gates-red.log",
+      "sha256": "28feb75bfc8379ad0e0247a2d05defb2064ac1a790793cb28dcd84bf1ba8b85d",
+      "provenance": "historical temporary handoff / task-3-gates-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-gates-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-green-2.log",
+      "sha256": "324b03053ce1d86ab662313ba0dcd9f9ce6df470bb02cfa9dc8247ad11e80ef1",
+      "provenance": "historical temporary handoff / task-3-green-2.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-green-2.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-green.log",
+      "sha256": "8db38c70b7e29f7e415426d7baf2e20880d4791afd5a5e8edf349ccc5f93d74c",
+      "provenance": "historical temporary handoff / task-3-green.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-green.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-initial-green.log",
+      "sha256": "de1410ed3e5811ff71e926eb5675849f28378ccbd647d1d0875b6b5f923ed311",
+      "provenance": "historical temporary handoff / task-3-initial-green.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-initial-green.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "historical temporary handoff / task-3-lint.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-lint.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-r2-before-count-green.log",
+      "sha256": "d8861ccf3ef94fe4bfab2569c72b078241c5358959236fa63cf695c324a4e41c",
+      "provenance": "historical temporary handoff / task-3-r2-before-count-green.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-r2-before-count-green.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-red.log",
+      "sha256": "29c85da76624098fda8238d71d3acd0c0d41d826f4a51e4f8814693c792b9238",
+      "provenance": "historical temporary handoff / task-3-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-repeat-red.log",
+      "sha256": "67dd6466baed28d47610f4fed7a12fcadbacec24efb903549e038df30ed4e2e9",
+      "provenance": "historical temporary handoff / task-3-repeat-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-repeat-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-target-review-green.log",
+      "sha256": "522fad210c665a727ed26e8847465a4ff39c96afd66599c07cbd2a6ee7891cfc",
+      "provenance": "historical temporary handoff / task-3-target-review-green.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-target-review-green.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-target-review-red.log",
+      "sha256": "ae5bfa5997a523ce418b1d0173d9e92a8a4e7482c063ddd125d57b976fe9c78e",
+      "provenance": "historical temporary handoff / task-3-target-review-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-target-review-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-3-trial-plan-red.log",
+      "sha256": "0382046158634e3f11fdb8024b5f9c591c31099aca1fee501fc84a309f34714f",
+      "provenance": "historical temporary handoff / task-3-trial-plan-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-3-trial-plan-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-accounting-green.log",
+      "sha256": "b6a9d37f84cc556a3dadd7c0b54bc8d6bcea15350d054ff91ffc113714dbfc14",
+      "provenance": "historical temporary handoff / task-4-accounting-green.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-accounting-green.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-accounting-red.log",
+      "sha256": "384bd629241f16d96111ca1c0e036ad1c507663c638c07347f66a819b888d540",
+      "provenance": "historical temporary handoff / task-4-accounting-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-accounting-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-dry-run.log",
+      "sha256": "30dcdf07468508c03b143c57272014ceda237c5d20512b0eaeb2ad0eb665198b",
+      "provenance": "historical temporary handoff / task-4-dry-run.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-dry-run.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-edges.log",
+      "sha256": "4c269a4e3b945c9ada4e460439b869fabc1a7b80ffa7bb152431a62f606c4b2c",
+      "provenance": "historical temporary handoff / task-4-edges.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-edges.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-final-focused.log",
+      "sha256": "3e36f1c4de2640881d26f603ded295835cc3dfbfdc00d6186a74fa6293ebaac9",
+      "provenance": "historical temporary handoff / task-4-final-focused.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-final-focused.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-final-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "historical temporary handoff / task-4-final-lint.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-final-lint.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-first-green.log",
+      "sha256": "97cf056d68c4e864d340d2c96385bb762c76e9eaf233fb37caef92ff831083e9",
+      "provenance": "historical temporary handoff / task-4-first-green.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-first-green.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-fix-1-final-focused.log",
+      "sha256": "02ef1bced986a4ff37951211f81b1018183b51b59afc3bbcd40272e5fde35c50",
+      "provenance": "historical temporary handoff / task-4-fix-1-final-focused.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-fix-1-final-focused.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-fix-1-first-green.log",
+      "sha256": "24b2eceb0ce19afea79bdab8519904217e52ba0fd3b12e65a39e4d120c6eb222",
+      "provenance": "historical temporary handoff / task-4-fix-1-first-green.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-fix-1-first-green.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-fix-1-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "historical temporary handoff / task-4-fix-1-lint.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-fix-1-lint.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-fix-1-red.log",
+      "sha256": "144f5aa86e4ca64ee14df33ef878de5973382486cf028d4774beff082e0a452b",
+      "provenance": "historical temporary handoff / task-4-fix-1-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-fix-1-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-integration-green.log",
+      "sha256": "897b9aea7411cffb46a625dcefaa7ec2723af40fbfe2cfab00440c3b2763e957",
+      "provenance": "historical temporary handoff / task-4-integration-green.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-integration-green.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-integration-red.log",
+      "sha256": "e8391f729baa78a1ac91960f6318da4fae3f479c97881871524be25626bfde17",
+      "provenance": "historical temporary handoff / task-4-integration-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-integration-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-red.log",
+      "sha256": "65707ae68e32115d2ef46ede612bd0c209f3e45ea266c11591fce4ea3e421665",
+      "provenance": "historical temporary handoff / task-4-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-4-template-red.log",
+      "sha256": "9e4418781675afec1a959a3702a56deeaeb3a8509744353ff6108e799f079cba",
+      "provenance": "historical temporary handoff / task-4-template-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-4-template-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-boot-provenance-audit.log",
+      "sha256": "944a62f13dc12b8fecb23567e2c7c9ec509c04c0770860ea6cdcbccf5bde083a",
+      "provenance": "historical temporary handoff / task-5-boot-provenance-audit.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-boot-provenance-audit.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-browser-control-fix.log",
+      "sha256": "647c74f5ef417a75773fb68d81b4c2d6de6173426f9dfbd170dab01f97f337f9",
+      "provenance": "historical temporary handoff / task-5-browser-control-fix.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-browser-control-fix.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-browser-controls.log",
+      "sha256": "b57141689acacb1e62b079406ed494d4069f8cdb13fc62cf88747a311f57ba5f",
+      "provenance": "historical temporary handoff / task-5-browser-controls.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-browser-controls.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-browser-final-matrix-v2.log",
+      "sha256": "f7461fda8a4271ff484ec5bb7e2c30b9c2c078e385dca3773244e722509cb195",
+      "provenance": "historical temporary handoff / task-5-browser-final-matrix-v2.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-browser-final-matrix-v2.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-browser-final-matrix-v3.log",
+      "sha256": "b05676475a96707c727718fae14ea95095880ba42b314f151f937ea73b7df65d",
+      "provenance": "historical temporary handoff / task-5-browser-final-matrix-v3.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-browser-final-matrix-v3.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-browser-final-matrix-v4.log",
+      "sha256": "edad8fcf2df21d85864e7e4e9bf19f91e7582b32233d87155cc3d37d0805f0d1",
+      "provenance": "historical temporary handoff / task-5-browser-final-matrix-v4.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-browser-final-matrix-v4.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-browser-final-matrix-v5.log",
+      "sha256": "fe53b5fd4272ed89b77d19f0d3f9319de52be28ab9663a8b462df1f5052369ec",
+      "provenance": "historical temporary handoff / task-5-browser-final-matrix-v5.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-browser-final-matrix-v5.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-browser-final-matrix.log",
+      "sha256": "eb9724c4676412b3917db4ba70f76a10999c7b63ff589878e35840972b05794d",
+      "provenance": "historical temporary handoff / task-5-browser-final-matrix.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-browser-final-matrix.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-browser-first.log",
+      "sha256": "8222957e0ef593d3ac94395cc4253329630b510f06d3e697a668bb4cae6fc585",
+      "provenance": "historical temporary handoff / task-5-browser-first.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-browser-first.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-browser-full.log",
+      "sha256": "0bd1e38cf3a7b13006dc370c62ac4a7753bacefa0390584c2d76e79db4366704",
+      "provenance": "historical temporary handoff / task-5-browser-full.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-browser-full.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-browser-hardening-green.log",
+      "sha256": "71e3665b340e945fac27e46d134978ba047b33daa4bfd592221da34a29d9b2c6",
+      "provenance": "historical temporary handoff / task-5-browser-hardening-green.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-browser-hardening-green.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-browser-hardening.log",
+      "sha256": "e23df63b4eb07c6e1743ab1e99714778b074d70dc6df4def7d269d3547d2ad52",
+      "provenance": "historical temporary handoff / task-5-browser-hardening.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-browser-hardening.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-browser-lifecycle.log",
+      "sha256": "81a0fc56a2a6746d67311e1501ff83edc15a7b1a2ae8ecacd316838b40fb9943",
+      "provenance": "historical temporary handoff / task-5-browser-lifecycle.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-browser-lifecycle.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-commit-byte-check.log",
+      "sha256": "25616b16b9f20e4e97e0c08b185805378103cc64df8fb135c1123f56bde11d02",
+      "provenance": "historical temporary handoff / task-5-commit-byte-check.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-commit-byte-check.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-config-lint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "historical temporary handoff / task-5-config-lint-final.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-config-lint-final.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-config-lint.log",
+      "sha256": "f3da72ef083680d0698333b51fa4f3375096090ac5f4adf05994ca40a0716e4c",
+      "provenance": "historical temporary handoff / task-5-config-lint.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-config-lint.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-exposure-independence-red.log",
+      "sha256": "7b1a20d97af0bc4e5ef025f7c179028863fe5f1df29131ac596945a8e1243390",
+      "provenance": "historical temporary handoff / task-5-exposure-independence-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-exposure-independence-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-final-assertion-helper.log",
+      "sha256": "c64813d2b4751171fce7405ae2d8c4b6e17172bafaca6d7712d5a5cd2512bc71",
+      "provenance": "historical temporary handoff / task-5-final-assertion-helper.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-final-assertion-helper.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-final-assertion-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "historical temporary handoff / task-5-final-assertion-lint.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-final-assertion-lint.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-focused-final.log",
+      "sha256": "bea5df164d0aded06d263c0f6bba3b6108a366000d319b1abb929e7ea715ae6f",
+      "provenance": "historical temporary handoff / task-5-focused-final.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-focused-final.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-focused-regression.log",
+      "sha256": "c6e74ff8cdbbcc714d0ec187df7aba3d8c27bc99e001db4acb14999b236d7ed4",
+      "provenance": "historical temporary handoff / task-5-focused-regression.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-focused-regression.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-helper-green.log",
+      "sha256": "2c24f77de8073e0cb7c0fcc78bb34a42ccbe896bf6d69b0a2a1cae5e9aa91db4",
+      "provenance": "historical temporary handoff / task-5-helper-green.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-helper-green.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-lint-clean.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "historical temporary handoff / task-5-lint-clean.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-lint-clean.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-lint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "historical temporary handoff / task-5-lint-final.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-lint-final.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-lint-initial.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "historical temporary handoff / task-5-lint-initial.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-lint-initial.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-lint.log",
+      "sha256": "ec31601d2a87e35fddeec3c9eb73d0d4d119a6d63f8bfd0bbf34bc53fe284188",
+      "provenance": "historical temporary handoff / task-5-lint.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-lint.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-ownership-final.json",
+      "sha256": "73dd5993ebe5499ba5de2116c5127243e746cd8902347528d6a8c4d7f9caa78f",
+      "provenance": "historical temporary handoff / task-5-ownership-final.json",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-ownership-final.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task-5-red.log",
+      "sha256": "79c08576b993e3c0ca361773e6ccd44d2ae35e269d19abd2b2d53ca061cdf0c3",
+      "provenance": "historical temporary handoff / task-5-red.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task-5-red.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task1-reconciliation.log",
+      "sha256": "579bd9ea89ddde08b1c614eba8d267859746c4fa6ed7e5e8663d717cf81b1ac7",
+      "provenance": "historical temporary handoff / task1-reconciliation.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task1-reconciliation.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-auth-preflight-1791590713032.json",
+      "sha256": "ee84f67c3adfd7fbef3b263b5b7dfb16f7ab295bd707a768a93944b80bf04bb6",
+      "provenance": "historical temporary handoff / task6-auth-preflight-1791590713032.json",
+      "privacy": "restricted-authentication-metadata",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-auth-preflight-1791590713032.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/adjudication-blind.json",
+      "sha256": "3ac454c4863f3b82137e6ed58c9d718b6449864f0554cee4b2aa755f07882140",
+      "provenance": "historical temporary handoff / task6-execution/adjudication-blind.json",
+      "privacy": "restricted-blinded-review-packet",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/adjudication-blind.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/adjudication-notes.md",
+      "sha256": "26bc0bb3bee4d3bbe879dbd8436a54f8174a854ecf20e67866cef4efb397256a",
+      "provenance": "historical temporary handoff / task6-execution/adjudication-notes.md",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/adjudication-notes.md"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/adjudication-timing.json",
+      "sha256": "1c8e3c150a37a3f81d9a164bd46186775ae1e93cbad4fe8f31c7b1d6a6339b21",
+      "provenance": "historical temporary handoff / task6-execution/adjudication-timing.json",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/adjudication-timing.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/driver.mjs",
+      "sha256": "e0a1e09f5d7005df52b47769cb1d3d196a4f6d4edb591ea94f4f92011c729ba0",
+      "provenance": "historical temporary handoff / task6-execution/driver.mjs",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/driver.mjs"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/freeze.json",
+      "sha256": "a5732e7f19b377030513b57de6b35258896e79fc1d20c4fcbd9f6b47df059b6b",
+      "provenance": "historical temporary handoff / task6-execution/freeze.json",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/freeze.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/fresh-login-preflight.json",
+      "sha256": "edac361398799ec89501fa922e4b0777e17a4c927b61c8841ffe9f2f0553bfcc",
+      "provenance": "historical temporary handoff / task6-execution/fresh-login-preflight.json",
+      "privacy": "restricted-authentication-metadata",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/fresh-login-preflight.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/fresh-pinned-login-preflight.json",
+      "sha256": "1494c679d175d35865561ebbfd6bce3dbdf46a5243388265b467041339477e36",
+      "provenance": "historical temporary handoff / task6-execution/fresh-pinned-login-preflight.json",
+      "privacy": "restricted-authentication-metadata",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/fresh-pinned-login-preflight.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/live.log",
+      "sha256": "0540e8641a52f38e22a7c266c41c68c82209454e63b464d9a5e177c9a2ece3ed",
+      "provenance": "historical temporary handoff / task6-execution/live.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/live.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/offline-preflight.json",
+      "sha256": "f44ceb2ee7254a694ae06616e2affa584a9e3ad7280b23f1f028623035e87186",
+      "provenance": "historical temporary handoff / task6-execution/offline-preflight.json",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/offline-preflight.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/offline.log",
+      "sha256": "a04f42342d34121ef4972282938c19db62bf473eb81d9fcc2fdd07fc52bc6bb3",
+      "provenance": "historical temporary handoff / task6-execution/offline.log",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/offline.log"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/packets.mjs",
+      "sha256": "4e6828aedb5da813821a5a3d5a83c12e5cdd399be6274801a73bfb6dc1411d01",
+      "provenance": "historical temporary handoff / task6-execution/packets.mjs",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/packets.mjs"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/round-budget.json",
+      "sha256": "3ad566196ef6efe6ff6cc693067d86c274b9586d6455c0760747068ec2a533fb",
+      "provenance": "historical temporary handoff / task6-execution/round-budget.json",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/round-budget.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/semantic-blind/4a7dbaa7-53b8-4d95-92aa-d14fe38dfeae.json",
+      "sha256": "e66b96a769832df8f8284a1a1ed180c8eea91456a722be6f897bcd33f7f558ca",
+      "provenance": "historical temporary handoff / task6-execution/semantic-blind/4a7dbaa7-53b8-4d95-92aa-d14fe38dfeae.json",
+      "privacy": "restricted-blinded-review-packet",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/semantic-blind/4a7dbaa7-53b8-4d95-92aa-d14fe38dfeae.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/semantic-blind/98aa166b-df80-4f1c-8881-f8a66a7de269.json",
+      "sha256": "4d164ab6cfa27682452a741bce01ba6bbe2ef1db9350eda45586e300e9a4e9e3",
+      "provenance": "historical temporary handoff / task6-execution/semantic-blind/98aa166b-df80-4f1c-8881-f8a66a7de269.json",
+      "privacy": "restricted-blinded-review-packet",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/semantic-blind/98aa166b-df80-4f1c-8881-f8a66a7de269.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/semantic-blind/eef5b4f5-3c26-4021-b987-3f0e0a1f486b.json",
+      "sha256": "d07fa45ab4f0601a3aadd6ace5b35e810b39f04f82c32d53eca9f62534055f6d",
+      "provenance": "historical temporary handoff / task6-execution/semantic-blind/eef5b4f5-3c26-4021-b987-3f0e0a1f486b.json",
+      "privacy": "restricted-blinded-review-packet",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/semantic-blind/eef5b4f5-3c26-4021-b987-3f0e0a1f486b.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/semantic-joins.private.json",
+      "sha256": "d07ce7979c63e1e57b2ad1a69ba8befc259c85f4bc457cc68d69d719303e927f",
+      "provenance": "historical temporary handoff / task6-execution/semantic-joins.private.json",
+      "privacy": "restricted-reviewer-joins",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/semantic-joins.private.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/timing-blind/1fa20eb3-5a2d-4ab8-996d-6abf44cccc11.json",
+      "sha256": "1cfe07874366c1736801664e6b6b1f3d7faa4e6be91ec32afe83384dafc90738",
+      "provenance": "historical temporary handoff / task6-execution/timing-blind/1fa20eb3-5a2d-4ab8-996d-6abf44cccc11.json",
+      "privacy": "restricted-blinded-review-packet",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/timing-blind/1fa20eb3-5a2d-4ab8-996d-6abf44cccc11.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/timing-blind/77a547bd-0019-45d1-9551-9f6ec20685b1.json",
+      "sha256": "95f3a8263db094e7a184047f08b783b6127f56c1480b06a7ff291c6e45a50d1f",
+      "provenance": "historical temporary handoff / task6-execution/timing-blind/77a547bd-0019-45d1-9551-9f6ec20685b1.json",
+      "privacy": "restricted-blinded-review-packet",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/timing-blind/77a547bd-0019-45d1-9551-9f6ec20685b1.json"
+    },
+    {
+      "relativePath": "temporary-handoff/task6-execution/timing-joins.private.json",
+      "sha256": "0d92ced836b73186fde7450f387a439b12458ffc5bc04ddc634e27581da0967c",
+      "provenance": "historical temporary handoff / task6-execution/timing-joins.private.json",
+      "privacy": "restricted-reviewer-joins",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/task6-execution/timing-joins.private.json"
+    },
+    {
+      "relativePath": "temporary-handoff/timing-surface-audit.md",
+      "sha256": "883c883a25b7eb264a48f3d64a1ce121fdc9caff8652848a89d6ba2a07a8d2c2",
+      "provenance": "historical temporary handoff / timing-surface-audit.md",
+      "privacy": "restricted-historical-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/timing-surface-audit.md"
+    },
+    {
+      "relativePath": "temporary-handoff/workers-ai-credentials.private.json",
+      "sha256": "a6b425cf0638557be2be3f3d5356d23b482f13128d9179276644bb007c2c5ca4",
+      "provenance": "historical temporary handoff / workers-ai-credentials.private.json",
+      "privacy": "restricted-credentials",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/temporary-handoff/workers-ai-credentials.private.json"
+    },
+    {
+      "relativePath": "round-evidence/cleanup.json",
+      "sha256": "28f010cc005abb0e23ec4c9d326f6bc8e8a355baa1267f41341f007f6f4531f9",
+      "provenance": "repository historical round / cleanup.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/cleanup.json"
+    },
+    {
+      "relativePath": "round-evidence/final-budget.json",
+      "sha256": "50b651175557f518fe884a9b0c39cefdce326f6e991380699d549fe64e0ef876",
+      "provenance": "repository historical round / final-budget.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/final-budget.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-high-five-card-creative-project-burst/identity.json",
+      "sha256": "18329e7444f30a497f43f8d54dd9a32eb00eaf559eca38f5363476224c699d8d",
+      "provenance": "repository historical round / glm-5.3-flash-high-five-card-creative-project-burst/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-high-five-card-creative-project-burst/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-high-five-card-creative-project-burst/report.json",
+      "sha256": "7444cf8369a91cb2d995d048c0fdee24ad493c3c1b6036cc683320f52263221a",
+      "provenance": "repository historical round / glm-5.3-flash-high-five-card-creative-project-burst/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-high-five-card-creative-project-burst/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-high-five-card-creative-project-final-only/identity.json",
+      "sha256": "f86f5aad8904277c466b1fe7f496a78c13f373314916759644770baaa3859705",
+      "provenance": "repository historical round / glm-5.3-flash-high-five-card-creative-project-final-only/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-high-five-card-creative-project-final-only/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-high-five-card-creative-project-final-only/report.json",
+      "sha256": "1e92ced603ee87139e637131d7f7e5a1359fef70cb5f3c990714060c33f04878",
+      "provenance": "repository historical round / glm-5.3-flash-high-five-card-creative-project-final-only/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-high-five-card-creative-project-final-only/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-high-five-card-creative-project-paced/identity.json",
+      "sha256": "4ce7c4ac2679c01d92747097d6463c8ec5bad95704b387c05fd56f1f14700607",
+      "provenance": "repository historical round / glm-5.3-flash-high-five-card-creative-project-paced/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-high-five-card-creative-project-paced/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-high-five-card-creative-project-paced/report.json",
+      "sha256": "822622474bdd6088a2cfeae3d410fb7de88aa274d06cfcc8d9e6202a9641b492",
+      "provenance": "repository historical round / glm-5.3-flash-high-five-card-creative-project-paced/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-high-five-card-creative-project-paced/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-high-star-2347-excerpt-burst/identity.json",
+      "sha256": "4c9ff90a375b0f79e568c200cab7e56c6f9fc16123398f0cd88bfe4c6b356d20",
+      "provenance": "repository historical round / glm-5.3-flash-high-star-2347-excerpt-burst/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-high-star-2347-excerpt-burst/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-high-star-2347-excerpt-burst/report.json",
+      "sha256": "611a9dfc016f12e050060fde7b35b3f0514e592352dafdb5c71af227524fa3ff",
+      "provenance": "repository historical round / glm-5.3-flash-high-star-2347-excerpt-burst/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-high-star-2347-excerpt-burst/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-high-star-2347-excerpt-final-only/identity.json",
+      "sha256": "d48aea2e927d7fc92b612ad273d828480887b6b72708eac5e4bb78f246606685",
+      "provenance": "repository historical round / glm-5.3-flash-high-star-2347-excerpt-final-only/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-high-star-2347-excerpt-final-only/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-high-star-2347-excerpt-final-only/report.json",
+      "sha256": "c8e8ef35032f397260ad55ce998a3d8e766a0b1156eb89ab61eefb319d94e812",
+      "provenance": "repository historical round / glm-5.3-flash-high-star-2347-excerpt-final-only/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-high-star-2347-excerpt-final-only/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-high-star-2347-excerpt-paced/identity.json",
+      "sha256": "29ead94c8bee18c8c931670cca4f048f7e583ea9208733290dfec80b2c11e0f9",
+      "provenance": "repository historical round / glm-5.3-flash-high-star-2347-excerpt-paced/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-high-star-2347-excerpt-paced/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-high-star-2347-excerpt-paced/report.json",
+      "sha256": "74c81078632af7852cae9e520f270907bed3c86d003ede5e421ed9fe30130dfa",
+      "provenance": "repository historical round / glm-5.3-flash-high-star-2347-excerpt-paced/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-high-star-2347-excerpt-paced/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-low-five-card-creative-project-burst/identity.json",
+      "sha256": "552f91d36cd5f342d431c0fa198f02dd6328a047aeed592920c7d2b8e49662a7",
+      "provenance": "repository historical round / glm-5.3-flash-low-five-card-creative-project-burst/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-low-five-card-creative-project-burst/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-low-five-card-creative-project-burst/report.json",
+      "sha256": "acbbcbbec309c93efc717921ba641d208ad43a37b54073dd609ef08d88b160d5",
+      "provenance": "repository historical round / glm-5.3-flash-low-five-card-creative-project-burst/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-low-five-card-creative-project-burst/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-low-five-card-creative-project-final-only/identity.json",
+      "sha256": "3263437f47240ca38aa97ecd22e9448faef32ed02ea80006eab00ae476ef9963",
+      "provenance": "repository historical round / glm-5.3-flash-low-five-card-creative-project-final-only/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-low-five-card-creative-project-final-only/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-low-five-card-creative-project-final-only/report.json",
+      "sha256": "448cda74bdb929d7adca3af210aa3ac95e1b359da59c0e6ab3ae8562ff291571",
+      "provenance": "repository historical round / glm-5.3-flash-low-five-card-creative-project-final-only/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-low-five-card-creative-project-final-only/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-low-five-card-creative-project-paced/identity.json",
+      "sha256": "b954e079f949d8abdef240eb88c9737de02bbb8924290de98bc58a33061320b9",
+      "provenance": "repository historical round / glm-5.3-flash-low-five-card-creative-project-paced/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-low-five-card-creative-project-paced/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-low-five-card-creative-project-paced/report.json",
+      "sha256": "f93afc9479585a22175698c5478b15aaba2638f502394316bf1e86eaab468450",
+      "provenance": "repository historical round / glm-5.3-flash-low-five-card-creative-project-paced/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-low-five-card-creative-project-paced/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-low-star-2347-excerpt-burst/identity.json",
+      "sha256": "2c3d6f08a105bb2e92c9baa315504f89f27a67ce21f218324474705e1180e3bf",
+      "provenance": "repository historical round / glm-5.3-flash-low-star-2347-excerpt-burst/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-low-star-2347-excerpt-burst/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-low-star-2347-excerpt-burst/report.json",
+      "sha256": "b73a091d9e9b015ca3c50bd070a55fd22650810fa13dd544b5a88b5d44351444",
+      "provenance": "repository historical round / glm-5.3-flash-low-star-2347-excerpt-burst/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-low-star-2347-excerpt-burst/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-low-star-2347-excerpt-final-only/identity.json",
+      "sha256": "3c3475b5059fb89f703a16f82e8e9c840ce3c9eff89e61299956d9e5320e1887",
+      "provenance": "repository historical round / glm-5.3-flash-low-star-2347-excerpt-final-only/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-low-star-2347-excerpt-final-only/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-low-star-2347-excerpt-final-only/report.json",
+      "sha256": "2573ea5a02b8620822a6e0b2e57b6cce5c22e3420dbe6bc28531ded1da7f93a0",
+      "provenance": "repository historical round / glm-5.3-flash-low-star-2347-excerpt-final-only/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-low-star-2347-excerpt-final-only/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-low-star-2347-excerpt-paced/identity.json",
+      "sha256": "6def78aaa3d9a5c4b5bfb1a57cddb2925162646c48b09c10e2fd17c4c6e5f9fb",
+      "provenance": "repository historical round / glm-5.3-flash-low-star-2347-excerpt-paced/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-low-star-2347-excerpt-paced/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-flash-low-star-2347-excerpt-paced/report.json",
+      "sha256": "bdf412bfc5ecb3b680ef4377579a6b6ad8cb1fc2f25c2070f17cdb91366a58c8",
+      "provenance": "repository historical round / glm-5.3-flash-low-star-2347-excerpt-paced/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-flash-low-star-2347-excerpt-paced/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-high-five-card-creative-project-burst/identity.json",
+      "sha256": "d6cb00e08bab96ff76cdd5c2ac18baf65e1dced186bca125f36edcdbd9d3774c",
+      "provenance": "repository historical round / glm-5.3-high-five-card-creative-project-burst/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-high-five-card-creative-project-burst/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-high-five-card-creative-project-burst/report.json",
+      "sha256": "2080c9c9e42e0e453d4e26734486ea084f0792f991570f5063876bc734f06a1b",
+      "provenance": "repository historical round / glm-5.3-high-five-card-creative-project-burst/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-high-five-card-creative-project-burst/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-high-five-card-creative-project-final-only/identity.json",
+      "sha256": "d57cb0196a0b07cff49e6203073b0b2183946d8431466f1c99d1654abe669bf6",
+      "provenance": "repository historical round / glm-5.3-high-five-card-creative-project-final-only/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-high-five-card-creative-project-final-only/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-high-five-card-creative-project-final-only/report.json",
+      "sha256": "7933bd83ff91c5b967169eaba19ba91834f2efd5df3db5365f40ee364923e140",
+      "provenance": "repository historical round / glm-5.3-high-five-card-creative-project-final-only/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-high-five-card-creative-project-final-only/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-high-five-card-creative-project-paced/identity.json",
+      "sha256": "1b4f120a68f5f28f673d00faa9d545d80e954dc961c9831628a08e49bc6b08d9",
+      "provenance": "repository historical round / glm-5.3-high-five-card-creative-project-paced/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-high-five-card-creative-project-paced/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-high-five-card-creative-project-paced/report.json",
+      "sha256": "92ae8122403197f1461107f04a42aa7fa83f690c6b606681222ea4621ea48278",
+      "provenance": "repository historical round / glm-5.3-high-five-card-creative-project-paced/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-high-five-card-creative-project-paced/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-high-star-2347-excerpt-burst/identity.json",
+      "sha256": "c925f12d43e45615a38d15d81d82628ec5c7009a34d79a4cf65dd857075a97ad",
+      "provenance": "repository historical round / glm-5.3-high-star-2347-excerpt-burst/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-high-star-2347-excerpt-burst/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-high-star-2347-excerpt-burst/report.json",
+      "sha256": "355b8cb69e10dce5f794c7be56b833bdfec3daf90e6d7988cacbba00a4f150f9",
+      "provenance": "repository historical round / glm-5.3-high-star-2347-excerpt-burst/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-high-star-2347-excerpt-burst/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-high-star-2347-excerpt-final-only/identity.json",
+      "sha256": "b036a5f9cb0a8f36b2be05f23053b2fb3773bb0ce2326ed968cdb904cdcb7e9a",
+      "provenance": "repository historical round / glm-5.3-high-star-2347-excerpt-final-only/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-high-star-2347-excerpt-final-only/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-high-star-2347-excerpt-final-only/report.json",
+      "sha256": "122971b7b62cb073bea85fcffc1b7905cb09fb09d85769d29c43efc279bdea31",
+      "provenance": "repository historical round / glm-5.3-high-star-2347-excerpt-final-only/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-high-star-2347-excerpt-final-only/report.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-high-star-2347-excerpt-paced/identity.json",
+      "sha256": "d76eb34595d0d22243ceddb5c148b6472292412ed6a45d307e5c1463b2e00106",
+      "provenance": "repository historical round / glm-5.3-high-star-2347-excerpt-paced/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-high-star-2347-excerpt-paced/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/glm-5.3-high-star-2347-excerpt-paced/report.json",
+      "sha256": "31350f40d7655ce7d292cc0d2aac6b3fd3664bd9a5c5b5d29613cdc7c766b13d",
+      "provenance": "repository historical round / glm-5.3-high-star-2347-excerpt-paced/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/glm-5.3-high-star-2347-excerpt-paced/report.json"
+    },
+    {
+      "relativePath": "round-evidence/live-preflight.json",
+      "sha256": "18eb2312780891654c651ba93e1b3be921ade98df48d0781dc6d5b0c81721071",
+      "provenance": "repository historical round / live-preflight.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/live-preflight.json"
+    },
+    {
+      "relativePath": "round-evidence/orchestration-freeze.json",
+      "sha256": "a5732e7f19b377030513b57de6b35258896e79fc1d20c4fcbd9f6b47df059b6b",
+      "provenance": "repository historical round / orchestration-freeze.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/orchestration-freeze.json"
+    },
+    {
+      "relativePath": "round-evidence/ownership.json",
+      "sha256": "36fd51dd928855258c44cc4477841ee8c819a800634cd69e97a0023a8ab93abc",
+      "provenance": "repository historical round / ownership.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/ownership.json"
+    },
+    {
+      "relativePath": "round-evidence/semantic/identity.json",
+      "sha256": "0420f132554a4a4bc2953c411847e417563ad19520797e1abaa407220b1ca5b6",
+      "provenance": "repository historical round / semantic/identity.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/semantic/identity.json"
+    },
+    {
+      "relativePath": "round-evidence/semantic/plan.json",
+      "sha256": "0db86fe830e8604e8925c9b404180cae4aeceaf8aa6333b8ea349f36602ba3b5",
+      "provenance": "repository historical round / semantic/plan.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/semantic/plan.json"
+    },
+    {
+      "relativePath": "round-evidence/semantic/report.json",
+      "sha256": "b0a58348f72acec0a992b878e7ecfbdf1c9d67c4acb5d3e728f4db1027dd07eb",
+      "provenance": "repository historical round / semantic/report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/semantic/report.json"
+    },
+    {
+      "relativePath": "round-evidence/semantic-scored-report.json",
+      "sha256": "67582bebe26687b509a3afcfe186871e393a9b7e39122a75947989751032cca7",
+      "provenance": "repository historical round / semantic-scored-report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/semantic-scored-report.json"
+    },
+    {
+      "relativePath": "round-evidence/timing-scored-report.json",
+      "sha256": "2db755eaf25eb593664142d404fbb6f1a61d88f00cea1e9b8f5ef7467e2e6204",
+      "provenance": "repository historical round / timing-scored-report.json",
+      "privacy": "restricted-source-and-runtime-evidence",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/round-evidence/timing-scored-report.json"
+    },
+    {
+      "relativePath": "prior-sdd/blind-reviewer-instructions.md",
+      "sha256": "d39ec62fd843e09d33929e47e4534c16c94433aefa2870e559f50a87056b8ea4",
+      "provenance": "prior qualification SDD / blind-reviewer-instructions.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/blind-reviewer-instructions.md"
+    },
+    {
+      "relativePath": "prior-sdd/global-constraints.md",
+      "sha256": "bfd4e39c8179f09a9bcd275c85ef731536d9f5d1acfa3a6fb8ec94c64405d171",
+      "provenance": "prior qualification SDD / global-constraints.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/global-constraints.md"
+    },
+    {
+      "relativePath": "prior-sdd/plan-path",
+      "sha256": "16dd4c939acbf45788f93f36661c0d5239ca66d74c9b1aa7452fb66c5b1f139e",
+      "provenance": "prior qualification SDD / plan-path",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/plan-path"
+    },
+    {
+      "relativePath": "prior-sdd/progress.md",
+      "sha256": "6f213302b2e5bae9fbfcf3ed8d38d57127870d5095b09974761b2041f3851e0d",
+      "provenance": "prior qualification SDD / progress.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/progress.md"
+    },
+    {
+      "relativePath": "prior-sdd/qualification-contract.md",
+      "sha256": "0a1bac8b09b651d95ddfbaa59caf8933e4aaafee06ee7005533ad68bee962860",
+      "provenance": "prior qualification SDD / qualification-contract.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/qualification-contract.md"
+    },
+    {
+      "relativePath": "prior-sdd/recovery-path.txt",
+      "sha256": "07c0b6e843b7c26daa10a17a9ee147998bd4ff1e2a6be54aaae656f0661d91e7",
+      "provenance": "prior qualification SDD / recovery-path.txt",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/recovery-path.txt"
+    },
+    {
+      "relativePath": "prior-sdd/review-433b831..65e5faa.diff",
+      "sha256": "d366efdc88a4c4b2ed72daa90180bb5b4e2d7e12a0f995db73d34077833ba107",
+      "provenance": "prior qualification SDD / review-433b831..65e5faa.diff",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/review-433b831..65e5faa.diff"
+    },
+    {
+      "relativePath": "prior-sdd/review-99e7a4b..d475fba.diff",
+      "sha256": "f8cbc23b0d9c85b077ecacc81a4a2fdf46f1069e7c2447576618b0c994f26d61",
+      "provenance": "prior qualification SDD / review-99e7a4b..d475fba.diff",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/review-99e7a4b..d475fba.diff"
+    },
+    {
+      "relativePath": "prior-sdd/review-a7193f6..433b831.diff",
+      "sha256": "33fd596a06a8483ed826e15d2ff2d3b7d0332bdab5b1243848f4db40da8adbc5",
+      "provenance": "prior qualification SDD / review-a7193f6..433b831.diff",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/review-a7193f6..433b831.diff"
+    },
+    {
+      "relativePath": "prior-sdd/review-a7eb324..b5cc0d3.diff",
+      "sha256": "a36f3fd4a23850ad1dca9dc477b6c5011f7a3556a67237333f39bd1b44edecf0",
+      "provenance": "prior qualification SDD / review-a7eb324..b5cc0d3.diff",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/review-a7eb324..b5cc0d3.diff"
+    },
+    {
+      "relativePath": "prior-sdd/review-ab89762..cb1158e.diff",
+      "sha256": "6918162960a0f7b7666707b935cc9a8f8e3b4dcc069ca7ee25cdd6dd783534f7",
+      "provenance": "prior qualification SDD / review-ab89762..cb1158e.diff",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/review-ab89762..cb1158e.diff"
+    },
+    {
+      "relativePath": "prior-sdd/review-b5cc0d3..270f0b0.diff",
+      "sha256": "8eb422c162ba35cf74a1ac4ecdb5c3adb44f736667815b520278f4bb2ffc904c",
+      "provenance": "prior qualification SDD / review-b5cc0d3..270f0b0.diff",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/review-b5cc0d3..270f0b0.diff"
+    },
+    {
+      "relativePath": "prior-sdd/review-cb1158e..4fceeae.diff",
+      "sha256": "689ff208d1069696bffd2ab0772ed1bff277a53ae8be62e2be488256641578d3",
+      "provenance": "prior qualification SDD / review-cb1158e..4fceeae.diff",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/review-cb1158e..4fceeae.diff"
+    },
+    {
+      "relativePath": "prior-sdd/runner-integration-notes.md",
+      "sha256": "6027f270694c618a0da4390237dc99ae84b404a97c5359ae1f4e1490131009d3",
+      "provenance": "prior qualification SDD / runner-integration-notes.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/runner-integration-notes.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-2-brief.md",
+      "sha256": "3ad5785949cb7be1ffc81835a860a0d0aba372ae31d36dc48d0800f4d0fb4d1a",
+      "provenance": "prior qualification SDD / task-2-brief.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-2-brief.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-2-report.md",
+      "sha256": "de31ed317391f3cb9168e99626ea41f8ccd8037faddbcc4f01ee8809727ec846",
+      "provenance": "prior qualification SDD / task-2-report.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-2-report.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-2-review.md",
+      "sha256": "eeb550ed2462de6577858c5affd2dccae1edf6ce26d3004644463478143f7d54",
+      "provenance": "prior qualification SDD / task-2-review.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-2-review.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-3-brief.md",
+      "sha256": "05f4e7f48278b3b403cd7673e307cd4d52bb5ffe2d1d54ab41045f3b7c86a130",
+      "provenance": "prior qualification SDD / task-3-brief.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-3-brief.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-3-fix-1-review.md",
+      "sha256": "87dbed4f1072b9fbc4cc439cad89ef12d2a8fb971df0f787655d5e981d501666",
+      "provenance": "prior qualification SDD / task-3-fix-1-review.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-3-fix-1-review.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-3-report.md",
+      "sha256": "52d878bcd42bb8c9dc0909f42c8c9d2df03a41c4c572b6d3830f3e483a1bed71",
+      "provenance": "prior qualification SDD / task-3-report.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-3-report.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-3-review.md",
+      "sha256": "0125201c1106216c16957358151252317af287031af352d9e1175677c0cd37fe",
+      "provenance": "prior qualification SDD / task-3-review.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-3-review.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-4-brief.md",
+      "sha256": "330243511012896cfd74274ca88941fc1594c8d8ba31deb1be06a53960f2194c",
+      "provenance": "prior qualification SDD / task-4-brief.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-4-brief.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-4-fix-1-review.md",
+      "sha256": "6f13bf135b57dc865e7911d9d5bfa6dadc7a734bcb6fbc2e4b006ae788919864",
+      "provenance": "prior qualification SDD / task-4-fix-1-review.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-4-fix-1-review.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-4-report.md",
+      "sha256": "8e9ce097bd269281d4cb854490647b98cfe077688eeea183196eecd542163ac7",
+      "provenance": "prior qualification SDD / task-4-report.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-4-report.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-4-review.md",
+      "sha256": "620305f5ca99b9d688a6b224040ccc4940bf5f734429c141f2c5da5bda31bebd",
+      "provenance": "prior qualification SDD / task-4-review.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-4-review.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-5-brief.md",
+      "sha256": "2fd71b31958f6c0d15b0a94d7176ed710520a5cc6b285b6d520969736d4409c8",
+      "provenance": "prior qualification SDD / task-5-brief.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-5-brief.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-5-dispatch-context.md",
+      "sha256": "c725e513804decd302abf62cfd9a07e743f3d6d59ea0f0aae7b198a8aa0d26c5",
+      "provenance": "prior qualification SDD / task-5-dispatch-context.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-5-dispatch-context.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-5-fix-1-review.md",
+      "sha256": "bc5fb18d55cf662938a1c0dfb7250245f2957ab0d6aebcd35005b5572dd8cf36",
+      "provenance": "prior qualification SDD / task-5-fix-1-review.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-5-fix-1-review.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-5-integration-notes.md",
+      "sha256": "32ce694ed91b1aeba6d0d4d812748f265fe321686ec667df65ea9616cb147475",
+      "provenance": "prior qualification SDD / task-5-integration-notes.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-5-integration-notes.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-5-report.md",
+      "sha256": "f720f22fba19631d9360bd08e72bbfcc3082cc49b1964a53c9cdcdf950cf3010",
+      "provenance": "prior qualification SDD / task-5-report.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-5-report.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-5-review.md",
+      "sha256": "74289ff7d9da0b507f64f004adbaa2bdc2df50be6288aa7cde9179e7ee716bf4",
+      "provenance": "prior qualification SDD / task-5-review.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-5-review.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-6-brief.md",
+      "sha256": "253bb3f8daf40e9baa875f0d0db4b8fedadec39bb4a73d26db9c217912efb02a",
+      "provenance": "prior qualification SDD / task-6-brief.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-6-brief.md"
+    },
+    {
+      "relativePath": "prior-sdd/task-6-dispatch-context.md",
+      "sha256": "f2538a4fedee22fee744a033750f6546a47073227d9b391b0772779dd87651f5",
+      "provenance": "prior qualification SDD / task-6-dispatch-context.md",
+      "privacy": "restricted-historical-review-record",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/prior-sdd/task-6-dispatch-context.md"
+    },
+    {
+      "relativePath": "starting-documents/docs/superpowers/reviews/2026-10-09-reading-cue-model-qualification.md",
+      "sha256": "5cc0f43a8deebc7456478426ff47a39dd50de34413b489fe6efad6bdd078ab46",
+      "provenance": "starting uncommitted document before closeout",
+      "privacy": "public-document-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/starting-documents/docs/superpowers/reviews/2026-10-09-reading-cue-model-qualification.md"
+    },
+    {
+      "relativePath": "starting-documents/docs/superpowers/plans/2026-10-09-reading-cue-model-qualification.md",
+      "sha256": "714338a3dcffcbd9f3713243fe8738577e8eb8be7c9517b19e6b5e1c97c5b7be",
+      "provenance": "starting uncommitted document before closeout",
+      "privacy": "public-document-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/starting-documents/docs/superpowers/plans/2026-10-09-reading-cue-model-qualification.md"
+    },
+    {
+      "relativePath": "starting-documents/docs/superpowers/plans/2026-10-09-reading-gestures-react-bridge.md",
+      "sha256": "856e41065ad0faf87a2389743b828055feb0c90eb6f75005b6a8b82a6294fd41",
+      "provenance": "starting uncommitted document before closeout",
+      "privacy": "public-document-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/starting-documents/docs/superpowers/plans/2026-10-09-reading-gestures-react-bridge.md"
+    },
+    {
+      "relativePath": "starting-documents/docs/superpowers/plans/2026-10-09-reading-visual-cue-handoff.md",
+      "sha256": "c831d5e4486d30c92595615649d63530ce05012ba6c61e8c54ae1365415c5068",
+      "provenance": "starting uncommitted document before closeout",
+      "privacy": "public-document-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/starting-documents/docs/superpowers/plans/2026-10-09-reading-visual-cue-handoff.md"
+    },
+    {
+      "relativePath": "closeout-starting-status.txt",
+      "sha256": "e7277dc54d53cdc87a2f6e6d3452259109718548582e73ff7f2c8708847d1fcc",
+      "provenance": "git status/rev-parse at closeout start",
+      "privacy": "public-git-metadata",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/closeout-starting-status.txt"
+    },
+    {
+      "relativePath": "pinned-source/functions/api/tarot-reading.js",
+      "sha256": "3fa982a812a356616ac5649e48137ab4f4aa70c86b5cd7e5a2987d7cdad6c871",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/api/tarot-reading.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/abTesting.js",
+      "sha256": "5efcc1e0f05107d0a9a67dcb1e830a24b827069bfb0b00cd39305372315c274b",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/abTesting.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/anthropicMessages.js",
+      "sha256": "0c8b35f659fa35c99fa3bb83d675b406574fa8cf33b59121b375b764002d1c15",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/anthropicMessages.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/apiKeys.js",
+      "sha256": "8fe3c80d7405b3553789c83843d3fbca287e496ea72593c9d497543cdf86aeb0",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/apiKeys.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/apiUsage.js",
+      "sha256": "c04cea83f0a395682b5364f05147d4d7e052d7c64b114f5422294dc382ef2549",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/apiUsage.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/auth.js",
+      "sha256": "365e2f15aa110ad26311656c8adcf5d5685b1ce277386cf1484f8a43bfdac889",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/auth.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/azureResponses.js",
+      "sha256": "e10a87e4e97b570760eb05215293b7355d5358fd86eae957ea556be79a9e0c24",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/azureResponses.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/azureResponsesStream.js",
+      "sha256": "5d3658815b0871c64079dd570a24340531a6adacbc5d53af8d8166a05a51b60e",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/azureResponsesStream.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/cardContextDetection.js",
+      "sha256": "9a26bf7c5853b92222425eed46bfc39b7a9bdd503f0573f8e1c941e2668ff536",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/cardContextDetection.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/claudeCode.js",
+      "sha256": "540a71ff68470d8e17e3c0fd89418e60ab0b633db35ed4202f2fdc9ab85cce71",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/claudeCode.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/clientId.js",
+      "sha256": "0083bf0ccc870741c9daae6c0a8ee09d672b285254dbab90f44a620f6c2df2c1",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/clientId.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/codexReadingStream.js",
+      "sha256": "6f5070f0c7a4536b716edb0f948dab6bdfddec0db73e0bf94aa80795de7c436b",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/codexReadingStream.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/codexSubscription.js",
+      "sha256": "cd07b9c3b49248544794e0ee315c63ae40b8a3239b400665fc595871a3ccbfa4",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/codexSubscription.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/contextDetection.js",
+      "sha256": "84234cb0976ecf5bd80ac88bc53d2d290667ee35892e7e6720d423e18c008a28",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/contextDetection.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/crypto.js",
+      "sha256": "5ada6cd3619401497cee08001e8397238358473f43fe2db074740dafb3b936cd",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/crypto.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/embeddings.js",
+      "sha256": "95f6590be349997e9be4212632e51ce41d58ed5b76e8594264dde253fde04621",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/embeddings.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/entitlements.js",
+      "sha256": "bb18e7c3b47350065c38435b749348cf7743b374b870461a8970b3a03d5084e8",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/entitlements.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/environment.js",
+      "sha256": "4a8fe66475fd558dae410149dbb978b2b9383d971b8e189d034af80b29f6b58f",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/environment.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/ephemerisIntegration.js",
+      "sha256": "615a5ff2ef271b71a827bba0984f2bcb5ccbc6115c43ac9c17321e737fb5bf81",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/ephemerisIntegration.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/ephemerisWorkers.js",
+      "sha256": "e6655576df5c15604a54d5d1afeb427d6fd78b455d1ef9bd41eb80be2c08535d",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/ephemerisWorkers.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/esotericMeta.js",
+      "sha256": "ab8bcdaccebefd8683bc345b2991bcf35d166100b30ecd3cdda1f228aa87db48",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/esotericMeta.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/evalGatePolicy.js",
+      "sha256": "6966b145ae816b91332fb5fc2a9b5f58b6a41a8d305d7d3b96fbcd14d2c75d15",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/evalGatePolicy.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/evaluation.js",
+      "sha256": "47fb01226b4bdd7b565c99a9ae9e2fc508c4db21b5a690ac2e8b9232c88eb543",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/evaluation.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/graphContext.js",
+      "sha256": "eafeeb9fb7c4c476dcd689b20330a95febc26bc28088eca4aaa299c4e115b30c",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/graphContext.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/graphRAG.js",
+      "sha256": "a8c8c9976f0c3a25f34285b2896d23ae3ad279fbc26caeba750e4b967b4702d0",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/graphRAG.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/graphRAGAlerts.js",
+      "sha256": "463f7875af0a2654ce59d1a19d527ff44c703a10400eaec36dfc5bf76dd25cdc",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/graphRAGAlerts.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/imageryHooks.js",
+      "sha256": "07b02948c1db2c3eaa9a1898a8bf9d0779e7312dc4799c323b8a1fc665055798",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/imageryHooks.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/inferenceAttempts.js",
+      "sha256": "9881f95eb8df410fd793cb0ba8c419c58d64613ec6b96397df9c0420426d8bb7",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/inferenceAttempts.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/knowledgeBase.js",
+      "sha256": "a9e13439bd36ccaf737fb8949a59e843345555c1ea4d5889d559c9a753bf7f58",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/knowledgeBase.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/knowledgeGraph.js",
+      "sha256": "89aa750cc1471736f4e5097bad4998d7794fc98856c8efb7b51e7b5e4992fd07",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/knowledgeGraph.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/minorMeta.js",
+      "sha256": "a344692a13c7bd69a2ca610b703f241204e90bba5d612248edd45196e3afdf24",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/minorMeta.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/modalChatCompletions.js",
+      "sha256": "93b285b8f3bb6a618d62369cdf578671ca1917b91e73b194536a81d7a54d1bee",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/modalChatCompletions.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/helpers.js",
+      "sha256": "28a88361cf5d28b8471bb8313929a9178714379fa47ba29ed585bd0d79222bec",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/helpers.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts.js",
+      "sha256": "98812273495b077c3b14c05e47f3bbcac5e3c38e7de33a605d6b6e4652331993",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts/astro.js",
+      "sha256": "749d5024a28248f86dbd0071dacfdd9612ca730f00880cbd77dd3dcd1c3c48ce",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts/astro.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts/budgeting.js",
+      "sha256": "dad0561aac08c822c18a05a07190da83f80ca6ce827bf4443d2dcab21b20ac6c",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts/budgeting.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js",
+      "sha256": "2aa72219f8195d8917e05c9c9d286d516803fd594a5743a171424834192865db",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts/cardBuilders.js",
+      "sha256": "3e3b4bb5d0ae7f03f88ce07d5bc8058db6f0d623d26018da89349553f144670d",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts/cardBuilders.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts/constants.js",
+      "sha256": "c5ab7bda569dbcbd000058a091be045e0c73d9439ad6e5890c6501025688d336",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts/constants.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts/deckStyle.js",
+      "sha256": "ceebde73fccd51ee00c7139a8fbbda3c12bd465888e42322b6ab371238f59b16",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts/deckStyle.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts/graphRAGReferenceBlock.js",
+      "sha256": "b9a7a0d8eee3cbec9af6a6fb66ec0a470b4ea5fbebf26468a8f5e7dbc7105191",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts/graphRAGReferenceBlock.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts/systemPrompt.js",
+      "sha256": "0f2ffe8328048de75b955234c410c43be936876cfcdebd8698dbc46c882e0171",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts/systemPrompt.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts/truncation.js",
+      "sha256": "eb4e0ad9ab734804d7db51f6b8ff812943dbe67baec483ec82d83aa6060f3f2c",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts/truncation.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts/userContext.js",
+      "sha256": "2d945672e58a69d9cb6783c06cd9550c5974c12970f5f8fe23e42b689e70a23e",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts/userContext.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts/userPrompt.js",
+      "sha256": "8ce4fb0c4869ea5c11f8a56501d97ada861c54bf844ecff8dcee0cf59f9c9042",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts/userPrompt.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/prompts/visionValidation.js",
+      "sha256": "19f7ecd2e181109f53d349601022a19dd1ba19eed1e8b88474da02e9662b40cb",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/prompts/visionValidation.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/reasoning.js",
+      "sha256": "63ae27e4f1715776a587a4e4f7e59222dc34e4725cbc6627eb6460f4e07d4b96",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/reasoning.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/reasoningIntegration.js",
+      "sha256": "3b51434d535bf051bb11b49a63be2e6829206d29d6b5107caa2bc8e495e48bd0",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/reasoningIntegration.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/sourceUsage.js",
+      "sha256": "067f3b95da884bd9ea0bc6a856f996ab2f70fa0f10fe3ffc4581ef8c50d9239a",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/sourceUsage.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/spreads/base.js",
+      "sha256": "c330c159751ddbcb2662c1b633e7217ec2215e4f6d8c62f4d0a9dad267d155d7",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/spreads/base.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/spreads/celticCross.js",
+      "sha256": "f28744ac69322e26b5203f41af57a0aa7020b58c5fb66d792a96a5a377395eaa",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/spreads/celticCross.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/spreads/decision.js",
+      "sha256": "0006eecd64e2668a99a6e781ad7c42531ae637ce93b7c5002434350891d9d57b",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/spreads/decision.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/spreads/fiveCard.js",
+      "sha256": "cf2727a16a43649c3745caabd76f9662df1928ac76deab456744677e856b6892",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/spreads/fiveCard.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/spreads/relationship.js",
+      "sha256": "26a3e20cf6bbce6e677eb90ad4950b436adddcb4ab902861a53a2b812c3ca5db",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/spreads/relationship.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/spreads/singleCard.js",
+      "sha256": "daa0c0267e608b9d4800eca0a0ea8502d5c594e782ccc14a318a3104a343eb18",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/spreads/singleCard.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/spreads/threeCard.js",
+      "sha256": "c166da890425b9843a1821e37f3bb72da68494e33f5b002d8f6c6304e9517fc8",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/spreads/threeCard.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrative/styleHelpers.js",
+      "sha256": "f5564ff9fd3a744d12de930816e331031429531d9cf89eac2c58bfaf161cfd4b",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrative/styleHelpers.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrativeBackends.js",
+      "sha256": "616750b14c938abbd2703f6c5718600f90d886b915fd423401a13651f06530a6",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrativeBackends.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrativeBuilder.js",
+      "sha256": "3262559813a661ab80619e2b2b38d02d548bb0c312d8c205d5fbf78c9f58e2de",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrativeBuilder.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/narrativeSpine.js",
+      "sha256": "ff8c2894300fc2f83d00338d03c3f3594787f395f44bd236c5673a35fe487866",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/narrativeSpine.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/pacingHeuristics.js",
+      "sha256": "7454e574ddf0824b590a4d702d835f0220f06c76a3425b23e232bde88234015c",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/pacingHeuristics.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/personalTextProvider.js",
+      "sha256": "4a65634715af2ce9b097b023c41ff4fdf10bb5bad1f85c76f27dff8ab43ed5d7",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/personalTextProvider.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/positionWeights.js",
+      "sha256": "876a9e4309139250051c7455be890f04dfa298dc8ac99b1b8929b975a6b052ce",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/positionWeights.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/promptEngineering.js",
+      "sha256": "a7c30af3626cb12c15b8af5480cf60c3a1833a280bab581aa4d0d19db4c7f4f2",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/promptEngineering.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/promptInjectionDetector.js",
+      "sha256": "434d939be11525da332a9aa3a0f9e0916630ba811a46f8b4dbdb0208e2b1ab33",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/promptInjectionDetector.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/promptVersioning.js",
+      "sha256": "a1e30ec36eaedc508e14d88d18bc8fb28e3e6d33889b99081e5efbde62617dcb",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/promptVersioning.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/querentReflections.js",
+      "sha256": "47a926f8281ac1437d26690743aefe307177091a16d90ebcf3678815272aecd3",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/querentReflections.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/readingCardContext.js",
+      "sha256": "f688ac83aa6a6d9a059307c2b5ca737b42859d79b0fbb741a9855ff69ca83375",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/readingCardContext.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/readingCardResolution.js",
+      "sha256": "2da37180fe8c312de50b5796e2da87b7b7a5520a430203747342781429fe07ae",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/readingCardResolution.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/readingLimits.js",
+      "sha256": "05d7669e4847efd01d18261ea26f38bafa7af9e99cc2d496c6f92b9de1fff269",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/readingLimits.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/readingPassageGuard.js",
+      "sha256": "c9c4bb8f99c759bcc68ef3a8e2b6f674e0940aa2d124d353dc76b63b02542136",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/readingPassageGuard.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/readingQuality.js",
+      "sha256": "1930ae85e4d7bf81379e8cd78ac6bc7abff6a5794f9e6cfe530b5034717db1e2",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/readingQuality.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/readingStream.js",
+      "sha256": "570119bdaa35e44a32dca8a3ac5d821fa9f9d69979516b02dc5bbf3b3531abd3",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/readingStream.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/readingSuitCounts.js",
+      "sha256": "9eb52c5c584ab0f3de8482baaccffe79dd77bd69785638387269de32bbba7025",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/readingSuitCounts.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/readingTelemetry.js",
+      "sha256": "c71d923473d199b575d18e9d843a1cad9c6ee80a476f6e3775dc92bf21626ec0",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/readingTelemetry.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/readingVisualJobs.js",
+      "sha256": "d771122551a718d5e4b0d4120181b396d0417acfc0726a53da56b08fab2bb4dc",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/readingVisualJobs.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/readingVisualResults.js",
+      "sha256": "71acb848c11f54b3fee8895143af5a9f158621cb575cfbeb35ac822d99e5e40d",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/readingVisualResults.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/requestDeadline.js",
+      "sha256": "e0d0e46aaa961c73f60fa91a43250a848fec0b05c142c1a808ec02453dc4a1a4",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/requestDeadline.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/responsesCompletion.js",
+      "sha256": "0e26d0b0693417746a6a767cf031c29747c1d9500899f4309b28909a63ed16ec",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/responsesCompletion.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/retryWithBackoff.js",
+      "sha256": "37f54f0f01d30b4e0c9dc5de78e8d5f7e971536364ce158b2d8892f874f3e08d",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/retryWithBackoff.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/safetyChecks.js",
+      "sha256": "aa06019485fe2af43a117cd95f20831429ff91a69c267c3295503bf862c97539",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/safetyChecks.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/serviceAuth.js",
+      "sha256": "33e981c1917c03cf0788aa4295e7ba5369b3941b0121ded98c5906a19da6bffa",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/serviceAuth.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/spreadAnalysis.js",
+      "sha256": "c83329f9f33cff7fb962762863a6158fc7d71600cb1c293c9e7092ea09f128d6",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/spreadAnalysis.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/spreadAnalysisOrchestrator.js",
+      "sha256": "6f7f6d01da36ee36a3611ff9ecb9d9266d44fbb9f3a0094d3d4bc9e74cf05bf9",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/spreadAnalysisOrchestrator.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/spreadContracts.js",
+      "sha256": "a54f5135676b3749957d67913a75c97d8825208ee797df60bd7d2f5c285cd240",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/spreadContracts.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/symbolAnnotations.js",
+      "sha256": "c7f876b0d81159371c590887f7bcd20ba6f38c217b40d87a9d73198d92e6d208",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/symbolAnnotations.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/telemetrySchema.js",
+      "sha256": "c87ce73e3c8aa1c76b732411e7d93c9ed8c10b4d94da6297b58107318b72dc46",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/telemetrySchema.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/tracingSpans.js",
+      "sha256": "08e932ceb48540a26d42efd2703294ee7434a5d83c2e8f74f3a02bc9edce830a",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/tracingSpans.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/usageTracking.js",
+      "sha256": "75bcd07774ab172d913ce4947ce369c16b7f50a0bdbfc6b1fa99ac4a9a0a7e5d",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/usageTracking.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/userMemory.js",
+      "sha256": "fc05da97f0a5eceb27be96e723463f4e977d193761b98ac4154e6d9116432872",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/userMemory.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/userPersonalization.js",
+      "sha256": "395f232d54e88faed65b202036db2b82885dee4b060b9d6132478dec70350cb4",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/userPersonalization.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/utils.js",
+      "sha256": "53ab993ab0bce32cbe9a33666725cb5da7b01ceebed242444799c3199e6938cd",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/utils.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/visionEvidence.js",
+      "sha256": "a40facaac86573425ec95bad27e8e14b912ca26b022126a2747978a182a90eb2",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/visionEvidence.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/visionLabels.js",
+      "sha256": "99b9865e98488bf6d1437898aebf9d7e1dc60702b7e6a69c113676a6be77d964",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/visionLabels.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/visionPromptProjection.js",
+      "sha256": "67bcf3b5876d64dcd46f44476aa7e6ea38b7628233bb15e494ea832be5b07e93",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/visionPromptProjection.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/visionProof.js",
+      "sha256": "7da75b6b7a7e85f69db839f7e2dc0489130967d7fedeea492fe3657c6393facc",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/visionProof.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/visualCueObserver.js",
+      "sha256": "2ce0aedff9622ce4a7b82e9e64b89b8a339c9d97a07609ab698f3bfd2a5ad8d6",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/visualCueObserver.js"
+    },
+    {
+      "relativePath": "pinned-source/functions/lib/visualCueProvider.js",
+      "sha256": "df35a061b884fa1588a36ad11eb1f519327145e2bc567070705abc1c597c22a4",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/functions/lib/visualCueProvider.js"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0000_migration_tracking.sql",
+      "sha256": "1477a9a15a2d905612557a1dd52777ba23e08d345c96f47f81855309d939e680",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0000_migration_tracking.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0001_initial_schema.sql",
+      "sha256": "dce4ab46f88ce19dbd3ae25dfd24587c3d798aa8a2e2f0958603acb9634f1ebc",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0001_initial_schema.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0002_add_auth_and_journals.sql",
+      "sha256": "ba3bfefe2cf313e2db1624fa723a6254b41db1f4edd9425bda4279562aaa21fe",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0002_add_auth_and_journals.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0003_add_share_tables.sql",
+      "sha256": "ea528b314d8a64c8b85f1722b3157df0dd13978ae6f71b0369d321e30a487bce",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0003_add_share_tables.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0004_add_api_keys.sql",
+      "sha256": "5b1d1fb05f261623693434fa43add9964e8a914b1f4ecd66e61aec436dff5b39",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0004_add_api_keys.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0005_add_archetype_journey.sql",
+      "sha256": "16de6b50b5d655e2028f8bffdad8918982f7dbb6105c8db63edb028e089e6f0a",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0005_add_archetype_journey.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0006_add_user_preferences.sql",
+      "sha256": "f53392cac1fca2fd90f33ab5ba2db00971debb4ac07165ab62e254b3f1517812",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0006_add_user_preferences.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0007_add_request_id_and_dedup_index.sql",
+      "sha256": "e1b0d6a2390be936e2f530433c0b0bbd77b2a6f3fe4f83f89b289e7e511525f4",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0007_add_request_id_and_dedup_index.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0008_add_subscriptions.sql",
+      "sha256": "8b27e40f5845e43d9854de1001ada68290a8d965f7a416e90525560ef96aaf15",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0008_add_subscriptions.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0009_add_deck_id.sql",
+      "sha256": "3c777a961bd47e4dd8593f446163ee5f09ab942e1c7b62b9f678e4986e01b332",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0009_add_deck_id.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0010_add_coach_extraction.sql",
+      "sha256": "352246788f8216a2f729e171b43161f57ada92863e41bc4fac2cf3ee81c3e251",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0010_add_coach_extraction.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0010_add_user_tokens.sql",
+      "sha256": "6e55c3cb8e584f1266e94f0b674066c7ff5180b3aded4824197ed70ac6615e8b",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0010_add_user_tokens.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0011_add_usage_tracking.sql",
+      "sha256": "e330c65725ef49c749ab69cf2314234b1144f47c71d3358f3f81e0f3923f76f3",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0011_add_usage_tracking.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0012_add_webhook_idempotency.sql",
+      "sha256": "d01006863af3f9cee58fae2e520ed22f38c076f8311d85d7d734caa34f41eb23",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0012_add_webhook_idempotency.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0013_add_pattern_tracking.sql",
+      "sha256": "12bb983920808e02c70642e8a6b3da69e0f6766f07d470f97de0fd1f15cfa40c",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0013_add_pattern_tracking.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0014_add_archive_tables.sql",
+      "sha256": "16681c01436bc6f0ad92a3deb8729573106ffa0750b15ad279a17bc8d002b87a",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0014_add_archive_tables.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0015_add_quality_tracking.sql",
+      "sha256": "c0a4ed8860417db5902d465149f918278004f782e8541bdd3bcd07f79deffb87",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0015_add_quality_tracking.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0015_eval_metrics.sql",
+      "sha256": "72005826f3750356b8d03a711c42968b9ceb87c76bc8f70f66e254d0a24c3927",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0015_eval_metrics.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0016_add_journal_location.sql",
+      "sha256": "30c1633a4cdf1c89efe257c69ccb38d98dddcbdfd7dbb654e6b6395ce9851afa",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0016_add_journal_location.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0016_eval_metrics_hallucinations.sql",
+      "sha256": "f145800212bb8b9023567527f169471056dd608218fb5707cb64d026449c15ab",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0016_eval_metrics_hallucinations.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0017_add_follow_up_usage.sql",
+      "sha256": "feb76648f929d45ae0d357a144feab2f168712a709a7a7baa2768eb70d55d98e",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0017_add_follow_up_usage.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0018_add_journal_followups.sql",
+      "sha256": "5d807cc7c54d755d5583fb6d23448adb47f88fc79b8975e545e8634ac7997055",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0018_add_journal_followups.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0019_add_user_memories.sql",
+      "sha256": "0e47515ca321d9863f8f7a2ef725a2f9365b644c569f56ad1244cc03b7720684",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0019_add_user_memories.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0020_add_user_preferences.sql",
+      "sha256": "2558a5a20ef3d157cf40bb03ac0abd096be23e131f72914b5f9f0593c13cd1d8",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0020_add_user_preferences.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0021_add_journal_followups_cleanup_trigger.sql",
+      "sha256": "b946f29f9bf6c7527774c41d71fceb28833c5018c62bd001ab4639aa84c6fa50",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0021_add_journal_followups_cleanup_trigger.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0022_fix_quality_stats_null_uniqueness.sql",
+      "sha256": "37e74af7a77aa21e7c9fc4407d34ae72f1e355dbae2d571b55bb1e78fcbb7ed2",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0022_fix_quality_stats_null_uniqueness.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0023_add_follow_up_reservation_updated_at.sql",
+      "sha256": "d6a6b2860861b4e0525a5f2733619e0b129e1a2202914115ab55e028c2825045",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0023_add_follow_up_reservation_updated_at.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0024_add_user_tokens.sql",
+      "sha256": "992d9865a295331c635976e06edf3c7bee332fca158839b93718409c3fef3b69",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0024_add_user_tokens.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0025_add_oauth_identities.sql",
+      "sha256": "cda6878a4a042e973f6f7e17c1ba2d11bc154ac9371cc8d728bef1bb0b2899f5",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0025_add_oauth_identities.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0026_add_pattern_tracking_failures.sql",
+      "sha256": "159fe21ccd64dd4427df97a0697e44f7c182a55325ab2c5d4c6852078feb74cf",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0026_add_pattern_tracking_failures.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0027_add_share_note_reports.sql",
+      "sha256": "4524ee65e0b6d628b7681425375a13de6ac5cbaa6f28b2850af0517bd262994b",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0027_add_share_note_reports.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0028_add_user_media.sql",
+      "sha256": "b4d4a6c9d69fc8e0fe77f3583fb6b60473903c5ed36ef672e3e3f58045d0d819",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0028_add_user_media.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0029_add_journal_followups_canonical_answer.sql",
+      "sha256": "6e49edb45106dcb7ab44c9fa9ab80d1edd86f241af8727188f7ccacc36ee6ffc",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0029_add_journal_followups_canonical_answer.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0030_add_journal_idempotency_key.sql",
+      "sha256": "34c8f80a893ccc34782bd4968ad795a3a975a7bebfb165b4f4c9561511a47a6b",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0030_add_journal_idempotency_key.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0031_add_oauth_registration_counters.sql",
+      "sha256": "8c6ea3f848a0009957811e691a04ff6c4f77cfa1b4ad33c62a305a859fb8e871",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0031_add_oauth_registration_counters.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0032_add_journal_source_usage.sql",
+      "sha256": "a082cbfd29855794f27e2491bebe853795326da8e51ea688b7e8100c2816f400",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0032_add_journal_source_usage.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0033_add_feature_usage.sql",
+      "sha256": "20ad932460f5a117e591eb973ffe7bd58079c295621fe3edab1ae43efd0f7ce4",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0033_add_feature_usage.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0034_add_narration_reservations.sql",
+      "sha256": "2d1923b3f78aa223d6f2fc03ed4c017c5aa48c516a0dfa814fa3a39003644d36",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0034_add_narration_reservations.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0035_add_inference_provenance.sql",
+      "sha256": "c54725271231d02d39bfdbb9a410a771bd934068e011adbb26af879186b28ed8",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0035_add_inference_provenance.sql"
+    },
+    {
+      "relativePath": "pinned-source/migrations/0036_reading_visual_results.sql",
+      "sha256": "019e65c63481885e8b68215634a296e181a5aad28e2fb9884d88189aa422c17b",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/migrations/0036_reading_visual_results.sql"
+    },
+    {
+      "relativePath": "pinned-source/package-lock.json",
+      "sha256": "ab65b6ed5e8146bfbfabaac494e7d769b221a7bcc9251b09be1b961b7e27142c",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/package-lock.json"
+    },
+    {
+      "relativePath": "pinned-source/package.json",
+      "sha256": "bfa6620d4b0331eb53c176ce2cdba46d6c043c71a15b46ed7014be3c577a380b",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/package.json"
+    },
+    {
+      "relativePath": "pinned-source/scripts/evaluation/evaluateReadingCueModel.mjs",
+      "sha256": "97af96c10e338b7f4d55c6fc8ab17d97b9c2ff8224171c28616f15b1986d6d32",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/scripts/evaluation/evaluateReadingCueModel.mjs"
+    },
+    {
+      "relativePath": "pinned-source/scripts/evaluation/fixtures/readingCuePricing.json",
+      "sha256": "65d4890c341ffcac95894c75c65c939e87a7c57646277a9191182d859c78ba52",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/scripts/evaluation/fixtures/readingCuePricing.json"
+    },
+    {
+      "relativePath": "pinned-source/scripts/evaluation/fixtures/readingCueQualification.json",
+      "sha256": "8b58dae66cf3d43c2c58b75ebcd02723722809175a47c51d81d5060cfcf27126",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/scripts/evaluation/fixtures/readingCueQualification.json"
+    },
+    {
+      "relativePath": "pinned-source/scripts/evaluation/lib/readingCueQualification.mjs",
+      "sha256": "638793584c65c8e528262bac1a54bdbd7e382c03d0ab59e66e12fea79ead21b1",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/scripts/evaluation/lib/readingCueQualification.mjs"
+    },
+    {
+      "relativePath": "pinned-source/scripts/evaluation/lib/visualCueEvaluationBudget.mjs",
+      "sha256": "caa8f39cbd96d28b24a3edb965a566fc8962121c45d9c3a4aae620ecc23772a5",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/scripts/evaluation/lib/visualCueEvaluationBudget.mjs"
+    },
+    {
+      "relativePath": "pinned-source/scripts/evaluation/lib/visualCueEvaluationHarness.mjs",
+      "sha256": "c469dbfafc830fe5d97678006956f598643f3acdb897fac80581e77eda287dfd",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/scripts/evaluation/lib/visualCueEvaluationHarness.mjs"
+    },
+    {
+      "relativePath": "pinned-source/scripts/evaluation/lib/visualCueEvaluationRelay.mjs",
+      "sha256": "93c85963d866d9b0e5fff1f59574e5217a1ba2431525f2c55b855cd3b4c0f092",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/scripts/evaluation/lib/visualCueEvaluationRelay.mjs"
+    },
+    {
+      "relativePath": "pinned-source/shared/contracts/generatedPassageAnnotations.js",
+      "sha256": "2cf163366c24f3295375fbbbf33ee22b040406a156e836cd9336d5fce6728b8f",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/contracts/generatedPassageAnnotations.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/contracts/personalizationConstants.js",
+      "sha256": "36edd223a7a687507f216062d019fd0b518677cad6064835f1c92ceac8a66224",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/contracts/personalizationConstants.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/contracts/readingPassageAssociations.js",
+      "sha256": "e32ab6868f5966b9750acc5a7b0aaf01b222089006b2b5a46d6e4733d66f41b5",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/contracts/readingPassageAssociations.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/contracts/readingRequestLimits.js",
+      "sha256": "586c8949b1be229aab9cd7274cfacbac0ad80e0ef731747f816cc8c9a81c5c6e",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/contracts/readingRequestLimits.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/contracts/readingSchema.js",
+      "sha256": "a50e14aa600d813096043c21f8c281c41adb45be7bdb7b51f520ed7f222a09b0",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/contracts/readingSchema.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/contracts/spreadContracts.js",
+      "sha256": "9c9d0a4fbccaaf869df8747a0c1230549e40879490ebb333955b9db5ea3347aa",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/contracts/spreadContracts.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/contracts/visualCueBatches.js",
+      "sha256": "829ac87f81ba4dbbcc4e4178610c9dbddbc65f1d4e608e826f19d98b49e1065a",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/contracts/visualCueBatches.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/generation/visualCuePrompt.js",
+      "sha256": "c540a82188f8950ee2d06f7be7192f04cf2060f64501ba513e8ed4332c76f47c",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/generation/visualCuePrompt.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/inference/claudeCode.js",
+      "sha256": "36e737e6af690638445e0951f9149ca1874ee30fdcf6014d7b219beef54c2d03",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/inference/claudeCode.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/inference/codexSubscription.js",
+      "sha256": "e3e5b79d07b71824d20104622c9d41dd09b474010368a33c695b1fda275e4556",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/inference/codexSubscription.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/monetization/subscription.js",
+      "sha256": "a1395c1fec4aa07f4606b47cbf7e94e4c3c47701acacf0114fec9dcd68fa4538",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/monetization/subscription.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/passageSource.js",
+      "sha256": "45679d932e99542600e9cccbf3d46a8873b64a1d302233412598b32469ed462c",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/passageSource.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/reading/visualCueLedger.js",
+      "sha256": "93d5c3efc88e9bb4a79a066220278bc0ae3ce75b9e4e7aae128164762c15405b",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/reading/visualCueLedger.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/reading/visualSourceIdentity.js",
+      "sha256": "e360ec30af9289df2ab739e1930516e39251b43b57c0da57c91da6ee0b3d6b9b",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/reading/visualSourceIdentity.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/symbols/symbolAnnotations.js",
+      "sha256": "2bbb40c2226b7b27eef2e0fe44231e1eb98c69acef19200de4cd068edcde1b40",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/symbols/symbolAnnotations.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/utils.js",
+      "sha256": "b81bd3006fb296bdad59c08a0ff1c5e91370ed5bc8ac2b149695eada6a644974",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/utils.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/vision/cardNameMapping.js",
+      "sha256": "6882af15c6768e67b10719d2e5a41612154177ffee0a1006a1ba8e10f76012b1",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/vision/cardNameMapping.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/vision/deckAssets.js",
+      "sha256": "1d2d52bec1e767329c65c7229fc85ca1d5a8113c6ea85789f6e2dfe99274b10e",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/vision/deckAssets.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/vision/deckCatalog.js",
+      "sha256": "6c331750db903f02147a8670555585d2a226e0fbbf296b91beef3f350b99b19f",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/vision/deckCatalog.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/vision/deckProfiles.js",
+      "sha256": "524f389f2299a144648da3a0acf1232a3f66a54d50d3ee8a6ebb572a99d4f34f",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/vision/deckProfiles.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/vision/minorSymbolLexicon.js",
+      "sha256": "3091c66bb8587c47fe449864ae15bb1289b7ef65dd3f6e7e160124b6d3c2e1d7",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/vision/minorSymbolLexicon.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/vision/rwsEvidenceOntology.js",
+      "sha256": "afb1f662d85454b798b4178134f004b2ebe82c549d86c321c6e8de809d3eb16c",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/vision/rwsEvidenceOntology.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/vision/rwsHardNegatives.js",
+      "sha256": "8b6a92dd89e7e77f2bf5fa51aa2abb66347ad2f19aa5bef9125c7fa565e281ef",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/vision/rwsHardNegatives.js"
+    },
+    {
+      "relativePath": "pinned-source/shared/vision/thothMinorTitles.js",
+      "sha256": "44551ccb19300417a29f02f8715e21df3ec8801c1820e2bd0ea4b59b9076f793",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/shared/vision/thothMinorTitles.js"
+    },
+    {
+      "relativePath": "pinned-source/src/data/cardGestureArtwork.js",
+      "sha256": "f534fbd9c45374675516b4d4b0689d4b068b39a3e5541b71eb593cd8da9852b2",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/src/data/cardGestureArtwork.js"
+    },
+    {
+      "relativePath": "pinned-source/src/data/cardGestureDetails/cupsPentacles.js",
+      "sha256": "06e7f467897bb9dff1cef1cef76ca4ba08562a21d37b5e62a094af8b3957e9d4",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/src/data/cardGestureDetails/cupsPentacles.js"
+    },
+    {
+      "relativePath": "pinned-source/src/data/cardGestureDetails/majors.js",
+      "sha256": "a128c1631088772d22f237b1d5df69d57e34932438063646428e194d1c7c7c4d",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/src/data/cardGestureDetails/majors.js"
+    },
+    {
+      "relativePath": "pinned-source/src/data/cardGestureDetails/wandsSwords.js",
+      "sha256": "919e6210e5ebd9d078a3e1f31873dfcb93cfa3ca212e41b4198e7149d01ed5c2",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/src/data/cardGestureDetails/wandsSwords.js"
+    },
+    {
+      "relativePath": "pinned-source/src/data/emotionMapping.js",
+      "sha256": "29fc7d688b2b9f143cd5b0d2f706d510cba24eb6eafca7a6b2442ec5f95448ff",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/src/data/emotionMapping.js"
+    },
+    {
+      "relativePath": "pinned-source/src/data/knowledgeGraphData.js",
+      "sha256": "8d8e4358fe0f170f29e3f66f38ecc8d46b8c976188b4efeccda594f3b739815c",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/src/data/knowledgeGraphData.js"
+    },
+    {
+      "relativePath": "pinned-source/src/data/majorArcana.js",
+      "sha256": "d19d3925d258e3ad0405aaab377de1259c675cf7b3afdba83103612d3e42804f",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/src/data/majorArcana.js"
+    },
+    {
+      "relativePath": "pinned-source/src/data/minorArcana.js",
+      "sha256": "0cf328ba3fd36cc3eeb512fa6a22d3c9ca009b17ea228c36658dc7732c04daf6",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/src/data/minorArcana.js"
+    },
+    {
+      "relativePath": "pinned-source/src/data/symbolCoordinates.js",
+      "sha256": "c80d347c0df51dd9b0a6acd481843a23700ea82ecc822d2fb2697c8cd6a14547",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/src/data/symbolCoordinates.js"
+    },
+    {
+      "relativePath": "pinned-source/src/worker/readingJob.js",
+      "sha256": "6bb30f33e550fa727b2a17a2f16d8d414467f313d4d2a70f1985ec7f550ef177",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/src/worker/readingJob.js"
+    },
+    {
+      "relativePath": "pinned-source/src/worker/readingVisualJob.js",
+      "sha256": "1c75a7bfc79d6474b95413f79713c6cdd35522368936778ad6f4a17bf630518b",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/src/worker/readingVisualJob.js"
+    },
+    {
+      "relativePath": "pinned-source/tests/helpers/d1Sqlite.mjs",
+      "sha256": "b85a61e7789cc996ecea17414045d568acced37185a9b6dc9149e3201912c4ac",
+      "provenance": "semantic/identity.json fileDigests / historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/tests/helpers/d1Sqlite.mjs"
+    },
+    {
+      "relativePath": "pinned-source/data/evaluations/narrative-samples.json",
+      "sha256": "b30c506a81f7cb360fb457fc2bd4825059d558b3a1f8862d5f0ab23f383fbe49",
+      "provenance": "frozen repository evaluation input",
+      "privacy": "recorded-corpus-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/data/evaluations/narrative-samples.json"
+    },
+    {
+      "relativePath": "docs/superpowers/reviews/2026-10-10-reading-cue-round-closeout/semantic-metrics.json",
+      "sha256": "a0f687834604f86049396a6f1d9afd257c59b07b3748d28e3970363947bc6fc2",
+      "provenance": "derived exact allowlisted fields from immutable round evidence",
+      "privacy": "public-sanitized-metrics",
+      "disposition": "retained-public-derived",
+      "archiveReference": null
+    },
+    {
+      "relativePath": "docs/superpowers/reviews/2026-10-10-reading-cue-round-closeout/timing-metrics.json",
+      "sha256": "8805bed4463d059e47172f3ccbbdb1d790a07bb15fb08931df75e78da4f7fd3f",
+      "provenance": "derived exact allowlisted fields from immutable round evidence",
+      "privacy": "public-sanitized-metrics",
+      "disposition": "retained-public-derived",
+      "archiveReference": null
+    },
+    {
+      "relativePath": "pinned-source/e2e/helpers/readingCueBrowserCollector.mjs",
+      "sha256": "592caf4e249a3815d9190f73372b26cc77feb917b77a9903132f0bd25f4a3481",
+      "provenance": "frozen driver browser dependency at historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/e2e/helpers/readingCueBrowserCollector.mjs"
+    },
+    {
+      "relativePath": "pinned-source/e2e/helpers/readingCueBrowserScoring.mjs",
+      "sha256": "e1268e12199d27b5390b46ffda983c31222aaa2d91f8091790a51dcdbdc3dbfd",
+      "provenance": "frozen driver browser dependency at historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/e2e/helpers/readingCueBrowserScoring.mjs"
+    },
+    {
+      "relativePath": "pinned-source/e2e/helpers/readingCueBrowserSession.mjs",
+      "sha256": "784ff918f06a28c4630fbacd25b4a72f388a38f9c190aeed94bea84bc279904e",
+      "provenance": "frozen driver browser dependency at historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/e2e/helpers/readingCueBrowserSession.mjs"
+    },
+    {
+      "relativePath": "pinned-source/e2e/helpers/readingCueFrontend.mjs",
+      "sha256": "aafdd75ef4a4d8d90518f18984d3ba3d2dacdd1f8a4eb7bf890f19039e3aeea2",
+      "provenance": "frozen driver browser dependency at historical HEAD f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+      "privacy": "public-source-restricted-snapshot",
+      "disposition": "retained-restricted-original",
+      "archiveReference": "20261010-closeout/pinned-source/e2e/helpers/readingCueFrontend.mjs"
+    }
+  ]
+}

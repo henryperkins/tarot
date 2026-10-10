@@ -18,3 +18,11 @@ test('only opted-in RWS readings adopt the matching gesture edition', () => {
   }
   assert.equal(readingGestureEdition({ enabled: true, deckStyleId: 'rws-1909', artworkEdition: 'unsupported-edition' }), 'unsupported-edition');
 });
+
+test('optimized validation enables the explicit flag while ordinary production and missing flags stay off', () => {
+  assert.equal(readingGesturesEnabled({ DEV: false, MODE: 'reading-cue-validation', VITE_READING_GESTURES: 'true' }), true);
+  assert.equal(readingGesturesEnabled({ DEV: false, MODE: 'production', VITE_READING_GESTURES: 'true' }), false);
+  assert.equal(readingGesturesEnabled({ DEV: false, MODE: 'reading-cue-validation' }), false);
+  assert.equal(readingGesturesEnabled({ DEV: false, MODE: 'reading-cue-validation', VITE_READING_GESTURES: 'false' }), false);
+  assert.equal(readingGesturesEnabled({ DEV: false, MODE: 'unrelated-validation', VITE_READING_GESTURES: 'true' }), false);
+});

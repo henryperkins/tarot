@@ -6,17 +6,30 @@ export function normalizeInferenceIdentifier(value) {
 const tokenCount = (value) => Number.isSafeInteger(value) && value >= 0 ? value : null;
 
 export function normalizeInferenceUsage(usage) {
-  const inputTokens = tokenCount(usage?.inputTokens ?? usage?.input_tokens ?? usage?.prompt_tokens);
-  const outputTokens = tokenCount(usage?.outputTokens ?? usage?.output_tokens ?? usage?.completion_tokens);
-  const totalTokens = tokenCount(usage?.totalTokens ?? usage?.total_tokens) ?? (inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null);
+  let invalid = usage?.valid === false;
+  const countAliases = values => {
+    const supplied = values.filter(value => value != null);
+    if (supplied.some(value => tokenCount(value) === null) || new Set(supplied).size > 1) invalid = true;
+    return tokenCount(supplied[0]);
+  };
+  const inputTokens = countAliases([usage?.inputTokens, usage?.input_tokens, usage?.prompt_tokens]);
+  const outputTokens = countAliases([usage?.outputTokens, usage?.output_tokens, usage?.completion_tokens]);
+  const suppliedTotal = usage != null && (Object.hasOwn(usage, 'totalTokens') || Object.hasOwn(usage, 'total_tokens'));
+  const reportedTotal = countAliases([usage?.totalTokens, usage?.total_tokens]);
+  const sum = inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null;
+  const totalTokens = suppliedTotal ? reportedTotal : tokenCount(sum);
   // Cache and reasoning counts are subsets, not additions to input/output totals.
-  const cacheReadInputTokens = tokenCount(usage?.cacheReadInputTokens ?? usage?.cache_read_input_tokens
-    ?? usage?.cached_input_tokens ?? usage?.input_tokens_details?.cached_tokens ?? usage?.prompt_tokens_details?.cached_tokens);
-  const cacheCreationInputTokens = tokenCount(usage?.cacheCreationInputTokens ?? usage?.cache_creation_input_tokens);
-  const reasoningTokens = tokenCount(usage?.reasoningTokens ?? usage?.reasoning_output_tokens
-    ?? usage?.output_tokens_details?.reasoning_tokens ?? usage?.completion_tokens_details?.reasoning_tokens);
+  const cacheReadInputTokens = countAliases([usage?.cacheReadInputTokens, usage?.cache_read_input_tokens,
+    usage?.cached_input_tokens, usage?.input_tokens_details?.cached_tokens, usage?.prompt_tokens_details?.cached_tokens]);
+  const cacheCreationInputTokens = countAliases([usage?.cacheCreationInputTokens, usage?.cache_creation_input_tokens]);
+  const reasoningTokens = countAliases([usage?.reasoningTokens, usage?.reasoning_output_tokens,
+    usage?.output_tokens_details?.reasoning_tokens, usage?.completion_tokens_details?.reasoning_tokens]);
+  if (sum !== null && (!Number.isSafeInteger(sum) || (suppliedTotal && reportedTotal !== sum))) invalid = true;
+  if (inputTokens !== null && (cacheReadInputTokens ?? 0) + (cacheCreationInputTokens ?? 0) > inputTokens) invalid = true;
+  if (outputTokens !== null && (reasoningTokens ?? 0) > outputTokens) invalid = true;
   const counts = [inputTokens, outputTokens, totalTokens, cacheReadInputTokens, cacheCreationInputTokens, reasoningTokens];
-  return { status: inputTokens !== null && outputTokens !== null ? 'known' : counts.some((count) => count !== null) ? 'partial' : 'unknown', inputTokens, outputTokens, totalTokens, cacheReadInputTokens, cacheCreationInputTokens, reasoningTokens };
+  return { status: !invalid && inputTokens !== null && outputTokens !== null ? 'known' : counts.some((count) => count !== null) ? 'partial' : 'unknown', inputTokens, outputTokens, totalTokens, cacheReadInputTokens, cacheCreationInputTokens, reasoningTokens,
+    ...(invalid ? { valid: false } : {}) };
 }
 
 export function inferAttemptReason(error, signal) {

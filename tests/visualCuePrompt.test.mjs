@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildVisualCuePrompt } from '../shared/generation/visualCuePrompt.js';
+import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
 import { visualCueResponseSchema } from '../shared/contracts/visualCueBatches.js';
 
 const SAMPLE_CARDS = [
@@ -101,4 +102,90 @@ test('annotation prompt requests source-ordered non-overlapping physical evidenc
   assert.match(prompt.systemPrompt, /negated|imagined/);
   assert.match(prompt.systemPrompt, /Do not translate/);
   assert.match(prompt.userPrompt, /El Ermitaño sostiene un farol\./);
+});
+
+// These regressions exercise serialized model inputs, not semantic model output.
+test('caller detail claims are intersected with trusted card ownership and deduplicated', () => {
+  const { userPrompt } = buildVisualCuePrompt({ cards: [
+    { canonicalName: 'The Star', detailIds: ['pool-pour', 'lantern', 'pool-pour', 'imaginary'] },
+    { canonicalName: 'The Hermit', detailIds: ['pool-pour', 'lantern'] },
+    { canonicalName: 'Unknown Card', detailIds: ['lantern'] }
+  ] });
+  const lines = userPrompt.split('\n').filter(line => line.startsWith('- Card #'));
+  assert.match(lines[0], /Supported details: pool-pour\)/);
+  assert.match(lines[1], /Supported details: lantern\)/);
+  assert.match(lines[2], /Supported details: none\)/);
+});
+
+test('unsupported editions reject caller-supplied RWS geometry on every occurrence', () => {
+  for (const artworkEdition of ['marseille', 'identity:thoth', 'unknown']) {
+    const { userPrompt } = buildVisualCuePrompt({ artworkEdition, cards: SAMPLE_CARDS });
+    assert.doesNotMatch(userPrompt, /pool-pour|land-pour|lantern|rocky-path/);
+    assert.equal(userPrompt.match(/Supported details: none/g)?.length, 2);
+  }
+});
+
+test('exact Markdown and UTF-16 raw source are retained without trimming or repairs', () => {
+  const rawPrefix = '  🌟 **The Star**\r\n"""\nWater pours\tonto land.  ';
+  const { userPrompt } = buildVisualCuePrompt({ rawPrefix });
+  const marker = '\nReading Text to Analyze:\n"""\n';
+  const start = userPrompt.indexOf(marker) + marker.length;
+  assert.equal(userPrompt.slice(start, start + rawPrefix.length), rawPrefix);
+});
+
+test('prior literal IDs, target occurrences and exact quoted Markdown survive serialization', () => {
+  const id = `vc:${'a'.repeat(64)}`;
+  const quote = '🌟 "water"\n**pool**\\';
+  const { userPrompt } = buildVisualCuePrompt({ priorAcceptedCues: [
+    { id, kind: 'literal', passage: { quote }, targets: [{ spreadIndex: 3, detailIds: ['pool-pour'] }] },
+    { id: 'not-literal', kind: 'identity', targets: [] }
+  ] });
+  assert.ok(userPrompt.includes(JSON.stringify(id)));
+  assert.ok(userPrompt.includes(JSON.stringify(quote)));
+  assert.match(userPrompt, /#3 \[pool-pour\]/);
+  assert.doesNotMatch(userPrompt, /not-literal/);
+});
+
+test('supplied question, legacy per-card reflections and Overall notes preserve exact context', () => {
+  const question = '  Begin "now"?\n🌟  ';
+  const cardNote = ' I fear "later".\n ';
+  const overall = ' I want to keep \\ going. ';
+  const { userPrompt } = buildVisualCuePrompt({ question, cards: [
+    { canonicalName: 'The Star', spreadIndex: 2, reflection: cardNote },
+    { canonicalName: 'The Hermit', spreadIndex: 7 }
+  ], reflections: { Overall: overall, 7: ' Seven stays seven. ', Legacy: ' Other note. ' } });
+  assert.ok(userPrompt.includes(JSON.stringify(question)));
+  assert.ok(userPrompt.includes(`Card #2 reflection: ${JSON.stringify(cardNote)}`));
+  assert.ok(userPrompt.includes(`Card #7 reflection: ${JSON.stringify(' Seven stays seven. ')}`));
+  assert.ok(userPrompt.includes(`Overall: ${JSON.stringify(overall)}`));
+  assert.ok(userPrompt.includes(`Legacy: ${JSON.stringify(' Other note. ')}`));
+  assert.doesNotMatch(userPrompt, /\[object Object\]/);
+});
+
+test('absent context is omitted even when reading prose mentions a reflection', () => {
+  const { userPrompt } = buildVisualCuePrompt({ rawPrefix: 'Your reflection suggests renewal.',
+    cards: SAMPLE_CARDS, question: null, reflections: null });
+  assert.doesNotMatch(userPrompt, /User Question:|User Reflections:|Card-specific reflections/);
+});
+
+test('narrative builder excludes annotation catalogs, proposal schema and cue metadata', () => {
+  const options = { spreadInfo: { key: 'single', name: 'Single Card', positions: ['Theme'] },
+    cardsInfo: [{ card: 'The Star', position: 'Theme', orientation: 'Upright', meaning: 'Renewal' }],
+    userQuestion: 'How do I proceed?', themes: {}, context: {},
+    promptBudgetEnv: { GRAPHRAG_ENABLED: false } };
+  const clean = buildEnhancedClaudePrompt(options);
+  const withVisualMetadata = buildEnhancedClaudePrompt({ ...options,
+    cardsInfo: [{ ...options.cardsInfo[0], detailIds: ['pool-pour', 'land-pour'] }],
+    visualCueSchema: visualCueResponseSchema, priorAcceptedCues: [{ localAlias: 'visual-only-alias' }] });
+  for (const part of ['systemPrompt', 'userPrompt']) {
+    assert.equal(withVisualMetadata[part], clean[part]);
+    assert.doesNotMatch(withVisualMetadata[part], /pool-pour|land-pour|localAlias|acceptedCueId|visual-only-alias|Supported details/);
+  }
+});
+
+test('unknown card names cannot borrow inherited catalog properties or crash the builder', () => {
+  for (const canonicalName of ['constructor', '__proto__', 'toString']) {
+    const { userPrompt } = buildVisualCuePrompt({ cards: [{ canonicalName, detailIds: ['lantern'] }] });
+    assert.match(userPrompt, /Supported details: none\)/);
+  }
 });

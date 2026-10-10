@@ -872,3 +872,28 @@ test('unconfigured annotation never records an inference that was not dispatched
   assert.equal(job.status, 'failed');
   assert.equal(DB.rows('SELECT * FROM inference_attempts').length, 0);
 });
+
+test('trusted recovery keeps cue provenance for a later cumulative commit while snapshots omit nested secrets', async t => {
+  const { registerVisualResult, updateVisualResultSource, commitVisualResult } = await import('../functions/lib/readingVisualResults.js');
+  const { applyVisualCueBatch } = await import('../shared/reading/visualCueLedger.js');
+  const db = await createD1(); t.after(() => db.sqlite.close());
+  const binding = createBinding('recovery-followup');
+  await registerVisualResult({ db, readingResultId: binding.readingResultId, binding });
+  await updateVisualResultSource({ db, readingResultId: binding.readingResultId, binding, raw: LITERAL_RAW });
+  const initial = createVisualCueLedger(binding);
+  const first = await applyVisualCueBatch({ ledger: initial, issuedRequest: { binding, status: 'active', batchId: 'first', requestSequence: 1,
+    analyzedEnd: LITERAL_RAW.length, analyzedHash: await hashVisualCueText(LITERAL_RAW), baseLedgerRevision: 0 }, response: LITERAL_RESPONSE,
+    authoritativeRaw: LITERAL_RAW, validationContext: { cards: CARDS, getSupportedDetails: () => [{ id: 'pool-pour' }] } });
+  assert.equal((await commitVisualResult({ db, readingResultId: binding.readingResultId, binding, expectedLedgerRevision: 0, ledger: first.ledger, status: 'running' })).ok, true);
+  const { job, waitUntilPromises } = await createJob(t, { env: { DB: db }, stored: { binding, visualToken: 'recovery-token', validationContext: { cards: CARDS },
+    ledger: initial, authoritativeRaw: LITERAL_RAW, isComplete: false, status: 'running', recoveryEpoch: 1 }, runAnnotation: async () => ({ proposals: [] }) });
+  await Promise.all(waitUntilPromises);
+  assert.deepEqual(job.ledger.cues[0].provenance, first.ledger.cues[0].provenance);
+  const grown = LITERAL_RAW + ' Hope grows.';
+  const res = await job.fetch(new Request('https://visual/observe', { method: 'POST', body: JSON.stringify({ binding, raw: grown, complete: true }) }));
+  assert.equal(res.status, 202); await Promise.all(waitUntilPromises);
+  assert.equal(job.status, 'complete'); assert.equal(job.ledger.cues[0].id, first.ledger.cues[0].id);
+  job.ledger.cues[0].provenance.visualJobToken = 'nested-private';
+  job.ledger.cues[0].passage.visualJobToken = 'nested-private';
+  assert.ok(!JSON.stringify(job.envelope()).includes('nested-private'));
+});

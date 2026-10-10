@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { visualCueProposalSchema, visualCueResponseSchema } from '../../shared/contracts/visualCueBatches.js';
 import { createDeadline } from './requestDeadline.js';
 import { inferAttemptReason, normalizeInferenceIdentifier, normalizeInferenceUsage } from './inferenceAttempts.js';
+import { isVisualCueAdmissionError, isTrustedVisualCueBinding } from './visualCueAdmission.js';
 
 // Request the proposal shape, while retaining independent per-proposal runtime
 // validation in the ledger. Model-side schema support is not a trust boundary.
@@ -52,6 +53,11 @@ export async function runVisualCueAnnotationWithMetadata({ env, prompt, signal }
   let startedAtMs = null;
   let providerResponse = null;
   let validating = false;
+  const trustedBinding = isTrustedVisualCueBinding(env.AI);
+  const dispatchObserver = {
+    dispatched() { startedAtMs = Date.now(); },
+    provenance(value) { providerResponse = { model: normalizeInferenceIdentifier(value?.model), usage: normalizeInferenceUsage(value?.usage) }; }
+  };
   const metadata = (outcome, reason) => ({
     provider: 'workers-ai', requestedModel: normalizeInferenceIdentifier(model),
     returnedModel: normalizeInferenceIdentifier(providerResponse?.model),
@@ -60,7 +66,7 @@ export async function runVisualCueAnnotationWithMetadata({ env, prompt, signal }
   });
   try {
     const response = await deadline.run(() => {
-      startedAtMs = Date.now();
+      if (!trustedBinding) startedAtMs = Date.now();
       return env.AI.run(model, {
         messages: [
           { role: 'system', content: prompt.systemPrompt },
@@ -71,7 +77,7 @@ export async function runVisualCueAnnotationWithMetadata({ env, prompt, signal }
         temperature: 0,
         response_format: { type: 'json_schema', json_schema: glm
           ? { name: 'visual_cues', schema: responseSchema, strict: true } : responseSchema }
-      }, { signal: deadline.signal });
+      }, { signal: deadline.signal, ...(trustedBinding ? { dispatchObserver } : {}) });
     });
     providerResponse = response;
     deadline.signal.throwIfAborted();
@@ -82,7 +88,7 @@ export async function runVisualCueAnnotationWithMetadata({ env, prompt, signal }
     return { response: visualCueResponseSchema.parse(parsed), metadata: metadata('accepted', null) };
   } catch (error) {
     // Configuration and pre-dispatch cancellation do not invent provider calls.
-    if (startedAtMs === null) throw error;
+    if (startedAtMs === null || (trustedBinding && isVisualCueAdmissionError(error))) throw error;
     if (!providerResponse) providerResponse = { model: error?.model, usage: error?.usage };
     const safeError = new Error('Visual annotation failed.');
     if (['AbortError', 'TimeoutError'].includes(error?.name)) safeError.name = error.name;

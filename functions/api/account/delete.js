@@ -165,6 +165,7 @@ export async function onRequestPost(context) {
     }
 
     const userId = user.id;
+    await revokeUserVisualResults({ env, userId });
 
     // Cancel any active Stripe subscription before deleting account
     // This prevents continued billing after account deletion
@@ -229,7 +230,7 @@ export async function onRequestPost(context) {
       console.log(`[${requestId}] [account] Deleted ${r2Stats.deleted} R2 exports for user ${userId}`);
     }
 
-    await revokeUserVisualResults({ env, userId });
+    // Visual claims and writes were revoked before external cleanup.
 
     // Now safe to delete journal_entries
     await runDelete(env.DB, 'DELETE FROM journal_entries WHERE user_id = ?', [userId], requestId);

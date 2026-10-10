@@ -5,21 +5,23 @@ import { boundVisualCueLedger } from '../lib/narrativeGestureSource.js';
 import { readVisualJobEvents, isVisualJobTerminal } from '../lib/readingVisualStream.js';
 import { readingGesturesEnabled } from '../lib/readingGestureSettings.js';
 
-/** Visual delivery outlives narrative completion, but never its authenticated owner/binding. */
-export function useReadingVisualJob({ readingResultId, visualBinding, visualJobToken,
-  raw = '', enabled = true, onBatch = null } = {}) {
+/** Visual delivery outlives narrative completion, but never its authenticated owner/binding.
+ * A saved replay subscribes by its fresh `visualJobId`/`attemptId`; original
+ * handles keep the result route. Subscribing never submits annotation work. */
+export function useReadingVisualJob({ readingResultId, visualJobId = null, attemptId = null, visualBinding, visualJobToken,
+  raw = '', enabled = true, onBatch = null, onError = null } = {}) {
   const subscriptionEnabled = enabled && readingGesturesEnabled();
   const key = visualBinding ? canonicalVisualCueJSON(visualBinding) : '';
   const [snapshot, setSnapshot] = useState(null);
-  const latest = useRef({ raw, onBatch });
+  const latest = useRef({ raw, onBatch, onError });
   const received = useRef(null);
   const accepted = useRef(null);
   const apply = useRef(null);
 
   useEffect(() => {
-    latest.current = { raw, onBatch };
+    latest.current = { raw, onBatch, onError };
     apply.current?.();
-  }, [raw, onBatch]);
+  }, [raw, onBatch, onError]);
 
   useEffect(() => {
     received.current = null;
@@ -54,7 +56,7 @@ export function useReadingVisualJob({ readingResultId, visualBinding, visualJobT
     apply.current = adopt;
     const run = async () => {
       try {
-        for await (const { event, data } of readVisualJobEvents({ readingResultId, visualJobToken, signal: controller.signal })) {
+        for await (const { event, data } of readVisualJobEvents({ readingResultId, visualJobId, visualJobToken, signal: controller.signal })) {
           if (controller.signal.aborted || !sameVisualCueBinding(data?.binding, binding)) continue;
           status = data.status || (event === 'done' ? 'complete' : event === 'error' ? 'failed' : 'running');
           error = status === 'failed' ? 'Visual accompaniment is unavailable.' : null;
@@ -80,6 +82,9 @@ export function useReadingVisualJob({ readingResultId, visualBinding, visualJobT
       } catch (err) {
         if (controller.signal.aborted || err.name === 'AbortError') return;
         setSnapshot(previous => ({ ...(previous?.key === key ? previous : {}), key, status: 'failed', error: 'Visual accompaniment is unavailable.' }));
+        // Terminal 401/403/410 means this capability can never resume; callers may
+        // retire the handle. Transient failures leave the handle for a later mount.
+        latest.current.onError?.({ terminal: Boolean(err.terminal) });
       }
     };
     run();
@@ -90,7 +95,7 @@ export function useReadingVisualJob({ readingResultId, visualBinding, visualJobT
   // The serialized key fixes the binding for this subscription; changing its
   // object identity must not reset accepted revisions or open another stream.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, readingResultId, visualJobToken, subscriptionEnabled]);
+  }, [key, readingResultId, visualJobId, attemptId, visualJobToken, subscriptionEnabled]);
 
   const current = subscriptionEnabled && snapshot?.key === key ? snapshot : null;
   return {

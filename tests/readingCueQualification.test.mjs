@@ -10,7 +10,7 @@ import {
 } from '../scripts/evaluation/lib/readingCueQualification.mjs';
 
 const root = resolve(import.meta.dirname, '..');
-const manifestPath = resolve(root, 'scripts/evaluation/fixtures/readingCueQualification.json');
+const manifestPath = resolve(root, 'scripts/evaluation/fixtures/readingCueQualification.regression-20261010.json');
 const sha = raw => createHash('sha256').update(raw, 'utf8').digest('hex');
 const reviewer = { id: 'independent-reviewer', authoredVisualPrompt: false, testedModel: false, blinded: true };
 const clone = value => structuredClone(value);

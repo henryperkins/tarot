@@ -28,10 +28,13 @@ function checkResponse(response) {
   throw error;
 }
 
-/** Independent, bounded subscription. EOF recovers a full snapshot, never a delta. */
-export async function* readVisualJobEvents({ readingResultId, visualJobToken, signal, cursor = 0,
+/** Independent, bounded subscription. EOF recovers a full snapshot, never a delta.
+ * Saved replays are addressed by their fresh server-issued visualJobId; original
+ * handles keep the narrative result route. Every request here is a GET. */
+export async function* readVisualJobEvents({ readingResultId, visualJobId = null, visualJobToken, signal, cursor = 0,
   fetchImpl = globalThis.fetch, retryDelay = 1000, maxFailures = 6 }) {
-  const base = `/api/tarot-reading/visuals/${encodeURIComponent(readingResultId)}`;
+  const base = visualJobId ? `/api/tarot-reading/visual-replays/${encodeURIComponent(visualJobId)}`
+    : `/api/tarot-reading/visuals/${encodeURIComponent(readingResultId)}`;
   const headers = { Accept: 'text/event-stream', ...(visualJobToken ? { 'X-Visual-Token': visualJobToken } : {}) };
   let failures = 0;
   let snapshotFirst = false;
@@ -92,4 +95,35 @@ export async function* readVisualJobEvents({ readingResultId, visualJobToken, si
     await delay(Math.min(retryDelay * 2 ** failures, 10000), signal);
   }
   throw aborted();
+}
+
+const RETRY_FAILURES = new Map([[400, 'invalid-source'], [401, 'forbidden'], [403, 'forbidden'], [404, 'not-found']]);
+
+/** One explicit saved-visual retry request. Cloud retries name only the owned
+ * entry; the server reads the saved source itself. Local retries submit only
+ * the explicit saved prose/context: IDs, bindings, capabilities and cached
+ * sidecars confer no authority and are never sent. Callers never repeat this
+ * automatically; failures are typed so the reading stays saved and readable. */
+export async function postSavedVisualRetry({ cloud = false, entryId = null, savedSource = null, signal,
+  fetchImpl = globalThis.fetch, timeout = 30000 } = {}) {
+  const init = { method: 'POST', credentials: 'include', headers: { Accept: 'application/json' }, signal };
+  if (!cloud) {
+    const source = { raw: savedSource?.raw, cards: savedSource?.cards, deckId: savedSource?.deckId,
+      question: savedSource?.question, reflections: savedSource?.reflections };
+    init.headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify({ savedSource: source });
+  }
+  const url = cloud ? `/api/journal/${encodeURIComponent(entryId)}/visual-retry` : '/api/tarot-reading/visual-retry';
+  let response;
+  try { response = await wait(fetchImpl(url, init), signal, timeout); } catch (error) {
+    if (signal?.aborted || error?.name === 'AbortError') throw aborted();
+    return { ok: false, reason: 'offline' };
+  }
+  let data = null;
+  try { data = await wait(response.json(), signal, timeout); } catch (error) {
+    if (signal?.aborted || error?.name === 'AbortError') throw aborted();
+  }
+  if (!response.ok) return { ok: false, reason: RETRY_FAILURES.get(response.status) || 'server', status: response.status };
+  if (!data || typeof data !== 'object' || !Object.hasOwn(data, 'state')) return { ok: false, reason: 'invalid-response' };
+  return { ok: true, state: data.state ?? null, resumeHandle: data.resumeHandle ?? null };
 }

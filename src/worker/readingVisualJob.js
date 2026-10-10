@@ -1,8 +1,10 @@
-import { runVisualCueAnnotationWithMetadata } from '../../functions/lib/visualCueProvider.js';
+import { deferVisualReplay, getVisualReplayLimits, initializeVisualReplay, loadActiveVisualReplay, releaseVisualReplayReadiness, reserveVisualReplay, revokeVisualReplay, settleVisualReplay } from '../../functions/lib/readingVisualRetry.js';
+import { createDeadline } from '../../functions/lib/requestDeadline.js';
+import { getVisualCueReadiness, runVisualCueAnnotationWithMetadata } from '../../functions/lib/visualCueProvider.js';
 import { inferAttemptReason, recordInferenceAttempt } from '../../functions/lib/inferenceAttempts.js';
 import { formatSSEEvent } from '../../functions/lib/readingStream.js';
 import { jsonResponse } from '../../functions/lib/utils.js';
-import { commitVisualResult, expireVisualResult, loadVisualResultState, registerVisualResult, updateVisualResultSource } from '../../functions/lib/readingVisualResults.js';
+import { isOriginalVisualWorkAllowed, publicVisualLedger, commitVisualResult, expireVisualResult, loadVisualResultState, registerVisualResult, updateVisualResultSource } from '../../functions/lib/readingVisualResults.js';
 import {
   canonicalVisualCueJSON, hashVisualCueText, sameVisualCueBinding,
   visualCueBindingSchema, visualCueResponseSchema
@@ -32,6 +34,7 @@ export class ReadingVisualJob {
     this.subscribers = new Set();
     this.mutations = Promise.resolve();
     this.commits = Promise.resolve();
+    this.replay = null;
     this.binding = null;
     this.ownerUserId = null;
     this.visualToken = null;
@@ -55,12 +58,16 @@ export class ReadingVisualJob {
     this.initialized = this.state.blockConcurrencyWhile(async () => {
       const stored = await this.state.storage.get('visual_job');
       if (!stored) return;
-      const keys = ['binding', 'ownerUserId', 'visualToken', 'validationContext', 'ledger', 'authoritativeRaw',
+      const keys = ['replay', 'binding', 'ownerUserId', 'visualToken', 'validationContext', 'ledger', 'authoritativeRaw',
         'status', 'error', 'requestRegistry', 'requestSequence', 'events', 'nextEventId',
         'lastDeliveredEventId', 'isComplete', 'expiresAt'];
       for (const key of keys) if (stored[key] !== undefined) this[key] = stored[key];
       this.recoveryEpoch = (stored.recoveryEpoch || 0) + 1;
       for (const request of this.requestRegistry) if (request.status === 'active') request.status = 'abandoned';
+      if (this.replay) {
+        await this.recoverReplay();
+        return;
+      }
       let recovered = stored.pendingSnapshot || (stored.inFlightRequest ? {
         raw: this.authoritativeRaw, complete: this.isComplete,
         deliveredEventId: this.lastDeliveredEventId, availableAt: Date.now()
@@ -70,7 +77,8 @@ export class ReadingVisualJob {
         // instead of retrying an older ledger against a newer database revision.
         const durable = await loadVisualResultState({ db: this.env.DB, userId: this.ownerUserId,
           readingResultId: this.binding.readingResultId });
-        if (!durable) {
+        if (!durable || durable.activeAttemptId || !await isOriginalVisualWorkAllowed({ db: this.env.DB, userId: this.ownerUserId,
+          readingResultId: this.binding.readingResultId, binding: durable.binding })) {
           this.clearPrivateState('revoked');
           recovered = null;
         } else {
@@ -90,7 +98,7 @@ export class ReadingVisualJob {
       await this.persistState();
       if (this.expiresAt && this.expiresAt <= Date.now()) {
         await this.expire();
-      } else if (recovered && !TERMINAL.has(this.status)) {
+      } else if (recovered && !TERMINAL.has(this.status) && await this.originalWorkAllowed()) {
         this.state.waitUntil(this.processSnapshot(recovered));
       }
     });
@@ -104,7 +112,7 @@ export class ReadingVisualJob {
 
   async persistState() {
     await this.state.storage.put('visual_job', {
-      binding: this.binding, ownerUserId: this.ownerUserId, visualToken: this.visualToken,
+      replay: this.replay, binding: this.binding, ownerUserId: this.ownerUserId, visualToken: this.visualToken,
       validationContext: this.validationContext, ledger: this.ledger,
       authoritativeRaw: this.authoritativeRaw, status: this.status, error: this.error,
       inFlightRequest: this.inFlightRequest, pendingSnapshot: this.pendingSnapshot,
@@ -118,12 +126,17 @@ export class ReadingVisualJob {
   }
 
   envelope(extra = {}) {
+    const ledger = publicVisualLedger(this.ledger);
     return { binding: this.binding, status: this.status, ledgerRevision: this.ledger?.ledgerRevision ?? 0,
-      cues: this.ledger?.cues ?? [], introductions: this.ledger?.introductions ?? [], cueLedger: this.ledger,
+      cues: ledger?.cues ?? [], introductions: ledger?.introductions ?? [], cueLedger: ledger,
       error: this.error, eventId: this.nextEventId - 1, expiresAt: this.expiresAt, ...extra };
   }
 
   async checkAuth(request) {
+    if (this.replay) {
+      const active = await loadActiveVisualReplay({ db: this.env.DB, ...this.replay });
+      if (!active || active.visual_token !== this.visualToken) return { ok: false, status: 410, error: 'Visual replay is no longer available.' };
+    }
     if (['expired', 'revoked'].includes(this.status)) return { ok: false, status: 410, error: 'Visual job is no longer available.' };
     // The narrative can start before optional visual initialization finishes.
     // No credentials or private data are available yet; signal bounded retry
@@ -140,7 +153,7 @@ export class ReadingVisualJob {
           ? this.env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(this.ownerUserId).first()
           : Promise.resolve(true)
       ]);
-      if (!owner || !durable || !sameVisualCueBinding(durable.binding, this.binding)) {
+      if (!owner || !durable || (!this.replay && durable.activeAttemptId) || (this.replay && durable.activeAttemptId !== this.replay.attemptId) || (!this.replay && !sameVisualCueBinding(durable.binding, this.binding))) {
         this.clearPrivateState('revoked');
         await this.persistState();
         this.closeSubscribers();
@@ -158,6 +171,8 @@ export class ReadingVisualJob {
     await this.initialized;
     if (this.expiresAt && this.expiresAt <= Date.now() && !['expired', 'revoked'].includes(this.status)) await this.expire();
     const url = new URL(request.url);
+    if (url.pathname === '/replay-init') return this.handleReplayInit(request);
+    if (this.replay && ['/init', '/observe'].includes(url.pathname)) return buildError(409, 'Saved replay source is immutable.');
     if (url.pathname === '/init') return this.handleInit(request);
     if (url.pathname === '/observe') return this.handleObserve(request);
     // Only trusted in-Worker callers can reach these private DO routes.
@@ -193,6 +208,118 @@ export class ReadingVisualJob {
       await this.persistState();
       return jsonResponse({ ok: true });
     });
+  }
+
+  async recoverReplay() {
+    // Never redispatch from eviction/status/reconnect. Even an uncertain reserved
+    // call is consumed. D1 can reconcile a commit made before DO storage failed.
+    const claim = await loadActiveVisualReplay({ db: this.env.DB, ...this.replay });
+    if (!claim) this.clearPrivateState('revoked');
+    else if (claim.retry_status === 'complete') {
+      const durable = await loadVisualResultState({ db: this.env.DB, userId: this.ownerUserId, readingResultId: this.binding.readingResultId });
+      if (durable?.activeAttemptId === this.replay.attemptId) { this.ledger = durable.cueLedger; this.binding = durable.binding; this.status = 'complete'; }
+      else this.clearPrivateState('revoked');
+    } else if (claim.dispatch_status === 'reserved') {
+      await settleVisualReplay({ db: this.env.DB, claim });
+      this.status = 'failed';
+    } else if (claim.retry_status === 'exhausted') this.status = 'failed';
+    this.inFlightRequest = null; this.pendingSnapshot = null;
+    await this.persistState();
+  }
+
+  async handleReplayInit(request) {
+    let body;
+    try { body = await request.json(); } catch { return buildError(400, 'Invalid replay initialization.'); }
+    let launch = null;
+    const response = await this.transaction(async () => {
+      if (['expired', 'revoked'].includes(this.status)) return buildError(410, 'Visual replay is no longer available.');
+      const identity = { claimId: body.claimId, attemptId: body.attemptId, expectedClaimVersion: body.expectedClaimVersion };
+      const claim = await loadActiveVisualReplay({ db: this.env.DB, ...identity });
+      if (!claim || claim.visual_job_id !== body.visualJobId) return buildError(409, 'Replay claim is no longer active.');
+      if (this.binding) {
+        if (!this.replay || this.replay.claimId !== claim.id || this.replay.attemptId !== claim.attempt_id) return buildError(409, 'Replay identity conflicts.');
+        // A readiness failure may be retried through an explicit POST only.
+        if (claim.dispatch_status === 'prepared' && !this.inFlightRequest) launch = claim;
+        return jsonResponse({ ok: true });
+      }
+      const initialized = await initializeVisualReplay({ db: this.env.DB, claim });
+      if (!initialized) return buildError(409, 'Replay source is no longer active.');
+      Object.assign(this, initialized, { replay: identity, ownerUserId: claim.user_id, visualToken: claim.visual_token,
+        authoritativeRaw: initialized.source.raw, isComplete: true, status: 'running', expiresAt: claim.expires_at });
+      await this.persistState();
+      if (claim.dispatch_status === 'prepared') launch = claim;
+      else await this.recoverReplay();
+      return jsonResponse({ ok: true });
+    });
+    if (launch) this.state.waitUntil(this.processReplay(launch));
+    return response;
+  }
+
+  async processReplay(claim) {
+    let record;
+    try {
+      record = await this.transaction(async () => {
+        if (this.inFlightRequest || BLOCKED.has(this.status)) return null;
+        const reservation = this.reserveSnapshot({ availableAt: Date.now() });
+        await this.persistState(); return reservation;
+      });
+      if (!record) return;
+      const analyzedHash = await hashVisualCueText(this.authoritativeRaw);
+      // Persisted DB reservation is the last admission step before invocation.
+      const reserved = await reserveVisualReplay({ env: this.env, claim });
+      if (!reserved) {
+        await deferVisualReplay({ db: this.env.DB, claim });
+        await this.transaction(async () => {
+          if (this.isCurrent(record)) { this.inFlightRequest = null; this.status = 'failed'; await this.persistState(); }
+        });
+        return;
+      }
+      if (!this.isCurrent(record) || !await loadActiveVisualReplay({ db: this.env.DB, ...this.replay })) throw new Error('Replay admission changed.');
+      const issuedRequest = { binding: this.binding, status: 'active', batchId: record.batchId,
+        requestSequence: record.requestSequence, analyzedEnd: this.authoritativeRaw.length, analyzedHash, baseLedgerRevision: this.ledger.ledgerRevision };
+      const captured = this.ledger;
+      const configured = Number(this.env.VISUAL_CUE_TIMEOUT_MS);
+      const deadline = createDeadline({ signal: this.abortController.signal,
+        timeoutMs: Number.isFinite(configured) && configured > 0 ? Math.min(configured, 60000) : 30000 });
+      let response;
+      let readinessLost = false;
+      try { response = await deadline.run(() => {
+        if (!getVisualReplayLimits(this.env) || !getVisualCueReadiness(this.env).ready) { readinessLost = true; return null; }
+        return this.executeAnnotation({ rawPrefix: this.authoritativeRaw, priorAcceptedCues: captured.cues, signal: deadline.signal });
+      }); }
+      finally { deadline.dispose(); }
+      if (readinessLost) {
+        await releaseVisualReplayReadiness({ db: this.env.DB, claim });
+        await deferVisualReplay({ db: this.env.DB, claim });
+        await this.transaction(async () => {
+          if (this.isCurrent(record)) { this.inFlightRequest = null; this.status = 'failed'; await this.persistState(); }
+        });
+        return;
+      }
+      if (!this.isCurrent(record)) return;
+      const result = await applyVisualCueBatch({ ledger: captured, issuedRequest, response, authoritativeRaw: this.authoritativeRaw,
+        validationContext: { ...this.validationContext, getSupportedDetails: (name, edition) => edition === 'rws-immanuelle-vector' ? getVectorGestureDetails(name) : [] } });
+      if (result.ledger === captured || (response.proposals?.length && result.rejected.length && !result.addedCueIds.length)
+        || !this.isCurrent(record)) throw new Error('Replay validation failed.');
+      await this.transaction(async () => {
+        if (!this.isCurrent(record)) return;
+        if (!await settleVisualReplay({ db: this.env.DB, claim, ledger: result.ledger })) throw new Error('Replay source changed.');
+        this.ledger = result.ledger; this.status = 'complete'; this.inFlightRequest = null;
+        const cues = this.recordEvent('cues', this.envelope({ addedCueIds: result.addedCueIds }));
+        const done = this.recordEvent('done', this.envelope());
+        await this.persistState(); this.broadcast(cues); this.broadcast(done); this.closeSubscribers();
+      });
+    } catch {
+      // Retain the prior ledger; only a validated fenced successor replaces it.
+      try {
+        await settleVisualReplay({ db: this.env.DB, claim });
+        await deferVisualReplay({ db: this.env.DB, claim, available: getVisualCueReadiness(this.env).ready && !!getVisualReplayLimits(this.env) });
+      } catch { /* Unknown state keeps the durable reservation. */ }
+      await this.transaction(async () => {
+        if (record && this.isCurrent(record)) { this.inFlightRequest = null; this.status = 'failed'; this.error = 'Visual accompaniment is temporarily unavailable.';
+          const event = this.recordEvent('error', this.envelope()); await this.persistState(); this.broadcast(event); this.closeSubscribers(); }
+      });
+    }
   }
 
   async handleObserve(request) {
@@ -254,7 +381,21 @@ export class ReadingVisualJob {
       && record.batchId === this.inFlightRequest?.batchId && sameVisualCueBinding(record.binding, this.binding);
   }
 
+  async originalWorkAllowed() {
+    if (this.replay) return false;
+    const binding = this.binding;
+    const allowed = binding && await isOriginalVisualWorkAllowed({ db: this.env?.DB,
+      userId: this.ownerUserId, readingResultId: binding.readingResultId, binding });
+    if (!allowed) await this.transaction(async () => {
+      this.clearPrivateState('revoked');
+      await this.persistState();
+      this.closeSubscribers();
+    });
+    return !!allowed;
+  }
+
   async processSnapshot(snapshot, reserved = null) {
+    if (!await this.originalWorkAllowed()) return;
     let record = reserved;
     if (!record) record = await this.transaction(async () => {
       if (BLOCKED.has(this.status) || this.inFlightRequest) return null;
@@ -279,7 +420,7 @@ export class ReadingVisualJob {
         await this.persistState();
         return issued;
       });
-      if (!issuedRequest) return;
+      if (!issuedRequest || !await this.originalWorkAllowed() || !this.isCurrent(record)) return;
       const response = await this.executeAnnotation({ rawPrefix: snapshot.raw,
         priorAcceptedCues: this.ledger.cues, signal: this.abortController?.signal });
       const committed = await this.commitBatch({ issuedRequest, response, recoveryEpoch: record.recoveryEpoch,
@@ -292,6 +433,8 @@ export class ReadingVisualJob {
   }
 
   async executeAnnotation({ rawPrefix, priorAcceptedCues, signal }) {
+    if (!this.replay && !await this.originalWorkAllowed()) throw new Error('Original visual work is no longer admitted.');
+    signal?.throwIfAborted();
     const prompt = buildVisualCuePrompt({ rawPrefix, cards: this.validationContext?.cards ?? [],
       artworkEdition: this.binding?.artworkEdition, priorAcceptedCues,
       question: this.validationContext?.question, reflections: this.validationContext?.reflections });
@@ -474,6 +617,9 @@ export class ReadingVisualJob {
     return this.transaction(async () => {
       const auth = await this.checkAuth(request);
       if (!auth.ok) return buildError(auth.status, auth.error);
+      if (this.replay) {
+        await revokeVisualReplay({ db: this.env.DB, replay: this.replay });
+      }
       this.invalidateWork();
       this.status = 'cancelled';
       await commitVisualResult({ db: this.env?.DB, userId: this.ownerUserId,
@@ -496,6 +642,7 @@ export class ReadingVisualJob {
 
   async revoke() {
     await this.transaction(async () => {
+      if (this.replay) await revokeVisualReplay({ db: this.env.DB, replay: this.replay });
       this.clearPrivateState('revoked');
       await this.persistState();
       this.closeSubscribers();
@@ -505,7 +652,7 @@ export class ReadingVisualJob {
 
   async expire() {
     await this.transaction(async () => {
-      await expireVisualResult({ db: this.env?.DB, userId: this.ownerUserId, readingResultId: this.binding?.readingResultId });
+      if (!this.replay) await expireVisualResult({ db: this.env?.DB, userId: this.ownerUserId, readingResultId: this.binding?.readingResultId });
       this.clearPrivateState('expired');
       await this.persistState();
       this.closeSubscribers();

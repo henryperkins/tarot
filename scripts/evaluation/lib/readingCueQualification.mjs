@@ -7,7 +7,9 @@ const KINDS = ['identity', 'literal', 'interpretation', 'balance', 'relationship
 const PARTITIONS = ['development', 'reserved-regression', 'standalone-regression', 'outside-review-regression'];
 const EDITION = 'rws-immanuelle-vector';
 const DEFAULT_ROOT = resolve(import.meta.dirname, '../../..');
-const DEFAULT_MANIFEST = 'scripts/evaluation/fixtures/readingCueQualification.json';
+// Task 7 regression freeze (2026-10-10): the independent labels of the preserved r2
+// manifest (readingCueQualification.json) with artwork pins refreshed after Task 12.
+const DEFAULT_MANIFEST = 'scripts/evaluation/fixtures/readingCueQualification.regression-20261010.json';
 const sha = text => createHash('sha256').update(text).digest('hex');
 const canonical = value => JSON.stringify(sortJSON(value));
 function sortJSON(value) {

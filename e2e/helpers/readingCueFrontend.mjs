@@ -1,10 +1,32 @@
 import { fork } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { validateCueOriginMappings, verifyCueListener } from './readingCueValidationIdentity.mjs';
+
+export async function attachCueValidationFrontend(manifestPath) {
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  validateCueOriginMappings(manifest);
+  const identity = manifest.buildIdentity;
+  const origin = new URL(manifest.origins?.frontend);
+  if (origin.hostname !== '127.0.0.1' || origin.protocol !== 'http:' || !origin.port
+    || [8787, 5175, 8789, 9235].includes(Number(origin.port)) || origin.pathname !== '/'
+    || origin.username || origin.password || origin.search || origin.hash
+    || identity?.apiMode !== 'offline-fail-closed' || !/^[a-f0-9]{64}$/.test(identity.snapshotDigest || '')) {
+    throw new Error('Qualification requires an explicitly owned immutable offline frontend.');
+  }
+  const listenerIdentity = await verifyCueListener(manifest, 'frontend');
+  return { origin: origin.origin, pid: manifest.ownedResources?.pid, inertPort: Number(new URL(manifest.origins.api).port),
+    stateDir: null, buildIdentity: identity, listenerIdentity, async close() {
+      const after = await verifyCueListener(manifest, 'frontend');
+      return { borrowed: true, closed: false, runId: identity.runId, listenerKind: after.listenerKind, outputDigest: after.outputDigest, outputIntegrity: after.outputIntegrity };
+    } };
+}
+
 export async function startCueQualificationFrontend() {
+  if (process.env.CUE_VALIDATION_MANIFEST) return attachCueValidationFrontend(process.env.CUE_VALIDATION_MANIFEST);
   const stateDir = await mkdtemp(join(tmpdir(), 'cue-browser-owned-'));
   const child = fork(fileURLToPath(import.meta.url), ['--owned-vite', stateDir], {
     cwd: fileURLToPath(new URL('../..', import.meta.url)),

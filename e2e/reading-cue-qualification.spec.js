@@ -11,7 +11,9 @@ const star = cases.find(c => c.id === 'star-2347-excerpt');
 const five = cases.find(c => c.id === 'five-card-creative-project');
 let frontend; let evidence;
 test.beforeAll(async () => {
-  evidence = await mkdtemp('output/reading-motion/evidence/cue-qualification/task5-browser-');
+  evidence = await mkdtemp(process.env.CUE_VALIDATION_EVIDENCE_DIR
+    ? join(process.env.CUE_VALIDATION_EVIDENCE_DIR, 'qualification-')
+    : 'output/reading-motion/evidence/cue-qualification/task5-browser-');
   frontend = await startCueQualificationFrontend();
   await writeFile(join(evidence, 'ownership.json'), JSON.stringify({ pid: frontend.pid, origin: frontend.origin,
     inertPort: frontend.inertPort, stateDir: frontend.stateDir, credentialsInherited: false }, null, 2), { flag: 'wx' });
@@ -30,6 +32,90 @@ async function sourceReady(page, c = star) {
   await expect(page.locator('.narrative-stream__text [data-cue-source-start]').first()).toBeAttached();
   await expect.poll(() => page.evaluate(() => window.__cueBrowser.report.narrativeEvents.some(e => e.complete))).toBe(true);
 }
+
+function assertCorrectExposures(result, score, caseData, expected, { availability = true } = {}) {
+  const targetSet = targets => targets.flatMap(t => (t.detailIds.length ? t.detailIds : ['@identity'])
+    .map(id => `${t.spreadIndex}:${id}`)).sort();
+  expect.soft(score.offlineStructuralControl).toBe(true);
+  expect.soft(score.qualificationEligible).toBe(true);
+  expect.soft(score.availability.passed).toBe(availability);
+  expect.soft(score.accompaniment.passed).toBe(true);
+  expect.soft(score.accompaniment.minimumExposureMs).toBe(600);
+  expect.soft(result.browser.motionPreference).toBe('no-preference');
+  expect.soft(result.browser.playbackProbe.found).toBe(true);
+  const actual = expected.flatMap(o => {
+    const row = score.rows.find(r => r.opportunityId === o.id);
+    const exposure = score.accompaniment.qualifiedExposures.find(e => e.cueId === row.cueId);
+    if (!exposure) return [];
+    const interval = result.browser.passageIntervals.find(p => p.opportunityId === o.id);
+    const overlap = Math.min(exposure.end, interval.end, result.browser.window.end)
+      - Math.max(exposure.start, interval.start, result.browser.window.start);
+    expect.soft(overlap, `${o.id} actual uninterrupted overlap`).toBeGreaterThanOrEqual(600);
+    expect.soft(targetSet(exposure.targets), `${o.id} occurrence/detail target set`).toEqual(targetSet(o.targets));
+    return [{ opportunityId: o.id, targets: targetSet(exposure.targets) }];
+  });
+  expect.soft(actual).toEqual(expected.map(o => ({ opportunityId: o.id, targets: targetSet(o.targets) })));
+  expect.soft(result.browser.readerSteps).toHaveLength(buildWordCount(caseData.raw));
+}
+const buildWordCount = raw => [...raw.matchAll(/\S+/g)].length;
+
+for (const cueArrival of ['production-scheduler', 'source-active-phase']) {
+  test(`paced Star correct cues expose pours, return and balance (${cueArrival}; offline)`, async ({ page }) => {
+    const session = await open(page, `positive-star-${cueArrival}`, { deliveryMode: 'paced', cueArrival });
+    try {
+      await sourceReady(page); await session.waitForReader();
+      const result = await session.finish();
+      const score = scoreCueBrowserReport({ report: result.browser, opportunities: star.opportunities,
+        cues: result.server.ledger.cues, offline: true });
+      await writeFile(join(session.outputDir, 'scores.json'), JSON.stringify(score, null, 2), { flag: 'wx' });
+      await page.screenshot({ path: join(session.outputDir, 'desktop-endpoint.png'), fullPage: true });
+      assertCorrectExposures(result, score, star, star.opportunities);
+    } finally { await session.close(); }
+  });
+  // A full 1800 ms phase between all 25 ideal releases makes later receipts lag
+  // their source past the 10 s gate by construction (Task 2 diagnosis, p95
+  // about 13.6 s). That lane records the gate's rejection rather than relaxing it.
+  const fullPhaseIdeal = cueArrival === 'source-active-phase';
+  test(fullPhaseIdeal
+    ? `paced five-card full-phase ideal arrival exposes every connection but exceeds the receipt-lag gate by construction (${cueArrival}; offline diagnostic)`
+    : `paced five-card correct cues expose introductions, Ace/Queen and return (${cueArrival}; offline)`, async ({ page }) => {
+    const session = await open(page, `positive-five-${cueArrival}`, { caseData: five, deliveryMode: 'paced', cueArrival });
+    try {
+      await sourceReady(page, five); await session.waitForReader();
+      const result = await session.finish();
+      const score = scoreCueBrowserReport({ report: result.browser, opportunities: five.opportunities,
+        cues: result.server.ledger.cues, offline: true });
+      await writeFile(join(session.outputDir, 'scores.json'), JSON.stringify(score, null, 2), { flag: 'wx' });
+      await page.screenshot({ path: join(session.outputDir, 'desktop-endpoint.png'), fullPage: true });
+      const expected = five.opportunities.filter(o => o.kind === 'identity' || o.id.endsWith(':drive-and-sensitivity')
+        || o.id.endsWith('-return') || o.id.endsWith(':closing-spark'));
+      if (fullPhaseIdeal) {
+        expect.soft(result.arrival.schedule.expectedP95LagMs).toBeGreaterThan(10000);
+        expect.soft(score.availability.numerator).toBe(25);
+        expect.soft(score.availability.p95Ms).toBeGreaterThan(10000);
+      }
+      assertCorrectExposures(result, score, five, expected, { availability: !fullPhaseIdeal });
+    } finally { await session.close(); }
+  });
+}
+
+test('reader-aligned Star arrival is an offline diagnostic with unchanged source and reader clocks', async ({ page }) => {
+  const session = await open(page, 'diagnostic-star-reader-aligned', { deliveryMode: 'paced', cueArrival: 'reader-aligned' });
+  try {
+    await sourceReady(page); await session.waitForReader();
+    const result = await session.finish();
+    const score = scoreCueBrowserReport({ report: result.browser, opportunities: star.opportunities,
+      cues: result.server.ledger.cues, offline: true });
+    await writeFile(join(session.outputDir, 'scores.json'), JSON.stringify(score, null, 2), { flag: 'wx' });
+    expect(result.sameSnapshot).toBe(true);
+    expect(result.browser.window.completed).toBe(true);
+    expect(result.arrival.schedule.mode).toBe('reader-aligned');
+    expect(result.arrival.complete).toBe(true);
+    expect(result.browser.readerSteps).toHaveLength(97);
+    // No positive-gate assertion: reader-aligned timing knowingly differs from
+    // availability-compatible source timing and is never qualification proof.
+  } finally { await session.close(); }
+});
 
 for (const deliveryMode of ['paced', 'burst', 'final-only']) {
   test(`${deliveryMode}: independent Star passage timing through real production jobs`, async ({ page }) => {
@@ -58,11 +144,12 @@ for (const deliveryMode of ['paced', 'burst', 'final-only']) {
         cues: result.server.ledger.cues, offline: true });
       await writeFile(join(session.outputDir, 'scores.json'), JSON.stringify(score, null, 2), { flag: 'wx' });
       expect(score.availability.denominator).toBe(6);
-      if (deliveryMode !== 'paced') {
-        expect(score.availability.numerator).toBe(6);
-        expect(score.availability.passed).toBe(true);
-        expect(score.accompaniment.passed).toBe(false);
-      }
+      // Skipped highlights are not acceptable (2026-10-10 decision): co-arriving
+      // burst and final-only cues each take their own turn, like paced cues.
+      expect(score.availability.numerator).toBe(6);
+      expect(score.availability.passed).toBe(true);
+      expect(score.accompaniment.passed).toBe(true);
+      expect(new Set(score.accompaniment.qualifiedExposures.map(e => e.cueId)).size).toBe(6);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: join(session.outputDir, 'desktop.png'), fullPage: true });
     } finally { await session.close(); }
@@ -189,7 +276,7 @@ for (const deliveryMode of ['paced', 'burst', 'final-only']) test(`full five-car
   } finally { await session.close(); }
 });
 
-test('late visible cue is not superseded by a later offscreen cue', async ({ page }) => {
+test('late visible cues each take one turn in source order and later offscreen cues never play', async ({ page }) => {
   let release; const gate = new Promise(resolve => { release = resolve; });
   const session = await open(page, 'late-visible-offscreen', { caseData: five, deliveryMode: 'final-only', lane: 'offscreen', reader: false,
     aiAdapter: createOfflineOpportunityAdapter(five, { beforeResponse: () => gate }) });
@@ -204,16 +291,30 @@ test('late visible cue is not superseded by a later offscreen cue', async ({ pag
     await page.waitForTimeout(700);
     release();
     await expect.poll(() => session.relay.session.job.ledger.cues.length).toBe(25);
+    const cues = session.relay.session.job.ledger.cues;
     await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-phase', /active|settling/);
-    const id = await page.locator('[data-gesture-window]').getAttribute('data-association');
-    const cue = session.relay.session.job.ledger.cues.find(c => c.id === id);
-    expect(cue.passage.end).toBeLessThan(1800);
-    await expect(page.locator(`[data-gesture-id="${id}"]`)).toBeInViewport();
-    await page.waitForTimeout(3500);
-    await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-phase', 'static');
-    expect(await page.locator('[data-gesture-window]').getAttribute('data-association')).toBe(id);
+    const first = await page.locator('[data-gesture-window]').getAttribute('data-association');
+    expect(cues.find(c => c.id === first).passage.end).toBeLessThan(1800);
+    await expect(page.locator(`[data-gesture-id="${first}"]`)).toBeInViewport();
+    // Every visible connection takes a full turn before the stage settles.
+    await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-phase', 'static', { timeout: 30000 });
     const result = await session.finish();
-    expect(result.browser.stageAdoptions.filter(a => a.origin === 'automatic').length).toBeLessThanOrEqual(2);
+    const visibility = result.browser.playbackStates.at(-1).passageVisibility;
+    const visible = cues.filter(c => visibility[c.id] === true).map(c => c.id);
+    // Before the gated ledger arrives the page's dynamic fallback registry may give
+    // a visible card identity its own turn; judge the delivered ledger cues. The
+    // ledger then shows that identity again (an open product decision, recorded
+    // in the playback contract), so the fallback turns are reported, not hidden.
+    const fallback = result.browser.stageAdoptions.filter(a => a.origin === 'automatic' && !cues.some(c => c.id === a.cueId));
+    test.info().annotations.push({ type: 'fallback-first-turns', description: JSON.stringify(fallback.map(a => ({ cueId: a.cueId, at: Math.round(a.at) }))) });
+    const played = result.browser.stageAdoptions.filter(a => a.origin === 'automatic' && cues.some(c => c.id === a.cueId)).map(a => a.cueId);
+    const sourceOrder = ids => [...ids].sort((a, b) => cues.find(c => c.id === a).passage.end - cues.find(c => c.id === b).passage.end);
+    expect(visible.length).toBeGreaterThan(1);
+    expect(played[0]).toBe(first);
+    expect(new Set(played).size).toBe(played.length);
+    expect(played).toEqual(sourceOrder(played));
+    expect(sourceOrder(played)).toEqual(sourceOrder(visible));
+    expect(await page.locator('[data-gesture-window]').getAttribute('data-association')).toBe(played.at(-1));
     const score = scoreCueBrowserReport({ report: result.browser, opportunities: five.opportunities, cues: result.server.ledger.cues, offline: true });
     expect(score.availability.denominator).toBe(0);
   } finally { release(); await session.close(); }
@@ -226,7 +327,8 @@ test('reconnect duplicates do not restart settled automatic motion', async ({ pa
   try {
     await sourceReady(page);
     await expect(page.locator('[data-gesture-id]')).not.toHaveCount(0);
-    await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-phase', 'static', { timeout: 10000 });
+    // Five visible connections each take a full 1800 ms turn before settling.
+    await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-phase', 'static', { timeout: 25000 });
     const adopted = await page.evaluate(() => window.__cueBrowser.report.stageAdoptions.filter(a => a.origin === 'automatic').length);
     const receipts = await page.evaluate(() => window.__cueBrowser.report.cueReceipts.length);
     const before = await page.locator('[data-gesture-window]').getAttribute('data-association');
@@ -360,4 +462,68 @@ for (const motionPreference of ['no-preference', 'reduce']) test(`five-card phon
     expect(result.browser.sourceProjectionErrors).toEqual([]);
     if (motionPreference === 'reduce') expect(result.browser.stageAdoptions.filter(a => a.origin === 'automatic')).toEqual([]);
   } finally { await session.close(); }
+});
+
+
+test('exact quoted source remains ineligible while only its padded wrapper enters the viewport', async ({ page }) => {
+  let release; const gate = new Promise(resolve => { release = resolve; });
+  const session = await open(page, 'source-geometry-regression', { caseData: five, deliveryMode: 'final-only', lane: 'lifecycle', reader: false,
+    aiAdapter: createOfflineOpportunityAdapter(five, { beforeResponse: () => gate }) });
+  try {
+    await sourceReady(page, five);
+    const anchor = five.opportunities.find(o => o.id.endsWith(':queen-cup')).anchors[0];
+    await page.evaluate(a => {
+      const projected = window.__cueBrowser.projection(a.start, a.end);
+      const first = projected.fragments[0].range.getClientRects()[0];
+      scrollTo({ top: scrollY + first.top - innerHeight - 3, behavior: 'instant' });
+    }, anchor);
+    release();
+    await expect.poll(() => session.relay.session.job.ledger.cues.length).toBe(25);
+    const cue = session.relay.session.job.ledger.cues.find(c => c.passage.start === anchor.start);
+    const phrase = page.locator(`[data-gesture-id="${cue.id}"]`);
+    await expect(phrase).toBeAttached();
+    await page.waitForTimeout(750);
+    const geometry = await page.evaluate(a => {
+      const element = document.querySelector(`[data-gesture-id="${a.id}"]`);
+      const projected = window.__cueBrowser.projection(a.start, a.end);
+      return { wrapper: element.getBoundingClientRect().toJSON(), text: projected.fragments.flatMap(f => [...f.range.getClientRects()].map(r => r.toJSON())),
+        states: window.__cueBrowser.report.playbackStates.slice(-5), scrollY };
+    }, { ...anchor, id: cue.id });
+    await writeFile(join(session.outputDir, 'geometry.json'), JSON.stringify(geometry, null, 2), { flag: 'wx' });
+    expect(geometry.wrapper.top).toBeLessThan(1000);
+    expect(geometry.text.every(r => r.top >= 1000)).toBe(true);
+    expect(geometry.states.at(-1).passageVisibility[cue.id]).toBe(false);
+    expect(geometry.states.at(-1).currentCueId).not.toBe(cue.id);
+    expect(await page.locator('[data-gesture-window]').getAttribute('data-association')).not.toBe(cue.id);
+    // The first line can enter while the remaining quote is still offscreen.
+    await page.evaluate(() => scrollBy({ top: 35, behavior: 'instant' }));
+    await page.waitForTimeout(250);
+    expect(await page.evaluate(id => window.__cueBrowser.report.playbackStates.at(-1).passageVisibility[id], cue.id)).toBe(false);
+    await page.evaluate(() => scrollBy({ top: 40, behavior: 'instant' }));
+    await expect.poll(() => page.evaluate(id => window.__cueBrowser.report.playbackStates.at(-1).passageVisibility[id], cue.id)).toBe(true);
+    // Earlier still-visible connections keep their turns before this one.
+    await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-association', cue.id, { timeout: 30000 });
+    await page.waitForTimeout(750);
+    expect(await page.evaluate(id => window.__cueBrowser.report.detailExposures.some(e => e.cueId === id
+      && e.origin === 'automatic' && (e.end ?? performance.now()) - e.start >= 600
+      && e.targets.some(t => t.spreadIndex === 2 && t.detailIds.includes('cup'))), cue.id)).toBe(true);
+    await phrase.click();
+    const heldDeadline = await page.evaluate(() => window.__cueBrowser.report.playbackStates.at(-1).activeUntil);
+    await page.evaluate(() => scrollBy({ top: 1200, behavior: 'instant' }));
+    await page.waitForTimeout(250);
+    await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
+    await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-association', cue.id);
+    const held = await page.evaluate(() => window.__cueBrowser.report.playbackStates.at(-1));
+    expect(held.currentCueId).toBe(cue.id);
+    expect(held.activeUntil).toBe(heldDeadline);
+    expect(held.consumedCueIds).toContain(cue.id);
+    expect(held.sourceRevision).toBe(0);
+    expect(held.passageVisibility[cue.id]).toBe(false);
+    const result = await session.finish();
+    expect(result.server.ledger.raw).toBe(five.raw);
+    expect(result.browser.sourceProjectionErrors).toEqual([]);
+    expect(result.browser.sourceDigests.some(d => d.sha256 === result.server.narrativeRawSha256)).toBe(true);
+    expect(result.browser.layout.maxProseStartDriftPx).toBe(0);
+    expect(result.browser.layout.maxOverflowPx).toBe(0);
+  } finally { release(); await session.close(); }
 });

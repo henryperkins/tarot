@@ -45,6 +45,23 @@ test('unknown usage is distinct from known zero without inventing totals for par
   assert.equal(normalizeInferenceUsage({ input_tokens: -1, output_tokens: 'bad' }).status, 'unknown');
 });
 
+test('malformed authoritative totals and conflicting aliases stay invalid across normalization', () => {
+  for (const raw of [
+    { input_tokens: 12, output_tokens: 8, total_tokens: -1 },
+    { input_tokens: 12, output_tokens: 8, total_tokens: null },
+    { input_tokens: 12, output_tokens: 8, total_tokens: '20' },
+    { input_tokens: 12, inputTokens: 13, output_tokens: 8 },
+    { input_tokens: 12, output_tokens: 8, cached_input_tokens: 13 },
+    { input_tokens: 12, output_tokens: 8, cached_input_tokens: 8, cache_creation_input_tokens: 5 },
+    { input_tokens: 12, output_tokens: 8, reasoning_output_tokens: 9 }
+  ]) {
+    const usage = normalizeInferenceUsage(raw);
+    assert.notEqual(usage.status, 'known');
+    assert.equal(usage.valid, false);
+    assert.deepEqual(normalizeInferenceUsage(usage), usage);
+  }
+});
+
 const usageCases = [
   ['Workers AI', { prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 },
     { status: 'known', inputTokens: 12, outputTokens: 8, totalTokens: 20, cacheReadInputTokens: null, cacheCreationInputTokens: null, reasoningTokens: null }],

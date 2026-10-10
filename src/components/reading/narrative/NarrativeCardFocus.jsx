@@ -3,7 +3,7 @@ import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { resolveGestureSidecar } from '../../../lib/narrativeCardLinks.js';
 import { resolveNarrativePassages } from '../../../lib/generatedNarrativePassages.js';
 import { retainHeldPassage, withPassageArtwork } from '../../../lib/retainHeldPassage.js';
-import { createGestureFocusState, reduceGestureFocus } from './narrativeGestureState.js';
+import { createGestureFocusState, nextGestureDeadline, reduceGestureFocus } from './narrativeGestureState.js';
 import { scheduleGestureDeadline } from './scheduleGestureDeadline.js';
 
 /**
@@ -89,7 +89,7 @@ export function NarrativeCardFocusProvider({
 
   useEffect(() => {
     if (!gestureSource || !gestureStudyEnabled) return;
-    dispatch({ type: 'SOURCE', source: { ...gestureSource, status: document.hidden ? 'paused' : gestureSource.status }, ...resolved, availableOccurrences });
+    dispatch({ type: 'SOURCE', source: { ...gestureSource, status: document.hidden ? 'paused' : gestureSource.status }, ...resolved, availableOccurrences, now: performance.now() });
     const previous = gestureRef.current.state;
     const measured = measuredVisibilityRef.current;
     const arrival = registryArrivalRef.current;
@@ -122,12 +122,13 @@ export function NarrativeCardFocusProvider({
         kind, active: Boolean(intent?.active), occurrenceId: intent?.occurrenceId, now: performance.now() });
     }
   }, [studyEnabled, manualInspectionStatus, gestureSource]);
+  const deadline = nextGestureDeadline(gestureState);
   useEffect(() => {
-    if (!studyEnabled || !['active', 'settling'].includes(gestureState.phase) || gestureState.held) return undefined;
-    return scheduleGestureDeadline(gestureState.activeUntil, now => dispatch({
+    if (!studyEnabled || deadline === null) return undefined;
+    return scheduleGestureDeadline(deadline, now => dispatch({
       type: 'TICK', runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision, now
     }));
-  }, [studyEnabled, gestureState.phase, gestureState.activeUntil, gestureState.held, gestureSource?.runId, gestureSource?.sourceRevision]);
+  }, [studyEnabled, deadline, gestureSource?.runId, gestureSource?.sourceRevision]);
 
   useEffect(() => {
     onSelectCardRef.current = onSelectCard;
@@ -161,7 +162,7 @@ export function NarrativeCardFocusProvider({
       const { source, resolved: registry, availableOccurrences: available } = gestureRef.current;
       if (!source || progress.runId !== source.runId || progress.sourceRevision !== source.sourceRevision) return;
       dispatch({ type: 'SOURCE', source: { ...source, status: document.hidden ? 'paused' : source.status },
-        ...registry, availableOccurrences: available });
+        ...registry, availableOccurrences: available, now: performance.now() });
       dispatch({ type: 'PROGRESS', ...progress, progress, now: performance.now() });
     },
     reportVisibility({ kind, id, visible }) {

@@ -6,7 +6,7 @@
 function focal(id, terms, x, y, rx, ry, zoom = 1.5, maskSpots = [{ x, y, rx, ry }]) {
   return {
     id, terms, maskSpots, spots: maskSpots.map(spot => [spot.x, spot.y, spot.rx]),
-    frame: { x, y, zoom }, traces: []
+    frame: { x, y, zoom }, traces: [], treatment: 'static'
   };
 }
 
@@ -36,7 +36,8 @@ export const WAND_SWORD_ARTWORK = {
     focal('white-horse', ['white horse', 'horse head'], .805, .60, .115, .125, 1.55)
   ],
   'Seven of Wands': [
-    focal('defending-staff', ['diagonal staff', 'held staff'], .51, .435, .34, .29, 1.1, [
+    // Framed so both ends of the diagonal staff stay inside the compact stage.
+    focal('defending-staff', ['diagonal staff', 'held staff'], .525, .44, .34, .29, .88, [
       { x: .30, y: .25, rx: .11, ry: .11 },
       { x: .51, y: .43, rx: .12, ry: .12 },
       { x: .75, y: .63, rx: .13, ry: .12 }

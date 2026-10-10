@@ -108,3 +108,31 @@ test('supported paraphrases remain unlit when negated or addressed as personal m
     assert.deepEqual(result.associations.flatMap(cue => cue.targets.flatMap(target => target.detailIds)), [], `${name}: ${prose}`);
   }
 });
+
+test('every registered detail declares an intentional bounded or static treatment', () => {
+  const counts = { static: 0, finite: 0, water: 0 };
+  const moving = [];
+  let total = 0;
+  for (const card of getAllCards()) for (const detail of getVectorGestureDetails(card.name)) {
+    total += 1;
+    assert.ok(Object.hasOwn(counts, detail.treatment), `${card.name}/${detail.id} declares its treatment`);
+    counts[detail.treatment] += 1;
+    if (detail.treatment === 'static') {
+      // Static illumination is an authored choice: no recipe, no trace paths.
+      assert.equal(detail.motionRecipe, undefined, `${card.name}/${detail.id}`);
+      assert.deepEqual(detail.traces, [], `${card.name}/${detail.id}`);
+    } else moving.push(`${card.name}/${detail.id}:${detail.treatment}`);
+    if (detail.treatment === 'finite') {
+      assert.deepEqual(detail.motionRecipe, { kind: 'finite', duration: 1800 });
+      assert.ok(detail.traces.length > 0 && detail.traces.every(path => typeof path === 'string' && path.startsWith('M')));
+    }
+    if (detail.treatment === 'water') {
+      assert.equal(detail.motionRecipe.kind, 'water');
+      assert.ok(detail.motionRecipe.clips.stream && detail.motionRecipe.streams.length);
+      assert.deepEqual(detail.traces, []);
+    }
+  }
+  assert.equal(total, 151);
+  assert.deepEqual(counts, { static: 146, finite: 3, water: 2 });
+  assert.deepEqual(moving.sort(), ['Ace of Wands/sprout:finite', 'Seven of Swords/two-swords:finite', 'The Star/land-pour:water', 'The Star/pool-pour:water', 'Wheel of Fortune/wheel:finite']);
+});

@@ -10,6 +10,7 @@ import {
   DEFAULT_CUE_CANDIDATES, CUE_PRICING_SNAPSHOT
 } from '../scripts/evaluation/lib/visualCueEvaluationHarness.mjs';
 import { loadReadingCueCases } from '../scripts/evaluation/lib/readingCueQualification.mjs';
+import { buildVisualCuePrompt } from '../shared/generation/visualCuePrompt.js';
 
 const cases = await loadReadingCueCases();
 const star = cases.find(c => c.id === 'star-2347-excerpt');
@@ -22,6 +23,281 @@ const response = proposals => ({ response: JSON.stringify({ proposals }), model:
 const register = adapter => adapter.registerSession({ runId: 'run', caseId: star.id });
 const literal = { localAlias: 'pool', kind: 'literal', quote: star.opportunities.find(o => o.kind === 'literal').anchors[0].quote,
   targets: [{ spreadIndex: 2, detailIds: ['pool-pour'] }] };
+
+test('reservation rejection is admission-incomplete, not a dispatch', async () => {
+  const budget = await openCueRoundBudget({ path: join(await temporary(), 'round.json'), roundId: 'admission', maxEstimatedUsd: .1 });
+  const session = await createVisualCueSession({ caseData: star, candidate, budget,
+    aiAdapter: fake(async () => assert.fail('rejected admission reached provider')) });
+  await session.observe(star.raw, { complete: true });
+  const report = await session.finish();
+  const state = await budget.snapshot();
+  assert.equal(report.attempts.length, 0);
+  assert.equal(report.inferenceAttempts.length, 0);
+  assert.equal(state.attempts.length, 0);
+  assert.equal(state.estimatedUsd, 0);
+  assert.equal(state.admissions[0].reason, 'candidate-cost-bound');
+  assert.equal(report.admissionComplete, false);
+  assert.equal(report.analysisComplete, false);
+  assert.equal(report.jobAttemptRowsComplete, true);
+});
+
+test('expensive blocked candidate does not falsely halt affordable candidates', async () => {
+  const budget = await openCueRoundBudget({ path: join(await temporary(), 'round.json'), roundId: 'local-cost', maxEstimatedUsd: .2 });
+  for (const [selected, expectedCalls] of [[DEFAULT_CUE_CANDIDATES[2], 0], [candidate, 1]]) {
+    const session = await createVisualCueSession({ caseData: star, candidate: selected, budget,
+      aiAdapter: fake(async model => ({ ...response([]), model })) });
+    await session.observe(star.raw, { complete: true });
+    const report = await session.finish();
+    assert.equal(report.attempts.length, expectedCalls);
+    assert.equal(report.inferenceAttempts.length, expectedCalls);
+    assert.equal(report.fatalReason, null);
+  }
+  assert.equal((await budget.snapshot()).halted, false);
+});
+
+test('frozen expensive-first evaluation block continues to affordable candidate with full denominator', async () => {
+  const selectedManifest = JSON.parse(await readFile(new URL('../scripts/evaluation/fixtures/readingCueQualification.regression-20261010.json', import.meta.url), 'utf8'));
+  delete selectedManifest.manifestSha256;
+  selectedManifest.candidateOrder = ['glm-5.3-high', 'glm-5.3-flash-low', 'glm-5.3-flash-high'];
+  const report = await runReadingCueEvaluation({ manifest: selectedManifest, phase: 'semantic', candidates: [DEFAULT_CUE_CANDIDATES[2], candidate],
+    outputDir: join(await temporary(), 'expensive-first'), maxEstimatedUsd: .2,
+    aiAdapter: fake(async model => ({ ...response([]), model })) });
+  assert.equal(report.semantic.length, 148);
+  assert.equal(report.semantic.filter(r => r.candidateId === 'glm-5.3-high').every(r => r.attempts.length === 0 && r.inferenceAttempts.length === 0 && !r.admissionComplete), true);
+  assert.equal(report.semantic.filter(r => r.candidateId === candidate.id).every(r => r.analysisComplete), true);
+  assert.equal(report.fakeDispatches, 74);
+  assert.ok(report.incompleteReasons.includes('budget-admission-incomplete'));
+  assert.equal(report.budget.halted, false);
+});
+
+test('advisory affordability never overrides atomic reserve', async () => {
+  const path = join(await temporary(), 'round.json');
+  const budget = await openCueRoundBudget({ path, roundId: 'race', maxCalls: 1 });
+  assert.equal((await budget.canReserve({ candidate })).allowed, true);
+  const other = await openCueRoundBudget({ path, roundId: 'race', maxCalls: 1 });
+  await other.reserve({ candidate });
+  await assert.rejects(budget.reserve({ candidate }), error => error.reason === 'call-cap');
+  assert.equal((await budget.snapshot()).attempts.length, 1);
+});
+
+test('delayed successful settlement preserves usage when outer deadline cancels delivery', async () => {
+  const real = await openCueRoundBudget({ path: join(await temporary(), 'round.json'), roundId: 'delayed-success' });
+  let release;
+  let settling;
+  const gate = new Promise(resolve => { release = resolve; });
+  const entered = new Promise(resolve => { settling = resolve; });
+  const budget = { ...real, async settle(...args) { settling(); await gate; return real.settle(...args); } };
+  const session = await createVisualCueSession({ caseData: star, candidate, budget, aiAdapter: fake(async () => response([])) });
+  session.env.VISUAL_CUE_TIMEOUT_MS = 10;
+  await session.observe(star.raw, { complete: true });
+  await entered;
+  await session.state.drain();
+  release();
+  const report = await session.finish();
+  assert.equal(report.attempts.length, 1);
+  assert.equal(report.inferenceAttempts.length, 1);
+  assert.equal(report.attempts[0].outcome, 'failed');
+  assert.equal(report.inferenceAttempts[0].state, 'failed');
+  assert.equal(report.inferenceAttempts[0].input_tokens, 10);
+  assert.equal(report.jobAttemptRowsComplete, true);
+  assert.equal(report.accountingComplete, true);
+});
+
+test('cancellation while reservation returns never invokes transport or fabricates dispatch', async () => {
+  const real = await openCueRoundBudget({ path: join(await temporary(), 'reserve-cancel.json'), roundId: 'reserve-cancel' });
+  let release;
+  let reserved;
+  const gate = new Promise(resolve => { release = resolve; });
+  const entered = new Promise(resolve => { reserved = resolve; });
+  const budget = { ...real, async reserve(...args) { const result = await real.reserve(...args); reserved(); await gate; return result; } };
+  const session = await createVisualCueSession({ caseData: star, candidate, budget,
+    aiAdapter: fake(async () => assert.fail('cancelled admission invoked transport')) });
+  await session.observe(star.raw, { complete: true }); await entered;
+  await session.cancel(); await session.state.drain(); release();
+  const report = await session.finish();
+  assert.equal(report.attempts.length, 0);
+  assert.equal(report.inferenceAttempts.length, 0);
+  const state = await real.snapshot();
+  assert.equal(state.attempts.length, 0);
+  assert.equal(state.estimatedUsd, 0);
+  assert.equal(state.admissions.at(-1).reason, 'cancelled-before-dispatch');
+});
+
+test('REST structured error envelopes preserve available safe usage before rejection', async () => {
+  const adapter = createWorkersAiRestAdapter({ live: true, accountId: 'a'.repeat(32), apiToken: 'offline-fixture-only',
+    availableModels: [candidate.model], fetchImpl: async () => new Response(JSON.stringify({ success: false,
+      result: { usage: { input_tokens: 10, output_tokens: 1 }, model: candidate.model, private: 'private-body' } }), { status: 401 }) });
+  await assert.rejects(adapter.run(candidate.model, {}), error => error.code === 'authorization'
+    && error.usage.inputTokens === 10 && error.model === candidate.model && !JSON.stringify(error).includes('private-body'));
+});
+
+test('same shared ledger survives process restart with unresolved dispatched cost', async () => {
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const path = join(await temporary(), 'restart.json');
+  const budget = await openCueRoundBudget({ path, roundId: 'restart' });
+  const session = await createVisualCueSession({ caseData: star, candidate, budget,
+    aiAdapter: fake(async () => { throw new Error('offline failure'); }) });
+  await session.observe(star.raw, { complete: true });
+  const report = await session.finish();
+  assert.equal(report.inferenceAttempts.length, 1);
+  const module = new URL('../scripts/evaluation/lib/visualCueEvaluationBudget.mjs', import.meta.url).href;
+  const child = await promisify(execFile)(process.execPath, ['--input-type=module', '-e',
+    `import { openCueRoundBudget } from ${JSON.stringify(module)}; const b=await openCueRoundBudget({path:process.argv[1],roundId:'restart'}); process.stdout.write(JSON.stringify(await b.snapshot()));`, path]);
+  const reopened = JSON.parse(child.stdout);
+  assert.equal(reopened.attempts.length, 1);
+  assert.ok(Math.abs(reopened.heldUsd - .1613824) < 1e-12);
+  assert.equal(reopened.measuredCostComplete, false);
+});
+
+test('terminal failure stops inappropriate new work through a separate session handle', async () => {
+  const budget = await openCueRoundBudget({ path: join(await temporary(), 'terminal.json'), roundId: 'terminal' });
+  const first = await createVisualCueSession({ caseData: star, candidate, budget, aiAdapter: fake(async () => {
+    throw Object.assign(new Error('private upstream'), { code: 'authorization', usage: { input_tokens: 10, output_tokens: 1 } });
+  }) });
+  await first.observe(star.raw, { complete: true });
+  assert.equal((await first.finish()).inferenceAttempts.length, 1);
+  const second = await createVisualCueSession({ caseData: star, candidate, budget,
+    aiAdapter: fake(async () => assert.fail('terminal round dispatched new work')) });
+  await second.observe(star.raw, { complete: true });
+  const result = await second.finish();
+  assert.equal(result.attempts.length, 0);
+  assert.equal(result.inferenceAttempts.length, 0);
+  assert.equal(result.admissionComplete, false);
+  assert.equal(result.fatalReason, 'round-halted');
+  const snapshot = await budget.snapshot();
+  assert.equal(snapshot.attempts.length, 1);
+  assert.equal(snapshot.measuredCostComplete, true);
+  assert.ok(snapshot.estimatedUsd > 0);
+});
+
+for (const stop of ['cancel', 'deadline']) {
+  for (const reason of ['authorization', 'configuration']) {
+    test(`late ${reason} after ${stop} halts shared round without rewriting unknown attempt`, async () => {
+      const path = join(await temporary(), 'late-terminal.json');
+      const realBudget = await openCueRoundBudget({ path, roundId: 'late-terminal' });
+      let rejectRemote;
+      let dispatched;
+      let releaseHalt;
+      let haltEntered;
+      const started = new Promise(resolve => { dispatched = resolve; });
+      const remote = new Promise((_resolve, reject) => { rejectRemote = reject; });
+      const haltGate = new Promise(resolve => { releaseHalt = resolve; });
+      const halting = new Promise(resolve => { haltEntered = resolve; });
+      const budget = { ...realBudget, async halt() { haltEntered(); await haltGate; return realBudget.halt(); } };
+      let calls = 0;
+      const session = await createVisualCueSession({ caseData: star, candidate, budget,
+        aiAdapter: fake(async () => { calls++; dispatched(); return remote; }) });
+      session.env.VISUAL_CUE_TIMEOUT_MS = stop === 'deadline' ? 10 : 60000;
+      await session.observe(star.raw, { complete: true }); await started;
+      if (stop === 'cancel') await session.cancel();
+      const original = await session.finish();
+      const before = await realBudget.snapshot();
+      assert.equal(original.attempts[0].reason, stop === 'deadline' ? 'timeout' : 'cancelled');
+      rejectRemote(Object.assign(new Error('private late transport message'), { code: reason }));
+      await tick();
+      assert.equal(session.bounded.fatalReason, reason);
+      await halting;
+      let drained = false;
+      const draining = session.bounded.drainSettlements().then(() => { drained = true; });
+      await tick();
+      assert.equal(drained, false, 'terminal halt is owned settlement work');
+      releaseHalt(); await draining;
+      const reopened = await openCueRoundBudget({ path, roundId: 'late-terminal' });
+      const after = await reopened.snapshot();
+      assert.equal(after.halted, true);
+      assert.deepEqual(after.attempts, before.attempts);
+      assert.equal(after.corrections.length, 0);
+      assert.equal(after.heldUsd, before.heldUsd);
+      assert.equal(after.measuredCostComplete, false);
+      const second = await createVisualCueSession({ caseData: star, candidate, budget: reopened,
+        aiAdapter: fake(async () => { calls++; return response([]); }) });
+      await second.observe(star.raw, { complete: true });
+      const denied = await second.finish();
+      assert.equal(denied.attempts.length, 0);
+      assert.equal(denied.inferenceAttempts.length, 0);
+      assert.equal(denied.fatalReason, 'round-halted');
+      assert.equal(calls, 1);
+      assert.equal((await reopened.snapshot()).attempts.length, 1);
+    });
+  }
+}
+
+test('budget explicitly labels its reservation timestamp independently of dispatch latency', async () => {
+  const budget = await openCueRoundBudget({ path: join(await temporary(), 'reservation-clock.json'), roundId: 'reservation-clock' });
+  const reserved = await budget.reserve({ candidate });
+  assert.equal(reserved.startedAtMsMeaning, 'reservation');
+  assert.equal(reserved.reservedAtMs, reserved.startedAtMs);
+});
+
+test('untrusted input bound evidence cannot reduce conservative reservations', async () => {
+  const budget = await openCueRoundBudget({ path: join(await temporary(), 'bound.json'), roundId: 'bound' });
+  for (const verifiedInputBound of [10, { inputTokens: 10 }, { inputTokens: 10, model: candidate.model, requestSha256: 'a'.repeat(64), tokenizer: 'invented' }]) {
+    assert.deepEqual(await budget.canReserve({ candidate, verifiedInputBound }), { allowed: false, reservedUsd: null, remainingUsd: 15, reason: 'configuration' });
+    await assert.rejects(budget.reserve({ candidate, verifiedInputBound }));
+  }
+  assert.equal((await budget.snapshot()).attempts.length, 0);
+  const fresh = await openCueRoundBudget({ path: join(await temporary(), 'fresh-bound.json'), roundId: 'fresh-bound' });
+  const reserved = await fresh.reserve({ candidate });
+  assert.ok(Math.abs(reserved.reservedUsd - .1613824) < 1e-12);
+});
+
+test('later captured provider usage appends evidence and preserves original unknown attempt', async () => {
+  const budget = await openCueRoundBudget({ path: join(await temporary(), 'correction.json'), roundId: 'correction' });
+  let release;
+  let started;
+  const remote = new Promise(resolve => { release = resolve; });
+  const dispatched = new Promise(resolve => { started = resolve; });
+  const session = await createVisualCueSession({ caseData: star, candidate, budget,
+    aiAdapter: fake(async () => { started(); return remote; }) });
+  await session.observe(star.raw, { complete: true }); await dispatched;
+  await session.cancel(); await session.finish();
+  const before = await budget.snapshot();
+  const attempt = before.attempts[0];
+  await assert.rejects(budget.appendUsageEvidence(attempt.id, { evidenceId: 'fake-receipt', requestSha256: attempt.requestSha256,
+    usage: { input_tokens: 10, output_tokens: 1 }, evidence: { requestSha256: attempt.requestSha256, usage: { input_tokens: 10, output_tokens: 1 } } }));
+  assert.equal((await budget.snapshot()).measuredCostComplete, false);
+  release({ response: '{"proposals":[]}', usage: { input_tokens: 10, output_tokens: 1 }, model: candidate.model });
+  await tick(); await session.bounded.drainSettlements();
+  const after = await budget.snapshot();
+  assert.deepEqual(after.attempts, before.attempts);
+  assert.equal(after.corrections.length, 1);
+  assert.equal(after.attempts.length, 1);
+  assert.equal(after.currentAttempts[0].outcome, 'failed');
+  assert.equal(after.measuredCostComplete, true);
+  assert.equal(after.heldUsd, .000002);
+});
+
+for (const kind of ['malformed', 'rejected', 'provider-error', 'cancelled']) {
+  for (const suppliedUsage of [null, { input_tokens: 10 }, { input_tokens: 10, output_tokens: 1 }, { input_tokens: 10, output_tokens: 1, total_tokens: -1 }]) {
+    test(`${kind} response preserves exactly one dispatched attempt with ${JSON.stringify(suppliedUsage)}`, async () => {
+      let dispatched;
+      const ready = new Promise(resolve => { dispatched = resolve; });
+      const session = await createVisualCueSession({ caseData: star, candidate, aiAdapter: fake(async (_model, _input, { signal }) => {
+        dispatched();
+        if (kind === 'cancelled') await new Promise(resolve => signal.addEventListener('abort', resolve, { once: true }));
+        if (['provider-error', 'cancelled'].includes(kind)) throw Object.assign(new Error('private payload'), { usage: suppliedUsage, model: candidate.model });
+        return { response: kind === 'malformed' ? 'private invalid JSON' : '{"proposals":"private invalid shape"}', usage: suppliedUsage, model: candidate.model };
+      }) });
+      await session.observe(star.raw, { complete: true });
+      await ready;
+      if (kind === 'cancelled') await session.cancel();
+      const report = await session.finish();
+      assert.equal(report.attempts.length, 1);
+      assert.equal(report.inferenceAttempts.length, 1);
+      assert.equal(JSON.stringify(report.attempts).includes('private'), false);
+      const known = suppliedUsage?.output_tokens === 1 && suppliedUsage?.total_tokens !== -1;
+      // Cancellation wins before the provider rejects: late evidence is separate.
+      if (!known || kind === 'cancelled') {
+        assert.equal(report.attempts[0].heldUsd, report.attempts[0].reservedUsd);
+        if (!known) assert.equal((await session.budget.snapshot()).measuredCostComplete, false);
+      } else {
+        assert.equal(report.inferenceAttempts[0].input_tokens, 10);
+        assert.equal(report.jobAttemptRowsComplete, true);
+      }
+    });
+  }
+}
 
 // These assertions detect credential discovery, overdispatch and fake evidence
 // becoming model-quality evidence, while using real provider/job/ledger paths.
@@ -47,7 +323,7 @@ test('dry-run validates 222 planned semantic evaluations with zero network and i
   assert.equal(report.qualified, false);
   assert.equal(report.mode, 'offline fake-adapter checks');
   assert.ok(report.identity.head);
-  assert.equal(report.identity.manifestSha256, '42071738c05223979622457bbc918215ba7e455d3d06bac170d969ae5ad799c3');
+  assert.equal(report.identity.manifestSha256, 'a058bae059a90a84dbcd5bef5f33b418628381f01c15986fb879c1b33d2a4fe2');
   await assert.rejects(runReadingCueEvaluation({ outputDir }), /exist|immutable/i);
   assert.deepEqual(JSON.parse(await readFile(join(outputDir, 'report.json'), 'utf8')).runId, report.runId);
 });
@@ -109,6 +385,37 @@ test('bounded adapter rejects wrong model/config/schema and missing registration
   await assert.rejects(registered.run(candidate.model, { ...adapter.requestTemplate, temperature: 1 }), /configuration/i);
   await assert.rejects(adapter.run(candidate.model, adapter.requestTemplate), /registration/i);
   assert.equal((await budget.snapshot()).attempts.length, 0);
+});
+
+test('bounded adapter freezes the system prompt for the registered edition', async () => {
+  const { systemPrompt: identityPrompt, userPrompt: identityUser } = buildVisualCuePrompt({ artworkEdition: 'identity:thoth-a1' });
+  const open = async (roundId, dispatched = []) => {
+    const budget = await openCueRoundBudget({ path: join(await temporary(), 'round.json'), roundId });
+    const adapter = createBoundedCueAdapter({ live: false, budget, candidate,
+      aiAdapter: fake(async (_model, input) => { dispatched.push(input.messages[0].content); return response([]); }) });
+    const withSystem = (content, user = identityUser) => ({ ...adapter.requestTemplate, messages: [{ role: 'system', content }, { role: 'user', content: user }] });
+    return { budget, adapter, withSystem, dispatched,
+      identityOnly: adapter.registerSession({ runId: 'run', caseId: 'thoth', artworkEdition: 'identity:thoth-a1' }),
+      supported: adapter.registerSession({ runId: 'run', caseId: star.id, artworkEdition: 'rws-immanuelle-vector' }) };
+  };
+  // A configuration rejection halts its adapter, so each mismatch gets its own round.
+  const unsupportedWithExamples = await open('edition-identity');
+  assert.notEqual(identityPrompt, unsupportedWithExamples.adapter.requestTemplate.messages[0].content);
+  await assert.rejects(unsupportedWithExamples.identityOnly.run(candidate.model, unsupportedWithExamples.adapter.requestTemplate), /configuration/i);
+  const supportedWithoutExamples = await open('edition-supported');
+  await assert.rejects(supportedWithoutExamples.supported.run(candidate.model, supportedWithoutExamples.withSystem(identityPrompt)), /configuration/i);
+  // The right system prompt cannot carry a user prompt that names another edition.
+  const mismatchedUser = await open('edition-user-line');
+  await assert.rejects(mismatchedUser.supported.run(candidate.model, mismatchedUser.withSystem(mismatchedUser.adapter.requestTemplate.messages[0].content, identityUser)), /configuration/i);
+  assert.equal(mismatchedUser.adapter.admissions.at(-1).registration.artworkEdition, 'rws-immanuelle-vector');
+  for (const rejected of [unsupportedWithExamples, supportedWithoutExamples, mismatchedUser]) {
+    assert.equal((await rejected.budget.snapshot()).attempts.length, 0);
+    assert.deepEqual(rejected.dispatched, []);
+  }
+  const accepted = await open('edition-accepted');
+  await accepted.identityOnly.run(candidate.model, accepted.withSystem(identityPrompt));
+  await accepted.supported.run(candidate.model, accepted.adapter.requestTemplate);
+  assert.deepEqual(accepted.dispatched, [identityPrompt, accepted.adapter.requestTemplate.messages[0].content]);
 });
 
 test('real job rejects malformed and unsupported proposals separately from dispatch outcome', async () => {

@@ -9,7 +9,8 @@ import baseViteConfig from '../vite.config.js';
 import { parseJsoncConfig } from '../scripts/deploy.js';
 import { createD1 } from './helpers/d1Sqlite.mjs';
 import { developmentConfig, developmentEnvironment, developmentPaths, developmentViteConfig, LOCAL_DATABASE_ID,
-  localMigrationArguments, parseDevelopmentOptions, resolveDevelopmentOwner, validateLocalReviewer, VISUAL_MODEL, workerArguments } from '../scripts/lib/readingGesturesDev.mjs';
+  localMigrationArguments, parseDevelopmentOptions, resolveDevelopmentOwner, validateIsolation, validateLocalReviewer, VISUAL_MODEL,
+  workerArguments } from '../scripts/lib/readingGesturesDev.mjs';
 
 test('local owner selection resolves an existing active account and refuses absent, disabled or service accounts', async t => {
   const db = await createD1();
@@ -94,6 +95,81 @@ test('generated config isolates storage and production config remains unchanged'
   for (const binding of [...config.d1_databases, ...config.kv_namespaces, ...config.r2_buckets]) assert.equal(binding.remote, false);
   assert.ok(config.durable_objects.bindings.every(binding => !binding.script_name));
   for (const name of ['routes', 'services', 'env', 'triggers', 'tail_consumers', 'send_email']) assert.equal(config[name], undefined);
+});
+
+test('isolated launches require four explicit owned ports and a private directory, never beta defaults', () => {
+  const isolation = { ports: { worker: 41001, frontend: 41002, gateway: 41003, inspector: 41004 },
+    privateDirectory: '/private/cue-pro', databaseId: '7b2f9a4e-1c3d-4e5f-8a9b-0c1d2e3f4a5b' };
+  assert.deepEqual(validateIsolation(isolation), isolation);
+  for (const ports of [{ ...isolation.ports, worker: 8787 }, { ...isolation.ports, frontend: 5175 }, { ...isolation.ports, gateway: 8789 },
+    { ...isolation.ports, inspector: 9235 }, { ...isolation.ports, frontend: 41001 }, { ...isolation.ports, gateway: 80 }, { ...isolation.ports, worker: '41001' }]) {
+    assert.throws(() => validateIsolation({ ...isolation, ports }), /explicit owned ports/);
+  }
+  assert.throws(() => validateIsolation({ ...isolation, privateDirectory: 'relative' }), /absolute private directory/);
+  for (const databaseId of [LOCAL_DATABASE_ID, 'not-a-uuid', undefined]) assert.throws(() => validateIsolation({ ...isolation, databaseId }), /database/);
+  assert.deepEqual(parseDevelopmentOptions(['--isolated', '/private/options.json']),
+    { check: false, provider: 'claude-code', ownerEmail: null, isolated: '/private/options.json' });
+  for (const argv of [['--isolated'], ['--isolated', 'relative.json'], ['--isolated', '/a.json', '--isolated', '/b.json']]) {
+    assert.throws(() => parseDevelopmentOptions(argv));
+  }
+});
+
+test('isolated config uses its own ports, database and paths with no unbudgeted Workers AI or visual dispatch', async () => {
+  const base = parseJsoncConfig(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
+  const isolation = validateIsolation({ ports: { worker: 41001, frontend: 41002, gateway: 41003, inspector: 41004 },
+    privateDirectory: '/private/cue-pro', databaseId: '7b2f9a4e-1c3d-4e5f-8a9b-0c1d2e3f4a5b' });
+  const config = developmentConfig(base, { root: '/worktree', ownerUserId: 'local-owner', accountId: 'account',
+    provider: 'codex-subscription', isolation });
+  assert.equal(config.dev.port, 41001);
+  assert.equal(config.dev.inspector_port, 41004);
+  assert.equal(config.vars.APP_URL, 'http://localhost:41001');
+  assert.equal(config.vars.CODEX_SUBSCRIPTION_GATEWAY_URL, 'http://127.0.0.1:41003');
+  assert.equal(config.d1_databases[0].database_id, isolation.databaseId);
+  assert.notEqual(config.d1_databases[0].database_name, 'reading-gestures-local');
+  // Live visual dispatch needs the shared Task 7 budget ledger; until a budget-gated
+  // transport exists the isolated runtime has no Workers AI binding at all.
+  assert.equal(config.ai, undefined);
+  for (const name of ['VISUAL_CUE_PROVIDER', 'VISUAL_CUE_MODEL', 'VISUAL_CUE_REASONING_EFFORT']) assert.equal(config.vars[name], undefined);
+  const paths = developmentPaths('/worktree', isolation);
+  assert.equal(paths.directory, '/private/cue-pro');
+  assert.equal(paths.state, '/private/cue-pro/state');
+  const args = workerArguments(paths, isolation);
+  assert.equal(args[args.indexOf('--port') + 1], '41001');
+  assert.equal(developmentViteConfig({ server: {} }, { privateDirectory: paths.directory, port: 41002 }).server.port, 41002);
+  // With the real Vite base, every proxied path of an isolated frontend targets its own Worker, never the beta.
+  const isolatedFrontend = developmentViteConfig(baseViteConfig, { privateDirectory: paths.directory, port: 41002, workerPort: 41001 });
+  assert.ok(Object.keys(isolatedFrontend.server.proxy).length > 0);
+  for (const route of Object.values(isolatedFrontend.server.proxy)) {
+    assert.equal(typeof route === 'string' ? route : route.target, 'http://localhost:41001');
+  }
+  for (const workerPort of [8787, 5175, 80, 70000, '41001']) {
+    assert.throws(() => developmentViteConfig(baseViteConfig, { privateDirectory: paths.directory, port: 41002, workerPort }), /own owned Worker port/);
+  }
+  assert.equal(baseViteConfig.server.proxy['/api'].target, 'http://localhost:8787');
+  // The ordinary beta keeps its exact defaults.
+  const beta = developmentConfig(base, { root: '/worktree', ownerUserId: 'local-owner', accountId: 'account' });
+  assert.equal(beta.dev.port, 8787);
+  assert.equal(beta.vars.VISUAL_CUE_PROVIDER, 'workers-ai');
+  assert.equal(beta.ai.remote, true);
+  assert.equal(developmentPaths('/worktree').directory, '/worktree/.wrangler/reading-gestures-beta');
+  assert.equal(workerArguments(developmentPaths('/worktree'))[workerArguments(developmentPaths('/worktree')).indexOf('--port') + 1], '8787');
+  assert.equal(developmentViteConfig({ server: {} }, { privateDirectory: '/x' }).server.port, 5175);
+  assert.equal(developmentViteConfig(baseViteConfig, { privateDirectory: '/x' }).server.proxy['/api'].target, 'http://localhost:8787');
+});
+
+test('an isolated launch stops before reading credentials until it is fully isolated from the beta', async t => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'reading-gestures-isolated-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const options = path.join(dir, 'isolation.json');
+  await writeFile(options, JSON.stringify({ ports: { worker: 41001, frontend: 41002, gateway: 41003, inspector: 41004 }, privateDirectory: path.join(dir, 'run') }));
+  // The launcher computes its credential path from HOME on import; an empty
+  // sandboxed HOME keeps a regression from reading or launching anything real.
+  const home = path.join(dir, 'home'); await mkdir(home);
+  const originalHome = process.env.HOME; process.env.HOME = home;
+  t.after(() => { process.env.HOME = originalHome; });
+  const { main } = await import('../scripts/dev-reading-gestures.mjs');
+  await assert.rejects(main(['--isolated', options]), /Isolated launch is disabled/);
+  await assert.rejects(readFile(path.join(dir, 'run', 'wrangler.json')));
 });
 
 test('migration commands can only target isolated local persistence', () => {

@@ -33,7 +33,7 @@ export function createGestureFocusState({ runId, sourceRevision, binding = null,
     current: completed ? associations.at(-1) ?? null : null, held: null, pending: null,
     introduced: completed ? introductions.map(({ occurrenceId }) => occurrenceId) : [],
     visibleEnd: completed ? Math.max(0, ...introductions.map(({ end }) => end), ...associations.map(({ passage }) => passage.end)) : 0,
-    completed, hydrated: completed, status: completed ? 'complete' : 'streaming', phase: 'static', activeUntil: 0,
+    completed, hydrated: completed, status: completed ? 'complete' : 'streaming', phase: 'static', activeUntil: 0, turnUntil: 0, pausedAt: null,
     inspections: {}, artworkVisibility: {}, passageVisibility: {}, reducedMotion: false, consumedCueIds: []
   });
 }
@@ -46,30 +46,39 @@ function introducedAt(state, introductions = state.introductions) {
   return [...new Set([...state.introduced, ...introductions.filter(intro => state.visibleEnd >= intro.namedEnd).map(intro => intro.occurrenceId)])];
 }
 
+// Every live adoption owns one full turn. Reduced motion takes the same turn as
+// static meaning: no motion deadline, and no visible connection is skipped.
 function adopt(state, association, now) {
-  return consume({ ...state, current: association, phase: 'active', activeUntil: now + ACTIVE_MS, pending: null }, [association.id]);
+  const turnUntil = now + ACTIVE_MS;
+  return consume({ ...state, current: association, pending: null, turnUntil, pausedAt: null,
+    ...(state.reducedMotion ? { phase: 'static', activeUntil: 0 } : { phase: 'active', activeUntil: turnUntil }) }, [association.id]);
 }
 
-// Selection uses the full current visibility set, never source order alone or a
-// stored playback queue. Consumed candidates retain their explicit revisit UI.
+// Selection uses the full current visibility set, never a stored playback
+// queue. Live readings give each fully rendered, still-visible, unplayed
+// connection its own turn in source order: skipped highlights are not
+// acceptable (user decision, 2026-10-10). A passage passed above the viewport
+// is consumed without a later replay, so no captured backlog plays. Restored
+// readings have no arrival sequence and keep static newest-visible meaning.
+// Consumed candidates retain their explicit revisit UI.
 function reconcile(state, now) {
   const consumed = new Set(state.consumedCueIds);
   const candidates = state.associations.filter(({ id, passage }) => passage.end <= state.visibleEnd
     && state.passageVisibility[id] === true && !consumed.has(id))
     .sort((a, b) => a.passage.end - b.passage.end || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const candidate = candidates.at(-1);
-  const next = consume({ ...state, pending: null }, candidates.slice(0, -1).map(({ id }) => id));
-  if (!candidate) return next;
+  if (!candidates.length) return { ...state, pending: null };
   const blocked = state.held || Object.values(state.inspections).some(Boolean);
-  if (blocked) return { ...next, pending: state.hydrated || state.reducedMotion ? null : candidate.id };
-  if (state.hydrated || state.reducedMotion) {
-    return consume({ ...next, current: candidate, phase: 'static', activeUntil: 0 }, [candidate.id]);
+  if (state.hydrated) {
+    const latest = candidates.at(-1);
+    const next = consume({ ...state, pending: null }, candidates.slice(0, -1).map(({ id }) => id));
+    return blocked ? next : consume({ ...next, current: latest, phase: 'static', activeUntil: 0 }, [latest.id]);
   }
-  if (!['streaming', 'complete'].includes(state.status)) return { ...next, pending: candidate.id };
-  if (state.phase === 'active' && state.passageVisibility[state.current?.id] === true && now < state.activeUntil) {
-    return { ...next, pending: candidate.id };
-  }
-  return adopt(next, candidate, now);
+  const [candidate] = candidates;
+  const waiting = { ...state, pending: candidate.id };
+  if (blocked || !['streaming', 'complete'].includes(state.status)) return waiting;
+  // The current connection keeps its turn while its own passage stays visible.
+  if (state.current && state.passageVisibility[state.current.id] === true && now < state.turnUntil) return waiting;
+  return { ...adopt(state, candidate, now), pending: candidates[1]?.id ?? null };
 }
 
 function observeVisibility(state, snapshot = {}, passedCueIds = []) {
@@ -78,9 +87,36 @@ function observeVisibility(state, snapshot = {}, passedCueIds = []) {
   // releases. The renderer identifies passages above the viewport explicitly.
   let next = consume({ ...state, passageVisibility: { ...state.passageVisibility, ...snapshot } }, passedCueIds);
   if (state.current && !state.held && next.passageVisibility[state.current.id] === false) {
-    next = { ...next, phase: 'static', activeUntil: 0 };
+    // A turn ends with its passage; it never delays the next visible connection.
+    next = { ...next, phase: 'static', activeUntil: 0, turnUntil: 0, pausedAt: null };
   }
   return next;
+}
+
+// Explicit inspection and a paused document suspend a running automatic turn
+// rather than letting it expire unseen; its remaining time resumes afterwards.
+// Holding is different: it replaces the automatic turn.
+function suspendTurn(state, now) {
+  const blocked = Object.values(state.inspections).some(Boolean) || !['streaming', 'complete'].includes(state.status);
+  if (blocked && state.pausedAt === null && !state.held && state.current && !state.hydrated && now < state.turnUntil) {
+    return { ...state, pausedAt: now };
+  }
+  if (!blocked && state.pausedAt !== null) {
+    const elapsed = Math.max(0, now - state.pausedAt);
+    return { ...state, pausedAt: null, turnUntil: state.turnUntil + elapsed,
+      activeUntil: state.phase === 'active' ? state.activeUntil + elapsed : state.activeUntil };
+  }
+  return state;
+}
+
+/** The provider's next wakeup: the motion deadline, or the end of a static
+ * (reduced-motion) turn while another visible connection waits. None while
+ * held or suspended. */
+export function nextGestureDeadline(state) {
+  if (!state || state.held || state.pausedAt !== null) return null;
+  if (['active', 'settling'].includes(state.phase)) return state.activeUntil;
+  if (state.phase === 'static' && state.pending && state.turnUntil > 0) return state.turnUntil;
+  return null;
 }
 
 function release(state, now) {
@@ -115,8 +151,10 @@ export function reduceGestureFocus(state, event) {
         if (next.pending && !associations.some(({ id }) => id === next.pending)) next.pending = null;
         if (state.current && state.held?.kind !== 'identity') {
           next.current = associations.find(({ id }) => id === state.current.id) ?? null;
-          if (!next.current) { next.held = null; next.pending = null; next.phase = 'static'; }
+          if (!next.current) next = { ...next, held: null, pending: null, phase: 'static', turnUntil: 0, pausedAt: null };
         }
+        // Status can change with the source; the running turn is suspended or resumed alike.
+        next = suspendTurn(next, now);
       }
       break;
     }
@@ -129,7 +167,8 @@ export function reduceGestureFocus(state, event) {
       // Keep that exact view until release; the provider retains its rendered span.
       const current = state.held ? state.current : associations.find(({ id }) => id === state.current?.id) ?? null;
       next = { ...state, binding: event.binding ?? null, ledgerRevision: event.ledgerRevision, associations, introductions,
-        introduced: introducedAt(state, introductions), current, phase: current ? state.phase : 'static' };
+        introduced: introducedAt(state, introductions), current,
+        ...(current ? {} : { phase: 'static', turnUntil: 0, pausedAt: null }) };
       next = observeVisibility(next, event.visibilitySnapshot, event.passedCueIds);
       next = reconcile(next, now);
       break;
@@ -146,7 +185,8 @@ export function reduceGestureFocus(state, event) {
       let current;
       if (selection.kind === 'association') current = state.associations.find(({ id, passage }) => id === selection.id && passage.end <= state.visibleEnd);
       else if (state.introduced.includes(selection.occurrenceId) || state.availableOccurrences.includes(selection.occurrenceId)) current = { id: `identity-${selection.occurrenceId}`, kind: 'identity', targets: [{ occurrenceId: selection.occurrenceId, detailIds: [] }] };
-      if (current) next = consume({ ...state, held: selection, current, phase: 'held' }, [current.id]);
+      // Explicit inspection replaces any automatic turn; release resumes the next.
+      if (current) next = reconcile(consume({ ...state, held: selection, current, phase: 'held', turnUntil: 0, pausedAt: null }, [current.id]), now);
       break;
     }
     case 'RELEASE': next = release(state, now); break;
@@ -160,10 +200,10 @@ export function reduceGestureFocus(state, event) {
       break;
     }
     case 'INSPECTION': {
-      next = reconcile({ ...state, inspections: { ...state.inspections, [event.kind]: event.active } }, now);
+      next = reconcile(suspendTurn({ ...state, inspections: { ...state.inspections, [event.kind]: event.active } }, now), now);
       break;
     }
-    case 'STATUS': next = reconcile({ ...state, status: event.status }, now); break;
+    case 'STATUS': next = reconcile(suspendTurn({ ...state, status: event.status }, now), now); break;
     case 'MOTION': {
       next = { ...state, reducedMotion: event.reducedMotion };
       if (event.reducedMotion && !state.held) next = { ...next, phase: 'static', activeUntil: 0 };
@@ -171,6 +211,8 @@ export function reduceGestureFocus(state, event) {
       break;
     }
     case 'TICK':
+      // A suspended turn keeps its remaining time until the inspection ends.
+      if (state.pausedAt !== null) break;
       if (!state.held && state.phase === 'active' && now >= state.activeUntil) {
         // Background throttling must not buy an already elapsed cue more motion.
         const settlingUntil = state.activeUntil + SETTLING_MS;

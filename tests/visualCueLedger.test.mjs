@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { getVectorGestureDetails } from '../src/data/cardGestureArtwork.js';
 import { createHash } from 'node:crypto';
 import { createVisualCueLedger, applyVisualCueBatch } from '../shared/reading/visualCueLedger.js';
 
@@ -246,4 +247,73 @@ test('cumulative ledgers retain more than one complete-document batch without a 
   assert.equal(first.ledger.cues.length, 240);
   assert.equal(second.ledger.cues.length, 245);
   assert.deepEqual(second.ledger.cues.slice(0, 240), first.ledger.cues);
+});
+
+test('strict envelopes reject extra keys and oversized batches without weakening prior cues', async () => {
+  const first = await apply(createVisualCueLedger(binding), 'one', [literal()]);
+  const snapshot = JSON.stringify(first.ledger.cues);
+  for (const response of [{ proposals: [], sourceRevision: 0 }, { proposals: Array(241).fill(literal()) },
+    { proposals: 'not-an-array' }, [literal()]]) {
+    const result = await apply(first.ledger, 'two', [], { response });
+    assert.ok(result.rejected.some(item => item.code === 'invalid-response'));
+    assert.deepEqual(result.addedCueIds, []);
+    assert.equal(JSON.stringify(result.ledger.cues), snapshot);
+  }
+});
+
+test('trusted catalog rejects foreign-card detail claims and unsupported-edition geometry', async () => {
+  const trustedContext = { ...context, getSupportedDetails: (name, edition) =>
+    edition === 'rws-immanuelle-vector' ? getVectorGestureDetails(name) : [] };
+  const foreign = await apply(createVisualCueLedger(binding), 'one', [{ ...literal(),
+    targets: [{ spreadIndex: 0, detailIds: ['lantern'] }] }], { validationContext: trustedContext });
+  assert.equal(foreign.ledger.cues.length, 0);
+  assert.ok(foreign.rejected.length);
+  const empty = createVisualCueLedger({ ...binding, artworkEdition: 'identity:marseille' });
+  const result = await apply(empty, 'one', [literal(), { localAlias: 'star', kind: 'identity',
+    quote: 'The Star', targets: [{ spreadIndex: 0, detailIds: [] }] }], { validationContext: trustedContext });
+  assert.deepEqual(result.ledger.cues.map(cue => cue.kind), ['identity']);
+  assert.ok(result.rejected.some(item => item.localAlias === 'pool'));
+});
+
+test('balance requires literal evidence for both pool and land, never one neighboring detail', async () => {
+  const source = 'The Star. Water pours into the pool. Water pours onto land. Both pours stay in balance.';
+  const land = { localAlias: 'land', kind: 'literal', quote: 'Water pours onto land',
+    targets: [{ spreadIndex: 0, detailIds: ['land-pour'] }] };
+  const balance = { localAlias: 'balance', kind: 'balance', quote: 'Both pours stay in balance',
+    targets: [{ spreadIndex: 0, detailIds: ['pool-pour', 'land-pour'] }],
+    establishedBy: [{ localAlias: 'pool' }, { localAlias: 'land' }] };
+  const empty = createVisualCueLedger(binding);
+  const extra = { authoritativeRaw: source, issuedRequest: request(empty, 'one', source) };
+  const incomplete = await apply(empty, 'one', [literal(), { ...balance, establishedBy: [{ localAlias: 'pool' }] }], extra);
+  assert.deepEqual(incomplete.ledger.cues.map(cue => cue.kind), ['literal']);
+  assert.ok(incomplete.rejected.some(item => item.localAlias === 'balance'));
+  const complete = await apply(empty, 'one', [balance, land, literal()], extra);
+  assert.deepEqual(complete.ledger.cues.map(cue => cue.kind), ['literal', 'literal', 'balance']);
+  assert.deepEqual(complete.ledger.cues[2].establishedBy, complete.ledger.cues.slice(0, 2).map(cue => cue.id));
+});
+
+test('supplied typed context stays exact, absent or cross-card context cannot be fabricated', async () => {
+  const validationContext = { ...context, userQuestion: 'How do I proceed?', reflections: 'Overall: I miss home.',
+    cards: [{ index: 0, canonicalName: 'The Star', userReflection: 'I want to begin.' },
+      { index: 1, canonicalName: 'The Hermit', userReflection: 'I prefer to wait.' }] };
+  for (const personalContext of [
+    { type: 'question', quote: 'How do I proceed?' },
+    { type: 'querent-reflection', quote: 'I miss home.' },
+    { type: 'card-reflection', spreadIndex: 0, quote: 'I want to begin.' }
+  ]) {
+    const result = await apply(createVisualCueLedger(binding), 'one', [{ ...literal(), personalContext }], { validationContext });
+    assert.deepEqual(result.ledger.cues[0].personalContext, personalContext);
+  }
+  for (const personalContext of [
+    { type: 'card-reflection', spreadIndex: 0, quote: 'I prefer to wait.' },
+    { type: 'querent-reflection', quote: 'Prose mentions your reflection.' },
+    { type: 'question', quote: 'Unsupplied question?' }
+  ]) {
+    const result = await apply(createVisualCueLedger(binding), 'one', [{ ...literal(), personalContext }], { validationContext });
+    assert.equal(result.ledger.cues[0].personalContext, undefined);
+  }
+  const absent = await apply(createVisualCueLedger(binding), 'one', [{ ...literal(),
+    personalContext: { type: 'querent-reflection', quote: 'I miss home.' } }],
+  { validationContext: { ...validationContext, reflections: undefined } });
+  assert.equal(absent.ledger.cues[0].personalContext, undefined);
 });

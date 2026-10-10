@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { expectNoHorizontalOverflow } from './helpers/narrativeFixtures.js';
+import { measureGestureFocusLayer, settleGestureFocusLayer } from './helpers/artworkGeometry.mjs';
 
 const stage = page => page.locator('[data-gesture-window]');
 const current = page => stage(page).locator('.gesture-focus-layer:not(.gesture-focus-layer--departing) [data-focus-card]');
@@ -102,4 +103,28 @@ test('gentle deck arrival introduces a new detail and preserves inspection while
   await page.keyboard.press('Escape');
   await expect(stage(page)).not.toHaveAttribute('data-held', 'true');
   await expect(current(page)).toHaveAttribute('data-details', 'two-feet');
+});
+
+// Tall authored details must fit the 106px compact stage after the crop and
+// a single reversal of the shared artwork/overlay plane.
+test('compact crops keep every requested point of tall details inside the painted stage, upright and reversed @mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const [card, text, detailId] of [['The World', /oval wreath/, 'wreath'], ['Ace of Wands', /sprouting leaves/, 'sprout'], ['Seven of Wands', /diagonal staff/, 'defending-staff']]) {
+    for (const orientation of ['upright', 'reversed']) {
+      await openDeck(page, card, `&orientation=${orientation}`);
+      const target = phrase(page, text);
+      await target.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+      await target.press('Enter');
+      await expect(current(page)).toHaveAttribute('data-details', detailId);
+      await settleGestureFocusLayer(page);
+      const layer = await page.evaluate(measureGestureFocusLayer);
+      const [art] = layer.cards[0].arts;
+      expect(art.crop && art.planeTransform !== 'none').toBe(true);
+      expect(art.orientation.halfTurns).toHaveLength(orientation === 'reversed' ? 1 : 0);
+      expect(art.overlay.lightAligned).toBe(true);
+      expect(art.spots.length).toBeGreaterThan(0);
+      expect(art.spots.filter(spot => !spot.centerInside).map(spot => ({ ...spot.upright, marginPx: spot.centerMarginPx })), `${card}/${detailId} ${orientation}`).toEqual([]);
+    }
+  }
+  await expectNoHorizontalOverflow(page);
 });

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CardTouchArt } from './CardTouchArt';
 import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './NarrativeCardFocus';
 import { railColumns } from './spreadCompanionLayout';
@@ -85,12 +85,30 @@ export function SpreadCompanion({ variant = 'rail' }) {
   );
 }
 
+// Engines without :focus-visible cannot tell keyboard focus apart; treat it as keyboard.
+function keyboardFocus(element) {
+  try { return element.matches(':focus-visible'); } catch { return true; }
+}
+
 function GestureCompanion({ focus, api }) {
   const { cards, introductions, gestureSource: source, calm } = focus;
   const state = focus.studyEnabled ? focus.gestureState : { ...focus.gestureState, current: null, introduced: [], pending: null, phase: 'static' };
   const root = useRef(null);
   const windowRef = useRef(null);
   const [artVisible, setArtVisible] = useState(false);
+  // Keyboard or assistive-technology focus inside the stage is an inspection:
+  // automatic turns pause instead of replacing the card under that cursor.
+  // Pointer focus is not: a clicked button keeps focus without a visible ring,
+  // and suspending there would let unseen connections scroll away.
+  const stageFocused = useRef(false);
+  const reportStageFocus = useCallback(focused => {
+    if (focused === stageFocused.current) return;
+    stageFocused.current = focused;
+    api.reportInspection({ kind: 'stage-focus', active: focused });
+  }, [api]);
+  // A focused card removed by an explicit change fires no blur in every engine.
+  useEffect(() => { if (stageFocused.current && !windowRef.current?.contains(document.activeElement)) reportStageFocus(false); });
+  useEffect(() => () => { if (stageFocused.current) api.reportInspection({ kind: 'stage-focus', active: false }); }, [api]);
   const current = state.current;
   const [layers, setLayers] = useState({ id: current?.id, current, departing: null, exitId: 0 });
   if (layers.id !== current?.id) setLayers({ id: current?.id, current, departing: calm ? null : layers.current,
@@ -171,7 +189,9 @@ function GestureCompanion({ focus, api }) {
       })}
     </ol>
     <div ref={windowRef} data-gesture-window className="gesture-window" data-association={current?.id || ''} data-phase={state.phase}
-      data-held={state.held ? 'true' : undefined} data-pending={state.pending || ''}>
+      data-held={state.held ? 'true' : undefined} data-pending={state.pending || ''}
+      onFocus={event => reportStageFocus(keyboardFocus(event.target))}
+      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) reportStageFocus(false); }}>
       {focus.studyEnabled && !calm && present(layers.departing, true)}{present(current)}
     </div>
     <div className="gesture-context" aria-live="off">{personalContext ? <span>“{personalContext.quote}”</span> : null}</div>

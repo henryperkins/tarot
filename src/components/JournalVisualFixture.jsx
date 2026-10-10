@@ -25,6 +25,6 @@ export default function JournalVisualFixture() {
     <button type="button" onClick={save} disabled={saved || journal.entries.length > 0}>Save pending reading</button>
     <output data-testid="journal-count">{journal.entries.length}</output>
     {journal.entries.map(entry => <JournalEntryCard key={entry.id} entry={entry} defaultExpanded gestureStudyEnabled
-      onDelete={() => journal.deleteEntry(entry.id)} />)}
+      onDelete={() => journal.deleteEntry(entry.id)} onRetryVisuals={journal.retrySavedVisuals} />)}
   </main>;
 }

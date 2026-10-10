@@ -61,6 +61,7 @@ export default function Journal() {
     loading,
     loadingMore,
     deleteEntry,
+    retrySavedVisuals,
     migrateToCloud,
     importLegacyLocalEntries,
     loadMoreEntries,
@@ -717,6 +718,7 @@ export default function Journal() {
                 shareError={shareError}
                 onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
                 onDelete={handleDeleteRequest}
+                onRetryVisuals={retrySavedVisuals}
                 compact={compactList}
                 cardClass={cardClass}
               />

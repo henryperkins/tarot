@@ -6,6 +6,15 @@ import * as visualCueProvider from '../functions/lib/visualCueProvider.js';
 const prompt = { systemPrompt: 'Independent visual instructions.', userPrompt: 'Exact reading-only prose.' };
 const configured = run => ({ VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/model', AI: { run } });
 
+test('ordinary provider cannot spoof no-dispatch admission with string fields', async () => {
+  const env = configured(async () => { throw Object.assign(new Error('private-error'), { code: 'cue_admission_rejected', dispatched: false }); });
+  await assert.rejects(visualCueProvider.runVisualCueAnnotationWithMetadata({ env, prompt }), error => {
+    assert.equal(error.visualCueAttempt.outcome, 'failed');
+    assert.equal(error.visualCueAttempt.usage.status, 'unknown');
+    return true;
+  });
+});
+
 const readinessCases = [
   ['missing provider', { VISUAL_CUE_PROVIDER: undefined }, 'missing_provider'],
   ['blank provider', { VISUAL_CUE_PROVIDER: '  ' }, 'missing_provider'],

@@ -8,13 +8,32 @@ import { generateId } from '../lib/utils';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
 import { normalizeTimestamp } from '../../shared/journal/utils.js';
 import { readingGesturesEnabled } from '../lib/readingGestureSettings.js';
-import { visualStorageNamespace, writeVisualResume, removeVisualResume, patchVisualEntry,
-  persistJournalWithVisualFallback, VISUAL_SNAPSHOT_EVENT } from '../lib/readingVisualStorage.js';
+import { visualStorageNamespace, writeVisualResume, readVisualResume, removeVisualResume, patchVisualEntry,
+  persistJournalWithVisualFallback, VISUAL_SNAPSHOT_EVENT, readSavedVisualEntry, projectJournalEntryVisuals,
+  mergeCachedJournalVisuals, needsCloudVisualRefresh, requestSavedVisualRetry, adoptEntryVisuals,
+  savedVisualSourceKey, publicVisualRetryState } from '../lib/readingVisualStorage.js';
 
 const LOCALSTORAGE_KEY = 'tarot_journal';
 const CACHE_KEY_PREFIX = 'tarot_journal_cache';
 const PAGE_SIZE = 25;
 const EMPTY_ENTRIES = [];
+// One explicit retry per owner/entry in this tab; the server claim covers other tabs.
+const retryFlights = new Map();
+
+function mapChanged(entries, map) {
+  let changed = false;
+  const next = entries.map(entry => {
+    const value = map(entry);
+    if (value !== entry) changed = true;
+    return value;
+  });
+  return changed ? next : entries;
+}
+
+function retireEntryReplay(namespace, entryId) {
+  const replay = readVisualResume({ namespace, entryId });
+  if (replay) removeVisualResume({ namespace, entryId, attemptId: replay.attemptId });
+}
 
 /**
  * Get user-scoped cache key to prevent data leakage across accounts
@@ -94,47 +113,80 @@ export function useJournal({ autoLoad = true } = {}) {
   const namespaceRef = useRef(namespace);
   useLayoutEffect(() => { namespaceRef.current = namespace; }, [namespace]);
 
+  const entriesRef = useRef(entries);
+  useLayoutEffect(() => { entriesRef.current = entries; }, [entries]);
+  // A namespace captured by an unmounted instance is stale: late work is discarded.
+  const mountedRef = useRef(false);
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // Owned journal refresh: server-authoritative public state, never inference.
+  // Older public state, changed prose and other owners are never applied.
+  const refreshCloudVisual = useCallback(async (entryId, signal) => {
+    const response = await fetch(`/api/journal/${encodeURIComponent(entryId)}?includeFollowups=true`, {
+      credentials: 'include', signal
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (signal?.aborted || namespaceRef.current !== namespace || !data.entry) return;
+    const incoming = projectJournalEntryVisuals(data.entry);
+    setEntries(previous => {
+      const next = mapChanged(previous, existing => {
+        if (existing.id !== entryId || existing.personalReading !== incoming.personalReading) return existing;
+        const before = publicVisualRetryState(existing.visualState)?.stateVersion ?? -1;
+        const after = publicVisualRetryState(incoming.visualState)?.stateVersion ?? -1;
+        return after < before ? existing : mergeCachedJournalVisuals(incoming, existing);
+      });
+      if (next !== previous) {
+        try { localStorage.setItem(getCacheKey(userId), JSON.stringify(next)); } catch { /* Optional cache. */ }
+      }
+      return next;
+    });
+  }, [namespace, setEntries, userId]);
+
   useEffect(() => {
     if (!gestureStudyEnabled) return undefined;
+    const cloud = autoLoad && isAuthenticated && canUseCloudJournal;
     const receive = event => {
-      if (event.detail?.namespace !== namespace) return;
-      setEntries(previous => previous.map(entry => patchVisualEntry(entry, event.detail)));
+      const detail = event.detail;
+      if (detail?.namespace !== namespace) return;
+      if (detail.entryId) {
+        // Entry-scoped notices carry no data: adopt the committed public copy.
+        const stored = readSavedVisualEntry({ namespace, entryId: detail.entryId });
+        if (stored) setEntries(previous => mapChanged(previous, entry => entry.id === detail.entryId ? adoptEntryVisuals(entry, stored) : entry));
+        if (detail.refresh && cloud) refreshCloudVisual(detail.entryId).catch(() => { /* Polling retries. */ });
+        return;
+      }
+      setEntries(previous => mapChanged(previous, entry => patchVisualEntry(entry, detail)));
     };
     window.addEventListener(VISUAL_SNAPSHOT_EVENT, receive);
     return () => window.removeEventListener(VISUAL_SNAPSHOT_EVENT, receive);
-  }, [gestureStudyEnabled, namespace, setEntries]);
+  }, [gestureStudyEnabled, namespace, setEntries, autoLoad, isAuthenticated, canUseCloudJournal, refreshCloudVisual]);
 
-  // Cloud entries may be saved before annotation completes. Their owned journal
-  // endpoint supplies the latest durable snapshot, without a private capability.
+  // Cloud entries may be saved before annotation completes, or have a pending
+  // explicit replay. Their owned journal endpoint supplies the latest durable
+  // state and snapshot without a private capability; polling never retries work.
   useEffect(() => {
     if (!gestureStudyEnabled || !autoLoad || !isAuthenticated || !canUseCloudJournal) return undefined;
-    const pending = entries.filter(entry => entry.visual && !['complete', 'failed', 'error', 'expired', 'cancelled'].includes(entry.visual.status));
+    const pending = entries.filter(needsCloudVisualRefresh);
     if (!pending.length) return undefined;
     const controller = new AbortController();
     let polling = false;
     const timer = setInterval(async () => {
       if (polling) return;
       polling = true;
-      for (const entry of pending) {
-        try {
-          const response = await fetch(`/api/journal/${encodeURIComponent(entry.id)}?includeFollowups=true`, {
-            credentials: 'include', signal: controller.signal
-          });
-          if (!response.ok) continue;
-          const data = await response.json();
-          if (controller.signal.aborted || namespaceRef.current !== namespace || !data.entry) return;
-          setEntries(previous => {
-            const next = previous.map(existing => existing.id === entry.id
-              && existing.personalReading === data.entry.personalReading ? data.entry : existing);
-            try { localStorage.setItem(getCacheKey(user?.id), JSON.stringify(next)); } catch { /* Optional cache. */ }
-            return next;
-          });
-        } catch { /* Offline: retain the cached prose and retry on the next load. */ }
-      }
-      polling = false;
+      try {
+        for (const entry of pending) {
+          try { await refreshCloudVisual(entry.id, controller.signal); }
+          catch { /* Offline: retain the cached prose and retry on the next tick. */ }
+          if (controller.signal.aborted || namespaceRef.current !== namespace) return;
+        }
+      } finally { polling = false; }
     }, 3000);
     return () => { clearInterval(timer); controller.abort(); };
-  }, [gestureStudyEnabled, autoLoad, entries, isAuthenticated, canUseCloudJournal, namespace, user?.id, setEntries]);
+  }, [gestureStudyEnabled, autoLoad, entries, isAuthenticated, canUseCloudJournal, namespace, refreshCloudVisual]);
 
   const persistInsights = useCallback((entriesToPersist) => {
     const result = persistJournalInsights(entriesToPersist, user?.id);
@@ -201,7 +253,11 @@ export function useJournal({ autoLoad = true } = {}) {
 
           const data = await response.json();
           if (namespaceRef.current !== namespace) return;
-          const apiEntries = dedupeEntries(data.entries || []);
+          // Public projection; a recorded explicit-unavailable outcome or locally
+          // validated cache survives only for the same source and server state.
+          const cachedById = new Map(readLocalJournalArray(getCacheKey(userId)).map(item => [item?.id, item]));
+          const apiEntries = dedupeEntries(data.entries || [])
+            .map(item => mergeCachedJournalVisuals(projectJournalEntryVisuals(item), cachedById.get(item.id)));
           setEntries(apiEntries);
           setPagination({
             hasMore: Boolean(data?.pagination?.hasMore),
@@ -231,7 +287,7 @@ export function useJournal({ autoLoad = true } = {}) {
             const cacheKey = getCacheKey(userId);
             const cached = localStorage.getItem(cacheKey);
             if (cached) {
-              const parsedCache = dedupeEntries(JSON.parse(cached));
+              const parsedCache = dedupeEntries(JSON.parse(cached)).map(projectJournalEntryVisuals);
               setEntries(parsedCache);
               persistInsights(parsedCache);
               // Don't set error if we have cache, just warn
@@ -263,7 +319,7 @@ export function useJournal({ autoLoad = true } = {}) {
           if (stored) {
             try {
               const parsed = JSON.parse(stored);
-              const safeEntries = dedupeEntries(Array.isArray(parsed) ? parsed : []);
+              const safeEntries = dedupeEntries(Array.isArray(parsed) ? parsed : []).map(projectJournalEntryVisuals);
               setEntries(safeEntries);
               if (typeof window !== 'undefined') {
                 persistInsights(safeEntries);
@@ -341,7 +397,7 @@ export function useJournal({ autoLoad = true } = {}) {
       }
       const data = await response.json();
       if (namespaceRef.current !== namespace) return { success: false, appended: 0 };
-      const newEntries = Array.isArray(data?.entries) ? data.entries : [];
+      const newEntries = (Array.isArray(data?.entries) ? data.entries : []).map(projectJournalEntryVisuals);
       setEntries((prev) => {
         const next = dedupeEntries([...(Array.isArray(prev) ? prev : []), ...newEntries]);
         if (typeof window !== 'undefined') {
@@ -391,7 +447,7 @@ export function useJournal({ autoLoad = true } = {}) {
       return result;
     }
 
-    const entry = result.entry;
+    const entry = projectJournalEntryVisuals(result.entry);
     setEntries((prev) => {
       const prevEntries = Array.isArray(prev) ? prev : [];
       const next = dedupeEntries([entry, ...prevEntries]);
@@ -417,7 +473,7 @@ export function useJournal({ autoLoad = true } = {}) {
       return next;
     });
 
-    return result;
+    return { ...result, entry };
   }, [canUseCloudJournal, isAuthenticated, persistInsights, user?.id, namespace, setEntries]);
 
   // Prefetch the next page on idle to reduce perceived latency on long histories
@@ -493,21 +549,32 @@ export function useJournal({ autoLoad = true } = {}) {
 
         const data = await response.json();
 
-        // Build entry object from server response
-        const newEntry = {
+        // Build entry object from server response. The durable public visual
+        // state is authoritative; a submitted local snapshot stays only a
+        // locally validated display cache and never implies cloud attachment.
+        const newEntry = projectJournalEntryVisuals({
           id: data.entry.id,
           ts: data.entry.ts,
           ...entry,
           ...data.entry,
-          ...(data.visual ? { visual: data.visual } : {})
-        };
+          ...(data.visual ? { visual: data.visual } : {}),
+          ...(data.visualState ? { visualState: data.visualState } : {})
+        });
         if (namespaceRef.current !== namespace) return { success: true, entry: newEntry };
 
         // If server detected a duplicate (same session_seed), skip local state
         // updates to keep client in sync with DB
         if (data.deduplicated) {
           const stored = await fetchJournalEntryById(data.entry.id, { isAuthenticated: true, canUseCloudJournal: true });
-          return { success: true, entry: stored.entry || { id: data.entry.id, ts: data.entry.ts }, deduplicated: true };
+          return { success: true, entry: stored.entry ? projectJournalEntryVisuals(stored.entry) : { id: data.entry.id, ts: data.entry.ts }, deduplicated: true };
+        }
+
+        // Pending original cues resume from the private owner-scoped handle. A
+        // response arriving after this instance unmounted (for example after the
+        // user left and signed out) writes nothing; cloud pending state is polled.
+        if (gestureStudyEnabled && visualResume && entry.visualBinding && mountedRef.current
+          && (!visualResume.namespace || visualResume.namespace === namespace)) {
+          writeVisualResume({ namespace, binding: entry.visualBinding, resumeHandle: visualResume, expiresAt: visualResume.expiresAt });
         }
 
         // Add to local state - prepend and dedupe in one pass
@@ -572,7 +639,8 @@ export function useJournal({ autoLoad = true } = {}) {
         const next = dedupeEntries([newEntry, ...existing]).slice(0, 100);
         const persisted = persistJournalWithVisualFallback({ key: localKey, entries: next });
         if (!persisted.ok) return { success: false, error: 'Your browser could not save this reading. Free some storage and try again.' };
-        if (gestureStudyEnabled && visualResume && entry.visualBinding) writeVisualResume({ namespace, binding: entry.visualBinding,
+        if (gestureStudyEnabled && visualResume && entry.visualBinding
+          && (!visualResume.namespace || visualResume.namespace === namespace)) writeVisualResume({ namespace, binding: entry.visualBinding,
           resumeHandle: visualResume, expiresAt: visualResume.expiresAt });
         setEntries(persisted.entries);
         setPagination({ hasMore: false, nextCursor: null, total: persisted.entries.length });
@@ -587,6 +655,49 @@ export function useJournal({ autoLoad = true } = {}) {
       return { success: false, error: err.message };
     }
   }, [canUseCloudJournal, isAuthenticated, persistInsights, trackCardAppearances, userId, gestureStudyEnabled, namespace, setEntries]);
+
+  /**
+   * Explicit "Retry card connections" for one saved entry. Only this user
+   * action can request saved-visual annotation; mount, polling, reconnect,
+   * reload and account changes never call it. The source is the existing saved
+   * entry in the current owner's scope (cloud: the server reads its own row).
+   * Resolves with the committed PublicVisualRetryState after the claim/status
+   * and private handle are durable; rejects with a typed `code` otherwise.
+   */
+  const retrySavedVisuals = useCallback((entryId) => {
+    const owner = namespace;
+    const flightKey = `${owner}\u0000${entryId}`;
+    if (retryFlights.has(flightKey)) return retryFlights.get(flightKey);
+    const cloud = Boolean(isAuthenticated && canUseCloudJournal);
+    const isCurrent = () => mountedRef.current && namespaceRef.current === owner;
+    const flight = (async () => {
+      if (!gestureStudyEnabled) throw Object.assign(new Error('Card connections are unavailable.'), { code: 'ineligible' });
+      const entry = cloud ? entriesRef.current.find(item => item.id === entryId) : readSavedVisualEntry({ namespace: owner, entryId });
+      // Cloud state is server-authoritative: commit only to the current owner's
+      // in-memory entry for the same exact source; never insert or recreate.
+      const commit = cloud ? ({ entryId: id, sourceKey, update }) => {
+        const current = entriesRef.current.find(item => item.id === id);
+        if (!isCurrent()) return { committed: false, reason: 'stale-owner', entry: null };
+        if (!current) return { committed: false, reason: 'entry-not-found', entry: null };
+        if (savedVisualSourceKey(current) !== sourceKey) return { committed: false, reason: 'source-changed', entry: current };
+        const next = update(current);
+        return next ? { committed: true, reason: null, entry: next } : { committed: false, reason: 'unchanged', entry: current };
+      } : null;
+      const result = await requestSavedVisualRetry({ namespace: owner, entry, cloud, isCurrent, commit });
+      if (isCurrent()) {
+        setEntries(previous => {
+          const next = mapChanged(previous, item => item.id === entryId ? adoptEntryVisuals(item, result.entry) : item);
+          if (cloud && next !== previous) {
+            try { localStorage.setItem(getCacheKey(userId), JSON.stringify(next)); } catch { /* Optional cache. */ }
+          }
+          return next;
+        });
+      }
+      return result.state;
+    })().finally(() => retryFlights.delete(flightKey));
+    retryFlights.set(flightKey, flight);
+    return flight;
+  }, [namespace, isAuthenticated, canUseCloudJournal, gestureStudyEnabled, setEntries, userId]);
 
   const deleteEntry = async (entryId) => {
     setError(null);
@@ -611,6 +722,7 @@ export function useJournal({ autoLoad = true } = {}) {
           if (removed?.readingResultId && !next.some(entry => entry.readingResultId === removed.readingResultId)) {
             removeVisualResume({ namespace, readingResultId: removed.readingResultId });
           }
+          if (removed) retireEntryReplay(namespace, removed.id);
           setPagination((prevPag) => ({
             ...prevPag,
             total: typeof prevPag?.total === 'number' && prevPag.total > 0 ? prevPag.total - 1 : Math.max(0, next.length)
@@ -646,6 +758,7 @@ export function useJournal({ autoLoad = true } = {}) {
           if (removed?.readingResultId && !next.some(entry => entry.readingResultId === removed.readingResultId)) {
             removeVisualResume({ namespace, readingResultId: removed.readingResultId });
           }
+          if (removed) retireEntryReplay(namespace, removed.id);
           setPagination((prevPag) => ({
             ...prevPag,
             total: typeof prevPag?.total === 'number' && prevPag.total > 0 ? prevPag.total - 1 : Math.max(0, next.length)
@@ -906,6 +1019,7 @@ export function useJournal({ autoLoad = true } = {}) {
     syncSource,
     saveEntry,
     deleteEntry,
+    retrySavedVisuals,
     migrateToCloud,
     importLegacyLocalEntries,
     reload: loadEntries,

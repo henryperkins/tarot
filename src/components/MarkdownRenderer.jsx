@@ -32,9 +32,11 @@ function GesturePhrase({ node: _node, children, ...props }) {
   if (association?.kind === 'identity') return <span {...props} className="reading-gesture-identity">{children}</span>;
   const held = focus.gestureState.held?.kind === 'association' && focus.gestureState.held.id === id;
   const associated = focus.gestureState.current?.id === id && (held || association?.kind !== 'identity');
+  // The visible phrase is the control's accessible name (label in name); a
+  // separate card or detail label would replace the prose for screen readers.
   return (
     <span {...props} role="button" tabIndex={0} className="reading-gesture-association" aria-pressed={held}
-      data-associated={associated ? 'true' : undefined} aria-label={props['data-gesture-label']}
+      data-associated={associated ? 'true' : undefined}
       onClick={() => api.holdAssociation(id)} onKeyDown={(event) => {
         if (event.key === 'Escape') api.releaseAssociation();
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); api.holdAssociation(id); }

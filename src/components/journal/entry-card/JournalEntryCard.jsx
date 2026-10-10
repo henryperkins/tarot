@@ -7,7 +7,7 @@
  * This is a redesigned version of the original 1345-line component,
  * now decomposed into ~150 lines using extracted hooks and sub-components.
  */
-import { memo, useEffect, useId, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { readingGesturesEnabled } from '../../../lib/readingGestureSettings';
 import { useSmallScreen, SMALL_SCREEN_MAX } from '../../../hooks/useSmallScreen';
 import { InlineStatus } from '../../InlineStatus.jsx';
@@ -46,7 +46,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   defaultExpanded = false,
   compact = false,
   cardClass,
-  gestureStudyEnabled = readingGesturesEnabled()
+  gestureStudyEnabled = readingGesturesEnabled(),
+  onRetryVisuals = null
 }) {
   // Initialize expanded state - never expand if compact mode is on
   const [isExpanded, setIsExpanded] = useState(() => defaultExpanded && !compact);
@@ -96,6 +97,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const actionMenuId = `${entryIdPrefix}-actions-menu`;
 
   const wasExpandedRef = useRef(isExpanded);
+  // Explicit saved-visual retry for this entry only (the journal hook's action).
+  const retryVisuals = useCallback(() => onRetryVisuals(entry.id), [onRetryVisuals, entry.id]);
 
   // Close the menu when a user collapses an expanded card.
   useEffect(() => {
@@ -203,6 +206,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
               defaultExpanded={!isSmallScreen}
               entry={entry}
               gestureStudyEnabled={gestureStudyEnabled}
+              onRetryVisuals={onRetryVisuals ? retryVisuals : null}
             />
           )}
 

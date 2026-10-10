@@ -63,3 +63,69 @@ test('multi-detail composition follows artwork metadata and short screens retain
     assert.equal(getVectorGestureFrame(name, [id], true).shortZoom, frame.shortZoom);
   }
 });
+
+// Compact crop model, bound to the stylesheet so it cannot drift from the
+// renderer: the plane is 160 x 266.667 CSS px, scaled about the projected
+// frame point and centred in the art box. Desktop shows the whole card.
+async function compactStages() {
+  const css = await readFile(new URL('../src/styles/narrative-card-touch.css', import.meta.url), 'utf8');
+  const compact = css.slice(css.indexOf('@media (max-width: 1023px) {\n  .narrative-panel__layout:has(.gesture-companion)'));
+  assert.match(compact, /\.gesture-window \{ height: 106px; \}/);
+  assert.match(compact, /\.gesture-focus-card \{ max-width: 232px; \}/);
+  assert.match(compact, /\.gesture-focus-layer \{ gap: 10px; \}/);
+  assert.match(compact, /\.gesture-art\[data-crop\] \.gesture-art__plane \{ width: 160px; height: 266\.667px;[^}]*scale\(var\(--crop-zoom\)\) translate\(var\(--crop-x\), var\(--crop-y\)\)/);
+  assert.match(css, /@media \(max-width: 359px\) \{ \.gesture-window \{ height: 96px; \}/);
+  assert.match(css, /@media \(max-height: 600px\) and \(max-width: 1023px\) \{ \.gesture-window \{ height: 72px; \}[^\n]*scale\(var\(--crop-zoom-short\)\)/);
+  assert.match(css, /\.gesture-focus-card \{ display: flex; gap: 6px;/);
+  return { plane: { width: 160, height: 266.667 }, stages: [
+    { name: 'compact phone', width: 232, height: 106, zoom: frame => frame.zoom },
+    { name: 'narrow phone', width: 232, height: 96, zoom: frame => frame.zoom },
+    { name: 'short phone', width: 232, height: 72, zoom: frame => frame.shortZoom }
+  ] };
+}
+function outsidePoints({ name, detailIds, reversed, width, height, zoom: zoomFor, plane }) {
+  const { getVectorGestureFrame } = projection;
+  const frame = getVectorGestureFrame(name, detailIds, reversed);
+  const zoom = zoomFor(frame);
+  return getVectorGestureDetails(name).filter(detail => detailIds.includes(detail.id)).flatMap(detail => detail.maskSpots.map(spot => {
+    // Reversal rotates the upright plane once about its centre.
+    const x = reversed ? 1 - spot.x : spot.x, y = reversed ? 1 - spot.y : spot.y;
+    return { detail: detail.id, spot, dx: zoom * (x - frame.x) * plane.width, dy: zoom * (y - frame.y) * plane.height };
+  })).filter(point => Math.abs(point.dx) > width / 2 || Math.abs(point.dy) > height / 2)
+    .map(point => `${name}/${point.detail} ${reversed ? 'reversed' : 'upright'} (${point.spot.x}, ${point.spot.y}) at ${point.dx.toFixed(1)}, ${point.dy.toFixed(1)} px of ${width}x${height}`);
+}
+const projection = await import('../src/data/cardGestureArtwork.js');
+
+test('compact, narrow and short phone crops keep every requested point inside the painted stage, upright and reversed', async () => {
+  const { plane, stages } = await compactStages();
+  const failures = [];
+  for (const card of getAllCards()) for (const detail of getVectorGestureDetails(card.name)) for (const reversed of [false, true]) {
+    for (const stage of stages) failures.push(...outsidePoints({ name: card.name, detailIds: [detail.id], reversed, width: stage.width, height: stage.height, zoom: stage.zoom, plane })
+      .map(failure => `${stage.name}: ${failure}`));
+  }
+  assert.deepEqual(failures, []);
+});
+
+test('recorded relationship compositions keep requested points inside split and paired compact frames', async () => {
+  const { plane } = await compactStages();
+  const { getVectorGestureFrames } = projection;
+  // Recorded fixture targets: five-card ace-meaning (one card, two frames),
+  // Ace/Queen and Hermit/Five of Wands pairs (two cards, one frame each).
+  const stageWidth = 361, gap = 10, cardGap = 6;
+  const compositions = [
+    { name: 'Ace of Wands', targets: [{ name: 'Ace of Wands', detailIds: ['sprout', 'castle'], reversed: false }] },
+    { name: 'drive-and-sensitivity', targets: [{ name: 'Ace of Wands', detailIds: ['sprout'], reversed: false }, { name: 'Queen of Cups', detailIds: ['cup'], reversed: false }] },
+    { name: 'celtic relationship', targets: [{ name: 'The Hermit', detailIds: ['lantern'], reversed: false }, { name: 'Five of Wands', detailIds: ['staffs'], reversed: true }] }
+  ];
+  const failures = [];
+  for (const composition of compositions) {
+    const paired = composition.targets.length > 1;
+    const cardWidth = Math.min(232, paired ? (stageWidth - gap) / 2 : stageWidth);
+    for (const target of composition.targets) {
+      const frames = getVectorGestureFrames(target.name, target.detailIds, { paired });
+      const artWidth = (cardWidth - cardGap * (frames.length - 1)) / frames.length;
+      for (const ids of frames) failures.push(...outsidePoints({ name: target.name, detailIds: ids, reversed: target.reversed, width: artWidth, height: 106, zoom: frame => frame.zoom, plane }));
+    }
+  }
+  assert.deepEqual(failures, []);
+});

@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { createNarrativeFixture, startReading, expectNoHorizontalOverflow } from './helpers/narrativeFixtures.js';
 import { createVisualCueLedger, applyVisualCueBatch } from '../shared/reading/visualCueLedger.js';
 import { hashVisualCueText } from '../shared/contracts/visualCueBatches.js';
@@ -8,10 +10,22 @@ import { getVectorGestureDetails } from '../src/data/cardGestureArtwork.js';
 test.setTimeout(60000);
 const paragraph = 'Take time to consider the question you brought. Notice what feels familiar and what invites a different response. A small practical step can leave room for both movement and reflection.';
 const raw = `## Your reading\n\n${Array(5).fill(paragraph).join('\n\n')}\n\nA painted detail can accompany this moment of reflection.\n\n${Array(7).fill(paragraph).join('\n\n')}`;
-const evidenceRoot = 'output/reading-motion/evidence/live-beta-2026-10-09';
+// Historical captures, including live-beta-2026-10-09, are immutable. Every
+// run writes only beneath its own Playwright output directory: the owned
+// remediation lane supplies a unique run directory, other configs their own
+// per-run output. Files are created exclusively and carry runtime identity.
+const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+async function runtimeIdentity() {
+  if (!process.env.CUE_VALIDATION_MANIFEST) return { owned: false, note: 'No owned runtime manifest; source/build identity is not attested for this server.' };
+  const bytes = await readFile(process.env.CUE_VALIDATION_MANIFEST);
+  const { buildIdentity } = JSON.parse(bytes);
+  return { owned: true, lane: process.env.CUE_VALIDATION_LANE, runId: buildIdentity.runId, snapshotDigest: buildIdentity.snapshotDigest,
+    outputDigest: buildIdentity.outputDigest, sourceAllowlistVersion: buildIdentity.sourceAllowlistVersion, manifestSha256: sha256(bytes),
+    evidenceRunDirectory: process.env.CUE_VALIDATION_EVIDENCE_DIR ? path.basename(process.env.CUE_VALIDATION_EVIDENCE_DIR) : null };
+}
 
 for (const size of [{ label: 'desktop', width: 1100, height: 1000 }, { label: 'phone', width: 390, height: 844 }]) {
-  test(`settled companion clears the actual reading header at ${size.width}px${size.label === 'phone' ? ' @mobile' : ''}`, async ({ page }) => {
+  test(`settled companion clears the actual reading header at ${size.width}px${size.label === 'phone' ? ' @mobile' : ''}`, async ({ page, browser }, testInfo) => {
     await page.setViewportSize(size);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     const binding = { readingResultId: `controlled-geometry-${size.label}`, sourceRevision: 0,
@@ -67,12 +81,18 @@ for (const size of [{ label: 'desktop', width: 1100, height: 1000 }, { label: 'p
       expect(geometry.artwork.width).toBeGreaterThan(100);
       expect(geometry.artwork.height).toBeGreaterThan(90);
       await expectNoHorizontalOverflow(page);
-      await page.screenshot({ path: `${evidenceRoot}/controlled-${size.label}-settled.png` });
-      await writeFile(`${evidenceRoot}/controlled-${size.label}-geometry.json`, `${JSON.stringify({
+      const screenshotPath = testInfo.outputPath(`controlled-${size.label}-settled.png`);
+      await mkdir(testInfo.outputDir, { recursive: true });
+      const screenshot = await page.screenshot();
+      await writeFile(screenshotPath, screenshot, { flag: 'wx' });
+      await writeFile(testInfo.outputPath(`controlled-${size.label}-geometry.json`), `${JSON.stringify({
         scope: 'Controlled narrative and cue transports on normal reading route; guest auth; no model inference. Generic prose verifies layout, not semantic quality.',
-        viewport: size, browser: size.label === 'phone' ? 'emulated iPhone WebKit' : 'headless Chromium',
+        viewport: size, browser: testInfo.project.use.browserName, browserVersion: browser.version(), project: testInfo.project.name,
+        actual: await page.evaluate(() => ({ reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches, viewport: { width: innerWidth, height: innerHeight }, devicePixelRatio })),
+        actualReducedMotion: await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), physicalDevice: false,
+        runtime: await runtimeIdentity(), screenshot: { file: path.basename(screenshotPath), sha256: sha256(screenshot), bytes: screenshot.length },
         card: cards[0].canonicalName, detail: detail.id, ...geometry
-      }, null, 2)}\n`);
+      }, null, 2)}\n`, { flag: 'wx' });
     } finally { await fixture.close(); }
   });
 }

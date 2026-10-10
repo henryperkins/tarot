@@ -15,12 +15,20 @@ export function normalizeVisualSource(source = {}) {
     position: clean(card.position) || `Position ${spreadIndex + 1}`,
     orientation: card.orientation === 'Reversed' || card.isReversed ? 'Reversed' : 'Upright',
     artworkEdition,
-    userReflection: clean(card.userReflection || card.reflection || (typeof source.reflections === 'object' && source.reflections?.[spreadIndex]))
+    userReflection: clean((typeof source.reflections?.[spreadIndex] === 'string' ? source.reflections[spreadIndex] : undefined) ?? card.userReflection ?? card.reflection)
   }));
+  // Journal notes include Overall and legacy labels. Keep numeric notes on their
+  // exact occurrences; include every remaining supplied note in stable context.
+  const notes = source.reflections && typeof source.reflections === 'object' ? source.reflections : null;
+  const extraNotes = notes ? Object.keys(notes).sort().filter(key =>
+    !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= normalizedCards.length
+  ).filter(key => clean(notes[key])).map(key => ({ key, text: clean(notes[key]) })) : [];
+  const overall = clean(source.reflectionsText ?? source.reflections);
   return {
     cards: normalizedCards,
     question: clean(source.userQuestion ?? source.question),
-    reflections: clean(source.reflectionsText ?? source.reflections),
+    reflections: [overall, ...extraNotes.map(note => `${note.key}: ${note.text}`)].filter(Boolean).join('\n\n'),
+    ...(extraNotes.length ? { reflectionNotes: extraNotes } : {}),
     artworkEdition,
     catalogVersion: 'v1'
   };
@@ -32,7 +40,8 @@ export async function fingerprintVisualSource(source = {}) {
   const context = {
     question: normalized.question,
     reflections: normalized.reflections,
-    cardReflections: normalized.cards.map(card => card.userReflection)
+    cardReflections: normalized.cards.map(card => card.userReflection),
+    ...(normalized.reflectionNotes?.length ? { reflectionNotes: normalized.reflectionNotes } : {})
   };
   return {
     spreadHash: await hashVisualCueText(canonicalVisualCueJSON(spread)),

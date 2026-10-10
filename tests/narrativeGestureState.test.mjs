@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGestureFocusState, reduceGestureFocus, getCardPresence } from '../src/components/reading/narrative/narrativeGestureState.js';
+import { createGestureFocusState, reduceGestureFocus, getCardPresence, nextGestureDeadline } from '../src/components/reading/narrative/narrativeGestureState.js';
 import { getAllCards } from '../src/lib/cardLookup.js';
 
 const associations = ['pool', 'ground', 'balance'].map((id, index) => ({
@@ -40,19 +40,6 @@ test('source replacements cannot inherit available occurrences or their identity
   }
 });
 
-test('held inspection survives arriving text and release adopts only the latest cue', () => {
-  let s = advance(initial(), 10, ['pool']);
-  s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'pool' } }));
-  s = advance(s, 30, ['ground', 'balance']);
-  assert.equal(s.current.id, 'pool');
-  assert.equal(s.visibleEnd, 30);
-  assert.equal(s.pending, 'balance');
-  s = reduceGestureFocus(s, event('RELEASE'));
-  assert.equal(s.current.id, 'balance');
-  assert.equal(s.pending, null);
-  assert.deepEqual(s.introduced, ['a:0']);
-});
-
 test('identity selection clears detail association and same selection releases', () => {
   let s = advance(initial(), 30, ['balance']);
   const hold = event('HOLD', { selection: { kind: 'identity', occurrenceId: 'a:0' } });
@@ -87,7 +74,7 @@ test('completed hydration provides revisit access without replay', () => {
 });
 
 test('the final live cue can arrive with completion without replaying hydration', () => {
-  let s = initial();
+  let s = { ...initial(), passageVisibility: {} };
   s = reduceGestureFocus(s, { type: 'SOURCE', source: { runId: 'a', sourceRevision: 0, status: 'complete', kind: 'complete' }, associations, introductions });
   s = advance(s, 30, []);
   s = reduceGestureFocus(s, event('VISIBLE', { kind: 'passage', id: 'balance', visible: true, now: 30 }));
@@ -135,7 +122,7 @@ test('replacement clears stale hold and ignores stale progress', () => {
 });
 
 test('visibility and status cancel motion without creating an arrival backlog', () => {
-  let s = advance(initial(), 30, ['balance']);
+  let s = advance({ ...initial(), passageVisibility: { balance: true } }, 30, ['balance']);
   s = reduceGestureFocus(s, event('VISIBLE', { kind: 'artwork', id: 'a:0', visible: false }));
   assert.equal(s.canMove, false);
   s = reduceGestureFocus(s, event('VISIBLE', { kind: 'artwork', id: 'a:0', visible: true }));
@@ -253,31 +240,6 @@ test('duplicate and older ledger arrivals preserve settled state and deadlines e
   assert.equal(reduceGestureFocus(s, arrival({ ledgerRevision: 0 })), s);
 });
 
-test('an active visible cue keeps its deadline while newer visible candidates coalesce', () => {
-  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ associations: associations.slice(0, 1), addedCueIds: ['pool'], visibilitySnapshot: { pool: true } }));
-  const deadline = s.activeUntil;
-  s = reduceGestureFocus(s, arrival({ ledgerRevision: 2, visibilitySnapshot: { ground: true, balance: true }, now: 200 }));
-  assert.equal(s.current.id, 'pool');
-  assert.equal(s.activeUntil, deadline);
-  assert.equal(s.pending, 'balance');
-  s = reduceGestureFocus(s, event('TICK', { now: deadline }));
-  assert.equal(s.current.id, 'balance');
-  assert.equal(s.pending, null);
-  s = reduceGestureFocus(s, event('TICK', { now: 10000 }));
-  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: false, ground: true, balance: false }, now: 11000 }));
-  assert.equal(s.current.id, 'balance');
-  assert.equal(s.phase, 'static');
-});
-
-test('new cue registration defers without visibility and atomically chooses the latest visible passage', () => {
-  let s = reduceGestureFocus(deliveredWithoutCues(), arrival());
-  assert.equal(s.current, null);
-  assert.equal(s.pending, null);
-  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: true, ground: true, balance: false }, now: 200 }));
-  assert.equal(s.current.id, 'ground');
-  assert.equal(s.pending, null);
-});
-
 test('late passed cues remain available for explicit revisit while an unseen future cue can play', () => {
   let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: false, ground: false, balance: false }, passedCueIds: ['pool'] }));
   s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: true, ground: false, balance: false }, now: 150 }));
@@ -310,20 +272,6 @@ test('source binding replacement clears playback history and rejects the old bin
   s = advance(s, 30, []);
   s = reduceGestureFocus(s, arrival({ binding: replacement, visibilitySnapshot: { pool: true } }));
   assert.equal(s.current.id, 'pool');
-});
-
-test('late restored and reduced-motion cues update static meaning without automatic deadlines', () => {
-  for (const hydrate of [false, true]) {
-    let s = createGestureFocusState({ runId: 'a', sourceRevision: 0, completed: hydrate });
-    s = advance(s, 30, []);
-    if (!hydrate) s = reduceGestureFocus(s, event('MOTION', { reducedMotion: true }));
-    s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { pool: true, ground: true, balance: false } }));
-    assert.equal(s.current?.id, 'ground');
-    assert.equal(s.phase, 'static');
-    assert.equal(s.canMove, false);
-    assert.equal(s.activeUntil, 0);
-    assert.equal(s.pending, null);
-  }
 });
 
 test('live completion accepts useful late visible cues and is not mistaken for hydration', () => {
@@ -369,16 +317,18 @@ test('restoration of the same result clears held inspection and old automatic de
   assert.equal(s.activeUntil, 0);
 });
 
-test('reduced-motion arrival during modal inspection leaves no pending playback', () => {
+test('reduced-motion arrival during modal inspection waits for a static turn without playback', () => {
   let s = deliveredWithoutCues();
   s = reduceGestureFocus(s, event('MOTION', { reducedMotion: true }));
   s = reduceGestureFocus(s, event('INSPECTION', { kind: 'modal', active: true }));
   s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { ground: true } }));
   assert.equal(s.current, null);
-  assert.equal(s.pending, null);
+  assert.equal(s.pending, 'ground');
+  assert.equal(s.canMove, false);
   s = reduceGestureFocus(s, event('INSPECTION', { kind: 'modal', active: false }));
   assert.equal(s.current.id, 'ground');
   assert.equal(s.phase, 'static');
+  assert.equal(s.activeUntil, 0);
 });
 
 test('adopting the first visual binding resets legacy revisions while preserving held fallback and consumed cues', () => {
@@ -418,4 +368,288 @@ test('an unplayed pending cue can become visible again during inspection without
   assert.equal(s.consumedCueIds.includes('balance'), false);
   s = reduceGestureFocus(s, event('RELEASE', { now: 300 }));
   assert.equal(s.current.id, 'balance');
+});
+
+// User decision 2026-10-10: skipped highlights are not acceptable. Each fully
+// rendered, still-visible connection gets its own turn in source order.
+const played = states => states.map(s => s.current?.id).filter((id, i, all) => id && id !== all[i - 1]);
+const tickThrough = (state, count) => {
+  const states = [state];
+  for (let i = 0; i < count; i += 1) states.push(reduceGestureFocus(states.at(-1), event('TICK', { now: states.at(-1).turnUntil })));
+  return states;
+};
+
+test('co-arriving visible connections each take a full turn in source order', () => {
+  const s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true, ground: true, balance: true } }));
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.phase, 'active');
+  assert.equal(s.pending, 'ground');
+  assert.deepEqual(s.consumedCueIds, ['pool']);
+  const states = tickThrough(s, 3);
+  assert.deepEqual(played(states), ['pool', 'ground', 'balance']);
+  for (const [index, id] of ['ground', 'balance'].entries()) {
+    const turn = states[index + 1];
+    assert.equal(turn.current.id, id);
+    assert.equal(turn.phase, 'active');
+    assert.equal(turn.activeUntil, states[index].turnUntil + 1800);
+    assert.equal(turn.turnUntil, turn.activeUntil);
+  }
+  assert.equal(states[1].pending, 'balance');
+  assert.equal(states[3].current.id, 'balance');
+  assert.equal(states[3].pending, null);
+  assert.equal(states[3].phase, 'settling');
+});
+
+test('an active turn keeps its deadline while later visible connections wait their turn', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ associations: associations.slice(0, 1), addedCueIds: ['pool'], visibilitySnapshot: { pool: true } }));
+  const deadline = s.activeUntil;
+  s = reduceGestureFocus(s, arrival({ ledgerRevision: 2, visibilitySnapshot: { ground: true, balance: true }, now: 200 }));
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.activeUntil, deadline);
+  assert.equal(s.pending, 'ground');
+  assert.equal(s.consumedCueIds.includes('ground') || s.consumedCueIds.includes('balance'), false);
+  s = reduceGestureFocus(s, event('TICK', { now: deadline }));
+  assert.equal(s.current.id, 'ground');
+  assert.equal(s.pending, 'balance');
+  s = reduceGestureFocus(s, event('TICK', { now: s.activeUntil }));
+  assert.equal(s.current.id, 'balance');
+  assert.equal(s.pending, null);
+  // Played connections settle; reentering view never replays them.
+  s = reduceGestureFocus(s, event('TICK', { now: 10000 }));
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: true, ground: true, balance: true }, now: 11000 }));
+  assert.equal(s.current.id, 'balance');
+  assert.equal(s.phase, 'static');
+});
+
+test('held inspection survives arriving text and release resumes the earliest unplayed visible connection', () => {
+  let s = advance(initial(), 10, ['pool']);
+  s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'pool' } }));
+  s = advance(s, 30, ['ground', 'balance']);
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.pending, 'ground');
+  s = reduceGestureFocus(s, event('RELEASE', { now: 40 }));
+  assert.equal(s.current.id, 'ground');
+  assert.equal(s.phase, 'active');
+  assert.equal(s.pending, 'balance');
+  s = reduceGestureFocus(s, event('TICK', { now: s.activeUntil }));
+  assert.equal(s.current.id, 'balance');
+});
+
+test('new cue registration defers without visibility then plays visible passages in source order', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival());
+  assert.equal(s.current, null);
+  assert.equal(s.pending, null);
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: true, ground: true, balance: false }, now: 200 }));
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.pending, 'ground');
+  s = reduceGestureFocus(s, event('TICK', { now: s.activeUntil }));
+  assert.equal(s.current.id, 'ground');
+});
+
+test('a waiting connection scrolled above the viewport is passed without later replay', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true, ground: true, balance: true } }));
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { ground: false }, passedCueIds: ['ground'], now: 300 }));
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.pending, 'balance');
+  const states = tickThrough(s, 2);
+  assert.deepEqual(played(states), ['pool', 'balance']);
+  assert.ok(states.at(-1).consumedCueIds.includes('ground'));
+});
+
+test('a waiting connection below the viewport is not consumed and takes its turn when visible again', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true, ground: true, balance: true } }));
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { ground: false }, now: 300 }));
+  s = reduceGestureFocus(s, event('TICK', { now: s.turnUntil }));
+  assert.equal(s.current.id, 'balance');
+  assert.equal(s.consumedCueIds.includes('ground'), false);
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { ground: true }, now: s.turnUntil - 1 }));
+  assert.equal(s.current.id, 'balance');
+  assert.equal(s.pending, 'ground');
+  s = reduceGestureFocus(s, event('TICK', { now: s.turnUntil }));
+  assert.equal(s.current.id, 'ground');
+});
+
+test('reduced-motion live connections take the same turns as static meaning without motion deadlines', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), event('MOTION', { reducedMotion: true }));
+  s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { pool: true, ground: true, balance: false } }));
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.phase, 'static');
+  assert.equal(s.activeUntil, 0);
+  assert.equal(s.canMove, false);
+  assert.equal(s.pending, 'ground');
+  assert.equal(s.turnUntil, 100 + 1800);
+  const early = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { balance: true }, now: 1000 }));
+  assert.equal(early.current.id, 'pool');
+  const states = tickThrough(early, 2);
+  assert.deepEqual(played(states), ['pool', 'ground', 'balance']);
+  assert.ok(states.every(state => state.phase === 'static' && state.activeUntil === 0 && !state.canMove));
+});
+
+test('restored readings keep static newest-visible meaning without turns or deadlines', () => {
+  let s = createGestureFocusState({ runId: 'a', sourceRevision: 0, completed: true });
+  s = advance(s, 30, []);
+  s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { pool: true, ground: true, balance: false } }));
+  assert.equal(s.current?.id, 'ground');
+  assert.equal(s.phase, 'static');
+  assert.equal(s.canMove, false);
+  assert.equal(s.activeUntil, 0);
+  assert.equal(s.turnUntil, 0);
+  assert.equal(s.pending, null);
+});
+
+test('switching to reduced motion mid-turn keeps the current turn static without restarting it', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true, ground: true } }));
+  const turnUntil = s.turnUntil;
+  s = reduceGestureFocus(s, event('MOTION', { reducedMotion: true, now: 500 }));
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.phase, 'static');
+  assert.equal(s.activeUntil, 0);
+  assert.equal(s.turnUntil, turnUntil);
+  assert.equal(s.pending, 'ground');
+  s = reduceGestureFocus(s, event('MOTION', { reducedMotion: false, now: 600 }));
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.phase, 'static');
+  s = reduceGestureFocus(s, event('TICK', { now: turnUntil }));
+  assert.equal(s.current.id, 'ground');
+  assert.equal(s.phase, 'active');
+});
+
+test('an inspection or hidden document suspends the running turn and resumes its remaining time', () => {
+  for (const [block, unblock] of [
+    [{ type: 'INSPECTION', kind: 'modal', active: true }, { type: 'INSPECTION', kind: 'modal', active: false }],
+    [{ type: 'INSPECTION', kind: 'stage-focus', active: true }, { type: 'INSPECTION', kind: 'stage-focus', active: false }],
+    [{ type: 'STATUS', status: 'paused' }, { type: 'STATUS', status: 'streaming' }]]) {
+    let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true, ground: true } }));
+    assert.equal(s.turnUntil, 1900);
+    s = reduceGestureFocus(s, event(block.type, { ...block, now: 300 }));
+    assert.equal(s.pausedAt, 300);
+    assert.equal(s.canMove, false);
+    assert.equal(nextGestureDeadline(s), null);
+    s = reduceGestureFocus(s, event('TICK', { now: 1900 }));
+    assert.equal(s.current.id, 'pool');
+    assert.equal(s.phase, 'active');
+    s = reduceGestureFocus(s, event(unblock.type, { ...unblock, now: 1300 }));
+    assert.equal(s.pausedAt, null);
+    assert.equal(s.turnUntil, 2900);
+    assert.equal(s.activeUntil, 2900);
+    assert.equal(nextGestureDeadline(s), 2900);
+    assert.equal(s.current.id, 'pool');
+    s = reduceGestureFocus(s, event('TICK', { now: 2900 }));
+    assert.equal(s.current.id, 'ground');
+  }
+});
+
+test('reduced-motion static turns suspend and resume without a motion deadline', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), event('MOTION', { reducedMotion: true }));
+  s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { pool: true, ground: true } }));
+  assert.equal(nextGestureDeadline(s), 1900);
+  s = reduceGestureFocus(s, event('INSPECTION', { kind: 'card-detail', active: true, now: 1000 }));
+  assert.equal(nextGestureDeadline(s), null);
+  s = reduceGestureFocus(s, event('INSPECTION', { kind: 'card-detail', active: false, now: 4000 }));
+  assert.equal(s.turnUntil, 4900);
+  assert.equal(s.activeUntil, 0);
+  assert.equal(s.current.id, 'pool');
+  s = reduceGestureFocus(s, event('TICK', { now: 4900 }));
+  assert.equal(s.current.id, 'ground');
+  assert.equal(s.phase, 'static');
+});
+
+test('the provider deadline is the motion phase end, a waiting static turn end, or nothing', () => {
+  const base = createGestureFocusState({ runId: 'a', sourceRevision: 0 });
+  assert.equal(nextGestureDeadline(base), null);
+  assert.equal(nextGestureDeadline({ ...base, phase: 'active', activeUntil: 10, turnUntil: 10 }), 10);
+  assert.equal(nextGestureDeadline({ ...base, phase: 'settling', activeUntil: 20, turnUntil: 10 }), 20);
+  assert.equal(nextGestureDeadline({ ...base, phase: 'static', activeUntil: 0, turnUntil: 30, pending: 'ground' }), 30);
+  assert.equal(nextGestureDeadline({ ...base, phase: 'static', activeUntil: 0, turnUntil: 30, pending: null }), null);
+  assert.equal(nextGestureDeadline({ ...base, phase: 'active', activeUntil: 10, held: { kind: 'association', id: 'pool' } }), null);
+  assert.equal(nextGestureDeadline({ ...base, phase: 'active', activeUntil: 10, pausedAt: 5 }), null);
+});
+
+test('paused or errored readings never adopt a waiting connection', () => {
+  for (const status of ['paused', 'error', 'idle']) {
+    let s = reduceGestureFocus(deliveredWithoutCues(), event('STATUS', { status }));
+    s = reduceGestureFocus(s, arrival({ visibilitySnapshot: { pool: true, ground: true } }));
+    assert.equal(s.current, null, status);
+    assert.equal(s.pending, 'pool');
+    assert.deepEqual(s.consumedCueIds, []);
+    s = reduceGestureFocus(s, event('STATUS', { status: 'streaming', now: 500 }));
+    assert.equal(s.current.id, 'pool');
+  }
+});
+
+test('a turn ends when its passage leaves view and the next visible connection plays at once', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true, ground: true } }));
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: false }, now: 500 }));
+  assert.equal(s.current.id, 'ground');
+  assert.equal(s.phase, 'active');
+  assert.equal(s.turnUntil, 2300);
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: true }, now: 600 }));
+  assert.equal(s.current.id, 'ground');
+});
+
+test('holding refreshes which visible connection waits next', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true, ground: true, balance: true } }));
+  assert.equal(s.pending, 'ground');
+  s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'ground' }, now: 200 }));
+  assert.equal(s.current.id, 'ground');
+  assert.equal(s.pending, 'balance');
+  s = reduceGestureFocus(s, event('RELEASE', { now: 300 }));
+  assert.equal(s.current.id, 'balance');
+});
+
+test('a turn cut short by its passage leaving view leaves no stale wait when it returns', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true } }));
+  assert.equal(s.turnUntil, 1900);
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: false }, now: 500 }));
+  assert.equal(s.turnUntil, 0);
+  assert.equal(s.phase, 'static');
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: true, ground: true }, now: 600 }));
+  assert.equal(s.current.id, 'ground');
+  assert.equal(s.turnUntil, 2400);
+});
+
+test('an inspection after a turn has ended neither suspends settling nor its wakeup', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true } }));
+  s = reduceGestureFocus(s, event('TICK', { now: 1900 }));
+  assert.equal(s.phase, 'settling');
+  s = reduceGestureFocus(s, event('INSPECTION', { kind: 'modal', active: true, now: 2000 }));
+  assert.equal(s.pausedAt, null);
+  assert.equal(nextGestureDeadline(s), 3400);
+  s = reduceGestureFocus(s, event('TICK', { now: 3400 }));
+  assert.equal(s.phase, 'static');
+});
+
+test('holding during a suspended turn replaces it without a stale resume', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true, ground: true } }));
+  s = reduceGestureFocus(s, event('INSPECTION', { kind: 'modal', active: true, now: 300 }));
+  assert.equal(s.pausedAt, 300);
+  s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'ground' }, now: 400 }));
+  assert.equal(s.pausedAt, null);
+  assert.equal(s.turnUntil, 0);
+  s = reduceGestureFocus(s, event('INSPECTION', { kind: 'modal', active: false, now: 900 }));
+  assert.equal(s.turnUntil, 0);
+  assert.equal(s.held.id, 'ground');
+  assert.equal(s.current.id, 'ground');
+});
+
+test('status carried by a source update suspends and resumes the running turn', () => {
+  let s = reduceGestureFocus(deliveredWithoutCues(), arrival({ visibilitySnapshot: { pool: true, ground: true } }));
+  const source = (status, now) => ({ type: 'SOURCE', source: { runId: 'a', sourceRevision: 0, status, visualBinding: binding }, associations, introductions, now });
+  s = reduceGestureFocus(s, source('paused', 300));
+  assert.equal(s.pausedAt, 300);
+  assert.equal(nextGestureDeadline(s), null);
+  s = reduceGestureFocus(s, source('streaming', 1300));
+  assert.equal(s.pausedAt, null);
+  assert.equal(s.turnUntil, 2900);
+  assert.equal(nextGestureDeadline(s), 2900);
+  s = reduceGestureFocus(s, event('TICK', { now: 2900 }));
+  assert.equal(s.current.id, 'ground');
+});
+
+test('a new turn never inherits a suspension', () => {
+  const waiting = reduceGestureFocus(deliveredWithoutCues(), arrival());
+  const s = reduceGestureFocus({ ...waiting, pausedAt: 50 }, event('VISIBILITY', { visibilitySnapshot: { pool: true }, now: 200 }));
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.pausedAt, null);
+  assert.equal(nextGestureDeadline(s), 2000);
 });

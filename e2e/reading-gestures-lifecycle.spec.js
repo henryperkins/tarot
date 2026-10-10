@@ -18,6 +18,24 @@ const phrase = (page, id) => page.locator(`[data-gesture-id="${id}"]`);
 const prose = page => page.locator('.narrative-stream');
 const waterHandles = page => page.evaluate(() => [...document.querySelectorAll('[data-gesture-window] [data-gesture-water]')].flatMap(element => element.getAnimations()).map(animation => ({ state: animation.playState, rate: animation.playbackRate })));
 const runningWater = async page => (await waterHandles(page)).filter(handle => handle.state === 'running').length;
+// Records every stage association/phase change from first paint, including turns
+// that finish before an assertion could poll them.
+async function recordStage(page) {
+  await page.addInitScript(() => {
+    window.__stage = [];
+    new MutationObserver(records => {
+      for (const record of records) {
+        if (!record.target.matches?.('[data-gesture-window]')) continue;
+        const entry = { association: record.target.dataset.association, phase: record.target.dataset.phase };
+        const last = window.__stage.at(-1);
+        if (!last || last.association !== entry.association || last.phase !== entry.phase) window.__stage.push(entry);
+      }
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-association', 'data-phase'] });
+  });
+}
+const adopted = async page => (await page.evaluate(() => window.__stage)).map(entry => entry.association)
+  .filter((id, index, all) => id && id !== all[index - 1]);
+const STAR_ORDER = ['arrival', 'pool', 'land', 'memory', 'ground', 'balance'];
 
 async function open(page, query = 'sourceMode=job-sse') {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -138,11 +156,65 @@ test('completed burst settles even when a timer wakes before its deadline', asyn
     window.setTimeout = (callback, delay, ...args) => schedule(callback,
       delay > 1000 && delay <= 1800 ? delay - 50 : delay, ...args);
   });
+  await recordStage(page);
   await open(page, 'arrival=burst&associations=authored');
   await expect(diagnostics(page)).toHaveAttribute('data-source-status', 'complete');
-  await expect(windowArt(page)).toHaveAttribute('data-association', 'balance');
+  // Every co-arriving visible connection takes its own turn before balance.
+  await expect(windowArt(page)).toHaveAttribute('data-association', 'balance', { timeout: 20000 });
   await expect(windowArt(page)).toHaveAttribute('data-phase', 'static', { timeout: 6000 });
   await expect.poll(() => runningWater(page)).toBe(0);
+  expect(await adopted(page)).toEqual(STAR_ORDER);
+});
+
+test('reduced-motion burst shows every connection as static meaning in source order', async ({ page }) => {
+  await recordStage(page);
+  await open(page, 'arrival=burst&associations=authored');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.reload();
+  await expect(diagnostics(page)).toHaveAttribute('data-source-status', 'complete');
+  await expect(windowArt(page)).toHaveAttribute('data-association', 'balance', { timeout: 20000 });
+  const stage = await page.evaluate(() => window.__stage);
+  expect(await adopted(page)).toEqual(STAR_ORDER);
+  expect(stage.filter(entry => entry.association).every(entry => entry.phase === 'static')).toBe(true);
+  expect(await page.evaluate(() => document.querySelector('[data-gesture-window]').getAnimations({ subtree: true })
+    .filter(animation => animation.playState === 'running').length)).toBe(0);
+});
+
+test('keyboard focus on the stage card pauses turns until focus leaves', async ({ page }) => {
+  await recordStage(page);
+  await open(page, 'arrival=burst&associations=authored');
+  await expect(windowArt(page)).toHaveAttribute('data-association', 'pool', { timeout: 10000 });
+  const card = windowArt(page).locator('.gesture-focus-layer:not(.gesture-focus-layer--departing) [data-focus-card]').first();
+  // Reach the stage card from the shelf with the keyboard, as a keyboard user does.
+  await page.locator('[data-gesture-shelf] button:not(:disabled)').last().focus();
+  await page.keyboard.press('Tab');
+  await expect(card).toBeFocused();
+  expect(await card.evaluate(element => element.matches(':focus-visible'))).toBe(true);
+  const paused = await windowArt(page).getAttribute('data-association');
+  await page.waitForTimeout(3000);
+  await expect(windowArt(page)).toHaveAttribute('data-association', paused);
+  await expect(card).toBeFocused();
+  await expect(windowArt(page)).not.toHaveAttribute('data-held', 'true');
+  await card.evaluate(element => element.blur());
+  await expect(windowArt(page)).toHaveAttribute('data-association', 'balance', { timeout: 15000 });
+  expect(await adopted(page)).toEqual(STAR_ORDER);
+});
+
+test('pointer clicks that hold and release the stage card never pause later turns', async ({ page }) => {
+  await recordStage(page);
+  await open(page, 'arrival=burst&associations=authored');
+  await expect(windowArt(page)).toHaveAttribute('data-association', 'pool', { timeout: 10000 });
+  const card = windowArt(page).locator('.gesture-focus-layer:not(.gesture-focus-layer--departing) [data-focus-card]').first();
+  await card.click();
+  await expect(windowArt(page)).toHaveAttribute('data-held', 'true');
+  const held = await windowArt(page).getAttribute('data-association');
+  await card.click();
+  await expect(windowArt(page)).not.toHaveAttribute('data-held', 'true');
+  // Chromium leaves focus on the clicked button without a keyboard ring; pointer
+  // focus is not an inspection, so the next turn starts without clicking elsewhere.
+  await expect(windowArt(page)).not.toHaveAttribute('data-association', held, { timeout: 5000 });
+  await expect(windowArt(page)).toHaveAttribute('data-association', 'balance', { timeout: 15000 });
+  expect(await adopted(page)).toEqual(STAR_ORDER);
 });
 
 test('fast paired handoff leaves inert exits, bounded motion owners and intact keyboard focus', async ({ page }) => {
@@ -205,7 +277,9 @@ test('bounded Chromium trace measures water while controlled SSE arrives', async
     await fixture.emit('reading', 'delta', { text: star.expectedRaw.slice(end) });
     await expect(diagnostics(page)).toHaveAttribute('data-raw-length', String(star.expectedRaw.length));
     await page.keyboard.press('Escape');
-    await expect(windowArt(page)).toHaveAttribute('data-association', 'balance');
+    // Release resumes the earliest unplayed visible connection: the identity if
+    // its turn had not run before the hold, otherwise the land pour.
+    await expect(windowArt(page)).toHaveAttribute('data-association', /^(arrival|land)$/);
     const frames = await frameSample;
     const after = await cdp.send('Performance.getMetrics');
     const completed = new Promise(resolve => cdp.once('Tracing.tracingComplete', resolve));

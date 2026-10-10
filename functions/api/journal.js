@@ -1,4 +1,4 @@
-import { loadJournalVisualResults } from '../lib/readingVisualResults.js';
+import { loadJournalVisualResults, loadJournalVisualStates } from '../lib/readingVisualResults.js';
 /**
  * Journal API Endpoints
  * GET /api/journal - List all journal entries for authenticated user
@@ -253,16 +253,24 @@ export async function onRequestGet(context) {
     });
 
     const dedupedEntries = dedupeEntries(parsedEntries);
-    // Visual failures cannot make saved prose unavailable.
+    // Cached cues and durable retry state have independent availability.
+    let visuals;
     try {
-      const visuals = await loadJournalVisualResults({ db: env.DB, userId: user.id, entryIds: dedupedEntries.map(entry => entry.id) });
+      visuals = await loadJournalVisualResults({ db: env.DB, userId: user.id, entryIds: dedupedEntries.map(entry => entry.id) });
       for (const entry of dedupedEntries) {
         if (visuals.get(entry.id)) entry.visual = visuals.get(entry.id);
       }
     } catch {
       console.warn(`[${requestId}] [journal] Visual snapshots unavailable`);
     }
-
+    try {
+      const visualStates = await loadJournalVisualStates({ db: env.DB, userId: user.id, entryIds: dedupedEntries.map(entry => entry.id), visualResults: visuals });
+      for (const entry of dedupedEntries) {
+        if (visualStates.get(entry.id)) entry.visualState = visualStates.get(entry.id);
+      }
+    } catch {
+      console.warn(`[${requestId}] [journal] Visual state unavailable`);
+    }
 
     // Optionally attach follow-up conversations
     if (includeFollowups && dedupedEntries.length > 0) {

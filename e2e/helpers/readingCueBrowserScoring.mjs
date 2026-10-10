@@ -8,6 +8,36 @@ export function buildIndependentReadingSchedule(raw) {
 const targetKey = targets => JSON.stringify(targets.flatMap(t => (t.detailIds.length ? t.detailIds : ['@identity'])
   .map(id => `${t.spreadIndex}:${id}`)).sort());
 
+// Diagnostic join only: DOM exposure and the scoring threshold remain authoritative.
+export function traceCueBrowserOpportunities({ report, opportunities, cues, score }) {
+  return score.rows.map(row => {
+    const opportunity = opportunities.find(o => o.id === row.opportunityId);
+    const cue = cues.find(c => c.id === row.cueId);
+    const source = report.passageEvents.find(p => p.opportunityId === row.opportunityId);
+    const visible = report.passageIntervals.find(p => p.opportunityId === row.opportunityId);
+    const receipt = report.cueReceipts.find(r => r.cueId === row.cueId);
+    const ledgerAdoption = report.cueAdoptions.find(a => a.cueId === row.cueId);
+    const stageAdoptions = report.stageAdoptions.filter(a => a.cueId === row.cueId);
+    const exposures = report.detailExposures.filter(e => e.cueId === row.cueId).map(e => ({ ...e,
+      exactTargets: targetKey(e.targets) === targetKey(opportunity.targets),
+      qualifyingOverlapMs: visible ? Math.max(0, Math.min(e.end, visible.end, report.window.end)
+        - Math.max(e.start, visible.start, report.window.start)) : 0 }));
+    const playback = (report.playbackStates || []).filter(s => s.associations.some(a => a.id === row.cueId)
+      || s.consumedCueIds.includes(row.cueId));
+    const selected = playback.some(s => s.currentCueId === row.cueId);
+    const consumedWithoutSelection = !selected && playback.some(s => s.consumedCueIds.includes(row.cueId));
+    const qualified = score.accompaniment.qualifiedExposures.some(e => e.cueId === row.cueId);
+    const automatic = exposures.filter(e => e.origin === 'automatic' && e.passageVisible);
+    const classification = qualified ? 'qualified' : report.measurementValid !== true ? 'measurement-defect'
+      : source?.projection === 'unprojectable-source' ? 'source-projection'
+        : !row.available ? 'late-dispatch-or-receipt'
+          : !stageAdoptions.some(a => a.origin === 'automatic') ? 'selection-or-coalescing'
+            : !automatic.some(e => e.exactTargets) ? 'renderer-visibility' : 'inadequate-dwell';
+    return { ...row, classification, expectedTargets: opportunity.targets, cue, source, firstVisibleInterval: visible,
+      receipt, ledgerAdoption, stageAdoptions, exposures, selected, consumedWithoutSelection, playback };
+  });
+}
+
 // Task 6 supplies the frozen independent semantic scorer's one-to-one matches.
 // The offline structural fallback is explicitly for collector negative controls;
 // it is never an adjudication or a live quality verdict.

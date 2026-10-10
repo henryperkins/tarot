@@ -4,19 +4,20 @@
 
 const DO_ORIGIN = 'https://reading-visual-jobs';
 
-export function getVisualJobStub(env, readingResultId) {
+export function getVisualJobStub(env, readingResultId, visualJobId = null) {
   if (!env?.READING_VISUAL_JOBS || !readingResultId) return null;
-  return env.READING_VISUAL_JOBS.get(env.READING_VISUAL_JOBS.idFromName(readingResultId));
+  return env.READING_VISUAL_JOBS.get(env.READING_VISUAL_JOBS.idFromName(visualJobId || readingResultId));
 }
 
 export async function initVisualJob({
   env,
   binding,
+  visualJobId = null,
   visualToken,
   ownerUserId = null,
   validationContext = {}
 }) {
-  const stub = getVisualJobStub(env, binding?.readingResultId);
+  const stub = getVisualJobStub(env, binding?.readingResultId, visualJobId);
   if (!stub) return { ok: false, status: 503, error: 'Reading visual jobs not configured.' };
 
   const response = await stub.fetch(`${DO_ORIGIN}/init`, {
@@ -42,10 +43,11 @@ export async function initVisualJob({
 export async function getVisualJobSnapshot({
   env,
   readingResultId,
+  visualJobId = null,
   visualToken = null,
   userId = null
 }) {
-  const stub = getVisualJobStub(env, readingResultId);
+  const stub = getVisualJobStub(env, readingResultId, visualJobId);
   if (!stub) return { ok: false, status: 503, error: 'Reading visual jobs not configured.' };
 
   const headers = new Headers();
@@ -66,10 +68,11 @@ export async function getVisualJobSnapshot({
 export async function cancelVisualJob({
   env,
   readingResultId,
+  visualJobId = null,
   visualToken = null,
   userId = null
 }) {
-  const stub = getVisualJobStub(env, readingResultId);
+  const stub = getVisualJobStub(env, readingResultId, visualJobId);
   if (!stub) return { ok: false, status: 503, error: 'Reading visual jobs not configured.' };
 
   const headers = new Headers();
