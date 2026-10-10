@@ -168,7 +168,7 @@ do not lower thresholds or claim a local-composer result proves a live provider.
 ## API Endpoints
 
 Routing lives in `src/worker/index.js`; handlers are in `functions/api/`.
-ChatGPT MCP (`/mcp`, `/oauth/*`) uses OAuth 2.1 issued by Tableu with an owner allowlist; see `docs/integrations/openai/chatgpt-mcp.md`.
+ChatGPT MCP (`/mcp`, `/oauth/*`) uses OAuth 2.1 issued by Tableu; `MCP_ACCESS_MODE` (`public`, `allowlist` or `off`) decides who can link. See `docs/integrations/openai/chatgpt-mcp.md`.
 
 ## Scoped guidance
 

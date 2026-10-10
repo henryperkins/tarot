@@ -6,6 +6,7 @@ import { createFakeReadingJobs, hangingRunner, readingRunner } from './helpers/f
 import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 import { SPREADS } from '../src/data/spreads.js';
+import { PLAN_FEATURE_MESSAGE, READING_LIMIT_MESSAGE, readingErrorText } from '../functions/lib/mcp/tools/readings.js';
 
 const OWNER = Object.freeze({
   id: 'user-1', username: 'henry', subscription_tier: 'plus', subscription_status: 'active', auth_provider: 'session'
@@ -44,7 +45,8 @@ describe('draw_tarot_reading', () => {
     const drawn = await call('draw_tarot_reading', { spreadInfo: THREE, userQuestion: 'What should I focus on?', seed: 'rose' });
 
     assert.equal(drawn.isError, undefined);
-    const { jobId, jobToken, status, cardsInfo, seed, spreadInfo, deckStyle } = drawn.structuredContent;
+    const { jobId, status, cardsInfo, seed, spreadInfo, deckStyle } = drawn.structuredContent;
+    assert.equal('jobToken' in drawn.structuredContent, false, 'no credential-like job token reaches ChatGPT');
     assert.equal(status, 'running');
     assert.deepEqual(cardsInfo.map((card) => card.position), SPREADS.threeCard.positions);
     assert.match(seed, /^\d+$/);
@@ -53,10 +55,11 @@ describe('draw_tarot_reading', () => {
     assert.match(drawn.content[0].text, /call wait_for_tarot_reading/);
 
     await jobs.settle();
-    const waited = await call('wait_for_tarot_reading', { jobId, jobToken });
+    const waited = await call('wait_for_tarot_reading', { jobId });
     assert.equal(waited.structuredContent.status, 'complete');
     assert.equal(waited.structuredContent.reading, 'Patience, then momentum.');
-    assert.equal(waited.structuredContent.requestId, 'req-7');
+    assert.equal('requestId' in waited.structuredContent, false, 'request ids stay server-side');
+    assert.doesNotMatch(waited.content[0].text, /req-7|requestId/);
     assert.deepEqual(waited.structuredContent.cardsInfo, cardsInfo);
     assert.deepEqual(waited.structuredContent.themes, { dominantSuit: 'Cups' });
   });
@@ -70,6 +73,20 @@ describe('draw_tarot_reading', () => {
     assert.equal(first.structuredContent.seed, second.structuredContent.seed);
     assert.deepEqual(replay.structuredContent.cardsInfo, first.structuredContent.cardsInfo, 'the returned seed replays cards and orientations');
     assert.equal(replay.structuredContent.seed, first.structuredContent.seed);
+    assert.equal(first.structuredContent.allowReversals, true);
+  });
+
+  it('returns the reversal setting so an all-upright draw replays exactly', async () => {
+    const { call } = await session();
+    const withReversals = await call('draw_tarot_reading', { spreadInfo: THREE, seed: 'rose' });
+    assert.ok(withReversals.structuredContent.cardsInfo.some((card) => card.orientation === 'Reversed'), 'this seed draws a reversal by default');
+
+    const upright = await call('draw_tarot_reading', { spreadInfo: THREE, seed: 'rose', allowReversals: false });
+    assert.equal(upright.structuredContent.allowReversals, false);
+    assert.ok(upright.structuredContent.cardsInfo.every((card) => card.orientation === 'Upright'));
+    const { seed, allowReversals } = upright.structuredContent;
+    const replay = await call('draw_tarot_reading', { spreadInfo: THREE, seed, allowReversals });
+    assert.deepEqual(replay.structuredContent.cardsInfo, upright.structuredContent.cardsInfo);
   });
 
   it('accepts the uint32 boundaries and rejects invalid decimal replay seeds before starting a job', async () => {
@@ -124,7 +141,7 @@ describe('start_tarot_reading', () => {
     await jobs.settle();
 
     const { structuredContent } = await call('get_tarot_reading_status', {
-      jobId: started.structuredContent.jobId, jobToken: started.structuredContent.jobToken
+      jobId: started.structuredContent.jobId
     });
     assert.equal(structuredContent.status, 'complete');
     assert.deepEqual(structuredContent.cardsInfo[1], {
@@ -200,9 +217,9 @@ describe('start_tarot_reading', () => {
 describe('waiting and status', () => {
   it('returns running with timedOut instead of blocking past the timeout', async () => {
     const { call, jobs } = await session({ runReading: hangingRunner() });
-    const { jobId, jobToken } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
+    const { jobId } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
 
-    const waited = await call('wait_for_tarot_reading', { jobId, jobToken, timeoutSeconds: 3 });
+    const waited = await call('wait_for_tarot_reading', { jobId, timeoutSeconds: 3 });
 
     assert.equal(waited.structuredContent.status, 'running');
     assert.equal(waited.structuredContent.timedOut, true);
@@ -210,17 +227,20 @@ describe('waiting and status', () => {
     assert.equal(jobs.instances.size, 1, 'no second job was started');
   });
 
-  it('follows a job by jobId alone, and ignores the deprecated jobToken', async () => {
+  it('follows a job by jobId alone, and no longer accepts a job token', async () => {
     const { call, jobs } = await session();
     const drawn = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
     await jobs.settle();
-    assert.equal(typeof drawn.jobToken, 'string', 'still returned for clients of the submitted contract');
+    assert.equal('jobToken' in drawn, false);
 
     const waited = await call('wait_for_tarot_reading', { jobId: drawn.jobId });
-    const legacy = await call('get_tarot_reading_status', { jobId: drawn.jobId, jobToken: drawn.jobToken });
-    const stale = await call('get_tarot_reading_status', { jobId: drawn.jobId, jobToken: 'not-the-token' });
-    for (const result of [waited, legacy, stale]) assert.equal(result.structuredContent.status, 'complete');
+    const status = await call('get_tarot_reading_status', { jobId: drawn.jobId });
+    for (const result of [waited, status]) assert.equal(result.structuredContent.status, 'complete');
     assert.doesNotMatch(waited.content[0].text, /jobToken/);
+
+    const withToken = await call('get_tarot_reading_status', { jobId: drawn.jobId, jobToken: 'anything' });
+    assert.equal(withToken.isError, true);
+    assert.match(withToken.content[0].text, /Input validation error/);
   });
 
   it('returns the narrative with a bounded theme summary and no provider', async () => {
@@ -239,24 +259,26 @@ describe('waiting and status', () => {
     assert.equal('provider' in structuredContent, false);
   });
 
-  it('advertises jobId as the only required job reference', async () => {
+  it('advertises jobId as the only job reference, with no token or request id', async () => {
     const { client } = await session();
     const { tools } = await client.listTools();
     const byName = Object.fromEntries(tools.map((tool) => [tool.name, tool]));
     for (const name of ['wait_for_tarot_reading', 'get_tarot_reading_status', 'cancel_tarot_reading', 'save_reading_to_journal']) {
       const { required, properties } = byName[name].inputSchema;
       assert.ok(required.includes('jobId'), name);
-      assert.equal(required.includes('jobToken'), false, name);
-      assert.match(properties.jobToken.description, /Deprecated and ignored/, name);
+      assert.equal('jobToken' in properties, false, name);
     }
     for (const name of ['draw_tarot_reading', 'start_tarot_reading']) {
-      assert.equal(byName[name].outputSchema.required.includes('jobToken'), false, name);
+      assert.equal('jobToken' in byName[name].outputSchema.properties, false, name);
+    }
+    for (const name of ['wait_for_tarot_reading', 'get_tarot_reading_status']) {
+      assert.equal('requestId' in byName[name].outputSchema.properties, false, name);
     }
   });
 
   it('rejects a timeout above 45 seconds', async () => {
     const { call } = await session();
-    const result = await call('wait_for_tarot_reading', { jobId: 'a', jobToken: 'b', timeoutSeconds: 46 });
+    const result = await call('wait_for_tarot_reading', { jobId: 'a', timeoutSeconds: 46 });
     assert.equal(result.isError, true);
   });
 
@@ -264,10 +286,10 @@ describe('waiting and status', () => {
     const jobs = createFakeReadingJobs({ runReading: readingRunner() });
     const owner = await session({ jobs });
     const other = await session({ jobs, user: OTHER });
-    const { jobId, jobToken } = (await owner.call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
+    const { jobId } = (await owner.call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
     await jobs.settle();
 
-    const peek = await other.call('get_tarot_reading_status', { jobId, jobToken });
+    const peek = await other.call('get_tarot_reading_status', { jobId });
     assert.equal(peek.isError, true);
     assert.equal(peek.content[0].text, 'Reading job not found.');
   });
@@ -276,12 +298,28 @@ describe('waiting and status', () => {
     const { call, jobs } = await session({
       runReading: readingRunner({ status: 403, reading: 'The "Celtic Cross" spread requires an active Plus subscription' })
     });
-    const { jobId, jobToken } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
+    const { jobId } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
     await jobs.settle();
 
-    const { structuredContent } = await call('get_tarot_reading_status', { jobId, jobToken });
+    const { structuredContent } = await call('get_tarot_reading_status', { jobId });
     assert.equal(structuredContent.status, 'error');
-    assert.match(structuredContent.error, /Plus subscription/);
+    assert.match(structuredContent.error, /isn't included with this Tableu account/);
+    assert.doesNotMatch(structuredContent.error, /plus|subscri|upgrade/i, 'no plan names or upsell reach ChatGPT');
+  });
+
+  it('reports the monthly limit without promoting an upgrade', async () => {
+    const { call, jobs } = await session({
+      runReading: readingRunner({
+        status: 429, reading: "You've reached your monthly reading limit (5). Upgrade for more readings.", errorBody: { tierLimited: true }
+      })
+    });
+    const { jobId } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
+    await jobs.settle();
+
+    const waited = await call('wait_for_tarot_reading', { jobId });
+    assert.equal(waited.structuredContent.status, 'error');
+    assert.match(waited.content[0].text, /used all of its readings for this month/);
+    assert.doesNotMatch(waited.content[0].text, /upgrade|subscri|plus|pro\b/i);
   });
 });
 
@@ -296,9 +334,9 @@ function sseRunner(events) {
 describe('what a finished job delivered', () => {
   async function finish(runReading) {
     const { call, jobs } = await session({ runReading });
-    const { jobId, jobToken } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
+    const { jobId } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
     await jobs.settle();
-    return call('wait_for_tarot_reading', { jobId, jobToken });
+    return call('wait_for_tarot_reading', { jobId });
   }
 
   it('returns a crisis response as a support message, never as a reading', async () => {
@@ -321,7 +359,7 @@ describe('what a finished job delivered', () => {
     assert.equal(status.status, 'complete');
     assert.equal(status.reading, undefined);
     assert.equal(status.supportMessage, undefined);
-    assert.deepEqual([status.gateBlocked, status.gateReason], [true, 'safety_flag_true']);
+    assert.deepEqual([status.gateBlocked, status.gateReason], [true, 'withheld'], 'internal gate reasons stay server-side');
     assert.doesNotMatch(content[0].text, /Present the narrative/);
     assert.match(content[0].text, /held back this reading/);
   });
@@ -350,13 +388,13 @@ describe('what a finished job delivered', () => {
 describe('cancel_tarot_reading', () => {
   it('cancels a running reading', async () => {
     const { call, jobs } = await session({ runReading: hangingRunner() });
-    const { jobId, jobToken } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
+    const { jobId } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
 
-    const cancelled = await call('cancel_tarot_reading', { jobId, jobToken });
+    const cancelled = await call('cancel_tarot_reading', { jobId });
     await jobs.settle();
 
     assert.deepEqual(cancelled.structuredContent, { jobId, status: 'cancelled' });
-    const { structuredContent } = await call('get_tarot_reading_status', { jobId, jobToken });
+    const { structuredContent } = await call('get_tarot_reading_status', { jobId });
     assert.equal(structuredContent.error, 'Reading cancelled.');
   });
 
@@ -368,10 +406,22 @@ describe('cancel_tarot_reading', () => {
     // ChatGPT shows this static text for every outcome, including this one.
     assert.doesNotMatch(cancelTool._meta['openai/toolInvocation/invoked'], /cancelled/i);
 
-    const { jobId, jobToken } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
+    const { jobId } = (await call('draw_tarot_reading', { spreadInfo: THREE })).structuredContent;
     await jobs.settle();
-    const result = await call('cancel_tarot_reading', { jobId, jobToken });
+    const result = await call('cancel_tarot_reading', { jobId });
     assert.equal(result.structuredContent.status, 'complete');
     assert.match(result.content[0].text, /already finished/);
+  });
+});
+
+describe('reading error text', () => {
+  it('explains limits and plan-gated options without naming or promoting plans', () => {
+    assert.equal(readingErrorText({ errorCode: 'reading_limit_reached', error: 'anything' }), READING_LIMIT_MESSAGE);
+    assert.equal(readingErrorText({ errorCode: 'plan_feature_unavailable' }), PLAN_FEATURE_MESSAGE);
+    assert.equal(readingErrorText({ error: "You've reached your monthly reading limit (50). Upgrade for more readings." }), READING_LIMIT_MESSAGE);
+    assert.equal(readingErrorText({ error: 'The "Celtic Cross" spread requires an active Plus subscription' }), PLAN_FEATURE_MESSAGE);
+    assert.equal(readingErrorText({ error: 'Upgrade now for faster readings' }), 'The reading could not be written. Please try again later.');
+    assert.equal(readingErrorText({ error: 'Failed to generate reading.' }), 'Failed to generate reading.');
+    assert.equal(readingErrorText({}), 'The reading failed.');
   });
 });

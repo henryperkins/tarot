@@ -11,8 +11,11 @@ Worker OAuth/MCP replaces the standalone adapter. Keep
 `docs/integrations/openai/chatgpt-mcp.md` authoritative for linking and release
 steps. CI uses Node 24 and root tests cover Worker MCP.
 
-- OAuth binds `tableu` scope and the exact `MCP_RESOURCE_URL`; an unset owner
-  allowlist denies linking. Check the allowlist and active user on every request.
+- OAuth binds `tableu` scope and the exact `MCP_RESOURCE_URL`. `MCP_ACCESS_MODE`
+  (`public`, `allowlist` or `off`; unrecognized means off) decides who can link.
+  Check the access mode and active user on every request.
+- MCP tool results must not promote plans or upgrades, or return internal ids,
+  request ids, tokens or timestamps. Map plan and limit errors to neutral text.
 - Personal HTTP journal saves keep seed deduplication; MCP saves use the reading
   request identity. Preserve atomic SQL admission and compare-and-swap writes.
 - HTTP reflections retain append/replace, repeated append, and `entry.id`; MCP
@@ -35,9 +38,10 @@ for separately authorized remote configuration. Never log values or user data.
 - `ADMIN_API_KEY` — Admin endpoints
 - `GPT_SERVICE_TOKEN` — Bearer token for the Tableu Custom GPT / ChatGPT App; authenticates as a synthetic service user entitled at `GPT_SERVICE_TIER` (var, default `plus`). Must not use the `sk_` prefix. See `functions/lib/serviceAuth.js` and `docs/integrations/openai/`.
 - `GPT_OWNER_TOKEN` — Optional, never-shared owner token. Authenticates as the same synthetic user but additionally unlocks owner-gated diagnostics (`promptDebug`). Kept separate because `GPT_SERVICE_TOKEN` lives inside a GPT that may be published, so service auth proves "trusted integration", not "owner".
-- `MCP_ALLOWED_USER_IDS` — Comma-separated Tableu user ids allowed to link ChatGPT;
-  unset denies linking and existing-token access (kill switch). The var
-  `MCP_RESOURCE_URL` pins the exact OAuth resource.
+- `MCP_ALLOWED_USER_IDS` — Comma-separated Tableu user ids allowed to link ChatGPT
+  when the var `MCP_ACCESS_MODE` is `allowlist`; unset then denies linking and
+  existing-token access. `MCP_ACCESS_MODE=off` is the kill switch in every mode.
+  The var `MCP_RESOURCE_URL` pins the exact OAuth resource.
 - `MODAL_PROXY_TOKEN_ID` and `MODAL_PROXY_TOKEN_SECRET` — Modal proxy authentication; the adapter joins them with a dot for the Bearer value. Set both together. An incomplete or empty declared pair fails closed; legacy `MODAL_PROXY_TOKEN` is accepted only when both pair fields are absent.
 - `READING_JOB_PURGE_TOKEN` — Unset except while running
   `scripts/purge-expired-reading-jobs.mjs`; it enables
