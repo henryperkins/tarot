@@ -2,7 +2,7 @@
 
 > **Superseded.** `SKILL.md` and `references/actions-contract.md` here are now
 > the 0.29.0 instructions, identical to the copies in the locked
-> [1.0.2 package](../submission/1.0.2/README.md). Release by building and
+> [1.0.3 package](../submission/1.0.3/README.md). Release by building and
 > uploading a locked submission package
 > ([public listing runbook](../public-listing.md)), not by editing a package
 > by hand. The steps below are the historical 0.28.2 install; don't use them to

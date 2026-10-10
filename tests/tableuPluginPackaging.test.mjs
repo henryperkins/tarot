@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -111,17 +111,17 @@ for (const variant of ['modified', 'extra', 'symlink', 'different output']) {
   });
 }
 
-test('public 1.0.2 package rebuilds from its lock without internal fields or plan language', (t) => {
-  const v2Path = join(root, 'docs/integrations/openai/submission/1.0.2');
+for (const version of ['1.0.2', '1.0.3']) test(`public ${version} package rebuilds from its lock without internal fields or plan language`, (t) => {
+  const v2Path = join(root, 'docs/integrations/openai/submission', version);
   const v2Lock = JSON.parse(readFileSync(join(v2Path, 'package-lock.json'), 'utf8'));
-  const output = join(scratch(t), 'plugin-1.0.2.zip');
-  const result = JSON.parse(execFileSync('python3', [script, '--version', '1.0.2', '--output', output], { encoding: 'utf8' }));
+  const output = join(scratch(t), `plugin-${version}.zip`);
+  const result = JSON.parse(execFileSync('python3', [script, '--version', version, '--output', output], { encoding: 'utf8' }));
   assert.equal(result.files, Object.keys(v2Lock.files).length);
   assert.equal(sha256(readFileSync(output)), v2Lock.archive.sha256);
 
   const v2Source = resolve(v2Path, v2Lock.sourceDirectory);
   const manifest = JSON.parse(readFileSync(join(v2Source, '.codex-plugin/plugin.json'), 'utf8'));
-  assert.equal(manifest.version, '1.0.2');
+  assert.equal(manifest.version, version);
   assert.equal(manifest.name, lock.name, 'the plugin identity is unchanged');
   const review = manifest.extensions['com.openai'].review;
   assert.equal(review.commerce, false);
@@ -146,10 +146,25 @@ test('public 1.0.2 package rebuilds from its lock without internal fields or pla
   assert.equal(Object.keys(v2Lock.files).some((name) => /migration|ActionsGPT|capabilities-audit|AI Training|Quick Reference and/.test(name)), false);
 });
 
+test('1.0.3 cancels in one message and ships the maintained plugin instructions', () => {
+  const v3Source = join(root, 'docs/integrations/openai/submission/1.0.3/source', lock.name);
+  const manifest = JSON.parse(readFileSync(join(v3Source, '.codex-plugin/plugin.json'), 'utf8'));
+  const cancel = manifest.extensions['com.openai'].review.test_cases.positive.find((testCase) => /cancel_tarot_reading/.test(testCase.tools_triggered));
+  assert.match(cancel.prompt, /Celtic Cross[\s\S]*check its status[\s\S]*cancel it/);
+  assert.doesNotMatch(cancel.description, /setup prompt/i, 'no separate setup message');
+  assert.equal(cancel.tools_triggered, 'draw_tarot_reading, get_tarot_reading_status, cancel_tarot_reading');
+  assert.match(cancel.expected_behavior, /status to return running and the cancellation to return cancelled/);
+  assert.match(cancel.expected_behavior, /inconclusive/);
+  for (const [maintained, packaged] of [['SKILL.md', 'skills/instructions/SKILL.md'], ['references/actions-contract.md', 'skills/instructions/references/actions-contract.md']]) {
+    assert.equal(readFileSync(join(root, 'docs/integrations/openai/plugin', maintained), 'utf8'), readFileSync(join(v3Source, packaged), 'utf8'), maintained);
+  }
+});
+
 test('ignore rules leave no locked package file out of a commit', (t) => {
   const members = [];
-  for (const version of ['1.0.1', '1.0.2']) {
-    const path = join(root, 'docs/integrations/openai/submission', version);
+  const submissions = join(root, 'docs/integrations/openai/submission');
+  for (const version of readdirSync(submissions).filter((name) => existsSync(join(submissions, name, 'package-lock.json')))) {
+    const path = join(submissions, version);
     const versionLock = JSON.parse(readFileSync(join(path, 'package-lock.json'), 'utf8'));
     const sourceDir = relative(root, resolve(path, versionLock.sourceDirectory));
     for (const name of Object.keys(versionLock.files)) members.push(`${sourceDir}/${name}`);
