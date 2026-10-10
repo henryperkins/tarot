@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-07T23:23:59.774Z",
+  "generatedAt": "2026-10-10T04:57:53.110Z",
   "sourceFile": "data/evaluations/narrative-samples.json",
-  "artifactsDirectory": "data/evaluations/runs/2026-10-07T23-23-59.772Z-rzvVai",
+  "artifactsDirectory": "data/evaluations/runs/2026-10-10T04-57-53.109Z-Pvi8MF",
   "totalSamples": 11,
   "spinePassRate": 1,
   "avgCardCoverage": 1,
@@ -28,8 +28,8 @@
       "question": "What guiding energy should I bring into this new leadership role?",
       "spine": {
         "isValid": true,
-        "totalSections": 4,
-        "completeSections": 3,
+        "totalSections": 5,
+        "completeSections": 4,
         "incompleteSections": 1
       },
       "cardCoverage": 1,
@@ -50,7 +50,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 23,
+        "sentenceCount": 22,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -70,9 +70,9 @@
       "question": "How can I navigate the transition after leaving my hometown?",
       "spine": {
         "isValid": true,
-        "totalSections": 7,
+        "totalSections": 6,
         "completeSections": 6,
-        "incompleteSections": 1
+        "incompleteSections": 0
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -87,12 +87,12 @@
         "applicable": true,
         "addressed": true,
         "termCount": 4,
-        "matchedTermCount": 3,
-        "ratio": 0.75
+        "matchedTermCount": 4,
+        "ratio": 1
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 38,
+        "sentenceCount": 43,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -112,8 +112,8 @@
       "question": "What should I know about launching my creative project this quarter?",
       "spine": {
         "isValid": true,
-        "totalSections": 5,
-        "completeSections": 3,
+        "totalSections": 6,
+        "completeSections": 4,
         "incompleteSections": 2
       },
       "cardCoverage": 1,
@@ -134,7 +134,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 45,
+        "sentenceCount": 46,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -155,8 +155,8 @@
       "spine": {
         "isValid": true,
         "totalSections": 6,
-        "completeSections": 3,
-        "incompleteSections": 3
+        "completeSections": 5,
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -171,12 +171,12 @@
         "applicable": true,
         "addressed": true,
         "termCount": 3,
-        "matchedTermCount": 2,
-        "ratio": 0.6666666666666666
+        "matchedTermCount": 3,
+        "ratio": 1
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 38,
+        "sentenceCount": 42,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -218,7 +218,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 85,
+        "sentenceCount": 73,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -236,90 +236,6 @@
       "spreadKey": "decision",
       "spreadName": "Decision / Two-Path",
       "question": "I am at a decision point about whether to relocate or stay. Which path supports my growth?",
-      "spine": {
-        "isValid": true,
-        "totalSections": 9,
-        "completeSections": 8,
-        "incompleteSections": 1
-      },
-      "cardCoverage": 1,
-      "missingCards": [],
-      "deterministicLanguage": false,
-      "deterministicLanguageMatches": [],
-      "hasAgencyLanguage": true,
-      "hallucinatedCards": [],
-      "suitCountMismatches": [],
-      "hasSupportiveTone": true,
-      "hasHarshTone": false,
-      "questionEngagement": {
-        "applicable": true,
-        "addressed": true,
-        "termCount": 7,
-        "matchedTermCount": 5,
-        "ratio": 0.7142857142857143
-      },
-      "templateRepetition": {
-        "templated": false,
-        "sentenceCount": 57,
-        "repeatedSentenceCount": 0,
-        "repeatedShare": 0
-      },
-      "issueFlags": [],
-      "issuesPresent": false,
-      "rubric": {
-        "accuracy": 1,
-        "coherence": 1,
-        "agency": 1,
-        "compassion": 1
-      }
-    },
-    {
-      "id": "spiritual-thoth-ritual",
-      "spreadKey": "threeCard",
-      "spreadName": "Three-Card Story (Past · Present · Future)",
-      "question": "What spiritual practice should I commit to this season to deepen my intuition?",
-      "spine": {
-        "isValid": true,
-        "totalSections": 5,
-        "completeSections": 5,
-        "incompleteSections": 0
-      },
-      "cardCoverage": 1,
-      "missingCards": [],
-      "deterministicLanguage": false,
-      "deterministicLanguageMatches": [],
-      "hasAgencyLanguage": true,
-      "hallucinatedCards": [],
-      "suitCountMismatches": [],
-      "hasSupportiveTone": true,
-      "hasHarshTone": false,
-      "questionEngagement": {
-        "applicable": true,
-        "addressed": true,
-        "termCount": 6,
-        "matchedTermCount": 4,
-        "ratio": 0.6666666666666666
-      },
-      "templateRepetition": {
-        "templated": false,
-        "sentenceCount": 45,
-        "repeatedSentenceCount": 0,
-        "repeatedShare": 0
-      },
-      "issueFlags": [],
-      "issuesPresent": false,
-      "rubric": {
-        "accuracy": 1,
-        "coherence": 1,
-        "agency": 1,
-        "compassion": 1
-      }
-    },
-    {
-      "id": "wellbeing-marseille-reset",
-      "spreadKey": "fiveCard",
-      "spreadName": "Five-Card Clarity",
-      "question": "I am feeling burnout and restless sleep. What helps me restore my wellbeing?",
       "spine": {
         "isValid": true,
         "totalSections": 9,
@@ -344,7 +260,91 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 57,
+        "sentenceCount": 54,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
+      "issueFlags": [],
+      "issuesPresent": false,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 1,
+        "agency": 1,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "spiritual-thoth-ritual",
+      "spreadKey": "threeCard",
+      "spreadName": "Three-Card Story (Past · Present · Future)",
+      "question": "What spiritual practice should I commit to this season to deepen my intuition?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 8,
+        "completeSections": 7,
+        "incompleteSections": 1
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "suitCountMismatches": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 6,
+        "matchedTermCount": 6,
+        "ratio": 1
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 41,
+        "repeatedSentenceCount": 0,
+        "repeatedShare": 0
+      },
+      "issueFlags": [],
+      "issuesPresent": false,
+      "rubric": {
+        "accuracy": 1,
+        "coherence": 1,
+        "agency": 1,
+        "compassion": 1
+      }
+    },
+    {
+      "id": "wellbeing-marseille-reset",
+      "spreadKey": "fiveCard",
+      "spreadName": "Five-Card Clarity",
+      "question": "I am feeling burnout and restless sleep. What helps me restore my wellbeing?",
+      "spine": {
+        "isValid": true,
+        "totalSections": 9,
+        "completeSections": 8,
+        "incompleteSections": 1
+      },
+      "cardCoverage": 1,
+      "missingCards": [],
+      "deterministicLanguage": false,
+      "deterministicLanguageMatches": [],
+      "hasAgencyLanguage": true,
+      "hallucinatedCards": [],
+      "suitCountMismatches": [],
+      "hasSupportiveTone": true,
+      "hasHarshTone": false,
+      "questionEngagement": {
+        "applicable": true,
+        "addressed": true,
+        "termCount": 7,
+        "matchedTermCount": 6,
+        "ratio": 0.8571428571428571
+      },
+      "templateRepetition": {
+        "templated": false,
+        "sentenceCount": 48,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -364,9 +364,9 @@
       "question": "Two hypothetical collaborators are planning a project together. What could help them communicate well?",
       "spine": {
         "isValid": true,
-        "totalSections": 5,
-        "completeSections": 3,
-        "incompleteSections": 2
+        "totalSections": 8,
+        "completeSections": 5,
+        "incompleteSections": 3
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -381,12 +381,12 @@
         "applicable": true,
         "addressed": true,
         "termCount": 8,
-        "matchedTermCount": 8,
-        "ratio": 1
+        "matchedTermCount": 7,
+        "ratio": 0.875
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 37,
+        "sentenceCount": 39,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -406,9 +406,9 @@
       "question": "What can help me have a focused week?",
       "spine": {
         "isValid": true,
-        "totalSections": 9,
+        "totalSections": 8,
         "completeSections": 7,
-        "incompleteSections": 2
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -428,7 +428,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 64,
+        "sentenceCount": 72,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -448,9 +448,9 @@
       "question": "Como puedo sostener mi energia mientras apoyo a mi familia y mi trabajo?",
       "spine": {
         "isValid": true,
-        "totalSections": 5,
-        "completeSections": 4,
-        "incompleteSections": 1
+        "totalSections": 7,
+        "completeSections": 5,
+        "incompleteSections": 2
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -470,7 +470,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 32,
+        "sentenceCount": 43,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
