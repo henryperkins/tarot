@@ -12,9 +12,11 @@ import {
 import { loadReadingCueCases } from '../scripts/evaluation/lib/readingCueQualification.mjs';
 import { buildVisualCuePrompt } from '../shared/generation/visualCuePrompt.js';
 import { initialVisualLimits } from './helpers/visualInitialAdmissionFixtures.mjs';
+import { createReadingCueTestManifest } from './helpers/readingCueQualificationFixtures.mjs';
 import { captureVisualCueUndispatchedReservation } from '../functions/lib/visualCueAdmission.js';
 
-const cases = await loadReadingCueCases();
+const testManifest = await createReadingCueTestManifest();
+const cases = await loadReadingCueCases({ manifest: testManifest });
 const star = cases.find(c => c.id === 'star-2347-excerpt');
 const candidate = DEFAULT_CUE_CANDIDATES[0];
 const temporary = () => mkdtemp(join(tmpdir(), 'cue-evaluation-test-'));
@@ -50,7 +52,7 @@ test('live sessions and evaluation reject missing initial authorization before r
   const budget = { mode: 'live', async reserve() { reserves += 1; assert.fail('unconfigured live admission reserved'); } };
   await assert.rejects(createVisualCueSession({ caseData: star, live: true, aiAdapter, budget }), /explicit.*initial/i);
   const outputDir = join(await temporary(), 'must-not-create');
-  await assert.rejects(runReadingCueEvaluation({ live: true, candidates: [candidate], aiAdapter, budget, outputDir }), /explicit.*initial/i);
+  await assert.rejects(runReadingCueEvaluation({ manifest: testManifest, live: true, candidates: [candidate], aiAdapter, budget, outputDir }), /explicit.*initial/i);
   await assert.rejects(readFile(join(outputDir, 'identity.json')), { code: 'ENOENT' });
   assert.equal(calls, 0);
   assert.equal(reserves, 0);
@@ -71,7 +73,7 @@ test('live initial allowance rejects invalid limits, model pins and untrusted sc
   ]) {
     const initialAdmission = fixture(); change(initialAdmission);
     await assert.rejects(createVisualCueSession({ caseData: star, live: true, aiAdapter, budget, initialAdmission }), /explicit.*initial/i);
-    await assert.rejects(runReadingCueEvaluation({ live: true, candidates: [candidate], aiAdapter, budget, initialAdmission }), /explicit.*initial/i);
+    await assert.rejects(runReadingCueEvaluation({ manifest: testManifest, live: true, candidates: [candidate], aiAdapter, budget, initialAdmission }), /explicit.*initial/i);
   }
   assert.equal(calls, 0);
 });
@@ -258,7 +260,7 @@ test('expensive blocked candidate does not falsely halt affordable candidates', 
 });
 
 test('frozen expensive-first evaluation block continues to affordable candidate with full denominator', async () => {
-  const selectedManifest = JSON.parse(await readFile(new URL('../scripts/evaluation/fixtures/readingCueQualification.regression-20261010.json', import.meta.url), 'utf8'));
+  const selectedManifest = structuredClone(testManifest);
   delete selectedManifest.manifestSha256;
   selectedManifest.candidateOrder = ['glm-5.3-high', 'glm-5.3-flash-low', 'glm-5.3-flash-high'];
   const report = await runReadingCueEvaluation({ manifest: selectedManifest, phase: 'semantic', candidates: [DEFAULT_CUE_CANDIDATES[2], candidate],
@@ -504,7 +506,7 @@ for (const kind of ['malformed', 'rejected', 'provider-error', 'cancelled']) {
 // These assertions detect credential discovery, overdispatch and fake evidence
 // becoming model-quality evidence, while using real provider/job/ledger paths.
 test('live requires explicit adapter and round configuration; REST adapter never inherits env', async () => {
-  await assert.rejects(runReadingCueEvaluation({ live: true }), /explicit/i);
+  await assert.rejects(runReadingCueEvaluation({ manifest: testManifest, live: true }), /explicit/i);
   assert.throws(() => createWorkersAiRestAdapter({ live: true }), /explicit/i);
   assert.throws(() => createWorkersAiRestAdapter({ accountId: 'abc', apiToken: 'private' }), /live/i);
   assert.throws(() => createBoundedCueAdapter({ live: false, aiAdapter: { run() {} }, candidate }), /offline/i);
@@ -513,7 +515,7 @@ test('live requires explicit adapter and round configuration; REST adapter never
 test('dry-run validates 222 planned semantic evaluations with zero network and immutable output', async t => {
   t.mock.method(globalThis, 'fetch', () => assert.fail('offline mode attempted network'));
   const outputDir = join(await temporary(), 'run');
-  const report = await runReadingCueEvaluation({ phase: 'all', outputDir });
+  const report = await runReadingCueEvaluation({ manifest: testManifest, phase: 'all', outputDir });
   assert.equal(report.plan.semantic.length, 222);
   assert.equal(report.plan.expectedTrials[1].caseIds.length, 12);
   assert.equal(report.modelCalls, 0);
@@ -525,8 +527,8 @@ test('dry-run validates 222 planned semantic evaluations with zero network and i
   assert.equal(report.qualified, false);
   assert.equal(report.mode, 'offline fake-adapter checks');
   assert.ok(report.identity.head);
-  assert.equal(report.identity.manifestSha256, 'a058bae059a90a84dbcd5bef5f33b418628381f01c15986fb879c1b33d2a4fe2');
-  await assert.rejects(runReadingCueEvaluation({ outputDir }), /exist|immutable/i);
+  assert.equal(report.identity.manifestSha256, testManifest.manifestSha256);
+  await assert.rejects(runReadingCueEvaluation({ manifest: testManifest, outputDir }), /exist|immutable/i);
   assert.deepEqual(JSON.parse(await readFile(join(outputDir, 'report.json'), 'utf8')).runId, report.runId);
 });
 
@@ -794,7 +796,7 @@ test('runtime prompt supplies registered detail IDs and keeps unspecified editio
 });
 
 test('failed analysis retains actual ledger and delivered source separately, missing planned denominators remain', async () => {
-  const report = await runReadingCueEvaluation({ phase: 'semantic', candidates: [candidate],
+  const report = await runReadingCueEvaluation({ manifest: testManifest, phase: 'semantic', candidates: [candidate],
     outputDir: join(await temporary(), 'failed'), maxCalls: 1,
     aiAdapter: fake(async () => { throw new Error('failed upstream'); }) });
   assert.equal(report.semantic[0].status, 'failed');
@@ -818,7 +820,7 @@ test('natural sequential arrivals may dispatch more than three times without hid
 });
 
 test('global authorization failure stops remaining planned cases rather than fabricating quality failures', async () => {
-  const report = await runReadingCueEvaluation({ phase: 'semantic', candidates: [candidate],
+  const report = await runReadingCueEvaluation({ manifest: testManifest, phase: 'semantic', candidates: [candidate],
     outputDir: join(await temporary(), 'auth-failure'), aiAdapter: fake(async () => {
       const error = new Error('private upstream credential error'); error.code = 'authorization'; throw error;
     }) });

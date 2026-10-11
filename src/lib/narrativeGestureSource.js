@@ -11,6 +11,9 @@ function boundVisualIdentity(binding, runId, sourceRevision) {
     && binding.sourceRevision === sourceRevision ? binding : undefined;
 }
 
+const VISUAL_JOB_STATUSES = new Set(['idle', 'pending', 'running', 'complete', 'failed', 'cancelled', 'expired', 'revoked']);
+const visualJobState = (binding, status) => binding && VISUAL_JOB_STATUSES.has(status) ? { visualJobStatus: status } : {};
+
 /**
  * Only an application-bound cumulative snapshot can trail delivered prose.
  * The caller obtains visualBinding independently from the accepted reading job;
@@ -28,12 +31,23 @@ export function boundVisualCueLedger(ledger, { runId, sourceRevision, raw, visua
   return ledger;
 }
 
+/** Terminal transport state cannot release fallback playback before a valid
+ * ahead-of-prose ledger can replace it. Empty or mismatched ledgers add no
+ * forthcoming connection; already accepted prefixes stay usable meanwhile. */
+export function visualJobPresentationStatus({ status, cueLedger, ...source }) {
+  const future = boundVisualCueLedger(cueLedger, { ...source, raw: cueLedger?.raw });
+  return future?.cues.length && typeof source.raw === 'string'
+    && future.raw.length > source.raw.length && future.raw.startsWith(source.raw)
+    ? 'pending' : status;
+}
+
 export function createGestureSource({ runId, raw = '', status = 'idle', semanticDocument,
-  sourceRevision = 0, visualBinding, cueLedger }) {
+  sourceRevision = 0, visualBinding, cueLedger, visualJobStatus }) {
   const document = boundDocument(semanticDocument, raw, status);
   const binding = boundVisualIdentity(visualBinding, runId, sourceRevision);
   const frame = { runId, raw, sourceRevision, kind: status === 'complete' ? 'hydrate' : 'append', status,
-    ...(document ? { semanticDocument: document } : {}), ...(binding ? { visualBinding: binding } : {}) };
+    ...(document ? { semanticDocument: document } : {}), ...(binding ? { visualBinding: binding } : {}),
+    ...visualJobState(binding, visualJobStatus) };
   const ledger = boundVisualCueLedger(cueLedger, frame);
   return { ...frame, ...(ledger ? { cueLedger: ledger } : {}) };
 }
@@ -55,9 +69,12 @@ export function advanceGestureSource(frame, update) {
   const document = boundDocument(candidate, raw, status);
   const binding = boundVisualIdentity(Object.hasOwn(update, 'visualBinding') ? update.visualBinding : sameSource ? frame.visualBinding : null,
     frame.runId, sourceRevision);
+  const visualStatus = VISUAL_JOB_STATUSES.has(update.visualJobStatus) ? update.visualJobStatus
+    : sameSource && sameVisualCueBinding(binding, frame.visualBinding) ? frame.visualJobStatus : undefined;
   const next = {
     runId: frame.runId, raw, sourceRevision, kind, status,
-    ...(document ? { semanticDocument: document } : {}), ...(binding ? { visualBinding: binding } : {})
+    ...(document ? { semanticDocument: document } : {}), ...(binding ? { visualBinding: binding } : {}),
+    ...visualJobState(binding, visualStatus)
   };
   const prior = boundVisualCueLedger(frame.cueLedger, next);
   const incoming = boundVisualCueLedger(update.cueLedger, next);

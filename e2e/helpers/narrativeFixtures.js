@@ -43,6 +43,24 @@ What would enough look like today? Use what resonates, and set aside what does n
 
 export const SOURCE_USAGE = buildReadingUsageFixtures();
 
+// Guest sessions intentionally receive an auth/me 401. Keep that exact network
+// response distinct from runtime errors; all other console errors still fail.
+export function observeNarrativeUiHealth(page, { allowGuestAuthRejection = false } = {}) {
+  const errors = [];
+  const guestAuthResponses = new Set();
+  page.on('pageerror', error => errors.push({ kind: 'pageerror', text: error.message }));
+  page.on('console', message => {
+    if (message.type() === 'error') errors.push({ kind: 'console', text: message.text(), url: message.location().url });
+  });
+  page.on('response', response => {
+    const url = new URL(response.url());
+    if (allowGuestAuthRejection && response.status() === 401 && url.pathname === '/api/auth/me'
+      && ['localhost', '127.0.0.1'].includes(url.hostname)) guestAuthResponses.add(response.url());
+  });
+  return () => expect(errors.filter(error => !(error.kind === 'console' && guestAuthResponses.has(error.url)
+    && /^Failed to load resource: the server responded with a status of 401 \(Unauthorized\)$/.test(error.text)))).toEqual([]);
+}
+
 // These are real, controllable SSE connections, not pre-completed route bodies.
 // They let tests close/reopen or resize while the same response is in flight.
 export async function createNarrativeFixture(page, options = {}) {
@@ -82,7 +100,18 @@ export async function createNarrativeFixture(page, options = {}) {
     response.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
     connectionIds.set(response, ++connectionGenerations[kind]);
     clients[kind].add(response);
-    response.on('close', () => clients[kind].delete(response));
+    // A separate transport write releases buffered SSE tails in WebKit without
+    // adding reading events or changing their source or terminal handling.
+    const transportHeartbeat = setInterval(() => {
+      if (!response.destroyed && !response.writableEnded && !response.writableNeedDrain) {
+        response.write(`: ${' '.repeat(8192)}\n\n`);
+      }
+    }, 250);
+    transportHeartbeat.unref();
+    response.on('close', () => {
+      clearInterval(transportHeartbeat);
+      clients[kind].delete(response);
+    });
     if (kind !== 'visual') {
       send(response, 'meta', kind === 'reading'
         ? { provider, requestId: 'narrative-remediation', sourceUsage, ...options.meta }

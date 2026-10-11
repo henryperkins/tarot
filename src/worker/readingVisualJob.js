@@ -22,6 +22,13 @@ const TERMINAL = new Set(['complete', 'failed', 'cancelled', 'expired', 'revoked
 const BLOCKED = new Set(['cancelled', 'expired', 'revoked']);
 const buildError = (status, message) => jsonResponse({ error: message }, { status });
 
+function visualCompilerContext(context = {}) {
+  return { ...context,
+    // Source identity and provider prompts use question; the compiler expects userQuestion.
+    userQuestion: context.userQuestion ?? context.question,
+    getSupportedDetails: (name, edition) => edition === 'rws-immanuelle-vector' ? getVectorGestureDetails(name) : [] };
+}
+
 /**
  * Narrative observation, asynchronous annotation, and publication are separate.
  * Short state transactions serialize mutations; slow model/hash work runs outside
@@ -318,7 +325,7 @@ export class ReadingVisualJob {
       }
       if (!this.isCurrent(record)) return;
       const result = await applyVisualCueBatch({ ledger: captured, issuedRequest, response, authoritativeRaw: this.authoritativeRaw,
-        validationContext: { ...this.validationContext, getSupportedDetails: (name, edition) => edition === 'rws-immanuelle-vector' ? getVectorGestureDetails(name) : [] } });
+        validationContext: visualCompilerContext(this.validationContext) });
       if (result.ledger === captured || (response.proposals?.length && result.rejected.length && !result.addedCueIds.length)
         || !this.isCurrent(record)) throw new Error('Replay validation failed.');
       await this.transaction(async () => {
@@ -537,7 +544,7 @@ export class ReadingVisualJob {
     if (captured.reason) return { ok: false, reason: captured.reason };
     const result = await applyVisualCueBatch({ ledger: captured.ledger,
       issuedRequest: { ...captured.registered, status: 'active' }, response, authoritativeRaw: captured.raw,
-      validationContext: { ...captured.context, getSupportedDetails: (name, edition) => edition === 'rws-immanuelle-vector' ? getVectorGestureDetails(name) : [] } });
+      validationContext: visualCompilerContext(captured.context) });
     return this.transaction(async () => {
       if (recoveryEpoch !== this.recoveryEpoch || !sameVisualCueBinding(issuedRequest.binding, this.binding)) return { ok: false, reason: 'stale-epoch' };
       if (BLOCKED.has(this.status)) return { ok: false, reason: this.status };

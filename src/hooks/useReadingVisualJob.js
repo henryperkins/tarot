@@ -1,7 +1,7 @@
 import { emitCueTiming } from '../lib/readingCueTimingProbe.js';
 import { useState, useEffect, useRef } from 'react';
 import { canonicalVisualCueJSON, sameVisualCueBinding } from '../../shared/contracts/visualCueBatches.js';
-import { boundVisualCueLedger } from '../lib/narrativeGestureSource.js';
+import { boundVisualCueLedger, visualJobPresentationStatus } from '../lib/narrativeGestureSource.js';
 import { readVisualJobEvents, isVisualJobTerminal } from '../lib/readingVisualStream.js';
 import { readingGesturesEnabled } from '../lib/readingGestureSettings.js';
 
@@ -9,19 +9,19 @@ import { readingGesturesEnabled } from '../lib/readingGestureSettings.js';
  * A saved replay subscribes by its fresh `visualJobId`/`attemptId`; original
  * handles keep the result route. Subscribing never submits annotation work. */
 export function useReadingVisualJob({ readingResultId, visualJobId = null, attemptId = null, visualBinding, visualJobToken,
-  raw = '', enabled = true, onBatch = null, onError = null } = {}) {
+  raw = '', enabled = true, onBatch = null, onError = null, onStatus = null } = {}) {
   const subscriptionEnabled = enabled && readingGesturesEnabled();
   const key = visualBinding ? canonicalVisualCueJSON(visualBinding) : '';
   const [snapshot, setSnapshot] = useState(null);
-  const latest = useRef({ raw, onBatch, onError });
+  const latest = useRef({ raw, onBatch, onError, onStatus });
   const received = useRef(null);
   const accepted = useRef(null);
   const apply = useRef(null);
 
   useEffect(() => {
-    latest.current = { raw, onBatch, onError };
+    latest.current = { raw, onBatch, onError, onStatus };
     apply.current?.();
-  }, [raw, onBatch, onError]);
+  }, [raw, onBatch, onError, onStatus]);
 
   useEffect(() => {
     received.current = null;
@@ -31,19 +31,36 @@ export function useReadingVisualJob({ readingResultId, visualJobId = null, attem
     const controller = new AbortController();
     let status = 'pending';
     let error = null;
+    let publishedStatus = null;
+    let publishedPresentationStatus = null;
+    const publishStatus = () => {
+      if (controller.signal.aborted) return;
+      // A terminal job can have no accepted ledger. Publish its state anyway,
+      // preserving already accepted cues so fallback inspection can recover.
+      if (publishedStatus !== status) {
+        publishedStatus = status;
+        setSnapshot(previous => ({ ...(previous?.key === key ? previous : {}), key, binding, status, error }));
+      }
+      const presentationStatus = visualJobPresentationStatus({ status, cueLedger: received.current?.cueLedger,
+        runId: readingResultId, sourceRevision: binding.sourceRevision, visualBinding: binding, raw: latest.current.raw });
+      if (publishedPresentationStatus !== presentationStatus) {
+        publishedPresentationStatus = presentationStatus;
+        latest.current.onStatus?.({ binding, status: presentationStatus });
+      }
+    };
     const adopt = () => {
       if (controller.signal.aborted) return;
       const ledger = boundVisualCueLedger(received.current?.cueLedger, {
         runId: readingResultId, sourceRevision: binding.sourceRevision,
         visualBinding: binding, raw: latest.current.raw
       });
-      if (!ledger) return;
+      if (!ledger) { publishStatus(); return; }
       const prior = accepted.current;
-      if (prior && ledger.ledgerRevision < prior.ledgerRevision) return;
+      if (prior && ledger.ledgerRevision < prior.ledgerRevision) { publishStatus(); return; }
       const changed = !prior || ledger.ledgerRevision > prior.ledgerRevision;
       // Equal revisions may advance status; they cannot change accepted cue data.
       const cueLedger = changed ? ledger : prior.cueLedger;
-      if (!changed && status === prior.status) return;
+      if (!changed && status === prior.status) { publishStatus(); return; }
       const next = { key, binding, cueLedger, ledgerRevision: cueLedger.ledgerRevision, status, error };
       if (changed) for (const cue of cueLedger.cues) emitCueTiming('cue-adoption', {
         runId: readingResultId, sourceRevision: binding.sourceRevision, cueId: cue.id,
@@ -52,6 +69,7 @@ export function useReadingVisualJob({ readingResultId, visualJobId = null, attem
       accepted.current = next;
       setSnapshot(next);
       latest.current.onBatch?.(next);
+      publishStatus();
     };
     apply.current = adopt;
     const run = async () => {
@@ -81,7 +99,9 @@ export function useReadingVisualJob({ readingResultId, visualJobId = null, attem
         }
       } catch (err) {
         if (controller.signal.aborted || err.name === 'AbortError') return;
-        setSnapshot(previous => ({ ...(previous?.key === key ? previous : {}), key, status: 'failed', error: 'Visual accompaniment is unavailable.' }));
+        status = 'failed';
+        error = 'Visual accompaniment is unavailable.';
+        publishStatus();
         // Terminal 401/403/410 means this capability can never resume; callers may
         // retire the handle. Transient failures leave the handle for a later mount.
         latest.current.onError?.({ terminal: Boolean(err.terminal) });

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveNarrativePassages, measureNarrativePassage } from '../src/lib/generatedNarrativePassages.js';
+import { createGestureFocusState, reduceGestureFocus } from '../src/components/reading/narrative/narrativeGestureState.js';
 
 const cards = [{ index: 0, canonicalName: 'The Star', artworkEdition: 'rws-immanuelle-vector' }];
 const raw = 'La Estrella vierte agua. Esta corriente puede acompañar tu nuevo comienzo.';
@@ -75,6 +76,69 @@ test('unbound, replaced, wrong-edition and mismatched cumulative cues never reac
 });
 
 
+test('pending visual work retains fallback phrases for inspection without starting an introduction', () => {
+  const source = { runId: binding.readingResultId, sourceRevision: 0,
+    raw: 'The Star invites a gentler pace.', status: 'complete', kind: 'complete',
+    visualBinding: binding, visualJobStatus: 'pending' };
+  const pending = resolveNarrativePassages({ source, cards });
+  assert.equal(pending.associations.length, 1);
+  assert.equal(pending.associations[0].kind, 'identity');
+  assert.equal(pending.associations[0].automatic, false);
+  assert.equal(pending.introductions[0].occurrenceId, `${binding.readingResultId}:0`);
+  for (const visualJobStatus of ['failed', 'cancelled', 'expired', 'complete', 'idle', undefined]) {
+    const fallback = resolveNarrativePassages({ source: { ...source, visualJobStatus }, cards });
+    assert.equal(fallback.associations[0].id, pending.associations[0].id);
+    assert.notEqual(fallback.associations[0].automatic, false, visualJobStatus);
+  }
+  assert.notEqual(resolveNarrativePassages({ source: { ...source, kind: 'hydrate' }, cards }).associations[0].automatic, false);
+});
+
+test('accepted ledger connections keep their turns while pending work suppresses only supplemented fallback cards', () => {
+  const extendedRaw = `${raw} The Hermit invites a quieter pace.`;
+  const spread = [...cards, { index: 1, canonicalName: 'The Hermit', artworkEdition: 'rws-immanuelle-vector' }];
+  const source = { runId: binding.readingResultId, sourceRevision: 0, raw: extendedRaw,
+    status: 'complete', kind: 'complete', visualBinding: binding, cueLedger: ledger, visualJobStatus: 'running',
+    question: '¿Cómo dar un nuevo comienzo?' };
+  const result = resolveNarrativePassages({ source, cards: spread });
+  assert.deepEqual(result.associations.filter(cue => cue.automatic !== false).map(cue => cue.id), ['vc:water', 'vc:beginning']);
+  const fallback = result.associations.find(cue => cue.targets[0].spreadIndex === 1);
+  assert.equal(fallback.kind, 'identity');
+  assert.equal(fallback.automatic, false);
+  assert.deepEqual(result.introductions.map(intro => intro.occurrenceId), [`${binding.readingResultId}:0`, `${binding.readingResultId}:1`]);
+});
+
+test('pending legacy annotations wait for their accepted ledger successor without repeating an introduction', () => {
+  const text = 'The Star invites a gentler pace.';
+  const semanticDocument = { version: 1, artworkEdition: binding.artworkEdition, raw: text, annotations: [
+    { id: 'legacy-star', kind: 'identity', quote: 'The Star', targets: [{ spreadIndex: 0, detailIds: [] }] }
+  ] };
+  const source = { runId: binding.readingResultId, sourceRevision: 0, raw: text, kind: 'complete', status: 'complete',
+    visualBinding: binding, visualJobStatus: 'pending', semanticDocument };
+  const pending = resolveNarrativePassages({ source, cards });
+  assert.equal(pending.associations[0].id, 'legacy-star');
+  assert.equal(pending.associations[0].automatic, false);
+  let state = createGestureFocusState({ runId: source.runId, sourceRevision: 0, ...pending });
+  const event = (type, fields) => ({ type, runId: source.runId, sourceRevision: 0, ...fields });
+  state = reduceGestureFocus(state, event('PROGRESS', { progress: { visibleEnd: text.length }, now: 100 }));
+  state = reduceGestureFocus(state, event('VISIBILITY', { visibilitySnapshot: { 'legacy-star': true }, now: 100 }));
+  assert.equal(state.current, null);
+  state = reduceGestureFocus(state, event('HOLD', { selection: { kind: 'association', id: 'legacy-star' }, now: 200 }));
+  assert.equal(state.phase, 'held');
+  state = reduceGestureFocus(state, event('RELEASE', { now: 300 }));
+  const acceptedLedger = { ...ledger, ledgerRevision: 3, raw: text, analyzedEnd: text.length,
+    cues: [{ ...pending.associations[0], id: 'vc:star' }], introductions: pending.introductions };
+  const accepted = resolveNarrativePassages({ source: { ...source, cueLedger: acceptedLedger }, cards });
+  assert.equal(accepted.mode, 'ledger');
+  assert.notEqual(accepted.associations[0].automatic, false);
+  state = reduceGestureFocus(state, event('CUES_ARRIVED', { binding, ledgerRevision: 3, ...accepted,
+    visibilitySnapshot: { 'vc:star': true }, now: 1000 }));
+  assert.equal(state.current.id, 'vc:star');
+  assert.equal(state.turnUntil, 2800);
+  for (const fields of [{ visualJobStatus: 'failed' }, { visualJobStatus: undefined }, { kind: 'hydrate' }]) {
+    assert.notEqual(resolveNarrativePassages({ source: { ...source, ...fields }, cards }).associations[0].automatic, false);
+  }
+});
+
 // DOM layout cannot run in Node. The browser regression exercises actual Range
 // geometry; these fixtures bound the renderer's full-source visibility decision.
 test('passage eligibility uses all nonempty source rects instead of padded wrapper geometry', () => {
@@ -117,4 +181,44 @@ test('ancestor clipping, hiding and actual occlusion reject quoted-source visibi
   assert.equal(measureNarrativePassage(element).visible, false);
   style = { ...style, opacity: '1' }; hit = { contains: () => false };
   assert.equal(measureNarrativePassage(element).visible, false);
+});
+
+
+test('oversized quotations remain eligible through a fully exposed source line', () => {
+  const rect = (top, bottom) => ({ top, bottom, left: 20, right: 180, width: 160, height: bottom - top });
+  let rects = [rect(-60, -20), rect(0, 40), rect(60, 100), rect(120, 160), rect(180, 220)];
+  let hit;
+  const document = { hidden: false, defaultView: { innerWidth: 300, innerHeight: 200,
+    getComputedStyle: () => ({ opacity: '1', visibility: 'visible', display: 'inline', overflowX: 'visible', overflowY: 'visible' }) },
+    elementFromPoint: () => hit, createRange: () => ({ selectNodeContents() {}, getClientRects: () => rects }) };
+  const element = { ownerDocument: document, nodeType: 1, parentElement: null, contains: node => node === element };
+  hit = element;
+  assert.equal(measureNarrativePassage(element).visible, true);
+  // A sliver cannot start a turn, even when the complete quote is too tall.
+  rects = [rect(195, 235), rect(255, 295), rect(315, 355), rect(375, 415), rect(435, 475)];
+  assert.equal(measureNarrativePassage(element).visible, false);
+  rects = [rect(-60, -20), rect(0, 40), rect(60, 100), rect(120, 160), rect(180, 220)];
+  hit = { contains: () => false };
+  assert.equal(measureNarrativePassage(element).visible, false);
+  hit = element; document.hidden = true;
+  assert.equal(measureNarrativePassage(element).visible, false);
+});
+
+test('sticky phone artwork bounds the readable area without relaxing ordinary quotations', () => {
+  const rect = (top, bottom) => ({ top, bottom, left: 20, right: 180, width: 160, height: bottom - top });
+  let rects = [rect(80, 120), rect(140, 180), rect(200, 240)];
+  const companion = { getBoundingClientRect: () => ({ top: 0, bottom: 150, left: 0, right: 300 }) };
+  const document = { hidden: false, defaultView: { innerWidth: 300, innerHeight: 300,
+    getComputedStyle: node => node === companion ? { position: 'sticky', top: '0px' }
+      : { opacity: '1', visibility: 'visible', display: 'inline', overflowX: 'visible', overflowY: 'visible' } },
+    elementFromPoint: () => element, createRange: () => ({ selectNodeContents() {}, getClientRects: () => rects }) };
+  const element = { ownerDocument: document, nodeType: 1, parentElement: null, contains: node => node === element,
+    closest: () => ({ querySelector: () => companion }) };
+  // 160px source cannot fit the 150px readable strip; its last complete line can play.
+  assert.equal(measureNarrativePassage(element).visible, true);
+  // This quote fits the strip: partial entry must still wait for every line.
+  rects = [rect(130, 170), rect(190, 230)];
+  assert.equal(measureNarrativePassage(element).visible, false);
+  rects = [rect(150, 190), rect(210, 250)];
+  assert.equal(measureNarrativePassage(element).visible, true);
 });

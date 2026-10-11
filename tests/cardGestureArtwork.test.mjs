@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, access } from 'node:fs/promises';
-import { getVectorGestureDetails, projectGestureFrame, CARD_GESTURE_PLANE } from '../src/data/cardGestureArtwork.js';
+import { getVectorGestureDetails, projectGestureFrame, getVectorGestureCropZoom, CARD_GESTURE_PLANE } from '../src/data/cardGestureArtwork.js';
 import { getAllCards } from '../src/lib/cardLookup.js';
 import { getCardTouchPoints } from '../src/data/cardTouchPoints.js';
 test('vector artwork keeps pours separate and confines trusted water geometry', () => {
@@ -73,9 +73,9 @@ async function compactStages() {
   assert.match(compact, /\.gesture-window \{ height: 106px; \}/);
   assert.match(compact, /\.gesture-focus-card \{ max-width: 232px; \}/);
   assert.match(compact, /\.gesture-focus-layer \{ gap: 10px; \}/);
-  assert.match(compact, /\.gesture-art\[data-crop\] \.gesture-art__plane \{ width: 160px; height: 266\.667px;[^}]*scale\(var\(--crop-zoom\)\) translate\(var\(--crop-x\), var\(--crop-y\)\)/);
+  assert.match(compact, /\.gesture-art\[data-crop\] \.gesture-art__plane \{ width: 160px; height: 266\.667px;[^}]*scale\(min\(var\(--crop-zoom\), var\(--crop-fit-zoom, var\(--crop-zoom\)\)\)\) translate\(var\(--crop-x\), var\(--crop-y\)\)/);
   assert.match(css, /@media \(max-width: 359px\) \{ \.gesture-window \{ height: 96px; \}/);
-  assert.match(css, /@media \(max-height: 600px\) and \(max-width: 1023px\) \{ \.gesture-window \{ height: 72px; \}[^\n]*scale\(var\(--crop-zoom-short\)\)/);
+  assert.match(css, /@media \(max-height: 600px\) and \(max-width: 1023px\) \{ \.gesture-window \{ height: 72px; \}[^\n]*scale\(min\(var\(--crop-zoom-short\), var\(--crop-fit-zoom, var\(--crop-zoom-short\)\)\)\)/);
   assert.match(css, /\.gesture-focus-card \{ display: flex; gap: 6px;/);
   return { plane: { width: 160, height: 266.667 }, stages: [
     { name: 'compact phone', width: 232, height: 106, zoom: frame => frame.zoom },
@@ -128,4 +128,32 @@ test('recorded relationship compositions keep requested points inside split and 
     }
   }
   assert.deepEqual(failures, []);
+});
+
+test('compact fit preserves painted mask extents in split, paired, narrow and short slots, with one reversal', () => {
+  const failures = [];
+  for (const card of getAllCards()) {
+    const details = getVectorGestureDetails(card.name);
+    const groups = [...details.map(detail => [detail.id]), ...(details.length > 1 ? [details.map(detail => detail.id)] : []), []];
+    for (const ids of groups) for (const width of [232, 175.5, 113, 84]) for (const height of [106, 96, 72]) {
+      const zoom = getVectorGestureCropZoom(card.name, ids, { width, height });
+      const selected = details.filter(detail => ids.includes(detail.id));
+      for (const reversed of [false, true]) {
+        const frame = projection.getVectorGestureFrame(card.name, ids, reversed);
+        const points = selected.length ? selected.flatMap(detail => [...detail.maskSpots.flatMap(spot => Array.from({ length: 96 }, (_, index) => {
+          const angle = index * Math.PI / 48, rotation = (spot.rotation || 0) * Math.PI / 180;
+          const dx = spot.rx * CARD_GESTURE_PLANE.width * Math.cos(angle), dy = spot.ry * CARD_GESTURE_PLANE.height * Math.sin(angle);
+          return { x: spot.x + (dx * Math.cos(rotation) - dy * Math.sin(rotation)) / CARD_GESTURE_PLANE.width,
+            y: spot.y + (dx * Math.sin(rotation) + dy * Math.cos(rotation)) / CARD_GESTURE_PLANE.height };
+        })), ...(detail.cropBounds ? [{ x: detail.cropBounds.left, y: detail.cropBounds.top },
+          { x: detail.cropBounds.right, y: detail.cropBounds.bottom }] : [])]) : [{ x: 0, y: 0 }, { x: 1, y: 1 }];
+        for (const point of points.filter(point => point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1)) {
+          const x = reversed ? 1 - point.x : point.x, y = reversed ? 1 - point.y : point.y;
+          const dx = (x - frame.x) * 160 * zoom, dy = (y - frame.y) * 266.667 * zoom;
+          if (Math.abs(dx) > width / 2 - 2.999 || Math.abs(dy) > height / 2 - 2.999) failures.push(`${card.name}/${ids.join('+') || 'identity'} ${width}x${height} reversed=${reversed} at ${dx},${dy}`);
+        }
+      }
+    }
+  }
+  assert.equal(failures.length, 0, failures.slice(0, 8).join('\n'));
 });

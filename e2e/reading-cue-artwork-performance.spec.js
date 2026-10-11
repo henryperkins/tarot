@@ -1,6 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { createNarrativeFixture, openSetup, startReading, expectNoHorizontalOverflow } from './helpers/narrativeFixtures.js';
+import { observeNarrativeUiHealth, createNarrativeFixture, openSetup, startReading, expectNoHorizontalOverflow } from './helpers/narrativeFixtures.js';
+
+const uiHealth = new WeakMap();
+test.beforeEach(async ({ page }) => {
+  uiHealth.set(page, observeNarrativeUiHealth(page, {}));
+  await page.route(/https:\/\/[^/]*sentry\.io\/.*\/envelope\//, route => route.fulfill({ json: {} }));
+});
+test.afterEach(async ({ page }) => { uiHealth.get(page)?.(); });
 
 // Task 13 measurement lane: the separately identified optimized build on the normal
 // reading route, mocked auth and controlled narrative transport, emulated
@@ -54,6 +61,78 @@ async function snapshot(page) {
     viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio }
   }));
 }
+
+test('streaming prose grows without enlarging its decorative raster surface', async ({ page, browserName }, testInfo) => {
+  const chunks = Array.from({ length: 40 }, (_, index) => `Stream checkpoint ${index + 1}. ${paragraph}`);
+  const fullText = `## Your reading\n\n${chunks.join('\n\n')}`;
+  const fixture = await createNarrativeFixture(page, { narrative: fullText, sourceUsage: null });
+  const decoration = page.locator('.narrative-atmosphere-host > .narrative-atmosphere__decoration');
+  const prose = page.locator('.narrative-stream__text');
+  const samples = [];
+  const measure = () => decoration.evaluate(node => {
+    const host = node.parentElement;
+    const box = node.getBoundingClientRect();
+    const wash = getComputedStyle(node, '::after');
+    const dust = getComputedStyle(node, '::before');
+    return {
+      proseHeight: host.getBoundingClientRect().height,
+      decorationWidth: box.width,
+      decorationHeight: box.height,
+      washHeight: parseFloat(wash.height),
+      washDisplay: wash.display,
+      dustDisplay: dust.display,
+      dustAnimation: dust.animationName,
+      contain: getComputedStyle(node).contain,
+      hiddenFromAccessibility: node.getAttribute('aria-hidden'),
+      viewportHeight: innerHeight,
+      mobileStableMode: Boolean(node.closest('.mobile-stable-mode')),
+      reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches
+    };
+  });
+  try {
+    await startReading(page, fixture, { complete: false });
+    for (const count of [2, 10, 25, 40]) {
+      await fixture.emit('reading', 'snapshot', { fullText: `## Your reading\n\n${chunks.slice(0, count).join('\n\n')}` });
+      await expect(prose).toContainText(`Stream checkpoint ${count}.`);
+      await expect(decoration).toHaveCount(1);
+      samples.push({ paragraphs: count, ...await measure() });
+    }
+    expect(samples.at(-1).proseHeight - samples[0].proseHeight).toBeGreaterThan(2000);
+    for (const sample of samples) {
+      expect(sample.decorationHeight).toBeGreaterThan(0);
+      expect(sample.decorationHeight).toBeLessThanOrEqual(sample.viewportHeight + 1);
+      expect(sample.decorationHeight).toBeCloseTo(samples[0].decorationHeight, 1);
+      expect(sample.decorationWidth).toBeCloseTo(samples[0].decorationWidth, 1);
+      if (sample.mobileStableMode) {
+        expect(sample.washDisplay).toBe('none');
+        expect(sample.dustDisplay).toBe('none');
+      } else {
+        expect(sample.washHeight).toBeCloseTo(sample.decorationHeight, 1);
+        expect(sample.washDisplay).not.toBe('none');
+      }
+      expect(sample.contain).toBe('strict');
+      expect(sample.hiddenFromAccessibility).toBe('true');
+      expect(sample.dustAnimation).toBe(sample.reducedMotion ? 'none' : 'narrativeDustDrift');
+    }
+    // Completion preserves the bounded layer and the full, selectable reading.
+    await fixture.completeReading();
+    const completed = await measure();
+    expect(completed.decorationHeight).toBeCloseTo(samples[0].decorationHeight, 1);
+    await expect(prose).toContainText('Stream checkpoint 40.');
+    await expectNoHorizontalOverflow(page);
+    const output = testInfo.outputPath('streaming-background-bounds.json');
+    await mkdir(testInfo.outputDir, { recursive: true });
+    await writeFile(output, `${JSON.stringify({
+      scope: 'optimized build, mocked auth and controlled real SSE, emulated engine; structural raster bounds, not physical GPU timing',
+      project: testInfo.project.name, browserName, samples, completed
+    }, null, 2)}\n`, { flag: 'wx' });
+    await testInfo.attach('streaming-background-bounds', { path: output, contentType: 'application/json' });
+    const screenshot = testInfo.outputPath('streaming-background.png');
+    await prose.evaluate(node => node.scrollIntoView({ block: 'start', behavior: 'instant' }));
+    await page.screenshot({ path: screenshot });
+    await testInfo.attach('streaming-background', { path: screenshot, contentType: 'image/png' });
+  } finally { await fixture.close(); }
+});
 
 for (const [spreadName, count] of SPREADS) {
   test(`${count}-card reading transfers only drawn artwork, cold then warm`, async ({ page, browserName }, testInfo) => {

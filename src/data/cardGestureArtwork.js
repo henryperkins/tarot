@@ -9,6 +9,8 @@ const fiveCardDetails = {
     card: 'ace', x: .408, y: .34, rx: .17, ry: .30,
     // Centred on the leaves so the topmost sprout stays inside the compact stage.
     frame: { x: .385, y: .235, zoom: 1.25 },
+    // The finite wand trace continues below the soft leaf/hand masks.
+    cropBounds: { left: .4, top: .12, right: .42, bottom: .704 },
     spots: [
       { x: .408, y: .36, rx: .080, ry: .31 },
       { x: .369, y: .10, rx: .13, ry: .09 },
@@ -64,6 +66,9 @@ const rivulets = [
   "M 953 1505 C 954.5 1507.2 954.2 1508.3 953 1510 C 951.8 1511.7 944.2 1520.1 941 1522 C 937.8 1523.9 924.3 1527 921 1529 C 917.7 1531 909.3 1539.4 908 1542 C 906.7 1544.6 907 1552.7 908 1555 C 909 1557.3 915.1 1563.8 918 1565 C 920.9 1566.2 933.9 1565.9 937 1567 C 940.1 1568.1 947.1 1575.5 949 1576 M 961 1572 C 962.9 1573.7 973.1 1586.2 975 1589 C 976.9 1591.8 977.5 1596.9 980 1600 C 982.5 1603.1 998 1616.5 1000 1620 C 1002 1623.5 1000 1633.5 1000 1635"
 ];
 const poolWater = {
+  // The stream and pool clips belong to this authored treatment as well as
+  // the soft mask. Preserve their complete pictured context in compact views.
+  cropBounds: { left: 50 / 1086, top: 1210 / 1810, right: 675 / 1086, bottom: 1615 / 1810 },
   kind: 'water', clips: {
     stream: 'M 252 1215 C 265 1205 295 1205 304 1220 C 312 1260 308 1330 304 1435 C 290 1445 270 1445 260 1435 C 255 1330 248 1260 252 1215 Z',
     pool: 'M 50 1250 Q 200 1255 350 1265 C 375 1270 380 1285 395 1300 L 400 1340 L 420 1370 L 475 1380 L 520 1350 L 550 1310 C 580 1315 620 1340 645 1390 C 675 1450 660 1490 620 1520 C 560 1560 480 1590 320 1615 L 50 1615 Z'
@@ -72,6 +77,8 @@ const poolWater = {
   ripples: [{ cx: 285, cy: 1455, rx: 260, ry: 115 }]
 };
 const landWater = {
+  // Rivulet endpoints include the visible three-pixel stroke caps.
+  cropBounds: { left: 617 / 1086, top: 987 / 1810, right: 1029 / 1086, bottom: 1640 / 1810 },
   kind: 'water', clips: { stream: 'M 902 995 C 915 990 925 990 932 998 C 938 1030 940 1200 935 1475 C 920 1485 898 1485 888 1475 C 885 1200 892 1030 902 995 Z' },
   streams: ['M906 1000 L903 1475', 'M916 995 L915 1480', 'M926 1000 L928 1475'],
   rivulets, rivuletMaskWidth: 14
@@ -80,8 +87,9 @@ const landWater = {
 // choice for a still painted detail; only authored recipes add bounded motion
 // (finite 1800 ms traces, held water that settles in 1500 ms). Reduced motion
 // keeps every treatment's static illumination.
-function detail(id, terms, maskSpots, frame, motionRecipe, traces = []) {
-  return { id, terms, maskSpots, spots: maskSpots.map(({ x, y, rx }) => [x, y, rx]), frame, traces, motionRecipe, treatment: motionRecipe?.kind ?? 'static' };
+function detail(id, terms, maskSpots, frame, motionRecipe, traces = [], cropBounds = motionRecipe?.cropBounds) {
+  return { id, terms, maskSpots, spots: maskSpots.map(({ x, y, rx }) => [x, y, rx]), frame, traces, motionRecipe,
+    ...(cropBounds ? { cropBounds } : {}), treatment: motionRecipe?.kind ?? 'static' };
 }
 const vectorDetails = {
   'The Star': [
@@ -93,8 +101,8 @@ const vectorDetails = {
 };
 const cardNames = { ace: 'Ace of Wands', swords: 'Seven of Swords', queen: 'Queen of Cups', pentacles: 'Three of Pentacles', wheel: 'Wheel of Fortune' };
 for (const [id, authored] of Object.entries(fiveCardDetails)) {
-  const { card, x, y, rx, ry, spots, frame, traces = [] } = authored;
-  (vectorDetails[cardNames[card]] ||= []).push(detail(id, [id.replaceAll('-', ' ')], spots || [{ x, y, rx, ry }], frame, traces.length ? { kind: 'finite', duration: 1800 } : undefined, traces));
+  const { card, x, y, rx, ry, spots, frame, traces = [], cropBounds } = authored;
+  (vectorDetails[cardNames[card]] ||= []).push(detail(id, [id.replaceAll('-', ' ')], spots || [{ x, y, rx, ry }], frame, traces.length ? { kind: 'finite', duration: 1800 } : undefined, traces, cropBounds));
 }
 Object.assign(vectorDetails, MAJOR_ARTWORK, CUP_PENTACLE_ARTWORK, WAND_SWORD_ARTWORK);
 
@@ -127,4 +135,33 @@ export function getVectorGestureFrame(canonicalName, detailIds, reversed = false
   const extent = Math.max(0, ...spots.map(spot => Math.abs(spot.y - frame.y) + spot.ry));
   const shortZoom = Math.min(frame.zoom, 66 / ((extent ? 2 * extent : 1) * 266.667));
   return { ...projectGestureFrame(frame, reversed), shortZoom };
+}
+
+/** Fit the pictured parts of the authored masks into the actual compact slot.
+ * Split details and paired cards have narrower slots than the stage itself.
+ * Rotation is applied to the shared artwork plane, so these extents stay upright.
+ */
+export function getVectorGestureCropZoom(canonicalName, detailIds, { width, height } = {}) {
+  const frame = getVectorGestureFrame(canonicalName, detailIds);
+  if (!(width > 0 && height > 0)) return frame.zoom;
+  const details = getVectorGestureDetails(canonicalName).filter(detail => detailIds.includes(detail.id));
+  const spots = details.flatMap(detail => detail.maskSpots);
+  let extentX = 0, extentY = 0;
+  for (const spot of spots) {
+    const angle = (spot.rotation || 0) * Math.PI / 180;
+    // Ellipse radii are in the artwork plane's unequal coordinate dimensions.
+    const rx = spot.rx * CARD_GESTURE_PLANE.width, ry = spot.ry * CARD_GESTURE_PLANE.height;
+    const halfWidth = Math.hypot(rx * Math.cos(angle), ry * Math.sin(angle)) / CARD_GESTURE_PLANE.width;
+    const halfHeight = Math.hypot(rx * Math.sin(angle), ry * Math.cos(angle)) / CARD_GESTURE_PLANE.height;
+    extentX = Math.max(extentX, Math.abs(Math.max(0, spot.x - halfWidth) - frame.x), Math.abs(Math.min(1, spot.x + halfWidth) - frame.x));
+    extentY = Math.max(extentY, Math.abs(Math.max(0, spot.y - halfHeight) - frame.y), Math.abs(Math.min(1, spot.y + halfHeight) - frame.y));
+  }
+  for (const { cropBounds } of details) if (cropBounds) {
+    extentX = Math.max(extentX, Math.abs(cropBounds.left - frame.x), Math.abs(cropBounds.right - frame.x));
+    extentY = Math.max(extentY, Math.abs(cropBounds.top - frame.y), Math.abs(cropBounds.bottom - frame.y));
+  }
+  // Identity and unsupported-detail fallbacks keep the entire card in view.
+  if (!spots.length) { extentX = .5; extentY = .5; }
+  const roomX = Math.max(1, width - 6), roomY = Math.max(1, height - 6);
+  return Math.min(frame.zoom, roomX / (2 * extentX * 160 || 1), roomY / (2 * extentY * (160 * CARD_GESTURE_PLANE.height / CARD_GESTURE_PLANE.width) || 1));
 }

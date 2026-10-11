@@ -95,6 +95,9 @@ function GestureCompanion({ focus, api }) {
   const state = focus.studyEnabled ? focus.gestureState : { ...focus.gestureState, current: null, introduced: [], pending: null, phase: 'static' };
   const root = useRef(null);
   const windowRef = useRef(null);
+  const contextRef = useRef(null);
+  const current = state.current;
+  const personalContext = current?.personalContext;
   const [artVisible, setArtVisible] = useState(false);
   // Keyboard or assistive-technology focus inside the stage is an inspection:
   // automatic turns pause instead of replacing the card under that cursor.
@@ -106,10 +109,11 @@ function GestureCompanion({ focus, api }) {
     stageFocused.current = focused;
     api.reportInspection({ kind: 'stage-focus', active: focused });
   }, [api]);
+  const containsInspectionFocus = target => Boolean(windowRef.current?.contains(target)
+    || (personalContext && contextRef.current?.contains(target)));
   // A focused card removed by an explicit change fires no blur in every engine.
-  useEffect(() => { if (stageFocused.current && !windowRef.current?.contains(document.activeElement)) reportStageFocus(false); });
+  useEffect(() => { if (stageFocused.current && !containsInspectionFocus(document.activeElement)) reportStageFocus(false); });
   useEffect(() => () => { if (stageFocused.current) api.reportInspection({ kind: 'stage-focus', active: false }); }, [api]);
-  const current = state.current;
   const [layers, setLayers] = useState({ id: current?.id, current, departing: null, exitId: 0 });
   if (layers.id !== current?.id) setLayers({ id: current?.id, current, departing: calm ? null : layers.current,
     exitId: layers.exitId + 1 });
@@ -168,7 +172,6 @@ function GestureCompanion({ focus, api }) {
       })}
     </div>;
   };
-  const personalContext = current?.personalContext;
   return <aside ref={root} className="gesture-companion" aria-label="Your cards" data-calm={calm ? 'true' : undefined}>
     <ol data-gesture-shelf className="gesture-shelf" style={{ '--shelf-count': cards.length }}>
       {cards.map(card => {
@@ -191,10 +194,15 @@ function GestureCompanion({ focus, api }) {
     <div ref={windowRef} data-gesture-window className="gesture-window" data-association={current?.id || ''} data-phase={state.phase}
       data-held={state.held ? 'true' : undefined} data-pending={state.pending || ''}
       onFocus={event => reportStageFocus(keyboardFocus(event.target))}
-      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) reportStageFocus(false); }}>
+      onBlur={event => { if (!containsInspectionFocus(event.relatedTarget)) reportStageFocus(false); }}>
       {focus.studyEnabled && !calm && present(layers.departing, true)}{present(current)}
     </div>
-    <div className="gesture-context" aria-live="off">{personalContext ? <span>“{personalContext.quote}”</span> : null}</div>
+    <div ref={contextRef} className="gesture-context" aria-live="off" role={personalContext ? 'region' : undefined}
+      aria-label={personalContext ? 'Related personal context' : undefined} tabIndex={personalContext ? 0 : undefined}
+      onFocus={event => reportStageFocus(keyboardFocus(event.target))}
+      onBlur={event => { if (!containsInspectionFocus(event.relatedTarget)) reportStageFocus(false); }}>
+      {personalContext ? <span>“{personalContext.quote}”</span> : null}
+    </div>
   </aside>;
 }
 

@@ -4,6 +4,7 @@ import { remarkCueSourcePositions } from '../src/lib/readingCueTimingProbe.js';
 import { buildIndependentReadingSchedule, scoreCueBrowserReport, traceCueBrowserOpportunities } from '../e2e/helpers/readingCueBrowserScoring.mjs';
 import { buildIdealCueArrivalSchedule } from '../e2e/helpers/readingCueBrowserSession.mjs';
 import { loadReadingCueCases } from '../scripts/evaluation/lib/readingCueQualification.mjs';
+import { createReadingCueTestManifest } from './helpers/readingCueQualificationFixtures.mjs';
 
 test('exact source projection preserves overlapping opportunities and rejects decoded leaves', () => {
   const tree = { type: 'root', children: [{ type: 'paragraph', children: [
@@ -157,7 +158,7 @@ test('completed lifecycle, held, static and restored reports cannot qualify auto
 });
 
 test('frozen source-active-phase schedule has a compatible Star control and a bounded five-card limitation', async () => {
-  const cases = await loadReadingCueCases();
+  const cases = await loadReadingCueCases({ manifest: await createReadingCueTestManifest() });
   const star = cases.find(c => c.id === 'star-2347-excerpt');
   const five = cases.find(c => c.id === 'five-card-creative-project');
   const make = c => buildIdealCueArrivalSchedule(c, { mode: 'source-active-phase', activeMs: 1800 });

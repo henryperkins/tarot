@@ -588,8 +588,16 @@ export function StreamingNarrative({
   ) : null;
 
   const EMPHASIS_POP_THRESHOLD = 8;
+  const atmosphereDecoration = withAtmosphere ? (
+    <div
+      aria-hidden="true"
+      className={`${atmosphereClass} narrative-atmosphere__decoration`}
+    />
+  ) : null;
+  const atmosphereHostClass = withAtmosphere ? 'narrative-atmosphere-host' : '';
   const narrativeBody = useMarkdown ? (
-    <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-none w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] narrative-stream__text narrative-stream__text--md ${atmosphereClass} ${textBottomPaddingClass}`}>
+    <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-none w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] narrative-stream__text narrative-stream__text--md ${atmosphereHostClass} ${textBottomPaddingClass}`}>
+      {atmosphereDecoration}
       <MarkdownRenderer
         className="narrative-stream__markdown"
         content={visibleText}
@@ -601,7 +609,8 @@ export function StreamingNarrative({
       />
     </div>
   ) : (
-    <div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose w-full text-left min-h-[5.5rem] xxs:min-h-[7.5rem] md:min-h-[10rem] narrative-stream__text narrative-stream__text--plain ${atmosphereClass} ${textBottomPaddingClass}`}>
+    <div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose w-full text-left min-h-[5.5rem] xxs:min-h-[7.5rem] md:min-h-[10rem] narrative-stream__text narrative-stream__text--plain ${atmosphereHostClass} ${textBottomPaddingClass}`}>
+      {atmosphereDecoration}
       {visibleWords.map((word, idx) => {
         const meta = tokenMeta[idx] || { isWhitespace: /^\s+$/.test(word), isHighlighted: false };
 

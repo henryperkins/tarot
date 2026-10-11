@@ -63,7 +63,7 @@ function adopt(state, association, now) {
 // Consumed candidates retain their explicit revisit UI.
 function reconcile(state, now) {
   const consumed = new Set(state.consumedCueIds);
-  const candidates = state.associations.filter(({ id, passage }) => passage.end <= state.visibleEnd
+  const candidates = state.associations.filter(({ id, passage, automatic }) => automatic !== false && passage.end <= state.visibleEnd
     && state.passageVisibility[id] === true && !consumed.has(id))
     .sort((a, b) => a.passage.end - b.passage.end || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   if (!candidates.length) return { ...state, pending: null };

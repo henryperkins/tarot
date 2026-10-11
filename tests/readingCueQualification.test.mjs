@@ -9,13 +9,16 @@ import {
   rankReadingCueCandidates, wilsonInterval
 } from '../scripts/evaluation/lib/readingCueQualification.mjs';
 
+import { createReadingCueTestManifest } from './helpers/readingCueQualificationFixtures.mjs';
+
+const testManifest = await createReadingCueTestManifest();
 const root = resolve(import.meta.dirname, '..');
 const manifestPath = resolve(root, 'scripts/evaluation/fixtures/readingCueQualification.regression-20261010.json');
 const sha = raw => createHash('sha256').update(raw, 'utf8').digest('hex');
 const reviewer = { id: 'independent-reviewer', authoredVisualPrompt: false, testedModel: false, blinded: true };
 const clone = value => structuredClone(value);
 const starCase = async () => {
-  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const manifest = structuredClone(testManifest);
   delete manifest.manifestSha256;
   manifest.cases = manifest.cases.filter(c => c.id === 'star-2347-excerpt');
   return (await loadReadingCueCases({ root, manifest }))[0];
@@ -35,7 +38,7 @@ function score(cases, cues, reviews = cues.map((q, i) => review(cases[i] || case
     cues: cues.filter(q => !q.caseId || q.caseId === c.id), receipts: [] })), adjudications: { reviewer, cues: reviews } });
 }
 async function perfectRun() {
-  const cases = await loadReadingCueCases({ root });
+  const cases = await loadReadingCueCases({ root, manifest: testManifest });
   const ledgers = cases.map(c => ({ caseId: c.id, raw: c.raw, cues: c.opportunities.map(o => cue(c, o)) }));
   const adjudications = { reviewer, cues: ledgers.flatMap(l => l.cues.map(q =>
     review(cases.find(c => c.id === l.caseId), q))) };
@@ -55,7 +58,7 @@ function addIncorrectExtra(run, { wrongCard = false, errorCategory, caseId = 'st
 }
 
 test('loads exact frozen source without duplicating prose in the manifest', async () => {
-  const cases = await loadReadingCueCases({ root });
+  const cases = await loadReadingCueCases({ root, manifest: testManifest });
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   assert.equal(cases.length, 62);
   assert.equal(cases.flatMap(c => c.opportunities).length, 284);
@@ -150,7 +153,7 @@ test('semantically empty matched quote does not earn recall', async () => {
 });
 
 test('unsupported or fabricated reflection fails even when reviewer says supported', async () => {
-  const c = (await loadReadingCueCases({ root })).find(c => c.id === 'star-2347-excerpt-question-only');
+  const c = (await loadReadingCueCases({ root, manifest: testManifest })).find(c => c.id === 'star-2347-excerpt-question-only');
   const q = cue(c, c.opportunities[3]);
   q.personalContext = { type: 'querent-reflection', quote: 'nostalgic' };
   const r = score([c], [q]);
@@ -193,7 +196,7 @@ test('self-review or non-blinded review cannot certify semantic quality', async 
 });
 
 test('Thoth and Marseille stay identity-only and RWS details fail integrity', async () => {
-  const cases = (await loadReadingCueCases({ root })).filter(c => ['spiritual-thoth-ritual', 'wellbeing-marseille-reset'].includes(c.id));
+  const cases = (await loadReadingCueCases({ root, manifest: testManifest })).filter(c => ['spiritual-thoth-ritual', 'wellbeing-marseille-reset'].includes(c.id));
   for (const c of cases) {
     assert.equal(c.artworkEdition, null);
     const q = cue(c, c.opportunities[0]);
@@ -215,7 +218,7 @@ test('maximum matching chooses distinct opportunities rather than greedy first m
 });
 
 test('all frozen cases scored with independently supported exact cues pass semantic gates', async () => {
-  const cases = await loadReadingCueCases({ root });
+  const cases = await loadReadingCueCases({ root, manifest: testManifest });
   const ledgers = cases.map(c => ({ caseId: c.id, raw: c.raw, cues: c.opportunities.map(o => cue(c, o)), receipts: [] }));
   const adjudications = { reviewer, cues: ledgers.flatMap(l => l.cues.map(q => review(cases.find(c => c.id === l.caseId), q))) };
   const r = scoreReadingCueRun({ cases, ledgers, adjudications });
@@ -232,7 +235,7 @@ test('all frozen cases scored with independently supported exact cues pass seman
 });
 
 test('negative traps permit identity cues but reject invented literals', async () => {
-  const c = (await loadReadingCueCases({ root })).find(c => c.id === 'star-reader-idiom');
+  const c = (await loadReadingCueCases({ root, manifest: testManifest })).find(c => c.id === 'star-reader-idiom');
   const q = cue(c, c.opportunities[0]);
   assert.equal(score([c], [q]).hardFailures.length, 0);
   q.kind = 'literal'; q.targets[0].detailIds = ['pool-pour'];
@@ -272,7 +275,7 @@ test('two independent repeats keep their recall denominators and reviews separat
 });
 
 test('mutable reviewed documents retain provenance while runtime catalog and manifest changes fail', async () => {
-  const m = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const m = structuredClone(testManifest);
   delete m.manifestSha256;
   const doc = m.sourceDigests.find(s => s.path.startsWith('docs/'));
   doc.sha256 = '0'.repeat(64);
@@ -336,7 +339,7 @@ test('missing target/span/context review data remains incomplete', async () => {
 });
 
 test('explicit mixed trial plan repeats only 12 primary cases and preserves 74 evaluations', async () => {
-  const cases = await loadReadingCueCases({ root });
+  const cases = await loadReadingCueCases({ root, manifest: testManifest });
   const primary = cases.filter(c => ['recorded-reading', 'recorded-excerpt'].includes(c.provenance.sourceKind));
   const expectedTrials = [{ trialId: 'first', caseIds: cases.map(c => c.id) },
     { trialId: 'second', caseIds: primary.map(c => c.id) }];

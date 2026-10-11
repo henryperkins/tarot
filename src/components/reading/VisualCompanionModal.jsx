@@ -54,7 +54,7 @@ export function VisualCompanionModal({
   const panelClasses = clsx(
     'relative flex w-full h-full sm:h-auto sm:max-h-[85vh] sm:w-[min(92vw,56rem)] flex-col overflow-hidden',
     'panel-mystic rounded-none sm:rounded-3xl border border-[color:var(--border-warm-light)] shadow-2xl',
-    'p-0 focus:outline-none transition duration-200',
+    '!p-0 focus:outline-none transition duration-200',
     isOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-[0.98]'
   );
 
@@ -79,41 +79,48 @@ export function VisualCompanionModal({
           type="button"
           onClick={onClose}
           className={clsx(
-            'absolute top-3 right-3 z-20 p-2 min-w-touch min-h-touch flex items-center justify-center',
+            'absolute top-[min(.75rem,12px)] right-[min(.75rem,12px)] z-20 p-[min(.5rem,8px)] min-w-touch min-h-touch flex items-center justify-center',
             'text-muted hover:text-main hover:bg-surface-muted/60 rounded-full transition-colors touch-manipulation',
             FOCUS_RING_ACCENT_50,
             FOCUS_RING_OFFSET_MAIN
           )}
           aria-label="Close visual companion studio"
         >
-          <X className="h-5 w-5" aria-hidden="true" />
+          <X className="h-[min(1.25rem,20px)] w-[min(1.25rem,20px)]" aria-hidden="true" />
         </button>
 
-        <div className="relative z-10 px-4 sm:px-6 py-4 pr-14 sm:pr-16 border-b border-secondary/25">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h2
-              id={VISUAL_COMPANION_MODAL_TITLE_ID}
-              className="text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight"
-            >
-              <Sparkle className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" aria-hidden="true" />
-              Visual Companion Studio
-            </h2>
-            {modeLabel ? (
-              <span className="rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-2xs sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted">
-                {modeLabel}
-              </span>
-            ) : null}
-          </div>
-          <p id={DESCRIPTION_ID} className="text-xs sm:text-sm text-muted mt-2">{message}</p>
-        </div>
-
         <div
-          className={clsx(
-            'relative z-10 flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 grid gap-4 content-start',
-            splitLayout ? 'lg:grid-cols-2' : ''
-          )}
+          role="region"
+          aria-label="Visual companion studio content"
+          tabIndex={0}
+          className="relative z-10 flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain scroll-pt-[min(3.5rem,56px)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/50"
         >
-          {children}
+          <div className="relative min-w-0 [overflow-wrap:anywhere] px-[min(1rem,16px)] sm:px-6 py-[min(1rem,16px)] sm:py-4 pr-[min(3.5rem,56px)] sm:pr-16 border-b border-secondary/25">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <h2
+                id={VISUAL_COMPANION_MODAL_TITLE_ID}
+                className="min-w-0 max-w-full text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight"
+              >
+                <Sparkle className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 text-secondary" aria-hidden="true" />
+                <span className="min-w-0">Visual Companion Studio</span>
+              </h2>
+              {modeLabel ? (
+                <span className="max-w-full rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-2xs sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+                  {modeLabel}
+                </span>
+              ) : null}
+            </div>
+            <p id={DESCRIPTION_ID} className="[overflow-wrap:anywhere] text-xs sm:text-sm text-muted mt-2">{message}</p>
+          </div>
+
+          <div
+            className={clsx(
+              'relative p-[min(1rem,16px)] sm:p-[min(1.5rem,24px)] grid gap-4 content-start',
+              splitLayout ? 'lg:grid-cols-2' : ''
+            )}
+          >
+            {children}
+          </div>
         </div>
       </div>
     </div>,

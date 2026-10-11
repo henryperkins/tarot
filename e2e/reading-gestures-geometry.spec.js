@@ -2,10 +2,23 @@ import { test, expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { createNarrativeFixture, startReading, expectNoHorizontalOverflow } from './helpers/narrativeFixtures.js';
+import { observeNarrativeUiHealth, createNarrativeFixture, startReading, expectNoHorizontalOverflow } from './helpers/narrativeFixtures.js';
 import { createVisualCueLedger, applyVisualCueBatch } from '../shared/reading/visualCueLedger.js';
 import { hashVisualCueText } from '../shared/contracts/visualCueBatches.js';
 import { getVectorGestureDetails } from '../src/data/cardGestureArtwork.js';
+import { settleGestureFocusLayer } from './helpers/artworkGeometry.mjs';
+
+const uiHealth = new WeakMap();
+test.beforeEach(async ({ page }) => {
+  uiHealth.set(page, observeNarrativeUiHealth(page, { allowGuestAuthRejection: true }));
+  await page.route(/https:\/\/[^/]*sentry\.io\/.*\/envelope\//, route => route.fulfill({ json: {} }));
+  // Authored pages still mount AuthProvider. Later controlled-reading routes
+  // take precedence over this exact guest response, including mock Pro users.
+  await page.route(url => ['localhost', '127.0.0.1'].includes(url.hostname)
+    && url.pathname === '/api/auth/me' && !url.search, route => route.request().method() === 'GET'
+    ? route.fulfill({ status: 401, json: { user: null } }) : route.fallback());
+});
+test.afterEach(async ({ page }) => { uiHealth.get(page)?.(); });
 
 test.setTimeout(60000);
 const paragraph = 'Take time to consider the question you brought. Notice what feels familiar and what invites a different response. A small practical step can leave room for both movement and reflection.';
@@ -23,6 +36,91 @@ async function runtimeIdentity() {
     outputDigest: buildIdentity.outputDigest, sourceAllowlistVersion: buildIdentity.sourceAllowlistVersion, manifestSha256: sha256(bytes),
     evidenceRunDirectory: process.env.CUE_VALIDATION_EVIDENCE_DIR ? path.basename(process.env.CUE_VALIDATION_EVIDENCE_DIR) : null };
 }
+
+test('compact split and paired cards retain their painted detail extents after stage resizing @mobile', async ({ page }, testInfo) => {
+  const sizes = [{ width: 375, height: 667 }, { width: 320, height: 568 }, { width: 844, height: 390 }];
+  const studies = [
+    { key: 'five-card', ids: ['ace-meaning', 'drive-and-sensitivity', 'swords-carried', 'pentacles-group', 'wheel-image'] },
+    { key: 'star', ids: ['balance'] },
+    { key: 'celtic', ids: ['relationship'] }
+  ];
+  const measurements = [];
+  for (const study of studies) {
+    await page.setViewportSize(sizes[0]);
+    await page.goto(`/__e2e/reading-gestures?associations=authored&study=${study.key}&arrival=complete`);
+    for (const id of study.ids) {
+      const phrase = page.locator(`[data-gesture-id="${id}"]`);
+      await phrase.scrollIntoViewIfNeeded();
+      await phrase.press('Enter');
+      await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-association', id);
+      for (const size of sizes) {
+        await page.setViewportSize(size);
+        const settled = await settleGestureFocusLayer(page);
+        expect(settled.decoded.every(Boolean)).toBe(true);
+        const geometry = await page.locator('.gesture-focus-layer:not(.gesture-focus-layer--departing)').evaluate(layer => {
+          const stage = layer.parentElement.getBoundingClientRect();
+          const arts = [...layer.querySelectorAll('[data-gesture-art]')].map(art => {
+            const bounds = art.getBoundingClientRect(), image = art.querySelector('img').getBoundingClientRect();
+            const transformedBox = (shape, padding = 0) => {
+              const box = shape.getBBox(), matrix = shape.getScreenCTM();
+              const corners = [[box.x - padding, box.y - padding], [box.x + box.width + padding, box.y - padding],
+                [box.x - padding, box.y + box.height + padding], [box.x + box.width + padding, box.y + box.height + padding]]
+                .map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix));
+              return { left: Math.min(...corners.map(point => point.x)), right: Math.max(...corners.map(point => point.x)),
+                top: Math.min(...corners.map(point => point.y)), bottom: Math.max(...corners.map(point => point.y)) };
+            };
+            const intersect = (a, b) => ({ left: Math.max(a.left, b.left), right: Math.min(a.right, b.right), top: Math.max(a.top, b.top), bottom: Math.min(a.bottom, b.bottom) });
+            const overlays = [...art.querySelectorAll('[data-gesture-finite], [data-gesture-water]')].map(shape => {
+              let paint = transformedBox(shape, Number.parseFloat(getComputedStyle(shape).strokeWidth || '0') / 2);
+              for (let parent = shape.parentElement; parent && parent !== art; parent = parent.parentElement) {
+                const clipId = parent.getAttribute('clip-path')?.match(/url\(#(.+)\)/)?.[1];
+                const clip = clipId && document.getElementById(clipId)?.firstElementChild;
+                if (clip) paint = intersect(paint, transformedBox(clip));
+              }
+              paint = intersect(paint, image);
+              return { kind: shape.hasAttribute('data-gesture-finite') ? 'trace' : 'water', empty: paint.right <= paint.left || paint.bottom <= paint.top,
+                margin: Math.min(paint.left - bounds.left, bounds.right - paint.right, paint.top - bounds.top, bounds.bottom - paint.bottom) };
+            }).filter(overlay => !overlay.empty);
+            const mask = art.querySelector('mask');
+            const points = [...(mask?.querySelectorAll('ellipse') || [])].flatMap(ellipse => Array.from({ length: 96 }, (_, index) => {
+              const angle = index * Math.PI / 48;
+              return new DOMPoint(Number(ellipse.getAttribute('cx')) + Number(ellipse.getAttribute('rx')) * Math.cos(angle),
+                Number(ellipse.getAttribute('cy')) + Number(ellipse.getAttribute('ry')) * Math.sin(angle)).matrixTransform(ellipse.getScreenCTM());
+            })).filter(point => point.x >= image.left && point.x <= image.right && point.y >= image.top && point.y <= image.bottom);
+            return { card: art.dataset.cardName, reversed: art.querySelector('.gesture-art__upright').dataset.reversed === 'true',
+              width: bounds.width, height: bounds.height, margin: Math.min(...points.map(point => Math.min(point.x - bounds.left, bounds.right - point.x, point.y - bounds.top, bounds.bottom - point.y))),
+              paintedMaskSamples: points.length,
+              overlays,
+              cropped: points.some(point => point.x < bounds.left - .1 || point.x > bounds.right + .1 || point.y < bounds.top - .1 || point.y > bounds.bottom + .1),
+              imageComplete: art.querySelector('img').complete };
+          });
+          return { arts, stageHeight: stage.height, reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+            running: document.getAnimations().filter(animation => animation.playState === 'running' && layer.contains(animation.effect?.target)).length };
+        });
+        expect(geometry.arts.length).toBeGreaterThan(0);
+        for (const art of geometry.arts) {
+          expect(art.imageComplete, `${id}/${art.card}`).toBe(true);
+          expect(art.paintedMaskSamples, `${id}/${art.card} rendered mask`).toBeGreaterThan(20);
+          expect(art.cropped, `${id}/${art.card} ${size.width}x${size.height}`).toBe(false);
+          expect(art.margin, `${id}/${art.card} breathing room`).toBeGreaterThan(2.5);
+          for (const overlay of art.overlays) expect(overlay.margin, `${id}/${art.card} complete ${overlay.kind} paint`).toBeGreaterThanOrEqual(-.2);
+        }
+        expect(geometry.stageHeight).toBe(size.height < 600 ? 72 : size.width < 359 ? 96 : 106);
+        if (geometry.reducedMotion) expect(geometry.running).toBe(0);
+        await expectNoHorizontalOverflow(page);
+        measurements.push({ study: study.key, id, size, ...geometry });
+        if (size.width === 320 && ['ace-meaning', 'swords-carried', 'balance', 'relationship'].includes(id)) {
+          const screenshot = testInfo.outputPath(`compact-${study.key}-${id}.png`);
+          await page.locator('.gesture-companion').screenshot({ path: screenshot });
+          await testInfo.attach(`compact-${study.key}-${id}`, { path: screenshot, contentType: 'image/png' });
+        }
+      }
+      await page.keyboard.press('Escape');
+    }
+  }
+  await writeFile(testInfo.outputPath('compact-detail-extents.json'), `${JSON.stringify({ scope: 'Authored fixture artwork; held inspection, emulated engines, no inference or physical device.',
+    runtime: await runtimeIdentity(), measurements }, null, 2)}\n`, { flag: 'wx' });
+});
 
 for (const size of [{ label: 'desktop', width: 1100, height: 1000 }, { label: 'phone', width: 390, height: 844 }]) {
   test(`settled companion clears the actual reading header at ${size.width}px${size.label === 'phone' ? ' @mobile' : ''}`, async ({ page, browser }, testInfo) => {

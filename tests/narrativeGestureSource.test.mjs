@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGestureSource, advanceGestureSource } from '../src/lib/narrativeGestureSource.js';
+import { createGestureSource, advanceGestureSource, visualJobPresentationStatus } from '../src/lib/narrativeGestureSource.js';
 
 test('append, resume, and completion preserve generation identity', () => {
   let frame = createGestureSource({ runId: 'run-a', raw: 'The Star', status: 'streaming' });
@@ -53,6 +53,44 @@ const visualBinding = { readingResultId: 'visual-reading', sourceRevision: 0, sp
   contextHash: 'b'.repeat(64), artworkEdition: 'rws-immanuelle-vector', catalogVersion: '1' };
 const cueLedger = { version: 1, binding: visualBinding, ledgerRevision: 1, raw: 'The Star pours.',
   analyzedEnd: 15, analyzedHash: 'c'.repeat(64), cues: [], introductions: [], receipts: [] };
+
+test('visual job state follows its binding without changing completed prose into hydration', () => {
+  let frame = createGestureSource({ runId: visualBinding.readingResultId, raw: cueLedger.raw,
+    status: 'streaming', visualBinding, visualJobStatus: 'pending' });
+  assert.equal(frame.visualJobStatus, 'pending');
+  frame = advanceGestureSource(frame, { raw: `${cueLedger.raw} More prose.`, kind: 'complete', status: 'complete' });
+  assert.equal(frame.visualJobStatus, 'pending');
+  assert.equal(frame.kind, 'complete');
+  assert.equal(advanceGestureSource(frame, { visualJobStatus: 'unexpected-status' }).visualJobStatus, 'pending');
+  frame = advanceGestureSource(frame, { visualJobStatus: 'failed' });
+  assert.equal(frame.visualJobStatus, 'failed');
+  assert.equal(frame.raw, 'The Star pours. More prose.');
+  frame = advanceGestureSource(frame, { visualBinding: { ...visualBinding, catalogVersion: '2' } });
+  assert.equal(frame.visualJobStatus, undefined);
+});
+
+test('an old job state cannot survive source replacement or attach without independently established identity', () => {
+  const frame = createGestureSource({ runId: visualBinding.readingResultId, raw: cueLedger.raw,
+    visualBinding, visualJobStatus: 'running' });
+  assert.equal(advanceGestureSource(frame, { raw: 'Different prose.' }).visualJobStatus, undefined);
+  assert.equal(createGestureSource({ runId: 'unbound', visualJobStatus: 'running' }).visualJobStatus, undefined);
+});
+
+test('terminal cues ahead of displayed prose keep fallback introductions pending until their exact ledger can bind', () => {
+  const future = { ...cueLedger, cues: [{ id: 'accepted-star', kind: 'identity',
+    passage: { start: 0, end: 8, quote: 'The Star' },
+    targets: [{ spreadIndex: 0, canonicalName: 'The Star', detailIds: [] }] }],
+  introductions: [{ spreadIndex: 0, canonicalName: 'The Star', start: 0, namedEnd: 8,
+    descriptionStart: 8, midpoint: 8, end: 8 }] };
+  const source = { runId: visualBinding.readingResultId, sourceRevision: 0, raw: 'The Star', visualBinding };
+  assert.equal(visualJobPresentationStatus({ ...source, status: 'complete', cueLedger: future }), 'pending');
+  assert.equal(visualJobPresentationStatus({ ...source, status: 'failed', cueLedger: future }), 'pending');
+  assert.equal(visualJobPresentationStatus({ ...source, raw: cueLedger.raw, status: 'complete', cueLedger: future }), 'complete');
+  assert.equal(visualJobPresentationStatus({ ...source, raw: 'Different prose', status: 'complete', cueLedger: future }), 'complete');
+  assert.equal(visualJobPresentationStatus({ ...source, status: 'complete', cueLedger: { ...future, binding: { ...visualBinding, sourceRevision: 1 } } }), 'complete');
+  assert.equal(visualJobPresentationStatus({ ...source, status: 'failed', cueLedger: null }), 'failed');
+  assert.equal(visualJobPresentationStatus({ ...source, status: 'complete', cueLedger }), 'complete');
+});
 
 test('a bound analyzed prefix survives later prose and live completion without becoming hydration', () => {
   let frame = createGestureSource({ runId: visualBinding.readingResultId, raw: cueLedger.raw,

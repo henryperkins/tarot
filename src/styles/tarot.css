@@ -799,6 +799,11 @@ body {
   contain: layout style;
 }
 
+.mobile-action-bar[data-reading-flow='true'] {
+  position: static;
+  transform: none !important;
+}
+
 /* Reduce motion preference - disable smooth transitions */
 @media (prefers-reduced-motion: reduce) {
   .mobile-action-bar {
@@ -3342,6 +3347,31 @@ input[type="range"]:focus::-webkit-slider-thumb {
   --narrative-beat-overlay: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0), transparent 60%);
 }
 
+.narrative-atmosphere-host {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Streaming prose grows independently of this bounded decorative layer. Keep
+   the opening wash and dust at viewport scale instead of rerastering eight
+   gradients across the full reading after every arriving paragraph. */
+.narrative-atmosphere-host > .narrative-atmosphere__decoration {
+  position: absolute;
+  inset: 0 0 auto;
+  height: min(48rem, 100vh);
+  height: min(48rem, 100svh);
+  contain: strict;
+  transform: translateZ(0);
+  pointer-events: none;
+  z-index: var(--z-base);
+}
+
+.narrative-atmosphere-host > :not(.narrative-atmosphere__decoration) {
+  position: relative;
+  z-index: var(--z-content);
+}
+
 .narrative-atmosphere::before,
 .narrative-atmosphere::after {
   z-index: var(--z-base);
@@ -3578,7 +3608,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 /* The prose has no card around it, so fade its wash out before the edges
    rather than letting the tint end in a faint rectangle. */
-.narrative-stream__text.narrative-atmosphere::after {
+.narrative-atmosphere__decoration::after {
   -webkit-mask-image: radial-gradient(closest-side, black 70%, transparent);
   mask-image: radial-gradient(closest-side, black 70%, transparent);
 }

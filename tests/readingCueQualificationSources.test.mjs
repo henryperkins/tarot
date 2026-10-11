@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { loadReadingCueCases } from '../scripts/evaluation/lib/readingCueQualification.mjs';
+import { createReadingCueTestManifest } from './helpers/readingCueQualificationFixtures.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const corpusPath = 'data/evaluations/narrative-samples.json';
@@ -35,13 +36,22 @@ async function sourceFixture(t, { currentBytes = '{"samples":[{"reading":"Refres
   return { directory, manifest };
 }
 
-test('master corpus refresh retains exact archived prose and unchanged frozen labels', async () => {
+test('explicit test runtime copy retains exact archived prose and unchanged frozen labels', async () => {
   const manifestBytes = await readFile(resolve(root, manifestPath));
   const currentBytes = await readFile(resolve(root, corpusPath));
   const archivedBytes = await readFile(resolve(root, archivePath));
   assert.equal(sha(archivedBytes), corpusSha256);
   assert.notEqual(sha(currentBytes), corpusSha256);
-  const cases = await loadReadingCueCases({ root });
+  const fixture = await createReadingCueTestManifest();
+  const historical = JSON.parse(manifestBytes);
+  const { manifestSha256: _fixtureHash, unitTestRuntime, ...restored } = structuredClone(fixture);
+  restored.sourceDigests.find(source => source.path === 'src/data/cardGestureArtwork.js').sha256
+    = historical.sourceDigests.find(source => source.path === 'src/data/cardGestureArtwork.js').sha256;
+  const { manifestSha256: _historicalHash, ...historicalContent } = historical;
+  assert.deepEqual(restored, historicalContent);
+  assert.deepEqual(unitTestRuntime, { qualificationEvidence: false, historicalManifestSha256: historical.manifestSha256,
+    refreshedRuntimePaths: ['src/data/cardGestureArtwork.js'] });
+  const cases = await loadReadingCueCases({ root, manifest: fixture });
   const historicalCase = cases.find(c => c.id === 'single-new-role');
   assert.equal(cases.length, 62);
   assert.equal(historicalCase.raw, JSON.parse(archivedBytes).samples[0].reading);
@@ -50,9 +60,18 @@ test('master corpus refresh retains exact archived prose and unchanged frozen la
   assert.equal(historicalCase.provenance.sourceFileSha256, corpusSha256);
   assert.equal(historicalCase.labelProvenance.resolvedSourcePath, archivePath);
   assert.equal(historicalCase.labelProvenance.manifestSha256,
-    JSON.parse(manifestBytes).manifestSha256);
+    fixture.manifestSha256);
+  assert.notEqual(fixture.manifestSha256, historical.manifestSha256);
   assert.deepEqual(await readFile(resolve(root, manifestPath)), manifestBytes);
   assert.deepEqual(await readFile(resolve(root, corpusPath)), currentBytes);
+});
+
+test('the historical qualification manifest still refuses changed artwork runtime before loading prose', async () => {
+  const historical = JSON.parse(await readFile(resolve(root, manifestPath), 'utf8'));
+  const pin = historical.sourceDigests.find(source => source.path === 'src/data/cardGestureArtwork.js');
+  assert.notEqual(sha(await readFile(resolve(root, pin.path))), pin.sha256);
+  await assert.rejects(loadReadingCueCases({ root, manifest: manifestPath }),
+    error => error.message === `Source file hash mismatch: ${pin.path}`);
 });
 
 test('only the declared corpus path and historical hash resolve archived bytes', async t => {

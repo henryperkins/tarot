@@ -451,6 +451,7 @@ function renderActions(mode, options) {
 
 export function MobileActionBar({ isOverlayActive = false, ...props }) {
   const barRef = useRef(null);
+  const readingHasText = Boolean(props.personalReading?.raw && !props.personalReading?.isError);
   const viewportOffset = useKeyboardOffset();
   const effectiveOffset = Math.max(0, viewportOffset);
 
@@ -471,32 +472,56 @@ export function MobileActionBar({ isOverlayActive = false, ...props }) {
 
   useEffect(() => {
     if (typeof window === 'undefined' || !barRef.current) return undefined;
+    const bar = barRef.current;
+    const viewport = window.visualViewport;
+    let active = true;
+    let frame = null;
 
     const updateHeight = () => {
-      const height = barRef.current?.offsetHeight || 0;
-      document.documentElement.style.setProperty('--mobile-action-bar-height', `${height}px`);
+      if (!active) return;
+      const height = bar.offsetHeight;
+      const viewportHeight = viewport?.height || window.innerHeight;
+      // Enlarged controls can cover the entire readable strip below the sticky
+      // card companion. Keep every action accessible in page flow in that case.
+      const inFlow = readingHasText && height > viewportHeight / 4;
+      if (inFlow) {
+        if (bar.dataset.readingFlow !== 'true') bar.dataset.readingFlow = 'true';
+      } else if (bar.hasAttribute('data-reading-flow')) delete bar.dataset.readingFlow;
+      const reservation = `${inFlow ? 0 : height}px`;
+      const rootStyle = document.documentElement.style;
+      if (rootStyle.getPropertyValue('--mobile-action-bar-height') !== reservation) {
+        rootStyle.setProperty('--mobile-action-bar-height', reservation);
+      }
+    };
+    const scheduleHeight = () => {
+      if (!active || frame !== null) return;
+      // Switching the observed dock into page flow changes its own border box.
+      // Apply that layout change outside ResizeObserver's delivery cycle.
+      frame = window.requestAnimationFrame(() => { frame = null; updateHeight(); });
     };
 
     updateHeight();
 
     let observer;
     if (typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(updateHeight);
+      observer = new ResizeObserver(scheduleHeight);
       // Safe-area changes can resize only the padding, leaving the content box
       // unchanged. Reserve the full dock height after those changes as well.
-      observer.observe(barRef.current, { box: 'border-box' });
-    } else {
-      window.addEventListener('resize', updateHeight);
+      observer.observe(bar, { box: 'border-box' });
     }
+    window.addEventListener('resize', scheduleHeight);
+    viewport?.addEventListener('resize', scheduleHeight);
 
     return () => {
+      active = false;
+      if (frame !== null) window.cancelAnimationFrame(frame);
       if (observer) {
         observer.disconnect();
-      } else {
-        window.removeEventListener('resize', updateHeight);
       }
+      window.removeEventListener('resize', scheduleHeight);
+      viewport?.removeEventListener('resize', scheduleHeight);
     };
-  }, []);
+  }, [readingHasText]);
 
   return (
     <nav

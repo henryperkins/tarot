@@ -1,6 +1,7 @@
 import { emitCueTiming } from '../lib/readingCueTimingProbe.js';
 import { createGestureSource, advanceGestureSource } from '../lib/narrativeGestureSource.js';
 import { useReadingVisualJob } from '../hooks/useReadingVisualJob.js';
+import { sameVisualCueBinding } from '../../shared/contracts/visualCueBatches.js';
 import { useAuth } from './AuthContext';
 import { patchSavedVisualSnapshot, visualStorageNamespace } from '../lib/readingVisualStorage.js';
 import { readingGesturesEnabled } from '../lib/readingGestureSettings.js';
@@ -118,8 +119,14 @@ export function ReadingProvider({ children }) {
         const suppliedBinding = update.visualBinding?.sourceRevision >= previous.sourceRevision + (replaced ? 1 : 0)
             ? update.visualBinding : null;
         const { visualBinding: _incomingBinding, ...sourceUpdate } = update;
+        const authoritativeBinding = suppliedBinding || nextBinding;
+        // A controller-established replacement has a new visual epoch. Do not
+        // expose fallback turns while the new subscription is still mounting.
+        const replacingVisualJob = authoritativeBinding && previous.visualJobStatus
+            && !sameVisualCueBinding(authoritativeBinding, previous.visualBinding);
         const next = advanceGestureSource(previous, { ...sourceUpdate,
-            ...((suppliedBinding || nextBinding) ? { visualBinding: suppliedBinding || nextBinding } : {}) });
+            ...(replacingVisualJob ? { visualJobStatus: 'pending' } : {}),
+            ...(authoritativeBinding ? { visualBinding: authoritativeBinding } : {}) });
         gestureSourceRef.current = next;
         setGestureSource(next);
         if (next.visualBinding && next.sourceRevision !== previous.sourceRevision) {
@@ -143,10 +150,16 @@ export function ReadingProvider({ children }) {
     const [reasoningSummary, setReasoningSummary] = useState(null);
     const [reasoning, setReasoning] = useState(null);
     const [followUps, setFollowUps] = useState([]);
+    const acceptVisualStatus = useCallback(({ binding, status }) => {
+        const current = gestureSourceRef.current;
+        if (!current || !sameVisualCueBinding(current.visualBinding, binding)) return;
+        updateGestureSource(current.runId, { visualJobStatus: status });
+        setReadingMeta(previous => ({ ...previous, visualStatus: status }));
+    }, [updateGestureSource]);
     const acceptVisualSnapshot = useCallback(({ binding, cueLedger, status }) => {
         const current = gestureSourceRef.current;
-        if (!current || current.runId !== binding.readingResultId) return;
-        updateGestureSource(current.runId, { cueLedger });
+        if (!current || !sameVisualCueBinding(current.visualBinding, binding)) return;
+        updateGestureSource(current.runId, { cueLedger, visualJobStatus: status });
         if (gestureSourceRef.current?.cueLedger !== cueLedger) return;
         setReadingMeta(previous => ({ ...previous, readingResultId: binding.readingResultId,
             visualBinding: binding, visualSnapshot: cueLedger, visualStatus: status }));
@@ -158,7 +171,8 @@ export function ReadingProvider({ children }) {
         visualJobToken: visualResume?.visualJobToken,
         raw: gestureSource?.raw || '',
         enabled: gestureStudyEnabled && !authLoading && visualResume?.namespace === visualNamespace,
-        onBatch: acceptVisualSnapshot
+        onBatch: acceptVisualSnapshot,
+        onStatus: acceptVisualStatus
     });
 
     // 5. UI State
@@ -523,7 +537,8 @@ export function ReadingProvider({ children }) {
         const runId = readingJobRef.current.runId || gestureSourceRef.current?.runId || crypto.randomUUID();
         if (gestureSourceRef.current?.runId !== runId) beginGestureSource(runId, {
             visualBinding: readingJobRef.current.visualBinding,
-            sourceRevision: readingJobRef.current.visualBinding?.sourceRevision || 0
+            sourceRevision: readingJobRef.current.visualBinding?.sourceRevision || 0,
+            ...(readingJobRef.current.visualBinding ? { visualJobStatus: 'pending' } : {})
         });
         updateGestureSource(runId, { status: 'streaming' });
         inFlightReadingRef.current = { controller, jobId };
@@ -1207,7 +1222,7 @@ export function ReadingProvider({ children }) {
             const visualJobToken = startData?.visualJobToken || null;
             if (startController.signal.aborted || gestureSourceRef.current?.runId !== runId) return;
             if (gestureStudyEnabled && readingResultId && visualBinding) {
-                runId = beginGestureSource(readingResultId, { visualBinding, sourceRevision: visualBinding.sourceRevision });
+                runId = beginGestureSource(readingResultId, { visualBinding, sourceRevision: visualBinding.sourceRevision, visualJobStatus: 'pending' });
                 setVisualResume({ readingResultId, visualBinding, visualJobToken, namespace: visualNamespaceRef.current });
             }
 

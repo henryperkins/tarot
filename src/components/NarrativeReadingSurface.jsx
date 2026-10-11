@@ -19,17 +19,17 @@ function VisualCompanionTrigger({
   return (
     <div className={READING_PANEL_COLUMN_CLASS}>
       <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-4 sm:p-5">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="min-w-0 space-y-1">
-            <p className="flex items-center gap-2 text-sm font-semibold text-main">
-              <Sparkle className="w-4 h-4 text-secondary" aria-hidden="true" />
-              Visual Companion Studio
+        <div className="flex flex-wrap items-start sm:items-center justify-between gap-4">
+          <div className="flex-1 basis-64 min-w-0 max-w-full space-y-1 [overflow-wrap:anywhere]">
+            <p className="flex min-w-0 max-w-full items-center gap-2 text-sm font-semibold text-main">
+              <Sparkle className="w-4 h-4 shrink-0 text-secondary" aria-hidden="true" />
+              <span className="min-w-0">Visual Companion Studio</span>
             </p>
             <p className="text-xs text-muted">{message}</p>
           </div>
-          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+          <div className="flex min-w-0 max-w-full items-center gap-3 shrink-0 flex-wrap">
             {modeLabel ? (
-              <span className="rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-2xs sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+              <span className="max-w-full rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-2xs sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted [overflow-wrap:anywhere]">
                 {modeLabel}
               </span>
             ) : null}
@@ -38,10 +38,10 @@ function VisualCompanionTrigger({
               onClick={onOpen}
               aria-haspopup="dialog"
               aria-expanded={isOpen}
-              className={OUTLINE_BUTTON_CLASS}
+              className={`${OUTLINE_BUTTON_CLASS} min-w-0 max-w-full [overflow-wrap:anywhere]`}
             >
-              <Sparkle className="w-4 h-4" aria-hidden="true" />
-              <span>Open visual studio</span>
+              <Sparkle className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="min-w-0">Open visual studio</span>
             </button>
           </div>
         </div>
@@ -65,7 +65,7 @@ function VisualCompanionModule({
   children
 }) {
   return (
-    <div className="min-w-0 rounded-xl border border-secondary/30 bg-surface/70 p-4 sm:p-5">
+    <div className="min-w-0 rounded-xl border border-secondary/30 bg-surface/70 p-[min(1rem,16px)] sm:p-[min(1.25rem,20px)]">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h3 className="text-sm sm:text-base font-semibold text-main">{title}</h3>
         {badge ? <span className="text-2xs sm:text-xs text-muted">{badge}</span> : null}

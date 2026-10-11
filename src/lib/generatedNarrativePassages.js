@@ -6,7 +6,14 @@ import { boundVisualCueLedger } from './narrativeGestureSource.js';
 
 /** A generated document is bound to its exact text and artwork, never to a title. */
 export function resolveNarrativePassages({ source, cards = [], artworkEdition } = {}) {
-  const fallback = () => resolveDynamicPassages({ source, cards, artworkEdition });
+  // A live job will replace these locally derived IDs with accepted ledger
+  // IDs. Keep fallback phrases inspectable while it works, but let only the
+  // ledger introduce them automatically so late metadata cannot repeat a turn.
+  const waitingForVisuals = source?.kind !== 'hydrate' && ['pending', 'running'].includes(source?.visualJobStatus);
+  const fallback = () => {
+    const resolved = resolveDynamicPassages({ source, cards, artworkEdition });
+    return waitingForVisuals ? { ...resolved, associations: resolved.associations.map(cue => ({ ...cue, automatic: false })) } : resolved;
+  };
   if (!source?.runId || typeof source.raw !== 'string') return fallback();
   const edition = artworkEdition || cards[0]?.artworkEdition;
   const complete = ['complete', 'completed'].includes(source.status);
@@ -39,8 +46,10 @@ export function resolveNarrativePassages({ source, cards = [], artworkEdition } 
   const identityFallback = (missing?.associations || []).filter(cue =>
     cue.targets.every(target => !target.detailIds.length) && cue.targets.some(target => !introduced.has(target.spreadIndex))
     && !checked.associations.some(semantic => cue.passage.start < semantic.passage.end && cue.passage.end > semantic.passage.start));
+  const accepted = !ledger && waitingForVisuals
+    ? checked.associations.map(cue => ({ ...cue, automatic: false })) : checked.associations;
   return {
-    associations: [...checked.associations, ...identityFallback].sort((a, b) => a.passage.start - b.passage.start)
+    associations: [...accepted, ...identityFallback].sort((a, b) => a.passage.start - b.passage.start)
       .map(cue => ({ ...cue, targets: cue.targets.map(target => ({ ...target, occurrenceId: `${source.runId}:${target.spreadIndex}` })) })),
     introductions: [...checked.introductions, ...(missing?.introductions || []).filter(intro => !introduced.has(intro.spreadIndex))]
       .sort((a, b) => a.start - b.start).map(intro => ({ ...intro, occurrenceId: `${source.runId}:${intro.spreadIndex}` })),
@@ -77,10 +86,36 @@ export function measureNarrativePassage(element) {
       }
     }
   }
-  const visible = opacity > .01 && rects.every(rect => {
+  // A sticky phone companion covers the top of the prose viewport. On desktop
+  // its separate column does not reduce the text's readable area.
+  const companion = element.closest?.('.narrative-panel__layout')?.querySelector('.gesture-companion');
+  if (companion) {
+    const style = view.getComputedStyle(companion);
+    const clip = companion.getBoundingClientRect();
+    if (style.position === 'sticky' && clip.top <= (parseFloat(style.top) || 0) + 1
+      && rects.some(rect => rect.left < clip.right && rect.right > clip.left)) {
+      bounds.top = Math.max(bounds.top, clip.bottom);
+    }
+  }
+  const header = doc.querySelector?.('.header-sticky');
+  if (header) {
+    const clip = header.getBoundingClientRect();
+    if (clip.top <= 1 && rects.some(rect => rect.left < clip.right && rect.right > clip.left)) {
+      bounds.top = Math.max(bounds.top, clip.bottom);
+    }
+  }
+  const exposed = rect => {
     if (rect.left < bounds.left || rect.right > bounds.right || rect.top < bounds.top || rect.bottom > bounds.bottom) return false;
     const hit = doc.elementFromPoint((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2);
     return Boolean(hit && (element.contains(hit) || hit.contains(element)));
-  });
+  };
+  const height = Math.max(...rects.map(rect => rect.bottom)) - Math.min(...rects.map(rect => rect.top));
+  // Ordinary quotes still wait for their complete geometry. When enlarged text
+  // cannot fit the readable strip, require a whole exposed source line instead
+  // of making the connection impossible to play. Padded wrappers and clipped
+  // slivers never count; exact source completion remains the scheduler's gate.
+  const oversized = height > bounds.bottom - bounds.top;
+  const visible = opacity > .01 && bounds.bottom > bounds.top
+    && (oversized ? rects.some(exposed) : rects.every(exposed));
   return { visible, passed };
 }

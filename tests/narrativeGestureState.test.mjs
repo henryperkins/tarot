@@ -217,6 +217,70 @@ test('late batch selects the earlier visible cue instead of a later offscreen cu
   assert.equal(s.phase, 'active');
 });
 
+test('fallback inspection stays available while a pending job gives only its accepted introduction an automatic turn', () => {
+  const fallback = { id: 'fallback-star-0', kind: 'identity', automatic: false, passage: { start: 0, end: 8 },
+    targets: [{ occurrenceId: 'a:0', detailIds: [] }] };
+  const accepted = { ...fallback, id: 'ledger-star-0', automatic: true };
+  let s = createGestureFocusState({ runId: 'a', sourceRevision: 0, associations: [fallback], introductions });
+  s = advance(s, 30, []);
+  s = reduceGestureFocus(s, event('VISIBLE', { kind: 'passage', id: fallback.id, visible: true, now: 100 }));
+  assert.equal(s.current, null);
+  assert.equal(s.pending, null);
+  assert.deepEqual(s.consumedCueIds, []);
+  s = reduceGestureFocus(s, arrival({ associations: [accepted], now: 2500, visibilitySnapshot: { [accepted.id]: true } }));
+  assert.equal(s.current.id, accepted.id);
+  assert.equal(s.turnUntil, 4300);
+  assert.deepEqual(s.consumedCueIds, [accepted.id]);
+  const after = reduceGestureFocus(s, arrival({ ledgerRevision: 2, associations: [accepted], now: 2600 }));
+  assert.equal(after.current.id, accepted.id);
+  assert.equal(after.turnUntil, 4300);
+});
+
+test('fallback phrases can be explicitly held while their automatic introduction waits for visual work', () => {
+  const fallback = { ...associations[0], automatic: false, kind: 'identity' };
+  let s = advance(createGestureFocusState({ runId: 'a', sourceRevision: 0, associations: [fallback], introductions }), 30, []);
+  s = reduceGestureFocus(s, event('VISIBLE', { kind: 'passage', id: fallback.id, visible: true, now: 100 }));
+  s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: fallback.id }, now: 200 }));
+  assert.equal(s.current.id, fallback.id);
+  assert.equal(s.phase, 'held');
+  s = reduceGestureFocus(s, event('RELEASE', { now: 300 }));
+  assert.equal(s.pending, null);
+});
+
+test('accepted identities for distinct card occurrences and their image returns each keep their own turn', () => {
+  const cues = [
+    { id: 'identity-first', kind: 'identity', passage: { start: 0, end: 5 }, targets: [{ occurrenceId: 'a:0', detailIds: [] }] },
+    { id: 'literal-first', kind: 'literal', passage: { start: 5, end: 10 }, targets: [{ occurrenceId: 'a:0', detailIds: ['pool-pour'] }] },
+    { id: 'identity-second', kind: 'identity', passage: { start: 10, end: 15 }, targets: [{ occurrenceId: 'a:1', detailIds: [] }] },
+    { id: 'return-first', kind: 'interpretation', passage: { start: 15, end: 20 }, targets: [{ occurrenceId: 'a:0', detailIds: ['pool-pour'] }] }
+  ];
+  for (const reducedMotion of [false, true]) {
+    let s = deliveredWithoutCues();
+    s = reduceGestureFocus(s, event('MOTION', { reducedMotion }));
+    s = reduceGestureFocus(s, arrival({ associations: cues, visibilitySnapshot: Object.fromEntries(cues.map(cue => [cue.id, true])) }));
+    const states = tickThrough(s, 4);
+    assert.deepEqual(played(states), ['identity-first', 'literal-first', 'identity-second', 'return-first']);
+    for (const [index, turn] of states.slice(0, 4).entries()) {
+      assert.equal(turn.turnUntil, 1900 + index * 1800);
+      assert.equal(turn.phase, reducedMotion ? 'static' : 'active');
+      if (reducedMotion) assert.equal(turn.activeUntil, 0);
+    }
+  }
+});
+
+test('a failed visual job restores a visible fallback turn without replaying a passed passage', () => {
+  const fallback = associations.map(cue => ({ ...cue, automatic: false }));
+  let s = advance(createGestureFocusState({ runId: 'a', sourceRevision: 0, associations: fallback, introductions }), 30, []);
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: true, ground: false }, passedCueIds: ['ground'], now: 100 }));
+  assert.equal(s.current, null);
+  s = reduceGestureFocus(s, { type: 'SOURCE', source: { runId: 'a', sourceRevision: 0, status: 'complete', kind: 'complete' }, associations, introductions, now: 200 });
+  s = reduceGestureFocus(s, event('VISIBILITY', { visibilitySnapshot: { pool: true, ground: true }, now: 200 }));
+  assert.equal(s.current.id, 'pool');
+  assert.equal(s.turnUntil, 2000);
+  assert.equal(s.pending, null);
+  assert.deepEqual(s.consumedCueIds, ['ground', 'pool']);
+});
+
 test('cue arrival preserves held inspection and release recomputes changed visibility', () => {
   let s = advance({ ...initial(), passageVisibility: { pool: true, ground: false, balance: false } }, 10, ['pool']);
   s = reduceGestureFocus(s, event('HOLD', { selection: { kind: 'association', id: 'pool' } }));

@@ -1,7 +1,7 @@
 import { cueTimingProbeActive } from '../../../lib/readingCueTimingProbe.js';
-import { useId, useMemo, useRef } from 'react';
+import { useId, useLayoutEffect, useMemo, useRef } from 'react';
 import { getCardTouchPoints } from '../../../data/cardTouchPoints.js';
-import { getVectorGestureDetails, getVectorGestureFrame } from '../../../data/cardGestureArtwork.js';
+import { getVectorGestureDetails, getVectorGestureFrame, getVectorGestureCropZoom } from '../../../data/cardGestureArtwork.js';
 import { useCardGestureMotion } from './useCardGestureMotion.js';
 
 // The light layer's coordinate box follows the RWS artwork's proportions
@@ -25,6 +25,19 @@ function GestureArtwork({ card, gesture, presence, dynamic, motionOwner, crop, c
   const details = useMemo(() => card.artworkEdition === 'rws-immanuelle-vector'
     ? getVectorGestureDetails(card.canonicalName).filter(({ id }) => gesture.detailIds.includes(id)) : [], [card.canonicalName, card.artworkEdition, gesture.detailIds]);
   const motion = useMemo(() => ({ details }), [details]);
+  useLayoutEffect(() => {
+    const element = root.current;
+    if (!crop || !element) return undefined;
+    const fit = () => {
+      element.style.setProperty('--crop-fit-zoom', String(getVectorGestureCropZoom(card.canonicalName, details.map(detail => detail.id), {
+        width: element.clientWidth, height: element.clientHeight
+      })));
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [crop, card.canonicalName, details]);
   const frame = crop ? getVectorGestureFrame(card.canonicalName, details.map(detail => detail.id), card.isReversed) : { x: .5, y: .5, zoom: .39, shortZoom: .39 };
   const masks = details.flatMap(detail => detail.maskSpots);
   useCardGestureMotion({ elementRef: root, runId: gesture.runId, sourceRevision: gesture.sourceRevision,

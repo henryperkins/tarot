@@ -7,6 +7,9 @@ import { createD1 } from './helpers/d1Sqlite.mjs';
 import { admitInitialVisualFixture, withInitialVisualAdmission } from './helpers/visualInitialAdmissionFixtures.mjs';
 import { registerVisualResult, updateVisualResultSource } from '../functions/lib/readingVisualResults.js';
 import { seedUser } from './helpers/journalFixtures.mjs';
+import { startReadingJob } from '../functions/lib/readingJobs.js';
+import { createVisualReplayAdmission, retryLocalVisuals } from '../functions/lib/readingVisualRetry.js';
+import { fingerprintVisualSource, normalizeVisualSource } from '../shared/reading/visualSourceIdentity.js';
 
 function createBinding(readingResultId = 'res-1', sourceRevision = 0) {
   return {
@@ -1139,3 +1142,124 @@ test('trusted recovery keeps cue provenance for a later cumulative commit while 
   job.ledger.cues[0].passage.visualJobToken = 'nested-private';
   assert.ok(!JSON.stringify(job.envelope()).includes('nested-private'));
 });
+
+const PERSONAL_SOURCE = {
+  cards: [{ name: 'The Star', position: 'Present', orientation: 'Upright', userReflection: 'I am ready to begin.' }],
+  question: 'How can I carry hope into this change?',
+  reflections: { Overall: 'I miss the people back home.' },
+  deckId: 'rws-1909'
+};
+const PERSONAL_RETURNS = [
+  { quote: 'The pool holds the hope you carry into change.',
+    personalContext: { type: 'question', quote: PERSONAL_SOURCE.question } },
+  { quote: 'Its water gives memory of home somewhere to rest.',
+    personalContext: { type: 'querent-reflection', quote: PERSONAL_SOURCE.reflections.Overall } },
+  { quote: 'The same pool returns to the beginning you described.',
+    personalContext: { type: 'card-reflection', spreadIndex: 0, quote: PERSONAL_SOURCE.cards[0].userReflection } },
+  { quote: 'The pool also reflects an expectation you did not supply.',
+    personalContext: { type: 'question', quote: 'Will I win the lottery?' } }
+];
+const PERSONAL_RAW = [LITERAL_RAW, ...PERSONAL_RETURNS.map(item => item.quote)].join(' ');
+const PERSONAL_RESPONSE = { proposals: [LITERAL_RESPONSE.proposals[0], ...PERSONAL_RETURNS.map((item, index) => ({
+  localAlias: `personal-return-${index}`, kind: 'interpretation', quote: item.quote,
+  targets: [{ spreadIndex: 0, detailIds: ['pool-pour'] }],
+  establishedBy: [{ localAlias: 'pour' }], personalContext: item.personalContext
+}))] };
+
+async function assertPersonalContextSurvives({ job, getStorage, DB, prompts, expectedContext }) {
+  assert.equal(prompts.length, 1, 'only the controlled adapter was invoked');
+  assert.ok(prompts[0].userPrompt.includes(`User Question:\n${JSON.stringify(expectedContext.question)}`));
+  assert.ok(prompts[0].userPrompt.includes(`User Reflections:\n${JSON.stringify(expectedContext.reflections)}`));
+  assert.equal(job.status, 'complete');
+  assert.equal(job.ledger.cues.length, 5);
+  assert.deepEqual(job.ledger.cues.slice(1, 4).map(cue => cue.personalContext),
+    PERSONAL_RETURNS.slice(0, 3).map(item => item.personalContext));
+  assert.equal(job.ledger.cues[4].personalContext, undefined, 'unsupplied context stays stripped');
+  assert.deepEqual(getStorage().validationContext, expectedContext, 'compiler aliases never mutate persisted context');
+  const snapshot = await job.fetch(new Request('https://visual/snapshot', {
+    headers: { 'X-Visual-Token': job.visualToken }
+  }));
+  assert.equal(snapshot.status, 200);
+  assert.deepEqual((await snapshot.json()).cueLedger.cues, job.ledger.cues);
+  assert.deepEqual(JSON.parse(DB.rows('SELECT ledger_json FROM reading_visual_results')[0].ledger_json).cues,
+    job.ledger.cues, 'typed context survives durable ledger publication');
+}
+
+test('normalized real original reading retains exact personal context through Worker compilation', async t => {
+  const DB = await createD1();
+  t.after(() => DB.sqlite.close());
+  const prompts = [];
+  const env = withInitialVisualAdmission({ DB, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/context',
+    AI: { run: async () => { throw new Error('Controlled adapter must handle inference'); } } });
+  const { job, getStorage, waitUntilPromises } = await createJob(t, { env, admitOriginal: false,
+    runAnnotation: async ({ prompt }) => { prompts.push(prompt); return PERSONAL_RESPONSE; } });
+  env.READING_JOBS = { idFromName: id => id, get: () => ({ fetch: async () => Response.json({ ok: true }) }) };
+  env.READING_VISUAL_JOBS = { idFromName: id => id, get: () => ({
+    fetch: (url, options) => job.fetch(new Request(url, options))
+  }) };
+  const payload = {
+    spreadInfo: { name: 'Single Card', key: 'single' },
+    cardsInfo: PERSONAL_SOURCE.cards.map(card => ({ ...card, card: card.name, meaning: 'Controlled fixture meaning.' })),
+    userQuestion: PERSONAL_SOURCE.question, reflectionsText: `Overall: ${PERSONAL_SOURCE.reflections.Overall}`,
+    deckStyle: PERSONAL_SOURCE.deckId
+  };
+  const background = [];
+  const started = await startReadingJob({ env, payload, waitUntil: promise => background.push(promise) });
+  assert.equal(started.ok, true);
+  assert.ok(started.visualBinding);
+  await Promise.all(background);
+  const expectedContext = structuredClone(job.validationContext);
+  assert.equal(expectedContext.question, PERSONAL_SOURCE.question);
+  assert.equal(expectedContext.userQuestion, undefined, 'real original initialization uses the normalized question key');
+  assert.equal(expectedContext.reflections, payload.reflectionsText);
+  const hashes = await fingerprintVisualSource(payload);
+  assert.equal(started.visualBinding.contextHash, hashes.contextHash);
+  assert.equal((await observe(job, started.visualBinding, PERSONAL_RAW, 1, true)).status, 202);
+  await Promise.all(waitUntilPromises);
+  await assertPersonalContextSurvives({ job, getStorage, DB, prompts, expectedContext });
+  assert.deepEqual(job.binding, started.visualBinding);
+});
+
+test('normalized real saved reading replay retains exact personal context through Worker compilation', async t => {
+  const DB = await createD1();
+  t.after(() => DB.sqlite.close());
+  await seedUser(DB);
+  const prompts = [];
+  const env = { DB, VISUAL_REPLAY_LIMITS: JSON.stringify({ rateLimit: 3, windowMs: 60000, totalLimit: 5 }),
+    VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/context',
+    AI: { run: async () => { throw new Error('Controlled adapter must handle inference'); } } };
+  const { job, getStorage, waitUntilPromises } = await createJob(t, { env, admitOriginal: false,
+    runAnnotation: async ({ prompt }) => { prompts.push(prompt); return PERSONAL_RESPONSE; } });
+  env.READING_VISUAL_JOBS = { idFromName: id => id, get: () => ({
+    fetch: (url, options) => job.fetch(new Request(url, options))
+  }) };
+  const savedSource = { ...PERSONAL_SOURCE, raw: PERSONAL_RAW };
+  const admission = await createVisualReplayAdmission({ env, userId: 'user-1' });
+  const result = await retryLocalVisuals({ env, admission, savedSource });
+  assert.ok(result.resumeHandle);
+  await Promise.all(waitUntilPromises);
+  const expectedContext = normalizeVisualSource(savedSource);
+  assert.equal(expectedContext.userQuestion, undefined, 'real replay initialization uses the normalized question key');
+  const hashes = await fingerprintVisualSource(savedSource);
+  assert.equal(job.binding.contextHash, hashes.contextHash);
+  await assertPersonalContextSurvives({ job, getStorage, DB, prompts, expectedContext });
+  assert.equal(DB.rows('SELECT retry_status FROM visual_retry_claims')[0].retry_status, 'complete');
+});
+
+for (const userQuestion of ['A different explicitly supplied question.', '']) {
+  test(`explicit ${userQuestion ? 'different' : 'empty'} compiler question takes precedence without fabrication`, async t => {
+    const { job, waitUntilPromises } = await createJob(t, { runAnnotation: async () => PERSONAL_RESPONSE });
+    const binding = createBinding('explicit-question');
+    const validationContext = { ...normalizeVisualSource(PERSONAL_SOURCE), userQuestion };
+    assert.equal((await job.fetch(new Request('https://visual/init', { method: 'POST', body: JSON.stringify({
+      binding, visualToken: 'explicit-context-token', validationContext
+    }) }))).status, 200);
+    await observe(job, binding, PERSONAL_RAW, 1, true);
+    await Promise.all(waitUntilPromises);
+    assert.equal(job.status, 'complete');
+    assert.equal(job.ledger.cues.length, 5);
+    assert.equal(job.ledger.cues[1].personalContext, undefined, 'normalized question cannot override explicit compiler context');
+    assert.deepEqual(job.ledger.cues[2].personalContext, PERSONAL_RETURNS[1].personalContext);
+    assert.deepEqual(job.ledger.cues[3].personalContext, PERSONAL_RETURNS[2].personalContext);
+  });
+}

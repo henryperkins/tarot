@@ -1,8 +1,15 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
-import { createNarrativeFixture } from './helpers/narrativeFixtures.js';
+import { observeNarrativeUiHealth, createNarrativeFixture } from './helpers/narrativeFixtures.js';
 import { createVisualCueLedger, applyVisualCueBatch } from '../shared/reading/visualCueLedger.js';
 import { canonicalVisualCueJSON, hashVisualCueText } from '../shared/contracts/visualCueBatches.js';
+
+const uiHealth = new WeakMap();
+test.beforeEach(async ({ page }) => {
+  uiHealth.set(page, observeNarrativeUiHealth(page, {}));
+  await page.route(/https:\/\/[^/]*sentry\.io\/.*\/envelope\//, route => route.fulfill({ json: {} }));
+});
+test.afterEach(async ({ page }) => { uiHealth.get(page)?.(); });
 
 // Recorded reading-only prose, deterministic proposals and controlled HTTP SSE.
 // No model call, direct client cue injection, live auth or live Worker is involved.
@@ -13,7 +20,7 @@ const cards = star.cards.map((card, index) => ({
 }));
 const quote = 'pouring one pitcher into a pool';
 
-async function visualFixture(page, label) {
+async function visualFixture(page, label, includeIdentity = false) {
   const binding = {
     readingResultId: `controlled-visual-${label}`, sourceRevision: 0,
     spreadHash: await hashVisualCueText(canonicalVisualCueJSON(star.cards)),
@@ -26,17 +33,108 @@ async function visualFixture(page, label) {
       binding, batchId: 'controlled-batch-1', requestSequence: 1, status: 'active',
       analyzedEnd: raw.length, analyzedHash: await hashVisualCueText(raw), baseLedgerRevision: 0
     },
-    response: { proposals: [{ localAlias: 'pool', kind: 'literal', quote, targets: [{ spreadIndex: 2, detailIds: ['pool-pour'] }] }] },
+    response: { proposals: [
+      ...(includeIdentity ? [{ localAlias: 'arrival', kind: 'identity', quote: 'The Star', targets: [{ spreadIndex: 2, detailIds: [] }] }] : []),
+      { localAlias: 'pool', kind: 'literal', quote, targets: [{ spreadIndex: 2, detailIds: ['pool-pour'] }] }
+    ] },
     validationContext: { cards, getSupportedDetails: () => ['pool-pour', 'land-pour'] }
   });
   expect(result.rejected, 'the controlled proposal must pass the actual compiler').toEqual([]);
-  expect(result.ledger.cues).toHaveLength(1);
+  expect(result.ledger.cues).toHaveLength(includeIdentity ? 2 : 1);
   const fixture = await createNarrativeFixture(page, {
     narrative: raw, question: star.userQuestion, sourceUsage: null,
     startData: { readingResultId: binding.readingResultId, visualBinding: binding, visualJobToken: 'controlled-visual-token' }
   });
   return { fixture, binding, ledger: result.ledger };
 }
+
+test('late identity cues introduce a card once while pending fallback stays inspectable', async ({ page }, testInfo) => {
+  const { fixture, binding, ledger } = await visualFixture(page, 'identity-once', true);
+  const window = page.locator('[data-gesture-window]');
+  try {
+    await page.goto('/__e2e/reading-gestures?associations=dynamic&sourceMode=job-sse');
+    await deliverReading(page, fixture, 'burst');
+    const fallback = page.locator('[data-gesture-id]').filter({ hasText: /^The Star$/ }).first();
+    await expect(fallback).toBeAttached();
+    await fallback.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(2100);
+    await expect(window).not.toHaveAttribute('data-association', /.+/);
+    await page.locator('[data-gesture-shelf] button').nth(2).click();
+    await expect(window).toHaveAttribute('data-held', 'true');
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => {
+      window.__introductionTurns = [];
+      const stage = document.querySelector('[data-gesture-window]');
+      const record = () => {
+        const id = stage.dataset.association;
+        if (id && window.__introductionTurns.at(-1) !== id) window.__introductionTurns.push(id);
+      };
+      new MutationObserver(record).observe(stage, { attributes: true, attributeFilter: ['data-association'] });
+    });
+    await fixture.emit('visual', 'cues', { binding, cueLedger: ledger, status: 'running', ledgerRevision: ledger.ledgerRevision });
+    const identity = ledger.cues.find(cue => cue.kind === 'identity');
+    const reducedMotion = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+    await expect(window).toHaveAttribute('data-association', identity.id);
+    if (reducedMotion) await expect(window).toHaveAttribute('data-phase', 'static');
+    await page.waitForTimeout(2100);
+    await fixture.emit('visual', 'cues', { binding, cueLedger: ledger, status: 'running', ledgerRevision: ledger.ledgerRevision });
+    await fixture.emit('visual', 'done', { binding, cueLedger: ledger, status: 'complete', ledgerRevision: ledger.ledgerRevision });
+    await page.waitForTimeout(2000);
+    const turns = await page.evaluate(() => window.__introductionTurns);
+    expect(turns.filter(id => id === identity.id)).toHaveLength(1);
+    await expect(page.locator('.narrative-stream__text')).toHaveText(raw);
+    if (reducedMotion) expect(await page.evaluate(() => document.querySelector('.gesture-companion').getAnimations({ subtree: true })
+      .filter(animation => animation.playState === 'running').length)).toBe(0);
+    await testInfo.attach('late-identity-turns.json', { contentType: 'application/json', body: JSON.stringify({ turns, identity: identity.id, reducedMotion }) });
+  } finally { await fixture.close(); }
+});
+
+test('failed visual work without a ledger restores automatic fallback connections', async ({ page }) => {
+  const { fixture, binding } = await visualFixture(page, 'failed-empty');
+  try {
+    await page.goto('/__e2e/reading-gestures?associations=dynamic&sourceMode=job-sse');
+    await deliverReading(page, fixture, 'burst');
+    await page.locator('[data-gesture-id]').filter({ hasText: /^The Star$/ }).first().scrollIntoViewIfNeeded();
+    const window = page.locator('[data-gesture-window]');
+    await expect(window).not.toHaveAttribute('data-association', /.+/);
+    await fixture.emit('visual', 'done', { binding, status: 'failed', failure: 'fixture-unavailable' });
+    await expect(window).toHaveAttribute('data-association', /.+/);
+    if (await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      await expect(window).toHaveAttribute('data-phase', 'static');
+      expect(await page.evaluate(() => document.querySelector('.gesture-companion').getAnimations({ subtree: true })
+        .filter(animation => animation.playState === 'running').length)).toBe(0);
+    }
+    await expect(page.locator('.narrative-stream__text')).toHaveText(raw);
+    expect(fixture.requests.reading).toHaveLength(1);
+  } finally { await fixture.close(); }
+});
+
+test('a terminal ledger ahead of prose waits before its single identity introduction', async ({ page }) => {
+  const { fixture, binding, ledger } = await visualFixture(page, 'terminal-ahead', true);
+  const stage = page.locator('[data-gesture-window]');
+  try {
+    await page.goto('/__e2e/reading-gestures?associations=dynamic&sourceMode=job-sse');
+    const prefix = raw.slice(0, raw.indexOf('A figure'));
+    expect(prefix.length).toBeGreaterThan('The Star'.length);
+    await fixture.emit('reading', 'delta', { text: prefix });
+    await expect(page.getByTestId('gesture-source-diagnostics')).toHaveAttribute('data-raw-length', String(prefix.length));
+    await page.locator('[data-gesture-id]').filter({ hasText: /^The Star$/ }).first().scrollIntoViewIfNeeded();
+    await fixture.emit('visual', 'done', { binding, cueLedger: ledger, status: 'complete' });
+    await page.waitForTimeout(2100);
+    await expect(stage).not.toHaveAttribute('data-association', /.+/);
+    await fixture.completeReading();
+    const identity = ledger.cues.find(cue => cue.kind === 'identity');
+    const phrase = page.locator(`[data-gesture-id="${identity.id}"]`);
+    await phrase.scrollIntoViewIfNeeded();
+    await expect(stage).toHaveAttribute('data-association', identity.id);
+    if (await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      await expect(stage).toHaveAttribute('data-phase', 'static');
+      expect(await page.evaluate(() => document.querySelector('.gesture-companion').getAnimations({ subtree: true })
+        .filter(animation => animation.playState === 'running').length)).toBe(0);
+    }
+    await expect(page.locator('.narrative-stream__text')).toHaveText(raw);
+  } finally { await fixture.close(); }
+});
 
 async function deliverReading(page, fixture, mode) {
   if (mode === 'paced') {
