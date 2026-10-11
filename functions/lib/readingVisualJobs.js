@@ -15,6 +15,7 @@ export async function initVisualJob({
   visualJobId = null,
   visualToken,
   ownerUserId = null,
+  initialAdmission = null,
   validationContext = {}
 }) {
   const stub = getVisualJobStub(env, binding?.readingResultId, visualJobId);
@@ -27,6 +28,7 @@ export async function initVisualJob({
       binding,
       visualToken,
       ownerUserId,
+      initialAdmission,
       validationContext
     })
   });

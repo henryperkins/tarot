@@ -28,6 +28,7 @@ export async function main(args = process.argv.slice(2), explicitLiveConfigurati
   if (options.live) {
     // No process.env/.dev.vars/dotenv discovery. Programmatic caller owns secret loading.
     if (!explicitLiveConfiguration) throw new Error('Explicit live configuration required; invoke main(args, configuration) from a private caller.');
+    options.initialAdmission = explicitLiveConfiguration.initialAdmission;
     options.aiAdapter = createWorkersAiRestAdapter({ ...explicitLiveConfiguration, live: true });
   }
   const report = await runReadingCueEvaluation(options);

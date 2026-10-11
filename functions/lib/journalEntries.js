@@ -26,16 +26,17 @@ async function savedVisualEnvelope({ env, userId, entryId, readingResultId }) {
   try { visual = await loadJournalVisualResult({ db: env.DB, userId, entryId }); } catch { /* Optional cache read. */ }
   try {
     if (attachmentFailed) await persistJournalVisualState({ db: env.DB, userId, entryId, attachmentStatus: 'failed', reason: 'attachment-error' });
-    visualState = await loadJournalVisualState({ db: env.DB, userId, entryId });
+    visualState = await loadJournalVisualState({ env, db: env.DB, userId, entryId });
     if (visualState?.stateVersion === 0) {
       await persistJournalVisualState({ db: env.DB, userId, entryId, sourceFingerprint: visualState.sourceFingerprint,
-        attachmentStatus: visualState.attachmentStatus, reason: visualState.reason });
-      visualState = await loadJournalVisualState({ db: env.DB, userId, entryId });
+        attachmentStatus: visualState.attachmentStatus,
+        reason: visualState.reason === 'configuration-unavailable' ? 'missing-result' : visualState.reason });
+      visualState = await loadJournalVisualState({ env, db: env.DB, userId, entryId });
     }
   } catch {
     try {
       await persistJournalVisualState({ db: env.DB, userId, entryId, attachmentStatus: 'failed', reason: 'attachment-error' });
-      visualState = await loadJournalVisualState({ db: env.DB, userId, entryId });
+      visualState = await loadJournalVisualState({ env, db: env.DB, userId, entryId });
     } catch { /* Prose remains saved when optional visual storage is unavailable. */ }
   }
   return { ...(visual ? { visual } : {}), ...(visualState ? { visualState } : {}) };

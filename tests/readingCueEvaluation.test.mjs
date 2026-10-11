@@ -11,6 +11,8 @@ import {
 } from '../scripts/evaluation/lib/visualCueEvaluationHarness.mjs';
 import { loadReadingCueCases } from '../scripts/evaluation/lib/readingCueQualification.mjs';
 import { buildVisualCuePrompt } from '../shared/generation/visualCuePrompt.js';
+import { initialVisualLimits } from './helpers/visualInitialAdmissionFixtures.mjs';
+import { captureVisualCueUndispatchedReservation } from '../functions/lib/visualCueAdmission.js';
 
 const cases = await loadReadingCueCases();
 const star = cases.find(c => c.id === 'star-2347-excerpt');
@@ -23,6 +25,206 @@ const response = proposals => ({ response: JSON.stringify({ proposals }), model:
 const register = adapter => adapter.registerSession({ runId: 'run', caseId: star.id });
 const literal = { localAlias: 'pool', kind: 'literal', quote: star.opportunities.find(o => o.kind === 'literal').anchors[0].quote,
   targets: [{ spreadIndex: 2, detailIds: ['pool-pour'] }] };
+
+test('controlled offline session dispatches through finite fixture initial admission', async () => {
+  let calls = 0;
+  const session = await createVisualCueSession({ caseData: star, aiAdapter: fake(async () => { calls += 1; return response([]); }) });
+  await session.observe(star.raw, { complete: true });
+  const report = await session.finish();
+  assert.equal(calls, 1);
+  assert.equal(report.attempts.length, 1);
+  assert.equal(report.inferenceAttempts.length, 1);
+  assert.equal(report.analysisComplete, true);
+  const limits = JSON.parse(session.env.VISUAL_INITIAL_LIMITS);
+  assert.equal(limits.model, candidate.model);
+  assert.equal(limits.globalTotalLimit, 600);
+  assert.equal(limits.maxDispatchCostMicrousd, 1);
+  assert.equal(session.db.rows('SELECT * FROM visual_initial_admissions').length, 1);
+  assert.equal(session.db.rows('SELECT * FROM visual_initial_reservations').length, 1);
+});
+
+test('live sessions and evaluation reject missing initial authorization before resources or dispatch', async () => {
+  let calls = 0;
+  let reserves = 0;
+  const aiAdapter = { liveConfigured: true, availableModels: [candidate.model], async run() { calls += 1; return response([]); } };
+  const budget = { mode: 'live', async reserve() { reserves += 1; assert.fail('unconfigured live admission reserved'); } };
+  await assert.rejects(createVisualCueSession({ caseData: star, live: true, aiAdapter, budget }), /explicit.*initial/i);
+  const outputDir = join(await temporary(), 'must-not-create');
+  await assert.rejects(runReadingCueEvaluation({ live: true, candidates: [candidate], aiAdapter, budget, outputDir }), /explicit.*initial/i);
+  await assert.rejects(readFile(join(outputDir, 'identity.json')), { code: 'ENOENT' });
+  assert.equal(calls, 0);
+  assert.equal(reserves, 0);
+});
+
+test('live initial allowance rejects invalid limits, model pins and untrusted scope before dispatch', async () => {
+  let calls = 0;
+  const aiAdapter = { liveConfigured: true, availableModels: [candidate.model], async run() { calls += 1; assert.fail('invalid live allowance dispatched'); } };
+  const budget = { mode: 'live', async reserve() { calls += 1; assert.fail('invalid live allowance reserved'); } };
+  const fixture = () => ({ aggregateScope: `guest-edge:${'b'.repeat(64)}`, limitsByModel: {
+    [candidate.model]: JSON.parse(initialVisualLimits({ VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: candidate.model }))
+  } });
+  for (const change of [
+    input => { input.limitsByModel[candidate.model].model = '@cf/different-model'; },
+    input => { input.limitsByModel[candidate.model].maxDispatchCostMicrousd = 0; },
+    input => { delete input.limitsByModel[candidate.model].scopeCostLimitMicrousd; },
+    input => { input.aggregateScope = 'raw-untrusted-edge'; }
+  ]) {
+    const initialAdmission = fixture(); change(initialAdmission);
+    await assert.rejects(createVisualCueSession({ caseData: star, live: true, aiAdapter, budget, initialAdmission }), /explicit.*initial/i);
+    await assert.rejects(runReadingCueEvaluation({ live: true, candidates: [candidate], aiAdapter, budget, initialAdmission }), /explicit.*initial/i);
+  }
+  assert.equal(calls, 0);
+});
+
+test('successful original initial reservations survive process restart and config changes refuse new allowance', async () => {
+  const path = join(await temporary(), 'initial-restart.json');
+  const initialAdmission = { aggregateScope: `guest-edge:${'c'.repeat(64)}`, limitsByModel: {
+    [candidate.model]: JSON.parse(initialVisualLimits({ VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: candidate.model }, { globalTotalLimit: 1 }))
+  } };
+  const budget = await openCueRoundBudget({ path, roundId: 'initial-restart', mode: 'live', maxCalls: 10, maxEstimatedUsd: 3 });
+  let calls = 0;
+  const session = await createVisualCueSession({ caseData: star, live: true, budget, initialAdmission, aiAdapter: {
+    liveConfigured: true, availableModels: [candidate.model], async run() { calls += 1; return response([]); }
+  } });
+  await session.observe(star.raw, { complete: true });
+  const report = await session.finish();
+  assert.equal(calls, 1);
+  assert.equal(report.accountingComplete, true);
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const module = new URL('../scripts/evaluation/lib/visualCueEvaluationBudget.mjs', import.meta.url).href;
+  const child = await promisify(execFile)(process.execPath, ['--input-type=module', '-e',
+    `import { openCueRoundBudget } from ${JSON.stringify(module)}; const b=await openCueRoundBudget({path:process.argv[1],roundId:'initial-restart',mode:'live',maxCalls:10,maxEstimatedUsd:3,requireExisting:true}); let reason; try { await b.reserve({candidate:${JSON.stringify(candidate)}}); } catch(error) { reason=error.reason; } process.stdout.write(JSON.stringify({reason,state:await b.snapshot()}));`, path]);
+  const reopened = JSON.parse(child.stdout);
+  assert.equal(reopened.reason, 'call-cap');
+  assert.equal(reopened.state.attempts.length, 1);
+  assert.equal(reopened.state.initialReservations.length, 1);
+  assert.equal(reopened.state.initialReservations[0].reservedCostMicrousd, 100);
+  assert.ok(reopened.state.heldUsd < .001, 'successful usage settlement cannot refund conservative initial cost');
+  for (const change of [
+    input => { input.aggregateScope = `guest-edge:${'d'.repeat(64)}`; },
+    input => { input.limitsByModel[candidate.model].globalTotalLimit = 2; },
+    input => { input.limitsByModel[candidate.model].maxDispatchCostMicrousd = 1; }
+  ]) {
+    const altered = structuredClone(initialAdmission); change(altered);
+    await assert.rejects(budget.bindInitialAdmission(altered), /frozen.*initial.*mismatch/i);
+  }
+  assert.equal((await budget.snapshot()).initialReservations.length, 1);
+});
+
+test('persistent initial reservations atomically bound independent handles and retain failure and undispatched withdrawal', async () => {
+  const initialAdmission = { aggregateScope: `guest-edge:${'e'.repeat(64)}`, limitsByModel: Object.fromEntries(
+    [candidate, DEFAULT_CUE_CANDIDATES[2]].map(selected => [selected.model,
+      JSON.parse(initialVisualLimits({ VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: selected.model }, { globalTotalLimit: 1 }))])) };
+  for (const outcome of ['failed', 'undispatched']) {
+    const configuration = { path: join(await temporary(), 'initial-concurrency.json'), roundId: `initial-${outcome}`, mode: 'live', maxCalls: 10, maxEstimatedUsd: 3 };
+    const first = await openCueRoundBudget(configuration);
+    const other = await openCueRoundBudget(configuration);
+    await first.bindInitialAdmission(initialAdmission);
+    await other.bindInitialAdmission(initialAdmission);
+    const attempts = await Promise.allSettled([first.reserve({ candidate }), other.reserve({ candidate: DEFAULT_CUE_CANDIDATES[2] })]);
+    assert.equal(attempts.filter(attempt => attempt.status === 'fulfilled').length, 1);
+    assert.equal(attempts.find(attempt => attempt.status === 'rejected').reason.reason, 'call-cap');
+    const accepted = attempts.find(attempt => attempt.status === 'fulfilled').value;
+    if (outcome === 'failed') await first.settle(accepted.id, { outcome: 'failed', reason: 'provider_error' });
+    else await first.withdrawUndispatched(accepted.id, captureVisualCueUndispatchedReservation(accepted.id));
+    const state = await other.snapshot();
+    assert.equal(state.attempts.length, outcome === 'failed' ? 1 : 0);
+    assert.equal(state.initialReservations.length, 1);
+    assert.equal(state.initialReservations[0].reservedCostMicrousd, 100);
+    await assert.rejects(other.reserve({ candidate: DEFAULT_CUE_CANDIDATES[2] }), error => error.reason === 'call-cap');
+  }
+});
+
+for (const boundary of ['cancelled', 'configuration-lost']) {
+  test(`original reservation before adapter entry stays durable when ${boundary}`, async () => {
+    const initialAdmission = { aggregateScope: `guest-edge:${'f'.repeat(64)}`, limitsByModel: {
+      [candidate.model]: JSON.parse(initialVisualLimits({ VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: candidate.model }, { globalTotalLimit: 1 }))
+    } };
+    const budget = await openCueRoundBudget({ path: join(await temporary(), 'before-adapter.json'), roundId: `before-adapter-${boundary}`,
+      mode: 'live', maxCalls: 10, maxEstimatedUsd: 3 });
+    let calls = 0;
+    const aiAdapter = { liveConfigured: true, availableModels: [candidate.model], async run() { calls += 1; return response([]); } };
+    const session = await createVisualCueSession({ caseData: star, live: true, budget, initialAdmission, aiAdapter });
+    let release;
+    let entered;
+    const gate = new Promise(resolve => { release = resolve; });
+    const held = new Promise(resolve => { entered = resolve; });
+    const prepare = session.env.DB.prepare.bind(session.env.DB);
+    session.env.DB.prepare = sql => {
+      const statement = prepare(sql);
+      if (!sql.startsWith('INSERT INTO visual_initial_reservations')) return statement;
+      const intercepted = Object.create(statement);
+      intercepted.bind = (...values) => {
+        const bound = statement.bind(...values);
+        const delayed = Object.create(bound);
+        delayed.run = async () => { const result = await bound.run(); entered(); await gate; return result; };
+        return delayed;
+      };
+      return intercepted;
+    };
+    try {
+      await session.observe(star.raw, { complete: true });
+      let timer;
+      try { await Promise.race([held, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Original reservation did not reach the held boundary.')), 1000); })]); }
+      finally { clearTimeout(timer); }
+      const before = await budget.snapshot();
+      assert.equal(session.db.rows('SELECT * FROM visual_initial_reservations').length, 1);
+      assert.equal(before.initialReservations.length, 1);
+      assert.equal(before.initialReservations[0].reservedCostMicrousd, 100);
+      assert.equal(before.attempts.length, 0);
+      if (boundary === 'cancelled') await session.cancel();
+      else delete session.env.VISUAL_INITIAL_LIMITS;
+      release();
+      await session.finish();
+    } finally { release(); await session.finish(); }
+    assert.equal(calls, 0);
+    session.db.sqlite.close();
+    const resumed = await createVisualCueSession({ caseData: star, live: true, budget, initialAdmission, aiAdapter, trialId: 'new-case-store' });
+    await resumed.observe(star.raw, { complete: true });
+    const report = await resumed.finish();
+    assert.equal(calls, 0);
+    assert.equal(report.admissionComplete, false);
+    assert.equal(report.attempts.length, 0);
+    const after = await budget.snapshot();
+    assert.equal(after.initialReservations.length, 1);
+    assert.equal(after.attempts.length, 0);
+    assert.ok(after.admissions.some(admission => admission.initialLimit === 'globalTotalLimit'));
+  });
+}
+
+test('persistent original hold survives failure of the real D1 reservation statement', async () => {
+  const { createD1 } = await import('./helpers/d1Sqlite.mjs');
+  const db = await createD1();
+  const prepare = db.prepare.bind(db);
+  db.prepare = sql => {
+    const statement = prepare(sql);
+    if (!sql.startsWith('INSERT INTO visual_initial_reservations')) return statement;
+    const intercepted = Object.create(statement);
+    intercepted.bind = (...values) => {
+      const bound = statement.bind(...values);
+      const failed = Object.create(bound);
+      failed.run = async () => { throw new Error('Controlled reservation storage failure.'); };
+      return failed;
+    };
+    return intercepted;
+  };
+  const initialAdmission = { aggregateScope: `guest-edge:${'1'.repeat(64)}`, limitsByModel: {
+    [candidate.model]: JSON.parse(initialVisualLimits({ VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: candidate.model }))
+  } };
+  const budget = await openCueRoundBudget({ path: join(await temporary(), 'd1-reserve-failure.json'), roundId: 'd1-reserve-failure', mode: 'live' });
+  let calls = 0;
+  const session = await createVisualCueSession({ caseData: star, live: true, budget, db, initialAdmission,
+    aiAdapter: { liveConfigured: true, availableModels: [candidate.model], async run() { calls += 1; assert.fail('failed D1 reservation dispatched'); } } });
+  await session.observe(star.raw, { complete: true });
+  const report = await session.finish();
+  const state = await budget.snapshot();
+  assert.equal(calls, 0);
+  assert.equal(report.attempts.length, 0);
+  assert.equal(db.rows('SELECT * FROM visual_initial_reservations').length, 0);
+  assert.equal(state.initialReservations.length, 1);
+  assert.equal(state.initialReservations[0].reservedCostMicrousd, 100);
+});
 
 test('reservation rejection is admission-incomplete, not a dispatch', async () => {
   const budget = await openCueRoundBudget({ path: join(await temporary(), 'round.json'), roundId: 'admission', maxEstimatedUsd: .1 });

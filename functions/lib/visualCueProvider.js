@@ -41,7 +41,7 @@ export async function runVisualCueAnnotation({ env, prompt, signal }) {
 }
 
 /** Private provider provenance stays outside the strict model proposal envelope. */
-export async function runVisualCueAnnotationWithMetadata({ env, prompt, signal }) {
+export async function runVisualCueAnnotationWithMetadata({ env, prompt, signal, beforeDispatch = null }) {
   const readiness = getVisualCueReadiness(env);
   if (!readiness.ready) throw new Error(readinessErrors[readiness.reason]);
   const model = configString(env.VISUAL_CUE_MODEL);
@@ -53,7 +53,9 @@ export async function runVisualCueAnnotationWithMetadata({ env, prompt, signal }
   let startedAtMs = null;
   let providerResponse = null;
   let validating = false;
-  const trustedBinding = isTrustedVisualCueBinding(env.AI);
+  const binding = env.AI;
+  const run = binding.run;
+  const trustedBinding = isTrustedVisualCueBinding(binding);
   const dispatchObserver = {
     dispatched() { startedAtMs = Date.now(); },
     provenance(value) { providerResponse = { model: normalizeInferenceIdentifier(value?.model), usage: normalizeInferenceUsage(value?.usage) }; }
@@ -66,8 +68,9 @@ export async function runVisualCueAnnotationWithMetadata({ env, prompt, signal }
   });
   try {
     const response = await deadline.run(() => {
+      beforeDispatch?.();
       if (!trustedBinding) startedAtMs = Date.now();
-      return env.AI.run(model, {
+      return run.call(binding, model, {
         messages: [
           { role: 'system', content: prompt.systemPrompt },
           { role: 'user', content: prompt.userPrompt }

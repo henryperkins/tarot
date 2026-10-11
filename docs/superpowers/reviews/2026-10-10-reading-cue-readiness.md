@@ -2,7 +2,7 @@
 
 Status: **not ready for release; production stays disabled.** This record maps every remediation task and gate to its evidence and its open limit on the candidate below. It authorizes no inference, spending, migration, deployment, commit or push.
 
-This is the pre-consolidation candidate and evidence record. The user subsequently requested Step 1 consolidation; current review-branch identity and fresh integration checks are in the [consolidation report](2026-10-10-reading-review-consolidation.md). The acceptance gaps below remain open.
+This is the pre-consolidation candidate and evidence record. The user subsequently requested Step 1 consolidation; review-branch identity and integration checks are in the [consolidation report](2026-10-10-reading-review-consolidation.md). The subsequent [Step 2 repair report](2026-10-11-reading-activation-recovery.md) records local retention, admission and recovery changes. Findings below describe the historical snapshot; live, device and production acceptance remain open.
 
 ## Candidate identity
 

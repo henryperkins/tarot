@@ -4,6 +4,9 @@ import { ReadingVisualJob } from '../src/worker/readingVisualJob.js';
 import { createVisualCueLedger } from '../shared/reading/visualCueLedger.js';
 import { hashVisualCueText } from '../shared/contracts/visualCueBatches.js';
 import { createD1 } from './helpers/d1Sqlite.mjs';
+import { admitInitialVisualFixture, withInitialVisualAdmission } from './helpers/visualInitialAdmissionFixtures.mjs';
+import { registerVisualResult, updateVisualResultSource } from '../functions/lib/readingVisualResults.js';
+import { seedUser } from './helpers/journalFixtures.mjs';
 
 function createBinding(readingResultId = 'res-1', sourceRevision = 0) {
   return {
@@ -20,7 +23,26 @@ const CARDS = [
   { index: 0, canonicalName: 'The Star', detailIds: ['pool-pour', 'land-pour'] }
 ];
 
-async function createJob(t, { stored = null, runAnnotation = null, env = {} } = {}) {
+async function createJob(t, { stored = null, runAnnotation = null, env = {}, admitOriginal = true } = {}) {
+  if (admitOriginal && (runAnnotation || typeof env.AI?.run === 'function')) {
+    if (!env.DB) {
+      env = { ...env, DB: await createD1() };
+      t.after(() => env.DB.sqlite.close());
+      await seedUser(env.DB, { id: 'user-1' });
+      if (stored?.binding) {
+        await registerVisualResult({ db: env.DB, userId: stored.ownerUserId || null,
+          readingResultId: stored.binding.readingResultId, binding: stored.binding });
+        await updateVisualResultSource({ db: env.DB, userId: stored.ownerUserId || null,
+          readingResultId: stored.binding.readingResultId, binding: stored.binding,
+          raw: stored.authoritativeRaw || '', complete: !!stored.isComplete });
+      }
+    }
+    env = withInitialVisualAdmission({
+      VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/adapter',
+      AI: { run: async () => { throw new Error('Controlled adapter must handle inference'); } }, ...env
+    });
+    if (stored?.binding) await admitInitialVisualFixture(env, stored);
+  }
   let storageState = stored ? JSON.parse(JSON.stringify(stored)) : null;
   const storage = {
     get: async (_key) => storageState,
@@ -34,6 +56,13 @@ async function createJob(t, { stored = null, runAnnotation = null, env = {} } = 
   };
   const job = new ReadingVisualJob(fakeState, env, { runAnnotation });
   await job.initialized;
+  if (admitOriginal) {
+    const fetch = job.fetch.bind(job);
+    job.fetch = async request => {
+      if (new URL(request.url).pathname === '/init') await admitInitialVisualFixture(env, await request.clone().json());
+      return fetch(request);
+    };
+  }
   return { job, fakeState, waitUntilPromises, getStorage: () => storageState };
 }
 
@@ -138,7 +167,7 @@ test('coalesces rapid arrivals into one in-flight and one pending request', asyn
       complete: false
     })
   }));
-  await new Promise(resolve => setImmediate(resolve));
+  await until(() => annotationCalls.length === 1);
 
   assert.equal(annotationCalls.length, 1);
   assert.ok(job.inFlightRequest, 'first request is in flight');
@@ -181,7 +210,7 @@ test('coalesces rapid arrivals into one in-flight and one pending request', asyn
   assert.equal(job.status, 'complete');
 });
 
-test('eviction recovery rejects old recovery-epoch responses and recovers pending snapshot', async (t) => {
+test('eviction recovery rejects old responses and never dispatches a stored pending snapshot', async (t) => {
   const binding = createBinding();
   const storedJob = {
     binding,
@@ -233,11 +262,11 @@ test('eviction recovery rejects old recovery-epoch responses and recovers pendin
   assert.equal(oldCommitResult.ok, false);
   assert.equal(oldCommitResult.reason, 'stale-epoch');
 
-  // Let background pendingSnapshot run
+  // Reconstruction is a read, not authority for a fresh provider dispatch.
   await Promise.all(waitUntilPromises);
-  assert.equal(annotationRan, true);
-  assert.equal(job.status, 'complete');
-  assert.equal(job.ledger.raw, storedJob.authoritativeRaw);
+  assert.equal(annotationRan, false);
+  assert.equal(job.status, 'failed');
+  assert.equal(job.ledger.raw, '');
 });
 
 test('cancellation keeps accepted cues and halts pending work', async (t) => {
@@ -307,6 +336,212 @@ test('missing model configuration fails closed without provider fallback', async
 const LITERAL_RAW = 'A figure pours one pitcher into a pool.';
 const LITERAL_RESPONSE = { proposals: [{ localAlias: 'pour', kind: 'literal', quote: LITERAL_RAW,
   targets: [{ spreadIndex: 0, detailIds: ['pool-pour'] }] }] };
+
+test('original provider configuration alone cannot authorize a dispatch without explicit limits', async t => {
+  const DB = await createD1();
+  t.after(() => DB.sqlite.close());
+  let calls = 0;
+  const { job, waitUntilPromises } = await createJob(t, { admitOriginal: false, env: {
+    DB, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/model',
+    VISUAL_INITIAL_LIMITS: undefined,
+    AI: { run: async () => { calls++; return { response: { proposals: [] } }; } }
+  } });
+  const binding = await init(job);
+  await observe(job, binding, LITERAL_RAW, 1, true);
+  await Promise.all(waitUntilPromises);
+  assert.equal(calls, 0);
+  assert.equal(job.status, 'failed');
+  assert.equal(DB.rows('SELECT * FROM inference_attempts').length, 0);
+});
+
+test('direct original DO initialization cannot bypass trusted admission even with valid spending limits', async t => {
+  const DB = await createD1(); t.after(() => DB.sqlite.close());
+  let calls = 0;
+  const env = withInitialVisualAdmission({ DB, VISUAL_CUE_PROVIDER: 'workers-ai',
+    VISUAL_CUE_MODEL: '@cf/controlled/model', AI: { run: async () => {
+      calls++; return { response: { proposals: [] } };
+    } } });
+  const { job, waitUntilPromises } = await createJob(t, { env, admitOriginal: false });
+  const binding = await init(job);
+  await observe(job, binding, LITERAL_RAW, 1, true);
+  await Promise.all(waitUntilPromises);
+  assert.equal(calls, 0);
+  assert.equal(job.status, 'failed');
+  assert.equal(DB.rows('SELECT * FROM visual_initial_admissions').length, 0);
+  assert.equal(DB.rows('SELECT * FROM visual_initial_reservations').length, 0);
+});
+
+test('repeated original init validates its durable scope, token and binding without spending or resetting', async t => {
+  const { prepareVisualInitialAdmission } = await import('../functions/lib/readingVisualAdmission.js');
+  const DB = await createD1(); t.after(() => DB.sqlite.close());
+  let calls = 0;
+  const env = withInitialVisualAdmission({ DB, VISUAL_CUE_PROVIDER: 'workers-ai',
+    VISUAL_CUE_MODEL: '@cf/controlled/model', AI: { run: async () => {
+      calls++; return { response: { proposals: [] } };
+    } } });
+  const { job, waitUntilPromises } = await createJob(t, { env, admitOriginal: false });
+  const binding = createBinding('idempotent-initial');
+  const body = { binding, visualToken: 'lifecycle-token', validationContext: { cards: CARDS },
+    initialAdmission: await prepareVisualInitialAdmission({ env }) };
+  const initialize = payload => job.fetch(new Request('https://visual/init', {
+    method: 'POST', body: JSON.stringify(payload)
+  }));
+  assert.equal((await initialize(body)).status, 200);
+  assert.equal((await initialize(body)).status, 200);
+  assert.equal((await initialize({ ...body, initialAdmission: {
+    userId: null, aggregateScope: `guest-edge:${'f'.repeat(64)}`
+  } })).status, 409);
+  assert.equal((await initialize({ ...body, visualToken: 'another-token' })).status, 409);
+  assert.equal((await initialize({ ...body, binding: { ...binding, spreadHash: 'f'.repeat(64) } })).status, 409);
+  assert.equal(calls, 0);
+  assert.equal(DB.rows('SELECT * FROM visual_initial_admissions').length, 1);
+  assert.equal(DB.rows('SELECT * FROM visual_initial_reservations').length, 0);
+  await observe(job, binding, LITERAL_RAW, 1, true);
+  await Promise.all(waitUntilPromises);
+  assert.equal(calls, 1);
+  assert.equal(DB.rows('SELECT * FROM visual_initial_reservations').length, 1);
+});
+
+for (const outcome of ['provider failure', 'malformed JSON', 'timeout', 'unknown success usage']) {
+  test(`original ${outcome} keeps its complete monetary reservation across reconstruction and ID churn`, async t => {
+    const DB = await createD1(); t.after(() => DB.sqlite.close());
+    let calls = 0;
+    const env = withInitialVisualAdmission({ DB, VISUAL_CUE_PROVIDER: 'workers-ai',
+      VISUAL_CUE_MODEL: '@cf/controlled/model', VISUAL_CUE_TIMEOUT_MS: 5,
+      AI: { run: async () => {
+        calls++;
+        if (outcome === 'provider failure') throw new Error('Controlled provider rejection');
+        if (outcome === 'timeout') return new Promise(() => {});
+        return { response: outcome === 'malformed JSON' ? 'invalid JSON' : { proposals: [] } };
+      } }
+    }, { totalLimit: 1, scopeCostLimitMicrousd: 100, globalCostLimitMicrousd: 100 });
+    const first = await createJob(t, { env, admitOriginal: false });
+    const binding = createBinding(`limited-${outcome}`);
+    await admitInitialVisualFixture(env, { binding, visualToken: 'lifecycle-token' });
+    await init(first.job, binding);
+    await observe(first.job, binding, LITERAL_RAW, 1, true);
+    await Promise.all(first.waitUntilPromises);
+    assert.equal(calls, 1);
+    assert.equal(DB.rows('SELECT SUM(reserved_cost_microusd) AS cost FROM visual_initial_reservations')[0].cost, 100);
+    const restored = await createJob(t, { env, admitOriginal: false, stored: first.getStorage() });
+    await restored.job.fetch(new Request('https://visual/snapshot', { headers: { 'X-Visual-Token': 'lifecycle-token' } }));
+    await Promise.all(restored.waitUntilPromises);
+    assert.equal(calls, 1, 'Restore/status does not infer or refund an uncertain call');
+    const second = await createJob(t, { env, admitOriginal: false });
+    const newBinding = createBinding(`new-id-${outcome}`);
+    await admitInitialVisualFixture(env, { binding: newBinding, visualToken: 'lifecycle-token' });
+    await init(second.job, newBinding);
+    await observe(second.job, newBinding, LITERAL_RAW, 1, true);
+    await Promise.all(second.waitUntilPromises);
+    assert.equal(calls, 1, 'Fresh result/DO IDs cannot reset the aggregate allowance');
+    assert.equal(second.job.status, 'failed');
+    assert.equal(DB.rows('SELECT * FROM inference_attempts').length, 1);
+    assert.equal(DB.rows('SELECT * FROM visual_initial_reservations').length, 1);
+  });
+}
+
+for (const boundary of ['reservation token digest', 'reservation SQL', 'final ownership read']) {
+  for (const change of ['changed model', 'removed limits', 'invalid limits', 'changed cost bound']) {
+    test(`${change} at ${boundary} rejects dispatch and retains the admitted conservative reservation`, async t => {
+      const DB = await createD1(); t.after(() => DB.sqlite.close());
+      const calls = [];
+      const env = withInitialVisualAdmission({ DB, VISUAL_CUE_PROVIDER: 'workers-ai',
+        VISUAL_CUE_MODEL: '@cf/controlled/original', AI: { run: async model => {
+          calls.push(model); return { response: { proposals: [] } };
+        } } });
+      const { job, waitUntilPromises } = await createJob(t, { env, admitOriginal: false });
+      const binding = createBinding(`drift-${boundary}-${change}`);
+      await admitInitialVisualFixture(env, { binding, visualToken: 'lifecycle-token' });
+      await init(job, binding);
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      let paused = false, reservationDone = false;
+      const prepare = DB.prepare.bind(DB);
+      const digest = crypto.subtle.digest.bind(crypto.subtle);
+      t.mock.method(crypto.subtle, 'digest', async (...args) => {
+        const value = await digest(...args);
+        if (!paused && boundary === 'reservation token digest'
+            && new TextDecoder().decode(args[1]) === 'lifecycle-token') { paused = true; await gate; }
+        return value;
+      });
+      DB.prepare = sql => {
+        const wrap = statement => new Proxy(statement, { get(target, key) {
+          if (key === 'bind') return (...args) => wrap(target.bind(...args));
+          if (key === 'run' && /INSERT INTO visual_initial_reservations/.test(sql)) return async () => {
+            const value = await target.run(); reservationDone = true;
+            if (!paused && boundary === 'reservation SQL') { paused = true; await gate; }
+            return value;
+          };
+          if (key === 'first') return async (...args) => {
+            const value = await target.first(...args);
+            if (!paused && reservationDone && boundary === 'final ownership read'
+                && sql === 'SELECT * FROM reading_visual_results WHERE id = ?') { paused = true; await gate; }
+            return value;
+          };
+          return Reflect.get(target, key);
+        } });
+        return wrap(prepare(sql));
+      };
+      try {
+        await observe(job, binding, LITERAL_RAW, 1, true);
+        await until(() => paused);
+        if (change === 'changed model') {
+          env.VISUAL_CUE_MODEL = '@cf/controlled/changed';
+          env.VISUAL_INITIAL_LIMITS = JSON.stringify({ ...JSON.parse(env.VISUAL_INITIAL_LIMITS), model: env.VISUAL_CUE_MODEL });
+        } else if (change === 'removed limits') delete env.VISUAL_INITIAL_LIMITS;
+        else if (change === 'invalid limits') env.VISUAL_INITIAL_LIMITS = '{}';
+        else env.VISUAL_INITIAL_LIMITS = JSON.stringify({ ...JSON.parse(env.VISUAL_INITIAL_LIMITS), maxDispatchCostMicrousd: 50 });
+        release();
+        await Promise.all(waitUntilPromises);
+        assert.deepEqual(calls, [], 'The provider must not use a changed/removed spending authorization');
+        assert.equal(job.status, 'failed');
+        assert.equal(DB.rows('SELECT * FROM inference_attempts').length, 0);
+        const reservations = DB.rows('SELECT * FROM visual_initial_reservations');
+        assert.equal(reservations.length, 1);
+        assert.equal(reservations[0].reserved_cost_microusd, 100, 'Keep the full original authorization bound');
+      } finally {
+        release(); DB.prepare = prepare;
+        await Promise.all(waitUntilPromises);
+      }
+    });
+  }
+}
+
+test('configuration changes between the final ownership guard and deferred provider callback cannot dispatch', async t => {
+  const DB = await createD1(); t.after(() => DB.sqlite.close());
+  let calls = 0;
+  const env = withInitialVisualAdmission({ DB, VISUAL_CUE_PROVIDER: 'workers-ai',
+    VISUAL_CUE_MODEL: '@cf/controlled/original', AI: { run: async () => {
+      calls++; return { response: { proposals: [] } };
+    } } });
+  const { job, waitUntilPromises } = await createJob(t, { env, admitOriginal: false });
+  const binding = createBinding('deferred-dispatch-drift');
+  await admitInitialVisualFixture(env, { binding, visualToken: 'lifecycle-token' });
+  await init(job, binding);
+  const allowed = job.originalWorkAllowed.bind(job);
+  let armed = false, changed = false;
+  job.originalWorkAllowed = async () => {
+    const result = await allowed();
+    if (!armed && DB.rows('SELECT * FROM visual_initial_reservations').length) {
+      armed = true;
+      // The first microtask precedes executeAnnotation's await continuation;
+      // the second follows its final guard and precedes the provider callback.
+      queueMicrotask(() => queueMicrotask(() => {
+        changed = true;
+        delete env.VISUAL_INITIAL_LIMITS;
+        env.VISUAL_CUE_MODEL = '@cf/controlled/changed';
+      }));
+    }
+    return result;
+  };
+  await observe(job, binding, LITERAL_RAW, 1, true);
+  await Promise.all(waitUntilPromises);
+  assert.equal(changed, true);
+  assert.equal(calls, 0);
+  assert.equal(job.status, 'failed');
+  assert.equal(DB.rows('SELECT * FROM inference_attempts').length, 0);
+  assert.equal(DB.rows('SELECT * FROM visual_initial_reservations')[0].reserved_cost_microusd, 100);
+});
 async function until(predicate) {
   const deadline = Date.now() + 1000;
   while (!predicate()) {
@@ -587,14 +822,20 @@ test('real start exposes retryable visual transport while optional initializatio
   let releaseInit;
   const gate = new Promise(resolve => { releaseInit = resolve; });
   const background = [];
-  const { job } = await createJob(t);
+  const DB = await createD1();
+  t.after(() => DB.sqlite.close());
+  const { job } = await createJob(t, { admitOriginal: false, env: withInitialVisualAdmission({
+    DB, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/model',
+    AI: { run: async () => { throw new Error('Initialization must not perform inference'); } }
+  }) });
   t.after(() => { releaseInit(); job.closeSubscribers(); });
   const result = await startReadingJob({
     payload: { spreadInfo: { name: fixture.spreadName, key: fixture.spreadKey },
       cardsInfo: fixture.cards.map(card => ({ ...card, meaning: 'Controlled schema-required fixture value.', userReflection: null })),
       userQuestion: fixture.userQuestion, reflectionsText: fixture.reflectionsText, deckStyle: fixture.deckStyle },
     waitUntil: promise => background.push(promise),
-    env: {
+    env: withInitialVisualAdmission({
+      DB,
       VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/model',
       AI: { run: async () => { throw new Error('Initialization must not perform inference'); } },
       READING_JOBS: { idFromName: id => id, get: () => ({ fetch: async () => Response.json({ ok: true }) }) },
@@ -602,7 +843,7 @@ test('real start exposes retryable visual transport while optional initializatio
         if (new URL(url).pathname === '/init') await gate;
         return job.fetch(new Request(url, options));
       } }) }
-    }
+    })
   });
   assert.equal(result.ok, true, 'Narrative starts before visual initialization resolves');
   const headers = { 'X-Visual-Token': result.visualJobToken };
@@ -672,7 +913,8 @@ test('cold-start pending work without a provider fails without erasing accepted 
   stored.pendingSnapshot = { raw: stored.authoritativeRaw, complete: true, deliveredEventId: 2, availableAt: 1000 };
   let inferenceCalls = 0;
   const { job: recovered, waitUntilPromises: recovery } = await createJob(t, { stored,
-    env: { AI: { run: async () => { inferenceCalls++; return { response: LITERAL_RESPONSE }; } } } });
+    admitOriginal: false,
+    env: { DB: job.env.DB, AI: { run: async () => { inferenceCalls++; return { response: LITERAL_RESPONSE }; } } } });
   await Promise.all(recovery);
   assert.equal(inferenceCalls, 0);
   assert.equal(recovered.status, 'failed');

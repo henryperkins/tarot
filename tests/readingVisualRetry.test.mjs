@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { createD1 } from './helpers/d1Sqlite.mjs';
 import { seedUser, seedEntry } from './helpers/journalFixtures.mjs';
 import { ReadingVisualJob } from '../src/worker/readingVisualJob.js';
+import { admitInitialVisualFixture, withInitialVisualAdmission } from './helpers/visualInitialAdmissionFixtures.mjs';
 const replay = await import('../functions/lib/readingVisualRetry.js').catch(() => null);
 const SOURCE = { raw: 'The Star pours into a pool.', cards: [{ name: 'The Star', position: 'Present', orientation: 'Upright' }], question: '', reflections: { Overall: 'Hope' }, deckId: 'rws-1909' };
 async function fixture(t, { response = { response: { proposals: [] } }, limits = true, configured = true } = {}) {
@@ -10,15 +11,19 @@ async function fixture(t, { response = { response: { proposals: [] } }, limits =
   const db = await createD1(); t.after(() => db.sqlite.close());
   await seedUser(db); await seedEntry(db, { cards: SOURCE.cards, narrative: SOURCE.raw, reflections: SOURCE.reflections, deckId: SOURCE.deckId });
   const jobs = new Map(), pending = []; let calls = 0;
-  const env = { DB: db, ...(limits ? { VISUAL_REPLAY_LIMITS: JSON.stringify({ rateLimit: 3, windowMs: 60000, totalLimit: 5 }) } : {}),
-    ...(configured ? { VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: 'fake', AI: { async run(...args) { calls++; return typeof response === 'function' ? response(...args) : response; } } } : {}) };
+  const env = withInitialVisualAdmission({ DB: db, ...(limits ? { VISUAL_REPLAY_LIMITS: JSON.stringify({ rateLimit: 3, windowMs: 60000, totalLimit: 5 }) } : {}),
+    ...(configured ? { VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: 'fake', AI: { async run(...args) { calls++; return typeof response === 'function' ? response(...args) : response; } } } : {}) });
   env.READING_VISUAL_JOBS = { idFromName: id => id, get(id) {
     if (!jobs.has(id)) {
       let stored; const state = { storage: { get: async () => stored, put: async (_, value) => { stored = structuredClone(value); }, setAlarm: async () => {} },
         blockConcurrencyWhile: fn => fn(), waitUntil: p => pending.push(p) };
       jobs.set(id, { state, job: new ReadingVisualJob(state, env) });
     }
-    return { fetch: (url, options) => jobs.get(id).job.fetch(new Request(url, options)) };
+    return { fetch: async (url, options) => {
+      const request = new Request(url, options);
+      if (new URL(url).pathname === '/init') await admitInitialVisualFixture(env, await request.clone().json());
+      return jobs.get(id).job.fetch(request);
+    } };
   } };
   const admission = await replay.createVisualReplayAdmission({ env, userId: 'user-1' });
   const drain = async () => { while (pending.length) await Promise.all(pending.splice(0)); };
@@ -172,7 +177,7 @@ test('a complete replay exposes its accepted snapshot through real journal state
     targets: [{ spreadIndex: 0, detailIds: ['pool-pour'] }] }] } } });
   await replay.retryJournalVisuals({ env: f.env, userId: 'user-1', entryId: 'entry-1' }); await f.drain();
   const { loadJournalVisualState } = await import('../functions/lib/readingVisualResults.js');
-  const state = await loadJournalVisualState({ db: f.db, userId: 'user-1', entryId: 'entry-1' });
+  const state = await loadJournalVisualState({ env: f.env, db: f.db, userId: 'user-1', entryId: 'entry-1' });
   assert.equal(state.retryStatus, 'complete'); assert.equal(state.visualSnapshot.cueLedger.cues.length, 1);
   const again = await replay.retryJournalVisuals({ env: f.env, userId: 'user-1', entryId: 'entry-1' }); await f.drain();
   assert.equal(f.calls(), 1); assert.equal(again.resumeHandle, null);
@@ -226,7 +231,7 @@ for (const successor of ['failed', 'accepted']) test(`${successor} successor pre
   const r = await replay.retryJournalVisuals({ env: f.env, userId: 'user-1', entryId: 'entry-1' }); await f.drain();
   assert.equal(f.calls(), 1); assert.equal(r.resumeHandle.readingResultId, original.binding.readingResultId);
   assert.deepEqual(r.resumeHandle.visualBinding, original.binding);
-  const current = await original.resultLib.loadJournalVisualState({ db: f.db, userId: 'user-1', entryId: 'entry-1' });
+  const current = await original.resultLib.loadJournalVisualState({ env: f.env, db: f.db, userId: 'user-1', entryId: 'entry-1' });
   assert.ok(current.visualSnapshot.cues.some(cue => cue.id === original.ledger.cues[0].id));
   assert.equal(current.visualSnapshot.cues.length, successor === 'failed' ? 1 : 2);
   assert.equal(current.retryStatus, successor === 'failed' ? 'exhausted' : 'complete');
@@ -234,7 +239,7 @@ for (const successor of ['failed', 'accepted']) test(`${successor} successor pre
     expectedLedgerRevision: original.ledger.ledgerRevision, expectedReceiptCount: original.ledger.receipts.length, ledger: original.ledger, status: 'complete', finalRaw: SOURCE.raw });
   assert.equal(late.ok, false);
   await original.resultLib.expireVisualResult({ db: f.db, userId: 'user-1', readingResultId: original.binding.readingResultId });
-  assert.equal((await original.resultLib.loadJournalVisualState({ db: f.db, userId: 'user-1', entryId: 'entry-1' })).retryStatus, current.retryStatus);
+  assert.equal((await original.resultLib.loadJournalVisualState({ env: f.env, db: f.db, userId: 'user-1', entryId: 'entry-1' })).retryStatus, current.retryStatus);
 });
 
 test('claim version is independent of a preexisting journal state version', async t => {
@@ -243,7 +248,7 @@ test('claim version is independent of a preexisting journal state version', asyn
   const r = await replay.retryJournalVisuals({ env: f.env, userId: 'user-1', entryId: 'entry-1' }); await f.drain();
   assert.equal(f.calls(), 1); assert.equal(f.db.rows('SELECT state_version FROM visual_retry_claims')[0].state_version, 1);
   assert.equal(f.db.rows('SELECT state_version FROM journal_visual_state')[0].state_version, 9); // repair 7→8, replay claim 8→9
-  assert.equal((await original.resultLib.loadJournalVisualState({ db: f.db, userId: 'user-1', entryId: 'entry-1' })).retryStatus, 'complete');
+  assert.equal((await original.resultLib.loadJournalVisualState({ env: f.env, db: f.db, userId: 'user-1', entryId: 'entry-1' })).retryStatus, 'complete');
   assert.ok(r.resumeHandle.attemptId);
 });
 
@@ -336,7 +341,7 @@ test('malformed proposal-only response exhausts replay without replacing accepte
   const f = await fixture(t, { response: { response: { proposals: [{ kind: 'literal', quote: 'invented', targets: [] }] } } });
   const original = await seedFailedOriginal(f);
   await replay.retryJournalVisuals({ env: f.env, userId: 'user-1', entryId: 'entry-1' }); await f.drain();
-  const state = await original.resultLib.loadJournalVisualState({ db: f.db, userId: 'user-1', entryId: 'entry-1' });
+  const state = await original.resultLib.loadJournalVisualState({ env: f.env, db: f.db, userId: 'user-1', entryId: 'entry-1' });
   assert.equal(f.calls(), 1); assert.equal(state.retryStatus, 'exhausted');
   assert.deepEqual(state.visualSnapshot.cueLedger.cues.map(c => c.id), original.ledger.cues.map(c => c.id));
 });
@@ -397,7 +402,7 @@ test('configuration loss after admission reports unavailable while preserving ca
     delete f.env.VISUAL_CUE_PROVIDER; return stub.fetch(url, options);
   } }; };
   await replay.retryJournalVisuals({ env: f.env, userId: 'user-1', entryId: 'entry-1' }); await f.drain();
-  const state = await original.resultLib.loadJournalVisualState({ db: f.db, userId: 'user-1', entryId: 'entry-1' });
+  const state = await original.resultLib.loadJournalVisualState({ env: f.env, db: f.db, userId: 'user-1', entryId: 'entry-1' });
   assert.equal(state.retryStatus, 'unavailable'); assert.equal(f.calls(), 0);
   assert.equal(state.visualSnapshot.cues[0].id, original.ledger.cues[0].id);
   assert.equal(f.db.rows('SELECT dispatch_status FROM visual_retry_claims')[0].dispatch_status, 'prepared');
@@ -417,7 +422,9 @@ test('a foreign guessed sidecar ID never selects its private result as cloud rep
   assert.deepEqual(f.db.rows("SELECT * FROM reading_visual_results WHERE id = 'foreign-private'")[0], before);
 });
 
-for (const boundary of ['already claimed', 'durable recovery read', 'recovery storage write', 'recovery hash', 'issued request storage', 'dispatch admission read']) {
+// Recovery no longer has dispatch/hash/issued-request phases: reconstruction is
+// read-only. Retain races at the three real reconstruction boundaries below.
+for (const boundary of ['already claimed', 'durable recovery read', 'recovery storage write']) {
   test(`superseded original cold recovery makes zero extra calls at ${boundary}`, async t => {
     const finishes = [];
     const f = await fixture(t, { response: () => finishes.length < 2 ? new Promise(resolve => finishes.push(resolve)) : { response: { proposals: [] } } });
@@ -433,29 +440,22 @@ for (const boundary of ['already claimed', 'durable recovery read', 'recovery st
     const item = f.jobs.get(binding.readingResultId), coldPending = [];
     let release, paused = false, cold;
     const gate = new Promise(resolve => { release = resolve; });
-    const prepare = f.db.prepare.bind(f.db), digest = crypto.subtle.digest.bind(crypto.subtle), own = Object.getOwnPropertyDescriptor(crypto.subtle, 'digest');
+    const prepare = f.db.prepare.bind(f.db);
     const coldState = { ...item.state, waitUntil: promise => coldPending.push(promise), storage: { ...item.state.storage,
       put: async (key, value) => {
-        if (!paused && ((boundary === 'recovery storage write' && !value.inFlightRequest)
-          || (boundary === 'issued request storage' && value.inFlightRequest?.preparing === false))) { paused = true; await gate; }
+        if (!paused && boundary === 'recovery storage write' && !value.inFlightRequest) { paused = true; await gate; }
         return item.state.storage.put(key, value);
       } } };
-    if (['durable recovery read', 'dispatch admission read'].includes(boundary)) f.db.prepare = sql => {
+    if (boundary === 'durable recovery read') f.db.prepare = sql => {
       const wrap = statement => new Proxy(statement, { get(object, key) {
         if (key === 'bind') return (...args) => wrap(object.bind(...args));
         if (key === 'first') return async (...args) => {
           const row = await object.first(...args);
-          if (!paused && sql === 'SELECT * FROM reading_visual_results WHERE id = ?'
-            && (boundary === 'durable recovery read' || cold?.inFlightRequest?.preparing === false)) { paused = true; await gate; }
+          if (!paused && sql === 'SELECT * FROM reading_visual_results WHERE id = ?') { paused = true; await gate; }
           return row;
         };
         return Reflect.get(object, key);
       } }); return wrap(prepare(sql));
-    };
-    if (boundary === 'recovery hash') crypto.subtle.digest = async (...args) => {
-      const result = await digest(...args);
-      if (!paused && cold?.inFlightRequest?.preparing) { paused = true; await gate; }
-      return result;
     };
     const claimReplay = async () => {
       await prepare("UPDATE journal_entries SET reflections_json = '{\"Overall\":\"Changed\"}' WHERE id = 'entry-1'").run();
@@ -479,9 +479,67 @@ for (const boundary of ['already claimed', 'durable recovery read', 'recovery st
       assert.equal((await cold.fetch(new Request('https://visual/snapshot', { headers: { 'X-Visual-Token': 'original-cold-token' } }))).status, 410);
     } finally {
       release(); f.db.prepare = prepare;
-      if (own) Object.defineProperty(crypto.subtle, 'digest', own); else delete crypto.subtle.digest;
       for (const finish of finishes) finish({ response: { proposals: [] } });
       await f.drain(); while (coldPending.length) await Promise.all(coldPending.splice(0));
+    }
+  });
+}
+
+for (const phase of ['annotation source hash', 'issued request storage', 'spending admission']) {
+  test(`reconstruction and polling never enter the former original dispatch phase: ${phase}`, async t => {
+    let finishOriginal;
+    const f = await fixture(t, { response: () => new Promise(resolve => { finishOriginal = resolve; }) });
+    const lib = await import('../functions/lib/readingVisualResults.js');
+    const hashes = await lib.computeSourceFingerprint(SOURCE), binding = {
+      readingResultId: `read-only-original-${phase}`, sourceRevision: 0,
+      spreadHash: hashes.spreadHash, contextHash: hashes.contextHash,
+      artworkEdition: 'rws-immanuelle-vector', catalogVersion: 'v1'
+    };
+    const original = f.env.READING_VISUAL_JOBS.get(binding.readingResultId);
+    await original.fetch('https://visual/init', { method: 'POST', body: JSON.stringify({ binding,
+      visualToken: 'original-read-only-token', ownerUserId: 'user-1', validationContext: {
+        cards: [{ index: 0, canonicalName: 'The Star' }], reflections: 'Overall: Hope'
+      } }) });
+    await original.fetch('https://visual/observe', { method: 'POST', body: JSON.stringify({ binding, raw: SOURCE.raw, complete: true }) });
+    while (!finishOriginal) await new Promise(resolve => setImmediate(resolve));
+    const item = f.jobs.get(binding.readingResultId);
+    const prepare = f.db.prepare.bind(f.db), digest = crypto.subtle.digest.bind(crypto.subtle);
+    const ownDigest = Object.getOwnPropertyDescriptor(crypto.subtle, 'digest');
+    let phaseEntries = 0, providerEntries = 0, scheduled = 0;
+    const provider = f.env.AI.run;
+    const trap = () => { phaseEntries++; throw new Error('Reconstruction cannot enter a dispatch phase'); };
+    if (phase === 'annotation source hash') crypto.subtle.digest = (...args) => {
+      if (new TextDecoder().decode(args[1]) === SOURCE.raw) trap();
+      return digest(...args);
+    };
+    if (phase === 'spending admission') f.db.prepare = sql => {
+      if (/INSERT INTO visual_initial_reservations/.test(sql)) trap();
+      return prepare(sql);
+    };
+    f.env.AI.run = () => { providerEntries++; throw new Error('Read cannot invoke provider'); };
+    const coldState = { ...item.state, waitUntil: () => { scheduled++; }, storage: { ...item.state.storage,
+      put: async (key, value) => {
+        if (phase === 'issued request storage' && value.inFlightRequest?.preparing === false) trap();
+        return item.state.storage.put(key, value);
+      } } };
+    try {
+      const cold = new ReadingVisualJob(coldState, f.env);
+      await cold.initialized;
+      assert.equal(cold.status, 'failed');
+      for (const path of ['status', 'snapshot']) {
+        assert.equal((await cold.fetch(new Request(`https://visual/${path}`, { headers: { 'X-Visual-Token': 'original-read-only-token' } }))).status, 200);
+      }
+      const stream = await cold.fetch(new Request('https://visual/stream', { headers: { 'X-Visual-Token': 'original-read-only-token' } }));
+      assert.equal(stream.status, 200); await stream.body.cancel();
+      assert.equal(phaseEntries, 0);
+      assert.equal(providerEntries, 0);
+      assert.equal(scheduled, 0);
+      assert.equal(f.calls(), 1);
+      assert.equal(f.db.rows('SELECT * FROM visual_initial_reservations').length, 1);
+    } finally {
+      f.db.prepare = prepare; f.env.AI.run = provider;
+      if (ownDigest) Object.defineProperty(crypto.subtle, 'digest', ownDigest); else delete crypto.subtle.digest;
+      finishOriginal({ response: { proposals: [] } }); await f.drain();
     }
   });
 }
@@ -519,7 +577,7 @@ for (const { complete, linked, processed } of [{ complete: false, linked: true }
   }
   assert.equal(f.db.rows('SELECT status FROM reading_visual_results')[0].status, complete ? 'complete' : 'running', 'expiry comes from the stored deadline without manually rewriting status');
   if (processed) {
-    const before = await lib.loadJournalVisualState({ db: f.db, userId: 'user-1', entryId: 'entry-1' });
+    const before = await lib.loadJournalVisualState({ env: f.env, db: f.db, userId: 'user-1', entryId: 'entry-1' });
     assert.equal(before.attachmentStatus, 'expired'); assert.equal(before.retryStatus, 'available');
     await lib.expireVisualResult({ db: f.db, userId: 'user-1', readingResultId: binding.readingResultId });
     assert.equal(f.db.rows('SELECT status FROM reading_visual_results')[0].status, 'expired', 'actual original expiry service processes the registration');
@@ -544,7 +602,7 @@ for (const { complete, linked, processed } of [{ complete: false, linked: true }
   else {
     assert.equal(result.resumeHandle.readingResultId, binding.readingResultId); assert.deepEqual(result.resumeHandle.visualBinding, binding);
     assert.notEqual(result.resumeHandle.visualJobId, binding.readingResultId);
-    const state = await lib.loadJournalVisualState({ db: f.db, userId: 'user-1', entryId: 'entry-1' });
+    const state = await lib.loadJournalVisualState({ env: f.env, db: f.db, userId: 'user-1', entryId: 'entry-1' });
     assert.equal(state.retryStatus, 'complete'); assert.equal(state.visualSnapshot.cues[0].id, accepted.ledger.cues[0].id);
     const oldState = { storage: { get: async () => ({ binding, visualToken: 'expired-original-token', ownerUserId: 'user-1', ledger: accepted.ledger,
       authoritativeRaw: SOURCE.raw, status: 'running', isComplete: true, expiresAt }), put: async () => {} }, blockConcurrencyWhile: fn => fn(), waitUntil: p => assert.fail(`old expired transport scheduled work ${p}`) };
@@ -585,7 +643,7 @@ test('saved full prose preserves pending original prefix recovery and a later cu
     assert.equal(f.calls(), 2); assert.equal(after.status, 'complete'); assert.equal(after.cueLedger.cues.length, 2);
     assert.equal(after.cueLedger.receipts.length, 2); assert.equal(after.cueLedger.raw, SOURCE.raw);
     assert.deepEqual(after.cueLedger.cues[0], before.cueLedger.cues[0]);
-    const saved = await lib.loadJournalVisualState({ db: f.db, userId: 'user-1', entryId: 'entry-1' });
+    const saved = await lib.loadJournalVisualState({ env: f.env, db: f.db, userId: 'user-1', entryId: 'entry-1' });
     assert.equal(saved.attachmentStatus, 'attached'); assert.equal(saved.retryStatus, 'complete');
     assert.deepEqual(saved.visualSnapshot.cues.map(cue => cue.id), after.cueLedger.cues.map(cue => cue.id));
     assert.equal(f.db.rows('SELECT * FROM visual_retry_claims').length, 0);
@@ -606,7 +664,7 @@ test('a prepared replay claim fences ordinary cold recovery before replay transp
   await stub.fetch('https://visual/observe', { method: 'POST', body: JSON.stringify({ binding, raw: SOURCE.raw, complete: true }) });
   while (!finishes.length) await new Promise(resolve => setImmediate(resolve));
   await lib.attachJournalVisualResult({ db: f.db, userId: 'user-1', entryId: 'entry-1', readingResultId: binding.readingResultId });
-  const state = await lib.loadJournalVisualState({ db: f.db, userId: 'user-1', entryId: 'entry-1' });
+  const state = await lib.loadJournalVisualState({ env: f.env, db: f.db, userId: 'user-1', entryId: 'entry-1' });
   const claim = await replay.claimVisualRetry({ db: f.db, admissionScope: f.admission.scope, sourceFingerprint: await lib.fingerprintSavedVisualSource(owned),
     entryId: 'entry-1', expectedStateVersion: state.stateVersion, admission: f.admission, owned, source: owned.source, binding, priorState: state });
   assert.ok(claim.attempt_id); assert.equal(claim.dispatch_status, 'prepared');

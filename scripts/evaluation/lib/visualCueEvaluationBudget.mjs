@@ -5,11 +5,51 @@ import { randomUUID, createHash } from 'node:crypto';
 import { normalizeInferenceUsage, normalizeInferenceIdentifier } from '../../../functions/lib/inferenceAttempts.js';
 import { createVisualCueAdmissionError, readVisualCueUsageEvidence, isVisualCueUndispatchedReservation } from '../../../functions/lib/visualCueAdmission.js';
 import { canonicalVisualCueJSON } from '../../../shared/contracts/visualCueBatches.js';
+import { getVisualInitialLimits } from '../../../functions/lib/readingVisualAdmission.js';
 
 export const CUE_PRICING_SNAPSHOT = JSON.parse(await readFile(new URL('../fixtures/readingCuePricing.json', import.meta.url), 'utf8'));
 export const cueDigest = value => createHash('sha256').update(typeof value === 'string' || value instanceof Uint8Array ? value : canonicalVisualCueJSON(value)).digest('hex');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const validCount = n => Number.isSafeInteger(n) && n >= 0;
+const initialLimitKeys = ['provider', 'model', 'rateLimit', 'windowMs', 'totalLimit', 'globalRateLimit', 'globalTotalLimit',
+  'maxDispatchCostMicrousd', 'scopeCostLimitMicrousd', 'globalCostLimitMicrousd'];
+
+function normalizeInitialAdmission(input) {
+  if (!input || !/^guest-edge:[a-f0-9]{64}$/.test(input.aggregateScope || '')
+    || !input.limitsByModel || !Object.keys(input.limitsByModel).length) throw new Error('Explicit valid initial round admission required.');
+  const limitsByModel = {};
+  for (const [model, value] of Object.entries(input.limitsByModel)) {
+    const limits = getVisualInitialLimits({ VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: model,
+      VISUAL_INITIAL_LIMITS: JSON.stringify(value) });
+    if (!limits) throw new Error('Explicit valid pinned initial round limits required.');
+    limitsByModel[model] = Object.fromEntries(initialLimitKeys.map(key => [key, limits[key]]));
+  }
+  return { aggregateScope: input.aggregateScope, limitsByModel };
+}
+
+/** Independent original-call authority, retained at its full integer cost even
+ * when outer usage settles or a provably undispatched outer attempt withdraws. */
+function initialAdmissionDecision(state, candidate, now) {
+  if (!state.initialAdmissionConfiguration) return {};
+  const configuration = state.initialAdmissionConfiguration;
+  const limits = configuration.limitsByModel[candidate?.model];
+  if (!limits) return { allowed: false, reason: 'configuration', initialLimit: 'model' };
+  const all = state.initialReservations;
+  const scope = all.filter(reservation => reservation.aggregateScope === configuration.aggregateScope);
+  const windowStart = now - limits.windowMs;
+  const countLimits = [
+    ['totalLimit', scope.length], ['rateLimit', scope.filter(r => r.reservedAtMs > windowStart).length],
+    ['globalTotalLimit', all.length], ['globalRateLimit', all.filter(r => r.reservedAtMs > windowStart).length]
+  ];
+  for (const [key, count] of countLimits) if (count >= limits[key]) return { allowed: false, reason: 'call-cap', initialLimit: key };
+  for (const [key, reservations] of [['scopeCostLimitMicrousd', scope], ['globalCostLimitMicrousd', all]]) {
+    const retained = reservations.reduce((total, reservation) => total + BigInt(reservation.reservedCostMicrousd), 0n);
+    if (retained + BigInt(limits.maxDispatchCostMicrousd) > BigInt(limits[key])) {
+      return { allowed: false, reason: 'candidate-cost-bound', initialLimit: key };
+    }
+  }
+  return {};
+}
 
 export function estimateCueUsageCost(source, pricing) {
   const usage = normalizeInferenceUsage(source);
@@ -79,6 +119,13 @@ export async function openCueRoundBudget({ path, roundId, maxCalls = 600, maxEst
         || state.attempts.some(a => !Number.isFinite(a.heldUsd) || a.heldUsd < 0 || !Number.isFinite(a.reservedUsd) || a.reservedUsd < 0)
         || (state.version === 2 && (![state.admissions, state.corrections, state.phases].every(Array.isArray)))) throw new Error('Unsupported/corrupt round budget ledger.');
       if (state.version === 1 && write) throw new Error('Historical version 1 ledger is read-only; new round required.');
+      if (state.initialAdmissionConfiguration) {
+        if (canonicalVisualCueJSON(normalizeInitialAdmission(state.initialAdmissionConfiguration)) !== canonicalVisualCueJSON(state.initialAdmissionConfiguration)
+          || !Array.isArray(state.initialReservations) || state.initialReservations.some(reservation =>
+            !/^guest-edge:[a-f0-9]{64}$/.test(reservation.aggregateScope || '')
+            || !Number.isSafeInteger(reservation.reservedCostMicrousd) || reservation.reservedCostMicrousd <= 0
+            || !Number.isSafeInteger(reservation.reservedAtMs) || reservation.reservedAtMs <= 0)) throw new Error('Corrupt initial round admission ledger.');
+      } else if (state.initialReservations?.length) throw new Error('Initial round admission configuration absent.');
       const result = await callback(state);
       if (!write) return structuredClone(result);
       const temp = `${path}.${randomUUID()}.tmp`;
@@ -100,14 +147,20 @@ export async function openCueRoundBudget({ path, roundId, maxCalls = 600, maxEst
       unresolvedAttemptIds: currentAttempts.filter(a => a.estimatedUsd === null || a.outcome === 'reserved').map(a => a.id),
       measuredCostComplete: currentAttempts.every(a => a.estimatedUsd !== null && a.outcome !== 'reserved') };
   };
-  const admission = (state, candidate, verifiedInputBound) => {
+  const admission = (state, candidate, verifiedInputBound, initialReservationId = null) => {
     const remainingUsd = Math.max(0, maxEstimatedUsd - snapshot(state).heldUsd);
     let reservedUsd;
     try { reservedUsd = reservationCost(candidate, pricing, verifiedInputBound); }
     catch { return { allowed: false, reservedUsd: null, remainingUsd, reason: 'configuration' }; }
     const reason = state.halted || state.closed ? 'round-halted' : state.attempts.length >= maxCalls ? 'call-cap'
       : reservedUsd > remainingUsd + 1e-12 ? 'candidate-cost-bound' : null;
-    return { allowed: reason === null, reservedUsd, remainingUsd, reason };
+    let initial = {};
+    if (reason === null && initialReservationId) {
+      const held = state.initialReservations?.find(reservation => reservation.id === initialReservationId);
+      if (!held || held.outerAttemptId || held.model !== candidate?.model
+        || held.aggregateScope !== state.initialAdmissionConfiguration?.aggregateScope) initial = { allowed: false, reason: 'configuration', initialLimit: 'reservation' };
+    } else if (reason === null) initial = initialAdmissionDecision(state, candidate, Date.now());
+    return { allowed: reason === null, reservedUsd, remainingUsd, reason, ...initial };
   };
   const safeRegistration = registration => Object.fromEntries(['runId', 'caseId', 'trialId', 'phase', 'readingResultId', 'sourceSha256', 'bindingSha256', 'artworkEdition', 'analyzedEnd', 'analyzedHash', 'requestSequence', 'batchId', 'sourceRevision'].flatMap(key => {
     const value = registration[key];
@@ -138,10 +191,33 @@ export async function openCueRoundBudget({ path, roundId, maxCalls = 600, maxEst
       state.admissions.push(record);
       return record;
     }, true),
-    async reserve({ candidate, registration = {}, request = {}, verifiedInputBound = null, signal } = {}) {
+    reserveInitialOriginal: ({ id, candidate, readingResultId, reservedCostMicrousd } = {}) => mutate(state => {
+      const configured = state.initialAdmissionConfiguration;
+      const limits = configured?.limitsByModel[candidate?.model];
+      if (!normalizeInferenceIdentifier(id) || !normalizeInferenceIdentifier(readingResultId) || !limits
+        || reservedCostMicrousd !== limits.maxDispatchCostMicrousd) throw new Error('Matched pinned initial original reservation required.');
+      const prior = state.initialReservations.find(reservation => reservation.id === id);
+      if (prior) {
+        if (prior.model !== candidate.model || prior.readingResultId !== readingResultId || prior.reservedCostMicrousd !== reservedCostMicrousd) throw new Error('Conflicting initial original reservation.');
+        return { allowed: true, reservation: prior };
+      }
+      const now = Date.now();
+      const decision = state.halted || state.closed ? { allowed: false, reason: 'round-halted' }
+        : { allowed: true, ...initialAdmissionDecision(state, candidate, now) };
+      if (!decision.allowed) {
+        state.admissions.push({ id: randomUUID(), candidateId: candidate.id, requestedModel: candidate.model,
+          registration: { readingResultId }, atMs: now, ...decision });
+        return decision;
+      }
+      const reservation = { id, aggregateScope: configured.aggregateScope, provider: limits.provider, model: limits.model,
+        readingResultId, reservedCostMicrousd, reservedAtMs: now };
+      state.initialReservations.push(reservation);
+      return { allowed: true, reservation };
+    }, true),
+    async reserve({ candidate, registration = {}, request = {}, verifiedInputBound = null, signal, initialReservationId = null } = {}) {
       const result = await mutate(state => {
-        const decision = signal?.aborted ? { ...admission(state, candidate, verifiedInputBound), allowed: false, reason: 'cancelled-before-dispatch' }
-          : admission(state, candidate, verifiedInputBound);
+        const decision = signal?.aborted ? { ...admission(state, candidate, verifiedInputBound, initialReservationId), allowed: false, reason: 'cancelled-before-dispatch' }
+          : admission(state, candidate, verifiedInputBound, initialReservationId);
         const record = { id: randomUUID(), candidateId: normalizeInferenceIdentifier(candidate?.id),
           requestedModel: normalizeInferenceIdentifier(candidate?.model), registration: safeRegistration(registration),
           requestSha256: cueDigest(request), atMs: Date.now(), ...decision,
@@ -158,6 +234,17 @@ export async function openCueRoundBudget({ path, roundId, maxCalls = 600, maxEst
           reservedAtMs, startedAtMs: reservedAtMs, startedAtMsMeaning: 'reservation', finishedAtMs: null, outcome: 'reserved', reason: null };
         record.attemptId = attempt.id;
         state.attempts.push(attempt);
+        if (initialReservationId) {
+          const initial = state.initialReservations.find(reservation => reservation.id === initialReservationId);
+          if (initial.readingResultId && initial.readingResultId !== record.registration.readingResultId) throw new Error('Initial original reservation belongs to another result.');
+          initial.outerAttemptId = attempt.id;
+          attempt.initialReservationId = initial.id;
+        } else if (state.initialAdmissionConfiguration) {
+          const initial = state.initialAdmissionConfiguration;
+          const limits = initial.limitsByModel[candidate.model];
+          state.initialReservations.push({ id: attempt.id, aggregateScope: initial.aggregateScope, provider: limits.provider,
+            model: limits.model, reservedCostMicrousd: limits.maxDispatchCostMicrousd, reservedAtMs, outerAttemptId: attempt.id });
+        }
         return { attempt };
       }, true);
       if (result.rejected) throw createVisualCueAdmissionError(result.rejected);
@@ -202,6 +289,19 @@ export async function openCueRoundBudget({ path, roundId, maxCalls = 600, maxEst
       state.definitionSha256 = definitionSha256;
       return definitionSha256;
     }, true),
+    bindInitialAdmission: input => {
+      const initial = normalizeInitialAdmission(input);
+      return mutate(state => {
+        if (state.initialAdmissionConfiguration) {
+          if (canonicalVisualCueJSON(initial) !== canonicalVisualCueJSON(state.initialAdmissionConfiguration)) throw new Error('Frozen initial round admission mismatch.');
+        } else {
+          if (state.attempts.length || state.admissions.length || state.initialReservations?.length) throw new Error('Existing round lacks retained initial admission; new round required.');
+          state.initialAdmissionConfiguration = initial;
+          state.initialReservations = [];
+        }
+        return state.initialAdmissionConfiguration;
+      }, true);
+    },
     registerPhase: ({ phaseId, definitionSha256 }) => mutate(state => {
       if (!normalizeInferenceIdentifier(phaseId) || state.definitionSha256 !== definitionSha256 || state.phases.some(p => p.phaseId === phaseId)) throw new Error('Immutable round phase identity mismatch or duplicate.');
       const record = { phaseId, definitionSha256, atMs: Date.now() };

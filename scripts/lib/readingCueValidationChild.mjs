@@ -93,6 +93,17 @@ export async function runOwnedValidation(configPath) {
       cacheDir: path.join(directory, 'vite-cache'), logLevel: 'silent',
       define: { 'import.meta.env.VITE_READING_GESTURES': '"true"' } };
     vite = await createServer({ ...shared, mode: 'development',
+      // Vite disables the HMR server with hmr:false but still serves a client
+      // that opens its socket. Frozen validation has no update channel; retain
+      // the client exports used by transformed modules without opening one.
+      plugins: [...base.plugins, { name: 'owned-validation-disabled-hmr', enforce: 'post',
+        transform(code, id) {
+          if (!id.replaceAll('\\', '/').split('?')[0].endsWith('/vite/dist/client/client.mjs')) return null;
+          const connect = 'transport.connect(createHMRHandler(handleMessage));';
+          if (code.split(connect).length !== 2) throw new Error('Unexpected Vite HMR client startup');
+          return { code: code.replace(connect, '/* Frozen validation does not start HMR. */'), map: null };
+        }
+      }],
       define: { ...shared.define, 'import.meta.env.VITE_CUE_TIMING_PROBE': '"true"' }, server: security });
     const sourceFiles = new Set(buildIdentity.sourceFiles.map(file => path.join(source, file.path)));
     const unsafeName = /(?:^|\/)(?:\.[^/]+|[^/]*\.(?:pem|crt|key|p12|pfx))(?:\/|$)/i;

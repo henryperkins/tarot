@@ -4,6 +4,10 @@ import { createHash } from 'node:crypto';
 import { createNarrativeFixture } from './helpers/narrativeFixtures.js';
 import { applyVisualCueBatch, createVisualCueLedger } from '../shared/reading/visualCueLedger.js';
 import { hashVisualCueText } from '../shared/contracts/visualCueBatches.js';
+import { publicVisualSnapshot, savedVisualSource, writeVisualResume } from '../src/lib/readingVisualStorage.js';
+import { createVisualReplayAdmission, claimVisualRetry, initializeVisualReplay, reserveVisualReplay } from '../functions/lib/readingVisualRetry.js';
+import { fingerprintSavedVisualSource, loadOwnedJournalVisualSource, loadJournalVisualState, attachJournalVisualResult } from '../functions/lib/readingVisualResults.js';
+import { normalizeVisualSource } from '../shared/reading/visualSourceIdentity.js';
 import { acceptedLedger, createRecoveryBackend as createBackend, sourceBinding, STAR as RECOVERY_STAR, starEntry } from './helpers/journalVisualRecoveryBridge.mjs';
 
 // Every recovery lane fails on an unexpected page error. The only allowed one is
@@ -602,7 +606,7 @@ test('without annotation configuration an explicit retry makes no inference and 
   }
 });
 
-test('cloud without annotation configuration keeps status-only unavailability across reload', async ({ page }) => {
+test('cloud without annotation configuration shows status-only unavailability before any action and across reload', async ({ page }) => {
   const backend = await createRecoveryBackend(page.context(), { configured: false });
   try {
     backend.setSession(await backend.seedAccount({ id: 'plus-unconfigured' }));
@@ -611,14 +615,236 @@ test('cloud without annotation configuration keeps status-only unavailability ac
     await prepareJournal(page);
     await page.goto('/journal');
     let card = await openEntry(page, entry.id);
-    await retryOf(card).click();
     await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable', { timeout: 20000 });
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(UNAVAILABLE);
+    await expect(retryOf(card)).toHaveCount(0);
     await page.reload();
     card = await openEntry(page, entry.id);
     await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
     await expect(retryOf(card)).toHaveCount(0);
-    expect(backend.retryPosts()).toHaveLength(1);
+    expect(backend.retryPosts()).toHaveLength(0);
     expect(backend.providerCalls()).toBe(0);
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+async function seedExpiredCloudOriginal(backend, { userId, entry }) {
+  const { binding } = await backend.seedCloudEntry({ userId, entry, registered: true });
+  await backend.db.prepare("UPDATE reading_visual_results SET status = 'pending', expires_at = ? WHERE id = ?")
+    .bind(Date.now() - 1, binding.readingResultId).run();
+  return binding;
+}
+
+test('expired cloud original without replay configuration shows status only on first load and reload', async ({ page }) => {
+  const backend = await createRecoveryBackend(page.context(), { configured: false });
+  try {
+    backend.setSession(await backend.seedAccount({ id: 'plus-expired-unconfigured' }));
+    const entry = starEntry({ id: 'cloud-expired-unconfigured' });
+    await seedExpiredCloudOriginal(backend, { userId: 'plus-expired-unconfigured', entry });
+    await prepareJournal(page);
+    await page.goto('/journal');
+    let card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(UNAVAILABLE);
+    await expect(retryOf(card)).toHaveCount(0);
+    await page.reload();
+    card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
+    await expect(retryOf(card)).toHaveCount(0);
+    await expect(card.locator('.narrative-stream__text, .prose').first()).toContainText('Neither pitcher gets dropped.');
+    expect(backend.retryPosts()).toHaveLength(0);
+    expect(backend.transportRequests()).toHaveLength(0);
+    expect(backend.providerCalls()).toBe(0);
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(0);
+    expect(backend.db.rows('SELECT narrative FROM journal_entries')[0].narrative).toBe(entry.personalReading);
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('expired cloud retry after configuration disappears keeps cached cues and prose and removes the action across reload', async ({ page }, testInfo) => {
+  const backend = await createRecoveryBackend(page.context());
+  const userId = 'plus-expired-config-flip';
+  const cacheKey = `tarot_journal_cache_${userId}`;
+  try {
+    backend.setSession(await backend.seedAccount({ id: userId }));
+    const entry = starEntry({ id: 'cloud-expired-config-flip' });
+    const binding = await seedExpiredCloudOriginal(backend, { userId, entry });
+    const visual = publicVisualSnapshot({ binding, raw: entry.personalReading, status: 'expired',
+      cueLedger: await acceptedLedger(binding, entry.personalReading) });
+    await prepareJournal(page, { key: cacheKey, entries: [{ ...entry, readingResultId: binding.readingResultId, visualBinding: binding, visual }] });
+    await page.goto('/journal');
+    let card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'eligible');
+    const restored = card.getByTestId('restored-reading-gestures');
+    await expect(restored.locator('[data-gesture-id]').filter({ hasText: 'one pitcher into a pool' }).first()).toBeVisible();
+    expect(backend.retryPosts()).toHaveLength(0);
+    const before = await storedEntry(page, cacheKey, entry.id);
+    const durableBefore = Object.fromEntries(['journal_visual_state', 'journal_visual_links', 'reading_visual_results']
+      .map(table => [table, backend.db.rows(`SELECT * FROM ${table} ORDER BY 1`)]));
+    delete backend.env.VISUAL_REPLAY_LIMITS;
+    await retryOf(card).focus();
+    await page.keyboard.press('Enter');
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(UNAVAILABLE);
+    await expect(recoveryOf(card).getByRole('status')).toBeFocused();
+    await expect(retryOf(card)).toHaveCount(0);
+    const saved = await storedEntry(page, cacheKey, entry.id);
+    expect(saved.personalReading).toBe(entry.personalReading);
+    expect(saved.visual).toEqual(visual);
+    expect(saved.visualState).toMatchObject({ attachmentStatus: 'expired', retryStatus: 'unavailable', reason: 'configuration-unavailable' });
+    expect(saved.visualState.stateVersion).toBe(before.visualState.stateVersion);
+    expect(saved.visualState.sourceFingerprint).toBe(before.visualState.sourceFingerprint);
+    expect(Object.fromEntries(Object.keys(durableBefore).map(table => [table, backend.db.rows(`SELECT * FROM ${table} ORDER BY 1`)]))).toEqual(durableBefore);
+    expect(await privateValues(page)).toEqual([]);
+    await motionReport(page, testInfo, 'unavailable-config-flip');
+    await page.reload();
+    card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
+    await expect(retryOf(card)).toHaveCount(0);
+    await expect(card.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').filter({ hasText: 'one pitcher into a pool' }).first()).toBeVisible();
+    await page.evaluate(() => { window.dispatchEvent(new Event('offline')); window.dispatchEvent(new Event('online')); });
+    expect(backend.retryPosts()).toHaveLength(1);
+    expect(backend.transportRequests()).toHaveLength(0);
+    expect(backend.providerCalls()).toBe(0);
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(0);
+    expect((await storedEntry(page, cacheKey, entry.id)).visual).toEqual(visual);
+    expect(Object.fromEntries(Object.keys(durableBefore).map(table => [table, backend.db.rows(`SELECT * FROM ${table} ORDER BY 1`)]))).toEqual(durableBefore);
+    expect(backend.db.rows('SELECT narrative FROM journal_entries')[0].narrative).toBe(entry.personalReading);
+    await motionReport(page, testInfo, 'unavailable-config-flip-reload');
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('pending local retry without transport configuration preserves pending state and cached cues with status only', async ({ page }, testInfo) => {
+  const backend = await createRecoveryBackend(page.context());
+  const userId = 'free-pending-without-transport';
+  const key = `tarot_journal_${userId}`;
+  try {
+    backend.setSession(await backend.seedAccount({ id: userId, tier: 'free' }));
+    const entry = starEntry({ id: 'pending-local-without-transport' });
+    const source = savedVisualSource(entry);
+    const binding = await sourceBinding(entry, 'existing-pending-local');
+    const fingerprint = await fingerprintSavedVisualSource({ source, ...normalizeVisualSource(source) });
+    const admission = await createVisualReplayAdmission({ env: backend.env, userId });
+    const claim = await claimVisualRetry({ db: backend.db, admissionScope: admission.scope, sourceFingerprint: fingerprint,
+      admission, source, binding });
+    expect(await initializeVisualReplay({ db: backend.db, claim })).not.toBeNull();
+    const ledger = await acceptedLedger(binding, entry.personalReading);
+    await backend.db.prepare("UPDATE reading_visual_results SET ledger_json = ?, ledger_revision = ?, active_state_version = 7, status = 'running' WHERE id = ?")
+      .bind(JSON.stringify(ledger), ledger.ledgerRevision, binding.readingResultId).run();
+    await backend.db.prepare("UPDATE visual_retry_claims SET state_version = 7, dispatch_status = 'reserved', reserved_at = ? WHERE id = ?")
+      .bind(Date.now() - 1000, claim.id).run();
+    const visual = publicVisualSnapshot({ binding, raw: entry.personalReading, cueLedger: ledger, status: 'running' });
+    const saved = { ...entry, visual, visualBinding: binding,
+      visualState: { attachmentStatus: 'pending', retryStatus: 'pending', sourceFingerprint: fingerprint, stateVersion: 7, reason: null } };
+    await prepareJournal(page, { key, entries: [saved] });
+    await page.goto('/journal');
+    let card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'eligible');
+    const before = Object.fromEntries(['reading_visual_results', 'visual_retry_claims'].map(table => [table, backend.db.rows(`SELECT * FROM ${table} ORDER BY 1`)]));
+    delete backend.env.READING_VISUAL_JOBS;
+    await retryOf(card).focus();
+    await page.keyboard.press('Enter');
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(UNAVAILABLE);
+    await expect(recoveryOf(card).getByRole('status')).toBeFocused();
+    await expect(retryOf(card)).toHaveCount(0);
+    const stored = await storedEntry(page, key, entry.id);
+    expect(stored.visualState).toEqual({ ...saved.visualState, reason: 'configuration-unavailable' });
+    expect(stored.visual).toEqual(visual);
+    expect(stored.personalReading).toBe(entry.personalReading);
+    expect(await privateValues(page)).toEqual([]);
+    expect(Object.fromEntries(Object.keys(before).map(table => [table, backend.db.rows(`SELECT * FROM ${table} ORDER BY 1`)]))).toEqual(before);
+    await page.reload();
+    card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
+    await expect(retryOf(card)).toHaveCount(0);
+    await expect(card.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').filter({ hasText: 'one pitcher into a pool' }).first()).toBeVisible();
+    expect((await storedEntry(page, key, entry.id)).visual).toEqual(visual);
+    expect(backend.retryPosts()).toHaveLength(1);
+    expect(backend.transportRequests()).toHaveLength(0);
+    expect(backend.providerCalls()).toBe(0);
+    await motionReport(page, testInfo, 'pending-without-transport');
+  } finally {
+    await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
+    await backend.close();
+  }
+});
+
+test('pending cloud retry without transport configuration preserves owned work and cached cues with status only', async ({ page }, testInfo) => {
+  const backend = await createRecoveryBackend(page.context());
+  const userId = 'plus-pending-without-transport';
+  const cacheKey = `tarot_journal_cache_${userId}`;
+  try {
+    backend.setSession(await backend.seedAccount({ id: userId }));
+    const entry = starEntry({ id: 'pending-cloud-without-transport' });
+    const originalBinding = await seedExpiredCloudOriginal(backend, { userId, entry });
+    expect((await attachJournalVisualResult({ db: backend.db, userId, entryId: entry.id,
+      readingResultId: originalBinding.readingResultId })).attached).toBe(true);
+    const visual = publicVisualSnapshot({ binding: originalBinding, raw: entry.personalReading, status: 'expired',
+      cueLedger: await acceptedLedger(originalBinding, entry.personalReading) });
+    await prepareJournal(page, { key: cacheKey, entries: [{ ...entry, visual, visualBinding: originalBinding }] });
+    await page.goto('/journal');
+    let card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'eligible');
+    await expect(card.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').filter({ hasText: 'one pitcher into a pool' }).first()).toBeVisible();
+    const cachedBefore = await storedEntry(page, cacheKey, entry.id);
+    // Another tab starts this exact saved source after this tab rendered its
+    // action. Its durable claim and private capability are existing work.
+    const owned = await loadOwnedJournalVisualSource({ db: backend.db, userId, entryId: entry.id });
+    const prior = await loadJournalVisualState({ env: backend.env, db: backend.db, userId, entryId: entry.id });
+    const binding = await sourceBinding(entry, 'existing-pending-cloud');
+    const fingerprint = await fingerprintSavedVisualSource(owned);
+    const admission = await createVisualReplayAdmission({ env: backend.env, userId });
+    const claim = await claimVisualRetry({ db: backend.db, admission, admissionScope: admission.scope, sourceFingerprint: fingerprint,
+      entryId: entry.id, expectedStateVersion: prior.stateVersion, owned, source: owned.source, binding, priorState: prior });
+    expect(claim).not.toBeNull();
+    expect(await initializeVisualReplay({ db: backend.db, claim })).not.toBeNull();
+    expect(await reserveVisualReplay({ env: backend.env, claim })).toBe(true);
+    const pending = await loadJournalVisualState({ env: backend.env, db: backend.db, userId, entryId: entry.id });
+    const privateRecords = [];
+    expect(writeVisualResume({ namespace: `user:${userId}`, entryId: entry.id, binding, sourceFingerprint: fingerprint,
+      stateVersion: pending.stateVersion, storage: { getItem: () => null, setItem: (key, value) => privateRecords.push([key, value]) },
+      resumeHandle: { readingResultId: claim.reading_result_id, visualJobId: claim.visual_job_id, attemptId: claim.attempt_id,
+        visualJobToken: claim.visual_token, visualBinding: binding, expiresAt: claim.expires_at } })).toBe(true);
+    await page.evaluate(records => records.forEach(([key, value]) => localStorage.setItem(key, value)), privateRecords);
+    expect(await privateValues(page)).toHaveLength(3);
+    const before = Object.fromEntries(['journal_visual_state', 'journal_visual_links', 'reading_visual_results', 'visual_retry_claims']
+      .map(table => [table, backend.db.rows(`SELECT * FROM ${table} ORDER BY 1`)]));
+    delete backend.env.READING_VISUAL_JOBS;
+    await retryOf(card).focus();
+    await page.keyboard.press('Enter');
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(UNAVAILABLE);
+    await expect(recoveryOf(card).getByRole('status')).toBeFocused();
+    await expect(retryOf(card)).toHaveCount(0);
+    const stored = await storedEntry(page, cacheKey, entry.id);
+    expect(stored.visualState).toEqual({ attachmentStatus: pending.attachmentStatus, retryStatus: 'pending',
+      sourceFingerprint: pending.sourceFingerprint, stateVersion: pending.stateVersion, reason: 'configuration-unavailable' });
+    expect(stored.visualState.sourceFingerprint).toBe(cachedBefore.visualState.sourceFingerprint);
+    expect(stored.visual).toEqual(cachedBefore.visual);
+    expect(stored.personalReading).toBe(entry.personalReading);
+    expect(await privateValues(page)).toEqual([]);
+    expect(Object.fromEntries(Object.keys(before).map(table => [table, backend.db.rows(`SELECT * FROM ${table} ORDER BY 1`)]))).toEqual(before);
+    await page.reload();
+    card = await openEntry(page, entry.id);
+    await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
+    await expect(retryOf(card)).toHaveCount(0);
+    await expect(card.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').filter({ hasText: 'one pitcher into a pool' }).first()).toBeVisible();
+    await page.evaluate(() => { window.dispatchEvent(new Event('offline')); window.dispatchEvent(new Event('online')); });
+    expect((await storedEntry(page, cacheKey, entry.id)).visualState).toEqual(stored.visualState);
+    expect((await storedEntry(page, cacheKey, entry.id)).visual).toEqual(cachedBefore.visual);
+    expect(backend.retryPosts()).toHaveLength(1);
+    expect(backend.transportRequests()).toHaveLength(0);
+    expect(backend.providerCalls()).toBe(0);
+    expect(Object.fromEntries(Object.keys(before).map(table => [table, backend.db.rows(`SELECT * FROM ${table} ORDER BY 1`)]))).toEqual(before);
+    await motionReport(page, testInfo, 'pending-cloud-without-transport');
   } finally {
     await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
     await backend.close();

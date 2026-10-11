@@ -3,7 +3,7 @@ import { promisify } from 'node:util';
 import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { createReadingCueRelay, createCueRunIdentity, DEFAULT_CUE_CANDIDATES, buildCueDeliverySchedule } from '../../scripts/evaluation/lib/visualCueEvaluationHarness.mjs';
+import { createReadingCueRelay, createCueRunIdentity, DEFAULT_CUE_CANDIDATES, buildCueDeliverySchedule, resolveCueInitialAdmission } from '../../scripts/evaluation/lib/visualCueEvaluationHarness.mjs';
 import { buildIndependentReadingSchedule, traceCueBrowserOpportunities, scoreCueBrowserReport } from './readingCueBrowserScoring.mjs';
 import { installCueBrowserCollector } from './readingCueBrowserCollector.mjs';
 import { createNarrativeFixture } from './narrativeFixtures.js';
@@ -102,12 +102,13 @@ const timingRoots = ['src/components/ReadingGesturesFixture.jsx', 'src/component
   'package.json', 'index.html', 'postcss.config.cjs', 'tailwind.config.js', 'public/theme-bootstrap.js',
   ...['inter', 'source-serif-4'].flatMap(font => ['normal', 'italic'].map(style =>
     `node_modules/@fontsource-variable/${font}/files/${font}-latin-opsz-${style}.woff2`))];
-export async function createCueTimingIdentity({ caseData, candidate, deliveryMode, viewport, motionPreference, live, lane = 'automatic', sourceMode = 'sse', reader = true, cueArrival = 'production-scheduler', servedSnapshotDigest = null }) {
+export async function createCueTimingIdentity({ caseData, candidate, deliveryMode, viewport, motionPreference, live, lane = 'automatic', sourceMode = 'sse', reader = true, cueArrival = 'production-scheduler', servedSnapshotDigest = null, initialAdmission }) {
+  const initialConfiguration = live ? resolveCueInitialAdmission({ live, candidates: [candidate], initialAdmission }) : null;
   const activeMs = Number((await readFile('src/components/reading/narrative/narrativeGestureState.js', 'utf8')).match(/const ACTIVE_MS = (\d+);/)[1]);
   const injectionSchedule = cueArrival === 'production-scheduler' ? null : buildIdealCueArrivalSchedule(caseData, { mode: cueArrival, activeMs, deliveryMode });
   const dispatchConfiguration = { deliveryMode, viewport, motionPreference, lane, sourceMode, readerEnabled: reader,
     readerSchedule: buildIndependentReadingSchedule(caseData.raw), sourceProjection: 'exact-parser-leaves-v1', minimumExposureMs: 600,
-    cueArrival, injectionSchedule };
+    cueArrival, injectionSchedule, ...(live ? { initialAdmission: initialConfiguration } : {}) };
   const backend = await createCueRunIdentity({ cases: [caseData], candidates: [candidate], phase: 'timing', live, dispatchConfiguration });
   // Vite resolves extensionless JSX imports and CSS asset URLs. Bind the
   // complete tracked frontend/shared tree plus explicit untracked task roots,
@@ -145,17 +146,18 @@ export async function createCueTimingIdentity({ caseData, candidate, deliveryMod
 
 export async function openCueBrowserSession({ page, frontend, caseData, candidate = DEFAULT_CUE_CANDIDATES[0], aiAdapter,
   live = false, budget, deliveryMode = 'paced', sourceMode = 'sse', viewport = { width: 1100, height: 1000 },
-  motionPreference = 'no-preference', lane = 'automatic', outputDir, reader = true, cueArrival = 'production-scheduler' }) {
+  motionPreference = 'no-preference', lane = 'automatic', outputDir, reader = true, cueArrival = 'production-scheduler', initialAdmission }) {
   if (page.url() !== 'about:blank') throw new Error('Each timing session requires a fresh page');
   if (live && !budget) throw new Error('Live browser sessions require the existing shared round budget');
   if (!['production-scheduler', 'source-active-phase', 'reader-aligned'].includes(cueArrival) || (live && cueArrival !== 'production-scheduler')) throw new Error('Ideal arrival is an explicitly offline fixture only');
   if (!outputDir) throw new Error('A new immutable timing evidence directory is required');
+  const initialConfiguration = live ? resolveCueInitialAdmission({ live, candidates: [candidate], initialAdmission }) : null;
   await mkdir(outputDir); // Existing evidence is never overwritten.
   const servedSnapshotDigest = frontend.buildIdentity?.snapshotDigest ?? null;
-  const identity = await createCueTimingIdentity({ caseData, candidate, deliveryMode, viewport, motionPreference, live, lane, sourceMode, reader, cueArrival, servedSnapshotDigest });
+  const identity = await createCueTimingIdentity({ caseData, candidate, deliveryMode, viewport, motionPreference, live, lane, sourceMode, reader, cueArrival, servedSnapshotDigest, initialAdmission: initialConfiguration });
   await writeFile(join(outputDir, 'identity.json'), JSON.stringify(identity, null, 2), { flag: 'wx' });
   const relay = await createReadingCueRelay({ caseData, candidate, aiAdapter, live, budget, schedule: deliveryMode,
-    sourceMode, frontendOrigin: frontend.origin, runId: `browser:${identity.digest}:${randomUUID()}` });
+    sourceMode, frontendOrigin: frontend.origin, runId: `browser:${identity.digest}:${randomUUID()}`, initialAdmission: initialConfiguration });
   let fixture;
   const network = { blocked: [], loadedAssets: [], failedAssets: [] };
   const consoleHealth = { errors: [], warnings: [], pageErrors: [] };
@@ -222,7 +224,7 @@ export async function openCueBrowserSession({ page, frontend, caseData, candidat
       const pageHealth = await page.evaluate(() => ({ url: location.href, title: document.title,
         proseLength: document.querySelector('.narrative-stream__text')?.textContent.length || 0,
         frameworkOverlay: Boolean(document.querySelector('vite-error-overlay')) }));
-      const current = await createCueTimingIdentity({ caseData, candidate, deliveryMode, viewport, motionPreference, live, lane, sourceMode, reader, cueArrival, servedSnapshotDigest });
+      const current = await createCueTimingIdentity({ caseData, candidate, deliveryMode, viewport, motionPreference, live, lane, sourceMode, reader, cueArrival, servedSnapshotDigest, initialAdmission: initialConfiguration });
       const sameSnapshot = identity.digest === current.digest;
       browser.measurementValid = sameSnapshot && !browser.truncated && browser.sourceProjectionErrors.length === 0
         && browser.sourceDigests.some(d => d.sha256 === server.narrativeRawSha256);

@@ -7,6 +7,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { z } from 'zod';
 import { createVisualCueAdmissionError, isVisualCueAdmissionError, createTrustedVisualCueBinding, captureVisualCueUsageEvidence, captureVisualCueUndispatchedReservation } from '../../../functions/lib/visualCueAdmission.js';
+import { getVisualInitialLimits } from '../../../functions/lib/readingVisualAdmission.js';
 import { normalizeInferenceUsage, normalizeInferenceIdentifier } from '../../../functions/lib/inferenceAttempts.js';
 import { ReadingVisualJob } from '../../../src/worker/readingVisualJob.js';
 import { getVectorGestureDetails } from '../../../src/data/cardGestureArtwork.js';
@@ -37,6 +38,30 @@ export const OFFLINE_CUE_ADAPTER = Object.freeze({ offline: true, async run() {
   return { response: '{"proposals":[]}', usage: { prompt_tokens: 0, completion_tokens: 0 } };
 } });
 
+/** Fake dispatches exercise the real original-job admission gate. These finite
+ * fixture units are artificial, never pricing or authorization for live AI.
+ * Live callers must supply every pinned bound and a private hashed scope. */
+export function resolveCueInitialAdmission({ live = false, aiAdapter, candidates = DEFAULT_CUE_CANDIDATES, initialAdmission } = {}) {
+  if (!live && aiAdapter?.offline !== true) throw new Error('Explicit offline adapter required.');
+  const offlineBounds = { rateLimit: 600, windowMs: 60000, totalLimit: 600, globalRateLimit: 600, globalTotalLimit: 600,
+    maxDispatchCostMicrousd: 1, scopeCostLimitMicrousd: 600, globalCostLimitMicrousd: 600 };
+  const input = live ? initialAdmission : { aggregateScope: `guest-edge:${cueDigest('controlled-offline-cue-fixture')}`,
+    limitsByModel: Object.fromEntries(candidates.map(candidate => [candidate.model, { provider: 'workers-ai', model: candidate.model, ...offlineBounds }])) };
+  if (!input || !/^guest-edge:[a-f0-9]{64}$/.test(input.aggregateScope || '')) throw new Error('Explicit valid initial admission limits and private hashed scope required.');
+  const limitsByModel = {};
+  const models = live ? Object.keys(input.limitsByModel || {}) : candidates.map(candidate => candidate.model);
+  if (candidates.some(candidate => !models.includes(candidate.model))) throw new Error('Explicit valid initial admission limits and model pins required.');
+  for (const model of models) {
+    const configured = input.limitsByModel?.[model];
+    const limits = getVisualInitialLimits({ VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: model,
+      VISUAL_INITIAL_LIMITS: JSON.stringify(configured) });
+    if (!limits) throw new Error('Explicit valid initial admission limits and model pins required.');
+    limitsByModel[model] = Object.fromEntries(['provider', 'model', ...Object.keys(offlineBounds)].map(key => [key, limits[key]]));
+  }
+  return { mode: live ? 'explicit private operator admission' : 'offline fixture only; artificial finite units',
+    aggregateScope: input.aggregateScope, limitsByModel };
+}
+
 /** Reusable AI.run seam for recovery-only Workers: sessions must be explicitly registered. */
 export function createBoundedCueAdapter({ live = false, aiAdapter, budget, candidate } = {}) {
   if (!live && aiAdapter?.offline !== true) throw new Error('Explicit offline adapter required; credentials/network are never inherited.');
@@ -53,7 +78,7 @@ export function createBoundedCueAdapter({ live = false, aiAdapter, budget, candi
     max_completion_tokens: 8192, reasoning_effort: candidate.effort, temperature: 0, response_format: structuredClone(responseFormat) };
   const { messages: _fixedMessages, ...fixedConfiguration } = requestTemplate;
   const expectedConfiguration = canonicalVisualCueJSON(fixedConfiguration);
-  async function executeRequest(model, input, { signal, registration, requestMetadata = {}, dispatchObserver } = {}) {
+  async function executeRequest(model, input, { signal, registration, requestMetadata = {}, dispatchObserver, initialReservationId } = {}) {
     const rejectAdmission = async reason => {
       if (reason === 'configuration') fatalReason = reason;
       const record = budget?.recordAdmission ? await budget.recordAdmission({ candidate, registration: registration || {}, request: input || {}, reason })
@@ -76,7 +101,7 @@ export function createBoundedCueAdapter({ live = false, aiAdapter, budget, candi
     if (signal?.aborted) return rejectAdmission('cancelled-before-dispatch');
     if (!budget) return rejectAdmission('configuration');
     let reserved;
-    try { reserved = await budget.reserve({ candidate, registration: { ...registration, ...requestMetadata }, request: input, signal }); }
+    try { reserved = await budget.reserve({ candidate, registration: { ...registration, ...requestMetadata }, request: input, signal, initialReservationId }); }
     catch (error) {
       const reason = isVisualCueAdmissionError(error) ? error.reason : 'configuration';
       admissions.push({ candidateId: candidate.id, registration: structuredClone(registration), reason });
@@ -197,9 +222,44 @@ export function cueValidationContext(caseData) {
   question: caseData.question || '', reflections: caseData.reflections || '' };
 }
 
+/** The live harness keeps the production D1 SQL gate, adding a durable round
+ * hold before its INSERT. No case-store disposal, SQL failure, cancellation or
+ * configuration rejection can lose that conservative original reservation. */
+function persistentInitialAdmissionDatabase(db, budget, candidate, onReserved) {
+  const persistent = Object.create(db);
+  persistent.prepare = sql => {
+    const statement = db.prepare(sql);
+    if (!/^INSERT INTO visual_initial_reservations\b/.test(sql)) {
+      if (/\bvisual_initial_reservations\b/.test(sql)) throw new Error('Unsupported original reservation statement.');
+      return statement;
+    }
+    onReserved(null);
+    const wrap = (prepared, params = null) => {
+      const bridged = Object.create(prepared);
+      bridged.bind = (...values) => wrap(prepared.bind(...values), values);
+      bridged.run = async () => {
+        if (!params) throw new Error('Bound original admission reservation required.');
+        const held = await budget.reserveInitialOriginal({ id: params[0], candidate,
+          readingResultId: params[3], reservedCostMicrousd: params[1] });
+        if (!held.allowed) return { success: true, meta: { changes: 0 } };
+        onReserved(held.reservation.id);
+        return prepared.run();
+      };
+      return bridged;
+    };
+    return wrap(statement);
+  };
+  return persistent;
+}
+
 export async function createVisualCueSession({ caseData, candidate = DEFAULT_CUE_CANDIDATES[0], aiAdapter = OFFLINE_CUE_ADAPTER,
-  live = false, budget, db, runId = 'offline-session', trialId = 'default' } = {}) {
+  live = false, budget, db, runId = 'offline-session', trialId = 'default', initialAdmission } = {}) {
   if (!caseData?.raw || !Array.isArray(caseData.cards)) throw new Error('Exact selected cue case required.');
+  const initialConfiguration = resolveCueInitialAdmission({ live, aiAdapter, candidates: [candidate], initialAdmission });
+  if (live) {
+    if (typeof budget?.bindInitialAdmission !== 'function' || typeof budget?.reserveInitialOriginal !== 'function') throw new Error('Persistent initial round admission required.');
+    await budget.bindInitialAdmission(initialConfiguration);
+  }
   budget ??= await openCueRoundBudget({ path: join(await mkdtemp(join(tmpdir(), 'cue-session-')), 'round.json'), roundId: runId });
   db ??= await createD1();
   const state = createCueMemoryState();
@@ -211,20 +271,27 @@ export async function createVisualCueSession({ caseData, candidate = DEFAULT_CUE
   const registration = { runId, caseId: caseData.id, trialId, readingResultId: binding.readingResultId,
     sourceSha256: cueDigest(caseData.raw), bindingSha256: cueDigest(binding), artworkEdition: binding.artworkEdition };
   const registered = bounded.registerSession(registration);
-  const env = { DB: db, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: candidate.model,
+  let initialReservationId = null;
+  const admissionDB = live ? persistentInitialAdmissionDatabase(db, budget, candidate, id => { initialReservationId = id; }) : db;
+  const env = { DB: admissionDB, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: candidate.model,
+    VISUAL_INITIAL_LIMITS: JSON.stringify(initialConfiguration.limitsByModel[candidate.model]),
     VISUAL_CUE_REASONING_EFFORT: candidate.effort, VISUAL_CUE_TIMEOUT_MS: 60000,
-    AI: createTrustedVisualCueBinding((model, input, options) => registered.run(model, input, { ...options,
+    AI: createTrustedVisualCueBinding((model, input, options) => {
+      if (live && !initialReservationId) throw createVisualCueAdmissionError('configuration');
+      return registered.run(model, input, { ...options, initialReservationId,
       requestMetadata: job?.inFlightRequest ? { ...Object.fromEntries(['analyzedEnd', 'analyzedHash', 'requestSequence', 'batchId'].map(key => [key, job.inFlightRequest[key]])),
-        bindingSha256: cueDigest(job.inFlightRequest.binding), sourceRevision: job.inFlightRequest.binding.sourceRevision } : {} })) };
+        bindingSha256: cueDigest(job.inFlightRequest.binding), sourceRevision: job.inFlightRequest.binding.sourceRevision } : {} });
+    }) };
   const job = new ReadingVisualJob(state, env);
   await job.initialized;
   const initialized = await job.fetch(new Request('https://cue-local/init', { method: 'POST', body: JSON.stringify({ binding,
-    visualToken: token, validationContext: cueValidationContext(caseData) }) }));
+    visualToken: token, validationContext: cueValidationContext(caseData),
+    initialAdmission: { userId: null, aggregateScope: initialConfiguration.aggregateScope } }) }));
   if (!initialized.ok) throw new Error('Isolated visual job initialization failed.');
   const observations = [];
   let eventId = 0;
   let finished = false;
-  const session = { job, env, db, state, budget, bounded, binding, token,
+  const session = { job, env, db, state, budget, bounded, binding, token, initialConfiguration,
     async observe(raw, { complete = false, deliveredEventId = ++eventId, availableAt = Date.now(), sourceBinding = job.binding } = {}) {
       const response = await job.fetch(new Request('https://cue-local/observe', { method: 'POST', body: JSON.stringify({
         binding: sourceBinding, raw, complete, deliveredEventId, availableAt }) }));
@@ -246,6 +313,8 @@ export async function createVisualCueSession({ caseData, candidate = DEFAULT_CUE
       await state.drain();
       finished = true;
       const inferenceAttempts = db.rows('SELECT * FROM inference_attempts WHERE request_id = ? ORDER BY started_at, rowid', [binding.readingResultId]);
+      const initialAdmissions = live ? (await budget.snapshot()).admissions.filter(admission =>
+        admission.allowed === false && admission.initialLimit && admission.registration?.readingResultId === binding.readingResultId) : [];
       // D1 rows lack requestSequence and may finish out of order (or share a
       // millisecond). Compare metadata multisets rather than relabeling requests
       // by row order; the reservation owns each exact request's outcome.
@@ -260,8 +329,10 @@ export async function createVisualCueSession({ caseData, candidate = DEFAULT_CUE
         cachedTokens: attempt.usage?.cacheReadInputTokens ?? null, reasoningTokens: attempt.usage?.reasoningTokens ?? null })).sort();
       const jobAttemptRowsComplete = canonicalVisualCueJSON(recorded) === canonicalVisualCueJSON(dispatched);
       return structuredClone({ caseId: caseData.id, candidateId: candidate.id, trialId, runId, binding: job.binding, status: job.status,
-        ledger: job.ledger, requests: job.requestRegistry, observations, attempts: bounded.attempts, admissions: bounded.admissions, inferenceAttempts,
-        admissionComplete: bounded.admissions.length === 0,
+        ledger: job.ledger, requests: job.requestRegistry, observations, attempts: bounded.attempts,
+        admissions: [...bounded.admissions, ...initialAdmissions], inferenceAttempts,
+        initialAdmission: initialConfiguration,
+        admissionComplete: bounded.admissions.length === 0 && initialAdmissions.length === 0,
         jobAttemptRowsComplete, accountingComplete: jobAttemptRowsComplete && bounded.attempts.every(a => a.estimatedUsd !== null),
         inferenceReconciliation: 'per-job metadata multiset; no unsafe ordinal request pairing',
         authoritativeRawSha256: cueDigest(job.authoritativeRaw), authoritativeRawLength: job.authoritativeRaw.length,
@@ -349,7 +420,7 @@ export async function createCueRunIdentity({ cases, phase, candidates = DEFAULT_
 
 export async function runReadingCueEvaluation({ manifest, phase = 'all', live = false, candidates = DEFAULT_CUE_CANDIDATES,
   repeats = 2, maxCalls = 600, maxEstimatedUsd = 15, outputDir, aiAdapter, budget, roundBudgetPath, roundId,
-  concurrency = 1 } = {}) {
+  concurrency = 1, initialAdmission } = {}) {
   if (!['semantic', 'timing', 'all'].includes(phase) || repeats !== 2 || !Number.isInteger(concurrency) || concurrency < 1 || concurrency > 3) throw new Error('Invalid frozen cue evaluation configuration.');
   candidates = candidates.map(c => typeof c === 'string' ? DEFAULT_CUE_CANDIDATES.find(item => item.id === c) : c);
   if (!candidates.length || candidates.some(c => !c || !DEFAULT_CUE_CANDIDATES.some(item => canonicalVisualCueJSON(item) === canonicalVisualCueJSON(c)))
@@ -359,6 +430,7 @@ export async function runReadingCueEvaluation({ manifest, phase = 'all', live = 
   if (live && (!aiAdapter?.liveConfigured || (!budget && (!roundBudgetPath || !roundId)))) throw new Error('Explicit live adapter and shared round budget required.');
   if (!live && aiAdapter && !aiAdapter.offline) throw new Error('Explicit offline adapter required.');
   aiAdapter ??= OFFLINE_CUE_ADAPTER;
+  const initialConfiguration = resolveCueInitialAdmission({ live, aiAdapter, candidates, initialAdmission });
   const cases = await loadReadingCueCases({ manifest });
   const frozenManifest = manifest && typeof manifest === 'object' ? manifest : JSON.parse(await readFile(manifest || resolve(repositoryRoot, 'scripts/evaluation/fixtures/readingCueQualification.regression-20261010.json'), 'utf8'));
   candidates.sort((a, b) => frozenManifest.candidateOrder.indexOf(a.id) - frozenManifest.candidateOrder.indexOf(b.id));
@@ -368,7 +440,7 @@ export async function runReadingCueEvaluation({ manifest, phase = 'all', live = 
   const timingPlan = phase === 'semantic' ? [] : candidates.flatMap(c => ['star-2347-excerpt', 'five-card-creative-project'].flatMap(caseId => ['paced', 'burst', 'final-only'].map(scenario => ({ candidateId: c.id, caseId, scenario,
     ...(cases.some(item => item.id === caseId) ? { schedule: buildCueDeliverySchedule(cases.find(item => item.id === caseId).raw, scenario).map(({ text: _text, fullText: _fullText, ...event }) => event) } : { skipReason: 'missing-required-timing-case', schedule: [] }) }))));
   const dispatchConfiguration = { concurrency, maxCalls, maxEstimatedUsd, order: 'manifest candidate blocks; repeat-1 all cases then repeat-2 primary cases',
-    semanticPlan, timingPlan, deadlineMs: 60000, maxCompletionTokens: 8192, temperature: 0 };
+    semanticPlan, timingPlan, deadlineMs: 60000, maxCompletionTokens: 8192, temperature: 0, initialAdmission: initialConfiguration };
   const identity = await createCueRunIdentity({ cases, phase, candidates, repeats, live, dispatchConfiguration, catalog: aiAdapter.availableModels || candidates.map(c => c.model) });
   const runId = `cue:${identity.digest}`;
   outputDir ??= resolve(repositoryRoot, `output/reading-motion/evidence/cue-qualification/dry-run-${Date.now()}-${identity.digest.slice(0, 8)}`);
@@ -376,6 +448,7 @@ export async function runReadingCueEvaluation({ manifest, phase = 'all', live = 
   try { await mkdir(outputDir); } catch (error) { if (error.code === 'EEXIST') throw new Error('Immutable evaluation output directory already exists.'); throw error; }
   budget ??= await openCueRoundBudget({ path: roundBudgetPath || join(outputDir, 'offline-round.json'),
     roundId: roundId || runId, maxCalls, maxEstimatedUsd, mode: live ? 'live' : 'offline' });
+  if (live) await budget.bindInitialAdmission(initialConfiguration);
   const report = { version: 1, runId, mode: live ? 'live inference/local job harness' : 'offline fake-adapter checks', live,
     identity, plan: { semantic: semanticPlan, expectedTrials, timing: timingPlan }, semantic: [], timing: [],
     modelCalls: 0, qualified: false, browserAccompaniment: 'unmeasured', selectedCandidate: null, baselineRetained: 'glm-5.3-flash-low', incompleteReasons: [] };
@@ -387,7 +460,7 @@ export async function runReadingCueEvaluation({ manifest, phase = 'all', live = 
     if (fatal) { report.semantic.push({ ...plan, status: 'incomplete', reason: fatal }); return; }
     const candidate = candidates.find(c => c.id === plan.candidateId);
     const caseData = cases.find(c => c.id === plan.caseId);
-    const session = await createVisualCueSession({ caseData, candidate, aiAdapter, live, budget, db, runId, trialId: plan.trialId });
+    const session = await createVisualCueSession({ caseData, candidate, aiAdapter, live, budget, db, runId, trialId: plan.trialId, initialAdmission: initialConfiguration });
     await session.observe(caseData.raw, { complete: true });
     const result = await session.finish();
     report.semantic.push(result);
@@ -410,7 +483,7 @@ export async function runReadingCueEvaluation({ manifest, phase = 'all', live = 
         if (fatal) { report.timing.push({ ...plan, status: 'incomplete', reason: fatal }); continue; }
         const { createReadingCueRelay } = await import('./visualCueEvaluationRelay.mjs');
         const relay = await createReadingCueRelay({ caseData: cases.find(c => c.id === plan.caseId), candidate: candidates.find(c => c.id === plan.candidateId),
-          aiAdapter, live, budget, db, runId, trialId: `timing-${plan.scenario}`, schedule: plan.scenario, offlineImmediate: !live });
+          aiAdapter, live, budget, db, runId, trialId: `timing-${plan.scenario}`, schedule: plan.scenario, offlineImmediate: !live, initialAdmission: initialConfiguration });
         try { relay.startSchedule(); const result = await relay.completion;
           report.timing.push({ ...result, scenario: plan.scenario, browserAccompaniment: 'unmeasured',
             scheduleExecution: live ? 'controlled wall-clock prose schedule' : 'offline immediate scheduler checks; no latency claim' });

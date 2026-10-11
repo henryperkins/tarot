@@ -25,6 +25,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     env,
     payload,
     ownerUserId: user?.id || null,
+    request,
     waitUntil,
     forwardHeaders: {
       authorization: request.headers.get('Authorization'),

@@ -12,9 +12,11 @@ import * as localRetryRoute from '../functions/api/reading-visual-retry.js';
 import * as replayRoute from '../functions/api/reading-visual-replay.js';
 import * as cloudRetryRoute from '../functions/api/journal/[id]/visual-retry.js';
 import * as entryRoute from '../functions/api/journal/[id].js';
+import * as journalRoute from '../functions/api/journal.js';
 import { readVisualJobEvents, isVisualJobTerminal, postSavedVisualRetry } from '../src/lib/readingVisualStream.js';
 import { requestSavedVisualRetry, adoptSavedVisualReplay, readVisualResume, readSavedVisualEntry, savedVisualRecovery,
-  projectJournalEntryVisuals, mergeCachedJournalVisuals, savedVisualSourceKey, adoptEntryVisuals } from '../src/lib/readingVisualStorage.js';
+  projectJournalEntryVisuals, mergeCachedJournalVisuals, savedVisualSourceKey, adoptEntryVisuals, needsCloudVisualRefresh,
+  fingerprintSavedVisualEntry, publicVisualSnapshot, savedVisualSource } from '../src/lib/readingVisualStorage.js';
 import { hydrateEntryVisuals } from '../src/utils/journalStorage.js';
 
 const RAW = 'The Star pours into a pool. Words such as visualJobToken and attemptId remain ordinary prose here.';
@@ -60,7 +62,8 @@ async function fixture(t, { response = PROPOSALS, limits = true, user = true } =
       const request = new Request(absolute, { method, headers, body: init.body, signal: init.signal });
       requests.push({ method, path: absolute.pathname });
       let match; let result;
-      if (absolute.pathname === '/api/tarot-reading/visual-retry') result = await localRetryRoute.onRequestPost({ env, request });
+      if (absolute.pathname === '/api/journal') result = await journalRoute.onRequestGet({ env, request });
+      else if (absolute.pathname === '/api/tarot-reading/visual-retry') result = await localRetryRoute.onRequestPost({ env, request });
       else if ((match = absolute.pathname.match(/^\/api\/journal\/([^/]+)\/visual-retry$/))) {
         result = await cloudRetryRoute.onRequestPost({ env, request, params: { entryId: decodeURIComponent(match[1]) } });
       } else if ((match = absolute.pathname.match(/^\/api\/tarot-reading\/visual-replays\/([^/]+)(?:\/(?:stream|cancel))?$/))) {
@@ -154,7 +157,7 @@ test('signed-in local entitlement lane: authenticated admission without cloud jo
   assert.equal(hydrateEntryVisuals(readSavedVisualEntry({ namespace, entryId: entry.id, storage: store })).hasVisuals, true);
 });
 
-async function seedCloudFailure(f, { registered = false } = {}) {
+async function seedCloudFailure(f, { registered = false, expired = false } = {}) {
   await seedEntry(f.db, { id: 'cloud-1', cards: CARDS, narrative: RAW, reflections: { Overall: 'Hope' }, deckId: 'rws-1909' });
   const lib = await import('../functions/lib/readingVisualResults.js');
   const owned = await lib.loadOwnedJournalVisualSource({ db: f.db, userId: 'user-1', entryId: 'cloud-1' });
@@ -172,6 +175,8 @@ async function seedCloudFailure(f, { registered = false } = {}) {
       issuedRequest: { binding, status: 'active', batchId: 'original', requestSequence: 1, analyzedEnd: RAW.length, analyzedHash: await hashVisualCueText(RAW), baseLedgerRevision: 0 },
       response: PROPOSALS.response, validationContext: { cards: [{ index: 0, canonicalName: 'The Star' }], getSupportedDetails: () => ['pool-pour'] } });
     await lib.commitVisualResult({ db: f.db, userId: 'user-1', readingResultId: binding.readingResultId, binding, ledger: accepted.ledger, expectedLedgerRevision: 0, finalRaw: RAW });
+    if (expired) await f.db.prepare("UPDATE reading_visual_results SET status = 'pending', expires_at = ? WHERE id = ?")
+      .bind(Date.now() - 1, binding.readingResultId).run();
     readingResultId = binding.readingResultId;
   }
   await lib.persistJournalVisualState({ db: f.db, userId: 'user-1', entryId: 'cloud-1', sourceFingerprint: fingerprint,
@@ -243,6 +248,49 @@ test('cloud replay: one explicit retry, polling reaches the authoritative comple
   assert.equal(f.requests.filter(request => request.method === 'POST').length, 2);
 });
 
+test('configured cloud transient initialization failure leaves the same prepared claim explicitly retryable through reload', async t => {
+  const f = await fixture(t);
+  await seedCloudFailure(f);
+  const binding = f.env.READING_VISUAL_JOBS;
+  let failOnce = true;
+  f.env.READING_VISUAL_JOBS = { idFromName: binding.idFromName, get(id) {
+    return { fetch(url, init) {
+      if (new URL(url).pathname === '/replay-init' && failOnce) { failOnce = false; throw new Error('controlled zero-dispatch init failure'); }
+      return binding.get(id).fetch(url, init);
+    } };
+  } };
+  const fetchImpl = f.api({ session: 'session-1' });
+  const store = memoryStorage();
+  const memory = { entries: [await loadCloudEntry(fetchImpl)] };
+  const first = await requestSavedVisualRetry({ namespace: 'user:user-1', entry: memory.entries[0], cloud: true,
+    fetchImpl, storage: store, commit: cloudCommit(memory) });
+  await f.drain();
+  assert.deepEqual([first.state.attachmentStatus, first.state.retryStatus, first.state.reason],
+    ['failed', 'available', 'configuration-unavailable']);
+  assert.equal(savedVisualRecovery(memory.entries[0], { cloud: true }).canRetry, true);
+  const prepared = f.db.rows('SELECT * FROM visual_retry_claims')[0];
+  assert.equal(prepared.dispatch_status, 'prepared');
+  assert.equal(prepared.reserved_at, null);
+  assert.equal(f.calls(), 0);
+  const reloaded = await loadCloudEntry(fetchImpl, memory.entries[0]);
+  assert.equal(savedVisualRecovery(reloaded, { cloud: true }).canRetry, true);
+  assert.equal(needsCloudVisualRefresh(reloaded), false);
+  assert.equal(f.requests.filter(request => request.method === 'POST').length, 1);
+  assert.deepEqual(f.db.rows('SELECT * FROM visual_retry_claims')[0], prepared);
+  memory.entries = [reloaded];
+  await requestSavedVisualRetry({ namespace: 'user:user-1', entry: reloaded, cloud: true,
+    fetchImpl, storage: store, commit: cloudCommit(memory) });
+  await f.drain();
+  const completed = await loadCloudEntry(fetchImpl, memory.entries[0]);
+  assert.equal(completed.visualState.retryStatus, 'complete');
+  assert.equal(completed.personalReading, RAW);
+  assert.equal(f.calls(), 1);
+  const claims = f.db.rows('SELECT * FROM visual_retry_claims');
+  assert.equal(claims.length, 1);
+  for (const field of ['id', 'attempt_id', 'visual_job_id', 'state_version', 'source_fingerprint']) assert.equal(claims[0][field], prepared[field]);
+  assert.equal(f.requests.filter(request => request.method === 'POST').length, 2);
+});
+
 test('no annotation configuration: explicit retry makes zero calls and records status-only unavailability', async t => {
   const f = await fixture(t, { limits: false });
   await seedCloudFailure(f);
@@ -254,14 +302,98 @@ test('no annotation configuration: explicit retry makes zero calls and records s
   assert.equal(savedVisualRecovery(readSavedVisualEntry({ namespace: 'anon', entryId: local.id, storage: store })).canRetry, false);
   const fetchImpl = f.api({ session: 'session-1' });
   const memory = { entries: [await loadCloudEntry(fetchImpl)] };
-  const cloudResult = await requestSavedVisualRetry({ namespace: 'user:user-1', entry: memory.entries[0], cloud: true, fetchImpl, storage: store, commit: cloudCommit(memory) });
+  assert.equal(savedVisualRecovery(memory.entries[0], { cloud: true }).canRetry, false);
+  await assert.rejects(requestSavedVisualRetry({ namespace: 'user:user-1', entry: memory.entries[0], cloud: true,
+    fetchImpl, storage: store, commit: cloudCommit(memory) }), { code: 'ineligible' });
+  // A forced explicit request is also status-only; the normal UI makes none.
+  const cloudResult = await postSavedVisualRetry({ cloud: true, entryId: 'cloud-1', fetchImpl });
   assert.equal(cloudResult.state.reason, 'configuration-unavailable');
+  assert.equal(cloudResult.resumeHandle, null);
   // Reload keeps the outcome for the same server state version.
   const reloaded = await loadCloudEntry(fetchImpl, memory.entries[0]);
   assert.equal(savedVisualRecovery(reloaded, { cloud: true }).phase, 'unavailable');
   await f.drain();
   assert.equal(f.calls(), 0);
   assert.equal(f.db.rows('SELECT * FROM visual_retry_claims').length, 0);
+});
+
+test('expired cloud original without replay configuration is status-only on its first list and detail responses', async t => {
+  const f = await fixture(t, { limits: false });
+  await seedCloudFailure(f, { registered: true, expired: true });
+  const fetchImpl = f.api({ session: 'session-1' });
+  const entry = await loadCloudEntry(fetchImpl);
+  const listResponse = await fetchImpl('/api/journal');
+  assert.equal(listResponse.status, 200);
+  const { entries } = await listResponse.json();
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].visualState.attemptId, null);
+  for (const saved of [entry, ...entries.map(projectJournalEntryVisuals)]) {
+    assert.deepEqual([saved.visualState.attachmentStatus, saved.visualState.retryStatus, saved.visualState.reason],
+      ['expired', 'unavailable', 'configuration-unavailable']);
+    assert.equal(savedVisualRecovery(saved, { cloud: true }).canRetry, false);
+    assert.equal(needsCloudVisualRefresh(saved), false);
+    assert.equal(saved.personalReading, RAW);
+    assert.equal(Object.hasOwn(saved.visualState, 'attemptId'), false);
+  }
+  assert.equal(f.requests.some(request => request.method === 'POST'), false);
+  assert.equal(f.calls(), 0);
+  assert.equal(f.db.rows('SELECT id FROM visual_retry_claims').length, 0);
+});
+
+test('expired cloud action after replay configuration disappears commits status-only unavailability and stays disabled on reload', async t => {
+  const f = await fixture(t);
+  await seedCloudFailure(f, { registered: true, expired: true });
+  const fetchImpl = f.api({ session: 'session-1' });
+  const memory = { entries: [await loadCloudEntry(fetchImpl)] };
+  const before = memory.entries[0];
+  assert.deepEqual([before.visualState.attachmentStatus, before.visualState.retryStatus], ['expired', 'available']);
+  assert.equal(savedVisualRecovery(before, { cloud: true }).canRetry, true);
+  delete f.env.VISUAL_REPLAY_LIMITS;
+  const result = await requestSavedVisualRetry({ namespace: 'user:user-1', entry: before, cloud: true,
+    fetchImpl, storage: memoryStorage(), commit: cloudCommit(memory) });
+  assert.deepEqual([result.state.attachmentStatus, result.state.retryStatus, result.state.reason],
+    ['expired', 'unavailable', 'configuration-unavailable']);
+  assert.equal(savedVisualRecovery(memory.entries[0], { cloud: true }).canRetry, false);
+  const reloaded = await loadCloudEntry(fetchImpl, memory.entries[0]);
+  assert.equal(savedVisualRecovery(reloaded, { cloud: true }).canRetry, false);
+  assert.equal(reloaded.personalReading, RAW);
+  assert.equal(f.requests.filter(request => request.method === 'POST').length, 1);
+  assert.equal(f.calls(), 0);
+  assert.equal(f.db.rows('SELECT id FROM visual_retry_claims').length, 0);
+});
+
+test('actual unconfigured local retry retains an expired cached original attachment, version and exact accepted cues', async t => {
+  const f = await fixture(t, { limits: false, user: false });
+  const lib = await import('../functions/lib/readingVisualResults.js');
+  const entry = localEntry({ id: 'local-expired-cache' });
+  const source = savedVisualSource(entry);
+  const hashes = await lib.computeSourceFingerprint(source);
+  const { normalizeVisualSource } = await import('../shared/reading/visualSourceIdentity.js');
+  const { artworkEdition, catalogVersion } = normalizeVisualSource(source);
+  const binding = { readingResultId: 'local-cached-original', sourceRevision: 0, spreadHash: hashes.spreadHash,
+    contextHash: hashes.contextHash, artworkEdition, catalogVersion };
+  const { createVisualCueLedger, applyVisualCueBatch } = await import('../shared/reading/visualCueLedger.js');
+  const { hashVisualCueText } = await import('../shared/contracts/visualCueBatches.js');
+  const accepted = await applyVisualCueBatch({ ledger: createVisualCueLedger(binding), authoritativeRaw: RAW,
+    issuedRequest: { binding, status: 'active', batchId: 'saved-original', requestSequence: 1, analyzedEnd: RAW.length,
+      analyzedHash: await hashVisualCueText(RAW), baseLedgerRevision: 0 }, response: PROPOSALS.response,
+    validationContext: { cards: [{ index: 0, canonicalName: 'The Star' }], getSupportedDetails: () => ['pool-pour'] } });
+  assert.deepEqual(accepted.rejected, []);
+  const visual = publicVisualSnapshot({ binding, raw: RAW, cueLedger: accepted.ledger, status: 'expired' });
+  const saved = { ...entry, visual, visualBinding: binding, visualState: { attachmentStatus: 'expired', retryStatus: 'available',
+    sourceFingerprint: await fingerprintSavedVisualEntry(entry), stateVersion: 4, reason: 'expired' } };
+  const store = memoryStorage();
+  store.setItem('tarot_journal', JSON.stringify([saved]));
+  const before = f.db.rows('SELECT * FROM visual_guest_principals');
+  const result = await requestSavedVisualRetry({ namespace: 'anon', entry: saved, storage: store, fetchImpl: f.api() });
+  assert.deepEqual(result.entry.visualState, { ...saved.visualState, retryStatus: 'unavailable', reason: 'configuration-unavailable' });
+  assert.deepEqual(result.entry.visual, visual);
+  assert.equal(result.entry.personalReading, RAW);
+  assert.equal(savedVisualRecovery(result.entry).canRetry, false);
+  assert.equal(f.requests.filter(request => request.method === 'POST').length, 1);
+  assert.equal(f.calls(), 0);
+  assert.equal(f.db.rows('SELECT id FROM visual_retry_claims').length, 0);
+  assert.deepEqual(f.db.rows('SELECT * FROM visual_guest_principals'), before);
 });
 
 test('exhausted retry after reload offers status only and the server refuses another dispatch', async t => {

@@ -8,7 +8,7 @@ import { visualStorageNamespace, writeVisualResume, readVisualResume, removeVisu
   patchSavedVisualSnapshot, publicVisualSnapshot, persistJournalWithVisualFallback, VISUAL_SNAPSHOT_EVENT,
   publicVisualRetryState, projectJournalEntryVisuals, savedVisualSource, savedVisualSourceKey,
   fingerprintSavedVisualEntry, savedVisualRecovery, commitSavedVisualEntry, adoptSavedVisualReplay,
-  mergeCachedJournalVisuals, needsCloudVisualRefresh, adoptEntryVisuals, requestSavedVisualRetry } from '../src/lib/readingVisualStorage.js';
+  mergeCachedJournalVisuals, needsCloudVisualRefresh, adoptEntryVisuals, requestSavedVisualRetry, readSavedVisualEntry } from '../src/lib/readingVisualStorage.js';
 import { hydrateEntryVisuals } from '../src/utils/journalStorage.js';
 
 function storage() {
@@ -418,6 +418,12 @@ test('cloud reload keeps a recorded explicit unavailable outcome and a locally v
   assert.equal(merged.visualState.reason, 'configuration-unavailable');
   assert.deepEqual(merged.visual, cachedVisual);
   assert.equal(savedVisualRecovery(merged, { cloud: true }).canRetry, false);
+  // Restored configuration is an explicit server decision for this same source;
+  // an earlier local refusal cannot hide its now-available recovery action.
+  const configured = mergeCachedJournalVisuals(projectJournalEntryVisuals({ ...server,
+    visualState: { ...server.visualState, attachmentStatus: 'expired', retryStatus: 'available', reason: 'expired' } }), cached);
+  assert.equal(savedVisualRecovery(configured, { cloud: true }).canRetry, true);
+  assert.deepEqual(configured.visual, cachedVisual);
   // A newer server state or changed source wins.
   const newer = mergeCachedJournalVisuals(projectJournalEntryVisuals({ ...server, visualState: { ...server.visualState, stateVersion: 3 } }), cached);
   assert.equal(newer.visualState.reason, 'attachment-error');
@@ -449,6 +455,25 @@ test('cloud polling covers only pending durable work and never terminal or compl
   assert.equal(needsCloudVisualRefresh({ ...SAVED, visual: { status: 'revoked' } }), false);
 });
 
+test('configuration-unavailable status never waits for stale pending attachment or private transports', () => {
+  const unavailable = { ...SAVED, visualState: { attachmentStatus: 'pending', retryStatus: 'unavailable',
+    sourceFingerprint: FP, stateVersion: 4, reason: 'configuration-unavailable' } };
+  for (const options of [{}, { cloud: true }, { originalResume: { visualJobToken: 'private-original' } },
+    { replayResume: { visualJobToken: 'private-replay', attemptId: 'private-attempt' } }]) {
+    assert.deepEqual(pick(savedVisualRecovery(unavailable, options), ['phase', 'canRetry']), { phase: 'unavailable', canRetry: false });
+  }
+  assert.equal(needsCloudVisualRefresh(unavailable), false);
+});
+
+test('authoritative available state remains explicitly eligible despite a historical configuration-unavailable reason', () => {
+  const prepared = { ...SAVED, visualState: { attachmentStatus: 'failed', retryStatus: 'available',
+    sourceFingerprint: FP, stateVersion: 2, reason: 'configuration-unavailable' } };
+  for (const cloud of [false, true]) {
+    assert.deepEqual(pick(savedVisualRecovery(prepared, { cloud }), ['phase', 'canRetry']), { phase: 'eligible', canRetry: true });
+  }
+  assert.equal(needsCloudVisualRefresh(prepared), false);
+});
+
 test('committed public visual fields never move backwards or across sources', () => {
   const state = version => ({ attachmentStatus: 'pending', retryStatus: 'pending', sourceFingerprint: FP, stateVersion: version, reason: null });
   const current = { ...SAVED, visualState: state(3) };
@@ -462,6 +487,86 @@ test('committed public visual fields never move backwards or across sources', ()
 
 function retryResponse(state, resumeHandle = null) {
   return async () => Response.json({ state, resumeHandle });
+}
+
+test('a prepared available response with an old configuration reason retains explicit local recovery and private claim capability', async () => {
+  const store = storage();
+  const fingerprint = await fingerprintSavedVisualEntry(SAVED);
+  const visualBinding = await bindingFor(SAVED, 'prepared-existing-local');
+  store.setItem('tarot_journal', JSON.stringify([SAVED]));
+  const handle = replayHandle(visualBinding, 'prepared-attempt');
+  assert.equal(writeVisualResume({ namespace: 'anon', entryId: SAVED.id, binding: visualBinding,
+    sourceFingerprint: fingerprint, stateVersion: 0, storage: store, resumeHandle: handle }), true);
+  const result = await requestSavedVisualRetry({ namespace: 'anon', entry: SAVED, storage: store,
+    fetchImpl: retryResponse({ attachmentStatus: 'failed', retryStatus: 'available', sourceFingerprint: fingerprint,
+      stateVersion: 1, reason: 'configuration-unavailable', attemptId: 'prepared-attempt' }, handle) });
+  assert.equal(result.entry.visualState.retryStatus, 'available');
+  assert.equal(result.entry.visualState.stateVersion, 1);
+  assert.equal(savedVisualRecovery(result.entry).canRetry, true);
+  assert.equal(readVisualResume({ namespace: 'anon', entryId: SAVED.id, storage: store }).attemptId, 'prepared-attempt');
+});
+
+test('first unconfigured local refusal keeps the saved original attachment and version after exact source verification', async () => {
+  const store = storage();
+  const fingerprint = await fingerprintSavedVisualEntry(SAVED);
+  const original = await bindingFor(SAVED, 'retained-expired-original');
+  const visual = publicVisualSnapshot({ binding: original, cueLedger: await acceptedLedger(original), status: 'expired', raw: SAVED_RAW });
+  const saved = { ...SAVED, visual, visualBinding: original,
+    visualState: { attachmentStatus: 'expired', retryStatus: 'available', sourceFingerprint: fingerprint, stateVersion: 4, reason: 'expired' } };
+  store.setItem('tarot_journal', JSON.stringify([saved]));
+  const refusal = { attachmentStatus: 'missing', retryStatus: 'unavailable', sourceFingerprint: fingerprint,
+    stateVersion: 0, reason: 'configuration-unavailable', attemptId: null, visualSnapshot: null };
+  const result = await requestSavedVisualRetry({ namespace: 'anon', entry: saved, storage: store, fetchImpl: retryResponse(refusal) });
+  assert.deepEqual(result.entry.visualState, { ...saved.visualState, retryStatus: 'unavailable', reason: 'configuration-unavailable' });
+  assert.deepEqual(result.entry.visual, visual);
+  assert.equal(result.entry.personalReading, SAVED_RAW);
+});
+
+test('an expired local original without newer replay state keeps its saved attachment classification on refusal', async () => {
+  const store = storage();
+  const fingerprint = await fingerprintSavedVisualEntry(SAVED);
+  const original = await bindingFor(SAVED, 'legacy-expired-original');
+  const visual = publicVisualSnapshot({ binding: original, cueLedger: await acceptedLedger(original), status: 'expired', raw: SAVED_RAW });
+  const saved = { ...SAVED, visual, visualBinding: original };
+  store.setItem('tarot_journal', JSON.stringify([saved]));
+  const result = await requestSavedVisualRetry({ namespace: 'anon', entry: saved, storage: store,
+    fetchImpl: retryResponse({ attachmentStatus: 'missing', retryStatus: 'unavailable', sourceFingerprint: fingerprint,
+      stateVersion: 0, reason: 'configuration-unavailable', attemptId: null, visualSnapshot: null }) });
+  assert.equal(result.entry.visualState.attachmentStatus, 'expired');
+  assert.equal(result.entry.visualState.stateVersion, 0);
+  assert.deepEqual(result.entry.visual, visual);
+});
+
+for (const cloud of [false, true]) {
+  test(`${cloud ? 'cloud' : 'local'} explicit unavailable response preserves saved cues and ignores a stale resume capability`, async () => {
+    const store = storage();
+    const original = await bindingFor(SAVED, 'original-cache');
+    const visual = publicVisualSnapshot({ binding: original, cueLedger: await acceptedLedger(original), status: 'expired', raw: SAVED_RAW });
+    const fingerprint = await fingerprintSavedVisualEntry(SAVED);
+    const current = { ...SAVED, visual, visualBinding: original,
+      visualState: { attachmentStatus: 'expired', retryStatus: 'available', sourceFingerprint: fingerprint, stateVersion: 2, reason: 'expired' } };
+    store.setItem('tarot_journal', JSON.stringify([current]));
+    const state = { attachmentStatus: 'pending', retryStatus: 'unavailable', sourceFingerprint: fingerprint,
+      stateVersion: 2, reason: 'configuration-unavailable', attemptId: 'private-unused-attempt' };
+    let calls = 0;
+    const fetchImpl = async () => { calls++; return Response.json({ state, resumeHandle: replayHandle(original, 'private-unused-attempt') }); };
+    let committedEntry = current;
+    const commit = cloud ? ({ update }) => {
+      committedEntry = update(committedEntry);
+      return { committed: true, entry: committedEntry };
+    } : null;
+    const result = await requestSavedVisualRetry({ namespace: 'anon', entry: current, cloud, storage: store, fetchImpl, commit });
+    const saved = cloud ? committedEntry : readSavedVisualEntry({ namespace: 'anon', entryId: current.id, storage: store });
+    assert.equal(result.state.retryStatus, 'unavailable');
+    assert.equal(saved.personalReading, SAVED_RAW);
+    assert.deepEqual(saved.visual, visual);
+    assert.deepEqual(pick(savedVisualRecovery(saved, { cloud }), ['phase', 'canRetry']), { phase: 'unavailable', canRetry: false });
+    assert.equal(needsCloudVisualRefresh(saved), false);
+    assert.equal(readVisualResume({ namespace: 'anon', entryId: current.id, storage: store }), null);
+    assert.equal(JSON.stringify(saved).includes('private-unused'), false);
+    await assert.rejects(requestSavedVisualRetry({ namespace: 'anon', entry: saved, cloud, storage: store, fetchImpl, commit }), { code: 'ineligible' });
+    assert.equal(calls, 1);
+  });
 }
 
 test('a duplicate tab converges on the stored claim state and never deletes the other tab handle', async () => {

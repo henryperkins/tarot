@@ -11,6 +11,9 @@ import {
 } from '../functions/lib/readingVisualResults.js';
 import { createVisualCueLedger } from '../shared/reading/visualCueLedger.js';
 import { hashVisualCueText } from '../shared/contracts/visualCueBatches.js';
+import * as visualRetry from '../functions/lib/readingVisualRetry.js';
+import { ReadingVisualJob } from '../src/worker/readingVisualJob.js';
+import { createVisualInitialAdmission } from '../functions/lib/readingVisualAdmission.js';
 
 const cards = [{ name: 'The Star', position: 'Present', orientation: 'Upright' }];
 const source = { raw: 'The Star pours into a pool.', cards, question: 'Where is my hope?', reflections: '' };
@@ -29,8 +32,18 @@ async function setup(t, id = 'result-1') {
 async function observe(db, binding, raw = source.raw, complete = true) {
   return updateVisualResultSource({ db, userId: user.id, readingResultId: binding.readingResultId, binding, raw, complete });
 }
+function replayEnv(db) {
+  return { DB: db, VISUAL_REPLAY_LIMITS: JSON.stringify({ rateLimit: 3, windowMs: 60000, totalLimit: 5 }),
+    VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: 'fake',
+    AI: { run() { assert.fail('Saved visual reads cannot infer'); } }, READING_VISUAL_JOBS: {} };
+}
+function initialEnv(db) {
+  return { ...replayEnv(db), VISUAL_INITIAL_LIMITS: JSON.stringify({ provider: 'workers-ai', model: 'fake',
+    rateLimit: 5, windowMs: 60000, totalLimit: 10, globalRateLimit: 20, globalTotalLimit: 100,
+    maxDispatchCostMicrousd: 175, scopeCostLimitMicrousd: 1750, globalCostLimitMicrousd: 17500 }) };
+}
 async function save(db, readingResultId, extra = {}) {
-  return saveAppJournalEntry({ env: { DB: db }, user, body: {
+  return saveAppJournalEntry({ env: replayEnv(db), user, body: {
     ...source, spread: 'One Card', spreadKey: 'single', personalReading: source.raw, readingResultId, ...extra
   } });
 }
@@ -46,6 +59,437 @@ async function populated(binding) {
 async function commit(db, binding, ledger, extra = {}) {
   return commitVisualResult({ db, userId: user.id, readingResultId: binding.readingResultId, binding, expectedLedgerRevision: 0, ledger, finalRaw: source.raw, ...extra });
 }
+
+const CLAIM_TOMBSTONE_FIELDS = new Set(['id', 'admission_scope', 'source_fingerprint', 'user_id', 'state_version',
+  'dispatch_status', 'retry_status', 'created_at', 'updated_at', 'aggregate_scope', 'reserved_at']);
+function assertPrivateClaimPurged(claim, original, account = false) {
+  assert.equal(claim.retry_status, 'revoked');
+  assert.equal(claim.dispatch_status, 'revoked');
+  assert.equal(claim.state_version, original.state_version + 1);
+  for (const [key, value] of Object.entries(claim)) {
+    if (!CLAIM_TOMBSTONE_FIELDS.has(key)) assert.equal(value, null, `${key} must be purged`);
+  }
+  for (const key of ['id', 'admission_scope', 'source_fingerprint', 'aggregate_scope', 'reserved_at', 'created_at']) {
+    assert.equal(claim[key], original[key], `${key} must preserve allowance fencing`);
+  }
+  assert.equal(claim.user_id, account ? null : original.user_id);
+}
+
+async function sensitiveReplayFixture(t, dispatchStatus = 'reserved') {
+  const { db } = await setup(t);
+  const saved = await save(db, 'private-replay-result');
+  const entryId = saved.body.entry.id;
+  const owned = await visualResults.loadOwnedJournalVisualSource({ db, userId: user.id, entryId });
+  const hashes = await computeSourceFingerprint(owned.source);
+  const binding = { readingResultId: 'private-replay-result', sourceRevision: 0, spreadHash: hashes.spreadHash,
+    contextHash: hashes.contextHash, artworkEdition: owned.artworkEdition, catalogVersion: owned.catalogVersion };
+  const now = Date.now();
+  await db.prepare(`INSERT INTO visual_retry_claims
+    (id, admission_scope, source_fingerprint, user_id, journal_entry_id, reading_result_id, attempt_id, visual_job_id,
+      state_version, dispatch_status, retry_status, created_at, updated_at, aggregate_scope, source_json,
+      saved_fields_json, journal_state_version, binding_json, visual_token, expires_at, reserved_at)
+    VALUES ('private-claim', ?, ?, ?, ?, ?, 'private-attempt', 'private-transport', 1, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, 'private-capability', ?, ?)`)
+    .bind(`user:${user.id}`, saved.body.visualState.sourceFingerprint, user.id, entryId, binding.readingResultId,
+      dispatchStatus, now, now, `user:${user.id}`, JSON.stringify(owned.source), JSON.stringify(Object.fromEntries(
+        ['narrative', 'cards_json', 'question', 'reflections_json', 'deck_id'].map(key => [key, owned.row[key]]))),
+      saved.body.visualState.stateVersion, JSON.stringify(binding), now + 60000, dispatchStatus === 'reserved' ? now : null).run();
+  await db.prepare(`UPDATE journal_visual_state SET claim_id = 'private-claim', attempt_id = 'private-attempt',
+    retry_status = 'pending' WHERE journal_entry_id = ?`).bind(entryId).run();
+  const claim = db.rows("SELECT * FROM visual_retry_claims WHERE id = 'private-claim'")[0];
+  return { db, saved, entryId, owned, binding, claim };
+}
+
+test('entry deletion purges replay source and capabilities before transport cancellation, retaining only its allowance tombstone', async t => {
+  const f = await sensitiveReplayFixture(t);
+  assert.ok(await visualRetry.initializeVisualReplay({ db: f.db, claim: f.claim }));
+  const cancelled = [];
+  const atCancellation = [];
+  await deleteJournalVisualLink({ db: f.db, userId: user.id, entryId: f.entryId, deleteEntry: true,
+    env: { READING_VISUAL_JOBS: { idFromName: id => id, get: id => ({ fetch: async () => {
+      atCancellation.push({ claim: f.db.rows("SELECT * FROM visual_retry_claims WHERE id = 'private-claim'")[0],
+        resultCount: f.db.rows('SELECT * FROM reading_visual_results WHERE id = ?', [f.binding.readingResultId]).length });
+      cancelled.push(id); return new Response('{}');
+    } }) } } });
+  assert.ok(cancelled.includes('private-transport'));
+  for (const { claim, resultCount } of atCancellation) {
+    assertPrivateClaimPurged(claim, f.claim);
+    assert.equal(resultCount, 0);
+  }
+  assert.equal(f.db.rows('SELECT * FROM journal_entries').length, 0);
+  assertPrivateClaimPurged(f.db.rows("SELECT * FROM visual_retry_claims WHERE id = 'private-claim'")[0], f.claim);
+});
+
+test('entry deletion before result initialization fences a stale init, reservation, hash completion and commit', async t => {
+  const f = await sensitiveReplayFixture(t);
+  await deleteJournalVisualLink({ db: f.db, userId: user.id, entryId: f.entryId, deleteEntry: true });
+  assert.equal(await visualRetry.initializeVisualReplay({ db: f.db, claim: f.claim }), null);
+  const env = { DB: f.db, VISUAL_REPLAY_LIMITS: JSON.stringify({ rateLimit: 3, windowMs: 60000, totalLimit: 5 }),
+    VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: 'fake', AI: { run: async () => assert.fail('deleted source must not infer') } };
+  assert.equal(await visualRetry.reserveVisualReplay({ env, claim: f.claim }), false);
+  assert.equal(await visualRetry.settleVisualReplay({ db: f.db, claim: f.claim, ledger: await populated(f.binding) }), false);
+  assert.equal((await registerVisualResult({ db: f.db, userId: user.id, readingResultId: f.binding.readingResultId, binding: f.binding })).ok, false);
+  assertPrivateClaimPurged(f.db.rows("SELECT * FROM visual_retry_claims WHERE id = 'private-claim'")[0], f.claim);
+  assert.equal(f.db.rows('SELECT * FROM reading_visual_results WHERE id = ?', [f.binding.readingResultId]).length, 0);
+});
+
+test('purged entry claim still prevents same-source replay when local, result and journal IDs change', async t => {
+  const f = await sensitiveReplayFixture(t);
+  await deleteJournalVisualLink({ db: f.db, userId: user.id, entryId: f.entryId, deleteEntry: true });
+  let transportCalls = 0;
+  const env = { DB: f.db, VISUAL_REPLAY_LIMITS: JSON.stringify({ rateLimit: 3, windowMs: 60000, totalLimit: 5 }),
+    VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: 'fake', AI: { run: async () => assert.fail('same source allowance was consumed') },
+    READING_VISUAL_JOBS: { idFromName: id => id, get: () => ({ fetch: async () => { transportCalls++; return new Response('{}'); } }) } };
+  const admission = await visualRetry.createVisualReplayAdmission({ env, userId: user.id });
+  for (const id of ['replacement-local', 'another-local']) {
+    const outcome = await visualRetry.retryLocalVisuals({ env, admission,
+      savedSource: { ...f.owned.source, id, readingResultId: id, visualJobToken: 'replacement-token' } });
+    assert.equal(outcome.resumeHandle, null);
+  }
+  const replacement = await save(f.db, 'replacement-result');
+  assert.notEqual(replacement.body.entry.id, f.entryId);
+  const cloud = await visualRetry.retryJournalVisuals({ env, userId: user.id, entryId: replacement.body.entry.id });
+  assert.equal(cloud.resumeHandle, null);
+  assert.equal(transportCalls, 0);
+  assert.equal(f.db.rows('SELECT * FROM visual_retry_claims').length, 1);
+  assertPrivateClaimPurged(f.db.rows('SELECT * FROM visual_retry_claims')[0], f.claim);
+});
+
+test('account revocation purges linked and local replay payloads before cancellation and blocks stale work', async t => {
+  const f = await sensitiveReplayFixture(t);
+  assert.ok(await visualRetry.initializeVisualReplay({ db: f.db, claim: f.claim }));
+  await f.db.prepare(`INSERT INTO visual_retry_claims SELECT 'local-private-claim', admission_scope, 'different-source', user_id,
+    NULL, 'local-private-result', 'local-private-attempt', 'local-private-transport', state_version, dispatch_status,
+    retry_status, created_at, updated_at, aggregate_scope, source_json, saved_fields_json, journal_state_version,
+    binding_json, visual_token, expires_at, reserved_at FROM visual_retry_claims WHERE id = 'private-claim'`).run();
+  const local = f.db.rows("SELECT * FROM visual_retry_claims WHERE id = 'local-private-claim'")[0];
+  const cancelled = [];
+  const atCancellation = [];
+  await revokeUserVisualResults({ userId: user.id, env: { DB: f.db, READING_VISUAL_JOBS: { idFromName: id => id,
+    get: id => ({ fetch: async () => {
+      atCancellation.push(f.db.rows('SELECT * FROM visual_retry_claims'));
+      cancelled.push(id); return new Response('{}', { status: 503 });
+    } }) } } });
+  assert.ok(cancelled.includes('private-transport'));
+  assert.ok(cancelled.includes('local-private-transport'));
+  for (const claims of atCancellation) for (const claim of claims) assertPrivateClaimPurged(claim, claim.id === f.claim.id ? f.claim : local, true);
+  assert.equal(await visualRetry.initializeVisualReplay({ db: f.db, claim: f.claim }), null);
+  assert.equal(await visualRetry.settleVisualReplay({ db: f.db, claim: f.claim, ledger: await populated(f.binding) }), false);
+  assert.equal(f.db.rows('SELECT * FROM reading_visual_results').length, 0);
+  for (const claim of f.db.rows('SELECT * FROM visual_retry_claims')) assertPrivateClaimPurged(claim, claim.id === f.claim.id ? f.claim : local, true);
+});
+
+for (const deletion of ['entry', 'account']) test(`${deletion} deletion aborts owned replay inference, purges transport source and rejects its late response`, async t => {
+  const f = await sensitiveReplayFixture(t, 'prepared');
+  let finish, signal, stored;
+  const pending = [];
+  const env = { DB: f.db, VISUAL_REPLAY_LIMITS: JSON.stringify({ rateLimit: 3, windowMs: 60000, totalLimit: 5 }),
+    VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: 'fake', AI: { run: async (_model, _body, options) => {
+      signal = options.signal; return new Promise(resolve => { finish = resolve; });
+    } } };
+  const job = new ReadingVisualJob({ storage: { get: async () => stored, put: async (_key, value) => { stored = structuredClone(value); }, setAlarm: async () => {} },
+    blockConcurrencyWhile: fn => fn(), waitUntil: promise => pending.push(promise) }, env);
+  env.READING_VISUAL_JOBS = { idFromName: id => id, get: id => ({ fetch: (url, options) => id === 'private-transport'
+    ? job.fetch(new Request(url, options)) : Promise.resolve(new Response('{}')) }) };
+  await job.fetch(new Request('https://reading-visual-jobs/replay-init', { method: 'POST', body: JSON.stringify({ claimId: f.claim.id,
+    attemptId: f.claim.attempt_id, expectedClaimVersion: f.claim.state_version, visualJobId: f.claim.visual_job_id }) }));
+  while (!finish) await new Promise(resolve => setImmediate(resolve));
+  const active = f.db.rows("SELECT * FROM visual_retry_claims WHERE id = 'private-claim'")[0];
+  if (deletion === 'entry') await deleteJournalVisualLink({ db: f.db, env, userId: user.id, entryId: f.entryId, deleteEntry: true });
+  else await revokeUserVisualResults({ env, userId: user.id });
+  assert.equal(signal.aborted, true);
+  assert.equal(job.ledger, null); assert.equal(job.authoritativeRaw, ''); assert.equal(job.visualToken, null);
+  assert.deepEqual(job.validationContext, { cards: [] });
+  assert.equal(JSON.stringify(stored).includes(source.raw), false);
+  finish({ response: { proposals: [] } });
+  await Promise.all(pending);
+  assertPrivateClaimPurged(f.db.rows("SELECT * FROM visual_retry_claims WHERE id = 'private-claim'")[0], active, deletion === 'account');
+  assert.equal(f.db.rows('SELECT * FROM reading_visual_results WHERE id = ?', [f.binding.readingResultId]).length, 0);
+  assert.equal((await job.fetch(new Request('https://reading-visual-jobs/snapshot', { headers: { 'X-Visual-Token': 'private-capability' } }))).status, 410);
+});
+
+for (const deletion of ['entry', 'account']) test(`${deletion} deletion atomically captures a replay claim inserted just before the cleanup transaction`, async t => {
+  const f = await sensitiveReplayFixture(t);
+  let concurrent;
+  const batch = f.db.batch.bind(f.db);
+  f.db.batch = async statements => {
+    await f.db.prepare(`INSERT INTO visual_retry_claims SELECT 'concurrent-private-claim', admission_scope, 'concurrent-source', user_id,
+      journal_entry_id, 'concurrent-private-result', 'concurrent-private-attempt', 'concurrent-private-transport', state_version,
+      dispatch_status, retry_status, created_at, updated_at, aggregate_scope, source_json, saved_fields_json, journal_state_version,
+      binding_json, visual_token, expires_at, reserved_at FROM visual_retry_claims WHERE id = 'private-claim'`).run();
+    concurrent = f.db.rows("SELECT * FROM visual_retry_claims WHERE id = 'concurrent-private-claim'")[0];
+    f.db.batch = batch;
+    return batch(statements);
+  };
+  const cancelled = [];
+  const env = { DB: f.db, READING_VISUAL_JOBS: { idFromName: id => id, get: id => ({ fetch: async () => { cancelled.push(id); return new Response('{}'); } }) } };
+  if (deletion === 'entry') await deleteJournalVisualLink({ db: f.db, env, userId: user.id, entryId: f.entryId, deleteEntry: true });
+  else await revokeUserVisualResults({ env, userId: user.id });
+  assert.ok(cancelled.includes('private-transport'));
+  assert.ok(cancelled.includes('concurrent-private-transport'));
+  assertPrivateClaimPurged(f.db.rows("SELECT * FROM visual_retry_claims WHERE id = 'concurrent-private-claim'")[0], concurrent, deletion === 'account');
+});
+
+for (const deletion of ['entry', 'account']) test(`${deletion} deletion erases pending initial admissions and anonymizes the consumed budget ledger`, async t => {
+  const f = await sensitiveReplayFixture(t);
+  const now = Date.now();
+  await f.db.prepare(`INSERT INTO visual_initial_admissions
+    (reading_result_id, user_id, aggregate_scope, binding_json, token_hash, expires_at, created_at)
+    VALUES (?, ?, 'hashed-owner-scope', ?, 'private-token-hash', ?, ?)`)
+    .bind(f.binding.readingResultId, user.id, JSON.stringify(f.binding), now + 60000, now).run();
+  await f.db.prepare(`INSERT INTO visual_initial_reservations
+    (dispatch_id, reading_result_id, aggregate_scope, reserved_cost_microusd, reserved_at)
+    VALUES ('private-initial-dispatch', ?, 'hashed-owner-scope', 175, ?)`)
+    .bind(f.binding.readingResultId, now).run();
+  await f.db.prepare(`INSERT INTO visual_initial_admissions
+    (reading_result_id, user_id, aggregate_scope, binding_json, token_hash, expires_at, created_at)
+    VALUES ('foreign-initial-result', 'user-2', 'foreign-scope', '{}', 'foreign-token-hash', ?, ?)`)
+    .bind(now + 60000, now).run();
+  const foreign = f.db.rows("SELECT * FROM visual_initial_admissions WHERE user_id = 'user-2'")[0];
+  const cancelled = [];
+  const env = { DB: f.db, READING_VISUAL_JOBS: { idFromName: id => id, get: id => ({ fetch: async () => {
+    cancelled.push(id); assert.equal(f.db.rows('SELECT * FROM visual_initial_admissions WHERE user_id = ?', [user.id]).length, 0);
+    return new Response('{}');
+  } }) } };
+  if (deletion === 'entry') await deleteJournalVisualLink({ db: f.db, env, userId: user.id, entryId: f.entryId, deleteEntry: true });
+  else await revokeUserVisualResults({ env, userId: user.id });
+  assert.ok(cancelled.includes(f.binding.readingResultId));
+  assert.equal(f.db.rows('SELECT * FROM visual_initial_admissions WHERE user_id = ?', [user.id]).length, 0);
+  assert.deepEqual(f.db.rows('SELECT * FROM visual_initial_reservations')[0], {
+    dispatch_id: 'private-initial-dispatch', reading_result_id: null, aggregate_scope: 'hashed-owner-scope', reserved_cost_microusd: 175, reserved_at: now
+  });
+  assert.deepEqual(f.db.rows("SELECT * FROM visual_initial_admissions WHERE user_id = 'user-2'")[0], foreign);
+  assert.equal((await registerVisualResult({ db: f.db, userId: user.id, readingResultId: f.binding.readingResultId, binding: f.binding })).ok, false);
+});
+
+test('entry deletion revokes a server-admitted initial job before it has a result or replay claim', async t => {
+  const { db, binding: registered } = await setup(t);
+  const binding = { ...registered, readingResultId: 'private-pending-initial-result' };
+  const env = { DB: db, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: 'fake',
+    VISUAL_INITIAL_LIMITS: JSON.stringify({ provider: 'workers-ai', model: 'fake', rateLimit: 5, windowMs: 60000, totalLimit: 10,
+      globalRateLimit: 20, globalTotalLimit: 100, maxDispatchCostMicrousd: 175, scopeCostLimitMicrousd: 1750, globalCostLimitMicrousd: 17500 }) };
+  assert.equal(await createVisualInitialAdmission({ env, userId: user.id, readingResultId: binding.readingResultId,
+    visualToken: 'private-pending-token', binding }), true);
+  const saved = await save(db, binding.readingResultId);
+  assert.equal(saved.body.visual, undefined);
+  assert.equal(saved.body.visualState.attachmentStatus, 'pending');
+  assert.equal(db.rows('SELECT reading_result_id FROM journal_visual_state')[0].reading_result_id, binding.readingResultId);
+  const cancelled = [];
+  await deleteJournalVisualLink({ db, userId: user.id, entryId: saved.body.entry.id, deleteEntry: true,
+    env: { READING_VISUAL_JOBS: { idFromName: id => id, get: id => ({ fetch: async () => { cancelled.push(id); return new Response('{}'); } }) } } });
+  assert.deepEqual(cancelled, [binding.readingResultId]);
+  assert.equal(db.rows('SELECT * FROM visual_initial_admissions').length, 0);
+  assert.equal((await registerVisualResult({ db, userId: user.id, readingResultId: binding.readingResultId, binding })).ok, false);
+});
+
+for (const configured of [true, false]) test(`pending initial admission expiry projects ${configured ? 'available' : 'unavailable'} recovery without creating a result or mutating saved state`, async t => {
+  const { db, binding: original } = await setup(t);
+  const binding = { ...original, readingResultId: 'expired-before-registration' };
+  const env = initialEnv(db);
+  assert.equal(await createVisualInitialAdmission({ env, userId: user.id, readingResultId: binding.readingResultId,
+    binding, visualToken: 'initial-expiry-token' }), true);
+  const saved = await save(db, binding.readingResultId);
+  assert.equal(saved.body.visualState.attachmentStatus, 'pending');
+  await db.prepare('UPDATE visual_initial_admissions SET expires_at = 1 WHERE reading_result_id = ?').bind(binding.readingResultId).run();
+  const before = db.rows('SELECT * FROM journal_visual_state');
+  const entries = db.rows('SELECT * FROM journal_entries');
+  const results = db.rows('SELECT * FROM reading_visual_results');
+  if (!configured) delete env.VISUAL_REPLAY_LIMITS;
+  const single = await visualResults.loadJournalVisualState({ env, db, userId: user.id, entryId: saved.body.entry.id });
+  const batch = await visualResults.loadJournalVisualStates({ env, db, userId: user.id, entryIds: [saved.body.entry.id] });
+  for (const state of [single, batch.get(saved.body.entry.id)]) {
+    assert.equal(state.attachmentStatus, 'expired');
+    assert.equal(state.retryStatus, configured ? 'available' : 'unavailable');
+    assert.equal(state.reason, configured ? 'expired' : 'configuration-unavailable');
+    assert.equal(state.sourceFingerprint, before[0].source_fingerprint);
+    assert.equal(state.stateVersion, before[0].state_version);
+  }
+  assert.deepEqual(db.rows('SELECT * FROM journal_visual_state'), before);
+  assert.deepEqual(db.rows('SELECT * FROM journal_entries'), entries);
+  assert.deepEqual(db.rows('SELECT * FROM reading_visual_results'), results);
+  assert.equal(db.rows('SELECT * FROM visual_retry_claims').length, 0);
+  assert.equal(db.rows('SELECT * FROM visual_initial_reservations').length, 0);
+});
+
+for (const linked of [true, false]) test(`pending initial expiry preserves previously accepted ${linked ? 'linked' : 'unlinked'} cached cues and exact saved prose`, async t => {
+  const { db, binding: original } = await setup(t);
+  await observe(db, original);
+  await commit(db, original, await populated(original));
+  const saved = await save(db, original.readingResultId);
+  // A cached validated snapshot remains durable after independent link loss.
+  if (!linked) await db.prepare('DELETE FROM journal_visual_links WHERE journal_entry_id = ?').bind(saved.body.entry.id).run();
+  const env = initialEnv(db), binding = { ...original, readingResultId: 'pending-with-cached-cues' };
+  assert.equal(await createVisualInitialAdmission({ env, userId: user.id, readingResultId: binding.readingResultId,
+    binding, visualToken: 'initial-cached-token' }), true);
+  assert.equal((await attachJournalVisualResult({ db, userId: user.id, entryId: saved.body.entry.id, readingResultId: binding.readingResultId })).status, 'pending');
+  await db.prepare('UPDATE visual_initial_admissions SET expires_at = 1 WHERE reading_result_id = ?').bind(binding.readingResultId).run();
+  const before = db.rows('SELECT * FROM journal_visual_state');
+  const state = await visualResults.loadJournalVisualState({ env, db, userId: user.id, entryId: saved.body.entry.id });
+  const batch = await visualResults.loadJournalVisualStates({ env, db, userId: user.id, entryIds: [saved.body.entry.id] });
+  for (const projected of [state, batch.get(saved.body.entry.id)]) {
+    assert.equal(projected.attachmentStatus, 'expired');
+    assert.equal(projected.visualSnapshot.cueLedger.cues[0].id, 'vc:fixture');
+    assert.equal(projected.visualSnapshot.cueLedger.raw, source.raw);
+  }
+  assert.deepEqual(db.rows('SELECT * FROM journal_visual_state'), before);
+  assert.equal(db.rows('SELECT narrative FROM journal_entries')[0].narrative, source.raw);
+});
+
+test('registered transport deadline takes priority over an initial admission deadline', async t => {
+  const { db, binding: original } = await setup(t);
+  const env = initialEnv(db), binding = { ...original, readingResultId: 'registered-deadline-priority' };
+  assert.equal(await createVisualInitialAdmission({ env, userId: user.id, readingResultId: binding.readingResultId,
+    binding, visualToken: 'initial-priority-token' }), true);
+  const saved = await save(db, binding.readingResultId);
+  assert.equal((await registerVisualResult({ db, userId: user.id, readingResultId: binding.readingResultId, binding, expiresAt: Date.now() + 60000 })).ok, true);
+  await db.prepare('UPDATE visual_initial_admissions SET expires_at = 1 WHERE reading_result_id = ?').bind(binding.readingResultId).run();
+  for (const read of [async () => visualResults.loadJournalVisualState({ env, db, userId: user.id, entryId: saved.body.entry.id }),
+    async () => (await visualResults.loadJournalVisualStates({ env, db, userId: user.id, entryIds: [saved.body.entry.id] })).get(saved.body.entry.id)]) {
+    assert.equal((await read()).attachmentStatus, 'pending');
+  }
+  await db.prepare('UPDATE reading_visual_results SET expires_at = 1 WHERE id = ?').bind(binding.readingResultId).run();
+  await db.prepare('UPDATE visual_initial_admissions SET expires_at = ? WHERE reading_result_id = ?').bind(Date.now() + 60000, binding.readingResultId).run();
+  assert.equal((await visualResults.loadJournalVisualState({ env, db, userId: user.id, entryId: saved.body.entry.id })).attachmentStatus, 'expired');
+  assert.equal((await visualResults.loadJournalVisualStates({ env, db, userId: user.id, entryIds: [saved.body.entry.id] })).get(saved.body.entry.id).attachmentStatus, 'expired');
+});
+
+for (const mismatch of ['owner', 'binding']) test(`pending initial expiry ignores an admission whose ${mismatch} no longer matches the trusted saved hint`, async t => {
+  const { db, binding: original } = await setup(t);
+  const env = initialEnv(db), binding = { ...original, readingResultId: 'changed-initial-admission' };
+  assert.equal(await createVisualInitialAdmission({ env, userId: user.id, readingResultId: binding.readingResultId,
+    binding, visualToken: 'changed-initial-token' }), true);
+  const saved = await save(db, binding.readingResultId);
+  await db.prepare('UPDATE visual_initial_admissions SET expires_at = 1 WHERE reading_result_id = ?').bind(binding.readingResultId).run();
+  if (mismatch === 'owner') await db.prepare("UPDATE visual_initial_admissions SET user_id = 'user-2' WHERE reading_result_id = ?").bind(binding.readingResultId).run();
+  else await db.prepare('UPDATE visual_initial_admissions SET binding_json = ? WHERE reading_result_id = ?')
+    .bind(JSON.stringify({ ...binding, contextHash: '0'.repeat(64) }), binding.readingResultId).run();
+  const before = db.rows('SELECT * FROM journal_visual_state');
+  const single = await visualResults.loadJournalVisualState({ env, db, userId: user.id, entryId: saved.body.entry.id });
+  const batch = await visualResults.loadJournalVisualStates({ env, db, userId: user.id, entryIds: [saved.body.entry.id] });
+  for (const state of [single, batch.get(saved.body.entry.id)]) {
+    assert.equal(state.attachmentStatus, 'pending');
+    assert.equal(state.retryStatus, 'unavailable');
+  }
+  assert.deepEqual(db.rows('SELECT * FROM journal_visual_state'), before);
+});
+
+test('pre-0038 saved-state reads retain optional-schema compatibility', async t => {
+  const db = await createD1({ throughMigration: '0037_reading_visual_retry_state.sql' });
+  t.after(() => db.sqlite.close());
+  await seedUser(db, { id: user.id });
+  const saved = await save(db, null);
+  const env = replayEnv(db);
+  await visualResults.persistJournalVisualState({ db, userId: user.id, entryId: saved.body.entry.id, attachmentStatus: 'expired', retryStatus: 'available', reason: 'expired' });
+  const state = await visualResults.loadJournalVisualState({ env, db, userId: user.id, entryId: saved.body.entry.id });
+  const batch = await visualResults.loadJournalVisualStates({ env, db, userId: user.id, entryIds: [saved.body.entry.id] });
+  assert.equal(state.attachmentStatus, 'expired');
+  assert.deepEqual(batch.get(saved.body.entry.id), state);
+});
+
+test('saved-state reads fail closed on partial initial-admission schema', async t => {
+  const { db } = await setup(t);
+  const saved = await save(db, null);
+  await db.prepare('DROP TABLE visual_initial_reservations').run();
+  await assert.rejects(visualResults.loadJournalVisualState({ db, userId: user.id, entryId: saved.body.entry.id }), /Incomplete initial visual admission schema/);
+  await assert.rejects(visualResults.loadJournalVisualStates({ db, userId: user.id, entryIds: [saved.body.entry.id] }), /Incomplete initial visual admission schema/);
+});
+
+for (const mismatch of ['owner', 'contextHash', 'spreadHash', 'artworkEdition', 'catalogVersion', 'expired']) {
+  test(`saved unknown result cannot gain initial-job authority from a ${mismatch} mismatch`, async t => {
+    const { db, binding: registered } = await setup(t);
+    const binding = { ...registered, readingResultId: 'mismatched-initial-result',
+      ...(mismatch === 'contextHash' || mismatch === 'spreadHash' ? { [mismatch]: '0'.repeat(64) } : {}),
+      ...(mismatch === 'artworkEdition' ? { artworkEdition: 'identity:thoth-a1' } : {}),
+      ...(mismatch === 'catalogVersion' ? { catalogVersion: 'other-version' } : {}) };
+    await db.prepare(`INSERT INTO visual_initial_admissions
+      (reading_result_id, user_id, aggregate_scope, binding_json, token_hash, expires_at, created_at)
+      VALUES (?, ?, 'initial-mismatch-scope', ?, 'mismatch-token-hash', ?, ?)`)
+      .bind(binding.readingResultId, mismatch === 'owner' ? 'user-2' : user.id, JSON.stringify(binding),
+        mismatch === 'expired' ? Date.now() - 1 : Date.now() + 60000, Date.now()).run();
+    const before = db.rows('SELECT * FROM visual_initial_admissions')[0];
+    const saved = await save(db, binding.readingResultId);
+    assert.equal(saved.body.visual, undefined);
+    assert.equal(saved.body.visualState.attachmentStatus, 'failed');
+    assert.equal(db.rows('SELECT reading_result_id FROM journal_visual_state')[0].reading_result_id, null);
+    await deleteJournalVisualLink({ db, userId: user.id, entryId: saved.body.entry.id, deleteEntry: true });
+    assert.deepEqual(db.rows('SELECT * FROM visual_initial_admissions')[0], before);
+    assert.equal(db.rows('SELECT * FROM visual_result_revocations WHERE reading_result_id = ?', [binding.readingResultId]).length, 0);
+  });
+}
+
+for (const race of ['admission deletion', 'admission expiry', 'binding replacement', 'token replacement', 'saved source edit']) {
+  test(`${race} during pending initial attachment hashing cannot restore a trusted job hint`, async t => {
+    const { db, binding: registered } = await setup(t);
+    const binding = { ...registered, readingResultId: 'racing-initial-result' };
+    const saved = await save(db, null);
+    await db.prepare(`INSERT INTO visual_initial_admissions
+      (reading_result_id, user_id, aggregate_scope, binding_json, token_hash, expires_at, created_at)
+      VALUES (?, ?, 'initial-race-scope', ?, 'race-token-hash', ?, ?)`)
+      .bind(binding.readingResultId, user.id, JSON.stringify(binding), Date.now() + 60000, Date.now()).run();
+    const prepare = db.prepare.bind(db);
+    let raced = false;
+    db.prepare = sql => {
+      const statement = prepare(sql);
+      if (!sql.startsWith('INSERT INTO journal_visual_state') || !sql.includes('visual_initial_admissions a')) return statement;
+      const bind = statement.bind.bind(statement);
+      statement.bind = (...params) => {
+        const bound = bind(...params), run = bound.run.bind(bound);
+        bound.run = async () => {
+          raced = true;
+          if (race === 'admission deletion') await prepare('DELETE FROM visual_initial_admissions WHERE reading_result_id = ?').bind(binding.readingResultId).run();
+          else if (race === 'admission expiry') await prepare('UPDATE visual_initial_admissions SET expires_at = 1 WHERE reading_result_id = ?').bind(binding.readingResultId).run();
+          else if (race === 'binding replacement') await prepare('UPDATE visual_initial_admissions SET binding_json = ? WHERE reading_result_id = ?')
+            .bind(JSON.stringify({ ...binding, contextHash: '0'.repeat(64) }), binding.readingResultId).run();
+          else if (race === 'token replacement') await prepare("UPDATE visual_initial_admissions SET token_hash = 'changed-token-hash' WHERE reading_result_id = ?").bind(binding.readingResultId).run();
+          else await prepare('UPDATE journal_entries SET question = ? WHERE id = ?').bind('New question during hashing', saved.body.entry.id).run();
+          return run();
+        };
+        return bound;
+      };
+      return statement;
+    };
+    const outcome = await attachJournalVisualResult({ db, userId: user.id, entryId: saved.body.entry.id, readingResultId: binding.readingResultId });
+    assert.equal(raced, true);
+    assert.equal(outcome.attached, false);
+    assert.equal(outcome.reason, 'source-conflict');
+    assert.equal(db.rows('SELECT reading_result_id FROM journal_visual_state')[0].reading_result_id, null);
+    assert.equal(db.rows('SELECT * FROM journal_visual_links').length, 0);
+  });
+}
+
+test('deleting one shared entry preserves the surviving source, initial admission and consumed reservation', async t => {
+  const { db, binding } = await setup(t);
+  await observe(db, binding);
+  const first = await save(db, binding.readingResultId);
+  const second = await save(db, binding.readingResultId);
+  const now = Date.now();
+  await db.prepare(`INSERT INTO visual_initial_admissions
+    (reading_result_id, user_id, aggregate_scope, binding_json, token_hash, expires_at, created_at)
+    VALUES (?, ?, 'initial-shared-scope', ?, 'shared-token-hash', ?, ?)`)
+    .bind(binding.readingResultId, user.id, JSON.stringify(binding), now + 60000, now).run();
+  await db.prepare(`INSERT INTO visual_initial_reservations
+    (dispatch_id, reading_result_id, aggregate_scope, reserved_cost_microusd, reserved_at)
+    VALUES ('shared-dispatch', ?, 'initial-shared-scope', 175, ?)`)
+    .bind(binding.readingResultId, now).run();
+  const before = db.rows('SELECT * FROM visual_initial_admissions')[0];
+  const deleted = await deleteJournalVisualLink({ db, userId: user.id, entryId: first.body.entry.id, deleteEntry: true });
+  assert.equal(deleted.cleanedResult, false);
+  assert.deepEqual(db.rows('SELECT * FROM visual_initial_admissions')[0], before);
+  assert.equal(db.rows('SELECT reading_result_id FROM visual_initial_reservations')[0].reading_result_id, binding.readingResultId);
+  assert.equal((await loadJournalVisualResult({ db, userId: user.id, entryId: second.body.entry.id })).finalRaw, source.raw);
+  await deleteJournalVisualLink({ db, userId: user.id, entryId: second.body.entry.id, deleteEntry: true });
+  assert.equal(db.rows('SELECT * FROM visual_initial_admissions').length, 0);
+  assert.equal(db.rows('SELECT reading_result_id FROM visual_initial_reservations')[0].reading_result_id, null);
+});
+
+for (const deletion of ['entry', 'account']) test(`${deletion} deletion fails closed on a partial initial-admission schema`, async t => {
+  const f = await sensitiveReplayFixture(t);
+  await f.db.prepare('DROP TABLE visual_initial_reservations').run();
+  await assert.rejects(deletion === 'entry'
+    ? deleteJournalVisualLink({ db: f.db, userId: user.id, entryId: f.entryId, deleteEntry: true })
+    : revokeUserVisualResults({ env: { DB: f.db }, userId: user.id }), /Incomplete initial visual admission schema/);
+  assert.equal(f.db.rows('SELECT id FROM journal_entries')[0].id, f.entryId);
+  assert.deepEqual(f.db.rows("SELECT * FROM visual_retry_claims WHERE id = 'private-claim'")[0], f.claim);
+});
 
 test('trusted registration retains completion before save and restores full ledger', async t => {
   const { db, binding } = await setup(t);
@@ -192,10 +636,10 @@ test('failed owned cloud result retains validated cached cues independently of s
   assert.equal(saved.body.visualState.retryStatus, 'unavailable');
   assert.equal(saved.body.visualState.visualSnapshot.cueLedger.cues[0].id, 'vc:fixture');
   await db.prepare('DELETE FROM journal_visual_links WHERE journal_entry_id = ?').bind(saved.body.entry.id).run();
-  const restored = await visualResults.loadJournalVisualState({ db, userId: user.id, entryId: saved.body.entry.id });
+  const restored = await visualResults.loadJournalVisualState({ env: replayEnv(db), db, userId: user.id, entryId: saved.body.entry.id });
   assert.equal(restored.visualSnapshot.cueLedger.raw, source.raw);
   assert.equal(restored.attachmentStatus, 'failed');
-  assert.equal(await visualResults.loadJournalVisualState({ db, userId: 'user-2', entryId: saved.body.entry.id }), null);
+  assert.equal(await visualResults.loadJournalVisualState({ env: replayEnv(db), db, userId: 'user-2', entryId: saved.body.entry.id }), null);
 });
 
 test('state commits reject same-timestamp Overall edits during hashing and retain cached snapshots', async t => {
@@ -222,7 +666,7 @@ test('state commits reject same-timestamp Overall edits during hashing and retai
   };
   const outcome = await visualResults.persistJournalVisualState({ db, userId: user.id, entryId: saved.body.entry.id, sourceFingerprint: original.sourceFingerprint, attachmentStatus: 'failed', reason: 'attachment-error' });
   assert.equal(outcome.ok, false);
-  const current = await visualResults.loadJournalVisualState({ db, userId: user.id, entryId: saved.body.entry.id });
+  const current = await visualResults.loadJournalVisualState({ env: replayEnv(db), db, userId: user.id, entryId: saved.body.entry.id });
   assert.equal(current.attachmentStatus, 'missing');
   assert.equal(current.reason, 'source-changed');
   assert.equal(current.visualSnapshot.cueLedger.cues[0].id, 'vc:fixture');
@@ -298,7 +742,7 @@ test('foreign unverified fallback cannot be persisted as cloud authority and pub
   const snapshot = { readingResultId: foreign.readingResultId, binding: foreign, cueLedger: await populated(foreign) };
   assert.equal((await visualResults.persistJournalVisualState({ db, userId: user.id, entryId: saved.body.entry.id, attachmentStatus: 'failed', validatedSnapshot: snapshot })).ok, false);
   await visualResults.persistJournalVisualState({ db, userId: user.id, entryId: saved.body.entry.id, attachmentStatus: 'failed', reason: 'private-token-in-error' });
-  const state = await visualResults.loadJournalVisualState({ db, userId: user.id, entryId: saved.body.entry.id });
+  const state = await visualResults.loadJournalVisualState({ env: replayEnv(db), db, userId: user.id, entryId: saved.body.entry.id });
   assert.equal(state.reason, 'attachment-error');
   assert.equal(state.visualSnapshot, null);
   assert.deepEqual(Object.keys(state).sort(), ['attachmentStatus', 'retryStatus', 'sourceFingerprint', 'attemptId', 'stateVersion', 'reason', 'visualSnapshot'].sort());
@@ -354,7 +798,7 @@ for (const populatedDatabase of [false, true]) test(`migration 0037 upgrades ${p
   applyD1Migration(db, '0037_reading_visual_retry_state.sql');
   assert.deepEqual(db.rows('SELECT * FROM journal_entries'), before);
   for (const id of ids) {
-    const state = await visualResults.loadJournalVisualState({ db, userId: user.id, entryId: id });
+    const state = await visualResults.loadJournalVisualState({ env: replayEnv(db), db, userId: user.id, entryId: id });
     assert.equal(state.attachmentStatus, id === 'legacy-unlinked' ? 'missing' : id === 'legacy-failed' ? 'failed' : 'attached');
     if (id !== 'legacy-unlinked') assert.equal(state.visualSnapshot.cueLedger.cues[0].id, 'vc:fixture');
   }
@@ -378,7 +822,7 @@ test('list state loading stays scoped and bounded across the D1 parameter limit'
     stmt.bind = (...params) => { assert.ok(params.length <= 100, 'D1 bound parameter limit'); return bind(...params); };
     return stmt;
   };
-  const states = await visualResults.loadJournalVisualStates({ db, userId: user.id, entryIds: [...ids, 'foreign-entry'] });
+  const states = await visualResults.loadJournalVisualStates({ env: replayEnv(db), db, userId: user.id, entryIds: [...ids, 'foreign-entry'] });
   assert.equal(states.get(ids[94]).attachmentStatus, 'missing');
   assert.ok(!states.get('foreign-entry'));
   assert.ok(queries <= 6, `list must batch database reads (observed ${queries})`);
@@ -410,7 +854,7 @@ test('pre-fix Overall binding stays cached with its original receipts and is nev
   await commit(db, binding, ledger);
   const saved = await save(db, null, { reflections: { Overall: 'Original whole-reading note' } });
   await db.prepare(`INSERT INTO journal_visual_links (journal_entry_id, reading_result_id, user_id, created_at, expected_raw_hash, source_revision) VALUES (?, ?, ?, 1, ?, 0)`).bind(saved.body.entry.id, binding.readingResultId, user.id, await hashVisualCueText(source.raw)).run();
-  const state = await visualResults.loadJournalVisualState({ db, userId: user.id, entryId: saved.body.entry.id });
+  const state = await visualResults.loadJournalVisualState({ env: replayEnv(db), db, userId: user.id, entryId: saved.body.entry.id });
   assert.equal(state.attachmentStatus, 'missing');
   assert.equal(state.visualSnapshot.binding.contextHash, contextHash);
   assert.deepEqual(state.visualSnapshot.cueLedger.receipts, ledger.receipts);
@@ -490,7 +934,7 @@ test('attachment reports rejection when its final durable state write loses a so
   };
   const attached = await attachJournalVisualResult({ db, userId: user.id, entryId: saved.body.entry.id, readingResultId: binding.readingResultId });
   assert.equal(attached.attached, false);
-  assert.equal((await visualResults.loadJournalVisualState({ db, userId: user.id, entryId: saved.body.entry.id })).attachmentStatus, 'missing');
+  assert.equal((await visualResults.loadJournalVisualState({ env: replayEnv(db), db, userId: user.id, entryId: saved.body.entry.id })).attachmentStatus, 'missing');
 });
 
 test('legacy Overall attachment rejection persists failed reason while preserving historical binding and receipts', async t => {
@@ -508,7 +952,7 @@ test('legacy Overall attachment rejection persists failed reason while preservin
   await db.prepare('DELETE FROM journal_visual_state WHERE journal_entry_id = ?').bind(id).run();
   await db.prepare(`INSERT INTO journal_visual_links (journal_entry_id, reading_result_id, user_id, created_at, expected_raw_hash) VALUES (?, ?, ?, 1, ?)`).bind(id, binding.readingResultId, user.id, await hashVisualCueText(source.raw)).run();
   assert.equal((await attachJournalVisualResult({ db, userId: user.id, entryId: id, readingResultId: binding.readingResultId })).reason, 'fingerprint-mismatch');
-  const restored = await visualResults.loadJournalVisualState({ db, userId: user.id, entryId: id });
+  const restored = await visualResults.loadJournalVisualState({ env: replayEnv(db), db, userId: user.id, entryId: id });
   assert.equal(restored.attachmentStatus, 'failed');
   assert.equal(restored.reason, 'fingerprint-mismatch');
   assert.equal(restored.retryStatus, 'unavailable');

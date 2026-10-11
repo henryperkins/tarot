@@ -2,30 +2,27 @@ import { fingerprintVisualSource, normalizeVisualSource } from '../../shared/rea
 import { hashVisualCueText, sameVisualCueBinding } from '../../shared/contracts/visualCueBatches.js';
 import { createVisualCueLedger } from '../../shared/reading/visualCueLedger.js';
 import { getVisualCueReadiness } from './visualCueProvider.js';
-import { attachJournalVisualResult, fingerprintSavedVisualSource, loadJournalVisualState, loadOwnedJournalVisualSource, publicVisualLedger } from './readingVisualResults.js';
+import { attachJournalVisualResult, fingerprintSavedVisualSource, loadJournalVisualState, loadOwnedJournalVisualSource, loadVisualResultState, publicVisualLedger } from './readingVisualResults.js';
 import { getVisualJobStub } from './readingVisualJobs.js';
+import { getVisualReplayLimits, getVisualReplayReadiness } from './readingVisualReplayReadiness.js';
+
+export { getVisualReplayLimits } from './readingVisualReplayReadiness.js';
 
 const admissions = new WeakSet();
+const admissionEnvironments = new WeakMap();
 const parse = value => { try { return JSON.parse(value); } catch { return null; } };
 const changed = result => Number(result?.meta?.changes || 0) > 0;
 export const REPLAY_TTL_MS = 24 * 60 * 60 * 1000;
 
-/** Limits are explicitly configured, dedicated to replay, and never tier guesses. */
-export function getVisualReplayLimits(env) {
-  const limits = parse(env?.VISUAL_REPLAY_LIMITS);
-  if (!limits || !['rateLimit', 'windowMs', 'totalLimit'].every(key => Number.isSafeInteger(limits[key]) && limits[key] > 0)) return null;
-  return limits;
-}
-
 /** Internal only. Callers pass an identity already authenticated by the server. */
 export async function createVisualReplayAdmission({ env, userId = null, request = null }) {
-  if (!env?.DB || !getVisualReplayLimits(env)) return null;
+  if (!env?.DB) return null;
   if (userId) {
     const user = await env.DB.prepare(`SELECT id FROM users WHERE id = ? AND is_active = 1
       AND NOT EXISTS (SELECT 1 FROM visual_owner_revocations WHERE user_id = users.id)`).bind(userId).first();
     if (!user) return null;
     const value = { userId, scope: `user:${userId}`, aggregateScope: `user:${userId}`, db: env.DB };
-    admissions.add(value); return value;
+    admissions.add(value); admissionEnvironments.set(value, env); return value;
   }
   // Cloudflare's edge identity is usable only on an actual edge request. Local
   // fixtures may supply an explicit trusted resolver; no forwarded header fallback.
@@ -39,13 +36,16 @@ export async function createVisualReplayAdmission({ env, userId = null, request 
     AND aggregate_scope = ? AND expires_at > ?`).bind(await hashVisualCueText(cookie), aggregateScope, Date.now()).first() : null;
   let issuedToken = null;
   if (!principal) {
+    // Missing configuration may read an existing trusted scope, but cannot
+    // create a new guest identity or claim while replay is unavailable.
+    if (!getVisualReplayReadiness(env)) return null;
     issuedToken = crypto.randomUUID();
     principal = { principal_id: crypto.randomUUID(), expires_at: Date.now() + REPLAY_TTL_MS };
     await env.DB.prepare('INSERT INTO visual_guest_principals VALUES (?, ?, ?, ?)')
       .bind(await hashVisualCueText(issuedToken), principal.principal_id, aggregateScope, principal.expires_at).run();
   }
   const value = { userId: null, scope: `guest:${principal.principal_id}`, aggregateScope, db: env.DB, issuedToken };
-  admissions.add(value); return value;
+  admissions.add(value); admissionEnvironments.set(value, env); return value;
 }
 
 // This predicate is reused at claim, init, reservation, validation and final
@@ -75,7 +75,8 @@ export async function loadActiveVisualReplay({ db, claimId, attemptId, expectedC
 /** Atomic uniqueness plus actual-parent/version CAS. No call is reserved here. */
 export async function claimVisualRetry({ db, admissionScope, sourceFingerprint, entryId = null, expectedStateVersion,
   admission, owned = null, source, binding, priorState = null }) {
-  if (!db || !admissions.has(admission) || admission.db !== db || admission.scope !== admissionScope) return null;
+  if (!db || !admissions.has(admission) || admission.db !== db || admission.scope !== admissionScope
+    || !getVisualReplayReadiness(admissionEnvironments.get(admission))) return null;
   const old = await db.prepare('SELECT * FROM visual_retry_claims WHERE admission_scope = ? AND source_fingerprint = ?')
     .bind(admissionScope, sourceFingerprint).first();
   if (old) return old;
@@ -121,9 +122,10 @@ export async function claimVisualRetry({ db, admissionScope, sourceFingerprint, 
 }
 
 function localState(claim, fingerprint, snapshot = null) {
-  return { attachmentStatus: claim?.retry_status === 'complete' ? 'attached' : claim?.retry_status === 'exhausted' ? 'failed' : claim ? 'pending' : 'missing',
+  return { attachmentStatus: claim?.retry_status === 'complete' ? 'attached' : ['exhausted', 'revoked'].includes(claim?.retry_status) ? 'failed' : claim ? 'pending' : 'missing',
     retryStatus: claim?.retry_status || 'unavailable', sourceFingerprint: fingerprint, attemptId: claim?.attempt_id || null,
-    stateVersion: claim?.state_version || 0, reason: claim?.retry_status === 'exhausted' ? 'annotation-failed' : null, visualSnapshot: snapshot };
+    stateVersion: claim?.state_version || 0, reason: claim?.retry_status === 'exhausted' ? 'annotation-failed'
+      : claim?.retry_status === 'revoked' ? 'revoked' : null, visualSnapshot: snapshot };
 }
 function resumeHandle(claim) {
   if (!claim || ['revoked', 'exhausted'].includes(claim.retry_status) || claim.expires_at <= Date.now()) return null;
@@ -131,12 +133,46 @@ function resumeHandle(claim) {
     visualJobToken: claim.visual_token, visualBinding: parse(claim.binding_json), expiresAt: claim.expires_at };
 }
 
+/** Existing local state is read only through the authenticated same-source
+ * claim. Its private ledger is projected before returning any accepted cues. */
+async function readLocalReplaySnapshot({ db, claim, source }) {
+  const durable = await loadVisualResultState({ db, userId: claim.user_id, readingResultId: claim.reading_result_id });
+  if (!durable || durable.activeAttemptId !== claim.attempt_id || durable.activeClaimVersion !== claim.state_version
+    || durable.observedRaw !== source.raw || !sameVisualCueBinding(durable.binding, parse(claim.binding_json))) return null;
+  const ledger = publicVisualLedger(durable.cueLedger);
+  if (!ledger) return null;
+  return { readingResultId: claim.reading_result_id, sourceRevision: durable.sourceRevision,
+    ledgerRevision: durable.ledgerRevision, status: durable.status, finalRaw: durable.finalRaw,
+    binding: durable.binding, cues: ledger.cues, introductions: ledger.introductions, cueLedger: ledger, snapshot: ledger };
+}
+
 async function retrySource({ env, admission, source, owned = null, state = null }) {
   const normalized = normalizeVisualSource(source);
   const fingerprint = await fingerprintSavedVisualSource({ source, ...normalized });
-  const unavailable = () => ({ state: state || localState(null, fingerprint), resumeHandle: null });
-  if (!admissions.has(admission) || admission.db !== env?.DB || !getVisualReplayLimits(env) || !env.READING_VISUAL_JOBS
-    || !getVisualCueReadiness(env).ready) return unavailable();
+  const unavailable = () => ({ state: state && ['pending', 'complete', 'exhausted', 'revoked'].includes(state.retryStatus)
+    ? state : { ...(state || localState(null, fingerprint)), retryStatus: 'unavailable', reason: 'configuration-unavailable' },
+  resumeHandle: null });
+  const trusted = admissions.has(admission) && admission.db === env?.DB;
+  if (!trusted) return unavailable();
+  if (!getVisualReplayReadiness(env)) {
+    const claim = !owned ? await env.DB.prepare(`SELECT * FROM visual_retry_claims
+      WHERE admission_scope = ? AND source_fingerprint = ? AND user_id IS ?`)
+      .bind(admission.scope, fingerprint, admission.userId).first() : null;
+    if (!claim) return unavailable();
+    const snapshot = await readLocalReplaySnapshot({ db: env.DB, claim, source });
+    const strong = ['pending', 'complete', 'exhausted', 'revoked'].includes(claim.retry_status);
+    const existingState = localState(claim, fingerprint, snapshot);
+    // A reserved existing job can be observed without preparing, reserving or
+    // initializing any work. Terminal work needs only its accepted snapshot.
+    const active = claim.retry_status === 'pending'
+      ? await loadActiveVisualReplay({ db: env.DB, claimId: claim.id, attemptId: claim.attempt_id, expectedClaimVersion: claim.state_version }) : null;
+    if (claim.retry_status === 'pending' && !active) return {
+      state: { ...existingState, attachmentStatus: 'failed', retryStatus: 'revoked', reason: 'expired' }, resumeHandle: null };
+    const observable = active && claim.dispatch_status === 'reserved' && env.READING_VISUAL_JOBS;
+    return { state: strong ? { ...existingState, ...(active && !observable ? { reason: 'configuration-unavailable' } : {}) }
+      : { ...existingState, retryStatus: 'unavailable', reason: 'configuration-unavailable' },
+    resumeHandle: observable ? resumeHandle(claim) : null };
+  }
   const hashes = await fingerprintVisualSource(source);
   const oldBinding = state?.visualSnapshot?.binding;
   const matching = oldBinding && oldBinding.spreadHash === hashes.spreadHash && oldBinding.contextHash === hashes.contextHash
@@ -165,21 +201,24 @@ async function retrySource({ env, admission, source, owned = null, state = null 
     catch { await deferVisualReplay({ db: env.DB, claim, available: true }); }
   }
   const current = await env.DB.prepare('SELECT * FROM visual_retry_claims WHERE id = ?').bind(claim.id).first();
-  return { state: owned ? await loadJournalVisualState({ db: env.DB, userId: admission.userId, entryId: owned.row.id }) : localState(current, fingerprint),
+  return { state: owned ? await loadJournalVisualState({ env, db: env.DB, userId: admission.userId, entryId: owned.row.id }) : localState(current, fingerprint),
     resumeHandle: resumeHandle(current) };
 }
 
 export async function retryJournalVisuals({ env, userId, entryId }) {
   const owned = await loadOwnedJournalVisualSource({ db: env?.DB, userId, entryId });
   if (!owned) return { state: null, resumeHandle: null };
-  let state = await loadJournalVisualState({ db: env.DB, userId, entryId });
+  let state = await loadJournalVisualState({ env, db: env.DB, userId, entryId });
   if (state?.retryStatus === 'complete') return { state, resumeHandle: null };
+  // Configuration refusal is a projection, not an attachment repair. Preserve
+  // the durable original reason, version, snapshot and link rows unchanged.
+  if (!getVisualReplayReadiness(env)) return { state, resumeHandle: null };
   // Same-owner current registration may need only a link repair, never a call.
   const registeredId = !state?.attemptId ? state?.visualSnapshot?.readingResultId
     || (await env.DB.prepare('SELECT reading_result_id FROM journal_visual_state WHERE journal_entry_id = ? AND user_id = ?').bind(entryId, userId).first())?.reading_result_id : null;
   if (registeredId) {
     const repaired = await attachJournalVisualResult({ db: env.DB, userId, entryId, readingResultId: registeredId });
-    state = await loadJournalVisualState({ db: env.DB, userId, entryId });
+    state = await loadJournalVisualState({ env, db: env.DB, userId, entryId });
     if (repaired.attached && (state?.retryStatus === 'complete' || state?.attachmentStatus === 'pending')) return { state, resumeHandle: null };
   }
   const admission = await createVisualReplayAdmission({ env, userId });

@@ -172,7 +172,7 @@ export async function onRequestGet(context) {
       console.warn(`[${requestId}] [journal] Visual snapshot unavailable`);
     }
     try {
-      const visualState = await loadJournalVisualState({ db: env.DB, userId: user.id, entryId: entry.id });
+      const visualState = await loadJournalVisualState({ env, db: env.DB, userId: user.id, entryId: entry.id });
       if (visualState) parsedEntry.visualState = visualState;
     } catch {
       console.warn(`[${requestId}] [journal] Visual state unavailable`);

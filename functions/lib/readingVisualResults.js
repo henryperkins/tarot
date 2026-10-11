@@ -1,6 +1,7 @@
 import { canonicalVisualCueJSON, hashVisualCueText, sameVisualCueBinding, visualCueBindingSchema } from '../../shared/contracts/visualCueBatches.js';
 import { createVisualCueLedger } from '../../shared/reading/visualCueLedger.js';
 import { fingerprintVisualSource, normalizeVisualSource } from '../../shared/reading/visualSourceIdentity.js';
+import { projectVisualReplayReadiness } from './readingVisualReplayReadiness.js';
 
 export const computeSourceFingerprint = fingerprintVisualSource;
 const nowSeconds = () => Math.floor(Date.now() / 1000);
@@ -170,7 +171,7 @@ const attachmentStatusFor = visual => visual?.status === 'complete' ? 'attached'
 /** Trusted internal state write. A client snapshot is never accepted on its own. */
 export async function persistJournalVisualState({ db, userId, entryId, sourceFingerprint, attachmentStatus,
   reason = null, validatedSnapshot = null, readingResultId = null, retryStatus = 'unavailable',
-  expectedStateVersion, expectedClaimVersion, attemptId = null, claimId = null }) {
+  expectedStateVersion, expectedClaimVersion, attemptId = null, claimId = null, initialAdmission = null }) {
   if (!ATTACHMENT_STATUSES.has(attachmentStatus) || !RETRY_STATUSES.has(retryStatus)) return { ok: false, reason: 'invalid-state' };
   const owned = await loadOwnedJournalVisualSource({ db, userId, entryId });
   if (!owned) return { ok: false, reason: 'entry-not-found' };
@@ -203,11 +204,20 @@ export async function persistJournalVisualState({ db, userId, entryId, sourceFin
       || (expectedClaimVersion !== undefined && expectedClaimVersion !== claim.state_version))) return { ok: false, reason: 'stale-state' };
   const version = prior?.state_version || 0;
   const now = nowSeconds();
+  // A pending registration may supply only a trusted result hint. Recheck the
+  // exact admission at the final saved-source CAS so cleanup or expiry cannot
+  // restore that hint after asynchronous hashing.
+  const admissionFence = initialAdmission ? `AND EXISTS (SELECT 1 FROM visual_initial_admissions a
+    WHERE a.reading_result_id = ? AND a.user_id = ? AND a.binding_json = ? AND a.token_hash = ? AND a.expires_at > ?)
+    AND NOT EXISTS (SELECT 1 FROM visual_result_revocations WHERE reading_result_id = ?)` : '';
+  const admissionParams = initialAdmission ? [readingResultId, userId, initialAdmission.binding_json,
+    initialAdmission.token_hash, Date.now(), readingResultId] : [];
   const result = await db.prepare(`INSERT INTO journal_visual_state
     (journal_entry_id, user_id, source_fingerprint, reading_result_id, attachment_status, retry_status, reason,
       validated_snapshot_json, state_version, claim_id, attempt_id, created_at, updated_at)
     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     WHERE EXISTS (SELECT 1 FROM journal_entries j WHERE ${SOURCE_MATCH})
+      ${admissionFence}
       AND (? IS NULL OR EXISTS (SELECT 1 FROM visual_retry_claims c WHERE c.id = ? AND c.user_id = ?
         AND c.journal_entry_id = ? AND c.source_fingerprint = ? AND c.attempt_id IS ?
         AND c.state_version = ? AND c.retry_status != 'revoked' AND c.dispatch_status != 'revoked'))
@@ -221,62 +231,81 @@ export async function persistJournalVisualState({ db, userId, entryId, sourceFin
       AND journal_visual_state.attempt_id IS ? AND journal_visual_state.retry_status != 'revoked'`)
     .bind(entryId, userId, fingerprint, readingResultId || prior?.reading_result_id || null, attachmentStatus, retryStatus,
       publicReason(reason), snapshot ? JSON.stringify(snapshot) : null, version + 1, effectiveClaimId,
-      attemptId, now, now, ...sourceParams(owned.row), effectiveClaimId, effectiveClaimId, userId, entryId, fingerprint, attemptId,
+      attemptId, now, now, ...sourceParams(owned.row), ...admissionParams, effectiveClaimId, effectiveClaimId, userId, entryId, fingerprint, attemptId,
       expectedClaimVersion ?? claim?.state_version ?? 0, version, attemptId).run();
   return changed(result) ? { ok: true } : { ok: false, reason: 'source-conflict' };
 }
 
 /** Public field projection only: no capability or transport credentials. */
-async function publicJournalVisualState({ owned, state, linked, registration }) {
+async function publicJournalVisualState({ env, owned, state, linked, registration, initialAdmission }) {
   const hashes = await fingerprintVisualSource(owned.source);
   const fingerprint = await hashVisualCueText(canonicalVisualCueJSON({ ...hashes,
     artworkEdition: owned.artworkEdition, catalogVersion: owned.catalogVersion }));
   // Old linked snapshots keep their original binding and are never silently rebound.
   const historical = publicSnapshot(parse(state?.validated_snapshot_json)) || linked;
-  if (state && state.source_fingerprint !== fingerprint) return {
+  if (state && state.source_fingerprint !== fingerprint) return projectVisualReplayReadiness({
     attachmentStatus: 'missing', retryStatus: 'unavailable', sourceFingerprint: fingerprint,
     attemptId: null, stateVersion: state.state_version, reason: 'source-changed', visualSnapshot: historical
-  };
+  }, env);
   const currentLinked = linked && linked.binding.spreadHash === hashes.spreadHash && linked.binding.contextHash === hashes.contextHash
     && linked.binding.artworkEdition === owned.artworkEdition && linked.binding.catalogVersion === owned.catalogVersion ? linked : null;
+  const initialBinding = parse(initialAdmission?.binding_json);
+  const pendingInitial = !registration && state?.attachment_status === 'pending'
+    && initialAdmission?.user_id === owned.row.user_id && initialAdmission.reading_result_id === state.reading_result_id
+    && visualCueBindingSchema.safeParse(initialBinding).success && initialBinding.readingResultId === state.reading_result_id
+    && initialBinding.spreadHash === hashes.spreadHash && initialBinding.contextHash === hashes.contextHash
+    && initialBinding.artworkEdition === owned.artworkEdition && initialBinding.catalogVersion === owned.catalogVersion;
+  // Before registration, the trusted admission is the only transport deadline.
+  // It cannot override a registered result or certify any cached cue data.
+  const transport = registration || (pendingInitial ? { status: 'pending', expires_at: initialAdmission.expires_at } : null);
   const active = state?.attempt_id || ['exhausted', 'revoked'].includes(state?.retry_status);
-  const attachmentStatus = !active && originalTransportExpired(registration) ? 'expired'
+  const attachmentStatus = !active && originalTransportExpired(transport) ? 'expired'
     : !active && currentLinked ? attachmentStatusFor(currentLinked) : state?.attachment_status || 'missing';
-  return { attachmentStatus, retryStatus: !active && attachmentStatus === 'expired' ? 'available'
+  return projectVisualReplayReadiness({ attachmentStatus, retryStatus: !active && attachmentStatus === 'expired' ? 'available'
     : attachmentStatus === 'attached' && !active ? 'complete' : state?.retry_status || 'unavailable',
     sourceFingerprint: fingerprint, attemptId: state?.attempt_id || null, stateVersion: state?.state_version || 0,
     reason: publicReason(!active && attachmentStatus === 'expired' ? 'expired' : state?.reason || (attachmentStatus === 'missing' ? 'missing-result' : attachmentStatus === 'failed' ? 'annotation-failed' : null)),
-    visualSnapshot: !active && currentLinked ? currentLinked : historical || null };
+    visualSnapshot: !active && currentLinked ? currentLinked : historical || null }, env);
 }
 
-export async function loadJournalVisualState({ db, userId, entryId }) {
+export async function loadJournalVisualState({ env, db, userId, entryId }) {
   const owned = await loadOwnedJournalVisualSource({ db, userId, entryId });
   if (!owned) return null;
+  const initial = await initialVisualSchema(db);
   const state = await db.prepare('SELECT * FROM journal_visual_state WHERE journal_entry_id = ? AND user_id = ?').bind(entryId, userId).first();
   const linked = await loadJournalVisualResult({ db, userId, entryId });
-  const registration = !linked && state?.reading_result_id
+  const registration = state?.reading_result_id && (!linked || state.attachment_status === 'pending')
     ? await db.prepare('SELECT status, expires_at FROM reading_visual_results WHERE id = ? AND user_id = ?')
       .bind(state.reading_result_id, userId).first() : null;
-  return publicJournalVisualState({ owned, state, linked, registration });
+  const initialAdmission = initial && !registration && state?.attachment_status === 'pending' && state?.reading_result_id
+    ? await db.prepare('SELECT reading_result_id, user_id, binding_json, expires_at FROM visual_initial_admissions WHERE reading_result_id = ? AND user_id = ?')
+      .bind(state.reading_result_id, userId).first() : null;
+  return publicJournalVisualState({ env, owned, state, linked, registration, initialAdmission });
 }
 
-export async function loadJournalVisualStates({ db, userId, entryIds, visualResults }) {
+export async function loadJournalVisualStates({ env, db, userId, entryIds, visualResults }) {
   if (!db || !userId || !entryIds?.length) return new Map();
+  const initial = await initialVisualSchema(db);
   const linked = visualResults || await loadJournalVisualResults({ db, userId, entryIds });
   const entries = [];
   for (let offset = 0; offset < entryIds.length; offset += 90) {
     const chunk = entryIds.slice(offset, offset + 90);
     const { results } = await db.prepare(`SELECT j.*, s.source_fingerprint, s.attachment_status, s.retry_status,
-      s.reason, s.validated_snapshot_json, s.state_version, s.attempt_id,
-      r.status AS registered_visual_status, r.expires_at AS registered_visual_expires_at FROM journal_entries j
+      s.reason, s.validated_snapshot_json, s.state_version, s.attempt_id, s.reading_result_id,
+      r.status AS registered_visual_status, r.expires_at AS registered_visual_expires_at
+      ${initial ? ', a.reading_result_id AS initial_admission_result_id, a.binding_json AS initial_admission_binding, a.expires_at AS initial_admission_expires_at' : ''}
+      FROM journal_entries j
       JOIN users u ON u.id = j.user_id LEFT JOIN journal_visual_state s ON s.journal_entry_id = j.id AND s.user_id = j.user_id
       LEFT JOIN reading_visual_results r ON r.id = s.reading_result_id AND r.user_id = j.user_id
+      ${initial ? 'LEFT JOIN visual_initial_admissions a ON a.reading_result_id = s.reading_result_id AND a.user_id = j.user_id AND r.id IS NULL' : ''}
       WHERE j.user_id = ? AND u.is_active = 1 AND j.id IN (${chunk.map(() => '?').join(',')})
         AND NOT EXISTS (SELECT 1 FROM visual_owner_revocations v WHERE v.user_id = j.user_id)`)
       .bind(userId, ...chunk).all();
     entries.push(...await Promise.all(results.map(async row => [row.id, await publicJournalVisualState({
-      owned: ownedSource(row), state: row.source_fingerprint ? row : null, linked: linked.get(row.id),
-      registration: { status: row.registered_visual_status, expires_at: row.registered_visual_expires_at }
+      env, owned: ownedSource(row), state: row.source_fingerprint ? row : null, linked: linked.get(row.id),
+      registration: row.registered_visual_status == null ? null : { status: row.registered_visual_status, expires_at: row.registered_visual_expires_at },
+      initialAdmission: row.initial_admission_result_id ? { reading_result_id: row.initial_admission_result_id, user_id: row.user_id,
+        binding_json: row.initial_admission_binding, expires_at: row.initial_admission_expires_at } : null
     })])));
   }
   return new Map(entries);
@@ -304,7 +333,22 @@ export async function attachJournalVisualResult({ db, userId, entryId, readingRe
       readingResultId: validatedSnapshot ? readingResultId : null, expectedStateVersion: state?.state_version || 0 });
     return { attached: false, reason };
   };
-  if (!row) return fail('unregistered-result');
+  if (!row) {
+    if (!await initialVisualSchema(db)) return fail('unregistered-result');
+    const admission = await db.prepare(`SELECT * FROM visual_initial_admissions WHERE reading_result_id = ? AND user_id = ?
+      AND expires_at > ? AND NOT EXISTS (SELECT 1 FROM visual_owner_revocations WHERE user_id = ?)
+      AND NOT EXISTS (SELECT 1 FROM visual_result_revocations WHERE reading_result_id = ?)`)
+      .bind(readingResultId, userId, Date.now(), userId, readingResultId).first();
+    const trustedBinding = parse(admission?.binding_json);
+    if (!visualCueBindingSchema.safeParse(trustedBinding).success || trustedBinding.readingResultId !== readingResultId
+        || trustedBinding.spreadHash !== fingerprint.spreadHash || trustedBinding.contextHash !== fingerprint.contextHash
+        || trustedBinding.artworkEdition !== owned.artworkEdition || trustedBinding.catalogVersion !== owned.catalogVersion) {
+      return fail('unregistered-result');
+    }
+    const persisted = await persistJournalVisualState({ db, userId, entryId, sourceFingerprint: fullFingerprint,
+      attachmentStatus: 'pending', readingResultId, expectedStateVersion: state?.state_version || 0, initialAdmission: admission });
+    return { attached: false, status: persisted.ok ? 'pending' : undefined, reason: persisted.ok ? 'initialization-pending' : persisted.reason };
+  }
   if (row.user_id !== userId) return fail('ownership-mismatch');
   const binding = parse(row.binding_json);
   if (!binding || binding.spreadHash !== fingerprint.spreadHash || binding.contextHash !== fingerprint.contextHash
@@ -459,44 +503,73 @@ async function revokeVisualJob(env, readingResultId) {
   if (!response.ok && response.status !== 404) throw new Error('Unable to revoke visual result');
 }
 
-/** Revoke claims atomically before slow transport cleanup. Parent deletion cannot reset a claim. */
+// Content and capabilities are erased, while source uniqueness and aggregate
+// reservation metadata remain so deletion cannot reset either allowance.
+const PURGE_RETRY_CLAIM = `retry_status = 'revoked', dispatch_status = 'revoked', state_version = state_version + 1,
+  source_json = NULL, saved_fields_json = NULL, binding_json = NULL, visual_token = NULL,
+  journal_entry_id = NULL, reading_result_id = NULL, attempt_id = NULL, visual_job_id = NULL,
+  journal_state_version = NULL, expires_at = NULL, updated_at = ?`;
+
+async function initialVisualSchema(db) {
+  const { results } = await db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'
+    AND name IN ('visual_initial_admissions', 'visual_initial_reservations')`).all();
+  if (results.length === 1) throw new Error('Incomplete initial visual admission schema');
+  return results.length === 2;
+}
+
+/** Capture cleanup identities and revoke/purge in one transaction before slow
+ * transport cancellation. Parent deletion cannot reset a source claim. */
 export async function deleteJournalVisualLink({ db, env, userId, entryId, deleteEntry = false }) {
   if (!db || !userId || !entryId) return { deletedLink: false, cleanedResult: false };
-  const link = await db.prepare('SELECT reading_result_id FROM journal_visual_links WHERE journal_entry_id = ? AND user_id = ?')
-    .bind(entryId, userId).first();
-  const state = await db.prepare('SELECT reading_result_id FROM journal_visual_state WHERE journal_entry_id = ? AND user_id = ?').bind(entryId, userId).first();
-  const { results: attempts } = await db.prepare(`SELECT visual_job_id, reading_result_id FROM visual_retry_claims
-    WHERE user_id = ? AND (journal_entry_id = ? OR id IN (SELECT claim_id FROM journal_visual_state WHERE journal_entry_id = ? AND user_id = ?))`)
-    .bind(userId, entryId, entryId, userId).all();
-  const statements = [db.prepare(`UPDATE visual_retry_claims SET retry_status = 'revoked', dispatch_status = 'revoked',
-      state_version = state_version + 1, updated_at = ? WHERE user_id = ? AND (journal_entry_id = ?
-        OR id IN (SELECT claim_id FROM journal_visual_state WHERE journal_entry_id = ? AND user_id = ?))`)
-      .bind(nowSeconds(), userId, entryId, entryId, userId),
-    db.prepare('DELETE FROM journal_visual_state WHERE journal_entry_id = ? AND user_id = ?').bind(entryId, userId),
-    db.prepare('DELETE FROM journal_visual_links WHERE journal_entry_id = ? AND user_id = ?').bind(entryId, userId)];
+  const initial = await initialVisualSchema(db);
+  const ownedClaims = `user_id = ? AND (journal_entry_id = ? OR id IN
+    (SELECT claim_id FROM journal_visual_state WHERE journal_entry_id = ? AND user_id = ?))`;
+  const claimParams = () => [userId, entryId, entryId, userId];
+  const candidates = `SELECT reading_result_id FROM journal_visual_links WHERE journal_entry_id = ? AND user_id = ?
+    UNION SELECT reading_result_id FROM journal_visual_state WHERE journal_entry_id = ? AND user_id = ?
+    UNION SELECT reading_result_id FROM visual_retry_claims WHERE ${ownedClaims}`;
+  const candidateParams = () => [entryId, userId, entryId, userId, ...claimParams()];
+  // Persisted public sidecar IDs are not ownership proof. Owned registration,
+  // trusted replay claims and server admissions are the only revocation sources.
+  const ownedIds = `SELECT id AS reading_result_id FROM reading_visual_results WHERE user_id = ? AND id IN (${candidates})
+    UNION SELECT reading_result_id FROM visual_retry_claims WHERE ${ownedClaims}
+    ${initial ? `UNION SELECT reading_result_id FROM visual_initial_admissions WHERE user_id = ? AND reading_result_id IN (${candidates})` : ''}`;
+  const ownedParams = () => [userId, ...candidateParams(), ...claimParams(), ...(initial ? [userId, ...candidateParams()] : [])];
+  const unreferenced = `NOT EXISTS (SELECT 1 FROM journal_visual_links l WHERE l.reading_result_id = owned.reading_result_id AND l.journal_entry_id != ?)
+    AND NOT EXISTS (SELECT 1 FROM journal_visual_state s WHERE s.reading_result_id = owned.reading_result_id AND s.journal_entry_id != ?)`;
+  const cleanupIds = `SELECT owned.reading_result_id FROM (${ownedIds}) owned WHERE owned.reading_result_id IS NOT NULL AND ${unreferenced}`;
+  const cleanupParams = () => [...ownedParams(), entryId, entryId];
+  const statements = [
+    db.prepare(`SELECT visual_job_id FROM visual_retry_claims WHERE ${ownedClaims}`).bind(...claimParams()),
+    db.prepare(cleanupIds).bind(...cleanupParams()),
+    db.prepare('SELECT reading_result_id FROM journal_visual_links WHERE journal_entry_id = ? AND user_id = ?').bind(entryId, userId),
+    db.prepare(`INSERT INTO visual_result_revocations (reading_result_id, user_id, revoked_at)
+      SELECT reading_result_id, ?, ? FROM (${cleanupIds}) WHERE 1
+      ON CONFLICT(reading_result_id) DO NOTHING`).bind(userId, nowSeconds(), ...cleanupParams())
+  ];
+  if (initial) statements.push(
+    db.prepare(`UPDATE visual_initial_reservations SET reading_result_id = NULL WHERE reading_result_id IN (${cleanupIds})`)
+      .bind(...cleanupParams()),
+    db.prepare(`DELETE FROM visual_initial_admissions WHERE user_id = ? AND reading_result_id IN (${cleanupIds})`)
+      .bind(userId, ...cleanupParams())
+  );
+  // The cleanup SELECT still sees the claims/state here. Only afterward are
+  // their private identities purged and the parent's references removed.
+  const resultDeleteIndex = statements.length;
+  statements.push(db.prepare(`DELETE FROM reading_visual_results WHERE user_id = ? AND id IN (${cleanupIds})`)
+    .bind(userId, ...cleanupParams()),
+  db.prepare(`UPDATE visual_retry_claims SET ${PURGE_RETRY_CLAIM} WHERE ${ownedClaims}`)
+    .bind(nowSeconds(), ...claimParams()),
+  db.prepare('DELETE FROM journal_visual_state WHERE journal_entry_id = ? AND user_id = ?').bind(entryId, userId));
+  const linkDeleteIndex = statements.length;
+  statements.push(db.prepare('DELETE FROM journal_visual_links WHERE journal_entry_id = ? AND user_id = ?').bind(entryId, userId));
   if (deleteEntry) statements.push(db.prepare('DELETE FROM journal_entries WHERE id = ? AND user_id = ?').bind(entryId, userId));
-  const resultIds = new Set([link?.reading_result_id, state?.reading_result_id, ...attempts.map(row => row.reading_result_id)].filter(Boolean));
-  const cleanupIndices = [];
-  for (const id of resultIds) {
-    statements.push(db.prepare(`INSERT INTO visual_result_revocations (reading_result_id, user_id, revoked_at)
-      SELECT id, user_id, ? FROM reading_visual_results WHERE id = ? AND user_id = ?
-        AND NOT EXISTS (SELECT 1 FROM journal_visual_links WHERE reading_result_id = ?)
-        AND NOT EXISTS (SELECT 1 FROM journal_visual_state WHERE reading_result_id = ?)
-      ON CONFLICT(reading_result_id) DO NOTHING`).bind(nowSeconds(), id, userId, id, id));
-    cleanupIndices.push([id, statements.length]);
-    statements.push(db.prepare(`DELETE FROM reading_visual_results WHERE id = ? AND user_id = ?
-      AND NOT EXISTS (SELECT 1 FROM journal_visual_links WHERE reading_result_id = ?)
-      AND NOT EXISTS (SELECT 1 FROM journal_visual_state WHERE reading_result_id = ?)`)
-      .bind(id, userId, id, id));
-  }
   const results = await db.batch(statements);
-  const cleanedIds = cleanupIndices.filter(([, index]) => changed(results[index])).map(([id]) => id);
-  const cleanedResult = cleanedIds.length > 0;
-  const ids = new Set([...attempts.map(row => row.visual_job_id), ...cleanedIds].filter(Boolean));
+  const ids = new Set([...results[0].results.map(row => row.visual_job_id), ...results[1].results.map(row => row.reading_result_id)].filter(Boolean));
   for (const id of ids) {
     try { await revokeVisualJob(env, id); } catch { /* Durable revocation already blocks late commits. */ }
   }
-  return { deletedLink: changed(results[2]), cleanedResult };
+  return { deletedLink: changed(results[linkDeleteIndex]) || results[2].results.length > 0, cleanedResult: changed(results[resultDeleteIndex]) };
 }
 
 // Schema inspection is explicit: missing optional migrations are compatible;
@@ -511,29 +584,40 @@ async function userVisualSchema(db) {
   const retryCount = retry.filter(name => tables.has(name)).length;
   if ((legacyCount && legacyCount !== legacy.length) || (retryCount && retryCount !== retry.length)
       || (retryCount && legacyCount !== legacy.length)) throw new Error('Incomplete visual revocation schema');
-  return { legacy: legacyCount === legacy.length, retry: retryCount === retry.length };
+  const initial = await initialVisualSchema(db);
+  if (initial && retryCount !== retry.length) throw new Error('Incomplete initial visual revocation schema');
+  return { legacy: legacyCount === legacy.length, retry: retryCount === retry.length, initial };
 }
 
 export async function revokeUserVisualResults({ env, userId }) {
   const schema = await userVisualSchema(env.DB);
-  const { results } = schema.legacy ? await env.DB.prepare('SELECT id FROM reading_visual_results WHERE user_id = ?').bind(userId).all() : { results: [] };
-  const { results: attempts } = schema.retry ? await env.DB.prepare('SELECT visual_job_id FROM visual_retry_claims WHERE user_id = ?').bind(userId).all() : { results: [] };
-  const statements = schema.retry ? [
+  const statements = [];
+  if (schema.legacy) statements.push(env.DB.prepare(`SELECT id FROM reading_visual_results WHERE user_id = ?
+    ${schema.initial ? 'UNION SELECT reading_result_id AS id FROM visual_initial_admissions WHERE user_id = ?' : ''}`)
+    .bind(userId, ...(schema.initial ? [userId] : [])));
+  if (schema.retry) statements.push(env.DB.prepare('SELECT visual_job_id AS id FROM visual_retry_claims WHERE user_id = ?').bind(userId));
+  const captureCount = statements.length;
+  statements.push(...(schema.retry ? [
     env.DB.prepare('INSERT INTO visual_owner_revocations (user_id, revoked_at) VALUES (?, ?) ON CONFLICT(user_id) DO NOTHING').bind(userId, nowSeconds()),
-    env.DB.prepare(`UPDATE visual_retry_claims SET retry_status = 'revoked', dispatch_status = 'revoked', state_version = state_version + 1,
-      updated_at = ? WHERE user_id = ?`).bind(nowSeconds(), userId),
+    env.DB.prepare(`UPDATE visual_retry_claims SET ${PURGE_RETRY_CLAIM}, user_id = NULL WHERE user_id = ?`).bind(nowSeconds(), userId),
     env.DB.prepare('DELETE FROM journal_visual_state WHERE user_id = ?').bind(userId)
   ] : [
     // Before 0037 there are no replay claims or tombstones. Disable the owner
     // before external work and remove old results so late original CAS fails.
     env.DB.prepare('UPDATE users SET is_active = 0 WHERE id = ?').bind(userId)
-  ];
+  ]));
+  if (schema.initial) statements.push(
+    env.DB.prepare(`UPDATE visual_initial_reservations SET reading_result_id = NULL WHERE reading_result_id IN
+      (SELECT id FROM reading_visual_results WHERE user_id = ? UNION SELECT reading_result_id FROM visual_initial_admissions WHERE user_id = ?)`)
+      .bind(userId, userId),
+    env.DB.prepare('DELETE FROM visual_initial_admissions WHERE user_id = ?').bind(userId)
+  );
   if (schema.legacy) statements.push(
     env.DB.prepare('DELETE FROM journal_visual_links WHERE user_id = ?').bind(userId),
     env.DB.prepare('DELETE FROM reading_visual_results WHERE user_id = ?').bind(userId)
   );
-  await env.DB.batch(statements);
-  for (const id of new Set([...results.map(row => row.id), ...attempts.map(row => row.visual_job_id)].filter(Boolean))) {
+  const results = await env.DB.batch(statements);
+  for (const id of new Set(results.slice(0, captureCount).flatMap(result => result.results.map(row => row.id)).filter(Boolean))) {
     try { await revokeVisualJob(env, id); } catch { /* Owner/results remain durably revoked even if its DO is unavailable. */ }
   }
 }

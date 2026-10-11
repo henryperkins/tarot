@@ -108,7 +108,7 @@ export function SavedVisualRecovery({ entry, onRetry = null, handleRevision = 0,
     [namespace, entry.id, restored, gestureStudyEnabled, handleRevision]);
   const replay = handles.replay;
   const recovery = savedVisualRecovery(entry, { cloud, originalResume: handles.original, replayResume: replay });
-  const pendingReplay = publicVisualRetryState(entry.visualState)?.retryStatus === 'pending';
+  const pendingReplay = recovery.phase === 'pending' && publicVisualRetryState(entry.visualState)?.retryStatus === 'pending';
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
   const [sawPending, setSawPending] = useState(false);

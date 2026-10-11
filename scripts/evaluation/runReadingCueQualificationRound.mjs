@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomInt, randomUUID } from 'node:crypto';
 import { parseCueEvaluationArgs } from './evaluateReadingCueModel.mjs';
-import { createVisualCueSession, createCueRunIdentity, buildCueDeliverySchedule, DEFAULT_CUE_CANDIDATES,
+import { createVisualCueSession, createCueRunIdentity, buildCueDeliverySchedule, DEFAULT_CUE_CANDIDATES, resolveCueInitialAdmission,
   CUE_PRICING_SNAPSHOT, openCueRoundBudget, createWorkersAiRestAdapter } from './lib/visualCueEvaluationHarness.mjs';
 import { loadReadingCueCases, scoreReadingCueRun } from './lib/readingCueQualification.mjs';
 import { cueDigest } from './lib/visualCueEvaluationBudget.mjs';
@@ -188,6 +188,8 @@ export async function runCueQualificationRound({ live = false, phase = 'all', ma
   if (live && !explicitLiveConfiguration) throw new Error('Explicit live configuration required.');
   if (live && (!roundId || !roundBudgetPath)) throw new Error('Explicit new shared live round path/id required.');
   if (typeof roundId === 'string' && (/(?:^|[^0-9])183(?:[^0-9]|$)/.test(roundId) || ['live-20261010-task6', 'reading-cue-qualification-20261010-task6'].includes(roundId))) throw new Error('Historical 183-attempt round is closed.');
+  const initialConfiguration = live ? resolveCueInitialAdmission({ live, candidates,
+    initialAdmission: explicitLiveConfiguration.initialAdmission }) : null;
   const cases = await loadReadingCueCases({ manifest });
   const frozenManifest = typeof manifest === 'object' && manifest ? manifest : JSON.parse(await readFile(manifest || join(repositoryRoot, 'scripts/evaluation/fixtures/readingCueQualification.regression-20261010.json'), 'utf8'));
   if (!Array.isArray(frozenManifest.candidateOrder) || candidates.some(c => !frozenManifest.candidateOrder.includes(c.id))) throw new Error('Invalid frozen candidate order.');
@@ -213,12 +215,14 @@ export async function runCueQualificationRound({ live = false, phase = 'all', ma
     const identity = await createCueRunIdentity({ cases, phase: 'round-definition-v2', candidates, live,
       dispatchConfiguration: { version: 2, maxCalls, maxEstimatedUsd, plans: allPlans, manifestSha256: cueDigest(frozenManifest),
         pricingSha256: cueDigest(preflightEvidence.pricing), documents: preflightEvidence.documents || [],
-        deliveryWordsPerSecond: 25, readerWordsPerMinute: 180, temperature: 0, maxCompletionTokens: 8192, deadlineMs: 60000 },
+        deliveryWordsPerSecond: 25, readerWordsPerMinute: 180, temperature: 0, maxCompletionTokens: 8192, deadlineMs: 60000,
+        ...(live ? { initialAdmission: initialConfiguration } : {}) },
       catalog: preflightEvidence.availableModels });
     const definition = { version: 2, identity, candidates, plans: allPlans, digest: identity.digest };
     roundId ??= `cue-round:${definition.digest}`;
     budget = await openCueRoundBudget({ path: roundBudgetPath || join(outputDir, 'offline-round.json'), roundId,
       maxCalls, maxEstimatedUsd, mode: live ? 'live' : 'offline', pricing: preflightEvidence.pricing });
+    if (live) await budget.bindInitialAdmission(initialConfiguration);
     await budget.bindDefinition(definition.digest);
     const phaseId = `phase:${randomUUID()}`;
     await budget.registerPhase({ phaseId, definitionSha256: definition.digest });
@@ -249,7 +253,7 @@ export async function runCueQualificationRound({ live = false, phase = 'all', ma
     for (const item of plan.semantic) {
       if (!live || owner.stopped || terminal) { report.semantic.push({ ...item, status: 'incomplete', reason: terminal || (owner.stopped ? 'cancelled-before-dispatch' : 'offline-plan-only'), attempts: [] }); continue; }
       const session = await createVisualCueSession({ caseData: cases.find(c => c.id === item.caseId), candidate: candidates.find(c => c.id === item.candidateId),
-        aiAdapter, live, budget: phaseBudget, runId: report.runId, trialId: item.trialId });
+        aiAdapter, live, budget: phaseBudget, runId: report.runId, trialId: item.trialId, initialAdmission: initialConfiguration });
       const owned = owner.own({ cancel: () => session.cancel(), finish: () => session.finish(), close: async () => session.db.sqlite.close() }, 'session');
       if (owner.stopped) { await session.cancel(); } else await session.observe(cases.find(c => c.id === item.caseId).raw, { complete: true });
       const result = await session.finish(); report.semantic.push(result); terminal ||= result.fatalReason;
@@ -268,7 +272,7 @@ export async function runCueQualificationRound({ live = false, phase = 'all', ma
         try {
           const page = await context.newPage();
           const session = await openCueBrowserSession({ page, frontend, caseData: cases.find(c => c.id === item.caseId), candidate: candidates.find(c => c.id === item.candidateId),
-            aiAdapter, live, budget: phaseBudget, deliveryMode: item.scenario, outputDir: join(outputDir, `timing-${report.timing.length}`) });
+            aiAdapter, live, budget: phaseBudget, deliveryMode: item.scenario, outputDir: join(outputDir, `timing-${report.timing.length}`), initialAdmission: initialConfiguration });
           measured = owner.own({ cancel: () => session.relay.close(), finish: () => session.relay.session.finish(), close: async () => {
             try { await session.close(); } finally { session.relay.session.db.sqlite.close(); }
           } }, 'session');

@@ -12,6 +12,8 @@ import {
 import { applyVisualCueBatch, createVisualCueLedger } from '../../shared/reading/visualCueLedger.js';
 import { buildVisualCuePrompt } from '../../shared/generation/visualCuePrompt.js';
 import { getVectorGestureDetails } from '../data/cardGestureArtwork.js';
+import { captureVisualInitialDispatchConfiguration, createVisualInitialAdmission,
+  isVisualInitialDispatchConfigurationCurrent, reserveVisualInitialDispatch } from '../../functions/lib/readingVisualAdmission.js';
 
 const STREAM_HEADERS = { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive' };
 const HEARTBEAT_INTERVAL_MS = 15000;
@@ -99,7 +101,14 @@ export class ReadingVisualJob {
       if (this.expiresAt && this.expiresAt <= Date.now()) {
         await this.expire();
       } else if (recovered && !TERMINAL.has(this.status) && await this.originalWorkAllowed()) {
-        this.state.waitUntil(this.processSnapshot(recovered));
+        // Reconstructing/polling a DO is never authority to spend again. A
+        // dispatched or uncertain call keeps its durable reservation; a fresh
+        // delivered observation must pass a new admission before any work.
+        this.inFlightRequest = null;
+        this.pendingSnapshot = null;
+        this.status = 'failed';
+        this.error = 'Visual accompaniment is temporarily unavailable.';
+        await this.persistState();
       }
     });
   }
@@ -186,7 +195,7 @@ export class ReadingVisualJob {
   async handleInit(request) {
     let body;
     try { body = await request.json(); } catch { return buildError(400, 'Invalid JSON payload.'); }
-    const { binding, visualToken, ownerUserId = null, validationContext = {} } = body;
+    const { binding, visualToken, ownerUserId = null, validationContext = {}, initialAdmission = null } = body;
     if (!visualCueBindingSchema.safeParse(binding).success || !visualToken) return buildError(400, 'Missing visual binding or capability.');
     return this.transaction(async () => {
       if (this.binding) {
@@ -196,10 +205,21 @@ export class ReadingVisualJob {
           && binding.spreadHash === this.binding.spreadHash && binding.contextHash === this.binding.contextHash
           && binding.artworkEdition === this.binding.artworkEdition && binding.catalogVersion === this.binding.catalogVersion;
         if (!sameIdentity || visualToken !== this.visualToken || ownerUserId !== this.ownerUserId) return buildError(409, 'Visual initialization conflicts with the registered result.');
+        if (initialAdmission && !await createVisualInitialAdmission({ env: this.env, userId: ownerUserId,
+          readingResultId: binding.readingResultId, binding, visualToken,
+          admissionContext: initialAdmission, expiresAt: this.expiresAt })) {
+          return buildError(409, 'Visual initialization conflicts with its spending admission.');
+        }
         return jsonResponse({ ok: true });
       }
       if (['revoked', 'expired'].includes(this.status)) return buildError(410, 'Visual job is no longer available.');
       const expiresAt = Date.now() + VISUAL_JOB_TTL_MS;
+      if (initialAdmission) {
+        const admitted = await createVisualInitialAdmission({ env: this.env, userId: ownerUserId,
+          readingResultId: binding.readingResultId, binding, visualToken,
+          admissionContext: initialAdmission, expiresAt });
+        if (!admitted) return buildError(503, 'Visual spending admission unavailable.');
+      }
       const registered = await registerVisualResult({ db: this.env?.DB, userId: ownerUserId,
         readingResultId: binding.readingResultId, binding, expiresAt });
       if (!registered.ok) return buildError(409, 'Visual result registration failed.');
@@ -440,6 +460,27 @@ export class ReadingVisualJob {
       question: this.validationContext?.question, reflections: this.validationContext?.reflections });
     const id = crypto.randomUUID();
     const requestId = this.binding?.readingResultId;
+    let configuration = null;
+    const checkDispatchConfiguration = () => {
+      if (configuration && !isVisualInitialDispatchConfigurationCurrent(this.env, configuration)) {
+        throw new Error('Original visual spending configuration changed.');
+      }
+    };
+    if (!this.replay) {
+      if (!this.runAnnotationAdapter && !getVisualCueReadiness(this.env).ready) throw new Error('Original visual provider unavailable.');
+      configuration = captureVisualInitialDispatchConfiguration(this.env);
+      if (!configuration) throw new Error('Original visual spending admission unavailable.');
+      const admitted = await reserveVisualInitialDispatch({ env: this.env, userId: this.ownerUserId,
+        binding: this.binding, visualToken: this.visualToken, dispatchId: id, configuration });
+      if (!admitted) throw new Error('Original visual spending admission unavailable.');
+      // Keep an uncertain reservation even when deletion/cancellation occurs
+      // during the atomic storage check. No provider error can refund it.
+      signal?.throwIfAborted();
+      if (!await this.originalWorkAllowed()) throw new Error('Original visual work is no longer admitted.');
+      signal?.throwIfAborted();
+      checkDispatchConfiguration();
+    }
+    const dispatchEnv = configuration ? Object.freeze({ ...this.env, ...configuration.providerEnv }) : this.env;
     const startedAtMs = Date.now();
     // One row per dispatch, independent of cue acceptance and commit replay.
     const recordAttempt = metadata => recordInferenceAttempt(this.env, {
@@ -452,8 +493,9 @@ export class ReadingVisualJob {
     let result;
     try {
       result = await (this.runAnnotationAdapter
-        ? this.runAnnotationAdapter({ prompt, responseSchema: visualCueResponseSchema, signal, env: this.env })
-        : runVisualCueAnnotationWithMetadata({ env: this.env, prompt, signal }));
+        ? this.runAnnotationAdapter({ prompt, responseSchema: visualCueResponseSchema, signal, env: dispatchEnv })
+        : runVisualCueAnnotationWithMetadata({ env: dispatchEnv, prompt, signal,
+          beforeDispatch: configuration ? checkDispatchConfiguration : null }));
     } catch (error) {
       if (error?.visualCueAttempt || this.runAnnotationAdapter) await recordAttempt(error?.visualCueAttempt ?? {
         outcome: 'failed', reason: inferAttemptReason(error, signal)
@@ -636,7 +678,7 @@ export class ReadingVisualJob {
 
   clearPrivateState(status) {
     this.invalidateWork();
-    Object.assign(this, { status, visualToken: null, ownerUserId: null, ledger: null,
+    Object.assign(this, { status, replay: null, binding: null, visualToken: null, ownerUserId: null, ledger: null,
       authoritativeRaw: '', validationContext: { cards: [] }, requestRegistry: [], events: [], error: null });
   }
 
@@ -652,6 +694,7 @@ export class ReadingVisualJob {
 
   async expire() {
     await this.transaction(async () => {
+      if (['expired', 'revoked'].includes(this.status)) return;
       if (!this.replay) await expireVisualResult({ db: this.env?.DB, userId: this.ownerUserId, readingResultId: this.binding?.readingResultId });
       this.clearPrivateState('expired');
       await this.persistState();

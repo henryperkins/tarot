@@ -264,7 +264,7 @@ export async function onRequestGet(context) {
       console.warn(`[${requestId}] [journal] Visual snapshots unavailable`);
     }
     try {
-      const visualStates = await loadJournalVisualStates({ db: env.DB, userId: user.id, entryIds: dedupedEntries.map(entry => entry.id), visualResults: visuals });
+      const visualStates = await loadJournalVisualStates({ env, db: env.DB, userId: user.id, entryIds: dedupedEntries.map(entry => entry.id), visualResults: visuals });
       for (const entry of dedupedEntries) {
         if (visualStates.get(entry.id)) entry.visualState = visualStates.get(entry.id);
       }

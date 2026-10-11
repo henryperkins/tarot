@@ -7,12 +7,17 @@ import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { runCueQualificationRound, parseCueQualificationRoundArgs, main, createCueRoundOwnership, createBlindedCuePackets, verifyCueLivePreflight, verifyCueLiveCatalog } from '../scripts/evaluation/runReadingCueQualificationRound.mjs';
 import { openCueRoundBudget, DEFAULT_CUE_CANDIDATES } from '../scripts/evaluation/lib/visualCueEvaluationHarness.mjs';
+import { initialVisualLimits } from './helpers/visualInitialAdmissionFixtures.mjs';
 const temporary = () => mkdtemp(join(tmpdir(), 'cue-round-test-'));
 const candidate = DEFAULT_CUE_CANDIDATES[0];
 const manifest = JSON.parse(await readFile(new URL('../scripts/evaluation/fixtures/readingCueQualification.regression-20261010.json', import.meta.url), 'utf8'));
 const subset = { ...manifest, cases: manifest.cases.filter(c => c.id === 'star-2347-excerpt') };
 delete subset.manifestSha256;
 const options = async phase => { const parent = await temporary(); return { phase, manifest: subset, candidates: [candidate], outputDir: join(parent, phase), roundId: 'new-offline-round', roundBudgetPath: join(parent, 'budget.json') }; };
+// Controlled mocked-live transport only; these fixture units are not live policy.
+const initialAdmissionFixture = () => ({ aggregateScope: `guest-edge:${'a'.repeat(64)}`, limitsByModel: {
+  [candidate.model]: JSON.parse(initialVisualLimits({ VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: candidate.model }))
+} });
 
 test('offline semantic subset preserves both trials without browser, credential discovery or model calls', async t => {
   t.mock.method(globalThis, 'fetch', () => assert.fail('offline attempted network'));
@@ -244,6 +249,7 @@ test('mocked live coordinator preserves phase counts and terminal authorization 
     return new Response(`@cf/zai-org/glm-5.3-flash\nContext Window | 1,310,720 tokens\nUnit Pricing | $0.15 per M input tokens, $0.50 per M output tokens, $0.03 per M cached input tokens\nReasoning | low high max`);
   });
   const report = await runCueQualificationRound({ ...(await options('semantic')), live: true, explicitLiveConfiguration: {
+    initialAdmission: initialAdmissionFixture(),
     accountId: 'a'.repeat(32), apiToken: 'offline-not-credential', availableModels: [candidate.model],
     fetchImpl: async () => new Response(JSON.stringify({ success: false, result: { usage: { input_tokens: 10, output_tokens: 1 }, model: candidate.model } }), { status: 401 })
   } });
@@ -255,5 +261,79 @@ test('mocked live coordinator preserves phase counts and terminal authorization 
   assert.equal(report.semantic[1].reason, 'authorization');
   assert.equal(report.budget.halted, true);
   assert.equal(report.fullyQualified, false);
+  assert.deepEqual(report.definition.identity.dispatchConfiguration.initialAdmission.limitsByModel, initialAdmissionFixture().limitsByModel);
   assert.equal(JSON.stringify(report).includes('offline-not-credential'), false);
+});
+
+for (const ceiling of ['rateLimit', 'globalRateLimit', 'totalLimit', 'globalTotalLimit', 'scopeCostLimitMicrousd', 'globalCostLimitMicrousd']) {
+  test(`mocked successful rounds retain ${ceiling} across case/model trials and resumed phases`, async t => {
+    const selectedCandidates = [candidate, DEFAULT_CUE_CANDIDATES[2]];
+    const selectedModels = selectedCandidates.map(item => item.model);
+    t.mock.method(globalThis, 'fetch', async url => {
+      if (url.includes('/ai/models/search')) return new Response(JSON.stringify({ success: true, result: selectedModels.map(name => ({ name })) }));
+      const flash = url.includes('flash');
+      return new Response(`@cf/zai-org/${flash ? 'glm-5.3-flash' : 'glm-5.3'}\nContext Window | ${flash ? '1,310,720' : '1,048,576'} tokens\nUnit Pricing | $${flash ? '0.15' : '1.40'} per M input tokens, $${flash ? '0.50' : '4.40'} per M output tokens, $${flash ? '0.03' : '0.26'} per M cached input tokens\nReasoning | low high max`);
+    });
+    const initialAdmission = initialAdmissionFixture();
+    initialAdmission.limitsByModel = Object.fromEntries(selectedCandidates.map(item => {
+      const limits = JSON.parse(initialVisualLimits({ VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: item.model }));
+      // The held artificial dispatch bound admits exactly one call. A mocked
+      // provider's tiny measured usage must not refund initial admission cost.
+      limits[ceiling] = ceiling.endsWith('Microusd') ? limits.maxDispatchCostMicrousd : 1;
+      return [item.model, limits];
+    }));
+    let providerCalls = 0;
+    const config = { ...(await options('semantic')), live: true, candidates: selectedCandidates,
+      manifest: { ...subset, cases: manifest.cases.filter(item => ['star-2347-excerpt', 'single-new-role'].includes(item.id)) },
+      explicitLiveConfiguration: {
+        initialAdmission, accountId: 'a'.repeat(32), apiToken: 'offline-not-credential', availableModels: selectedModels,
+        fetchImpl: async url => {
+          providerCalls += 1;
+          const model = selectedModels.find(item => url.endsWith(item));
+          assert.ok(model, 'only an explicitly configured mocked model may dispatch');
+          return new Response(JSON.stringify({ success: true, result: { response: '{"proposals":[]}',
+            usage: { input_tokens: 10, output_tokens: 1 }, model } }));
+        }
+      }
+    };
+    const first = await runCueQualificationRound(config);
+    const firstProviderCalls = providerCalls;
+    // A fresh immutable phase output must reopen the same round ledger, not
+    // gain another initial allowance through the coordinator's fresh SQLite.
+    const resumed = await runCueQualificationRound({ ...config, outputDir: join(config.outputDir, '..', 'resumed-semantic') });
+    t.diagnostic(JSON.stringify({ ceiling, firstProviderCalls, resumedProviderCalls: providerCalls - firstProviderCalls }));
+    assert.equal(first.definition.digest, resumed.definition.digest);
+    assert.equal(first.preflight.wholePlanFits, true, 'the outer persistent budget must not be the rejecting limit');
+    assert.equal(first.plan.semantic.length, 8);
+    assert.equal(firstProviderCalls, 1, 'initial admission must accumulate across fresh case/model trial databases');
+    assert.equal(first.modelCalls, 1);
+    assert.equal(first.semantic[0].attempts[0].outcome, 'accepted');
+    assert.ok(first.semantic.slice(1).every(result => result.attempts.length === 0));
+    const refusalReason = ceiling.endsWith('Microusd') ? 'candidate-cost-bound' : 'call-cap';
+    assert.ok(first.budget.admissions.some(admission => admission.reason === refusalReason));
+    assert.equal(resumed.modelCalls, 0, 'the persistent initial allowance must survive a resumed phase');
+    assert.equal(providerCalls, 1);
+    assert.equal(resumed.initialBudget.attempts.length, 1);
+    assert.equal(resumed.budget.attempts.length, 1);
+    assert.equal(resumed.budget.halted, false);
+    assert.ok(resumed.semantic.every(result => result.attempts.length === 0));
+    assert.ok(resumed.budget.admissions.some(admission => admission.reason === refusalReason));
+  });
+}
+
+test('live coordinator rejects absent and invalid initial allowance before fetch or resources', async t => {
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', () => { calls += 1; assert.fail('unconfigured live coordinator fetched'); });
+  const invalid = initialAdmissionFixture();
+  invalid.limitsByModel[candidate.model].globalCostLimitMicrousd = 0;
+  for (const initialAdmission of [undefined, invalid]) {
+    const config = await options('semantic');
+    await assert.rejects(runCueQualificationRound({ ...config, live: true, explicitLiveConfiguration: {
+      accountId: 'a'.repeat(32), apiToken: 'offline-not-credential', availableModels: [candidate.model], initialAdmission,
+      fetchImpl: async () => { calls += 1; assert.fail('unconfigured live coordinator dispatched'); }
+    } }), /explicit.*initial/i);
+    await assert.rejects(readFile(join(config.outputDir, 'definition.json')), { code: 'ENOENT' });
+    await assert.rejects(readFile(config.roundBudgetPath), { code: 'ENOENT' });
+  }
+  assert.equal(calls, 0);
 });

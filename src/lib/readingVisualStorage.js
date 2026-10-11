@@ -13,8 +13,12 @@ const PUBLIC_REASON = /^[a-z][a-z-]{0,47}$/;
 // Saved replay admission bounds enforced by the server retry routes.
 const MAX_RETRY_RAW = 120000;
 const MAX_RETRY_CARDS = 20;
-// Recorded when an explicit retry found replay unavailable; it never invites another action.
+// Pending/unavailable states with this reason offer status without an action.
 export const CONFIGURATION_UNAVAILABLE = 'configuration-unavailable';
+// An available prepared claim deliberately keeps its historical reason while
+// remaining eligible for another explicit action after configuration returns.
+const configurationRefusal = state => ['pending', 'unavailable'].includes(state?.retryStatus)
+  && state.reason === CONFIGURATION_UNAVAILABLE;
 
 export function visualStorageNamespace(userId) {
   return userId ? `user:${encodeURIComponent(String(userId))}` : 'anon';
@@ -261,13 +265,13 @@ export function savedVisualRecovery(entry, { cloud = false, originalResume = nul
   if (state) {
     if (['exhausted', 'revoked'].includes(state.retryStatus)) result = view('unavailable');
     else if (state.retryStatus === 'complete' || state.attachmentStatus === 'attached') result = view('complete');
+    else if (configurationRefusal(state)) result = view('unavailable');
     else if (state.retryStatus === 'available') result = view('eligible', true);
     else if (state.retryStatus === 'pending' || state.attachmentStatus === 'pending') {
       // Without a usable private handle, only an explicit POST (deduplicated by
       // the server's one-source claim) can resynchronize local pending state.
       result = cloud || replayResume || (state.retryStatus !== 'pending' && originalResume) ? view('pending') : view('eligible', true);
-    } else if (state.retryStatus === 'unavailable' && state.reason === CONFIGURATION_UNAVAILABLE) result = view('unavailable');
-    else if (['failed', 'expired', 'missing'].includes(state.attachmentStatus)) result = view('eligible', true);
+    } else if (['failed', 'expired', 'missing'].includes(state.attachmentStatus)) result = view('eligible', true);
     else result = view('unavailable');
   } else {
     const visual = displayEntryVisual(entry);
@@ -281,6 +285,7 @@ export function savedVisualRecovery(entry, { cloud = false, originalResume = nul
 /** Whether a cloud entry still needs owned journal polling (never inference). */
 export function needsCloudVisualRefresh(entry) {
   const state = publicVisualRetryState(entry?.visualState);
+  if (configurationRefusal(state)) return false;
   if (state) return state.retryStatus === 'pending'
     || (state.attachmentStatus === 'pending' && !['complete', 'exhausted', 'revoked'].includes(state.retryStatus));
   return Boolean(entry?.visual) && !TERMINAL.has(entry.visual.status);
@@ -494,6 +499,18 @@ export async function requestSavedVisualRetry({ namespace, entry, cloud = false,
       if (handle && !cloud) { keepHandle = handle; next = { ...state, attachmentStatus: 'pending', retryStatus: 'pending' }; }
       else if (!cloud) next = expired;
     }
+  } else if (configurationRefusal(state)) {
+    // A status-only refusal is authoritative even if a stale transport was
+    // included. It never resumes work or replaces already accepted cues.
+    if (!displayEntryVisual(entry)?.snapshot) {
+      const candidate = displayEntryVisual({ personalReading: entry.personalReading, visual: response.state?.visualSnapshot });
+      const source = savedVisualSource(entry);
+      const hashes = await fingerprintVisualSource(source);
+      const normalized = normalizeVisualSource(source);
+      if (candidate?.snapshot && candidate.binding.spreadHash === hashes.spreadHash && candidate.binding.contextHash === hashes.contextHash
+        && candidate.binding.artworkEdition === normalized.artworkEdition && candidate.binding.catalogVersion === normalized.catalogVersion) visual = candidate;
+      if (!isCurrent()) throw retryFailure('stale');
+    }
   } else if (state.retryStatus === 'pending' || state.attachmentStatus === 'pending') {
     if (handle) keepHandle = handle; else if (!cloud) next = expired;
   } else if (state.retryStatus === 'available') {
@@ -504,8 +521,14 @@ export async function requestSavedVisualRetry({ namespace, entry, cloud = false,
   const update = current => {
     const now = publicVisualRetryState(current.visualState);
     if (cloud && now && state.stateVersion < now.stateVersion) return null;
+    const localRefusal = !cloud && configurationRefusal(next);
+    const original = localRefusal && !now ? displayEntryVisual(current) : null;
+    const savedAttachment = now?.sourceFingerprint === fingerprint ? now.attachmentStatus
+      : original?.status === 'expired' ? 'expired' : ['failed', 'cancelled', 'revoked'].includes(original?.status) ? 'failed'
+        : original ? 'pending' : null;
     const visualState = { ...next, sourceFingerprint: fingerprint,
-      stateVersion: cloud ? state.stateVersion : (now?.stateVersion ?? 0) + 1 };
+      ...(localRefusal && savedAttachment ? { attachmentStatus: savedAttachment } : {}),
+      stateVersion: cloud ? state.stateVersion : localRefusal ? (now?.stateVersion ?? 0) : (now?.stateVersion ?? 0) + 1 };
     return { ...current, visualState, ...(visual ? { visualBinding: visual.binding, visual, visualSnapshot: visual } : {}) };
   };
   const previousHandle = readVisualResume({ namespace, entryId: entry.id, storage: target });
@@ -533,6 +556,9 @@ export async function requestSavedVisualRetry({ namespace, entry, cloud = false,
   if (keepHandle && cloud) {
     writeVisualResume({ namespace, entryId: entry.id, binding: keepHandle.visualBinding, resumeHandle: keepHandle,
       expectedAttemptId: previousHandle?.attemptId ?? null, sourceFingerprint: fingerprint, stateVersion: state.stateVersion, storage: target });
+  }
+  if (configurationRefusal(next) && previousHandle) {
+    removeVisualResume({ namespace, entryId: entry.id, attemptId: previousHandle.attemptId, storage: target });
   }
   if (!cloud) dispatchVisualEvent({ namespace, entryId: entry.id });
   const committedState = publicVisualRetryState(committed.entry.visualState);

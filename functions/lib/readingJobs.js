@@ -16,6 +16,7 @@ import { getVectorGestureDetails } from '../../src/data/cardGestureArtwork.js';
 import { initVisualJob } from './readingVisualJobs.js';
 import { registerVisualResult } from './readingVisualResults.js';
 import { getVisualCueReadiness } from './visualCueProvider.js';
+import { getVisualInitialReadiness, prepareVisualInitialAdmission } from './readingVisualAdmission.js';
 
 const DO_ORIGIN = 'https://reading-jobs';
 
@@ -42,7 +43,7 @@ async function readJson(response) {
  * @param {{ authorization?: string|null, cookie?: string|null }|null} [params.forwardHeaders]
  *   Request credentials, for app jobs only; ignored when a principal is given
  */
-export async function startReadingJob({ env, payload, principal = null, snapshot = null, forwardHeaders = null, ownerUserId = null, waitUntil }) {
+export async function startReadingJob({ env, payload, principal = null, snapshot = null, forwardHeaders = null, ownerUserId = null, request = null, waitUntil }) {
   if (!env?.READING_JOBS) {
     return { ok: false, status: 503, error: 'Reading jobs not configured.' };
   }
@@ -58,7 +59,7 @@ export async function startReadingJob({ env, payload, principal = null, snapshot
   let visualJobToken = null;
   let visualBinding = null;
   let visualInit = null;
-  if (env.READING_VISUAL_JOBS && getVisualCueReadiness(env).ready) {
+  if (env.READING_VISUAL_JOBS && getVisualCueReadiness(env).ready && getVisualInitialReadiness(env).ready) {
     visualJobToken = crypto.randomUUID();
     const normalized = normalizeVisualSource(schemaResult.data);
     const { spreadHash, contextHash } = await fingerprintVisualSource(schemaResult.data);
@@ -79,6 +80,15 @@ export async function startReadingJob({ env, payload, principal = null, snapshot
         }))
       }
     };
+    try {
+      const context = await prepareVisualInitialAdmission({ env, userId: visualInit.ownerUserId, request });
+      if (!context) throw new Error('Initial visual attribution unavailable');
+      visualInit.initialAdmission = context;
+    } catch {
+      // Rejected attribution/storage/budget configuration affects visuals only.
+      visualInit = null;
+      visualBinding = null;
+    }
   }
 
   const headers = new Headers({

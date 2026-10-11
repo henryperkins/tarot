@@ -55,4 +55,4 @@ This verifies local consolidation and bundle compatibility. Browser playback, re
 
 ## Continue here
 
-Use this worktree for subsequent local implementation. Step 2 remains the activation/recovery defects: deletion retention, spending admission for initial visual jobs and explicit unavailable retry state. Step 3 remains playback and artwork acceptance. Keep production and live qualification disabled until their separately scoped gates are satisfied.
+Use this worktree for subsequent local implementation. The [Step 2 repair report](2026-10-11-reading-activation-recovery.md) records deletion retention, spending admission for initial visual jobs and explicit unavailable retry state. Step 3 remains playback and artwork acceptance. Keep production and live qualification disabled until their separately scoped gates are satisfied.

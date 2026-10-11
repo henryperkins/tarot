@@ -17,10 +17,10 @@ function waitUntil(atMs, signal) {
 
 export async function createReadingCueRelay({ caseData, candidate, aiAdapter, live = false, budget, db,
   runId = `relay:${randomUUID()}`, trialId = 'timing', schedule = 'paced', sourceMode = 'sse',
-  frontendOrigin = null, offlineImmediate = false } = {}) {
+  frontendOrigin = null, offlineImmediate = false, initialAdmission } = {}) {
   if (!['sse', 'json'].includes(sourceMode) || (live && offlineImmediate)) throw new Error('Invalid controlled relay source configuration.');
   if (frontendOrigin && !/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(frontendOrigin)) throw new Error('Relay frontend must be exact loopback origin.');
-  const session = await createVisualCueSession({ caseData, candidate, aiAdapter, live, budget, db, runId, trialId });
+  const session = await createVisualCueSession({ caseData, candidate, aiAdapter, live, budget, db, runId, trialId, initialAdmission });
   const state = createCueMemoryState();
   const scheduleController = new AbortController();
   const frozenEvents = buildCueDeliverySchedule(caseData.raw, schedule);
