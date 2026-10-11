@@ -1,6 +1,7 @@
 import { MAJOR_ARTWORK } from './cardGestureDetails/majors.js';
 import { CUP_PENTACLE_ARTWORK } from './cardGestureDetails/cupsPentacles.js';
 import { WAND_SWORD_ARTWORK } from './cardGestureDetails/wandsSwords.js';
+import { CARD_GESTURE_PAINTED_BOUNDS } from './cardGesturePaintedBounds.js';
 
 /** Trusted authored overlays on the rendered upright plane; never source SVG markup. */
 export const CARD_GESTURE_PLANE = Object.freeze({ width: 1086, height: 1810 });
@@ -105,6 +106,24 @@ for (const [id, authored] of Object.entries(fiveCardDetails)) {
   (vectorDetails[cardNames[card]] ||= []).push(detail(id, [id.replaceAll('-', ' ')], spots || [{ x, y, rx, ry }], frame, traces.length ? { kind: 'finite', duration: 1800 } : undefined, traces, cropBounds));
 }
 Object.assign(vectorDetails, MAJOR_ARTWORK, CUP_PENTACLE_ARTWORK, WAND_SWORD_ARTWORK);
+for (const [cardName, details] of Object.entries(vectorDetails)) {
+  const paintedDetails = CARD_GESTURE_PAINTED_BOUNDS[cardName];
+  if (!paintedDetails) continue;
+  vectorDetails[cardName] = details.map(authored => {
+    const paintedBounds = paintedDetails[authored.id];
+    if (!paintedBounds) return authored;
+    const cropBounds = authored.cropBounds ? {
+      left: Math.min(authored.cropBounds.left, paintedBounds.left),
+      top: Math.min(authored.cropBounds.top, paintedBounds.top),
+      right: Math.max(authored.cropBounds.right, paintedBounds.right),
+      bottom: Math.max(authored.cropBounds.bottom, paintedBounds.bottom)
+    } : paintedBounds;
+    return { ...authored, cropBounds, frame: { ...authored.frame,
+      x: (cropBounds.left + cropBounds.right) / 2,
+      y: (cropBounds.top + cropBounds.bottom) / 2
+    } };
+  });
+}
 
 /** Unknown cards deliberately keep whole-card context without guessed geometry. */
 export function getVectorGestureDetails(canonicalName) {

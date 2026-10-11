@@ -58,7 +58,7 @@ export function ReadingGesturesFixture() {
   const generatedSample = generatedReadings.samples.find(sample => sample.id === params.get('sample')) || generatedReadings.samples[0];
   const deckCard = ALL_CARDS.find(card => card.name === params.get('card')) || ALL_CARDS[0];
   const orientation = params.get('orientation') === 'reversed' ? 'Reversed' : 'Upright';
-  const arrival = ['gentle', 'burst', 'complete'].includes(params.get('arrival')) ? params.get('arrival') : 'gentle';
+  const arrival = ['gentle', 'burst', 'complete', 'controlled'].includes(params.get('arrival')) ? params.get('arrival') : 'gentle';
   const sourceMode = !isDeck && !isGenerated && ['job-sse', 'visual-cues'].includes(params.get('sourceMode')) ? params.get('sourceMode') : 'recorded';
   const associationMode = isGenerated && params.get('associations') !== 'dynamic' ? 'generated' : isDeck || params.get('associations') === 'dynamic' ? 'dynamic' : 'authored';
   const reflection = !isDeck && params.get('reflection') !== 'off';
@@ -89,6 +89,25 @@ export function ReadingGesturesFixture() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setRecordedSource(initial);
     if (arrival === 'complete') return undefined;
+    // Controlled external delivery keeps native input and animation clocks real.
+    // Only the authored fixture exposes this seam; no provider work is started.
+    if (arrival === 'controlled') {
+      const delivery = { runId, raw };
+      const deliver = event => {
+        const nextRaw = event.detail?.raw;
+        if (typeof nextRaw !== 'string' || !raw.startsWith(nextRaw)) return;
+        const complete = nextRaw === raw;
+        setRecordedSource(previous => advanceGestureSource(previous, {
+          raw: nextRaw, kind: complete ? 'complete' : 'append', status: complete ? 'complete' : 'streaming'
+        }));
+      };
+      window.__readingRecordedFixture = delivery;
+      window.addEventListener('reading-recorded-fixture', deliver);
+      return () => {
+        window.removeEventListener('reading-recorded-fixture', deliver);
+        if (window.__readingRecordedFixture === delivery) delete window.__readingRecordedFixture;
+      };
+    }
     const words = [...raw.matchAll(/\S+\s*/g)];
     let delivered = 0;
     const timer = setInterval(() => {
@@ -159,7 +178,7 @@ export function ReadingGesturesFixture() {
   const spreadCards = useMemo(() => buildSpreadCompanionCards({
     reading: cards, visibleCount: cards.length, spreadPositions: fixture.cards.map(card => card.position),
     deckStyleId: 'rws-1909', revealedCards: new Set(cards.map((_, index) => index)), runId: source.runId, artworkEdition: 'rws-immanuelle-vector'
-  }).map(card => ({ ...card, shortLabel: isDeck ? 'Artwork' : isGenerated ? fixture.cards[card.index].position : POSITION_LABELS[studyKey][card.index], frame: '3 / 5', image: getGestureArtworkAsset(card.canonicalName || card.name) })), [cards, fixture, isDeck, isGenerated, source.runId, studyKey]);
+  }).map(card => ({ ...card, shortLabel: qualificationCase ? card.shortLabel : isDeck ? 'Artwork' : isGenerated ? fixture.cards[card.index].position : POSITION_LABELS[studyKey][card.index], frame: '3 / 5', image: getGestureArtworkAsset(card.canonicalName || card.name) })), [cards, fixture, isDeck, isGenerated, qualificationCase, source.runId, studyKey]);
   const panelModel = buildNarrativePanelModel({
     personalReading: { ...personalReading, hasMarkdown: true }, narrativeText: personalReading?.isError ? personalReading.raw : source.raw,
     isPersonalReadingError: Boolean(personalReading?.isError), isReadingStreaming: source.status === 'streaming',
@@ -183,7 +202,7 @@ export function ReadingGesturesFixture() {
           <label>Card <select value={deckCard.name} onChange={event => change('card', event.target.value)}>{ALL_CARDS.map(card => <option key={card.name} value={card.name}>{card.name}</option>)}</select></label>
           <label>Orientation <select value={orientation.toLowerCase()} onChange={event => change('orientation', event.target.value)}><option value="upright">Upright</option><option value="reversed">Reversed</option></select></label>
         </>}
-        <label>Arrival <select value={arrival} onChange={event => change('arrival', event.target.value)}><option>gentle</option><option>burst</option><option>complete</option></select></label>
+        <label>Arrival <select value={arrival} onChange={event => change('arrival', event.target.value)}><option>gentle</option><option>burst</option><option>complete</option><option>controlled</option></select></label>
         {!isDeck && <>
           {!isGenerated && <label>Source mode <select value={sourceMode} onChange={event => change('sourceMode', event.target.value)}><option>recorded</option><option>job-sse</option><option>visual-cues</option></select></label>}
           <label>Associations <select value={associationMode} onChange={event => change('associations', event.target.value)}>{isGenerated ? <option>generated</option> : <option>authored</option>}<option>dynamic</option></select></label>

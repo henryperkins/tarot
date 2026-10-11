@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { startReadingJob } from '../functions/lib/readingJobs.js';
+import { startReadingJob as startPaidWebReadingJob } from './helpers/webVisualAdmissionFixtures.mjs';
 import { ReadingVisualJob } from '../src/worker/readingVisualJob.js';
 import { observeDeliveredReading } from '../functions/lib/visualCueObserver.js';
 import { getVisualInitialReadiness } from '../functions/lib/readingVisualAdmission.js';
@@ -170,7 +171,7 @@ test('configured visual jobs retain independent initialization, delivered prose 
     waitUntil: promise => tasks.push(promise) };
   const visual = new ReadingVisualJob(state, env);
   env.READING_VISUAL_JOBS = { idFromName: id => id, get: () => ({ fetch: (url, options) => visual.fetch(new Request(url, options)) }) };
-  const result = await startReadingJob({ env, payload: PAYLOAD, waitUntil: promise => tasks.push(promise) });
+  const result = await startPaidWebReadingJob({ env, payload: PAYLOAD, waitUntil: promise => tasks.push(promise) });
   assert.equal(result.ok, true);
   assert.equal(result.visualBinding.readingResultId, result.readingResultId);
   assert.ok(result.visualJobToken);
@@ -219,7 +220,7 @@ test('stalled original admission cannot delay narrative startup or its response'
     waitUntil: promise => tasks.push(promise) }, env);
   env.READING_VISUAL_JOBS = { idFromName: id => id, get: () => ({ fetch: (url, options) => visual.fetch(new Request(url, options)) }) };
   t.after(() => { releaseAdmission(); DB.prepare = prepare; });
-  const result = await startReadingJob({ env, payload: { ...PAYLOAD,
+  const result = await startPaidWebReadingJob({ env, payload: { ...PAYLOAD,
     initialAdmission: { aggregateScope: 'client-forged-scope', userId: 'spoofed' } },
   waitUntil: promise => tasks.push(promise) });
   assert.equal(narrativeStarted, true);
@@ -231,7 +232,7 @@ test('stalled original admission cannot delay narrative startup or its response'
   releaseAdmission();
   await Promise.all(tasks);
   assert.equal(visual.status, 'running');
-  assert.match(DB.rows('SELECT aggregate_scope FROM visual_initial_admissions')[0].aggregate_scope, /^guest-edge:[a-f0-9]{64}$/);
+  assert.match(DB.rows('SELECT aggregate_scope FROM visual_initial_admissions')[0].aggregate_scope, /^user:[a-f0-9]{64}$/);
   assert.equal(modelCalls, 0, 'Admission/init itself never invokes the provider');
   await observeDeliveredReading({ env, binding: result.visualBinding, raw: 'The Star offers hope.', deliveredEventId: 1, complete: true });
   await Promise.all(tasks);

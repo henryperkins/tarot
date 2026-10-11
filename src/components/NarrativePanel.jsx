@@ -6,8 +6,7 @@ import {
   NarrationControls,
   NarrativeStatusStack
 } from './reading/narrative';
-import { NarrativeCardFocusProvider } from './reading/narrative/NarrativeCardFocus';
-import { SpreadCompanion, CardTouchPlate } from './reading/narrative/SpreadCompanion';
+import { NarrativeGestureGate, GatedSpreadCompanion as SpreadCompanion, GatedCardTouchPlate as CardTouchPlate } from './reading/narrative/NarrativeGestureGate';
 import { railColumns } from './reading/narrative/spreadCompanionLayout';
 
 // Set the card into the paragraph that opens its passage.
@@ -104,7 +103,7 @@ export function NarrativePanel({
   ].filter(Boolean).join(' ');
 
   return (
-    <NarrativeCardFocusProvider key={gestureSource ? `${gestureSource.runId}:${gestureSource.sourceRevision}` : 'ordinary'}
+    <NarrativeGestureGate
       cards={spreadCards} onSelectCard={onSelectCard} stable={isMobileStableMode}
       gestureStudyEnabled={gestureStudyEnabled} gestureSidecar={gestureSidecar} gestureSource={gestureSource}
       manualInspectionStatus={manualInspectionStatus} personalContext={personalContext || { question }}>
@@ -169,7 +168,7 @@ export function NarrativePanel({
           </div>
         </div>
       </div>
-    </NarrativeCardFocusProvider>
+    </NarrativeGestureGate>
   );
 }
 

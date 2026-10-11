@@ -1,6 +1,12 @@
 # Reading imagery motion studies
 
-## React bridge repairs and generated associations — October 9
+## Current work — October 11
+
+Start with the [intent closure roadmap](../../docs/superpowers/plans/2026-10-11-reading-intent-closure.md), then the independent [aligner release](../../docs/superpowers/plans/2026-10-11-reading-aligner-release.md) or [post-reading model](../../docs/superpowers/plans/2026-10-11-reading-post-reading-model.md) plan. Current source is `/home/ubuntu/tarot/.worktrees/reading-review-consolidation-20261010`, including accepted working-copy changes. [Local UI acceptance](../../docs/superpowers/reviews/2026-10-11-reading-ui-acceptance.md) is closed with two owner exceptions; model qualification, physical evidence and production activation remain separate.
+
+The studies, generated replays and preview commands below describe historical design checkpoints. The original beta checkout is protected; its command is not a current resume instruction. New validation uses owned resources from the lane plans, without restarting protected services. The deterministic aligner currently supplies identity, supported English RWS literals and whole-card named pairs; interpretation, balance, semantic returns and personal relevance in authored/generated examples are not automatic fallback capabilities. Future qualified model work is post-reading only.
+
+## Historical React bridge repairs and generated associations — October 9
 
 The current React study incorporates the [outside-review repairs](../../docs/superpowers/reviews/2026-10-09-reading-gestures-remediation.md). Earlier standalone studies below remain unchanged historical references.
 
@@ -13,18 +19,18 @@ Open [a fresh generated reading](http://localhost:5174/__e2e/reading-gestures?st
 
 Generated mode uses exact, validated quotations supplied alongside the reading. Literal details establish references for later interpretations, two-card connections, and optional question/reflection quotations. The conservative **dynamic** option exposes the automatic identity/literal fallback for comparison; it no longer contains memorized fixture returns. Text arrival and held inspection remain independent. Model output and structural acceptance are [recorded separately from semantic review](evidence/2026-10-09-generated-associations/README.md).
 
-The 15 generated examples used one request to write both prose and annotations. They remain historical evidence. The [corrected production direction](../../docs/superpowers/plans/2026-10-09-reading-gestures-react-bridge.md#independent-visual-cue-model-production-direction) keeps reading generation untouched: the application forwards completed passages to a separate visual-cue model, which returns associations only. That independent live observer and its transport are not implemented by the saved replay.
+The 15 generated examples used one request to write both prose and annotations. They remain historical evidence. The [separate-model architecture](../../docs/superpowers/plans/2026-10-09-reading-gestures-react-bridge.md#independent-visual-cue-model-production-direction) keeps reading generation untouched. Independent observation and transport are now implemented locally, but these saved joint-generated replays do not validate that service. The October 11 model plan changes future scheduling to finalized readings and keeps qualification separate.
 
 The React study loads attributed WebP delivery copies of the same vector edition. Original SVGs and standalone studies remain intact. The feature remains opt-in; this repair does not enable production reading generation or deploy the app.
 
 
 Design exploration for Tableu's personalized reading, October 8–9, 2026. The standalone HTML studies remain reviewable prototypes. The feature branch also contains a React bridge in the existing application, behind a disabled-by-default study flag and a development-only fixture route. No production deployment or live narrative generation is part of this handoff.
 
-## Start here
+## Historical study navigation
 
 - [React bridge verification and handoff](react-bridge-verification.md): existing application renderer/provider integration, controlled SSE tests, separate real guest/Pro auth evidence, screenshots, performance measurements and remaining limits.
 - [Recorded React fixture](http://localhost:5174/__e2e/reading-gestures?study=star&arrival=gentle): start `npm run dev:frontend -- --port 5174 --strictPort` from this feature branch. Default recorded mode needs no credentials. Keep `sourceMode=job-sse` within the controlled test fixture, because selecting it directly invokes the real generation entrypoint.
-- [Dynamic React alignment](http://localhost:5174/__e2e/reading-gestures?study=star&arrival=gentle&associations=dynamic): the same recorded text through the application provider with no authored sidecar. Conservative English detail rules now cover 151 authored details across all 78 vector cards; unrecognized language keeps identity fallback. See the verification handoff for current repair results and scope.
+- [Dynamic React alignment](http://localhost:5174/__e2e/reading-gestures?study=star&arrival=gentle&associations=dynamic): the same recorded text through the application provider with no authored sidecar. Conservative English detail rules cover 151 authored details across all 78 vector cards. Current real readings retain whole-card manual availability for already-revealed cards when language matching fails; automatic localized identity/detail matching is not guaranteed. The verification handoff records historical repair results; current limits are in the aligner plan.
 
 - [Full-deck React study](http://localhost:5174/__e2e/reading-gestures?study=deck&card=The+Fool&arrival=gentle): choose any of the 78 cards and its orientation. Clearly labeled authored visual probes exercise the new detail rules; they are not recorded personalized readings. The [coverage inventory](deck-gesture-coverage.md) distinguishes static illumination from living-water and finite-motion treatments.
 
@@ -37,7 +43,7 @@ Design exploration for Tableu's personalized reading, October 8–9, 2026. The s
 - [Related-card excerpt and provenance](fixtures/gestures-celtic-deep-shift.json): the complete 183-word “The Heart of It” section from the separate 23:23 Celtic Cross reading. Its timestamp and question stay distinct from the Star fixture's 23:47 qualification run.
 - [Earlier exploration](reading-with-you.html): **superseded** synthetic Hermit/Star example. Its resonance buttons and simplified card-by-card progression are historical exploration, not the current proposal.
 
-## Preview
+## Historical preview instructions
 
 For the React fixture and focused tests, use the feature branch checkout:
 

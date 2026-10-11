@@ -2,6 +2,8 @@ import { canonicalVisualCueJSON, hashVisualCueText, sameVisualCueBinding, visual
 import { fingerprintVisualSource, normalizeVisualSource } from '../../shared/reading/visualSourceIdentity.js';
 import { boundVisualCueLedger } from './narrativeGestureSource.js';
 import { postSavedVisualRetry } from './readingVisualStream.js';
+import { isDeletedAccount, isDeletedAccountStorageKey } from './deletedAccountStorage.js';
+import { filterDeletedJournalEntries, isDeletedJournalEntry, isDeletedJournalResult, journalNamespaceForKey } from './deletedJournalEntryStorage.js';
 
 const PRIVATE_PREFIX = 'tarot_visual_resume:';
 export const VISUAL_SNAPSHOT_EVENT = 'reading-visual-snapshot';
@@ -26,6 +28,11 @@ export function visualStorageNamespace(userId) {
 
 function storageOrDefault(storage) {
   try { return storage ?? globalThis.localStorage; } catch { return null; }
+}
+
+function deletedVisualOwner(namespace, storage) {
+  if (!namespace?.startsWith('user:')) return false;
+  try { return isDeletedAccount(decodeURIComponent(namespace.slice(5)), { storage }); } catch { return false; }
 }
 
 export function visualJournalKeys(namespace) {
@@ -56,12 +63,13 @@ function readJSON(target, key) {
 export function writeVisualResume({ namespace, binding, resumeHandle, expiresAt = resumeHandle?.expiresAt ?? Date.now() + 3600000,
   storage, entryId = null, sourceFingerprint = null, stateVersion = null, expectedAttemptId } = {}) {
   const target = storageOrDefault(storage);
-  if (!target || !visualCueBindingSchema.safeParse(binding).success || !resumeHandle?.visualJobToken
+  if (!target || deletedVisualOwner(namespace, target) || isDeletedJournalEntry(namespace, entryId, { storage: target })
+    || isDeletedJournalResult(namespace, binding?.readingResultId, { storage: target }) || !visualCueBindingSchema.safeParse(binding).success || !resumeHandle?.visualJobToken
     || !sameVisualCueBinding(binding, resumeHandle.visualBinding) || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) return false;
   if (resumeHandle.visualJobId == null && resumeHandle.attemptId == null) {
     try {
       target.setItem(privateKey(namespace, binding.readingResultId), JSON.stringify({ binding,
-        visualJobToken: resumeHandle.visualJobToken, expiresAt }));
+        ...(entryId != null ? { entryId: String(entryId) } : {}), visualJobToken: resumeHandle.visualJobToken, expiresAt }));
       return true;
     } catch { return false; }
   }
@@ -110,6 +118,8 @@ export function clearVisualResumes(namespace, storage) {
 
 export function readVisualResume({ namespace, readingResultId, binding, storage, now = Date.now(), entryId = null } = {}) {
   const target = storageOrDefault(storage);
+  if (deletedVisualOwner(namespace, target) || isDeletedJournalEntry(namespace, entryId, { storage: target })
+    || isDeletedJournalResult(namespace, readingResultId, { storage: target })) return null;
   if (entryId != null) {
     const key = replayKey(namespace, String(entryId));
     const record = readJSON(target, key);
@@ -293,6 +303,7 @@ export function needsCloudVisualRefresh(entry) {
 
 export function readSavedVisualEntry({ namespace, entryId, storage }) {
   const target = storageOrDefault(storage);
+  if (deletedVisualOwner(namespace, target) || isDeletedJournalEntry(namespace, entryId, { storage: target })) return null;
   for (const key of visualJournalKeys(namespace)) {
     const entries = readJSON(target, key);
     const entry = Array.isArray(entries) ? entries.find(item => item?.id === entryId) : null;
@@ -306,7 +317,7 @@ export function readSavedVisualEntry({ namespace, entryId, storage }) {
  * version still match; it never inserts, recreates or touches another owner. */
 export function commitSavedVisualEntry({ namespace, entryId, sourceKey, expectedStateVersion, update, storage, isCurrent = () => true }) {
   const target = storageOrDefault(storage);
-  if (!target || !isCurrent()) return { committed: false, reason: 'stale-owner', entry: null };
+  if (!target || deletedVisualOwner(namespace, target) || isDeletedJournalEntry(namespace, entryId, { storage: target }) || !isCurrent()) return { committed: false, reason: 'stale-owner', entry: null };
   const writes = [];
   let found = null;
   for (const key of visualJournalKeys(namespace)) {
@@ -322,8 +333,9 @@ export function commitSavedVisualEntry({ namespace, entryId, sourceKey, expected
     writes.push({ key, entries, index, next });
   }
   if (!found) return { committed: false, reason: 'entry-not-found', entry: null };
+  if (deletedVisualOwner(namespace, target) || isDeletedJournalEntry(namespace, entryId, { storage: target })) return { committed: false, reason: 'stale-owner', entry: null };
   try {
-    for (const { key, entries, index, next } of writes) target.setItem(key, JSON.stringify(entries.map((item, at) => at === index ? next : item)));
+    for (const { key, entries, index, next } of writes) target.setItem(key, JSON.stringify(filterDeletedJournalEntries(namespace, entries.map((item, at) => at === index ? next : item), { storage: target })));
   } catch { return { committed: false, reason: 'storage-error', entry: found }; }
   return { committed: true, reason: null, entry: writes.at(-1).next };
 }
@@ -381,13 +393,15 @@ export function patchVisualEntry(entry, { binding, cueLedger, status }) {
 
 export function patchSavedVisualSnapshot({ namespace, binding, cueLedger, status, storage }) {
   const target = storageOrDefault(storage);
+  if (deletedVisualOwner(namespace, target) || isDeletedJournalResult(namespace, binding?.readingResultId, { storage: target })) return 0;
   let patched = 0;
   for (const key of visualJournalKeys(namespace)) {
     try {
       const entries = JSON.parse(target?.getItem(key) || 'null');
       if (!Array.isArray(entries)) continue;
-      const next = entries.map(entry => patchVisualEntry(entry, { binding, cueLedger, status }));
+      const next = filterDeletedJournalEntries(namespace, entries, { storage: target }).map(entry => patchVisualEntry(entry, { binding, cueLedger, status }));
       if (!next.some((entry, index) => entry !== entries[index])) continue;
+      if (deletedVisualOwner(namespace, target)) return patched;
       target.setItem(key, JSON.stringify(next));
       patched += next.filter((entry, index) => entry !== entries[index]).length;
     } catch { /* A cue cache failure must leave the existing prose intact. */ }
@@ -469,7 +483,9 @@ function retryFailure(code) {
 export async function requestSavedVisualRetry({ namespace, entry, cloud = false, fetchImpl, storage, signal,
   isCurrent = () => true, commit = null } = {}) {
   const target = storageOrDefault(storage);
-  if (!entry?.id) throw retryFailure('not-found');
+  if (!entry?.id || isDeletedJournalEntry(namespace, entry.id, { storage: target })) throw retryFailure('not-found');
+  const current = () => isCurrent() && !deletedVisualOwner(namespace, target)
+    && !isDeletedJournalEntry(namespace, entry.id, { storage: target });
   const replayResume = readVisualResume({ namespace, entryId: entry.id, storage: target });
   const restored = displayEntryVisual(entry);
   const originalResume = restored ? readVisualResume({ namespace, readingResultId: restored.readingResultId,
@@ -478,9 +494,9 @@ export async function requestSavedVisualRetry({ namespace, entry, cloud = false,
   const sourceKey = savedVisualSourceKey(entry);
   const expectedStateVersion = publicVisualRetryState(entry.visualState)?.stateVersion ?? 0;
   const fingerprint = await fingerprintSavedVisualEntry(entry);
-  if (!isCurrent()) throw retryFailure('stale');
+  if (!current()) throw retryFailure('stale');
   const response = await postSavedVisualRetry({ cloud, entryId: entry.id, savedSource: savedVisualSource(entry), fetchImpl, signal });
-  if (!isCurrent()) throw retryFailure('stale');
+  if (!current()) throw retryFailure('stale');
   if (!response.ok) throw retryFailure({ offline: 'offline', 'not-found': 'not-found', 'invalid-source': 'ineligible' }[response.reason] || 'server');
   const state = publicVisualRetryState(response.state);
   if (!state) throw retryFailure('server');
@@ -509,7 +525,7 @@ export async function requestSavedVisualRetry({ namespace, entry, cloud = false,
       const normalized = normalizeVisualSource(source);
       if (candidate?.snapshot && candidate.binding.spreadHash === hashes.spreadHash && candidate.binding.contextHash === hashes.contextHash
         && candidate.binding.artworkEdition === normalized.artworkEdition && candidate.binding.catalogVersion === normalized.catalogVersion) visual = candidate;
-      if (!isCurrent()) throw retryFailure('stale');
+      if (!current()) throw retryFailure('stale');
     }
   } else if (state.retryStatus === 'pending' || state.attachmentStatus === 'pending') {
     if (handle) keepHandle = handle; else if (!cloud) next = expired;
@@ -543,7 +559,7 @@ export async function requestSavedVisualRetry({ namespace, entry, cloud = false,
     }
   }
   const committed = commit ? commit({ entryId: entry.id, sourceKey, update })
-    : commitSavedVisualEntry({ namespace, entryId: entry.id, sourceKey, expectedStateVersion, update, storage: target, isCurrent });
+    : commitSavedVisualEntry({ namespace, entryId: entry.id, sourceKey, expectedStateVersion, update, storage: target, isCurrent: current });
   if (!committed.committed) {
     if (wroteHandle) removeVisualResume({ namespace, entryId: entry.id, attemptId: keepHandle.attemptId, storage: target });
     // Another tab (or a newer cloud poll) already committed state for this exact source.
@@ -571,6 +587,9 @@ export async function requestSavedVisualRetry({ namespace, entry, cloud = false,
 // entry stay intact. Report failure if even the prose cannot be persisted.
 export function persistJournalWithVisualFallback({ key, entries, storage }) {
   const target = storageOrDefault(storage);
+  if (isDeletedAccountStorageKey(key, { storage: target })) return { ok: false, entries: [] };
+  const namespace = journalNamespaceForKey(key);
+  if (namespace) entries = filterDeletedJournalEntries(namespace, entries, { storage: target });
   try { target.setItem(key, JSON.stringify(entries)); return { ok: true, entries }; } catch {
     const stored = readJSON(target, key);
     const persisted = new Map((Array.isArray(stored) ? stored : []).filter(item => item?.id).map(item => [item.id, item]));

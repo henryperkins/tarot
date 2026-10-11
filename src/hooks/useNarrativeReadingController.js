@@ -4,7 +4,7 @@ import { NarrativePanel } from '../components/NarrativePanel';
 import { NarrativeReadingSurface } from '../components/NarrativeReadingSurface';
 import { useNarrationAutomation } from './useNarrationAutomation';
 import { getCardForDeck } from '../lib/cardLookup';
-import { buildCardLinkCatalog } from '../lib/narrativeCardLinks.js';
+import { useReadingGestureRuntime } from './useReadingGestureRuntime.js';
 import {
   getNarrativeBiasClass,
   getNarrativePhaseClass,
@@ -122,9 +122,10 @@ export function useNarrativeReadingController({
     inspectionAvailable: gestureStudyEnabled,
     reflections
   }), [artworkEdition, gestureSource.runId, gestureStudyEnabled, deckStyleId, reading, reflections, revealedCards, spreadPositions, visibleCount]);
+  const gestureRuntime = useReadingGestureRuntime(gestureStudyEnabled);
   const cardLinkCatalog = useMemo(() => (
-    buildCardLinkCatalog({ cards: spreadCards, deckStyle: deckStyleId })
-  ), [deckStyleId, spreadCards]);
+    gestureRuntime?.buildCardLinkCatalog({ cards: spreadCards, deckStyle: deckStyleId }) || null
+  ), [gestureRuntime, deckStyleId, spreadCards]);
   const { cinematicCard, cinematicPosition } = useMemo(() => (
     selectCinematicCard({ reading, visibleCount, spreadPositions })
   ), [reading, spreadPositions, visibleCount]);

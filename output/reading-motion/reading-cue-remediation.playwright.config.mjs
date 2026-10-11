@@ -35,7 +35,7 @@ process.env.CUE_VALIDATION_EVIDENCE_DIR = runDirectory;
 const fixtureSpecs = ['reading-gestures.spec.js', 'reading-gestures-lifecycle.spec.js', 'reading-gestures-dynamic.spec.js',
   'reading-gestures-refinement.spec.js', 'reading-gestures-deck.spec.js', 'reading-gestures-generated.spec.js',
   'reading-visual-handoff.spec.js', 'journal-visual-restoration.spec.js', 'reading-gestures-geometry.spec.js',
-  'reading-gestures-artwork-matrix.spec.js'];
+  'reading-gestures-artwork-matrix.spec.js', 'reading-account-deletion.spec.js'];
 // The artwork performance measurements need the separately identified optimized build.
 const specs = lane === 'qualification' ? ['reading-cue-qualification.spec.js'] : lane === 'fixture' ? fixtureSpecs
   : ['reading-gestures-live.spec.js', 'reading-visual-disabled.spec.js', ...(lane === 'optimized' ? ['reading-cue-artwork-performance.spec.js'] : [])];

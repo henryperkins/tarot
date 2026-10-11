@@ -1,5 +1,9 @@
 # Reading Cue Remediation Implementation Plan and Checklist
 
+> **Historical 16-task remediation ledger:** The d970 source and task records below have been incorporated into consolidation, with later source checkpoints and [local UI acceptance with two owner exceptions](../reviews/2026-10-11-reading-ui-acceptance.md). The dated uncommitted/pending claims describe their original snapshots. Do not reapply scratch manifests or use this order to resume work. The [intent closure roadmap](2026-10-11-reading-intent-closure.md), [aligner release plan](2026-10-11-reading-aligner-release.md), and [post-reading model plan](2026-10-11-reading-post-reading-model.md) now govern remaining work.
+
+> **Dependency correction:** Task 15's model-first application/device prerequisite and the old global live timing/budget criteria below belong to the historical model program. Aligner device/release work uses deterministic cues without inference or model qualification. Model-only semantic/device claims retain their own prerequisites. Historical call/dollar proposals grant no new spending authorization; the future full GLM/high post-reading lane has a separate $10 ceiling and unresolved deadline/accounting design.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Resolve all six follow-up issues with reproducible evidence: preserve the failed qualification round, establish meaningful playback, improve semantic selection and accounting, qualify a candidate, recover saved readings, and complete artwork and physical-device validation.
@@ -12,7 +16,7 @@
 
 **Status, 2026-10-10:** At checklist creation, every action below was unchecked. This document authorizes no inference, implementation, commit/push, production migration, or deployment. The qualification worktree is `/home/ubuntu/.codex/worktrees/d970/tarot`, branch `codex/reading-cue-qualification-20261009`, inspected HEAD `f24487d`; existing report/parent-plan changes and evidence are uncommitted.
 
-**Current status, 2026-10-10 evening:** Tasks 1–14 are integrated in the uncommitted checkout; per-task state, evidence and open gates are in the [readiness record](../reviews/2026-10-10-reading-cue-readiness.md). Nothing is committed, deployed or remotely migrated, and no live inference ran. The execution update below is historical.
+**Historical status, 2026-10-10 evening:** Tasks 1–14 are integrated in the uncommitted checkout; per-task state, evidence and open gates are in the [readiness record](../reviews/2026-10-10-reading-cue-readiness.md). Nothing is committed, deployed or remotely migrated, and no live inference ran. The execution update below is historical.
 
 **Execution update, 2026-10-10:** Local/offline work resumed by user request. Tasks 1–2 are complete with independently reviewed archival/diagnostic evidence. Task 2 retains three strict playback failures. Reviewed Task 4 accounting and Task 9 durable state are integrated; broader verification found one internal recovery regression assigned to Task 10. Tasks 3, 10 and the Task 13 scaffold are running in isolated scratch/runtime copies. New live inference, physical acceptance and production release remain separately gated.
 
@@ -44,7 +48,7 @@
 
 ---
 
-## Issue coverage and execution order
+## Historical issue coverage and execution order
 
 | Issue | Work packages | Completion evidence |
 | --- | --- | --- |

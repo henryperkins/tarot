@@ -1,5 +1,9 @@
 # Reading Cue Model Qualification Implementation Plan
 
+> **Historical live-accompaniment qualification plan:** This plan and its failed/interrupted round remain evidence of the old candidate comparison and criteria. They are neither an aligner release gate nor authorization for another round. Continue from the [intent closure roadmap](2026-10-11-reading-intent-closure.md), independent [aligner release](2026-10-11-reading-aligner-release.md), and [post-reading model](2026-10-11-reading-post-reading-model.md) plans. Full GLM/high post-reading is the approved future model direction; its deadline, reservation proof, spending/retention design and completion SLO must be settled before a separately authorized run.
+
+> **Criteria scope:** Preserve the candidate matrix, 60-second deadline, first-visible-interval/receipt-lag thresholds, source pacing, six Star moments and failed scores below as historical requirements/results. Do not relax or retroactively pass that round. Current client playback uses source-order visible turns, not latest-only coalescing. The model lane carries forward semantic integrity/precision/recall requirements and independently declares post-reading timing criteria; authored controls and conservative aligner cues do not prove semantic qualification.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Produce reproducible evidence that an independent visual model connects authentic reading passages to the right artwork details accurately, promptly and at a measured cost, before selecting a development-beta candidate.

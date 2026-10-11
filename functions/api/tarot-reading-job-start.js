@@ -1,6 +1,7 @@
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { startReadingJob } from '../lib/readingJobs.js';
 import { getUserFromRequest } from '../lib/auth.js';
+import { createWebVisualCapability } from '../lib/readingVisualWebAdmission.js';
 
 /**
  * POST /api/tarot-reading/jobs
@@ -25,6 +26,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     env,
     payload,
     ownerUserId: user?.id || null,
+    visualCapability: createWebVisualCapability({ env, request, user }),
     request,
     waitUntil,
     forwardHeaders: {

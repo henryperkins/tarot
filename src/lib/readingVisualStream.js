@@ -1,3 +1,5 @@
+import { readingGesturesEnabled } from './readingGestureSettings.js';
+
 const TERMINAL = new Set(['complete', 'failed', 'cancelled', 'expired', 'revoked']);
 export const isVisualJobTerminal = status => TERMINAL.has(status);
 
@@ -106,7 +108,7 @@ const RETRY_FAILURES = new Map([[400, 'invalid-source'], [401, 'forbidden'], [40
  * automatically; failures are typed so the reading stays saved and readable. */
 export async function postSavedVisualRetry({ cloud = false, entryId = null, savedSource = null, signal,
   fetchImpl = globalThis.fetch, timeout = 30000 } = {}) {
-  const init = { method: 'POST', credentials: 'include', headers: { Accept: 'application/json' }, signal };
+  const init = { method: 'POST', credentials: 'include', headers: { Accept: 'application/json', ...(readingGesturesEnabled() ? { 'X-Reading-Cue-Display': '1' } : {}) }, signal };
   if (!cloud) {
     const source = { raw: savedSource?.raw, cards: savedSource?.cards, deckId: savedSource?.deckId,
       question: savedSource?.question, reflections: savedSource?.reflections };

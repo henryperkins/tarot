@@ -2,7 +2,7 @@
 
 Type: index
 Status: active reference
-Last reviewed: 2026-09-25
+Last reviewed: 2026-10-11
 
 This directory mixes active references, design and product notes, audits, and archived plans. Start here when you need the current source of truth.
 
@@ -22,6 +22,14 @@ This directory mixes active references, design and product notes, audits, and ar
 - `design-contract.md` - current design-system contract
 - `monetization/monetization-logic.md` - implemented monetization behavior
 - `vision-pipeline.md` - current vision pipeline and evaluation flow
+
+## Reading UI: Current Plans And Evidence
+
+- [Intent closure roadmap](superpowers/plans/2026-10-11-reading-intent-closure.md) — current source, approved scope changes, decisions still needed, and ordered work.
+- [Aligner release plan](superpowers/plans/2026-10-11-reading-aligner-release.md) — all web tiers, no inference; production UI, saved-reading access, personal context, device checks and release.
+- [Post-reading model plan](superpowers/plans/2026-10-11-reading-post-reading-model.md) — separate Plus/Pro web work for semantic associations, accounting, privacy and future qualification.
+- [Local acceptance](superpowers/reviews/2026-10-11-reading-ui-acceptance.md) and [readiness history](superpowers/reviews/2026-10-10-reading-cue-readiness.md) — accepted locally with two owner exceptions; no production activation claim.
+- [Original intent](superpowers/specs/2026-10-08-reading-imagery-motion.md), [bridge milestone](superpowers/plans/2026-10-09-reading-gestures-react-bridge.md), and [studies](../output/reading-motion/README.md) — preserved design and implementation history, not current resume instructions.
 
 ## Integrations
 

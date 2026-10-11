@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { readBlockFocus } from '../lib/narrativeCardLinks.js';
-import { useNarrativeCardFocusApi } from '../components/reading/narrative/NarrativeCardFocus.jsx';
+import { readBlockFocus } from '../lib/narrativeReadingDom.js';
+import { useNarrativeCardFocusApi } from '../components/reading/narrative/narrativeFocusContext.js';
 
 // The eye rests a little above the middle of the screen while reading.
 const READING_LINE = 0.42;

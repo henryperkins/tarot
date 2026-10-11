@@ -601,29 +601,7 @@ export function remarkCardLinks(options = {}) {
 }
 
 /** Parse a rendered block's data attributes back into a focus description. */
-export function readBlockFocus(element) {
-  if (!element?.dataset) return null;
-  const { readingBlock, blockCards, blockPrimary, blockMode, blockTouches } = element.dataset;
-  const cards = (blockCards || '').split(' ').filter(Boolean).map(Number).filter(Number.isInteger);
-  if (!readingBlock || cards.length === 0) return null;
-  const touches = {};
-  for (const token of (blockTouches || '').split(' ').filter(Boolean)) {
-    const split = token.indexOf(':');
-    const card = Number(token.slice(0, split));
-    const point = token.slice(split + 1);
-    if (!Number.isInteger(card) || !point) continue;
-    touches[card] = touches[card] || [];
-    if (!touches[card].includes(point)) touches[card].push(point);
-  }
-  const primary = blockPrimary === '' || blockPrimary === undefined ? null : Number(blockPrimary);
-  return {
-    key: `block:${readingBlock}:${blockCards}:${blockTouches || ''}`,
-    mode: blockMode === 'sweep' ? 'sweep' : 'single',
-    cards,
-    primary: Number.isInteger(primary) ? primary : null,
-    touches
-  };
-}
+export { readBlockFocus } from './narrativeReadingDom.js';
 
 /** Resolve recorded sidecars through the same contract as generated passages. */
 export function resolveGestureSidecar({ sidecar, source, cards = [], artworkEdition } = {}) {

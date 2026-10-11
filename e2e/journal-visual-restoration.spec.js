@@ -5,10 +5,9 @@ import { createNarrativeFixture } from './helpers/narrativeFixtures.js';
 import { applyVisualCueBatch, createVisualCueLedger } from '../shared/reading/visualCueLedger.js';
 import { hashVisualCueText } from '../shared/contracts/visualCueBatches.js';
 import { publicVisualSnapshot, savedVisualSource, writeVisualResume } from '../src/lib/readingVisualStorage.js';
-import { createVisualReplayAdmission, claimVisualRetry, initializeVisualReplay, reserveVisualReplay } from '../functions/lib/readingVisualRetry.js';
 import { fingerprintSavedVisualSource, loadOwnedJournalVisualSource, loadJournalVisualState, attachJournalVisualResult } from '../functions/lib/readingVisualResults.js';
 import { normalizeVisualSource } from '../shared/reading/visualSourceIdentity.js';
-import { acceptedLedger, createRecoveryBackend as createBackend, sourceBinding, STAR as RECOVERY_STAR, starEntry } from './helpers/journalVisualRecoveryBridge.mjs';
+import { acceptedLedger, createRecoveryBackend as createBackend, sourceBinding, STAR as RECOVERY_STAR, STAR_PROPOSALS, starEntry } from './helpers/journalVisualRecoveryBridge.mjs';
 
 // Every recovery lane fails on an unexpected page error. The only allowed one is
 // the duplicate-tab init script touching localStorage from its about:blank page.
@@ -35,11 +34,43 @@ async function completedLedger() {
   return result.ledger;
 }
 
+// Wrapped inline cues have separate painted fragments; their union center may
+// hit a neighboring cue. Find an exposed fragment, then use the native pointer
+// action with normal visibility, stability, enabled and hit-target checks.
+async function clickForeground(locator) {
+  await expect(locator).toBeVisible();
+  await locator.evaluate(element => element.scrollIntoView({
+    block: 'nearest', inline: 'nearest', behavior: 'instant'
+  }));
+  let position = null;
+  await expect.poll(async () => {
+    position = await locator.evaluate(element => {
+      const box = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      const borderLeft = parseFloat(style.borderLeftWidth) || 0;
+      const borderTop = parseFloat(style.borderTopWidth) || 0;
+      for (const fragment of element.getClientRects()) {
+        const left = Math.max(0, fragment.left), right = Math.min(innerWidth, fragment.right);
+        const top = Math.max(0, fragment.top), bottom = Math.min(innerHeight, fragment.bottom);
+        if (right <= left || bottom <= top) continue;
+        const x = (left + right) / 2, y = (top + bottom) / 2;
+        if (element.contains(document.elementFromPoint(x, y))) {
+          // Playwright's click position is relative to the padding-box origin.
+          return { x: x - box.left - borderLeft, y: y - box.top - borderTop };
+        }
+      }
+      return null;
+    });
+    return Boolean(position);
+  }, { timeout: 5000 }).toBe(true);
+  await locator.click({ position });
+}
+
 // Phone layouts start with the narrative collapsed; expand only when needed.
 async function expandNarrative(page) {
   const toggle = page.getByRole('button', { name: 'Reading narrative' }).first();
   await expect(toggle).toBeVisible();
-  if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+  if (await toggle.getAttribute('aria-expanded') === 'false') await clickForeground(toggle);
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }
 
@@ -50,11 +81,11 @@ async function inspectStatic(page, cue) {
   const phrase = page.locator(`[data-gesture-id="${cue.id}"]`);
   await expect(phrase).toBeVisible();
   await expect(restored.locator('[data-gesture-window]')).not.toHaveAttribute('data-phase', /active|settling/);
-  await phrase.click();
+  await clickForeground(phrase);
   await expect(restored.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
   await expect(restored.locator('[data-gesture-window]')).toHaveAttribute('data-phase', 'held');
   await expect(restored.locator('[data-focus-card]')).toHaveAttribute('data-details', 'pool-pour');
-  expect(await restored.evaluate(el => el.getAnimations({ subtree: true }).filter(a => a.playState === 'running').length)).toBe(0);
+  expect(await runningAnimations(restored)).toEqual([]);
   await page.keyboard.press('Escape');
   await expect(restored.locator('[data-gesture-window]')).not.toHaveAttribute('data-held', 'true');
   await expect(restored.locator('.narrative-stream__text')).toHaveText(star.excerpt);
@@ -180,14 +211,28 @@ async function prepareJournal(page, { key = 'tarot_journal', entries = [] } = {}
 }
 
 const entryCard = (page, id) => page.locator(`[id="journal-entry-${id}"] article`);
-async function openEntry(page, id) {
+async function openEntry(page, id, { centerEntryToggle = false } = {}) {
   const card = entryCard(page, id);
   await expect(card).toBeVisible({ timeout: 20000 });
   const toggle = card.locator('button[aria-controls]:not([aria-haspopup])').first();
-  if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+  if (await toggle.getAttribute('aria-expanded') === 'false') {
+    // Duplicate-tab setup positions the control before the native click's
+    // stability wait. Keep foreground hit-testing and native input unchanged.
+    if (centerEntryToggle) {
+      await toggle.evaluate(element => element.scrollIntoView({
+        block: 'center', inline: 'nearest', behavior: 'instant'
+      }));
+    } else {
+      await toggle.scrollIntoViewIfNeeded();
+    }
+    await clickForeground(toggle);
+  }
   const narrative = card.getByRole('button', { name: 'Reading narrative' });
   await expect(narrative).toBeVisible();
-  if (await narrative.getAttribute('aria-expanded') === 'false') await narrative.click();
+  if (await narrative.getAttribute('aria-expanded') === 'false') {
+    await narrative.scrollIntoViewIfNeeded();
+    await clickForeground(narrative);
+  }
   return card;
 }
 
@@ -222,7 +267,8 @@ async function inspectRecovered(page, card) {
   await expect(stage).not.toHaveAttribute('data-phase', /active|settling/);
   // Literal, then the grounded same-card pair, each held and released by keyboard.
   for (const [quote, details] of [['one pitcher into a pool', ['pool-pour']], ['Neither pitcher gets dropped.', ['land-pour', 'pool-pour']]]) {
-    await restored.locator('[data-gesture-id]').filter({ hasText: quote }).first().click();
+    const phrase = restored.locator('[data-gesture-id]').filter({ hasText: quote }).first();
+    await clickForeground(phrase);
     await expect(stage).toHaveAttribute('data-held', 'true');
     await expect(stage).toHaveAttribute('data-phase', 'held');
     await expect.poll(async () => (await focusCards(restored).first().getAttribute('data-details') || '').split(' ').filter(Boolean).sort()).toEqual(details);
@@ -231,7 +277,14 @@ async function inspectRecovered(page, card) {
     await expect(stage).not.toHaveAttribute('data-held', 'true');
   }
   // Whole-card identity inspection from the shelf.
-  await restored.locator('[data-gesture-shelf] button').nth(2).click();
+  const shelfCard = restored.locator('[data-gesture-shelf] button').nth(2);
+  // Nearest-edge scrolling can leave the shelf behind the sticky phone header.
+  // Position the actual card first; the unchanged foreground/native click must
+  // still establish an exposed fragment and pass normal actionability checks.
+  await shelfCard.evaluate(element => element.scrollIntoView({
+    block: 'center', inline: 'nearest', behavior: 'instant'
+  }));
+  await clickForeground(shelfCard);
   await expect(stage).toHaveAttribute('data-held', 'true');
   await expect(focusCards(restored).first()).toHaveAttribute('data-details', '');
   await page.keyboard.press('Escape');
@@ -259,12 +312,10 @@ async function signOut(page) {
     restore = page.viewportSize();
     await page.setViewportSize({ width: restore.width >= 640 ? 600 : 800, height: restore.height });
   }
-  // Header re-renders can close the menu; reopen until the sign-out click lands.
-  await expect(async () => {
-    const item = page.getByRole('menuitem', { name: 'Sign Out' });
-    if (!await item.isVisible()) await visibleMenu().click({ timeout: 2000 });
-    await item.click({ timeout: 2000 });
-  }).toPass({ timeout: 20000 });
+  await clickForeground(visibleMenu());
+  const item = page.getByRole('menuitem', { name: 'Sign Out' });
+  await expect(item).toBeVisible();
+  await clickForeground(item);
   await expect(page.locator('button[aria-label^="User menu for"]')).toHaveCount(0);
   if (restore) await page.setViewportSize(restore);
 }
@@ -273,9 +324,18 @@ const ownerLeftovers = (page, userId) => page.evaluate(id => Object.keys(localSt
 
 const storedEntry = (page, key, id) => page.evaluate(({ key, id }) => JSON.parse(localStorage.getItem(key) || '[]').find(item => item.id === id) || null, { key, id });
 
-test('guest local expiry: one explicit retry restores static cues that survive reload', async ({ page }, testInfo) => {
+async function historicalStaticEntry(id) {
+  const entry = starEntry({ id });
+  const binding = await sourceBinding(entry, `${id}-historical`);
+  const ledger = await acceptedLedger(binding, entry.personalReading, STAR_PROPOSALS);
+  return { ...entry, readingResultId: binding.readingResultId, visualBinding: binding,
+    visual: { readingResultId: binding.readingResultId, binding, status: 'expired', sourceRevision: 0,
+      ledgerRevision: ledger.ledgerRevision, snapshot: ledger } };
+}
+
+test('guest local expiry: explicit retry admits no new work and historical static cues survive reload', async ({ page }, testInfo) => {
   const backend = await createRecoveryBackend(page.context());
-  const entry = starEntry({ id: 'guest-star', ...pendingOriginal() });
+  const entry = await historicalStaticEntry('guest-star');
   try {
     await prepareJournal(page, { entries: [entry] });
     await page.goto('/journal');
@@ -287,25 +347,28 @@ test('guest local expiry: one explicit retry restores static cues that survive r
     // Keyboard activation of the explicit action.
     await retryOf(card).focus();
     await page.keyboard.press('Enter');
-    await expect(recoveryOf(card).getByRole('status')).toHaveText(READY, { timeout: 20000 });
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(UNAVAILABLE, { timeout: 20000 });
     await expect(recoveryOf(card).getByRole('status')).toBeFocused();
     expect(backend.retryPosts().map(item => item.path)).toEqual(['/api/tarot-reading/visual-retry']);
     expect(backend.transportRequests().every(item => item.method === 'GET')).toBe(true);
-    expect(backend.providerCalls()).toBe(1);
+    expect(backend.providerCalls()).toBe(0);
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(0);
+    await expect(retryOf(card)).toHaveCount(0);
     await inspectRecovered(page, card);
     const stored = await storedEntry(page, 'tarot_journal', entry.id);
     expect(sha256(stored.personalReading)).toBe(sha256(entry.personalReading));
-    expect(stored.visualState).toMatchObject({ attachmentStatus: 'attached', retryStatus: 'complete' });
+    expect(stored.visualState).toMatchObject({ retryStatus: 'unavailable', reason: 'configuration-unavailable' });
     expect(Object.keys(stored.visualState).sort()).toEqual(['attachmentStatus', 'reason', 'retryStatus', 'sourceFingerprint', 'stateVersion']);
     expect(await privateValues(page)).toEqual([]);
     await motionReport(page, testInfo, 'after-retry');
     await page.reload();
     const reloaded = await openEntry(page, entry.id);
     await expect(reloaded.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').first()).toBeVisible();
-    await expect(recoveryOf(reloaded)).toHaveCount(0);
+    await expect(recoveryOf(reloaded)).toHaveAttribute('data-recovery-phase', 'unavailable');
+    await expect(retryOf(reloaded)).toHaveCount(0);
     await inspectRecovered(page, reloaded);
     expect(backend.retryPosts()).toHaveLength(1);
-    expect(backend.providerCalls()).toBe(1);
+    expect(backend.providerCalls()).toBe(0);
     await motionReport(page, testInfo, 'after-reload');
   } finally {
     await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
@@ -313,11 +376,11 @@ test('guest local expiry: one explicit retry restores static cues that survive r
   }
 });
 
-test('signed-in local entitlement lane: a free account retries once through authenticated local admission', async ({ page }, testInfo) => {
+test('local Free refusal preserves static cues; paid cloud double activation admits one authenticated retry', async ({ page }, testInfo) => {
   const backend = await createRecoveryBackend(page.context());
   try {
     backend.setSession(await backend.seedAccount({ id: 'free-reader', tier: 'free' }));
-    const entry = starEntry({ id: 'free-star', ...pendingOriginal() });
+    const entry = await historicalStaticEntry('free-star');
     await prepareJournal(page, { key: 'tarot_journal_free-reader', entries: [entry] });
     await page.goto('/journal');
     const card = await openEntry(page, entry.id);
@@ -325,14 +388,28 @@ test('signed-in local entitlement lane: a free account retries once through auth
     let values = [];
     // A rapid double activation still produces one explicit request.
     await retryOf(card).dblclick();
-    await expect(recoveryOf(card).getByRole('status')).toHaveText(READY, { timeout: 20000 });
+    await expect(recoveryOf(card).getByRole('status')).toHaveText(UNAVAILABLE, { timeout: 20000 });
     values = await privateValues(page);
     expect(backend.retryPosts().map(item => item.path)).toEqual(['/api/tarot-reading/visual-retry']);
-    expect(backend.providerCalls()).toBe(1);
-    expect(backend.db.rows('SELECT admission_scope FROM visual_retry_claims').map(row => row.admission_scope)).toEqual(['user:free-reader']);
+    expect(backend.providerCalls()).toBe(0);
+    expect(backend.db.rows('SELECT admission_scope FROM visual_retry_claims').map(row => row.admission_scope)).toEqual([]);
     await inspectRecovered(page, card);
     await expectNoPrivateExposure(page, values, 'tarot_journal_free-reader');
     await motionReport(page, testInfo, 'free-local');
+    // The paid web lane uses its real cloud journal and cookie-authenticated POST.
+    backend.setSession(await backend.seedAccount({ id: 'plus-double' }));
+    const paid = starEntry({ id: 'paid-double' });
+    await backend.seedCloudEntry({ userId: 'plus-double', entry: paid });
+    await page.goto('/journal');
+    const paidCard = await openEntry(page, paid.id);
+    await retryOf(paidCard).dblclick();
+    await expect(recoveryOf(paidCard).getByRole('status')).toHaveText(READY, { timeout: 20000 });
+    expect(backend.retryPosts().map(item => item.path)).toEqual(['/api/tarot-reading/visual-retry', '/api/journal/paid-double/visual-retry']);
+    expect(backend.providerCalls()).toBe(1);
+    expect(backend.db.rows('SELECT admission_scope FROM visual_retry_claims').map(row => row.admission_scope)).toEqual(['user:plus-double']);
+    await inspectRecovered(page, paidCard);
+    await expectNoPrivateExposure(page, await privateValues(page), 'tarot_journal_cache_plus-double');
+    await motionReport(page, testInfo, 'paid-double');
   } finally {
     await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
     await backend.close();
@@ -404,12 +481,14 @@ test('duplicate tabs share one server claim and one dispatch and converge on sta
   const backend = await createRecoveryBackend(context);
   const entry = starEntry({ id: 'tabs-star', ...pendingOriginal() });
   try {
-    await prepareJournal(page, { entries: [entry] });
+    backend.setSession(await backend.seedAccount({ id: 'plus-tabs' }));
+    await backend.seedCloudEntry({ userId: 'plus-tabs', entry });
+    await prepareJournal(page, { key: 'tarot_journal_cache_plus-tabs', entries: [entry] });
     await page.goto('/journal');
-    const first = await openEntry(page, entry.id);
+    const first = await openEntry(page, entry.id, { centerEntryToggle: true });
     const second = await context.newPage();
     await second.goto('/journal');
-    const other = await openEntry(second, entry.id);
+    const other = await openEntry(second, entry.id, { centerEntryToggle: true });
     const gate = backend.holdNext('POST', /visual-retry$/);
     await retryOf(first).click();
     await gate.reachedPromise;
@@ -423,6 +502,12 @@ test('duplicate tabs share one server claim and one dispatch and converge on sta
     await motionReport(page, testInfo, 'tab-a');
     await motionReport(second, testInfo, 'tab-b');
     await second.close();
+    await page.reload();
+    const reloaded = await openEntry(page, entry.id, { centerEntryToggle: true });
+    await inspectRecovered(page, reloaded);
+    expect(backend.retryPosts()).toHaveLength(2);
+    expect(backend.providerCalls()).toBe(1);
+    await motionReport(page, testInfo, 'paid-reload');
   } finally {
     await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
     await backend.close();
@@ -432,12 +517,13 @@ test('duplicate tabs share one server claim and one dispatch and converge on sta
 test('a rejected successor keeps the cached cues and the exhausted status survives reload', async ({ page }, testInfo) => {
   const backend = await createRecoveryBackend(page.context(), { provider: 'reject' });
   const base = starEntry({ id: 'cached-star' });
-  const binding = await sourceBinding(base, 'cached-original');
+  backend.setSession(await backend.seedAccount({ id: 'plus-cached' }));
+  const binding = await seedExpiredCloudOriginal(backend, { userId: 'plus-cached', entry: base });
   const ledger = await acceptedLedger(binding, base.personalReading);
   const entry = { ...base, readingResultId: binding.readingResultId, visualBinding: binding,
     visual: { readingResultId: binding.readingResultId, binding, status: 'expired', sourceRevision: 0, ledgerRevision: ledger.ledgerRevision, snapshot: ledger } };
   try {
-    await prepareJournal(page, { entries: [entry] });
+    await prepareJournal(page, { key: 'tarot_journal_cache_plus-cached', entries: [entry] });
     await page.goto('/journal');
     let card = await openEntry(page, entry.id);
     const cached = card.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').filter({ hasText: 'one pitcher into a pool' });
@@ -448,7 +534,7 @@ test('a rejected successor keeps the cached cues and the exhausted status surviv
     await expect(recoveryOf(card).getByRole('status')).toHaveText(UNAVAILABLE);
     await expect(retryOf(card)).toHaveCount(0);
     await expect(cached).toBeVisible();
-    expect((await storedEntry(page, 'tarot_journal', entry.id)).visual.snapshot.cues.map(cue => cue.id)).toEqual(ledger.cues.map(cue => cue.id));
+    expect((await storedEntry(page, 'tarot_journal_cache_plus-cached', entry.id)).visual.snapshot.cues.map(cue => cue.id)).toEqual(ledger.cues.map(cue => cue.id));
     await page.reload();
     card = await openEntry(page, entry.id);
     await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'unavailable');
@@ -467,29 +553,51 @@ test('a rejected successor keeps the cached cues and the exhausted status surviv
   }
 });
 
+// Preserve the local persistence race while using only actual paid admission.
+// After the real paid POST reserves work, a tier downgrade routes this owner to
+// the local journal. The existing handle stays observable; no Free work starts.
+async function reservePaidLocalWork(backend, userId, entry) {
+  backend.setSession(await backend.seedAccount({ id: userId }));
+  const response = await backend.postLocalRetry(savedVisualSource(entry));
+  expect(response.status).toBe(200);
+  expect((await response.json()).resumeHandle?.visualJobToken).toEqual(expect.any(String));
+  await expect.poll(() => backend.providerCalls()).toBe(1);
+  await backend.db.prepare("UPDATE users SET subscription_tier = 'free', subscription_status = 'inactive' WHERE id = ?")
+    .bind(userId).run();
+}
+
 test('deleting an entry while its retry response is pending cannot resurrect it or keep a private handle', async ({ page }) => {
-  const backend = await createRecoveryBackend(page.context());
+  const backend = await createRecoveryBackend(page.context(), { provider: 'hold' });
   try {
-    backend.setSession(await backend.seedAccount({ id: 'free-delete', tier: 'free' }));
     const entry = starEntry({ id: 'delete-star', ...pendingOriginal() });
-    await prepareJournal(page, { key: 'tarot_journal_free-delete', entries: [entry] });
+    await reservePaidLocalWork(backend, 'paid-delete', entry);
+    await prepareJournal(page, { key: 'tarot_journal_paid-delete', entries: [entry] });
     await page.goto('/journal');
     const card = await openEntry(page, entry.id);
     const gate = backend.holdNext('POST', /visual-retry$/);
     await retryOf(card).click();
     await gate.reachedPromise;
+    expect(gate.response.resumeHandle?.visualJobToken).toEqual(expect.any(String));
+    expect(gate.response.resumeHandle?.visualJobId).toEqual(expect.any(String));
+    await expect.poll(() => backend.providerCalls()).toBe(1);
+    const claim = backend.db.rows('SELECT * FROM visual_retry_claims')[0];
+    expect(claim?.visual_job_id).toBe(gate.response.resumeHandle.visualJobId);
+    expect(claim?.reserved_at).toBeGreaterThan(0);
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(1);
     await card.getByRole('button', { name: 'Open entry actions' }).click();
     await page.getByRole('menuitem', { name: 'Delete entry' }).click();
     await page.getByRole('button', { name: 'Delete', exact: true }).click();
     await expect(entryCard(page, entry.id)).toHaveCount(0);
     gate.release();
+    backend.releaseProvider();
     await backend.settle();
     await page.waitForTimeout(500);
-    expect(await storedEntry(page, 'tarot_journal_free-delete', entry.id)).toBeNull();
+    expect(await storedEntry(page, 'tarot_journal_paid-delete', entry.id)).toBeNull();
     expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.includes(':entry:')))).toEqual([]);
     await expect(entryCard(page, entry.id)).toHaveCount(0);
     expect(backend.retryPosts()).toHaveLength(1);
-    expect(backend.providerCalls()).toBeLessThanOrEqual(1);
+    expect(backend.providerCalls()).toBe(1);
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(1);
   } finally {
     await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });
     await backend.close();
@@ -509,9 +617,17 @@ test('switching accounts while a cloud retry response is pending writes nothing 
     const gate = backend.holdNext('POST', /visual-retry$/);
     await retryOf(card).click();
     await gate.reachedPromise;
+    expect(gate.response.resumeHandle?.visualJobToken).toEqual(expect.any(String));
+    expect(gate.response.resumeHandle?.visualJobId).toEqual(expect.any(String));
+    await expect.poll(() => backend.providerCalls()).toBe(1);
+    const claim = backend.db.rows('SELECT * FROM visual_retry_claims')[0];
+    expect(claim?.visual_job_id).toBe(gate.response.resumeHandle.visualJobId);
+    expect(claim?.reserved_at).toBeGreaterThan(0);
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(1);
     await signOut(page);
     await expect(entryCard(page, entry.id)).toHaveCount(0);
     gate.release();
+    backend.releaseProvider();
     await backend.settle();
     await page.waitForTimeout(500);
     // Neither the signed-out owner's journal cache nor any private handle is recreated.
@@ -536,12 +652,23 @@ test('leaving the journal and signing out while a retry response is pending leav
     const gate = backend.holdNext('POST', /visual-retry$/);
     await retryOf(card).click();
     await gate.reachedPromise;
+    expect(gate.response.resumeHandle?.visualJobToken).toEqual(expect.any(String));
+    expect(gate.response.resumeHandle?.visualJobId).toEqual(expect.any(String));
+    await expect.poll(() => backend.providerCalls()).toBe(1);
+    const claim = backend.db.rows('SELECT * FROM visual_retry_claims')[0];
+    expect(claim?.visual_job_id).toBe(gate.response.resumeHandle.visualJobId);
+    expect(claim?.reserved_at).toBeGreaterThan(0);
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(1);
     // Client-side navigation unmounts the journal while the response is in flight.
     await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Reading' }).first().click();
     await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator('main.journal-page')).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Reading setup', exact: true })).toBeVisible();
+    await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
     await signOut(page);
     await expect(page.locator('button[aria-label^="User menu for"]')).toHaveCount(0);
     gate.release();
+    backend.releaseProvider();
     await backend.settle();
     await page.waitForTimeout(500);
     expect(await ownerLeftovers(page, 'plus-leave')).toEqual([]);
@@ -553,23 +680,32 @@ test('leaving the journal and signing out while a retry response is pending leav
 });
 
 test('replacing the saved source while the retry response is pending patches nothing', async ({ page }) => {
-  const backend = await createRecoveryBackend(page.context());
+  const backend = await createRecoveryBackend(page.context(), { provider: 'hold' });
   const entry = starEntry({ id: 'replace-star', ...pendingOriginal() });
   try {
-    await prepareJournal(page, { entries: [entry] });
+    await reservePaidLocalWork(backend, 'paid-replace', entry);
+    await prepareJournal(page, { key: 'tarot_journal_paid-replace', entries: [entry] });
     await page.goto('/journal');
     const card = await openEntry(page, entry.id);
     const gate = backend.holdNext('POST', /visual-retry$/);
     await retryOf(card).click();
     await gate.reachedPromise;
+    expect(gate.response.resumeHandle?.visualJobToken).toEqual(expect.any(String));
+    expect(gate.response.resumeHandle?.visualJobId).toEqual(expect.any(String));
+    await expect.poll(() => backend.providerCalls()).toBe(1);
+    const claim = backend.db.rows('SELECT * FROM visual_retry_claims')[0];
+    expect(claim?.visual_job_id).toBe(gate.response.resumeHandle.visualJobId);
+    expect(claim?.reserved_at).toBeGreaterThan(0);
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(1);
     // Another tab edits the saved context of this entry.
     await page.evaluate(id => {
-      const entries = JSON.parse(localStorage.getItem('tarot_journal'));
-      localStorage.setItem('tarot_journal', JSON.stringify(entries.map(item => item.id === id ? { ...item, reflections: { Overall: 'Edited elsewhere' } } : item)));
+      const entries = JSON.parse(localStorage.getItem('tarot_journal_paid-replace'));
+      localStorage.setItem('tarot_journal_paid-replace', JSON.stringify(entries.map(item => item.id === id ? { ...item, reflections: { Overall: 'Edited elsewhere' } } : item)));
     }, entry.id);
     gate.release();
+    backend.releaseProvider();
     await expect(recoveryOf(card).getByRole('status')).toHaveText('Your reading changed while card connections were being checked.', { timeout: 20000 });
-    const stored = await storedEntry(page, 'tarot_journal', entry.id);
+    const stored = await storedEntry(page, 'tarot_journal_paid-replace', entry.id);
     expect(stored.visualState).toBeUndefined();
     expect(stored.reflections).toEqual({ Overall: 'Edited elsewhere' });
     expect(stored.personalReading).toBe(entry.personalReading);
@@ -731,10 +867,7 @@ test('pending local retry without transport configuration preserves pending stat
     const source = savedVisualSource(entry);
     const binding = await sourceBinding(entry, 'existing-pending-local');
     const fingerprint = await fingerprintSavedVisualSource({ source, ...normalizeVisualSource(source) });
-    const admission = await createVisualReplayAdmission({ env: backend.env, userId });
-    const claim = await claimVisualRetry({ db: backend.db, admissionScope: admission.scope, sourceFingerprint: fingerprint,
-      admission, source, binding });
-    expect(await initializeVisualReplay({ db: backend.db, claim })).not.toBeNull();
+    const { claim } = await backend.seedHistoricalReplay({ userId, entry, binding, stateVersion: 7 });
     const ledger = await acceptedLedger(binding, entry.personalReading);
     await backend.db.prepare("UPDATE reading_visual_results SET ledger_json = ?, ledger_revision = ?, active_state_version = 7, status = 'running' WHERE id = ?")
       .bind(JSON.stringify(ledger), ledger.ledgerRevision, binding.readingResultId).run();
@@ -795,18 +928,13 @@ test('pending cloud retry without transport configuration preserves owned work a
     await expect(recoveryOf(card)).toHaveAttribute('data-recovery-phase', 'eligible');
     await expect(card.getByTestId('restored-reading-gestures').locator('[data-gesture-id]').filter({ hasText: 'one pitcher into a pool' }).first()).toBeVisible();
     const cachedBefore = await storedEntry(page, cacheKey, entry.id);
-    // Another tab starts this exact saved source after this tab rendered its
-    // action. Its durable claim and private capability are existing work.
+    // An already-reserved historical retry becomes visible after this tab
+    // rendered its action. Fixture insertion creates no new model admission.
     const owned = await loadOwnedJournalVisualSource({ db: backend.db, userId, entryId: entry.id });
-    const prior = await loadJournalVisualState({ env: backend.env, db: backend.db, userId, entryId: entry.id });
     const binding = await sourceBinding(entry, 'existing-pending-cloud');
     const fingerprint = await fingerprintSavedVisualSource(owned);
-    const admission = await createVisualReplayAdmission({ env: backend.env, userId });
-    const claim = await claimVisualRetry({ db: backend.db, admission, admissionScope: admission.scope, sourceFingerprint: fingerprint,
-      entryId: entry.id, expectedStateVersion: prior.stateVersion, owned, source: owned.source, binding, priorState: prior });
+    const { claim } = await backend.seedHistoricalReplay({ userId, entry, binding, cloud: true });
     expect(claim).not.toBeNull();
-    expect(await initializeVisualReplay({ db: backend.db, claim })).not.toBeNull();
-    expect(await reserveVisualReplay({ env: backend.env, claim })).toBe(true);
     const pending = await loadJournalVisualState({ env: backend.env, db: backend.db, userId, entryId: entry.id });
     const privateRecords = [];
     expect(writeVisualResume({ namespace: `user:${userId}`, entryId: entry.id, binding, sourceFingerprint: fingerprint,
@@ -852,17 +980,32 @@ test('pending cloud retry without transport configuration preserves owned work a
 });
 
 test('offline and storage-quota failures keep prose readable and a later explicit retry reuses the one dispatch', async ({ page }, testInfo) => {
-  const backend = await createRecoveryBackend(page.context());
+  const backend = await createRecoveryBackend(page.context(), { provider: 'hold' });
   const entry = starEntry({ id: 'quota-star', ...pendingOriginal() });
   try {
-    await prepareJournal(page, { entries: [entry] });
+    // Establish the local journal before starting the real dispatch lifetime.
+    backend.setSession(await backend.seedAccount({ id: 'plus-quota', tier: 'free' }));
+    await prepareJournal(page, { key: 'tarot_journal_plus-quota', entries: [entry] });
     await page.goto('/journal');
     const card = await openEntry(page, entry.id);
+    const beforeRetry = await storedEntry(page, 'tarot_journal_plus-quota', entry.id);
+    await retryOf(card).scrollIntoViewIfNeeded();
+    // Upgrade this same fixture owner only for actual paid-cookie admission,
+    // then downgrade before the browser observes the existing reservation.
+    // The held provider keeps its original 30-second deadline throughout.
+    await backend.db.prepare("UPDATE users SET subscription_tier = 'plus', subscription_status = 'active' WHERE id = ?")
+      .bind('plus-quota').run();
+    const reserved = await backend.postLocalRetry(savedVisualSource(entry));
+    expect(reserved.status).toBe(200);
+    expect((await reserved.json()).resumeHandle).not.toBeNull();
+    await expect.poll(() => backend.providerCalls()).toBe(1);
+    await backend.db.prepare("UPDATE users SET subscription_tier = 'free', subscription_status = 'inactive' WHERE id = ?")
+      .bind('plus-quota').run();
     backend.failNext('POST', /visual-retry$/);
     await retryOf(card).click();
     await expect(recoveryOf(card).getByRole('status')).toHaveText('Your reading is saved. Card connections could not be reached. Try again when you are online.');
     await expect(retryOf(card)).toBeVisible();
-    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(0);
+    expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(1);
     // Private storage is full: the server claim exists, the client stores nothing.
     await page.evaluate(() => {
       window.__task11SetItem = Storage.prototype.setItem;
@@ -874,7 +1017,8 @@ test('offline and storage-quota failures keep prose readable and a later explici
     await retryOf(card).click();
     await expect(recoveryOf(card).getByRole('status')).toHaveText('Your reading is saved, but this device could not store card connection progress.');
     await expect(retryOf(card)).toBeVisible();
-    expect((await storedEntry(page, 'tarot_journal', entry.id)).visualState).toBeUndefined();
+    expect((await storedEntry(page, 'tarot_journal_plus-quota', entry.id)).visualState).toEqual(beforeRetry.visualState);
+    backend.releaseProvider();
     await backend.settle();
     expect(backend.providerCalls()).toBe(1);
     await page.evaluate(() => { Storage.prototype.setItem = window.__task11SetItem; });
@@ -884,7 +1028,7 @@ test('offline and storage-quota failures keep prose readable and a later explici
     expect(backend.providerCalls()).toBe(1);
     expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(1);
     expect(backend.retryPosts()).toHaveLength(3);
-    expect((await storedEntry(page, 'tarot_journal', entry.id)).personalReading).toBe(entry.personalReading);
+    expect((await storedEntry(page, 'tarot_journal_plus-quota', entry.id)).personalReading).toBe(entry.personalReading);
     await motionReport(page, testInfo, 'quota');
   } finally {
     await test.info().attach('recovery-backend.json', { body: JSON.stringify(backend.diagnostics(), null, 2), contentType: 'application/json' });

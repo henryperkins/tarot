@@ -17,6 +17,7 @@ import { initVisualJob } from './readingVisualJobs.js';
 import { registerVisualResult } from './readingVisualResults.js';
 import { getVisualCueReadiness } from './visualCueProvider.js';
 import { getVisualInitialReadiness, prepareVisualInitialAdmission } from './readingVisualAdmission.js';
+import { hasWebVisualCapability } from './readingVisualWebAdmission.js';
 
 const DO_ORIGIN = 'https://reading-jobs';
 
@@ -40,10 +41,11 @@ async function readJson(response) {
  * @param {object} params.payload - Reading request (readingRequestSchema)
  * @param {{ userId: string }|null} [params.principal] - In-Worker callers only
  * @param {object|null} [params.snapshot] - Stored with principal jobs, for saving later
+ * @param {object|null} [params.visualCapability] - Opaque paid-web capability minted after route authentication
  * @param {{ authorization?: string|null, cookie?: string|null }|null} [params.forwardHeaders]
  *   Request credentials, for app jobs only; ignored when a principal is given
  */
-export async function startReadingJob({ env, payload, principal = null, snapshot = null, forwardHeaders = null, ownerUserId = null, request = null, waitUntil }) {
+export async function startReadingJob({ env, payload, principal = null, snapshot = null, forwardHeaders = null, ownerUserId = null, request = null, visualCapability = null, waitUntil }) {
   if (!env?.READING_JOBS) {
     return { ok: false, status: 503, error: 'Reading jobs not configured.' };
   }
@@ -59,7 +61,8 @@ export async function startReadingJob({ env, payload, principal = null, snapshot
   let visualJobToken = null;
   let visualBinding = null;
   let visualInit = null;
-  if (env.READING_VISUAL_JOBS && getVisualCueReadiness(env).ready && getVisualInitialReadiness(env).ready) {
+  if (hasWebVisualCapability({ env, capability: visualCapability, userId: ownerUserId, principal })
+    && env.READING_VISUAL_JOBS && getVisualCueReadiness(env).ready && getVisualInitialReadiness(env).ready) {
     visualJobToken = crypto.randomUUID();
     const normalized = normalizeVisualSource(schemaResult.data);
     const { spreadHash, contextHash } = await fingerprintVisualSource(schemaResult.data);

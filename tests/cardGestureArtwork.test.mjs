@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile, access } from 'node:fs/promises';
 import { getVectorGestureDetails, projectGestureFrame, getVectorGestureCropZoom, CARD_GESTURE_PLANE } from '../src/data/cardGestureArtwork.js';
 import { getAllCards } from '../src/lib/cardLookup.js';
 import { getCardTouchPoints } from '../src/data/cardTouchPoints.js';
+import { PAINTED_ENDPOINT_REFERENCES, evaluatePaintedEndpoints } from '../e2e/helpers/artworkPaintedEndpoints.mjs';
 test('vector artwork keeps pours separate and confines trusted water geometry', () => {
   const [pool, land] = getVectorGestureDetails('The Star');
   assert.equal(pool.id, 'pool-pour'); assert.equal(land.id, 'land-pour');
@@ -86,7 +88,8 @@ async function compactStages() {
 function outsidePoints({ name, detailIds, reversed, width, height, zoom: zoomFor, plane }) {
   const { getVectorGestureFrame } = projection;
   const frame = getVectorGestureFrame(name, detailIds, reversed);
-  const zoom = zoomFor(frame);
+  // The renderer caps both normal and short zoom by the actual slot fit.
+  const zoom = Math.min(zoomFor(frame), getVectorGestureCropZoom(name, detailIds, { width, height }));
   return getVectorGestureDetails(name).filter(detail => detailIds.includes(detail.id)).flatMap(detail => detail.maskSpots.map(spot => {
     // Reversal rotates the upright plane once about its centre.
     const x = reversed ? 1 - spot.x : spot.x, y = reversed ? 1 - spot.y : spot.y;
@@ -156,4 +159,35 @@ test('compact fit preserves painted mask extents in split, paired, narrow and sh
     }
   }
   assert.equal(failures.length, 0, failures.slice(0, 8).join('\n'));
+});
+
+test('complete independently reviewed painted objects fit compact slots, single and combined, with one reversal', async () => {
+  const { plane } = await compactStages();
+  const failures = [];
+  for (const reference of PAINTED_ENDPOINT_REFERENCES) {
+    // Changing the source image invalidates these independently reviewed pixels.
+    const bytes = await readFile(new URL(`../public${reference.sourceImage}`, import.meta.url));
+    assert.equal(createHash('sha256').update(bytes).digest('hex'), reference.sourceSha256, reference.sourceImage);
+    const combined = getVectorGestureDetails(reference.cardName).map(detail => detail.id);
+    assert.ok(combined.includes(reference.detailId), `${reference.cardName}/${reference.detailId} remains a registered literal target`);
+    for (const ids of [[reference.detailId], combined]) for (const width of [84, 113, 175.5, 232]) for (const height of [72, 96, 106]) {
+      for (const reversed of [false, true]) {
+        const frame = projection.getVectorGestureFrame(reference.cardName, ids, reversed);
+        const zoom = Math.min(height === 72 ? frame.shortZoom : frame.zoom, getVectorGestureCropZoom(reference.cardName, ids, { width, height }));
+        const imageWidth = plane.width * zoom, imageHeight = plane.height * zoom;
+        const left = width / 2 + (.5 - frame.x) * imageWidth - imageWidth / 2;
+        const top = height / 2 + (.5 - frame.y) * imageHeight - imageHeight / 2;
+        const imageRect = { left, top, right: left + imageWidth, bottom: top + imageHeight, width: imageWidth, height: imageHeight };
+        const clipRect = { left: 0, top: 0, right: width, bottom: height };
+        const visibleRect = { left: Math.max(0, left), top: Math.max(0, top), right: Math.min(width, imageRect.right), bottom: Math.min(height, imageRect.bottom) };
+        const evaluated = evaluatePaintedEndpoints({ cardName: reference.cardName, detailIds: ids,
+          orientation: reversed ? 'reversed' : 'upright', compact: true,
+          art: { imageRect, clipRect, visibleRect, orientation: { reversed }, reversedAttribute: reversed,
+            image: { src: reference.sourceImage, naturalWidth: reference.width, naturalHeight: reference.height } } });
+        assert.ok(evaluated.some(result => result.detailId === reference.detailId), `${reference.cardName}/${reference.detailId} must actually be checked`);
+        for (const result of evaluated) if (!result.passed) failures.push(`${reference.cardName}/${ids.join('+')} ${width}x${height} reversed=${reversed}: ${result.detailId} full painted margin=${result.slotMargin}`);
+      }
+    }
+  }
+  assert.equal(failures.length, 0, failures.slice(0, 12).join('\n'));
 });

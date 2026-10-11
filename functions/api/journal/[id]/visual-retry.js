@@ -1,3 +1,4 @@
+import { createWebVisualCapability } from '../../../lib/readingVisualWebAdmission.js';
 import { getUserFromRequest } from '../../../lib/auth.js';
 import { journalAccessDenied } from '../../../lib/journalAccess.js';
 import { retryJournalVisuals } from '../../../lib/readingVisualRetry.js';
@@ -8,7 +9,7 @@ export async function onRequestPost({ env, request, params }) {
     const user = await getUserFromRequest(request, env);
     const denied = journalAccessDenied(user);
     if (denied) return denied;
-    const result = await retryJournalVisuals({ env, userId: user.id, entryId: params?.entryId });
+    const result = await retryJournalVisuals({ env, userId: user.id, entryId: params?.entryId, visualCapability: createWebVisualCapability({ env, request, user }) });
     return jsonResponse(result, { status: result.state ? 200 : 404 });
   } catch { return jsonResponse({ error: 'Visual replay is unavailable.' }, { status: 503 }); }
 }

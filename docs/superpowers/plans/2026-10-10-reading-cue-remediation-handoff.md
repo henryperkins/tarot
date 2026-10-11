@@ -1,12 +1,14 @@
 # Reading-cue remediation: resume prompt
 
+> **Historical resume prompt — do not execute this task order:** Use the [intent closure roadmap](2026-10-11-reading-intent-closure.md), [aligner release](2026-10-11-reading-aligner-release.md), and [post-reading model](2026-10-11-reading-post-reading-model.md) plans in consolidation. The local UI cycle is [accepted with two owner exceptions](../reviews/2026-10-11-reading-ui-acceptance.md). The dated d970 instructions, authorization, pending Tasks 11/12, hashes and running-process descriptions below are historical. Do not reapply their scratch manifests, resume their process IDs or treat their authorization as permission for a new execution batch.
+
 Consolidation update: continue source work on `codex/reading-review-consolidation-20261010` in `/home/ubuntu/tarot/.worktrees/reading-review-consolidation-20261010`. The [consolidation report](../reviews/2026-10-10-reading-review-consolidation.md) records the source checkpoint, master merge and fresh checks. Original qualification/beta checkouts and execution evidence remain preserved. The dated task history below retains its original source and authorization context.
 
 Updated on 2026-10-10 after the user selected **Show both briefly**. The execution ledger has advanced beyond the original 04:18 UTC handoff snapshot: reviewed changes have been integrated and visible turn-taking is being tested. Read the current `W/progress.md` table and latest dated entry first; historical run results below retain their original scope. Do not interrupt another session’s active tests or change their frozen source.
 
 Continue the local/offline implementation and verification of the 16-task checklist. The user previously said **Resume**; the latest request was **Provide a hand off prompt**. Resume the existing work, preserve unrelated edits and historical evidence, and finish all independent authorized work. Report required external gates plainly; do not manufacture full qualification.
 
-## Checkout and first reads
+## Historical checkout and first reads
 
 Work in **`/home/ubuntu/.codex/worktrees/d970/tarot`**, branch `codex/reading-cue-qualification-20261009`, HEAD `f24487d089748c60716d61fe5f8b6c3056ca6eb9`. The primary `/home/ubuntu/tarot` checkout is heavily dirty and must be preserved. Do not move this work there or create a new plan from scratch.
 
@@ -16,7 +18,7 @@ Read the [16-task checklist](2026-10-10-reading-cue-remediation-checklist.md), r
 
 Read `W/progress.md`, `W/global-constraints.md`, task briefs, final task reports/reviews and dependency records. Earlier dated progress sections are history; the current table and latest dated ledger entry supersede the original 04:18 UTC handoff snapshot. Relevant static audits are under W. Apply the existing Superpowers subagent implementation/review workflow with fresh implementers and independent reviewers, four concurrent slots maximum. Use scratch mirrors for independent work and exact before-hash validation when integrating.
 
-## Authorization and invariant boundaries
+## Historical authorization and invariant boundaries
 
 - Local implementation, read-only research, controlled offline tests and reversible fixes are authorized. **No new live provider calls/spending, real reviewer login, private tunnel, physical-device claims, commit, push, production migration or deployment** is authorized by this handoff. The historical 183-attempt round is permanently closed. Pilot16calls/$3 and comparison600calls/$15 are proposals, not spending authorization.
 - Preserve the original beta `/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge`, ports8787/5175/8789/9235, pre-existing dirty files, private credentials and historical output. Own only fresh isolated resources; never broad pkill, clean, reset or staging.
@@ -32,7 +34,7 @@ The user explicitly answered **Show both briefly (Recommended)** to: “For the 
 
 The current implementation and detailed contract are in `docs/superpowers/reviews/2026-10-10-reading-cue-playback-contract-decision.md` and the Task3 policy revision. The ledger records98 focused checks passing and strict browser controls running at the latest observed entry. This is implementation/testing progress, not complete accompaniment or live qualification. Preserve historical failed-run evidence under the earlier policy.
 
-## Current status
+## Historical status at handoff
 
 | Task | State | Evidence / remaining gate |
 | --- | --- | --- |
@@ -89,7 +91,7 @@ These merged files are in Task11/12 source and preserved baseline indexes; depen
 
 Task13's malformed EOF patch artifact was corrected without code changes. New patch SHA256 `2281abf269cc863723978f50c03803fbad9e95b5ba755b627e116a98617758ac`; GNU patch reproduced all17 exact final files. See `task-13-patch-m1-correction.json`; old patch/report retained. Current report hash updated.
 
-## Next work
+## Historical next work — superseded
 
 1. Read the latest ledger and active-run ownership first. Do not duplicate the completed integration. Complete independent review of actual-checkout integration fixes and the visible turn-taking policy revision, then collect complete strict browser evidence and fresh root verification on the final revision. Preserve the interrupted historical Task3 run as incomplete.
 2. Delegate Task11 and12 to fresh implementers in their prepared mirrors with `task-11-dispatch-context.md` / `task-12-dispatch-context.md` and full briefs. They must not alter active measured snapshots. No implementer is currently running; all previous reviewers completed.

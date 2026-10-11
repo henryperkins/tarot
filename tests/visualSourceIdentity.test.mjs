@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { fingerprintVisualSource, normalizeVisualSource } from '../shared/reading/visualSourceIdentity.js';
 import { buildReadingRequestCard } from '../shared/contracts/readingRequestCards.js';
 import { startReadingJob } from '../functions/lib/readingJobs.js';
+import { startReadingJob as startPaidWebReadingJob } from './helpers/webVisualAdmissionFixtures.mjs';
 import { onRequestPost } from '../functions/api/tarot-reading-job-start.js';
 import { saveAppJournalEntry } from '../functions/lib/journalEntries.js';
 import { loadJournalVisualResult, updateVisualResultSource } from '../functions/lib/readingVisualResults.js';
@@ -83,7 +84,7 @@ test('non-RWS decks keep identity edition and cannot receive vector detail geome
   let body;
   const env = withInitialVisualAdmission({ ...visualConfig, DB, READING_JOBS: { idFromName: x => x, get: () => ({ fetch: async (_url, init) => { body = JSON.parse(init.body); return new Response('{}'); } }) },
     READING_VISUAL_JOBS: { idFromName: x => x, get: () => ({ fetch: async () => new Response('{}') }) } });
-  await startReadingJob({ env, payload: { ...payload, deckStyle: 'thoth-a1' } });
+  await startPaidWebReadingJob({ env, payload: { ...payload, deckStyle: 'thoth-a1' } });
   assert.equal(body.visualBinding.artworkEdition, 'identity:thoth-a1');
   assert.deepEqual(body.visualInit.validationContext.cards.map(card => card.detailIds), [[], []]);
 });
@@ -95,7 +96,7 @@ test('stalled optional visual initialization cannot block the narrative start or
   const scheduled = [];
   const env = withInitialVisualAdmission({ ...visualConfig, DB, READING_JOBS: { idFromName: x => x, get: () => ({ fetch: async () => { narrativeStarted = true; return new Response('{}'); } }) },
     READING_VISUAL_JOBS: { idFromName: x => x, get: () => ({ fetch: () => { visualStarted = true; return new Promise(() => {}); } }) } });
-  const started = await startReadingJob({ env, payload, waitUntil: task => scheduled.push(task) });
+  const started = await startPaidWebReadingJob({ env, payload, waitUntil: task => scheduled.push(task) });
   assert.equal(started.ok, true);
   assert.equal(narrativeStarted, true);
   assert.equal(visualStarted, true);
@@ -108,8 +109,9 @@ test('public start derives visual owner from authenticated session without becom
   let body;
   const env = withInitialVisualAdmission({ ...visualConfig, DB: db, READING_JOBS: { idFromName: x => x, get: () => ({ fetch: async (_url, init) => { body = JSON.parse(init.body); return new Response('{}'); } }) },
     READING_VISUAL_JOBS: { idFromName: x => x, get: () => ({ fetch: async () => new Response('{}') }) } });
+  env.VISUAL_CUE_ALLOWED_TIERS = '["plus","pro"]';
   const response = await onRequestPost({ env, request: new Request('https://test.invalid/api/tarot-reading/jobs', {
-    method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: 'session=owner-session' },
+    method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: 'session=owner-session', 'X-Reading-Cue-Display': '1' },
     body: JSON.stringify({ ...payload, principal: { userId: 'spoofed' }, ownerUserId: 'spoofed' })
   }) });
   assert.equal(response.status, 200);
@@ -124,7 +126,7 @@ test('immediate save attaches trusted identity while optional visual initializat
   let body;
   const env = withInitialVisualAdmission({ ...visualConfig, DB: db, READING_JOBS: { idFromName: x => x, get: () => ({ fetch: async (_url, init) => { body = JSON.parse(init.body); return new Response('{}'); } }) },
     READING_VISUAL_JOBS: { idFromName: x => x, get: () => ({ fetch: () => new Promise(() => {}) }) } });
-  const started = await startReadingJob({ env, payload, ownerUserId: 'owner', waitUntil: () => {} });
+  const started = await startPaidWebReadingJob({ env, payload, ownerUserId: 'owner', waitUntil: () => {} });
   const raw = 'The Star and The Tower offer perspective.';
   const saved = await saveAppJournalEntry({ env, user: { id: 'owner', subscription_tier: 'plus' }, body: {
     spread: 'Two Cards', spreadKey: 'two', personalReading: raw, question: payload.userQuestion,

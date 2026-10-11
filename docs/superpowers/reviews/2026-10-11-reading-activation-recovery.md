@@ -1,6 +1,6 @@
 # Reading activation and recovery repair — 2026-10-11
 
-Step 2 is complete locally: deleted visual payloads are scrubbed, initial visual spending is explicitly admitted, and unavailable saved-reading recovery shows truthful status while preserving prose and cached cues. The [consolidated review branch](2026-10-10-reading-review-consolidation.md) contains the repairs under the [bounded implementation plan](../plans/2026-10-10-reading-activation-recovery.md). Production and live qualification remain disabled.
+Step 2 is complete locally, including the independently reviewed browser account and individual-entry deletion fences: deleted visual payloads are scrubbed, initial visual spending is explicitly admitted, and unavailable saved-reading recovery shows truthful status while preserving prose and cached cues. The [consolidated review branch](2026-10-10-reading-review-consolidation.md) contains the repairs under the [bounded implementation plan](../plans/2026-10-10-reading-activation-recovery.md). Production and live qualification remain disabled.
 
 ## Source and scope
 
@@ -38,7 +38,7 @@ Saved prose and accepted cached cues remain readable and statically inspectable 
 
 ## Verification
 
-Fresh checks use the final stable code, with all 36 owned source/test/migration hashes unchanged before and after the complete local pipeline. Logs and receipts are in `verification-final/` beneath the private evidence root.
+This table records the completed Step 2 checkpoint `1e5c098`. Its 36 owned source/test/migration hashes were unchanged before and after that complete local pipeline. Logs and receipts are in `verification-final/` beneath the private evidence root. Later reading UI and browser storage changes have their own final-revision freeze and checks in the [current readiness record](2026-10-10-reading-cue-readiness.md).
 
 | Check | Result |
 | --- | --- |
@@ -61,10 +61,22 @@ An earlier full Node attempt failed/incompletely finished because evaluator fixt
 
 ## Remaining gates
 
-- Step 3 playback policy and artwork acceptance, including compact/reversed coverage and reader-visible accompaniment.
+- The [Step 3 reading UI repairs](2026-10-11-reading-ui-acceptance.md) are complete locally. Final integrated artwork recapture, every pictured-detail review and affected browser checks are tracked by Step 4 in readiness.
 - A new source/runtime qualification freeze; the old development manifest is intentionally not refreshed or relabelled. Live model semantics, verified pricing, live accounting and real Pro corroboration need their own authorized scope and budget.
 - Physical-device, VoiceOver/speech and handset performance evidence.
 - Preview/workerd schema and Durable Object acceptance, then separately authorized production migration/deployment and live version/assets/account checks. The browser backend here runs actual handlers with real SQLite and an in-process DO host, not workerd.
 - Retention periods for undeleted/expired guest claims and public privacy wording for retained anti-abuse metadata. Deleted reading content is scrubbed; these remaining policy decisions concern retained metadata and undeleted guest data.
 
 Local fixture evidence does not satisfy those gates. Production visual UI/provider activation remains closed.
+
+## Follow-up: browser account deletion
+
+The 2026-10-11 local acceptance audit found that ordinary logout did not purge a non-cloud owner's saved browser journal. Confirmed account deletion now synchronously purges that owner's journals, caches, insights, coach reflections/stats, original/replay capabilities and shared narrative entries before auth refresh. Guest and other-owner values remain. A persistent non-content owner marker fences queued updates, native cross-tab writes, low-level persistence, legacy import and cloud migration. Ordinary logout remains unchanged. A storage failure reports that browser cleanup was incomplete while preserving the successful account-deletion result.
+
+Independent review found and closed two additional stale legacy-import/migration paths. The actual hook tests cover pending GET/final POST completion, guest-bucket preservation and ordinary account switching. Focused deletion/recovery checks passed 64/64 cases; the controlled AccountPage confirmation and auth transition passed all eight Chromium/WebKit desktop/phone normal/reduced-motion profiles. These are mock Pro/guest browser states, not a real account deletion or Pro acceptance.
+
+Private follow-up receipts are in `/home/ubuntu/.cache/tableu-reading-step2-20261010/account-local-purge-20261011/` and `/home/ubuntu/.cache/tableu-reading-acceptance-20261011/`. The latter freezes all current acceptance source and independently verifies primary, beta, qualification evidence and protected listener preservation. Fresh full-suite totals and the final revision belong to readiness; focused counts are not added to that total.
+
+## Final acceptance follow-up: individual browser entries
+
+Final review found a concrete browser race: a journal list response captured before successful entry deletion could settle later and restore that entry and its prose to browser storage. Server revocation remains correct. A namespace-specific entry fence now guards delayed list/pagination/save/detail/retry/search updates, original and replay handles, and derived cache writes. Failed deletion must leave the entry usable; surviving entries, shared result references, guest data and other owners must remain intact. The 13 source/test paths passed independent review and 235 distinct focused actual-hook/callback/SQLite checks. Cloud deletion now exposes the existing atomic retired-result IDs without an additional query or inference, preserving unseen surviving aliases; incomplete retirement receipts report cleanup uncertainty. The repaired V4 source is frozen and fresh full acceptance is running in the readiness record.

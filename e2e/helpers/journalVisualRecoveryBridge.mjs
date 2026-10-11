@@ -12,6 +12,7 @@ import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { createD1 } from '../../tests/helpers/d1Sqlite.mjs';
 import { seedEntry, seedSession, seedUser } from '../../tests/helpers/journalFixtures.mjs';
+import { initializeVisualReplay } from '../../functions/lib/readingVisualRetry.js';
 import { ReadingVisualJob } from '../../src/worker/readingVisualJob.js';
 import * as meRoute from '../../functions/api/auth/me.js';
 import * as journalRoute from '../../functions/api/journal.js';
@@ -77,17 +78,20 @@ export async function createRecoveryBackend(context, { configured = true, provid
   const gates = [];
   let providerCalls = 0;
   let providerMode = provider;
+  let releaseProvider;
+  const providerReleased = new Promise(resolve => { releaseProvider = resolve; });
   let session = null;
   let principal = null;
   const track = promise => {
     const tracked = Promise.resolve(promise).catch(() => {}).finally(() => work.delete(tracked));
     work.add(tracked);
   };
-  const env = { DB: db, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: 'controlled-fake-provider',
+  const env = { DB: db, VISUAL_CUE_ALLOWED_TIERS: '["plus","pro"]', VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: 'controlled-fake-provider',
     ...(configured ? { VISUAL_REPLAY_LIMITS: JSON.stringify({ rateLimit: 5, windowMs: 60000, totalLimit: 10 }) } : {}),
     VISUAL_REPLAY_TRUSTED_IDENTITY: { resolve: async () => 'controlled-loopback-guest' },
     AI: { async run() {
       providerCalls++;
+      if (providerMode === 'hold') await providerReleased;
       if (providerMode === 'reject') throw new Error('controlled provider rejection');
       return { response: { proposals: STAR_PROPOSALS } };
     } } };
@@ -161,6 +165,11 @@ export async function createRecoveryBackend(context, { configured = true, provid
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const bridgeOrigin = `http://127.0.0.1:${server.address().port}`;
 
+  // This controlled bridge never permits external browser network traffic.
+  await context.route('**/*', route => {
+    const hostname = new URL(route.request().url()).hostname;
+    return hostname === '127.0.0.1' || hostname === 'localhost' ? route.fallback() : route.abort('blockedbyclient');
+  });
   await context.route(/https:\/\/[^/]*sentry\.io\/.*\/envelope\//, route => route.fulfill({ json: {} }));
   await context.route('**/api/**', async route => {
     const request = route.request();
@@ -182,7 +191,7 @@ export async function createRecoveryBackend(context, { configured = true, provid
     const issued = response.headers.get('Set-Cookie')?.match(/visual_replay_principal=([^;]+)/)?.[1];
     if (issued) principal = issued;
     const text = await response.text();
-    if (gate) { gate.used = true; gate.reached(); await gate.released; }
+    if (gate) { gate.used = true; gate.response = JSON.parse(text); gate.reached(); await gate.released; }
     const headers = Object.fromEntries([...response.headers].filter(([key]) => key.toLowerCase() !== 'set-cookie'));
     try { await route.fulfill({ status: response.status, headers, body: text }); } catch { /* Page closed. */ }
   });
@@ -192,6 +201,13 @@ export async function createRecoveryBackend(context, { configured = true, provid
     diagnostics: () => ({ unexpectedApi: unexpected, pageErrors, requests, providerCalls }),
     providerCalls: () => providerCalls,
     setProvider(mode) { providerMode = mode; },
+    releaseProvider() { releaseProvider(); },
+    /** Actual authenticated public route, used to reserve paid work before a tier change. */
+    postLocalRetry(savedSource) {
+      return dispatch({ method: 'POST', pathname: '/api/tarot-reading/visual-retry',
+        headers: { 'Content-Type': 'application/json', 'X-Reading-Cue-Display': '1' },
+        body: JSON.stringify({ savedSource }) });
+    },
     setSession(id) { session = id; },
     retryPosts: () => requests.filter(item => item.method === 'POST' && /visual-retry$/.test(item.path)),
     transportRequests: () => requests.filter(item => item.path.startsWith('/api/tarot-reading/visual-replays/')),
@@ -210,6 +226,32 @@ export async function createRecoveryBackend(context, { configured = true, provid
       await seedUser(db, { id, tier, status: tier === 'free' ? 'inactive' : 'active' });
       await seedSession(db, { id: sessionId, userId: id });
       return sessionId;
+    },
+    /** Historical, already-reserved work only. Never grants new model admission.
+     * The real POST routes below remain the sole setup for NEW retry work. */
+    async seedHistoricalReplay({ userId, entry, binding, cloud = false, stateVersion = 1 }) {
+      const source = { raw: entry.personalReading, cards: entry.cards, deckId: entry.deckId,
+        question: entry.question, reflections: entry.reflections };
+      const owned = cloud ? await visualResults.loadOwnedJournalVisualSource({ db, userId, entryId: entry.id }) : null;
+      const fingerprint = await visualResults.fingerprintSavedVisualSource(owned || { source, ...normalizeVisualSource(source) });
+      const prior = cloud ? await visualResults.loadJournalVisualState({ env, db, userId, entryId: entry.id }) : null;
+      const id = crypto.randomUUID(), attemptId = crypto.randomUUID(), now = Date.now();
+      const journalVersion = cloud ? prior.stateVersion + 1 : null;
+      const fields = owned ? Object.fromEntries(['narrative', 'cards_json', 'question', 'reflections_json', 'deck_id'].map(key => [key, owned.row[key]])) : null;
+      await db.prepare(`INSERT INTO visual_retry_claims
+        (id, admission_scope, source_fingerprint, user_id, journal_entry_id, reading_result_id, attempt_id, visual_job_id,
+          dispatch_status, retry_status, state_version, created_at, updated_at, aggregate_scope, source_json, saved_fields_json,
+          journal_state_version, binding_json, visual_token, expires_at, reserved_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(id, `user:${userId}`, fingerprint, userId, cloud ? entry.id : null, binding.readingResultId,
+          attemptId, crypto.randomUUID(), stateVersion, now - 1000, now - 1000, `user:${userId}`, JSON.stringify(source),
+          fields ? JSON.stringify(fields) : null, journalVersion, JSON.stringify(binding), crypto.randomUUID(), now + 86400000, now - 1000).run();
+      if (cloud) await db.prepare(`UPDATE journal_visual_state SET claim_id = ?, attempt_id = ?, state_version = ?,
+        attachment_status = 'pending', retry_status = 'pending', reason = NULL WHERE journal_entry_id = ? AND user_id = ?`)
+        .bind(id, attemptId, journalVersion, entry.id, userId).run();
+      const claim = db.rows('SELECT * FROM visual_retry_claims WHERE id = ?', [id])[0];
+      if (!await initializeVisualReplay({ db, claim })) throw new Error('Invalid historical replay fixture');
+      return { claim, fingerprint };
     },
     /** Saved cloud row with a durable failed attachment (optionally an owned, complete original). */
     async seedCloudEntry({ userId, entry, attachment = 'failed', registered = false, pendingOriginal = false }) {
@@ -244,6 +286,7 @@ export async function createRecoveryBackend(context, { configured = true, provid
         finalRaw: entry.personalReading });
     },
     async close() {
+      releaseProvider();
       for (const gate of gates) gate.release?.();
       for (const socket of sockets) socket.destroy();
       await new Promise(resolve => server.close(resolve));

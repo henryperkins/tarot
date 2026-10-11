@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CardTouchArt } from './CardTouchArt';
-import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './NarrativeCardFocus';
+import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './narrativeFocusContext.js';
 import { railColumns } from './spreadCompanionLayout';
 import '../../../styles/narrative-card-touch.css';
 import { getVectorGestureFrames } from '../../../data/cardGestureArtwork.js';
@@ -173,7 +173,7 @@ function GestureCompanion({ focus, api }) {
     </div>;
   };
   return <aside ref={root} className="gesture-companion" aria-label="Your cards" data-calm={calm ? 'true' : undefined}>
-    <ol data-gesture-shelf className="gesture-shelf" style={{ '--shelf-count': cards.length }}>
+    <ol data-gesture-shelf className="gesture-shelf" style={{ '--shelf-count': cards.length, '--shelf-columns': Math.min(cards.length, 5) }}>
       {cards.map(card => {
         const introduced = state.introduced.includes(card.occurrenceId);
         const available = eligibleOccurrences.has(card.occurrenceId);

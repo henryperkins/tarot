@@ -34,7 +34,7 @@ async function fixture(t, { response = PROPOSALS, limits = true, user = true } =
   const db = await createD1(); t.after(() => db.sqlite.close());
   if (user) { await seedUser(db); await seedSession(db, { id: 'session-1', userId: 'user-1' }); }
   const jobs = new Map(); const pending = []; let calls = 0;
-  const env = { DB: db, VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: 'fake',
+  const env = { DB: db, VISUAL_CUE_ALLOWED_TIERS: '["plus","pro"]', VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: 'fake',
     ...(limits ? { VISUAL_REPLAY_LIMITS: JSON.stringify({ rateLimit: 3, windowMs: 60000, totalLimit: 5 }) } : {}),
     VISUAL_REPLAY_TRUSTED_IDENTITY: { resolve: async () => 'controlled-loopback-guest' },
     AI: { async run(...args) { calls++; return typeof response === 'function' ? response(...args) : response; } } };
@@ -56,6 +56,8 @@ async function fixture(t, { response = PROPOSALS, limits = true, user = true } =
     return async (url, init = {}) => {
       const absolute = new URL(url, 'https://tableu.test');
       const headers = new Headers(init.headers || {});
+      // This injected browser represents the explicitly enabled cue-display build.
+      headers.set('X-Reading-Cue-Display', '1');
       const cookies = [session && `session=${session}`, jar.principal && `visual_replay_principal=${jar.principal}`].filter(Boolean);
       if (cookies.length) headers.set('Cookie', cookies.join('; '));
       const method = init.method || 'GET';
@@ -95,33 +97,47 @@ async function subscribeAndSettle({ namespace, entryId, fetchImpl, storage, clou
 const localEntry = (overrides = {}) => ({ id: 'local-guest', ts: 1, personalReading: RAW, cards: CARDS, deckId: 'rws-1909',
   question: 'What renews me?', reflections: { Overall: 'Hope' }, spread: 'One card', spreadKey: 'single', ...overrides });
 
-test('guest local expiry: one explicit retry claims once, replay transport adopts static cues, repeats never dispatch again', async t => {
-  const f = await fixture(t, { user: false });
+for (const guest of [true, false]) test(`${guest ? 'guest' : 'free'} local retry preserves saved prose without model dispatch`, async t => {
+  const f = await fixture(t, { user: !guest });
+  if (!guest) await f.db.prepare("UPDATE users SET subscription_tier = 'free', subscription_status = 'inactive' WHERE id = 'user-1'").run();
+  const store = memoryStorage(), entry = localEntry({ id: 'local-unentitled' });
+  const namespace = guest ? 'anon' : 'user:user-1';
+  store.setItem(guest ? 'tarot_journal' : 'tarot_journal_user-1', JSON.stringify([entry]));
+  const fetchImpl = f.api({ session: guest ? null : 'session-1' });
+  const result = await requestSavedVisualRetry({ namespace, entry, fetchImpl, storage: store });
+  await f.drain(); assert.equal(result.state.retryStatus, 'unavailable'); assert.equal(f.calls(), 0);
+  assert.equal(f.db.rows('SELECT * FROM visual_retry_claims').length, 0);
+  assert.equal(readVisualResume({ namespace, entryId: entry.id, storage: store }), null);
+  assert.equal(readSavedVisualEntry({ namespace, entryId: entry.id, storage: store }).personalReading, RAW);
+});
+
+test('paid local expiry: one explicit retry claims once, replay transport adopts static cues, repeats never dispatch again', async t => {
+  const f = await fixture(t);
   const store = memoryStorage();
   const entry = localEntry();
-  store.setItem('tarot_journal', JSON.stringify([entry]));
-  const fetchImpl = f.api();
+  store.setItem('tarot_journal_user-1', JSON.stringify([entry]));
+  const fetchImpl = f.api({ session: 'session-1' });
   assert.equal(savedVisualRecovery(entry).canRetry, true);
-  const result = await requestSavedVisualRetry({ namespace: 'anon', entry, fetchImpl, storage: store });
+  const result = await requestSavedVisualRetry({ namespace: 'user:user-1', entry, fetchImpl, storage: store });
   // Claim/status are durable before the action resolves; the capability is private.
   assert.equal(result.state.retryStatus, 'pending');
-  const pending = readSavedVisualEntry({ namespace: 'anon', entryId: entry.id, storage: store });
+  const pending = readSavedVisualEntry({ namespace: 'user:user-1', entryId: entry.id, storage: store });
   assert.equal(pending.visualState.retryStatus, 'pending');
-  const handle = readVisualResume({ namespace: 'anon', entryId: entry.id, storage: store });
+  const handle = readVisualResume({ namespace: 'user:user-1', entryId: entry.id, storage: store });
   assert.equal(JSON.stringify(pending).includes(handle.visualJobToken), false);
   assert.equal(JSON.stringify(pending).includes(handle.attemptId), false);
   await f.drain();
   assert.equal(f.calls(), 1);
-  const settled = await subscribeAndSettle({ namespace: 'anon', entryId: entry.id, fetchImpl, storage: store });
+  const settled = await subscribeAndSettle({ namespace: 'user:user-1', entryId: entry.id, fetchImpl, storage: store });
   assert.equal(settled.adopted, true);
-  const adopted = readSavedVisualEntry({ namespace: 'anon', entryId: entry.id, storage: store });
+  const adopted = readSavedVisualEntry({ namespace: 'user:user-1', entryId: entry.id, storage: store });
   assert.equal(adopted.personalReading, RAW);
   assert.equal(adopted.visualState.retryStatus, 'complete');
   assert.equal(savedVisualRecovery(adopted).phase, 'complete');
   const restored = hydrateEntryVisuals(adopted);
   assert.equal(restored.hasVisuals, true);
   assert.equal(restored.cues[0].passage.quote, 'pours into a pool');
-  assert.equal(readVisualResume({ namespace: 'anon', entryId: entry.id, storage: store }), null);
+  assert.equal(readVisualResume({ namespace: 'user:user-1', entryId: entry.id, storage: store }), null);
   // A second explicit request for the same source (another tab, or reload that
   // lost local state) returns the existing claim and never dispatches again.
   const again = await postSavedVisualRetry({ savedSource: { raw: RAW, cards: CARDS, deckId: 'rws-1909', question: 'What renews me?', reflections: { Overall: 'Hope' } }, fetchImpl });
@@ -134,17 +150,13 @@ test('guest local expiry: one explicit retry claims once, replay transport adopt
   assert.equal(f.requests.filter(request => request.path.startsWith('/api/tarot-reading/visual-replays/')).every(request => request.method === 'GET'), true);
 });
 
-test('signed-in local entitlement lane: authenticated admission without cloud journal, one dispatch across duplicate clicks', async t => {
+test('paid local entitlement lane: authenticated web admission, one dispatch across duplicate clicks', async t => {
   const f = await fixture(t);
-  await f.db.prepare("UPDATE users SET subscription_tier = 'free', subscription_status = 'inactive' WHERE id = 'user-1'").run();
   const store = memoryStorage();
-  const entry = localEntry({ id: 'local-free' });
+  const entry = localEntry({ id: 'local-plus' });
   store.setItem('tarot_journal_user-1', JSON.stringify([entry]));
   const namespace = 'user:user-1';
   const fetchImpl = f.api({ session: 'session-1' });
-  // The cloud route refuses a free account; the local route admits it as the user.
-  const refused = await fetchImpl('/api/journal/local-free/visual-retry', { method: 'POST' });
-  assert.equal(refused.status, 403);
   const [first, second] = await Promise.all([requestSavedVisualRetry({ namespace, entry, fetchImpl, storage: store }),
     requestSavedVisualRetry({ namespace, entry, fetchImpl, storage: store }).catch(error => error)]);
   assert.equal(first.state.retryStatus, 'pending');
@@ -400,17 +412,17 @@ test('exhausted retry after reload offers status only and the server refuses ano
   const f = await fixture(t, { response: () => Promise.reject(new Error('fake provider rejection')) });
   const store = memoryStorage();
   const entry = localEntry({ id: 'local-exhausted' });
-  store.setItem('tarot_journal', JSON.stringify([entry]));
-  const fetchImpl = f.api();
-  await requestSavedVisualRetry({ namespace: 'anon', entry, fetchImpl, storage: store });
+  store.setItem('tarot_journal_user-1', JSON.stringify([entry]));
+  const fetchImpl = f.api({ session: 'session-1' });
+  await requestSavedVisualRetry({ namespace: 'user:user-1', entry, fetchImpl, storage: store });
   await f.drain();
-  const settled = await subscribeAndSettle({ namespace: 'anon', entryId: entry.id, fetchImpl, storage: store });
+  const settled = await subscribeAndSettle({ namespace: 'user:user-1', entryId: entry.id, fetchImpl, storage: store });
   assert.equal(settled.adopted, true);
   // Reload: a fresh read of the same storage.
-  const reloaded = readSavedVisualEntry({ namespace: 'anon', entryId: entry.id, storage: store });
+  const reloaded = readSavedVisualEntry({ namespace: 'user:user-1', entryId: entry.id, storage: store });
   assert.equal(reloaded.visualState.retryStatus, 'exhausted');
   assert.deepEqual(savedVisualRecovery(reloaded), { phase: 'unavailable', canRetry: false, state: reloaded.visualState });
-  await assert.rejects(requestSavedVisualRetry({ namespace: 'anon', entry: reloaded, fetchImpl, storage: store }), { code: 'ineligible' });
+  await assert.rejects(requestSavedVisualRetry({ namespace: 'user:user-1', entry: reloaded, fetchImpl, storage: store }), { code: 'ineligible' });
   const forced = await postSavedVisualRetry({ savedSource: { raw: RAW, cards: CARDS, deckId: 'rws-1909', question: 'What renews me?', reflections: { Overall: 'Hope' } }, fetchImpl });
   assert.equal(forced.state.retryStatus, 'exhausted');
   assert.equal(forced.resumeHandle, null);
@@ -421,26 +433,39 @@ test('exhausted retry after reload offers status only and the server refuses ano
 
 for (const race of ['delete', 'source replacement', 'account switch']) {
   test(`${race} while the retry response is pending patches nothing and leaves no private handle`, async t => {
-    const f = await fixture(t, { user: false });
+    const f = await fixture(t);
     const store = memoryStorage();
     const entry = localEntry({ id: `local-${race.replace(' ', '-')}` });
-    store.setItem('tarot_journal', JSON.stringify([entry]));
+    store.setItem('tarot_journal_user-1', JSON.stringify([entry]));
     let release; const gate = new Promise(resolve => { release = resolve; });
-    const inner = f.api();
+    const inner = f.api({ session: 'session-1' });
     let current = true;
-    const fetchImpl = async (url, init) => { const response = await inner(url, init); await gate; return response; };
-    const pending = requestSavedVisualRetry({ namespace: 'anon', entry, fetchImpl, storage: store, isCurrent: () => current });
-    while (!f.requests.length) await new Promise(resolve => setImmediate(resolve));
-    if (race === 'delete') store.setItem('tarot_journal', '[]');
-    if (race === 'source replacement') store.setItem('tarot_journal', JSON.stringify([{ ...entry, reflections: { Overall: 'Replaced' } }]));
+    let ready; const reached = new Promise(resolve => { ready = resolve; });
+    let delayedBody;
+    const fetchImpl = async (url, init) => { const response = await inner(url, init); delayedBody = await response.clone().json(); ready(); await gate; return response; };
+    const pending = requestSavedVisualRetry({ namespace: 'user:user-1', entry, fetchImpl, storage: store, isCurrent: () => current });
+    pending.catch(() => {});
+    t.after(() => release());
+    await reached;
+    await f.drain();
+    assert.ok(delayedBody.resumeHandle?.visualJobToken, 'delayed response must carry a private handle');
+    assert.ok(delayedBody.resumeHandle?.visualJobId);
+    assert.equal(f.calls(), 1);
+    const claims = f.db.rows('SELECT * FROM visual_retry_claims');
+    assert.equal(claims.length, 1);
+    assert.equal(claims[0].visual_job_id, delayedBody.resumeHandle.visualJobId);
+    assert.ok(claims[0].reserved_at > 0);
+    assert.equal(claims[0].user_id, 'user-1');
+    if (race === 'delete') store.setItem('tarot_journal_user-1', '[]');
+    if (race === 'source replacement') store.setItem('tarot_journal_user-1', JSON.stringify([{ ...entry, reflections: { Overall: 'Replaced' } }]));
     if (race === 'account switch') current = false;
-    const before = store.getItem('tarot_journal');
+    const before = store.getItem('tarot_journal_user-1');
     release();
     await assert.rejects(pending, error => ['stale', 'not-found'].includes(error.code));
     await f.drain();
-    assert.equal(store.getItem('tarot_journal'), before);
-    assert.equal(readVisualResume({ namespace: 'anon', entryId: entry.id, storage: store }), null);
+    assert.equal(store.getItem('tarot_journal_user-1'), before);
+    assert.equal(readVisualResume({ namespace: 'user:user-1', entryId: entry.id, storage: store }), null);
     // The server claim/dispatch is bounded independently of the client.
-    assert.ok(f.calls() <= 1);
+    assert.equal(f.calls(), 1);
   });
 }

@@ -42,13 +42,13 @@ export function VisualCompanionModal({
 
   if (typeof document === 'undefined') return null;
 
-  // `invisible` (not just opacity-0) is what keeps the closed studio out of the
-  // tab order and clear of axe's aria-hidden-focus rule. Transitioning
-  // `visibility` alongside opacity defers the flip to the end of the fade.
+  // Keep children mounted, but remove the closed studio from layout and focus.
+  // WebKit can leave descendant visibility transitions hidden after opening,
+  // so toggle display instead of inherited visibility.
   const overlayClasses = clsx(
-    'fixed inset-0 z-[70] flex items-stretch sm:items-center justify-center bg-main/80 backdrop-blur-sm',
-    'p-0 sm:p-4 px-safe pt-safe pb-safe transition-[opacity,visibility] duration-200',
-    isOpen ? 'opacity-100 visible pointer-events-auto' : 'opacity-0 invisible pointer-events-none'
+    'fixed inset-0 z-[70] items-stretch sm:items-center justify-center bg-main/80 backdrop-blur-sm',
+    'p-0 sm:p-4 px-safe pt-safe pb-safe transition-opacity duration-200',
+    isOpen ? 'flex opacity-100 pointer-events-auto' : 'hidden opacity-0 pointer-events-none'
   );
 
   const panelClasses = clsx(

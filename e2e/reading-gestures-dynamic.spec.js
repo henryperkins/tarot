@@ -67,6 +67,7 @@ test('dynamic literal ordering follows prose and metaphors or Markdown URLs add 
   try {
     await open(page);
     await emitText(page, fixture, literal, literal.length);
+    await expect(currentCards(page)).toHaveAttribute('data-details', 'land-pour');
     await expect(currentCards(page)).toHaveAttribute('data-details', 'pool-pour');
     const before = await page.locator('[data-gesture-id]').count();
     await emitText(page, fixture, metaphor, literal.length + metaphor.length);

@@ -10,10 +10,10 @@ import {
 } from '../lib/highlightUtils';
 import { getSectionKeyFromHeading } from '../lib/narrativeSections';
 import { STREAM_AUTO_NARRATE_DEBOUNCE_MS } from '../lib/narrationStream.js';
-import { remarkCardLinks } from '../lib/narrativeCardLinks.js';
-import { measureNarrativePassage } from '../lib/generatedNarrativePassages.js';
+import { useReadingGestureRuntime } from '../hooks/useReadingGestureRuntime.js';
+import { measureNarrativePassage } from '../lib/narrativeReadingDom.js';
 import { useNarrativeReadingLine } from '../hooks/useNarrativeReadingLine';
-import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './reading/narrative/NarrativeCardFocus';
+import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './reading/narrative/narrativeFocusContext.js';
 
 const NO_PHRASES = [];
 const LONG_MOBILE_WORD_THRESHOLD = 200;
@@ -191,6 +191,8 @@ export function StreamingNarrative({
   const studyEnabled = focus?.studyEnabled;
   const studyRequested = focus?.studyRequested;
   const associations = focus?.associations;
+  const gestureRuntime = useReadingGestureRuntime(Boolean(cardLinks || studyRequested));
+  const remarkCardLinks = gestureRuntime?.remarkCardLinks;
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen();
   const wrapperClassName = className ? `narrative-stream ${className}` : 'narrative-stream';
@@ -389,11 +391,11 @@ export function StreamingNarrative({
   // mismatches fail closed rather than guessing offsets from normalized text.
   const visibleSourceEnd = gestureSource?.raw?.startsWith(visibleText) ? visibleText.length : null;
   const cardLinkPlugins = useMemo(() => (
-    cardLinks || studyRequested ? [[remarkCardLinks, { catalog: cardLinks,
+    remarkCardLinks && (cardLinks || studyRequested) ? [[remarkCardLinks, { catalog: cardLinks,
       associations: studyEnabled && visibleSourceEnd !== null ? associations.filter((item) => item.passage.end <= visibleSourceEnd) : [],
       authoredOnly: Boolean(studyRequested)
     }], ...(cueTimingProbeActive() ? [[remarkCueSourcePositions, { raw: visibleText }]] : [])] : null
-  ), [cardLinks, studyEnabled, studyRequested, associations, visibleSourceEnd, visibleText]);
+  ), [remarkCardLinks, cardLinks, studyEnabled, studyRequested, associations, visibleSourceEnd, visibleText]);
   useLayoutEffect(() => {
     if (!gestureSource || visibleSourceEnd === null) return;
     const complete = !isReadingStreaming && visibleSourceEnd === gestureSource.raw.length;
@@ -412,7 +414,7 @@ export function StreamingNarrative({
   useEffect(() => {
     const root = wrapperRef.current;
     if (!root || !focus?.studyEnabled || !focusApi) return undefined;
-    const elements = [...root.querySelectorAll('[data-gesture-id]')];
+    let elements = [];
     let observing = true;
     let frame = null;
     const measure = () => {
@@ -434,9 +436,21 @@ export function StreamingNarrative({
       if (frame !== null || !observing) return;
       frame = requestAnimationFrame(() => { frame = null; measure(); });
     };
-    measure();
     const observer = new IntersectionObserver(schedule, { threshold: [0, .01, 1] });
-    elements.forEach(element => observer.observe(element));
+    // Optional Markdown annotations may commit after selection clears without
+    // changing source or association props. Register the actual committed DOM,
+    // then measure exact quotes through the same source-owned reporting API.
+    const register = () => {
+      if (!observing) return;
+      observer.disconnect();
+      elements = [...root.querySelectorAll('[data-gesture-id]')];
+      elements.forEach(element => observer.observe(element));
+      schedule();
+    };
+    const annotationsObserver = new MutationObserver(register);
+    annotationsObserver.observe(root, { childList: true, subtree: true,
+      attributes: true, attributeFilter: ['data-gesture-id'] });
+    register();
     // Source text can enter while its padded/multiline wrapper remains at the
     // same observer threshold. Scroll/layout events must remeasure its rects.
     window.addEventListener('scroll', schedule, { passive: true, capture: true });
@@ -446,7 +460,7 @@ export function StreamingNarrative({
     resizeObserver.observe(root);
     return () => {
       observing = false;
-      observer.disconnect(); resizeObserver.disconnect();
+      observer.disconnect(); resizeObserver.disconnect(); annotationsObserver.disconnect();
       if (frame !== null) cancelAnimationFrame(frame);
       window.removeEventListener('scroll', schedule, true);
       window.removeEventListener('resize', schedule);

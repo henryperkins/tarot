@@ -133,7 +133,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('tarot-onboarding-complete', 'true'));
 });
 
-test('held and reduced-motion details remain distinguishable on bright artwork', async ({ page }) => {
+test('held and reduced-motion details remain distinguishable on bright artwork', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/__e2e/reading-gestures?associations=dynamic&arrival=complete');
@@ -144,6 +144,8 @@ test('held and reduced-motion details remain distinguishable on bright artwork',
   const illuminated = await art.screenshot();
   await art.locator('.gesture-art__light').evaluate(element => { element.style.visibility = 'hidden'; });
   const unaccompanied = await art.screenshot();
+  await testInfo.attach('illuminated artwork', { body: illuminated, contentType: 'image/png' });
+  await testInfo.attach('unaccompanied artwork', { body: unaccompanied, contentType: 'image/png' });
   // Compare rendered pixels, rather than accepting a present but invisible mask.
   const difference = await page.evaluate(async ([first, second]) => {
     const pixels = async base64 => {
@@ -151,14 +153,20 @@ test('held and reduced-motion details remain distinguishable on bright artwork',
       image.src = `data:image/png;base64,${base64}`;
       await image.decode();
       const canvas = document.createElement('canvas');
-      canvas.width = image.width; canvas.height = image.height;
+      const width = image.naturalWidth, height = image.naturalHeight;
+      canvas.width = width; canvas.height = height;
       const context = canvas.getContext('2d');
       context.drawImage(image, 0, 0);
-      return context.getImageData(0, 0, image.width, image.height).data;
+      return { data: context.getImageData(0, 0, width, height).data, width, height };
     };
-    const [a, b] = await Promise.all([pixels(first), pixels(second)]);
-    const width = Math.round(Math.sqrt(a.length / 4 * 3 / 5));
-    const height = a.length / 4 / width;
+    const [firstPixels, secondPixels] = await Promise.all([pixels(first), pixels(second)]);
+    const { data: a, width, height } = firstPixels;
+    const { data: b } = secondPixels;
+    // Device scale and fractional layout can round each dimension separately.
+    // A guessed aspect ratio changes the row stride and samples another detail.
+    if (width !== secondPixels.width || height !== secondPixels.height) {
+      throw new Error('Artwork comparison requires identical decoded PNG dimensions');
+    }
     const region = (x, y, radius = 3) => {
       const samples = [];
       for (let row = Math.round(y * height) - radius; row <= Math.round(y * height) + radius; row++) {
@@ -169,9 +177,10 @@ test('held and reduced-motion details remain distinguishable on bright artwork',
       }
       return samples.reduce((sum, sample) => sum + sample, 0) / samples.length;
     };
-    return { mean: a.reduce((sum, value, index) => sum + Math.abs(value - b[index]), 0) / a.length,
+    return { width, height, mean: a.reduce((sum, value, index) => sum + Math.abs(value - b[index]), 0) / a.length,
       surroundDarkening: region(.8, .2), detailDarkening: region(.275, .70) };
   }, [illuminated.toString('base64'), unaccompanied.toString('base64')]);
+  await testInfo.attach('artwork pixel comparison', { body: JSON.stringify(difference, null, 2), contentType: 'application/json' });
   // The described pool stays bright while unrelated sky recedes visibly.
   // A whole-image delta alone could pass with a barely perceptible haze.
   expect(difference.mean).toBeGreaterThan(5);
@@ -477,7 +486,9 @@ test('keyboard inspection of an automatic personal quotation pauses queued turns
     await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--mobile-action-bar-height'))).toBe('0px');
     const literalId = await page.locator('[data-gesture-id]').filter({ hasText: /^A painted detail invites a closer look\.$/ }).getAttribute('data-gesture-id');
     await waitForSettledQuoteLayout(page, [literalId, cue.id, nextCue.id]);
-    await exposeSources([literalId, cue.id, nextCue.id]);
+    // Expose the literal and its meaning before awaiting their natural turn.
+    // The full queued-source exposure follows native keyboard inspection.
+    await exposeSources([literalId, cue.id]);
     const stage = page.locator('[data-gesture-window]');
     await expect(stage).toHaveAttribute('data-association', cue.id, { timeout: 10000 });
     const context = page.getByRole('region', { name: 'Related personal context' });
@@ -487,6 +498,7 @@ test('keyboard inspection of an automatic personal quotation pauses queued turns
     await expect(context).toBeFocused();
     await expect(context).toHaveText(`“${question}”`);
     await expect(stage).not.toHaveAttribute('data-held', 'true');
+    await exposeSources([literalId, cue.id, nextCue.id]);
     // The newly rendered context grows the sticky companion and moves the
     // source paragraph. Keep inspection active while exposing both real quotes.
     await exposeSources([cue.id, nextCue.id]);

@@ -1,5 +1,9 @@
 # Reading Cue Model Qualification Decision Report
 
+## Superseded implementation/activation status — 2026-10-11
+
+This report's scored round, `qualified: false`, candidate decisions and skip reasons remain historical and unchanged. Its downstream claims that re-annotation is unimplemented or that activation requires only migration 0036 plus a provider are superseded by the [current readiness record and dated corrections](2026-10-10-reading-cue-readiness.md#2026-10-11-corrections-and-owner-decisions-before-v10). Exact-source saved-reading retry/re-annotation is implemented locally in the consolidated candidate; V9 remains RED and fresh V10, model, real-Pro, device and release acceptance remain unmet. Activation prerequisites include **migrations 0036–0038**, the **`READING_VISUAL_JOBS` class migration**, **`VISUAL_CUE_PROVIDER`**, **`VISUAL_CUE_MODEL`**, **`VISUAL_INITIAL_LIMITS`** and **`VISUAL_REPLAY_LIMITS`**, with additional display, spending, preview and release blockers recorded there. The asynchronous/post-reading proposal remains an explicit owner choice, not a qualified product. No activation is authorized by this note; all original text follows unchanged.
+
 Dated: 2026-10-10
 
 Plan reference: `docs/superpowers/plans/2026-10-09-reading-cue-model-qualification.md`

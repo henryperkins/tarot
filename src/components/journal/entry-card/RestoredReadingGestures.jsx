@@ -3,15 +3,14 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useSubscription } from '../../../contexts/SubscriptionContext';
 import { useReadingVisualJob } from '../../../hooks/useReadingVisualJob';
 import { buildSpreadCompanionCards } from '../../../hooks/narrativeReadingModelUtils';
-import { buildCardLinkCatalog } from '../../../lib/narrativeCardLinks';
+import { useReadingGestureRuntime } from '../../../hooks/useReadingGestureRuntime';
 import { createGestureSource } from '../../../lib/narrativeGestureSource';
 import { hydrateEntryVisuals } from '../../../utils/journalStorage';
 import { adoptSavedVisualReplay, patchSavedVisualSnapshot, publicVisualRetryState, readVisualResume, removeVisualResume,
   replayOwnsVisual, savedVisualRecovery, visualStorageNamespace } from '../../../lib/readingVisualStorage';
 import { isVisualJobTerminal } from '../../../lib/readingVisualStream';
 import { readingGesturesEnabled } from '../../../lib/readingGestureSettings';
-import { NarrativeCardFocusProvider } from '../../reading/narrative/NarrativeCardFocus';
-import { SpreadCompanion } from '../../reading/narrative/SpreadCompanion';
+import { NarrativeGestureGate, GatedSpreadCompanion as SpreadCompanion } from '../../reading/narrative/NarrativeGestureGate';
 import { StreamingNarrative } from '../../StreamingNarrative';
 import { styles, cn } from './EntryCard.primitives';
 
@@ -50,12 +49,13 @@ export function RestoredReadingGestures({ entry, onHandlesChanged = null }) {
     deckStyleId: entry.deckId || 'rws-1909', runId: source.runId, artworkEdition: restored.binding?.artworkEdition,
     inspectionAvailable: true, reflections: entry.reflections }),
   [entry.cards, entry.deckId, entry.reflections, source.runId, restored.binding?.artworkEdition]);
-  const links = useMemo(() => buildCardLinkCatalog({ cards, deckStyle: entry.deckId || 'rws-1909' }), [cards, entry.deckId]);
+  const gestureRuntime = useReadingGestureRuntime(gestureStudyEnabled);
+  const links = useMemo(() => gestureRuntime?.buildCardLinkCatalog({ cards, deckStyle: entry.deckId || 'rws-1909' }) || null, [gestureRuntime, cards, entry.deckId]);
   const personalContext = useMemo(() => ({ question: entry.question || '',
     reflections: typeof entry.reflections === 'string' ? entry.reflections : '' }),
     [entry.question, entry.reflections]);
-  return <NarrativeCardFocusProvider key={`${source.runId}:${source.sourceRevision}`} cards={cards} stable
-    gestureStudyEnabled gestureSource={source} personalContext={personalContext}>
+  return <NarrativeGestureGate cards={cards} stable
+    gestureStudyEnabled={gestureStudyEnabled} gestureSource={source} personalContext={personalContext}>
     <div className="restored-reading-gestures narrative-panel__layout narrative-panel__layout--with-spread" data-testid="restored-reading-gestures">
       <SpreadCompanion />
       <div className="narrative-panel__column min-w-0">
@@ -63,7 +63,7 @@ export function RestoredReadingGestures({ entry, onHandlesChanged = null }) {
         isStreamingEnabled={false} isReadingStreaming={false} cardLinks={links} gestureSource={source} onDone={noop} />
       </div>
     </div>
-  </NarrativeCardFocusProvider>;
+  </NarrativeGestureGate>;
 }
 
 const RECOVERY_COPY = {

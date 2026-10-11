@@ -82,12 +82,14 @@ test('explicit saved retry posts once to the owned cloud route or with only the 
   assert.equal(calls[0].url, '/api/journal/entry%2F1/visual-retry');
   assert.equal(calls[0].init.method, 'POST');
   assert.equal(calls[0].init.credentials, 'include');
+  assert.equal(calls[0].init.headers['X-Reading-Cue-Display'], undefined, 'gate-off retry never claims cue display');
   assert.equal(calls[0].init.body, undefined);
   const local = await postSavedVisualRetry({ cloud: false, savedSource: { ...savedSource, id: 'local-1', readingResultId: 'old-result',
     visualBinding: { readingResultId: 'old-result' }, visual: { snapshot: {} }, visualJobToken: 'must-not-send' }, fetchImpl });
   assert.equal(local.ok, true);
   assert.equal(calls[1].url, '/api/tarot-reading/visual-retry');
   assert.equal(calls[1].init.credentials, 'include');
+  assert.equal(calls[1].init.headers['X-Reading-Cue-Display'], undefined, 'gate-off local retry never claims cue display');
   const body = JSON.parse(calls[1].init.body);
   assert.deepEqual(Object.keys(body), ['savedSource']);
   assert.deepEqual(body.savedSource, savedSource);

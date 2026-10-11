@@ -78,11 +78,17 @@ test('reversed deck details remain usable and still on a reduced-motion phone @m
 });
 
 
-test('gentle deck arrival introduces a new detail and preserves inspection while the next paragraph arrives', async ({ page }) => {
+test('controlled deck arrival introduces a new detail and preserves inspection while the next paragraph arrives', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.addInitScript(() => localStorage.setItem('tarot-onboarding-complete', 'true'));
-  await page.goto('/__e2e/reading-gestures?study=deck&card=Temperance&arrival=gentle');
+  await page.goto('/__e2e/reading-gestures?study=deck&card=Temperance&arrival=controlled');
+  await page.waitForFunction(() => Boolean(window.__readingRecordedFixture?.raw));
+  const delivery = await page.evaluate(() => window.__readingRecordedFixture);
+  const nextParagraph = delivery.raw.indexOf('\n\n', delivery.raw.indexOf('\n\n') + 2);
+  expect(nextParagraph).toBeGreaterThan(0);
+  const initial = delivery.raw.slice(0, nextParagraph + 2);
+  await page.evaluate(raw => window.dispatchEvent(new CustomEvent('reading-recorded-fixture', { detail: { raw } })), initial);
   const diagnostics = page.getByTestId('gesture-source-diagnostics');
   const firstDetail = phrase(page, /water between/);
   await expect(firstDetail).toBeVisible();
@@ -93,6 +99,9 @@ test('gentle deck arrival introduces a new detail and preserves inspection while
   const heldLength = Number(await diagnostics.getAttribute('data-raw-length'));
   await expect(current(page)).toHaveAttribute('data-details', 'cup-stream');
   await expect(stage(page)).toHaveAttribute('data-held', 'true');
+  expect(heldLength).toBe(initial.length);
+  await expect(diagnostics).toHaveAttribute('data-source-status', 'streaming');
+  await page.evaluate(raw => window.dispatchEvent(new CustomEvent('reading-recorded-fixture', { detail: { raw } })), delivery.raw);
   await expect(diagnostics).toHaveAttribute('data-source-status', 'complete');
   expect(Number(await diagnostics.getAttribute('data-raw-length'))).toBeGreaterThan(heldLength);
   await expect(diagnostics).toHaveAttribute('data-run-id', runId);

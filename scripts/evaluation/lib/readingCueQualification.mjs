@@ -63,6 +63,24 @@ function targetProblem(c, target) {
   return target.detailIds.every(id => owned.includes(id)) ? null : 'unsupported-detail';
 }
 
+/** Resolve a byte-pinned source, with the one reviewed historical corpus fallback. */
+export async function loadReadingCueSource({ root = DEFAULT_ROOT, path, sha256 }) {
+  let resolvedPath = path;
+  let bytes = await readFile(sourcePath(root, resolvedPath));
+  if (sha(bytes) !== sha256 && path === ARCHIVED_CORPUS.path
+    && sha256 === ARCHIVED_CORPUS.sha256) {
+    resolvedPath = ARCHIVED_CORPUS.archivePath;
+    bytes = await readFile(sourcePath(root, resolvedPath));
+  }
+  if (sha(bytes) !== sha256) throw new Error(`Source file hash mismatch: ${resolvedPath}`);
+  return { bytes, sha256, resolvedPath };
+}
+
+/** The aligner labels and the qualification manifest share this frozen corpus. */
+export function loadReadingCueRecordedCorpus({ root = DEFAULT_ROOT } = {}) {
+  return loadReadingCueSource({ root, path: ARCHIVED_CORPUS.path, sha256: ARCHIVED_CORPUS.sha256 });
+}
+
 /** Read-only source resolution. Raw hashes are UTF-8; span offsets are UTF-16. */
 export async function loadReadingCueCases({ root = DEFAULT_ROOT, manifest = DEFAULT_MANIFEST } = {}) {
   const data = typeof manifest === 'string'
@@ -75,15 +93,7 @@ export async function loadReadingCueCases({ root = DEFAULT_ROOT, manifest = DEFA
     // Mutable review documents retain their frozen provenance hashes. Runtime
     // inputs, source fixtures, catalog/registry, and artwork remain byte-pinned.
     if (source.path.startsWith('docs/')) continue;
-    let resolvedPath = source.path;
-    let bytes = await readFile(sourcePath(root, resolvedPath));
-    if (sha(bytes) !== source.sha256 && source.path === ARCHIVED_CORPUS.path
-      && source.sha256 === ARCHIVED_CORPUS.sha256) {
-      resolvedPath = ARCHIVED_CORPUS.archivePath;
-      bytes = await readFile(sourcePath(root, resolvedPath));
-    }
-    if (sha(bytes) !== source.sha256) throw new Error(`Source file hash mismatch: ${resolvedPath}`);
-    sources.set(source.path, { bytes, sha256: source.sha256, resolvedPath });
+    sources.set(source.path, await loadReadingCueSource({ root, path: source.path, sha256: source.sha256 }));
   }
   const cases = [];
   for (const entry of data.cases) {

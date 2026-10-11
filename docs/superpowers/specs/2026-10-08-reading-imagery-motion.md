@@ -1,5 +1,7 @@
 # Personalized reading: imagery and motion proposal
 
+> **Historical design and prototype, reconciled October 11:** This maintained copy preserves the original intent and study behavior. Use the [intent closure roadmap](../plans/2026-10-11-reading-intent-closure.md), [aligner release plan](../plans/2026-10-11-reading-aligner-release.md), and [post-reading model plan](../plans/2026-10-11-reading-post-reading-model.md) for current implementation status and remaining work. Later approved decisions replace latest-only cue coalescing with source-order visible turns, keep already-revealed cards available for inspection, and separate the no-model web release from future Plus/Pro post-reading annotation. The standalone study's word-reveal pause and direct image-region interactions are historical prototype behavior; neither is a shipped React promise. The original study worktree and artifacts remain unchanged.
+
 **Date:** October 8, 2026; current study and bridge planning updated October 9.
 
 **Status:** Design exploration, with a playable fixture. Production implementation is not included.
@@ -55,7 +57,7 @@ Indicate only imagery actually supported by the selected artwork. Preserve drawn
 
 The current two-card example preserves the Hermit while the Five of Wands emerges, returns to the lantern, and ends with both details visible. Touch, illumination, and settlement timings are prototype choices to evaluate, not production tokens or validated reading-speed defaults.
 
-## Current motion study
+## October 8–9 motion study
 
 [personalized-reading-gestures.html](../../../output/reading-motion/personalized-reading-gestures.html) preserves the exact 97-word Star paragraph, question, reflection, and spread in the [23:47 fixture](../../../output/reading-motion/fixtures/three-card-transition.json). Its six authored moments acknowledge the card, identify each painted pour, reuse those details for memory and new ground, and briefly hold both at “Neither pitcher gets dropped.” Literal description establishes the detail; interpretation reuses its visual treatment.
 

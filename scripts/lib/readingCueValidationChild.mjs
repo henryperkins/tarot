@@ -92,6 +92,26 @@ export async function runOwnedValidation(configPath) {
     const shared = { ...base, root: source, configFile: false, envFile: false, envDir: path.join(directory, 'config'),
       cacheDir: path.join(directory, 'vite-cache'), logLevel: 'silent',
       define: { 'import.meta.env.VITE_READING_GESTURES': '"true"' } };
+    let outputFiles = null; let outputDigest = null; let optimizedFlags; let outputCompromised = false;
+    // A separately identified optimized actual-app build; DEV remains false and fixtures stay absent.
+    const previousNodeEnv = process.env.NODE_ENV;
+    try {
+      process.env.NODE_ENV = 'production';
+      await build({ ...shared, mode: 'reading-cue-validation',
+        plugins: [...base.plugins, { name: 'owned-validation-build-contract', configResolved(value) {
+          optimizedFlags = { dev: value.env.DEV, prod: value.env.PROD, mode: value.env.MODE };
+          if (value.env.DEV !== false || value.env.MODE !== 'reading-cue-validation') throw new Error('Optimized validation must keep DEV false.');
+        } }],
+        build: { ...base.build, outDir: buildDirectory, emptyOutDir: true, minify: 'esbuild', sourcemap: false } });
+    } finally {
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnv;
+    }
+    outputFiles = await hashOutputFiles(buildDirectory);
+    outputDigest = hash(JSON.stringify(outputFiles));
+    await freezeOutput(buildDirectory);
+    if (!await verifyOutputIntegrity(buildDirectory, outputFiles)) throw new Error('Optimized output changed before serving.');
+    // No development dependency optimizer can observe the production build environment.
     vite = await createServer({ ...shared, mode: 'development',
       // Vite disables the HMR server with hmr:false but still serves a client
       // that opens its socket. Frozen validation has no update channel; retain
@@ -105,6 +125,16 @@ export async function runOwnedValidation(configPath) {
         }
       }],
       define: { ...shared.define, 'import.meta.env.VITE_CUE_TIMING_PROBE': '"true"' }, server: security });
+    // The file admission gate requires committed optimizer output, not URLs for
+    // dependencies still being generated during a cold start.
+    const dependenciesOptimizer = vite.environments.client.depsOptimizer;
+    await dependenciesOptimizer?.scanProcessing;
+    const discoveredDependencies = Object.entries(dependenciesOptimizer?.metadata.discovered ?? {})
+      .map(([id, dependency]) => ({ id, file: dependency.file, processing: dependency.processing }));
+    await Promise.all(discoveredDependencies.map(dependency => dependency.processing));
+    const uncommittedDependencies = discoveredDependencies.filter(dependency =>
+      dependenciesOptimizer.metadata.optimized[dependency.id]?.file !== dependency.file).map(dependency => dependency.id);
+    if (uncommittedDependencies.length) throw new Error(`Development dependencies failed to optimize: ${uncommittedDependencies.join(', ')}`);
     const sourceFiles = new Set(buildIdentity.sourceFiles.map(file => path.join(source, file.path)));
     const unsafeName = /(?:^|\/)(?:\.[^/]+|[^/]*\.(?:pem|crt|key|p12|pfx))(?:\/|$)/i;
     const allowedDev = async pathname => {
@@ -123,7 +153,6 @@ export async function runOwnedValidation(configPath) {
         return sourceFiles.has(actual) && actual === path.resolve(location);
       } catch { return false; }
     };
-    let outputFiles = null; let outputDigest = null; let optimizedFlags; let outputCompromised = false;
     const markOutputFailure = () => {
       if (!outputCompromised) process.send?.({ kind: 'integrity-failed', error: 'output-integrity-mismatch' });
       outputCompromised = true;
@@ -148,20 +177,6 @@ export async function runOwnedValidation(configPath) {
       vite.middlewares(request, response);
     });
     owned.push(frontend); await listen(frontend, ports.frontend, host);
-    // A separately identified optimized actual-app build; DEV remains false and fixtures stay absent.
-    const previousNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
-    await build({ ...shared, mode: 'reading-cue-validation',
-      plugins: [...base.plugins, { name: 'owned-validation-build-contract', configResolved(value) {
-        optimizedFlags = { dev: value.env.DEV, prod: value.env.PROD, mode: value.env.MODE };
-        if (value.env.DEV !== false || value.env.MODE !== 'reading-cue-validation') throw new Error('Optimized validation must keep DEV false.');
-      } }],
-      build: { ...base.build, outDir: buildDirectory, emptyOutDir: true, minify: 'esbuild', sourcemap: false } });
-    process.env.NODE_ENV = previousNodeEnv;
-    outputFiles = await hashOutputFiles(buildDirectory);
-    outputDigest = hash(JSON.stringify(outputFiles));
-    await freezeOutput(buildDirectory);
-    if (!await verifyOutputIntegrity(buildDirectory, outputFiles)) throw new Error('Optimized output changed before serving.');
     const outputSet = new Set(outputFiles.map(file => file.path));
     const outputMap = new Map(outputFiles.map(file => [file.path, file]));
     const invalidOutput = response => response.writeHead(503, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end('{"error":"output_integrity_mismatch"}');

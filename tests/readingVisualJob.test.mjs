@@ -7,8 +7,9 @@ import { createD1 } from './helpers/d1Sqlite.mjs';
 import { admitInitialVisualFixture, withInitialVisualAdmission } from './helpers/visualInitialAdmissionFixtures.mjs';
 import { registerVisualResult, updateVisualResultSource } from '../functions/lib/readingVisualResults.js';
 import { seedUser } from './helpers/journalFixtures.mjs';
-import { startReadingJob } from '../functions/lib/readingJobs.js';
-import { createVisualReplayAdmission, retryLocalVisuals } from '../functions/lib/readingVisualRetry.js';
+import { startReadingJob } from './helpers/webVisualAdmissionFixtures.mjs';
+import { createVisualReplayAdmission } from './helpers/webVisualAdmissionFixtures.mjs';
+import { retryLocalVisuals } from '../functions/lib/readingVisualRetry.js';
 import { fingerprintVisualSource, normalizeVisualSource } from '../shared/reading/visualSourceIdentity.js';
 
 function createBinding(readingResultId = 'res-1', sourceRevision = 0) {
@@ -819,7 +820,7 @@ test('reading an uninitialized visual result cannot prevent its later trusted in
 });
 
 test('real start exposes retryable visual transport while optional initialization is held', async t => {
-  const { startReadingJob } = await import('../functions/lib/readingJobs.js');
+  const { startReadingJob } = await import('./helpers/webVisualAdmissionFixtures.mjs');
   const { readFile } = await import('node:fs/promises');
   const fixture = JSON.parse(await readFile(new URL('../output/reading-motion/fixtures/three-card-transition.json', import.meta.url), 'utf8'));
   let releaseInit;

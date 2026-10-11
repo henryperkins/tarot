@@ -5,8 +5,11 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getAllCards } from '../src/lib/cardLookup.js';
-import { getVectorGestureDetails, getVectorGestureFrame, getVectorGestureFrames } from '../src/data/cardGestureArtwork.js';
+import { getVectorGestureDetails, getVectorGestureFrame, getVectorGestureFrames, getVectorGestureCropZoom } from '../src/data/cardGestureArtwork.js';
 import { measureGestureFocusLayer, settleGestureFocusLayer } from './helpers/artworkGeometry.mjs';
+import { loadArtworkMatrixReadingCase } from './helpers/artworkMatrixCorpus.mjs';
+import { observeNarrativeUiHealth } from './helpers/narrativeFixtures.js';
+import { PAINTED_ENDPOINT_REFERENCES, evaluatePaintedEndpoints } from './helpers/artworkPaintedEndpoints.mjs';
 
 // Artwork presentation matrix (Task 12). Every registered detail is held
 // explicitly in the deck study and captured in the selected project's actual
@@ -20,13 +23,14 @@ const manifestPath = process.env.CUE_VALIDATION_MANIFEST;
 const ownedLane = Boolean(evidenceDirectory && manifestPath && process.env.CUE_VALIDATION_LANE === 'fixture');
 const EDITION = 'rws-immanuelle-vector';
 const repository = fileURLToPath(new URL('..', import.meta.url));
-const IDENTITY_FILES = ['src/data/cardGestureArtwork.js', 'src/data/cardGestureDetails/majors.js', 'src/data/cardGestureDetails/cupsPentacles.js',
+const IDENTITY_FILES = ['src/data/cardGestureArtwork.js', 'src/data/cardGesturePaintedBounds.js', 'src/data/cardGestureDetails/majors.js', 'src/data/cardGestureDetails/cupsPentacles.js',
   'src/data/cardGestureDetails/wandsSwords.js', 'src/components/reading/narrative/CardTouchArt.jsx', 'src/components/reading/narrative/SpreadCompanion.jsx',
   'src/components/reading/narrative/useCardGestureMotion.js', 'src/styles/narrative-card-touch.css', 'src/components/ReadingGesturesFixture.jsx'];
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const slug = value => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const treatmentOf = detail => detail?.motionRecipe?.kind === 'water' ? 'water' : detail?.motionRecipe?.kind === 'finite' ? 'finite' : 'static';
 const near = (left, right, tolerance = 1e-3) => Math.abs(Number(left) - Number(right)) <= tolerance;
+const uiHealth = new WeakMap();
 
 let identityPromise;
 function runtimeIdentity() {
@@ -38,10 +42,24 @@ function runtimeIdentity() {
     const local = {};
     for (const file of IDENTITY_FILES) local[file] = sha256(await readFile(path.join(repository, file)));
     const mismatched = IDENTITY_FILES.filter(file => served.get(file) !== local[file]);
+    // Test helpers are excluded from the served frontend allowlist. Their bytes
+    // are bound separately by the full-source acceptance freeze and runner guards.
+    const independentOracle = { file: 'e2e/helpers/artworkPaintedEndpoints.mjs',
+      sha256: sha256(await readFile(path.join(repository, 'e2e/helpers/artworkPaintedEndpoints.mjs'))),
+      binding: 'all-source acceptance freeze and runner before/after guards' };
+    const referenceArtwork = await Promise.all(PAINTED_ENDPOINT_REFERENCES.map(async reference => {
+      const file = `public${reference.sourceImage}`;
+      const localSha256 = sha256(await readFile(path.join(repository, file)));
+      return { file, expectedSha256: reference.sourceSha256, localSha256, servedSha256: served.get(file),
+        matches: localSha256 === reference.sourceSha256 && served.get(file) === reference.sourceSha256 };
+    }));
+    independentOracle.referenceArtwork = referenceArtwork;
+    independentOracle.originalImagesMatch = referenceArtwork.every(reference => reference.matches);
     return { runId: build.runId, snapshotDigest: build.snapshotDigest, outputDigest: build.outputDigest, expectedHead: build.expectedHead,
       sourceAllowlistVersion: build.sourceAllowlistVersion, sourceAllowlistSha256: build.sourceAllowlistSha256,
       dirtyPathCount: build.dirtyPaths?.length ?? null, frontendOrigin: manifest.origins.frontend, toolVersions: build.toolVersions ?? null,
-      manifestSha256: sha256(bytes), evidenceRunDirectory: path.basename(evidenceDirectory), checkerFiles: local, checkerMatchesServedSnapshot: mismatched.length === 0, mismatched };
+      manifestSha256: sha256(bytes), evidenceRunDirectory: path.basename(evidenceDirectory), checkerFiles: local, checkerMatchesServedSnapshot: mismatched.length === 0, mismatched,
+      independentOracle };
   })();
   return identityPromise;
 }
@@ -74,22 +92,100 @@ async function hold(page, gestureId) {
   return (await phrase.textContent())?.trim() ?? '';
 }
 
-// Expected checks are computed from the served overlay, actual layout and the
-// registry; the registry is accepted only if its bytes match the snapshot.
+// Browser geometry supplements the authored registry contract. Complete painted
+// mask/trace/water bounds must fit the actually visible slot after transforms;
+// a fitted centre alone does not establish that the requested detail is visible.
+function measureMatrixPaint(elements) {
+  const rect = element => {
+    const bounds = element.getBoundingClientRect();
+    return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height };
+  };
+  const intersect = (a, b) => ({ left: Math.max(a.left, b.left), right: Math.min(a.right, b.right),
+    top: Math.max(a.top, b.top), bottom: Math.min(a.bottom, b.bottom) });
+  return elements.map(art => {
+    const image = rect(art.querySelector('img'));
+    const plane = art.querySelector('.gesture-art__plane');
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(plane).transform);
+    const transformedBox = (shape, padding = 0) => {
+      const box = shape.getBBox(), transform = shape.getScreenCTM();
+      const points = [[box.x - padding, box.y - padding], [box.x + box.width + padding, box.y - padding],
+        [box.x - padding, box.y + box.height + padding], [box.x + box.width + padding, box.y + box.height + padding]]
+        .map(([x, y]) => new DOMPoint(x, y).matrixTransform(transform));
+      return { left: Math.min(...points.map(point => point.x)), right: Math.max(...points.map(point => point.x)),
+        top: Math.min(...points.map(point => point.y)), bottom: Math.max(...points.map(point => point.y)) };
+    };
+    const mask = [...art.querySelectorAll('mask')].find(element => !element.id.endsWith('-surround-mask'));
+    const paintedMasks = [...(mask?.querySelectorAll('ellipse') || [])].map(ellipse => {
+      const transform = ellipse.getScreenCTM();
+      const center = new DOMPoint(Number(ellipse.getAttribute('cx')), Number(ellipse.getAttribute('cy'))).matrixTransform(transform);
+      const rx = Number(ellipse.getAttribute('rx')), ry = Number(ellipse.getAttribute('ry'));
+      const halfWidth = Math.hypot(transform.a * rx, transform.c * ry);
+      const halfHeight = Math.hypot(transform.b * rx, transform.d * ry);
+      return intersect(image, { left: center.x - halfWidth, right: center.x + halfWidth,
+        top: center.y - halfHeight, bottom: center.y + halfHeight });
+    });
+    const paintedOverlays = [...art.querySelectorAll('[data-gesture-finite], [data-gesture-water]')].map(shape => {
+      let bounds = transformedBox(shape, Number.parseFloat(getComputedStyle(shape).strokeWidth || '0') / 2);
+      for (let parent = shape.parentElement; parent && parent !== art; parent = parent.parentElement) {
+        const clipId = parent.getAttribute('clip-path')?.match(/url\(#(.+)\)/)?.[1];
+        const clip = clipId && document.getElementById(clipId)?.firstElementChild;
+        if (clip) bounds = intersect(bounds, transformedBox(clip));
+      }
+      return { kind: shape.hasAttribute('data-gesture-finite') ? 'trace' : 'water', ...intersect(bounds, image) };
+    }).filter(bounds => bounds.right > bounds.left && bounds.bottom > bounds.top);
+    return { paintedMasks, paintedOverlays, clientWidth: art.clientWidth, clientHeight: art.clientHeight,
+      cropFitZoom: art.style.getPropertyValue('--crop-fit-zoom'),
+      planeMatrix: { a: matrix.a, b: matrix.b, c: matrix.c, d: matrix.d },
+      shortStage: matchMedia('(max-height: 600px) and (max-width: 1023px)').matches };
+  });
+}
+
+// Mask and overlay checks remain bound to the served registry. Complete object
+// rectangles and landmarks come from separately inspected literal references,
+// projected through the actual image layout; geometry never replaces review.
 function evaluateArt({ art, cardName, orientation, detailIds, reduced, viewportClass, paired }) {
   const reversed = orientation === 'reversed';
   const registry = getVectorGestureDetails(cardName).filter(detail => detailIds.includes(detail.id));
   const expectedSpots = registry.flatMap(detail => detail.maskSpots);
+  const expectedTraces = registry.reduce((total, detail) => total + detail.traces.length, 0);
+  const expectedWater = registry.some(detail => treatmentOf(detail) === 'water');
   const frame = detailIds.length ? getVectorGestureFrame(cardName, detailIds, reversed) : { x: .5, y: .5, zoom: .39, shortZoom: .39 };
   const failures = [];
   const check = (name, value, detail) => { if (!value) failures.push(detail ? `${name}: ${detail}` : name); return Boolean(value); };
+  const compact = viewportClass === 'compact-phone';
+  const independentPaintedEndpoints = evaluatePaintedEndpoints({ art, cardName, detailIds, orientation, compact });
+  const expectedEndpointReferences = PAINTED_ENDPOINT_REFERENCES.filter(reference => reference.cardName === cardName && detailIds.includes(reference.detailId));
+  const fitZoom = getVectorGestureCropZoom(cardName, detailIds, { width: art.clientWidth, height: art.clientHeight });
+  const renderedZoom = Math.min(art.shortStage ? frame.shortZoom : frame.zoom, fitZoom);
+  const margin = bounds => Math.min(bounds.left - art.visibleRect.left, art.visibleRect.right - bounds.right,
+    bounds.top - art.visibleRect.top, art.visibleRect.bottom - bounds.bottom);
+  const maskMargins = art.paintedMasks.map(margin);
+  // Source artwork may reach the image's own edge. Breathing room belongs to
+  // the clipping slot; complete visibility still uses the image intersection.
+  const slotMaskMargins = art.paintedMasks.map(bounds => Math.min(bounds.left - art.clipRect.left, art.clipRect.right - bounds.right,
+    bounds.top - art.clipRect.top, art.clipRect.bottom - bounds.bottom));
+  const overlayMargins = art.paintedOverlays.map(bounds => ({ kind: bounds.kind, margin: margin(bounds) }));
   const checks = {
+    independentPaintedEndpointCoverage: check('independentPaintedEndpointCoverage', independentPaintedEndpoints.length === expectedEndpointReferences.length
+      && expectedEndpointReferences.every(reference => independentPaintedEndpoints.some(result => result.detailId === reference.detailId))),
+    paintedEndpointSourceMatches: check('paintedEndpointSourceMatches', independentPaintedEndpoints.every(result => result.checks.originalImageMatches && result.checks.orientationMatches)),
+    completePaintedObjectEndpoints: check('completePaintedObjectEndpoints', independentPaintedEndpoints.every(result => result.checks.completeObjectVisible),
+      JSON.stringify(independentPaintedEndpoints.map(result => ({ detailId: result.detailId, visibleMargin: result.visibleMargin })))),
+    compactPaintedObjectBreathingRoom: check('compactPaintedObjectBreathingRoom', independentPaintedEndpoints.every(result => result.checks.completeObjectBreathingRoom),
+      JSON.stringify(independentPaintedEndpoints.map(result => ({ detailId: result.detailId, slotMargin: result.slotMargin })))),
     artDecoded: check('artDecoded', art.image.complete && art.image.naturalWidth === 1086 && art.image.naturalHeight === 1810),
     servedMaskMatchesRegistry: check('servedMaskMatchesRegistry', art.spots.length === expectedSpots.length && expectedSpots.every((spot, index) =>
       near(art.spots[index].upright.x, spot.x, .006) && near(art.spots[index].upright.y, spot.y, .006) && near(art.spots[index].upright.rx, spot.rx, .006) && near(art.spots[index].upright.ry, spot.ry, .006)),
     `${art.spots.length}/${expectedSpots.length}`),
     requestedPointsInside: check('requestedPointsInside', art.spots.every(spot => spot.centerInside),
       art.spots.filter(spot => !spot.centerInside).map(spot => `(${spot.upright.x},${spot.upright.y}) margin ${spot.centerMarginPx}px`).join('; ')),
+    completePaintedMasks: check('completePaintedMasks', art.paintedMasks.length === expectedSpots.length
+      && art.paintedMasks.every(bounds => bounds.right > bounds.left && bounds.bottom > bounds.top)
+      && maskMargins.every(value => value >= -.2), JSON.stringify(maskMargins)),
+    compactMaskBreathingRoom: check('compactMaskBreathingRoom', !compact || slotMaskMargins.every(value => value > 2.5), JSON.stringify(slotMaskMargins)),
+    completePaintedOverlays: check('completePaintedOverlays', overlayMargins.every(value => value.margin >= -.2)
+      && overlayMargins.filter(value => value.kind === 'trace').length === expectedTraces
+      && (!expectedWater || overlayMargins.some(value => value.kind === 'water')), JSON.stringify(overlayMargins)),
     reversalOnce: check('reversalOnce', art.orientation.halfTurns.length === (reversed ? 1 : 0) && art.orientation.reversed === reversed
       && art.orientation.unexpected.length === 0 && art.reversedAttribute === reversed, JSON.stringify(art.orientation)),
     overlayAligned: check('overlayAligned', art.overlay.sharedPlane && art.overlay.lightAligned !== false && art.overlay.waterAligned !== false
@@ -98,13 +194,21 @@ function evaluateArt({ art, cardName, orientation, detailIds, reduced, viewportC
     cropProjection: check('cropProjection', !art.crop ? false : viewportClass === 'desktop' ? art.planeTransform === 'none'
       : near(Number.parseFloat(art.cropVariables['--crop-x']), (0.5 - frame.x) * 100, 1e-6) && near(Number.parseFloat(art.cropVariables['--crop-y']), (0.5 - frame.y) * 100, 1e-6)
         && near(Number(art.cropVariables['--crop-zoom']), frame.zoom, 1e-9) && art.planeTransform !== 'none', JSON.stringify({ variables: art.cropVariables, plane: art.planeTransform })),
+    measuredCropFit: check('measuredCropFit', !compact || (near(art.cropFitZoom, fitZoom, 1e-9)
+      && near(art.planeMatrix.a, renderedZoom, 1e-5) && near(art.planeMatrix.d, renderedZoom, 1e-5)
+      && near(art.planeMatrix.b, 0) && near(art.planeMatrix.c, 0)
+      && near(art.imageRect.width, 160 * renderedZoom, .1)
+      && near(art.imageRect.height, 266.667 * renderedZoom, .1)
+      && near((art.imageRect.left + art.imageRect.right) / 2, (art.artRect.left + art.artRect.right) / 2 + renderedZoom * (0.5 - frame.x) * 160, .1)
+      && near((art.imageRect.top + art.imageRect.bottom) / 2, (art.artRect.top + art.artRect.bottom) / 2 + renderedZoom * (0.5 - frame.y) * 266.667, .1)),
+    JSON.stringify({ expectedFitZoom: fitZoom, renderedZoom, actualFitZoom: art.cropFitZoom, matrix: art.planeMatrix })),
     calmMatchesPreference: check('calmMatchesPreference', art.calm === reduced)
   };
   const treatments = registry.map(treatmentOf);
-  const expectedTraces = registry.reduce((total, detail) => total + detail.traces.length, 0);
   checks.treatmentLayers = check('treatmentLayers', art.overlay.traces === expectedTraces
     && JSON.stringify(art.overlay.waterDetails) === JSON.stringify(registry.filter(detail => treatmentOf(detail) === 'water').map(detail => detail.id)));
-  return { checks, failures, treatments, frame, paired, registry: registry.map(detail => ({ id: detail.id, frame: detail.frame, maskSpots: detail.maskSpots, traces: detail.traces.length, treatment: treatmentOf(detail) })) };
+  return { checks, failures, treatments, frame, paired, maskMargins, slotMaskMargins, overlayMargins, independentPaintedEndpoints,
+    registry: registry.map(detail => ({ id: detail.id, frame: detail.frame, maskSpots: detail.maskSpots, traces: detail.traces.length, treatment: treatmentOf(detail) })) };
 }
 
 function evaluateLayer({ measured, lanes, expectedCards, reduced }) {
@@ -120,6 +224,10 @@ function evaluateLayer({ measured, lanes, expectedCards, reduced }) {
         && (!expected.exact || label === expected.exact)
         && measured.shelf.some(item => item.ariaLabel === label && item.reversedAttribute === (expected.orientation === 'reversed'));
     }), JSON.stringify({ expected: expectedCards, focus: measured.cards.map(card => card.ariaLabel) })),
+    shelfLabelsContained: check('shelfLabelsContained', measured.shelf.every(item => item.shortLabel && item.textRects.length
+      && item.textRects.every(rect => rect.left >= item.itemRect.left - .5 && rect.right <= item.itemRect.right + .5
+        && rect.top >= item.labelRect.top - .5 && rect.bottom <= item.labelRect.bottom + .5)), JSON.stringify(measured.shelf)),
+    shelfTouchTargets: check('shelfTouchTargets', measured.shelf.every(item => item.buttonRect.width >= 44 && item.buttonRect.height >= 44), JSON.stringify(measured.shelf)),
     noHorizontalOverflow: check('noHorizontalOverflow', measured.overflow.page <= measured.overflow.viewport + 1, JSON.stringify(measured.overflow)),
     reducedMotionStill: check('reducedMotionStill', !reduced || running.length === 0, JSON.stringify(running)),
     laneMatchesProject: check('laneMatchesProject', measured.environment.reducedMotion === (lanes.motion === 'reduced')
@@ -132,6 +240,10 @@ async function capture({ page, testInfo, kind, name, requiredCellKey, context, e
   const lanes = lane(testInfo);
   const settled = await settleGestureFocusLayer(page);
   const measured = await page.evaluate(measureGestureFocusLayer);
+  const paint = await page.locator('.gesture-focus-layer:not(.gesture-focus-layer--departing) [data-gesture-art]').evaluateAll(measureMatrixPaint);
+  let paintIndex = 0;
+  for (const card of measured.cards) card.arts = card.arts.map(art => ({ ...art, ...paint[paintIndex++] }));
+  expect(paintIndex).toBe(paint.length);
   const image = await page.locator('.gesture-companion').screenshot();
   const identity = await runtimeIdentity();
   const reduced = lanes.motion === 'reduced';
@@ -159,6 +271,7 @@ async function capture({ page, testInfo, kind, name, requiredCellKey, context, e
   const failures = [...layer.failures, ...arts.flatMap(art => art.failures.map(failure => `${art.cardName}/${art.detailIds.join('+') || 'identity'}#${art.frameIndex}: ${failure}`)), ...motionFailures];
   if (!settled.decoded.every(Boolean)) failures.push('image decode rejected');
   if (!identity.checkerMatchesServedSnapshot) failures.push(`checker registry differs from served snapshot: ${identity.mismatched.join(', ')}`);
+  if (!identity.independentOracle.originalImagesMatch) failures.push(`independent endpoint source image differs from served snapshot: ${identity.independentOracle.referenceArtwork.filter(reference => !reference.matches).map(reference => reference.file).join(', ')}`);
   const directory = path.join(evidenceDirectory, 'artwork-matrix', kind, testInfo.project.name);
   const imageFile = path.join(directory, `${name}.png`);
   const record = {
@@ -166,7 +279,7 @@ async function capture({ page, testInfo, kind, name, requiredCellKey, context, e
     project: testInfo.project.name, engine: lanes.engine, viewportClass: lanes.viewportClass, motion: lanes.motion,
     browserName: testInfo.project.use.browserName, browserVersion: page.context().browser()?.version() ?? null, edition: EDITION, context,
     requestedTargets: artExpectations.map(item => ({ cardName: item.cardName, orientation: item.orientation, detailIds: item.detailIds, frames: item.frames })),
-    treatments, environment: measured.environment, window: measured.window, companionRect: measured.companionRect, overflow: measured.overflow,
+    treatments, environment: measured.environment, window: measured.window, companionRect: measured.companionRect, shelf: measured.shelf, overflow: measured.overflow,
     animations: measured.animations, runningAnimations: running, settled,
     layerChecks: layer.checks, arts: arts.map(({ measured: rendered, ...rest }) => ({ ...rest, rendered })),
     runtime: identity, screenshot: { file: path.relative(evidenceDirectory, imageFile), sha256: sha256(image), bytes: image.length },
@@ -189,8 +302,14 @@ async function recordMissing({ testInfo, kind, name, requiredCellKey, reason, ex
 }
 
 test.beforeEach(async ({ page }) => {
+  uiHealth.set(page, observeNarrativeUiHealth(page, { allowGuestAuthRejection: true }));
+  await page.route(/https:\/\/[^/]*sentry\.io\/.*\/envelope\//, route => route.fulfill({ json: {} }));
+  await page.route(url => ['localhost', '127.0.0.1'].includes(url.hostname)
+    && url.pathname === '/api/auth/me' && !url.search, route => route.request().method() === 'GET'
+    ? route.fulfill({ status: 401, json: { user: null } }) : route.fallback());
   await page.addInitScript(() => localStorage.setItem('tarot-onboarding-complete', 'true'));
 });
+test.afterEach(async ({ page }) => { uiHealth.get(page)?.(); });
 
 if (!ownedLane) {
   test('artwork matrix requires the owned remediation fixture lane', () => {
@@ -208,6 +327,10 @@ if (!ownedLane) {
           await expect(page.getByRole('combobox', { name: 'Card', exact: true })).toHaveValue(card.name);
           await expect(page.getByRole('combobox', { name: 'Orientation', exact: true })).toHaveValue(orientation);
           await expect(page.getByText('Synthetic descriptions of painted details; this is not a recorded or personalized reading.', { exact: true })).toBeVisible();
+          // Prose/source completion and the companion can precede the lazy
+          // Markdown annotation commit. Await its real DOM before taking the
+          // one-shot inventory; every registered detail must still be held.
+          await expect(page.locator('.reading-gesture-association').first()).toBeAttached();
           const ids = await page.locator('.reading-gesture-association').evaluateAll(elements => [...new Set(elements.map(element => element.dataset.gestureId))]);
           const pending = new Set(details.map(detail => detail.id));
           const seenMulti = new Set();
@@ -284,10 +407,8 @@ if (!ownedLane) {
 
     test('relationships · recorded ten-card reading', async ({ page }, testInfo) => {
       test.setTimeout(300000);
-      const qualification = JSON.parse(await readFile(new URL('../scripts/evaluation/fixtures/readingCueQualification.regression-20261010.json', import.meta.url), 'utf8'));
-      const caseData = qualification.cases.find(item => item.id === 'celtic-deep-shift');
-      const samples = JSON.parse(await readFile(new URL('../data/evaluations/narrative-samples.json', import.meta.url), 'utf8'));
-      const raw = samples.samples[4].reading;
+      const { caseData, sourceBinding } = await loadArtworkMatrixReadingCase();
+      const raw = caseData.raw;
       expect(sha256(raw)).toBe(caseData.rawSha256);
       const cards = caseData.cards.map(card => ({ card: card.card, orientation: card.orientation, position: card.position }));
       // Development fixture hook only: recorded prose plus a no-op probe sink.
@@ -314,8 +435,8 @@ if (!ownedLane) {
         await capture({ page, testInfo, kind: 'relationships', name: `ten-card--${slug(associationId)}`,
           requiredCellKey: `ten-card|${associationId}|${lanes.viewportClass}|${lanes.motion}`,
           context: { study: 'recorded-ten-card', route: page.url().replace(/^https?:\/\/[^/]+/, ''), associationId, phraseText,
-            prose: 'recorded ten-card Celtic reading (data/evaluations/narrative-samples.json samples[4]) through the development fixture hook; deterministic aligner associations, no model or cue transport',
-            caseId: caseData.id, rawSha256: caseData.rawSha256, spreadCards: 10 },
+            prose: 'exact historical ten-card Celtic reading through the development fixture hook; deterministic aligner associations, no model or cue transport',
+            caseId: caseData.id, rawSha256: caseData.rawSha256, spreadCards: 10, sourceBinding },
           expectedCards, artExpectations, extra: { relationship: { study: 'recorded-ten-card', associationId, twoCard: paired,
             sameCardTwoDetail: !paired && focus[0]?.details.length > 1 } } });
       }

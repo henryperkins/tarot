@@ -1,10 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, useReducer, useLayoutEffect } from 'react';
+import { useEffect, useMemo, useRef, useState, useReducer, useLayoutEffect } from 'react';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { resolveGestureSidecar } from '../../../lib/narrativeCardLinks.js';
 import { resolveNarrativePassages } from '../../../lib/generatedNarrativePassages.js';
 import { retainHeldPassage, withPassageArtwork } from '../../../lib/retainHeldPassage.js';
 import { createGestureFocusState, nextGestureDeadline, reduceGestureFocus } from './narrativeGestureState.js';
 import { scheduleGestureDeadline } from './scheduleGestureDeadline.js';
+import { GesturePhrase } from './GesturePhrase';
 
 /**
  * Which spread cards the reading is speaking about right now.
@@ -14,8 +15,9 @@ import { scheduleGestureDeadline } from './scheduleGestureDeadline.js';
  * read the result. State and API live in separate contexts so the Markdown
  * body, which only reports, never re-renders when the focus moves.
  */
-const FocusStateContext = createContext(null);
-const FocusApiContext = createContext(null);
+import { FocusStateContext, FocusApiContext } from './narrativeFocusContext.js';
+// eslint-disable-next-line react-refresh/only-export-components -- Preserve existing fixture imports while sharing lightweight contexts.
+export { useNarrativeCardFocus, useNarrativeCardFocusApi } from './narrativeFocusContext.js';
 
 // A paragraph that names several cards sweeps across them in order, the way a
 // reader's hand passes over the spread while summarizing it.
@@ -221,7 +223,7 @@ export function NarrativeCardFocusProvider({
     return { states, touched, key: `${focus.key}|${touched ?? 'all'}` };
   }, [focus, sweep, calm]);
 
-  const state = useMemo(() => ({ cards, cardStates, calm, studyEnabled, studyRequested: gestureStudyEnabled, gestureState, associations: resolved.associations,
+  const state = useMemo(() => ({ PhraseRenderer: GesturePhrase, cards, cardStates, calm, studyEnabled, studyRequested: gestureStudyEnabled, gestureState, associations: resolved.associations,
     introductions: resolved.introductions, gestureSource }), [cards, cardStates, calm, studyEnabled, gestureStudyEnabled, gestureState, resolved, gestureSource]);
 
   return (
@@ -233,14 +235,3 @@ export function NarrativeCardFocusProvider({
   );
 }
 
-/** Current focus for components that show the cards. */
-// eslint-disable-next-line react-refresh/only-export-components -- Context + hook pattern is intentional
-export function useNarrativeCardFocus() {
-  return useContext(FocusStateContext);
-}
-
-/** Stable reporting API; null outside a provider. */
-// eslint-disable-next-line react-refresh/only-export-components -- Context + hook pattern is intentional
-export function useNarrativeCardFocusApi() {
-  return useContext(FocusApiContext);
-}

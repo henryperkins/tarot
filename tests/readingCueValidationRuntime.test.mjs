@@ -94,6 +94,92 @@ test('occupied caller-owned port refuses startup without killing the foreign lis
   await missing(privateDirectory);
 });
 
+test('cold startup serves callable development JSX after the production build, with optimized DEV false', { timeout: 180000 }, async t => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'cue-cold-jsx-test-')); const ports = await freePorts();
+  const privateDirectory = path.join(dir, 'run');
+  await missing(path.join(privateDirectory, 'vite-cache'));
+  const started = runtime.startReadingCueValidation(options(privateDirectory, ports));
+  let startupError;
+  void started.catch(error => { startupError = error; });
+  t.after(async () => {
+    try { const owned = await started.catch(() => null); await owned?.close(); }
+    finally { await rm(dir, { recursive: true, force: true }); }
+  });
+  // Request the first entry as soon as the real frontend listener is acquired.
+  // Its availability must follow the production build; there is no mock server,
+  // warmed optimizer cache, or delay chosen to hide the original startup race.
+  const origin = `http://127.0.0.1:${ports.frontend}`;
+  const deadline = Date.now() + 60000;
+  let firstFrontendIdentity;
+  while (firstFrontendIdentity === undefined) {
+    if (startupError) throw startupError;
+    try {
+      const response = await fetch(`${origin}/__cue_validation_identity`, { signal: AbortSignal.timeout(5000) });
+      firstFrontendIdentity = { status: response.status, body: await response.json() };
+    } catch { /* owned frontend is still acquiring */ }
+    if (firstFrontendIdentity !== undefined) break;
+    if (Date.now() > deadline) throw new Error('Cold owned frontend never acquired its listener');
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  const entry = await fetch(`${origin}/src/main.jsx`);
+  assert.equal(entry.status, 200);
+  const transformed = await entry.text();
+  const owned = await started;
+  const dependencyPath = transformed.match(/["']([^"']*\/react_jsx-dev-runtime\.js(?:\?[^"']*)?)["']/)?.[1];
+  assert.ok(dependencyPath, 'development entry must import the actual optimized JSX development runtime');
+  const modules = new Map();
+  const captureDependency = async dependencyUrl => {
+    const url = new URL(dependencyUrl, origin);
+    assert.equal(url.origin, origin);
+    assert.ok(url.pathname.startsWith(`/@fs${privateDirectory}/vite-cache/deps/`), url.pathname);
+    const filename = path.basename(url.pathname);
+    assert.match(filename, /\.js$/);
+    if (modules.has(url.href)) return;
+    const response = await fetch(url);
+    assert.equal(response.status, 200, `actual optimized dependency ${filename}`);
+    const code = await response.text();
+    // Keep served bytes intact, including Vite's rewritten absolute /@fs imports.
+    modules.set(url.href, code);
+    for (const match of code.matchAll(/(?:from\s*|import\s*)["']((?:\.\/|\/@fs\/)[^"']+)["']/g)) {
+      await captureDependency(new URL(match[1], url));
+    }
+  };
+  await captureDependency(dependencyPath);
+  // A Node module linker executes the actual response graph without rewriting
+  // imports or substituting the installed package for the served dependency.
+  const execute = `import assert from 'node:assert/strict';
+    import { readFileSync } from 'node:fs';
+    import { createContext, SourceTextModule } from 'node:vm';
+    import { renderToStaticMarkup } from 'react-dom/server';
+    const { entry, modules: source } = JSON.parse(readFileSync(0, 'utf8'));
+    const context = createContext({ console, setTimeout, clearTimeout });
+    const modules = new Map(source.map(([identifier, code]) => [identifier, new SourceTextModule(code, { identifier, context })]));
+    const runtime = modules.get(entry);
+    await runtime.link((specifier, parent) => {
+      const identifier = new URL(specifier, parent.identifier).href;
+      assert.ok(modules.has(identifier), 'Uncaptured actual dependency ' + identifier);
+      return modules.get(identifier);
+    });
+    await runtime.evaluate();
+    const jsxDEV = runtime.namespace.default?.jsxDEV ?? runtime.namespace.jsxDEV;
+    assert.equal(typeof jsxDEV, 'function', 'cold optimized development React runtime must expose callable jsxDEV');
+    const element = jsxDEV('main', { 'data-testid': 'cold-jsx-runtime', children: 'Fixture mountable' }, undefined, false);
+    assert.equal(renderToStaticMarkup(element), '<main data-testid="cold-jsx-runtime">Fixture mountable</main>');`;
+  const evaluated = spawnSync(process.execPath, ['--experimental-vm-modules', '--input-type=module', '-e', execute], {
+    cwd: root, input: JSON.stringify({ entry: new URL(dependencyPath, origin).href, modules: [...modules] }), encoding: 'utf8', timeout: 30000
+  });
+  assert.equal(evaluated.status, 0, evaluated.stderr || evaluated.error?.message);
+  assert.equal(firstFrontendIdentity.status, 200, 'the first acquired frontend listener must already have completed optimized output');
+  assert.equal(firstFrontendIdentity.body.outputIntegrity, true);
+  const frontendIdentity = await (await fetch(`${origin}/__cue_validation_identity`)).json();
+  assert.deepEqual(frontendIdentity.servingFlags, { dev: true, prod: false, mode: 'development' });
+  const optimizedIdentity = await (await fetch(`${owned.origins.optimized}/__cue_validation_identity`)).json();
+  assert.deepEqual(optimizedIdentity.servingFlags, { dev: false, prod: true, mode: 'reading-cue-validation' });
+  assert.deepEqual(optimizedIdentity.optimizedFlags, { dev: false, prod: true, mode: 'reading-cue-validation' });
+  assert.equal(optimizedIdentity.outputIntegrity, true);
+  assert.equal(optimizedIdentity.outputDigest, owned.buildIdentity.outputDigest);
+});
+
 test('owned runtime serves frozen allowlisted source, fails APIs closed, provisions private D1 and removes every listener', { timeout: 180000 }, async t => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'cue-runtime-live-test-')); const ports = await freePorts();
   const privateDirectory = path.join(dir, 'run');
@@ -180,7 +266,7 @@ test('owned runtime serves frozen allowlisted source, fails APIs closed, provisi
   assert.deepEqual([...owned.buildIdentity.dirtyPaths].sort(), allowlist.filter((file, index) => headBlobs.get(file) !== rawBlobs[index]).sort());
   const envModule = await (await fetch(`${owned.origins.frontend}/src/lib/readingGestureSettings.js`)).text();
   assert.ok(!envModule.includes('VITE_HOST_CANARY')); assert.ok(!envModule.includes('VITE_DOTENV_CANARY'));
-  assert.equal(owned.buildIdentity.sourceAllowlistVersion, 'task-13-offline-scaffold-v1');
+  assert.equal(owned.buildIdentity.sourceAllowlistVersion, 'reading-local-acceptance-v5');
   assert.match(envModule, /"DEV":\s*true/);
   for (const origin of Object.values(owned.origins)) {
     for (const url of ['/api/auth/me', '/api/tarot-reading/jobs', '/api/reading-visual/stream']) {

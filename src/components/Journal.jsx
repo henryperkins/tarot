@@ -96,7 +96,7 @@ export default function Journal() {
     handleRemoveFilter,
     serverSearchState,
     refreshServerSearch
-  } = useJournalFilters(entries, { isAuthenticated, canUseCloudJournal });
+  } = useJournalFilters(entries, { isAuthenticated, canUseCloudJournal, userId: user?.id });
 
   const {
     analyticsScope,
@@ -531,7 +531,8 @@ export default function Journal() {
   };
 
   const handleDeleteRequest = (entryId) => {
-    setDeleteConfirmModal({ isOpen: true, entryId });
+    const entry = filteredEntries.find(item => item.id === entryId) || entries.find(item => item.id === entryId);
+    setDeleteConfirmModal({ isOpen: true, entryId, ownerId: user?.id || null, readingResultId: entry?.readingResultId || null });
   };
 
   const handleDeleteConfirm = async () => {
@@ -541,13 +542,17 @@ export default function Journal() {
     // Close modal immediately to provide responsive feedback
     setDeleteConfirmModal({ isOpen: false, entryId: null });
 
-    const result = await deleteEntry(entryId);
+    if (deleteConfirmModal.ownerId !== (user?.id || null)) {
+      showToast({ type: 'error', title: 'Account changed', description: 'Choose this entry again in the current account.' });
+      return;
+    }
+    const result = await deleteEntry(entryId, { readingResultId: deleteConfirmModal.readingResultId });
 
     if (result.success) {
       showToast({
         type: 'success',
         title: 'Entry deleted',
-        description: 'Removed from your journal history.'
+        description: result.purged === false ? result.error : 'Removed from your journal history.'
       });
       if (serverSearchEnabled) {
         refreshServerSearch();

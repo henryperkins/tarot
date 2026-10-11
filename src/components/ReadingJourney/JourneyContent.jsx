@@ -312,6 +312,8 @@ export default function JourneyContent({
     const entryCount = scopedEntries?.length ?? 0;
     const totalEntries = Array.isArray(entries) ? entries.length : null;
     persistCoachStatsSnapshot(exportStats, {
+      // Server card/cadence aggregates have no complete entry provenance.
+      sourceEntryIds: _dataSource === 'client' ? (scopedEntries || []).map(entry => entry?.id).filter(Boolean) : undefined,
       filtersActive: journeyFiltersActive,
       filterLabel: scopeLabel || (journeyFiltersActive ? 'Filtered journal view' : 'Entire journal'),
       entryCount,
@@ -323,6 +325,7 @@ export default function JourneyContent({
     }, userId);
   }, [
     exportStats,
+    _dataSource,
     journeyFiltersActive,
     scopedEntries,
     entries,

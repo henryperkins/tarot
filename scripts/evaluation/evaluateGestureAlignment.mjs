@@ -6,6 +6,7 @@ import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getVectorGestureDetails } from '../../src/data/cardGestureArtwork.js';
+import { loadReadingCueRecordedCorpus } from './lib/readingCueQualification.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const options = new Map(process.argv.slice(2).map(argument => {
@@ -16,9 +17,10 @@ const options = new Map(process.argv.slice(2).map(argument => {
 for (const key of options.keys()) {
   if (!['--output', '--baseline-aligner', '--baseline-label'].includes(key)) throw new Error(`Unknown option ${key}`);
 }
-const samplePath = join(root, 'data/evaluations/narrative-samples.json');
+const recordedSource = await loadReadingCueRecordedCorpus({ root });
+const samplePath = join(root, recordedSource.resolvedPath);
 const corpusPath = join(root, 'scripts/evaluation/fixtures/gestureAlignmentCases.json');
-const recorded = JSON.parse(readFileSync(samplePath, 'utf8'));
+const recorded = JSON.parse(recordedSource.bytes.toString('utf8'));
 const corpus = JSON.parse(readFileSync(corpusPath, 'utf8'));
 const edition = 'rws-immanuelle-vector';
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -133,7 +135,7 @@ const report = {
   generatedAt: new Date().toISOString(),
   worktreeHead: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
   sourceRevisionNote: 'Working-tree files may differ from HEAD; sourceHashes identify the actual evaluated implementations.',
-  provenance: { recordedPath: relative(root, samplePath), recordedGeneratedAt: recorded.generatedAt, recordedSha256: digest(readFileSync(samplePath)),
+  provenance: { recordedPath: relative(root, samplePath), recordedGeneratedAt: recorded.generatedAt, recordedSha256: recordedSource.sha256,
     corpusPath: relative(root, corpusPath), corpusSha256: digest(readFileSync(corpusPath)), method: corpus.method },
   interpretationPolicy: 'Current dynamic fallback is intentionally literal/identity-only. Zero interpretation or personal-context associations is not evidence that the full semantic product requirement is fulfilled; generated association documents need their own evaluation.',
   limitations: [

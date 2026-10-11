@@ -4,7 +4,8 @@ import { createD1 } from './helpers/d1Sqlite.mjs';
 import { seedUser, seedSession, seedEntry } from './helpers/journalFixtures.mjs';
 import { loadJournalVisualState, loadJournalVisualStates, persistJournalVisualState, loadOwnedJournalVisualSource,
   registerVisualResult, updateVisualResultSource, commitVisualResult, fingerprintSavedVisualSource, attachJournalVisualResult } from '../functions/lib/readingVisualResults.js';
-import { retryJournalVisuals, createVisualReplayAdmission, claimVisualRetry, initializeVisualReplay, reserveVisualReplay, retryLocalVisuals } from '../functions/lib/readingVisualRetry.js';
+import { claimVisualRetry, initializeVisualReplay, reserveVisualReplay, retryLocalVisuals } from '../functions/lib/readingVisualRetry.js';
+import { retryJournalVisuals, createVisualReplayAdmission } from './helpers/webVisualAdmissionFixtures.mjs';
 import { projectVisualReplayReadiness } from '../functions/lib/readingVisualReplayReadiness.js';
 import { onRequestGet as getEntry } from '../functions/api/journal/[id].js';
 import { onRequestGet as getJournal } from '../functions/api/journal.js';
@@ -145,12 +146,33 @@ test('registered expired cloud refusal leaves every durable attachment and link 
 
 const LOCAL_SOURCE = { raw: 'The Star pours into a pool.', cards: [{ name: 'The Star', position: 'Present', orientation: 'Upright' }],
   question: '', reflections: '', deckId: 'rws-1909' };
+// Seed immutable V9 guest identity directly: V10 may read it, never mint it.
+async function historicalGuestAdmission(f) {
+  const token = crypto.randomUUID(), principalId = crypto.randomUUID();
+  const scope = `guest-edge:${await hashVisualCueText('trusted-read-only-guest-edge')}`;
+  await f.db.prepare('INSERT INTO visual_guest_principals VALUES (?, ?, ?, ?)')
+    .bind(await hashVisualCueText(token), principalId, scope, Date.now() + 86400000).run();
+  const admission = await createVisualReplayAdmission({ env: f.env, request: retryRequest(LOCAL_SOURCE, `visual_replay_principal=${token}`) });
+  assert.ok(admission); return { admission, token };
+}
+
 async function seedLocalClaim(f, { status = 'complete', guest = false } = {}) {
   f.env.VISUAL_REPLAY_TRUSTED_IDENTITY = { resolve: async () => 'trusted-read-only-guest-edge' };
-  const admission = await createVisualReplayAdmission({ env: f.env, ...(guest ? { request: retryRequest(LOCAL_SOURCE) } : { userId: 'user-1' }) });
+  const historical = guest ? await historicalGuestAdmission(f) : null;
+  const admission = historical?.admission || await createVisualReplayAdmission({ env: f.env, userId: 'user-1' });
   const binding = await sourceBinding(LOCAL_SOURCE, `existing-${guest ? 'guest' : 'user'}-${status}`);
   const fingerprint = await fingerprintSavedVisualSource({ source: LOCAL_SOURCE, ...normalizeVisualSource(LOCAL_SOURCE) });
-  const claim = await claimVisualRetry({ db: f.db, admissionScope: admission.scope, sourceFingerprint: fingerprint,
+  let claim;
+  if (guest) {
+    // Historical claim with immutable source/binding and no live inference.
+    const id = crypto.randomUUID();
+    await f.db.prepare(`INSERT INTO visual_retry_claims (id, admission_scope, source_fingerprint, reading_result_id,
+      attempt_id, visual_job_id, retry_status, created_at, updated_at, aggregate_scope, source_json, binding_json, visual_token, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, admission.scope, fingerprint, binding.readingResultId, crypto.randomUUID(), crypto.randomUUID(), Date.now(), Date.now(),
+        admission.aggregateScope, JSON.stringify(LOCAL_SOURCE), JSON.stringify(binding), crypto.randomUUID(), Date.now() + 86400000).run();
+    claim = f.db.rows('SELECT * FROM visual_retry_claims WHERE id = ?', [id])[0];
+  } else claim = await claimVisualRetry({ db: f.db, admissionScope: admission.scope, sourceFingerprint: fingerprint,
     admission, source: LOCAL_SOURCE, binding });
   assert.ok(claim);
   assert.ok(await initializeVisualReplay({ db: f.db, claim }));
@@ -165,7 +187,7 @@ async function seedLocalClaim(f, { status = 'complete', guest = false } = {}) {
   await f.db.prepare('UPDATE visual_retry_claims SET state_version = 7, retry_status = ?, dispatch_status = ?, reserved_at = ? WHERE id = ?')
     .bind(status, status === 'pending' ? 'reserved' : status === 'revoked' ? 'revoked' : 'settled', Date.now() - 1000, claim.id).run();
   return { admission, fingerprint, binding, claim: f.db.rows('SELECT * FROM visual_retry_claims WHERE id = ?', [claim.id])[0],
-    cookie: guest ? `visual_replay_principal=${admission.issuedToken}` : 'session=session-1' };
+    cookie: guest ? `visual_replay_principal=${historical.token}` : 'session=session-1' };
 }
 
 for (const guest of [false, true]) for (const missing of ['VISUAL_REPLAY_LIMITS', 'VISUAL_CUE_PROVIDER']) {
@@ -195,7 +217,7 @@ test('unconfigured local reads require the trusted owner or existing guest princ
   const f = await fixture(t);
   const user = await seedLocalClaim(f);
   const guest = await seedLocalClaim(f, { guest: true });
-  const otherGuest = await createVisualReplayAdmission({ env: f.env, request: retryRequest(LOCAL_SOURCE) });
+  const otherGuest = await historicalGuestAdmission(f);
   await seedUser(f.db, { id: 'other-reader' });
   await seedSession(f.db, { id: 'other-session', userId: 'other-reader' });
   delete f.env.VISUAL_REPLAY_LIMITS;
@@ -203,7 +225,7 @@ test('unconfigured local reads require the trusted owner or existing guest princ
   const attempts = [
     retryLocal({ env: f.env, request: retryRequest(LOCAL_SOURCE, 'session=other-session') }),
     retryLocal({ env: f.env, request: retryRequest(LOCAL_SOURCE) }),
-    retryLocal({ env: f.env, request: retryRequest(LOCAL_SOURCE, `visual_replay_principal=${otherGuest.issuedToken}`) }),
+    retryLocal({ env: f.env, request: retryRequest(LOCAL_SOURCE, `visual_replay_principal=${otherGuest.token}`) }),
     retryLocal({ env: f.env, request: retryRequest({ ...LOCAL_SOURCE, raw: `${LOCAL_SOURCE.raw} Edited.` }, guest.cookie) }),
     retryLocal({ env: { ...f.env, VISUAL_REPLAY_TRUSTED_IDENTITY: { resolve: async () => 'another-trusted-edge' } },
       request: retryRequest(LOCAL_SOURCE, guest.cookie) }),

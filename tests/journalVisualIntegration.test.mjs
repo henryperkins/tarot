@@ -68,6 +68,7 @@ test('actual DELETE route removes result before FK link loss and revokes the pri
   const id = saved.body.entry.id;
   const response = await deleteEntry({ env, request: request(`/${id}`, 'DELETE'), params: { id } });
   assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { success: true, retiredReadingResultIds: [BODY.readingResultId] });
   assert.equal(revoked, 1);
   assert.equal(await env.DB.prepare('SELECT id FROM reading_visual_results WHERE id = ?').bind(BODY.readingResultId).first(), null);
   assert.equal(await env.DB.prepare('SELECT id FROM journal_entries WHERE id = ?').bind(id).first(), null);
@@ -292,4 +293,28 @@ test('owned cloud replay route returns current attachment without configuration 
   assert.equal(foreign.status, 404);
   const guest = await retryRoute.onRequestPost({ env, params: { entryId: saved.body.entry.id }, request: new Request('https://test/cloud-retry', { method: 'POST' }) });
   assert.equal(guest.status, 401);
+});
+
+
+test('DELETE retirement receipt preserves an unobserved shared result alias and retires only its final reference', async t => {
+  const env = await setup(t); await register(env);
+  const first = await saveAppJournalEntry({ env, user: USER, body: { ...BODY, sessionSeed: 'shared-alias-first' } });
+  const last = await saveAppJournalEntry({ env, user: USER, body: { ...BODY, sessionSeed: 'shared-alias-last' } });
+  assert.notEqual(first.body.entry.id, last.body.entry.id);
+  const firstResponse = await deleteEntry({ env, request: request(`/${first.body.entry.id}`, 'DELETE'), params: { id: first.body.entry.id } });
+  assert.deepEqual(await firstResponse.json(), { success: true, retiredReadingResultIds: [] });
+  assert.ok(await env.DB.prepare('SELECT id FROM reading_visual_results WHERE id = ?').bind(BODY.readingResultId).first());
+  const remaining = await getEntry({ env, request: request(`/${last.body.entry.id}`), params: { id: last.body.entry.id } });
+  assert.equal((await remaining.json()).entry.visual.status, 'complete');
+  const lastResponse = await deleteEntry({ env, request: request(`/${last.body.entry.id}`, 'DELETE'), params: { id: last.body.entry.id } });
+  assert.deepEqual(await lastResponse.json(), { success: true, retiredReadingResultIds: [BODY.readingResultId] });
+  assert.equal(await env.DB.prepare('SELECT id FROM reading_visual_results WHERE id = ?').bind(BODY.readingResultId).first(), null);
+});
+
+test('unauthorized DELETE returns no other-owner result retirement identity', async t => {
+  const env = await setup(t); await register(env); const saved = await saveAppJournalEntry({ env, user: USER, body: BODY });
+  await seedUser(env.DB, { id: 'foreign-delete-owner' }); await seedSession(env.DB, { id: 'foreign-delete-session', userId: 'foreign-delete-owner' });
+  const response = await deleteEntry({ env, params: { id: saved.body.entry.id }, request: new Request(`https://test.invalid/api/journal/${saved.body.entry.id}`, { method: 'DELETE', headers: { Cookie: 'session=foreign-delete-session' } }) });
+  assert.equal(response.status, 403); const payload = await response.json(); assert.equal(payload.retiredReadingResultIds, undefined);
+  assert.equal(JSON.stringify(payload).includes(BODY.readingResultId), false); assert.ok(await env.DB.prepare('SELECT id FROM journal_entries WHERE id = ?').bind(saved.body.entry.id).first());
 });

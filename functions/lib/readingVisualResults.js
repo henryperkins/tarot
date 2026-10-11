@@ -520,7 +520,7 @@ async function initialVisualSchema(db) {
 /** Capture cleanup identities and revoke/purge in one transaction before slow
  * transport cancellation. Parent deletion cannot reset a source claim. */
 export async function deleteJournalVisualLink({ db, env, userId, entryId, deleteEntry = false }) {
-  if (!db || !userId || !entryId) return { deletedLink: false, cleanedResult: false };
+  if (!db || !userId || !entryId) return { deletedLink: false, cleanedResult: false, retiredReadingResultIds: [] };
   const initial = await initialVisualSchema(db);
   const ownedClaims = `user_id = ? AND (journal_entry_id = ? OR id IN
     (SELECT claim_id FROM journal_visual_state WHERE journal_entry_id = ? AND user_id = ?))`;
@@ -569,7 +569,8 @@ export async function deleteJournalVisualLink({ db, env, userId, entryId, delete
   for (const id of ids) {
     try { await revokeVisualJob(env, id); } catch { /* Durable revocation already blocks late commits. */ }
   }
-  return { deletedLink: changed(results[linkDeleteIndex]) || results[2].results.length > 0, cleanedResult: changed(results[resultDeleteIndex]) };
+  return { deletedLink: changed(results[linkDeleteIndex]) || results[2].results.length > 0, cleanedResult: changed(results[resultDeleteIndex]),
+    retiredReadingResultIds: [...new Set(results[1].results.map(row => row.reading_result_id).filter(Boolean))] };
 }
 
 // Schema inspection is explicit: missing optional migrations are compatible;

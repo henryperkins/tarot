@@ -1,5 +1,7 @@
 # Deck gesture coverage
 
+> **Historical inventory with dated updates:** The upright-only review statements and pending compact/reversal rows below describe the October 9 checkpoint. Current local matrix and aggregate picture-pack acceptance are recorded in the [October 11 acceptance record](../../docs/superpowers/reviews/2026-10-11-reading-ui-acceptance.md), preserving two native behavior exceptions. Use the [intent closure roadmap](../../docs/superpowers/plans/2026-10-11-reading-intent-closure.md) for remaining aligner and model work; physical handset acceptance remains open. Historical rows are retained rather than rewritten as individual current picture verdicts.
+
 The adopted study edition is `rws-immanuelle-vector`. All **78 canonical cards now have authored vector detail treatments**, totaling **151 supported detail IDs**. This inventory excludes the card back and maps every card to the checked-in vector manifest. The shared renderer retains whole-card identity, orientation, source occurrence identity, and fallback when a passage does not establish a supported detail.
 
 The expansion adds **140 static detail treatments across the previously uncovered 70 cards**. They use soft elliptical illumination and authored focal crops. The Star remains the only card with masked living-water recipes (two pours). The earlier Ace of Wands, Seven of Swords, and Wheel of Fortune retain three finite traces; the remaining 146 details are intentionally static. Arrival, focus, and selection transitions can accompany static details. This is full-deck authored detail coverage, not 78 cinemagraphs or certification of every rendered state.
@@ -95,13 +97,15 @@ Each asset link uses this study edition. Authored mask/frame geometry belongs to
 
 Root-reviewed captures: [Star desktop](evidence/react-star-desktop.png), [Star phone](evidence/react-star-phone.png), [five-card desktop](evidence/react-five-desktop.png), [Ace/Queen phone pairing](evidence/react-five-phone.png), and [compact reduced-motion five-card](evidence/react-five-small-reduced.png). [Visual metrics](evidence/react-visual-metrics.json) record the bounded browser pass. These support the stated fixture states, without certifying every orientation/detail or physical handset.
 
-## Remaining validation
+## Historical October 9 validation gaps
+
+**October 11 reconciliation:** The current [intent closure roadmap](../../docs/superpowers/plans/2026-10-11-reading-intent-closure.md), [aligner release](../../docs/superpowers/plans/2026-10-11-reading-aligner-release.md), and [post-reading model](../../docs/superpowers/plans/2026-10-11-reading-post-reading-model.md) plans supersede the remaining-work instructions below. The full local artwork matrix and aggregate picture pack now have [owner acceptance](../../docs/superpowers/reviews/2026-10-11-reading-ui-acceptance.md); physical handset evidence remains open. Historical deterministic grounded-return rules below are no longer current capability. The independent service is implemented locally but not semantically qualified. Product delivery uses the 78 WebP derivatives (22,814,590 bytes total), not the complete authoring collection; this is an inventory size, not a per-reading payload or handset performance claim. Preserve the per-card inventory and dated evidence as history.
 
 There are no identity-only entries in this edition's authored detail registry. The remaining work is quality and interpretation coverage across presentations: independently inspect each reversed treatment and compact crop, exercise details in natural recorded prose beyond the authored probes, and verify understandable static associations with reduced motion. Contact-sheet inspection of an upright ellipse is narrower evidence than a rendered phone detail window. Representative desktop/phone/reversal checks do not certify every detail or a physical handset.
 
 The source data is split between the [existing study treatments](../../src/data/cardGestureArtwork.js), [new major arcana](../../src/data/cardGestureDetails/majors.js), [new Wands and Swords](../../src/data/cardGestureDetails/wandsSwords.js), and [new Cups and Pentacles](../../src/data/cardGestureDetails/cupsPentacles.js). All entries use the same renderer and occurrence contract. No generated masks, arbitrary figure animation, or separate per-card focus system was added.
 
-## Continuation gates
+## Historical continuation gates
 
 Authored coverage of all 78 identities is separate from production promotion. Preserve the common occurrence, source-target, renderer, and focus contract. Every promoted treatment needs upright/reversed and compact verification, understandable reduced-motion illumination, bounded lifecycle, and grounded return/relationship behavior. Static local illumination is a valid authored choice. Other editions retain whole-card behavior without borrowing this edition's geometry.
 

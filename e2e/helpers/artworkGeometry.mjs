@@ -95,8 +95,17 @@ export function measureGestureFocusLayer() {
   }).map(animation => ({ name: animation.animationName || animation.id || 'web-animation', playState: animation.playState,
     target: animation.effect.target.getAttribute?.('class') || animation.effect.target.tagName,
     iterations: animation.effect.getComputedTiming?.().iterations ?? null, duration: animation.effect.getComputedTiming?.().duration ?? null }));
-  const shelf = [...document.querySelectorAll('[data-gesture-shelf] button')].map(button => ({ ariaLabel: button.getAttribute('aria-label'), disabled: button.disabled,
-    reversedAttribute: button.querySelector('.gesture-art__upright')?.dataset.reversed === 'true' }));
+  const shelf = [...document.querySelectorAll('[data-gesture-shelf] button')].map(button => {
+    const label = button.parentElement.querySelector('.gesture-shelf-label');
+    const range = document.createRange();
+    range.selectNodeContents(label);
+    return { ariaLabel: button.getAttribute('aria-label'), disabled: button.disabled,
+      reversedAttribute: button.querySelector('.gesture-art__upright')?.dataset.reversed === 'true',
+      shortLabel: label.textContent.trim(), itemRect: roundRect(box(button.parentElement)),
+      buttonRect: roundRect(box(button)), labelRect: roundRect(box(label)),
+      textRects: [...range.getClientRects()].map(rect => roundRect({ left: rect.left, top: rect.top, right: rect.right,
+        bottom: rect.bottom, width: rect.width, height: rect.height })) };
+  });
   return {
     layer: true, departingLayers, pair: layer.dataset.pair === 'true',
     window: { association: windowElement.dataset.association, held: windowElement.dataset.held === 'true', phase: windowElement.dataset.phase, rect: roundRect(box(windowElement)) },
@@ -113,13 +122,64 @@ export function measureGestureFocusLayer() {
 export async function settleGestureFocusLayer(page) {
   await page.waitForFunction(() => !document.querySelector('[data-gesture-window] .gesture-focus-layer--departing'), null, { timeout: 5000 });
   return page.locator('[data-gesture-window] .gesture-focus-layer:not(.gesture-focus-layer--departing)').evaluate(async layer => {
+    const stage = layer.closest('[data-gesture-window]');
+    const association = stage?.dataset.association;
+    const cards = [...layer.querySelectorAll('[data-focus-card]')].map(element => ({ element,
+      occurrenceId: element.dataset.occurrenceId, details: element.dataset.details }));
+    const arts = [...layer.querySelectorAll('[data-gesture-art]')].map(element => ({ element, owner: element.dataset.gestureOwner }));
     const images = [...layer.querySelectorAll('img.gesture-art__image')];
-    const decoded = await Promise.all(images.map(image => image.decode().then(() => true, () => false)));
+    const imageSources = images.map(image => image.getAttribute('src'));
+    const deadline = performance.now() + 5000;
+    const timeoutError = () => new Error('Gesture focus layer did not settle within 5000ms');
+    const bounded = async promise => {
+      const remaining = deadline - performance.now();
+      if (remaining <= 0) throw timeoutError();
+      let timer;
+      try {
+        const result = await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(timeoutError()), remaining); })]);
+        if (performance.now() >= deadline) throw timeoutError();
+        return result;
+      } finally { clearTimeout(timer); }
+    };
+    const assertOwner = () => {
+      const currentCards = [...layer.querySelectorAll('[data-focus-card]')];
+      const currentArts = [...layer.querySelectorAll('[data-gesture-art]')];
+      const currentImages = [...layer.querySelectorAll('img.gesture-art__image')];
+      if (!layer.isConnected || !stage?.isConnected || !association || stage.dataset.association !== association || stage.dataset.held !== 'true'
+        || stage.querySelector('.gesture-focus-layer:not(.gesture-focus-layer--departing)') !== layer
+        || stage.querySelector('.gesture-focus-layer--departing')
+        || currentCards.length !== cards.length || cards.some((card, index) => currentCards[index] !== card.element
+          || card.element.dataset.occurrenceId !== card.occurrenceId || card.element.dataset.details !== card.details)
+        || currentArts.length !== arts.length || arts.some((art, index) => currentArts[index] !== art.element || art.element.dataset.gestureOwner !== art.owner)
+        || currentImages.length !== images.length || images.some((image, index) => currentImages[index] !== image || image.getAttribute('src') !== imageSources[index])) {
+        throw new Error('Gesture focus ownership changed while settling');
+      }
+    };
+    const renderedFrames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     // document.getAnimations() avoids relying on engine support for { subtree }.
-    const finite = document.getAnimations().filter(animation => animation.effect?.target && layer.contains(animation.effect.target)
+    const finiteForLayer = () => document.getAnimations().filter(animation => animation.effect?.target && layer.contains(animation.effect.target)
       && animation.effect.getComputedTiming().iterations !== Infinity);
-    await Promise.allSettled(finite.map(animation => animation.finished));
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    return { decoded, finiteAnimationsAwaited: finite.length };
+    const unfinished = animation => animation.pending || !['finished', 'idle'].includes(animation.playState);
+    const seen = new Set();
+    assertOwner();
+    const decoded = await bounded(Promise.all(images.map(image => image.decode().then(() => true, () => false))));
+    assertOwner();
+    // Passive effects may create finite trace handles after the arrival work.
+    // Flush rendered frames before enumerating, then re-enumerate after every
+    // real finished/cancelled promise and frame flush until this owner is quiet.
+    await bounded(renderedFrames());
+    while (true) {
+      assertOwner();
+      const finite = finiteForLayer();
+      finite.forEach(animation => seen.add(animation));
+      const pending = finite.filter(unfinished);
+      if (pending.length) await bounded(Promise.allSettled(pending.map(animation => animation.finished)));
+      assertOwner();
+      await bounded(renderedFrames());
+      assertOwner();
+      const current = finiteForLayer();
+      current.forEach(animation => seen.add(animation));
+      if (!current.some(unfinished)) return { decoded, finiteAnimationsAwaited: seen.size };
+    }
   });
 }

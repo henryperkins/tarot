@@ -1,5 +1,18 @@
 # iPhone 14 Pro Max: Safari, VoiceOver and touch validation preparation
 
+## 2026-10-11 owner-approved lane split; execution still pending
+
+Current execution plans: [intent closure roadmap](../plans/2026-10-11-reading-intent-closure.md), [aligner release](../plans/2026-10-11-reading-aligner-release.md), and [post-reading model](../plans/2026-10-11-reading-post-reading-model.md). The detailed October 9 cases below remain coverage references. Model-only interpretations, balance and thematic returns apply to the model lane or explicitly labelled authored demonstrations; they are not missing literal-aligner outputs. Aligner device evidence uses `model: not used`, includes all affected web tiers, and does not wait for semantic qualification. Bounded re-annotation is now implemented locally; physical retry observations remain pending.
+
+The [current readiness record](2026-10-10-reading-cue-readiness.md) and [V10 owner-batch plan](../plans/2026-10-11-reading-cue-v10-owner-batch.md) supersede the shared model-first prerequisite in the historical preparation below. **No physical validation is authorized or recorded by this update.** An approved isolated HTTPS origin reachable from the device, an operator and a mid-range handset for the performance lane are still required; the original beta and its protected services remain unavailable for this work.
+
+- **Aligner-only web lane:** guest/free/plus/pro; English RWS identity and literal cues, with card links for other decks/languages. It uses no model inference, provider variables or inference budget, and model qualification is not a prerequisite for its device checks. Record `model: not used`, the exact frozen build and actual deterministic source lane. Test navigation, spoken prose, touch, held inspection, Reduce Motion, reading progression, saved static inspection, 200% text and handset performance. Interpretation, balance and model-return cases remain untested model-lane requirements; authored examples do not supply those capabilities. Genuine identity/tier coverage and separately authorized access are still required where applicable.
+- **Future model annotation lane:** plus/pro web only, never MCP/ChatGPT; full GLM/high post-reading after qualification, reviewed accounting/limits and retention/privacy work. Record qualified run/manifest and annotation timing separately from narrative delivery. Real-Pro and model-only device checks retain their additional prerequisites and separate authorization.
+
+Keep physical Safari/VoiceOver/touch and performance results pending until observations exist. Emulated WebKit and DOM names do not establish actual speech, focus survival or handset performance. A production UI flag and release authorization remain separate for both lanes. Preserve the original checklist and preparation findings below as historical references.
+
+## Historical October 9 preparation — model-first order superseded
+
 Prepared 2026-10-09 by read-only source inspection of the isolated qualification worktree. Observed HEAD: `a7eb324a003c3f9d2f6be77aa049b0913a44216b`; this is a preparation reference, not the eventual immutable validation build. No browser, assistive technology, model inference, device, credentials or network was accessed. Only this preparation document was written.
 
 **Physical Safari/VoiceOver/touch validation: PENDING.** No device-reachable isolated validation URL is approved/provisioned yet. Never use the original live beta or the original 8787/5175/8789 services as a substitute. Complete model qualification and expired/failed re-annotation work first; fill the runtime/build/source fields below before collecting physical evidence.
@@ -13,9 +26,9 @@ Prepared 2026-10-09 by read-only source inspection of the isolated qualification
 | Browser and context | Safari, ordinary browser tab; installed app needs a separate result if tested |
 | Approved isolated URL / route | Pending; none currently available |
 | Immutable source commit / runtime build identifier | Pending |
-| Qualified model / qualification run / manifest digest | Pending |
+| Qualified model / qualification run / manifest digest | Aligner: not used; model lane: qualified run/manifest pending |
 | Reading case / exact prose hash / cue-ledger revision | Pending |
-| Source lane | Qualified independent model output, recorded replay of that output, controlled cue fixture, or authored study; select one |
+| Source lane | Deterministic aligner, qualified independent model output, recorded replay, controlled cue fixture, or authored study; select and label one |
 | Delivery | Paced SSE, burst SSE, final-only, or saved restore; record the real lane |
 | Identity / tier | Guest or real signed-in Pro; mocked fixture identity is not real auth/tier coverage |
 | Motion / text settings | Reduce Motion off/on; Safari page zoom; display/text settings; orientation |

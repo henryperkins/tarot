@@ -1,5 +1,9 @@
 # Reading cue round closeout — October 10, 2026
 
+## Superseded implementation/activation status — 2026-10-11
+
+The finished round, restricted originals, public metric projections and **`qualified: false`** remain unchanged. Preparation-only statements below describe the historical inspected revision; current exact-source saved-reading retry/re-annotation is implemented locally in the consolidated candidate, with V9 RED and V10 NOT_RUN. See the [current readiness record and dated corrections](2026-10-10-reading-cue-readiness.md#2026-10-11-corrections-and-owner-decisions-before-v10) for the corrected latency/reservation record and open activation/release blockers. Prerequisites include **migrations 0036–0038**, the **`READING_VISUAL_JOBS` class migration**, **`VISUAL_CUE_PROVIDER`**, **`VISUAL_CUE_MODEL`**, **`VISUAL_INITIAL_LIMITS`** and **`VISUAL_REPLAY_LIMITS`**; migration 0036 plus a provider is insufficient. Physical/device, real-Pro, model and release evidence remain separately gated. This notice neither reopens the round nor authorizes inference or activation; all original text follows unchanged.
+
 The finished round remains **`qualified: false`**. No candidate is selected. This documentation revision closes archival/status corrections only; it authorizes no new calls, production access, migration, deployment, commit or push.
 
 ## Historical round and documentation identity

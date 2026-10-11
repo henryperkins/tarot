@@ -240,7 +240,7 @@ export async function onRequestDelete(context) {
     }
 
     // Revoke the last visual reference before the parent's FK cascade removes it.
-    await deleteJournalVisualLink({ db: env.DB, env, userId: user.id, entryId, deleteEntry: true });
+    const visualCleanup = await deleteJournalVisualLink({ db: env.DB, env, userId: user.id, entryId, deleteEntry: true });
 
     // Best-effort cleanup for follow-up turns.
     try {
@@ -254,7 +254,7 @@ export async function onRequestDelete(context) {
 
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, retiredReadingResultIds: visualCleanup.retiredReadingResultIds }),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' }

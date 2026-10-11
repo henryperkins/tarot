@@ -1172,7 +1172,8 @@ export function ReadingProvider({ children }) {
             const startResponse = await fetch('/api/tarot-reading/jobs', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    ...(gestureStudyEnabled ? { 'X-Reading-Cue-Display': '1' } : {})
                 },
                 body: JSON.stringify(normalizedPayload.data),
                 signal: startController.signal

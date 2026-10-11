@@ -4,7 +4,9 @@ import { createD1 } from './helpers/d1Sqlite.mjs';
 import { seedUser, seedEntry } from './helpers/journalFixtures.mjs';
 import { ReadingVisualJob } from '../src/worker/readingVisualJob.js';
 import { admitInitialVisualFixture, withInitialVisualAdmission } from './helpers/visualInitialAdmissionFixtures.mjs';
-const replay = await import('../functions/lib/readingVisualRetry.js').catch(() => null);
+import * as productionReplay from '../functions/lib/readingVisualRetry.js';
+import { createVisualReplayAdmission, retryJournalVisuals } from './helpers/webVisualAdmissionFixtures.mjs';
+const replay = { ...productionReplay, createVisualReplayAdmission, retryJournalVisuals };
 const SOURCE = { raw: 'The Star pours into a pool.', cards: [{ name: 'The Star', position: 'Present', orientation: 'Upright' }], question: '', reflections: { Overall: 'Hope' }, deckId: 'rws-1909' };
 async function fixture(t, { response = { response: { proposals: [] } }, limits = true, configured = true } = {}) {
   assert.ok(replay, 'saved replay implementation exists');
@@ -82,18 +84,15 @@ test('transport rejects wrong tokens, foreign owners, expired capabilities and e
   assert.equal(f.calls(), 1);
 });
 
-test('new guest principals remain behind the same trusted aggregate inference cap', async t => {
-  const f = await fixture(t); f.env.VISUAL_REPLAY_LIMITS = JSON.stringify({ rateLimit: 1, windowMs: 60000, totalLimit: 1 });
+test('new guest principals cannot create claims or consume inference allowance', async t => {
+  const f = await fixture(t);
   f.env.VISUAL_REPLAY_TRUSTED_IDENTITY = { resolve: async () => 'trusted-test-edge' };
-  const a = await replay.createVisualReplayAdmission({ env: f.env, request: new Request('https://test/retry') });
-  const b = await replay.createVisualReplayAdmission({ env: f.env, request: new Request('https://test/retry') });
-  assert.notEqual(a.scope, b.scope);
-  await replay.retryLocalVisuals({ env: f.env, admission: a, savedSource: SOURCE }); await f.drain();
-  await replay.retryLocalVisuals({ env: f.env, admission: b, savedSource: { ...SOURCE, raw: SOURCE.raw + ' changed' } }); await f.drain();
-  assert.equal(f.calls(), 1);
-  assert.equal(f.db.rows('SELECT * FROM visual_retry_claims WHERE reserved_at IS NOT NULL').length, 1);
-  assert.equal(await replay.createVisualReplayAdmission({ env: { ...f.env, VISUAL_REPLAY_TRUSTED_IDENTITY: null },
-    request: new Request('https://test/retry', { headers: { 'x-forwarded-for': 'forged', 'x-real-ip': 'forged', 'CF-Connecting-IP': 'forged' } }) }), null);
+  const admission = await replay.createVisualReplayAdmission({ env: f.env, request: new Request('https://test/api/tarot-reading/visual-retry') });
+  assert.equal(admission, null);
+  const result = await replay.retryLocalVisuals({ env: f.env, admission, savedSource: SOURCE });
+  await f.drain(); assert.equal(result.resumeHandle, null); assert.equal(f.calls(), 0);
+  assert.equal(f.db.rows('SELECT * FROM visual_retry_claims').length, 0);
+  assert.equal(f.db.rows('SELECT * FROM visual_guest_principals').length, 0);
 });
 
 test('a saved valid same-owner unlinked registration is repaired with zero calls', async t => {
@@ -295,7 +294,7 @@ test('public replay routes reject spoofed owners and guessed IDs while allowing 
   assert.equal(stream.status, 200); await stream.body.cancel(); assert.equal(f.calls(), 1);
 });
 
-test('free authenticated local-source route derives admission from session and ignores submitted old capabilities', async t => {
+test('free authenticated local-source route refuses model admission and ignores submitted old capabilities', async t => {
   const f = await fixture(t); const { seedSession } = await import('./helpers/journalFixtures.mjs');
   await f.db.prepare("UPDATE users SET subscription_tier = 'free' WHERE id = 'user-1'").run(); await seedSession(f.db);
   const localRoute = await import('../functions/api/reading-visual-retry.js');
@@ -303,7 +302,8 @@ test('free authenticated local-source route derives admission from session and i
   const request = new Request('https://test/api/tarot-reading/visual-retry', { method: 'POST', headers: { Cookie: 'session=session-1', 'Content-Type': 'application/json' },
     body: JSON.stringify({ savedSource: { ...SOURCE, readingResultId: 'old-private', visualJobToken: 'opaque', visualBinding: { owner: 'foreign' } }, admission: { scope: 'forged' } }) });
   const response = await localRoute.onRequestPost({ env: f.env, request }); assert.equal(response.status, 200);
-  const data = await response.json(); assert.notEqual(data.resumeHandle.readingResultId, 'old-private'); await f.drain(); assert.equal(f.calls(), 1);
+  const data = await response.json(); assert.equal(data.resumeHandle, null); await f.drain(); assert.equal(f.calls(), 0);
+  assert.equal(f.db.rows('SELECT * FROM visual_retry_claims').length, 0);
   assert.equal((await cloudRoute.onRequestPost({ env: f.env, params: { entryId: 'entry-1' }, request: new Request('https://test/cloud-retry', { method: 'POST', headers: { Cookie: 'session=session-1' } }) })).status, 403);
 });
 
@@ -376,12 +376,15 @@ test('trusted explicit replay revocation is durable and blocks another dispatch'
   assert.equal(next.resumeHandle, null); assert.equal(f.calls(), 1); assert.equal(f.db.rows('SELECT retry_status FROM visual_retry_claims')[0].retry_status, 'revoked');
 });
 
-test('concurrent independent guest principals share an atomic aggregate cap', async t => {
-  const f = await fixture(t); f.env.VISUAL_REPLAY_LIMITS = JSON.stringify({ rateLimit: 1, windowMs: 60000, totalLimit: 1 });
-  f.env.VISUAL_REPLAY_TRUSTED_IDENTITY = { resolve: async () => 'same-trusted-edge' };
-  const principals = await Promise.all(Array.from({ length: 4 }, () => replay.createVisualReplayAdmission({ env: f.env, request: new Request('https://test/retry') })));
-  await Promise.all(principals.map((admission, index) => replay.retryLocalVisuals({ env: f.env, admission, savedSource: { ...SOURCE, raw: SOURCE.raw + ` ${index}` } })));
-  await f.drain(); assert.equal(f.calls(), 1); assert.equal(f.db.rows('SELECT * FROM visual_retry_claims WHERE reserved_at IS NOT NULL').length, 1);
+test('concurrent guest requests cannot create principals or reserve model calls', async t => {
+  const f = await fixture(t);
+  f.env.VISUAL_REPLAY_TRUSTED_IDENTITY = { resolve: async () => 'controlled-edge' };
+  const results = await Promise.all(Array.from({ length: 5 }, () => replay.createVisualReplayAdmission({
+    env: f.env, request: new Request('https://test/api/tarot-reading/visual-retry', { method: 'POST' }) })));
+  assert.deepEqual(results, [null, null, null, null, null]);
+  await f.drain(); assert.equal(f.calls(), 0);
+  assert.equal(f.db.rows('SELECT * FROM visual_guest_principals').length, 0);
+  assert.equal(f.db.rows('SELECT * FROM visual_retry_claims').length, 0);
 });
 
 test('pre-dispatch hash failure preserves the durable slot for an explicit retry', async t => {

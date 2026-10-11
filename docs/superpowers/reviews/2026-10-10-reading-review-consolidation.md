@@ -9,6 +9,7 @@ Step 1 consolidates the latest reading-cue remediation and current master into o
 - Starting source: `codex/reading-cue-qualification-20261009`, HEAD `f24487d089748c60716d61fe5f8b6c3056ca6eb9`, plus its reviewed local remediation.
 - Source checkpoint: `3178e5e` captures 122 owned paths (76 tracked modifications and 46 new files). Four historical-report header lines received whitespace-only presentation cleanup; the original bytes remain in the preservation snapshot.
 - Master integrated: `58c8a33b8a93da8bb29c315dcaf821f5e751780a`, through merge `3b5fa11`. All 11 master commits absent from the original integration branch are included.
+- Current read-only refresh (2026-10-11): remote master remains `58c8a33b8a93da8bb29c315dcaf821f5e751780a`; local master `b5ba16fa9915a77752297e1a3f283b8af9cf7eba` is also an ancestor of review checkpoint `2fa4d6f`. Neither master source is missing from this candidate.
 - The ancestor chain includes the original React bridge and clean UI integration branch. No cherry-pick or broad copy from the primary checkout was used.
 - The branch is local. No push, PR, deployment, migration or live inference is part of this consolidation.
 
@@ -55,4 +56,4 @@ This verifies local consolidation and bundle compatibility. Browser playback, re
 
 ## Continue here
 
-Use this worktree for subsequent local implementation. The [Step 2 repair report](2026-10-11-reading-activation-recovery.md) records deletion retention, spending admission for initial visual jobs and explicit unavailable retry state. Step 3 remains playback and artwork acceptance. Keep production and live qualification disabled until their separately scoped gates are satisfied.
+Use this worktree for subsequent local implementation. The [Step 2 repair report](2026-10-11-reading-activation-recovery.md) records deletion retention, initial spending admission and unavailable recovery, including the follow-up browser storage fence. The [Step 3 UI report](2026-10-11-reading-ui-acceptance.md) records completed playback, quotations, compact art and bounded decoration repairs. The current [readiness record](2026-10-10-reading-cue-readiness.md) tracks final local acceptance and the separate model, physical-device and release gates. Keep production and live qualification disabled until those gates are satisfied.

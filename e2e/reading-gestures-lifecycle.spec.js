@@ -1,15 +1,17 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import { gzipSync } from 'node:zlib';
-import { createNarrativeFixture } from './helpers/narrativeFixtures.js';
+import { createNarrativeFixture, observeNarrativeUiHealth } from './helpers/narrativeFixtures.js';
 
 const browserErrors = new WeakMap();
 test.beforeEach(async ({ page }) => {
-  const errors = [];
-  browserErrors.set(page, errors);
-  page.on('pageerror', error => errors.push(error.message));
+  browserErrors.set(page, observeNarrativeUiHealth(page, { allowGuestAuthRejection: true }));
+  await page.route(/https:\/\/[^/]*sentry\.io\/.*\/envelope\//, route => route.fulfill({ json: {} }));
+  await page.route(url => ['localhost', '127.0.0.1'].includes(url.hostname)
+    && url.pathname === '/api/auth/me' && !url.search, route => route.request().method() === 'GET'
+    ? route.fulfill({ status: 401, json: { user: null } }) : route.fallback());
 });
-test.afterEach(async ({ page }) => { expect(browserErrors.get(page)).toEqual([]); });
+test.afterEach(async ({ page }) => { browserErrors.get(page)?.(); });
 
 const star = JSON.parse(fs.readFileSync(new URL('../output/reading-motion/fixtures/gesture-sidecars.json', import.meta.url))).star;
 const diagnostics = page => page.getByTestId('gesture-source-diagnostics');
@@ -37,8 +39,8 @@ const adopted = async page => (await page.evaluate(() => window.__stage)).map(en
   .filter((id, index, all) => id && id !== all[index - 1]);
 const STAR_ORDER = ['arrival', 'pool', 'land', 'memory', 'ground', 'balance'];
 
-async function open(page, query = 'sourceMode=job-sse') {
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
+async function open(page, query = 'sourceMode=job-sse', { reducedMotion = 'no-preference' } = {}) {
+  await page.emulateMedia({ reducedMotion });
   await page.setViewportSize({ width: 1100, height: 1000 });
   await page.addInitScript(() => localStorage.setItem('tarot-onboarding-complete', 'true'));
   await page.goto(`/__e2e/reading-gestures?${query}`);
@@ -168,9 +170,10 @@ test('completed burst settles even when a timer wakes before its deadline', asyn
 
 test('reduced-motion burst shows every connection as static meaning in source order', async ({ page }) => {
   await recordStage(page);
-  await open(page, 'arrival=burst&associations=authored');
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.reload();
+  // Start in the preference this case verifies. Runtime preference changes are
+  // covered by the held-water case; a preliminary normal-motion document adds
+  // an unrelated telemetry fetch during its immediate teardown in WebKit.
+  await open(page, 'arrival=burst&associations=authored', { reducedMotion: 'reduce' });
   await expect(diagnostics(page)).toHaveAttribute('data-source-status', 'complete');
   await expect(windowArt(page)).toHaveAttribute('data-association', 'balance', { timeout: 20000 });
   const stage = await page.evaluate(() => window.__stage);
@@ -259,16 +262,18 @@ test('actual route departure pauses and return resumes the same source generatio
   } finally { await fixture.close(); }
 });
 
-test('bounded Chromium trace measures water while controlled SSE arrives', async ({ page }, testInfo) => {
+test('bounded browser sample measures water while controlled SSE arrives', async ({ page, browserName }, testInfo) => {
   const fixture = await fixtureFor(page);
-  const cdp = await page.context().newCDPSession(page);
+  // WebKit has no CDP endpoint. Frame intervals and the same streaming/ownership
+  // assertions run in both engines; Chromium supplies additional trace metrics.
+  const cdp = browserName === 'chromium' ? await page.context().newCDPSession(page) : null;
   try {
     await open(page);
     const end = await deliverPool(page, fixture);
     await expect.poll(() => runningWater(page)).toBeGreaterThan(0);
-    await cdp.send('Performance.enable');
-    const before = await cdp.send('Performance.getMetrics');
-    await cdp.send('Tracing.start', { categories: 'devtools.timeline,blink.user_timing', transferMode: 'ReturnAsStream' });
+    if (cdp) await cdp.send('Performance.enable');
+    const before = cdp ? await cdp.send('Performance.getMetrics') : null;
+    if (cdp) await cdp.send('Tracing.start', { categories: 'devtools.timeline,blink.user_timing', transferMode: 'ReturnAsStream' });
     const frameSample = page.evaluate(async () => {
       const times = []; const started = performance.now(); let previous = started;
       await new Promise(resolve => { const sample = now => { times.push(now - previous); previous = now; if (now - started < 1200) requestAnimationFrame(sample); else resolve(); }; requestAnimationFrame(sample); });
@@ -281,31 +286,35 @@ test('bounded Chromium trace measures water while controlled SSE arrives', async
     // its turn had not run before the hold, otherwise the land pour.
     await expect(windowArt(page)).toHaveAttribute('data-association', /^(arrival|land)$/);
     const frames = await frameSample;
-    const after = await cdp.send('Performance.getMetrics');
-    const completed = new Promise(resolve => cdp.once('Tracing.tracingComplete', resolve));
-    await cdp.send('Tracing.end');
-    const { stream } = await completed;
-    let trace = ''; let eof = false;
-    while (!eof) { const chunk = await cdp.send('IO.read', { handle: stream }); trace += chunk.data; eof = chunk.eof; }
-    await cdp.send('IO.close', { handle: stream });
-    const events = JSON.parse(trace).traceEvents;
-    const delta = name => after.metrics.find(metric => metric.name === name)?.value - before.metrics.find(metric => metric.name === name)?.value;
-    const result = { lane: 'headless Chromium mocked-auth controlled real SSE; emulated desktop', ...frames,
+    const after = cdp ? await cdp.send('Performance.getMetrics') : null;
+    let trace = null;
+    if (cdp) {
+      const completed = new Promise(resolve => cdp.once('Tracing.tracingComplete', resolve));
+      await cdp.send('Tracing.end');
+      const { stream } = await completed;
+      trace = ''; let eof = false;
+      while (!eof) { const chunk = await cdp.send('IO.read', { handle: stream }); trace += chunk.data; eof = chunk.eof; }
+      await cdp.send('IO.close', { handle: stream });
+    }
+    const events = trace ? JSON.parse(trace).traceEvents : null;
+    const delta = name => after ? after.metrics.find(metric => metric.name === name)?.value - before.metrics.find(metric => metric.name === name)?.value : null;
+    const result = { lane: `headless ${browserName} mocked-auth controlled real SSE; emulated desktop`, ...frames,
       scriptSeconds: delta('ScriptDuration'), taskSeconds: delta('TaskDuration'), layoutSeconds: delta('LayoutDuration'),
-      paintEvents: events.filter(event => event.name === 'Paint').length,
-      longMainThreadTasks: events.filter(event => event.name === 'RunTask' && event.dur > 50000).length,
-      limitation: 'Bounded browser measurement, no physical handset or GPU proof; frame intervals are observed, not compositor dropped-frame counts.' };
+      paintEvents: events ? events.filter(event => event.name === 'Paint').length : null,
+      longMainThreadTasks: events ? events.filter(event => event.name === 'RunTask' && event.dur > 50000).length : null,
+      cdpMetricsAvailable: Boolean(cdp),
+      limitation: 'Bounded browser measurement, no physical handset or GPU proof; frame intervals are observed, not compositor dropped-frame counts. WebKit CDP metrics are unavailable.' };
     const summaryPath = testInfo.outputPath('gesture-performance-summary.json');
     const tracePath = testInfo.outputPath('gesture-performance-trace.json.gz');
     fs.mkdirSync(testInfo.outputDir, { recursive: true });
     fs.writeFileSync(summaryPath, JSON.stringify(result, null, 2));
-    fs.writeFileSync(tracePath, gzipSync(trace));
+    if (trace) fs.writeFileSync(tracePath, gzipSync(trace));
     console.log(`Gesture performance: ${JSON.stringify(result)}`);
     await testInfo.attach('gesture-performance-summary', { path: summaryPath, contentType: 'application/json' });
-    await testInfo.attach('gesture-performance-trace', { path: tracePath, contentType: 'application/gzip' });
+    if (trace) await testInfo.attach('gesture-performance-trace', { path: tracePath, contentType: 'application/gzip' });
     expect(result.frames).toBeGreaterThan(0);
     await fixture.emit('reading', 'done', { fullText: star.expectedRaw });
-  } finally { await cdp.detach(); await fixture.close(); }
+  } finally { if (cdp) await cdp.detach(); await fixture.close(); }
 });
 
 

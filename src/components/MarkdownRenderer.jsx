@@ -1,7 +1,8 @@
-import { Children, cloneElement, isValidElement, createContext, useContext, memo, createElement } from 'react';
+import { Children, cloneElement, isValidElement, createContext, useContext, memo, createElement, Component, createRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './reading/narrative/NarrativeCardFocus';
+import { hasNarrativeSelection, captureNarrativeSelection, restoreNarrativeSelection } from '../lib/narrativeReadingDom.js';
+import { useNarrativeCardFocus } from './reading/narrative/narrativeFocusContext.js';
 import {
   normalizeHighlightPhrases,
   passesWordBoundary
@@ -19,31 +20,65 @@ const STABLE_COMPONENTS = Object.fromEntries(
   }])
 );
 
+// A late annotation must not replace a text node the reader is selecting.
+// Keep the committed optional plugins until selection clears; prose continues
+// streaming. Snapshot before React's mutation phase also preserves selection
+// offsets when a selected plain text node grows during that stream.
+class MarkdownDocument extends Component {
+  container = createRef();
+  appliedPlugins = null;
+  appliedContent = '';
+  renderedPlugins = null;
+
+  handleSelectionChange = () => {
+    if (this.appliedPlugins !== this.props.extraRemarkPlugins && !hasNarrativeSelection(this.container.current)) {
+      this.forceUpdate();
+    }
+  };
+
+  componentDidMount() {
+    this.selectionDocument = this.container.current.ownerDocument;
+    this.selectionDocument.addEventListener('selectionchange', this.handleSelectionChange);
+    this.appliedPlugins = this.renderedPlugins;
+    this.appliedContent = this.props.content;
+  }
+
+  getSnapshotBeforeUpdate(previousProps) {
+    return this.props.content.startsWith(previousProps.content)
+      ? captureNarrativeSelection(this.container.current) : null;
+  }
+
+  componentDidUpdate(_previousProps, _previousState, selection) {
+    this.appliedPlugins = this.renderedPlugins;
+    this.appliedContent = this.props.content;
+    restoreNarrativeSelection(this.container.current, selection);
+  }
+
+  componentWillUnmount() {
+    this.selectionDocument.removeEventListener('selectionchange', this.handleSelectionChange);
+  }
+
+  render() {
+    const { content, className, components, remarkPlugins, extraRemarkPlugins } = this.props;
+    const held = content.startsWith(this.appliedContent) && hasNarrativeSelection(this.container.current);
+    this.renderedPlugins = held ? this.appliedPlugins : extraRemarkPlugins;
+    return <div ref={this.container} className={className}>
+      <MarkdownComponentsContext.Provider value={components}>
+        <ReactMarkdown remarkPlugins={[...remarkPlugins, ...(this.renderedPlugins || [])]}
+          skipHtml components={STABLE_COMPONENTS}>{content}</ReactMarkdown>
+      </MarkdownComponentsContext.Provider>
+    </div>;
+  }
+}
+
 const BLOCK_SEPARATOR = '\n\n';
 
-function GesturePhrase({ node: _node, children, ...props }) {
+function MarkdownSpan({ node: _node, children, ...props }) {
   const focus = useNarrativeCardFocus();
-  const api = useNarrativeCardFocusApi();
-  const id = props['data-gesture-id'];
-  if (!id || !focus?.studyEnabled) return <span {...props}>{children}</span>;
-  const association = focus.associations.find((item) => item.id === id);
-  // Identity establishes presence automatically; the shelf already offers
-  // whole-card inspection without turning every card name into a control.
-  if (association?.kind === 'identity') return <span {...props} className="reading-gesture-identity">{children}</span>;
-  const held = focus.gestureState.held?.kind === 'association' && focus.gestureState.held.id === id;
-  const associated = focus.gestureState.current?.id === id && (held || association?.kind !== 'identity');
-  // The visible phrase is the control's accessible name (label in name); a
-  // separate card or detail label would replace the prose for screen readers.
-  return (
-    <span {...props} role="button" tabIndex={0} className="reading-gesture-association" aria-pressed={held}
-      data-associated={associated ? 'true' : undefined}
-      onClick={() => api.holdAssociation(id)} onKeyDown={(event) => {
-        if (event.key === 'Escape') api.releaseAssociation();
-        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); api.holdAssociation(id); }
-      }}>
-      {children}
-    </span>
-  );
+  const Phrase = focus?.PhraseRenderer;
+  return Phrase && props['data-gesture-id']
+    ? <Phrase {...props}>{children}</Phrase>
+    : <span {...props}>{children}</span>;
 }
 
 const STYLE_VARIANTS = {
@@ -329,12 +364,11 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   const wrapperClassName = [styles.wrapper, className].filter(Boolean).join(' ');
   const remarkPlugins = [
     remarkGfm,
-    ...(hasHeadingContext ? [readHeadingContext] : []),
-    ...(Array.isArray(extraRemarkPlugins) ? extraRemarkPlugins : [])
+    ...(hasHeadingContext ? [readHeadingContext] : [])
   ];
 
   const components = {
-          span: GesturePhrase,
+          span: MarkdownSpan,
           ...headingComponents,
           p: ({ node: _node, ...props }) => {
             bumpBlockCursor();
@@ -453,17 +487,8 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
     // max-w-prose ensures 65-75 character line length for optimal readability
     // Using calc for very small screens to prevent text touching edges
     <div className={wrapperClassName}>
-      <div className={styles.inner}>
-        <MarkdownComponentsContext.Provider value={components}>
-        <ReactMarkdown
-          remarkPlugins={remarkPlugins}
-          skipHtml
-          components={STABLE_COMPONENTS}
-        >
-          {content}
-        </ReactMarkdown>
-        </MarkdownComponentsContext.Provider>
-      </div>
+      <MarkdownDocument className={styles.inner} components={components} content={content}
+        remarkPlugins={remarkPlugins} extraRemarkPlugins={Array.isArray(extraRemarkPlugins) ? extraRemarkPlugins : null} />
     </div>
   );
 });
