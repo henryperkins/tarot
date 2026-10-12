@@ -181,7 +181,7 @@ async function generateNarrative(page) {
 
 async function waitForNarrativeComplete(page) {
   await expect(async () => {
-    const skeleton = page.locator('[aria-label="Preparing your interpretation"]');
+    const skeleton = page.getByRole('heading', { name: 'Preparing your reading', exact: true });
     expect(await skeleton.isVisible().catch(() => false)).toBe(false);
   }).toPass({ timeout: 30000 });
 

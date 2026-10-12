@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowCounterClockwise } from '@phosphor-icons/react';
+import { ArrowCounterClockwise, Gear } from '@phosphor-icons/react';
 import { TableuLogo } from './TableuLogo';
 import { TABLEU_MARK_SIZE, TABLEU_LOGO_WIDTH } from '../../shared/brand/tableuMark';
 import { GlobalNav } from './GlobalNav';
@@ -20,7 +20,9 @@ export function Header({
   activeStep,
   onStepSelect,
   isShuffling,
-  minimalNav = false
+  minimalNav = false,
+  readingView = false,
+  onOpenReadingSettings
 }) {
   const prefersReducedMotion = useReducedMotion();
   const stickyRef = useResponsiveSticky();
@@ -114,9 +116,9 @@ export function Header({
 
   return (
     <>
-      {minimalNav && <h1 id="tableau-heading" className="sr-only">Tableu</h1>}
+      {(minimalNav || readingView) && <h1 id="tableau-heading" className="sr-only">Tableu</h1>}
       {/* Main Header */}
-      {!minimalNav && (
+      {!minimalNav && !readingView && (
         <header aria-labelledby="tableau-heading" className={isCompact ? 'header-condensed' : ''}>
           <div className="text-center mb-2 sm:mb-6 md:mb-8 mystic-heading-wrap flex flex-col items-center">
             <div
@@ -176,7 +178,7 @@ export function Header({
           transition: 'transform 200ms ease',
         }}
       >
-        {!minimalNav && (
+        {!minimalNav && !readingView && (
           <div className="header-sticky__row flex flex-wrap items-center gap-2 sm:gap-3 justify-between">
             <div className="header-sticky__nav flex-1 w-full sm:w-auto">
               <GlobalNav condensed={isCompact} withUserChip />
@@ -189,8 +191,8 @@ export function Header({
             </div>
           </div>
         )}
-        <div className={minimalNav ? '' : 'mt-2 sm:mt-1'}>
-          {displayName && !minimalNav && (
+        <div className={readingView ? 'reading-step-nav' : minimalNav ? '' : 'mt-2 sm:mt-1'}>
+          {displayName && !minimalNav && !readingView && (
             <p className="text-[0.75rem] sm:text-xs text-muted mb-1">
               Welcome back, {displayName}.
             </p>
@@ -200,7 +202,11 @@ export function Header({
             activeStep={activeStep}
             onSelect={onStepSelect}
             condensed={isCompact}
+            readingView={readingView}
           />
+          {readingView && <button type="button" className="reading-settings" aria-label="Reading settings" onClick={onOpenReadingSettings}>
+            <Gear size={23} aria-hidden="true" />
+          </button>}
         </div>
         {isShuffling && (
           <div

@@ -1,55 +1,14 @@
 import PropTypes from 'prop-types';
 import { NarrativeQuestionAnchor } from './reading/narrative/NarrativeQuestionAnchor';
-import {
-  NarrativePanelHeader,
-  NarrativeBody,
-  NarrationControls,
-  NarrativeStatusStack
-} from './reading/narrative';
+import { NarrativeStatusStack } from './reading/narrative';
+import { ReadingDocument } from './reading/narrative/ReadingDocument';
+import '../styles/reading-screen.css';
 
-export function NarrativePanel({
-  panelModel = {},
-  callbacks = {}
-}) {
-  const {
-    panelClassName,
-    focusToggleAvailable,
-    isNarrativeFocus,
-    question,
-    isHandset,
-    narrativeText,
-    personalReading,
-    shouldStreamNarrative,
-    isReadingStreaming,
-    canAutoNarrate,
-    displayName,
-    narrativeHighlightPhrases,
-    emotionalTone,
-    activeWordBoundary,
-    narrativeAtmosphereClassName,
-    hasHeroStoryArt,
-    statusModel,
-    controlsModel,
-    ttsState,
-    journalStatus
-  } = panelModel;
-  const {
-    onToggleNarrativeFocus,
-    onNarrationStart,
-    onStopNarration,
-    onNarrativeComplete,
-    onHighlightPhrase,
-    onSectionEnter,
-    onEnableVoice,
-    onDismissVoicePrompt,
-    onViewJournalEntry,
-    onSaveFromNudge,
-    onDismissNudge,
-    onOpenJournal,
-    onSaveReading,
-    onRetryNarrative,
-    onUpgradeTier
-  } = callbacks;
+export function NarrativePanel({ panelModel = {}, callbacks = {} }) {
+  const { panelClassName, question, isHandset, narrativeText, personalReading,
+    statusModel, ttsState, journalStatus } = panelModel;
+  const { onEnableVoice, onDismissVoicePrompt, onViewJournalEntry, onSaveFromNudge,
+    onDismissNudge, onRetryNarrative, onUpgradeTier } = callbacks;
 
   if (personalReading?.isError) {
     return (
@@ -63,11 +22,8 @@ export function NarrativePanel({
         <p className="mt-3 text-sm text-muted">Your cards and question are still here. You can retry this reading.</p>
         <NarrativeQuestionAnchor question={question} compact={isHandset} className="mt-4" />
         {onRetryNarrative && !isHandset && (
-          <button
-            type="button"
-            onClick={onRetryNarrative}
-            className="mt-5 inline-flex min-h-touch items-center justify-center rounded-full border border-secondary/50 px-5 py-2 text-sm font-semibold text-main hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
-          >
+          <button type="button" onClick={onRetryNarrative}
+            className="mt-5 inline-flex min-h-touch items-center justify-center rounded-full border border-secondary/50 px-5 py-2 text-sm font-semibold text-main hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60">
             Retry interpretation
           </button>
         )}
@@ -75,61 +31,17 @@ export function NarrativePanel({
     );
   }
 
-  return (
-    <div className={panelClassName}>
-      {/* One reading column keeps the title, question, notice, and prose on a shared edge. */}
-      <div className="mx-auto max-w-prose space-y-5 sm:space-y-6">
-        <NarrativePanelHeader
-          focusToggleAvailable={focusToggleAvailable}
-          isNarrativeFocus={isNarrativeFocus}
-          onToggleNarrativeFocus={onToggleNarrativeFocus}
-        />
-
-        <NarrativeBody
-          question={question}
-          isHandset={isHandset}
-          narrativeText={narrativeText}
-          personalReading={personalReading}
-          shouldStreamNarrative={shouldStreamNarrative}
-          isReadingStreaming={isReadingStreaming}
-          canAutoNarrate={canAutoNarrate}
-          onNarrationStart={onNarrationStart}
-          onNarrativeComplete={onNarrativeComplete}
-          displayName={displayName}
-          narrativeHighlightPhrases={narrativeHighlightPhrases}
-          emotionalTone={emotionalTone}
-          onHighlightPhrase={onHighlightPhrase}
-          onSectionEnter={onSectionEnter}
-          activeWordBoundary={activeWordBoundary}
-          narrativeAtmosphereClassName={narrativeAtmosphereClassName}
-          hasHeroStoryArt={hasHeroStoryArt}
-        />
-      </div>
-
-      <div className="mt-4 max-w-3xl mx-auto space-y-4">
-        <NarrativeStatusStack
-          statusModel={statusModel}
-          ttsState={ttsState}
-          journalStatus={journalStatus}
-          onUpgradeTier={onUpgradeTier}
-          onEnableVoice={onEnableVoice}
-          onDismissVoicePrompt={onDismissVoicePrompt}
-          onViewEntry={onViewJournalEntry}
-          onSaveFromNudge={onSaveFromNudge}
-          onDismissNudge={onDismissNudge}
-          controls={(
-            <NarrationControls
-              controlsModel={controlsModel}
-              onNarrate={onNarrationStart}
-              onStopNarration={onStopNarration}
-              onSaveReading={onSaveReading}
-              onOpenJournal={onOpenJournal}
-            />
-          )}
-        />
+  return <div className="reading-screen">
+    <div className="reading-screen__main">
+      <ReadingDocument model={panelModel} callbacks={callbacks} />
+      <div className="reading-screen__status">
+        <NarrativeStatusStack statusModel={{ ...statusModel, showJournalNudge: false }}
+          ttsState={ttsState} journalStatus={journalStatus} onUpgradeTier={onUpgradeTier}
+          onEnableVoice={onEnableVoice} onDismissVoicePrompt={onDismissVoicePrompt}
+          onViewEntry={onViewJournalEntry} onSaveFromNudge={onSaveFromNudge} onDismissNudge={onDismissNudge} />
       </div>
     </div>
-  );
+  </div>;
 }
 
 NarrativePanel.propTypes = {

@@ -14,6 +14,7 @@ import {
   buildNarrativeSurfaceModel,
   buildNarrativeText,
   buildStoryArtCards,
+  buildReadingDisplayCards,
   deriveNarrativeVisibility,
   getResolvedQuestion,
   selectCinematicCard
@@ -42,6 +43,7 @@ export function useNarrativeReadingController({
   autoGenerateVisualsEnabled,
   cardVideoEnabled,
   userQuestion,
+  reflections,
   displayName,
   isHandset,
   isLandscape,
@@ -56,6 +58,9 @@ export function useNarrativeReadingController({
   saveReading,
   onRetryNarrative,
   isSaving,
+  savedEntryId = null,
+  onOpenFollowUp = null,
+  spreadName = '',
   hasHeroStoryArt,
   handleNarrationStop,
   notifyCompletion,
@@ -94,6 +99,9 @@ export function useNarrativeReadingController({
       ...getCardForDeck(card, deckStyleId),
       position: spreadPositions?.[index] || `Position ${index + 1}`
     })), [reading, deckStyleId, spreadPositions, visibleCount]);
+  const spreadCards = useMemo(() => buildReadingDisplayCards({
+    reading, visibleCount, spreadPositions, deckStyleId
+  }), [reading, visibleCount, spreadPositions, deckStyleId]);
   const { cinematicCard, cinematicPosition } = useMemo(() => (
     selectCinematicCard({ reading, visibleCount, spreadPositions })
   ), [reading, spreadPositions, visibleCount]);
@@ -240,7 +248,7 @@ export function useNarrativeReadingController({
     });
   }, [persistMediaRecord, resolvedQuestion, setHasHeroStoryArt, storyArtCards]);
 
-  const panelModel = useMemo(() => buildNarrativePanelModel({
+  const panelModel = useMemo(() => ({ ...buildNarrativePanelModel({
     personalReading,
     isPersonalReadingError,
     isReadingStreaming,
@@ -267,7 +275,11 @@ export function useNarrativeReadingController({
     shouldShowJournalNudge,
     hasHeroStoryArt,
     isMobileStableMode
-  }), [
+  }), spreadCards, savedEntryId, spreadName, originalContext: { reflections, cards: spreadCards } }), [
+    spreadCards,
+    savedEntryId,
+    spreadName,
+    reflections,
     canAutoNarrate,
     displayName,
     emotionalTone,
@@ -341,6 +353,7 @@ export function useNarrativeReadingController({
 
   const panelCallbacks = useMemo(() => ({
     onRetryNarrative,
+    onSelectCard: onSelectInsightCard,
     onToggleNarrativeFocus: handleToggleNarrativeFocus,
     onNarrationStart: handleNarration,
     onStopNarration: handleNarrationStop,
@@ -350,6 +363,7 @@ export function useNarrativeReadingController({
     onEnableVoice: handleVoicePrompt,
     onDismissVoicePrompt: () => setShowVoicePrompt?.(false),
     onSaveReading: saveReading,
+    onOpenFollowUp,
     onOpenJournal: handleOpenJournal,
     onViewJournalEntry: handleOpenJournalEntry,
     onUpgradeTier: handleOpenSubscriptionSettings,
@@ -371,6 +385,8 @@ export function useNarrativeReadingController({
     notifyCompletion,
     notifySectionEnter,
     onRetryNarrative,
+    onSelectInsightCard,
+    onOpenFollowUp,
     saveReading,
     setShowVoicePrompt
   ]);
@@ -401,7 +417,8 @@ export function useNarrativeReadingController({
     narrativeModel: {
       narrativePanel,
       secondaryContent,
-      personalReading
+      personalReading,
+      spreadCards
     }
   };
 }

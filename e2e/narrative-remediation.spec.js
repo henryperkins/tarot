@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import {
   NARRATIVE, badgeContrast, createNarrativeFixture, expectForeground,
   expectNoHorizontalOverflow, expectSeparateBoxes, expectTarget, installSimulatedVisualViewport,
-  openChat, openSetup, startReading
+  openChat, openSetup, startReading, openReadingSupport, openReadingAbout
 } from './helpers/narrativeFixtures.js';
 
 test.setTimeout(60000);
@@ -26,6 +26,7 @@ async function withReading(page, options, check) {
   const fixture = await createNarrativeFixture(page, options);
   try {
     await startReading(page, fixture);
+    await openReadingSupport(page);
     await check(fixture);
   } finally {
     await fixture.close();
@@ -329,7 +330,7 @@ test('A02 closing after its desktop opener disappears restores the narrative hea
     await page.setViewportSize(handsets[1]);
     await expect(page.getByRole('button', { name: 'Open chat', exact: true })).toHaveCount(0);
     await dialog.getByRole('button', { name: 'Close follow-up chat' }).click();
-    const title = page.getByRole('heading', { name: 'Your Personalized Narrative', level: 2 });
+    const title = page.getByRole('heading', { name: 'Your reading', level: 2, exact: true });
     await expect(title).toBeFocused();
     await page.waitForTimeout(350);
     await expect(title).toBeFocused();
@@ -587,7 +588,7 @@ for (const mobile of [false, true]) {
   test(`A07 heading outline preserves all narrative sections, focus mode and chat levels${mobile ? ' @mobile' : ''}`, async ({ page }) => {
     await withReading(page, { viewport: mobile ? handsets[1] : desktop }, async fixture => {
       await expect(page.getByRole('heading', { name: 'Tableu', level: 1, exact: true })).toHaveCount(1);
-      const title = page.getByRole('heading', { name: 'Your Personalized Narrative', level: 2 });
+      const title = page.getByRole('heading', { name: 'Your reading', level: 2, exact: true });
       await expect(title).toHaveAttribute('id', 'personalized-narrative-title');
       await expect(title).toHaveAttribute('tabindex', '-1');
       const narrative = page.locator('.narrative-stream');
@@ -610,7 +611,8 @@ for (const mobile of [false, true]) {
         // across the breakpoint instead of inventing a handset-only action.
         await page.setViewportSize(desktop);
       }
-      const focusToggle = page.getByRole('button', { name: 'Focus on narrative', exact: true });
+      await openReadingAbout(page);
+      const focusToggle = page.getByRole('button', { name: 'Hide extra panels: off', exact: true });
       await focusToggle.focus();
       await focusToggle.press('Enter');
       if (mobile) await page.setViewportSize(handsets[1]);
@@ -618,8 +620,8 @@ for (const mobile of [false, true]) {
       await expect(page.getByRole('heading', { name: /^Spread Insights/, level: 2 })).toHaveCount(0);
       await expect(page.getByRole('heading', { name: 'Reading Inputs Used', level: 2 })).toHaveCount(0);
       if (mobile) await page.setViewportSize(desktop);
-      await expect(page.getByRole('button', { name: 'Show insight panels', exact: true })).toHaveAttribute('aria-pressed', 'true');
-      const showPanels = page.getByRole('button', { name: 'Show insight panels', exact: true });
+      await expect(page.getByRole('button', { name: 'Hide extra panels: on', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      const showPanels = page.getByRole('button', { name: 'Hide extra panels: on', exact: true });
       await showPanels.focus();
       await showPanels.press('Enter');
       if (mobile) await page.setViewportSize(handsets[1]);
@@ -668,7 +670,8 @@ for (const mobile of [false, true]) {
       await verifySkipLinks(page);
       await expect(page.getByRole('link', { name: 'Skip to spreads', exact: true })).toHaveCount(0);
       if (mobile) await page.setViewportSize(desktop);
-      await page.getByRole('button', { name: 'Focus on narrative', exact: true }).click();
+      await openReadingAbout(page);
+      await page.getByRole('button', { name: 'Hide extra panels: off', exact: true }).click();
       if (mobile) await page.setViewportSize(handsets[1]);
       await verifySkipLinks(page);
       await expect(page.getByRole('link', { name: 'Skip to spreads', exact: true })).toHaveCount(0);

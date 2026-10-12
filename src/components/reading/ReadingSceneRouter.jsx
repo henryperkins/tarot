@@ -40,7 +40,7 @@ export function ReadingSceneRouter({
   const activeScene = orchestrator?.activeScene;
   const isReadingScene = activeScene === 'narrative' || activeScene === 'complete';
   const isTableScene = activeScene === 'ritual' || activeScene === 'reveal';
-  const className = activeScene === 'interlude' ? '' : `scene-shell ${isReadingScene ? 'scene-shell--reading' : ''} ${isTableScene ? 'scene-shell--table' : ''}`;
+  const className = activeScene === 'interlude' ? 'scene-shell--reading' : `scene-shell ${isReadingScene ? 'scene-shell--reading' : ''} ${isTableScene ? 'scene-shell--table' : ''}`;
 
   return (
     <SceneShell

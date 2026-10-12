@@ -43,7 +43,7 @@ export function CompleteScene({
   const narrativeCompanion = narrativeModel?.secondaryContent || null;
   const shouldRenderNarrativeCompanion = Boolean(narrativePanel && personalReading && narrativeCompanion);
   const secondaryContent = (
-    <>
+    <details className="reading-support"><summary>Explore this reading</summary>
       {shouldRenderNarrativeCompanion ? <div className="mt-6 sm:mt-8">{narrativeCompanion}</div> : null}
 
       {/* Reading Inputs sits under Spread Insights: both describe how the reading was built. */}
@@ -94,7 +94,7 @@ export function CompleteScene({
         isShuffling={isShuffling}
         shuffle={shuffle}
       />
-    </>
+    </details>
   );
 
   return (

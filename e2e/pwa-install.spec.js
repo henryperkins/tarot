@@ -262,7 +262,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await page.setViewportSize({ width: 320, height: 568 });
         await startReading(page, fixture);
         const dock = page.getByRole('navigation', { name: 'Primary mobile actions', exact: true });
-        await expect(dock.getByRole('button', { name: /^Save reading to journal/ })).toBeVisible();
+        await expect(dock.getByRole('button', { name: 'Save to journal', exact: true })).toBeVisible();
         await expect(dock.getByRole('button', { name: 'Add to Home Screen', exact: true })).toHaveCount(0);
         const install = page.locator('main [data-pwa-footer]').getByRole('button', { name: 'Add to Home Screen', exact: true });
         await expectInstallHitTarget(install);
@@ -543,12 +543,12 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await startReading(page, fixture);
           await page.setViewportSize({ width: 844, height: 390 });
           const dock = page.getByRole('navigation', { name: 'Primary mobile actions', exact: true });
-          const save = dock.getByRole('button', { name: /^Save reading to journal/ });
-          const next = dock.getByRole('button', { name: /^Start a new reading/ });
+          const save = dock.getByRole('button', { name: 'Save to journal', exact: true });
+          const ask = dock.getByRole('button', { name: 'Ask about this reading', exact: true });
           await offerInstall(page);
           await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
           await save.locator('span').evaluate(element => { element.textContent = 'Save this reading in your personal journal'; });
-          await next.locator('span').evaluate(element => { element.textContent = 'Start a new reading for your next reflection'; });
+          await ask.locator('span').evaluate(element => { element.textContent = 'Ask a follow-up about this reading and your next reflection'; });
           const tasks = save.locator('..');
           await page.evaluate(() => document.fonts.ready);
           await expect.poll(() => tasks.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true);
@@ -736,7 +736,9 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await page.setViewportSize({ width: 320, height: 568 });
         await startReading(page, fixture, { complete: false });
         const dock = page.getByRole('navigation', { name: 'Primary mobile actions', exact: true });
-        await expect(dock.getByRole('button', { name: /^Interpreting cards/ })).toBeDisabled();
+        await expect(dock).toBeHidden();
+        const cancel = page.getByRole('button', { name: 'Cancel generation', exact: true });
+        await expect(cancel).toBeEnabled();
         await offerInstall(page, 'dismissed', true);
         const install = page.locator('main [data-pwa-footer]').getByRole('button', { name: 'Install Tableu', exact: true });
         await expectInstallHitTarget(install);
@@ -745,13 +747,15 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await install.press('Enter');
         await expect(install).toHaveCount(0);
         await expectPageFocusInView(page);
-        await expect(dock.getByRole('button', { name: 'Start a new reading (resets the current spread)', exact: true })).toBeEnabled();
+        await expect(cancel).toBeEnabled();
+        await expect(page.getByRole('heading', { name: 'Preparing your reading', exact: true })).toBeVisible();
+        expect(fixture.requests.reading).toHaveLength(1);
         const status = installErrorToast(page);
         await expect(status).toBeVisible();
         const bounds = await status.boundingBox();
         expect(bounds.x).toBeGreaterThanOrEqual(0);
         expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
-        expect(bounds.y + bounds.height).toBeLessThanOrEqual((await dock.boundingBox()).y);
+        expect(bounds.y + bounds.height).toBeLessThanOrEqual(page.viewportSize().height);
       });
 
       test('a deferred prompt survives route navigation and runs once', async ({ page }) => {

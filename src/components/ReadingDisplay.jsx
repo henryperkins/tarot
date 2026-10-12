@@ -4,7 +4,6 @@ import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import { useSaveReading } from '../hooks/useSaveReading';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext.jsx';
@@ -36,12 +35,15 @@ export function ReadingDisplay({
     sectionRef,
     followUpOpen,
     onFollowUpOpenChange,
+    onOpenFollowUp,
+    onSaveReading: saveReading,
+    isSaving = false,
+    savedEntryId = null,
     followUpAutoFocus = true,
     suppressInterruptions = false,
     onCardModalChange,
     isMobileStableMode = false
 }) {
-    const { saveReading, isSaving } = useSaveReading();
     const { publish: publishToast } = useToast();
     const { effectiveTier } = useSubscription();
     const navigate = useNavigate();
@@ -96,6 +98,7 @@ export function ReadingDisplay({
         // Reading Generation & UI
         personalReading,
         isGenerating,
+        cancelPersonalReading,
         isReadingStreamActive,
         narrativePhase,
         themes,
@@ -361,6 +364,7 @@ export function ReadingDisplay({
         emotionalTone,
         displayName,
         userQuestion,
+        reflections,
         highlightItems,
         isGenerating,
         voiceOn,
@@ -384,6 +388,9 @@ export function ReadingDisplay({
         saveReading,
         onRetryNarrative: generatePersonalReading,
         isSaving,
+        savedEntryId,
+        onOpenFollowUp,
+        spreadName: spreadInfo?.name,
         hasHeroStoryArt,
         handleNarrationStop,
         notifyCompletion,
@@ -636,7 +643,10 @@ export function ReadingDisplay({
         displayName,
         userQuestion,
         readingCount: reading?.length || 0,
-        reasoning
+        reasoning,
+        spreadCards: narrativeModel.spreadCards,
+        onSelectCard: handleSelectInsightCard,
+        onCancel: cancelPersonalReading
     };
 
     const completionModel = {
@@ -683,6 +693,7 @@ export function ReadingDisplay({
                 isHandset={isHandset}
                 isLandscape={isLandscape}
                 isTableScene={sceneOrchestrator.activeScene === 'ritual' || sceneOrchestrator.activeScene === 'reveal'}
+                readingView={['interlude', 'narrative', 'complete'].includes(sceneOrchestrator.activeScene)}
                 reading={reading}
                 shuffle={shuffle}
                 isShuffling={isShuffling}

@@ -113,7 +113,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         release();
         await expect.poll(() => fixture.requests.reading.length).toBe(1);
         await fixture.completeReading();
-        await expect(page.getByRole('heading', { name: 'Your Personalized Narrative' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Your reading', exact: true })).toBeVisible();
       } finally {
         release();
       }

@@ -1335,6 +1335,15 @@ export function ReadingProvider({ children }) {
         baseRevealAll();
     }, [baseRevealAll, describeCardAtIndex, reading, revealedCards, selectedSpread, isSpreadDealt]);
 
+    const cancelPersonalReading = useCallback(() => {
+        cancelInFlightReading();
+        setPersonalReading(null);
+        setIsGenerating(false);
+        setIsReadingStreamActive(false);
+        setNarrativePhase('idle');
+        setSrAnnouncement('Generation cancelled. Your cards and question are still here.');
+    }, [cancelInFlightReading]);
+
     const value = useMemo(() => ({
         ...audioController,
         ...tarotState,
@@ -1360,6 +1369,7 @@ export function ReadingProvider({ children }) {
         lastCardsForFeedback, setLastCardsForFeedback,
         showAllHighlights, setShowAllHighlights,
         generatePersonalReading,
+        cancelPersonalReading,
         highlightItems,
         srAnnouncement, setSrAnnouncement
     }), [
@@ -1387,6 +1397,7 @@ export function ReadingProvider({ children }) {
         lastCardsForFeedback,
         showAllHighlights,
         generatePersonalReading,
+        cancelPersonalReading,
         highlightItems,
         srAnnouncement
     ]);

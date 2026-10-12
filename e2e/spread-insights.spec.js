@@ -1,6 +1,6 @@
 import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
-import { createNarrativeFixture, startReading, badgeContrast, expectTarget, expectNoHorizontalOverflow } from './helpers/narrativeFixtures.js';
+import { createNarrativeFixture, startReading, badgeContrast, expectTarget, expectNoHorizontalOverflow, openReadingSupport, openReadingAbout } from './helpers/narrativeFixtures.js';
 import { analyzeSpreadThemes, analyzeThreeCard } from '../functions/lib/spreadAnalysis.js';
 import { retrievePassages } from '../functions/lib/graphRAG.js';
 
@@ -30,6 +30,7 @@ async function withInsights(page, { deck = 'rws-1909', fallback = false } = {}, 
       });
     }
     await fixture.completeReading();
+    await openReadingSupport(page);
     const panel = page.locator('.spread-patterns-panel');
     const disclosure = panel.getByRole('button', { name: /^Spread Insights/ });
     if (await disclosure.count()) {
@@ -97,14 +98,15 @@ for (const mobile of [false, true]) {
 test('insights remain recoverable when focus mode crosses the handset breakpoint', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await withInsights(page, {}, async () => {
-    await page.getByRole('button', { name: 'Focus on narrative', exact: true }).press('Enter');
+    await openReadingAbout(page);
+    await page.getByRole('button', { name: 'Hide extra panels: off', exact: true }).press('Enter');
     await expect(page.locator('.spread-patterns-panel')).toHaveCount(0);
     for (const width of [768, 390, 320]) {
       await page.setViewportSize({ width, height: 844 });
-      await expect(page.getByRole('button', { name: 'Show insight panels', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Hide extra panels: on', exact: true })).toBeVisible();
     }
-    await page.getByRole('button', { name: 'Show insight panels', exact: true }).press('Enter');
-    await expect(page.getByRole('button', { name: 'Focus on narrative', exact: true })).toBeFocused();
+    await page.getByRole('button', { name: 'Hide extra panels: on', exact: true }).press('Enter');
+    await expect(page.getByRole('button', { name: 'Hide extra panels: off', exact: true })).toBeFocused();
     const disclosure = page.getByRole('button', { name: /^Spread Insights/ });
     await disclosure.press('Enter');
     await expect(page.getByRole('list', { name: 'Spread highlights' })).toBeVisible();

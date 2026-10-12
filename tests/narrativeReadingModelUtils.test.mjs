@@ -59,6 +59,12 @@ describe('buildNarrativeText', () => {
 
     assert.equal(text, 'First section\n\nSecond section');
   });
+
+  test('preserves original setext headings and whitespace when legacy metadata says plain text', () => {
+    const raw = '\n\nOpening\n=======\n\nA beginning.\n\nClosing\n=======\n\nAn end.';
+    const text = buildNarrativeText({ hasMarkdown: false, raw, normalized: raw.trim(), paragraphs: [raw.trim()] });
+    assert.equal(text, raw);
+  });
 });
 
 describe('selectCinematicCard', () => {

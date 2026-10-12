@@ -1,6 +1,6 @@
 import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
-import { createNarrativeFixture, startReading, SOURCE_USAGE, expectNoHorizontalOverflow, expectForeground } from './helpers/narrativeFixtures.js';
+import { createNarrativeFixture, startReading, SOURCE_USAGE, expectNoHorizontalOverflow, expectForeground, openReadingSupport } from './helpers/narrativeFixtures.js';
 
 test.setTimeout(60000);
 test.use({ serviceWorkers: 'block' });
@@ -14,6 +14,7 @@ for (const width of [1440, 390, 320]) {
       const fixture = await createNarrativeFixture(page);
       try {
         await startReading(page, fixture);
+        await openReadingSupport(page);
         const region = page.getByRole('region', { name: panelName });
         const trigger = region.getByRole('button', { name: panelName, exact: true });
         await expect(trigger).toHaveAttribute('aria-expanded', 'false');
@@ -52,6 +53,7 @@ for (const state of ['unknown', 'fallback', 'error']) {
       ? { sourceUsage: {} } : state === 'fallback' ? { provider: 'safe-fallback' } : {});
     try {
       await startReading(page, fixture, { complete: state !== 'error' });
+      if (state !== 'error') await openReadingSupport(page);
       if (state === 'error') {
         await fixture.emit('reading', 'delta', { text: 'A reflection is starting.' });
         await expect(page.locator('.narrative-stream')).toContainText('A reflection is starting.');
@@ -70,6 +72,7 @@ for (const hasSnapshot of [false, true]) {
   test(`journal resume ${hasSnapshot ? 'restores its own' : 'clears unknown'} inputs after a different reading`, async ({ page }) => {
     const fixture = await createNarrativeFixture(page);
     const saved = [];
+    let newEntry;
     const olderEntry = {
       id: 'older-entry', ts: Date.now() - 86400000, spread: 'One-Card Insight', spreadKey: 'single',
       question: 'How can I prepare for a change?', cards: [{ name: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright' }],
@@ -80,26 +83,33 @@ for (const hasSnapshot of [false, true]) {
     await page.route('**/api/journal**', route => {
       const pathname = new URL(route.request().url()).pathname;
       if (pathname === '/api/journal' && route.request().method() === 'POST') {
-        saved.push(route.request().postDataJSON());
-        return route.fulfill({ json: { success: true, entry: { id: 'new-entry', ts: Date.now() } } });
+        const payload = route.request().postDataJSON();
+        saved.push(payload);
+        newEntry = { ...payload, id: 'new-entry', ts: Date.now() };
+        return route.fulfill({ json: { success: true, entry: newEntry } });
       }
-      if (pathname === '/api/journal') return route.fulfill({ json: { entries: [olderEntry], pagination: { hasMore: false, total: 1 } } });
+      if (pathname === '/api/journal') return route.fulfill({ json: {
+        entries: [...(newEntry ? [newEntry] : []), olderEntry], pagination: { hasMore: false, total: newEntry ? 2 : 1 }
+      } });
+      if (pathname === '/api/journal/new-entry' && newEntry) return route.fulfill({ json: { entry: newEntry } });
       if (pathname === '/api/journal/older-entry') return route.fulfill({ json: { entry: olderEntry } });
       return route.fallback();
     });
     try {
       await startReading(page, fixture);
+      await openReadingSupport(page);
       await expect(page.getByRole('region', { name: panelName })).toBeVisible();
-      await page.getByRole('button', { name: 'Save to Journal', exact: true }).click();
+      await page.getByRole('button', { name: 'Save to journal', exact: true }).filter({ visible: true }).click();
       await expect.poll(() => saved.length).toBe(1);
       expect(saved[0].sourceUsage.userContext.usedInputs).toContain('cardReflections');
-      await page.getByRole('button', { name: 'View Journal', exact: true }).click();
+      await page.getByRole('button', { name: 'View saved entry', exact: true }).filter({ visible: true }).click();
       const entry = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'One-Card Insight', exact: true }) });
       await entry.locator('button[title="Expand entry"]').click();
-      await expect(page.getByRole('button', { name: 'Ask a follow-up', exact: true })).toBeVisible();
-      await page.getByRole('button', { name: 'Ask a follow-up', exact: true }).click();
+      await expect(entry.getByRole('button', { name: 'Ask a follow-up', exact: true })).toBeVisible();
+      await entry.getByRole('button', { name: 'Ask a follow-up', exact: true }).click();
       await page.getByRole('button', { name: 'Close follow-up chat', exact: true }).click();
       await expect(page.locator('.narrative-stream')).toContainText('A saved reflection from yesterday.');
+      await openReadingSupport(page);
       const region = page.getByRole('region', { name: panelName });
       if (hasSnapshot) {
         await region.getByRole('button', { name: panelName }).click();

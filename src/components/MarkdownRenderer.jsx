@@ -1,4 +1,4 @@
-import { Children, cloneElement, isValidElement } from 'react';
+import { Children, cloneElement, isValidElement, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -205,13 +205,15 @@ function highlightChildren(children, phrases, textCursor, ttsRange, nextKey) {
   });
 }
 
-export function MarkdownRenderer({
+export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   highlightPhrases = [],
   wordBoundary = null,
   variant = 'default',
   headingBaseLevel = null,
-  className = ''
+  className = '',
+  getHeadingProps = null,
+  renderHeadingLead = null
 }) {
   if (!content || typeof content !== 'string') {
     return null;
@@ -257,31 +259,31 @@ export function MarkdownRenderer({
     blockCounter.current += 1;
   };
 
-  const renderHeading = (Tag, props, className, showDivider) => (
-    showDivider && styles.showSectionDivider ? (
+  const renderHeading = (Tag, props, className, showDivider, lead) => {
+    const heading = <Tag {...props} className={className}>
+      {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
+    </Tag>;
+    const content = lead && isValidElement(lead) ? cloneElement(lead, {}, heading) : heading;
+    return showDivider && styles.showSectionDivider ? (
       <div className="narrative-section animate-section-enter">
         <div className="narrative-section__divider animate-divider-enter" aria-hidden="true"><span>✦</span></div>
-        <Tag {...props} className={className}>
-          {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-        </Tag>
+        {content}
       </div>
-    ) : (
-      <Tag {...props} className={className}>
-        {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-      </Tag>
-    )
-  );
+    ) : content;
+  };
 
   const headingComponents = Object.fromEntries(
     (hasHeadingContext ? [1, 2, 3, 4, 5, 6] : [1, 2, 3]).map((level) => [
       `h${level}`,
-      ({ node: _node, ...props }) => {
+      ({ node, ...props }) => {
         bumpBlockCursor();
         const renderedLevel = hasHeadingContext
           ? Math.min(6, headingBaseLevel + level - headingContext.sourceBaseLevel)
           : level;
         const size = styles.headingSizes[`h${level}`] || styles.headingSizes.h3;
-        return renderHeading(`h${renderedLevel}`, props, `${styles.heading} ${size}`, level === 2 || level === 3);
+        const attributes = getHeadingProps?.(node) || {};
+        const lead = renderHeadingLead?.(node) || null;
+        return renderHeading(`h${renderedLevel}`, { ...props, ...attributes }, `${styles.heading} ${size}`, level === 2 || level === 3, lead);
       }
     ])
   );
@@ -413,4 +415,4 @@ export function MarkdownRenderer({
       </div>
     </div>
   );
-}
+});

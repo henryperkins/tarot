@@ -340,6 +340,12 @@ The sidecar uses the existing three-card SVG fallback from [SpreadPatternThumbna
 
 [ReadingTableScene](src/components/scenes/ReadingTableScene.jsx) keeps the spread, selected card meaning, navigation, and optional reflection together. A fine divider separates spread and interpretation on wide screens and becomes a horizontal rule when stacked. Fluid serif headings carry the card names; meaning paragraphs use the reading-body role. Decorative scene backgrounds and particles are suppressed in this surface.
 
+### Preparing and Reading
+
+The selected reading references continue the quiet table treatment in [ReadingPreparationScreen](src/components/reading/ReadingPreparationScreen.jsx) and [ReadingDocument](src/components/reading/narrative/ReadingDocument.jsx). Preparation shows the original spread, an outline, access to the drawn cards, and cancellation. The completed reading places the original question and card artwork before continuous prose, with contents links derived from its actual headings. Three-card readings use a labeled row; Celtic Cross readings retain the traditional crossing and staff geometry with an alternative card list. Passage artwork uses the existing edition-bound card assets.
+
+[Reading screen styles](src/styles/reading-screen.css) use semantic dark and light colors, Source Serif headings, and 17px handset / 18px desktop prose. Four text steps and a settings control frame the reading. The handset dock prioritizes Save to journal and Ask about this reading; desktop actions follow the prose. Saved readings expose the returned journal entry. Sticky section navigation moves into the document flow when enlarged text would consume too much of the viewport.
+
 **The Quiet Ceremony Rule.** Preserve the focal hierarchy of an approved surface composition; reserve the strongest light and slower motion for decisions that advance or reveal a reading, and keep the interpretation surface quiet.
 
 ## Do's and Don'ts

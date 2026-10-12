@@ -89,7 +89,7 @@ for (const width of [320, 390, 1280]) {
           await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
           await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
           await page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first().click();
-          await expect(page.getByLabel('Preparing your interpretation')).toBeVisible();
+          await expect(page.getByRole('heading', { name: 'Preparing your reading', exact: true })).toBeVisible();
           await expect(page.locator('[data-scene="interlude"]')).toBeVisible();
           // Observe a held response after layout settles, rather than completing the
           // stream in the first frame before the generation scene has taken over.
@@ -99,7 +99,7 @@ for (const width of [320, 390, 1280]) {
           await screenshot(page, testInfo, 'generating');
           await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
           await fixture.completeReading();
-          await expect(page.getByRole('heading', { name: 'Your Personalized Narrative' })).toBeFocused();
+          await expect(page.getByRole('heading', { name: 'Your reading', exact: true })).toBeFocused();
           await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
         } finally {
           await fixture.close();
@@ -214,7 +214,7 @@ for (const mode of ['low-core stable mode', 'full effects']) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
       await screenshot(page, testInfo, 'generating');
       await fixture.completeReading();
-      await expect(page.getByRole('heading', { name: 'Your Personalized Narrative' })).toBeFocused();
+      await expect(page.getByRole('heading', { name: 'Your reading', exact: true })).toBeFocused();
     } finally {
       await fixture.close();
       await context.close();

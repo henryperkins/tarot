@@ -1,6 +1,8 @@
-import { getOrientationMeaning } from '../lib/cardLookup.js';
+import { getOrientationMeaning, getCardForDeck } from '../lib/cardLookup.js';
+import { extractShortLabel } from '../components/readingBoardUtils.js';
 import { getNarrationLabels } from '../components/reading/narrative/narrationLabels.js';
 import { isServerNarrationProvider } from '../../shared/narrationProviders.js';
+import { getReadingSections } from '../lib/narrativeSections.js';
 
 export function getResolvedQuestion(userQuestion) {
   if (typeof userQuestion !== 'string') return 'General guidance';
@@ -10,7 +12,7 @@ export function getResolvedQuestion(userQuestion) {
 
 export function buildNarrativeText(personalReading) {
   if (!personalReading) return '';
-  if (personalReading.hasMarkdown) {
+  if (personalReading.hasMarkdown || getReadingSections(personalReading.raw).some(section => section.depth !== null)) {
     return personalReading.raw || personalReading.normalized || '';
   }
   if (Array.isArray(personalReading.paragraphs) && personalReading.paragraphs.length > 0) {
@@ -71,6 +73,22 @@ export function selectCinematicCard({ reading, visibleCount, spreadPositions = [
     cinematicCard: reading[resolvedIndex] || null,
     cinematicPosition: spreadPositions[resolvedIndex] || `Position ${resolvedIndex + 1}`
   };
+}
+
+export function buildReadingDisplayCards({ reading, visibleCount, spreadPositions = [], deckStyleId = 'rws-1909' }) {
+  if (!Array.isArray(reading)) return [];
+  return reading.slice(0, visibleCount).map((card, index) => {
+    const deckCard = getCardForDeck(card, deckStyleId);
+    const position = spreadPositions[index] || 'Position ' + (index + 1);
+    return {
+      ...deckCard,
+      index,
+      isReversed: Boolean(card.isReversed),
+      positionLabel: extractShortLabel(position, 40) || position,
+      fullPositionLabel: position,
+      frame: { 'rws-1909': '100 / 172', 'thoth-a1': '3 / 5', 'marseille-classic': '16 / 31' }[deckStyleId] || '100 / 172'
+    };
+  });
 }
 
 export function getTraditionalPassages(themes) {

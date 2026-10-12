@@ -32,7 +32,10 @@ export function useSaveReading() {
 
     // Prevent double-saves from rapid clicks or network retries
     const [isSaving, setIsSaving] = useState(false);
+    const savingRef = useRef(false);
+    const [savedReading, setSavedReading] = useState(null);
     const lastSavedSeedRef = useRef(null);
+    const identity = sessionSeed || readingMeta?.requestId || personalReading?.raw || null;
 
     // Reset saved-seed tracking when a new reading starts (sessionSeed goes null on shuffle)
     useEffect(() => {
@@ -41,7 +44,7 @@ export function useSaveReading() {
 
     const saveReading = useCallback(async function saveReading() {
         // Prevent double-saves
-        if (isSaving) {
+        if (savingRef.current) {
             return;
         }
 
@@ -126,6 +129,7 @@ export function useSaveReading() {
                 persistLocationConsent: true
             } : {})
         };
+        savingRef.current = true;
         setIsSaving(true);
         try {
             const result = await saveEntry(entry);
@@ -143,6 +147,7 @@ export function useSaveReading() {
                     ? 'This reading is already in your journal.'
                     : 'Saved to your journal.';
                 const entryId = result?.entry?.id;
+                if (entryId) setSavedReading({ identity, entryId });
                 setJournalStatus({
                     type: 'success',
                     message,
@@ -158,14 +163,15 @@ export function useSaveReading() {
             console.error('Failed to save tarot reading', error);
             setJournalStatus({ type: 'error', message: 'Unable to save to your journal. Please try again.' });
         } finally {
+            savingRef.current = false;
             setIsSaving(false);
         }
     }, [
-        isSaving, sessionSeed, reading, personalReading, selectedSpread,
+        identity, sessionSeed, reading, personalReading, selectedSpread,
         userQuestion, themes, reflections, analysisContext, readingMeta,
         deckStyleId, personalization, saveEntry, setJournalStatus, incrementJournalSaveCount,
         locationEnabled, cachedLocation, persistLocationToJournal, followUps
     ]);
 
-    return { saveReading, isSaving };
+    return { saveReading, isSaving, savedEntryId: identity && savedReading?.identity === identity ? savedReading.entryId : null };
 }

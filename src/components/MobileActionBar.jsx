@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useRef } from 'react';
-import { Gear, Sparkle, ArrowsClockwise, ChatCircle } from '@phosphor-icons/react';
+import { Gear, Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { getReadingTableAction } from './readingBoardUtils';
@@ -129,6 +129,10 @@ function MobileActionContents({
   onDealNext,
   onGenerateNarrative,
   onSaveReading,
+  isSaving = false,
+  savedEntryId = null,
+  onViewSavedEntry,
+  onCancelGeneration,
   onNewReading,
   variant = 'fixed',
   showUtilityButtons = true,
@@ -207,6 +211,10 @@ function MobileActionContents({
     tableAction,
     onGenerateNarrative,
     onSaveReading,
+    isSaving,
+    savedEntryId,
+    onViewSavedEntry,
+    onCancelGeneration,
     onNewReading
   });
 
@@ -242,6 +250,10 @@ function renderActions(mode, options) {
     tableAction,
     onGenerateNarrative,
     onSaveReading,
+    isSaving,
+    savedEntryId,
+    onViewSavedEntry,
+    onCancelGeneration,
     onNewReading
   } = options;
 
@@ -337,31 +349,17 @@ function renderActions(mode, options) {
     }
 
     case 'generating': {
-      const generatingLabel = 'Interpreting…';
       return (
-        <>
           <ActionButton
-            variant="primary"
-            disabled
-            ariaLabel={withStepContext('Interpreting cards', stepIndicatorLabel)}
+            variant="secondary"
+            onClick={onCancelGeneration}
+            disabled={!onCancelGeneration}
+            ariaLabel="Cancel generation"
             className={`${widthClasses.primary} ${px}`}
             isLandscape={isLandscape}
           >
-            <span className="flex items-center gap-1.5">
-              <ArrowsClockwise className={isLandscape ? 'w-3.5 h-3.5 animate-spin' : 'w-4 h-4 animate-spin'} aria-hidden="true" />
-              {generatingLabel}
-            </span>
+            Cancel generation
           </ActionButton>
-          <ActionButton
-            variant="secondary"
-            onClick={onNewReading}
-            ariaLabel="Start a new reading (resets the current spread)"
-            className={`${widthClasses.secondary} ${px}`}
-            isLandscape={isLandscape}
-          >
-            New reading
-          </ActionButton>
-        </>
       );
     }
 
@@ -410,37 +408,28 @@ function renderActions(mode, options) {
           {hasNarrative && (
             <ActionButton
               variant="primary"
-              onClick={onSaveReading}
-              ariaLabel={withStepContext('Save reading to journal', stepIndicatorLabel)}
+              onClick={savedEntryId ? onViewSavedEntry : onSaveReading}
+              disabled={isSaving}
+              ariaLabel={savedEntryId ? 'View saved entry' : 'Save to journal'}
             className={`${widthClasses.primary} ${px}`}
             isLandscape={isLandscape}
           >
-            Save reading
+            {savedEntryId ? 'View saved entry' : isSaving ? 'Saving…' : 'Save to journal'}
           </ActionButton>
           )}
           {showFollowUp && (
             <ActionButton
-              variant="tertiary"
-              icon={ChatCircle}
+              variant="secondary"
               onClick={onOpenFollowUp}
-              ariaLabel="Open follow-up chat"
+              ariaLabel="Ask about this reading"
               ariaControls={MOBILE_FOLLOWUP_DIALOG_ID}
               ariaExpanded={isFollowUpOpen}
-              className={`${widthClasses.tertiary} ${px}`}
+              className={`${widthClasses.secondary} ${px} min-h-cta`}
               isLandscape={isLandscape}
             >
-              Chat
+              Ask about this reading
             </ActionButton>
           )}
-          <ActionButton
-            variant="secondary"
-            onClick={onNewReading}
-            ariaLabel="Start a new reading (resets the current spread)"
-            className={`${widthClasses.secondary} ${px}`}
-            isLandscape={isLandscape}
-          >
-            New reading
-          </ActionButton>
         </>
       );
 
@@ -501,7 +490,8 @@ export function MobileActionBar({ isOverlayActive = false, ...props }) {
   return (
     <nav
       ref={barRef}
-      className={`mobile-action-bar ${isOverlayActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      className={`mobile-action-bar reading-dock ${isOverlayActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      hidden={props.isGenerating && !props.personalReading}
       aria-label="Primary mobile actions"
       tabIndex={-1}
       style={barStyle}

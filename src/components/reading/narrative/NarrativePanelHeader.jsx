@@ -1,27 +1,11 @@
-import { Sparkle } from '@phosphor-icons/react';
 import { NARRATIVE_FOCUS_TARGET_ID, registerNarrativeFocusTarget } from '../../../lib/narrativeFocusTarget';
 
-export function NarrativePanelHeader({
-  focusToggleAvailable,
-  isNarrativeFocus,
-  onToggleNarrativeFocus
-}) {
+export function NarrativePanelHeader() {
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <h2 id={NARRATIVE_FOCUS_TARGET_ID} ref={registerNarrativeFocusTarget} tabIndex={-1} data-reading-focus-target className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem] w-fit max-w-full text-base xxs:text-lg xs:text-xl sm:text-2xl font-serif text-accent flex items-center gap-2 leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
-        <Sparkle aria-hidden="true" className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
-        Your Personalized Narrative
+    <div className="reading-screen__header">
+      <h2 id={NARRATIVE_FOCUS_TARGET_ID} ref={registerNarrativeFocusTarget} tabIndex={-1} data-reading-focus-target className="reading-screen__title">
+        Your reading
       </h2>
-      {focusToggleAvailable ? (
-        <button
-          type="button"
-          aria-pressed={isNarrativeFocus}
-          onClick={onToggleNarrativeFocus}
-          className="min-h-touch min-w-touch inline-flex items-center gap-2 rounded-full border border-secondary/50 px-3 xxs:px-4 py-1.5 text-xs-plus sm:text-sm font-semibold text-muted hover:text-main hover:border-secondary/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 sm:ml-auto"
-        >
-          {isNarrativeFocus ? 'Show insight panels' : 'Focus on narrative'}
-        </button>
-      ) : null}
     </div>
   );
 }

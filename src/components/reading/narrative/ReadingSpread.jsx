@@ -1,0 +1,51 @@
+import { useState } from 'react';
+
+export function ReadingCardFigure({ card, onSelectCard, compact = false, numbered = false, children }) {
+  const inspect = () => {
+    onSelectCard?.(card.index);
+  };
+  return <figure className={`reading-card${compact ? ' reading-card--compact' : ''}`} data-spread-index={card.index}>
+    <button type="button" className="reading-card__art"
+      aria-label={`${card.fullPositionLabel || card.positionLabel}: ${card.name}, ${card.isReversed ? 'reversed' : 'upright'}. Open card`}
+      onClick={inspect} style={{ '--reading-card-ratio': (!compact && card.overviewFrame) || card.frame || '100 / 172' }}>
+      <img src={(!compact && card.overviewImage) || card.image} alt={card.name} className={card.isReversed ? 'reading-card__image--reversed' : ''}
+        loading="eager" decoding="async" />
+      {numbered && <span className="reading-card__number" aria-hidden="true">{card.index + 1}</span>}
+    </button>
+    <figcaption>
+      <span className="reading-card__position">{card.positionLabel}</span>
+      {children || <span className="reading-card__name">{card.name}</span>}
+      <span className="reading-card__orientation">{card.isReversed ? 'Reversed' : 'Upright'}</span>
+    </figcaption>
+  </figure>;
+}
+
+export function ReadingSpread({ cards = [], onSelectCard, spreadName, showSummary = false }) {
+  const [list, setList] = useState(false);
+  if (!cards.length) return null;
+  const celtic = cards.length === 10;
+  const reversed = cards.filter(card => card.isReversed).length;
+  const majors = cards.filter(card => card.number !== null && card.number !== undefined).length;
+
+  return <section className="reading-spread" data-reading-overview aria-label={spreadName || 'Your drawn cards'}>
+    {celtic && <div className="reading-view-switch" aria-label="Spread view">
+      <button type="button" aria-pressed={!list} onClick={() => setList(false)}>Spread</button>
+      <button type="button" aria-pressed={list} onClick={() => setList(true)}>Card list</button>
+    </div>}
+    <div className={`reading-spread__cards ${celtic && !list ? 'reading-spread__cards--celtic' : list ? 'reading-spread__cards--list' : cards.length > 3 ? 'reading-spread__cards--many' : 'reading-spread__cards--small'}`}
+      data-card-count={cards.length}>
+      {cards.map(card => <ReadingCardFigure key={card.index} card={card} onSelectCard={onSelectCard} numbered={celtic && !list} />)}
+    </div>
+    {celtic && !list && <p className="reading-spread__hint">Tap a card to explore its position</p>}
+    {showSummary && <p className="reading-spread__summary">{cards.length} cards · {reversed} reversed · {majors} Major Arcana</p>}
+  </section>;
+}
+
+export function ReadingChapterCards({ cards, onSelectCard, children }) {
+  return <div className="reading-chapter">
+    {children}
+    <div className="reading-chapter__cards">
+      {cards.map(card => <ReadingCardFigure key={card.index} card={card} onSelectCard={onSelectCard} compact />)}
+    </div>
+  </div>;
+}

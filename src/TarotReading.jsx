@@ -176,6 +176,7 @@ export default function TarotReading() {
     setReflections,
     setShowAllHighlights,
     generatePersonalReading,
+    cancelPersonalReading,
 
   } = useReading();
 
@@ -762,7 +763,7 @@ export default function TarotReading() {
 
   // --- Logic: Journal Saving ---
 
-  const { saveReading } = useSaveReading();
+  const { saveReading, isSaving, savedEntryId } = useSaveReading();
 
   // --- Logic: UI State Builders ---
 
@@ -840,11 +841,11 @@ export default function TarotReading() {
       : 'pt-6 pb-32 sm:py-8 lg:py-10';
 
   const handleOpenFollowUp = useCallback((event) => {
-    if (!showFollowUpButton) return;
+    if (!canShowFollowUp) return;
     followUpOpenerRef.current = event?.currentTarget || document.activeElement;
     setFollowUpIntent('ask');
     setIsFollowUpOpen(true);
-  }, [showFollowUpButton]);
+  }, [canShowFollowUp]);
 
   const handleFollowUpOpenChange = useCallback((nextOpen, event) => {
     if (nextOpen) {
@@ -943,7 +944,7 @@ export default function TarotReading() {
   // --- Render Helper Wrappers ---
 
   return (
-    <div className={`app-shell relative isolate min-h-screen bg-main text-main ${shouldEnableMobileStableMode ? 'mobile-stable-mode' : ''}`}>
+    <div className={`app-shell relative isolate min-h-screen bg-main text-main ${hasReading && !showSetupSection ? 'app-shell--reading' : ''} ${shouldEnableMobileStableMode ? 'mobile-stable-mode' : ''}`}>
       <div id="app-bg" className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true" />
       <div className="relative z-[1]">
       {!isOnboardingOpen && <ReadingSkipLinks showSetupSection={showSetupSection} />}
@@ -964,6 +965,11 @@ export default function TarotReading() {
           onStepSelect={handleStepNav}
           isShuffling={isShuffling}
           minimalNav={isCinematicFocusMode}
+          readingView={hasReading && !showSetupSection}
+          onOpenReadingSettings={() => {
+            if (isHandset) setIsMobileSettingsOpen(true);
+            else navigate('/account');
+          }}
         />
 
         {apiHealthBanner && showSetupSection && !suppressFocusInterruptions && (
@@ -1121,7 +1127,10 @@ export default function TarotReading() {
             <ReadingDisplay
               onCardModalChange={setIsCardModalOpen}
               sectionRef={readingSectionRef}
-              onOpenFollowUp={showFollowUpButton ? handleOpenFollowUp : null}
+              onOpenFollowUp={canShowFollowUp ? handleOpenFollowUp : null}
+              onSaveReading={saveReading}
+              isSaving={isSaving}
+              savedEntryId={savedEntryId}
               followUpOpen={isFollowUpOpen}
               onFollowUpOpenChange={handleFollowUpOpenChange}
               followUpAutoFocus={followUpIntent === 'ask'}
@@ -1187,6 +1196,10 @@ export default function TarotReading() {
               onRevealAll={handleRevealAll}
               onGenerateNarrative={handleGeneratePersonalReading}
               onSaveReading={saveReading}
+              isSaving={isSaving}
+              savedEntryId={savedEntryId}
+              onViewSavedEntry={() => navigate('/journal', { state: { highlightEntryId: savedEntryId, fromReading: true } })}
+              onCancelGeneration={cancelPersonalReading}
               onNewReading={handleShuffle}
             />
           {connectionBanner && showSetupSection && !suppressFocusInterruptions && !isMobileOverlayActive && (
@@ -1235,6 +1248,13 @@ export default function TarotReading() {
                 onRevealAll={handleRevealAll}
                 onGenerateNarrative={handleGeneratePersonalReading}
                 onSaveReading={saveReading}
+                isSaving={isSaving}
+                savedEntryId={savedEntryId}
+                onViewSavedEntry={() => navigate('/journal', { state: { highlightEntryId: savedEntryId, fromReading: true } })}
+                onCancelGeneration={() => {
+                  setIsMobileSettingsOpen(false);
+                  cancelPersonalReading();
+                }}
                 onNewReading={handleShuffle}
               />
             )}

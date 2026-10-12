@@ -173,6 +173,8 @@ export function StreamingNarrative({
   withAtmosphere = false,
   atmosphereClassName = '',
   wordBoundary = null,
+  getHeadingProps = null,
+  renderHeadingLead = null,
 }) {
   const narrativeText = useMemo(() => (typeof text === 'string' ? text : ''), [text]);
   const prefersReducedMotion = useReducedMotion();
@@ -503,6 +505,8 @@ export function StreamingNarrative({
         highlightPhrases={normalizedHighlightPhrases}
         wordBoundary={wordBoundary}
         headingBaseLevel={headingBaseLevel}
+        getHeadingProps={getHeadingProps}
+        renderHeadingLead={renderHeadingLead}
       />
     </div>
   ) : (
