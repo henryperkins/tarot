@@ -9,6 +9,7 @@ import {
   buildCardLinkCatalog,
   expandTouchTerm,
   findCardMentions,
+  findPersonalEchoes,
   readBlockFocus,
   remarkCardLinks
 } from '../src/lib/narrativeCardLinks.js';
@@ -187,6 +188,54 @@ describe('reading a block', () => {
   });
 });
 
+describe("the querent's own words", () => {
+  const cards = ['The Tower', 'Six of Cups', 'The Star'].map((name, index) => ({
+    index,
+    name,
+    canonicalName: name,
+    reflection: index === 2 ? 'Part of me is nostalgic while another part is ready for reinvention.' : ''
+  }));
+  const catalog = buildCardLinkCatalog({ cards, question: 'How can I navigate the transition after leaving my hometown?' });
+  const echoed = (text) => findPersonalEchoes(text, catalog).map((echo) => [text.slice(echo.start, echo.end), echo.personal]);
+
+  test('marks a sentence that takes up two of their words', () => {
+    assert.deepEqual(
+      echoed('You named that split yourself: nostalgic, and ready for reinvention.'),
+      [['You named that split yourself: nostalgic, and ready for reinvention', 2]]
+    );
+    assert.deepEqual(
+      echoed('For your question about navigating the transition, the spread runs Past to Future.'),
+      [['your question about navigating the transition', 'question']]
+    );
+  });
+
+  test('marks a sentence that points back at what they shared', () => {
+    assert.deepEqual(echoed('That image speaks almost directly to your reflection.'), [['your reflection', 2]]);
+  });
+
+  test('leaves a single shared word alone', () => {
+    assert.deepEqual(echoed('Hope tends to grow from small, repeated acts toward reinvention.'), []);
+    assert.deepEqual(echoed('The cards are quiet about timing.'), []);
+  });
+
+  test('stays clear of names and described details', () => {
+    const block = 'The Star keeps nostalgia and reinvention in each pitcher.';
+    const excluded = [{ start: 0, end: 8 }, { start: block.indexOf('pitcher'), end: block.indexOf('pitcher') + 7 }];
+    const echoes = findPersonalEchoes(block, catalog, excluded);
+    assert.ok(echoes.length > 0);
+    for (const echo of echoes) {
+      assert.ok(!excluded.some((range) => echo.start < range.end && range.start < echo.end));
+    }
+  });
+
+  test('needs words to look for', () => {
+    const quiet = buildCardLinkCatalog({ cards: [{ index: 0, name: 'The Star', canonicalName: 'The Star' }] });
+    // Without a question or notes there is nothing of theirs to point back to.
+    assert.deepEqual(findPersonalEchoes('You named that split yourself.', quiet), []);
+    assert.deepEqual(findPersonalEchoes('Nostalgic and ready for reinvention.', quiet), []);
+  });
+});
+
 describe('remark plugin', () => {
   const catalog = spread(['The Tower', 'Six of Cups', 'The Star']);
   const reading = [
@@ -284,6 +333,46 @@ describe('remark plugin', () => {
     assert.match(html, /data-card-intro="0"[^>]*>In the Rider-Waite-Smith image/);
     assert.match(html, /data-touch-id="white-rose">white rose<\/span>/);
     assert.match(html, /data-touch-id="dog">dog<\/span>/);
+  });
+
+  test('puts a small face on cards named away from their plate', () => {
+    const faces = buildCardLinkCatalog({
+      cards: ['The Tower', 'Six of Cups', 'The Star'].map((name, index) => ({
+        index,
+        name,
+        canonicalName: name,
+        image: `/images/cards/${index}.jpeg`,
+        isReversed: index === 1
+      }))
+    });
+    const html = renderReading([
+      '## Opening',
+      '',
+      'From the Six of Cups to The Tower to The Star, the path runs on.',
+      '',
+      '## The Present: The Tower',
+      '',
+      "The Tower shakes, and the Six of Cups' water meets its fire."
+    ].join('\n'), faces);
+    assert.match(html, /data-card-index="1" data-pip="true" data-pip-reversed="true" style="--pip-image:url\(&quot;\/images\/cards\/1\.jpeg&quot;\)">Six of Cups/);
+    assert.match(html, /data-card-index="0" data-pip="true" style="[^"]*">The Tower<\/span> to/);
+    // The Tower's own passage, beside its plate, names it plainly; the card it
+    // glances at gets a face.
+    assert.match(html, /<span class="narrative-emphasis reading-card-ref" data-card-index="0">The Tower<\/span> shakes/);
+    assert.match(html, /data-card-index="1" data-pip="true"[^>]*>Six of Cups<\/span>&#x27; water/);
+  });
+
+  test("marks the querent's words in the rendered reading", () => {
+    const personal = buildCardLinkCatalog({
+      cards: ['The Tower', 'Six of Cups', 'The Star'].map((name, index) => ({
+        index,
+        name,
+        canonicalName: name,
+        reflection: index === 2 ? 'Part of me is nostalgic while another part is ready for reinvention.' : ''
+      }))
+    });
+    const html = renderReading('You named that split yourself: nostalgic, and ready for reinvention.', personal);
+    assert.match(html, /<span class="reading-personal" data-personal-source="2" data-personal-words="nostalgic ready reinvention">You named that split yourself: nostalgic, and ready for reinvention<\/span>/);
   });
 
   test('reads a rendered block back as focus', () => {

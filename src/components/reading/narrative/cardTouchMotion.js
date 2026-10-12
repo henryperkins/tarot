@@ -192,3 +192,25 @@ export function createTraceEngine(publish, now = () => Date.now()) {
     }
   };
 }
+
+/**
+ * Holds one value for a while, then lets it go: the querent's own words stay
+ * lit beside their card for a few seconds after the reading echoes them.
+ */
+export function createHold(publish, holdMs) {
+  let timer = 0;
+  return {
+    show(value) {
+      clearTimeout(timer);
+      publish(value);
+      timer = setTimeout(() => publish(null), holdMs);
+    },
+    clear() {
+      clearTimeout(timer);
+      publish(null);
+    },
+    dispose() {
+      clearTimeout(timer);
+    }
+  };
+}

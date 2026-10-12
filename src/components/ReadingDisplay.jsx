@@ -349,6 +349,7 @@ export function ReadingDisplay({
         narrativeModel
     } = useNarrativeReadingController({
         reading,
+        reflections,
         deckStyleId,
         onSelectInsightCard: handleSelectInsightCard,
         visibleCount,

@@ -178,9 +178,10 @@ function nameClaims(card, deckStyle, uniqueCourtTitles) {
  * @param {Object} options
  * @param {Array<Object>} options.cards - Spread cards in position order; each needs `index` and its canonical identity.
  * @param {string} [options.deckStyle] - Active deck id.
- * @returns {{ entries: Array<Object>, touchPointsEnabled: boolean } | null}
+ * @param {string} [options.question] - The querent's question, whose words the reading may echo.
+ * @returns {{ entries: Array<Object>, touchPointsEnabled: boolean, personal: Array<Object> } | null}
  */
-export function buildCardLinkCatalog({ cards, deckStyle = 'rws-1909' } = {}) {
+export function buildCardLinkCatalog({ cards, deckStyle = 'rws-1909', question = '' } = {}) {
   const list = (Array.isArray(cards) ? cards : []).filter((card) => card && Number.isInteger(card.index));
   if (list.length === 0) return null;
   const touchPointsEnabled = TOUCH_POINT_DECKS.has(deckStyle);
@@ -227,10 +228,110 @@ export function buildCardLinkCatalog({ cards, deckStyle = 'rws-1909' } = {}) {
       };
     });
     const weakPoints = new Set(touchPoints.filter((point) => point.weak).map((point) => point.id));
-    return { index: card.index, canonicalName: canonical.name, names, namesRe, touchMatchers, weakPoints };
+    return {
+      index: card.index,
+      canonicalName: canonical.name,
+      image: typeof card.image === 'string' ? card.image : '',
+      isReversed: Boolean(card.isReversed),
+      names,
+      namesRe,
+      touchMatchers,
+      weakPoints
+    };
   });
 
-  return { entries, touchPointsEnabled };
+  // The querent's own words: their question and the notes they left on cards.
+  const personal = [
+    ...list
+      .filter((card) => typeof card.reflection === 'string' && card.reflection.trim())
+      .map((card) => ({ source: card.index, text: card.reflection.trim(), keys: personalKeys(card.reflection) })),
+    ...(typeof question === 'string' && question.trim()
+      ? [{ source: 'question', text: question.trim(), keys: personalKeys(question) }]
+      : [])
+  ].filter((entry) => entry.keys.size > 0);
+
+  return { entries, touchPointsEnabled, personal };
+}
+
+// ---------------------------------------------------------------------------
+// The querent's own words
+// ---------------------------------------------------------------------------
+
+// Common words that carry no one's particular situation.
+const PERSONAL_STOPWORDS = new Set([
+  'about', 'above', 'across', 'after', 'again', 'against', 'almost', 'along', 'already', 'also', 'although', 'always',
+  'among', 'another', 'anyone', 'anything', 'around', 'because', 'become', 'becoming', 'before', 'being', 'below',
+  'better', 'between', 'beyond', 'bring', 'cards', 'could', 'doing', 'during', 'either', 'energy', 'enough', 'every',
+  'everyone', 'everything', 'feeling', 'feelings', 'first', 'focus', 'going', 'guidance', 'having', 'insight', 'itself',
+  'keeps', 'learn', 'little', 'looking', 'makes', 'making', 'maybe', 'means', 'might', 'moment', 'myself', 'never',
+  'other', 'others', 'ourselves', 'perhaps', 'place', 'quite', 'rather', 'reading', 'really', 'right', 'seems',
+  'should', 'since', 'something', 'sometimes', 'spread', 'start', 'still', 'their', 'themselves', 'there', 'these',
+  'thing', 'things', 'think', 'those', 'though', 'through', 'today', 'together', 'toward', 'towards', 'trying', 'under',
+  'until', 'using', 'wants', 'where', 'whether', 'which', 'while', 'whole', 'without', 'would', 'yourself', 'yourselves'
+]);
+
+// Phrases a reading uses to point back at what the querent shared.
+const PERSONAL_CUES = /\b(?:your\s+(?:own\s+)?(?:reflection|reflections|note|notes|words|question)|you\s+(?:named|said|wrote|mentioned|described|noted|shared|called)|in\s+your\s+(?:own\s+)?words)\b/giu;
+const PERSONAL_PHRASE_MAX = 90;
+const PERSONAL_PER_BLOCK = 2;
+
+function personalKeys(text) {
+  const keys = new Set();
+  for (const raw of String(text || '').toLowerCase().match(/\p{L}+/gu) || []) {
+    if (raw.length >= 5 && !PERSONAL_STOPWORDS.has(raw)) keys.add(raw);
+  }
+  return keys;
+}
+
+/** "nostalgic" and "nostalgia", "reinvention" and "reinvent": the same word to a reader. */
+function sharesStem(a, b) {
+  let shared = 0;
+  while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared += 1;
+  return shared >= Math.max(5, Math.min(a.length, b.length) - 3);
+}
+
+/**
+ * Where a block echoes the querent's own words: two of their words in one
+ * sentence, or a sentence pointing back at what they shared ("You named that
+ * split yourself", "your reflection").
+ */
+export function findPersonalEchoes(text, catalog, excluded = []) {
+  const sources = catalog?.personal || [];
+  if (!text || sources.length === 0) return [];
+  const hits = [];
+  for (const match of text.matchAll(/\p{L}+/gu)) {
+    const word = match[0].toLowerCase();
+    if (word.length < 5 || PERSONAL_STOPWORDS.has(word)) continue;
+    const from = sources.filter((entry) => Array.from(entry.keys).some((key) => sharesStem(word, key)));
+    if (from.length) hits.push({ start: match.index, end: match.index + match[0].length, word, from });
+  }
+  const cues = Array.from(text.matchAll(PERSONAL_CUES), (match) => ({ start: match.index, end: match.index + match[0].length }));
+  if (!hits.length && !cues.length) return [];
+
+  const clear = (range) => !excluded.some((other) => range.start < other.end && other.start < range.end);
+  const echoes = [];
+  let sentenceStart = 0;
+  const ends = Array.from(text.matchAll(/[.!?](?=\s|$)/g), (match) => match.index + 1);
+  if (!ends.length || ends[ends.length - 1] < text.length) ends.push(text.length);
+  for (const sentenceEnd of ends) {
+    const inside = (range) => range.start >= sentenceStart && range.end <= sentenceEnd;
+    const words = hits.filter(inside);
+    const pointers = cues.filter(inside);
+    sentenceStart = sentenceEnd;
+    const distinct = new Set(words.map((hit) => hit.word));
+    if (distinct.size < 2 && !pointers.length) continue;
+    const parts = [...words, ...pointers].sort((a, b) => a.start - b.start);
+    const phrase = { start: parts[0].start, end: parts[parts.length - 1].end };
+    const candidates = phrase.end - phrase.start <= PERSONAL_PHRASE_MAX && clear(phrase) ? [phrase] : parts.filter(clear);
+    // Whose words: the note most of the echoed words came from.
+    const tally = new Map();
+    for (const hit of words) for (const entry of hit.from) tally.set(entry.source, (tally.get(entry.source) || 0) + 1);
+    const ranked = [...tally].sort((a, b) => b[1] - a[1] || (a[0] === 'question') - (b[0] === 'question'));
+    const source = ranked[0]?.[0] ?? (sources.find((entry) => entry.source !== 'question')?.source ?? 'question');
+    const echoed = Array.from(distinct);
+    for (const range of candidates) echoes.push({ ...range, personal: source, words: echoed });
+  }
+  return dropOverlaps(echoes).slice(0, PERSONAL_PER_BLOCK);
 }
 
 function collectMatches(re, text, extra) {
@@ -496,17 +597,56 @@ function collectSegments(node, { paragraphsOnly = false } = {}) {
 }
 
 function linkNode(range, value) {
+  if (range.personal !== undefined) {
+    return {
+      type: 'personalEcho',
+      data: {
+        hName: 'span',
+        hProperties: {
+          className: ['reading-personal'],
+          dataPersonalSource: String(range.personal),
+          dataPersonalWords: (range.words || []).join(' ')
+        }
+      },
+      children: [{ type: 'text', value }]
+    };
+  }
   const isTouch = range.point !== undefined;
+  const pip = !isTouch && range.pip?.image
+    ? {
+      dataPip: 'true',
+      ...(range.pip.reversed ? { dataPipReversed: 'true' } : {}),
+      style: `--pip-image: url("${range.pip.image.replace(/["\\]/g, '')}")`
+    }
+    : {};
   return {
     type: isTouch ? 'cardTouch' : 'cardMention',
     data: {
       hName: 'span',
       hProperties: isTouch
         ? { className: ['reading-imagery'], dataCardIndex: String(range.card), dataTouchId: range.point }
-        : { className: ['narrative-emphasis', 'reading-card-ref'], dataCardIndex: String(range.card) }
+        : { className: ['narrative-emphasis', 'reading-card-ref'], dataCardIndex: String(range.card), ...pip }
     },
     children: [{ type: 'text', value }]
   };
+}
+
+/**
+ * Card names spoken away from the card's own plate carry a small face of the
+ * card ("the Six of Cups' water", the overview, the next steps), once per
+ * block, so every mention points at a card the querent can see.
+ */
+function withPips(mentions, analysis, catalog, kind) {
+  if (kind === 'heading') return mentions;
+  const seen = new Set();
+  return mentions.map((mention) => {
+    if (seen.has(mention.card)) return mention;
+    seen.add(mention.card);
+    const awayFromPlate = analysis.mode === 'sweep' || kind === 'listItem' || mention.card !== analysis.primary;
+    if (!awayFromPlate) return mention;
+    const entry = catalog.entries.find((candidate) => candidate.index === mention.card);
+    return entry?.image ? { ...mention, pip: { image: entry.image, reversed: entry.isReversed } } : mention;
+  });
 }
 
 function wrapRanges(segments, ranges, text) {
@@ -624,7 +764,9 @@ export function remarkCardLinks(options = {}) {
       }
       if (kind !== 'heading') state.pendingIntro = null;
 
-      wrapRanges(segments, [...analysis.mentions, ...analysis.touches], text);
+      const mentions = withPips(analysis.mentions, analysis, catalog, kind);
+      const echoes = kind === 'heading' ? [] : findPersonalEchoes(text, catalog, [...analysis.mentions, ...analysis.touches]);
+      wrapRanges(segments, [...mentions, ...analysis.touches, ...echoes], text);
       state.sequence += 1;
       setBlockData(node, {
         dataReadingBlock: String(state.sequence),

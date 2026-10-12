@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
-import { createTraceEngine } from './cardTouchMotion.js';
+import { createHold, createTraceEngine } from './cardTouchMotion.js';
 
 /**
  * Which spread cards the reading is speaking about right now.
@@ -23,6 +23,9 @@ const FocusApiContext = createContext(null);
 // A paragraph that names several cards sweeps across them in order, the way a
 // reader's hand passes over the spread while summarizing it.
 const SWEEP_STEP_MS = 420;
+// The querent's note stays lit beside its card this long after the reading
+// echoes their words.
+const PERSONAL_HOLD_MS = 5200;
 
 function sameFocus(a, b) {
   return (a?.key ?? null) === (b?.key ?? null);
@@ -41,6 +44,8 @@ export function NarrativeCardFocusProvider({
   const [sweep, setSweep] = useState({ key: null, step: 0 });
   const [trace, setTrace] = useState(null);
   const [traces] = useState(() => createTraceEngine(setTrace));
+  const [personal, setPersonal] = useState(null);
+  const [personalHold] = useState(() => createHold(setPersonal, PERSONAL_HOLD_MS));
   const containerRef = useRef(null);
   const onSelectCardRef = useRef(onSelectCard);
 
@@ -48,7 +53,10 @@ export function NarrativeCardFocusProvider({
     onSelectCardRef.current = onSelectCard;
   }, [onSelectCard]);
 
-  useEffect(() => () => traces.dispose(), [traces]);
+  useEffect(() => () => {
+    traces.dispose();
+    personalHold.dispose();
+  }, [traces, personalHold]);
 
   const focus = pointerFocus || scrollFocus;
 
@@ -86,8 +94,23 @@ export function NarrativeCardFocusProvider({
     reachDetail: traces.reach,
     inspectDetail: traces.inspect,
     releaseDetail: traces.release,
-    clearTraces: traces.clear
-  }), [traces]);
+    clearTraces() {
+      traces.clear();
+      personalHold.clear();
+    },
+    /**
+     * The reading echoed the querent's own words. Where the passage is about
+     * the card they wrote on, their note lights beside that card; elsewhere
+     * (the opening, an echo of the question) the words are marked in the text
+     * only, so nothing comes forward over what is being read.
+     */
+    reachPersonal({ source, element = null, cards = [] }) {
+      element?.setAttribute?.('data-personal-reached', 'true');
+      const card = Number(source);
+      if (source === 'question' || !Number.isInteger(card) || !cards.includes(card)) return;
+      personalHold.show({ card, key: `${card}:${Date.now()}` });
+    }
+  }), [traces, personalHold]);
 
   const cardStates = useMemo(() => {
     if (!focus && !trace) return null;
@@ -114,7 +137,7 @@ export function NarrativeCardFocusProvider({
     return { states, touched, key };
   }, [focus, sweep, calm, trace]);
 
-  const state = useMemo(() => ({ cards, cardStates, trace, calm }), [cards, cardStates, trace, calm]);
+  const state = useMemo(() => ({ cards, cardStates, trace, personal, calm }), [cards, cardStates, trace, personal, calm]);
 
   return (
     <FocusApiContext.Provider value={api}>

@@ -23,6 +23,7 @@ import {
 
 export function useNarrativeReadingController({
   reading,
+  reflections = null,
   deckStyleId,
   onSelectInsightCard,
   visibleCount,
@@ -101,11 +102,16 @@ export function useNarrativeReadingController({
     visibleCount,
     spreadPositions,
     deckStyleId,
-    revealedCards
-  }), [deckStyleId, reading, revealedCards, spreadPositions, visibleCount]);
+    revealedCards,
+    reflections
+  }), [deckStyleId, reading, reflections, revealedCards, spreadPositions, visibleCount]);
   const cardLinkCatalog = useMemo(() => (
-    buildCardLinkCatalog({ cards: spreadCards, deckStyle: deckStyleId })
-  ), [deckStyleId, spreadCards]);
+    buildCardLinkCatalog({
+      cards: spreadCards,
+      deckStyle: deckStyleId,
+      question: typeof userQuestion === 'string' ? userQuestion : ''
+    })
+  ), [deckStyleId, spreadCards, userQuestion]);
   const { cinematicCard, cinematicPosition } = useMemo(() => (
     selectCinematicCard({ reading, visibleCount, spreadPositions })
   ), [reading, spreadPositions, visibleCount]);

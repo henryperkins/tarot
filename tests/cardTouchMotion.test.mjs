@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test, mock } from 'node:test';
 import {
+  createHold,
   createTraceEngine,
   frameRatio,
   lensFor,
@@ -160,6 +161,27 @@ describe('pacing gestures', () => {
       traces.reach({ card: null, points: ['pool'] });
       traces.reach({ card: 1, points: [] });
       assert.deepEqual(shown, []);
+    } finally {
+      mock.timers.reset();
+    }
+  });
+});
+
+describe('holding the querent\'s words', () => {
+  test('lights a note for a while, then lets it go', () => {
+    mock.timers.enable({ apis: ['setTimeout'] });
+    try {
+      const shown = [];
+      const hold = createHold((value) => shown.push(value), 5000);
+      hold.show({ card: 2 });
+      mock.timers.tick(4000);
+      hold.show({ card: 2, again: true });
+      mock.timers.tick(4000);
+      assert.deepEqual(shown, [{ card: 2 }, { card: 2, again: true }]);
+      mock.timers.tick(1000);
+      assert.deepEqual(shown.at(-1), null);
+      hold.clear();
+      assert.equal(shown.at(-1), null);
     } finally {
       mock.timers.reset();
     }

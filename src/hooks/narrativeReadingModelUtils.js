@@ -39,7 +39,7 @@ const CARD_FRAMES = { 'rws-1909': '100 / 172', 'thoth-a1': '3 / 5', 'marseille-c
  * The revealed spread as the reading surface shows it beside the narrative:
  * the selected deck's names and art, with canonical identity kept for matching.
  */
-export function buildSpreadCompanionCards({ reading, visibleCount, spreadPositions = [], deckStyleId, revealedCards = null }) {
+export function buildSpreadCompanionCards({ reading, visibleCount, spreadPositions = [], deckStyleId, revealedCards = null, reflections = null }) {
   if (!Array.isArray(reading) || visibleCount === 0) return [];
 
   return reading
@@ -60,6 +60,8 @@ export function buildSpreadCompanionCards({ reading, visibleCount, spreadPositio
         rank: deckCard.rank ?? null,
         rankValue: deckCard.rankValue ?? null,
         positionLabel: extractShortLabel(position, 40) || position,
+        // What the querent wrote about this card while revealing it.
+        reflection: typeof reflections?.[index] === 'string' ? reflections[index].trim() : '',
         shortLabel: extractShortLabel(position, 28) || `Card ${index + 1}`
       };
     })

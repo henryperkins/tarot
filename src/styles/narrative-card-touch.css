@@ -226,6 +226,75 @@
   color: rgb(var(--brand-primary-rgb));
 }
 
+/* The querent's note on this card: always beside it, lit while the reading
+   takes up their words. */
+.card-touch-plate__note {
+  display: block;
+  margin-top: 0.45rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgb(var(--brand-primary-rgb) / 0.18);
+  text-align: left;
+  opacity: 0.62;
+  transition:
+    opacity 600ms ease-out,
+    border-color 600ms ease-out;
+}
+
+.card-touch-plate__note-label {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  transition: color 600ms ease-out;
+}
+
+.card-touch-plate__note-text {
+  display: -webkit-box;
+  margin-top: 0.15rem;
+  overflow: hidden;
+  color: var(--text-main);
+  font-family: var(--font-serif);
+  font-size: 0.75rem;
+  font-style: italic;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.card-touch-plate__note[data-noting] {
+  opacity: 1;
+  border-color: rgb(var(--brand-primary-rgb) / 0.6);
+}
+
+.card-touch-plate__note[data-noting] .card-touch-plate__note-label {
+  color: rgb(var(--brand-primary-rgb));
+}
+
+/* Laid down as the reader reaches the passage, once. */
+.card-touch-plate[data-deal='pending'] {
+  opacity: 0;
+  transform: translateY(0.9rem) rotate(-2.5deg) scale(0.96);
+}
+
+.card-touch-plate[data-deal='in'] {
+  animation: card-touch-deal 880ms var(--card-touch-ease) both;
+}
+
+@keyframes card-touch-deal {
+  from {
+    opacity: 0;
+    transform: translateY(0.9rem) rotate(-2.5deg) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .reading-plate-paragraph {
   display: flow-root;
 }
@@ -284,6 +353,34 @@
   letter-spacing: 0.01em;
   line-height: 1.25;
   text-align: center;
+}
+
+.card-echo__note {
+  display: -webkit-box;
+  margin-top: 0.35rem;
+  padding-top: 0.3rem;
+  overflow: hidden;
+  border-top: 1px solid rgb(var(--brand-primary-rgb) / 0.4);
+  color: var(--text-main);
+  font-family: var(--font-serif);
+  font-size: 0.6875rem;
+  font-style: italic;
+  line-height: 1.3;
+  text-align: left;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+
+.card-echo__note-label {
+  display: block;
+  color: rgb(var(--brand-primary-rgb));
+  font-family: var(--font-sans);
+  font-size: 0.5625rem;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .card-echo__orientation {
@@ -497,6 +594,87 @@
   text-shadow: none;
 }
 
+/* A card named away from its own plate carries a small face of the card, so
+   the overview, comparisons and next steps point at cards the querent can
+   see. Reaching the passage lifts the faces once. */
+.reading-card-ref[data-pip] {
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.reading-card-ref[data-pip]::before {
+  content: '';
+  display: inline-block;
+  width: 0.72em;
+  height: 1.22em;
+  margin-right: 0.34em;
+  vertical-align: -0.26em;
+  border-radius: 2px;
+  background: var(--pip-image) center / cover no-repeat, var(--bg-surface-muted);
+  box-shadow:
+    0 0 0 1px rgb(var(--brand-primary-rgb) / 0.5),
+    0 2px 5px rgb(0 0 0 / 0.55);
+  transform-origin: 50% 80%;
+}
+
+.reading-card-ref[data-pip-reversed]::before {
+  transform: rotate(180deg);
+  transform-origin: 50% 50%;
+}
+
+[data-reading-active] .reading-card-ref[data-pip]::before {
+  animation: reading-pip-lift 900ms var(--card-touch-ease) both;
+}
+
+[data-reading-active] .reading-card-ref[data-pip-reversed]::before {
+  animation-name: reading-pip-lift-reversed;
+}
+
+@keyframes reading-pip-lift {
+  0% {
+    transform: none;
+  }
+  40% {
+    transform: translateY(-3px) rotate(-4deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes reading-pip-lift-reversed {
+  0% {
+    transform: rotate(180deg);
+  }
+  40% {
+    transform: translateY(-3px) rotate(176deg);
+  }
+  100% {
+    transform: rotate(180deg);
+  }
+}
+
+/* The querent's own words, taken up by the reading: a soft highlighter draws
+   in under them as they are reached. */
+.reading-personal {
+  background-image: linear-gradient(
+    transparent 58%,
+    rgb(var(--brand-primary-rgb) / 0.2) 58%,
+    rgb(var(--brand-primary-rgb) / 0.2) 92%,
+    transparent 92%
+  );
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: 0% 100%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background-size 1100ms cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+.reading-personal[data-personal-reached] {
+  background-size: 100% 100%;
+}
+
 .reading-card-ref {
   border-radius: 0.2rem;
   transition: background-color 260ms ease-out, box-shadow 260ms ease-out;
@@ -563,7 +741,19 @@
     display: none;
   }
 
-  .reading-imagery {
+  .reading-imagery,
+  .reading-personal,
+  .card-touch-plate__note {
     transition-duration: 160ms;
+  }
+
+  .card-touch-plate[data-deal] {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  [data-reading-active] .reading-card-ref[data-pip]::before {
+    animation: none;
   }
 }

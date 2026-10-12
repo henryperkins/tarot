@@ -89,23 +89,50 @@ export function SpreadCompanion() {
 }
 
 /**
+ * Whether a plate has come into view yet: each card is laid down as the
+ * reader reaches its passage, once.
+ */
+function useDealt(ref, calm) {
+  const [dealt, setDealt] = useState(calm || typeof IntersectionObserver === 'undefined');
+  useEffect(() => {
+    const element = ref.current;
+    if (dealt || !element) return undefined;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setDealt(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.3 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref, dealt]);
+  return dealt || calm;
+}
+
+/**
  * The card set into the paragraph that opens its passage, so the picture sits
- * beside the words that describe it.
+ * beside the words that describe it. A note the querent left on the card sits
+ * under it, and lights when the reading takes up their words.
  */
 export function CardTouchPlate({ cardIndex }) {
   const focus = useNarrativeCardFocus();
   const api = useNarrativeCardFocusApi();
+  const ref = useRef(null);
   const card = focus?.cards?.find((candidate) => candidate.index === cardIndex);
   const state = card ? focus.cardStates?.states.get(cardIndex)?.state || null : null;
   const arrival = useArrival(state);
+  const dealt = useDealt(ref, Boolean(focus?.calm));
   if (!card) return null;
+  const noting = focus.personal?.card === cardIndex;
 
   return (
     <button
+      ref={ref}
       type="button"
       className="card-touch-plate"
       data-card-index={cardIndex}
       data-state={state || undefined}
+      data-deal={dealt ? 'in' : 'pending'}
       data-calm={focus.calm ? 'true' : undefined}
       aria-label={`${cardLabel(card)}. Open card`}
       onClick={() => api?.selectCard(cardIndex)}
@@ -115,6 +142,12 @@ export function CardTouchPlate({ cardIndex }) {
         {card.positionLabel}
         {card.isReversed ? <span className="card-touch-plate__orientation"> · Reversed</span> : null}
       </span>
+      {card.reflection ? (
+        <span className="card-touch-plate__note" data-noting={noting ? 'true' : undefined} aria-hidden="true">
+          <span className="card-touch-plate__note-label">Your note</span>
+          <span className="card-touch-plate__note-text">{card.reflection}</span>
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -130,9 +163,10 @@ function isOnScreen(element) {
 
 /**
  * When the reading returns to a card whose plate has scrolled away ("one
- * pitcher back into the pool"), a small copy of that card comes forward at the
- * edge of the screen, shows the detail, and goes back. Narrow screens only;
- * wide screens keep the whole spread in view.
+ * pitcher back into the pool"), or takes up the querent's own note on it, a
+ * small copy of that card comes forward at the edge of the screen, shows the
+ * detail (and their note), and goes back. Narrow screens only; wide screens
+ * keep the whole spread in view.
  */
 export function CardEcho() {
   const focus = useNarrativeCardFocus();
@@ -140,25 +174,34 @@ export function CardEcho() {
   const ref = useRef(null);
   const [echo, setEcho] = useState(null);
   const trace = focus?.trace || null;
-  const traceKey = trace?.key || null;
+  const personal = focus?.personal || null;
+  const subject = trace?.card ?? personal?.card ?? null;
+  const subjectKey = `${trace?.key || ''}|${personal?.key || ''}`;
 
   useEffect(() => {
     // Measure after layout: whether the card's own plate is where the reader
     // can see it decides who shows the detail.
     const frame = window.requestAnimationFrame(() => {
       const host = ref.current?.closest('.narrative-panel__layout') || document;
-      const plate = trace ? host.querySelector(`.card-touch-plate[data-card-index="${trace.card}"]`) : null;
+      const plate = subject !== null ? host.querySelector(`.card-touch-plate[data-card-index="${subject}"]`) : null;
       // No plate (wide screens, or a card without a passage of its own) or a
       // plate in view: the card itself shows the detail.
       const needed = Boolean(plate && window.getComputedStyle(plate).display !== 'none' && !isOnScreen(plate));
       setEcho((current) => {
-        if (needed) return { card: trace.card, trace, leaving: false };
+        if (needed) {
+          return {
+            card: subject,
+            trace: trace?.card === subject ? trace : null,
+            noting: personal?.card === subject,
+            leaving: false
+          };
+        }
         return current ? { ...current, leaving: true } : null;
       });
     });
     return () => window.cancelAnimationFrame(frame);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- a new trace key is the trigger
-  }, [traceKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a new trace or echoed note is the trigger
+  }, [subjectKey]);
 
   useEffect(() => {
     if (!echo?.leaving) return undefined;
@@ -177,11 +220,17 @@ export function CardEcho() {
           className="card-echo__card"
           onClick={() => api?.selectCard(card.index)}
         >
-          <CardTouchArt card={card} state="touched" trace={echo.trace} touchKey={echo.trace.key} calm={focus.calm} />
+          <CardTouchArt card={card} state="touched" trace={echo.trace} touchKey={echo.trace?.key || String(card.index)} calm={focus.calm} />
           <span className="card-echo__caption">
             {card.name}
             {card.isReversed ? <span className="card-echo__orientation">Reversed</span> : null}
           </span>
+          {echo.noting && card.reflection ? (
+            <span className="card-echo__note">
+              <span className="card-echo__note-label">Your note</span>
+              {card.reflection}
+            </span>
+          ) : null}
         </button>
       ) : null}
     </div>

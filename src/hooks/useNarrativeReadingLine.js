@@ -11,13 +11,29 @@ const READING_ZONE = [0.26, 0.6];
 const PIN_MS = 2800;
 const BLOCK = '[data-reading-block]';
 const DETAIL = '.reading-imagery';
+const PERSONAL = '.reading-personal';
+const WATCHED = `${DETAIL}, ${PERSONAL}`;
 const LINKED_TEXT = '.reading-imagery, .reading-card-ref';
+// A card name stands for the whole card.
+const WHOLE_CARD = '*';
 
 function detailOf(element) {
   const card = Number(element?.dataset?.cardIndex);
   const point = element?.dataset?.touchId || '';
   if (!Number.isInteger(card) || !point) return null;
   return { card, points: [point], element };
+}
+
+// Report one watched element: a described detail or the querent's own words.
+function report(api, element) {
+  if (element.matches(PERSONAL)) {
+    const block = element.closest(BLOCK);
+    const cards = (block?.dataset?.blockCards || '').split(' ').filter(Boolean).map(Number);
+    api.reachPersonal({ source: element.dataset.personalSource, element, cards });
+    return;
+  }
+  const detail = detailOf(element);
+  if (detail) api.reachDetail(detail);
 }
 
 function pointerFocusFor(target, container) {
@@ -28,7 +44,7 @@ function pointerFocusFor(target, container) {
   const point = element.dataset.touchId || '';
   return {
     element,
-    detail: point ? { card, points: [point], element } : null,
+    detail: { card, points: [point || WHOLE_CARD], element },
     focus: {
       key: `pointer:${card}:${point}`,
       mode: 'single',
@@ -41,8 +57,8 @@ function pointerFocusFor(target, container) {
 
 function containsTracked(node) {
   return node.nodeType === 1 && (
-    node.matches(BLOCK) || node.matches(DETAIL)
-    || Boolean(node.querySelector(BLOCK)) || Boolean(node.querySelector(DETAIL))
+    node.matches(BLOCK) || node.matches(WATCHED)
+    || Boolean(node.querySelector(BLOCK)) || Boolean(node.querySelector(WATCHED))
   );
 }
 
@@ -114,10 +130,7 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       }
       // Several at once (a jump, or one line holding two details) report in
       // reading order.
-      for (const element of entered) {
-        const detail = detailOf(element);
-        if (detail) api.reachDetail(detail);
-      }
+      for (const element of entered) report(api, element);
     };
     const schedule = () => {
       if (!frame) frame = window.requestAnimationFrame(read);
@@ -126,7 +139,7 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
     const collect = () => {
       listFrame = 0;
       blocks = Array.from(container.querySelectorAll(BLOCK));
-      details = Array.from(container.querySelectorAll(DETAIL));
+      details = Array.from(container.querySelectorAll(WATCHED));
       for (const element of Array.from(inZone)) {
         if (!element.isConnected) inZone.delete(element);
       }
@@ -136,8 +149,7 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
         for (const element of details) {
           if (announced.has(element)) continue;
           announced.add(element);
-          const detail = detailOf(element);
-          if (detail) api.reachDetail(detail);
+          report(api, element);
         }
         return;
       }
@@ -202,7 +214,7 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       }
       mark(found.element);
       api.setPointerFocus(found.focus);
-      if (found.detail) api.inspectDetail(found.detail);
+      if (found.element.matches(DETAIL)) api.inspectDetail(found.detail);
     };
     // Touch has no hover: a tap shows the detail (or the card) for a moment.
     const handleClick = (event) => {
