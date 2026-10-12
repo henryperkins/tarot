@@ -1,12 +1,12 @@
 # iPhone 14 Pro Max: Safari, VoiceOver and touch results
 
-Status: **NOT RUN.** The owner will operate the iPhone 14 Pro Max; its iOS version/build remains unspecified. No mid-range handset is available, and no device-reachable isolated origin has been approved or published. Every row below is `NOT_RUN`; nothing here is inferred from emulation, DOM checks, screenshots or source inspection. Execute the [portable checklist](2026-10-10-reading-iphone-voiceover-checklist.md) and replace rows only with actual observations.
+Status: **NOT RUN.** The owner will operate the iPhone 14 Pro Max; its iOS version/build remains unspecified. No mid-range handset is available. The owner-approved [restricted guest preview](2026-10-11-reading-aligner-release.md#restricted-preview-publication) is now published and available until October 12 at 8:43:14 p.m. CDT. Every row below remains `NOT_RUN`; nothing here is inferred from emulation, deployment, DOM checks, screenshots or source inspection. Execute the [portable checklist](2026-10-10-reading-iphone-voiceover-checklist.md) and replace rows only with actual observations.
 
 ## Current aligner prerequisites — October 12
 
 The [aligner execution record](2026-10-11-reading-aligner-release.md) and [separate execution plans](../plans/2026-10-11-reading-intent-closure.md) supersede the historical model-first order below. The prepared guest replay phase needs the final qualified, pinned frontend and separately approved isolated origin/device session. It uses supplied synthetic prose and `model: not used`; annotation-model qualification is not its prerequisite. Exact original question/notes, native inspection and static saved/reduced-motion behavior are in scope. Model interpretations, balance and thematic returns remain separate requirements.
 
-Physical P13 signed-in tier coverage needs its own actual authentication backend and observations; hosting Access does not provide an application Pro session. The guest preview cannot close it. P14 remains qualitative iPhone evidence when performed; the unavailable mid-range handset leaves the separate performance gate open without a waiver. No physical execution or publication is authorized by this update.
+Physical P13 signed-in tier coverage needs its own actual authentication backend and observations; hosting Access does not provide an application Pro session. The guest preview cannot close it. P14 remains qualitative iPhone evidence when performed; the unavailable mid-range handset leaves the separate performance gate open without a waiver. Owner-operated guest iPhone review and preview publication are authorized; actual results remain unrecorded.
 
 ## Historical model-lane prerequisites — retained for that lane
 
