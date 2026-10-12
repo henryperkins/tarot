@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { CardTouchArt } from './CardTouchArt';
 import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './NarrativeCardFocus';
 import { railColumns } from './spreadCompanionLayout';
 import '../../../styles/narrative-card-touch.css';
 
+// Matches the spread insights' card links ("View The Star — Future").
 function cardLabel(card) {
-  return `${card.positionLabel}: ${card.name}${card.isReversed ? ', reversed' : ''}`;
+  return `View ${card.name} — ${card.positionLabel}${card.isReversed ? ' (reversed)' : ''}`;
 }
 
 // Height over width of the deck's card frame ("16 / 31" is a Marseille card).
@@ -21,6 +22,22 @@ function railVars(cards) {
 }
 
 /**
+ * What the card is and where it lies: its name, then its position in the
+ * spread and whether it was drawn reversed.
+ */
+function CardCaption({ card, position = card.positionLabel }) {
+  return (
+    <span className="card-caption" data-long={position.length > 18 ? 'true' : undefined} aria-hidden="true">
+      <span className="card-caption__name">{card.name}</span>
+      <span className="card-caption__position">
+        {position}
+        {card.isReversed ? <span className="card-caption__orientation"> · Reversed</span> : null}
+      </span>
+    </span>
+  );
+}
+
+/**
  * Counts each time a card comes into the reader's hand, so the light that
  * crosses it plays once per arrival rather than once per paragraph.
  */
@@ -33,7 +50,7 @@ function useArrival(state) {
   return arrival.count;
 }
 
-function RailCard({ card, focus, api }) {
+function SpreadCard({ card, focus, api }) {
   const state = focus.cardStates?.states.get(card.index)?.state || null;
   const arrival = useArrival(state);
   return (
@@ -41,9 +58,11 @@ function RailCard({ card, focus, api }) {
       <button
         type="button"
         className="spread-companion__card"
+        data-card-index={card.index}
         data-state={state || undefined}
         aria-current={state === 'touched' ? 'true' : undefined}
-        aria-label={`${cardLabel(card)}. Open card`}
+        aria-label={cardLabel(card)}
+        aria-haspopup="dialog"
         onClick={() => api?.selectCard(card.index)}
         onPointerEnter={() => api?.setSpreadHover(card.index)}
         onPointerLeave={() => api?.setSpreadHover(null)}
@@ -51,23 +70,86 @@ function RailCard({ card, focus, api }) {
         onBlur={() => api?.setSpreadHover(null)}
       >
         <CardTouchArt card={card} state={state} trace={focus.trace} touchKey={String(arrival)} calm={focus.calm} />
+        <CardCaption card={card} position={card.shortLabel} />
       </button>
-      <span className="spread-companion__label" aria-hidden="true">
-        {card.shortLabel}
-        {card.isReversed ? <span className="spread-companion__orientation">Reversed</span> : null}
-      </span>
     </li>
   );
 }
 
 /**
- * The querent's whole spread, kept beside the reading on wide screens.
+ * Marks a row that scrolls sideways, and whether its end is in view, so a
+ * fade can show there are more cards.
  */
-export function SpreadCompanion() {
+function useSideScroll(ref, count) {
+  const [scroll, setScroll] = useState({ overflow: false, end: true });
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return undefined;
+    const measure = () => {
+      const overflow = element.scrollWidth > element.clientWidth + 1;
+      const end = element.scrollLeft + element.clientWidth >= element.scrollWidth - 1;
+      setScroll((previous) => (previous.overflow === overflow && previous.end === end ? previous : { overflow, end }));
+    };
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(element);
+    element.addEventListener('scroll', measure, { passive: true });
+    return () => {
+      observer?.disconnect();
+      element.removeEventListener('scroll', measure);
+    };
+  }, [ref, count]);
+  return scroll;
+}
+
+/**
+ * The querent's whole spread.
+ *
+ * - rail: kept beside the reading on wide screens.
+ * - row: laid out above the reading on narrower screens, in the page (it
+ *   scrolls away with the text above it). It is always there, so every card
+ *   can be found and opened even where the reading never names it.
+ */
+export function SpreadCompanion({ variant = 'rail' }) {
   const focus = useNarrativeCardFocus();
   const api = useNarrativeCardFocusApi();
+  const headingId = useId();
+  const scrollerRef = useRef(null);
   const cards = focus?.cards || [];
+  const scroll = useSideScroll(scrollerRef, cards.length);
   if (cards.length === 0) return null;
+
+  const list = (
+    <ol className="spread-companion__list">
+      {cards.map((card) => (
+        <SpreadCard key={card.index} card={card} focus={focus} api={api} />
+      ))}
+    </ol>
+  );
+
+  if (variant === 'row') {
+    return (
+      <section
+        className="spread-companion spread-companion--row"
+        aria-labelledby={headingId}
+        data-count={cards.length}
+        data-focus={focus.cardStates ? 'true' : undefined}
+        data-calm={focus.calm ? 'true' : undefined}
+        style={{ '--row-count': cards.length }}
+      >
+        {/* Labeled like the question above it, rather than as a heading in the reading's outline. */}
+        <p id={headingId} className="text-2xs font-semibold uppercase tracking-[0.2em] text-muted">Your cards</p>
+        <div
+          ref={scrollerRef}
+          className="spread-companion__scroller"
+          data-overflow={scroll.overflow ? 'true' : undefined}
+          data-at-end={scroll.end ? 'true' : undefined}
+        >
+          {list}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <aside
@@ -79,11 +161,7 @@ export function SpreadCompanion() {
       data-calm={focus.calm ? 'true' : undefined}
       style={railVars(cards)}
     >
-      <ol className="spread-companion__list">
-        {cards.map((card) => (
-          <RailCard key={card.index} card={card} focus={focus} api={api} />
-        ))}
-      </ol>
+      {list}
     </aside>
   );
 }
@@ -134,14 +212,12 @@ export function CardTouchPlate({ cardIndex }) {
       data-state={state || undefined}
       data-deal={dealt ? 'in' : 'pending'}
       data-calm={focus.calm ? 'true' : undefined}
-      aria-label={`${cardLabel(card)}. Open card`}
+      aria-label={cardLabel(card)}
+      aria-haspopup="dialog"
       onClick={() => api?.selectCard(cardIndex)}
     >
       <CardTouchArt card={card} state={state} trace={focus.trace} touchKey={String(arrival)} calm={focus.calm} />
-      <span className="card-touch-plate__caption" data-long={card.positionLabel.length > 18 ? 'true' : undefined} aria-hidden="true">
-        {card.positionLabel}
-        {card.isReversed ? <span className="card-touch-plate__orientation"> · Reversed</span> : null}
-      </span>
+      <CardCaption card={card} />
       {card.reflection ? (
         <span className="card-touch-plate__note" data-noting={noting ? 'true' : undefined} aria-hidden="true">
           <span className="card-touch-plate__note-label">Your note</span>
@@ -152,56 +228,45 @@ export function CardTouchPlate({ cardIndex }) {
   );
 }
 
+// Mostly visible: the detail being shown has to be there to be seen.
 function isOnScreen(element) {
-  if (!element) return false;
+  if (!element || element.getClientRects().length === 0) return false;
   const rect = element.getBoundingClientRect();
   const height = window.innerHeight || 0;
-  // Mostly visible: the detail being shown has to be there to be seen.
   const visible = Math.min(rect.bottom, height) - Math.max(rect.top, 0);
   return visible > rect.height * 0.6;
 }
 
 /**
- * When the reading returns to a card whose plate has scrolled away ("one
- * pitcher back into the pool"), or takes up the querent's own note on it, a
- * small copy of that card comes forward at the edge of the screen, shows the
- * detail (and their note), and goes back. Narrow screens only; wide screens
- * keep the whole spread in view.
+ * A detail the reader chose ("two pitchers") while its card is out of view —
+ * a return in the closing advice, say — brings a small copy of the card to
+ * the edge of the screen, away from the chosen words, leaning in on that
+ * detail until the reader lets it go. Only ever on request: nothing comes
+ * forward over the reading by itself.
  */
 export function CardEcho() {
   const focus = useNarrativeCardFocus();
   const api = useNarrativeCardFocusApi();
   const ref = useRef(null);
   const [echo, setEcho] = useState(null);
-  const trace = focus?.trace || null;
-  const personal = focus?.personal || null;
-  const subject = trace?.card ?? personal?.card ?? null;
-  const subjectKey = `${trace?.key || ''}|${personal?.key || ''}`;
+  const held = focus?.trace?.held ? focus.trace : null;
 
   useEffect(() => {
-    // Measure after layout: whether the card's own plate is where the reader
-    // can see it decides who shows the detail.
+    // Measure after layout: whether the card shows where the reader is
+    // looking (its plate, the spread row, the rail) decides if it comes forward.
     const frame = window.requestAnimationFrame(() => {
       const host = ref.current?.closest('.narrative-panel__layout') || document;
-      const plate = subject !== null ? host.querySelector(`.card-touch-plate[data-card-index="${subject}"]`) : null;
-      // No plate (wide screens, or a card without a passage of its own) or a
-      // plate in view: the card itself shows the detail.
-      const needed = Boolean(plate && window.getComputedStyle(plate).display !== 'none' && !isOnScreen(plate));
+      const shown = held !== null && Array.from(
+        host.querySelectorAll(`.card-touch-plate[data-card-index="${held.card}"], .spread-companion__card[data-card-index="${held.card}"]`)
+      ).some(isOnScreen);
       setEcho((current) => {
-        if (needed) {
-          return {
-            card: subject,
-            trace: trace?.card === subject ? trace : null,
-            noting: personal?.card === subject,
-            leaving: false
-          };
-        }
+        if (held && !shown) return { card: held.card, trace: held, place: held.place || 'top', leaving: false };
         return current ? { ...current, leaving: true } : null;
       });
     });
     return () => window.cancelAnimationFrame(frame);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- a new trace or echoed note is the trigger
-  }, [subjectKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a newly held detail is the trigger
+  }, [held?.key]);
 
   useEffect(() => {
     if (!echo?.leaving) return undefined;
@@ -212,7 +277,13 @@ export function CardEcho() {
   const card = echo ? focus?.cards?.find((candidate) => candidate.index === echo.card) : null;
 
   return (
-    <div ref={ref} className="card-echo" data-visible={card && !echo.leaving ? 'true' : undefined} aria-hidden="true">
+    <div
+      ref={ref}
+      className="card-echo"
+      data-visible={card && !echo.leaving ? 'true' : undefined}
+      data-place={echo?.place || undefined}
+      aria-hidden="true"
+    >
       {card ? (
         <button
           type="button"
@@ -221,16 +292,7 @@ export function CardEcho() {
           onClick={() => api?.selectCard(card.index)}
         >
           <CardTouchArt card={card} state="touched" trace={echo.trace} touchKey={echo.trace?.key || String(card.index)} calm={focus.calm} />
-          <span className="card-echo__caption">
-            {card.name}
-            {card.isReversed ? <span className="card-echo__orientation">Reversed</span> : null}
-          </span>
-          {echo.noting && card.reflection ? (
-            <span className="card-echo__note">
-              <span className="card-echo__note-label">Your note</span>
-              {card.reflection}
-            </span>
-          ) : null}
+          <CardCaption card={card} position={card.shortLabel} />
         </button>
       ) : null}
     </div>

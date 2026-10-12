@@ -15,7 +15,8 @@ import { createHold, createTraceEngine } from './cardTouchMotion.js';
  *   others it names);
  * - trace: a described detail ("the two pitchers") reaches the reader's eye,
  *   and the card's artwork leans in to show just that part. Traces play one at
- *   a time, in reading order, each long enough to find on the card.
+ *   a time, in reading order, each long enough to find on the card. A detail
+ *   the reader chooses (tap, click, Enter) is held until they let it go.
  */
 const FocusStateContext = createContext(null);
 const FocusApiContext = createContext(null);
@@ -26,6 +27,16 @@ const SWEEP_STEP_MS = 420;
 // The querent's note stays lit beside its card this long after the reading
 // echoes their words.
 const PERSONAL_HOLD_MS = 5200;
+
+// Whether words in the reading are on screen, above the mobile action dock.
+function isOnScreen(element) {
+  if (!element?.isConnected || typeof window === 'undefined') return false;
+  const rect = element.getBoundingClientRect();
+  const dock = Number.parseFloat(
+    window.getComputedStyle(document.documentElement).getPropertyValue('--mobile-action-bar-height')
+  ) || 0;
+  return rect.bottom > 0 && rect.top < (window.innerHeight || 0) - dock;
+}
 
 function sameFocus(a, b) {
   return (a?.key ?? null) === (b?.key ?? null);
@@ -43,7 +54,7 @@ export function NarrativeCardFocusProvider({
   const [pointerFocus, setPointerFocus] = useState(null);
   const [sweep, setSweep] = useState({ key: null, step: 0 });
   const [trace, setTrace] = useState(null);
-  const [traces] = useState(() => createTraceEngine(setTrace));
+  const [traces] = useState(() => createTraceEngine(setTrace, { isVisible: isOnScreen }));
   const [personal, setPersonal] = useState(null);
   const [personalHold] = useState(() => createHold(setPersonal, PERSONAL_HOLD_MS));
   const containerRef = useRef(null);
@@ -94,6 +105,9 @@ export function NarrativeCardFocusProvider({
     reachDetail: traces.reach,
     inspectDetail: traces.inspect,
     releaseDetail: traces.release,
+    holdDetail: traces.hold,
+    unholdDetail: traces.unhold,
+    checkDetails: traces.check,
     clearTraces() {
       traces.clear();
       personalHold.clear();

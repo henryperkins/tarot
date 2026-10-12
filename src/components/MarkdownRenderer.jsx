@@ -1,4 +1,4 @@
-import { Children, cloneElement, isValidElement } from 'react';
+import { Children, cloneElement, createContext, isValidElement, useContext } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -205,6 +205,235 @@ function highlightChildren(children, phrases, textCursor, ttsRange, nextKey) {
   });
 }
 
+// One render pass of a Markdown document: its styles and highlights, plus
+// counters that follow the text in document order. The element renderers
+// below read it from context, so their identities stay the same from render
+// to render: React updates the rendered reading in place instead of
+// rebuilding it, and what lives in its DOM (focus, a held detail, an
+// animation in progress) survives a re-render such as a narrated word.
+const MarkdownPass = createContext(null);
+
+function useMarkdownPass() {
+  return useContext(MarkdownPass);
+}
+
+function renderHeading(pass, Tag, props, className, showDivider) {
+  return showDivider && pass.styles.showSectionDivider ? (
+    <div className="narrative-section animate-section-enter">
+      <div className="narrative-section__divider animate-divider-enter" aria-hidden="true"><span>✦</span></div>
+      <Tag {...props} className={className}>
+        {pass.highlight(props.children)}
+      </Tag>
+    </div>
+  ) : (
+    <Tag {...props} className={className}>
+      {pass.highlight(props.children)}
+    </Tag>
+  );
+}
+
+function headingRenderer(level) {
+  function MarkdownHeading({ node: _node, ...props }) {
+    const pass = useMarkdownPass();
+    pass.bumpBlockCursor();
+    const renderedLevel = pass.hasHeadingContext
+      ? Math.min(6, pass.headingBaseLevel + level - pass.headingContext.sourceBaseLevel)
+      : level;
+    const size = pass.styles.headingSizes[`h${level}`] || pass.styles.headingSizes.h3;
+    return renderHeading(pass, `h${renderedLevel}`, props, `${pass.styles.heading} ${size}`, level === 2 || level === 3);
+  }
+  return MarkdownHeading;
+}
+
+function MarkdownParagraph({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  pass.bumpBlockCursor();
+  // A caller may set something into the paragraph ahead of its text.
+  const lead = pass.renderParagraphLead ? pass.renderParagraphLead(props) : null;
+  return (
+    <p {...props} className={lead ? `${pass.styles.paragraph} reading-plate-paragraph` : pass.styles.paragraph}>
+      {lead}
+      {pass.highlight(props.children)}
+    </p>
+  );
+}
+
+function MarkdownStrong({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  return (
+    <strong {...props} className="text-main font-semibold">
+      {pass.highlight(props.children)}
+    </strong>
+  );
+}
+
+function MarkdownEmphasis({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  return (
+    <em {...props} className="italic text-main/90">
+      {pass.highlight(props.children)}
+    </em>
+  );
+}
+
+function MarkdownUnorderedList({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  return (
+    <ul {...props} className={`${pass.styles.list} ${pass.styles.paragraph}`}>
+      {pass.highlight(props.children)}
+    </ul>
+  );
+}
+
+function MarkdownOrderedList({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  return (
+    <ol {...props} className={`list-decimal pl-5 space-y-1.5 xs:space-y-2 ${pass.styles.paragraph}`}>
+      {pass.highlight(props.children)}
+    </ol>
+  );
+}
+
+function MarkdownListItem({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  pass.bumpBlockCursor();
+  return (
+    <li {...props} className="marker:text-secondary pl-1">
+      {pass.highlight(props.children)}
+    </li>
+  );
+}
+
+function MarkdownBlockquote({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  pass.bumpBlockCursor();
+  return (
+    <blockquote
+      {...props}
+      className={`${pass.styles.paragraph} ${pass.styles.blockquote}`}
+    >
+      {pass.highlight(props.children)}
+    </blockquote>
+  );
+}
+
+function MarkdownLink({ node: _node, ...props }) {
+  return (
+    <a
+      {...props}
+      className="text-secondary underline decoration-dotted underline-offset-4 hover:text-secondary break-words overflow-wrap-anywhere"
+      target="_blank"
+      rel="noopener noreferrer"
+    />
+  );
+}
+
+// Inline code (backticks)
+function MarkdownCode({ node: _node, inline, className, children, ...props }) {
+  const pass = useMarkdownPass();
+  if (inline) {
+    return (
+      <code
+        {...props}
+        className={pass.styles.inlineCode}
+      >
+        {children}
+      </code>
+    );
+  }
+  // Code blocks (triple backticks) - pre handles container styling
+  return (
+    <code
+      {...props}
+      className={`${pass.styles.codeBlock} ${className || ''}`}
+    >
+      {children}
+    </code>
+  );
+}
+
+// Pre wrapper for code blocks - handles scrolling with mobile overflow fix
+function MarkdownPre({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  return (
+    <pre
+      {...props}
+      className={pass.styles.pre}
+    />
+  );
+}
+
+// Horizontal rule - section break
+function MarkdownRule({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  return <hr {...props} className={pass.styles.hr} />;
+}
+
+// Tables (from GFM) - scrollable container with keyboard support
+function MarkdownTable({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  return (
+    <div
+      className={pass.styles.tableWrapper}
+      role="region"
+      aria-label="Data table"
+      tabIndex={0}
+    >
+      <table {...props} className={pass.styles.table} />
+    </div>
+  );
+}
+
+function MarkdownTableHead({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  return <thead {...props} className={pass.styles.thead} />;
+}
+
+function MarkdownTableHeader({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  return <th {...props} className={pass.styles.th} />;
+}
+
+function MarkdownTableCell({ node: _node, ...props }) {
+  const pass = useMarkdownPass();
+  return <td {...props} className={pass.styles.td} />;
+}
+
+const BODY_COMPONENTS = {
+  p: MarkdownParagraph,
+  strong: MarkdownStrong,
+  em: MarkdownEmphasis,
+  ul: MarkdownUnorderedList,
+  ol: MarkdownOrderedList,
+  li: MarkdownListItem,
+  blockquote: MarkdownBlockquote,
+  a: MarkdownLink,
+  code: MarkdownCode,
+  pre: MarkdownPre,
+  hr: MarkdownRule,
+  table: MarkdownTable,
+  thead: MarkdownTableHead,
+  th: MarkdownTableHeader,
+  td: MarkdownTableCell
+};
+
+const HEADING_RENDERERS = Object.fromEntries(
+  [1, 2, 3, 4, 5, 6].map((level) => [`h${level}`, headingRenderer(level)])
+);
+
+// Without a heading base level, only h1–h3 get the reading's heading styles.
+const COMPONENTS = {
+  ...BODY_COMPONENTS,
+  h1: HEADING_RENDERERS.h1,
+  h2: HEADING_RENDERERS.h2,
+  h3: HEADING_RENDERERS.h3
+};
+
+const COMPONENTS_WITH_HEADING_CONTEXT = {
+  ...BODY_COMPONENTS,
+  ...HEADING_RENDERERS
+};
+
 export function MarkdownRenderer({
   content,
   highlightPhrases = [],
@@ -252,41 +481,22 @@ export function MarkdownRenderer({
     ? { start: wordBoundary.textOffset, end: wordBoundary.textOffset + wordBoundary.wordLength }
     : null;
 
-  const bumpBlockCursor = () => {
-    if (blockCounter.current > 0) {
-      textCursor.current += BLOCK_SEPARATOR.length;
-    }
-    blockCounter.current += 1;
-  };
-
-  const renderHeading = (Tag, props, className, showDivider) => (
-    showDivider && styles.showSectionDivider ? (
-      <div className="narrative-section animate-section-enter">
-        <div className="narrative-section__divider animate-divider-enter" aria-hidden="true"><span>✦</span></div>
-        <Tag {...props} className={className}>
-          {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-        </Tag>
-      </div>
-    ) : (
-      <Tag {...props} className={className}>
-        {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-      </Tag>
-    )
-  );
-
-  const headingComponents = Object.fromEntries(
-    (hasHeadingContext ? [1, 2, 3, 4, 5, 6] : [1, 2, 3]).map((level) => [
-      `h${level}`,
-      ({ node: _node, ...props }) => {
-        bumpBlockCursor();
-        const renderedLevel = hasHeadingContext
-          ? Math.min(6, headingBaseLevel + level - headingContext.sourceBaseLevel)
-          : level;
-        const size = styles.headingSizes[`h${level}`] || styles.headingSizes.h3;
-        return renderHeading(`h${renderedLevel}`, props, `${styles.heading} ${size}`, level === 2 || level === 3);
+  const pass = {
+    styles,
+    hasHeadingContext,
+    headingBaseLevel,
+    headingContext,
+    renderParagraphLead,
+    bumpBlockCursor() {
+      if (blockCounter.current > 0) {
+        textCursor.current += BLOCK_SEPARATOR.length;
       }
-    ])
-  );
+      blockCounter.current += 1;
+    },
+    highlight(children) {
+      return highlightChildren(children, normalizedPhrases, textCursor, ttsRange, nextKey);
+    }
+  };
 
   const wrapperClassName = [styles.wrapper, className].filter(Boolean).join(' ');
   const remarkPlugins = [
@@ -300,126 +510,15 @@ export function MarkdownRenderer({
     // Using calc for very small screens to prevent text touching edges
     <div className={wrapperClassName}>
       <div className={styles.inner}>
-        <ReactMarkdown
-          remarkPlugins={remarkPlugins}
-          skipHtml
-          components={{
-          ...headingComponents,
-          p: ({ node: _node, ...props }) => {
-            bumpBlockCursor();
-            // A caller may set something into the paragraph ahead of its text.
-            const lead = renderParagraphLead ? renderParagraphLead(props) : null;
-            return (
-              <p {...props} className={lead ? `${styles.paragraph} reading-plate-paragraph` : styles.paragraph}>
-                {lead}
-                {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-              </p>
-            );
-          },
-          strong: ({ node: _node, ...props }) => (
-            <strong {...props} className="text-main font-semibold">
-              {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-            </strong>
-          ),
-          em: ({ node: _node, ...props }) => (
-            <em {...props} className="italic text-main/90">
-              {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-            </em>
-          ),
-          ul: ({ node: _node, ...props }) => (
-            <ul {...props} className={`${styles.list} ${styles.paragraph}`}>
-              {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-            </ul>
-          ),
-          ol: ({ node: _node, ...props }) => (
-            <ol {...props} className={`list-decimal pl-5 space-y-1.5 xs:space-y-2 ${styles.paragraph}`}>
-              {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-            </ol>
-          ),
-          li: ({ node: _node, ...props }) => {
-            bumpBlockCursor();
-            return (
-              <li {...props} className="marker:text-secondary pl-1">
-                {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-              </li>
-            );
-          },
-          blockquote: ({ node: _node, ...props }) => {
-            bumpBlockCursor();
-            return (
-              <blockquote
-                {...props}
-                className={`${styles.paragraph} ${styles.blockquote}`}
-              >
-                {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-              </blockquote>
-            );
-          },
-          a: ({ node: _node, ...props }) => (
-            <a
-              {...props}
-              className="text-secondary underline decoration-dotted underline-offset-4 hover:text-secondary break-words overflow-wrap-anywhere"
-              target="_blank"
-              rel="noopener noreferrer"
-            />
-          ),
-          // Inline code (backticks)
-          code: ({ node: _node, inline, className, children, ...props }) => {
-            if (inline) {
-              return (
-                <code
-                  {...props}
-                  className={styles.inlineCode}
-                >
-                  {children}
-                </code>
-              );
-            }
-            // Code blocks (triple backticks) - pre handles container styling
-            return (
-              <code
-                {...props}
-                className={`${styles.codeBlock} ${className || ''}`}
-              >
-                {children}
-              </code>
-            );
-          },
-          // Pre wrapper for code blocks - handles scrolling with mobile overflow fix
-          pre: ({ node: _node, ...props }) => (
-            <pre
-              {...props}
-              className={styles.pre}
-            />
-          ),
-          // Horizontal rule - section break
-          hr: ({ node: _node, ...props }) => (
-            <hr {...props} className={styles.hr} />
-          ),
-          // Tables (from GFM) - scrollable container with keyboard support
-          table: ({ node: _node, ...props }) => (
-            <div
-              className={styles.tableWrapper}
-              role="region"
-              aria-label="Data table"
-              tabIndex={0}
-            >
-              <table {...props} className={styles.table} />
-            </div>
-          ),
-          thead: ({ node: _node, ...props }) => (
-            <thead {...props} className={styles.thead} />
-          ),
-          th: ({ node: _node, ...props }) => (
-            <th {...props} className={styles.th} />
-          ),
-          td: ({ node: _node, ...props }) => (
-            <td {...props} className={styles.td} />
-          )
-          }}
-        >
-          {content}
-        </ReactMarkdown>
+        <MarkdownPass.Provider value={pass}>
+          <ReactMarkdown
+            remarkPlugins={remarkPlugins}
+            skipHtml
+            components={hasHeadingContext ? COMPONENTS_WITH_HEADING_CONTEXT : COMPONENTS}
+          >
+            {content}
+          </ReactMarkdown>
+        </MarkdownPass.Provider>
       </div>
     </div>
   );

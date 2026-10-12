@@ -21,7 +21,8 @@ export function NarrativeBody({
   narrativeAtmosphereClassName,
   hasHeroStoryArt,
   cardLinks = null,
-  renderParagraphLead = null
+  renderParagraphLead = null,
+  spreadOverview = null
 }) {
   const streamClassName = `mt-6 sm:mt-8 ${hasHeroStoryArt ? 'glass-panel' : ''}`;
 
@@ -30,6 +31,9 @@ export function NarrativeBody({
       <NarrativeQuestionAnchor question={question} compact={isHandset} />
 
       <NarrativeSafetyNotice className={question ? 'mt-4' : ''} compact={isHandset} />
+
+      {/* The spread, laid out where the reading begins. */}
+      {spreadOverview}
 
       <StreamingNarrative
         className={streamClassName}

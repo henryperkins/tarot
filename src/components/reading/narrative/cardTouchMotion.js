@@ -4,6 +4,7 @@
  *
  * - lensFor: where a card's artwork leans in to show described details.
  * - createTraceEngine: paces described details into one gesture at a time.
+ * - createHold: keeps one value lit for a while.
  */
 
 // The described detail should fill about this much of the frame, without
@@ -59,14 +60,11 @@ export function lensFor(spots, ratio = 1.72) {
   };
 }
 
-// A traced detail stays in view at least this long before the next one.
-export const TRACE_MIN_MS = 1500;
+// Each described detail has its turn, in reading order, for at least this
+// long before the next one (the same 1.8 s turn as the reading's other cues).
+export const TRACE_TURN_MS = 1800;
 // With nothing new to show, the card settles back to the whole picture.
 export const TRACE_HOLD_MS = 3200;
-// A tapped detail stays in view a little longer.
-export const TRACE_PIN_MS = 4200;
-// Scrolling quickly shouldn't queue a slideshow: only the latest details wait.
-const TRACE_QUEUE_LIMIT = 2;
 // Details of one card reached together ("pours water into the pool") are
 // shown together, framed in one view, up to this many.
 export const TRACE_TOGETHER_MS = 450;
@@ -89,23 +87,45 @@ function markTraced(entry) {
   entry?.element?.setAttribute?.('data-traced', 'true');
 }
 
+// A detail the reader chose stays pressed while it is held.
+function markPressed(entry, value) {
+  const element = entry?.element;
+  if (element?.getAttribute?.('role') === 'button') element.setAttribute('aria-pressed', value ? 'true' : 'false');
+}
+
+function isDetail({ card, points } = {}) {
+  return Number.isInteger(card) && Array.isArray(points) && points.length > 0;
+}
+
 /**
- * Paces described details into one gesture at a time. `publish` receives the
- * trace to show (or null to let the card rest).
+ * Paces described details into one gesture at a time.
+ *
+ * - Details the reader reaches take turns in reading order. One that has left
+ *   the screen by its turn is skipped: nothing plays for text the reader has
+ *   moved past, and nothing piles up behind the reader.
+ * - Pointing at a detail (hover, keyboard focus) shows it while it lasts.
+ * - Choosing one (tap, click, Enter) holds it until the reader lets it go:
+ *   choosing it again, Escape, or scrolling it out of view.
+ *
+ * `publish` receives the trace to show, or null to let the card rest.
+ * `isVisible(element)` says whether a detail's words are on screen.
  */
-export function createTraceEngine(publish, now = () => Date.now()) {
+export function createTraceEngine(publish, { now = () => Date.now(), isVisible = () => true } = {}) {
   let current = null;
   let since = 0;
   let queue = [];
   let timer = 0;
   let serial = 0;
 
+  const visible = (entry) => !entry?.element || isVisible(entry.element);
   const emit = () => {
     publish(current ? {
       key: `${serial}:${current.card}:${current.points.join('+')}`,
       card: current.card,
       points: current.points,
-      pinned: Boolean(current.pinned)
+      pinned: Boolean(current.pinned),
+      held: Boolean(current.held),
+      place: current.place || null
     } : null);
   };
   const wait = (ms) => {
@@ -115,33 +135,48 @@ export function createTraceEngine(publish, now = () => Date.now()) {
   const show = (entry) => {
     clearTimeout(timer);
     markTracing(current, false);
+    if (current?.held) markPressed(current, false);
     current = entry;
     since = now();
     if (entry) {
       serial += 1;
       markTracing(entry, true);
       markTraced(entry);
-      // Waiting details follow once this one has had its moment.
-      wait(entry.pinned ? TRACE_PIN_MS : (queue.length ? TRACE_MIN_MS : TRACE_HOLD_MS));
+      if (entry.held) markPressed(entry, true);
+      // Attention the reader asked for stays until they let it go; otherwise
+      // the next detail follows once this one has had its turn.
+      if (!entry.pinned) wait(queue.length ? TRACE_TURN_MS : TRACE_HOLD_MS);
     }
     emit();
   };
   function advance() {
-    show(queue.shift() || null);
+    while (queue.length && !visible(queue[0])) queue.shift();
+    const next = queue.shift() || null;
+    // Nothing left to show: a detail that had its turn early still gets its
+    // full moment before the card rests.
+    if (!next && current && !current.pinned) {
+      const left = TRACE_HOLD_MS - (now() - since);
+      if (left > 0) {
+        wait(left);
+        return;
+      }
+    }
+    show(next);
   }
 
   return {
     /**
      * The reader reached a described detail. Plays now if the card is
-     * resting, otherwise after the current detail has had its moment.
+     * resting, otherwise in its turn.
      */
-    reach({ card, points, element = null }) {
-      if (!Number.isInteger(card) || !Array.isArray(points) || points.length === 0) return;
+    reach({ card, points, element = null } = {}) {
+      if (!isDetail({ card, points })) return;
       const entry = { card, points, element };
+      if (!visible(entry)) return;
       if (sameTrace(current, entry)) {
         // The same detail again (re-entering the line): keep it in view.
         markTracing(entry, true);
-        if (!current.pinned) wait(TRACE_HOLD_MS);
+        if (!current.pinned && !queue.length) wait(TRACE_HOLD_MS);
         return;
       }
       if (queue.some((queued) => sameTrace(queued, entry))) return;
@@ -157,28 +192,48 @@ export function createTraceEngine(publish, now = () => Date.now()) {
         };
         markTracing(current, true);
         markTraced(entry);
-        wait(TRACE_HOLD_MS);
+        if (!queue.length) wait(TRACE_HOLD_MS);
         emit();
         return;
       }
       queue.push(entry);
-      while (queue.length > TRACE_QUEUE_LIMIT) queue.shift();
       if (!current) {
         advance();
       } else if (!current.pinned) {
-        wait(Math.max(0, TRACE_MIN_MS - (now() - since)));
+        wait(Math.max(0, TRACE_TURN_MS - (now() - since)));
       }
     },
-    /** A tap or hover asks for one detail directly; it jumps the queue. */
-    inspect({ card, points, element = null }) {
-      if (!Number.isInteger(card) || !Array.isArray(points) || points.length === 0) return;
-      queue = [];
+    /** Hover or keyboard focus shows one detail while it lasts. */
+    inspect({ card, points, element = null } = {}) {
+      if (!isDetail({ card, points }) || current?.held) return;
       show({ card, points, element, pinned: true });
     },
+    /** Pointing moved away: details still waiting resume their turns. */
     release() {
-      if (!current?.pinned) return;
-      queue = [];
-      show(null);
+      if (!current?.pinned || current.held) return;
+      advance();
+    },
+    /**
+     * The reader chose a detail (tap, click, Enter). It stays until they let
+     * it go; choosing the held detail again lets it go. Returns whether the
+     * detail is now held.
+     */
+    hold({ card, points, element = null, place = null } = {}) {
+      if (!isDetail({ card, points })) return false;
+      if (current?.held && sameTrace(current, { card, points })) {
+        advance();
+        return false;
+      }
+      show({ card, points, element, place, pinned: true, held: true });
+      return true;
+    },
+    /** Let go of the held detail (Escape, a tap elsewhere). */
+    unhold() {
+      if (current?.held) advance();
+    },
+    /** After scrolling: attention on words that left the screen ends. */
+    check() {
+      if (current?.pinned && !visible(current)) advance();
     },
     clear() {
       queue = [];
@@ -188,6 +243,7 @@ export function createTraceEngine(publish, now = () => Date.now()) {
       clearTimeout(timer);
       queue = [];
       markTracing(current, false);
+      if (current?.held) markPressed(current, false);
       current = null;
     }
   };

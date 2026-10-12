@@ -7,13 +7,13 @@ const READING_LINE = 0.42;
 // Described details count as reached once they are in the band the eye reads
 // in, so a quick scroll can't skip over them.
 const READING_ZONE = [0.26, 0.6];
-// A tapped card name stays lit long enough to find it in the spread.
-const PIN_MS = 2800;
 const BLOCK = '[data-reading-block]';
 const DETAIL = '.reading-imagery';
 const PERSONAL = '.reading-personal';
 const WATCHED = `${DETAIL}, ${PERSONAL}`;
 const LINKED_TEXT = '.reading-imagery, .reading-card-ref';
+// Linked text that can be chosen (a heading's card name is only pointed at).
+const CONTROL = '[role="button"]';
 // A card name stands for the whole card.
 const WHOLE_CARD = '*';
 
@@ -70,8 +70,11 @@ function containsTracked(node) {
  *   the band the eye reads in asks the card to show that part of its picture.
  *
  * While text is still arriving, the newest passage and the newest details are
- * the ones being "spoken". Pointing at (or tapping) a card name or detail
- * takes over while it lasts.
+ * the ones being "spoken". Pointing at a card name or detail (hover, keyboard
+ * focus) takes over while it lasts. Choosing one (tap, click, Enter, Space)
+ * opens a card name's card, or holds a detail on its card until the reader
+ * lets it go: choosing it again, Escape, a tap elsewhere in the reading, or
+ * scrolling it out of view.
  */
 export function useNarrativeReadingLine(containerRef, { enabled = false, isLive = false } = {}) {
   const api = useNarrativeCardFocusApi();
@@ -115,6 +118,8 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
 
     const read = () => {
       frame = 0;
+      // Attention on words that have left the screen ends.
+      api.checkDetails();
       if (isLive) return;
       activate(blockAtLine());
       const height = window.innerHeight || 0;
@@ -186,13 +191,17 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
     if (!api || !enabled || !container) return undefined;
 
     let hovered = null;
-    let pinTimer = 0;
+    let held = false;
     const mark = (element) => {
-      window.clearTimeout(pinTimer);
       if (hovered === element) return;
       hovered?.removeAttribute('data-touch-hover');
       hovered = element;
       hovered?.setAttribute('data-touch-hover', 'true');
+    };
+    const point = (found) => {
+      mark(found.element);
+      api.setPointerFocus(found.focus);
+      if (found.element.matches(DETAIL)) api.inspectDetail(found.detail);
     };
     const leave = () => {
       if (!hovered) return;
@@ -201,6 +210,29 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       api.clearPointerFocus();
       if (wasDetail) api.releaseDetail();
     };
+    const letGo = () => {
+      if (!held) return;
+      held = false;
+      api.unholdDetail();
+    };
+    const choose = (found) => {
+      if (found.element.matches(DETAIL)) {
+        // Where the card can show it without covering the chosen words, if
+        // its own plate is out of view.
+        const rect = found.element.getBoundingClientRect();
+        const place = rect.top + rect.height / 2 < (window.innerHeight || 0) / 2 ? 'bottom' : 'top';
+        held = api.holdDetail({ ...found.detail, place });
+        return;
+      }
+      letGo();
+      api.selectCard(found.detail.card);
+    };
+    // Selecting text to copy it is not choosing what it names.
+    const selecting = () => {
+      const selection = window.getSelection?.();
+      return Boolean(selection && !selection.isCollapsed && container.contains(selection.anchorNode));
+    };
+
     // Only a pointer that actually moves is hovering: text scrolling under a
     // resting cursor must not take the cards away from the reading.
     const handleMove = (event) => {
@@ -212,31 +244,58 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
         leave();
         return;
       }
-      mark(found.element);
-      api.setPointerFocus(found.focus);
-      if (found.element.matches(DETAIL)) api.inspectDetail(found.detail);
+      point(found);
     };
-    // Touch has no hover: a tap shows the detail (or the card) for a moment.
     const handleClick = (event) => {
+      if (selecting()) return;
       const found = pointerFocusFor(event.target, container);
-      if (!found) return;
-      mark(found.element);
-      api.setPointerFocus(found.focus);
-      if (found.detail) api.inspectDetail(found.detail);
-      pinTimer = window.setTimeout(() => {
-        mark(null);
-        api.clearPointerFocus();
-      }, PIN_MS);
+      if (found?.element.matches(CONTROL)) choose(found);
+      else letGo();
+    };
+    const handleKey = (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const found = pointerFocusFor(event.target, container);
+      if (!found || found.element !== event.target || !found.element.matches(CONTROL)) return;
+      // Space would scroll the page.
+      event.preventDefault();
+      choose(found);
+    };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') letGo();
+    };
+    // Keyboard focus points like a hovering pointer. Focus a tap leaves
+    // behind (or a dialog hands back) must not keep the cards from following
+    // the reading as it scrolls.
+    const handleFocusIn = (event) => {
+      if (!event.target.matches?.(':focus-visible')) return;
+      // A browser brings a focused control into view only when it is off
+      // screen, not when it sits under the sticky bar or the action dock;
+      // its scroll margins keep it clear of both.
+      if (event.target.matches(`${CONTROL}, .card-touch-plate`)) event.target.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      const found = pointerFocusFor(event.target, container);
+      if (found && found.element === event.target) point(found);
+    };
+    const handleFocusOut = (event) => {
+      if (event.target === hovered) leave();
     };
 
     container.addEventListener('pointermove', handleMove);
     container.addEventListener('pointerleave', leave);
     container.addEventListener('click', handleClick);
+    container.addEventListener('keydown', handleKey);
+    container.addEventListener('focusin', handleFocusIn);
+    container.addEventListener('focusout', handleFocusOut);
+    document.addEventListener('keydown', handleEscape);
     return () => {
       container.removeEventListener('pointermove', handleMove);
       container.removeEventListener('pointerleave', leave);
       container.removeEventListener('click', handleClick);
+      container.removeEventListener('keydown', handleKey);
+      container.removeEventListener('focusin', handleFocusIn);
+      container.removeEventListener('focusout', handleFocusOut);
+      document.removeEventListener('keydown', handleEscape);
       mark(null);
+      letGo();
     };
   }, [api, containerRef, enabled]);
 }

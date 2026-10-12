@@ -6,8 +6,7 @@ import {
   frameRatio,
   lensFor,
   TRACE_HOLD_MS,
-  TRACE_MIN_MS,
-  TRACE_PIN_MS
+  TRACE_TURN_MS
 } from '../src/components/reading/narrative/cardTouchMotion.js';
 
 const percent = (value) => Number.parseFloat(value) / 100;
@@ -60,13 +59,24 @@ describe('leaning in on a detail', () => {
 });
 
 describe('pacing gestures', () => {
+  // Words in the reading; `visible` says whether they are on screen.
+  const words = (visible = true) => ({ visible });
+  // One turn at a time: a timer set while another runs fires on a later tick.
+  const turns = (count) => {
+    for (let index = 0; index < count; index += 1) mock.timers.tick(TRACE_TURN_MS);
+  };
+
   function engine() {
     mock.timers.enable({ apis: ['setTimeout', 'Date'] });
     const shown = [];
-    const traces = createTraceEngine((trace) => shown.push(trace), () => Date.now());
+    const traces = createTraceEngine((trace) => shown.push(trace), {
+      now: () => Date.now(),
+      isVisible: (element) => element.visible
+    });
     const last = () => shown[shown.length - 1];
     const points = () => (last() ? `${last().card}:${last().points.join('+')}` : null);
-    return { traces, shown, last, points };
+    const seen = () => shown.filter(Boolean).map((trace) => trace.points.join('+'));
+    return { traces, shown, last, points, seen };
   }
 
   test('shows the first detail at once and lets the card rest after a while', () => {
@@ -81,14 +91,17 @@ describe('pacing gestures', () => {
     }
   });
 
-  test('gives each detail its moment before the next', () => {
+  test('gives each detail its full turn before the next', () => {
     const { traces, points } = engine();
     try {
+      assert.equal(TRACE_TURN_MS, 1800);
       traces.reach({ card: 1, points: ['lightning'] });
       mock.timers.tick(600);
       traces.reach({ card: 2, points: ['pool'] });
       assert.equal(points(), '1:lightning');
-      mock.timers.tick(TRACE_MIN_MS - 600);
+      mock.timers.tick(TRACE_TURN_MS - 601);
+      assert.equal(points(), '1:lightning');
+      mock.timers.tick(1);
       assert.equal(points(), '2:pool');
     } finally {
       mock.timers.reset();
@@ -103,52 +116,96 @@ describe('pacing gestures', () => {
       assert.equal(points(), '2:pool+pitchers');
       traces.reach({ card: 2, points: ['land'] });
       assert.equal(points(), '2:pool+pitchers');
-      mock.timers.tick(TRACE_MIN_MS);
+      mock.timers.tick(TRACE_TURN_MS);
       assert.equal(points(), '2:land');
     } finally {
       mock.timers.reset();
     }
   });
 
-  test('keeps only the latest details when the reader moves quickly', () => {
-    const { traces, shown } = engine();
+  test('plays every detail still on screen, in reading order', () => {
+    const { traces, seen } = engine();
     try {
-      traces.reach({ card: 0, points: ['children'] });
+      traces.reach({ card: 0, points: ['children'], element: words() });
       mock.timers.tick(TRACE_TOGETHER_MS_PLUS);
-      for (const point of ['tower', 'crown', 'lightning']) traces.reach({ card: 1, points: [point] });
-      mock.timers.tick(TRACE_MIN_MS);
-      mock.timers.tick(TRACE_MIN_MS);
-      const seen = shown.filter(Boolean).map((trace) => trace.points.join('+'));
-      assert.deepEqual(seen, ['children', 'crown', 'lightning']);
+      for (const point of ['tower', 'crown', 'lightning']) traces.reach({ card: 1, points: [point], element: words() });
+      turns(3);
+      assert.deepEqual(seen(), ['children', 'tower', 'crown', 'lightning']);
     } finally {
       mock.timers.reset();
     }
   });
 
-  test('lets a tapped detail jump the queue and stay a little longer', () => {
+  test('skips details the reader has scrolled past before their turn', () => {
+    const { traces, seen } = engine();
+    try {
+      const crown = words();
+      traces.reach({ card: 0, points: ['children'], element: words() });
+      mock.timers.tick(TRACE_TOGETHER_MS_PLUS);
+      traces.reach({ card: 1, points: ['tower'], element: words() });
+      traces.reach({ card: 1, points: ['crown'], element: crown });
+      traces.reach({ card: 2, points: ['pool'], element: words() });
+      crown.visible = false;
+      turns(3);
+      assert.deepEqual(seen(), ['children', 'tower', 'pool']);
+      // Nothing is reached from off screen either.
+      traces.reach({ card: 2, points: ['star'], element: words(false) });
+      assert.deepEqual(seen(), ['children', 'tower', 'pool']);
+    } finally {
+      mock.timers.reset();
+    }
+  });
+
+  test('shows a pointed-at detail while it lasts, then resumes in order', () => {
     const { traces, points } = engine();
     try {
       traces.reach({ card: 1, points: ['tower'] });
       traces.reach({ card: 2, points: ['pool'] });
       traces.inspect({ card: 0, points: ['children'] });
       assert.equal(points(), '0:children');
-      mock.timers.tick(TRACE_HOLD_MS);
+      mock.timers.tick(TRACE_HOLD_MS * 4);
       assert.equal(points(), '0:children');
-      mock.timers.tick(TRACE_PIN_MS - TRACE_HOLD_MS);
-      assert.equal(points(), null);
+      traces.release();
+      assert.equal(points(), '2:pool');
     } finally {
       mock.timers.reset();
     }
   });
 
-  test('releases a held detail only when it was asked for', () => {
-    const { traces, points } = engine();
+  test('holds a chosen detail until the reader lets it go', () => {
+    const { traces, last, points } = engine();
     try {
-      traces.reach({ card: 1, points: ['tower'] });
-      traces.release();
-      assert.equal(points(), '1:tower');
+      const pitchers = words();
+      assert.equal(traces.hold({ card: 2, points: ['pitchers'], element: pitchers, place: 'bottom' }), true);
+      assert.equal(last().held, true);
+      assert.equal(last().place, 'bottom');
+      mock.timers.tick(60000);
+      assert.equal(points(), '2:pitchers');
+      // Pointing elsewhere, or pointing ending, does not take it away.
       traces.inspect({ card: 1, points: ['crown'] });
       traces.release();
+      traces.reach({ card: 1, points: ['tower'] });
+      assert.equal(points(), '2:pitchers');
+      // Choosing it again lets it go; waiting details resume.
+      assert.equal(traces.hold({ card: 2, points: ['pitchers'] }), false);
+      assert.equal(points(), '1:tower');
+    } finally {
+      mock.timers.reset();
+    }
+  });
+
+  test('lets a held detail go on request or when its words leave the screen', () => {
+    const { traces, points } = engine();
+    try {
+      traces.hold({ card: 2, points: ['pool'] });
+      traces.unhold();
+      assert.equal(points(), null);
+      const pool = words();
+      traces.hold({ card: 2, points: ['pool'], element: pool });
+      traces.check();
+      assert.equal(points(), '2:pool');
+      pool.visible = false;
+      traces.check();
       assert.equal(points(), null);
     } finally {
       mock.timers.reset();
@@ -160,6 +217,7 @@ describe('pacing gestures', () => {
     try {
       traces.reach({ card: null, points: ['pool'] });
       traces.reach({ card: 1, points: [] });
+      assert.equal(traces.hold({ card: 1 }), false);
       assert.deepEqual(shown, []);
     } finally {
       mock.timers.reset();

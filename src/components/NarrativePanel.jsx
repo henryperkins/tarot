@@ -131,6 +131,7 @@ export function NarrativePanel({
               hasHeroStoryArt={hasHeroStoryArt}
               cardLinks={cardLinks}
               renderParagraphLead={cardLinks ? renderCardPlate : null}
+              spreadOverview={hasSpread ? <SpreadCompanion variant="row" /> : null}
             />
           </div>
 

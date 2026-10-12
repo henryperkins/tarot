@@ -230,6 +230,7 @@ export function buildCardLinkCatalog({ cards, deckStyle = 'rws-1909', question =
     const weakPoints = new Set(touchPoints.filter((point) => point.weak).map((point) => point.id));
     return {
       index: card.index,
+      name: typeof card.name === 'string' && card.name ? card.name : canonical.name,
       canonicalName: canonical.name,
       image: typeof card.image === 'string' ? card.image : '',
       isReversed: Boolean(card.isReversed),
@@ -541,7 +542,7 @@ export function analyzeBlock(text, catalog, { context = null, allowTouches = tru
       .filter((candidate) => !namesACard(text, candidate))
       .filter((candidate) => !isElementalUse(text, candidate, mentions));
     if (returning.length) {
-      touches = returning;
+      touches = returning.map((touch) => ({ ...touch, returning: true }));
       cards = uniqueInOrder(returning.map((touch) => touch.card));
       primary = cards[0];
       mode = cards.length > 1 ? 'sweep' : 'single';
@@ -612,20 +613,38 @@ function linkNode(range, value) {
     };
   }
   const isTouch = range.point !== undefined;
-  const pip = !isTouch && range.pip?.image
+  const pip = range.pip?.image
     ? {
       dataPip: 'true',
       ...(range.pip.reversed ? { dataPipReversed: 'true' } : {}),
       style: `--pip-image: url("${range.pip.image.replace(/["\\]/g, '')}")`
     }
     : {};
+  // Both are controls inside the prose: a card name opens the card, and a
+  // described detail holds that part of the picture on the card until it is
+  // chosen again.
   return {
     type: isTouch ? 'cardTouch' : 'cardMention',
     data: {
       hName: 'span',
       hProperties: isTouch
-        ? { className: ['reading-imagery'], dataCardIndex: String(range.card), dataTouchId: range.point }
-        : { className: ['narrative-emphasis', 'reading-card-ref'], dataCardIndex: String(range.card), ...pip }
+        ? {
+          className: ['reading-imagery'],
+          dataCardIndex: String(range.card),
+          dataTouchId: range.point,
+          role: 'button',
+          tabIndex: 0,
+          ariaPressed: 'false',
+          ...(range.cardName ? { 'aria-description': `Shows this on ${range.cardName}` } : {}),
+          ...pip
+        }
+        : {
+          className: ['narrative-emphasis', 'reading-card-ref'],
+          dataCardIndex: String(range.card),
+          // A heading's card name stays a heading; its plate sits just below.
+          ...(range.inHeading ? {} : { role: 'button', tabIndex: 0, ariaHasPopup: 'dialog' }),
+          ...pip
+        }
     },
     children: [{ type: 'text', value }]
   };
@@ -637,7 +656,7 @@ function linkNode(range, value) {
  * block, so every mention points at a card the querent can see.
  */
 function withPips(mentions, analysis, catalog, kind) {
-  if (kind === 'heading') return mentions;
+  if (kind === 'heading') return mentions.map((mention) => ({ ...mention, inHeading: true }));
   const seen = new Set();
   return mentions.map((mention) => {
     if (seen.has(mention.card)) return mention;
@@ -646,6 +665,23 @@ function withPips(mentions, analysis, catalog, kind) {
     if (!awayFromPlate) return mention;
     const entry = catalog.entries.find((candidate) => candidate.index === mention.card);
     return entry?.image ? { ...mention, pip: { image: entry.image, reversed: entry.isReversed } } : mention;
+  });
+}
+
+/**
+ * Described details name their card for assistive technology. A detail that
+ * returns without its card's name, far from the card's plate ("one pitcher
+ * back into the pool"), carries the card's small face too, once per block,
+ * so the words point at the card in place instead of calling it forward.
+ */
+function withTouchCards(touches, catalog) {
+  const faced = new Set();
+  return touches.map((touch) => {
+    const entry = catalog.entries.find((candidate) => candidate.index === touch.card);
+    const named = entry?.name ? { ...touch, cardName: entry.name } : touch;
+    if (!touch.returning || faced.has(touch.card) || !entry?.image) return named;
+    faced.add(touch.card);
+    return { ...named, pip: { image: entry.image, reversed: entry.isReversed } };
   });
 }
 
@@ -765,8 +801,9 @@ export function remarkCardLinks(options = {}) {
       if (kind !== 'heading') state.pendingIntro = null;
 
       const mentions = withPips(analysis.mentions, analysis, catalog, kind);
+      const touches = withTouchCards(analysis.touches, catalog);
       const echoes = kind === 'heading' ? [] : findPersonalEchoes(text, catalog, [...analysis.mentions, ...analysis.touches]);
-      wrapRanges(segments, [...mentions, ...analysis.touches, ...echoes], text);
+      wrapRanges(segments, [...mentions, ...touches, ...echoes], text);
       state.sequence += 1;
       setBlockData(node, {
         dataReadingBlock: String(state.sequence),

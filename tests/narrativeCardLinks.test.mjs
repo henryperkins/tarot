@@ -30,6 +30,10 @@ function touchWords(text, catalog, options) {
   return analyzeBlock(text, catalog, options).touches.map((touch) => [text.slice(touch.start, touch.end), touch.card, touch.point]);
 }
 
+// A described detail or card name in rendered HTML, whatever else it carries.
+const imagery = (card, point, words) => `<span class="reading-imagery" data-card-index="${card}" data-touch-id="${point}"[^>]*>${words}</span>`;
+const cardRef = (card, words) => `<span class="narrative-emphasis reading-card-ref" data-card-index="${card}"[^>]*>${words}</span>`;
+
 function renderReading(markdown, catalog) {
   return renderToStaticMarkup(createElement(Markdown, {
     remarkPlugins: [remarkGfm, [remarkCardLinks, { catalog }]]
@@ -255,11 +259,20 @@ describe('remark plugin', () => {
   test('marks blocks, names and described details', () => {
     const html = renderReading(reading, catalog);
     assert.match(html, /<h2 data-reading-block="1"[^>]*>Your reading<\/h2>/);
-    assert.match(html, /<span class="narrative-emphasis reading-card-ref" data-card-index="2">The Star<\/span>/);
-    assert.match(html, /<span class="reading-imagery" data-card-index="2" data-touch-id="pool">pool<\/span>/);
-    assert.match(html, /<span class="reading-imagery" data-card-index="2" data-touch-id="pitchers">pitcher<\/span>/);
+    assert.match(html, new RegExp(cardRef(2, 'The Star')));
+    assert.match(html, new RegExp(imagery(2, 'pool', 'pool')));
+    assert.match(html, new RegExp(imagery(2, 'pitchers', 'pitcher')));
     // The passage carries on without naming its card again.
-    assert.match(html, /data-block-cards="2"[^>]*data-block-primary="2"[^>]*data-block-mode="single"[^>]*data-block-touches="2:pool"[^>]*>She is unhurried, and the <span class="reading-imagery" data-card-index="2" data-touch-id="pool">water<\/span>/);
+    assert.match(html, new RegExp(`data-block-cards="2"[^>]*data-block-primary="2"[^>]*data-block-mode="single"[^>]*data-block-touches="2:pool"[^>]*>She is unhurried, and the ${imagery(2, 'pool', 'water')}`));
+  });
+
+  test('makes names and details controls inside the prose', () => {
+    const html = renderReading(reading, catalog);
+    // A name opens its card; a heading's name stays part of the heading.
+    assert.match(html, /<span class="narrative-emphasis reading-card-ref" data-card-index="2" role="button" tabindex="0" aria-haspopup="dialog">The Star<\/span> <span class="reading-imagery"/);
+    assert.match(html, /<h2[^>]*><span class="narrative-emphasis reading-card-ref" data-card-index="2">The Star<\/span><\/h2>/);
+    // A detail is a toggle that says which card it shows.
+    assert.match(html, /<span class="reading-imagery" data-card-index="2" data-touch-id="pool" role="button" tabindex="0" aria-pressed="false" aria-description="Shows this on The Star">pool<\/span>/);
   });
 
   test('sets the card into the paragraph that opens its passage only', () => {
@@ -271,7 +284,7 @@ describe('remark plugin', () => {
 
   test('wraps a name split by formatting', () => {
     const html = renderReading('The **Six of Cups** offers a cup of flowers.', catalog);
-    assert.match(html, /<strong><span class="narrative-emphasis reading-card-ref" data-card-index="1">Six of Cups<\/span><\/strong>/);
+    assert.match(html, new RegExp(`<strong>${cardRef(1, 'Six of Cups')}</strong>`));
   });
 
   test('returns to a detail an earlier passage described', () => {
@@ -285,11 +298,35 @@ describe('remark plugin', () => {
       "- Keep one ritual. That's one pitcher back into the pool.",
       '- Let the crown go.'
     ].join('\n'), catalog);
-    assert.match(html, /<span class="reading-imagery" data-card-index="2" data-touch-id="pitchers">pitcher<\/span> back into the <span class="reading-imagery" data-card-index="2" data-touch-id="pool">pool<\/span>/);
+    assert.match(html, new RegExp(`${imagery(2, 'pitchers', 'pitcher')} back into the ${imagery(2, 'pool', 'pool')}`));
     assert.match(html, /data-block-cards="2" data-block-primary="2" data-block-mode="single"[^>]*>Keep one ritual/);
     // The Tower's crown was never described, so the word stays plain.
     assert.match(html, /Let the crown go\./);
     assert.doesNotMatch(html, /data-touch-id="crown"/);
+  });
+
+  test('gives a returning detail the face of its card, once per block', () => {
+    const faces = buildCardLinkCatalog({
+      cards: ['The Tower', 'Six of Cups', 'The Star'].map((name, index) => ({
+        index,
+        name,
+        canonicalName: name,
+        image: `/images/cards/${index}.jpeg`
+      }))
+    });
+    const html = renderReading([
+      '## The Future: The Star',
+      '',
+      'The Star kneels by a pool and pours water from two pitchers.',
+      '',
+      '## Next steps',
+      '',
+      "- Keep one ritual. That's one pitcher back into the pool."
+    ].join('\n'), faces);
+    // Beside its plate, the Star's own details stay plain words.
+    assert.match(html, /data-touch-id="pool" role="button" tabindex="0" aria-pressed="false" aria-description="Shows this on The Star">pool<\/span> and/);
+    // Far from it, the returning detail points at the card in place.
+    assert.match(html, /data-touch-id="pitchers"[^>]* data-pip="true" style="--pip-image:url\(&quot;\/images\/cards\/2\.jpeg&quot;\)">pitcher<\/span> back into the <span class="reading-imagery" data-card-index="2" data-touch-id="pool" role="button" tabindex="0" aria-pressed="false" aria-description="Shows this on The Star">pool<\/span>/);
   });
 
   test('keeps a passage with its card while it relates another', () => {
@@ -331,8 +368,8 @@ describe('remark plugin', () => {
       "In the Rider-Waite-Smith image, the figure stands at a cliff's edge with a white rose and a small dog."
     ].join('\n'), fool);
     assert.match(html, /data-card-intro="0"[^>]*>In the Rider-Waite-Smith image/);
-    assert.match(html, /data-touch-id="white-rose">white rose<\/span>/);
-    assert.match(html, /data-touch-id="dog">dog<\/span>/);
+    assert.match(html, /data-touch-id="white-rose"[^>]*>white rose<\/span>/);
+    assert.match(html, /data-touch-id="dog"[^>]*>dog<\/span>/);
   });
 
   test('puts a small face on cards named away from their plate', () => {
@@ -354,12 +391,12 @@ describe('remark plugin', () => {
       '',
       "The Tower shakes, and the Six of Cups' water meets its fire."
     ].join('\n'), faces);
-    assert.match(html, /data-card-index="1" data-pip="true" data-pip-reversed="true" style="--pip-image:url\(&quot;\/images\/cards\/1\.jpeg&quot;\)">Six of Cups/);
-    assert.match(html, /data-card-index="0" data-pip="true" style="[^"]*">The Tower<\/span> to/);
+    assert.match(html, /data-card-index="1"[^>]* data-pip="true" data-pip-reversed="true" style="--pip-image:url\(&quot;\/images\/cards\/1\.jpeg&quot;\)">Six of Cups/);
+    assert.match(html, /data-card-index="0"[^>]* data-pip="true" style="[^"]*">The Tower<\/span> to/);
     // The Tower's own passage, beside its plate, names it plainly; the card it
     // glances at gets a face.
-    assert.match(html, /<span class="narrative-emphasis reading-card-ref" data-card-index="0">The Tower<\/span> shakes/);
-    assert.match(html, /data-card-index="1" data-pip="true"[^>]*>Six of Cups<\/span>&#x27; water/);
+    assert.match(html, /<span class="narrative-emphasis reading-card-ref" data-card-index="0" role="button" tabindex="0" aria-haspopup="dialog">The Tower<\/span> shakes/);
+    assert.match(html, /data-card-index="1"[^>]* data-pip="true"[^>]*>Six of Cups<\/span>&#x27; water/);
   });
 
   test("marks the querent's words in the rendered reading", () => {

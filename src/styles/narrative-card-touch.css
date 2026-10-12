@@ -195,34 +195,41 @@
   outline-offset: 4px;
 }
 
-.card-touch-plate__caption {
+/* --- Caption: the card's name, then where it lies -------------------------- */
+
+.card-caption {
   display: block;
   margin-top: 0.55rem;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
   line-height: 1.3;
-  text-transform: uppercase;
+  text-align: center;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.card-caption__name {
+  display: block;
+  color: var(--text-main);
+  font-family: var(--font-serif);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.25;
   transition: color 420ms ease-out;
 }
 
-/* Long position names ("Likely direction on current path") read better in
-   sentence case over two lines than shouted over four. */
-.card-touch-plate__caption[data-long] {
-  font-size: 0.75rem;
-  letter-spacing: 0.01em;
-  text-transform: none;
+.card-caption__position {
+  display: block;
+  margin-top: 0.125rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.3;
 }
 
-.card-touch-plate__orientation {
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  text-transform: none;
+.card-caption__orientation {
   font-style: italic;
 }
 
-.card-touch-plate[data-state='touched'] .card-touch-plate__caption {
+.card-touch-plate[data-state='touched'] .card-caption__name,
+.spread-companion__card[data-state='touched'] .card-caption__name {
   color: rgb(var(--brand-primary-rgb));
 }
 
@@ -243,7 +250,7 @@
 .card-touch-plate__note-label {
   display: block;
   color: var(--text-muted);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   line-height: 1.3;
@@ -257,7 +264,7 @@
   overflow: hidden;
   color: var(--text-main);
   font-family: var(--font-serif);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-style: italic;
   line-height: 1.35;
   -webkit-box-orient: vertical;
@@ -306,14 +313,16 @@
   }
 }
 
-/* --- Echo: a returning card, shown at the edge for a moment -------------- */
+/* --- Echo: a chosen detail shown on its card, at the edge ----------------- */
 
+/* Only when the reader asks (a tap on a detail whose card is out of view),
+   and on the half of the screen away from the words they chose. */
 .card-echo {
   position: fixed;
   z-index: 30;
   top: calc(env(safe-area-inset-top, 0px) + var(--card-echo-top, 4.5rem));
   right: 0.75rem;
-  width: 5.75rem;
+  width: 6.75rem;
   opacity: 0;
   transform: translateX(1.5rem) scale(0.96);
   transform-origin: 100% 0;
@@ -321,6 +330,12 @@
   transition:
     opacity 320ms ease-out,
     transform 520ms var(--card-touch-ease);
+}
+
+.card-echo[data-place='bottom'] {
+  top: auto;
+  bottom: calc(var(--mobile-action-bar-height, 0px) + 0.75rem);
+  transform-origin: 100% 100%;
 }
 
 .card-echo[data-visible] {
@@ -332,10 +347,10 @@
 .card-echo__card {
   display: block;
   width: 100%;
-  padding: 0.4rem 0.4rem 0.35rem;
+  padding: 0.4rem 0.4rem 0.45rem;
   border: 1px solid rgb(var(--brand-primary-rgb) / 0.35);
   border-radius: 10px;
-  background: rgb(var(--card-touch-veil) / 0.82);
+  background: rgb(var(--card-touch-veil) / 0.86);
   box-shadow: 0 18px 36px -18px rgb(0 0 0 / 0.9);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
@@ -344,50 +359,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.card-echo__caption {
-  display: block;
+.card-echo .card-caption {
   margin-top: 0.4rem;
+}
+
+.card-echo .card-caption__name {
   color: rgb(var(--brand-primary-rgb));
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.25;
-  text-align: center;
-}
-
-.card-echo__note {
-  display: -webkit-box;
-  margin-top: 0.35rem;
-  padding-top: 0.3rem;
-  overflow: hidden;
-  border-top: 1px solid rgb(var(--brand-primary-rgb) / 0.4);
-  color: var(--text-main);
-  font-family: var(--font-serif);
-  font-size: 0.6875rem;
-  font-style: italic;
-  line-height: 1.3;
-  text-align: left;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-}
-
-.card-echo__note-label {
-  display: block;
-  color: rgb(var(--brand-primary-rgb));
-  font-family: var(--font-sans);
-  font-size: 0.5625rem;
-  font-style: normal;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.card-echo__orientation {
-  display: block;
-  color: var(--text-muted);
-  font-weight: 400;
-  font-style: italic;
+  font-size: 0.875rem;
 }
 
 /* --- Spread companion: the whole spread beside the text on wide screens -- */
@@ -414,34 +392,6 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.spread-companion__label {
-  display: block;
-  margin-top: 0.5rem;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  line-height: 1.3;
-  text-align: center;
-  text-transform: uppercase;
-  hyphens: auto;
-  overflow-wrap: break-word;
-  transition: color 420ms ease-out;
-}
-
-.spread-companion__orientation {
-  display: block;
-  margin-top: 0.125rem;
-  font-weight: 400;
-  font-style: italic;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.spread-companion__item[data-state] .spread-companion__label {
-  color: rgb(var(--brand-primary-rgb));
-}
-
 /* The cards the reading isn't speaking about step back into the dark. */
 .spread-companion[data-focus] .spread-companion__card:not([data-state]) .card-touch {
   opacity: 0.5;
@@ -459,6 +409,53 @@
   .spread-companion__card:not([data-state='touched']):hover .card-touch {
     transform: translateY(-3px);
   }
+}
+
+/* Row: the spread laid out above the reading, in the page, on screens
+   without room for the rail. Cards keep a readable size; a longer spread
+   scrolls sideways with a fade at the edge rather than shrinking. */
+.spread-companion--row {
+  margin-top: 1.5rem;
+}
+
+.spread-companion__scroller {
+  container-type: inline-size;
+  margin-top: 0.5rem;
+  /* Room inside the scroller's clip for a lifted card and its shadow. */
+  padding: 0.5rem 0 0.25rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.spread-companion__scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.spread-companion__scroller[data-overflow]:not([data-at-end]) {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+}
+
+.spread-companion--row .spread-companion__list {
+  display: flex;
+  gap: 0.75rem;
+  width: max-content;
+  margin-inline: auto;
+}
+
+.spread-companion--row .spread-companion__item {
+  flex: none;
+  width: 6rem;
+  width: clamp(5.5rem, calc((100cqi - (var(--row-count, 3) - 1) * 0.75rem) / var(--row-count, 3)), 6.75rem);
+  scroll-snap-align: start;
+}
+
+.spread-companion--row .spread-companion__card:focus-visible,
+.spread-companion--rail .spread-companion__card:focus-visible {
+  outline: 2px solid rgb(var(--brand-primary-rgb) / 0.9);
+  outline-offset: 3px;
 }
 
 .spread-companion--rail {
@@ -480,25 +477,32 @@
 }
 
 .spread-companion--rail .spread-companion__card {
-  /* Fit the spread inside the viewport whatever its height; each row also
-     holds a label and a gap. Labels keep the full column width. */
-  width: clamp(2.25rem, calc(((100dvh - 8rem) / var(--rail-rows, 3) - var(--rail-label-room, 3.25rem)) / var(--card-ratio, 1.72)), 100%);
+  width: 100%;
 }
 
-/* Two columns (four cards or more): tighter rows and quieter, sentence-case
-   labels so a ten-card spread still fits beside the text. */
+/* Fit the spread inside the viewport whatever its height; each row also
+   holds a caption and a gap. Captions keep the full column width. */
+.spread-companion--rail .card-touch {
+  width: clamp(2.25rem, calc(((100dvh - 8rem) / var(--rail-rows, 3) - var(--rail-label-room, 3.75rem)) / var(--card-ratio, 1.72)), 100%);
+  margin-inline: auto;
+}
+
+/* Two columns (four cards or more): tighter rows so a ten-card spread still
+   fits beside the text. */
 .spread-companion--rail[data-cols='2'] {
-  --rail-label-room: 3.75rem;
+  --rail-label-room: 4.25rem;
 }
 
 .spread-companion--rail[data-cols='2'] .spread-companion__list {
   row-gap: 0.75rem;
 }
 
-.spread-companion--rail[data-cols='2'] .spread-companion__label {
+.spread-companion--rail[data-cols='2'] .card-caption {
   margin-top: 0.375rem;
-  letter-spacing: 0.01em;
-  text-transform: none;
+}
+
+.spread-companion--rail[data-cols='2'] .card-caption__name {
+  font-size: 0.875rem;
 }
 
 /* The scene clips its backdrop; clip (unlike hidden) creates no scroll
@@ -510,8 +514,10 @@
 
 /* Wide screens: cards beside the text, the pair centered as one composition. */
 @media (min-width: 1180px) {
+  /* Two columns wide enough that a caption's longest word ("Subconscious")
+     fits on its line at caption size. */
   .narrative-panel__layout--wide-rail {
-    --spread-rail-width: 11.5rem;
+    --spread-rail-width: 13rem;
   }
 
   .narrative-panel__layout--with-spread {
@@ -543,7 +549,8 @@
   }
 
   .card-touch-plate,
-  .card-echo {
+  .card-echo,
+  .spread-companion--row {
     display: none;
   }
 }
@@ -562,7 +569,6 @@
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
   border-radius: 0.2rem;
-  cursor: pointer;
   transition:
     background-size 760ms cubic-bezier(0.3, 0.7, 0.2, 1),
     --imagery-mark 600ms ease-out,
@@ -586,6 +592,34 @@
   color: var(--text-main);
 }
 
+/* Held by the reader: a firmer line until they let it go. */
+.reading-imagery[aria-pressed='true'] {
+  --imagery-mark: rgb(var(--brand-primary-rgb));
+  background-size: 100% 2px;
+  color: var(--text-main);
+}
+
+.reading-imagery[role='button'],
+.reading-card-ref[role='button'] {
+  cursor: pointer;
+}
+
+.reading-imagery:focus-visible,
+.reading-card-ref:focus-visible {
+  outline: 2px solid rgb(var(--brand-primary-rgb) / 0.9);
+  outline-offset: 2px;
+}
+
+/* A focused control in the reading scrolls clear of the sticky steps bar and
+   the mobile action dock rather than stopping underneath them. */
+.reading-imagery[role='button'],
+.reading-card-ref[role='button'],
+.card-touch-plate,
+.spread-companion--row .spread-companion__card {
+  scroll-margin-top: 6.5rem;
+  scroll-margin-bottom: calc(var(--mobile-action-bar-height, 0px) + 1rem);
+}
+
 /* Card names keep the reading's accent color without boxes or underlines;
    the card itself carries the emphasis. */
 .reading-card-ref.narrative-emphasis {
@@ -596,13 +630,16 @@
 
 /* A card named away from its own plate carries a small face of the card, so
    the overview, comparisons and next steps point at cards the querent can
-   see. Reaching the passage lifts the faces once. */
-.reading-card-ref[data-pip] {
+   see. Reaching the passage lifts the faces once. A detail that returns
+   without its card's name ("one pitcher back into the pool") carries the
+   face too, and it lifts as the detail's turn comes. */
+.reading-card-ref[data-pip],
+.reading-imagery[data-pip] {
   white-space: nowrap;
-  cursor: pointer;
 }
 
-.reading-card-ref[data-pip]::before {
+.reading-card-ref[data-pip]::before,
+.reading-imagery[data-pip]::before {
   content: '';
   display: inline-block;
   width: 0.72em;
@@ -617,17 +654,35 @@
   transform-origin: 50% 80%;
 }
 
-.reading-card-ref[data-pip-reversed]::before {
+.reading-card-ref[data-pip-reversed]::before,
+.reading-imagery[data-pip-reversed]::before {
   transform: rotate(180deg);
   transform-origin: 50% 50%;
 }
 
-[data-reading-active] .reading-card-ref[data-pip]::before {
+[data-reading-active] .reading-card-ref[data-pip]::before,
+.reading-imagery[data-pip][data-tracing]::before {
   animation: reading-pip-lift 900ms var(--card-touch-ease) both;
 }
 
-[data-reading-active] .reading-card-ref[data-pip-reversed]::before {
+[data-reading-active] .reading-card-ref[data-pip-reversed]::before,
+.reading-imagery[data-pip-reversed][data-tracing]::before {
   animation-name: reading-pip-lift-reversed;
+}
+
+/* The line under a faced detail starts after the face. */
+.reading-imagery[data-pip] {
+  background-position: 1.06em 100%;
+}
+
+.reading-imagery[data-pip][data-traced],
+.reading-imagery[data-pip][data-tracing],
+.reading-imagery[data-pip][data-touch-hover] {
+  background-size: calc(100% - 1.06em) 1px;
+}
+
+.reading-imagery[data-pip][aria-pressed='true'] {
+  background-size: calc(100% - 1.06em) 2px;
 }
 
 @keyframes reading-pip-lift {
@@ -753,7 +808,8 @@
     animation: none;
   }
 
-  [data-reading-active] .reading-card-ref[data-pip]::before {
+  [data-reading-active] .reading-card-ref[data-pip]::before,
+  .reading-imagery[data-pip][data-tracing]::before {
     animation: none;
   }
 }
