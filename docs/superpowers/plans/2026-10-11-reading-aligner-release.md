@@ -14,6 +14,9 @@
 
 **Use this as the single aligner execution checklist:** preserve/checkpoint source and resolve edition/cargo choices → separate UI/model flags → add exact context and no-binding saved restoration → verify affected ordinary routes → close physical gates → release. The parent owns decisions, and old task/status documents retain history. Do not create another parallel checklist or repeat a full browser/picture cycle for unchanged code; map each change to affected checks and retain the required final repository gates.
 
+
+**Owner phone feedback follow-up (October 12 UTC):** the [correction record](../reviews/2026-10-12-reading-mobile-feedback.md) supersedes the sticky phone composition: cards scroll with the page, and explicit inspection opens a detail view with return to the passage. Standalone authored replay prose is corrected separately; existing production readings are not rewritten. Earlier composite evidence retains its original identity. Physical acceptance and production gates remain open; model work remains separate.
+
 ## Global Constraints
 
 - “Preserve its current prose, headings, section structure, and interpretive depth.” Keep exact raw source and existing narration offsets; never rewrite prose to improve matching.

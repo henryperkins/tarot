@@ -16,6 +16,9 @@ Status: owner-approved aligner execution in progress; model execution remains se
 
 Last reviewed: 2026-10-11 (America/Chicago)
 
+
+**Owner phone feedback follow-up (October 12 UTC):** the [correction record](../reviews/2026-10-12-reading-mobile-feedback.md) supersedes the sticky phone composition: cards scroll with the page, and explicit inspection opens a detail view with return to the passage. Standalone authored replay prose is corrected separately; existing production readings are not rewritten. Earlier composite evidence retains its original identity. Physical acceptance and production gates remain open; model work remains separate.
+
 ## Global Constraints
 
 - Preserve current prose, headings, section structure and interpretive depth; do not rewrite a reading to fit imagery or add annotation instructions to its reading prompt.

@@ -479,7 +479,8 @@
   .narrative-panel__layout:has(.gesture-companion) { display: flex; flex-direction: column; }
   /* Auto margins disable flex cross-axis stretch; bound prose at text zoom. */
   .narrative-panel__layout:has(.gesture-companion) > .narrative-panel__column { width: 100%; max-width: 100%; overflow-wrap: anywhere; }
-  .gesture-companion { top: var(--sticky-header-height, 0px); z-index: 3; padding: 10px 4px 0; background: var(--bg-surface); }
+  /* On a phone, the cards share the page instead of covering the reading. */
+  .gesture-companion { position: static; padding: 10px 4px 0; background: var(--bg-surface); }
   .gesture-shelf { max-width: 440px; margin: 0 auto 10px; gap: 8px; grid-template-columns: repeat(var(--shelf-count), minmax(44px, 1fr)); overflow-x: auto; overscroll-behavior-x: contain; }
   .gesture-shelf-card { height: 64px; width: 44px; margin: auto; }
   .gesture-shelf-card > .gesture-art { width: 40px; margin-inline: auto; }
@@ -516,6 +517,16 @@
 .gesture-focus-card { align-items: center; }
 .gesture-focus-card > .gesture-art { height: auto; aspect-ratio: 3/5; }
 @media (max-width: 1023px) { .narrative-panel__layout:has(.gesture-companion) { display: flex; gap: 18px; } .gesture-focus-card > .gesture-art { height: 100%; aspect-ratio: auto; } }
+
+.gesture-inspection-placeholder { height: 106px; }
+.gesture-inspection-dialog .gesture-window { height: min(55dvh, 360px); min-height: 106px; }
+.gesture-inspection-dialog .gesture-focus-layer { animation: none; }
+.gesture-inspection-dialog .gesture-focus-card { height: 100%; max-width: 100%; justify-content: center; }
+.gesture-inspection-dialog .gesture-focus-layer[data-pair] .gesture-focus-card { max-width: calc(50% - 6px); }
+.gesture-inspection-dialog .gesture-focus-card > .gesture-art { height: 100%; width: auto; max-width: 100%; aspect-ratio: 3/5; margin-inline: auto; }
+.gesture-inspection-context { margin: 12px 0 0; max-height: 15dvh; overflow: auto; font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }
+@media (max-width: 359px) { .gesture-inspection-placeholder { height: 96px; } }
+@media (max-height: 600px) and (max-width: 1023px) { .gesture-inspection-placeholder { height: 72px; } }
 
 .gesture-lab { min-inline-size: 0; }
 .gesture-lab > label, .gesture-lab > legend, .gesture-lab > output { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }

@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { createBackdropHandler, useModalA11y } from '../../../hooks/useModalA11y';
 import { CardTouchArt } from './CardTouchArt';
 import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './narrativeFocusContext.js';
 import { railColumns } from './spreadCompanionLayout';
@@ -106,6 +108,41 @@ function GestureCompanion({ focus, api }) {
   const contextRef = useRef(null);
   const current = state.current;
   const personalContext = current?.personalContext;
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1023px)');
+    const update = () => setNarrow(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  // Only the reader's held selection opens this view. Automatic cues never
+  // cover the prose or move its scroll position.
+  const mobileInspection = narrow && Boolean(state.held && current);
+  const dialogRef = useRef(null);
+  const returnFocusRef = useRef(null);
+  const dialogTitleId = useId();
+  const closeInspection = useCallback(() => api.releaseAssociation(), [api]);
+  const getFallbackFocus = useCallback(() => {
+    const selectedOccurrenceId = state.held?.occurrenceId || current?.targets?.[0]?.occurrenceId;
+    if (selectedOccurrenceId && root.current) {
+      const match = root.current.querySelector(`[data-gesture-shelf] button[data-occurrence-id="${selectedOccurrenceId}"]:not(:disabled)`);
+      if (match) return match;
+    }
+    return root.current?.querySelector('[data-gesture-shelf] button:not(:disabled)') || null;
+  }, [state.held, current?.targets]);
+  useLayoutEffect(() => {
+    if (mobileInspection) returnFocusRef.current = document.activeElement;
+  }, [mobileInspection]);
+  useModalA11y(mobileInspection, {
+    onClose: closeInspection,
+    containerRef: dialogRef,
+    returnFocusRef,
+    initialFocusSelector: '[data-card-inspection-close]',
+    getFallbackFocus,
+    scrollLockStrategy: 'simple',
+    isolateBackground: true
+  });
   const [artVisible, setArtVisible] = useState(false);
   // Keyboard or assistive-technology focus inside the stage is an inspection:
   // automatic turns pause instead of replacing the card under that cursor.
@@ -137,7 +174,7 @@ function GestureCompanion({ focus, api }) {
     const observer = new IntersectionObserver(entries => setArtVisible(entries[0].isIntersecting), { threshold: 0 });
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [mobileInspection]);
   useEffect(() => {
     current?.targets.forEach(({ occurrenceId }) => api.reportVisibility({ kind: 'artwork', id: occurrenceId, visible: artVisible }));
   }, [artVisible, current?.targets, api]);
@@ -155,7 +192,7 @@ function GestureCompanion({ focus, api }) {
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? eligibleCards.length - 1 : Math.max(0, Math.min(eligibleCards.length - 1, index + (event.key === 'ArrowLeft' ? -1 : 1)));
     root.current?.querySelectorAll('[data-gesture-shelf] button:not(:disabled)')[next]?.focus();
   };
-  const present = (association, departing = false) => {
+  const present = (association, departing = false, inDialog = false) => {
     if (!association) return null;
     return <div className={`gesture-focus-layer${departing ? ' gesture-focus-layer--departing' : ''}`}
       key={departing ? `departing-${layers.exitId}` : association.id} aria-hidden={departing ? true : undefined} inert={departing ? true : undefined}
@@ -171,11 +208,15 @@ function GestureCompanion({ focus, api }) {
           tabIndex={departing || !eligibleOccurrences.has(target.occurrenceId) ? -1 : 0} disabled={departing || !eligibleOccurrences.has(target.occurrenceId)}
           aria-label={cardLabel(card)} aria-pressed={Boolean(state.held)}
           onClick={() => state.held ? api.releaseAssociation() : association.id.startsWith('identity-') ? api.holdCard(target.occurrenceId) : api.holdAssociation(association.id)}>
-          {frameIds.map((ids, index) => <CardTouchArt key={index} card={card} crop presence={presence} dynamic={introduction?.dynamic} calm={calm}
-            motionOwner={!departing && index === 0}
-            gesture={{ runId: source.runId, sourceRevision: source.sourceRevision, associationId: association.id,
-              detailIds: Array.isArray(ids) ? ids : [ids], phase: departing ? 'static' : state.phase,
-              held: Boolean(state.held), active: !departing, canMove: artVisible && state.canMove }} />)}
+          {frameIds.map((ids, index) => {
+            const hasDetails = Array.isArray(ids) ? ids.length > 0 : Boolean(ids);
+            const crop = inDialog ? hasDetails : true;
+            return <CardTouchArt key={index} card={card} crop={crop} presence={presence} dynamic={introduction?.dynamic} calm={calm}
+              motionOwner={!departing && index === 0}
+              gesture={{ runId: source.runId, sourceRevision: source.sourceRevision, associationId: association.id,
+                detailIds: Array.isArray(ids) ? ids : [ids], phase: departing ? 'static' : state.phase,
+                held: Boolean(state.held), active: !departing, canMove: artVisible && state.canMove }} />;
+          })}
         </button>;
       })}
     </div>;
@@ -192,19 +233,39 @@ function GestureCompanion({ focus, api }) {
         return <li key={card.occurrenceId} data-introduced={introduced ? 'true' : 'false'} data-available={available ? 'true' : 'false'}>
           <button type="button" className="gesture-shelf-card" aria-label={cardLabel(card)} disabled={!available}
             data-occurrence-id={card.occurrenceId} aria-current={selected ? 'true' : undefined}
-            onKeyDown={event => moveShelfFocus(event, card.occurrenceId)} onClick={() => api.holdCard(card.occurrenceId)}>
+            onKeyDown={event => moveShelfFocus(event, card.occurrenceId)} onClick={event => {
+              event.currentTarget.focus({ preventScroll: true });
+              api.holdCard(card.occurrenceId);
+            }}>
             <CardTouchArt card={card} presence={presence} dynamic={introduction?.dynamic} calm={calm} gesture={{ runId: source.runId, sourceRevision: source.sourceRevision,
               associationId: 'shelf', detailIds: [], phase: 'static', held: state.held?.occurrenceId === card.occurrenceId, active: selected, canMove: false }} />
           </button><span className="gesture-shelf-label">{card.shortLabel}</span>
         </li>;
       })}
     </ol>
-    <div ref={windowRef} data-gesture-window className="gesture-window" data-association={current?.id || ''} data-phase={state.phase}
+    {mobileInspection ? <div className="gesture-inspection-placeholder" aria-hidden="true" /> : null}
+    {mobileInspection ? createPortal(
+      <div className="reading-personal-context__overlay" onClick={createBackdropHandler(closeInspection)}>
+        <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={dialogTitleId}
+          className="reading-personal-context__dialog gesture-inspection-dialog">
+          <div className="reading-personal-context__header">
+            <h2 id={dialogTitleId}>Card detail</h2>
+            <button type="button" data-card-inspection-close className="reading-personal-context__close"
+              onClick={closeInspection}>Back to reading</button>
+          </div>
+          <div ref={windowRef} data-gesture-window className="gesture-window" data-association={current?.id || ''}
+            data-phase="static" data-held="true">
+            {present(current, false, true)}
+          </div>
+          {personalContext ? <p className="gesture-inspection-context">“{personalContext.quote}”</p> : null}
+        </section>
+      </div>, document.body
+    ) : <div ref={windowRef} data-gesture-window className="gesture-window" data-association={current?.id || ''} data-phase={state.phase}
       data-held={state.held ? 'true' : undefined} data-pending={state.pending || ''}
       onFocus={event => reportStageFocus(keyboardFocus(event.target))}
       onBlur={event => { if (!containsInspectionFocus(event.relatedTarget)) reportStageFocus(false); }}>
-      {focus.studyEnabled && !calm && present(layers.departing, true)}{present(current)}
-    </div>
+      {focus.studyEnabled && !calm && present(layers.departing, true, false)}{present(current, false, false)}
+    </div>}
     <div ref={contextRef} className="gesture-context" aria-live="off" role={personalContext ? 'region' : undefined}
       aria-label={personalContext ? 'Related personal context' : undefined} tabIndex={personalContext ? 0 : undefined}
       onFocus={event => reportStageFocus(keyboardFocus(event.target))}

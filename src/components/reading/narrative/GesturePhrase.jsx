@@ -16,7 +16,10 @@ export function GesturePhrase({ node: _node, children, ...props }) {
   return (
     <span {...props} role="button" tabIndex={0} className="reading-gesture-association" aria-pressed={held}
       data-associated={associated ? 'true' : undefined}
-      onClick={() => api.holdAssociation(id)} onKeyDown={(event) => {
+      onClick={event => {
+        event.currentTarget.focus({ preventScroll: true });
+        api.holdAssociation(id);
+      }} onKeyDown={(event) => {
         if (event.key === 'Escape') api.releaseAssociation();
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); api.holdAssociation(id); }
       }}>
