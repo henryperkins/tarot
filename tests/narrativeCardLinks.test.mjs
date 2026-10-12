@@ -225,6 +225,67 @@ describe('remark plugin', () => {
     assert.match(html, /<strong><span class="narrative-emphasis reading-card-ref" data-card-index="1">Six of Cups<\/span><\/strong>/);
   });
 
+  test('returns to a detail an earlier passage described', () => {
+    const html = renderReading([
+      '## The Future: The Star',
+      '',
+      'The Star kneels by a pool and pours water from two pitchers.',
+      '',
+      '## Next steps',
+      '',
+      "- Keep one ritual. That's one pitcher back into the pool.",
+      '- Let the crown go.'
+    ].join('\n'), catalog);
+    assert.match(html, /<span class="reading-imagery" data-card-index="2" data-touch-id="pitchers">pitcher<\/span> back into the <span class="reading-imagery" data-card-index="2" data-touch-id="pool">pool<\/span>/);
+    assert.match(html, /data-block-cards="2" data-block-primary="2" data-block-mode="single"[^>]*>Keep one ritual/);
+    // The Tower's crown was never described, so the word stays plain.
+    assert.match(html, /Let the crown go\./);
+    assert.doesNotMatch(html, /data-touch-id="crown"/);
+  });
+
+  test('keeps a passage with its card while it relates another', () => {
+    const html = renderReading([
+      '## The Present: The Tower',
+      '',
+      'Lightning knocks the crown off the tower.',
+      '',
+      "The Six of Cups' water and The Tower's fire don't blend easily."
+    ].join('\n'), catalog);
+    const intros = [...html.matchAll(/data-card-intro="(\d+)"/g)].map((match) => match[1]);
+    assert.deepEqual(intros, ['0']);
+    assert.match(html, /data-block-cards="0 1" data-block-primary="0" data-block-mode="single"/);
+  });
+
+  test('sets a card met mid-paragraph where its picture is described', () => {
+    const html = renderReading([
+      '## The Present: The Tower',
+      '',
+      'Lightning knocks the crown off the tower.',
+      '',
+      '## Where it leads',
+      '',
+      "After The Tower, the outcome is The Star: a figure pouring water into a pool beneath a large star."
+    ].join('\n'), catalog);
+    const intros = [...html.matchAll(/data-card-intro="(\d+)"/g)].map((match) => match[1]);
+    assert.deepEqual(intros, ['0', '2']);
+  });
+
+  test("reads a one-card reading as its card's passage", () => {
+    const fool = spread(['The Fool']);
+    const html = renderReading([
+      '## Opening',
+      '',
+      'A new role can feel like a map you did not draw.',
+      '',
+      '## The Card',
+      '',
+      "In the Rider-Waite-Smith image, the figure stands at a cliff's edge with a white rose and a small dog."
+    ].join('\n'), fool);
+    assert.match(html, /data-card-intro="0"[^>]*>In the Rider-Waite-Smith image/);
+    assert.match(html, /data-touch-id="white-rose">white rose<\/span>/);
+    assert.match(html, /data-touch-id="dog">dog<\/span>/);
+  });
+
   test('reads a rendered block back as focus', () => {
     const dataset = {
       readingBlock: '4',

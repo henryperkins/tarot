@@ -7,7 +7,7 @@ import {
   NarrativeStatusStack
 } from './reading/narrative';
 import { NarrativeCardFocusProvider } from './reading/narrative/NarrativeCardFocus';
-import { SpreadCompanion, CardTouchPlate } from './reading/narrative/SpreadCompanion';
+import { SpreadCompanion, CardTouchPlate, CardEcho } from './reading/narrative/SpreadCompanion';
 import { railColumns } from './reading/narrative/spreadCompanionLayout';
 
 // Set the card into the paragraph that opens its passage.
@@ -101,7 +101,8 @@ export function NarrativePanel({
     <NarrativeCardFocusProvider cards={spreadCards} onSelectCard={onSelectCard} stable={isMobileStableMode}>
       <div className={panelClassName}>
         <div className={layoutClassName}>
-          {hasSpread ? <SpreadCompanion variant="rail" /> : null}
+          {hasSpread ? <SpreadCompanion /> : null}
+          {hasSpread && cardLinks ? <CardEcho /> : null}
           {/* One reading column keeps the title, question, notice, and prose on a shared edge. */}
           <div className="narrative-panel__column mx-auto max-w-prose min-w-0 space-y-5 sm:space-y-6">
             <NarrativePanelHeader
@@ -130,7 +131,6 @@ export function NarrativePanel({
               hasHeroStoryArt={hasHeroStoryArt}
               cardLinks={cardLinks}
               renderParagraphLead={cardLinks ? renderCardPlate : null}
-              spreadCompanion={hasSpread ? <SpreadCompanion variant="row" /> : null}
             />
           </div>
 

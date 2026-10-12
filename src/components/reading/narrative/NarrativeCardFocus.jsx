@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
+import { createTraceEngine } from './cardTouchMotion.js';
 
 /**
  * Which spread cards the reading is speaking about right now.
@@ -8,6 +9,13 @@ import { useReducedMotion } from '../../../hooks/useReducedMotion';
  * pointer on a card name); the spread companion and the inline card plates
  * read the result. State and API live in separate contexts so the Markdown
  * body, which only reports, never re-renders when the focus moves.
+ *
+ * Two kinds of attention:
+ * - focus: the passage being read rests a hand on its card (and warms the
+ *   others it names);
+ * - trace: a described detail ("the two pitchers") reaches the reader's eye,
+ *   and the card's artwork leans in to show just that part. Traces play one at
+ *   a time, in reading order, each long enough to find on the card.
  */
 const FocusStateContext = createContext(null);
 const FocusApiContext = createContext(null);
@@ -31,12 +39,16 @@ export function NarrativeCardFocusProvider({
   const [scrollFocus, setScrollFocus] = useState(null);
   const [pointerFocus, setPointerFocus] = useState(null);
   const [sweep, setSweep] = useState({ key: null, step: 0 });
+  const [trace, setTrace] = useState(null);
+  const [traces] = useState(() => createTraceEngine(setTrace));
   const containerRef = useRef(null);
   const onSelectCardRef = useRef(onSelectCard);
 
   useEffect(() => {
     onSelectCardRef.current = onSelectCard;
   }, [onSelectCard]);
+
+  useEffect(() => () => traces.dispose(), [traces]);
 
   const focus = pointerFocus || scrollFocus;
 
@@ -70,28 +82,39 @@ export function NarrativeCardFocusProvider({
     },
     selectCard(index) {
       onSelectCardRef.current?.(index);
-    }
-  }), []);
+    },
+    reachDetail: traces.reach,
+    inspectDetail: traces.inspect,
+    releaseDetail: traces.release,
+    clearTraces: traces.clear
+  }), [traces]);
 
   const cardStates = useMemo(() => {
-    if (!focus) return null;
-    const step = focus.mode === 'sweep' && !calm
-      ? (sweep.key === focus.key ? sweep.step : 0)
-      : Infinity;
-    const touched = focus.mode === 'sweep'
-      ? (step < focus.cards.length ? focus.cards[step] : null)
-      : focus.primary;
+    if (!focus && !trace) return null;
     const states = new Map();
-    for (const card of focus.cards) {
-      states.set(card, {
-        state: card === touched ? 'touched' : 'warm',
-        touches: focus.touches?.[card] || []
-      });
+    let touched = null;
+    let key = 'none';
+    if (focus) {
+      const step = focus.mode === 'sweep' && !calm
+        ? (sweep.key === focus.key ? sweep.step : 0)
+        : Infinity;
+      touched = focus.mode === 'sweep'
+        ? (step < focus.cards.length ? focus.cards[step] : null)
+        : focus.primary;
+      for (const card of focus.cards) {
+        states.set(card, { state: card === touched ? 'touched' : 'warm' });
+      }
+      key = `${focus.key}|${touched ?? 'all'}`;
     }
-    return { states, touched, key: `${focus.key}|${touched ?? 'all'}` };
-  }, [focus, sweep, calm]);
+    // A traced card is in hand while its detail shows, whatever the passage.
+    if (trace) {
+      states.set(trace.card, { state: 'touched' });
+      if (touched === null) touched = trace.card;
+    }
+    return { states, touched, key };
+  }, [focus, sweep, calm, trace]);
 
-  const state = useMemo(() => ({ cards, cardStates, calm }), [cards, cardStates, calm]);
+  const state = useMemo(() => ({ cards, cardStates, trace, calm }), [cards, cardStates, trace, calm]);
 
   return (
     <FocusApiContext.Provider value={api}>

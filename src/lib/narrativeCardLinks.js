@@ -336,8 +336,10 @@ function uniqueInOrder(values) {
  * @param {Object} [options]
  * @param {number|null} [options.context] - Card whose passage this block continues.
  * @param {boolean} [options.allowTouches=true] - Headings name cards but don't describe them.
+ * @param {Set<string>|null} [options.established] - Details ("card:point") an earlier passage
+ *   already described. Naming them again, even without the card's name, returns to that card.
  */
-export function analyzeBlock(text, catalog, { context = null, allowTouches = true } = {}) {
+export function analyzeBlock(text, catalog, { context = null, allowTouches = true, established = null } = {}) {
   const empty = { mentions: [], touches: [], cards: [], primary: null, mode: 'none', intro: null };
   if (!text || !catalog) return empty;
 
@@ -346,7 +348,10 @@ export function analyzeBlock(text, catalog, { context = null, allowTouches = tru
   const first = mentions[0];
   // The name has to come in the opening sentence, not after a sentence about
   // some other card.
-  const opensPassage = first && first.start < sentenceEnd(text, 0) && (
+  // Inside a card's passage, a paragraph relating it to another card ("The
+  // Six of Cups' water and The Tower's fire") stays with the passage's card.
+  const relatesWithinPassage = context !== null && first?.card !== context && mentioned.includes(context);
+  const opensPassage = first && !relatesWithinPassage && first.start < sentenceEnd(text, 0) && (
     (first.start <= INTRO_LEAD && mentioned.length <= 2)
     || (first.start <= INTRO_WINDOW && mentioned.length === 1)
   );
@@ -363,6 +368,12 @@ export function analyzeBlock(text, catalog, { context = null, allowTouches = tru
     primary = mentioned[0];
     mode = 'single';
     cards = uniqueInOrder([primary, ...(context !== null ? [context] : [])]);
+  } else if (mentioned.length > 1 && context !== null && mentioned.includes(context)) {
+    // Under its own heading, a passage that glances at another card ("After
+    // The Tower's noise, this card is quiet") is still about its card.
+    primary = context;
+    mode = 'single';
+    cards = uniqueInOrder([context, ...mentioned]);
   } else if (mentioned.length > 1) {
     mode = 'sweep';
     cards = mentioned;
@@ -412,6 +423,28 @@ export function analyzeBlock(text, catalog, { context = null, allowTouches = tru
       const counts = new Map();
       for (const touch of touches) counts.set(touch.card, (counts.get(touch.card) || 0) + 1);
       primary = cards.reduce((best, card) => ((counts.get(card) || 0) > (counts.get(best) || 0) ? card : best), primary);
+    }
+  }
+
+  // A detail the reading has already shown comes back without its card's
+  // name: "That's one pitcher back into the pool." Only specific details a
+  // passage established can return, and only where no card is in play, so
+  // ordinary words elsewhere stay plain.
+  if (allowTouches && mode === 'none' && catalog.touchPointsEnabled && established?.size) {
+    const excluded = [...mentions, ...idiomRanges(text)];
+    const returning = dropOverlaps(catalog.entries
+      .flatMap((entry) => touchCandidates(text, entry)
+        .filter((candidate) => !entry.weakPoints.has(candidate.point))))
+      .filter((candidate) => established.has(`${candidate.card}:${candidate.point}`))
+      .filter((candidate) => !excluded.some((range) => candidate.start < range.end && range.start < candidate.end))
+      .filter((candidate) => !namesACard(text, candidate))
+      .filter((candidate) => !isElementalUse(text, candidate, mentions));
+    if (returning.length) {
+      touches = returning;
+      cards = uniqueInOrder(returning.map((touch) => touch.card));
+      primary = cards[0];
+      mode = cards.length > 1 ? 'sweep' : 'single';
+      if (mode === 'sweep') primary = null;
     }
   }
 
@@ -521,6 +554,25 @@ function setBlockData(node, properties) {
 }
 
 /**
+ * A card met mid-paragraph ("…the outcome is The Sun: a child on a white
+ * horse, sunflowers…") still deserves its plate where its picture is
+ * described: the one card, not yet shown, that the paragraph's details belong to.
+ */
+function describedCard(analysis, introduced) {
+  const counts = new Map();
+  for (const touch of analysis.touches) counts.set(touch.card, (counts.get(touch.card) || 0) + 1);
+  let best = null;
+  let others = 0;
+  for (const [card, count] of counts) {
+    if (best === null || count > counts.get(best)) best = card;
+  }
+  for (const [card, count] of counts) if (card !== best) others += count;
+  // Mostly about one card's picture, described in more than a word.
+  if (best === null || introduced.has(best) || counts.get(best) < 2 || counts.get(best) <= others) return null;
+  return best;
+}
+
+/**
  * Remark plugin: wraps card names and described details in spans and labels
  * each block with the cards it speaks about.
  *
@@ -535,15 +587,21 @@ export function remarkCardLinks(options = {}) {
     if (!catalog) return;
     // Readings usually open with an overview that names every card; a card's
     // plate belongs with its own passage, not that summary.
-    const state = { context: null, pendingIntro: null, introduced: new Set(), sequence: 0, headings: 0, inOverview: false };
+    const state = { context: null, pendingIntro: null, introduced: new Set(), established: new Set(), sequence: 0, headings: 0, inOverview: false };
+
+    // A one-card reading speaks about its card throughout, named or not ("In
+    // the Rider-Waite-Smith image, the figure stands at a cliff's edge…").
+    const soleCard = catalog.entries.length === 1 ? catalog.entries[0].index : null;
 
     const annotate = (node, kind) => {
       const { segments, text } = collectSegments(node, { paragraphsOnly: kind === 'listItem' });
       // Only prose continues a card's passage; headings and bullets stand alone.
       const analysis = analyzeBlock(text, catalog, {
-        context: kind === 'paragraph' ? state.context : null,
-        allowTouches: kind !== 'heading'
+        context: kind === 'heading' ? null : (kind === 'paragraph' ? state.context : null) ?? soleCard,
+        allowTouches: kind !== 'heading',
+        established: state.established
       });
+      for (const touch of analysis.touches) state.established.add(`${touch.card}:${touch.point}`);
 
       if (kind === 'heading') {
         const named = uniqueInOrder(analysis.mentions.map((mention) => mention.card));
@@ -557,8 +615,9 @@ export function remarkCardLinks(options = {}) {
 
       let introCard = null;
       if (kind === 'paragraph' && !state.inOverview) {
-        const candidate = analysis.intro ?? state.pendingIntro;
-        if (candidate !== null && !state.introduced.has(candidate)) {
+        const candidate = [analysis.intro, state.pendingIntro, describedCard(analysis, state.introduced)]
+          .find((card) => card !== null && card !== undefined && !state.introduced.has(card)) ?? null;
+        if (candidate !== null) {
           introCard = candidate;
           state.introduced.add(candidate);
         }

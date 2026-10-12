@@ -1,27 +1,35 @@
-/* The querent's cards beside their reading. When the text speaks about a
-   card, a reader's hand finds it: the card lifts toward the reader, takes a
-   candlelit rim, and the spot the words describe catches the light while the
-   rest of the artwork settles back. */
+/* The querent's cards inside their reading. When the text turns to a card, a
+   reader's hand finds it: the card lifts, light crosses it once, and when the
+   words describe something drawn there ("two pitchers", "the lightning"),
+   the picture leans in on that part while the rest settles back. One gesture
+   at a time, then rest. */
+
+@property --imagery-mark {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
 
 :root {
   --card-touch-light: 255 236 205;
   --card-touch-veil: 12 9 18;
   --card-touch-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --card-touch-lean: cubic-bezier(0.22, 0.8, 0.24, 1);
   --spread-rail-width: 8.5rem;
 }
 
 /* --- Card artwork ------------------------------------------------------- */
 
 /* WebKit crashes when one element transitions transform and filter together,
-   so the lift stays here and the desaturation of receding cards sits on the
-   image inside. */
+   so the lift stays here and the dimming of receding cards sits on the image
+   inside. */
 .card-touch {
   position: relative;
   display: block;
   width: 100%;
   transition:
-    transform 560ms var(--card-touch-ease),
-    opacity 360ms ease-out;
+    transform 620ms var(--card-touch-ease),
+    opacity 420ms ease-out;
 }
 
 .card-touch__art {
@@ -29,16 +37,32 @@
   display: block;
   aspect-ratio: 100 / 172;
   overflow: hidden;
+  isolation: isolate;
   border-radius: 6px;
   background: var(--bg-surface-muted);
   box-shadow:
     0 0 0 1px var(--border-warm),
-    0 10px 22px -14px rgb(0 0 0 / 0.75);
-  transition: box-shadow 560ms var(--card-touch-ease);
+    0 12px 24px -16px rgb(0 0 0 / 0.8);
+  transition: box-shadow 620ms var(--card-touch-ease);
 }
 
 .card-touch__art--reversed {
   transform: rotate(180deg);
+}
+
+/* The picture and its light move as one, so the light stays on the detail
+   while the view leans in. */
+.card-touch__lens {
+  position: absolute;
+  inset: 0;
+  transform: translate(var(--lens-x, 0%), var(--lens-y, 0%)) scale(var(--lens-zoom, 1));
+  transform-origin: 50% 50%;
+  transition: transform 980ms var(--card-touch-lean);
+}
+
+.card-touch[data-leaning] .card-touch__lens {
+  transition-duration: 1250ms;
+  will-change: transform;
 }
 
 .card-touch__image {
@@ -48,7 +72,7 @@
   object-fit: cover;
   /* Plates sit inside prose, which spaces images as figures. */
   margin: 0;
-  transition: filter 360ms ease-out;
+  transition: filter 420ms ease-out;
   user-select: none;
   -webkit-user-drag: none;
 }
@@ -64,56 +88,61 @@
 .card-touch__veil {
   fill: rgb(var(--card-touch-veil));
   opacity: 0;
-  transition: opacity 480ms ease-out;
+  transition: opacity 640ms ease-out;
 }
 
 .card-touch[data-lit] .card-touch__veil {
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .card-touch__glow {
   mix-blend-mode: screen;
   transform-box: fill-box;
   transform-origin: center;
-  animation: card-touch-light 720ms var(--card-touch-ease) both;
+  animation: card-touch-glow 1500ms var(--card-touch-ease) both;
 }
 
-/* The moment of contact: candlelight flares where the hand lands, then
-   settles. */
-.card-touch__bloom {
+/* Light crosses the card once as the reading turns to it. */
+.card-touch__sheen {
   position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    circle at var(--touch-x, 50%) var(--touch-y, 50%),
-    rgb(var(--card-touch-light) / 0.6) 0%,
-    rgb(var(--card-touch-light) / 0.18) 24%,
-    rgb(var(--card-touch-light) / 0) 52%
+  inset: -10% -60%;
+  background: linear-gradient(
+    105deg,
+    rgb(var(--card-touch-light) / 0) 38%,
+    rgb(var(--card-touch-light) / 0.3) 50%,
+    rgb(var(--card-touch-light) / 0) 62%
   );
   mix-blend-mode: screen;
   pointer-events: none;
-  animation: card-touch-bloom 1200ms ease-out both;
+  animation: card-touch-sheen 1400ms cubic-bezier(0.3, 0.55, 0.2, 1) both;
 }
 
-@keyframes card-touch-light {
-  from {
+@keyframes card-touch-glow {
+  0% {
     opacity: 0;
     transform: scale(0.55);
   }
-  to {
+  45% {
     opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0.85;
     transform: scale(1);
   }
 }
 
-@keyframes card-touch-bloom {
+@keyframes card-touch-sheen {
   0% {
     opacity: 0;
+    transform: translateX(-38%);
   }
-  24% {
+  20% {
     opacity: 1;
   }
   100% {
     opacity: 0;
+    transform: translateX(38%);
   }
 }
 
@@ -123,7 +152,148 @@
   }
 }
 
-/* --- Spread companion: rail (wide) and row (narrow) --------------------- */
+/* In hand: lifted a little, with a candlelit rim. */
+.spread-companion__card[data-state='warm'] .card-touch__art,
+.card-touch-plate[data-state='warm'] .card-touch__art {
+  box-shadow:
+    0 0 0 1px rgb(var(--brand-primary-rgb) / 0.5),
+    0 12px 24px -16px rgb(0 0 0 / 0.8);
+}
+
+.spread-companion__card[data-state='touched'] .card-touch__art,
+.card-touch-plate[data-state='touched'] .card-touch__art,
+.card-echo .card-touch__art {
+  box-shadow:
+    0 0 0 1px rgb(var(--brand-primary-rgb) / 0.9),
+    0 18px 32px -18px rgb(var(--brand-primary-rgb) / 0.55),
+    0 10px 18px -10px rgb(0 0 0 / 0.75);
+}
+
+/* --- Plate: the card beside the words that describe it ------------------ */
+
+.card-touch-plate {
+  float: left;
+  display: block;
+  width: clamp(7rem, 36%, 10rem);
+  margin: 0.3em 1.05rem 0.6rem 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card-touch-plate[data-state='touched'] .card-touch {
+  transform: translateY(-3px);
+}
+
+.card-touch-plate:focus-visible {
+  outline: 2px solid rgb(var(--brand-primary-rgb) / 0.9);
+  outline-offset: 4px;
+}
+
+.card-touch-plate__caption {
+  display: block;
+  margin-top: 0.55rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  transition: color 420ms ease-out;
+}
+
+/* Long position names ("Likely direction on current path") read better in
+   sentence case over two lines than shouted over four. */
+.card-touch-plate__caption[data-long] {
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.card-touch-plate__orientation {
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-style: italic;
+}
+
+.card-touch-plate[data-state='touched'] .card-touch-plate__caption {
+  color: rgb(var(--brand-primary-rgb));
+}
+
+.reading-plate-paragraph {
+  display: flow-root;
+}
+
+@media (min-width: 640px) {
+  .card-touch-plate {
+    width: 10.5rem;
+    margin-right: 1.4rem;
+  }
+}
+
+/* --- Echo: a returning card, shown at the edge for a moment -------------- */
+
+.card-echo {
+  position: fixed;
+  z-index: 30;
+  top: calc(env(safe-area-inset-top, 0px) + var(--card-echo-top, 4.5rem));
+  right: 0.75rem;
+  width: 5.75rem;
+  opacity: 0;
+  transform: translateX(1.5rem) scale(0.96);
+  transform-origin: 100% 0;
+  pointer-events: none;
+  transition:
+    opacity 320ms ease-out,
+    transform 520ms var(--card-touch-ease);
+}
+
+.card-echo[data-visible] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.card-echo__card {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.4rem 0.35rem;
+  border: 1px solid rgb(var(--brand-primary-rgb) / 0.35);
+  border-radius: 10px;
+  background: rgb(var(--card-touch-veil) / 0.82);
+  box-shadow: 0 18px 36px -18px rgb(0 0 0 / 0.9);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card-echo__caption {
+  display: block;
+  margin-top: 0.4rem;
+  color: rgb(var(--brand-primary-rgb));
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.card-echo__orientation {
+  display: block;
+  color: var(--text-muted);
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* --- Spread companion: the whole spread beside the text on wide screens -- */
 
 .spread-companion__list {
   margin: 0;
@@ -159,7 +329,7 @@
   text-transform: uppercase;
   hyphens: auto;
   overflow-wrap: break-word;
-  transition: color 360ms ease-out;
+  transition: color 420ms ease-out;
 }
 
 .spread-companion__orientation {
@@ -184,23 +354,8 @@
   filter: saturate(0.6) brightness(0.82);
 }
 
-.spread-companion__card[data-state='warm'] .card-touch__art,
-.card-touch-plate[data-state='warm'] .card-touch__art {
-  box-shadow:
-    0 0 0 1px rgb(var(--brand-primary-rgb) / 0.55),
-    0 10px 22px -14px rgb(0 0 0 / 0.75);
-}
-
 .spread-companion__card[data-state='touched'] .card-touch {
   transform: translateY(-6px);
-}
-
-.spread-companion__card[data-state='touched'] .card-touch__art,
-.card-touch-plate[data-state='touched'] .card-touch__art {
-  box-shadow:
-    0 0 0 1px rgb(var(--brand-primary-rgb) / 0.9),
-    0 18px 30px -16px rgb(var(--brand-primary-rgb) / 0.5),
-    0 8px 16px -8px rgb(0 0 0 / 0.7);
 }
 
 @media (hover: hover) {
@@ -209,7 +364,6 @@
   }
 }
 
-/* Rail: the whole spread stays beside the text while it is read. */
 .spread-companion--rail {
   display: none;
 }
@@ -248,62 +402,6 @@
   margin-top: 0.375rem;
   letter-spacing: 0.01em;
   text-transform: none;
-}
-
-/* Row: the spread opens the reading on narrower screens. */
-.spread-companion--row {
-  margin-top: 1.5rem;
-}
-
-.spread-companion--row .spread-companion__list {
-  display: flex;
-  gap: 0.875rem;
-  width: max-content;
-  max-width: 100%;
-  margin-inline: auto;
-  padding: 0.5rem 0.25rem 0.25rem;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
-  scrollbar-width: thin;
-}
-
-.spread-companion--row .spread-companion__item {
-  flex: 0 0 auto;
-  width: clamp(3.25rem, calc((100vw - 4rem) / var(--row-count, 3) - 0.875rem), 4.75rem);
-  scroll-snap-align: center;
-}
-
-.spread-companion--row .spread-companion__card[data-state='touched'] .card-touch {
-  transform: translateY(-4px);
-}
-
-/* Plate: the card set into the paragraph that opens its passage. */
-.card-touch-plate {
-  float: left;
-  width: 4.75rem;
-  margin: 0.35em 1rem 0.5rem 0;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.card-touch-plate[data-state='touched'] .card-touch {
-  transform: translateY(-3px);
-}
-
-.reading-plate-paragraph {
-  display: flow-root;
-}
-
-@media (min-width: 640px) {
-  .card-touch-plate {
-    width: 6rem;
-    margin-right: 1.25rem;
-  }
 }
 
 /* The scene clips its backdrop; clip (unlike hidden) creates no scroll
@@ -347,40 +445,60 @@
     padding-top: 0.5rem;
   }
 
-  .spread-companion--row,
-  .card-touch-plate {
+  .card-touch-plate,
+  .card-echo {
     display: none;
   }
 }
 
 /* --- Linked text -------------------------------------------------------- */
 
-/* Described details are marked only in the passage being read. */
+/* A described detail is marked only once the reader reaches it: a hairline
+   draws in under the words while the card shows them, then stays faintly as
+   a way back. Text ahead of the reader stays clean. */
 .reading-imagery {
-  border-radius: 0.25rem;
-  text-decoration-line: underline;
-  text-decoration-style: dotted;
-  text-decoration-thickness: 1px;
-  text-decoration-color: transparent;
-  text-underline-offset: 0.3em;
+  --imagery-mark: transparent;
+  background-image: linear-gradient(var(--imagery-mark), var(--imagery-mark));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0% 1px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  border-radius: 0.2rem;
+  cursor: pointer;
   transition:
-    text-decoration-color 420ms ease-out,
-    background-color 260ms ease-out,
-    color 260ms ease-out;
+    background-size 760ms cubic-bezier(0.3, 0.7, 0.2, 1),
+    --imagery-mark 600ms ease-out,
+    color 420ms ease-out;
 }
 
-[data-reading-active] .reading-imagery {
-  text-decoration-color: rgb(var(--brand-primary-rgb) / 0.7);
+.reading-imagery[data-traced] {
+  --imagery-mark: rgb(var(--brand-primary-rgb) / 0.55);
+  background-size: 100% 1px;
+}
+
+.reading-imagery[data-tracing] {
+  --imagery-mark: rgb(var(--brand-primary-rgb) / 0.95);
+  background-size: 100% 1px;
+  color: var(--text-main);
 }
 
 .reading-imagery[data-touch-hover] {
+  --imagery-mark: rgb(var(--brand-primary-rgb) / 0.95);
+  background-size: 100% 1px;
   color: var(--text-main);
-  background-color: rgb(var(--brand-primary-rgb) / 0.14);
-  text-decoration-style: solid;
-  text-decoration-color: rgb(var(--brand-primary-rgb) / 0.95);
+}
+
+/* Card names keep the reading's accent color without boxes or underlines;
+   the card itself carries the emphasis. */
+.reading-card-ref.narrative-emphasis {
+  background: none;
+  text-decoration: none;
+  text-shadow: none;
 }
 
 .reading-card-ref {
+  border-radius: 0.2rem;
   transition: background-color 260ms ease-out, box-shadow 260ms ease-out;
 }
 
@@ -396,15 +514,20 @@
 [data-spread-hover='8'] .reading-card-ref[data-card-index='8'],
 [data-spread-hover='9'] .reading-card-ref[data-card-index='9'],
 .reading-card-ref[data-touch-hover] {
-  background-color: rgb(var(--brand-primary-rgb) / 0.2);
-  box-shadow: 0 0 0 1px rgb(var(--brand-primary-rgb) / 0.45);
+  background-color: rgb(var(--brand-primary-rgb) / 0.16);
+  box-shadow: 0 0 0 2px rgb(var(--brand-primary-rgb) / 0.16);
 }
 
 /* --- Calm and reduced motion -------------------------------------------- */
 
-[data-calm] .card-touch__glow,
-[data-calm] .card-touch__bloom {
+/* The same associations, without movement: the detail is lit in place. */
+[data-calm] .card-touch__glow {
   mix-blend-mode: normal;
+}
+
+[data-calm] .card-touch__lens {
+  transform: none;
+  transition: none;
 }
 
 .spread-companion[data-calm][data-focus] .spread-companion__card:not([data-state]) .card-touch__image {
@@ -415,14 +538,20 @@
   .card-touch,
   .card-touch__art,
   .card-touch__image,
-  .card-touch__veil {
+  .card-touch__veil,
+  .card-echo {
     transition-duration: 160ms;
   }
 
+  .card-touch__lens {
+    transform: none;
+    transition: none;
+  }
+
   .spread-companion__card[data-state='touched'] .card-touch,
-  .spread-companion--row .spread-companion__card[data-state='touched'] .card-touch,
   .card-touch-plate[data-state='touched'] .card-touch,
-  .spread-companion__card:hover .card-touch {
+  .spread-companion__card:hover .card-touch,
+  .card-echo {
     transform: none;
   }
 
@@ -430,7 +559,11 @@
     animation: card-touch-fade 200ms ease-out both;
   }
 
-  .card-touch__bloom {
+  .card-touch__sheen {
     display: none;
+  }
+
+  .reading-imagery {
+    transition-duration: 160ms;
   }
 }

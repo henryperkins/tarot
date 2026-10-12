@@ -4,10 +4,21 @@ import { useNarrativeCardFocusApi } from '../components/reading/narrative/Narrat
 
 // The eye rests a little above the middle of the screen while reading.
 const READING_LINE = 0.42;
-// A tapped card name or detail stays lit long enough to find it on the card.
+// Described details count as reached once they are in the band the eye reads
+// in, so a quick scroll can't skip over them.
+const READING_ZONE = [0.26, 0.6];
+// A tapped card name stays lit long enough to find it in the spread.
 const PIN_MS = 2800;
 const BLOCK = '[data-reading-block]';
+const DETAIL = '.reading-imagery';
 const LINKED_TEXT = '.reading-imagery, .reading-card-ref';
+
+function detailOf(element) {
+  const card = Number(element?.dataset?.cardIndex);
+  const point = element?.dataset?.touchId || '';
+  if (!Number.isInteger(card) || !point) return null;
+  return { card, points: [point], element };
+}
 
 function pointerFocusFor(target, container) {
   const element = target?.closest?.(LINKED_TEXT);
@@ -17,6 +28,7 @@ function pointerFocusFor(target, container) {
   const point = element.dataset.touchId || '';
   return {
     element,
+    detail: point ? { card, points: [point], element } : null,
     focus: {
       key: `pointer:${card}:${point}`,
       mode: 'single',
@@ -27,16 +39,23 @@ function pointerFocusFor(target, container) {
   };
 }
 
-function containsBlock(node) {
-  return node.nodeType === 1 && (node.matches(BLOCK) || Boolean(node.querySelector(BLOCK)));
+function containsTracked(node) {
+  return node.nodeType === 1 && (
+    node.matches(BLOCK) || node.matches(DETAIL)
+    || Boolean(node.querySelector(BLOCK)) || Boolean(node.querySelector(DETAIL))
+  );
 }
 
 /**
- * Report which block of the reading the querent has reached.
+ * Report what the querent has reached in the reading.
  *
- * While text is still arriving, the newest block is the one being "spoken".
- * Once it is all there, the block crossing the reading line is. Pointing at
- * (or tapping) a card name or described detail takes over while it lasts.
+ * - The passage at the reading line rests a hand on its card.
+ * - Each described detail ("the lightning", "two pitchers") that comes into
+ *   the band the eye reads in asks the card to show that part of its picture.
+ *
+ * While text is still arriving, the newest passage and the newest details are
+ * the ones being "spoken". Pointing at (or tapping) a card name or detail
+ * takes over while it lasts.
  */
 export function useNarrativeReadingLine(containerRef, { enabled = false, isLive = false } = {}) {
   const api = useNarrativeCardFocusApi();
@@ -47,10 +66,12 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
     api.registerContainer(container);
 
     let active = null;
-    let blockObserver = null;
-    let containerObserver = null;
+    let blocks = [];
+    let details = [];
     let frame = 0;
-    let resizeTimer = 0;
+    let listFrame = 0;
+    const inZone = new Set();
+    const announced = new WeakSet();
 
     const activate = (block) => {
       if (block === active) return;
@@ -59,16 +80,15 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       block?.setAttribute('data-reading-active', 'true');
       api.setScrollFocus(block ? readBlockFocus(block) : null);
     };
-    const readingLine = () => Math.round((window.innerHeight || 0) * READING_LINE);
 
     // The block under the reading line, or the last one above it while the
     // line sits in the gap between two blocks.
-    const blockAtLine = (list) => {
-      const line = readingLine();
+    const blockAtLine = () => {
+      const line = (window.innerHeight || 0) * READING_LINE;
       const box = container.getBoundingClientRect();
       if (box.top > line || box.bottom < line) return null;
       let above = null;
-      for (const block of list) {
+      for (const block of blocks) {
         const rect = block.getBoundingClientRect();
         if (rect.top > line) break;
         if (rect.bottom >= line) return block;
@@ -77,68 +97,75 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       return above;
     };
 
-    const build = () => {
+    const read = () => {
       frame = 0;
-      blockObserver?.disconnect();
-      containerObserver?.disconnect();
-      blockObserver = null;
-      containerObserver = null;
-      const list = Array.from(container.querySelectorAll(BLOCK));
-
-      if (isLive) {
-        activate(list[list.length - 1] || null);
-        return;
-      }
-
-      activate(blockAtLine(list));
+      if (isLive) return;
+      activate(blockAtLine());
       const height = window.innerHeight || 0;
-      const line = readingLine();
-      // A one-pixel band at the reading line.
-      const rootMargin = `-${line}px 0px -${Math.max(0, height - line - 1)}px 0px`;
-      const crossing = new Set();
-      blockObserver = new IntersectionObserver((entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) crossing.add(entry.target);
-          else crossing.delete(entry.target);
-        }
-        let next = null;
-        for (const block of list) if (crossing.has(block)) next = block;
-        // Between blocks, the last one read stays in hand.
-        if (next) activate(next);
-      }, { rootMargin });
-      list.forEach((block) => blockObserver.observe(block));
-      containerObserver = new IntersectionObserver(([entry]) => {
-        if (entry && !entry.isIntersecting) activate(null);
-      }, { rootMargin });
-      containerObserver.observe(container);
+      const top = height * READING_ZONE[0];
+      const bottom = height * READING_ZONE[1];
+      const entered = [];
+      for (const element of details) {
+        const rect = element.getBoundingClientRect();
+        const inside = rect.bottom >= top && rect.top <= bottom;
+        if (inside && !inZone.has(element)) entered.push(element);
+        if (inside) inZone.add(element);
+        else inZone.delete(element);
+      }
+      // Several at once (a jump, or one line holding two details) report in
+      // reading order.
+      for (const element of entered) {
+        const detail = detailOf(element);
+        if (detail) api.reachDetail(detail);
+      }
     };
     const schedule = () => {
-      if (!frame) frame = window.requestAnimationFrame(build);
+      if (!frame) frame = window.requestAnimationFrame(read);
     };
 
-    // Re-rendering the Markdown replaces its block elements, so watch for new
-    // blocks instead of trusting the ones observed first.
+    const collect = () => {
+      listFrame = 0;
+      blocks = Array.from(container.querySelectorAll(BLOCK));
+      details = Array.from(container.querySelectorAll(DETAIL));
+      for (const element of Array.from(inZone)) {
+        if (!element.isConnected) inZone.delete(element);
+      }
+      if (isLive) {
+        activate(blocks[blocks.length - 1] || null);
+        // Details are shown as they are spoken, once each, in order.
+        for (const element of details) {
+          if (announced.has(element)) continue;
+          announced.add(element);
+          const detail = detailOf(element);
+          if (detail) api.reachDetail(detail);
+        }
+        return;
+      }
+      schedule();
+    };
+
+    // Re-rendering the Markdown replaces its elements, so watch for new blocks
+    // and details instead of trusting the ones found first.
     const mutations = new MutationObserver((records) => {
-      if (records.some((record) => [...record.addedNodes, ...record.removedNodes].some(containsBlock))) schedule();
+      if (records.some((record) => [...record.addedNodes, ...record.removedNodes].some(containsTracked))) {
+        if (!listFrame) listFrame = window.requestAnimationFrame(collect);
+      }
     });
     mutations.observe(container, { childList: true, subtree: true });
 
-    build();
-    const handleResize = () => {
-      window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(schedule, 150);
-    };
-    window.addEventListener('resize', handleResize, { passive: true });
+    collect();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
 
     return () => {
       window.cancelAnimationFrame(frame);
-      window.clearTimeout(resizeTimer);
-      window.removeEventListener('resize', handleResize);
+      window.cancelAnimationFrame(listFrame);
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
       mutations.disconnect();
-      blockObserver?.disconnect();
-      containerObserver?.disconnect();
       active?.removeAttribute('data-reading-active');
       api.setScrollFocus(null);
+      api.clearTraces();
     };
   }, [api, containerRef, enabled, isLive]);
 
@@ -155,40 +182,47 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       hovered = element;
       hovered?.setAttribute('data-touch-hover', 'true');
     };
-    const handleOver = (event) => {
-      if (event.pointerType === 'touch') return;
-      const found = pointerFocusFor(event.target, container);
-      if (!found) return;
-      mark(found.element);
-      api.setPointerFocus(found.focus);
-    };
-    const handleOut = (event) => {
-      if (event.pointerType === 'touch') return;
-      const from = pointerFocusFor(event.target, container);
-      if (!from) return;
-      const to = pointerFocusFor(event.relatedTarget, container);
-      if (to?.element === from.element) return;
+    const leave = () => {
+      if (!hovered) return;
+      const wasDetail = hovered.matches(DETAIL);
       mark(null);
       api.clearPointerFocus();
+      if (wasDetail) api.releaseDetail();
     };
-    // Touch has no hover: a tap lights the card for a moment instead.
+    // Only a pointer that actually moves is hovering: text scrolling under a
+    // resting cursor must not take the cards away from the reading.
+    const handleMove = (event) => {
+      if (event.pointerType === 'touch') return;
+      if (!event.movementX && !event.movementY) return;
+      const found = pointerFocusFor(event.target, container);
+      if (found?.element === hovered) return;
+      if (!found) {
+        leave();
+        return;
+      }
+      mark(found.element);
+      api.setPointerFocus(found.focus);
+      if (found.detail) api.inspectDetail(found.detail);
+    };
+    // Touch has no hover: a tap shows the detail (or the card) for a moment.
     const handleClick = (event) => {
       const found = pointerFocusFor(event.target, container);
       if (!found) return;
       mark(found.element);
       api.setPointerFocus(found.focus);
+      if (found.detail) api.inspectDetail(found.detail);
       pinTimer = window.setTimeout(() => {
         mark(null);
         api.clearPointerFocus();
       }, PIN_MS);
     };
 
-    container.addEventListener('pointerover', handleOver);
-    container.addEventListener('pointerout', handleOut);
+    container.addEventListener('pointermove', handleMove);
+    container.addEventListener('pointerleave', leave);
     container.addEventListener('click', handleClick);
     return () => {
-      container.removeEventListener('pointerover', handleOver);
-      container.removeEventListener('pointerout', handleOut);
+      container.removeEventListener('pointermove', handleMove);
+      container.removeEventListener('pointerleave', leave);
       container.removeEventListener('click', handleClick);
       mark(null);
     };
