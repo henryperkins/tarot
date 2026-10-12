@@ -13,6 +13,7 @@ const harness = `
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { NarrativePanel } from './src/components/NarrativePanel.jsx';
+import { AuthProvider } from './src/contexts/AuthContext.jsx';
 import { NarrativeSection } from './src/components/journal/entry-card/EntrySections/NarrativeSection.jsx';
 import { createGestureSource } from './src/lib/narrativeGestureSource.js';
 import { useReadingGestureRuntime } from './src/hooks/useReadingGestureRuntime.js';
@@ -48,7 +49,7 @@ function App() {
  <div className='card-links-only'><StreamingNarrative text='Lust offers courage.' useMarkdown isStreamingEnabled={false} cardLinks={cardLinks} /></div>
  <NarrativeSection narrativeText={'Saved **reading** [journal link](#journal)'} narrativeId='journal' collapsible={false} /> </>;
 }
-createRoot(document.getElementById('root')).render(<App />);`;
+createRoot(document.getElementById('root')).render(<AuthProvider><App /></AuthProvider>);`;
 
 test('optimized browser preserves prose, selection and focus while loading gated gestures', { timeout: 60000 }, async () => {
   const outdir = await mkdtemp(path.join(tmpdir(), 'tableu-lazy-browser-'));
@@ -64,6 +65,7 @@ test('optimized browser preserves prose, selection and focus while loading gated
     server = createServer(async (req, res) => {
       const file = path.basename(new URL(req.url, 'http://localhost').pathname);
       if (!file) { res.setHeader('Content-Type', 'text/html'); res.end('<div id="root"></div><script type="module" src="/stdin.js"></script>'); return; }
+      if (new URL(req.url, 'http://localhost').pathname === '/api/auth/me') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ user: null })); return; }
       if (file === 'card.svg') { res.setHeader('Content-Type', 'image/svg+xml'); res.end('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="172"/>'); return; }
       try { res.setHeader('Content-Type', file.endsWith('.css') ? 'text/css' : 'text/javascript'); res.end(await readFile(path.join(outdir, file))); }
       catch { res.statusCode = 404; res.end(); }
@@ -176,4 +178,73 @@ test('optimized browser preserves prose, selection and focus while loading gated
     assert.equal(await unavailable.getByRole('link', { name: 'Keep focus' }).count(), 1, 'optional chunk failure never blocks streamed prose');
     assert.deepEqual(unavailableErrors, []);
   } finally { await browser?.close(); await new Promise(resolve => server ? server.close(resolve) : resolve()); await rm(outdir, { recursive: true, force: true }); }
+});
+
+// Model requests use their own explicit opt-in; presentation alone still mounts
+// the real hook and can render already accepted cue data after transport stops.
+test('production visual hook opens no unconsented transport and retains accepted cues when stopped', { timeout: 60000 }, async () => {
+  const outdir = await mkdtemp(path.join(tmpdir(), 'tableu-request-gate-browser-'));
+  let browser; let server;
+  const hookHarness = `
+import React, { useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { useReadingVisualJob } from './src/hooks/useReadingVisualJob.js';
+const raw = 'The Star offers hope.';
+const binding = { readingResultId: 'hook-result', sourceRevision: 0, spreadHash: 'a'.repeat(64),
+ contextHash: 'b'.repeat(64), artworkEdition: 'rws-immanuelle-vector', catalogVersion: 'fixture-v1' };
+const cue = { id: 'accepted-star', kind: 'identity', passage: { start: 0, end: 8, quote: 'The Star' }, targets: [{ spreadIndex: 0, detailIds: [] }] };
+const ledger = { version: 1, binding, ledgerRevision: 1, raw, analyzedEnd: raw.length, cues: [cue], introductions: [], receipts: [] };
+window.transportCalls = [];
+window.fetch = async (url, init) => { window.transportCalls.push({ url, token: init.headers['X-Visual-Token'] });
+ return new Response('event: done\\ndata: ' + JSON.stringify({ binding, status: 'complete', eventId: 1, cueLedger: ledger }) + '\\n\\n',
+ { headers: { 'Content-Type': 'text/event-stream' } }); };
+function App() {
+ const [enabled, setEnabled] = useState(true);
+ window.stopVisualTransport = () => setEnabled(false);
+ const result = useReadingVisualJob({ readingResultId: binding.readingResultId, visualBinding: binding,
+ visualJobToken: 'existing-private-token', raw, enabled });
+ return <><p>{raw}</p><output data-status={result.status}>{JSON.stringify(result.cues)}</output></>;
+}
+createRoot(document.getElementById('root')).render(<App />);`;
+  try {
+    for (const annotations of ['false', 'true']) {
+      await build({ stdin: { contents: hookHarness, resolveDir: process.cwd(), sourcefile: 'request-hook.jsx', loader: 'jsx' },
+        bundle: true, format: 'esm', platform: 'browser', outfile: path.join(outdir, `${annotations}.js`),
+        minify: true, jsx: 'automatic', define: { 'import.meta.env': JSON.stringify({ DEV: false, MODE: 'production',
+          VITE_READING_ALIGNER_ENABLED: 'true', VITE_READING_MODEL_ANNOTATIONS: annotations }), 'process.env.NODE_ENV': '"production"' },
+        logLevel: 'silent' });
+    }
+    server = createServer(async (req, res) => {
+      const url = new URL(req.url, 'http://localhost');
+      const file = path.basename(url.pathname);
+      if (!file) { res.setHeader('Content-Type', 'text/html'); res.end(`<div id="root"></div><script type="module" src="/${url.searchParams.get('annotations') === 'true' ? 'true' : 'false'}.js"></script>`); return; }
+      try { res.setHeader('Content-Type', 'text/javascript'); res.end(await readFile(path.join(outdir, file))); }
+      catch { res.statusCode = 404; res.end(); }
+    });
+    await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    browser = await chromium.launch({ headless: true });
+    const disabled = await browser.newPage();
+    await disabled.goto(origin);
+    await disabled.locator('output[data-status="idle"]').waitFor();
+    await disabled.evaluate(() => new Promise(resolve => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve))));
+    assert.equal(await disabled.locator('p').textContent(), 'The Star offers hope.');
+    assert.deepEqual(await disabled.evaluate(() => window.transportCalls), []);
+    await disabled.reload();
+    await disabled.locator('output[data-status="idle"]').waitFor();
+    assert.deepEqual(await disabled.evaluate(() => window.transportCalls), []);
+    const consented = await browser.newPage();
+    await consented.goto(`${origin}/?annotations=true`);
+    await consented.locator('output[data-status="complete"]').waitFor();
+    const accepted = await consented.locator('output').textContent();
+    assert.deepEqual(JSON.parse(accepted).map(cue => cue.passage.quote), ['The Star']);
+    await consented.evaluate(() => window.stopVisualTransport());
+    await consented.evaluate(() => new Promise(resolve => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve))));
+    assert.equal(await consented.locator('output').textContent(), accepted, 'stopping transport preserves the exact accepted ledger');
+    assert.equal(await consented.evaluate(() => window.transportCalls.length), 1);
+  } finally {
+    await browser?.close();
+    await new Promise(resolve => server ? server.close(resolve) : resolve());
+    await rm(outdir, { recursive: true, force: true });
+  }
 });

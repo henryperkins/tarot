@@ -4,7 +4,7 @@ import { useReadingVisualJob } from '../hooks/useReadingVisualJob.js';
 import { sameVisualCueBinding } from '../../shared/contracts/visualCueBatches.js';
 import { useAuth } from './AuthContext';
 import { patchSavedVisualSnapshot, visualStorageNamespace } from '../lib/readingVisualStorage.js';
-import { readingGesturesEnabled } from '../lib/readingGestureSettings.js';
+import { readingVisualRequestsEnabled } from '../lib/readingGestureSettings.js';
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTarotState } from '../hooks/useTarotState';
@@ -37,7 +37,7 @@ const ReadingContext = createContext(null);
 
 export function ReadingProvider({ children }) {
     const { user, loading: authLoading } = useAuth();
-    const gestureStudyEnabled = readingGesturesEnabled();
+    const visualRequestsEnabled = readingVisualRequestsEnabled();
     const visualNamespace = visualStorageNamespace(user?.id);
     const visualNamespaceRef = useRef(visualNamespace);
     const [visualResume, setVisualResume] = useState(null);
@@ -170,7 +170,7 @@ export function ReadingProvider({ children }) {
         visualBinding: visualResume?.visualBinding,
         visualJobToken: visualResume?.visualJobToken,
         raw: gestureSource?.raw || '',
-        enabled: gestureStudyEnabled && !authLoading && visualResume?.namespace === visualNamespace,
+        enabled: visualRequestsEnabled && !authLoading && visualResume?.namespace === visualNamespace,
         onBatch: acceptVisualSnapshot,
         onStatus: acceptVisualStatus
     });
@@ -538,7 +538,7 @@ export function ReadingProvider({ children }) {
         if (gestureSourceRef.current?.runId !== runId) beginGestureSource(runId, {
             visualBinding: readingJobRef.current.visualBinding,
             sourceRevision: readingJobRef.current.visualBinding?.sourceRevision || 0,
-            ...(readingJobRef.current.visualBinding ? { visualJobStatus: 'pending' } : {})
+            ...(visualRequestsEnabled && readingJobRef.current.visualBinding ? { visualJobStatus: 'pending' } : {})
         });
         updateGestureSource(runId, { status: 'streaming' });
         inFlightReadingRef.current = { controller, jobId };
@@ -838,7 +838,8 @@ export function ReadingProvider({ children }) {
         flushNarrationBuffer,
         finalizeNarrationStream,
         isNarrationStreamActive,
-        settleNarrationAfterStreamFailure
+        settleNarrationAfterStreamFailure,
+        visualRequestsEnabled
     ]);
 
     const resumeReadingStreamIfEligible = useCallback(() => {
@@ -953,10 +954,13 @@ export function ReadingProvider({ children }) {
                 jobToken: parsed.jobToken,
                 cursor,
                 runId: parsed.runId || crypto.randomUUID(),
+                readingResultId: parsed.readingResultId || null,
                 visualBinding: parsed.visualBinding || null,
+                visualJobToken: parsed.visualJobToken || null,
+                namespace: parsed.namespace || visualNamespaceRef.current,
                 readingKey: parsed.readingKey || null
             };
-            if (gestureStudyEnabled && parsed.readingResultId && parsed.visualBinding) {
+            if (visualRequestsEnabled && parsed.readingResultId && parsed.visualBinding) {
                 setVisualResume({ readingResultId: parsed.readingResultId, visualBinding: parsed.visualBinding,
                     visualJobToken: parsed.visualJobToken, namespace: visualNamespaceRef.current });
                 setReadingMeta(previous => ({ ...previous, readingResultId: parsed.readingResultId, visualBinding: parsed.visualBinding }));
@@ -965,7 +969,7 @@ export function ReadingProvider({ children }) {
         } catch {
             clearReadingJob();
         }
-    }, [buildReadingKey, cancelInFlightReading, clearReadingJob, resumeReadingStreamIfEligible, gestureStudyEnabled]);
+    }, [buildReadingKey, cancelInFlightReading, clearReadingJob, resumeReadingStreamIfEligible, visualRequestsEnabled]);
 
     useEffect(() => {
         if (typeof document === 'undefined') return;
@@ -1173,7 +1177,7 @@ export function ReadingProvider({ children }) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(gestureStudyEnabled ? { 'X-Reading-Cue-Display': '1' } : {})
+                    ...(visualRequestsEnabled ? { 'X-Reading-Cue-Display': '1' } : {})
                 },
                 body: JSON.stringify(normalizedPayload.data),
                 signal: startController.signal
@@ -1220,9 +1224,9 @@ export function ReadingProvider({ children }) {
             const readingKey = buildReadingKey();
             const readingResultId = startData?.readingResultId || null;
             const visualBinding = startData?.visualBinding || null;
-            const visualJobToken = startData?.visualJobToken || null;
+            const visualJobToken = visualRequestsEnabled ? startData?.visualJobToken || null : null;
             if (startController.signal.aborted || gestureSourceRef.current?.runId !== runId) return;
-            if (gestureStudyEnabled && readingResultId && visualBinding) {
+            if (visualRequestsEnabled && readingResultId && visualBinding) {
                 runId = beginGestureSource(readingResultId, { visualBinding, sourceRevision: visualBinding.sourceRevision, visualJobStatus: 'pending' });
                 setVisualResume({ readingResultId, visualBinding, visualJobToken, namespace: visualNamespaceRef.current });
             }
@@ -1301,7 +1305,7 @@ export function ReadingProvider({ children }) {
         streamReadingJob,
         beginGestureSource,
         updateGestureSource,
-        gestureStudyEnabled
+        visualRequestsEnabled
     ]);
 
     // --- Logic: Analysis Highlights ---

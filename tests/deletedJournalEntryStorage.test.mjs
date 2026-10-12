@@ -1,3 +1,4 @@
+const modelClientEnv = { DEV: false, MODE: 'production', VITE_READING_ALIGNER_ENABLED: 'true', VITE_READING_MODEL_ANNOTATIONS: 'true' };
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -270,7 +271,7 @@ test('a low-level cloud retry cannot commit after another tab deletes the entry 
   const saved = { ...entry('retry-boundary-remove'), cards: [{ name: 'The Star', position: 'Present' }] };
   const fingerprint = await fingerprintSavedVisualEntry(saved); seed(storage, owner, [saved]);
   let release; let began; const started = new Promise(resolve => { began = resolve; }); let commits = 0;
-  const pending = requestSavedVisualRetry({ namespace: visualStorageNamespace(owner), entry: saved, cloud: true, storage,
+  const pending = requestSavedVisualRetry({ env: modelClientEnv, namespace: visualStorageNamespace(owner), entry: saved, cloud: true, storage,
     fetchImpl: () => { began(); return new Promise(resolve => { release = resolve; }); },
     commit: ({ update }) => { commits++; return { committed: true, entry: update(saved) }; } });
   await started;

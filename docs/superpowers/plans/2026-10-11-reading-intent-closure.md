@@ -8,11 +8,11 @@
 
 **Tech Stack:** React/Vite, remark, existing motion/WAAPI controls, Cloudflare Worker/Durable Objects/D1, Node tests and isolated Playwright validation.
 
-**Spec:** [Original imagery intent](../specs/2026-10-08-reading-imagery-motion.md), [original bridge milestone](2026-10-09-reading-gestures-react-bridge.md), and the dated [owner decisions](../reviews/2026-10-10-reading-cue-readiness.md#2026-10-11-revised-owner-answers-16-and-local-execution). This document reconciles those authorities; proposed tasks below are not already implemented or newly approved product decisions.
+**Spec:** [Original imagery intent](../specs/2026-10-08-reading-imagery-motion.md), [original bridge milestone](2026-10-09-reading-gestures-react-bridge.md), and the dated [owner decisions](../reviews/2026-10-10-reading-cue-readiness.md#2026-10-11-revised-owner-answers-16-and-local-execution). This document reconciles those authorities. The [aligner execution record](../reviews/2026-10-11-reading-aligner-release.md) tracks the subsequent implementation approval, checkpoint and verification; unchecked work remains pending.
 
 Type: current program plan
 
-Status: documentation complete; execution not started by this request
+Status: owner-approved aligner execution in progress; model execution remains separate and unauthorized
 
 Last reviewed: 2026-10-11 (America/Chicago)
 
@@ -27,7 +27,7 @@ Last reviewed: 2026-10-11 (America/Chicago)
 - The future model experiment has a $10 hard held-cost/spend ceiling and requires separate execution authorization. The proposed 180-second deadline is not an approved or implemented SLO. Preserve the closed 183-dispatch round as unqualified, including unknown-cost reservations.
 - Preserve [local owner acceptance with two exceptions](../reviews/2026-10-11-reading-ui-acceptance.md): composite 254/256 behavior, retained 696/696 matrix and aggregate picture approval. Exceptions remain failures in native reports. Do not repeat unchanged acceptance to obtain a different result or invent per-picture verdicts.
 - Work in `/home/ubuntu/tarot/.worktrees/reading-review-consolidation-20261010`, branch `codex/reading-review-consolidation-20261010`. Preserve primary, original beta, `d970`, all retained evidence and listener ownership on 8787/5175/8789/9235.
-- This request authorizes planning/document reconciliation only. It does not start implementation, tests that generate readings, new acceptance cycles, account sessions, commits, pushes, resource creation, migrations or deployment. Existing authorizations must be checked when execution is requested; this document grants none by itself.
+- The original request authorized planning/document reconciliation only. The owner subsequently approved the scoped aligner next steps. Preserve the recorded authorization and release evidence boundaries in the aligner execution record; model inference/spending is still separate, and a source checkpoint is not production acceptance.
 
 ## Review Focus
 
@@ -41,7 +41,7 @@ Last reviewed: 2026-10-11 (America/Chicago)
 
 ## Current source and evidence boundary
 
-The review branch is at committed checkpoint `2fa4d6f`, followed by accepted working-copy changes. It contains observed remote master `58c8a33` and the original bridge, visual integration and cue-remediation ancestry. Refresh refs/source identity before execution; these SHAs describe this reconciliation, not a future merge.
+The initial review branch was at checkpoint `2fa4d6f`, followed by accepted working-copy changes. Those 103 owned changes are now checkpointed and remotely backed up as `d1e5c4d`; aligner implementation continues on top. It contains observed remote master `58c8a33` and the original bridge, visual integration and cue-remediation ancestry. Refresh refs/source identity before execution; these SHAs describe this reconciliation, not a future merge.
 
 The current accepted non-Markdown freeze is `7eb82527c028b7bc52066670c8c117a1168d517259c901ff3a319a3e74b5976e`, covering 2,795 files. Retained preflight is 4,110 Node passes, two opt-in skips, and passing lint/build/bundle/static accessibility. Fresh journal evidence is 174/176; 80 unchanged prior cases produce the composite 254/256. Neither the source HEAD alone nor a documentation edit creates fresh runtime evidence. Exact receipts remain in the [acceptance record](../reviews/2026-10-11-reading-ui-acceptance.md).
 
@@ -68,25 +68,25 @@ Model code or existing migrations may remain in a reviewed integration candidate
 | All cards appear gradually with their introductions | Keep authored focus emergence and the approved immediate inspectability of already-revealed real-reading shelf cards | A presentation regression matrix; no shelf reconcealment |
 | Latest pending cue wins | Superseded by source-order visible turns, full 1,800 ms phase, no offscreen backlog | Existing playback contract; A timing decision |
 | Long readings retain their question/notes | Add the later recommended compact, closed-by-default exact-context disclosure; retain local cue quotations | A context task, reused by M |
-| Saved readings retain the same companion without model use | Current journal mounting requires a server visual binding. Add static local source hydration for ordinary no-model saves without inventing server ownership | A Task 3, consumed by M for valid cached annotations |
+| Saved readings retain the same companion without model use | The aligner candidate now hydrates a static local source without a server binding; ordinary save/reload is covered by the explicitly adjudicated browser composite in the execution record. Local presentation identity never grants server ownership | A Task 3, consumed by M for valid cached annotations |
 | Tap a painted detail to revisit its connection | Phrase-based revisiting is implemented. Direct image detail targeting remains an explicit design disposition below; do not claim literal prototype parity | Decision D2, then only its approved targeted implementation |
 | All-78 meaningful artwork | Retain 151 authored details and the accepted picture pack; affected captures follow the approved pixel-comparison policy | A artifact/geometry checks, M semantic target validity |
-| The companion indicates the card the reader drew | Current RWS spread uses 1909 scans while the companion substitutes the vector edition. Rendering works, but this cross-surface artwork choice lacks an explicit recorded product disposition | D7; A Tasks 0, 3 and 5; any model catalog change follows M's freeze rules |
+| The companion indicates the card the reader drew | Owner approved retaining the current 1909-scan spread and vector companion at 23:20 UTC on October 11; highlights remain bound to the vector edition | D7; A Tasks 0, 3 and 5; any model catalog change follows M's freeze rules |
 | Native accessibility and handset behavior | Still requires physical evidence, separately labelled for deterministic and model-backed presentations | A physical gate; M extends it only for changed behavior |
 
-## Decisions that still require a concrete disposition
+## Decision register
 
 These are reviewable choices to resolve during the named task, not unanswered permission requests for writing these documents. Record the chosen value, rationale, affected cases and owner approval where needed before dependent behavior changes.
 
 | ID | Required decision and recommended starting point | Blocks |
 | --- | --- | --- |
-| D1 | **B1 highlight start:** retain complete ordinary-quote visibility plus the implemented complete-exposed-line exception for oversized quotes. Measure missed eligible opportunities and frame gaps separately. Earlier starts require an explicit alternative contract and fresh affected evidence; do not alter reader speed/scoring merely to pass. | A timing acceptance; any later change to cue-start policy |
-| D2 | **Direct artwork targeting:** recommend retaining the accepted phrase/shelf interface for the first aligner release, with an explicit deferred-parity entry. If the owner requires prototype tap-on-pool/land parity, implement targets only for existing validated associations and edition geometry, with keyboard-equivalent revisit and ambiguous-overlap behavior specified before coding. Do not infer personal meaning from a tapped region. | Only the direct-artwork enhancement unless made a release requirement; leaving this undecided is not a claim of parity |
-| D3 | **Integration cargo:** choose the owned code/artwork manifest, treatment of the large authoring SVG collection, independent provider/Azure changes and exclusion of unrelated WordPress edits. Reuse the accepted source rather than broad-copying preserved worktrees. | A integration checkpoint and any combined server release |
+| D1 | **Retained for A by execution approval. B1 highlight start:** retain complete ordinary-quote visibility plus the implemented complete-exposed-line exception for oversized quotes. Measure missed eligible opportunities and frame gaps separately. Earlier starts require an explicit alternative contract and fresh affected evidence; do not alter reader speed/scoring merely to pass. | A timing acceptance; any later change to cue-start policy |
+| D2 | **Deferred for A by execution approval. Direct artwork targeting:** retain the accepted phrase/shelf interface for the first aligner release, with an explicit deferred-parity entry. If the owner requires prototype tap-on-pool/land parity, implement targets only for existing validated associations and edition geometry, with keyboard-equivalent revisit and ambiguous-overlap behavior specified before coding. Do not infer personal meaning from a tapped region. | Only the direct-artwork enhancement unless made a release requirement; leaving this undecided is not a claim of parity |
+| D3 | **Integration cargo:** the 103-path accepted checkpoint is complete and excludes unrelated WordPress edits. The combined release still includes 48 server/shared/schema/config/package paths plus independent provider/service work; migrations 0036–0038 and the ReadingVisualJob class require upgrade/rollback verification. A UI-only extraction is an alternative artifact, not the current branch. See the execution record. | A integration checkpoint and any combined server release |
 | D4 | **Preview route:** choose an isolated reachable HTTPS origin for A device work and its release topology. Separately choose approved Worker/D1 resources or an explicit accepted alternative for M's schema/DO gate; none are provisioned by this plan. | Applicable physical/preview/release steps, not independent offline work |
 | D5 | **Model deadline/SLO and accounting:** design the post-reading deadline, expiry, actual-request upper bound, settlement/reset/global limits and failure UI. Use 180 seconds only as a proposed experiment setting; retain the $10 future-round hard cap. | M runtime and live experiment |
 | D6 | **Retention and identifiers:** decide expiry for undeleted/expired guest claims and anti-abuse metadata; replace or explicitly justify retained raw user-ID scopes, and align public wording with actual deletion behavior. No retention duration is invented here. | M activation; any included server/privacy behavior affected by a release |
-| D7 | **RWS edition consistency:** explicitly accept the 1909-scan spread with a vector companion, or choose one edition across both. Recommend first reviewing the existing combination on the ordinary reading and journal routes; retaining it is a proposed disposition, not presumed approval. Moving vector imagery into the spread changes deck presentation; moving the companion to scans requires edition-specific geometry rather than reusing vector masks. Record the chosen surface/edition mapping and affected coverage before implementation. | A presentation release decision; any artwork/catalog change invalidates affected A pictures and M semantic pins |
+| D7 | **Resolved — retain current artwork:** the owner explicitly approved the 1909-scan spread and vector companion at 23:20 UTC on October 11. Keep authored highlights bound to vector artwork; no asset/geometry change is required. Ordinary-route tests verify the actual mapping and reversal before and after save/reload. | Decision closed; affected A browser evidence still required. A later artwork/catalog change invalidates affected pictures and M semantic pins |
 
 ## Task P1: Preserve and identify the executable source
 
@@ -94,12 +94,13 @@ These are reviewable choices to resolve during the named task, not unanswered pe
 
 **Interfaces:** Produces `source-manifest.json` with base HEAD, working branch, per-owned-path SHA-256, unrelated dirty-path hashes and accepted evidence references. Both tracks consume this identity; new code gets a new identity rather than relabelling the accepted freeze.
 
-- [ ] Refresh `git status --short`, `git worktree list --porcelain`, `git fetch --all --no-prune`, and `git rev-list --left-right --count origin/master...HEAD`; verify expected worktree and no concurrent owner of the intended source files.
-- [ ] Resolve D3 and record explicit owned paths, including new files; preserve both unrelated WordPress files, primary Azure work and historical beta/qualification evidence.
-- [ ] Prioritize a reviewed checkpoint/remote backup of the accepted owned source before expanding implementation, once commit/push is authorized. Record the frozen-path manifest, private-evidence retention and remote SHA separately. Verify actual Cloudflare Workers Builds production/preview branch triggers before asserting a branch push cannot deploy; the repository's manual GitHub workflow alone does not prove that external configuration.
-- [ ] Preserve the recorded Azure ordering: porting/removal is separate work; merge landed master first when available, while the authorized no-wait fallback permits local reading work to proceed. Whichever change integrates second gets a new combined source identity and verification of affected overlaps. Record the eventual release order instead of silently porting primary edits or blocking all local work.
-- [ ] Verify current source bytes against the accepted manifest before integrating. Record every purposeful divergence and its affected verification; do not silently transfer acceptance to changed source.
-- [ ] When separately authorized to checkpoint, stage only that reviewed manifest and record the commit/remote boundary. No blanket `git add .`, cleanup, worktree removal or branch reset.
+- [x] Refresh `git status --short`, `git worktree list --porcelain`, `git fetch --all --no-prune`, and `git rev-list --left-right --count origin/master...HEAD`; verify expected worktree and no concurrent owner of the intended source files.
+- [x] Record explicit owned paths, including new files; preserve both unrelated WordPress files, primary Azure work and historical beta/qualification evidence. The implementation manifest contains 54 paths.
+- [ ] Resolve D3 for the deployable artifact; source checkpointing does not select or qualify deployment cargo.
+- [x] Prioritize a reviewed checkpoint/remote backup of the accepted owned source before expanding implementation, once commit/push is authorized. Record the frozen-path manifest, private-evidence retention and remote SHA separately. Verify actual Cloudflare Workers Builds production/preview branch triggers before asserting a branch push cannot deploy; the repository's manual GitHub workflow alone does not prove that external configuration.
+- [x] Preserve the recorded Azure ordering: porting/removal is separate work; merge landed master first when available, while the authorized no-wait fallback permits local reading work to proceed. Whichever change integrates second gets a new combined source identity and verification of affected overlaps. Record the eventual release order instead of silently porting primary edits or blocking all local work.
+- [x] Verify current source bytes against the accepted manifest before integrating. Record every purposeful divergence and its affected verification; do not silently transfer acceptance to changed source.
+- [x] When separately authorized to checkpoint, stage only that reviewed manifest and record the commit/remote boundary. No blanket `git add .`, cleanup, worktree removal or branch reset.
 
 **Done when:** another implementer can reproduce the exact starting source and knows which evidence carries, which paths are unrelated, and which checks later changes invalidate.
 
@@ -109,12 +110,12 @@ These are reviewable choices to resolve during the named task, not unanswered pe
 
 **Interfaces:** Each task produces its own source identity, test results, review outcome and outstanding gates. Shared UI contract changes originate in A and are versioned; M depends on their interface, not on A being deployed.
 
-- [ ] Start A's source/gate work and M's design/offline work only within a later implementation request. Delegate disjoint paths; serialize changes to shared focus, storage and worker interfaces.
+- [x] Start A's source/gate work under the subsequent owner implementation approval; disjoint paths were delegated and shared focus/storage integration was serialized. M's design/offline implementation remains outside that approval and has not started.
 - [ ] Close each task with named regression evidence and independent review. Preserve failures/interrupted results separately and do not sum repeat runs into one passing suite.
 - [ ] Before any relevant provider integration, run the repository-required subscription-backed narrative gate; no paid API fallback and no reliance on GitHub Actions billing. Vision gates apply only if vision behavior changes.
-- [ ] Freeze an integrated revision before acceptance. Reuse unchanged picture verdicts only with exact source/context and decoded-pixel provenance under the owner's established policy; changed/mandatory pictures receive the required review.
-- [ ] Use A's existing task list as its single execution checklist and one dated release evidence record. Historical plans/logs are references, not parallel task ledgers. Write a change-to-test map before browser work; rerun changed and transitively affected cases, with a full matrix only when artwork/renderer changes or incomplete carry-over proof require it. Repository-required final checks remain required; documentation edits alone do not reopen runtime acceptance.
-- [ ] Publish a separate readiness verdict for A and M. A can be ready while M remains disabled/unqualified; a model-disabled release must prove zero annotation dispatch, not merely an empty environment file.
+- [x] Freeze an integrated revision before acceptance. Reuse unchanged picture verdicts only with exact source/context and decoded-pixel provenance under the owner's established policy; changed/mandatory pictures receive the required review.
+- [x] Use A's existing task list as its single execution checklist and one dated release evidence record. The execution record contains the change-to-test map and fresh affected ordinary-route matrix. Historical plans/logs remain references; repository-required final checks remain required, and documentation edits alone do not reopen runtime acceptance.
+- [x] Publish a separate readiness verdict for A and M. A has implemented and locally verified source with physical/cargo/release gates open; M remains unauthorized and unqualified. A can be ready while M remains disabled/unqualified; a model-disabled release must prove zero annotation dispatch, not merely an empty environment file.
 
 **Done when:** each lane has an independently assessable release or blocked-gate record, with no cross-lane implication that model qualification or local browser success establishes the other lane's completion.
 
@@ -125,10 +126,10 @@ These are reviewable choices to resolve during the named task, not unanswered pe
 **Interfaces:** This roadmap owns current scope/order. Lane plans own executable tasks. Acceptance/closeout records own historical results. Original study/spec content remains the original intent, with explicit later decisions linked rather than rewritten into shipped claims.
 
 - [x] Add current navigation and historical-status boundaries to the maintained copies in this consolidation worktree; leave original study/beta worktrees and raw evidence unchanged.
-- [x] Reconcile source-order turns, oversized-quote eligibility, pending-model fallback suppression and bounded decoration with current source; retain B1 as an unresolved product/timing disposition.
+- [x] Reconcile source-order turns, oversized-quote eligibility, pending-model fallback suppression and bounded decoration with current source; record B1 retained for the approved aligner execution; a different start policy remains a separate design change.
 - [x] Separate aligner physical/release acceptance from semantic-model qualification and preserve the local two-exception acceptance record.
-- [ ] During execution, update only the relevant current task/status and add new dated evidence. Historical failures, source hashes, model budgets and original owner approvals remain intact.
-- [ ] For every documentation checkpoint run `npm run docs:check`, a separate local-link/anchor check for the changed `docs/superpowers` and `output/reading-motion` documents (excluded by that script), and scoped `git diff --check`.
+- [x] During execution, update only the relevant current task/status and add new dated evidence. Historical failures, source hashes, model budgets and original owner approvals remain intact.
+- [x] For this documentation checkpoint run `npm run docs:check`, a separate local-link/anchor check for the changed `docs/superpowers` and `output/reading-motion` documents (excluded by that script), and scoped `git diff --check`. Repeat these checks after future documentation changes.
 
 **Done when:** no current navigation tells an implementer to resume in `d970`, reapply an accepted V10 patch, reopen the closed model allowance or require semantic qualification before the independent aligner release.
 
@@ -139,7 +140,7 @@ These are reviewable choices to resolve during the named task, not unanswered pe
 3. M offline scheduler/accounting/semantic preparation, then separately authorized bounded qualification, real-Pro and preview acceptance; activate only after that lane passes its own gates.
 4. Keep the existing accepted local UI record closed. New source work receives an appropriately scoped new record; this plan is not an instruction to repeat the completed acceptance batch.
 
-The next executable deliverable is P1 followed by the aligner plan's first task. The next model deliverable is its written deadline/accounting/retention contract, not a live provider call. No implementation or publication has been performed by this documentation reconciliation.
+P1 source checkpoint/backup is complete at `d1e5c4d`; the aligner implementation and ordinary-route composite are verified locally under subsequent owner approval. The 54-path implementation follow-up and private release manifest preserve that evidence. Local preview preparation passed with actual service-worker delivery in Chromium and WebKit; external preview authorization, physical/device checks, deployment-cargo selection and production activation remain open. The next model deliverable remains its written deadline/accounting/retention contract, not a live provider call. The documentation-only verification below describes the earlier reconciliation, not the later implementation.
 
 ## Documentation reconciliation verification — October 11
 
@@ -147,9 +148,9 @@ The three new plans and fourteen maintained documents received a documentation-o
 
 ## Supplement to the independent progress review — October 11, 21:35 UTC report
 
-The owner supplied a second review after the initial reconciliation. Source/evidence checks support these additions and qualifications; they do not reopen the accepted cycle or authorize implementation.
+The owner supplied a second review after the initial reconciliation. The following is the historical 21:35 supplement, before the subsequent implementation approval and checkpoint. It preserves the findings at that time; current source/publication state is in the execution record.
 
-- **New edition decision:** the [spread](../../../src/components/SpreadTable.jsx) uses RWS 1909 scan images, while [gesture settings](../../../src/lib/readingGestureSettings.js) select the vector edition and the [companion model](../../../src/hooks/narrativeReadingModelUtils.js) substitutes vector WebP images. D7 now owns this unresolved cross-surface choice. Existing vector-routing tests prove implementation, not approval of the combination. No new licensing conclusion is drawn from this inspection.
+- **New edition decision:** the [spread](../../../src/components/SpreadTable.jsx) uses RWS 1909 scan images, while [gesture settings](../../../src/lib/readingGestureSettings.js) select the vector edition and the [companion model](../../../src/hooks/narrativeReadingModelUtils.js) substitutes vector WebP images. D7 now owns this unresolved cross-surface choice. Existing vector-routing tests prove implementation, not approval of the combination. No new licensing conclusion is drawn from this inspection. The owner subsequently resolved D7 at 23:20 UTC by retaining this combination; see the current decision row above.
 - **Exception scope:** both retained failures occur in paid model-recovery scenarios, but the failed reload-entry controls are shared. They are neither failed aligner matching tests nor proof that the new no-binding journal route is unaffected. A now names narrow no-model reload/expand/static-inspection checks in the two affected engine/motion contexts; the historical exceptions stay closed.
 - **Independent Node rerun:** retained `~/.cache/claude-review-20261011/npm-test2.log` records 4,112 tests / 521 suites / 4,110 pass / 0 fail / 2 skips / exit 0, SHA-256 `529c6e3f232044de6c2433e161a07b415ae978edf2e8829744536e3d3e1daa73`. The earlier `npm-test.log` retains 4,055 pass / 32 fail / 3 skips / exit 1, including missing-Git/source-identity setup failures, SHA-256 `be20a81ce596c79cb9053cc9c9bc6acb4c819ee6d0c6565fd716bcd8aa1a731b`. The tested copy is absent and no copy/build/source-digest receipt was retained there, so its byte identity remains reviewer-reported. This is corroborating log evidence, not a replacement for the bound acceptance receipts. Separately rehashing the current checkout against the accepted manifest passed all 2,795 files with zero mismatches.
 - **Git and evidence custody:** 31 HEAD commits absent from all local remote-tracking refs, 49 commits ahead of `origin/master`, and 60 ahead of local `master` measure different sets. The snapshot has 78 modified and 27 untracked paths; refreshed remote heads still show master `58c8a33`, bridge `9250f4c`, and no consolidation branch. The 391 qualification artifacts verified in d970 are excluded from consolidation; that establishes their preserved location, not that no other backup exists. P1 prioritizes a scoped source checkpoint/remote backup and separate private-evidence custody. The report's live Worker version and external deployment triggers were not reverified in this supplement; production-mode source still disables the companion.

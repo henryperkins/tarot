@@ -91,7 +91,7 @@ export async function runOwnedValidation(configPath) {
         deny: [...PRIVATE_FILE_DENIES, '**/.npmrc', '**/.netrc', '**/*.{key,p12,pfx}', directory + '/config/**', directory + '/state/**', directory + '/logs/**'] } });
     const shared = { ...base, root: source, configFile: false, envFile: false, envDir: path.join(directory, 'config'),
       cacheDir: path.join(directory, 'vite-cache'), logLevel: 'silent',
-      define: { 'import.meta.env.VITE_READING_GESTURES': '"true"' } };
+      define: { 'import.meta.env.VITE_READING_GESTURES': '"true"', 'import.meta.env.VITE_READING_MODEL_ANNOTATIONS': '"true"' } };
     let outputFiles = null; let outputDigest = null; let optimizedFlags; let outputCompromised = false;
     // A separately identified optimized actual-app build; DEV remains false and fixtures stay absent.
     const previousNodeEnv = process.env.NODE_ENV;

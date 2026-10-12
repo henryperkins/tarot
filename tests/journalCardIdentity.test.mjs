@@ -1,7 +1,18 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { getCanonicalCard, getCardImage } from '../src/lib/cardLookup.js';
+import { readFile } from 'node:fs/promises';
+import { FALLBACK_IMAGE, getCanonicalCard, getCardImage, getCardForDeck } from '../src/lib/cardLookup.js';
 import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
+
+test('unknown saved cards use an existing card back in every companion deck', async () => {
+  const unknown = { name: 'Unknown traveler' };
+  assert.equal(getCardImage(unknown), FALLBACK_IMAGE);
+  for (const deck of ['rws-1909', 'thoth-a1', 'marseille-classic']) {
+    assert.equal(getCardForDeck(unknown, deck).image, FALLBACK_IMAGE);
+  }
+  const asset = await readFile(new URL(`../public${FALLBACK_IMAGE}`, import.meta.url));
+  assert.deepEqual([...asset.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+});
 
 test('journal display aliases preserve distinct canonical Thoth court identities', () => {
   const prince = { name: 'Prince of Cups', canonicalName: 'Knight of Cups', canonicalKey: 'knight of cups' };

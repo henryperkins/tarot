@@ -10,7 +10,7 @@ import { CaretUp, CaretDown } from '@phosphor-icons/react';
 import { JournalNarrativeIcon } from '../../../JournalIcons';
 import { styles, cn } from '../EntryCard.primitives';
 import { RestoredReadingGestures, SavedVisualRecovery } from '../RestoredReadingGestures';
-import { hydrateEntryVisuals } from '../../../../utils/journalStorage';
+import { readingVisualRequestsEnabled } from '../../../../lib/readingGestureSettings';
 
 function getNarrativePreviewText(text, maxChars = 260) {
   if (!text || typeof text !== 'string') return '';
@@ -115,10 +115,13 @@ export const NarrativeSection = memo(function NarrativeSection({
   const [handleRevision, handlesChanged] = useReducer(revision => revision + 1, 0);
 
   if (!narrativeText) return null;
-  const hasGestures = gestureStudyEnabled && hydrateEntryVisuals(entry).binding;
+  const hasGestures = gestureStudyEnabled && typeof entry?.personalReading === 'string'
+    && entry.personalReading.trim() && Array.isArray(entry.cards)
+    && entry.cards.some(card => card && (card.name || card.canonicalName || card.card));
   // Saved-visual status/action sits beside the readable prose, with or without cues.
   const recovery = gestureStudyEnabled && entry ? (
-    <SavedVisualRecovery entry={entry} onRetry={onRetryVisuals} handleRevision={handleRevision} onHandlesChanged={handlesChanged} />
+    <SavedVisualRecovery entry={entry} onRetry={readingVisualRequestsEnabled() ? onRetryVisuals : null}
+      handleRevision={handleRevision} onHandlesChanged={handlesChanged} />
   ) : null;
   const reading = hasGestures ? <RestoredReadingGestures entry={entry} onHandlesChanged={handlesChanged} /> : (
     <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-p:leading-relaxed [overflow-wrap:anywhere]">

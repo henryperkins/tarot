@@ -3,14 +3,15 @@ import { useState, useEffect, useRef } from 'react';
 import { canonicalVisualCueJSON, sameVisualCueBinding } from '../../shared/contracts/visualCueBatches.js';
 import { boundVisualCueLedger, visualJobPresentationStatus } from '../lib/narrativeGestureSource.js';
 import { readVisualJobEvents, isVisualJobTerminal } from '../lib/readingVisualStream.js';
-import { readingGesturesEnabled } from '../lib/readingGestureSettings.js';
+import { readingGesturesEnabled, readingVisualRequestsEnabled } from '../lib/readingGestureSettings.js';
 
 /** Visual delivery outlives narrative completion, but never its authenticated owner/binding.
  * A saved replay subscribes by its fresh `visualJobId`/`attemptId`; original
  * handles keep the result route. Subscribing never submits annotation work. */
 export function useReadingVisualJob({ readingResultId, visualJobId = null, attemptId = null, visualBinding, visualJobToken,
   raw = '', enabled = true, onBatch = null, onError = null, onStatus = null } = {}) {
-  const subscriptionEnabled = enabled && readingGesturesEnabled();
+  const presentationEnabled = readingGesturesEnabled();
+  const subscriptionEnabled = enabled && readingVisualRequestsEnabled();
   const key = visualBinding ? canonicalVisualCueJSON(visualBinding) : '';
   const [snapshot, setSnapshot] = useState(null);
   const latest = useRef({ raw, onBatch, onError, onStatus });
@@ -117,7 +118,7 @@ export function useReadingVisualJob({ readingResultId, visualJobId = null, attem
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, readingResultId, visualJobId, attemptId, visualJobToken, subscriptionEnabled]);
 
-  const current = subscriptionEnabled && snapshot?.key === key ? snapshot : null;
+  const current = presentationEnabled && snapshot?.key === key ? snapshot : null;
   return {
     cues: current?.cueLedger?.cues || [], introductions: current?.cueLedger?.introductions || [],
     status: current?.status || (subscriptionEnabled && key ? 'pending' : 'idle'), error: current?.error || null,

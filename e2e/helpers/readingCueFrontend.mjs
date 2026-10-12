@@ -56,7 +56,7 @@ if (process.argv[2] === '--owned-vite') {
   await new Promise(resolve => inert.listen(0, '127.0.0.1', resolve));
   const server = await createServer({ ...base, configFile: false, envFile: false,
     cacheDir: join(process.argv[3], 'vite-cache'),
-    define: { 'import.meta.env.VITE_READING_GESTURES': '"true"', 'import.meta.env.VITE_CUE_TIMING_PROBE': '"true"' },
+    define: { 'import.meta.env.VITE_READING_GESTURES': '"true"', 'import.meta.env.VITE_READING_MODEL_ANNOTATIONS': '"true"', 'import.meta.env.VITE_CUE_TIMING_PROBE': '"true"' },
     server: { ...base.server, host: '127.0.0.1', middlewareMode: true, hmr: false,
       proxy: { '/api': { target: `http://127.0.0.1:${inert.address().port}` } },
       watch: { ...base.server.watch, ignored: ['**/output/reading-motion/evidence/**', '**/.superpowers/**'] } }

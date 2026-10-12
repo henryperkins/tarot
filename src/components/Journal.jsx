@@ -866,7 +866,10 @@ export default function Journal() {
               <div className="min-w-0 flex-[999_1_32rem] space-y-8">
                 {hasEntries ? (
                   <section id="history" className={`${shellClass} p-[min(1.25rem,4vw)] space-y-5`}>
-                    <AmberStarfield />
+                    {/* Keep decorative orbs from becoming native focus-scroll space. */}
+                    <div className="pointer-events-none absolute inset-0 overflow-clip rounded-[inherit]" aria-hidden="true">
+                      <AmberStarfield />
+                    </div>
                     <div className="relative z-10 space-y-5">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-2">

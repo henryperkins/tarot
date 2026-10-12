@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readVisualJobEvents, postSavedVisualRetry } from '../src/lib/readingVisualStream.js';
 
+const modelEnv = { DEV: false, MODE: 'production', VITE_READING_ALIGNER_ENABLED: 'true', VITE_READING_MODEL_ANNOTATIONS: 'true' };
 const event = (kind, data) => `event: ${kind}\ndata: ${JSON.stringify(data)}\n\n`;
 const sse = value => new Response(value, { headers: { 'Content-Type': 'text/event-stream' } });
 async function collect(responses, options = {}) {
   const calls = [];
   const values = [];
-  for await (const value of readVisualJobEvents({ readingResultId: 'result', visualJobToken: 'private-token', retryDelay: 0,
+  for await (const value of readVisualJobEvents({ env: modelEnv, readingResultId: 'result', visualJobToken: 'private-token', retryDelay: 0,
     fetchImpl: async (url, init) => { calls.push({ url, headers: init.headers }); return responses.shift(); }, ...options })) values.push(value);
   return { calls, values };
 }
@@ -55,7 +56,7 @@ test('replay subscription uses the visualJobId transport, keeps the capability o
   const responses = [sse(event('snapshot', { eventId: 1, status: 'running' })),
     Response.json({ status: 'complete', eventId: 2, cueLedger: { ledgerRevision: 1 } })];
   const values = [];
-  for await (const value of readVisualJobEvents({ readingResultId: 'narrative-result', visualJobId: 'replay job/1',
+  for await (const value of readVisualJobEvents({ env: modelEnv, readingResultId: 'narrative-result', visualJobId: 'replay job/1',
     visualJobToken: 'replay-private-token', retryDelay: 0,
     fetchImpl: async (url, init) => { calls.push({ url, method: init.method || 'GET', headers: init.headers }); return responses.shift(); } })) values.push(value);
   assert.deepEqual(calls.map(call => call.url), ['/api/tarot-reading/visual-replays/replay%20job%2F1/stream?cursor=0',
@@ -67,7 +68,7 @@ test('replay subscription uses the visualJobId transport, keeps the capability o
 
 test('original handles without transport IDs keep the original result route', async () => {
   const calls = [];
-  for await (const _ of readVisualJobEvents({ readingResultId: 'original/result', visualJobToken: 'original-token', retryDelay: 0,
+  for await (const _ of readVisualJobEvents({ env: modelEnv, readingResultId: 'original/result', visualJobToken: 'original-token', retryDelay: 0,
     fetchImpl: async url => { calls.push(url); return sse(event('done', { eventId: 1, status: 'complete' })); } })) { /* drain */ }
   assert.deepEqual(calls, ['/api/tarot-reading/visuals/original%2Fresult/stream?cursor=0']);
 });
@@ -77,19 +78,19 @@ const savedSource = { raw: 'Saved prose mentioning visualJobToken.', cards: [{ n
 test('explicit saved retry posts once to the owned cloud route or with only the explicit local source', async () => {
   const calls = [];
   const fetchImpl = async (url, init) => { calls.push({ url, init }); return Response.json({ state: { retryStatus: 'pending' }, resumeHandle: null }); };
-  const cloud = await postSavedVisualRetry({ cloud: true, entryId: 'entry/1', fetchImpl });
+  const cloud = await postSavedVisualRetry({ env: modelEnv, cloud: true, entryId: 'entry/1', fetchImpl });
   assert.equal(cloud.ok, true);
   assert.equal(calls[0].url, '/api/journal/entry%2F1/visual-retry');
   assert.equal(calls[0].init.method, 'POST');
   assert.equal(calls[0].init.credentials, 'include');
-  assert.equal(calls[0].init.headers['X-Reading-Cue-Display'], undefined, 'gate-off retry never claims cue display');
+  assert.equal(calls[0].init.headers['X-Reading-Cue-Display'], '1', 'consented retry claims cue display');
   assert.equal(calls[0].init.body, undefined);
-  const local = await postSavedVisualRetry({ cloud: false, savedSource: { ...savedSource, id: 'local-1', readingResultId: 'old-result',
+  const local = await postSavedVisualRetry({ env: modelEnv, cloud: false, savedSource: { ...savedSource, id: 'local-1', readingResultId: 'old-result',
     visualBinding: { readingResultId: 'old-result' }, visual: { snapshot: {} }, visualJobToken: 'must-not-send' }, fetchImpl });
   assert.equal(local.ok, true);
   assert.equal(calls[1].url, '/api/tarot-reading/visual-retry');
   assert.equal(calls[1].init.credentials, 'include');
-  assert.equal(calls[1].init.headers['X-Reading-Cue-Display'], undefined, 'gate-off local retry never claims cue display');
+  assert.equal(calls[1].init.headers['X-Reading-Cue-Display'], '1', 'consented local retry claims cue display');
   const body = JSON.parse(calls[1].init.body);
   assert.deepEqual(Object.keys(body), ['savedSource']);
   assert.deepEqual(body.savedSource, savedSource);
@@ -98,7 +99,7 @@ test('explicit saved retry posts once to the owned cloud route or with only the 
 
 test('saved retry failures are typed and never retried automatically', async () => {
   let calls = 0;
-  const run = response => postSavedVisualRetry({ cloud: false, savedSource, fetchImpl: async () => { calls++; if (response instanceof Error) throw response; return response; } });
+  const run = response => postSavedVisualRetry({ env: modelEnv, cloud: false, savedSource, fetchImpl: async () => { calls++; if (response instanceof Error) throw response; return response; } });
   assert.deepEqual(await run(new TypeError('Failed to fetch')), { ok: false, reason: 'offline' });
   assert.deepEqual(await run(new Response('{}', { status: 503 })), { ok: false, reason: 'server', status: 503 });
   assert.deepEqual(await run(Response.json({ state: null }, { status: 404 })), { ok: false, reason: 'not-found', status: 404 });
@@ -107,6 +108,22 @@ test('saved retry failures are typed and never retried automatically', async () 
   assert.equal(calls, 5);
   const controller = new AbortController();
   controller.abort();
-  await assert.rejects(postSavedVisualRetry({ cloud: true, entryId: 'one', signal: controller.signal,
+  await assert.rejects(postSavedVisualRetry({ env: modelEnv, cloud: true, entryId: 'one', signal: controller.signal,
     fetchImpl: (_url, init) => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))) }), { name: 'AbortError' });
+});
+
+
+test('presentation without model consent opens no subscription or explicit retry transport', async () => {
+  let requests = 0;
+  const fetchImpl = async () => { requests++; return sse(event('done', { status: 'complete' })); };
+  for (const env of [undefined, {}, { ...modelEnv, VITE_READING_MODEL_ANNOTATIONS: undefined },
+    { ...modelEnv, VITE_READING_MODEL_ANNOTATIONS: 'false' }, { ...modelEnv, VITE_READING_MODEL_ANNOTATIONS: true },
+    { ...modelEnv, VITE_READING_ALIGNER_ENABLED: 'false' }]) {
+    const values = [];
+    for await (const value of readVisualJobEvents({ env, readingResultId: 'result', visualJobToken: 'existing-private-token', fetchImpl })) values.push(value);
+    assert.deepEqual(values, []);
+    assert.deepEqual(await postSavedVisualRetry({ env, savedSource, fetchImpl }), { ok: false, reason: 'disabled' });
+    assert.deepEqual(await postSavedVisualRetry({ env, cloud: true, entryId: 'entry', fetchImpl }), { ok: false, reason: 'disabled' });
+  }
+  assert.equal(requests, 0);
 });

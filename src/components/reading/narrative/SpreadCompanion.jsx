@@ -5,6 +5,13 @@ import { railColumns } from './spreadCompanionLayout';
 import '../../../styles/narrative-card-touch.css';
 import { getVectorGestureFrames } from '../../../data/cardGestureArtwork.js';
 import { getCardPresence } from './narrativeGestureState.js';
+import { NarrativePersonalContext } from './NarrativePersonalContext';
+
+function originalContextProps(focus) {
+  const context = focus.originalContext || {};
+  return { question: context.question, reflections: context.reflections ?? context.reflectionsText,
+    cards: context.cards || focus.cards };
+}
 
 function cardLabel(card) {
   return `${card.positionLabel}: ${card.name}, ${card.isReversed ? 'reversed' : 'upright'}`;
@@ -81,6 +88,7 @@ export function SpreadCompanion({ variant = 'rail' }) {
           );
         })}
       </ol>
+      <NarrativePersonalContext {...originalContextProps(focus)} />
     </aside>
   );
 }
@@ -134,7 +142,7 @@ function GestureCompanion({ focus, api }) {
     current?.targets.forEach(({ occurrenceId }) => api.reportVisibility({ kind: 'artwork', id: occurrenceId, visible: artVisible }));
   }, [artVisible, current?.targets, api]);
   useEffect(() => {
-    const escape = event => { if (event.key === 'Escape') api.releaseAssociation(); };
+    const escape = event => { if (event.key === 'Escape' && !event.defaultPrevented) api.releaseAssociation(); };
     document.addEventListener('keydown', escape);
     return () => document.removeEventListener('keydown', escape);
   }, [api]);
@@ -203,6 +211,7 @@ function GestureCompanion({ focus, api }) {
       onBlur={event => { if (!containsInspectionFocus(event.relatedTarget)) reportStageFocus(false); }}>
       {personalContext ? <span>“{personalContext.quote}”</span> : null}
     </div>
+    <NarrativePersonalContext {...originalContextProps(focus)} />
   </aside>;
 }
 

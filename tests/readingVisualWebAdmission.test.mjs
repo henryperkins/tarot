@@ -18,6 +18,7 @@ const PAYLOAD = { spreadInfo: { name: 'One Card', key: 'single' },
   userQuestion: 'Where can I find hope?', deckStyle: 'rws-1909' };
 const SOURCE = { raw: 'The Star offers hope.', cards: [{ name: 'The Star', position: 'Present', orientation: 'Upright' }], deckId: 'rws-1909' };
 const FORGED = { principal: { userId: 'user-1' }, user: { subscription_tier: 'pro', subscription_status: 'active' },
+  VITE_READING_ALIGNER_ENABLED: 'true', VITE_READING_MODEL_ANNOTATIONS: 'true',
   effectiveTier: 'pro', visualCapability: { userId: 'user-1', effectiveTier: 'pro', cueDisplay: true }, cueDisplay: true };
 
 async function fixture(t, { tier = 'pro', status = 'active', credentials = 'session', allowlist = '["plus","pro"]', display = '1', realVisual = false } = {}) {

@@ -36,6 +36,7 @@ export function NarrativeCardFocusProvider({
   gestureSidecar = null,
   gestureSource = null,
   personalContext = null,
+  originalContext = null,
   manualInspectionStatus = EMPTY_INSPECTIONS,
   children
 }) {
@@ -224,7 +225,7 @@ export function NarrativeCardFocusProvider({
   }, [focus, sweep, calm]);
 
   const state = useMemo(() => ({ PhraseRenderer: GesturePhrase, cards, cardStates, calm, studyEnabled, studyRequested: gestureStudyEnabled, gestureState, associations: resolved.associations,
-    introductions: resolved.introductions, gestureSource }), [cards, cardStates, calm, studyEnabled, gestureStudyEnabled, gestureState, resolved, gestureSource]);
+    introductions: resolved.introductions, gestureSource, originalContext: originalContext || personalContext }), [cards, cardStates, calm, studyEnabled, gestureStudyEnabled, gestureState, resolved, gestureSource, originalContext, personalContext]);
 
   return (
     <FocusApiContext.Provider value={api}>

@@ -91,6 +91,10 @@ export function useNarrativeReadingController({
     status: personalReading?.isError ? 'error' : personalReading?.isStreaming ? 'streaming' : personalReading ? 'complete' : 'idle'
   }), [hydratedRunId, personalReading]);
   const gestureSource = suppliedGestureSource || hydratedSource;
+  const originalContext = useMemo(() => ({ question: userQuestion, reflections,
+    cards: (Array.isArray(reading) ? reading : []).map((card, index) => ({ ...card,
+      position: spreadPositions?.[index] || card.position || `Position ${index + 1}` }))
+  }), [userQuestion, reflections, reading, spreadPositions]);
   const resolvedQuestion = useMemo(() => getResolvedQuestion(userQuestion), [userQuestion]);
   const isPersonalReadingError = Boolean(personalReading?.isError);
   const isReadingStreaming = Boolean(isReadingStreamActive || personalReading?.isStreaming);
@@ -272,7 +276,7 @@ export function useNarrativeReadingController({
     });
   }, [persistMediaRecord, resolvedQuestion, setHasHeroStoryArt, storyArtCards]);
 
-  const panelModel = useMemo(() => buildNarrativePanelModel({
+  const panelModel = useMemo(() => ({ ...buildNarrativePanelModel({
     gestureSource,
     gestureStudyEnabled,
     gestureSidecar,
@@ -305,7 +309,8 @@ export function useNarrativeReadingController({
     isMobileStableMode,
     spreadCards,
     cardLinkCatalog
-  }), [
+  }), originalContext }), [
+    originalContext,
     gestureSource,
     gestureStudyEnabled,
     gestureSidecar,

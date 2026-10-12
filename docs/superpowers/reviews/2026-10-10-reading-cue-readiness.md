@@ -1,5 +1,7 @@
 # Reading cue readiness record
 
+> **Subsequent aligner execution — October 11:** The owner approved the next steps. Accepted source is now checkpointed and remotely backed up as `d1e5c4d`; separate request gates, original-context disclosure and no-binding saved restoration are implemented. Follow the [new aligner execution record](2026-10-11-reading-aligner-release.md) for current candidate checks and open release gates. The frozen acceptance below remains unchanged historical evidence; model execution remains separate.
+
 > **Current planning entry point — October 11:** Use the [intent closure roadmap](../plans/2026-10-11-reading-intent-closure.md), independent [aligner release](../plans/2026-10-11-reading-aligner-release.md), and [post-reading model](../plans/2026-10-11-reading-post-reading-model.md) plans. The latest owner acceptance below remains authoritative for its frozen source. All earlier dated resume orders, running/pending statuses, A1 tables and release prerequisites are historical snapshots, superseded by that acceptance and the two-lane plan. Preserve their receipts and failed assertions; no model qualification is required for the aligner lane.
 
 ## Current local owner acceptance — 2026-10-11 20:54:50 UTC

@@ -1,3 +1,4 @@
+const modelClientEnv = { DEV: false, MODE: 'production', VITE_READING_ALIGNER_ENABLED: 'true', VITE_READING_MODEL_ANNOTATIONS: 'true' };
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
@@ -955,7 +956,7 @@ test('actual visual client uses canonical encoded stream, snapshot recovery and 
     return result;
   };
   try {
-    const events = readVisualJobEvents({ readingResultId: relay.startData.readingResultId,
+    const events = readVisualJobEvents({ env: modelClientEnv, readingResultId: relay.startData.readingResultId,
       visualJobToken: relay.startData.visualJobToken, fetchImpl, signal: controller.signal, retryDelay: 1, maxFailures: 2 });
     assert.equal((await events.next()).value.event, 'snapshot');
     assert.equal((await events.next()).value.event, 'snapshot');
@@ -975,7 +976,7 @@ test('actual visual client uses canonical encoded stream, snapshot recovery and 
 });
 
 for (const stop of ['cancel', 'deadline']) {
-  test(`${stop} finish drains delayed settlement without waiting for abort-ignoring inference`, async () => {
+  test(`${stop} finish drains delayed settlement without waiting for abort-ignoring inference`, { timeout: 10000 }, async t => {
     const realBudget = await openCueRoundBudget({ path: join(await temporary(), 'round.json'), roundId: 'terminal-round' });
     let release;
     let settling;
@@ -987,9 +988,14 @@ for (const stop of ['cancel', 'deadline']) {
     const session = await createVisualCueSession({ caseData: star, candidate, budget,
       aiAdapter: fake(async () => { dispatch(); return new Promise(() => {}); }) });
     session.env.VISUAL_CUE_TIMEOUT_MS = stop === 'deadline' ? 10 : 60000;
+    // This case covers settlement after dispatch. Real filesystem reservation
+    // must finish before its 10 ms deadline fires; pre-dispatch expiry has
+    // separate coverage and cannot resolve the dispatch barrier below.
+    if (stop === 'deadline') t.mock.timers.enable({ apis: ['setTimeout'] });
     await session.observe(star.raw, { complete: true });
     await started;
     if (stop === 'cancel') await session.cancel();
+    else t.mock.timers.tick(10);
     await settlementStarted;
     await session.state.drain();
     let finished = false;

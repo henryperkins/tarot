@@ -12,7 +12,7 @@
 
 ## Global constraints
 
-- This document authorizes planning only. No source implementation, provider calls, real-account login, preview provisioning, migration, commit, push or activation is authorized now.
+- This document authorizes planning for the model lane only. The subsequent aligner execution approval does not authorize model implementation, provider calls, model preview resources, migration or activation. The shared presentation/request gates and original-context interface are now implemented in the [aligner candidate](../reviews/2026-10-11-reading-aligner-release.md); they do not implement this post-reading scheduler or qualify any model.
 - Preserve the selected candidate: full `@cf/zai-org/glm-5.3`, high reasoning, post-reading only. Do not substitute Flash or change the narrative model/provider/prompt to obtain cues.
 - Preserve the future round's **$10 hard held-cost/spend ceiling**, including failures and unknown usage. The direction is approved; an actual round still needs a separate go-ahead and a finite call ceiling.
 - **180 seconds is a proposed deadline**, not implemented or a promised service level. Current provider code defaults to 30 seconds and caps at 60 seconds.
@@ -126,7 +126,7 @@ All new names/interfaces below are proposals to implement in their owning task. 
 
 **Interfaces:** `readingVisualRequestsEnabled(env)` requires presentation plus explicit `VITE_READING_MODEL_ANNOTATIONS=true`; it expresses client intent, not authorization. Application-owned `visualCueMode: 'post-reading'` makes model associations `automatic: false`; cached results remain inspectable when new requests are disabled. Add `mergePostReadingAssociations({ aligner, model, active, held, nativeSelection }) -> { associations, deferred }` in `generatedNarrativePassages.js`; deferred replacement is source-bound and discarded on source change.
 
-Reuse the sibling plan's `buildReadingPersonalContext({ question, reflections, cards })` from proposed `src/lib/readingPersonalContext.js` and `NarrativePersonalContext` disclosure without rewriting supplied notes. Its proposed `src/lib/savedReadingGestureSource.js` exports `reconcileSavedGestureSource({ previous, entry, restored, fallbackRunId })`; preserve validated `visualCueMode`/ledger when present, otherwise use its local static hydrate identity without inventing a server binding.
+Reuse the aligner candidate's implemented `buildReadingPersonalContext({ question, reflections, cards })` from `src/lib/readingPersonalContext.js` and `NarrativePersonalContext` disclosure without rewriting supplied notes. Its implemented `src/lib/savedReadingGestureSource.js` exports `reconcileSavedGestureSource({ previous, entry, restored, fallbackRunId })`; preserve validated `visualCueMode`/ledger when present, otherwise use its local static hydrate identity without inventing a server binding.
 
 - [ ] Write RED tests proving deterministic live cues continue during pending post-reading work; accepted model cues add exact-source revisit targets but never automatic turns, even when the corresponding passage is still visible.
 - [ ] Preserve an active aligner turn, exact held association, native text selection, keyboard focus, scroll and prose across metadata arrival. If a source-safe annotation replacement would disturb an active interaction, defer that DOM replacement until interaction clears; never invent an association to preserve appearance.

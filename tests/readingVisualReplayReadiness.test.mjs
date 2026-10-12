@@ -1,3 +1,4 @@
+const modelClientEnv = { DEV: false, MODE: 'production', VITE_READING_ALIGNER_ENABLED: 'true', VITE_READING_MODEL_ANNOTATIONS: 'true' };
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createD1 } from './helpers/d1Sqlite.mjs';
@@ -284,7 +285,7 @@ for (const guest of [false, true]) for (const cache of [false, true]) {
           visualBinding: saved.binding, expiresAt: saved.claim.expires_at } });
       return retryLocal({ env: f.env, request: retryRequest(JSON.parse(init.body).savedSource, saved.cookie) });
     };
-    const result = await requestSavedVisualRetry({ namespace, entry, storage, fetchImpl });
+    const result = await requestSavedVisualRetry({ env: modelClientEnv, namespace, entry, storage, fetchImpl });
     assert.deepEqual(result.entry.visualState, { ...entry.visualState, reason: 'configuration-unavailable' });
     assert.equal(result.state.attemptId, saved.claim.attempt_id);
     assert.equal(result.entry.personalReading, LOCAL_SOURCE.raw);
@@ -294,7 +295,7 @@ for (const guest of [false, true]) for (const cache of [false, true]) {
     assert.equal(savedVisualRecovery(result.entry).canRetry, false);
     assert.equal(needsCloudVisualRefresh(result.entry), false);
     assert.equal(readVisualResume({ namespace, entryId: entry.id, storage }), null);
-    await assert.rejects(requestSavedVisualRetry({ namespace, entry: result.entry, storage, fetchImpl }), { code: 'ineligible' });
+    await assert.rejects(requestSavedVisualRetry({ env: modelClientEnv, namespace, entry: result.entry, storage, fetchImpl }), { code: 'ineligible' });
     assert.equal(posts, 1);
     assert.deepEqual(durableRows(f.db), before);
   });
@@ -428,7 +429,7 @@ for (const ownershipChanged of [false, true]) {
       memory.entry = adoptEntryVisuals(memory.entry, next);
       return { committed: true, entry: next };
     };
-    const action = () => requestSavedVisualRetry({ namespace, entry: saved.staleEntry, cloud: true, storage,
+    const action = () => requestSavedVisualRetry({ env: modelClientEnv, namespace, entry: saved.staleEntry, cloud: true, storage,
       fetchImpl, commit, isCurrent: () => current });
     if (ownershipChanged) {
       await assert.rejects(action(), { code: 'stale' });
@@ -443,7 +444,7 @@ for (const ownershipChanged of [false, true]) {
       assert.equal(readVisualResume({ namespace, entryId: saved.entryId, storage }), null);
       assert.equal(savedVisualRecovery(result.entry, { cloud: true }).phase, 'unavailable');
       assert.equal(needsCloudVisualRefresh(result.entry), false);
-      await assert.rejects(requestSavedVisualRetry({ namespace, entry: result.entry, cloud: true, storage, fetchImpl, commit }), { code: 'ineligible' });
+      await assert.rejects(requestSavedVisualRetry({ env: modelClientEnv, namespace, entry: result.entry, cloud: true, storage, fetchImpl, commit }), { code: 'ineligible' });
     }
     assert.equal(posts, 1);
     assert.deepEqual(durableRows(f.db), before);

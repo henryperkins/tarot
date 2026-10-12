@@ -10,7 +10,7 @@ import { MINOR_ARCANA } from '../data/minorArcana.js';
 import { getDeckAlias, getDeckImagePath } from '../../shared/vision/deckAssets.js';
 
 // Fallback image for missing cards
-export const FALLBACK_IMAGE = '/images/cards/card-back.jpeg';
+export const FALLBACK_IMAGE = '/images/card-back.png';
 
 // Build lookup table from all cards
 const ALL_CARDS = [...MAJOR_ARCANA, ...MINOR_ARCANA];
@@ -87,7 +87,7 @@ export function getCardForDeck(card, deckStyle = 'rws-1909') {
     ...card,
     canonicalName: canonical.name,
     name: getDeckAlias(canonical, deckStyle),
-    image: getDeckImagePath(canonical, deckStyle) || card.image || canonical.image
+    image: getDeckImagePath(canonical, deckStyle) || card.image || canonical.image || FALLBACK_IMAGE
   };
 }
 

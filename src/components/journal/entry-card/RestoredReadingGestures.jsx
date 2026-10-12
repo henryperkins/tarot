@@ -4,12 +4,12 @@ import { useSubscription } from '../../../contexts/SubscriptionContext';
 import { useReadingVisualJob } from '../../../hooks/useReadingVisualJob';
 import { buildSpreadCompanionCards } from '../../../hooks/narrativeReadingModelUtils';
 import { useReadingGestureRuntime } from '../../../hooks/useReadingGestureRuntime';
-import { createGestureSource } from '../../../lib/narrativeGestureSource';
+import { reconcileSavedGestureSource } from '../../../lib/savedReadingGestureSource';
 import { hydrateEntryVisuals } from '../../../utils/journalStorage';
 import { adoptSavedVisualReplay, patchSavedVisualSnapshot, publicVisualRetryState, readVisualResume, removeVisualResume,
   replayOwnsVisual, savedVisualRecovery, visualStorageNamespace } from '../../../lib/readingVisualStorage';
 import { isVisualJobTerminal } from '../../../lib/readingVisualStream';
-import { readingGesturesEnabled } from '../../../lib/readingGestureSettings';
+import { readingGestureEdition, readingGesturesEnabled, readingVisualRequestsEnabled } from '../../../lib/readingGestureSettings';
 import { NarrativeGestureGate, GatedSpreadCompanion as SpreadCompanion } from '../../reading/narrative/NarrativeGestureGate';
 import { StreamingNarrative } from '../../StreamingNarrative';
 import { styles, cn } from './EntryCard.primitives';
@@ -18,44 +18,57 @@ const noop = () => {};
 
 /** Restored cues remain static, including explicit inspection. No arrival replay. */
 export function RestoredReadingGestures({ entry, onHandlesChanged = null }) {
-  const gestureStudyEnabled = readingGesturesEnabled();
   const { user } = useAuth();
   const namespace = visualStorageNamespace(user?.id);
+  return <SavedReadingCompanion key={`${namespace}:${entry.id}`} entry={entry}
+    namespace={namespace} onHandlesChanged={onHandlesChanged} />;
+}
+
+function SavedReadingCompanion({ entry, namespace, onHandlesChanged }) {
+  const gestureStudyEnabled = readingGesturesEnabled();
+  const requestsEnabled = readingVisualRequestsEnabled();
   const restored = useMemo(() => hydrateEntryVisuals(entry), [entry]);
+  const [fallbackRunId] = useState(() => `saved:${crypto.randomUUID()}`);
+  const [previous, setPrevious] = useState(null);
+  const source = reconcileSavedGestureSource({ previous, entry, restored, fallbackRunId });
+  if (source !== previous) setPrevious(source);
+  const activeBinding = source.visualBinding;
+  const artworkEdition = readingGestureEdition({ enabled: gestureStudyEnabled,
+    deckStyleId: entry.deckId || 'rws-1909', artworkEdition: source.visualBinding?.artworkEdition });
   // A claimed saved replay supersedes the original transport for this entry.
   const superseded = replayOwnsVisual(entry);
-  const resume = useMemo(() => gestureStudyEnabled && restored.binding && !superseded
+  const resume = useMemo(() => requestsEnabled && activeBinding && !superseded
     && !readVisualResume({ namespace, entryId: entry.id }) ? readVisualResume({ namespace,
-      readingResultId: restored.readingResultId, binding: restored.binding }) : null,
-  [gestureStudyEnabled, namespace, entry.id, superseded, restored.binding, restored.readingResultId]);
-  const onBatch = useCallback(batch => patchSavedVisualSnapshot({ namespace, binding: restored.binding,
-    cueLedger: batch.cueLedger || batch.snapshot || batch.ledger, status: batch.status || 'pending' }), [namespace, restored.binding]);
+      readingResultId: activeBinding.readingResultId, binding: activeBinding }) : null,
+  [requestsEnabled, namespace, entry.id, superseded, activeBinding]);
+  const onBatch = useCallback(batch => patchSavedVisualSnapshot({ namespace, binding: activeBinding,
+    cueLedger: batch.cueLedger || batch.snapshot || batch.ledger, status: batch.status || 'pending' }), [namespace, activeBinding]);
   // An expired/revoked original capability can never resume: retire it so the
   // saved entry offers its explicit recovery action instead of waiting.
   const onError = useCallback(({ terminal }) => {
-    if (!terminal || !restored.binding) return;
-    removeVisualResume({ namespace, readingResultId: restored.readingResultId, binding: restored.binding });
+    if (!terminal || !activeBinding) return;
+    removeVisualResume({ namespace, readingResultId: activeBinding.readingResultId, binding: activeBinding });
     onHandlesChanged?.();
-  }, [namespace, restored.binding, restored.readingResultId, onHandlesChanged]);
-  useReadingVisualJob({ readingResultId: restored.readingResultId, visualBinding: restored.binding,
-    visualJobToken: resume?.visualJobToken, raw: entry.personalReading, enabled: gestureStudyEnabled && Boolean(resume), onBatch, onError });
-  const source = useMemo(() => createGestureSource({ runId: restored.readingResultId,
-    raw: entry.personalReading, status: 'complete', sourceRevision: restored.binding?.sourceRevision,
-    visualBinding: restored.binding, cueLedger: restored.snapshot }), [entry.personalReading, restored]);
-  const cards = useMemo(() => buildSpreadCompanionCards({ reading: (entry.cards || []).map(card => ({ ...card,
+  }, [namespace, activeBinding, onHandlesChanged]);
+  useReadingVisualJob({ readingResultId: activeBinding?.readingResultId, visualBinding: activeBinding,
+    visualJobToken: resume?.visualJobToken, raw: entry.personalReading, enabled: requestsEnabled && Boolean(resume), onBatch, onError });
+  const cards = useMemo(() => buildSpreadCompanionCards({ reading: (entry.cards || []).map(card => card ? ({ ...card,
     name: card.name || card.canonicalName || card.card,
-    isReversed: card.isReversed ?? String(card.orientation).toLowerCase() === 'reversed' })),
-    visibleCount: entry.cards?.length || 0, spreadPositions: (entry.cards || []).map(card => card.position),
-    deckStyleId: entry.deckId || 'rws-1909', runId: source.runId, artworkEdition: restored.binding?.artworkEdition,
+    isReversed: card.isReversed ?? String(card.orientation).toLowerCase() === 'reversed' }) : null),
+    visibleCount: entry.cards?.length || 0, spreadPositions: (entry.cards || []).map(card => card?.position),
+    deckStyleId: entry.deckId || 'rws-1909', runId: source.runId, artworkEdition,
     inspectionAvailable: true, reflections: entry.reflections }),
-  [entry.cards, entry.deckId, entry.reflections, source.runId, restored.binding?.artworkEdition]);
+  [entry.cards, entry.deckId, entry.reflections, source.runId, artworkEdition]);
   const gestureRuntime = useReadingGestureRuntime(gestureStudyEnabled);
   const links = useMemo(() => gestureRuntime?.buildCardLinkCatalog({ cards, deckStyle: entry.deckId || 'rws-1909' }) || null, [gestureRuntime, cards, entry.deckId]);
   const personalContext = useMemo(() => ({ question: entry.question || '',
     reflections: typeof entry.reflections === 'string' ? entry.reflections : '' }),
     [entry.question, entry.reflections]);
+  const originalContext = useMemo(() => ({ question: entry.question ?? entry.userQuestion ?? '',
+    reflections: entry.reflections ?? entry.reflectionsText, cards: entry.cards || [] }),
+  [entry.question, entry.userQuestion, entry.reflections, entry.reflectionsText, entry.cards]);
   return <NarrativeGestureGate cards={cards} stable
-    gestureStudyEnabled={gestureStudyEnabled} gestureSource={source} personalContext={personalContext}>
+    gestureStudyEnabled={gestureStudyEnabled} gestureSource={source} personalContext={personalContext} originalContext={originalContext}>
     <div className="restored-reading-gestures narrative-panel__layout narrative-panel__layout--with-spread" data-testid="restored-reading-gestures">
       <SpreadCompanion />
       <div className="narrative-panel__column min-w-0">
@@ -91,6 +104,7 @@ const readHandles = ({ namespace, entryId, restored, enabled }, _revision) => en
  * pending replay transport never submits work; private handles never render. */
 export function SavedVisualRecovery({ entry, onRetry = null, handleRevision = 0, onHandlesChanged = null }) {
   const gestureStudyEnabled = readingGesturesEnabled();
+  const requestsEnabled = readingVisualRequestsEnabled();
   const { user, isAuthenticated } = useAuth();
   const { canUseCloudJournal } = useSubscription();
   const cloud = Boolean(isAuthenticated && canUseCloudJournal);
@@ -104,8 +118,8 @@ export function SavedVisualRecovery({ entry, onRetry = null, handleRevision = 0,
     return () => { mountedRef.current = false; };
   }, []);
   const restored = useMemo(() => hydrateEntryVisuals(entry), [entry]);
-  const handles = useMemo(() => readHandles({ namespace, entryId: entry.id, restored, enabled: gestureStudyEnabled }, handleRevision),
-    [namespace, entry.id, restored, gestureStudyEnabled, handleRevision]);
+  const handles = useMemo(() => readHandles({ namespace, entryId: entry.id, restored, enabled: requestsEnabled }, handleRevision),
+    [namespace, entry.id, restored, requestsEnabled, handleRevision]);
   const replay = handles.replay;
   const recovery = savedVisualRecovery(entry, { cloud, originalResume: handles.original, replayResume: replay });
   const pendingReplay = recovery.phase === 'pending' && publicVisualRetryState(entry.visualState)?.retryStatus === 'pending';
@@ -132,10 +146,10 @@ export function SavedVisualRecovery({ entry, onRetry = null, handleRevision = 0,
   const onError = useCallback(({ terminal }) => { if (terminal) settle({ status: 'revoked' }); }, [settle]);
   useReadingVisualJob({ readingResultId: replay?.readingResultId, visualJobId: replay?.visualJobId, attemptId: replay?.attemptId,
     visualBinding: replay?.visualBinding, visualJobToken: replay?.visualJobToken, raw: entry.personalReading,
-    enabled: gestureStudyEnabled && Boolean(replay) && pendingReplay, onBatch, onError });
+    enabled: requestsEnabled && Boolean(replay) && pendingReplay, onBatch, onError });
 
   const retry = useCallback(async () => {
-    if (busy || !onRetry) return;
+    if (!requestsEnabled || busy || !onRetry) return;
     setBusy(true);
     setNotice(null);
     setRetried(true);
@@ -143,7 +157,7 @@ export function SavedVisualRecovery({ entry, onRetry = null, handleRevision = 0,
     // A failure notice describes the phase it happened in; a later phase replaces it.
     try { await onRetry(); } catch (error) { setNotice({ text: NOTICE_COPY[error?.code] || NOTICE_COPY.server, phase: recovery.phase }); }
     finally { setBusy(false); onHandlesChanged?.(); }
-  }, [busy, onRetry, onHandlesChanged, recovery.phase]);
+  }, [requestsEnabled, busy, onRetry, onHandlesChanged, recovery.phase]);
 
   // When the action gives way to status, keep keyboard focus on that status. A
   // failure shown in place leaves focus on the button and ends the intent, so a
@@ -158,7 +172,7 @@ export function SavedVisualRecovery({ entry, onRetry = null, handleRevision = 0,
 
   const showReady = recovery.phase === 'complete' && (sawPending || retried);
   const visibleNotice = notice?.phase === recovery.phase ? notice.text : null;
-  if (!gestureStudyEnabled || recovery.phase === 'none' || (recovery.phase === 'complete' && !showReady && !visibleNotice)) return null;
+  if (!gestureStudyEnabled || !requestsEnabled || recovery.phase === 'none' || (recovery.phase === 'complete' && !showReady && !visibleNotice)) return null;
   const message = visibleNotice || RECOVERY_COPY[recovery.phase];
   return (
     <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-[color:var(--border-warm-subtle)] bg-[color:var(--panel-dark-2)] px-3 py-2"

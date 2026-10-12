@@ -1,3 +1,4 @@
+const modelClientEnv = { DEV: false, MODE: 'production', VITE_READING_ALIGNER_ENABLED: 'true', VITE_READING_MODEL_ANNOTATIONS: 'true' };
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyVisualCueBatch, createVisualCueLedger } from '../shared/reading/visualCueLedger.js';
@@ -497,7 +498,7 @@ test('a prepared available response with an old configuration reason retains exp
   const handle = replayHandle(visualBinding, 'prepared-attempt');
   assert.equal(writeVisualResume({ namespace: 'anon', entryId: SAVED.id, binding: visualBinding,
     sourceFingerprint: fingerprint, stateVersion: 0, storage: store, resumeHandle: handle }), true);
-  const result = await requestSavedVisualRetry({ namespace: 'anon', entry: SAVED, storage: store,
+  const result = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'anon', entry: SAVED, storage: store,
     fetchImpl: retryResponse({ attachmentStatus: 'failed', retryStatus: 'available', sourceFingerprint: fingerprint,
       stateVersion: 1, reason: 'configuration-unavailable', attemptId: 'prepared-attempt' }, handle) });
   assert.equal(result.entry.visualState.retryStatus, 'available');
@@ -516,7 +517,7 @@ test('first unconfigured local refusal keeps the saved original attachment and v
   store.setItem('tarot_journal', JSON.stringify([saved]));
   const refusal = { attachmentStatus: 'missing', retryStatus: 'unavailable', sourceFingerprint: fingerprint,
     stateVersion: 0, reason: 'configuration-unavailable', attemptId: null, visualSnapshot: null };
-  const result = await requestSavedVisualRetry({ namespace: 'anon', entry: saved, storage: store, fetchImpl: retryResponse(refusal) });
+  const result = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'anon', entry: saved, storage: store, fetchImpl: retryResponse(refusal) });
   assert.deepEqual(result.entry.visualState, { ...saved.visualState, retryStatus: 'unavailable', reason: 'configuration-unavailable' });
   assert.deepEqual(result.entry.visual, visual);
   assert.equal(result.entry.personalReading, SAVED_RAW);
@@ -529,7 +530,7 @@ test('an expired local original without newer replay state keeps its saved attac
   const visual = publicVisualSnapshot({ binding: original, cueLedger: await acceptedLedger(original), status: 'expired', raw: SAVED_RAW });
   const saved = { ...SAVED, visual, visualBinding: original };
   store.setItem('tarot_journal', JSON.stringify([saved]));
-  const result = await requestSavedVisualRetry({ namespace: 'anon', entry: saved, storage: store,
+  const result = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'anon', entry: saved, storage: store,
     fetchImpl: retryResponse({ attachmentStatus: 'missing', retryStatus: 'unavailable', sourceFingerprint: fingerprint,
       stateVersion: 0, reason: 'configuration-unavailable', attemptId: null, visualSnapshot: null }) });
   assert.equal(result.entry.visualState.attachmentStatus, 'expired');
@@ -555,7 +556,7 @@ for (const cloud of [false, true]) {
       committedEntry = update(committedEntry);
       return { committed: true, entry: committedEntry };
     } : null;
-    const result = await requestSavedVisualRetry({ namespace: 'anon', entry: current, cloud, storage: store, fetchImpl, commit });
+    const result = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'anon', entry: current, cloud, storage: store, fetchImpl, commit });
     const saved = cloud ? committedEntry : readSavedVisualEntry({ namespace: 'anon', entryId: current.id, storage: store });
     assert.equal(result.state.retryStatus, 'unavailable');
     assert.equal(saved.personalReading, SAVED_RAW);
@@ -564,7 +565,7 @@ for (const cloud of [false, true]) {
     assert.equal(needsCloudVisualRefresh(saved), false);
     assert.equal(readVisualResume({ namespace: 'anon', entryId: current.id, storage: store }), null);
     assert.equal(JSON.stringify(saved).includes('private-unused'), false);
-    await assert.rejects(requestSavedVisualRetry({ namespace: 'anon', entry: saved, cloud, storage: store, fetchImpl, commit }), { code: 'ineligible' });
+    await assert.rejects(requestSavedVisualRetry({ env: modelClientEnv, namespace: 'anon', entry: saved, cloud, storage: store, fetchImpl, commit }), { code: 'ineligible' });
     assert.equal(calls, 1);
   });
 }
@@ -577,9 +578,9 @@ test('a duplicate tab converges on the stored claim state and never deletes the 
   const handle = replayHandle(replayBinding, 'attempt-shared');
   const pendingState = { attachmentStatus: 'pending', retryStatus: 'pending', sourceFingerprint: fingerprint, attemptId: 'attempt-shared', stateVersion: 1, reason: null, visualSnapshot: null };
   // Tab A already committed the same claim while tab B's request was in flight.
-  const first = await requestSavedVisualRetry({ namespace: 'anon', entry: SAVED, storage: store, fetchImpl: retryResponse(pendingState, handle) });
+  const first = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'anon', entry: SAVED, storage: store, fetchImpl: retryResponse(pendingState, handle) });
   assert.equal(first.state.retryStatus, 'pending');
-  const second = await requestSavedVisualRetry({ namespace: 'anon', entry: SAVED, storage: store, fetchImpl: retryResponse(pendingState, handle) });
+  const second = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'anon', entry: SAVED, storage: store, fetchImpl: retryResponse(pendingState, handle) });
   assert.equal(second.state.retryStatus, 'pending');
   assert.equal(second.state.stateVersion, 1);
   assert.equal(readVisualResume({ namespace: 'anon', entryId: SAVED.id, storage: store }).attemptId, 'attempt-shared');
@@ -593,15 +594,36 @@ test('a failed public commit rolls back a newly written private handle and repor
   const replayBinding = await bindingFor(SAVED, 'replay-result');
   const set = store.setItem;
   store.setItem = (key, value) => { if (key === 'tarot_journal') throw new Error('Quota'); set(key, value); };
-  await assert.rejects(requestSavedVisualRetry({ namespace: 'anon', entry: SAVED, storage: store,
+  await assert.rejects(requestSavedVisualRetry({ env: modelClientEnv, namespace: 'anon', entry: SAVED, storage: store,
     fetchImpl: retryResponse({ attachmentStatus: 'pending', retryStatus: 'pending', sourceFingerprint: fingerprint, attemptId: 'attempt-q',
       stateVersion: 1, reason: null, visualSnapshot: null }, replayHandle(replayBinding, 'attempt-q')) }), { code: 'storage' });
   store.setItem = set;
   assert.equal(readVisualResume({ namespace: 'anon', entryId: SAVED.id, storage: store }), null);
   assert.equal(JSON.parse(store.getItem('tarot_journal'))[0].visualState, undefined);
   // A response for a different source fingerprint is never committed.
-  await assert.rejects(requestSavedVisualRetry({ namespace: 'anon', entry: SAVED, storage: store,
+  await assert.rejects(requestSavedVisualRetry({ env: modelClientEnv, namespace: 'anon', entry: SAVED, storage: store,
     fetchImpl: retryResponse({ attachmentStatus: 'pending', retryStatus: 'pending', sourceFingerprint: 'e'.repeat(64), attemptId: 'attempt-x',
       stateVersion: 1, reason: null, visualSnapshot: null }, replayHandle(replayBinding, 'attempt-x')) }), { code: 'stale' });
   assert.equal(readVisualResume({ namespace: 'anon', entryId: SAVED.id, storage: store }), null);
+});
+
+
+test('model consent off preserves cached accepted cues and private handles without retry transport', async () => {
+  const store = storage();
+  const original = await bindingFor(SAVED, 'consent-off-original');
+  const visual = publicVisualSnapshot({ binding: original, cueLedger: await acceptedLedger(original), status: 'expired', raw: SAVED_RAW });
+  const fingerprint = await fingerprintSavedVisualEntry(SAVED);
+  const saved = { ...SAVED, visual, visualBinding: original,
+    visualState: { attachmentStatus: 'expired', retryStatus: 'available', sourceFingerprint: fingerprint, stateVersion: 4, reason: 'expired' } };
+  store.setItem('tarot_journal', JSON.stringify([saved]));
+  writeVisualResume({ namespace: 'anon', binding: original, storage: store,
+    resumeHandle: { readingResultId: original.readingResultId, visualBinding: original, visualJobToken: 'retained-private-token', expiresAt: Date.now() + 60000 } });
+  const before = Array.from({ length: store.length }, (_, index) => { const key = store.key(index); return [key, store.getItem(key)]; });
+  let requests = 0;
+  await assert.rejects(requestSavedVisualRetry({ env: { ...modelClientEnv, VITE_READING_MODEL_ANNOTATIONS: 'false' },
+    namespace: 'anon', entry: saved, storage: store, fetchImpl: async () => { requests++; throw new Error('No consent'); } }));
+  assert.equal(requests, 0);
+  assert.deepEqual(Array.from({ length: store.length }, (_, index) => { const key = store.key(index); return [key, store.getItem(key)]; }), before);
+  assert.deepEqual(hydrateEntryVisuals(readSavedVisualEntry({ namespace: 'anon', entryId: SAVED.id, storage: store })).snapshot, visual.snapshot);
+  assert.equal(readVisualResume({ namespace: 'anon', readingResultId: original.readingResultId, binding: original, storage: store }).visualJobToken, 'retained-private-token');
 });

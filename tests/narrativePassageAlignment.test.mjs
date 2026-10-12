@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { alignReadingPassages, resolveDynamicPassages } from '../src/lib/narrativePassageAligner.js';
 import { createGestureFocusState, getCardPresence, reduceGestureFocus } from '../src/components/reading/narrative/narrativeGestureState.js';
+import { advanceGestureSource, createGestureSource } from '../src/lib/narrativeGestureSource.js';
 
 const edition = 'rws-immanuelle-vector';
 const spread = (...names) => names.map((name, index) => ({ index, name, canonicalName: name }));
@@ -15,6 +16,55 @@ const stream = (raw, cards = star, status = 'streaming') => resolveDynamicPassag
 });
 const detailIds = (association) => association.targets.flatMap((target) => target.detailIds);
 const fixture = (name) => JSON.parse(readFileSync(new URL(`../output/reading-motion/fixtures/${name}`, import.meta.url), 'utf8'));
+
+test('opening roster stays identity-only', () => {
+  const result = stream('Your cards are The Star, The Hermit, and Queen of Cups.\n\n',
+    spread('The Star', 'The Hermit', 'Queen of Cups'));
+  assert.ok(result.associations.length > 0);
+  assert.ok(result.associations.every(cue => ['identity', 'relationship'].includes(cue.kind)));
+  assert.deepEqual(result.associations.flatMap(detailIds), []);
+  assert.ok(result.associations.every(cue => !cue.personalContext));
+});
+
+test('later negation cannot retract a published literal', () => {
+  const raw = 'The Star shows a figure pouring water into a pool.';
+  const first = stream(raw);
+  const pool = first.associations.find(cue => detailIds(cue).includes('pool-pour'));
+  assert.ok(pool);
+  for (const suffix of [' That does not mean you must give everything away.', ' No water is poured onto the land.']) {
+    const next = stream(raw + suffix);
+    assert.deepEqual(next.associations.find(cue => cue.id === pool.id), pool);
+    assert.ok(next.associations.every(cue => !detailIds(cue).includes('land-pour')));
+  }
+});
+
+test('same-spread replacement discards old detail', () => {
+  const source = createGestureSource({ runId: 'same-spread', raw: 'The Star pours water into a pool.', status: 'streaming' });
+  const first = resolveDynamicPassages({ source, cards: star, artworkEdition: edition });
+  const pool = first.associations.find(cue => detailIds(cue).includes('pool-pour'));
+  assert.ok(pool);
+  let state = createGestureFocusState({ ...source, ...first });
+  state = reduceGestureFocus(state, { type: 'PROGRESS', runId: source.runId, sourceRevision: 0,
+    progress: { visibleEnd: source.raw.length, complete: false } });
+  state = reduceGestureFocus(state, { type: 'HOLD', runId: source.runId, sourceRevision: 0,
+    selection: { kind: 'association', id: pool.id } });
+  assert.equal(state.held?.id, pool.id);
+  const replacement = advanceGestureSource(source, { raw: 'The Star suggests hope.', kind: 'snapshot' });
+  const next = resolveDynamicPassages({ source: replacement, cards: star, artworkEdition: edition });
+  state = reduceGestureFocus(state, { type: 'SOURCE', source: replacement, ...next });
+  assert.equal(state.held, null);
+  assert.deepEqual(next.associations.flatMap(detailIds), []);
+});
+
+test('saved context cannot lend literal evidence', () => {
+  const result = alignReadingPassages({ rawText: 'The Star offers hope.',
+    cards: [{ ...star[0], userReflection: 'The Star pours water into a pool.' }],
+    artworkEdition: edition, userQuestion: 'The Star pours onto the land. What does that mean?',
+    querentReflections: 'A figure pours water into a pool.', sourceComplete: true });
+  assert.ok(result.associations.length > 0);
+  assert.deepEqual(result.associations.flatMap(detailIds), []);
+  assert.ok(result.associations.every(cue => !cue.personalContext));
+});
 
 test('named card headings and generic reading headings both introduce the described card', () => {
   for (const rawText of [

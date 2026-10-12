@@ -7,7 +7,7 @@ import { fetchJournalEntryById } from '../lib/journal/fetchEntryById';
 import { generateId } from '../lib/utils';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
 import { normalizeTimestamp } from '../../shared/journal/utils.js';
-import { readingGesturesEnabled } from '../lib/readingGestureSettings.js';
+import { readingGesturesEnabled, readingVisualRequestsEnabled } from '../lib/readingGestureSettings.js';
 import { isDeletedAccount, subscribeToDeletedAccounts } from '../lib/deletedAccountStorage.js';
 import { filterDeletedJournalEntries, isDeletedJournalEntry, isDeletedJournalResult, purgeDeletedJournalEntryStorage,
   subscribeToDeletedJournalEntries, journalNamespaceForKey } from '../lib/deletedJournalEntryStorage.js';
@@ -81,6 +81,7 @@ function readLocalJournalArray(key) {
  */
 export function useJournal({ autoLoad = true } = {}) {
   const gestureStudyEnabled = readingGesturesEnabled();
+  const visualRequestsEnabled = readingVisualRequestsEnabled();
   const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
   const { canUseCloudJournal } = useSubscription();
@@ -141,6 +142,7 @@ export function useJournal({ autoLoad = true } = {}) {
   // Owned journal refresh: server-authoritative public state, never inference.
   // Older public state, changed prose and other owners are never applied.
   const refreshCloudVisual = useCallback(async (entryId, signal) => {
+    if (!visualRequestsEnabled) return;
     const response = await fetch(`/api/journal/${encodeURIComponent(entryId)}?includeFollowups=true`, {
       credentials: 'include', signal
     });
@@ -160,7 +162,7 @@ export function useJournal({ autoLoad = true } = {}) {
       }
       return next;
     });
-  }, [namespace, setEntries, userId]);
+  }, [namespace, setEntries, userId, visualRequestsEnabled]);
 
   useEffect(() => {
     if (!gestureStudyEnabled) return undefined;
@@ -172,20 +174,20 @@ export function useJournal({ autoLoad = true } = {}) {
         // Entry-scoped notices carry no data: adopt the committed public copy.
         const stored = readSavedVisualEntry({ namespace, entryId: detail.entryId });
         if (stored) setEntries(previous => mapChanged(previous, entry => entry.id === detail.entryId ? adoptEntryVisuals(entry, stored) : entry));
-        if (detail.refresh && cloud) refreshCloudVisual(detail.entryId).catch(() => { /* Polling retries. */ });
+        if (visualRequestsEnabled && detail.refresh && cloud) refreshCloudVisual(detail.entryId).catch(() => { /* Polling retries. */ });
         return;
       }
       setEntries(previous => mapChanged(previous, entry => patchVisualEntry(entry, detail)));
     };
     window.addEventListener(VISUAL_SNAPSHOT_EVENT, receive);
     return () => window.removeEventListener(VISUAL_SNAPSHOT_EVENT, receive);
-  }, [gestureStudyEnabled, namespace, setEntries, autoLoad, isAuthenticated, canUseCloudJournal, refreshCloudVisual]);
+  }, [gestureStudyEnabled, namespace, setEntries, autoLoad, isAuthenticated, canUseCloudJournal, refreshCloudVisual, visualRequestsEnabled]);
 
   // Cloud entries may be saved before annotation completes, or have a pending
   // explicit replay. Their owned journal endpoint supplies the latest durable
   // state and snapshot without a private capability; polling never retries work.
   useEffect(() => {
-    if (!gestureStudyEnabled || !autoLoad || !isAuthenticated || !canUseCloudJournal) return undefined;
+    if (!visualRequestsEnabled || !autoLoad || !isAuthenticated || !canUseCloudJournal) return undefined;
     const pending = entries.filter(needsCloudVisualRefresh);
     if (!pending.length) return undefined;
     const controller = new AbortController();
@@ -202,7 +204,7 @@ export function useJournal({ autoLoad = true } = {}) {
       } finally { polling = false; }
     }, 3000);
     return () => { clearInterval(timer); controller.abort(); };
-  }, [gestureStudyEnabled, autoLoad, entries, isAuthenticated, canUseCloudJournal, namespace, userId, refreshCloudVisual]);
+  }, [visualRequestsEnabled, autoLoad, entries, isAuthenticated, canUseCloudJournal, namespace, userId, refreshCloudVisual]);
 
   const persistInsights = useCallback((entriesToPersist) => {
     if (isDeletedAccount(user?.id)) return { payload: null, error: null };
@@ -598,7 +600,7 @@ export function useJournal({ autoLoad = true } = {}) {
         // Pending original cues resume from the private owner-scoped handle. A
         // response arriving after this instance unmounted (for example after the
         // user left and signed out) writes nothing; cloud pending state is polled.
-        if (gestureStudyEnabled && visualResume && entry.visualBinding && mountedRef.current
+        if (visualRequestsEnabled && visualResume && entry.visualBinding && mountedRef.current
           && (!visualResume.namespace || visualResume.namespace === namespace)) {
           writeVisualResume({ namespace, entryId: newEntry.id, binding: entry.visualBinding, resumeHandle: visualResume, expiresAt: visualResume.expiresAt });
         }
@@ -665,7 +667,7 @@ export function useJournal({ autoLoad = true } = {}) {
         const next = dedupeEntries([newEntry, ...existing]).slice(0, 100);
         const persisted = persistJournalWithVisualFallback({ key: localKey, entries: next });
         if (!persisted.ok) return { success: false, error: 'Your browser could not save this reading. Free some storage and try again.' };
-        if (gestureStudyEnabled && visualResume && entry.visualBinding
+        if (visualRequestsEnabled && visualResume && entry.visualBinding
           && (!visualResume.namespace || visualResume.namespace === namespace)) writeVisualResume({ namespace, entryId: newEntry.id, binding: entry.visualBinding,
           resumeHandle: visualResume, expiresAt: visualResume.expiresAt });
         setEntries(persisted.entries);
@@ -680,7 +682,7 @@ export function useJournal({ autoLoad = true } = {}) {
       setError(err.message);
       return { success: false, error: err.message };
     }
-  }, [canUseCloudJournal, isAuthenticated, persistInsights, trackCardAppearances, userId, gestureStudyEnabled, namespace, setEntries]);
+  }, [canUseCloudJournal, isAuthenticated, persistInsights, trackCardAppearances, userId, visualRequestsEnabled, namespace, setEntries]);
 
   /**
    * Explicit "Retry card connections" for one saved entry. Only this user
@@ -698,7 +700,7 @@ export function useJournal({ autoLoad = true } = {}) {
     const isCurrent = () => mountedRef.current && !isDeletedAccount(userId) && namespaceRef.current === owner
       && !isDeletedJournalEntry(owner, entryId);
     const flight = (async () => {
-      if (!gestureStudyEnabled) throw Object.assign(new Error('Card connections are unavailable.'), { code: 'ineligible' });
+      if (!visualRequestsEnabled) throw Object.assign(new Error('Card connections are unavailable.'), { code: 'ineligible' });
       const entry = cloud ? entriesRef.current.find(item => item.id === entryId) : readSavedVisualEntry({ namespace: owner, entryId });
       // Cloud state is server-authoritative: commit only to the current owner's
       // in-memory entry for the same exact source; never insert or recreate.
@@ -724,7 +726,7 @@ export function useJournal({ autoLoad = true } = {}) {
     })().finally(() => retryFlights.delete(flightKey));
     retryFlights.set(flightKey, flight);
     return flight;
-  }, [namespace, isAuthenticated, canUseCloudJournal, gestureStudyEnabled, setEntries, userId]);
+  }, [namespace, isAuthenticated, canUseCloudJournal, visualRequestsEnabled, setEntries, userId]);
 
   const deleteEntry = async (entryId, { readingResultId = null } = {}) => {
     setError(null);

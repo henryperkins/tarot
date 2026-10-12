@@ -1,20 +1,26 @@
 # iPhone 14 Pro Max: Safari, VoiceOver and touch results
 
-Status: **NOT RUN.** No physical handset session, operator or approved device-reachable isolated origin has been available. Every row below is `NOT_RUN`; nothing here is inferred from emulation, DOM checks, screenshots or source inspection. Execute the [portable checklist](2026-10-10-reading-iphone-voiceover-checklist.md) and replace rows only with actual observations.
+Status: **NOT RUN.** The owner will operate the iPhone 14 Pro Max; its iOS version/build remains unspecified. No mid-range handset is available, and no device-reachable isolated origin has been approved or published. Every row below is `NOT_RUN`; nothing here is inferred from emulation, DOM checks, screenshots or source inspection. Execute the [portable checklist](2026-10-10-reading-iphone-voiceover-checklist.md) and replace rows only with actual observations.
 
-## Preconditions before any row can change
+## Current aligner prerequisites — October 12
 
-- **Build:** an immutable source/build identifier frozen after Tasks 3 and 11–14 (Task 7 freeze). The current working revision is not frozen.
+The [aligner execution record](2026-10-11-reading-aligner-release.md) and [separate execution plans](../plans/2026-10-11-reading-intent-closure.md) supersede the historical model-first order below. The prepared guest replay phase needs the final qualified, pinned frontend and separately approved isolated origin/device session. It uses supplied synthetic prose and `model: not used`; annotation-model qualification is not its prerequisite. Exact original question/notes, native inspection and static saved/reduced-motion behavior are in scope. Model interpretations, balance and thematic returns remain separate requirements.
+
+Physical P13 signed-in tier coverage needs its own actual authentication backend and observations; hosting Access does not provide an application Pro session. The guest preview cannot close it. P14 remains qualitative iPhone evidence when performed; the unavailable mid-range handset leaves the separate performance gate open without a waiver. No physical execution or publication is authorized by this update.
+
+## Historical model-lane prerequisites — retained for that lane
+
+- **Build:** an immutable source/build identifier frozen after Tasks 3 and 11–14 (Task 7 freeze). This was unfrozen at the original model-lane preparation; use the applicable current candidate's verified identity at execution.
 - **Origin:** an explicitly approved isolated HTTPS origin or equivalent device-reachable runtime with verified secure-cookie/auth behavior. Never the original beta or its 8787/5175/8789/9235 services.
 - **Model output:** fresh application cases require a qualified model, run and manifest (Task 7) and the real Pro corroboration lane (Task 8). Until then only labelled controlled/authored fixtures can be observed, recorded as fixture evidence.
 - **Identity:** guest and genuine signed-in Pro sessions separately, through the private local reviewer workflow, with logout and session-artifact removal afterward. Mocked fixture identity is not tier coverage.
 - **Speech evidence:** an audio-capable recording or timestamped contemporaneous transcript. A silent video or DOM label does not establish announcements or continuous-reading integrity.
 
-## Behavior to expect on the frozen build
+## Behavior to expect on the applicable frozen build
 
 - **Playback (user decision 2026-10-10: skipped highlights are not acceptable):** connections whose sentences are visible together each take their own turn in reading order (about 1.8 s each). The companion never jumps past an earlier visible connection; passed text is not replayed later; held inspection always wins. Reduced Motion shows the same connections in the same order as static images without animation. Restored readings stay static.
 - **Phrase controls:** each complete supported phrase is one button named by its visible words (the authored/aligner label no longer replaces the prose for assistive technology; verify the shipped name in P5).
-- **Retry:** the journal recovery action and status names come from Task 11; append them to P12 once integrated.
+- **Retry:** model recovery belongs to its separately enabled lane. The aligner lane suppresses retry/annotation transport while preserving cached accepted cues and static local restoration. Record applicable recovery actions separately in P12.
 
 ## Observation record
 

@@ -1,4 +1,4 @@
-import { readingGesturesEnabled } from './readingGestureSettings.js';
+import { readingVisualRequestsEnabled } from './readingGestureSettings.js';
 
 const TERMINAL = new Set(['complete', 'failed', 'cancelled', 'expired', 'revoked']);
 export const isVisualJobTerminal = status => TERMINAL.has(status);
@@ -34,7 +34,8 @@ function checkResponse(response) {
  * Saved replays are addressed by their fresh server-issued visualJobId; original
  * handles keep the narrative result route. Every request here is a GET. */
 export async function* readVisualJobEvents({ readingResultId, visualJobId = null, visualJobToken, signal, cursor = 0,
-  fetchImpl = globalThis.fetch, retryDelay = 1000, maxFailures = 6 }) {
+  fetchImpl = globalThis.fetch, retryDelay = 1000, maxFailures = 6, env = import.meta.env }) {
+  if (!readingVisualRequestsEnabled(env)) return;
   const base = visualJobId ? `/api/tarot-reading/visual-replays/${encodeURIComponent(visualJobId)}`
     : `/api/tarot-reading/visuals/${encodeURIComponent(readingResultId)}`;
   const headers = { Accept: 'text/event-stream', ...(visualJobToken ? { 'X-Visual-Token': visualJobToken } : {}) };
@@ -107,8 +108,9 @@ const RETRY_FAILURES = new Map([[400, 'invalid-source'], [401, 'forbidden'], [40
  * sidecars confer no authority and are never sent. Callers never repeat this
  * automatically; failures are typed so the reading stays saved and readable. */
 export async function postSavedVisualRetry({ cloud = false, entryId = null, savedSource = null, signal,
-  fetchImpl = globalThis.fetch, timeout = 30000 } = {}) {
-  const init = { method: 'POST', credentials: 'include', headers: { Accept: 'application/json', ...(readingGesturesEnabled() ? { 'X-Reading-Cue-Display': '1' } : {}) }, signal };
+  fetchImpl = globalThis.fetch, timeout = 30000, env = import.meta.env } = {}) {
+  if (!readingVisualRequestsEnabled(env)) return { ok: false, reason: 'disabled' };
+  const init = { method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'X-Reading-Cue-Display': '1' }, signal };
   if (!cloud) {
     const source = { raw: savedSource?.raw, cards: savedSource?.cards, deckId: savedSource?.deckId,
       question: savedSource?.question, reflections: savedSource?.reflections };

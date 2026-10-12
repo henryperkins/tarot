@@ -8,6 +8,7 @@ import {
 } from './reading/narrative';
 import { NarrativeGestureGate, GatedSpreadCompanion as SpreadCompanion, GatedCardTouchPlate as CardTouchPlate } from './reading/narrative/NarrativeGestureGate';
 import { railColumns } from './reading/narrative/spreadCompanionLayout';
+import { NarrativePersonalContext } from './reading/narrative/NarrativePersonalContext';
 
 // Set the card into the paragraph that opens its passage.
 function renderCardPlate(paragraphProps) {
@@ -49,6 +50,7 @@ export function NarrativePanel({
     gestureSource = null,
     manualInspectionStatus,
     personalContext = null,
+    originalContext = null,
     sectionHeading = null
   } = panelModel;
   const {
@@ -81,6 +83,8 @@ export function NarrativePanel({
         </p>
         <p className="mt-3 text-sm text-muted">Your cards and question are still here. You can retry this reading.</p>
         <NarrativeQuestionAnchor question={question} compact={isHandset} className="mt-4" />
+        {originalContext ? <NarrativePersonalContext
+          key={`${gestureSource?.runId}:${gestureSource?.sourceRevision}`} {...originalContext} /> : null}
         {onRetryNarrative && !isHandset && (
           <button
             type="button"
@@ -106,7 +110,8 @@ export function NarrativePanel({
     <NarrativeGestureGate
       cards={spreadCards} onSelectCard={onSelectCard} stable={isMobileStableMode}
       gestureStudyEnabled={gestureStudyEnabled} gestureSidecar={gestureSidecar} gestureSource={gestureSource}
-      manualInspectionStatus={manualInspectionStatus} personalContext={personalContext || { question }}>
+      manualInspectionStatus={manualInspectionStatus} personalContext={personalContext || { question }}
+      originalContext={originalContext}>
       <div className={panelClassName}>
         <div className={layoutClassName}>
           {hasSpread ? <SpreadCompanion variant="rail" /> : null}
@@ -117,6 +122,8 @@ export function NarrativePanel({
               isNarrativeFocus={isNarrativeFocus}
               onToggleNarrativeFocus={onToggleNarrativeFocus}
             />
+            {!hasSpread && originalContext ? <NarrativePersonalContext
+              key={`${gestureSource?.runId}:${gestureSource?.sourceRevision}`} {...originalContext} /> : null}
 
             <NarrativeBody
               question={question}

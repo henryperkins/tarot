@@ -1,3 +1,4 @@
+const modelClientEnv = { DEV: false, MODE: 'production', VITE_READING_ALIGNER_ENABLED: 'true', VITE_READING_MODEL_ANNOTATIONS: 'true' };
 // Task 11 client <-> server contract. The browser-side recovery functions talk to
 // the real Task 9/10 route handlers over an injected fetch. D1 is in-process
 // SQLite with every migration; the DO is the real ReadingVisualJob class with
@@ -85,7 +86,7 @@ async function fixture(t, { response = PROPOSALS, limits = true, user = true } =
 async function subscribeAndSettle({ namespace, entryId, fetchImpl, storage, cloud = false }) {
   const handle = readVisualResume({ namespace, entryId, storage });
   assert.ok(handle, 'a durable private replay handle exists before subscription');
-  for await (const { data } of readVisualJobEvents({ readingResultId: handle.readingResultId, visualJobId: handle.visualJobId,
+  for await (const { data } of readVisualJobEvents({ env: modelClientEnv, readingResultId: handle.readingResultId, visualJobId: handle.visualJobId,
     visualJobToken: handle.visualJobToken, fetchImpl, retryDelay: 0 })) {
     if (isVisualJobTerminal(data.status)) {
       return adoptSavedVisualReplay({ namespace, entryId, resume: handle, cueLedger: data.cueLedger, status: data.status, cloud, storage });
@@ -104,7 +105,7 @@ for (const guest of [true, false]) test(`${guest ? 'guest' : 'free'} local retry
   const namespace = guest ? 'anon' : 'user:user-1';
   store.setItem(guest ? 'tarot_journal' : 'tarot_journal_user-1', JSON.stringify([entry]));
   const fetchImpl = f.api({ session: guest ? null : 'session-1' });
-  const result = await requestSavedVisualRetry({ namespace, entry, fetchImpl, storage: store });
+  const result = await requestSavedVisualRetry({ env: modelClientEnv, namespace, entry, fetchImpl, storage: store });
   await f.drain(); assert.equal(result.state.retryStatus, 'unavailable'); assert.equal(f.calls(), 0);
   assert.equal(f.db.rows('SELECT * FROM visual_retry_claims').length, 0);
   assert.equal(readVisualResume({ namespace, entryId: entry.id, storage: store }), null);
@@ -118,7 +119,7 @@ test('paid local expiry: one explicit retry claims once, replay transport adopts
   store.setItem('tarot_journal_user-1', JSON.stringify([entry]));
   const fetchImpl = f.api({ session: 'session-1' });
   assert.equal(savedVisualRecovery(entry).canRetry, true);
-  const result = await requestSavedVisualRetry({ namespace: 'user:user-1', entry, fetchImpl, storage: store });
+  const result = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'user:user-1', entry, fetchImpl, storage: store });
   // Claim/status are durable before the action resolves; the capability is private.
   assert.equal(result.state.retryStatus, 'pending');
   const pending = readSavedVisualEntry({ namespace: 'user:user-1', entryId: entry.id, storage: store });
@@ -140,7 +141,7 @@ test('paid local expiry: one explicit retry claims once, replay transport adopts
   assert.equal(readVisualResume({ namespace: 'user:user-1', entryId: entry.id, storage: store }), null);
   // A second explicit request for the same source (another tab, or reload that
   // lost local state) returns the existing claim and never dispatches again.
-  const again = await postSavedVisualRetry({ savedSource: { raw: RAW, cards: CARDS, deckId: 'rws-1909', question: 'What renews me?', reflections: { Overall: 'Hope' } }, fetchImpl });
+  const again = await postSavedVisualRetry({ env: modelClientEnv, savedSource: { raw: RAW, cards: CARDS, deckId: 'rws-1909', question: 'What renews me?', reflections: { Overall: 'Hope' } }, fetchImpl });
   assert.equal(again.state.retryStatus, 'complete');
   await f.drain();
   assert.equal(f.calls(), 1);
@@ -157,8 +158,8 @@ test('paid local entitlement lane: authenticated web admission, one dispatch acr
   store.setItem('tarot_journal_user-1', JSON.stringify([entry]));
   const namespace = 'user:user-1';
   const fetchImpl = f.api({ session: 'session-1' });
-  const [first, second] = await Promise.all([requestSavedVisualRetry({ namespace, entry, fetchImpl, storage: store }),
-    requestSavedVisualRetry({ namespace, entry, fetchImpl, storage: store }).catch(error => error)]);
+  const [first, second] = await Promise.all([requestSavedVisualRetry({ env: modelClientEnv, namespace, entry, fetchImpl, storage: store }),
+    requestSavedVisualRetry({ env: modelClientEnv, namespace, entry, fetchImpl, storage: store }).catch(error => error)]);
   assert.equal(first.state.retryStatus, 'pending');
   // The racing duplicate converges on the same stored claim (or is fenced as stale), never a second claim.
   assert.ok(second.state?.retryStatus === 'pending' || second.code === 'stale');
@@ -225,7 +226,7 @@ test('cloud failed attachment after reload repairs a same-owner registration wit
   assert.equal(Object.hasOwn(entry.visualState, 'attemptId'), false);
   assert.equal(entry.personalReading, RAW);
   assert.equal(savedVisualRecovery(entry, { cloud: true }).canRetry, true);
-  const result = await requestSavedVisualRetry({ namespace: 'user:user-1', entry, cloud: true, fetchImpl, storage: memoryStorage(), commit: cloudCommit(memory) });
+  const result = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'user:user-1', entry, cloud: true, fetchImpl, storage: memoryStorage(), commit: cloudCommit(memory) });
   assert.equal(result.state.retryStatus, 'complete');
   assert.equal(f.calls(), 0);
   assert.equal(hydrateEntryVisuals(memory.entries[0]).hasVisuals, true);
@@ -242,7 +243,7 @@ test('cloud replay: one explicit retry, polling reaches the authoritative comple
   const fetchImpl = f.api({ session: 'session-1' });
   const store = memoryStorage();
   const memory = { entries: [await loadCloudEntry(fetchImpl)] };
-  const result = await requestSavedVisualRetry({ namespace: 'user:user-1', entry: memory.entries[0], cloud: true, fetchImpl, storage: store, commit: cloudCommit(memory) });
+  const result = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'user:user-1', entry: memory.entries[0], cloud: true, fetchImpl, storage: store, commit: cloudCommit(memory) });
   assert.equal(result.state.retryStatus, 'pending');
   assert.equal(savedVisualRecovery(memory.entries[0], { cloud: true }).phase, 'pending');
   await f.drain();
@@ -252,7 +253,7 @@ test('cloud replay: one explicit retry, polling reaches the authoritative comple
   const polled = await loadCloudEntry(fetchImpl, memory.entries[0]);
   assert.equal(polled.visualState.retryStatus, 'complete');
   assert.equal(hydrateEntryVisuals(polled).hasVisuals, true);
-  const again = await postSavedVisualRetry({ cloud: true, entryId: 'cloud-1', fetchImpl });
+  const again = await postSavedVisualRetry({ env: modelClientEnv, cloud: true, entryId: 'cloud-1', fetchImpl });
   assert.equal(again.state.retryStatus, 'complete');
   assert.equal(again.resumeHandle, null);
   await f.drain();
@@ -274,7 +275,7 @@ test('configured cloud transient initialization failure leaves the same prepared
   const fetchImpl = f.api({ session: 'session-1' });
   const store = memoryStorage();
   const memory = { entries: [await loadCloudEntry(fetchImpl)] };
-  const first = await requestSavedVisualRetry({ namespace: 'user:user-1', entry: memory.entries[0], cloud: true,
+  const first = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'user:user-1', entry: memory.entries[0], cloud: true,
     fetchImpl, storage: store, commit: cloudCommit(memory) });
   await f.drain();
   assert.deepEqual([first.state.attachmentStatus, first.state.retryStatus, first.state.reason],
@@ -290,7 +291,7 @@ test('configured cloud transient initialization failure leaves the same prepared
   assert.equal(f.requests.filter(request => request.method === 'POST').length, 1);
   assert.deepEqual(f.db.rows('SELECT * FROM visual_retry_claims')[0], prepared);
   memory.entries = [reloaded];
-  await requestSavedVisualRetry({ namespace: 'user:user-1', entry: reloaded, cloud: true,
+  await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'user:user-1', entry: reloaded, cloud: true,
     fetchImpl, storage: store, commit: cloudCommit(memory) });
   await f.drain();
   const completed = await loadCloudEntry(fetchImpl, memory.entries[0]);
@@ -309,16 +310,16 @@ test('no annotation configuration: explicit retry makes zero calls and records s
   const store = memoryStorage();
   const local = localEntry({ id: 'local-unconfigured' });
   store.setItem('tarot_journal', JSON.stringify([local]));
-  const localResult = await requestSavedVisualRetry({ namespace: 'anon', entry: local, fetchImpl: f.api(), storage: store });
+  const localResult = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'anon', entry: local, fetchImpl: f.api(), storage: store });
   assert.deepEqual([localResult.state.retryStatus, localResult.state.reason], ['unavailable', 'configuration-unavailable']);
   assert.equal(savedVisualRecovery(readSavedVisualEntry({ namespace: 'anon', entryId: local.id, storage: store })).canRetry, false);
   const fetchImpl = f.api({ session: 'session-1' });
   const memory = { entries: [await loadCloudEntry(fetchImpl)] };
   assert.equal(savedVisualRecovery(memory.entries[0], { cloud: true }).canRetry, false);
-  await assert.rejects(requestSavedVisualRetry({ namespace: 'user:user-1', entry: memory.entries[0], cloud: true,
+  await assert.rejects(requestSavedVisualRetry({ env: modelClientEnv, namespace: 'user:user-1', entry: memory.entries[0], cloud: true,
     fetchImpl, storage: store, commit: cloudCommit(memory) }), { code: 'ineligible' });
   // A forced explicit request is also status-only; the normal UI makes none.
-  const cloudResult = await postSavedVisualRetry({ cloud: true, entryId: 'cloud-1', fetchImpl });
+  const cloudResult = await postSavedVisualRetry({ env: modelClientEnv, cloud: true, entryId: 'cloud-1', fetchImpl });
   assert.equal(cloudResult.state.reason, 'configuration-unavailable');
   assert.equal(cloudResult.resumeHandle, null);
   // Reload keeps the outcome for the same server state version.
@@ -361,7 +362,7 @@ test('expired cloud action after replay configuration disappears commits status-
   assert.deepEqual([before.visualState.attachmentStatus, before.visualState.retryStatus], ['expired', 'available']);
   assert.equal(savedVisualRecovery(before, { cloud: true }).canRetry, true);
   delete f.env.VISUAL_REPLAY_LIMITS;
-  const result = await requestSavedVisualRetry({ namespace: 'user:user-1', entry: before, cloud: true,
+  const result = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'user:user-1', entry: before, cloud: true,
     fetchImpl, storage: memoryStorage(), commit: cloudCommit(memory) });
   assert.deepEqual([result.state.attachmentStatus, result.state.retryStatus, result.state.reason],
     ['expired', 'unavailable', 'configuration-unavailable']);
@@ -397,7 +398,7 @@ test('actual unconfigured local retry retains an expired cached original attachm
   const store = memoryStorage();
   store.setItem('tarot_journal', JSON.stringify([saved]));
   const before = f.db.rows('SELECT * FROM visual_guest_principals');
-  const result = await requestSavedVisualRetry({ namespace: 'anon', entry: saved, storage: store, fetchImpl: f.api() });
+  const result = await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'anon', entry: saved, storage: store, fetchImpl: f.api() });
   assert.deepEqual(result.entry.visualState, { ...saved.visualState, retryStatus: 'unavailable', reason: 'configuration-unavailable' });
   assert.deepEqual(result.entry.visual, visual);
   assert.equal(result.entry.personalReading, RAW);
@@ -414,7 +415,7 @@ test('exhausted retry after reload offers status only and the server refuses ano
   const entry = localEntry({ id: 'local-exhausted' });
   store.setItem('tarot_journal_user-1', JSON.stringify([entry]));
   const fetchImpl = f.api({ session: 'session-1' });
-  await requestSavedVisualRetry({ namespace: 'user:user-1', entry, fetchImpl, storage: store });
+  await requestSavedVisualRetry({ env: modelClientEnv, namespace: 'user:user-1', entry, fetchImpl, storage: store });
   await f.drain();
   const settled = await subscribeAndSettle({ namespace: 'user:user-1', entryId: entry.id, fetchImpl, storage: store });
   assert.equal(settled.adopted, true);
@@ -422,8 +423,8 @@ test('exhausted retry after reload offers status only and the server refuses ano
   const reloaded = readSavedVisualEntry({ namespace: 'user:user-1', entryId: entry.id, storage: store });
   assert.equal(reloaded.visualState.retryStatus, 'exhausted');
   assert.deepEqual(savedVisualRecovery(reloaded), { phase: 'unavailable', canRetry: false, state: reloaded.visualState });
-  await assert.rejects(requestSavedVisualRetry({ namespace: 'user:user-1', entry: reloaded, fetchImpl, storage: store }), { code: 'ineligible' });
-  const forced = await postSavedVisualRetry({ savedSource: { raw: RAW, cards: CARDS, deckId: 'rws-1909', question: 'What renews me?', reflections: { Overall: 'Hope' } }, fetchImpl });
+  await assert.rejects(requestSavedVisualRetry({ env: modelClientEnv, namespace: 'user:user-1', entry: reloaded, fetchImpl, storage: store }), { code: 'ineligible' });
+  const forced = await postSavedVisualRetry({ env: modelClientEnv, savedSource: { raw: RAW, cards: CARDS, deckId: 'rws-1909', question: 'What renews me?', reflections: { Overall: 'Hope' } }, fetchImpl });
   assert.equal(forced.state.retryStatus, 'exhausted');
   assert.equal(forced.resumeHandle, null);
   await f.drain();
@@ -443,7 +444,7 @@ for (const race of ['delete', 'source replacement', 'account switch']) {
     let ready; const reached = new Promise(resolve => { ready = resolve; });
     let delayedBody;
     const fetchImpl = async (url, init) => { const response = await inner(url, init); delayedBody = await response.clone().json(); ready(); await gate; return response; };
-    const pending = requestSavedVisualRetry({ namespace: 'user:user-1', entry, fetchImpl, storage: store, isCurrent: () => current });
+    const pending = requestSavedVisualRetry({ env: modelClientEnv, namespace: 'user:user-1', entry, fetchImpl, storage: store, isCurrent: () => current });
     pending.catch(() => {});
     t.after(() => release());
     await reached;

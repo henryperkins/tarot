@@ -481,7 +481,7 @@ function retryFailure(code) {
  * entry, exact source and state version. Cloud commits go through the caller's
  * guarded in-memory journal (`commit`), local commits through scoped storage. */
 export async function requestSavedVisualRetry({ namespace, entry, cloud = false, fetchImpl, storage, signal,
-  isCurrent = () => true, commit = null } = {}) {
+  isCurrent = () => true, commit = null, env = import.meta.env } = {}) {
   const target = storageOrDefault(storage);
   if (!entry?.id || isDeletedJournalEntry(namespace, entry.id, { storage: target })) throw retryFailure('not-found');
   const current = () => isCurrent() && !deletedVisualOwner(namespace, target)
@@ -495,7 +495,7 @@ export async function requestSavedVisualRetry({ namespace, entry, cloud = false,
   const expectedStateVersion = publicVisualRetryState(entry.visualState)?.stateVersion ?? 0;
   const fingerprint = await fingerprintSavedVisualEntry(entry);
   if (!current()) throw retryFailure('stale');
-  const response = await postSavedVisualRetry({ cloud, entryId: entry.id, savedSource: savedVisualSource(entry), fetchImpl, signal });
+  const response = await postSavedVisualRetry({ cloud, entryId: entry.id, savedSource: savedVisualSource(entry), fetchImpl, signal, env });
   if (!current()) throw retryFailure('stale');
   if (!response.ok) throw retryFailure({ offline: 'offline', 'not-found': 'not-found', 'invalid-source': 'ineligible' }[response.reason] || 'server');
   const state = publicVisualRetryState(response.state);

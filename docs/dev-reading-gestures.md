@@ -1,5 +1,22 @@
 # Reading gestures development beta
 
+## Current aligner candidate
+
+The protected beta instructions below describe the earlier model-enabled development environment. Do not restart that checkout or reuse its ports to review the aligner candidate. Current work is recorded in the [aligner execution review](superpowers/reviews/2026-10-11-reading-aligner-release.md).
+
+The updated source separates two exact opt-ins:
+
+| Build flag | Behavior |
+| --- | --- |
+| `VITE_READING_ALIGNER_ENABLED=true` | Enables the ordinary production reading/journal companion. Default off. |
+| `VITE_READING_MODEL_ANNOTATIONS=true` | Allows annotation requests only when presentation is also enabled. Default off; leave off for the aligner release. |
+
+Existing development/controlled-validation presentation still supports `VITE_READING_GESTURES=true`; that flag alone no longer grants model-request consent in this updated source. Server admission, subscription eligibility and qualified model configuration remain separate requirements. The existing running beta's files/configuration were not changed.
+
+The [aligner plan](superpowers/plans/2026-10-11-reading-aligner-release.md) owns ordinary production acceptance through `scripts/evaluation/runReadingAlignerAcceptance.mjs`, with explicit source/output manifests, owned loopback ports and recorded prose. It does not use the development fixture route or permit provider calls. Physical VoiceOver, real authentication and deployment evidence remain separate.
+
+## Historical model beta setup
+
 Run from the reading bridge worktree:
 
 ```bash

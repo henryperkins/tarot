@@ -501,6 +501,18 @@
 }
 
 .narrative-panel__layout:has(.gesture-companion) { display: grid; grid-template-columns: minmax(250px, 340px) minmax(0, 68ch); gap: 40px; max-width: 1120px; margin-inline: auto; }
+/* Native focus/scroll must expose reading actions above the measured fixed bar. */
+.narrative-panel__layout:has(.gesture-companion) .narrative-panel__after :is(button, a) {
+  scroll-margin-bottom: calc(var(--mobile-action-bar-height, 0px) + var(--keyboard-offset, 0px) + 16px);
+}
+/* Native focus keeps saved phrases and shelf cards clear of journal shortcuts. */
+.journal-page .reading-gesture-association,
+.journal-page .gesture-shelf-card {
+  scroll-margin-bottom: calc(var(--journal-controls-inset, 0px) + 16px);
+}
+.journal-page .gesture-shelf-card {
+  scroll-margin-top: calc(var(--sticky-header-height, 0px) + 16px);
+}
 .gesture-focus-card { align-items: center; }
 .gesture-focus-card > .gesture-art { height: auto; aspect-ratio: 3/5; }
 @media (max-width: 1023px) { .narrative-panel__layout:has(.gesture-companion) { display: flex; gap: 18px; } .gesture-focus-card > .gesture-art { height: 100%; aspect-ratio: auto; } }
@@ -508,6 +520,88 @@
 .gesture-lab { min-inline-size: 0; }
 .gesture-lab > label, .gesture-lab > legend, .gesture-lab > output { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .gesture-lab select, .gesture-lab button { min-height: 44px; max-width: 100%; border: 1px solid var(--border-warm); border-radius: 6px; background: var(--bg-surface-muted); color: var(--text-main); padding: 8px 12px; }
+
+/* Exact original context has its own disclosure, separate from cue quotations. */
+.reading-personal-context__trigger {
+  display: block;
+  min-height: 44px;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-warm);
+  border-radius: 8px;
+  background: var(--bg-surface-muted);
+  color: var(--text-main);
+  font-size: .8125rem;
+  line-height: 1.5;
+  text-align: start;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.reading-personal-context__trigger:focus-visible,
+.reading-personal-context__close:focus-visible,
+.reading-personal-context__scroll:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 3px;
+}
+.reading-personal-context__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: rgb(0 0 0 / .65);
+}
+.reading-personal-context__dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 40rem);
+  max-height: calc(100dvh - 24px);
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border-warm);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  color: var(--text-main);
+  box-shadow: 0 20px 64px rgb(0 0 0 / .4);
+}
+.reading-personal-context__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+.reading-personal-context__header h2 {
+  min-width: 0;
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.reading-personal-context__close {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--border-warm);
+  border-radius: 6px;
+  background: var(--bg-surface-muted);
+  color: var(--text-main);
+  cursor: pointer;
+}
+.reading-personal-context__scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 4px;
+}
+.reading-personal-context__entry + .reading-personal-context__entry { margin-top: 20px; }
+.reading-personal-context__entry h3 { margin: 0 0 8px; font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }
+.reading-personal-context__entry p { margin: 0; font-size: 1rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .gesture-lab :focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
 
 /* Saved readings retain associations and manual revisit without arrival replay. */

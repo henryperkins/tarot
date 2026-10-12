@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { startReadingJob } from '../functions/lib/readingJobs.js';
+import { onRequestPost as startRoute } from '../functions/api/tarot-reading-job-start.js';
+import { seedSession, seedUser, jsonRequest } from './helpers/journalFixtures.mjs';
 import { startReadingJob as startPaidWebReadingJob } from './helpers/webVisualAdmissionFixtures.mjs';
 import { ReadingVisualJob } from '../src/worker/readingVisualJob.js';
 import { observeDeliveredReading } from '../functions/lib/visualCueObserver.js';
@@ -238,4 +240,32 @@ test('stalled original admission cannot delay narrative startup or its response'
   await Promise.all(tasks);
   assert.equal(modelCalls, 1);
   assert.equal(DB.rows('SELECT * FROM visual_initial_reservations').length, 1);
+});
+
+
+test('configured provider with no display header starts paid prose without visual registration or dispatch', async t => {
+  const DB = await createD1(); t.after(() => DB.sqlite.close());
+  await seedUser(DB, { tier: 'pro', status: 'active' }); await seedSession(DB);
+  let proseStarts = 0, visualTouches = 0, providerCalls = 0;
+  const env = withInitialVisualAdmission({ ...configured, DB, VISUAL_CUE_ALLOWED_TIERS: '["plus","pro"]',
+    AI: { run: async () => { providerCalls++; throw new Error('No display consent'); } },
+    READING_JOBS: { idFromName: id => id, get: () => ({ fetch: async (_url, init) => {
+      const body = JSON.parse(init.body);
+      assert.equal(body.visualInit, null);
+      proseStarts++; return Response.json({ ok: true });
+    } }) },
+    READING_VISUAL_JOBS: { idFromName: id => { visualTouches++; return id; }, get: () => ({ fetch: async () => {
+      visualTouches++; return Response.json({ ok: true });
+    } }) }
+  });
+  const request = jsonRequest('https://test/api/tarot-reading/jobs', { headers: { Cookie: 'session=session-1' },
+    body: { ...PAYLOAD, VITE_READING_ALIGNER_ENABLED: 'true', VITE_READING_MODEL_ANNOTATIONS: 'true', cueDisplay: true } });
+  const response = await startRoute({ env, request, waitUntil: () => { throw new Error('No visual work may be scheduled'); } });
+  assert.equal(response.status, 200);
+  assert.equal(proseStarts, 1);
+  assert.equal(visualTouches, 0);
+  assert.equal(providerCalls, 0);
+  for (const table of ['reading_visual_results', 'visual_initial_admissions', 'visual_initial_reservations']) {
+    assert.equal(DB.rows(`SELECT * FROM ${table}`).length, 0);
+  }
 });

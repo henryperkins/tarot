@@ -1,6 +1,12 @@
-/** The normal reading and journal opt in together, in development or the explicitly identified local validation build. */
+/** Presentation opt-in is independent of annotation requests and server admission. */
 export function readingGesturesEnabled(env = import.meta.env) {
-  return (env?.DEV === true || env?.MODE === 'reading-cue-validation') && env?.VITE_READING_GESTURES === 'true';
+  return env?.VITE_READING_ALIGNER_ENABLED === 'true'
+    || ((env?.DEV === true || env?.MODE === 'reading-cue-validation') && env?.VITE_READING_GESTURES === 'true');
+}
+
+/** Viewing accepted cues never implies consent to request model annotations. */
+export function readingVisualRequestsEnabled(env = import.meta.env) {
+  return readingGesturesEnabled(env) && env?.VITE_READING_MODEL_ANNOTATIONS === 'true';
 }
 
 export function readingGestureEdition({ enabled, deckStyleId, artworkEdition = null }) {
