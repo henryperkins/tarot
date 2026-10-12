@@ -5,7 +5,7 @@ The reading now leads from the original question and cards into continuous prose
 ## Source and scope
 
 - Worktree: `/home/ubuntu/tarot/.worktrees/reading-touch-20261012`.
-- Branch: `claude/reading-touch-20261012`; baseline HEAD: `f002ad4e321bc9434b795280a53487addb7c7f0f`, plus the implementation tracked on this branch; commit and preview publication are authorized.
+- Branch: `claude/reading-touch-20261012`; baseline HEAD: `f002ad4e321bc9434b795280a53487addb7c7f0f`, implementation commit `ae022cba75091c4da75fb0c707f1d6e54932747b`. The baseline commit above remains its parent.
 - Final source manifest digest: `c7cae1735f5794972cd1834373ec4ef4ea02e9ad6477e2cdc496c65837eb4a8f` (54 JavaScript/CSS source and test files). Runtime application code matches the earlier unit/build snapshot. The browser config, screenshot capture, fixture keepalive comments and one trailing blank line changed afterward; all owned JavaScript files were linted again.
 - [Checklist](../plans/2026-10-12-reading-touch-review-remediation.md). Verification was narrowed to the changed UI at the user's instruction. Broad runs were stopped and are not qualifying evidence.
 
@@ -46,10 +46,23 @@ Logs and source manifests are retained locally in `.superpowers/sdd/2026-10-12-r
 
 The stopped final browser run recorded 1 passed, 1 interrupted and 372 not run. The stopped PWA run recorded 6 passed, 1 interrupted and 102 not run. Neither is represented as successful acceptance. There were no live model calls.
 
-## Open checks
+## Closeout and manual checks
 
 1. **Resolved WebKit partial-stream rendering:** a minimal HTTP/SSE reproduction outside the application showed that a large delta could remain partly buffered while the controlled connection was idle. Periodic SSE keepalive comments released the complete payload. The fixture now sends those comments and clears its timer on connection closure; comments add neither prose nor event IDs. The original failing WebKit regression passed, as did the Chromium case. The application streaming parser and UI assertions were unchanged.
 2. **Physical device and comprehension:** physical iPhone/VoiceOver and an independent human reader were unavailable. Mocked tiers and emulated WebKit do not replace them.
-3. **Remote preview:** the existing Access-protected guest review Worker is the publication target. Its synthetic replay controller, origin, Access policy and 24-hour window are preserved. Publication evidence will be recorded separately; the running beta services remain protected.
+3. **Remote preview:** the existing Access-protected guest review Worker has been updated from the committed build. Its synthetic replay controller, approved origin, operator restriction, signing-secret binding and original expiry window were preserved. The active version and asset identity were verified below; authenticated remote application use and physical iPhone behavior remain manual checks.
 
 Remaining manual review is limited to physical iPhone/VoiceOver and an independent reader. No additional reading/provider matrix is required.
+
+
+## Preview publication
+
+- UI commit: `ae022cba75091c4da75fb0c707f1d6e54932747b`; the worktree is clean after the release-record commit.
+- [Open the reading-touch review preview](https://tableu-aligner-device-4dee57d3.lfd.workers.dev/review/setup). Use the existing Cloudflare Access email login and Start reading. The preview supplies sample text and uses local guest journal storage; it has no model/provider bindings.
+- Active Worker version: `c3015f4c-d1a5-44a0-8abd-767be2d4e12e`, at 100% traffic on the isolated review Worker. The previous preview version was `96af2b08-f656-43cc-a86a-919b19128d21`.
+- Build passed from the UI commit. A focused WebKit phone check against that built bundle passed full artwork, zero dismissal scroll shift, trailing-action clearance and local save/reopen (`build-preview.log`, `ui-closeout-build.json`).
+- All 587 asset files are inventoried. Asset inventory SHA-256: `6409aa14f1cad8948e834fd8c0d40faf6d2b682b0fee0eec5e6ce91866ac1a30`. Wrangler uploaded 114 changed assets and reused 473 matching assets; the active version's FRONTEND_SHA256 binding matches the local inventory.
+- Downloaded live controller source matches the previous controller byte-for-byte: SHA-256 `8cf0c35fa3ecc819f3785d3e82080624f0729154f63ec75223317007fab1647c`. Only its frontend inventory variable changed. The Access audience and Worker destination, other original variables and signing-secret binding remain present and unchanged. Version aliases are disabled; the approved workers.dev host remains enabled.
+- An unauthenticated HTML request redirects (302) to the existing Cloudflare Access login. Unauthenticated API-style requests are denied (403). This proves the login restriction; it does not prove an authenticated remote reading was exercised.
+- The original preview expiry remains **2026-10-13 01:43 UTC**. No Git push, production deployment, migration or live model call occurred. Protected beta services retain their original process IDs.
+- Publication evidence is stored in `preview-publication.json`, `preview-assets-manifest.json` and the preview logs under the local ledger directory above. Physical iPhone/VoiceOver and independent-reader review remain open.
