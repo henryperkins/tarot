@@ -1,14 +1,23 @@
 import { sanitizeText } from './utils.js';
 
 // Budgets measure serialized characters, including JSON/XML escaping. Together
-// with the card list and static instructions these keep the user prompt <34k.
+// with the card list and static instructions these keep the user prompt <92k.
+// The reading is all-or-nothing: this ceiling rejects oversized input instead
+// of silently removing evidence needed to answer questions about the reading.
+export const FOLLOW_UP_NARRATIVE_BUDGET = 64000;
 const QUESTION_BUDGET = 2400;
-const NARRATIVE_BUDGET = 6500;
 const REFLECTION_BUDGET = 4200;
 const HISTORY_BUDGET = 4200;
 const MAX_HISTORY_PAIRS = 3;
 const MAX_CARDS = 12;
 const OMITTED = '...[truncated]...';
+
+export class FollowUpContextTooLargeError extends Error {
+  constructor() {
+    super('This reading is too long for follow-up chat to include in full.');
+    this.name = 'FollowUpContextTooLargeError';
+  }
+}
 
 export function escapeFollowUpData(text) {
   return text.replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
@@ -75,56 +84,21 @@ function boundTextList(values, budget, options = {}) {
   return results;
 }
 
-function selectNarrative(value, question) {
+function fullNarrative(value) {
   const text = cleanText(value);
-  if (serializedLength(text) <= NARRATIVE_BUDGET) return boundFollowUpText(value, NARRATIVE_BUDGET);
-  const paragraphs = [];
-  for (const part of text.split(/\n\s*\n/).map(item => item.trim()).filter(Boolean)) {
-    const previous = paragraphs.at(-1);
-    if (previous && /^#{1,6}\s[^\n]+$/.test(previous)) paragraphs[paragraphs.length - 1] = `${previous}\n\n${part}`;
-    else paragraphs.push(part);
-  }
-  if (paragraphs.length < 3) return boundFollowUpText(value, NARRATIVE_BUDGET);
-
-  const terms = [...new Set((question || '').toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || [])]
-    .filter(term => !['the', 'and', 'how', 'does', 'can', 'what', 'this', 'that', 'with', 'you', 'your', 'about'].includes(term));
-  const ranked = paragraphs.map((paragraph, index) => {
-    const lower = paragraph.toLowerCase();
-    const heading = lower.split('\n')[0];
-    const score = terms.reduce((total, term) => total + (lower.includes(term) ? 1 : 0) + (heading.includes(term) ? 2 : 0), 0)
-      + (/^#{1,6}\s.*(?:next steps|action|synthesis|integration|path forward)/i.test(paragraph) ? 3 : 0);
-    return { index, score };
-  }).sort((left, right) => right.score - left.score || right.index - left.index);
-
-  // Always retain the opening and final two paragraphs. Fill remaining slots
-  // with passages relevant to the question; preserve their original order.
-  const selected = new Set([0, paragraphs.length - 2, paragraphs.length - 1]);
-  for (const { index, score } of ranked) {
-    if (selected.size >= 6 || score === 0) break;
-    selected.add(index);
-  }
-  const indexes = [...selected].sort((left, right) => left - right);
-  const excerptBudget = NARRATIVE_BUDGET - (indexes.length * (OMITTED.length + 8));
-  const fittedExcerpts = boundTextList(indexes.map(index => paragraphs[index]), excerptBudget);
-  let retainedChars = 0;
-  const excerpts = [];
-  for (let offset = 0; offset < indexes.length; offset++) {
-    const index = indexes[offset];
-    const fitted = fittedExcerpts[offset];
-    if (index > (indexes[offset - 1] ?? -1) + 1) excerpts.push(OMITTED);
-    excerpts.push(fitted.text);
-    retainedChars += fitted.retainedChars;
+  if (serializedLength(text) > FOLLOW_UP_NARRATIVE_BUDGET) {
+    throw new FollowUpContextTooLargeError();
   }
   return {
-    text: excerpts.join('\n\n'),
+    text,
     originalChars: typeof value === 'string' ? value.length : 0,
     sanitizedChars: text.length,
-    retainedChars,
-    omittedChars: text.length - retainedChars
+    retainedChars: text.length,
+    omittedChars: 0
   };
 }
 
-export function buildFollowUpReadingReference(originalReading, question) {
+export function buildFollowUpReadingReference(originalReading) {
   const reading = originalReading || {};
   const cards = Array.isArray(reading.cardsInfo) ? reading.cardsInfo.slice(0, MAX_CARDS) : [];
   const reflections = [];
@@ -142,7 +116,7 @@ export function buildFollowUpReadingReference(originalReading, question) {
   return serializeFollowUpReference('reading_context', {
     question: boundFollowUpText(reading.userQuestion, QUESTION_BUDGET),
     deckStyle: boundFollowUpText(reading.deckStyle, 120).text,
-    narrative: selectNarrative(reading.narrative, question),
+    narrative: fullNarrative(reading.narrative),
     reflections: boundedReflections,
     omittedReflectionCards: Math.max(0, (Array.isArray(reading.cardsInfo) ? reading.cardsInfo.length : 0) - cards.length)
   });

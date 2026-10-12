@@ -150,7 +150,7 @@ describe('buildFollowUpPrompt', () => {
     assert.ok(lowered.includes('filtered'));
   });
 
-  test('truncates long narratives', () => {
+  test('retains long narratives without excerpting them', () => {
     const longNarrative = 'A'.repeat(10000);
     const { userPrompt } = buildFollowUpPrompt({
       originalReading: {
@@ -160,8 +160,8 @@ describe('buildFollowUpPrompt', () => {
       followUpQuestion: 'test'
     });
 
-    assert.ok(userPrompt.includes('[truncated]'));
-    assert.ok(!userPrompt.includes(longNarrative));
+    assert.ok(!userPrompt.includes('[truncated]'));
+    assert.ok(userPrompt.includes(longNarrative));
   });
 
   test('sanitizes display name in question prefix', () => {
