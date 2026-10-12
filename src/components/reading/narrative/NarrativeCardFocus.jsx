@@ -15,8 +15,8 @@ import { createHold, createTraceEngine } from './cardTouchMotion.js';
  *   others it names);
  * - trace: a described detail ("the two pitchers") reaches the reader's eye,
  *   and the card's artwork leans in to show just that part. Traces play one at
- *   a time, in reading order, each long enough to find on the card. A detail
- *   the reader chooses (tap, click, Enter) is held until they let it go.
+ *   a time, in reading order, each long enough to find on the card. Explicit
+ *   inspection suspends these turns until its dialog closes.
  */
 const FocusStateContext = createContext(null);
 const FocusApiContext = createContext(null);
@@ -35,7 +35,13 @@ function isOnScreen(element) {
   const dock = Number.parseFloat(
     window.getComputedStyle(document.documentElement).getPropertyValue('--mobile-action-bar-height')
   ) || 0;
-  return rect.bottom > 0 && rect.top < (window.innerHeight || 0) - dock;
+  const header = document.querySelector('.header-sticky');
+  const headerBottom = header && ['sticky', 'fixed'].includes(getComputedStyle(header).position)
+    ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+  const viewport = window.visualViewport;
+  const top = Math.max(headerBottom, viewport?.offsetTop || 0);
+  const bottom = Math.min((window.innerHeight || 0) - dock, (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight));
+  return rect.height > 0 && rect.top >= top && rect.bottom <= bottom;
 }
 
 function sameFocus(a, b) {
@@ -45,6 +51,9 @@ function sameFocus(a, b) {
 export function NarrativeCardFocusProvider({
   cards = [],
   onSelectCard,
+  readingIdentity = '',
+  sourceText = '',
+  inspectionOpen = false,
   stable = false,
   children
 }) {
@@ -59,6 +68,20 @@ export function NarrativeCardFocusProvider({
   const [personalHold] = useState(() => createHold(setPersonal, PERSONAL_HOLD_MS));
   const containerRef = useRef(null);
   const onSelectCardRef = useRef(onSelectCard);
+  const calmRef = useRef(calm);
+  const previousSource = useRef(sourceText);
+
+  useEffect(() => { calmRef.current = calm; traces.setSuspended(calm || inspectionOpen); }, [calm, inspectionOpen, traces]);
+  useEffect(() => { traces.clear(); personalHold.clear(); }, [readingIdentity, traces, personalHold]);
+  useEffect(() => {
+    // Appending streamed text preserves occurrence identity. Replacing its source
+    // (retry, regeneration or restore) invalidates the old ranges and ledger.
+    if (previousSource.current && !sourceText.startsWith(previousSource.current)) {
+      traces.clear();
+      personalHold.clear();
+    }
+    previousSource.current = sourceText;
+  }, [sourceText, traces, personalHold]);
 
   useEffect(() => {
     onSelectCardRef.current = onSelectCard;
@@ -99,14 +122,12 @@ export function NarrativeCardFocusProvider({
       if (Number.isInteger(index)) container.dataset.spreadHover = String(index);
       else delete container.dataset.spreadHover;
     },
-    selectCard(index) {
-      onSelectCardRef.current?.(index);
+    selectCard(index, inspection = null) {
+      onSelectCardRef.current?.(index, inspection);
     },
-    reachDetail: traces.reach,
+    reachDetail(detail) { if (!calmRef.current) traces.reach(detail); },
     inspectDetail: traces.inspect,
     releaseDetail: traces.release,
-    holdDetail: traces.hold,
-    unholdDetail: traces.unhold,
     checkDetails: traces.check,
     clearTraces() {
       traces.clear();

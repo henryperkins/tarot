@@ -644,6 +644,10 @@ body {
   transition: transform 260ms ease, opacity 200ms ease;
 }
 
+.header-sticky:has([data-reading-app-options][open]) {
+  z-index: var(--z-tooltip-portal);
+}
+
 .header-sticky--compact {
   padding-top: 0.35rem !important;
   padding-bottom: 0.35rem !important;

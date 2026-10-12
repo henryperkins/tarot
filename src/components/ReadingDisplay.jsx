@@ -1,10 +1,10 @@
+import { getCardTouchPoints } from '../data/cardTouchPoints.js';
 import { useCallback, useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import { useSaveReading } from '../hooks/useSaveReading';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext.jsx';
@@ -33,6 +33,7 @@ function inferElementFromSuit(suit) {
     return 'spirit';
 }
 export function ReadingDisplay({
+    saveController,
     sectionRef,
     followUpOpen,
     onFollowUpOpenChange,
@@ -41,7 +42,7 @@ export function ReadingDisplay({
     onCardModalChange,
     isMobileStableMode = false
 }) {
-    const { saveReading, isSaving } = useSaveReading();
+    const { saveReading, isSaving } = saveController;
     const { publish: publishToast } = useToast();
     const { effectiveTier } = useSubscription();
     const navigate = useNavigate();
@@ -253,13 +254,17 @@ export function ReadingDisplay({
         notifyCardMention
     });
 
-    const handleSelectInsightCard = useCallback((index) => {
+    const handleSelectInsightCard = useCallback((index, inspection = null) => {
         if (!Number.isInteger(index) || index < 0 || index >= visibleCount || !revealedCards.has(index)) return;
         handleOpenModalFromPanel({
             card: reading[index],
             position: spreadInfo?.positions?.[index] || `Position ${index + 1}`,
             index,
-            readingKey: readingIdentity
+            readingKey: readingIdentity,
+            inspection: inspection ? {
+                ...inspection,
+                touchIds: (inspection.touchIds || []).filter(id => getCardTouchPoints(reading[index].canonicalName || reading[index].name).some(point => point.id === id))
+            } : null
         });
     }, [handleOpenModalFromPanel, reading, readingIdentity, revealedCards, spreadInfo?.positions, visibleCount]);
 
@@ -396,6 +401,7 @@ export function ReadingDisplay({
         handleNarrationButtonClick,
         handleVoicePromptEnable,
         readingIdentity,
+        inspectionOpen: isCardModalOpen,
         persistMediaRecord,
         setHasHeroStoryArt,
         canShowVisionPanel,
@@ -641,6 +647,8 @@ export function ReadingDisplay({
     };
 
     const completionModel = {
+        saveController,
+        onViewJournalEntry: handleOpenJournalEntry,
         personalReading,
         isNarrativeFocus,
         isPersonalReadingError,

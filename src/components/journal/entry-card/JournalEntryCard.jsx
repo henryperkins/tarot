@@ -43,11 +43,17 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   onDelete,
   onDeleteShareLink,
   defaultExpanded = false,
+  openRequestKey = null,
   compact = false,
   cardClass
 }) {
   // Initialize expanded state - never expand if compact mode is on
-  const [isExpanded, setIsExpanded] = useState(() => defaultExpanded && !compact);
+  const [isExpanded, setIsExpanded] = useState(() => Boolean(openRequestKey) || (defaultExpanded && !compact));
+  const [handledOpenRequest, setHandledOpenRequest] = useState(openRequestKey);
+  if (openRequestKey && openRequestKey !== handledOpenRequest) {
+    setHandledOpenRequest(openRequestKey);
+    setIsExpanded(true);
+  }
   
   // Hooks
   const isSmallScreen = useSmallScreen(SMALL_SCREEN_MAX);
@@ -195,10 +201,11 @@ export const JournalEntryCard = memo(function JournalEntryCard({
 
           {hasNarrative && (
             <NarrativeSection
+              key={handledOpenRequest || 'default'}
               narrativeText={narrativeText}
               narrativeId={narrativeId}
               collapsible
-              defaultExpanded={!isSmallScreen}
+              defaultExpanded={Boolean(handledOpenRequest) || !isSmallScreen}
             />
           )}
 

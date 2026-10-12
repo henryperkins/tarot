@@ -14,6 +14,7 @@ for (const width of [1440, 390, 320]) {
       const fixture = await createNarrativeFixture(page);
       try {
         await startReading(page, fixture);
+        await page.getByText('Explore this reading', { exact: true }).click();
         const region = page.getByRole('region', { name: panelName });
         const trigger = region.getByRole('button', { name: panelName, exact: true });
         await expect(trigger).toHaveAttribute('aria-expanded', 'false');
@@ -89,11 +90,12 @@ for (const hasSnapshot of [false, true]) {
     });
     try {
       await startReading(page, fixture);
+        await page.getByText('Explore this reading', { exact: true }).click();
       await expect(page.getByRole('region', { name: panelName })).toBeVisible();
-      await page.getByRole('button', { name: 'Save to Journal', exact: true }).click();
+      await page.getByRole('button', { name: 'Save to journal', exact: true }).click();
       await expect.poll(() => saved.length).toBe(1);
       expect(saved[0].sourceUsage.userContext.usedInputs).toContain('cardReflections');
-      await page.getByRole('button', { name: 'View Journal', exact: true }).click();
+      await page.goto('/journal');
       const entry = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'One-Card Insight', exact: true }) });
       await entry.locator('button[title="Expand entry"]').click();
       await expect(page.getByRole('button', { name: 'Ask a follow-up', exact: true })).toBeVisible();
@@ -102,6 +104,7 @@ for (const hasSnapshot of [false, true]) {
       await expect(page.locator('.narrative-stream')).toContainText('A saved reflection from yesterday.');
       const region = page.getByRole('region', { name: panelName });
       if (hasSnapshot) {
+        await page.getByText('Explore this reading', { exact: true }).click();
         await region.getByRole('button', { name: panelName }).click();
         await expect(region.getByText('Uploaded images', { exact: true })).toBeVisible();
         await expect(region).not.toContainText('Traditional wisdom');

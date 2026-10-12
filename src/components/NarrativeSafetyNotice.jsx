@@ -9,7 +9,7 @@ export function NarrativeSafetyNotice({
   return (
     <div role="note" className={`flex items-start gap-2.5 ${className}`}>
       <Info aria-hidden="true" className={`${compact ? 'mt-0.5' : 'mt-1'} h-4 w-4 flex-none text-secondary`} />
-      <div className={`min-w-0 space-y-1 ${compact ? 'text-xs' : 'text-sm'} leading-relaxed text-muted`}>
+      <div className={`min-w-0 space-y-1 text-sm leading-relaxed text-muted`}>
         <p>
           This narrative braids together your spread positions, card meanings, and reflections into a single through-line.
           {' '}Use what resonates, and set aside what does not.

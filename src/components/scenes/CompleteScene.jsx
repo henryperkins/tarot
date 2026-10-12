@@ -1,5 +1,5 @@
+import { ReadingCompletionActions } from '../reading/complete/ReadingCompletionActions';
 import {
-  ContinueConversationSection,
   ReadingInputUsageSection,
   ReadingMediaSection,
   ReadingFeedbackSection,
@@ -14,10 +14,11 @@ export function CompleteScene({
   const narrativeModel = getSceneModel(sceneModels, 'narrativeModel');
   const completionModel = getSceneModel(sceneModels, 'completionModel');
   const {
+    saveController,
+    onViewJournalEntry,
     personalReading,
     isNarrativeFocus,
     isPersonalReadingError,
-    narrativePhase,
     isHandset,
     userQuestion,
     isShuffling,
@@ -37,14 +38,22 @@ export function CompleteScene({
     onDeleteMedia,
     followUpOpen,
     setFollowUpOpen,
-    followUpAutoFocus
   } = completionModel;
   const narrativePanel = narrativeModel?.narrativePanel || null;
   const narrativeCompanion = narrativeModel?.secondaryContent || null;
   const shouldRenderNarrativeCompanion = Boolean(narrativePanel && personalReading && narrativeCompanion);
-  const secondaryContent = (
+  const isComplete = Boolean(personalReading && !personalReading.isStreaming);
+  const secondaryContent = isComplete ? (
     <>
-      {shouldRenderNarrativeCompanion ? <div className="mt-6 sm:mt-8">{narrativeCompanion}</div> : null}
+      {!isHandset && personalReading && !isPersonalReadingError ? <div className="mx-auto mt-6 max-w-prose">
+        <ReadingCompletionActions saveController={saveController} onViewJournalEntry={onViewJournalEntry}
+          onOpenFollowUp={event => setFollowUpOpen?.(true, event)} followUpOpen={followUpOpen} />
+      </div> : null}
+      {!isNarrativeFocus && !isPersonalReadingError ? (
+        <details className="reading-explore mx-auto mt-6 max-w-prose text-main">
+          <summary className="min-h-touch cursor-pointer rounded-lg py-3 text-base font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">Explore this reading</summary>
+          <div className="space-y-4 pt-3">
+      {shouldRenderNarrativeCompanion ? <div className="space-y-4">{narrativeCompanion}</div> : null}
 
       {/* Reading Inputs sits under Spread Insights: both describe how the reading was built. */}
       {!isNarrativeFocus && (
@@ -56,27 +65,6 @@ export function CompleteScene({
           sourceUsage={readingMeta?.sourceUsage}
         />
       )}
-
-      <ReadingFeedbackSection
-        personalReading={personalReading}
-        readingMeta={readingMeta}
-        selectedSpread={selectedSpread}
-        spreadName={spreadName}
-        deckStyleId={deckStyleId}
-        userQuestion={userQuestion}
-        lastCardsForFeedback={lastCardsForFeedback}
-        feedbackVisionSummary={feedbackVisionSummary}
-      />
-
-      <ContinueConversationSection
-        personalReading={personalReading}
-        isPersonalReadingError={isPersonalReadingError}
-        narrativePhase={narrativePhase}
-        isHandset={isHandset}
-        followUpOpen={followUpOpen}
-        setFollowUpOpen={setFollowUpOpen}
-        followUpAutoFocus={followUpAutoFocus}
-      />
 
       <ReadingMediaSection
         personalReading={personalReading}
@@ -90,17 +78,32 @@ export function CompleteScene({
         onDeleteMedia={onDeleteMedia}
       />
 
+          </div>
+        </details>
+      ) : null}
+
+      <ReadingFeedbackSection
+        personalReading={personalReading}
+        readingMeta={readingMeta}
+        selectedSpread={selectedSpread}
+        spreadName={spreadName}
+        deckStyleId={deckStyleId}
+        userQuestion={userQuestion}
+        lastCardsForFeedback={lastCardsForFeedback}
+        feedbackVisionSummary={feedbackVisionSummary}
+      />
+
       <NewReadingSection
         isShuffling={isShuffling}
         shuffle={shuffle}
       />
     </>
-  );
+  ) : null;
 
   return (
     <NarrativeStageLayout
-      scene="complete"
-      panelVariant="complete"
+      scene={isComplete ? 'complete' : 'narrative'}
+      panelVariant={isComplete ? 'complete' : 'narrative'}
       narrativePanel={narrativePanel}
       secondaryContent={secondaryContent}
       wrapSecondaryWithTopSpacing={false}

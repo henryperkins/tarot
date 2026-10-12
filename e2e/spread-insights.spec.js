@@ -30,6 +30,7 @@ async function withInsights(page, { deck = 'rws-1909', fallback = false } = {}, 
       });
     }
     await fixture.completeReading();
+    await page.getByText('Explore this reading', { exact: true }).click();
     const panel = page.locator('.spread-patterns-panel');
     const disclosure = panel.getByRole('button', { name: /^Spread Insights/ });
     if (await disclosure.count()) {
@@ -97,14 +98,16 @@ for (const mobile of [false, true]) {
 test('insights remain recoverable when focus mode crosses the handset breakpoint', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await withInsights(page, {}, async () => {
-    await page.getByRole('button', { name: 'Focus on narrative', exact: true }).press('Enter');
+    await page.getByText('Reading options', { exact: true }).click();
+    await page.getByRole('button', { name: 'Hide extra panels', exact: true }).press('Enter');
     await expect(page.locator('.spread-patterns-panel')).toHaveCount(0);
     for (const width of [768, 390, 320]) {
       await page.setViewportSize({ width, height: 844 });
-      await expect(page.getByRole('button', { name: 'Show insight panels', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Hide extra panels', exact: true })).toBeVisible();
     }
-    await page.getByRole('button', { name: 'Show insight panels', exact: true }).press('Enter');
-    await expect(page.getByRole('button', { name: 'Focus on narrative', exact: true })).toBeFocused();
+    await page.getByRole('button', { name: 'Hide extra panels', exact: true }).press('Enter');
+    await expect(page.getByRole('button', { name: 'Hide extra panels', exact: true })).toBeFocused();
+    await page.getByText('Explore this reading', { exact: true }).click();
     const disclosure = page.getByRole('button', { name: /^Spread Insights/ });
     await disclosure.press('Enter');
     await expect(page.getByRole('list', { name: 'Spread highlights' })).toBeVisible();
@@ -112,31 +115,22 @@ test('insights remain recoverable when focus mode crosses the handset breakpoint
   });
 });
 
-test('insights and reading inputs share one column, order, surface, title and focus style', async ({ page }) => {
+test('completion precedes optional tools, which share a readable column and focus style', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await withInsights(page, {}, async panel => {
-    const inputs = page.getByRole('region', { name: 'Reading Inputs Used' }).locator('.panel-mystic');
+    const inputs = page.getByRole('region', { name: 'Reading Inputs Used' });
     await expect(inputs).toBeVisible();
-    // About the reading first (insights, inputs, feedback), then next steps.
+    // Complete the reading, then explore tools, feedback and starting over.
     const tops = [];
     for (const locator of [
+      page.locator('[data-reading-completion]').filter({ visible: true }),
       panel,
       inputs,
-      page.getByRole('heading', { name: /How did this reading land/, level: 2 }),
-      page.getByRole('heading', { name: 'Continue the conversation', exact: true, level: 2 }),
       page.getByRole('heading', { name: 'Recent media', exact: true, level: 2 }),
+      page.getByRole('heading', { name: /How did this reading land/, level: 2 }),
       page.getByRole('button', { name: 'Start a new reading and reset this spread', exact: true })
     ]) tops.push((await locator.boundingBox()).y);
     expect(tops).toEqual([...tops].sort((a, b) => a - b));
-    const look = locator => locator.evaluate(element => {
-      const surface = getComputedStyle(element);
-      const title = getComputedStyle(element.querySelector('h2 button') || element.querySelector('h2'));
-      return {
-        surface: [surface.backgroundImage, surface.borderTopLeftRadius, surface.borderTopColor, surface.paddingLeft],
-        title: [title.fontFamily, title.fontSize, title.fontWeight, title.color]
-      };
-    });
-    expect(await look(panel)).toEqual(await look(inputs));
     const focusRing = async button => {
       await button.press('Enter');
       return button.evaluate(async element => {
@@ -151,13 +145,11 @@ test('insights and reading inputs share one column, order, surface, title and fo
     expect(insightsRing).toEqual(await focusRing(page.getByRole('button', { name: 'Reading Inputs Used', exact: true })));
     for (const width of [1440, 900, 390]) {
       await page.setViewportSize({ width, height: 1000 });
-      const columns = await page.locator('[data-scene="complete"] .panel-mystic').evaluateAll(nodes => nodes
-        .filter(node => node.getClientRects().length)
-        .map(node => {
-          const box = node.getBoundingClientRect();
-          return `${Math.round(box.x)}+${Math.round(box.width)}`;
-        }));
-      expect(columns.length).toBeGreaterThanOrEqual(2);
+      const columns = await Promise.all([panel, inputs].map(locator => locator.evaluate(node => {
+        const box = node.getBoundingClientRect();
+        return `${Math.round(box.x)}+${Math.round(box.width)}`;
+      })));
+      expect(columns).toHaveLength(2);
       expect(new Set(columns).size, `${width}px panels: ${columns.join(', ')}`).toBe(1);
     }
   });

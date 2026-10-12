@@ -1,3 +1,4 @@
+import { NarrativePersonalContext } from './reading/narrative/NarrativePersonalContext';
 import PropTypes from 'prop-types';
 import { NarrativeQuestionAnchor } from './reading/narrative/NarrativeQuestionAnchor';
 import {
@@ -7,7 +8,7 @@ import {
   NarrativeStatusStack
 } from './reading/narrative';
 import { NarrativeCardFocusProvider } from './reading/narrative/NarrativeCardFocus';
-import { SpreadCompanion, CardTouchPlate, CardEcho } from './reading/narrative/SpreadCompanion';
+import { SpreadCompanion, CardTouchPlate } from './reading/narrative/SpreadCompanion';
 import { railColumns } from './reading/narrative/spreadCompanionLayout';
 
 // Set the card into the paragraph that opens its passage.
@@ -41,9 +42,11 @@ export function NarrativePanel({
     statusModel,
     controlsModel,
     ttsState,
-    journalStatus,
     spreadCards = [],
     cardLinkCatalog = null,
+    readingIdentity,
+    inspectionOpen,
+    reflections,
     isMobileStableMode = false
   } = panelModel;
   const {
@@ -55,11 +58,6 @@ export function NarrativePanel({
     onSectionEnter,
     onEnableVoice,
     onDismissVoicePrompt,
-    onViewJournalEntry,
-    onSaveFromNudge,
-    onDismissNudge,
-    onOpenJournal,
-    onSaveReading,
     onRetryNarrative,
     onUpgradeTier,
     onSelectCard
@@ -98,11 +96,10 @@ export function NarrativePanel({
   ].filter(Boolean).join(' ');
 
   return (
-    <NarrativeCardFocusProvider cards={spreadCards} onSelectCard={onSelectCard} stable={isMobileStableMode}>
+    <NarrativeCardFocusProvider cards={spreadCards} onSelectCard={onSelectCard} stable={isMobileStableMode || personalReading?.isRestored} readingIdentity={readingIdentity} sourceText={narrativeText} inspectionOpen={inspectionOpen}>
       <div className={panelClassName}>
         <div className={layoutClassName}>
           {hasSpread ? <SpreadCompanion /> : null}
-          {hasSpread && cardLinks ? <CardEcho /> : null}
           {/* One reading column keeps the title, question, notice, and prose on a shared edge. */}
           <div className="narrative-panel__column mx-auto max-w-prose min-w-0 space-y-5 sm:space-y-6">
             <NarrativePanelHeader
@@ -112,6 +109,10 @@ export function NarrativePanel({
             />
 
             <NarrativeBody
+              personalContext={<NarrativePersonalContext question={question} reflections={reflections} cards={spreadCards} />}
+              audioControls={<NarrativeStatusStack section="audio" statusModel={statusModel} ttsState={ttsState}
+                onUpgradeTier={onUpgradeTier} onEnableVoice={onEnableVoice} onDismissVoicePrompt={onDismissVoicePrompt}
+                controls={<NarrationControls controlsModel={controlsModel} onNarrate={onNarrationStart} onStopNarration={onStopNarration} />} />}
               question={question}
               isHandset={isHandset}
               narrativeText={narrativeText}
@@ -135,28 +136,6 @@ export function NarrativePanel({
             />
           </div>
 
-          <div className="narrative-panel__after mt-4 max-w-3xl mx-auto space-y-4 min-w-0">
-            <NarrativeStatusStack
-              statusModel={statusModel}
-              ttsState={ttsState}
-              journalStatus={journalStatus}
-              onUpgradeTier={onUpgradeTier}
-              onEnableVoice={onEnableVoice}
-              onDismissVoicePrompt={onDismissVoicePrompt}
-              onViewEntry={onViewJournalEntry}
-              onSaveFromNudge={onSaveFromNudge}
-              onDismissNudge={onDismissNudge}
-              controls={(
-                <NarrationControls
-                  controlsModel={controlsModel}
-                  onNarrate={onNarrationStart}
-                  onStopNarration={onStopNarration}
-                  onSaveReading={onSaveReading}
-                  onOpenJournal={onOpenJournal}
-                />
-              )}
-            />
-          </div>
         </div>
       </div>
     </NarrativeCardFocusProvider>

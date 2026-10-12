@@ -10,7 +10,7 @@ import { MINOR_ARCANA } from '../data/minorArcana.js';
 import { getDeckAlias, getDeckImagePath } from '../../shared/vision/deckAssets.js';
 
 // Fallback image for missing cards
-export const FALLBACK_IMAGE = '/images/cards/card-back.jpeg';
+export const FALLBACK_IMAGE = '/images/card-back.png';
 
 // Build lookup table from all cards
 const ALL_CARDS = [...MAJOR_ARCANA, ...MINOR_ARCANA];

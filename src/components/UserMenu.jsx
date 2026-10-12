@@ -1,4 +1,5 @@
-import { lazy, useEffect, useState, useRef, useCallback } from 'react';
+import { InstallControl } from './InstallControl';
+import { lazy, useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { SignIn, User, SignOut, BookOpen, Gear, Crown, Sparkle, Moon } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,7 +10,7 @@ import { DeferredDialog } from './DeferredDialog';
 
 const AuthModal = lazy(() => import('./AuthModal'));
 
-export function UserMenu({ condensed = false }) {
+export function UserMenu({ condensed = false, installInMenu = false }) {
   const { isAuthenticated, user, logout } = useAuth();
   const { tier, isPaid } = useSubscription();
   const { resetOnboarding, onboardingComplete } = usePreferences();
@@ -155,7 +156,7 @@ export function UserMenu({ condensed = false }) {
 
   return (
     <>
-      <div className="relative z-sticky-elevated">
+      <div className="relative z-sticky-elevated flex items-center gap-2">
         {isAuthenticated ? (
           <div className="relative">
             <button
@@ -431,6 +432,7 @@ export function UserMenu({ condensed = false }) {
             </button>
           </div>
         )}
+        {installInMenu ? <AppUtilities /> : null}
       </div>
 
       <ConfirmModal
@@ -454,5 +456,60 @@ export function UserMenu({ condensed = false }) {
         />
       )}
     </>
+  );
+}
+
+/** The same global utility entry works for guest and signed-in readers. */
+export function AppUtilities() {
+  const summaryRef = useRef(null);
+  const panelRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const getFallbackFocus = useCallback(() => summaryRef.current, []);
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const panel = panelRef.current;
+    const summary = summaryRef.current;
+    const dock = document.querySelector('.mobile-action-bar');
+    const position = () => {
+      const viewport = window.visualViewport;
+      const viewportTop = viewport?.offsetTop || 0;
+      const viewportBottom = viewportTop + (viewport?.height || window.innerHeight);
+      const dockBox = dock?.getBoundingClientRect();
+      const bottom = dockBox?.height ? Math.min(viewportBottom, dockBox.top) : viewportBottom;
+      const anchorBottom = summary.getBoundingClientRect().bottom;
+      const top = Math.max(viewportTop + 8, Math.min(anchorBottom + 4, bottom - panel.scrollHeight - 10));
+      panel.style.setProperty('--utilities-offset', `${top - anchorBottom}px`);
+      panel.style.setProperty('--utilities-height', `${Math.max(44, bottom - top - 8)}px`);
+    };
+    const observer = new ResizeObserver(position);
+    observer.observe(panel);
+    observer.observe(summary);
+    if (dock) observer.observe(dock);
+    window.addEventListener('resize', position);
+    window.addEventListener('scroll', position, { passive: true });
+    window.visualViewport?.addEventListener('resize', position);
+    position();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', position);
+      window.removeEventListener('scroll', position);
+      window.visualViewport?.removeEventListener('resize', position);
+    };
+  }, [open]);
+  return (
+    <details className="relative shrink-0" data-reading-app-options onToggle={event => setOpen(event.currentTarget.open)} onKeyDown={event => {
+      if (event.key === 'Escape' && event.currentTarget.open && !event.target.closest('[role="dialog"]')) {
+        event.currentTarget.open = false;
+        summaryRef.current?.focus({ preventScroll: true });
+      }
+    }}>
+      <summary ref={summaryRef} className="flex min-h-touch min-w-touch cursor-pointer list-none items-center justify-center rounded-lg text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
+        <Gear className="w-5 h-5" aria-hidden="true" /><span className="sr-only">App options</span>
+      </summary>
+      <div ref={panelRef} className="absolute right-0 top-full z-50 translate-y-[var(--utilities-offset,4px)] w-56 max-w-[80vw] max-h-[var(--utilities-height,50dvh)] overflow-y-auto rounded-xl border border-accent/30 bg-surface p-2 shadow-xl space-y-2">
+        <InstallControl getFallbackFocus={getFallbackFocus} preventFocusScroll />
+        <Link to="/account" className="flex min-h-touch items-center rounded-lg px-2 text-sm text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">Account and settings</Link>
+      </div>
+    </details>
   );
 }

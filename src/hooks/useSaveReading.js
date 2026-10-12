@@ -1,4 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import { useState, useRef, useCallback, useLayoutEffect } from 'react';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from './useJournal';
@@ -30,27 +32,31 @@ export function useSaveReading() {
     } = usePreferences();
     const { saveEntry } = useJournal({ autoLoad: false });
 
-    // Prevent double-saves from rapid clicks or network retries
-    const [isSaving, setIsSaving] = useState(false);
-    const lastSavedSeedRef = useRef(null);
-
-    // Reset saved-seed tracking when a new reading starts (sessionSeed goes null on shuffle)
-    useEffect(() => {
-        if (sessionSeed === null) lastSavedSeedRef.current = null;
-    }, [sessionSeed]);
+    const { user, isAuthenticated } = useAuth();
+    const { canUseCloudJournal } = useSubscription();
+    // Include original content as well as seed: regenerating within a spread is
+    // a new save target, and an account change must never inherit Saved state.
+    const readingKey = JSON.stringify([sessionSeed, selectedSpread, deckStyleId, userQuestion,
+        personalReading?.raw || personalReading?.normalized || '', reflections,
+        reading?.map(card => [card.name, card.isReversed]),
+        isAuthenticated ? user?.id : 'guest', Boolean(isAuthenticated && canUseCloudJournal)]);
+    const [statesByKey, setStatesByKey] = useState(() => new Map());
+    const setSaveState = useCallback(state => {
+        setStatesByKey(previous => new Map(previous).set(state.readingKey, state));
+    }, []);
+    const saveState = statesByKey.get(readingKey) || { readingKey, status: 'idle', entryId: null, error: null };
+    const isSaving = saveState.status === 'saving';
+    const inFlight = useRef(new Set());
+    const savedEntries = useRef(new Map());
+    const currentKey = useRef(readingKey);
+    useLayoutEffect(() => { currentKey.current = readingKey; }, [readingKey]);
 
     const saveReading = useCallback(async function saveReading() {
-        // Prevent double-saves
-        if (isSaving) {
+        if (inFlight.current.has(readingKey)) return;
+        if (savedEntries.current.has(readingKey)) {
+            setSaveState({ readingKey, status: 'saved', entryId: savedEntries.current.get(readingKey), error: null });
             return;
         }
-
-        // Skip if this exact reading was already saved (same session seed)
-        if (sessionSeed && lastSavedSeedRef.current === sessionSeed) {
-            setJournalStatus({ type: 'info', message: 'This reading is already saved to your journal.' });
-            return;
-        }
-
         if (!reading) {
             setJournalStatus({ type: 'error', message: 'Draw your cards before saving to the journal.' });
             return;
@@ -126,14 +132,18 @@ export function useSaveReading() {
                 persistLocationConsent: true
             } : {})
         };
-        setIsSaving(true);
+        inFlight.current.add(readingKey);
+        setSaveState({ readingKey, status: 'saving', entryId: null, error: null });
         try {
             const result = await saveEntry(entry);
             if (result.success) {
-                // Track successful save to prevent duplicate saves of same reading
-                if (sessionSeed) {
-                    lastSavedSeedRef.current = sessionSeed;
-                }
+                const savedId = result?.entry?.id || null;
+                if (!savedId) console.warn('Journal save succeeded without an entry ID; exact-entry navigation is unavailable.');
+                savedEntries.current.set(readingKey, savedId);
+                setSaveState({ readingKey, status: 'saved', entryId: savedId, error: null });
+                // Retain the result for its owner even while another reading or
+                // account is active. Only the active owner receives the notice.
+                if (currentKey.current !== readingKey) return;
                 // Increment journal save count for nudge system (only for new saves)
                 if (!result.deduplicated) {
                     incrementJournalSaveCount();
@@ -152,20 +162,20 @@ export function useSaveReading() {
                     } : null
                 });
             } else {
-                setJournalStatus({ type: 'error', message: result.error || 'Unable to save to your journal. Please try again.' });
+                setSaveState({ readingKey, status: 'error', entryId: null, error: result.error || 'Unable to save to your journal.' });
             }
         } catch (error) {
             console.error('Failed to save tarot reading', error);
-            setJournalStatus({ type: 'error', message: 'Unable to save to your journal. Please try again.' });
+            setSaveState({ readingKey, status: 'error', entryId: null, error: 'Unable to save to your journal.' });
         } finally {
-            setIsSaving(false);
+            inFlight.current.delete(readingKey);
         }
     }, [
-        isSaving, sessionSeed, reading, personalReading, selectedSpread,
+        readingKey, sessionSeed, reading, personalReading, selectedSpread,
         userQuestion, themes, reflections, analysisContext, readingMeta,
         deckStyleId, personalization, saveEntry, setJournalStatus, incrementJournalSaveCount,
-        locationEnabled, cachedLocation, persistLocationToJournal, followUps
+        locationEnabled, cachedLocation, persistLocationToJournal, followUps, setSaveState
     ]);
 
-    return { saveReading, isSaving };
+    return { saveReading, isSaving, saveState };
 }

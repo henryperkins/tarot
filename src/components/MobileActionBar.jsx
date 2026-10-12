@@ -1,12 +1,12 @@
+import { ReadingCompletionActions } from './reading/complete/ReadingCompletionActions';
 import { useMemo, useEffect, useRef } from 'react';
-import { Gear, Sparkle, ArrowsClockwise, ChatCircle } from '@phosphor-icons/react';
+import { Gear, Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { getReadingTableAction } from './readingBoardUtils';
 import {
   MOBILE_SETTINGS_DIALOG_ID,
-  MOBILE_COACH_DIALOG_ID,
-  MOBILE_FOLLOWUP_DIALOG_ID
+  MOBILE_COACH_DIALOG_ID
 } from './mobileActionBarConstants';
 
 // Shared button styles - reduced height in landscape while maintaining touch target
@@ -51,7 +51,7 @@ function ActionButton({
   }[variant] || BTN_PRIMARY;
 
   const heightClass = variant === 'primary' && !isLandscape ? 'min-h-cta' : 'min-h-touch';
-  const textSize = isLandscape ? 'text-xs' : 'text-sm';
+  const textSize = 'text-sm';
   const nowrapClass = isLandscape ? 'whitespace-nowrap' : '';
   const focusOffsetClass = isLandscape ? 'focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-surface)]' : '';
 
@@ -128,7 +128,8 @@ function MobileActionContents({
   onShuffle,
   onDealNext,
   onGenerateNarrative,
-  onSaveReading,
+  saveController,
+  onViewJournalEntry,
   onNewReading,
   variant = 'fixed',
   showUtilityButtons = true,
@@ -206,7 +207,8 @@ function MobileActionContents({
     onDealSpread,
     tableAction,
     onGenerateNarrative,
-    onSaveReading,
+    saveController,
+    onViewJournalEntry,
     onNewReading
   });
 
@@ -241,7 +243,8 @@ function renderActions(mode, options) {
     onDealSpread,
     tableAction,
     onGenerateNarrative,
-    onSaveReading,
+    saveController,
+    onViewJournalEntry,
     onNewReading
   } = options;
 
@@ -405,44 +408,8 @@ function renderActions(mode, options) {
       );
 
     case 'completed':
-      return (
-        <>
-          {hasNarrative && (
-            <ActionButton
-              variant="primary"
-              onClick={onSaveReading}
-              ariaLabel={withStepContext('Save reading to journal', stepIndicatorLabel)}
-            className={`${widthClasses.primary} ${px}`}
-            isLandscape={isLandscape}
-          >
-            Save reading
-          </ActionButton>
-          )}
-          {showFollowUp && (
-            <ActionButton
-              variant="tertiary"
-              icon={ChatCircle}
-              onClick={onOpenFollowUp}
-              ariaLabel="Open follow-up chat"
-              ariaControls={MOBILE_FOLLOWUP_DIALOG_ID}
-              ariaExpanded={isFollowUpOpen}
-              className={`${widthClasses.tertiary} ${px}`}
-              isLandscape={isLandscape}
-            >
-              Chat
-            </ActionButton>
-          )}
-          <ActionButton
-            variant="secondary"
-            onClick={onNewReading}
-            ariaLabel="Start a new reading (resets the current spread)"
-            className={`${widthClasses.secondary} ${px}`}
-            isLandscape={isLandscape}
-          >
-            New reading
-          </ActionButton>
-        </>
-      );
+      return hasNarrative ? <ReadingCompletionActions saveController={saveController} onViewJournalEntry={onViewJournalEntry}
+        onOpenFollowUp={showFollowUp ? onOpenFollowUp : null} followUpOpen={isFollowUpOpen} /> : null;
 
     default:
       return null;

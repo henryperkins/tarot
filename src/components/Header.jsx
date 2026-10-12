@@ -3,7 +3,7 @@ import { ArrowCounterClockwise } from '@phosphor-icons/react';
 import { TableuLogo } from './TableuLogo';
 import { TABLEU_MARK_SIZE, TABLEU_LOGO_WIDTH } from '../../shared/brand/tableuMark';
 import { GlobalNav } from './GlobalNav';
-import { UserMenu } from './UserMenu';
+import { UserMenu, AppUtilities } from './UserMenu';
 import { StepProgress } from './StepProgress';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
@@ -20,11 +20,13 @@ export function Header({
   activeStep,
   onStepSelect,
   isShuffling,
-  minimalNav = false
+  minimalNav = false,
+  installInMenu = false
 }) {
   const prefersReducedMotion = useReducedMotion();
   const stickyRef = useResponsiveSticky();
   const isMobile = useSmallScreen(TABLET_SCREEN_MAX);
+  const isHandset = useSmallScreen();
   const { personalization } = usePreferences();
   const displayName = personalization?.displayName?.trim();
   const [headerState, setHeaderState] = useState(() => ({
@@ -53,7 +55,9 @@ export function Header({
     isCleanedUpRef.current = false;
 
     const updateHeaderState = () => {
-      if (isCleanedUpRef.current) return;
+      // Fixed-body modal locking reports scrollY=0. Keep the reading's header
+      // height stable so unlocking does not move its saved scroll position.
+      if (isCleanedUpRef.current || document.body.style.position === 'fixed') return;
 
       const currentY = window.scrollY || 0;
       const isScrollingDown = currentY > lastScrollYRef.current;
@@ -169,7 +173,7 @@ export function Header({
           shadow-lg shadow-primary/20
           header-sticky
           ${minimalNav ? 'header-sticky--scene' : ''}
-          ${isCompact ? 'header-sticky--compact' : ''}
+          ${isCompact || minimalNav ? 'header-sticky--compact' : ''}
         `}
         style={{
           transform: shouldHideHeader ? 'translateY(-110%)' : 'translateY(0)',
@@ -184,23 +188,24 @@ export function Header({
             {/* Desktop actions reserve their own space alongside the destinations. */}
             <div className="hidden max-w-full sm:block">
               <div className="header-sticky__user">
-                <UserMenu condensed={isCompact} />
+                <UserMenu condensed={isCompact} installInMenu={installInMenu && !isHandset} />
               </div>
             </div>
           </div>
         )}
-        <div className={minimalNav ? '' : 'mt-2 sm:mt-1'}>
+        <div className={`${minimalNav ? '' : 'mt-2 sm:mt-1'} ${installInMenu && (minimalNav || isHandset) ? 'flex items-center gap-2' : ''}`}>
           {displayName && !minimalNav && (
             <p className="text-[0.75rem] sm:text-xs text-muted mb-1">
               Welcome back, {displayName}.
             </p>
           )}
-          <StepProgress
+          <div className="min-w-0 flex-1"><StepProgress
             steps={steps}
             activeStep={activeStep}
             onSelect={onStepSelect}
-            condensed={isCompact}
-          />
+            condensed={isCompact || minimalNav}
+          /></div>
+          {installInMenu && (minimalNav || isHandset) ? <AppUtilities /> : null}
         </div>
         {isShuffling && (
           <div

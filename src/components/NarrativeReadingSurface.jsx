@@ -10,52 +10,17 @@ import { READING_PANEL_COLUMN_CLASS } from '../styles/panelClasses';
 const AnimatedReveal = lazy(() => import('./AnimatedReveal'));
 const StoryIllustration = lazy(() => import('./StoryIllustration'));
 
-function VisualCompanionTrigger({
-  modeLabel,
-  message,
-  isOpen,
-  onOpen
-}) {
+function VisualCompanionTrigger({ isOpen, onOpen }) {
   return (
-    <div className={READING_PANEL_COLUMN_CLASS}>
-      <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-4 sm:p-5">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="min-w-0 space-y-1">
-            <p className="flex items-center gap-2 text-sm font-semibold text-main">
-              <Sparkle className="w-4 h-4 text-secondary" aria-hidden="true" />
-              Visual Companion Studio
-            </p>
-            <p className="text-xs text-muted">{message}</p>
-          </div>
-          <div className="flex items-center gap-3 shrink-0 flex-wrap">
-            {modeLabel ? (
-              <span className="rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-2xs sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted">
-                {modeLabel}
-              </span>
-            ) : null}
-            <button
-              type="button"
-              onClick={onOpen}
-              aria-haspopup="dialog"
-              aria-expanded={isOpen}
-              className={OUTLINE_BUTTON_CLASS}
-            >
-              <Sparkle className="w-4 h-4" aria-hidden="true" />
-              <span>Open visual studio</span>
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-1">
+      <button type="button" onClick={onOpen} aria-haspopup="dialog" aria-expanded={isOpen} className={OUTLINE_BUTTON_CLASS}>
+        <Sparkle className="w-4 h-4" aria-hidden="true" />
+        <span>Create images or video</span>
+      </button>
+      <p className="text-sm text-muted">Make an illustration or a short video inspired by this reading.</p>
     </div>
   );
 }
-
-VisualCompanionTrigger.propTypes = {
-  modeLabel: PropTypes.string,
-  message: PropTypes.string,
-  isOpen: PropTypes.bool,
-  onOpen: PropTypes.func.isRequired
-};
 
 function VisualCompanionModule({
   title,
@@ -68,12 +33,12 @@ function VisualCompanionModule({
     <div className="min-w-0 rounded-xl border border-secondary/30 bg-surface/70 p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h3 className="text-sm sm:text-base font-semibold text-main">{title}</h3>
-        {badge ? <span className="text-2xs sm:text-xs text-muted">{badge}</span> : null}
+        {badge ? <span className="text-sm text-muted">{badge}</span> : null}
       </div>
-      <p className="text-xs sm:text-sm text-muted mt-2">{description}</p>
+      <p className="text-sm text-muted mt-2">{description}</p>
       <Suspense
         fallback={(
-          <div className="mt-4 rounded-xl border border-secondary/30 bg-surface/70 p-4 text-xs text-muted">
+          <div className="mt-4 rounded-xl border border-secondary/30 bg-surface/70 p-4 text-sm text-muted">
             {fallback}
           </div>
         )}
@@ -108,7 +73,6 @@ export function NarrativeReadingSurface({
     cinematicCard,
     resolvedQuestion,
     effectiveTier,
-    autoGenerateVisuals,
     storyArtCards = [],
     fullReadingText,
     narrativeText,
@@ -185,7 +149,7 @@ export function NarrativeReadingSurface({
                   position={cinematicPosition}
                   question={resolvedQuestion}
                   userTier={effectiveTier}
-                  autoGenerate={autoGenerateVisuals}
+                  autoGenerate={false}
                   onVideoReady={onCinematicMediaReady}
                   onNestedOverlayChange={handleCinematicOverlayChange}
                   className="mt-4"
@@ -205,7 +169,7 @@ export function NarrativeReadingSurface({
                   question={resolvedQuestion}
                   narrative={narrativeForIllustration}
                   userTier={effectiveTier}
-                  autoGenerate={autoGenerateVisuals}
+                  autoGenerate={false}
                   generationKey={readingIdentity}
                   onMediaReady={onStoryArtMediaReady}
                   onNestedOverlayChange={handleStoryOverlayChange}

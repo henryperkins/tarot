@@ -161,8 +161,7 @@
 }
 
 .spread-companion__card[data-state='touched'] .card-touch__art,
-.card-touch-plate[data-state='touched'] .card-touch__art,
-.card-echo .card-touch__art {
+.card-touch-plate[data-state='touched'] .card-touch__art {
   box-shadow:
     0 0 0 1px rgb(var(--brand-primary-rgb) / 0.9),
     0 18px 32px -18px rgb(var(--brand-primary-rgb) / 0.55),
@@ -174,8 +173,9 @@
 .card-touch-plate {
   float: left;
   display: block;
-  width: clamp(7rem, 36%, 10rem);
-  margin: 0.3em 1.05rem 0.6rem 0;
+  width: 6rem;
+  max-width: 34%;
+  margin: 0.3em 0.75rem 0.75rem 0;
   padding: 0;
   border: 0;
   border-radius: 6px;
@@ -250,7 +250,7 @@
 .card-touch-plate__note-label {
   display: block;
   color: var(--text-muted);
-  font-size: 0.6875rem;
+  font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   line-height: 1.3;
@@ -309,63 +309,9 @@
 @media (min-width: 640px) {
   .card-touch-plate {
     width: 10.5rem;
+    max-width: none;
     margin-right: 1.4rem;
   }
-}
-
-/* --- Echo: a chosen detail shown on its card, at the edge ----------------- */
-
-/* Only when the reader asks (a tap on a detail whose card is out of view),
-   and on the half of the screen away from the words they chose. */
-.card-echo {
-  position: fixed;
-  z-index: 30;
-  top: calc(env(safe-area-inset-top, 0px) + var(--card-echo-top, 4.5rem));
-  right: 0.75rem;
-  width: 6.75rem;
-  opacity: 0;
-  transform: translateX(1.5rem) scale(0.96);
-  transform-origin: 100% 0;
-  pointer-events: none;
-  transition:
-    opacity 320ms ease-out,
-    transform 520ms var(--card-touch-ease);
-}
-
-.card-echo[data-place='bottom'] {
-  top: auto;
-  bottom: calc(var(--mobile-action-bar-height, 0px) + 0.75rem);
-  transform-origin: 100% 100%;
-}
-
-.card-echo[data-visible] {
-  opacity: 1;
-  transform: none;
-  pointer-events: auto;
-}
-
-.card-echo__card {
-  display: block;
-  width: 100%;
-  padding: 0.4rem 0.4rem 0.45rem;
-  border: 1px solid rgb(var(--brand-primary-rgb) / 0.35);
-  border-radius: 10px;
-  background: rgb(var(--card-touch-veil) / 0.86);
-  box-shadow: 0 18px 36px -18px rgb(0 0 0 / 0.9);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  color: inherit;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.card-echo .card-caption {
-  margin-top: 0.4rem;
-}
-
-.card-echo .card-caption__name {
-  color: rgb(var(--brand-primary-rgb));
-  font-size: 0.875rem;
 }
 
 /* --- Spread companion: the whole spread beside the text on wide screens -- */
@@ -502,7 +448,7 @@
 }
 
 .spread-companion--rail[data-cols='2'] .card-caption__name {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
 }
 
 /* The scene clips its backdrop; clip (unlike hidden) creates no scroll
@@ -549,7 +495,6 @@
   }
 
   .card-touch-plate,
-  .card-echo,
   .spread-companion--row {
     display: none;
   }
@@ -771,8 +716,7 @@
   .card-touch,
   .card-touch__art,
   .card-touch__image,
-  .card-touch__veil,
-  .card-echo {
+  .card-touch__veil {
     transition-duration: 160ms;
   }
 
@@ -783,8 +727,7 @@
 
   .spread-companion__card[data-state='touched'] .card-touch,
   .card-touch-plate[data-state='touched'] .card-touch,
-  .spread-companion__card:hover .card-touch,
-  .card-echo {
+  .spread-companion__card:hover .card-touch {
     transform: none;
   }
 

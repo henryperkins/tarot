@@ -70,6 +70,7 @@ export function useNarrativeReadingController({
   handleNarrationButtonClick,
   handleVoicePromptEnable,
   readingIdentity,
+  inspectionOpen = false,
   persistMediaRecord,
   setHasHeroStoryArt,
   canShowVisionPanel,
@@ -170,6 +171,7 @@ export function useNarrativeReadingController({
   const shouldStreamNarrative = Boolean(
     personalReading
     && !personalReading.isError
+    && !personalReading.isRestored
     && !isReadingStreaming
     && !isServerStreamed
   );
@@ -179,7 +181,7 @@ export function useNarrativeReadingController({
     handleVoicePrompt
   } = useNarrationAutomation({
     voiceOn,
-    autoNarrate,
+    autoNarrate: autoNarrate && !personalReading?.isRestored,
     narrativePhase,
     isReadingStreaming,
     isPersonalReadingError,
@@ -286,6 +288,9 @@ export function useNarrativeReadingController({
     hasHeroStoryArt,
     isMobileStableMode,
     spreadCards,
+    readingIdentity,
+    inspectionOpen,
+    reflections,
     cardLinkCatalog
   }), [
     canAutoNarrate,
@@ -307,6 +312,9 @@ export function useNarrativeReadingController({
     narrativePhase,
     narrativeText,
     personalReading,
+    readingIdentity,
+    inspectionOpen,
+    reflections,
     shouldShowJournalNudge,
     shouldStreamNarrative,
     showVoicePrompt,

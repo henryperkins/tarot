@@ -71,7 +71,11 @@ function focusableElements(container) {
 
 export function restoreFocusTarget(target, { preventScroll = true } = {}) {
   if (!target) return;
-  target.focus({ preventScroll: true });
+  // Consumers with focus-visible scroll helpers must distinguish restoration
+  // from ordinary keyboard traversal. Keep the signal synchronous to focus.
+  target.setAttribute('data-restoring-modal-focus', 'true');
+  try { target.focus({ preventScroll: true }); }
+  finally { target.removeAttribute('data-restoring-modal-focus'); }
   if (preventScroll) return;
   const bounds = target.getBoundingClientRect();
   const viewportHeight = target.ownerDocument.defaultView.innerHeight;

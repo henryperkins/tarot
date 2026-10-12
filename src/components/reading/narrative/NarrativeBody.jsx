@@ -22,18 +22,22 @@ export function NarrativeBody({
   hasHeroStoryArt,
   cardLinks = null,
   renderParagraphLead = null,
-  spreadOverview = null
+  spreadOverview = null,
+  personalContext = null,
+  audioControls = null
 }) {
   const streamClassName = `mt-6 sm:mt-8 ${hasHeroStoryArt ? 'glass-panel' : ''}`;
 
   return (
     <div>
       <NarrativeQuestionAnchor question={question} compact={isHandset} />
+      {personalContext}
 
       <NarrativeSafetyNotice className={question ? 'mt-4' : ''} compact={isHandset} />
 
       {/* The spread, laid out where the reading begins. */}
       {spreadOverview}
+      <div className="mt-4 space-y-3" role="group" aria-label="Listen to your reading">{audioControls}</div>
 
       <StreamingNarrative
         className={streamClassName}

@@ -632,9 +632,11 @@ function linkNode(range, value) {
           className: ['reading-imagery'],
           dataCardIndex: String(range.card),
           dataTouchId: range.point,
+          dataReadingDetailKey: range.detailKey,
+          dataReadingDetailPhrase: range.phrase,
           role: 'button',
           tabIndex: 0,
-          ariaPressed: 'false',
+          ariaHasPopup: 'dialog',
           ...(range.cardName ? { 'aria-description': `Shows this on ${range.cardName}` } : {}),
           ...pip
         }
@@ -801,7 +803,12 @@ export function remarkCardLinks(options = {}) {
       if (kind !== 'heading') state.pendingIntro = null;
 
       const mentions = withPips(analysis.mentions, analysis, catalog, kind);
-      const touches = withTouchCards(analysis.touches, catalog);
+      const blockKey = node.position?.start?.offset ?? `block-${state.sequence}`;
+      const touches = withTouchCards(analysis.touches, catalog).map(touch => ({
+        ...touch,
+        detailKey: `${blockKey}:${touch.start}-${touch.end}:${touch.card}:${touch.point}`,
+        phrase: text.slice(touch.start, touch.end)
+      }));
       const echoes = kind === 'heading' ? [] : findPersonalEchoes(text, catalog, [...analysis.mentions, ...analysis.touches]);
       wrapRanges(segments, [...mentions, ...touches, ...echoes], text);
       state.sequence += 1;

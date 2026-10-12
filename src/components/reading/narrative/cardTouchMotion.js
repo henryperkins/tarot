@@ -71,20 +71,28 @@ export const TRACE_TOGETHER_MS = 450;
 const TRACE_TOGETHER_MAX = 2;
 
 function sameTrace(a, b) {
+  if (a?.occurrenceKey && b?.occurrenceKey) return a.occurrenceKey === b.occurrenceKey;
   return Boolean(a && b && a.card === b.card && a.points.join('+') === b.points.join('+'));
+}
+
+function fragments(entry) {
+  return entry?.elements || (entry?.element ? [entry.element] : []);
 }
 
 function markTracing(entry, value) {
   for (const item of [entry, ...(entry?.extra || [])]) {
-    const element = item?.element;
-    if (!element?.isConnected) continue;
-    if (value) element.setAttribute('data-tracing', 'true');
-    else element.removeAttribute('data-tracing');
+    for (const element of fragments(item)) {
+      if (!element?.isConnected) continue;
+      if (value && element.getAttribute?.('data-tracing') !== 'true') element.setAttribute('data-tracing', 'true');
+      else if (!value && element.hasAttribute?.('data-tracing')) element.removeAttribute('data-tracing');
+    }
   }
 }
 
 function markTraced(entry) {
-  entry?.element?.setAttribute?.('data-traced', 'true');
+  for (const item of [entry, ...(entry?.extra || [])]) {
+    for (const element of fragments(item)) element.setAttribute?.('data-traced', 'true');
+  }
 }
 
 // A detail the reader chose stays pressed while it is held.
@@ -116,8 +124,16 @@ export function createTraceEngine(publish, { now = () => Date.now(), isVisible =
   let queue = [];
   let timer = 0;
   let serial = 0;
+  const played = new Set();
+  let suspended = false;
+  let paused = null;
+  let pausedElapsed = 0;
 
-  const visible = (entry) => !entry?.element || isVisible(entry.element);
+  const occurrenceVisible = item => {
+    const elements = fragments(item);
+    return !elements.length || elements.every(element => element.isConnected !== false && isVisible(element));
+  };
+  const visible = entry => [entry, ...(entry?.extra || [])].every(occurrenceVisible);
   const emit = () => {
     publish(current ? {
       key: `${serial}:${current.card}:${current.points.join('+')}`,
@@ -132,24 +148,50 @@ export function createTraceEngine(publish, { now = () => Date.now(), isVisible =
     clearTimeout(timer);
     timer = setTimeout(advance, ms);
   };
-  const show = (entry) => {
+  const show = (entry, elapsed = 0) => {
     clearTimeout(timer);
     markTracing(current, false);
     if (current?.held) markPressed(current, false);
     current = entry;
-    since = now();
+    since = now() - elapsed;
     if (entry) {
       serial += 1;
       markTracing(entry, true);
       markTraced(entry);
+      if (!entry.pinned) {
+        for (const item of [entry, ...(entry.extra || [])]) {
+          if (item.occurrenceKey) played.add(item.occurrenceKey);
+        }
+      }
       if (entry.held) markPressed(entry, true);
       // Attention the reader asked for stays until they let it go; otherwise
       // the next detail follows once this one has had its turn.
-      if (!entry.pinned) wait(queue.length ? TRACE_TURN_MS : TRACE_HOLD_MS);
+      if (!entry.pinned) wait(Math.max(0, (queue.length ? TRACE_TURN_MS : TRACE_HOLD_MS) - elapsed));
     }
     emit();
   };
+  const pauseAutomatic = () => {
+    if (current && !current.pinned) {
+      paused = current;
+      pausedElapsed = Math.max(0, now() - since);
+    }
+  };
+  const resumeAutomatic = () => {
+    queue = queue.filter(visible);
+    const members = paused ? [paused, ...(paused.extra || [])].filter(occurrenceVisible) : [];
+    const resume = members.length ? {
+      ...members[0],
+      points: Array.from(new Set(members.flatMap(member => member.ownPoints || member.points))),
+      extra: members.slice(1)
+    } : null;
+    const elapsed = pausedElapsed;
+    paused = null;
+    pausedElapsed = 0;
+    if (resume && visible(resume)) show(resume, elapsed);
+    else advance();
+  };
   function advance() {
+    if (suspended) return;
     while (queue.length && !visible(queue[0])) queue.shift();
     const next = queue.shift() || null;
     // Nothing left to show: a detail that had its turn early still gets its
@@ -169,9 +211,24 @@ export function createTraceEngine(publish, { now = () => Date.now(), isVisible =
      * The reader reached a described detail. Plays now if the card is
      * resting, otherwise in its turn.
      */
-    reach({ card, points, element = null } = {}) {
+    reach({ key = null, card, points, element = null, elements = element ? [element] : [] } = {}) {
       if (!isDetail({ card, points })) return;
-      const entry = { card, points, element };
+      const entry = { occurrenceKey: key, card, points, ownPoints: points, element, elements };
+      // Rebind rendered nodes without replaying an occurrence after a delta.
+      const activeOccurrences = [current, ...(current?.extra || [])];
+      const existing = [...activeOccurrences, paused, ...(paused?.extra || []), ...queue].find(item => key && item?.occurrenceKey === key);
+      if (existing) {
+        // Connected fragments coexist (e.g. words split by <strong>); only
+        // disconnected nodes are replacements. Treat the whole phrase as one.
+        existing.elements = Array.from(new Set([
+          ...fragments(existing).filter(node => node.isConnected === true), ...elements
+        ]));
+        existing.element = element;
+        if (played.has(key)) markTraced(entry);
+        if (activeOccurrences.includes(existing)) markTracing(existing, true);
+        return;
+      }
+      if (key && played.has(key)) { markTraced(entry); return; }
       if (!visible(entry)) return;
       if (sameTrace(current, entry)) {
         // The same detail again (re-entering the line): keep it in view.
@@ -181,9 +238,10 @@ export function createTraceEngine(publish, { now = () => Date.now(), isVisible =
       }
       if (queue.some((queued) => sameTrace(queued, entry))) return;
       if (
-        current && !current.pinned && current.card === card
+        !suspended && !queue.length && current && !current.pinned && current.card === card
         && now() - since < TRACE_TOGETHER_MS
         && current.points.length < TRACE_TOGETHER_MAX
+        && !points.some(point => current.points.includes(point))
       ) {
         current = {
           ...current,
@@ -192,11 +250,14 @@ export function createTraceEngine(publish, { now = () => Date.now(), isVisible =
         };
         markTracing(current, true);
         markTraced(entry);
+        if (key) played.add(key);
+        since = now(); // The last member also receives a full turn.
         if (!queue.length) wait(TRACE_HOLD_MS);
         emit();
         return;
       }
       queue.push(entry);
+      if (suspended) return;
       if (!current) {
         advance();
       } else if (!current.pinned) {
@@ -204,14 +265,15 @@ export function createTraceEngine(publish, { now = () => Date.now(), isVisible =
       }
     },
     /** Hover or keyboard focus shows one detail while it lasts. */
-    inspect({ card, points, element = null } = {}) {
-      if (!isDetail({ card, points }) || current?.held) return;
-      show({ card, points, element, pinned: true });
+    inspect({ card, points, element = null, elements = element ? [element] : [] } = {}) {
+      if (suspended || !isDetail({ card, points }) || current?.held) return;
+      pauseAutomatic();
+      show({ card, points, element, elements, pinned: true });
     },
     /** Pointing moved away: details still waiting resume their turns. */
     release() {
       if (!current?.pinned || current.held) return;
-      advance();
+      resumeAutomatic();
     },
     /**
      * The reader chose a detail (tap, click, Enter). It stays until they let
@@ -219,29 +281,47 @@ export function createTraceEngine(publish, { now = () => Date.now(), isVisible =
      * detail is now held.
      */
     hold({ card, points, element = null, place = null } = {}) {
-      if (!isDetail({ card, points })) return false;
+      if (suspended || !isDetail({ card, points })) return false;
       if (current?.held && sameTrace(current, { card, points })) {
-        advance();
+        resumeAutomatic();
         return false;
       }
+      pauseAutomatic();
       show({ card, points, element, place, pinned: true, held: true });
       return true;
     },
     /** Let go of the held detail (Escape, a tap elsewhere). */
     unhold() {
-      if (current?.held) advance();
+      if (current?.held) resumeAutomatic();
     },
     /** After scrolling: attention on words that left the screen ends. */
     check() {
-      if (current?.pinned && !visible(current)) advance();
+      queue = queue.filter(visible);
+      if (current?.pinned && !visible(current)) resumeAutomatic();
+    },
+    setSuspended(value) {
+      if (suspended === Boolean(value)) return;
+      suspended = Boolean(value);
+      if (suspended) {
+        pauseAutomatic();
+        show(null);
+      } else {
+        resumeAutomatic();
+      }
     },
     clear() {
       queue = [];
+      played.clear();
+      paused = null;
+      pausedElapsed = 0;
       show(null);
     },
     dispose() {
       clearTimeout(timer);
       queue = [];
+      played.clear();
+      paused = null;
+      pausedElapsed = 0;
       markTracing(current, false);
       if (current?.held) markPressed(current, false);
       current = null;

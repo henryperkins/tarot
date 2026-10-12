@@ -161,15 +161,90 @@ describe('pacing gestures', () => {
     try {
       traces.reach({ card: 1, points: ['tower'] });
       traces.reach({ card: 2, points: ['pool'] });
+      mock.timers.tick(100);
       traces.inspect({ card: 0, points: ['children'] });
       assert.equal(points(), '0:children');
       mock.timers.tick(TRACE_HOLD_MS * 4);
       assert.equal(points(), '0:children');
       traces.release();
+      assert.equal(points(), '1:tower');
+      mock.timers.tick(TRACE_TURN_MS - 101);
+      assert.equal(points(), '1:tower');
+      mock.timers.tick(1);
       assert.equal(points(), '2:pool');
     } finally {
       mock.timers.reset();
     }
+  });
+
+  test('split-format fragments share one turn and all clear on suspension and completion', () => {
+    const { traces, points } = engine();
+    const fragment = () => {
+      const attrs = new Map();
+      return {
+        visible: true, isConnected: true,
+        setAttribute: (key, value) => attrs.set(key, value),
+        getAttribute: key => attrs.get(key),
+        hasAttribute: key => attrs.has(key),
+        removeAttribute: key => attrs.delete(key)
+      };
+    };
+    try {
+      const first = fragment();
+      const second = fragment();
+      const detail = { key: 'split', card: 0, points: ['pitchers'] };
+      traces.reach({ ...detail, element: first });
+      traces.reach({ ...detail, element: second });
+      assert.equal(first.getAttribute('data-tracing'), 'true');
+      assert.equal(second.getAttribute('data-tracing'), 'true');
+      traces.setSuspended(true);
+      assert.equal(first.hasAttribute('data-tracing'), false);
+      assert.equal(second.hasAttribute('data-tracing'), false);
+      // A partially visible phrase waits until all its fragments are readable.
+      second.visible = false;
+      traces.setSuspended(false);
+      assert.equal(points(), null);
+      traces.clear();
+      second.visible = true;
+      traces.reach({ ...detail, element: first });
+      traces.reach({ ...detail, element: second });
+      mock.timers.tick(TRACE_HOLD_MS);
+      assert.equal(first.hasAttribute('data-tracing'), false);
+      assert.equal(second.hasAttribute('data-tracing'), false);
+    } finally { mock.timers.reset(); }
+  });
+
+  test('a passive preview resumes only automatic words still visible', () => {
+    const { traces, points } = engine();
+    try {
+      const original = words();
+      traces.reach({ key: 'one', card: 0, points: ['star'], element: original });
+      traces.reach({ key: 'two', card: 1, points: ['pool'], element: words() });
+      mock.timers.tick(100);
+      traces.inspect({ card: 2, points: ['land'] });
+      original.visible = false;
+      traces.release();
+      assert.equal(points(), '1:pool');
+    } finally { mock.timers.reset(); }
+  });
+
+  test('a visible member of a combined turn resumes when its partner leaves view', () => {
+    const { traces, points } = engine();
+    try {
+      const gone = words();
+      traces.reach({ key: 'pool', card: 0, points: ['pool'], element: gone });
+      traces.reach({ key: 'pitchers', card: 0, points: ['pitchers'], element: words() });
+      traces.reach({ key: 'next', card: 1, points: ['land'], element: words() });
+      mock.timers.tick(100);
+      traces.inspect({ card: 2, points: ['star'] });
+      gone.visible = false;
+      traces.release();
+      assert.equal(points(), '0:pitchers');
+      mock.timers.tick(TRACE_TURN_MS - 101);
+      assert.equal(points(), '0:pitchers');
+      mock.timers.tick(1);
+      assert.equal(points(), '1:land');
+    } finally { mock.timers.reset(); }
   });
 
   test('holds a chosen detail until the reader lets it go', () => {
@@ -222,6 +297,56 @@ describe('pacing gestures', () => {
     } finally {
       mock.timers.reset();
     }
+  });
+
+  test('occurrences play once across replacement nodes; repeated mentions each get a turn', () => {
+    const { traces, shown, points } = engine();
+    try {
+      traces.reach({ key: 'one', card: 1, points: ['pool'], element: words(false) });
+      assert.equal(shown.length, 0);
+      traces.reach({ key: 'one', card: 1, points: ['pool'], element: words() });
+      mock.timers.tick(500);
+      traces.reach({ key: 'two', card: 1, points: ['pool'], element: words() });
+      mock.timers.tick(1300);
+      assert.equal(shown.filter(Boolean).length, 2);
+      mock.timers.tick(TRACE_HOLD_MS);
+      traces.reach({ key: 'one', card: 1, points: ['pool'], element: words() });
+      assert.equal(points(), null);
+      traces.clear();
+      traces.reach({ key: 'one', card: 1, points: ['pool'], element: words() });
+      assert.equal(points(), '1:pool');
+    } finally { mock.timers.reset(); }
+  });
+
+  test('a paused occurrence rebinds its replacement before inspection closes', () => {
+    const { traces, points } = engine();
+    try {
+      const original = words();
+      traces.reach({ key: 'one', card: 0, points: ['star'], element: original });
+      traces.setSuspended(true);
+      original.visible = false;
+      traces.reach({ key: 'one', card: 0, points: ['star'], element: words() });
+      traces.setSuspended(false);
+      assert.equal(points(), '0:star');
+    } finally { mock.timers.reset(); }
+  });
+
+  test('inspection suspends playback and resumes only visible waiting occurrences', () => {
+    const { traces, points } = engine();
+    try {
+      const gone = words();
+      traces.reach({ key: 'one', card: 0, points: ['star'], element: words() });
+      traces.reach({ key: 'two', card: 1, points: ['pool'], element: gone });
+      traces.setSuspended(true);
+      traces.reach({ key: 'three', card: 2, points: ['land'], element: words() });
+      gone.visible = false;
+      mock.timers.tick(10000);
+      assert.equal(points(), null);
+      traces.setSuspended(false);
+      assert.equal(points(), '0:star');
+      turns(1);
+      assert.equal(points(), '2:land');
+    } finally { mock.timers.reset(); }
   });
 });
 

@@ -21,7 +21,12 @@ function detailOf(element) {
   const card = Number(element?.dataset?.cardIndex);
   const point = element?.dataset?.touchId || '';
   if (!Number.isInteger(card) || !point) return null;
-  return { card, points: [point], element };
+  const key = element.dataset.readingDetailKey;
+  const block = element.closest(BLOCK);
+  const elements = key && block
+    ? Array.from(block.querySelectorAll(DETAIL)).filter(node => node.dataset.readingDetailKey === key)
+    : [element];
+  return { key, card, points: [point], element, elements };
 }
 
 // Report one watched element: a described detail or the querent's own words.
@@ -44,7 +49,7 @@ function pointerFocusFor(target, container) {
   const point = element.dataset.touchId || '';
   return {
     element,
-    detail: { card, points: [point || WHOLE_CARD], element },
+    detail: point ? detailOf(element) : { card, points: [WHOLE_CARD], element },
     focus: {
       key: `pointer:${card}:${point}`,
       mode: 'single',
@@ -69,12 +74,9 @@ function containsTracked(node) {
  * - Each described detail ("the lightning", "two pitchers") that comes into
  *   the band the eye reads in asks the card to show that part of its picture.
  *
- * While text is still arriving, the newest passage and the newest details are
- * the ones being "spoken". Pointing at a card name or detail (hover, keyboard
- * focus) takes over while it lasts. Choosing one (tap, click, Enter, Space)
- * opens a card name's card, or holds a detail on its card until the reader
- * lets it go: choosing it again, Escape, a tap elsewhere in the reading, or
- * scrolling it out of view.
+ * Streaming and scrolling use the same visible-occurrence ledger. Hover and
+ * keyboard focus preview a detail; click, tap, Enter and Space open full card
+ * inspection. Restoring modal focus must not start another preview.
  */
 export function useNarrativeReadingLine(containerRef, { enabled = false, isLive = false } = {}) {
   const api = useNarrativeCardFocusApi();
@@ -90,7 +92,6 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
     let frame = 0;
     let listFrame = 0;
     const inZone = new Set();
-    const announced = new WeakSet();
 
     const activate = (block) => {
       if (block === active) return;
@@ -120,7 +121,6 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       frame = 0;
       // Attention on words that have left the screen ends.
       api.checkDetails();
-      if (isLive) return;
       activate(blockAtLine());
       const height = window.innerHeight || 0;
       const top = height * READING_ZONE[0];
@@ -129,7 +129,9 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       for (const element of details) {
         const rect = element.getBoundingClientRect();
         const inside = rect.bottom >= top && rect.top <= bottom;
-        if (inside && !inZone.has(element)) entered.push(element);
+        // The engine deduplicates by occurrence, not by whether this DOM node
+        // happened to arrive offscreen in an earlier streaming delta.
+        if (inside && (!element.matches(PERSONAL) || !inZone.has(element))) entered.push(element);
         if (inside) inZone.add(element);
         else inZone.delete(element);
       }
@@ -147,16 +149,6 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       details = Array.from(container.querySelectorAll(WATCHED));
       for (const element of Array.from(inZone)) {
         if (!element.isConnected) inZone.delete(element);
-      }
-      if (isLive) {
-        activate(blocks[blocks.length - 1] || null);
-        // Details are shown as they are spoken, once each, in order.
-        for (const element of details) {
-          if (announced.has(element)) continue;
-          announced.add(element);
-          report(api, element);
-        }
-        return;
       }
       schedule();
     };
@@ -182,7 +174,8 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       mutations.disconnect();
       active?.removeAttribute('data-reading-active');
       api.setScrollFocus(null);
-      api.clearTraces();
+      // The provider owns playback identity. A stream-to-complete transition
+      // tears down observers, not the ledger or the current turn.
     };
   }, [api, containerRef, enabled, isLive]);
 
@@ -191,7 +184,6 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
     if (!api || !enabled || !container) return undefined;
 
     let hovered = null;
-    let held = false;
     const mark = (element) => {
       if (hovered === element) return;
       hovered?.removeAttribute('data-touch-hover');
@@ -199,6 +191,7 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       hovered?.setAttribute('data-touch-hover', 'true');
     };
     const point = (found) => {
+      if (hovered?.matches(DETAIL) && !found.element.matches(DETAIL)) api.releaseDetail();
       mark(found.element);
       api.setPointerFocus(found.focus);
       if (found.element.matches(DETAIL)) api.inspectDetail(found.detail);
@@ -210,22 +203,14 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       api.clearPointerFocus();
       if (wasDetail) api.releaseDetail();
     };
-    const letGo = () => {
-      if (!held) return;
-      held = false;
-      api.unholdDetail();
-    };
     const choose = (found) => {
-      if (found.element.matches(DETAIL)) {
-        // Where the card can show it without covering the chosen words, if
-        // its own plate is out of view.
-        const rect = found.element.getBoundingClientRect();
-        const place = rect.top + rect.height / 2 < (window.innerHeight || 0) / 2 ? 'bottom' : 'top';
-        held = api.holdDetail({ ...found.detail, place });
-        return;
-      }
-      letGo();
-      api.selectCard(found.detail.card);
+      api.releaseDetail();
+      api.selectCard(found.detail.card, {
+        detailKey: found.element.dataset.readingDetailKey || null,
+        touchIds: found.element.dataset.touchId ? [found.element.dataset.touchId] : [],
+        phrase: found.element.dataset.readingDetailPhrase || found.element.textContent,
+        triggerElement: found.element
+      });
     };
     // Selecting text to copy it is not choosing what it names.
     const selecting = () => {
@@ -250,7 +235,6 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       if (selecting()) return;
       const found = pointerFocusFor(event.target, container);
       if (found?.element.matches(CONTROL)) choose(found);
-      else letGo();
     };
     const handleKey = (event) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -260,14 +244,11 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       event.preventDefault();
       choose(found);
     };
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') letGo();
-    };
     // Keyboard focus points like a hovering pointer. Focus a tap leaves
     // behind (or a dialog hands back) must not keep the cards from following
     // the reading as it scrolls.
     const handleFocusIn = (event) => {
-      if (!event.target.matches?.(':focus-visible')) return;
+      if (event.target.hasAttribute?.('data-restoring-modal-focus') || !event.target.matches?.(':focus-visible')) return;
       // A browser brings a focused control into view only when it is off
       // screen, not when it sits under the sticky bar or the action dock;
       // its scroll margins keep it clear of both.
@@ -285,7 +266,6 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
     container.addEventListener('keydown', handleKey);
     container.addEventListener('focusin', handleFocusIn);
     container.addEventListener('focusout', handleFocusOut);
-    document.addEventListener('keydown', handleEscape);
     return () => {
       container.removeEventListener('pointermove', handleMove);
       container.removeEventListener('pointerleave', leave);
@@ -293,9 +273,7 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       container.removeEventListener('keydown', handleKey);
       container.removeEventListener('focusin', handleFocusIn);
       container.removeEventListener('focusout', handleFocusOut);
-      document.removeEventListener('keydown', handleEscape);
       mark(null);
-      letGo();
     };
   }, [api, containerRef, enabled]);
 }

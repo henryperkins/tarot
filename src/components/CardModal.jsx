@@ -147,11 +147,16 @@ export function CardModal({
     canNavigatePrev,
     canNavigateNext,
     navigationLabel,
+    artworkMode = 'compact',
+    inspectionContext = null,
+    returnFocusRef,
+    getFallbackFocus,
 }) {
     const dialogRef = useRef(null);
     const modalRef = useRef(null);
     const overlayRef = useRef(null);
     const closingRef = useRef(false);
+    const [failedImage, setFailedImage] = useState(null);
     const titleId = `card-modal-title-${layoutId || 'default'}`;
     const descId = `card-modal-desc-${layoutId || 'default'}`;
     const prefersReducedMotion = useReducedMotion();
@@ -193,6 +198,9 @@ export function CardModal({
         initialFocusRef: modalRef,
         isolateBackground: true,
         scrollLockStrategy: 'fixed', // Prevents iOS bounce
+        returnFocusRef,
+        getFallbackFocus,
+        fallbackFocusPreventScroll: true,
     });
 
     // Android back button dismisses modal on mobile
@@ -310,6 +318,7 @@ export function CardModal({
         >
             <div
                 ref={overlayRef}
+                data-card-modal-backdrop
                 className="absolute inset-0 bg-main/85 backdrop-blur-sm"
                 onClick={handleClose}
                 aria-hidden="true"
@@ -318,14 +327,14 @@ export function CardModal({
             <div
                 data-layout-id={layoutId || undefined}
                 ref={modalRef}
-                className="relative w-full max-w-md max-h-[80dvh] overflow-y-auto bg-surface border border-primary/30 rounded-xl shadow-2xl shadow-black/50 flex flex-col pt-[max(0.75rem,var(--safe-pad-top))] pr-[max(0.75rem,var(--safe-pad-right))] pb-[max(0.75rem,var(--safe-pad-bottom))] pl-[max(0.75rem,var(--safe-pad-left))]"
+                className={`relative w-full max-w-md max-h-[80dvh] overflow-y-auto bg-surface border border-primary/30 rounded-xl shadow-2xl shadow-black/50 flex flex-col pt-[max(0.75rem,var(--safe-pad-top))] pr-[max(0.75rem,var(--safe-pad-right))] pb-[max(0.75rem,var(--safe-pad-bottom))] pl-[max(0.75rem,var(--safe-pad-left))] ${artworkMode === 'full' ? '[&_.text-xs]:text-sm [&_.text-2xs]:text-sm' : ''}`}
                 tabIndex={-1}
                 role="document"
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
             >
                 {/* Compact header with integrated navigation and close */}
-                <div className="flex items-center justify-between gap-2 px-1 pb-2 border-b border-primary/10">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2 border-b border-primary/10">
                     {hasNavigation ? (
                         <>
                             <button
@@ -356,42 +365,47 @@ export function CardModal({
                     <button
                         onClick={handleClose}
                         className="min-h-touch min-w-touch inline-flex items-center justify-center p-1.5 text-accent/70 hover:text-main hover:bg-surface-muted/50 rounded-full transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ml-auto"
-                        aria-label="Close modal"
+                        aria-label={artworkMode === 'full' ? 'Back to reading' : 'Close modal'}
                     >
+                        {artworkMode === 'full' ? <span className="mr-2 text-sm">Back to reading</span> : null}
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Compact horizontal layout: image left, content right */}
-                <div className="p-3 flex gap-3">
+                <div className={`p-3 flex gap-4 ${artworkMode === 'full' ? 'flex-col items-center' : ''}`}>
                     {/* Card image - smaller and on the left */}
                     <div
                         data-layout-id={imageLayoutId || undefined}
-                        className={`relative flex-shrink-0 w-20 sm:w-28 aspect-[2/3] rounded-lg shadow-lg border border-primary/20 overflow-hidden ${card.isReversed ? 'rotate-180' : ''}`}
+                        data-reading-full-artwork={artworkMode === 'full' ? 'true' : undefined}
+                        className={`relative flex-shrink-0 ${artworkMode === 'full' ? 'w-[216px] max-w-full' : 'w-20 sm:w-28 aspect-[2/3]'} rounded-lg shadow-lg border border-primary/20 overflow-hidden ${card.isReversed ? 'rotate-180' : ''}`}
                     >
                         <img
                             src={cardImage}
                             alt={card.name}
-                            className="block w-full h-full object-cover"
+                            className={artworkMode === 'full' ? 'block w-full h-auto object-contain' : 'block w-full h-full object-cover'}
                             loading="lazy"
                             onError={(event) => {
-                                event.currentTarget.src = FALLBACK_IMAGE;
+                                setFailedImage(cardImage);
+                                if (!event.currentTarget.src.endsWith(FALLBACK_IMAGE)) event.currentTarget.src = FALLBACK_IMAGE;
                             }}
                         />
                         {/* Interactive symbol overlay - only on larger screens where it's usable */}
-                        {!isSmallScreen && <InteractiveCardOverlay card={card} />}
+                        {!isSmallScreen && artworkMode !== 'full' && <InteractiveCardOverlay card={card} />}
                     </div>
 
                     {/* Card info - right side */}
-                    <div className="flex-1 min-w-0">
-                        <p className="text-2xs uppercase tracking-widest text-muted">{position}</p>
+                    <div className="flex-1 min-w-0 w-full">
+                        {failedImage === cardImage ? <p role="status" className="mb-2 text-sm text-muted">Artwork unavailable. The card details are still here.</p> : null}
+                        <p className="text-sm text-muted">{position}</p>
                         <h2 id={titleId} className="text-base sm:text-lg font-serif text-main leading-tight">
                             {card.name}
                             {card.isReversed && (
-                                <span className="ml-1.5 text-xs text-primary font-normal">(Rev)</span>
+                                <span className="ml-1.5 text-sm text-primary font-normal">(Reversed)</span>
                             )}
                         </h2>
-                        <p id={descId} className="mt-2 text-sm text-main/90 leading-relaxed">
+                        {inspectionContext?.phrase ? <blockquote className="mt-3 text-base text-main">“{inspectionContext.phrase}”</blockquote> : null}
+                        <p id={descId} className={`mt-2 text-main/90 leading-relaxed ${artworkMode === 'full' ? 'text-base' : 'text-sm'}`}>
                             {meaning}
                         </p>
                     </div>

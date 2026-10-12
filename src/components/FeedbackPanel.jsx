@@ -124,7 +124,7 @@ export function FeedbackPanel({
   return (
     <form
       onSubmit={handleSubmit}
-      className="modern-surface border border-secondary/30 w-full px-3 py-3 xs:px-4 xs:py-4 sm:px-5 sm:py-5 animate-fade-in"
+      className="w-full py-3"
       aria-describedby={error ? errorId : undefined}
     >
       <h2>
@@ -133,18 +133,18 @@ export function FeedbackPanel({
           onClick={() => setIsCollapsed((prev) => !prev)}
           aria-expanded={!isCollapsed}
           aria-controls={panelId}
-          className="w-full flex items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 hover:border-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          className="w-full flex items-center justify-between gap-3 rounded-lg border-t border-accent/30 px-1 py-3 hover:border-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
         >
           <span className="min-w-0 text-left">
             <span className="block text-sm font-semibold text-main">How did this reading land?</span>
-            <span className="block text-xs text-muted">
+            <span className="block text-sm text-muted">
               Share quick ratings to tune quality.
             </span>
           </span>
           <span className="flex items-center gap-2 shrink-0">
             {hasSubmitted && (
               <span
-                className="text-xs font-semibold text-secondary px-2 py-1 rounded-full bg-secondary/10"
+                className="text-sm font-semibold text-secondary px-2 py-1 rounded-full bg-secondary/10"
                 role="status"
                 aria-live="polite"
               >
@@ -204,7 +204,7 @@ export function FeedbackPanel({
           })}
 
           <div className="mt-2">
-            <label htmlFor="feedback-notes" className="block text-xs text-muted mb-1">
+            <label htmlFor="feedback-notes" className="block text-sm text-muted mb-1">
               Additional notes (optional)
             </label>
             <textarea
@@ -217,7 +217,7 @@ export function FeedbackPanel({
               className="w-full rounded-lg border border-accent/20 bg-surface/70 p-3 text-sm text-main placeholder:text-muted/60 focus:border-secondary/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 disabled:opacity-60 disabled:cursor-not-allowed"
               placeholder="What resonated or felt off?"
             />
-            <p className="mt-1 text-xs text-muted/70 text-right">
+            <p className="mt-1 text-sm text-muted/70 text-right">
               {notes.length} / 750
             </p>
           </div>
@@ -234,7 +234,7 @@ export function FeedbackPanel({
           </div>
 
           {error && (
-            <p id={errorId} className="text-xs text-error" role="alert">
+            <p id={errorId} className="text-sm text-error" role="alert">
               {error}
             </p>
           )}
@@ -252,7 +252,7 @@ export function FeedbackPanel({
 
             {/* Vision metrics - only shown when available, with clearer labels */}
             {(visionSummary?.avgConfidence > 0 || typeof visionSummary?.avgSymbolMatch === 'number') && (
-              <div className="text-xs text-muted/80 text-right" aria-label="Reading quality metrics">
+              <div className="text-sm text-muted/80 text-right" aria-label="Reading quality metrics">
                 {visionSummary?.avgConfidence > 0 && (
                   <p title="How confident the system was in identifying the cards">
                     Recognition: {(visionSummary.avgConfidence * 100).toFixed(0)}%

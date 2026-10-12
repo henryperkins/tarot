@@ -2,7 +2,6 @@ import {
   SceneShell,
   IdleScene,
   InterludeScene,
-  NarrativeScene,
   CompleteScene
 } from '../scenes';
 import { ReadingTableScene } from '../scenes/ReadingTableScene';
@@ -22,12 +21,9 @@ const SCENE_COMPONENTS = {
       showTitle={false}
     />
   ),
-  narrative: (props) => (
-    <NarrativeScene {...props} />
-  ),
-  complete: (props) => (
-    <CompleteScene {...props} />
-  )
+  // Streaming and completion share one mounted narrative, selection and cue ledger.
+  narrative: CompleteScene,
+  complete: CompleteScene
 };
 
 export function ReadingSceneRouter({

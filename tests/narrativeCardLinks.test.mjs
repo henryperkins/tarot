@@ -40,6 +40,19 @@ function renderReading(markdown, catalog) {
   }, markdown));
 }
 
+test('detail occurrence keys survive appends and split formatting without conflating repeated mentions', () => {
+  const catalog = spread(['The Star']);
+  const source = '## The Star\n\n✨ The Star pours from two **pitchers** &amp; into the pool.\n\nThe pool reflects hope.';
+  const keys = text => [...renderReading(text, catalog).matchAll(/data-reading-detail-key="([^"]+)"/g)].map(match => match[1]);
+  const initial = keys(source);
+  assert.ok(initial.length >= 3);
+  assert.deepEqual(keys(source + '\n\nMore words follow.').slice(0, initial.length), initial);
+  assert.equal(new Set(initial).size, initial.length);
+  const split = keys('## The Star\n\nThe Star has two pit**chers** beside the pool.');
+  assert.ok(split.length >= 3);
+  assert.equal(split[0], split[1]);
+});
+
 describe('card touch point data', () => {
   test('covers every card with well-formed points', () => {
     const names = [...MAJOR_ARCANA, ...MINOR_ARCANA].map((card) => card.name);
@@ -271,8 +284,8 @@ describe('remark plugin', () => {
     // A name opens its card; a heading's name stays part of the heading.
     assert.match(html, /<span class="narrative-emphasis reading-card-ref" data-card-index="2" role="button" tabindex="0" aria-haspopup="dialog">The Star<\/span> <span class="reading-imagery"/);
     assert.match(html, /<h2[^>]*><span class="narrative-emphasis reading-card-ref" data-card-index="2">The Star<\/span><\/h2>/);
-    // A detail is a toggle that says which card it shows.
-    assert.match(html, /<span class="reading-imagery" data-card-index="2" data-touch-id="pool" role="button" tabindex="0" aria-pressed="false" aria-description="Shows this on The Star">pool<\/span>/);
+    // A detail opens a dialog that says which card it shows.
+    assert.match(html, /<span class="reading-imagery" data-card-index="2" data-touch-id="pool"[^>]* role="button" tabindex="0" aria-haspopup="dialog" aria-description="Shows this on The Star">pool<\/span>/);
   });
 
   test('sets the card into the paragraph that opens its passage only', () => {
@@ -324,9 +337,9 @@ describe('remark plugin', () => {
       "- Keep one ritual. That's one pitcher back into the pool."
     ].join('\n'), faces);
     // Beside its plate, the Star's own details stay plain words.
-    assert.match(html, /data-touch-id="pool" role="button" tabindex="0" aria-pressed="false" aria-description="Shows this on The Star">pool<\/span> and/);
+    assert.match(html, /data-touch-id="pool"[^>]* role="button" tabindex="0" aria-haspopup="dialog" aria-description="Shows this on The Star">pool<\/span> and/);
     // Far from it, the returning detail points at the card in place.
-    assert.match(html, /data-touch-id="pitchers"[^>]* data-pip="true" style="--pip-image:url\(&quot;\/images\/cards\/2\.jpeg&quot;\)">pitcher<\/span> back into the <span class="reading-imagery" data-card-index="2" data-touch-id="pool" role="button" tabindex="0" aria-pressed="false" aria-description="Shows this on The Star">pool<\/span>/);
+    assert.match(html, /data-touch-id="pitchers"[^>]* data-pip="true" style="--pip-image:url\(&quot;\/images\/cards\/2\.jpeg&quot;\)">pitcher<\/span> back into the <span class="reading-imagery" data-card-index="2" data-touch-id="pool"[^>]* role="button" tabindex="0" aria-haspopup="dialog" aria-description="Shows this on The Star">pool<\/span>/);
   });
 
   test('keeps a passage with its card while it relates another', () => {

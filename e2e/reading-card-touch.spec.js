@@ -1,5 +1,5 @@
 import { test, expect } from './helpers/frontendTest.js';
-import { createNarrativeFixture, startReading } from './helpers/narrativeFixtures.js';
+import { createNarrativeFixture, startReading, settleReadingLayout } from './helpers/narrativeFixtures.js';
 
 test.setTimeout(60000);
 test.use({ serviceWorkers: 'block' });
@@ -46,7 +46,41 @@ async function openDescribedReading(page) {
   return fixture;
 }
 
+test('offscreen details get their turn during streaming and never replay after completion', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.endsWith('-reduce'), 'Reduced motion deliberately has static associations.');
+  await page.clock.setFixedTime(DRAW_TIME);
+  const fixture = await createNarrativeFixture(page);
+  try {
+    await startReading(page, fixture, { complete: false });
+    await page.clock.setSystemTime(Date.now());
+    const fullText = `## Opening\n\n${'Take time to consider the choices in front of you. '.repeat(65)}\n\n## The Star\n\nThe Star kneels by a pool.\n\nKeep going.`;
+    await fixture.emit('reading', 'delta', { text: fullText });
+    const pool = page.locator('p .reading-imagery[data-touch-id="pool"]').first();
+    await expect(pool).toBeAttached();
+    await expect(pool).not.toHaveAttribute('data-traced', 'true');
+    await pool.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await settleReadingLayout(page);
+    const scroll = await page.evaluate(() => scrollY);
+    await expect(pool).toHaveAttribute('data-traced', 'true');
+    await pool.evaluate(element => {
+      window.originalDetail = element;
+      window.traceStarts = 0;
+      new MutationObserver(records => {
+        window.traceStarts += records.filter(record => record.attributeName === 'data-tracing' && element.hasAttribute('data-tracing')).length;
+      }).observe(element, { attributes: true });
+    });
+    await fixture.emit('reading', 'delta', { text: '\n\nA later sentence.' });
+    await fixture.emit('reading', 'done', { fullText: fullText + '\n\nA later sentence.', requestId: 'stream-visible', provider: 'fixture' });
+    await expect(page.getByText('Narrative ready.', { exact: true })).toBeAttached();
+    expect(await pool.evaluate(element => element === window.originalDetail)).toBe(true);
+    expect(Math.abs(await page.evaluate(() => scrollY) - scroll)).toBeLessThanOrEqual(2);
+    await expect(page.getByRole('dialog').filter({ visible: true })).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => window.traceStarts)).toBe(0);
+  } finally { await fixture.close(); }
+});
+
 test('@mobile lays out every card above the reading, even one that never names them', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   const fixture = await createNarrativeFixture(page);
   try {
     await startReading(page, fixture);
@@ -63,6 +97,7 @@ test('@mobile lays out every card above the reading, even one that never names t
 });
 
 test('@mobile labels each card by name and position at a readable size', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   const fixture = await openDescribedReading(page);
   try {
     const plate = page.locator('.card-touch-plate').first();
@@ -78,64 +113,61 @@ test('@mobile labels each card by name and position at a readable size', async (
   }
 });
 
-test('@mobile a returning detail points at its card in place; only a tap brings the card forward', async ({ page }) => {
+test('every explicit detail opens full artwork and returns to the same passage', async ({ page }, testInfo) => {
   const fixture = await openDescribedReading(page);
   try {
-    const echo = page.locator('.card-echo[data-visible]');
     const pitcher = page.locator('li .reading-imagery[data-touch-id="pitchers"]');
-    await expect(pitcher).toHaveAttribute('data-pip', 'true');
-    await expect(pitcher).toHaveAttribute('aria-pressed', 'false');
-
-    // Reading down to it brings nothing over the text.
-    await pitcher.evaluate((element) => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
-    await page.waitForTimeout(700);
-    await expect(echo).toHaveCount(0);
-
-    await pitcher.click();
-    await expect(pitcher).toHaveAttribute('aria-pressed', 'true');
-    await expect(echo).toBeVisible();
-    const covers = await page.evaluate(() => {
-      const card = document.querySelector('.card-echo').getBoundingClientRect();
-      const words = document.querySelector('.reading-imagery[aria-pressed="true"]').getBoundingClientRect();
-      return card.left < words.right && words.left < card.right && card.top < words.bottom && words.top < card.bottom;
-    });
-    expect(covers).toBe(false);
-
-    await pitcher.click();
-    await expect(pitcher).toHaveAttribute('aria-pressed', 'false');
-    await expect(echo).toHaveCount(0);
-  } finally {
-    await fixture.close();
-  }
-});
-
-test('described details and card names work from the keyboard', async ({ page }) => {
-  const fixture = await openDescribedReading(page);
-  try {
-    const pool = page.locator('p .reading-imagery[data-touch-id="pool"]').first();
-    await expect(pool).toHaveAttribute('role', 'button');
-    await pool.evaluate((element) => {
-      element.scrollIntoView({ block: 'center', behavior: 'instant' });
-      element.focus({ preventScroll: true });
-    });
-    await page.keyboard.press('Enter');
-    await expect(pool).toHaveAttribute('aria-pressed', 'true');
-    await page.keyboard.press('Escape');
-    await expect(pool).toHaveAttribute('aria-pressed', 'false');
-    await page.keyboard.press(' ');
-    await expect(pool).toHaveAttribute('aria-pressed', 'true');
-    await page.keyboard.press(' ');
-    await expect(pool).toHaveAttribute('aria-pressed', 'false');
-
+    await pitcher.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await expect(page.locator('.card-echo[data-visible]')).toHaveCount(0);
+    for (const close of ['Escape', 'Back to reading', 'backdrop']) {
+      await pitcher.focus();
+      await settleReadingLayout(page);
+      const scroll = await page.evaluate(() => scrollY);
+      await pitcher.press(close === 'Back to reading' ? ' ' : 'Enter');
+      const dialog = page.getByRole('dialog').filter({ visible: true }).first();
+      await expect(dialog).toBeVisible();
+      await expect(dialog).toContainText('The Star');
+      await expect(dialog).toContainText('pitcher');
+      const art = dialog.locator('[data-reading-full-artwork] img');
+      await expect(art).toBeVisible();
+      const geometry = await art.evaluate(element => ({ width: element.getBoundingClientRect().width, fit: getComputedStyle(element).objectFit }));
+      expect(geometry.width).toBeGreaterThanOrEqual(200);
+      expect(geometry.fit).toBe('contain');
+      if (close === 'Escape') await page.keyboard.press('Escape');
+      else if (close === 'backdrop') await page.locator('[data-card-modal-backdrop]').click({ position: { x: 3, y: 3 } });
+      else await dialog.getByRole('button', { name: 'Back to reading' }).click();
+      await expect(dialog).toBeHidden();
+      await expect(pitcher).toBeFocused();
+      expect(Math.abs(await page.evaluate(() => scrollY) - scroll)).toBeLessThanOrEqual(2);
+    }
     const name = page.locator('p .reading-card-ref[role="button"]', { hasText: 'Temperance' }).first();
     await name.focus();
-    await page.keyboard.press('Enter');
-    const dialog = page.getByRole('dialog').filter({ visible: true }).first();
-    await expect(dialog).toBeVisible();
+    await name.press('Enter');
+    await expect(page.getByRole('dialog').filter({ visible: true }).first()).toContainText('Temperance');
     await page.keyboard.press('Escape');
-    await expect(dialog).toBeHidden();
     await expect(name).toBeFocused();
-  } finally {
-    await fixture.close();
-  }
+    await page.screenshot({ path: testInfo.outputPath('reading-inspection.png'), fullPage: true });
+  } finally { await fixture.close(); }
+});
+
+test('moving from a detail to a card name and plain text releases passive inspection', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.endsWith('-reduce'), 'Reduced motion has no automatic turns to resume.');
+  const fixture = await openDescribedReading(page);
+  try {
+    await page.clock.setSystemTime(Date.now());
+    const paragraph = page.locator('p').filter({ has: page.locator('.reading-imagery[data-touch-id="pool"]') }).first();
+    const detail = paragraph.locator('.reading-imagery[data-touch-id="pool"]').first();
+    await detail.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await settleReadingLayout(page);
+    const detailRect = await detail.boundingBox();
+    await page.mouse.move(detailRect.x + detailRect.width / 2, detailRect.y + detailRect.height / 2);
+    await expect(detail).toHaveAttribute('data-tracing', 'true');
+    const name = paragraph.locator('.reading-card-ref').first();
+    const nameRect = await name.boundingBox();
+    await page.mouse.move(nameRect.x + nameRect.width / 2, nameRect.y + nameRect.height / 2);
+    const plainRect = await paragraph.boundingBox();
+    await page.mouse.move(plainRect.x + plainRect.width - 2, plainRect.y + plainRect.height - 2);
+    await expect(detail).not.toHaveAttribute('data-tracing', 'true');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  } finally { await fixture.close(); }
 });

@@ -63,7 +63,7 @@ function SpreadCard({ card, focus, api }) {
         aria-current={state === 'touched' ? 'true' : undefined}
         aria-label={cardLabel(card)}
         aria-haspopup="dialog"
-        onClick={() => api?.selectCard(card.index)}
+        onClick={(event) => api?.selectCard(card.index, { triggerElement: event.currentTarget })}
         onPointerEnter={() => api?.setSpreadHover(card.index)}
         onPointerLeave={() => api?.setSpreadHover(null)}
         onFocus={() => api?.setSpreadHover(card.index)}
@@ -138,7 +138,7 @@ export function SpreadCompanion({ variant = 'rail' }) {
         style={{ '--row-count': cards.length }}
       >
         {/* Labeled like the question above it, rather than as a heading in the reading's outline. */}
-        <p id={headingId} className="text-2xs font-semibold uppercase tracking-[0.2em] text-muted">Your cards</p>
+        <p id={headingId} className="text-sm font-semibold uppercase tracking-[0.2em] text-muted">Your cards</p>
         <div
           ref={scrollerRef}
           className="spread-companion__scroller"
@@ -214,7 +214,7 @@ export function CardTouchPlate({ cardIndex }) {
       data-calm={focus.calm ? 'true' : undefined}
       aria-label={cardLabel(card)}
       aria-haspopup="dialog"
-      onClick={() => api?.selectCard(cardIndex)}
+      onClick={(event) => api?.selectCard(cardIndex, { triggerElement: event.currentTarget })}
     >
       <CardTouchArt card={card} state={state} trace={focus.trace} touchKey={String(arrival)} calm={focus.calm} />
       <CardCaption card={card} />
@@ -225,76 +225,5 @@ export function CardTouchPlate({ cardIndex }) {
         </span>
       ) : null}
     </button>
-  );
-}
-
-// Mostly visible: the detail being shown has to be there to be seen.
-function isOnScreen(element) {
-  if (!element || element.getClientRects().length === 0) return false;
-  const rect = element.getBoundingClientRect();
-  const height = window.innerHeight || 0;
-  const visible = Math.min(rect.bottom, height) - Math.max(rect.top, 0);
-  return visible > rect.height * 0.6;
-}
-
-/**
- * A detail the reader chose ("two pitchers") while its card is out of view —
- * a return in the closing advice, say — brings a small copy of the card to
- * the edge of the screen, away from the chosen words, leaning in on that
- * detail until the reader lets it go. Only ever on request: nothing comes
- * forward over the reading by itself.
- */
-export function CardEcho() {
-  const focus = useNarrativeCardFocus();
-  const api = useNarrativeCardFocusApi();
-  const ref = useRef(null);
-  const [echo, setEcho] = useState(null);
-  const held = focus?.trace?.held ? focus.trace : null;
-
-  useEffect(() => {
-    // Measure after layout: whether the card shows where the reader is
-    // looking (its plate, the spread row, the rail) decides if it comes forward.
-    const frame = window.requestAnimationFrame(() => {
-      const host = ref.current?.closest('.narrative-panel__layout') || document;
-      const shown = held !== null && Array.from(
-        host.querySelectorAll(`.card-touch-plate[data-card-index="${held.card}"], .spread-companion__card[data-card-index="${held.card}"]`)
-      ).some(isOnScreen);
-      setEcho((current) => {
-        if (held && !shown) return { card: held.card, trace: held, place: held.place || 'top', leaving: false };
-        return current ? { ...current, leaving: true } : null;
-      });
-    });
-    return () => window.cancelAnimationFrame(frame);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- a newly held detail is the trigger
-  }, [held?.key]);
-
-  useEffect(() => {
-    if (!echo?.leaving) return undefined;
-    const timer = window.setTimeout(() => setEcho(null), 420);
-    return () => window.clearTimeout(timer);
-  }, [echo]);
-
-  const card = echo ? focus?.cards?.find((candidate) => candidate.index === echo.card) : null;
-
-  return (
-    <div
-      ref={ref}
-      className="card-echo"
-      data-visible={card && !echo.leaving ? 'true' : undefined}
-      data-place={echo?.place || undefined}
-      aria-hidden="true"
-    >
-      {card ? (
-        <button
-          type="button"
-          tabIndex={-1}
-          className="card-echo__card"
-          onClick={() => api?.selectCard(card.index)}
-        >
-          <CardTouchArt card={card} state="touched" trace={echo.trace} touchKey={echo.trace?.key || String(card.index)} calm={focus.calm} />
-          <CardCaption card={card} position={card.shortLabel} />
-        </button>
-      ) : null}
-    </div>
   );
 }

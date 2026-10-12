@@ -208,12 +208,24 @@ export function ReadingOverlays({
   const { cardVideo: cardVideoEnabled } = useFeatureFlags();
   // Keep unrelated reading updates from restarting the modal's animation.
   const modalCard = useMemo(() => getCardForDeck(selectedCard, deckStyleId), [selectedCard, deckStyleId]);
+  const returnFocusRef = useMemo(() => ({ current: selectedCardData?.inspection?.triggerElement || null }), [selectedCardData?.inspection?.triggerElement]);
+  const getFallbackFocus = useCallback(() => {
+    const key = selectedCardData?.inspection?.detailKey;
+    const replacement = key ? Array.from(document.querySelectorAll('[data-reading-detail-key]'))
+      .find(element => element.dataset.readingDetailKey === key) : null;
+    return replacement || Array.from(document.querySelectorAll(`.spread-companion__card[data-card-index="${selectedCardData?.index}"], .card-touch-plate[data-card-index="${selectedCardData?.index}"]`))
+      .find(element => element.getClientRects().length) || document.querySelector('[data-reading-focus-target]');
+  }, [selectedCardData?.index, selectedCardData?.inspection?.detailKey]);
 
   return (
     <>
       {selectedCardData ? (
         <CardModal
           card={modalCard}
+          artworkMode="full"
+          inspectionContext={selectedCardData.inspection}
+          returnFocusRef={returnFocusRef}
+          getFallbackFocus={getFallbackFocus}
           position={selectedCardData.position}
           question={resolvedQuestion}
           userTier={effectiveTier}
