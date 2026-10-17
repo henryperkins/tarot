@@ -285,7 +285,7 @@ test('advisory affordability never overrides atomic reserve', async () => {
   assert.equal((await budget.snapshot()).attempts.length, 1);
 });
 
-test('delayed successful settlement preserves usage when outer deadline cancels delivery', async () => {
+test('delayed successful settlement preserves usage when outer deadline cancels delivery', { timeout: 10000 }, async t => {
   const real = await openCueRoundBudget({ path: join(await temporary(), 'round.json'), roundId: 'delayed-success' });
   let release;
   let settling;
@@ -294,8 +294,13 @@ test('delayed successful settlement preserves usage when outer deadline cancels 
   const budget = { ...real, async settle(...args) { settling(); await gate; return real.settle(...args); } };
   const session = await createVisualCueSession({ caseData: star, candidate, budget, aiAdapter: fake(async () => response([])) });
   session.env.VISUAL_CUE_TIMEOUT_MS = 10;
+  // Exercise a deadline during settlement, after the real filesystem admission
+  // has finished. Under full-suite load it can otherwise expire before dispatch
+  // and leave the settlement barrier waiting forever.
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   await session.observe(star.raw, { complete: true });
   await entered;
+  t.mock.timers.tick(10);
   await session.state.drain();
   release();
   const report = await session.finish();
