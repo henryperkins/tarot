@@ -383,7 +383,7 @@ test('terminal failure stops inappropriate new work through a separate session h
 
 for (const stop of ['cancel', 'deadline']) {
   for (const reason of ['authorization', 'configuration']) {
-    test(`late ${reason} after ${stop} halts shared round without rewriting unknown attempt`, async () => {
+    test(`late ${reason} after ${stop} halts shared round without rewriting unknown attempt`, { timeout: 10000 }, async t => {
       const path = join(await temporary(), 'late-terminal.json');
       const realBudget = await openCueRoundBudget({ path, roundId: 'late-terminal' });
       let rejectRemote;
@@ -399,8 +399,12 @@ for (const stop of ['cancel', 'deadline']) {
       const session = await createVisualCueSession({ caseData: star, candidate, budget,
         aiAdapter: fake(async () => { calls++; dispatched(); return remote; }) });
       session.env.VISUAL_CUE_TIMEOUT_MS = stop === 'deadline' ? 10 : 60000;
+      // Admission performs filesystem I/O. Advance the deadline only after the
+      // provider-entry barrier so suite load cannot expire it before dispatch.
+      if (stop === 'deadline') t.mock.timers.enable({ apis: ['setTimeout'] });
       await session.observe(star.raw, { complete: true }); await started;
       if (stop === 'cancel') await session.cancel();
+      else t.mock.timers.tick(10);
       const original = await session.finish();
       const before = await realBudget.snapshot();
       assert.equal(original.attempts[0].reason, stop === 'deadline' ? 'timeout' : 'cancelled');
