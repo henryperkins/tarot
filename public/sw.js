@@ -1,6 +1,8 @@
-const CACHE_NAME = 'tableu-shell-v6';
+const CACHE_NAME = 'tableu-shell-v7';
 const OFFLINE_URL = '/offline.html';
-const PLACEHOLDER_IMAGE = '/images/cards/RWS1909_-_00_Fool.jpeg';
+// A neutral card back: an image that fails offline must never show a
+// different card's art in someone's spread.
+const PLACEHOLDER_IMAGE = '/images/cards/card-back.jpeg';
 const PRECACHE_URLS = [
   '/',
   '/journal',
@@ -40,8 +42,16 @@ function isSameOrigin(request) {
   return request.url.startsWith(self.location.origin);
 }
 
+function isWrongContentType(request, response) {
+  // A missing hashed chunk is answered with the SPA's index.html; caching that
+  // under a script or stylesheet URL would keep the page broken offline.
+  const destination = request.destination;
+  if (destination !== 'script' && destination !== 'style' && destination !== 'worker') return false;
+  return (response.headers.get('content-type') || '').includes('text/html');
+}
+
 async function cacheResponse(request, response) {
-  if (!response || response.status !== 200) {
+  if (!response || response.status !== 200 || isWrongContentType(request, response)) {
     return response;
   }
   const cache = await caches.open(CACHE_NAME);
@@ -82,7 +92,10 @@ self.addEventListener('fetch', (event) => {
             const fallback = await caches.match(PLACEHOLDER_IMAGE);
             if (fallback) return fallback;
           }
-          return caches.match(OFFLINE_URL);
+          // Only page navigations get the offline page. A script or stylesheet
+          // answered with HTML fails as a MIME error instead of a network error,
+          // which the app cannot recover from (LazyLoadBoundary expects the latter).
+          return Response.error();
         });
     })
   );

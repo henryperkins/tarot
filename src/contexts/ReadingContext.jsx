@@ -12,6 +12,8 @@ import { buildPersonalizationRequestPayload } from '../utils/personalizationStor
 import { formatReading } from '../lib/formatting';
 import { createReadingError, formatReadingFailure } from '../lib/readingErrors.js';
 import { readReadingJobEvents } from '../lib/readingJobStream.js';
+import { buildReadingSnapshot, saveReadingSnapshot } from '../lib/readingSnapshot.js';
+import { GUEST_DRAFT_OWNER } from '../lib/questionDraft.js';
 import { buildReadingRequestCard } from '../../shared/contracts/readingRequestCards.js';
 import { isServerNarrationProvider } from '../../shared/narrationProviders.js';
 import { computeRelationships } from '../lib/deck';
@@ -55,7 +57,10 @@ export function ReadingProvider({ children }) {
         dealNext: baseDealNext,
         revealCard: baseRevealCard,
         revealAll: baseRevealAll,
-        sessionSeed
+        sessionSeed,
+        initialSnapshot,
+        restoreReady,
+        snapshotRevision
     } = tarotState;
     const {
         deckStyleId,
@@ -83,18 +88,31 @@ export function ReadingProvider({ children }) {
     }, [personalization, personalizationExplicitFields]);
 
     // 4. Reading Generation State
-    const [personalReading, setPersonalReading] = useState(null);
+    // A finished reading restored after a reload (lib/readingSnapshot) starts
+    // complete, exactly as the stream's `done` event leaves it.
+    const restoredAnalysis = initialSnapshot?.narrative ? (initialSnapshot.analysis || {}) : null;
+    const [personalReading, setPersonalReading] = useState(() => {
+        const narrative = initialSnapshot?.narrative;
+        if (!narrative) return null;
+        const formatted = formatReading(narrative.raw);
+        formatted.isError = false;
+        formatted.isStreaming = false;
+        formatted.isServerStreamed = true;
+        formatted.provider = narrative.provider || 'local-composer';
+        formatted.requestId = narrative.requestId || null;
+        return formatted;
+    });
     const [isGenerating, setIsGenerating] = useState(false);
     const [isReadingStreamActive, setIsReadingStreamActive] = useState(false);
-    const [narrativePhase, setNarrativePhase] = useState('idle');
-    const [spreadAnalysis, setSpreadAnalysis] = useState(null);
-    const [themes, setThemes] = useState(null);
-    const [emotionalTone, setEmotionalTone] = useState(null);
-    const [analysisContext, setAnalysisContext] = useState(null);
+    const [narrativePhase, setNarrativePhase] = useState(() => (initialSnapshot?.narrative ? 'complete' : 'idle'));
+    const [spreadAnalysis, setSpreadAnalysis] = useState(() => restoredAnalysis?.spreadAnalysis ?? null);
+    const [themes, setThemes] = useState(() => restoredAnalysis?.themes ?? null);
+    const [emotionalTone, setEmotionalTone] = useState(() => restoredAnalysis?.emotionalTone ?? null);
+    const [analysisContext, setAnalysisContext] = useState(() => restoredAnalysis?.analysisContext ?? null);
     const [reasoningSummary, setReasoningSummary] = useState(null);
     const [reasoning, setReasoning] = useState(null);
     const [followUps, setFollowUps] = useState([]);
-    const [readingMeta, setReadingMeta] = useState({
+    const [readingMeta, setReadingMeta] = useState(() => ({
         requestId: null,
         provider: null,
         spreadKey: null,
@@ -103,15 +121,124 @@ export function ReadingProvider({ children }) {
         userQuestion: null,
         graphContext: null,
         ephemeris: null,
-        sourceUsage: null
-    });
+        sourceUsage: null,
+        ...(restoredAnalysis?.readingMeta || {})
+    }));
 
     // 5. UI State
     const [journalStatus, setJournalStatus] = useState(null);
-    const [reflections, setReflections] = useState({});
-    const [lastCardsForFeedback, setLastCardsForFeedback] = useState([]);
+    const [reflections, setReflections] = useState(() => initialSnapshot?.reflections || {});
+    const [lastCardsForFeedback, setLastCardsForFeedback] = useState(() => (
+        Array.isArray(restoredAnalysis?.lastCardsForFeedback) ? restoredAnalysis.lastCardsForFeedback : []
+    ));
     const [showAllHighlights, setShowAllHighlights] = useState(false);
     const [srAnnouncement, setSrAnnouncement] = useState('');
+
+    // Keep the reading recoverable after a reload, a discarded background tab
+    // or a sign-in redirect (lib/readingSnapshot). A reading still being
+    // written resumes from its job checkpoint instead, so streamed text is not
+    // stored until it is complete.
+    const {
+        snapshotOwner,
+        hasUserSelectedSpread,
+        dealIndex,
+        hasConfirmedSpread,
+        hasKnocked,
+        knockCount,
+        hasCut,
+        cutIndex,
+        knockTimesRef
+    } = tarotState;
+
+    useEffect(() => {
+        if (!snapshotRevision) return;
+        // The restored reading belonged to another account; drop all of it.
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- clears a snapshot rejected after auth settled
+        setPersonalReading(null);
+        setNarrativePhase('idle');
+        setThemes(null);
+        setEmotionalTone(null);
+        setSpreadAnalysis(null);
+        setAnalysisContext(null);
+        setReflections({});
+        setLastCardsForFeedback([]);
+    }, [snapshotRevision]);
+
+    // While the reading is written, `finishedReading` stays null, so streamed
+    // chunks do not rewrite the snapshot; the cards, question and reflections
+    // are still saved, which is what reattaching to the job needs.
+    const finishedReading = narrativePhase === 'complete' && personalReading
+        && !personalReading.isError && !personalReading.isStreaming
+        ? personalReading
+        : null;
+    const pendingSnapshotRef = useRef(null);
+    // The account a reading was drawn under. Signing out keeps the reading on
+    // screen but must not save it for the next person; a guest's reading
+    // follows them into a sign-in.
+    const readingOwnerRef = useRef(initialSnapshot?.owner ?? null);
+    const ownedReadingRef = useRef(reading);
+    useEffect(() => {
+        if (reading === ownedReadingRef.current) return;
+        ownedReadingRef.current = reading;
+        readingOwnerRef.current = reading ? snapshotOwner : null;
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- the owner is captured when the cards change
+    }, [reading]);
+
+    useEffect(() => {
+        // Until auth settles, the stored snapshot is the one just restored.
+        if (!restoreReady) return undefined;
+        const save = () => {
+            pendingSnapshotRef.current = null;
+            const owner = readingOwnerRef.current;
+            if (owner && owner !== snapshotOwner && owner !== GUEST_DRAFT_OWNER) {
+                saveReadingSnapshot(null);
+                return;
+            }
+            if (owner === GUEST_DRAFT_OWNER) readingOwnerRef.current = snapshotOwner;
+            saveReadingSnapshot(buildReadingSnapshot({
+                owner: snapshotOwner,
+                spreadKey: selectedSpread,
+                hasUserSelectedSpread,
+                reading,
+                isSpreadDealt,
+                revealedCards,
+                dealIndex,
+                hasConfirmedSpread,
+                sessionSeed,
+                ritual: { hasKnocked, knockCount, hasCut, cutIndex, knockTimes: knockTimesRef.current },
+                question: userQuestion,
+                reflections,
+                narrative: finishedReading,
+                analysis: finishedReading
+                    ? { themes, emotionalTone, spreadAnalysis, analysisContext, readingMeta, lastCardsForFeedback }
+                    : null
+            }));
+        };
+        pendingSnapshotRef.current = save;
+        const timer = setTimeout(save, 250);
+        return () => clearTimeout(timer);
+    }, [
+        restoreReady, snapshotOwner, selectedSpread, hasUserSelectedSpread, reading, isSpreadDealt, revealedCards,
+        dealIndex, hasConfirmedSpread, sessionSeed, hasKnocked, knockCount, hasCut, cutIndex, knockTimesRef,
+        userQuestion, reflections, finishedReading, themes, emotionalTone, spreadAnalysis, analysisContext,
+        readingMeta, lastCardsForFeedback
+    ]);
+
+    // A reload, a discarded background tab or a sign-in redirect can come
+    // within the save delay; write the latest state as the page is hidden.
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const flush = () => pendingSnapshotRef.current?.();
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') flush();
+        };
+        window.addEventListener('pagehide', flush);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => {
+            window.removeEventListener('pagehide', flush);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, []);
 
     const visionResearchEnabled = import.meta.env?.VITE_ENABLE_VISION_RESEARCH === 'true';
     const inFlightReadingRef = useRef(null);
@@ -800,6 +927,10 @@ export function ReadingProvider({ children }) {
             resumeReadingStreamIfEligible();
             return;
         }
+        // A checkpoint from before a reload belongs to the restored reading
+        // (lib/readingSnapshot); compare keys only once auth and preferences
+        // have settled, or a still-loading owner would discard it.
+        if (!restoreReady) return;
         const stored = safeSessionStorage.getItem(readingJobStorageKey);
         if (!stored) return;
         try {
@@ -809,8 +940,9 @@ export function ReadingProvider({ children }) {
                 clearReadingJob();
                 return;
             }
-            const parsedCursor = Number.parseInt(parsed.cursor, 10);
-            const cursor = Number.isFinite(parsedCursor) ? parsedCursor : 0;
+            // Streamed text is not kept across a reload, so replay the job from
+            // its first event rather than from the saved cursor.
+            const cursor = 0;
             readingJobRef.current = {
                 jobId: parsed.jobId,
                 jobToken: parsed.jobToken,
@@ -821,7 +953,7 @@ export function ReadingProvider({ children }) {
         } catch {
             clearReadingJob();
         }
-    }, [buildReadingKey, cancelInFlightReading, clearReadingJob, resumeReadingStreamIfEligible]);
+    }, [buildReadingKey, cancelInFlightReading, clearReadingJob, resumeReadingStreamIfEligible, restoreReady]);
 
     useEffect(() => {
         if (typeof document === 'undefined') return;
@@ -1003,7 +1135,7 @@ export function ReadingProvider({ children }) {
             // Validation is needed only when starting a narrative, not during setup.
             const { safeParseReadingRequest } = await import('../../shared/contracts/readingSchema.js').catch((error) => {
                 startController.signal.throwIfAborted();
-                throw new Error('Your reading could not start. Check your connection, then reload this page. Your question is saved; you can draw again.', { cause: error });
+                throw new Error('Your reading could not start. Check your connection, then reload this page. Your question and cards are saved.', { cause: error });
             });
             startController.signal.throwIfAborted();
             const normalizedPayload = safeParseReadingRequest(payload);

@@ -11,20 +11,44 @@ export function ReadingContents({ sections, readingRef, controlsModel, onNarrate
   const sectionIds = sections.map(section => section.id).join(',');
   const current = Math.max(0, sections.findIndex(section => section.id === activeId));
 
+  // Pin the toolbar only while it and the pinned header together leave most of
+  // the visible height for the reading (small phones, landscape, enlarged text
+  // and an open keyboard all fail this). The pinned height is also published on
+  // the document root for the reading page's root scroll-padding.
+  const pinToolbar = useCallback(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar) return;
+    const visible = window.visualViewport?.height || innerHeight;
+    const header = parseFloat(getComputedStyle(readingRef.current || toolbar).getPropertyValue('--sticky-header-height')) || 0;
+    const sticky = toolbar.offsetHeight + header <= visible * .3;
+    const height = `${sticky ? toolbar.offsetHeight : 0}px`;
+    toolbar.style.position = sticky ? 'sticky' : 'static';
+    readingRef.current?.style.setProperty('--reading-wayfinding-height', height);
+    document.documentElement.style.setProperty('--pinned-wayfinding-height', height);
+  }, [readingRef]);
+
   useEffect(() => {
     const toolbar = toolbarRef.current;
     if (!toolbar) return undefined;
-    const measure = () => {
-      const sticky = toolbar.offsetHeight <= innerHeight * .35;
-      toolbar.style.position = sticky ? 'sticky' : 'static';
-      readingRef.current?.style.setProperty('--reading-wayfinding-height', `${sticky ? toolbar.offsetHeight : 0}px`);
+    // Measure after the header has re-measured for the same resize.
+    let frame = 0;
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(pinToolbar);
     };
-    const observer = new ResizeObserver(measure);
+    const observer = new ResizeObserver(schedule);
     observer.observe(toolbar);
-    window.addEventListener('resize', measure);
-    measure();
-    return () => { observer.disconnect(); window.removeEventListener('resize', measure); };
-  }, [readingRef]);
+    window.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('resize', schedule);
+    pinToolbar();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener('resize', schedule);
+      document.documentElement.style.removeProperty('--pinned-wayfinding-height');
+    };
+  }, [pinToolbar]);
 
   useEffect(() => {
     const root = readingRef.current;
@@ -61,13 +85,11 @@ export function ReadingContents({ sections, readingRef, controlsModel, onNarrate
     setOpen(false);
     setActiveId(id);
     requestAnimationFrame(() => {
-      const toolbar = toolbarRef.current;
-      const sticky = toolbar && toolbar.offsetHeight <= innerHeight * .35;
-      readingRef.current?.style.setProperty('--reading-wayfinding-height', `${sticky ? toolbar.offsetHeight : 0}px`);
+      pinToolbar();
       target.focus({ preventScroll: true });
       target.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'instant' : 'smooth' });
     });
-  }, [reducedMotion, readingRef]);
+  }, [reducedMotion, pinToolbar]);
 
   return <div className="reading-wayfinding" ref={toolbarRef}>
     <div className="reading-toolbar">

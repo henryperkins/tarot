@@ -660,6 +660,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const safeAreaXClass = !isSmallScreen && isLandscape
     ? 'pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))]'
     : '';
+  const closesFromFooter = isSmallScreen && step === 0;
   const footerPaddingStyle = !isSmallScreen && effectiveOffset
     ? { paddingBottom: `calc(var(--safe-pad-bottom) + ${effectiveOffset + 16}px)` }
     : undefined;
@@ -858,16 +859,20 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
                 ? 'flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2'
                 : 'grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3 sm:flex sm:w-auto sm:items-center'}>
                 {/* aria-disabled, not disabled: disabling the focused button on
-                    the first step would drop keyboard focus to the page. */}
+                    the first step would drop keyboard focus to the page. On
+                    phones the first step's button closes the coach instead, so
+                    closing does not need the far top corner. */}
                 <button
                   type="button"
-                  onClick={goBack}
-                  aria-disabled={step === 0 || undefined}
-                  aria-label={isLandscape ? 'Back' : undefined}
+                  onClick={closesFromFooter ? onClose : goBack}
+                  aria-disabled={(step === 0 && !closesFromFooter) || undefined}
+                  aria-label={isLandscape ? (closesFromFooter ? 'Close' : 'Back') : undefined}
                   className={`${footerSecondaryClass} ${isLandscape ? 'min-h-touch px-3 py-2' : 'min-h-cta px-4 py-2 sm:flex-none'}`}
                 >
-                  <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  {!isLandscape && <span>Back</span>}
+                  {closesFromFooter
+                    ? <X className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    : <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />}
+                  {!isLandscape && <span>{closesFromFooter ? 'Close' : 'Back'}</span>}
                 </button>
                 {step < STEPS.length - 1 ? (
                   <button

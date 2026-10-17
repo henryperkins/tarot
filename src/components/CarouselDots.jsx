@@ -6,7 +6,10 @@ import { useRef } from 'react';
  * Features:
  * - WCAG 2.5.8 compliant touch targets (44x44px minimum)
  * - Full keyboard navigation (arrows, Home, End, Enter, Space)
- * - Screen reader accessible with proper ARIA
+ * - Screen reader accessible: a labelled group of "Show …" buttons, the
+ *   visible item marked aria-current. They are not tabs: there are no tab
+ *   panels, and "selected" would contradict the carousel's own selection
+ *   (a spread can be selected while another is in view).
  * - Customizable appearance via variant prop
  *
  * @param {number} activeIndex - Currently active/visible item index
@@ -109,7 +112,7 @@ export function CarouselDots({
   return (
     <div
       className={styles.container}
-      role="tablist"
+      role="group"
       aria-label={ariaLabel}
     >
       {Array.from({ length: totalItems }).map((_, idx) => {
@@ -121,9 +124,8 @@ export function CarouselDots({
             key={idx}
             ref={el => { dotRefs.current[idx] = el; }}
             type="button"
-            role="tab"
-            aria-selected={isActive}
-            aria-label={`${label}${isActive ? ' (current)' : ''}`}
+            aria-current={isActive ? 'true' : undefined}
+            aria-label={`Show ${label}`}
             className={`${styles.button} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main rounded-full`}
             tabIndex={isActive ? 0 : -1}
             onClick={() => goToIndex(idx)}

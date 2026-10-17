@@ -309,7 +309,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
             totalItems={deckIds.length}
             onSelectItem={scrollToIndex}
             labels={DECK_OPTIONS.map(d => d.label)}
-            ariaLabel="Deck selection"
+            ariaLabel="Browse decks"
             variant="compact"
           />
         </div>

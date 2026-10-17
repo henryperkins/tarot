@@ -134,6 +134,7 @@ function MobileActionContents({
   onViewSavedEntry,
   onCancelGeneration,
   onNewReading,
+  onUpgrade,
   variant = 'fixed',
   showUtilityButtons = true,
   isSettingsOpen = false,
@@ -215,7 +216,9 @@ function MobileActionContents({
     savedEntryId,
     onViewSavedEntry,
     onCancelGeneration,
-    onNewReading
+    onNewReading,
+    onUpgrade,
+    isLimitError: personalReading?.errorCode === 'reading_limit_reached'
   });
 
   if (variant === 'inline') return <div className={layoutClass}>{actions}</div>;
@@ -254,7 +257,9 @@ function renderActions(mode, options) {
     savedEntryId,
     onViewSavedEntry,
     onCancelGeneration,
-    onNewReading
+    onNewReading,
+    onUpgrade,
+    isLimitError
   } = options;
 
   // Landscape keeps labels on one line and scrolls actions that do not fit.
@@ -366,16 +371,29 @@ function renderActions(mode, options) {
     case 'error':
       return (
         <>
-          <ActionButton
-            variant="primary"
-            onClick={onGenerateNarrative}
-            icon={ArrowsClockwise}
-            ariaLabel={withStepContext('Retry interpretation', stepIndicatorLabel)}
-            className={`${widthClasses.primary} ${px}`}
-            isLandscape={isLandscape}
-          >
-            Retry interpretation
-          </ActionButton>
+          {/* Retrying cannot clear a monthly limit; lead with the plans instead. */}
+          {isLimitError && onUpgrade ? (
+            <ActionButton
+              variant="primary"
+              onClick={onUpgrade}
+              ariaLabel="See plans"
+              className={`${widthClasses.primary} ${px}`}
+              isLandscape={isLandscape}
+            >
+              See plans
+            </ActionButton>
+          ) : (
+            <ActionButton
+              variant="primary"
+              onClick={onGenerateNarrative}
+              icon={ArrowsClockwise}
+              ariaLabel={withStepContext('Retry interpretation', stepIndicatorLabel)}
+              className={`${widthClasses.primary} ${px}`}
+              isLandscape={isLandscape}
+            >
+              Retry interpretation
+            </ActionButton>
+          )}
           <ActionButton
             variant="secondary"
             onClick={onNewReading}

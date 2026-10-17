@@ -42,6 +42,22 @@ export function getCardImage(card) {
   return FALLBACK_IMAGE;
 }
 
+const RWS_SCAN = /^\/images\/cards\/(RWS1909_-_[^/]+)\.jpe?g$/i;
+
+/**
+ * srcset for a card shown small (spreads, reading rows): the 360 px WebP
+ * thumbnail beside the full scan, so phones skip ~220 KB per card. Only the
+ * Rider-Waite-Smith scans have thumbnails (scripts/assets/generate-card-thumbnails.mjs);
+ * other decks' images are already small and return undefined.
+ * @param {string} src - Card image path (getCardImage)
+ * @returns {string|undefined}
+ */
+export function getCardThumbnailSrcSet(src) {
+  const match = typeof src === 'string' ? RWS_SCAN.exec(src) : null;
+  if (!match) return undefined;
+  return `/images/cards/w360/${match[1]}.webp 360w, ${src} 825w`;
+}
+
 /**
  * Get the canonical card data from the lookup table
  * @param {Object|string} card - Card object or name

@@ -19,7 +19,6 @@
   line-height: 1.12;
   letter-spacing: -0.025em;
   text-wrap: balance;
-  scroll-margin-top: calc(var(--sticky-header-height, 64px) + 16px);
 }
 .reading-screen__subtitle { color: var(--text-muted); font-size: 1rem; }
 .reading-screen__header { position: relative; }
@@ -133,7 +132,9 @@
 }
 .reading-prose h3, .reading-screen__section-title { font-family: var(--font-serif); font-weight: 600; font-size: clamp(1.875rem, 4vw, 2.5rem); line-height: 1.15; margin: 1.25rem 0 1rem; letter-spacing: -.02em; }
 .reading-prose h4, .reading-prose h5, .reading-prose h6 { font-family: var(--font-serif); font-size: 1.5rem; font-weight: 500; line-height: 1.25; margin: 1.75rem 0 .75rem; }
-.reading-screen [data-reading-section], .reading-screen__section-title { scroll-margin-top: calc(var(--sticky-header-height, 64px) + var(--reading-wayfinding-height, 112px) + 20px); }
+.reading-screen [data-reading-section], .reading-screen__section-title { scroll-margin-top: 4px; }
+/* Focus targets (a failed reading's title) land below the pinned chrome too. */
+[data-reading-focus-target] { scroll-margin-top: 8px; }
 .reading-prose .narrative-section { margin-top: 1.75rem; }
 .reading-prose .narrative-section:first-child { margin-top: 0; }
 .reading-prose .narrative-section:first-child .narrative-section__divider { display: none; }
@@ -183,8 +184,8 @@
 .reading-screen * { scrollbar-color: var(--brand-secondary) var(--bg-main); }
 .reading-step-nav { display: flex; align-items: center; gap: 4px; width: 100%; }
 .reading-step-nav nav { flex: 1; min-width: 0; }
-.reading-step-nav ol { display: flex; padding: 0; margin: 0; list-style: none; }
-.reading-step-nav li { flex: 1; min-width: 0; }
+.reading-step-nav ol { display: flex; flex-wrap: wrap; padding: 0; margin: 0; list-style: none; }
+.reading-step-nav li { flex: 1 1 0; min-width: max-content; }
 .reading-step-nav button { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 54px; font-size: .875rem; color: var(--text-muted); background: transparent; border: 0; border-radius: 0; }
 .reading-step-nav [aria-current="step"] { color: var(--text-main); font-weight: 600; position: relative; }
 .reading-step-nav [aria-current="step"]::after { content: ''; position: absolute; height: 2px; width: 36px; bottom: 6px; left: calc(50% - 18px); background: var(--brand-accent); }

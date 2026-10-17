@@ -6,7 +6,8 @@ export function ResponsiveSpreadArt({
   fallbackWidth,
   fallbackHeight,
   sizes = '(max-width: 640px) 88vw, (max-width: 1024px) 46vw, 340px',
-  className = ''
+  className = '',
+  priority = false
 }) {
   const pictureSources = Array.isArray(sources) ? sources : [];
   const safeAlt = alt || 'Spread artwork';
@@ -25,13 +26,17 @@ export function ResponsiveSpreadArt({
             sizes={sizes}
           />
         ))}
+        {/* Artwork in the first view is often the page's largest paint; a
+            priority image is fetched straight away, not after lazy loading's
+            layout check. */}
         <img
           src={fallbackSrc}
           width={fallbackWidth || undefined}
           height={fallbackHeight || undefined}
           alt={safeAlt}
           className="w-full h-full object-cover"
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : undefined}
           decoding="async"
           sizes={sizes}
           onError={(event) => {

@@ -189,13 +189,18 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
         >
           {children}
         </div>
-        {footer && (
-          <div
-            className="mobile-drawer__footer"
+        <div className="mobile-drawer__footer">
+          {footer}
+          {/* The header's close button sits in the far corner; Done keeps
+              closing within thumb reach (swiping the sheet down also works). */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-2 flex w-full min-h-touch items-center justify-center rounded-xl text-sm font-semibold text-muted hover:text-main touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
           >
-            {footer}
-          </div>
-        )}
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );

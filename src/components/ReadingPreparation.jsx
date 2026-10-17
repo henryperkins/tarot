@@ -239,7 +239,7 @@ export function ReadingPreparation({
             ref={sectionRef}
             aria-label="Prepare your reading"
             id="step-intention"
-            className="hidden sm:block prepare-reading-panel deck-selector-panel animate-fade-in scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]"
+            className="hidden sm:block prepare-reading-panel deck-selector-panel animate-fade-in"
         >
             <div className="relative z-10 space-y-5">
                 <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

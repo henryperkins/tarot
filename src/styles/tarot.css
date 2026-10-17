@@ -603,8 +603,8 @@ body {
 
 .skip-link {
   position: absolute;
-  left: 0;
-  top: 0.35rem;
+  left: max(0px, var(--safe-pad-left, 0px));
+  top: calc(0.35rem + var(--safe-pad-top, 0px));
   transform: translateY(-150%);
   opacity: 0;
   padding: 0.7rem 1rem;
@@ -645,7 +645,8 @@ body {
 }
 
 .header-sticky--compact {
-  padding-top: 0.35rem !important;
+  /* Keep clear of the status bar in the installed app (viewport-fit=cover). */
+  padding-top: max(0.35rem, var(--safe-pad-top, 0px)) !important;
   padding-bottom: 0.35rem !important;
   box-shadow: 0 10px 20px var(--main-45, rgba(15, 14, 19, 0.45));
 }
@@ -828,7 +829,7 @@ body {
 
   /* Compact header in cramped landscape */
   .header-sticky {
-    padding-top: 0.25rem !important;
+    padding-top: max(0.25rem, var(--safe-pad-top, 0px)) !important;
     padding-bottom: 0.25rem !important;
   }
 

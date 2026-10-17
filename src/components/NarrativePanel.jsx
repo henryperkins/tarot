@@ -11,6 +11,9 @@ export function NarrativePanel({ panelModel = {}, callbacks = {} }) {
     onDismissNudge, onRetryNarrative, onUpgradeTier } = callbacks;
 
   if (personalReading?.isError) {
+    // A monthly limit is not fixed by retrying; offer the way forward instead.
+    const isLimit = personalReading.errorCode === 'reading_limit_reached';
+    const action = isLimit ? onUpgradeTier : onRetryNarrative;
     return (
       <div className={panelClassName}>
         <h3 tabIndex={-1} data-reading-focus-target className="text-lg sm:text-2xl font-serif text-accent">
@@ -19,12 +22,16 @@ export function NarrativePanel({ panelModel = {}, callbacks = {} }) {
         <p role="alert" className="mt-4 text-main leading-relaxed [overflow-wrap:anywhere]">
           {narrativeText || 'The connection was interrupted. Please try again.'}
         </p>
-        <p className="mt-3 text-sm text-muted">Your cards and question are still here. You can retry this reading.</p>
+        <p className="mt-3 text-sm text-muted">
+          {isLimit
+            ? 'Your cards and question are still here. See the plans to interpret them now, or return when your limit resets.'
+            : 'Your cards and question are still here. You can retry this reading.'}
+        </p>
         <NarrativeQuestionAnchor question={question} compact={isHandset} className="mt-4" />
-        {onRetryNarrative && !isHandset && (
-          <button type="button" onClick={onRetryNarrative}
+        {action && !isHandset && (
+          <button type="button" onClick={action}
             className="mt-5 inline-flex min-h-touch items-center justify-center rounded-full border border-secondary/50 px-5 py-2 text-sm font-semibold text-main hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60">
-            Retry interpretation
+            {isLimit ? 'See plans' : 'Retry interpretation'}
           </button>
         )}
       </div>

@@ -49,7 +49,11 @@
   opacity: 1;
 }
 
-/* Decorative entrance only: route visibility never depends on animation. */
+/* Decorative entrance only: route visibility never depends on animation.
+   It moves the route's main landmark, not the whole route: a transformed
+   ancestor becomes the containing block for position: fixed, which laid the
+   mobile dock (rendered after main) out below the screen until the animation
+   ended and then jumped it into place, a layout shift on every page load. */
 @keyframes page-enter {
   from { transform: translateY(4px); }
   to { transform: translateY(0); }
@@ -57,7 +61,7 @@
 
 /* Smooth scroll behavior - disabled for users who prefer reduced motion */
 @media (prefers-reduced-motion: no-preference) {
-  .page-transition {
+  .page-transition main {
     animation: page-enter 280ms ease-out;
   }
 

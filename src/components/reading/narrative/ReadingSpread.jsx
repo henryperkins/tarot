@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getCardThumbnailSrcSet } from '../../../lib/cardLookup';
 
 export function ReadingCardFigure({ card, onSelectCard, compact = false, numbered = false, children }) {
   const inspect = () => {
@@ -9,6 +10,8 @@ export function ReadingCardFigure({ card, onSelectCard, compact = false, numbere
       aria-label={`${card.fullPositionLabel || card.positionLabel}: ${card.name}, ${card.isReversed ? 'reversed' : 'upright'}. Open card`}
       onClick={inspect} style={{ '--reading-card-ratio': (!compact && card.overviewFrame) || card.frame || '100 / 172' }}>
       <img src={(!compact && card.overviewImage) || card.image} alt={card.name} className={card.isReversed ? 'reading-card__image--reversed' : ''}
+        srcSet={getCardThumbnailSrcSet((!compact && card.overviewImage) || card.image)}
+        sizes={compact ? '72px' : '(max-width: 640px) 30vw, 160px'}
         loading="eager" decoding="async" />
       {numbered && <span className="reading-card__number" aria-hidden="true">{card.index + 1}</span>}
     </button>

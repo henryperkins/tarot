@@ -26,7 +26,8 @@ export function RitualControls({
   const ritualStatus = knockComplete && hasCut ? 'Ready' : hasKnocked || hasCut ? 'In flow' : 'Optional';
   const isExperienced = personalization?.tarotExperience === 'experienced';
   const isNewbie = personalization?.tarotExperience === 'newbie';
-  const knockCadenceHint = '3 quick taps within 2s.';
+  // Knocks have no time limit (useTarotState); say so instead of a deadline.
+  const knockCadenceHint = 'Three knocks, at your own pace.';
 
   const handleCutConfirm = () => {
     applyCut?.();
@@ -159,7 +160,7 @@ export function RitualControls({
             className={`${primaryButtonBase} ${knockComplete ? primaryButtonActive : primaryButtonIdle
               }`}
             aria-pressed={knockCount > 0}
-            title={`Knock ${knockCadenceHint}`}
+            title={`Knock. ${knockCadenceHint}`}
           >
             <span>{knockComplete ? 'Deck cleared · 3 of 3' : `Knock ${nextKnockNumber} of 3`}</span>
             {!knockComplete && (

@@ -119,7 +119,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       }
     });
 
-    test('failed validation gives reload recovery and preserves the question', async ({ page }, testInfo) => {
+    test('failed validation gives reload recovery and preserves the question and cards', async ({ page }, testInfo) => {
       await openSetup(page);
       test.skip(!await page.locator('script[type="module"][src^="/assets/"]').count(), 'Production chunk failure.');
       // Serve a real one-time HTTP failure. WebKit inspector interception caches
@@ -128,12 +128,14 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       try {
         await openSetup(page, { url: preview.origin });
         await startReading(page, fixture, { complete: false, setup: false });
-        await expect(page.getByRole('alert')).toContainText('Check your connection, then reload this page. Your question is saved');
+        await expect(page.getByRole('alert')).toContainText('Check your connection, then reload this page. Your question and cards are saved.');
         expect(preview.failures()).toBe(1);
         expect(fixture.requests.reading).toHaveLength(0);
         await page.reload();
-        await expect(page.locator('#question-input, #quick-intention').filter({ visible: true }).first()).toHaveValue(QUESTION);
-        await startReading(page, fixture, { setup: false });
+        // The revealed spread returns with its question, ready to interpret.
+        await expect(page.getByText(QUESTION, { exact: true }).filter({ visible: true }).first()).toBeVisible();
+        await page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first().press('Enter');
+        await fixture.completeReading();
         expect(preview.failures()).toBe(1);
       } finally { await preview.close(); }
     });

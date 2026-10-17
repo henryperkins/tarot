@@ -15,7 +15,6 @@ import { useSceneOrchestrator } from '../hooks/useSceneOrchestrator';
 import { useReadingSelection } from '../hooks/useReadingSelection';
 import { useReadingMediaGallery } from '../hooks/useReadingMediaGallery';
 import { useNarrativeReadingController } from '../hooks/useNarrativeReadingController';
-import { getCardImage } from '../lib/cardLookup';
 import { determineColorScript } from '../lib/colorScript';
 import { ReadingChrome } from './reading/ReadingChrome';
 import { ReadingSceneRouter } from './reading/ReadingSceneRouter';
@@ -157,7 +156,12 @@ export function ReadingDisplay({
         // A user who moved elsewhere while waiting keeps their chosen focus.
         const activeElement = document.activeElement;
         if (activeElement && activeElement !== document.body && !activeElement.disabled) return;
-        sectionRef.current?.querySelector('[data-reading-focus-target]')?.focus({ preventScroll: true });
+        const target = sectionRef.current?.querySelector('[data-reading-focus-target]');
+        if (!target) return;
+        target.focus({ preventScroll: true });
+        // A failed reading replaces the narrative in place; bring its title out
+        // from under the pinned header (the page's scroll-padding reserves it).
+        if (personalReading?.isError) target.scrollIntoView({ block: 'nearest' });
     }, [sceneOrchestrator.activeScene, personalReading?.isError, sectionRef]);
 
     useEffect(() => {
@@ -272,39 +276,6 @@ export function ReadingDisplay({
         onCardModalChange?.(isCardModalOpen);
         return () => onCardModalChange?.(false);
     }, [isCardModalOpen, onCardModalChange]);
-
-    useEffect(() => {
-        if (!Array.isArray(reading) || visibleCount === 0 || typeof document === 'undefined') return undefined;
-        const head = document.head;
-        const created = [];
-        const sources = new Set(
-            reading
-                .slice(0, visibleCount)
-                .map((card) => getCardImage(card))
-                .filter((src) => typeof src === 'string' && src.length > 0)
-        );
-
-        sources.forEach((src) => {
-            const escapedSrc = CSS.escape(src);
-            const existing = head.querySelector(`link[rel="preload"][as="image"][href="${escapedSrc}"]`);
-            if (existing) return;
-            const link = document.createElement('link');
-            link.rel = 'preload';
-            link.as = 'image';
-            link.href = src;
-            link.setAttribute('data-reading-preload', 'true');
-            head.appendChild(link);
-            created.push(link);
-        });
-
-        return () => {
-            created.forEach((node) => {
-                if (node?.parentNode) {
-                    node.parentNode.removeChild(node);
-                }
-            });
-        };
-    }, [reading, visibleCount]);
 
     const revealStage = useMemo(() => {
         if (!isHandset || !newDeckInterface || !reading || visibleCount === 0) return 'action';
@@ -686,7 +657,7 @@ export function ReadingDisplay({
     };
 
     return (
-        <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
+        <section ref={sectionRef} id="step-reading" tabIndex={-1} aria-label="Draw and explore your reading">
             <ReadingChrome
                 displayName={displayName}
                 readingMeta={readingMeta}
