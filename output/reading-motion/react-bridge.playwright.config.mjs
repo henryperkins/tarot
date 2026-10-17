@@ -19,7 +19,7 @@ export default {
   use: { ...base.use, baseURL: 'http://localhost:5174', serviceWorkers: 'block', ...(qualification ? { trace: 'off' } : {}) },
   webServer: qualification ? undefined : {
     ...base.webServer,
-    command: 'VITE_READING_GESTURES=true npm run dev:frontend -- --port 5174 --strictPort',
+    command: 'VITE_READING_GESTURES=true VITE_READING_MODEL_ANNOTATIONS=true npm run dev:frontend -- --port 5174 --strictPort',
     url: 'http://localhost:5174',
   },
 };

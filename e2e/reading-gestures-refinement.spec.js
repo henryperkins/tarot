@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { observeNarrativeUiHealth, createNarrativeFixture, startReading, expectNoHorizontalOverflow } from './helpers/narrativeFixtures.js';
+import { observeNarrativeUiHealth, createNarrativeFixture, startReading, expectNoHorizontalOverflow, openReadingSupport } from './helpers/narrativeFixtures.js';
 import { createVisualCueLedger, applyVisualCueBatch } from '../shared/reading/visualCueLedger.js';
 import { hashVisualCueText } from '../shared/contracts/visualCueBatches.js';
 import { getVectorGestureDetails } from '../src/data/cardGestureArtwork.js';
@@ -42,7 +42,7 @@ async function waitForSettledQuoteLayout(page, sourceIds) {
   await page.evaluate(async ids => {
     const geometry = () => {
       const sources = ids.map(id => document.querySelector(`[data-gesture-id="${id}"]`));
-      const question = document.querySelector('.narrative-panel__column bdi');
+      const question = document.querySelector('.reading-question p, .narrative-panel__column bdi');
       const header = document.querySelector('.header-sticky');
       const companion = document.querySelector('.gesture-companion');
       if (sources.some(source => !source) || !question || !header || !companion) return null;
@@ -67,7 +67,7 @@ async function waitForSettledQuoteLayout(page, sourceIds) {
       const dock = document.querySelector('.mobile-action-bar');
       const signature = JSON.stringify({
         sources: sourceGeometry, question: questionGeometry, header: elementGeometry(header, true),
-        containers: [...document.querySelectorAll('main, .narrative-panel, .narrative-panel__layout, .narrative-panel__column, .narrative-stream')].map(element => elementGeometry(element)),
+        containers: [...document.querySelectorAll('main, .reading-screen, .reading-screen__column, .narrative-panel, .narrative-panel__layout, .narrative-panel__column, .narrative-stream')].map(element => elementGeometry(element)),
         companion: { ...elementGeometry(companion), top: companionStyle.top, position: companionStyle.position },
         context: elementGeometry(document.querySelector('.gesture-context'), true),
         dock: dock && { ...elementGeometry(dock), position: getComputedStyle(dock).position },
@@ -105,6 +105,7 @@ async function controlledQuote(page, { quote, question, context = false, queued 
     // portrait setup before restoring the actual reading acceptance viewport.
     await page.setViewportSize({ width: 375, height: 844 });
     await startReading(page, fixture);
+    expect(fixture.requests.reading[0].userQuestion).toBe(fixture.question);
     if (readingViewport) await page.setViewportSize(readingViewport);
     await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; scrollTo({ top: 0, behavior: 'instant' }); });
     const cards = fixture.requests.reading[0].cardsInfo.map((card, index) => ({ index,
@@ -193,13 +194,13 @@ test('phone targets stay usable and both planted swords fit the return frame @mo
   for (const height of [667, 568]) {
     await page.setViewportSize({ width: 375, height });
     await page.goto('/__e2e/reading-gestures?associations=authored&study=five-card&arrival=complete');
-    await expect(page.locator('[data-gesture-shelf] button:enabled')).toHaveCount(5);
-    for (const button of await page.locator('[data-gesture-shelf] button').all()) {
+    await page.locator('.reading-spread-disclosure > summary').click();
+    const cards = page.locator('[data-reading-overview] .reading-card__art');
+    await expect(cards).toHaveCount(5);
+    for (const button of await cards.all()) {
       const target = await button.boundingBox();
-      const artwork = await button.locator('.gesture-art').boundingBox();
       expect(target.width).toBeGreaterThanOrEqual(44);
       expect(target.height).toBeGreaterThanOrEqual(44);
-      expect(artwork.width).toBe(height < 600 ? 29 : 40);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
     await page.locator('[data-gesture-id]').filter({ hasText: 'Write down the two missing swords' }).click();
@@ -255,7 +256,9 @@ test('short phone frames retain the Emperor scepter and Justice scale extents @m
         .every(y => y >= frame.top && y <= frame.bottom);
     });
     expect(bounds).toBe(true);
-    await expect(page.locator('[data-gesture-window]')).toHaveCSS('height', '72px');
+    const dialog = page.getByRole('dialog', { name: 'Card detail', exact: true });
+    await expect(dialog).toBeVisible();
+    expect((await page.locator('[data-gesture-window]').boundingBox()).height).toBeLessThanOrEqual(568 * .55 + 1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
   }
 });
@@ -333,15 +336,19 @@ for (const size of [{ width: 375, height: 568 }, { width: 844, height: 390 }]) {
       if (reduced) await expectStaticCompanion(page);
       await expect(phrase).toHaveText(quote);
       await phrase.press('Enter');
-      await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
-      await page.evaluate(() => scrollBy({ top: 1000, behavior: 'instant' }));
-      await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-association', cue.id);
+      const cardDialog = page.getByRole('dialog').filter({ visible: true });
+      await expect(cardDialog).toHaveCount(1);
+      await expect(cardDialog.locator('blockquote')).toHaveText(`“${quote}”`);
+      await cardDialog.getByRole('button', { name: 'Back to reading', exact: true }).click();
+      await expect(cardDialog).toHaveCount(0);
+      await expect(phrase).toBeFocused();
       await expect(phrase).toHaveText(quote);
       expect(await page.locator('.narrative-stream__text').innerText()).toContain(raw.split('\n\n').at(-1));
       await expectNoHorizontalOverflow(page);
       const screenshot = testInfo.outputPath('oversized-source-quotation.png');
       await page.screenshot({ path: screenshot });
       await testInfo.attach('oversized-source-quotation', { path: screenshot, contentType: 'image/png' });
+      await openReadingSupport(page);
       const opener = page.getByRole('button', { name: 'Open visual studio', exact: true });
       await opener.press('Enter');
       const studio = page.getByRole('dialog', { name: 'Visual Companion Studio', exact: true });
@@ -395,7 +402,7 @@ for (const size of [{ width: 375, height: 568 }, { width: 844, height: 390 }]) {
       await expect(studio).not.toBeVisible();
       await expect(opener).toBeFocused();
       await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-association', cue.id);
-      await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
+      await expect(page.locator('[data-gesture-window]')).not.toHaveAttribute('data-held', 'true');
       await page.evaluate(() => { document.documentElement.style.fontSize = '100%'; });
       await page.setViewportSize({ width: 375, height: 844 });
       await expect(readingBar).not.toHaveAttribute('data-reading-flow', 'true');
@@ -404,29 +411,36 @@ for (const size of [{ width: 375, height: 568 }, { width: 844, height: 390 }]) {
   });
 }
 
-test('long personal quotations remain fully accessible in a bounded sticky companion at doubled text size @mobile', async ({ page }, testInfo) => {
+test('long questions and linked phrases remain readable through mobile card inspection at doubled text size @mobile', async ({ page }, testInfo) => {
   test.setTimeout(60000);
   await page.setViewportSize({ width: 844, height: 390 });
   const question = `How can I make room for this change? ${Array(4).fill(backgroundParagraph).join(' ')} End of my question.`;
   const { fixture, cue } = await controlledQuote(page, { quote: 'A painted detail invites a closer look.', question, context: true });
   try {
     const phrase = page.locator(`[data-gesture-id="${cue.id}"]`);
-    await phrase.scrollIntoViewIfNeeded();
-    await phrase.press('Enter');
-    const context = page.getByRole('region', { name: 'Related personal context' });
-    await expect(context).toHaveText(`“${question}”`);
-    await expect(context).toHaveCSS('font-size', '24px');
+    const originalQuestion = page.locator('.reading-question p');
+    await expect(originalQuestion).toHaveText(question);
     for (const size of [{ width: 844, height: 390 }, { width: 375, height: 568 }]) {
       await page.setViewportSize(size);
-      await waitForSettledQuoteLayout(page, [cue.id]);
-      const dimensions = await context.evaluate(element => ({ height: element.clientHeight, contentHeight: element.scrollHeight }));
-      expect(dimensions.height).toBeLessThanOrEqual(size.height * .2 + 1);
+      await phrase.scrollIntoViewIfNeeded();
+      await phrase.press('Enter');
+      const dialog = page.getByRole('dialog').filter({ visible: true });
+      await expect(dialog).toHaveCount(1);
+      const quote = dialog.locator('blockquote');
+      await expect(quote).toHaveText(`“${cue.passage.quote}”`);
+      await quote.scrollIntoViewIfNeeded();
+      const dimensions = await dialog.getByRole('document').evaluate(element => ({
+        height: element.clientHeight, contentHeight: element.scrollHeight,
+        width: element.clientWidth, contentWidth: element.scrollWidth
+      }));
+      expect(dimensions.height).toBeLessThanOrEqual(size.height * .8 + 1);
       expect(dimensions.contentHeight).toBeGreaterThan(dimensions.height);
-      await context.focus();
-      await expect(context).toBeFocused();
-      await page.keyboard.press('End');
-      await expect.poll(() => context.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
-      await expect(context).toHaveText(`“${question}”`);
+      expect(dimensions.contentWidth).toBeLessThanOrEqual(dimensions.width + 1);
+      await expect(quote).toHaveCSS('font-size', '32px');
+      await dialog.getByRole('button', { name: 'Back to reading', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(phrase).toBeFocused();
+      await expect(originalQuestion).toHaveText(question);
       await expectNoHorizontalOverflow(page);
     }
     const screenshot = testInfo.outputPath('long-personal-quotation.png');
@@ -437,9 +451,9 @@ test('long personal quotations remain fully accessible in a bounded sticky compa
 
 test('keyboard inspection of an automatic personal quotation pauses queued turns without a card hold @mobile', async ({ page }, testInfo) => {
   test.setTimeout(60000);
-  // At 200% text this focus test needs room for both complete source quotes
-  // below the sticky context. Short screens are covered separately.
-  await page.setViewportSize({ width: 844, height: 1400 });
+  // The companion is visible from 1100px. At 200% text this focus test also
+  // needs room for both source quotes below it. Short screens are covered separately.
+  await page.setViewportSize({ width: 1100, height: 1400 });
   const question = `How can I make room for this change? ${Array(4).fill(backgroundParagraph).join(' ')} End of my question.`;
   const { fixture, cue, nextCue } = await controlledQuote(page, { quote: 'A painted detail invites a closer look.', question, context: true, queued: true });
   try {
@@ -515,7 +529,9 @@ test('keyboard inspection of an automatic personal quotation pauses queued turns
     await page.screenshot({ path: screenshot });
     await testInfo.attach('automatic-personal-context-inspection', { path: screenshot, contentType: 'image/png' });
     await page.keyboard.press('Tab');
-    await expect(page.getByRole('button', { name: 'Focus on narrative', exact: true })).toBeFocused();
+    await expect(page.locator('.gesture-companion').getByRole('button', { name: 'Your question and notes', exact: true })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(page.locator('[data-reading-overview] .reading-card__art').first()).toBeFocused();
     await expect(context).not.toBeFocused();
     await expect(page.locator('.gesture-companion:focus-within')).toHaveCount(0);
     // Native Tab scrolling may leave the quoted prose above/below the viewport.

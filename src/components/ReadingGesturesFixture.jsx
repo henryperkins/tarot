@@ -1,5 +1,5 @@
 import { cueTimingProbeActive } from '../lib/readingCueTimingProbe.js';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { NarrativePanel } from './NarrativePanel';
 import { StreamingNarrative } from './StreamingNarrative';
@@ -71,8 +71,6 @@ export function ReadingGesturesFixture() {
   const [restart, setRestart] = useState(0);
   const [recordedSource, setRecordedSource] = useState(() => createGestureSource({ runId: crypto.randomUUID() }));
   const [seeded, setSeeded] = useState(null);
-  const [selectionCalls, setSelectionCalls] = useState(0);
-  const recordSelection = useCallback(() => setSelectionCalls(count => count + 1), []);
   const cards = useMemo(() => fixture.cards.map(card => ({
     ...ALL_CARDS.find(candidate => candidate.name === card.card),
     name: card.card,
@@ -209,22 +207,24 @@ export function ReadingGesturesFixture() {
           <label>Reflection <select value={reflection ? 'on' : 'off'} onChange={event => change('reflection', event.target.value)}><option>on</option><option>off</option></select></label>
         </>}
         <button type="button" onClick={() => setRestart(previous => previous + 1)}>Restart study</button>
-        <output data-testid="gesture-source-diagnostics" data-qualification-case={qualificationCase?.id} data-qualification-spread={qualificationCase?.spreadKey} data-association-mode={associationMode} data-run-id={source.runId} data-source-revision={source.sourceRevision} data-source-status={source.status} data-raw-length={source.raw.length} data-selection-calls={selectionCalls}
+        <output data-testid="gesture-source-diagnostics" data-qualification-case={qualificationCase?.id} data-qualification-spread={qualificationCase?.spreadKey} data-association-mode={associationMode} data-run-id={source.runId} data-source-revision={source.sourceRevision} data-source-status={source.status} data-raw-length={source.raw.length}
           data-visual-binding={source.visualBinding ? JSON.stringify(source.visualBinding) : undefined}
           data-ledger-revision={source.cueLedger?.ledgerRevision}>{isDeck ? 'authored probe' : sourceMode}: {source.raw.length} characters</output>
       </fieldset>
       {reflection && <aside className="mx-auto mb-4 max-w-5xl text-sm text-muted" data-testid="recorded-reflection"><p>{isGenerated ? 'Supplied reflection' : 'Recorded general reflection'}: {fixture.reflectionsText}</p></aside>}
-      {isDeck ? <DeckVisualProbe panelModel={panelModel} onSelectCard={recordSelection} /> : <NarrativePanel panelModel={panelModel} callbacks={{ onNarrativeComplete: noop, onHighlightPhrase: noop, onSectionEnter: noop, onSelectCard: recordSelection }} />}
+      {/* This probe exercises companion inspection. Real card-dialog behavior is
+          covered through the ordinary reading route, not a no-op callback. */}
+      {isDeck ? <DeckVisualProbe panelModel={panelModel} /> : <NarrativePanel panelModel={panelModel} callbacks={{ onNarrativeComplete: noop, onHighlightPhrase: noop, onSectionEnter: noop }} />}
     </main>
   );
 }
 
 // Reuse the actual association provider, artwork companion and Markdown renderer
 // without labelling synthetic visual probes as a personalized reading.
-function DeckVisualProbe({ panelModel, onSelectCard }) {
+function DeckVisualProbe({ panelModel }) {
   const { gestureSource, spreadCards, cardLinkCatalog, panelClassName } = panelModel;
   return <NarrativeCardFocusProvider key={`${gestureSource.runId}:${gestureSource.sourceRevision}`}
-    cards={spreadCards} onSelectCard={onSelectCard} gestureStudyEnabled gestureSource={gestureSource}>
+    cards={spreadCards} gestureStudyEnabled gestureSource={gestureSource}>
     <section className={panelClassName} aria-labelledby="deck-probe-heading">
       <div className="narrative-panel__layout narrative-panel__layout--with-spread">
         <SpreadCompanion variant="rail" />
