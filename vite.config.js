@@ -63,13 +63,5 @@ export default defineConfig({
       }
     },
     chunkSizeWarningLimit: 1000  // Increase limit for vision models
-  },
-  resolve: {
-    alias: {
-      // Polyfill Node.js modules for browser
-      'node:fs/promises': false,
-      'node:path': false,
-      'node:fs': false
-    }
   }
 });
