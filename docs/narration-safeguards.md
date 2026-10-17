@@ -59,8 +59,10 @@ configuration exists, rather than confirming a successful live provider request.
 ## Server narration units
 
 One `/api/tts` request is one complete narration of up to 64,000 characters. The
-server splits it into ordered pieces of at most 1,900 characters, with one monthly
-unit settled only after all synthesis bodies finish successfully. Requests over
+server splits it into ordered pieces of at most 1,900 characters. ElevenLabs
+consumes one monthly unit once it has produced any nonempty audio, even if the
+request later fails, times out or is cancelled. Deepgram consumes one unit after
+all synthesis bodies finish successfully. Requests over
 the cap or a 512 KiB JSON body are rejected, never silently shortened. A completed
 reading is sent in one request; auto-narration waits for the completed, screened
 reading rather than synthesizing incremental text. Card reveal utterances remain
@@ -75,13 +77,18 @@ after three minutes. Settlement and release are idempotent. Records for an
 identity older than 90 days and old minute buckets are removed during its next
 reservation. There is no client-selected session or grouping ID to replay.
 
-A 120-second overall deadline covers provider calls and all audio bodies. Failure,
-request abort, body failure and consumer cancellation release the reservation;
-provider cancellation is best effort and cannot delay release. ElevenLabs fetch
+A 120-second overall deadline covers provider calls and all audio bodies. The
+reservation remains active throughout synthesis to prevent concurrent narration
+for the same identity. Failure, request abort, body failure and consumer
+cancellation settle it once if ElevenLabs has produced audio; otherwise they
+release it. Empty audio and failures before audio production still refund.
+Overlapping termination paths share one accounting operation, including errors
+while buffering a non-streaming response. Provider cancellation is best effort
+and cannot delay accounting. ElevenLabs fetch
 requests are aborted on cancellation or deadline, including while awaiting headers.
 A Workers AI call that stalls before returning a stream cannot be reliably cancelled at the binding
 boundary. It is never retried concurrently. A late returned body is cancelled.
-Delivery to the response stream means synthesis succeeded; monthly accounting
+Audio queued in the response stream counts as produced audio; monthly accounting
 cannot prove that a browser listened to every byte or that a disconnected network
 received queued bytes. The client reports interrupted audio as an error and does
 not substitute a successful chime for failed narration.

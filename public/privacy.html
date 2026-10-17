@@ -32,7 +32,7 @@
 
     <main id="content">
       <h1>Privacy Policy</h1>
-      <p class="meta">Effective October 10, 2026</p>
+      <p class="meta">Effective October 17, 2026</p>
 
       <p class="lede">
         Tableu is a tarot reading service operated by Lakefront Digital (&ldquo;we&rdquo;, &ldquo;us&rdquo;).
@@ -45,7 +45,7 @@
         <h2 id="summary">The short version</h2>
         <ul>
           <li>We collect what you give us (your account, questions, reflections and journal) and the technical information needed to run Tableu.</li>
-          <li>AI providers process your question and cards to write your reading. They work on our behalf and don&rsquo;t use your content to train their models.</li>
+          <li>AI providers process your question and cards to write your reading. If you use server narration, the selected voice provider receives the reading text. Provider retention and model-training rules depend on their terms and applicable account settings, as described below.</li>
           <li>We don&rsquo;t sell your personal information, and we don&rsquo;t use it for advertising.</li>
           <li>You can export your journal, download your account data and delete your account at any time from your Account page.</li>
         </ul>
@@ -115,7 +115,7 @@
       <section aria-labelledby="use">
         <h2 id="use">3. How we use information</h2>
         <ul>
-          <li><strong>To provide Tableu.</strong> We use your information to create and secure your account, draw cards, write readings and answer follow-up questions, narrate readings aloud, recognize cards in your photos, create optional artwork and video, save, search and export your journal, and share readings when you ask.</li>
+          <li><strong>To provide Tableu.</strong> We use your information to create and secure your account, draw cards, write readings and answer follow-up questions, narrate readings aloud, recognize cards in your photos, create optional artwork, save, search and export your journal, and share readings when you ask.</li>
           <li><strong>To personalize readings.</strong> We use your preferences and, with context memory, recurring themes from your past readings. For follow-up questions, we also use relevant journal entries. Archetype Journey tracks the cards that recur in your readings, and you can turn it off.</li>
           <li><strong>To check quality and safety.</strong> Readings are scored automatically for quality and safety. For this, we keep a copy of the question and reading after automatically removing contact details, dates and the names we can detect. Automated removal can miss things.</li>
           <li><strong>To run subscriptions and send account emails.</strong> We process payments through Stripe and send verification, password-reset and payment-problem emails. We don&rsquo;t send marketing emails.</li>
@@ -124,8 +124,12 @@
         </ul>
         <p>
           We don&rsquo;t sell your personal information, share it for targeted advertising or use it to train AI models.
-          The AI providers listed below process your content only to provide their services to us. Their business
-          terms don&rsquo;t let them use it to train their models, although some keep it for a short time to detect abuse.
+          The AI providers listed below receive the content needed to provide their services.
+          Their retention and model-training practices depend on their terms and applicable account settings.
+          ElevenLabs may retain submitted text and generated audio and may use content to improve its models
+          unless the applicable account has opted out or is covered by no-training terms. See
+          <a href="https://elevenlabs.io/privacy-policy">ElevenLabs&rsquo; Privacy Policy</a> and its
+          <a href="https://elevenlabs.io/docs/help-center/legal/is-my-data-used-to-improve-eleven-labs-ai-models">data-use explanation</a>.
         </p>
       </section>
 
@@ -143,7 +147,7 @@
           <tbody>
             <tr>
               <th scope="row">Cloudflare</th>
-              <td>Hosting, databases, file storage and account emails, plus the AI models used for voice narration, artwork, question suggestions, journal search, card recognition and quality scoring</td>
+              <td>Hosting, databases, file storage and account emails, plus the AI models used for artwork, question suggestions, journal search, card recognition and quality scoring. When you select Deepgram narration, its Aura-2 model runs through Cloudflare Workers AI and receives the reading text to turn into speech.</td>
             </tr>
             <tr>
               <th scope="row">Sentry</th>
@@ -158,8 +162,8 @@
               <td>Writing readings, answering follow-up questions and summarizing journals when Anthropic is unavailable</td>
             </tr>
             <tr>
-              <th scope="row">Microsoft Azure</th>
-              <td>Writing readings and follow-up answers when other providers are unavailable, and the word-by-word narration voice option</td>
+              <th scope="row">ElevenLabs</th>
+              <td>Voice narration when you select ElevenLabs, including the default voice preference. It receives the full text you ask Tableu to narrate, such as a reading or card description, and returns generated audio.</td>
             </tr>
             <tr>
               <th scope="row">Modal</th>
@@ -217,7 +221,7 @@
               <td>For readings saved to your journal, deleted when you delete your account. Records for readings you don&rsquo;t save aren&rsquo;t linked to your account and have no set deletion date.</td>
             </tr>
             <tr>
-              <th scope="row">Artwork and video you generate</th>
+              <th scope="row">Generated artwork and previously saved video</th>
               <td>Items in your media library stay until you delete them or your account. Generated files are also stored without your name or account attached and have no set deletion date. Email us to have them removed.</td>
             </tr>
             <tr>

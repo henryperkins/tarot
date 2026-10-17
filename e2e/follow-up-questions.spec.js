@@ -197,11 +197,68 @@ async function openFollowUpModal(page) {
 }
 
 async function openFollowUpDrawer(page) {
-  const openButton = page.getByRole('button', { name: /open follow-up chat/i });
+  const openButton = page.getByRole('button', { name: 'Ask about this reading', exact: true }).filter({ visible: true });
   await expect(openButton).toBeVisible({ timeout: 5000 });
   await openButton.click();
   await expect(page.getByRole('dialog', { name: /follow-up chat/i })).toBeVisible();
 }
+
+test.describe('Saved follow-up history @desktop', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  for (const identity of ['request ID', 'session seed', 'journal entry ID']) {
+    test(`switching readings restores saved chat using its ${identity}`, async ({ page }) => {
+      await mockAuth(page);
+      await seedOnboardingState(page);
+      const entries = ['empty', 'saved'].map((name, index) => ({
+        id: `chat-${name}`, ts: Date.now() - index * 60000,
+        question: `The ${name} reading`, spread: 'Single Card', spreadKey: 'single',
+        cards: [{ name: 'The Star', position: 'Present', orientation: 'Upright' }],
+        personalReading: `The Star brings hope to the ${name} reading.`,
+        requestId: identity === 'request ID' ? `request-${name}` : null,
+        sessionSeed: identity !== 'journal entry ID' ? `seed-${name}` : null,
+        followUps: name === 'saved' ? [{
+          question: 'What can I bring forward from this reading?',
+          answer: 'Make room for the steady hope you have already found.',
+          turnNumber: 1, createdAt: Date.now() - 60000
+        }] : []
+      }));
+      await page.addInitScript(entries => {
+        localStorage.setItem('tarot_journal_user-free', JSON.stringify(entries));
+      }, entries);
+
+      const openEntry = async (id, action) => {
+        const entry = page.locator(`#journal-entry-${id}`);
+        await expect(entry).toBeVisible();
+        await entry.getByTitle('Expand entry', { exact: true }).click();
+        await entry.getByRole('button', { name: action, exact: true }).click();
+        const dialog = page.getByRole('dialog', { name: /follow-up chat/i });
+        await expect(dialog).toBeVisible();
+        return dialog;
+      };
+
+      await page.goto('/journal');
+      let dialog = await openEntry('chat-empty', 'Ask a follow-up');
+      await expect(dialog.getByText('1 question left', { exact: true })).toBeVisible();
+      await dialog.getByRole('textbox', { name: 'Your follow-up question', exact: true }).fill('A draft for the first reading');
+      await dialog.getByRole('button', { name: 'Close follow-up chat' }).click();
+      await page.goBack();
+
+      dialog = await openEntry('chat-saved', 'Open full chat');
+      await expect(dialog.getByText(entries[1].followUps[0].question, { exact: true })).toBeVisible();
+      await expect(dialog.getByText(entries[1].followUps[0].answer, { exact: true })).toBeVisible();
+      await expect(dialog.getByText(/used your follow-up question for this reading/i)).toBeVisible();
+      await expect(dialog.getByRole('textbox', { name: 'Your follow-up question', exact: true })).toHaveCount(0);
+      await dialog.getByRole('button', { name: 'Close follow-up chat' }).click();
+      await page.goBack();
+
+      dialog = await openEntry('chat-empty', 'Ask a follow-up');
+      await expect(dialog.getByText(entries[1].followUps[0].answer, { exact: true })).toHaveCount(0);
+      await expect(dialog.getByRole('textbox', { name: 'Your follow-up question', exact: true })).toHaveValue('');
+      await expect(dialog.getByText('1 question left', { exact: true })).toBeVisible();
+    });
+  }
+});
 
 test.describe('Follow-up questions - Desktop @desktop', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
@@ -210,7 +267,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await mockTarotReading(page);
     await completeReading(page);
 
-    const followUpButton = page.getByRole('button', { name: /open chat/i });
+    const followUpButton = page.getByRole('button', { name: 'Ask about this reading', exact: true }).filter({ visible: true });
     await expect(followUpButton).toBeVisible();
   });
 
@@ -447,7 +504,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('BODY');
   });
 
-  test('the composer refits an uncapped draft when the width changes', async ({ page }) => {
+  test('the same-reading draft survives closing, reopening and changing width', async ({ page }) => {
     await mockAuth(page, 'plus');
     await mockTarotReading(page);
     await completeReading(page);
@@ -455,8 +512,12 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
 
     const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
     await input.fill('How can I make time for rest tomorrow?');
+    await page.getByRole('button', { name: 'Close follow-up chat' }).click();
+    await openFollowUpModal(page);
+    await expect(input).toHaveValue('How can I make time for rest tomorrow?');
     const desktopHeight = await input.evaluate(el => el.clientHeight);
     await page.setViewportSize({ width: 390, height: 844 });
+    await expect(input).toHaveValue('How can I make time for rest tomorrow?');
     // No keystroke after the resize: the resize observer alone has to refit the draft.
     await expect.poll(() => input.evaluate(el => el.clientHeight)).toBeGreaterThan(desktopHeight);
     await expect.poll(() => input.evaluate(el => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(0);
@@ -620,6 +681,71 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await expect(page.getByText('10 questions left', { exact: true })).toBeVisible();
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
+
+  for (const format of ['JSON', 'SSE']) {
+    test(`a late successful ${format} body cannot enter a different reading's chat`, async ({ page }) => {
+      await mockAuth(page, 'pro');
+      await mockTarotReading(page);
+      await completeReading(page);
+      await page.evaluate(format => {
+        const originalFetch = window.fetch;
+        window.fetch = async (resource, options) => {
+          if (resource !== '/api/reading-followup') return originalFetch(resource, options);
+          window.__oldFollowupSignal = options.signal;
+          if (format === 'JSON') {
+            return {
+              ok: true,
+              headers: new Headers({ 'Content-Type': 'application/json' }),
+              json: () => new Promise(resolve => {
+                window.__finishOldFollowup = () => resolve({ response: 'An answer belonging only to the old reading.', turn: 1 });
+              })
+            };
+          }
+          let started = false;
+          return {
+            ok: true,
+            headers: new Headers({ 'Content-Type': 'text/event-stream' }),
+            body: { getReader: () => ({
+              read() {
+                if (started) return Promise.resolve({ done: true });
+                started = true;
+                return new Promise(resolve => {
+                  window.__finishOldFollowup = () => resolve({ done: false, value: new TextEncoder().encode(
+                    'event: meta\ndata: {"turn":1}\n\nevent: done\ndata: {"fullText":"An answer belonging only to the old reading."}\n\n'
+                  ) });
+                });
+              }
+            }) }
+          };
+        };
+      }, format);
+      await openFollowUpModal(page);
+      const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
+      await input.fill('A question belonging only to the old reading');
+      await input.press('Enter');
+      await expect.poll(() => page.evaluate(() => typeof window.__finishOldFollowup)).toBe('function');
+      await page.getByRole('button', { name: 'Close follow-up chat' }).click();
+      await openReadingSupport(page);
+      await page.getByRole('button', { name: 'Start a new reading and reset this spread' }).click();
+      await mockTarotReading(page, { requestId: 'second-reading-request' });
+      await page.getByRole('button', { name: /^Deal spread/ }).click();
+      await page.getByRole('button', { name: /^Reveal next:/ }).click();
+      await page.getByRole('button', { name: /^Interpret cards/ }).click();
+      await expect(page.locator('.narrative-stream')).toContainText(MOCK_READING_RESPONSE.reading);
+      await expect.poll(() => page.evaluate(() => window.__oldFollowupSignal.aborted)).toBe(true);
+      await openFollowUpModal(page);
+      await page.evaluate(async () => {
+        window.__finishOldFollowup();
+        // Let the resolved body and any resulting React update finish.
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      });
+      const dialog = page.getByRole('dialog', { name: /follow-up chat/i });
+      await expect(dialog.getByText('An answer belonging only to the old reading.', { exact: true })).toHaveCount(0);
+      await expect(input).toBeEnabled();
+      await expect(input).toHaveValue('');
+      await expect(dialog.getByText('10 questions left', { exact: true })).toBeVisible();
+    });
+  }
 
   test('non-OK SSE response shows error from stream', async ({ page }) => {
     await mockAuth(page);

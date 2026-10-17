@@ -61,8 +61,8 @@ function getNarrationProvider(env, requestedProvider) {
 }
 
 /** One request is one narration, up to 64,000 characters, never silently cut.
- * Full readings stream ordered MP3 pieces; failed or cancelled synthesis does
- * not consume the monthly narration allowance. No local tone replaces speech.
+ * Full readings stream ordered MP3 pieces. Once ElevenLabs produces audio,
+ * interruptions still consume one monthly unit. No local tone replaces speech.
  */
 export const onRequestGet = async ({ env }) => {
   const provider = getNarrationProvider(env);
@@ -117,6 +117,17 @@ async function readNarrationBody(request) {
 
 export const onRequestPost = async ({ request, env }) => {
   let reservation;
+  let paidAudioProduced = false;
+  let finalization;
+  // Stream errors, caller aborts and buffered-response errors can overlap.
+  // Resolve their shared reservation once, retaining paid partial synthesis.
+  const finalize = (completed = false) => {
+    if (!reservation) return Promise.resolve();
+    finalization ??= completed || paidAudioProduced
+      ? settleNarration(env, reservation)
+      : releaseNarration(env, reservation);
+    return finalization;
+  };
   try {
     const body = await readNarrationBody(request);
     if (typeof body.text === 'string' && body.text.length > MAX_NARRATION_CHARS) {
@@ -140,7 +151,10 @@ export const onRequestPost = async ({ request, env }) => {
       return jsonResponse({ ...accounting.payload, currentTier: subscription.tier }, { status: accounting.status, headers: accounting.retryAfter ? { 'retry-after': String(accounting.retryAfter) } : {} });
     }
     reservation = accounting.reservation;
-    const audio = await createNarrationStream(env, request, text, reservation, provider);
+    const audio = await createNarrationStream(request, text, provider, {
+      onPaidAudio: () => { paidAudioProduced = true; },
+      finalize
+    });
     if (new URL(request.url).searchParams.get('stream') === 'true') {
       return new Response(audio, { headers: { 'content-type': 'audio/mpeg', 'cache-control': 'no-store', 'x-tts-provider': provider.id } });
     }
@@ -149,7 +163,7 @@ export const onRequestPost = async ({ request, env }) => {
     for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     return jsonResponse({ audio: `data:audio/mpeg;base64,${btoa(binary)}`, provider: provider.id });
   } catch (error) {
-    await releaseNarration(env, reservation).catch(() => {});
+    await finalize().catch(() => {});
     return jsonResponse({ error: error.status ? error.message : 'Narration could not finish. Please try again.', errorCode: error.status === 413 ? 'NARRATION_TOO_LONG' : 'NARRATION_UNAVAILABLE', retryable: !error.status }, { status: error.status || 503 });
   }
 };
@@ -178,12 +192,14 @@ export function splitForSpeech(text) {
 }
 
 
-async function createNarrationStream(env, request, text, reservation, provider) {
+async function createNarrationStream(request, text, provider, { onPaidAudio, finalize }) {
   const pieces = splitForSpeech(text);
   const upstream = new AbortController();
   let activeReader;
   let cancelled = false;
   let finished = false;
+  let finishConsumption;
+  const consumptionFinished = new Promise(resolve => { finishConsumption = resolve; });
   let rejectDeadline;
   const deadline = new Promise((_, reject) => { rejectDeadline = reject; });
   // An already-aborted caller can reject before the first race is installed.
@@ -242,7 +258,12 @@ async function createNarrationStream(env, request, text, reservation, provider) 
           try {
             for (;;) {
               const { value, done } = await Promise.race([activeReader.read(), deadline]);
+              // A resolved upstream read has incurred paid synthesis even when
+              // cancellation arrives before this continuation can queue it.
+              if (value?.byteLength && provider.id === 'elevenlabs') onPaidAudio();
+              if (cancelled) throw new Error('Narration cancelled');
               if (done) break;
+              if (!value.byteLength) continue;
               bytes += value.byteLength;
               controller.enqueue(value);
             }
@@ -257,22 +278,27 @@ async function createNarrationStream(env, request, text, reservation, provider) 
               `for ${piece.length} characters (usually about ${piece.length * TYPICAL_BYTES_PER_CHAR})`);
           }
         }
-        await settleNarration(env, reservation);
+        await finalize(true);
         finished = true;
         controller.close();
       } catch (error) {
         cancelled = true;
         upstream.abort();
         cancelReader(activeReader);
-        await releaseNarration(env, reservation).catch(() => {});
+        await finalize().catch(() => {});
         try { controller.error(error); } catch { /* Consumer already cancelled. */ }
-      } finally { cleanup(); }
+      } finally {
+        cleanup();
+        finishConsumption();
+      }
     },
     async cancel() {
       if (finished) return;
       abort();
       cleanup();
-      await releaseNarration(env, reservation);
+      // Let an in-flight read record already-produced audio before resolving
+      // the allowance. The shared deadline unblocks stalled reads immediately.
+      await consumptionFinished;
     }
   });
 }
