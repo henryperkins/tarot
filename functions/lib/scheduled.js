@@ -29,10 +29,11 @@ const CARD_VIDEO_RECONCILE_CRON = '*/10 * * * *';
  * @param {string} archiveType - Type identifier ('metrics' or 'feedback')
  * @returns {Promise<{archived: number, deleted: number, errors: number, batches: number}>}
  */
-async function archiveKVToD1(kv, db, prefix, archiveType) {
+async function archiveKVToD1(kv, db, prefix, archiveType, onFailure = () => {}) {
   const stats = { archived: 0, deleted: 0, errors: 0, batches: 0 };
 
   if (!kv || !db) {
+    onFailure();
     console.warn(`Skipping ${archiveType} archival: missing KV or DB binding`);
     return stats;
   }
@@ -108,6 +109,7 @@ async function archiveKVToD1(kv, db, prefix, archiveType) {
             stats.archived++;
           }
         } catch (err) {
+          onFailure();
           console.error(`Failed to archive ${key.name}:`, err.message);
           stats.errors++;
         }
@@ -121,6 +123,7 @@ async function archiveKVToD1(kv, db, prefix, archiveType) {
           await kv.delete(keyName);
           stats.deleted++;
         } catch (err) {
+          onFailure();
           console.error(`Failed to delete ${keyName}:`, err.message);
           stats.errors++;
         }
@@ -132,6 +135,7 @@ async function archiveKVToD1(kv, db, prefix, archiveType) {
     }
 
   } catch (error) {
+    onFailure();
     console.error(`${archiveType} archival failed:`, error);
     stats.errors++;
   }
@@ -145,8 +149,9 @@ async function archiveKVToD1(kv, db, prefix, archiveType) {
  * @param {D1Database} db - D1 database binding
  * @returns {Promise<number>} Number of events deleted
  */
-async function cleanupOldWebhookEvents(db) {
+async function cleanupOldWebhookEvents(db, onFailure = () => {}) {
   if (!db) {
+    onFailure();
     console.warn('Skipping webhook event cleanup: missing DB binding');
     return 0;
   }
@@ -166,6 +171,7 @@ async function cleanupOldWebhookEvents(db) {
     }
     return deleted;
   } catch (error) {
+    onFailure();
     // Table might not exist yet if migration hasn't run
     if (error.message?.includes('no such table')) {
       console.log('Webhook events table not yet created, skipping cleanup');
@@ -182,8 +188,9 @@ async function cleanupOldWebhookEvents(db) {
  * @param {D1Database} db - D1 database binding
  * @returns {Promise<{deleted: number, usersProcessed: number}>}
  */
-async function cleanupStaleMemories(db) {
+async function cleanupStaleMemories(db, onFailure = () => {}) {
   if (!db) {
+    onFailure();
     console.warn('Skipping memory cleanup: missing DB binding');
     return { deleted: 0, usersProcessed: 0 };
   }
@@ -225,6 +232,7 @@ async function cleanupStaleMemories(db) {
       // D1 returns { results: [...] } from .all()
       usersWithTooMany = await stmt.all();
     } catch (allErr) {
+      onFailure();
       console.warn('Memory trim query failed:', allErr?.message || allErr);
     }
 
@@ -250,6 +258,7 @@ async function cleanupStaleMemories(db) {
 
     return { deleted: totalDeleted, usersProcessed };
   } catch (error) {
+    onFailure();
     // Table might not exist yet
     if (error.message?.includes('no such table')) {
       console.log('User memories table not yet created, skipping cleanup');
@@ -270,8 +279,9 @@ async function cleanupStaleMemories(db) {
  * @param {D1Database} db - D1 database binding
  * @returns {Promise<number>} Number of rows deleted
  */
-async function cleanupOldGuestUsage(db) {
+async function cleanupOldGuestUsage(db, onFailure = () => {}) {
   if (!db) {
+    onFailure();
     console.warn('Skipping guest usage cleanup: missing DB binding');
     return 0;
   }
@@ -296,6 +306,7 @@ async function cleanupOldGuestUsage(db) {
     }
     return deleted;
   } catch (error) {
+    onFailure();
     // Table might not exist yet if migration hasn't run
     if (error.message?.includes('no such table')) {
       console.log('Usage tracking table not yet created, skipping guest cleanup');
@@ -311,8 +322,9 @@ async function cleanupOldGuestUsage(db) {
  * @param {D1Database} db - D1 database binding
  * @returns {Promise<number>} Number of sessions deleted
  */
-async function cleanupExpiredSessions(db) {
+async function cleanupExpiredSessions(db, onFailure = () => {}) {
   if (!db) {
+    onFailure();
     console.warn('Skipping session cleanup: missing DB binding');
     return 0;
   }
@@ -329,6 +341,7 @@ async function cleanupExpiredSessions(db) {
     console.log(`Cleaned up ${deleted} expired sessions`);
     return deleted;
   } catch (error) {
+    onFailure();
     console.error('Session cleanup failed:', error);
     return 0;
   }
@@ -339,8 +352,9 @@ async function cleanupExpiredSessions(db) {
  * @param {D1Database} db
  * @returns {Promise<number>} Number of tokens deleted
  */
-async function cleanupExpiredUserTokens(db) {
+async function cleanupExpiredUserTokens(db, onFailure = () => {}) {
   if (!db) {
+    onFailure();
     console.warn('Skipping token cleanup: missing DB binding');
     return 0;
   }
@@ -358,6 +372,7 @@ async function cleanupExpiredUserTokens(db) {
     }
     return deleted;
   } catch (error) {
+    onFailure();
     if (error?.message?.includes('no such table')) {
       console.log('user_tokens table not yet created, skipping token cleanup');
       return 0;
@@ -372,8 +387,8 @@ async function cleanupExpiredUserTokens(db) {
  * @param {D1Database} db - D1 database
  * @param {object} results - Archival results
  */
-async function storeArchivalSummary(db, results) {
-  if (!db) return;
+async function storeArchivalSummary(db, results, onFailure = () => {}) {
+  if (!db) { onFailure(); return; }
 
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
@@ -399,6 +414,7 @@ async function storeArchivalSummary(db, results) {
     ).run();
     console.log(`Stored archival summary for ${dateStr}`);
   } catch (error) {
+    onFailure();
     console.error('Failed to store archival summary:', error);
   }
 }
@@ -410,8 +426,11 @@ async function storeArchivalSummary(db, results) {
  * @param {ScheduledController} controller - Cron controller with scheduledTime and cron
  * @param {Env} env - Environment bindings
  * @param {ExecutionContext} ctx - Execution context
+ * @param {{reportFailures?: boolean}} options - HTTP schedulers opt into a
+ *   structured result. Cloudflare and existing callers keep best-effort work
+ *   and the original undefined return when this is omitted.
  */
-export async function handleScheduled(controller, env, _ctx) {
+export async function handleScheduled(controller, env, _ctx, { reportFailures = false } = {}) {
   const startTime = Date.now();
   const cron = controller.cron;
   const isCardVideoOnlyCron = cron === CARD_VIDEO_RECONCILE_CRON;
@@ -433,22 +452,27 @@ export async function handleScheduled(controller, env, _ctx) {
     quality: null,
     alertsDispatched: null
   };
+  const failedTasks = new Set();
+  const fail = (task) => () => { failedTasks.add(task); };
+  const outcome = () => reportFailures
+    ? { success: failedTasks.size === 0, results, failedTasks: [...failedTasks] } : undefined;
 
   try {
     results.cardVideo = await reconcilePendingVideoUsage(env);
+    if (!env?.METRICS_DB?.list || results.cardVideo.errors > 0) failedTasks.add('cardVideo');
 
     if (isCardVideoOnlyCron) {
       const duration = Date.now() - startTime;
       console.log(`Card video reconciliation cron completed in ${duration}ms`);
       console.log('Results:', JSON.stringify(results));
-      return;
+      return outcome();
     }
 
     // Run archival tasks in parallel (KV -> D1)
     // Note: Metrics now go directly to eval_metrics table; this archives any legacy KV keys
     const [metricsResult, feedbackResult] = await Promise.all([
-      archiveKVToD1(env.METRICS_DB, env.DB, METRICS_PREFIX, 'metrics'),
-      archiveKVToD1(env.FEEDBACK_KV, env.DB, FEEDBACK_PREFIX, 'feedback')
+      archiveKVToD1(env.METRICS_DB, env.DB, METRICS_PREFIX, 'metrics', fail('metrics')),
+      archiveKVToD1(env.FEEDBACK_KV, env.DB, FEEDBACK_PREFIX, 'feedback', fail('feedback'))
     ]);
 
     results.metrics = metricsResult;
@@ -456,11 +480,11 @@ export async function handleScheduled(controller, env, _ctx) {
 
     // Clean up expired sessions, old webhook events, stale memories, and old guest usage
     const [sessionsDeleted, tokensDeleted, webhookEventsDeleted, memoriesResult, guestUsageDeleted] = await Promise.all([
-      cleanupExpiredSessions(env.DB),
-      cleanupExpiredUserTokens(env.DB),
-      cleanupOldWebhookEvents(env.DB),
-      cleanupStaleMemories(env.DB),
-      cleanupOldGuestUsage(env.DB)
+      cleanupExpiredSessions(env.DB, fail('sessions')),
+      cleanupExpiredUserTokens(env.DB, fail('tokens')),
+      cleanupOldWebhookEvents(env.DB, fail('webhookEvents')),
+      cleanupStaleMemories(env.DB, fail('memories')),
+      cleanupOldGuestUsage(env.DB, fail('guestUsage'))
     ]);
     results.sessions = { deleted: sessionsDeleted };
     results.tokens = { deleted: tokensDeleted };
@@ -469,7 +493,7 @@ export async function handleScheduled(controller, env, _ctx) {
     results.guestUsage = { deleted: guestUsageDeleted };
 
     // Store summary in D1
-    await storeArchivalSummary(env.DB, results);
+    await storeArchivalSummary(env.DB, results, fail('archivalSummary'));
 
     // Run quality analysis on archived data (detects regressions, creates alerts)
     if (env.QUALITY_ALERT_ENABLED === 'true') {
@@ -483,9 +507,11 @@ export async function handleScheduled(controller, env, _ctx) {
         if (qualityResults.alerts && qualityResults.alerts.length > 0) {
           const alertResults = await dispatchAlerts(env, qualityResults.alerts, { dateStr: analysisDateStr });
           results.alertsDispatched = alertResults;
+          if (alertResults.failed > 0) failedTasks.add('alertsDispatched');
           console.log(`[quality] Dispatched ${alertResults.sent} alerts`);
         }
       } catch (qualityErr) {
+        failedTasks.add('quality');
         console.error('[quality] Quality analysis failed:', qualityErr.message, qualityErr.stack);
         results.quality = { error: qualityErr.message };
       }
@@ -496,9 +522,12 @@ export async function handleScheduled(controller, env, _ctx) {
     const duration = Date.now() - startTime;
     console.log(`Scheduled tasks completed in ${duration}ms`);
     console.log('Results:', JSON.stringify(results));
+    return outcome();
 
   } catch (error) {
+    failedTasks.add('scheduled');
     console.error('Scheduled task error:', error);
+    return outcome();
   }
 }
 

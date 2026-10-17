@@ -9,6 +9,8 @@ export default [
   {
     ignores: [
       'dist/**',
+      'dist-spacefast/**',
+      'spacefast/project/dist/**',
       'node_modules/**',
       '.vscode-server/**',
       '.vscode-server-insiders/**',
@@ -89,7 +91,7 @@ export default [
 
   // Cloudflare Workers Functions in functions/
   {
-    files: ['functions/**/*.js'],
+    files: ['functions/**/*.js', 'spacefast/**/*.js'],
     languageOptions: {
       globals: {
         ...globals.serviceworker, // Cloudflare Workers use Service Worker API
@@ -125,7 +127,7 @@ export default [
 
   // Node.js scripts (including CJS files that use require/module)
   {
-    files: ['scripts/**/*.{js,mjs}', 'services/**/*.{js,mjs}', 'mcp/**/*.{js,mjs}', '*.config.{js,mjs}', 'test-telemetry.js'],
+    files: ['scripts/**/*.{js,mjs}', 'spacefast/project/*.mjs', 'services/**/*.{js,mjs}', 'mcp/**/*.{js,mjs}', '*.config.{js,mjs}', 'test-telemetry.js'],
     languageOptions: {
       globals: {
         ...globals.node,
